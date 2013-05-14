@@ -1,0 +1,3 @@
+test/kind/wrong/rec2.kk(2, 1): error: Type recurse is declared as being (co)inductive but it occurs
+ recursively in a negative position.
+ hint: declare it as a 'rectype' to allow negative occurrences

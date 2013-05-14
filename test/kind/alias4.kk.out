@@ -1,0 +1,6 @@
+kind/alias4/aint: V
+kind/alias4/ok1: V
+kind/alias4/ok2: V
+public alias aint = a/aint = 2
+public alias ok1 = aint = 3
+public alias ok2 = a/aint = 2

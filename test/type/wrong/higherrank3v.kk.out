@@ -1,0 +1,5 @@
+test/type/wrong/higherrank3v.kk(4, 9): error: type is not polymorph enough
+ context : auto(f)
+ term : f
+ inferred type : ($a) -> $a
+ is less polymorph as: forall<b> (b) -> b

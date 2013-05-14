@@ -1,0 +1,6 @@
+test/type/wrong/st1.kk(1, 9): error: effects do not match
+ context : ref([])
+ term : ref
+ inferred effect: <alloc<_h>|_e>
+ expected effect: total
+ because : Generalized values cannot have an effect

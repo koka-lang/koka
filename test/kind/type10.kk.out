@@ -1,0 +1,8 @@
+kind/type10/ap: (V -> V, V) -> V
+kind/type10/id: V -> V
+kind/type10/list: V -> V
+kind/type10/yy: V -> V
+kind/type10/zz: V -> V
+public alias ap<a,b> :: (V -> V, V) -> V = a<b> = 1
+// Test if type synonym variables are correctly generalized in constructors.
+public alias id<a> :: V -> V = a = 1

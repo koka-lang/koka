@@ -1,0 +1,4 @@
+type bool {
+  False
+  True
+}

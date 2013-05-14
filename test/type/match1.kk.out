@@ -1,0 +1,4 @@
+.copy : forall<a> (test<a>, arg : ?a) -> test<a>
+Test : forall<a> (arg : a) -> test<a>
+arg : forall<a> (test : test<a>) -> a
+xtest : forall<a> (x : test<a>) -> console a

@@ -1,0 +1,4 @@
+The 10000th fibonacci number is 1242044891
+fibonacci : (n : int) -> div int
+fibonacci_ : (n : int, x1 : int, x2 : int) -> div int
+main : () -> <div,console> ()

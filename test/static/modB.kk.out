@@ -1,0 +1,3 @@
+static/modB/bint: V
+static/modB/int: V
+public alias bint = int = 1

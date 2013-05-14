@@ -1,0 +1,6 @@
+kind/type6/id: (V -> V) -> V
+kind/type6/int: V
+kind/type6/list: V -> V
+kind/type6/ok: V
+public alias id<a> :: (V -> V) -> V = a<int> = 1
+public alias ok = id<list> = 2

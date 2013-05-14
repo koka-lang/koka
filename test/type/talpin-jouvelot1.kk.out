@@ -1,0 +1,12 @@
+etaRef : forall<a,h,h1,e> (f : (x : ref<h,a>) -> <div,alloc<h1>,read<h>|e> a) -> (alloc<h1>) ((x : ref<h,a>) -> <div,alloc<h1>,read<h>|e> a)
+foo4 : forall<a,b,e> (z : (y : a) -> e a) -> ((x : b) -> b)
+foo5 : forall<a,b,h,e> (f : (z : a) -> <alloc<h>|e> a) -> (alloc<h>) ((y : b) -> (alloc<h>) b)
+id1 : forall<a> (x : a) -> a
+id2 : forall<a> (y : a) -> a
+id3 : forall<a> (x : a) -> a
+nop : forall<a,b,e> (f : (a) -> e b, x : a) -> a
+rid : forall<a> (x : a) -> a
+t1 : forall<a> () -> ((x : a) -> a)
+t2 : forall<a> () -> ((y : a) -> a)
+t3 : forall<a> () -> ((x : a) -> a)
+t4 : forall<a> (x : a) -> a

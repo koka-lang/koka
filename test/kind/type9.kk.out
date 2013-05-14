@@ -1,0 +1,7 @@
+kind/type9/choose: V
+kind/type9/id: V
+kind/type9/tt: V
+public alias choose = (id) -> id = 2
+// test name clash on type synonyms
+public alias id = forall<a> (a) -> a = 1
+public alias tt = forall<a> (a) -> id = 2

@@ -1,0 +1,9 @@
+kind/type7/equal: (V, V) -> V
+kind/type7/int: V
+kind/type7/tt: V
+kind/type7/uu: V -> V
+kind/type7/vv: V -> V
+public alias equal<a,b> :: (V, V) -> V = forall<c> (c<a>) -> c<b> = 1
+public alias tt = equal<int,int> = 2
+public alias uu<a> :: V -> V = equal<int,a> = 2
+public alias vv<a> :: V -> V = equal<a,a> = 2

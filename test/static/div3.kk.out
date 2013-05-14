@@ -1,0 +1,10 @@
+static/div3/ord: V
+Lim : (lim : (int) -> ord) -> ord
+Succ : (pred : ord) -> ord
+Zero : ord
+addord : (ord, ord) -> ord
+isLim : (ord : ord) -> bool
+isSucc : (ord : ord) -> bool
+isZero : (ord : ord) -> bool
+lim : (ord : ord) -> exn ((int) -> ord)
+pred : (ord : ord) -> exn ord

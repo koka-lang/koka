@@ -1,0 +1,1 @@
+alias bar = inT

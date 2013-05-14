@@ -1,0 +1,5 @@
+kind/alias1/choose: V
+kind/alias1/id: V
+kind/alias1/total: X
+public alias choose = (id, id) -> id = 2
+public alias id = forall<a> (a) -> a = 1

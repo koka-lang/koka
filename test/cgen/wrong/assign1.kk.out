@@ -1,0 +1,4 @@
+test/cgen/wrong/assign1.kk(6, 5): error: function is applied to too many arguments
+ context : c.count := 1
+ term : count
+ inferred type: (counter : counter<_h>) -> ref<_h,int>

@@ -1,0 +1,7 @@
+92
+appendSafe : (queen : int, xs : solution, xss : solutions) -> div solutions
+extend : (queen : int, acc : solutions, xss : solutions) -> div solutions
+findSolutions: (n : int, queen : int) -> div solutions
+main : () -> <div,console> ()
+queens : (n : int) -> div int
+safe : (queen : int, diag : int, xs : solution) -> bool

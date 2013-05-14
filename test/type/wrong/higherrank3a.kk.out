@@ -1,0 +1,5 @@
+test/type/wrong/higherrank3a.kk(4,12): error: types do not match
+ context : f(True)
+ term : True
+ inferred type: bool
+ expected type: int
