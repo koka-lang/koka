@@ -78,7 +78,7 @@ else if (variant === "debug") {
 task("default",["interactive"]);
 
 desc("build and run the compiler (default)");
-task("interactive", ["compiler"], function(rebuild) {
+task("interactive", ["config","compiler"], function(rebuild) {
   var cmd = mainExe + " " + hsRunFlags + " --outdir=" + path.join(outputDir,"lib") + " " + kokaFlags;
   jake.logger.log("> " + cmd);
   jake.exec(cmd + " 2>&1", {interactive: true});
@@ -103,6 +103,17 @@ task("ghci", ["compiler"], function(module) {
   jake.exec(cmd + " 2>&1", {interactive: true});  
 });
 
+desc("run 'npm install' to install prerequisites");
+task("config", [], function () {
+  if (!fileExist("node_modules")) {
+    var cmd = "npm install";
+    jake.logger.log("> " + cmd);
+    jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
+  }
+  else {
+    complete();
+  }
+},{async:true});
 
 //-----------------------------------------------------
 // Tasks: clean 
