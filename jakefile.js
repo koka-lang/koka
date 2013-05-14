@@ -186,13 +186,10 @@ task("spec", ["compiler"], function(mode) {
       // copy style file
       jake.mkdirP(outstyles);
       jake.cpR(path.join("doc","koka.css"),outstyles);
-      // rename spec
-      jake.cpR(path.join(outspec,"kokaspec.html"),path.join(outspec,"koka-spec.html"));
       if (mode === "publish") {
         // copy to website
         var files = new jake.FileList().include(path.join(outspec,"*.html"))
-                                       .include(path.join(outstyles,"*.css"))
-                                       .exclude(path.join(outspec,"kokaspec.html"));
+                                       .include(path.join(outstyles,"*.css"));
         copyFiles(outspec,files.toArray(),doclocal);
       }
       complete();
