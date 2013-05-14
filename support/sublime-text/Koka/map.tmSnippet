@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>content</key>
+	<string>${1:collection}.map fun(x) {
+  $0
+}</string>
+	<key>name</key>
+	<string>Map statement</string>
+	<key>scope</key>
+	<string>source.koka</string>
+	<key>tabTrigger</key>
+	<string>map</string>
+	<key>uuid</key>
+	<string>F9B44CC5-B004-4793-B125-7E429FDCCE45</string>
+</dict>
+</plist>

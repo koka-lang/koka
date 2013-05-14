@@ -1,0 +1,69 @@
+{ "name": "Koka Documentation",
+  "scopeName": "source.kokadoc",
+  "fileTypes": ["kkdoc"],
+  "patterns": [
+  	
+    { "begin": "^\\s*\"\"?\\s*$"
+  	, "end": "^\\s*\"\\s*$"
+  	, "contentName": "source.embedded.koka"
+  	, "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+  	, "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+  	, "patterns": [
+  		{ "match": "^\\s*\"\"\\s*$"
+  		, "name": "meta.tag.block.any.html"
+  		},
+  		{ "include": "source.koka" }
+  	  ]
+  	},
+
+  	{ "match": "\\\"\\\""
+    , "name": "html"
+    },
+
+    { "match": "(\")(:\\s*\\??([a-z_]\\w*|\\(,*\\)|<\\|?>))(\")"
+  	, "name": "source.embedded.koka"
+  	, "captures": {
+  		"2": { "name": "storage.type.constant.koka" }
+  	  }
+  	},
+
+	  { "begin": "\"(?!\")"
+  	, "end": "\"(?!\")|$"
+  	, "name": "source.embedded.koka"
+  	, "patterns": [
+  		{ "match": "\"(?=\")"
+  		},
+  		{ "include": "source.koka" }
+  	  ]
+  	},
+
+  	{ "begin": "^\\s*\\|\\s*$"
+  	, "end": "^\\s*\\|\\s*$"
+  	, "contentName": "source.embedded.koka"
+  	, "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+  	, "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+  	, "patterns": [
+  		{ "include": "source.koka" }
+  	  ]
+  	},
+
+    { "match": "\\|\\|"
+    , "name": "html"
+    },
+
+    { "match": "\\|//\\||\\|/\\*\\|"
+    , "name": "source.embedded.koka"
+    },
+
+	  { "match": "\\|[^\\|]+\\|"
+  	, "name": "source.embedded.koka"
+  	},
+
+    { "match": "''([^']|'[^'])*''"
+    , "name": "markup.quote" 
+    },
+
+  	{ "include": "text.html.basic" }
+  ],
+  "uuid": "6ff96ac2-ae7c-4c81-9f2a-50f4f62a0d87"
+}

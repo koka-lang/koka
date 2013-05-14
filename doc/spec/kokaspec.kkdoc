@@ -1,0 +1,866 @@
+﻿<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+<!--
+  Copyright 2012 Microsoft Corporation.
+ 
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+-->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">
+.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }
+</style>
+<link rel="stylesheet" type="text/css" href="styles/koka.css" /> 
+<style type="text/css">
+body {
+  margin: 2em 12% 2em 8%;
+}
+
+h3 {
+  font-size: 120%;
+}
+
+.koka.source,
+.koka.source.unchecked {
+  margin-left: 2ex;  
+  background-color: white;
+  border: none;
+  /* border-left: 1px solid #DDD; */
+}
+
+.koka.source.unchecked {
+  /* border-left: 1px dashed #DDD ; */
+}
+
+
+table.grammar  {   
+  margin: 0.5ex 0.5ex 0.5ex 2ex;
+  padding: 0.5ex 1ex 0.5ex 1ex;
+  /*
+  background-color: #FAFAFA;
+  border: solid 1px #DDD;
+  */
+}
+
+.grammar .code {
+  padding: 0pt;
+}
+
+.grammar .bar {
+  padding: 0ex 0.5ex;
+}
+
+.grammar td:nth-child(2) {
+  font-style: normal; 
+  padding: 0em 1ex;
+  text-align: center;
+}
+
+.grammar.thin,
+.grammar .bar,
+.grammar td:nth-child(2) {
+  font-family: Georgia, sans-serif;  /* a thinner font, widely available */
+}
+
+.grammar td:nth-child(4) {
+  font-style: normal; 
+  padding-left: 2ex;
+}
+
+.grammar td {
+  white-space: nowrap;
+}
+.grammar .code,
+.grammar .pre {
+  font-weight: bold;
+}
+
+.grammar .keyword, .grammar .kw,
+.grammar .type, .grammar .tp,
+.grammar .constructor, .grammar .co {
+  color: black;
+}
+
+.nt {
+  font-style: italic;
+}          
+
+.opt, .many {   
+  padding: 0ex 0.5ex;
+}
+
+#toc {
+  display: none;
+}
+
+#toc li>a,
+.toc-num>a {
+  color: black;
+  text-decoration: none;
+}
+#toc li>a:hover,
+.toc-num>a:hover {
+  color: black;
+  border-bottom: 1px dotted blue;
+}
+#toc li {
+  padding-top: 0.1ex;
+}
+#toc>div>ul>li {
+  padding-top: 0.25ex;
+}
+
+#toc ul {
+  list-style-type: none;
+  margin-left: 0ex;
+  padding-left: 0ex;
+} 
+#toc ul {
+  font-size: 110%;
+}
+
+#toc ul ul {
+  margin-left: 1.5em;
+  font-size: 90%;
+}
+
+.toc-num {
+  font-size: 80%;
+  margin-right: 0.5em;
+}
+
+#toc-toggle {
+  cursor: pointer;
+  vertical-align: center;
+  margin-right: 10px;
+  font-size: 16pt;
+}
+</style>
+
+<script type='text/javascript'>
+
+function genTOC() {
+  var toc = document.getElementById('toc');  
+  if (toc == null) return;
+
+  var empty = ' '.substr(1);
+  var elems = document.getElementsByTagName('*');
+  var i = 0;
+  
+  var localToc = document.createElement('div'); 
+  var tocToggle = document.getElementById('toc-toggle');
+  
+  function showToc() {
+    localToc.style.display = 'block';
+    if (tocToggle){
+      tocToggle.innerHTML = '&#x25BC;'
+      tocToggle.style.fontSize = '12pt'
+    }
+  }
+  function hideToc() {
+    localToc.style.display = 'none';
+    if (tocToggle) {
+      tocToggle.innerHTML = '&#x25B6;';    
+      tocToggle.style.fontSize = '16pt';
+    }
+  }
+  function switchToc() {
+    (localToc.style.display != 'none' ? hideToc() : showToc());
+  }
+  if (tocToggle) tocToggle.onclick = switchToc;
+  hideToc();
+
+  function genHeaders(toc,tocNum,level) {
+    var match = null;
+    var num = 1;
+    var appendix = -1;
+    var ul = null;
+    var li = null;
+    while(i < elems.length) {
+      var elem = elems[i];
+      match = elem.tagName.match(/^[hH]([0-9])$/);      
+      if (match && elem.className.indexOf('notoc') < 0) {
+        var newLevel = (match[1]||0);
+        if (newLevel <= level) return;
+        i++;
+        if (ul == null) {
+          ul = document.createElement('ul');
+          toc.appendChild(ul);
+        }  
+        if (!(newLevel != level+1 && li != null)) {
+          var li = document.createElement('li');
+          ul.appendChild(li);
+          if (elem.className.indexOf("appendix") >= 0) {
+            if (appendix < 0) appendix = num;
+            var liNum = tocNum + String.fromCharCode("A".charCodeAt(0) + num - appendix) + '.';     
+          }
+          else {
+            var liNum = tocNum + num + '.'; 
+          }
+          num++;
+        }
+        if (newLevel == level+1) {
+          var id = elem.id;
+          if (id==null||id.length==0) {
+            id = 'sec:' + liNum;
+            elem.id = id;
+          }
+          var liNumDisplay = (level <= 2 ? liNum : empty);
+          li.innerHTML= '<span class=\'toc-num\'>' + liNumDisplay + '</span><a href=\'#' + id + '\'>' + elem.innerHTML + '</a>';
+          var aref = document.createElement('a');
+          aref.setAttribute('href','#toc');
+          aref.onclick = showToc;
+          aref.innerHTML = liNumDisplay;
+          var spanNum = document.createElement('span');
+          spanNum.className = 'toc-num';
+          spanNum.appendChild(aref);
+          elem.insertBefore(spanNum,elem.firstChild);
+          //elem.innerHTML = spanTocNum('<a href=\'#toc\'>' + liNumDisplay + '</a>') + elem.innerHTML;
+        }
+        else {
+          i--;
+          genHeaders(li,liNum,level+1);        
+        }
+      }
+      else {
+        i++;
+      }
+    }
+  }
+  genHeaders(localToc,'',0);
+  toc.appendChild(localToc);
+  toc.style.display = 'block'; /* make it visible */
+}
+
+function genFullGrammar() {
+  var fullLex = "";
+  var fullParse = "";
+  var spacing = "<tr><td>&nbsp;</td></tr>";
+  var gs = document.getElementsByClassName("grammar");
+  for(var i = 0; i < gs.length; i++) {
+    var elem = gs[i];
+    if (elem.tagName.toLowerCase() != "table") continue;
+    if (elem.className.indexOf("lex") >= 0) fullLex += elem.innerHTML + spacing;
+    else if (elem.className.indexOf("parse") >= 0) fullParse += elem.innerHTML + spacing;
+  }
+  var div = document.createElement("div");
+  div.innerHTML="<h2>Lexical syntax</h2>\n<table class='grammar'>\n"+
+                fullLex + "</table>\n" +
+                "<h2>Context-free syntax</h2>\n<table class='grammar'>\n" +
+                fullParse + "</table>";
+  document.body.appendChild(div);                  
+}
+
+window.onload = function() { genFullGrammar(); genTOC(); };
+</script>
+<title>Koka language specification</title>
+</head>
+
+<body>
+
+<div id="toc">
+<h2 class="notoc"><span id="toc-toggle"></span>Table of contents</h2>
+</div>
+
+
+<h1>Koka language specification</h1>
+
+<p>This is the draft language specification of the Koka language, version 0.1.<br>
+Currently only the lexical and context-free grammar and the layout rule are specified. The <a href="toc.html">standard libraries</a> are documented separately.</p>
+<h1>Lexical syntax</h1>
+<p>We define the grammar and lexical syntax of the language using standard BNF notation where non-terminals are generated by alternative patterns:</p>
+<table class="grammar">
+<tr><td>''nonterm''</td><td>::=</td><td>''pattern''<sub>1</sub> <span class="bar">||</span> ''pattern''<sub>2</sub></td></tr>
+</table>
+<p>In the patterns, we use the following notations:</p>
+<table class="grammar">
+<tr><td>"terminal"</td><td></td><td></td><td>A terminal symbol</td></tr>
+<tr><td>|x0A|</td><td></td><td></td><td>A character with hexadecimal code 0A</td></tr>
+<tr><td>|a..f|</td><td></td><td></td><td>The characters from a to f</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>( ''pattern'' )</td><td></td><td></td><td>Grouping</td></tr>
+<tr><td>[ ''pattern'' ]</td><td></td><td></td><td>Optional occurrence of ''pattern''</td></tr>
+<tr><td>{ ''pattern'' }</td><td></td><td></td><td>Zero or more occurrences of ''pattern''</td></tr>
+<tr><td>''pattern''<sub>1</sub> <span class="bar">||</span> ''pattern''<sub>2</sub></td>
+<td></td><td></td><td>Choice: either ''pattern''<sub>1</sub> or ''pattern''<sub>2</sub></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''pattern''<sub>&lt;''diff''&gt;</sub></td><td></td><td></td><td>Difference: elements generated by ''pattern'' except those in ''diff''</td></tr>
+<tr><td>''nonterm''<sub>[''lex'']</sub></td><td></td><td></td><td>Generate ''nonterm'' by drawing lexemes from ''lex''</td></tr>
+</table>
+
+<p>Care must be taken to distinguish meta-syntax such as <span class="grammar thin">||</span> and <span class="grammar">)</span> from concrete terminal symbols as <span class="grammar"><span class="koka code">||</span></span> and <span class="grammar">|)|</span>. 
+
+<h2>Source code</h2>
+
+<p>Source code consists of a sequence of 8-bit characters. Valid characters in actual program code consists strictly of ASCII characters which range from 0 to 127 and can be encoded in 7-bits. Only comments, string literals, and character literals are allowed to contain extended 8-bit characters. This means that one cannot write identifiers or operators that use unicode symbols.</p>
+
+<h2>Encoding</h2>
+
+<p>A program source is assumed to be UTF-8 encoded which allows comments, string literals, and character literals to contain (encoded) unicode characters. Moreover, the grammer is designed such that a lexical analyzer and parser can directly work on source files without doing UTF-8 decoding or unicode category identification. To further facilitate the processing of UTF-8 encoded files the lexical analyzer ignores an initial byte-order mark that some UTF-8 encoders insert. In particular, any program source is allowed to start with three byte-order mark bytes |0xEF|, |0xBB|, and |0xBF|, which are ignored.</p>
+
+<h2>Lexical grammar</h2>
+
+<p>In the specification of the lexical grammar all white space is explicit and there is no implicit white space between juxtaposed symbols. The lexical token stream is generated by the non-terminal ''lex'' which consists of lexemes and whitespace.</p>
+
+<p>Before doing lexical analysis, there is a ''linefeed'' character inserted at the start and end of the input, which makes it easier to specify line comments and directives.</p>
+<h3>Lexical tokens</h3>
+
+<table class="grammar lex">
+<tr><td>''lex'' </td><td> ::=</td><td><span class="many">{ ''whitespace'' <span class="bar">||</span> ''lexeme'' }</span></td></tr>
+<tr><td>''lexeme''&nbsp;&nbsp;</td><td>::=</td><td>''conid'' <span class="bar">||</span> ''qconid''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''varid'' <span class="bar">||</span> ''qvarid''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''op'' <span class="bar">||</span> ''opid'' <span class="bar">||</span> ''qopid'' <span class="bar">||</span> ''wildcard''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''natural'' <span class="bar">||</span> ''float'' <span class="bar">||</span> ''string'' <span class="bar">||</span> ''char''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''reserved'' <span class="bar">||</span> ''reservedop'' <span class="bar">||</span> ''special''</td></tr>
+</table>
+
+<h3>Identifiers</h3>
+<table class="grammar lex">
+<tr><td>''qconid''</td><td>::=</td><td>''modulepath'' ''conid''</td></tr>
+<tr><td>''qvarid''</td><td>::=</td><td>''modulepath'' ''lowerid''  </td></tr>
+<tr><td>''modulepath''</td><td>::=</td><td>''lowerid'' "/" <span class="many">{ ''lowerid'' "/" }</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''conid''</td><td>::=</td><td>''upperid''</td></tr>
+<tr><td>''varid''</td><td>::=</td><td>''lowerid''<sub>&lt;''reserved''&gt;</sub></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''lowerid''</td><td>::=</td><td>''lower'' <span class="many">{ ''idchar'' }</span> </td></tr>
+<tr><td>''upperid''</td><td>::=</td><td>''upper'' <span class="many">{ ''idchar'' }</span></td></tr>
+<tr><td>''idchar''</td><td>::=</td><td>''letter'' <span class="bar">||</span> ''digit'' <span class="bar">||</span> |_| </td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''wildcard''</td><td>::=</td><td>|_| <span class="many">{ ''idchar'' }</span></td></tr>
+<tr><td>''typevarid''</td><td>::=</td><td>''letter'' <span class="many">{ ''digit'' }</span></td></tr>
+<tr><td></td></tr>
+<tr><td>''reserved''</td><td>::=</td><td>"infix" <span class="bar">||</span> "infixr" <span class="bar">||</span> "infixl" <span class="bar">||</span> "prefix" </td></tr>
+<tr><td> </td><td><span class="bar">||</span></td><td>"type" <span class="bar">||</span> "cotype" <span class="bar">||</span> "rectype" <span class="bar">||</span> "alias"</td></tr> 
+<tr><td> </td><td><span class="bar">||</span></td><td>"forall" <span class="bar">||</span> "exists" <span class="bar">||</span> "some"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"fun" <span class="bar">||</span> "function" <span class="bar">||</span> "val" <span class="bar">||</span> "var" <span class="bar">||</span> "con"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"if" <span class="bar">||</span> "then" <span class="bar">||</span> "else" <span class="bar">||</span> "elif" <span class="bar">||</span> "match" <span class="bar">||</span> "return"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"module" <span class="bar">||</span> "import" <span class="bar">||</span> "as"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"public" <span class="bar">||</span> "private" <span class="bar">||</span> "abstract" </td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"interface" <span class="bar">||</span> "instance" <span class="bar">||</span> "with"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"external" <span class="bar">||</span> "inline" <span class="bar">||</span> "include"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"yield" <span class="bar">||</span> "qualified" <span class="bar">||</span> "hiding" </td><td>(future reserved words)</td></tr>
+</table>
+
+<h3>Operators and symbols</h3>
+
+<table class="grammar lex">
+<tr><td>''qopid''</td><td>::=</td><td>''modulepath'' ''opid'' </td></tr>
+<tr><td>''opid''</td><td>::=</td><td>"(" ''symbols'' ")"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''op''</td><td>::=</td><td>''symbols''<sub>&lt;''reservedop'' <span class="bar">||</span> ''typeop''&gt;</sub></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''symbols''</td><td>::=</td><td>''symbol'' <span class="many">{ ''symbol'' } <span class="bar">||</span> |/|</span></td></tr>
+<tr><td>''symbol''</td><td>::=</td><td>"$" <span class="bar">||</span> "%" <span class="bar">||</span> |&| <span class="bar">||</span> "*" <span class="bar">||</span> "+"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|"| <span class="bar">||</span> "!" <span class="bar">||</span> "\" <span class="bar">||</span> "^" <span class="bar">||</span> |#|</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|=| <span class="bar">||</span> |.| <span class="bar">||</span> |:| <span class="bar">||</span> "-" <span class="bar">||</span> "?"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="koka code">||</span> <span class="bar">||</span> "<" <span class="bar">||</span> ">"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''special''</td><td>::=</td><td>"{" <span class="bar">||</span> "}" <span class="bar">||</span> "(" <span class="bar">||</span> ")" <span class="bar">||</span> "[" <span class="bar">||</span> "]" <span class="bar">||</span> ";" <span class="bar">||</span> ","</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''reservedop''</td><td>::=</td><td>"=" <span class="bar">||</span> "." <span class="bar">||</span> <span class="koka code keyword">:</span> <span class="bar">||</span> "->"</td></tr>
+<tr><td>''typeop''</td><td>::=</td><td>">" ''anglebar'' <span class="many">{ ''anglebar'' }</span></td></tr>    
+<tr><td></td><td><span class="bar">||</span></td><td>"<" ''anglebar'' <span class="many">{ ''anglebar'' }</span></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="koka code">||</span> ''angle'' <span class="many">{ ''symbol'' }</span></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"-><" <span class="many">{ ''symbol'' }</span></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|:?| <span class="many">{ ''symbol'' }</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''anglebar''</td><td>::=</td><td><span class="koka code">||</span> <span class="bar">||</span> ''angle''</td></tr>
+<tr><td>''angle''</td><td>::=</td><td>"<" <span class="bar">||</span> ">"
+</table>
+
+<h3>Literals</h3>
+<table class="grammar lex">
+<tr><td>''string''</td><td>::=</td><td>|@"| <span class="many">{ ''graphic''<sub>&lt;|"|&gt;</sub> <span class="bar">||</span> ''utf8'' <span class="bar">||</span> ''space'' <span class="bar">||</span> ''tab'' <span class="bar">||</span> ''newline'' <span class="bar">||</span> |""| }</span> |"|</td><td>(raw string)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|"| <span class="many">{ ''graphic''<sub>&lt;|"|<span>||</span>|\|&gt;</sub> <span class="bar">||</span> ''utf8'' <span class="bar">||</span> ''space'' <span class="bar">||</span> ''escape'' }</span> |"|</td></tr>
+<tr><td>''char''</td><td>::=</td><td>|'| ( ''graphic''<sub>&lt;|'|<span>||</span>|\|&gt;</sub> <span class="bar">||</span> ''utf8'' <span class="bar">||</span> ''space'' <span class="bar">||</span> ''escape'' ) |'|</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''escape''</td><td>::=</td><td>|\| ( ''charesc'' <span class="bar">||</span> ''hexesc'' )</td></tr>
+<tr><td>''charesc''</td><td>::=</td><td>"n" <span class="bar">||</span> "r" <span class="bar">||</span> "t" <span class="bar">||</span> |\| <span class="bar">||</span> |"| <span class="bar">||</span> |'| </td></tr>
+<tr><td>''hexesc''</td><td>::=</td><td>"x" ''hexdigit''<sub>2</sub>
+<span class="bar">||</span>   "u" ''hexdigit''<sub>4</sub>
+<span class="bar">||</span>   |U| ''hexdigit''<sub>4</sub> ''hexdigit''<sub>2</sub></td></tr>
+<tr><td>''hexdigit''<sub>4</sub></td><td>::=</td><td>''hexdigit'' ''hexdigit'' ''hexdigit'' ''hexdigit''</td></tr>
+<tr><td>''hexdigit''<sub>2</sub></td><td>::=</td><td>''hexdigit'' ''hexdigit''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''float''</td><td>::=</td><td>''decimal'' "." ''decimal'' <span class="opt">[''exponent'']</span></td></tr>
+<tr><td>''exponent''</td><td>::=</td><td>(|e| || |E|) <span class="opt">[|-| || "+"]</span> ''decimal''</td></tr>
+<tr><td>''natural''</td><td>::=</td><td>''decimal'' <span class="bar">||</span> "0" &nbsp; (|x| || |X|) ''hexadecimal''</td></tr>
+<tr><td>''decimal''</td><td>::=</td><td>''digit'' <span class="many">{ ''digit'' }</span></td></tr>
+<tr><td>''hexadecimal''</td><td>::=</td><td>''hexdigit'' <span class="many">{ ''hexdigit'' }</span></td></tr>
+</table>
+
+<h3>White space</h3>
+
+<table class="grammar lex">
+<tr><td>''whitespace''</td><td>::=</td><td>''white'' <span class="many">{ ''white'' }</span></td></tr>
+<tr><td>''white''</td><td>::=</td><td>''newline'' <span class="bar">||</span> ''space''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''linecomment'' <span class="bar">||</span> ''blockcomment''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''linedirective''</td></tr>  
+<tr><td>&nbsp;</td></tr>
+<tr><td>''linecomment''</td><td>::=</td><td>|//| <span class="many">{ ''linechar'' }</span> ''newline''</td></tr>
+<tr><td>''linedirective''</td><td>::=</td><td>''newline'' |#| <span class="many">{ ''linechar'' } ''newline''</span></td></tr>
+<tr><td>''linechar''</td><td>::=</td><td>''graphic'' <span class="bar">||</span> ''utf8'' <span class="bar">||</span> ''space'' <span class="bar">||</span> ''tab''</tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''blockcomment''</td><td>::=</td><td>|/*| ''blockpart'' <span class="many">{ ''blockcomment'' ''blockpart'' }</span> |*/|</td><td>(allows nested comments)</td></tr>
+<tr><td>''blockpart''</td><td>::=</td><td>''blockchars''<sub>&lt;''blockchars'' (|/*|<span class="bar">||</span>|*/|) ''blockchars''&gt;</sub></td></tr>
+<tr><td>''blockchars''</td><td>::=</td><td><span class="many">{ ''blockchar'' }</span></td></tr>
+<tr><td>''blockchar''</td><td>::=</td><td>''graphic'' <span class="bar">||</span> ''utf8'' <span class="bar">||</span> ''space'' <span class="bar">||</span> ''tab'' <span class="bar">||</span> ''newline''</td></tr>
+</table>
+
+<h3>Character classes</h3>
+
+<table class="grammar lex">
+<tr><td>''letter''</td><td>::=</td><td>''upper'' <span class="bar">||</span> ''lower''</td></tr>
+<tr><td>''upper''</td><td>::=</td><td>|A..Z|</td></tr>
+<tr><td>''lower''</td><td>::=</td><td>|a..z|</td></tr>
+<tr><td>''digit''</td><td>::=</td><td>|0..9|</td></tr>
+<tr><td>''hexdigit''</td><td>::=</td><td>|a..f| <span class=|bar|>||</span> |A..F| <span class=|bar|>||</span> ''digit''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''newline''</td><td>::=</td><td><span class="opt">[''return'']</span> ''linefeed''</td><td>(windows or unix style end of line)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''space''</td><td>::=</td><td>|x20|</td><td>(a space)</td></tr>
+<tr><td>''tab''</td><td>::=</td><td>|x09|</td><td>(a tab (|\t|))</td></tr>
+<tr><td>''linefeed''</td><td>::=</td><td>|x0A|</td><td>(a line feed (|\n|))</td></tr>
+<tr><td>''return''</td><td>::=</td><td>|x0D|</td><td>(a carriage return (|\r|))</td></tr>
+<tr><td>''graphic''</td><td>::=</td><td>|x21|..|x7E|</td><td>(a visible character)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<!--<tr><td> valid UTF-8 sequences, see also \url{http://www.w3.org/2005/03/23-lex-U}</td></tr>-->
+<tr><td>''utf8''</td><td>::=</td><td>|xC0| |x80|</td><td>(encoded 0 character)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>(|xC2|..|xDF|) ''cont''</td></tr>  
+<tr><td></td><td><span class="bar">||</span></td><td>|xE0| (|xA0|..|xBF|) ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>(|xE1|..|xEC|) ''cont'' ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>|xED| (|x80|..|x9F|) ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>(|xEE|..|xEF|) ''cont'' ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>|xF0| (|x90|..|xBF|) ''cont'' ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>(|xF1|..|xF3|) ''cont'' ''cont'' ''cont''</td></tr> 
+<tr><td></td><td><span class="bar">||</span></td><td>|xF4| (|x80|..|x8F|) ''cont'' ''cont''</td></tr>
+<tr><td>''cont''</td><td>::=</td><td>|x80|..|xBF|</td></tr>            
+</table>
+
+<!--
+<h2 id="sec:layout">Semicolon insertion</h2>
+<p>Just like programming languages like <a href="http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3">Haskell</a>, <a href="http://docs.python.org/2/reference/lexical_analysis.html">Python</a>, <a href="http://bclary.com/2004/11/07/index.html#a%2D7%2E9">JavaScript</a>, <a href="http://books.google.com/books?id=MFjNhTjeQKkC&amp;pg=PA65">Scala</a>, <a href="http://golang.org/ref/spec#Semicolons">Go</a>, etc., there is a semicolon insertion rule which automatically inserts semicolons at appropiate places. The semicolon insertion rule is strong enough that in practice we never have to write a semicolon to end a statement. </p>
+
+<p>Generally, we insert a semicolon automatically at the end of each statement, unless the statement clearly continues on the next line. For example, in the following program:</p>
+""
+function equal( x : int, 
+                y : int ) : io bool 
+{  
+  print("calculate" + 
+          "equality")
+  result = if (x == y) then True            
+              else False
+  result
+}  
+"
+<p>we get the following inserted semicolons:</p>
+""
+function equalsemi( x : int, 
+                    y : int ) : io bool 
+{  
+  print("calculate" +
+          "equality");
+  result = if (x == y) then True            
+              else False;
+  result;
+}  
+"
+<p>Of course, it is still possible to use semicolons explicitly which is sometimes necessary to put multiple statements on one line:</p>
+""
+function equal2( x : int, y : int ) : io bool {
+  print("calculate equality"); (x == y) 
+}  
+"
+<p>In order to facilitate code generation, compilers are also required to support a mode where no semicolons are inserted. A recognized command line flag for that mode should be |--nosemi|.</p>
+
+<p>Formally, a semicolon is inserted after every last ''lexeme'' on a line where:</p>
+<ul>
+<li class="grammar">the last lexeme is a valid statement ending, namely an identifier (''varid'', ''qvarid'', ''conid'', ''qconid'', ''opid'', ''qopid''), a literal (''natural'', ''float'', ''char'', ''string''), or a closing bracket (")", "]","}", ">"),</li>
+<li class="grammar"><em>and</em> the next lexeme is not a clear statement continuation, namely "then", "else", "elif", "{", "=", or a closing bracket (")", "]","}", ">").</li>
+</ul>
+<p>The statement continuation lexemes allow for `block' style layout of braces and conditionals. As an example, consider the following valid (but contrived) input program: </p>
+""
+function equal3( x : int, y : int ) : io bool
+{  
+  if (x == y)
+  { print(
+        "equal")
+    True
+  }            
+  else False
+}                     
+"
+<p>After semicolon insertion, we get the following program:</p>
+""
+function equal3Semi( x : int, y : int ) : io bool
+{  
+  if (x == y)
+  { print(
+        "equal");
+    True;
+  }            
+  else False;
+}      
+"
+<p>Note that there is no semicolon inserted after the ":bool" type, the closing parenthesis ")" of the "if", and the closing brace "}" of the "then" clause, since all of these are followed by clear statement continuation lexemes.</p>
+
+<p>To simplify the grammar specification, a semicolon is also always inserted before a closing brace "}" and the end of the source. This allows us to specify many grammar elements as ended by semicolons instead of separated by semicolons which is more difficult to specify for a LALR(1) grammar.</p>
+
+<p>Semicolon insertion can be easily implemented as part of the lexer, but could also be implemented as a straightforward transformation on the lexical token stream. In particular, there are no intricate dependencies with the parser that lead to bizarrely complex layout rules, as is the case in languages like <a href="http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3">Haskell</a> or <a href="http://bclary.com/2004/11/07/index.html#a%2D7%2E9">JavaScript</a>. </p>
+-->
+
+<h2 id="sec:layout">Semicolon insertion</h2>
+<p>Just like programming languages like <a href="http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3">Haskell</a>, <a href="http://docs.python.org/2/reference/lexical_analysis.html">Python</a>, <a href="http://bclary.com/2004/11/07/index.html#a%2D7%2E9">JavaScript</a>, <a href="http://books.google.com/books?id=MFjNhTjeQKkC&amp;pg=PA65">Scala</a>, <a href="http://golang.org/ref/spec#Semicolons">Go</a>, etc., there is a layout rule which automatically adds semicolons at appropiate places. This enables the programmer to leave out most semicolons. </p>
+
+<p class="grammar">Koka will insert semicolons automatically for any statements and declarations that are <em>aligned between curly braces</em> ("{" and "}"). For example, in the following program:</p>
+""
+function eq1( x : int, y : int ) : io bool 
+{  
+  print("calculate equality")
+  result = if (x == y) then True            
+              else False
+  result
+}  
+"
+<p>we get semicolons before each statement that was aligned between the braces:</p>
+""
+function eqSemi( x : int, y : int ) : io bool 
+{;  
+  print("calculate equality");
+  result = if (x == y) then True            
+              else False;
+  result;
+}  
+"
+<p>Since semicolons are only inserted for <em>aligned</em> statements, we can write a long statement on multipe lines by using more indentation:</p>
+""
+function eq2( x : int, y : int ) : io bool 
+{  
+  print("calculate " +
+         "equ" +
+         "ality")
+  result = if (x == y)
+            then True 
+            else False
+  result
+}  
+"
+<p>In contrast to token-based layout rules, as in <a href="http://books.google.com/books?id=MFjNhTjeQKkC&amp;pg=PA65">Scala</a> or <a href="http://golang.org/ref/spec#Semicolons">Go</a> for example, this allows you to put line breaks at any point in a statement by just indenting more. Moreover, it means that the visual indentation of a program corresponds directly to how the compiler interprets the statements. Many tricky layout examples in other programming languages are often based on a mismatch between the visual representation and how a compiler interprets the tokens. With Koka's layout rule, there is no such mismatch.</p>
+
+<p class="grammar">To still allow for &ldquo;block-style&rdquo; layout, the layout rule does not insert a semi-colon for an aligned statement if it starts with "then", "else", "elif", or one of "{", ")", or "]". </p>
+""
+function foo()
+{  
+  val xs = [ 
+    "list",
+    "elements",
+  ]
+  if (odd(randomInt())) 
+  {
+    print("odd")
+  }
+  else 
+    print("even")
+}  
+"
+<p>Of course, it is still allowed to use semicolons explicitly which can be used for example to put multiple statements on a single line:</p>
+""
+function equalLine( x : int, y : int ) : io bool {
+  print("calculate equality"); (x == y) 
+}  
+"
+<p>The layout algorithm also checks for invalid layouts where the layout would not visually correspond to how the compiler interprets the tokens. In particular, it is illegal to indent less than the layout context or to put comments into the indentation (because of tabs or potential unicode characters). For example, the program:</p>
+"
+function equal( x : int, y : int ) : io bool {   
+    print("calculate equality")
+  result = if (x == y) then True   // wrong: too little indentation
+  /* wrong */      else False
+    result
+}  
+"
+<p>is rejected. In order to facilitate code generation or source code compression, compilers are also required to support a mode where the layout rule is not applied and where no semicolons are inserted. A recognized command line flag for that mode should be |--nolayout|.</p>
+
+<h3>The layout algorithm</h3>
+<p>The layout rule is natural to humans since semicolon insertion corresponds directly to the visual two-dimensional layout of the program. The formal specification of the layout rule is a bit more technical though since a compiler interprets source code as a linear one-dimensional sequence. To define the layout algorithm formally, we first establish some terminology:</p>
+<ul>
+<li> A new line is started after every <em>linefeed</em> character.</li>
+<li> Any non-''white'' token is called a ''lexeme'', where a line without lexemes is called <em>blank</em>.</li>
+<li>The indentation of a lexeme is the column number of its first character on that line (starting at 1), and the indentation of a line is the indentation of the first lexeme on the line.</li>
+</ul>
+<p>Because braces can be nested, we use a <em>layout stack</em> of strictly increasing indentations. The top indentation on the layout stack holds the <em>layout indentation</em>. The initial layout stack contains the single value 0 (which is never popped). The operations on the layout stack are always done before the semicolon insertion:</p>
+<ul>
+<li class="grammar"> <em>Layout stack operations</em>: If the previous lexeme was an open brace "{" or the start of the lexical token sequence, we push the indentation of the current lexeme on the layout stack. The pushed indentation must be larger than the previous layout indentation (unless the current lexeme is a closing brace).  When a closing brace "}" is encountered the top indentation is popped from the layout stack.</li>
+<li class="grammar"> <em>Semicolon insertion</em>: For each non-blank line, the indentation must be equal or larger to the layout indentation. A semicolon is inserted before the line whenever the indentation is equal, unless the first lexeme on the line is one of "then", "else", "elif", or one of "{", ")", or "]". Also, a semicolon is always inserted before a closing brace "}" and before the end of the token sequence.</li>
+</ul>
+<p>As defined, semicolons are inserted whenever statements or declarations are aligned, unless the lexeme happens to be a clear statement continuation. To simplify the grammar specification, a semicolon is also always inserted before a closing brace and the end of the source. This allows us to specify many grammar elements as ended by semicolons instead of separated by semicolons which is more difficult to specify for a LALR(1) grammar.</p>
+
+<p>Semicolon insertion can be easily implemented as part of the lexer, but could also be implemented as a straightforward transformation on the lexical token stream. In particular, there are no intricate dependencies with the parser that lead to bizarrely complex layout rules, as is the case in languages like <a href="http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3">Haskell</a> or <a href="http://bclary.com/2004/11/07/index.html#a%2D7%2E9">JavaScript</a>. </p>
+
+<h2>Implementation</h2>
+
+<p>There is a full Flex (Lex) implementation of lexical analysis, which includes an implementation of the layout rule. Ultimately, the Flex implementation serves as <em>the</em> specification, and this document and the Flex implementation should always be in agreement.</p>
+
+<h1>Context-free syntax</h1>
+
+<p>The grammar specification starts with the non terminal ''module'' which draws its lexical tokens from ''lex'' where all ''whitespace'' tokens are implicitly ignored.
+</p>
+
+<h2>Modules</h2>
+
+<table class="grammar parse">
+<tr><td>''module''<sub><span class="opt">[''lex'']</span></sub></td><td>::=</td><td><span class="opt">[''moduledecl'']</span> ''modulebody''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''moduledecl''</td><td>::=</td><td><span class="opt">[''semis'']</span>  <span  class="opt">[''visibility'']</span> "module" ''moduleid''</td></tr>
+<tr><td>''moduleid''</td><td>::=</td><td>''qvarid'' <span class="bar">||</span> ''varid''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''modulebody''</td><td>::=</td><td> "{" <span class="opt">[''semis'']</span> ''declarations'' "}" <span class="opt">[''semis'']</span></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="opt">[''semis'']</span> ''declarations''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''visibility''</td><td>::=</td><td>"public" <span class="bar">||</span> "private"</td></tr>
+<tr><td>''semis''</td><td>::=</td><td>";" <span class="many">{ ";" }</span></td></tr>
+</table>
+
+<h2>Top level declarations</h2>
+<table class="grammar parse">
+<tr><td>''declarations''</td><td>::=</td><td><span class="many">{ ''import'' ''semis'' }</span> <span class="many">{ ''fixitydecl'' ''semis'' }</span> <span class="many">{ ''topdecl'' ''semis'' }</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''import''</td><td>::=</td><td><span  class="opt">[''visibility'']</span> "import" <span class="opt">[''moduleid'' "="]</span> ''moduleid''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''fixitydecl''</td><td>::=</td><td><span  class="opt">[''visibility'']</span> ''fixity'' ''natural'' ''identifier'' <span class="many">{ "," ''identifier'' }</span></td></tr>
+<tr><td>''fixity''</td><td>::=</td><td>"infixl"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"infixr"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"infix"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''topdecl''</td><td>::=</td><td><span class="opt">[''visibility'']</span> ''puredecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="opt">[''visibility'']</span> ''aliasdecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="opt">[''visibility'']</span> ''typedecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td><span class="opt">[''visibility'']</span> ''externdecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"abstract " ''typedecl''</td></tr>
+</table>
+
+<h2>Type declarations</h2>
+<table class="grammar parse">
+<tr><td>''aliasdecl''</td><td>::=</td><td>"alias" ''typeid'' <span class="opt">[''typeparams'']</span> <span class="opt">[''kannot'']</span> "=" ''type''</td></tr>
+<tr><td>''typedecl''</td><td>::=</td><td>''typesort'' ''typeid'' <span class="opt">[''typeparams'']</span> <span class="opt">[''kannot'']</span> <span class="opt">[''typebody'']</span></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"struct" ''typeid'' <span class="opt">[''typeparams'']</span> <span class="opt">[''kannot'']</span> <span class="opt">[''conparams'']</span></td></tr>
+<tr><td>''typesort''</td><td>::=</td><td>"type" <span class="bar">||</span> "cotype" <span class="bar">||</span> "rectype"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''typeid''</td><td>::=</td><td>''varid''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|[]|</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" <span class="many">{ "," }</span> ")"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"<" ">"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"<" <span class="koka code">||</span> ">"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''typeparams''</td><td>::=</td><td>"<" <span class="opt"><span class="opt">[''tbinders'']</span></span> ">"</td></tr>
+<tr><td>''tbinders''</td><td>::=</td><td>''tbinder'' <span class="many">{ "," ''tbinder'' }</span></td></tr>
+<tr><td>''tbinder''</td><td>::=</td><td>''varid'' <span class="opt">[''kannot'']</span></td></tr>
+<tr><td>''typebody''</td><td>::=</td><td>"{" <span class="opt">[''semis'']</span> <span class="many">{''constructor'' ''semis'' }</span> "}"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''constructor''</td><td>::=</td><td><span class="opt">["con"]</span> <span class="opt">[''equantifier'']</span> ''conid'' <span class="opt">[''conparams'']</span></td></tr>
+<tr><td>''conparams''</td><td>::=</td><td>"(" <span class="opt">[''conparam'' <span class="many">{ "," ''conparam'' }</span>]</span> ")"</td></tr>
+<tr><td>''conparam''</td><td>::=</td><td><span class="opt">[''paramid'']</span> |:| ''paramtype'' <span class="opt">["=" ''expr'']</span>
+</table>
+
+<h2>Value and function declarations</h2>
+<table class="grammar parse">
+<tr><td>''puredecl''</td><td>::=</td><td>"val" ''valdecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>("fun" <span class="bar">||</span> "function") ''fundecl''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''valdecl''</td><td>::=</td><td>''binder'' "=" ''expr''</td></tr>
+<tr><td>''binder''</td><td>::=</td><td>''identifier'' <span class="opt">[|:| ''type'']</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''fundecl''</td><td>::=</td><td><span class="opt">[''quantifiers'']</span> ''funid'' ''fundef'' (''block'' <span class="bar">||</span> "=" ''blockexpr'')</td></tr>
+<tr><td>''fundef''</td><td>::=</td><td>''parameters'' <span class="opt">[''annotres'']</span> <span class="opt">[''sigqualifier'']</span> <span class="opt">[''annotfull'']</span></td></tr>
+<tr><td>''funid''</td><td>::=</td><td>''identifier''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>|[| <span class="many">{ "," }</span> |]|</td><td>(indexing operator)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''parameters''</td><td>::=</td><td>"(" <span class="opt">[''parameter'' <span class="many">{ "," ''parameter'' }</span>]</span> ")"</td></tr>
+<tr><td>''parameter''</td><td>::=</td><td>''paramid'' <span class="opt">[ |:| ''paramtype'']</span> <span class="opt">["=" ''expr'']</span></td></tr>
+<tr><td>''paramid''</td><td>::=</td><td>''identifier'' <span class="bar">||</span> ''wildcard''</td></tr>
+<tr><td>''paramtype''</td><td>::=</td><td>''type''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"?" ''type''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''annotres''</td><td>::=</td><td>|:| ''tresult''</td></tr>
+<tr><td>''annotfull''</td><td>::=</td><td>|::| ''typesig''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''qidentifier''</td><td>::=</td><td>''qvarid'' <span class="bar">||</span> ''qidop'' <span class="bar">||</span> ''identifier''</td></tr>
+<tr><td>''identifier''</td><td>::=</td><td>''varid'' <span class="bar">||</span> ''idop''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''qoperator''</td><td>::=</td><td>''op'' <span class="bar">||</span> "`" (''qidentifier'' <span class="bar">||</span> ''qconstructor'') "`" </td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''qconstructor''</td><td>::=</td><td>''conid'' <span class="bar">||</span> ''qconid''</td></tr>
+</table>
+
+<h2>Statements</h2>
+
+<table class="grammar parse">
+<tr><td>''block''</td><td>::=</td><td>|{| <span class="opt">[''semis'']</span> <span class="many">{ ''statement'' ''semis'' }</span> |}|</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''statement''</td><td>::=</td><td>''nofunexpr''</td><td></td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''decl''</td><td></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''decl''</td><td>::=</td><td>("fun" <span class="bar">||</span> "function") ''fundecl''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"val" ''pattern'' "=" ''valexpr''</td><td>(local values can use a pattern binding)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''valdecl''</td><td>(local values have an optional |val| keyword)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"var" ''binder'' |:=| ''valexpr''</td></tr>
+</table>
+
+<h2>Expressions</h2>
+<table class="grammar parse">
+<tr><td>''blockexpr''</td><td>::=</td><td>''funexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''nofunexpr''</td><td>(implicitly wrapped in a block)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''expr''</td><td>::=</td><td>''funexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''nofunexpr''</td><td>(''returnexpr'' not allowed)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''nofunexpr''</td><td>::=</td><td>''matchexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''opexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''ifexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''returnexpr''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''noifexpr''</td><td>::=</td><td>''matchexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''opexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''returnexpr''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''funexpr''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''ifexpr''</td><td>::=</td><td>"if" ''atom'' ''then'' <span class="many">{ ''elif'' }</span> <span class="opt">["else" ''noifexpr'']</span></td></tr>
+<tr><td>''then''</td><td>::=</td><td><span class="opt">["then"]</span> ''noifexpr''</td></tr>
+<tr><td>''elif''</td><td>::=</td><td>"elif" ''atom'' ''then''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''matchexpr''</td><td>::=</td><td>"match" ''atom'' "{" <span class="opt">[''semis'']</span> <span class="many">{ ''matchrule'' ''semis'' }</span> "}"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''returnexpr''</td><td>::=</td><td>"return" ''noifexpr''</td><td>(but no ''returnexpr'' allowed)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''funexpr''</td><td>::=</td><td>("fun" <span class="bar">||</span> "function") <span class="opt">[''quantifiers'']</span> ''fundef'' ''block''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''block''</td><td>(zero-argument anonymous function)</td></tr>
+</table>
+
+<h2>Operator expressions</h2>
+<p>For simplicity, we parse all operators as if they are left associative with the same precedence. We assume that a separate pass in the compiler will use the fixity declarations that are in scope to properly associate all operators in an expressions.</p>
+<table class="grammar parse">
+<tr><td>''opexpr''</td><td>::=</td><td>''fappexpr'' <span class="many">{ ''qoperator'' ''fappexpr'' }</span></td></tr>
+<tr><td>''fappexpr''</td><td>::=</td><td>''appexpr'' <span class="many">{ ''funexpr'' }</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''appexpr''</td><td>::=</td><td>''appexpr'' "(" <span class="opt">[''arguments'']</span> ")"</td><td>(regular application)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''appexpr'' "[" <span class="opt">[''arguments'']</span> "]"</td><td>(index operation)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''appexpr'' "." ''prefix''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''prefix''</td></tr>
+<tr><td>''prefix''</td><td>::=</td><td><span class="many">{ ''qoperator'' }</span> ''atom''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''arguments''</td><td>::=</td><td>''argument'' <span class="many">{ "," ''argument'' }</span></td></tr>
+<tr><td>''argument''</td><td>::=</td><td><span class="opt">[''identifier'' "="]</span> ''expr''</td></tr>
+</table>
+
+<p>In the grammer we use the dot (".") for both qualifying identifiers with a module name, but also for &ldquo;dot&rdquo; expressions' where "e.f(x)" is syntactic sugar for the application "f(e,x)". When we combine module qualification with dot expressions, we can get expressions like |List.primes.List.map(sqr)| where we map the squaring function over the list of prime numbers. Note that the grammar is still LALR(1) since qualified names are returned as single tokens by the lexical analyzer, i.e. |List.primes| and |List.map|.</p>
+
+<h2>Atomic expressions</h2>
+
+<table class="grammar parse">
+<tr><td>''atom''</td><td>::=</td><td>''qidentifier''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''qconstructor''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''literal''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ")"</td><td>(unit)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ''annexpr'' ")"</td><td>(parenthesized expression)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ''annexprs'' ")"</td><td>(tuple expression)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"[" <span class="opt">[''annexprs'' <span class="opt">[","]</span>]</span> "]"</td><td>(list expression)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''literal''</td><td>::=</td><td>''natural'' <span class="bar">||</span> ''float'' <span class="bar">||</span> ''char'' <span class="bar">||</span> ''string''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''annexprs''</td><td>::=</td><td>''annexpr'' <span class="many">{ "," ''annexpr'' }</span></td></tr>
+<tr><td>''annexpr''</td><td>::=</td><td>''expr'' <span class="opt">[ |:| ''typescheme'' ]</span></td></tr>
+</table>
+
+<h2>Matching</h2>
+<table class="grammar parse">
+<tr><td>''matchrule''</td><td>::=</td><td>''patterns'' <span class="opt">[''guard'']</span> "->" ''branchexpr''</td></tr>
+<tr><td>''guard''</td><td>::=</td><td><span class="koka code">||</span> ''compound''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''pattern''</td><td>::=</td><td>''identifier''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''wildcard''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''qconstructor'' <span class="opt">["(" [''patargs'']</span> ")"]</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" <span class="opt">[''patterns'']</span> ")"</td><td>(unit, parenthesized pattern, tuple pattern)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"[" <span class="opt">[''patterns'']</span> "]"</td><td>(list pattern)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''pattern'' "as" ''identifier''</td><td>(named pattern)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''literal''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''patterns''</td><td>::=</td><td>''pattern'' <span class="many">{ "," ''pattern'' }</span></td></tr>
+<tr><td>''patargs''</td><td>::=</td><td>''patarg'' <span class="many">{ "," ''patarg'' }</span></td></tr>
+<tr><td>''patarg''</td><td>::=</td><td><span class="opt">[''identifier'' "="]</span> ''pattern''</td><td>(possibly named parameter)</table>
+
+<h2>Type schemes</h2>
+
+<table class="grammar parse">
+<tr><td>''typesig''</td><td>::=</td><td><span class="opt">[''quantifiers'']</span> ''tarrow'' <span class="opt">[''sigqualifier'']</span></td></tr>
+<tr><td>''typescheme''</td><td>::=</td><td><span class="opt">[''quantifiers'']</span> ''tarrow'' <span class="opt">[''qualifier'']</span></td></tr>
+<tr><td>''type''</td><td>::=</td><td><span class="opt">[''aquantifier'']</span> ''tarrow'' <span class="opt">[''qualifier'']</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''quantifiers''</td><td>::=</td><td><span class="opt">[''squantifier'']</span> <span class="opt">[''aquantifier'']</span></td></tr>
+<tr><td>''aquantifier''</td><td>::=</td><td>"forall" "<" ''tbinders'' ">"</td></tr>
+<tr><td>''squantifier''</td><td>::=</td><td>"some" "<" ''tbinders'' ">"</td></tr>
+<tr><td>''equantifier''</td><td>::=</td><td>"exists" "<" ''tbinders'' ">"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''sigqualifier''</td><td>::=</td><td>"with" ''predicates'' <span class="bar">||</span> ''qualifier''</td></tr>
+<tr><td>''qualifier''</td><td>::=</td><td>"with" "(" ''predicates'' ")"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''predicates''</td><td>::=</td><td>''predicate'' <span class="many">{ "," ''predicate'' }</span></td></tr>
+<tr><td>''predicate''</td><td>::=</td><td>''typeapp''</td><td>(interface)</table>
+
+<h2>Types</h2>
+
+<table class="grammar parse">
+<tr><td>''tarrow''</td><td>::=</td><td>''tatom'' <span class="opt">["->" ''tresult'']</span></td></tr>
+<tr><td>''tresult''</td><td>::=</td><td>''tatom'' <span class="opt">[''tbasic'']</span></td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''tatom''</td><td>::=</td><td>''tbasic''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"<" ''anntype'' <span class="many">{ "," ''anntype'' }</span> <span class="opt">[ <span class="koka code">||</span> ''tatom'' ]</span> ">"</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"<" ">"</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''tbasic''</td><td>::=</td><td>''typeapp''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ")"</td><td>(unit type)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ''tparam'' ")"</td><td>(parenthesized type or type parameter)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" ''tparam'' <span class="many">{ "," ''tparam'' }</span> ")"</td><td>(tuple type or parameters)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"[" ''anntype'' "]"</td><td>(list type)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''typeapp''</td><td>::=</td><td>''typecon'' <span class="opt">["<" [''anntype'' <span class="many">{ "," ''anntype'' }</span>]</span> ">"]</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''typecon''</td><td>::=</td><td>''varid'' <span class="bar">||</span> ''qvarid''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''wildcard''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" "," <span class="many">{ "," }</span> ")"</td><td>(tuple constructor)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"[" "]"</td><td>(list constructor)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"(" "->" ")"</td><td>(function constructor)</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''tparam''</td><td>::=</td><td><span class="opt">[''varid'' |:| ]</span> ''anntype''</td></tr>
+<tr><td>''anntype''</td><td>::=</td><td>''type'' <span class="opt">[''kannot'']</span>
+</table>
+
+<h2>Kinds</h2>
+
+<table class="grammar parse">
+<tr><td>''kannot''</td><td>::=</td><td>|::| ''kind''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''kind''</td><td>::=</td><td>"(" ''kind'' <span class="many">{ "," ''kind'' }</span> ")" "->" ''kind''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''katom'' "->" ''kind''</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>''katom''</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>''katom''</td><td>::=</td><td>"V"</td><td>(value type)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"X"</td><td>(effect type)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"E"</td><td>(effect row)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"H"</td><td>(heap type)</td></tr>
+<tr><td></td><td><span class="bar">||</span></td><td>"P"</td><td>(predicate type)</table>
+
+<h2>Implementation</h2>
+<p>As a companion to the Flex lexical implementation, there is a full Bison (Yacc) LALR(1) implementation available. Again, the Bison parser functions as <em>the</em> specification of the grammar and this document should always be in agreement with that implementation.</p>
+
+<h1 class="notoc">Appendix</h1>
+
+<h1 class="appendix">Complete syntax definition</h1>
+
+
+</body>
+</html>

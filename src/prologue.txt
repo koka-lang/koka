@@ -1,0 +1,5 @@
+Koka <VERSION>, Copyright (C) 2012 Microsoft Corporation, Daan Leijen.
+
+/Koka is free software; you can redistribute it and\or modify it under the terms of the Apache License, Version 2.0./
+
+/Koka is distributed in the hope that it will be useful, but without any warranty; without even the implied warranty of merchantability or fitness for a particular purpose.  See the license agreement for more details/ (<http://www.opensource.org/licenses/Apache-2.0>).

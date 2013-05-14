@@ -1,0 +1,5 @@
+# generated output
+^node_modules/*
+^out/*
+.prof
+.kke

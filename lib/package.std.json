@@ -1,0 +1,35 @@
+{
+  "name"        : "koka-std",
+  "author"      : "Daan Leijen, Microsoft Corp.",
+  "version"     : "0.5.0-dev",
+  "license"     : "Apache License 2.0",
+  "homepage"    : "http://koka.codeplex.com",
+  "description" : "Koka standard library.",
+  "keywords": [
+      "Koka", 
+      "Microsoft", 
+      "Standard library",
+      "compiler", 
+      "language", 
+      "effect",
+      "type inference"
+  ],
+  "engines" : { 
+    "node": ">=0.8" 
+  },
+  "dependencies": {
+    "amdefine": ">=0.0.4",    
+    "requirejs": ">=2.1"
+  },
+  "directories": {
+    "lib": "lib",
+    "src": "src"
+  },
+  "repository": {
+    "type": "hg", 
+    "url" : "https://hg.codeplex.com/koka"
+  },
+  "scripts": {
+    "build": "koka -v -c -isrc --out-dir=lib std/core std/atom std/env std/flags std/regex"
+  }
+}
