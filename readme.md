@@ -22,7 +22,7 @@ To see more build options, type:
 Starting out
 ------------
 
-After running <code>jake</code>, the Koka interpreter will start:
+After running `jake`, the Koka interpreter will start:
     __          _
     | |        | |
     | | __ ___ | | __ __ _
@@ -82,4 +82,17 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
-Have fun!<br>&nbsp;&nbsp;Daan Leijen
+Have fun!
+  Daan Leijen
+
+
+Development
+-----------
+
+For development we strongly recommend:
+
+  * The [TortoisHg](http://tortoisehg.bitbucket.org/download) distribution for mercurial source control.
+
+  * The excellent [SublimeText](http://www.sublimetext.com) text editor. There is a full Koka and Haskell
+    language mode for SublimeText (run `jake sublime` to install the Koka mode on your system).
+
