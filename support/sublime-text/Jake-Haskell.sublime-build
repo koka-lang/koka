@@ -1,0 +1,10 @@
+{
+  "cmd": ["jake","compiler"],
+  "file_regex": "^([\\w\\-\\.\\\\/]+):([0-9]+):([0-9]+):\\s*[\\r\\n]*\\s*(.*)$",
+  "working_dir": "${project_path:${folder:${file_path}}}",
+  "selector": "source.makefile",
+
+  "windows": {
+    "cmd": ["jake.cmd","compiler"]
+  }
+}

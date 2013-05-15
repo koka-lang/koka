@@ -238,6 +238,7 @@ task("sublime", function() {
     jake.mkdirP(sublimeCS);
     jake.cpR(path.join("support","sublime-text","Koka"),sublime);
     jake.cpR(path.join("support","sublime-text",dirCS,"Snow.tmTheme"),sublimeCS);    
+    jake.cpR(path.join("support","sublime-text","Jake-Haskell.sublime-build"),path.join(sublime,"User"));    
   }
 });
 

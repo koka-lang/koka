@@ -89,7 +89,7 @@ Have fun!
 Development
 -----------
 
-For development we strongly recommend:
+For development we recommend:
 
   * The [TortoisHg](http://tortoisehg.bitbucket.org/download) distribution for mercurial source control.
 
