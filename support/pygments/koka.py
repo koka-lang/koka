@@ -12,7 +12,10 @@
 
 class KokaLexer(RegexLexer):
     """
-    Lexer for the Koka language.
+    Lexer for the `Koka <http://koka.codeplex.com>`_
+    language.
+
+    *New in Pygments 1.6.*
     """
 
     name = 'Koka'
@@ -21,7 +24,7 @@ class KokaLexer(RegexLexer):
     mimetypes = ['text/x-koka']
 
     keywords = [
-        'infix', 'infixr', 'infixl', 'prefix', 'postfix',
+        'infix', 'infixr', 'infixl',
         'type', 'cotype', 'rectype', 'alias',
         'struct', 'con',
         'fun', 'function', 'val', 'var',
@@ -32,25 +35,25 @@ class KokaLexer(RegexLexer):
         'include', 'inline',
         'rec',
         'try', 'yield', 'enum',
-        'interface', 'instance'
+        'interface', 'instance',
     ]
 
     # keywords that are followed by a type
     typeStartKeywords = [
-        'type','cotype','rectype','alias','struct','enum'
+        'type', 'cotype', 'rectype', 'alias', 'struct', 'enum',
     ]
 
     # keywords valid in a type
     typekeywords = [
-        'forall', 'exists', 'some', 'with'      
+        'forall', 'exists', 'some', 'with',
     ]
 
     # builtin names and special names
     builtin = [
         'for', 'while', 'repeat',
-        'foreach', 'foreach-indexed', 
+        'foreach', 'foreach-indexed',
         'error', 'catch', 'finally',
-        'cs', 'js', 'file', 'ref', 'assigned'
+        'cs', 'js', 'file', 'ref', 'assigned',
     ]
 
     # symbols that can be in an operator
@@ -60,47 +63,62 @@ class KokaLexer(RegexLexer):
     sboundary = '(?!'+symbols+')'
 
     # name boundary: a keyword should not be followed by any of these
-    boundary = '(?![a-zA-Z0-9_\\-])'
+    boundary = '(?![\w/])'
+
+    # koka token abstractions
+    tokenType = Name.Attribute
+    tokenTypeDef = Name.Class
+    tokenConstructor = Generic.Emph
 
     # main lexer
     tokens = {
-        'root': [       
+        'root': [
             include('whitespace'),
 
             # go into type mode
-            (r'::?'+sboundary, Keyword.Type, 'type'),
-            (r'alias'+boundary, Keyword,'alias-type'),
-            (r'struct'+boundary, Keyword,'struct-type'),
-            (r'(%s)' % '|'.join(typeStartKeywords)+boundary, Keyword, 'type'),
+            (r'::?' + sboundary, tokenType, 'type'),
+            (r'(alias)(\s+)([a-z]\w*)?', bygroups(Keyword,Text,tokenTypeDef), 'alias-type'),
+            (r'(struct)(\s+)([a-z]\w*)?',  bygroups(Keyword,Text,tokenTypeDef), 'struct-type'),
+            ((r'(%s)' % '|'.join(typeStartKeywords)) +
+             r'(\s+)([a-z]\w*)?', bygroups(Keyword,Text,tokenTypeDef), 'type'),
+            
+            # special sequences of tokens (we use ?: for non-capturing group as
+            # required by 'bygroups')
+            (r'(module)(\s+)(interface\s+)?((?:[a-z]\w*/)*[a-z]\w*)',
+             bygroups(Keyword, Text, Keyword, Name.Namespace)),
+            (r'(import)(\s+)((?:[a-z]\w*/)*[a-z]\w*)'
+              r'(?:(\s*)(=)(\s*)((?:qualified\s*)?)'
+              r'((?:[a-z]\w*/)*[a-z]\w*))?',
+             bygroups(Keyword, Text, Name.Namespace,
+                      Text, Keyword,Text,Keyword,
+                      Name.Namespace)),
 
-            # special sequences of tokens (we use ?: for non-capturing group as required by 'bygroups')
-            (r'(module)(\s*)((?:interface)?)(\s*)((?:[a-z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*\.)*[a-z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*)'
-                , bygroups(Keyword,Text,Keyword,Text,Name.Namespace)),
-            (r'(import)(\s+)((?:[a-z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*\.)*[a-z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*)(\s*)((?:as)?)((?:[A-Z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*)?)'
-                , bygroups(Keyword,Text,Name.Namespace,Text,Keyword,Name.Namespace)),
+            (r'(^(?:(?:public|private)\s*)?(?:function|fun|val))(\s+)([a-z]\w*|\((?:' + symbols + r'|/)\))', 
+             bygroups(Keyword,Text,Name.Function)),
+            (r'(^(?:(?:public|private)\s*)?external)(\s+)(inline\s+)?([a-z]\w*|\((?:' + symbols + r'|/)\))', 
+             bygroups(Keyword,Text,Keyword,Name.Function)),
 
             # keywords
             (r'(%s)' % '|'.join(typekeywords) + boundary, Keyword.Type),
             (r'(%s)' % '|'.join(keywords) + boundary, Keyword),
             (r'(%s)' % '|'.join(builtin) + boundary, Keyword.Pseudo),
-            (r'::|:=|\->|[=\.:]' + sboundary, Keyword),
-            (r'\-' + sboundary, Generic.Strong),
-
+            (r'::?|:=|\->|[=\.]' + sboundary, Keyword),
+            
             # names
-            (r'[A-Z]([a-zA-Z0-9_]|\-[a-zA-Z])*(?=\.)',Name.Namespace),            
-            (r'[A-Z]([a-zA-Z0-9_]|\-[a-zA-Z])*(?!\.)',Name.Class),
-            (r'[a-z]([a-zA-Z0-9_]|\-[a-zA-Z])*',Name),
-            (r'_([a-zA-Z0-9_]|\-[a-zA-Z])*',Name.Variable),
+            (r'((?:[a-z]\w*/)*)([A-Z]\w*)', bygroups(Name.Namespace,tokenConstructor)),
+            (r'((?:[a-z]\w*/)*)([a-z]\w*)', bygroups(Name.Namespace,Name)),
+            (r'((?:[a-z]\w*/)*)(\((?:' + symbols + r'|/)\))', bygroups(Name.Namespace,Name)),
+            (r'_\w*', Name.Variable),
 
             # literal string
             (r'@"', String.Double, 'litstring'),
-            
+
             # operators
-            (symbols, Operator),
+            (symbols + "|/(?![\*/])", Operator),            
             (r'`', Operator),
             (r'[\{\}\(\)\[\];,]', Punctuation),
 
-            # literals. No check for literal characters with too many characters in it.
+            # literals. No check for literal characters with len > 1
             (r'[0-9]+\.[0-9]+([eE][\-\+]?[0-9]+)?', Number.Float),
             (r'0[xX][0-9a-fA-F]+', Number.Hex),
             (r'[0-9]+', Number.Integer),
@@ -117,23 +135,24 @@ class KokaLexer(RegexLexer):
 
         # type started by struct
         'struct-type': [
-            (r'(?=\((?!,*\)))',Punctuation,'#pop'),
+            (r'(?=\((?!,*\)))',Punctuation, '#pop'),
             include('type')
         ],
 
         # type started by colon
         'type': [
-            (r'[\(\[<]', Keyword.Type, 'type-nested' ),
+            (r'[\(\[<]', tokenType, 'type-nested'),
             include('type-content')
         ],
 
         # type nested in brackets: can contain parameters, comma etc.
         'type-nested': [
-            (r'[\)\]>]', Keyword.Type, '#pop' ),
-            (r'[\(\[<]', Keyword.Type, 'type-nested' ),
-            (r'[,]', Keyword.Type),
-            (r'([a-z](?:[a-zA-Z0-9_]|\-[a-zA-Z])*)(\s*)(:)(?![:])',bygroups(Name.Variable,Text,Keyword.Type)),  # parameter name            
-            include('type-content')            
+            (r'[\)\]>]', tokenType, '#pop'),
+            (r'[\(\[<]', tokenType, 'type-nested'),
+            (r',', tokenType),
+            (r'([a-z]\w*)(\s*)(:)(?!:)',
+             bygroups(Name,Text,tokenType)),  # parameter name
+            include('type-content')
         ],
 
         # shared contents of a type
@@ -141,22 +160,21 @@ class KokaLexer(RegexLexer):
             include('whitespace'),
 
             # keywords
-            (r'(%s)' % '|'.join(typekeywords) + boundary, Keyword.Type),
-            (r'(?=((%s)' % '|'.join(keywords) + boundary + '))', Keyword, '#pop'),  # need to match because names overlap..
+            (r'(%s)' % '|'.join(typekeywords) + boundary, Keyword),
+            (r'(?=((%s)' % '|'.join(keywords) + boundary + '))',
+             Keyword, '#pop'),  # need to match because names overlap...
 
             # kinds
-            (r'[EPH]' + boundary, Keyword.Type),
-            (r'[\*\!]', Keyword.Type),            
-
-            # type names
-            (r'[A-Z]([a-zA-Z0-9_]|\-[a-zA-Z])*(?=\.)',Name.Namespace),            
-            (r'[A-Z]([a-zA-Z0-9_]|\-[a-zA-Z])*(?!\.)',Name.Class),
-            (r'[a-z][0-9]*(?![a-zA-Z_\-])',Keyword.Type),            # Generic.Emph
-            (r'_([a-zA-Z0-9_]|\-[a-zA-Z])*',Keyword.Type),           # Generic.Emph
-            (r'[a-z]([a-zA-Z0-9_]|\-[a-zA-Z])*',Keyword.Type),
+            (r'[EPHVX]' + boundary, tokenType),
             
+            # type names
+            (r'[a-z][0-9]*(?![\w/])', tokenType ),
+            (r'_\w*', tokenType.Variable),  # Generic.Emph
+            (r'((?:[a-z]\w*/)*)([A-Z]\w*)', bygroups(Name.Namespace,tokenType)),
+            (r'((?:[a-z]\w*/)*)([a-z]\w+)', bygroups(Name.Namespace,tokenType)),
+
             # type keyword operators
-            (r'::|\->|[\.:|]', Keyword.Type),
+            (r'::|\->|[\.:|]', tokenType),
 
             #catchall
             (r'', Text, '#pop')
@@ -164,15 +182,16 @@ class KokaLexer(RegexLexer):
 
         # comments and literals
         'whitespace': [
+            (r'\n\s*#.*$', Comment.Preproc),
             (r'\s+', Text),
             (r'/\*', Comment.Multiline, 'comment'),
-            (r'//.*$', Comment.Single)
+            (r'//.*$', Comment.Single)            
         ],
         'comment': [
             (r'[^/\*]+', Comment.Multiline),
             (r'/\*', Comment.Multiline, '#push'),
             (r'\*/', Comment.Multiline, '#pop'),
-            (r'[\*/]', Comment.Multiline),            
+            (r'[\*/]', Comment.Multiline),
         ],
         'litstring': [
             (r'[^"]+', String.Double),
@@ -190,10 +209,11 @@ class KokaLexer(RegexLexer):
             (r'[\'\n]', String.Char, '#pop'),
         ],
         'escape-sequence': [
-            (r'\\[abfnrtv0\\\"\'\?]', String.Escape),
+            (r'\\[nrt\\\"\']', String.Escape),
             (r'\\x[0-9a-fA-F]{2}', String.Escape),
             (r'\\u[0-9a-fA-F]{4}', String.Escape),
+            # Yes, \U literals are 6 hex digits.
             (r'\\U[0-9a-fA-F]{6}', String.Escape)
-        ]        
+        ]
     }
 

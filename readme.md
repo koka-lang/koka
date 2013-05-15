@@ -95,4 +95,5 @@ For development we recommend:
 
   * The excellent [SublimeText](http://www.sublimetext.com) text editor. There is a full Koka and Haskell
     language mode for SublimeText (run `jake sublime` to install the Koka mode on your system).
+    (Unfortunately, SublimeText is not free but it is worth every penny IMHO :-)
 
