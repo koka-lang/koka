@@ -9,26 +9,39 @@
 
 /*
 Access to the program environment and commmand line arguments.
+
+Print the environment: "env.list.map(fun(p) { p.fst + ""="" + p.snd }).join(""\n"").print"
+
+Note: we view the environment and command line as (total) constants in the
+program. i.e. as if the program is only compiled at the point when both the 
+environment and command line is supplied. 
 */
 module std/env
 
-external isNull : string -> bool  = inline "(#1 == null)"
-external getEnvironmentVariable : string -> string  {
-  cs "System.Environment.GetEnvironmentVariable"
-  js inline "(typeof process !== 'undefined' ? process.env[#1] : null)"
+
+external getEnvironment() : dict<string>  {
+  cs "System.Environment.GetEnvironmentVariables"
+  js inline "(typeof process !== 'undefined' ? process.env : {})"
 }
+
+// The environment variables for this program
+public val env : dict<string>  = getEnvironment()
 
 // Returns the value of an environment variable "name".
-// Returns "default" (= "") if the environment variable was not present.
+// Returns "default" (= |""|) if the environment variable was not present.
 public function getEnv( name : string, default : string = "" ) : string
 {
-  s = getEnvironmentVariable(name)
-  return (if (isNull(s)) then default else s)
+  match(env[name]) {
+    Nothing -> default
+    Just(s) -> s
+  }
 }
 
-// Returns the unprocessed command line that was used to start this program.
-public external argv() : vector<string>  {
+external getArgv() : vector<string>  {
   cs "System.Environment.GetCommandLineArgs"
   js inline "(typeof process !== 'undefined' ? process.argv : [])"
 }
 
+// The unprocessed command line that was used to start this program.
+// On ''Node'' the first arguments will often be of the form "[""node"",""interactive.js"",...]".
+public val argv = getArgv()
