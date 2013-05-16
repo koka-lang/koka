@@ -72,6 +72,19 @@ public static class Primitive
   }
 
   //---------------------------------------
+  // Dictionary
+  //---------------------------------------
+  public static string[] DictKeys<A>( System.Collections.Generic.IDictionary<string,A> d ) {
+    int i = 0;
+    string[] result = new string[d.Keys.Count];
+    foreach( string key in d.Keys) {
+      result[i] = key;
+      i++;
+    }
+    return result;
+  }
+
+  //---------------------------------------
   // Random
   //---------------------------------------
   private static Random random = new Random();

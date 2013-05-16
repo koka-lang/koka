@@ -1758,6 +1758,107 @@ external toLower : (s : string) -> string {
 }
 
 // ----------------------------------------------------------------------------
+// Dictionaries
+// ----------------------------------------------------------------------------
+// A dictionary is a map from strings to values
+type dict :: V -> V
+
+private external inline isNull( x : a) : bool  = inline "(#1 == null)"
+
+private external createDict() : dict<a> {
+  cs inline "new System.Collections.Generic.Dictionary<string,##1>()"
+  js inline "{}"
+}  
+
+private external unsafeDictAdd( d : dict<a>, key : string, value : a ) : () = inline "(#1)[#2] = #3"
+
+private external unsafeDictGet( d : dict<a>, key : string ) : a = inline "(#1)[#2]"
+
+private external dictCopy( d : dict<a> ) : dict<a> {
+  cs inline "new System.Collections.Generic.Dictionary<string,##1>(#1)"
+  js inline "$copy(#1)"
+}
+
+// Convert a dictionary to a vector of key/value pairs
+function vector( d : dict<a> ) : vector<(string,a)> {
+  d.keys.map fun(key) {
+    (key,unsafeDictGet(d,key))
+  }
+}
+
+// Convert a dictionary to a list of key/value pairs
+function list( d : dict<a> ) : list<(string,a)> {
+  d.vector.list
+}
+
+// Return the keys in a
+external keys( d : dict<a> ) : vector<string> {
+  cs inline "Primitive.DictKeys(#1)"
+  js inline "$fields(#1)"
+}
+
+// Return the value at a specified "key"
+function []( d : dict<a>, key : string ) : maybe<a> {
+  val value = unsafeDictGet(d,key);
+  if (isNull(value)) then Nothing else Just(value)
+}
+
+// Create a new dictionary from a ":list" of key value pairs.
+public function dict( elems : list<(string,a)> ) : dict<a> {
+  val d = createDict();
+  elems.foreach fun(elem) {
+    val (key,value) = elem
+    unsafeDictAdd(d,key,value)
+  }
+  return d
+}
+
+// Create a new dictionary from a ":vector" of key/value pairs.
+public function dict( elems : vector<(string,a)> ) : dict<a> {
+  val d = createDict();
+  elems.foreach fun(elem) {
+    val (key,value) = elem
+    unsafeDictAdd(d,key,value)
+  }
+  return d
+}
+
+
+// Append a list of key/value pairs to a dictionary.
+function add( d : dict<a>, elems : list<(string,a)> ) : dict<a> {
+  val dnew = dictCopy(d);
+  elems.foreach fun(elem) {
+    val (key,value) = elem
+    unsafeDictAdd(dnew,key,value)
+  }
+  return dnew
+}
+
+
+// Append two dictionaries.
+function add( d1 : dict<a>, d2 : dict<a> ) : dict<a> {
+  val dnew = dictCopy(d1);
+  d2.foreach fun(key,value) {
+    unsafeDictAdd(dnew,key,value)
+  }
+  return dnew
+}
+
+
+// Execute action for each key/value pair in a dictionary.
+public function foreach( d : dict<a>, action : (string,a) -> e () ) : e () {
+  d.keys.foreach fun(k) {
+    action(k,unsafeDictGet(d,k))
+  }
+}
+
+// Map a function over the values in a dictionary.
+public function map( d : dict<a>, f : (string,a) -> e b ) : e dict<b> {
+  d.keys.map( fun(k) { (k, f(k,unsafeDictGet(d,k))) } ).dict
+}  
+
+
+// ----------------------------------------------------------------------------
 // Show
 // ----------------------------------------------------------------------------
 

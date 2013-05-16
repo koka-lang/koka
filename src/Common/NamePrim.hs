@@ -47,7 +47,7 @@ module Common.NamePrim
           , nameTpUnit, nameTpVoid
           , nameTpRef, nameRef
           , nameTpOptional
-          , nameTpArray, nameTpVector
+          , nameTpArray, nameTpVector, nameTpDict
 
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
@@ -122,6 +122,7 @@ nameIndex       = newName "[]"
 
 nameTpArray     = preludeName "array"
 nameTpVector    = preludeName "vector"
+nameTpDict      = preludeName "dict"
 
 {--------------------------------------------------------------------------
   Lists

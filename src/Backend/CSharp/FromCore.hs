@@ -1227,9 +1227,12 @@ ppTypeApp ctx t ts
       TVar v -> ppTAApp ctx t ts
       TCon c  | typeConName c == nameTpArray && length ts == 2
              -> ppType ctx (head (tail ts)) <> text "[]"
-      TCon c  | typeConName c == nameTpVector && length ts == 1
+             | typeConName c == nameTpDict && length ts == 1
+             -> text "System.Collections.Generic.IDictionary<string," <> ppType ctx (last ts) <> text ">"
+             | typeConName c == nameTpVector && length ts == 1
              -> ppType ctx (head ts) <> text "[]"
-      TCon c -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
+             | otherwise
+             -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
       _      -> (ppType ctx t) <> angled (map (ppType ctx) ts)
 
 ppTAApp ctx t ts
