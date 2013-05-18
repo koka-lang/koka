@@ -3,7 +3,7 @@ Koka: a function-oriented language with effect inference
 
 To build Koka from source you need to install:
 
-  * The latest [Haskell platform](http://www.haskell.org/platform) (version 7 or later).
+  * The latest [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
   * The latest [NodeJS](http://nodejs.org) runtime (version 0.10 or later).
 
 After installing the above tools, go to the Koka directory and type:
@@ -62,17 +62,17 @@ Or a browser based demo:
     loading: sys/dom/types
     loading: sys/dom/document
     loading: sys/dom/html/window
-    loading: sys/dom/html/html-element
-    loading: sys/dom/html/html-canvas-element
-    loading: sys/dom/html/canvas-rendering-context2d
-    loading: sys/dom/css/css-style-declaration
-    loading: demo/dom/microsoft-logo
-    loading: sys/dom/html/html-table-element
-    loading: sys/dom/html/html-table-row-element
-    loading: sys/dom/html/html-table-data-cell-element
+    loading: sys/dom/html/htmlElement
+    loading: sys/dom/html/htmlCanvasElement
+    loading: sys/dom/html/canvasRenderingContext2d
+    loading: sys/dom/css/cssStyleDeclaration
+    loading: demo/dom/microsoftLogo
+    loading: sys/dom/html/htmlTableElement
+    loading: sys/dom/html/htmlTableRowElement
+    loading: sys/dom/html/htmlTableDataCellElement
     modules:
       demo/dom/starfield
-      
+
     > main()
 
 And quit the interpreter:

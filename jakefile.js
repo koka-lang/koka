@@ -19,7 +19,7 @@ var version = "<unknown>";
 function setVersion() {
   var content = fs.readFileSync("package.json",{encoding: "utf8"});
   if (content) {
-    var matches = content.match(/"version"[\s\n\r]*\:[\s\n\r]*"([\w\d\.\-]+)"/);
+    var matches = content.match(/"version"\s*\:\s*"([\w\.\-]+)"/);
     if (matches && matches.length >= 2) version = matches[1];
   }
 } 
@@ -548,7 +548,7 @@ function hsUpdateDeps(sourceName,item,callback) {
 function importDeps(fileName, callback) {  
   var src = fs.readFileSync(fileName,{encoding:"utf8"}); // somehow must be synchronous or interactive processes afterwards read the console wrongly :-(
   var imports = [];
-  var r   = /^\s*import\s+(qualified\s+)?([\w\.]+)/gm;
+  var r   = /^\s*import\s+(qualified\s+)?([\w\'\.]+)/gm;
   var matches;
   while ((matches = r.exec(src)) !== null) {
     var mod = matches[2];
