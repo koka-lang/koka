@@ -10,11 +10,9 @@ After installing the above tools, go to the Koka directory and type:
 
     > npm install
 
-
 which will install any prerequisites. Now build and run Koka by typing:
 
     > jake 
-
 
 To see more build options, type:
 
