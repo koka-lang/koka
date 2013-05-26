@@ -326,7 +326,7 @@
       },   
 
     "type_special" :
-      { "match": "(V|E|H|P|X)(?!\\w)"
+      { "match": "[A-Z]\\w*"  
       , "name": "storage.type.koka"
       },
 
@@ -404,7 +404,7 @@
 
 
     "top_type_type": 
-      { "begin": "(cotype|type|rectype)\\s+([a-z]\\w+|<>|<\\|>|\\(,*\\))"
+      { "begin": "(cotype|type|rectype|interface|instance)\\s+([a-zA-Z]\\w+|<>|<\\|>|\\(,*\\))"
       , "end": "$|[,\\)\\{\\}\\[\\]=;]"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.type.storage.type.koka" }}
