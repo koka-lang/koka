@@ -69,6 +69,14 @@
 		</dict>
 		<dict>
 			<key>include</key>
+			<string>#top_type_interface</string>
+		</dict>
+		<dict>
+			<key>include</key>
+			<string>#top_type_quantifier</string>
+		</dict>
+		<dict>
+			<key>include</key>
 			<string>#decl_function</string>
 		</dict>
 		<dict>
@@ -368,20 +376,10 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>([\)\{\}\[\];])|(=)|((infix|infixr|infixl|prefix|postfix|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?![a-zA-Z0-9_\-]))</string>
+			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
 			<key>endCaptures</key>
 			<dict>
-				<key>1</key>
-				<dict>
-					<key>name</key>
-					<string>punctuation.separator.koka</string>
-				</dict>
-				<key>2</key>
-				<dict>
-					<key>name</key>
-					<string>keyword.koka</string>
-				</dict>
-				<key>3</key>
+				<key>0</key>
 				<dict>
 					<key>name</key>
 					<string>invalid.keyword.koka</string>
@@ -737,7 +735,7 @@
 		<key>reservedid</key>
 		<dict>
 			<key>match</key>
-			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?![a-zA-Z0-9_\-])</string>
+			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w)</string>
 			<key>name</key>
 			<string>keyword.other.koka</string>
 		</dict>
@@ -810,25 +808,25 @@
 		<key>top_type</key>
 		<dict>
 			<key>begin</key>
-			<string>:(?![$%&amp;\*\+@!/\\\^~=\.:\-\|&lt;&gt;])</string>
+			<string>(:(?![$%&amp;\*\+@!\\\^~=\.:\-\|&lt;&gt;]))|(with|iff|when)(?!\w)</string>
 			<key>beginCaptures</key>
-			<dict>
-				<key>0</key>
-				<dict>
-					<key>name</key>
-					<string>storage.type.koka</string>
-				</dict>
-			</dict>
-			<key>end</key>
-			<string>([,\)\{\}\[\]=;])|((infix|infixr|infixl|prefix|postfix|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?![a-zA-Z0-9_\-]))</string>
-			<key>endCaptures</key>
 			<dict>
 				<key>1</key>
 				<dict>
 					<key>name</key>
-					<string>punctuation.separator.koka</string>
+					<string>storage.type.koka</string>
 				</dict>
 				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.koka</string>
+				</dict>
+			</dict>
+			<key>end</key>
+			<string>(?=[,\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>0</key>
 				<dict>
 					<key>name</key>
 					<string>invalid.keyword.koka</string>
@@ -860,13 +858,13 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>$|[,\)\{\}\[\];]</string>
+			<string>(?=[,\)\{\}\[\];]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
 				<dict>
 					<key>name</key>
-					<string>punctuation.separator.koka</string>
+					<string>invalid.keyword.koka</string>
 				</dict>
 			</dict>
 			<key>patterns</key>
@@ -880,6 +878,81 @@
 				<dict>
 					<key>include</key>
 					<string>#type_content_top</string>
+				</dict>
+			</array>
+		</dict>
+		<key>top_type_interface</key>
+		<dict>
+			<key>begin</key>
+			<string>(interface|instance)\s+([A-Z]\w+|&lt;&gt;|&lt;\|&gt;|\(,*\))</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.declaration.type.koka</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>entity.name.type.interface.storage.type.interface.koka</string>
+				</dict>
+			</dict>
+			<key>end</key>
+			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.separator.koka</string>
+				</dict>
+			</dict>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>include</key>
+					<string>#type_content_top</string>
+				</dict>
+			</array>
+		</dict>
+		<key>top_type_quantifier</key>
+		<dict>
+			<key>begin</key>
+			<string>(exists|forall|some)(\s*)(&lt;)</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>keyword.koka</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.punctuation.separator.koka</string>
+				</dict>
+			</dict>
+			<key>end</key>
+			<string>(&gt;)|(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.punctuation.separator.koka</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>invalid.keyword.koka</string>
+				</dict>
+			</dict>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>include</key>
+					<string>#type_content</string>
 				</dict>
 			</array>
 		</dict>
@@ -924,13 +997,18 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>$|(&gt;)|[\(\)\{\}\[\]=;]</string>
+			<string>(&gt;)|(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>storage.type.punctuation.separator.koka</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>invalid.keyword.koka</string>
 				</dict>
 			</dict>
 			<key>patterns</key>
@@ -944,7 +1022,7 @@
 		<key>top_type_type</key>
 		<dict>
 			<key>begin</key>
-			<string>(cotype|type|rectype|interface|instance)\s+([a-zA-Z]\w+|&lt;&gt;|&lt;\|&gt;|\(,*\))</string>
+			<string>(cotype|type|rectype)\s+([a-z]\w+|&lt;&gt;|&lt;\|&gt;|\(,*\))</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
@@ -959,7 +1037,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>$|[,\)\{\}\[\]=;]</string>
+			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -996,7 +1074,7 @@
 			<array>
 				<dict>
 					<key>match</key>
-					<string>(forall|exists|some|with)(?![a-zA-Z0-9_\-])</string>
+					<string>(forall|exists|some|with|iff|when|is|if)(?!\w)</string>
 					<key>name</key>
 					<string>keyword.other.koka</string>
 				</dict>
@@ -1020,7 +1098,11 @@
 				</dict>
 				<dict>
 					<key>include</key>
-					<string>#type_special</string>
+					<string>#type_kind</string>
+				</dict>
+				<dict>
+					<key>include</key>
+					<string>#type_interface</string>
 				</dict>
 				<dict>
 					<key>begin</key>
@@ -1138,6 +1220,20 @@
 			<key>name</key>
 			<string>storage.type.constant.koka</string>
 		</dict>
+		<key>type_interface</key>
+		<dict>
+			<key>match</key>
+			<string>[A-Z]\w+</string>
+			<key>name</key>
+			<string>storage.type.interface.koka</string>
+		</dict>
+		<key>type_kind</key>
+		<dict>
+			<key>match</key>
+			<string>[A-Z](?!\w)</string>
+			<key>name</key>
+			<string>storage.type.kind.koka</string>
+		</dict>
 		<key>type_parameter</key>
 		<dict>
 			<key>captures</key>
@@ -1169,17 +1265,10 @@
 			<key>match</key>
 			<string>(([a-z]\w*/)*)([a-z]\w*)</string>
 		</dict>
-		<key>type_special</key>
-		<dict>
-			<key>match</key>
-			<string>[A-Z]\w*</string>
-			<key>name</key>
-			<string>storage.type.koka</string>
-		</dict>
 		<key>type_variable</key>
 		<dict>
 			<key>match</key>
-			<string>([a-z][0-9]*|_\w*)(?!\w)</string>
+			<string>([a-z][0-9]*|_\w*|self)(?!\w)</string>
 			<key>name</key>
 			<string>storage.type.typevar.koka</string>
 		</dict>

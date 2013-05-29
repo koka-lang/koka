@@ -75,6 +75,19 @@
 			<key>name</key>
 			<string>Type</string>
 			<key>scope</key>
+			<string>storage.type.interface</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string></string>
+				<key>foreground</key>
+				<string>#006060</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>Type</string>
+			<key>scope</key>
 			<string>storage.type</string>
 			<key>settings</key>
 			<dict>
@@ -293,6 +306,19 @@
 				<string></string>
 				<key>foreground</key>
 				<string>#008080</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>name</key>
+			<string>Interface name</string>
+			<key>scope</key>
+			<string>entity.name.type.interface</string>
+			<key>settings</key>
+			<dict>
+				<key>fontStyle</key>
+				<string></string>
+				<key>foreground</key>
+				<string>#006060</string>
 			</dict>
 		</dict>
 		<dict>
