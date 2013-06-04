@@ -197,7 +197,24 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>\[([^\]\n]*)\]\s*(\(([^\)\n]*)\))?</string>
+			<string>\[([^\]\n]*)\](?!:)\s*(\(([^\)\n]*)\))?</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>^\s*\[([^\]\n]*)\]:(.*)$</string>
 		</dict>
 		<dict>
 			<key>include</key>

@@ -79,7 +79,14 @@
     , "name": "markup.heading" 
     },
 
-    { "match": "\\[([^\\]\\n]*)\\]\\s*(\\(([^\\)\\n]*)\\))?"
+    { "match": "\\[([^\\]\\n]*)\\](?!:)\\s*(\\(([^\\)\\n]*)\\))?"
+    , "captures": {
+      "1": { "name": "meta.tag" },
+      "3": { "name": "string" }
+      }
+    },
+
+    { "match": "^\\s*\\[([^\\]\\n]*)\\]:(.*)$"
     , "captures": {
       "1": { "name": "meta.tag" },
       "3": { "name": "string" }
