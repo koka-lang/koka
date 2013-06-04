@@ -143,8 +143,8 @@ body.koka.doc,
 }
 
 .koka.source a:hover,
-.koka.code a:hover,
-.koka.pre a:hover { 
+.koka.code a:hover, code.koka a:hover
+.koka.pre a:hover, pre.koka a:hover { 
   text-decoration: none 
 }
 

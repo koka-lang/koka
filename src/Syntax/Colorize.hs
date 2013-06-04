@@ -385,7 +385,7 @@ fmtComment mbRangeMap env kgamma gamma com
       ComEmph fmt     -> prefixspan "emph" fmt
       ComPre fmt      -> prefixspan "pre" (escapes fmt)      
       ComPreBlock fmt -> prefixBlockTag "pre" "preblock" (escapes fmt)      
-      ComCode lexs s   -> prefixspan "code" (fmtLexs lexs)
+      ComCode lexs s   -> ptag "code" prefix (fmtLexs lexs)
       ComCodeBlock lexs s -> prefixBlockTag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
       ComCodeLit lexs s   -> prefixBlockTag "pre" ("source") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
       ComIndent n     -> concat (replicate n "&nbsp;")
@@ -526,6 +526,10 @@ escapes s = concatMap escape s
 escape '<'  = "&lt;"
 escape '>'  = "&gt;"
 escape '&'  = "&amp;"
+-- for markdown in <code>
+escape '*'  = "&#42;"
+escape '_'  = "&#95;"
+escape '`'  = "&#96;"
 escape c    = [c]
 
 prefix :: String

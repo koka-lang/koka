@@ -1104,7 +1104,7 @@ val bitsInt = 32
 // Of course "(minInt + 1) / -1" is again positive (namely "maxInt").  
 // 
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
-// available at: http://research.microsoft.com/enUs/um/people/daan/download/papers/divmodnote.pdf .
+// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
 function (/)( x : int, y : int ) : int
 {
   if (y == 0) then return 0
