@@ -427,7 +427,7 @@ _hexdigit_<sub>4</sub> | ::= | _hexdigit_ _hexdigit_ _hexdigit_ _hexdigit_
 _hexdigit_<sub>2</sub> | ::= | _hexdigit_ _hexdigit_
 &nbsp; | |
 _float_ | ::= | _decimal_ "." _decimal_ <span class="opt">[_exponent_]</span>
-_exponent_ | ::= | (`e` &#124; `E`) <span class="opt">[`-` | "+"]</span> _decimal_
+_exponent_ | ::= | (`e` &#124; `E`) <span class="opt">[`-` &#124; "+"]</span> _decimal_
 _natural_ | ::= | _decimal_ <span class="bar">&#124;</span> "0" &nbsp; (`x` &#124; `X`) _hexadecimal_
 _decimal_ | ::= | _digit_ <span class="many">{ _digit_ }</span>
 _hexadecimal_ | ::= | _hexdigit_ <span class="many">{ _hexdigit_ }</span>
