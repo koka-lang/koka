@@ -210,7 +210,7 @@ task("guide", ["compiler"], function(publish) {
   var cmd = mainExe + " -c -l --target=cs --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "guide.kkdoc", function() {
     // convert markdown
-    command(cmdMarkdown + " " + path.join(outguide,"guide.xml.html"), function() {
+    command(cmdMarkdown + " " + path.join(outguide,"guide.xmp.html"), function() {
       // copy style files
       jake.mkdirP(outstyles);
       jake.cpR(path.join("doc","koka.css"),outstyles);

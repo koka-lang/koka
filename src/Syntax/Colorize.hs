@@ -82,7 +82,7 @@ colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | other
     htmlPre body
       = do write p ("<pre class=\"" ++ prefix ++ "source\">")
            body
-           writeLn p ("</pre>")
+           writeLn p ("</pre>\n")  -- add empty line for correct markdown
 
     header
       = ["<!DOCTYPE html>"
@@ -384,10 +384,10 @@ fmtComment mbRangeMap env kgamma gamma com
       ComLine s       -> prefixspan "line" ""  
       ComEmph fmt     -> prefixspan "emph" fmt
       ComPre fmt      -> prefixspan "pre" (escapes fmt)      
-      ComPreBlock fmt -> prefixtag "pre" "preblock" (escapes fmt)      
+      ComPreBlock fmt -> prefixBlockTag "pre" "preblock" (escapes fmt)      
       ComCode lexs s   -> prefixspan "code" (fmtLexs lexs)
-      ComCodeBlock lexs s -> prefixtag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
-      ComCodeLit lexs s   -> prefixtag "pre" ("source") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
+      ComCodeBlock lexs s -> prefixBlockTag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
+      ComCodeLit lexs s   -> prefixBlockTag "pre" ("source") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
       ComIndent n     -> concat (replicate n "&nbsp;")
       ComPar          -> "<br>"
   where
@@ -497,14 +497,18 @@ cspan cls content  -- use cspan just for syntax highlighting; to save space we d
 span cls content
   = tag "span" (cls) content
 
-prefixtag t cls
-  = ptag t (if null cls then "" else (prefix ++ cls))
+prefixBlockTag t cls content
+  = "\n" ++ prefixtag t cls content ++ "\n" -- add empty line (usually for correct markdown)
+
+prefixtag :: String -> String -> String  -> String
+prefixtag t cls content
+  = ptag t (if null cls then "" else (prefix ++ cls)) content
 
 prefixspan cls content
   = span (if null cls then "" else (prefix ++ cls)) content
 
-ptag t cls
-  = tag t (if null cls then "" else (cls))
+ptag t cls content
+  = tag t (if null cls then "" else (cls)) content
 
 tag name cls content
   = startTag name cls ++ content ++ endTag name
