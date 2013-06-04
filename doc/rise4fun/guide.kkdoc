@@ -71,8 +71,8 @@ run the program to see its output.
 
 ## Caesar encoding
 
-Here is another short example program that encodes a string using the _Caesar
-cipher_, where each lower-case letter in a string is replaced by the letter
+Here is another short example program that encodes a string using the
+_Caesar cipher_, where each lower-case letter in a string is replaced by the letter
 three places up in the alphabet:
 
 "
@@ -136,7 +136,7 @@ which is not always possible if such class came as a library for example.
 Koka is also strongly typed. It uses a powerful type inference engine to infer
 most types, and types generally do not get in the way. In particular, you can
 always leave out the types of any local variables. This is the case for
-example for `e` and `t`. You can hover with your mouse over `e` and `t` in the
+example for `base` and `rot`. You can hover with your mouse over `base` and `rot` in the
 example to see the types that were inferred by Koka. Generally, we do write
 type annotations for function parameters and the function result since it both
 helps with type inference, and it provides useful documentation with better
@@ -168,7 +168,7 @@ function encode2( s : string, shift : int )
 It is a bit annoying we had to put the final right-parenthesis after the last
 brace. As a convenience, Koka allows anonymous functions to _follow_
 the function call instead. For example, here is how we can print the numbers
-`1` to `0`:
+`1` to `10`:
 
 "
 function main() { print10() }
@@ -291,16 +291,16 @@ mathematical function that describes its denotational semantics_. For example,
 using &#x301A;":t"&#x301B; to translate a type ":t" into its corresponding
 mathematical type signature, we have:
 
-<table>
-<tr><td>&#x301A;":int -> total int "&#x301B;</td><td> =&nbsp;&nbsp; </td><td class="math">&#8484;<sub>32</sub> &rarr; &#8484;<sub>32</sub></td></tr>
-<tr><td>&#x301A;":int -> exn int "&#x301B;</td><td>=</td><td class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)</td></tr>
-<tr><td>&#x301A;":int -> pure int "&#x301B;</td><td>=</td><td class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)<sub>&#8869;</sub></td></tr>
-<tr><td>&#x301A;":int -> <st<h>,pure> int "&#x301B;</td><td>=</td><td class="math">(Heap &times; &#8484;<sub>32</sub>) &rarr; (Heap &times; (1 + &#8484;<sub>32</sub>))<sub>&#8869;</sub></td></tr>
-</table>
+| | 
+--- | ---- | ---
+&#x301A;":int -> total int "&#x301B;        | =&nbsp;&nbsp; | <span class="math">&#8484;<sub>32</sub> &rarr; &#8484;<sub>32</sub></span>
+&#x301A;":int -> exn int "&#x301B;          | = | <span class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)</span>
+&#x301A;":int -> pure int "&#x301B;         | = | <span class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)<sub>&#8869;</sub></span>
+&#x301A;":int -> <st<h>,pure> int "&#x301B; | = | <span class="math">(Heap &times; &#8484;<sub>32</sub>) &rarr; (Heap &times; (1 + &#8484;<sub>32</sub>))<sub>&#8869;</sub></span>
 
 In the above translation, we use <span class="math">1 + t</span> as a sum
-where we have either a unit 1 (i.e. exception) or a type t, and we use <span
-class="math">Heap &times; t</span> for a product consisting of a pair of a
+where we have either a unit 1 (i.e. exception) or a type t, and we use 
+<span class="math">Heap &times; t</span> for a product consisting of a pair of a
 heap and a type t. From the above correspondence, we can immediately see that
 a ":total" function is truly total in the mathematical sense, while a stateful
 function (":st<h> ") that can raise exceptions or not terminate (":pure")
@@ -561,7 +561,7 @@ it out in the editor!
 
 Being a function-oriented languague, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function "substring" takes a string, a `t` position, and the length `n` of the
+function "substring" takes a string, a `start` position, and the length `len` of the
 desired substring:
 
 "
@@ -586,9 +586,9 @@ function world2()
 
 Optional parameters let you specify default values for parameters that do not
 need to be provided at a call-site.  As an example, let's define a function
-"sublist" that takes a list, a `t` position, and the length `n` of the desired
-sublist.  We can make the `n` parameter optional and by default return all
-elements following the `t` position by picking the length of the input list by
+"sublist" that takes a list, a `start` position, and the length `len` of the desired
+sublist.  We can make the `len` parameter optional and by default return all
+elements following the `start` position by picking the length of the input list by
 default:
 
 "
@@ -605,7 +605,7 @@ function sublist( xs : list<a>, start : int,
 }
 "
 
-Hover over the "sublist" identifier to see its full type, where the `n`
+Hover over the "sublist" identifier to see its full type, where the `len`
 parameter has gotten an optional ":int" type signified by the question mark:
 ":?int".
 
@@ -656,7 +656,7 @@ function birthday( p : person ) : person
 "
 
 Here, "birthday" returns a fresh ":person" which is equal to "p" but with the
-"age" incremented. The syntax `)` is sugar for calling the copy constructor of
+"age" incremented. The syntax `p(...)` is sugar for calling the copy constructor of
 a ":person". This constructor is also automatically generated for each data
 type, and is basically defined as:
 
@@ -674,7 +674,7 @@ function copy( p, age = p.age, name = p.name,
 }
 "
 
-When arguments follow a data value, as in `)`, it is desugared to call this
+When arguments follow a data value, as in `p( age = age + 1)`, it is desugared to call this
 copy function, as in "p.copy( age = p.age+1 )". Again, there are no special
 rules for record updates and everything is just function calls with optional
 and named parameters.
