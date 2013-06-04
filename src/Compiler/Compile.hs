@@ -757,7 +757,7 @@ codeGen term flags compileTarget loaded
        -- write documentation
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
-           outHtmlDocFile = outBase ++ ".html"
+           outHtmlDocFile = outBase ++ ".xmp.html"
            source   = maybe sourceNull programSource (modProgram mod)
        if (extname (sourceName source) == (sourceExtension ++ "doc"))
         then do termPhase term "write html document" 

@@ -50,7 +50,7 @@ type any
 // Core effects
 // ----------------------------------------------------------------------------
 
-// The ''total'' effect represents the absence of any effect.
+// The _total_ effect represents the absence of any effect.
 type <> :: E
 
 // The effect constructor extends an effect with another effect.
@@ -283,7 +283,7 @@ struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
 struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 
 // The ":maybe" type is used to represent either a value ("Just(x)") or "Nothing".
-// This type is often used to represent values that can be ''null''.
+// This type is often used to represent values that can be _null_.
 type maybe<a> {
   con Nothing
   con Just( unJust : a )
@@ -309,7 +309,7 @@ type either<a,b> {
 type list<a> {
   // The empty list.
   con Nil
-  // A |head| element followed by the |tail| of the list.
+  // A `head`  element followed by the `tail`  of the list.
   con Cons(head:a, tail : list<a> )
 }
 
@@ -371,9 +371,9 @@ function length(xs)
   return len(0,xs)
 }
 
-// Returns an integer list of increasing elements from |lo| to |hi|
-// (including both |lo| and |hi|).
-// If |lo > hi| the function returns the empty list.
+// Returns an integer list of increasing elements from `lo`  to `hi` 
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
 function list( lo: int, hi: int ) : total list<int>
 {
   function enumerate( low:int, high:int, acc: list<int> ) : div list<int>
@@ -386,7 +386,7 @@ function list( lo: int, hi: int ) : total list<int>
   unsafeNoDiv { enumerate(lo,hi,[]) }
 }
 
-// Create a list of characters from |lo| to |hi| (inclusive).
+// Create a list of characters from `lo`  to `hi`  (inclusive).
 function list( lo : char, hi : char ) : total list<char>
 {
   list(lo.int, hi.int).map( char )
@@ -474,13 +474,13 @@ function drop( xs : list<a>, n : int ) : list<a>
 
 
 
-// Apply a function |f| to each element of the input list in sequence.
+// Apply a function `f`  to each element of the input list in sequence.
 function map(xs : list<a>, f : a -> e b) : e list<b>
 {
   xs.mapIndexed( fun(i,x) { f(x) } )
 }
 
-// Apply a function |f| to each element of the input list in sequence where takes
+// Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element and the element itself as arguments.
 function mapIndexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
 {
@@ -524,7 +524,7 @@ function reverse(xs : list<a>) : list<a>
 // Append two lists.
 function (+)(xs : list<a>, ys : list<a> ) : list<a>
 {
-  // append using ''constant'' stack space (by reversing the argument list)
+  // append using _constant_ stack space (by reversing the argument list)
   function revAppend(xx,yy) {
     match(xx) {
       Cons(z,zz) -> revAppend(zz,Cons(z,yy))
@@ -553,7 +553,7 @@ function (+)(xs : list<a>, ys : list<a> ) : list<a>
   }
 }
 
-// Fold a list from the right, i.e. |foldr([1,2],0,(+)) == 1+(2+0)|
+// Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)` 
 // See also "foldl"
 function foldr(xs,z,f)
 {
@@ -563,8 +563,8 @@ function foldr(xs,z,f)
   }
 }
 
-// Fold a list from the left, i.e. |foldl([1,2],0,(+)) == (0+1)+2|
-// Since "foldl" is tailRecursive, it is preferred over "foldr" when using an associative function |f|
+// Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
+// Since "foldl" is tailRecursive, it is preferred over "foldr" when using an associative function `f` 
 function foldl(xs,z,f)
 {
   match(xs) {
@@ -588,7 +588,7 @@ function foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
   }
 }
 
-// Create a list of |n| repeated elementes |x|
+// Create a list of `n`  repeated elementes `x` 
 function replicate( x : a, n : int ) : list<a>
 {
   fun enumerate( i : int, acc : list<_a> ) {
@@ -598,7 +598,7 @@ function replicate( x : a, n : int ) : list<a>
   unsafeNoDiv{ enumerate(n,[]) }
 }
 
-// split a list at position |n|
+// split a list at position `n` 
 function split( xs : list<a>, n : int ) : (list<a>, list<a>)
 {
   (xs.take(n), xs.drop(n))
@@ -618,13 +618,13 @@ function span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
   xs.spanAcc( [] )
 }
 
-// Keep only those initial elements that satisfy |predicate|
+// Keep only those initial elements that satisfy `predicate` 
 function takeWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
 {
   xs.span(predicate).fst
 }
 
-// Drop all initial elements that satisfy |predicate|
+// Drop all initial elements that satisfy `predicate` 
 function dropWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
 {
   xs.span(predicate).snd
@@ -700,7 +700,7 @@ function foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
   }
 }
 
-// Insert a separator |sep| between all elements of a list |xs|.
+// Insert a separator `sep`  between all elements of a list `xs` .
 function intersperse( xs : list<a>, sep : a ) : list<a>
 {
   function before(ys,s) {
@@ -765,7 +765,7 @@ function init( xs : list<a> ) : exn list<a>
   }
 }
 
-// Get (zeroBased) element |n| of a list. Raise an exception on an outOfBounds access.
+// Get (zeroBased) element `n`  of a list. Raise an exception on an outOfBounds access.
 function []( xs : list<a>, n : int ) : exn a
 {
   match(xs) {
@@ -833,11 +833,11 @@ function isHexDigit( c : char ) : bool = (c.isDigit || (c >= 'a' && c <= 'f') ||
 function isAlpha( c : char ) : bool = (isLower(c) || isUpper(c))
 // Is the character ASCII letter or digit?
 function isAlphaNum( c : char ) : bool = (isAlpha(c) || isDigit(c))
-// Is the character an ASCII character, e.g. |c <= '\x7F'| ?
+// Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
 function isAscii( c : char )     : bool = (c <= '\x7F')
-// Is the character an ASCII control character, e.g. |c < ' '| ?
+// Is the character an ASCII control character, e.g. `c < ' '`  ?
 function isControl( c : char )   : bool = (c < ' ')
-// Tests if a character is an element of |" \t\n\r"|
+// Tests if a character is an element of `" \t\n\r"` 
 function isWhite( c : char )     : bool = (c == ' ' || c == '\t' || c == '\n' || c == '\r')
 
 
@@ -920,25 +920,25 @@ function abs( i : int ) : exn int
   error( "system.core.abs: cannot make minInt into a positive int without overflow" )
 }
 
-// Take the bitwise ''and'' of two ":int"s
+// Take the bitwise _and_ of two ":int"s
 external inline (&) : (int,int) -> int { 
   cs inline "((#1)&(#2))";
   js inline "((#1)&(#2))"
 }
-
-// Take the bitwise ''or'' of two ":int"s
+  
+// Take the bitwise _or_ of two ":int"s
 external inline (|) : (int,int) -> int { 
   cs inline "((#1)|(#2))";
   js inline "((#1)|(#2))";
 }
 
-// Take the bitwise ''xor'' of two ":int"s
+// Take the bitwise _xor_ of two ":int"s
 external inline (^) : (int,int) -> int { 
   cs inline "((#1)^(#2))";
   js inline "((#1)^(#2))"
 }
 
-// Bitwise ''not'' of an ":int", i.e. flips all bits.
+// Bitwise _not_ of an ":int", i.e. flips all bits.
 external inline not : ( i : int ) -> int  { 
   cs inline "(~(#1))";
   js inline "(~(#1))"
@@ -1084,24 +1084,26 @@ val minInt = 0 - maxInt - 1
 val bitsInt = 32
 
 // Euclidean-0 division.
-// Euclidean division is defined as: For any |D| and |d| where |d!=0|, we have:
-//    1) |D == d*(D/d) + (D%d)|
-//    2) |D%d| is always positive where |0 <= D%d < abs(d)|
+// Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
 //
-// Moreover, Euclidean-0 is a total function, for the case where |d==0| we have
-// that |D%0 == D| and |D/0 == 0|. So property (1) still holds, but not property (2).
+// 1. `D == d*(D/d) + (D%d)` 
+// 2. `D%d`  is always positive where `0 <= D%d < abs(d)` 
+//
+// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+// that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
 // 
 // Useful laws that hold for Euclidean-0 division:
-//    |D/(-d) == -(D/d)|
-//    |D%(-d) == D%d|
-//    |D/(2^n) == D `sar` n        | (with |0 <= n <= 31| and |2^n| means |2| to the power of |n|)
-//    |D%(2^n) == D & ((2^n) - 1)  | (with |0 <= n <= 31| and |2^n| means |2| to the power of |n|)
+//
+// * `D/(-d) == -(D/d)` 
+// * `D%(-d) == D%d` 
+// * ``D/(2^n) == D `sar` n        ``  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
+// * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 //
 // Note that an interesting edge case is "minInt / -1" which equals "minInt" since in modulo 32-bit 
 // arithmetic "minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)" satisfying property (1).
 // Of course "(minInt + 1) / -1" is again positive (namely "maxInt").  
 // 
-// See also ''Division and modulus for computer scientists, Daan Leijen, 2001'' for further information
+// See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: http://research.microsoft.com/enUs/um/people/daan/download/papers/divmodnote.pdf .
 function (/)( x : int, y : int ) : int
 {
@@ -1123,12 +1125,12 @@ function (%)( x : int, y : int ) : int
   else (r - y)
 }
 
-// Returns "true" if the integer |i| is an odd number.
+// Returns "true" if the integer `i`  is an odd number.
 function odd( i ) {
   return (i&1==1);
 }
 
-// Returns "true" if the integer |i| is an even number.
+// Returns "true" if the integer `i`  is an even number.
 function even( i ) {
   return (i&1==0);
 }
@@ -1199,7 +1201,7 @@ private external inline getEpsilon : () -> double {
   js inline "(4.94065645841247e-324)"
 }
 
-// Represents a value that is ''not a number'' (NaN)
+// Represents a value that is _not a number_ (NaN)
 val nan : double = getNan()
 
 // Positive infinity
@@ -1243,41 +1245,41 @@ external inline isNegInf : (double) -> bool {
 }
 
 
-// Returns the value |d| raised to the power |p|.
+// Returns the value `d`  raised to the power `p` .
 external inline (^) : (d:double,p:double) -> double {
   cs "Math.Pow"
   js inline "((#1) ^ (#2))"
 }
 
-// Return the square root of a value |d|
-// Returns "nan" if |d == nan| or if |d| is negative.
-// Returns "inf" if |d == inf|.
+// Return the square root of a value `d` 
+// Returns "nan" if `d == nan`  or if `d`  is negative.
+// Returns "inf" if `d == inf` .
 external inline sqrt : (d:double) -> double {
   cs "Math.Sqrt"
   js "Math.sqrt"
 }
 
-// Return the absolute value of a ":double" |d|
+// Return the absolute value of a ":double" `d` 
 external inline abs : (d:double) -> double  { 
   cs "Math.Abs"
   js "Math.abs" 
 }
 
-// Return the largest integer equal or less than |d|
+// Return the largest integer equal or less than `d` 
 external inline floor : (d:double) -> double {
   cs "Math.Floor"
   js "Math.floor"
 }
 
-// Return the smallest integer equal or larger than |d|
+// Return the smallest integer equal or larger than `d` 
 external inline ceiling : (d:double) -> double {
   cs "Math.Ceiling"
   js "Math.ceiling"
 }
 
-// Return the integral part of a ":double" |d|.
-// If |d >= 0.0|, return the largest integer equal or less to |d|,
-// If |d < 0.0|, return the smallest integer equal or larger to |d|.
+// Return the integral part of a ":double" `d` .
+// If `d >= 0.0` , return the largest integer equal or less to `d` ,
+// If `d < 0.0` , return the smallest integer equal or larger to `d` .
 external inline trunc : (d:double) -> double {
   cs "Math.Truncate"
   js "Math.trunc"
@@ -1348,11 +1350,11 @@ external inline length : forall<h,a> ( self : array<h,a> ) -> int {
   js inline "(#1).length"
 }
 
-// Assign to element |i| in an array |a|. May raise an outOfBounds exception
+// Assign to element `i`  in an array `a` . May raise an outOfBounds exception
 external inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
   = inline "(#1)[#2] = #3"
 
-// Create a new array of length |n| with initial elements |a|.
+// Create a new array of length `n`  with initial elements `a` .
 external inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
   cs inline "Primitive.NewArray<##2>(#1,#2)";
   js inline "Array(#2)"
@@ -1418,7 +1420,7 @@ function list( a : array<h,a> ) : read<h> list<a>
   }
 }
 
-// Invoke a function "f" for each element in a an array |a|
+// Invoke a function "f" for each element in a an array `a`.   
 // Note: this can diverge by storing self referential functions in the array
 function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 {
@@ -1427,7 +1429,7 @@ function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e
   }
 }
 
-// Destructively apply function |f| to each element in an array |a|
+// Destructively apply function `f`  to each element in an array `a`.   
 // Note: this can diverge by storing self referential functions in the array
 function map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
 {
@@ -1444,13 +1446,13 @@ function map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h
 // The type of immutable arrays is called ":vector".
 type vector<a>
 
-// Return the element at position |index| in vector |v|. Raise an outOfBounds exception if |index < 0| or |index >= v.length|.
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 private external inline unsafeIdx : forall<a> ( v : vector<a>, index : int ) -> total a { 
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
 
-// Return the element at position |index| in vector |v|. Raise an outOfBounds exception if |index < 0| or |index >= v.length|.
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 external inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  = inline "(#1)[#2]"
 
 // Return the length of a vector.
@@ -1459,7 +1461,7 @@ external inline length : forall<a> (v : vector<a> ) -> int  {
   js inline "(#1).length";
 }
 
-// Create a new vector of length |n| with initial elements |default|.
+// Create a new vector of length `n`  with initial elements `default` .
 external inline vector : forall<a> (n : int, default : a) -> vector<a> = "Primitive.NewArray"
 
 // Create an empty vector.
@@ -1514,7 +1516,7 @@ external inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> {
 // Strings
 // ----------------------------------------------------------------------------
 
-// Return the |n|th character in a string |s|.
+// Return the `n` th character in a string `s` .
 private external inline unsafeIdx : ( s : string, n : int ) -> char  = inline "(#1)[#2]"
 
 // Are two strings equal?
@@ -1549,7 +1551,7 @@ function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
 // Append two strings.
 external (+) : (string,string) -> string = inline "(#1 + #2)"
 
-// Return the |n|th character in a string |s|. Raise an outOfBounds exception if "n < 0" or "n >= s.length".
+// Return the `n` th character in a string `s` . Raise an outOfBounds exception if "n < 0" or "n >= s.length".
 external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
 
 // Return the length of a string.
@@ -1558,25 +1560,25 @@ external length : ( s : string ) -> int  {
   js inline "(#1).length";
 }
 
-// Does string |s| contain the character |c| ?
+// Does string `s`  contain the character `c`  ?
 external contains : (s : string, c : char ) -> bool { 
   cs inline "(#1.IndexOf(#2) >= 0)";
   js inline "((#1).indexOf(#2) != -1)";
 }
 
-// Is |pre| a prefix of |s| ?
+// Is `pre`  a prefix of `s`  ?
 external startsWith: (s : string, pre : string ) -> bool { 
   cs inline "#1.StartsWith(#2)";
   js inline "(#1).indexOf(#2) == 0"
 }
 
-// Does string |s| end with |post| ?
+// Does string `s`  end with `post`  ?
 external endsWith: (s : string, post : string ) -> bool { 
   cs inline "#1.EndsWith(#2)";
   js inline "((#2).indexOf(#1, (#2).length - (#1).length) !== -1)"
 }
 
-// Does string |s| contain the string |sub| ?
+// Does string `s`  contain the string `sub`  ?
 external contains: (s : string, sub : string ) -> bool { 
   cs inline "#1.Contains(#2)";
   js inline "(#1).indexOf(#2) != -1"
@@ -1621,7 +1623,7 @@ private external inline makeString : (n : int, c : char ) -> string {
   js inline "Array(#1 + 1).join(#2)";
 }
 
-// Construct a string of |n| characters |c| (or the empty string if |n <= 0|)
+// Construct a string of `n`  characters `c`  (or the empty string if `n <= 0` )
 function string( n : int, c : char ) : string
 {
   if (n <= 0) then "" else makeString(n,c)
@@ -1760,6 +1762,7 @@ external toLower : (s : string) -> string {
 // ----------------------------------------------------------------------------
 // Dictionaries
 // ----------------------------------------------------------------------------
+
 // A dictionary is a map from strings to values
 type dict :: V -> V
 
@@ -1862,20 +1865,20 @@ public function map( d : dict<a>, f : (string,a) -> e b ) : e dict<b> {
 // Show
 // ----------------------------------------------------------------------------
 
-// Generic print routine: prints the internal representation as a string to the console, including a final newline character.
+// Generic print routine: prints the internal representation as a string to the console, including a final newline character.  
 // Note: this breaks parametricity so it should not be public
 private function gprintln( x : a ) : console () {
   println( x.gshow )
 }
 
-// Generic print routine: prints the internal representation as a string to the console, including a final newline character.
+// Generic print routine: prints the internal representation as a string to the console, including a final newline character.  
 // Note: this breaks parametricity so it should not be public
 private function gprint( x : a ) : console () {
   print( x.gshow )
 }
 
 
-// Generic show: shows the internal representation of an object as a string
+// Generic show: shows the internal representation of an object as a string  
 // Note: this breaks parametricity so it should not be public
 private external gshow : forall<a> a -> string { 
   cs inline "#1.ToString()";
@@ -1895,7 +1898,7 @@ function show( i : int ) : string
 }
 
 // Show an ":int" as a hexadecimal value.
-// The |width| parameter specifies how wide the hex value is where |0| is used to align
+// The `width`  parameter specifies how wide the hex value is where `0`  is used to align
 // Uses capital letters for hexadecimal digits by default.
 function showHex( i : int, width : int = 1, useCapitals : bool = True )
 {
@@ -1904,8 +1907,8 @@ function showHex( i : int, width : int = 1, useCapitals : bool = True )
   gformat(i, x + w.show)
 }
 
-// Show a ":double" as a string with a default |precision| of |0|.
-// Pass a precision of |0| (or less) to display numbers precisely.
+// Show a ":double" as a string with a default `precision`  of `0` .
+// Pass a precision of `0`  (or less) to display numbers precisely.
 // Uses either "showFixed" or "showExp" depending on what is the most compact representation
 function show( d : double, precision : int = 6 ) : string
 {
@@ -2013,7 +2016,7 @@ function println( u : () )  { printsln(show(())) }
 
 // Trace a message used for debug purposes. 
 // The behaviour is system dependent. On a browser and node it uses
-// |console.log| by default.
+// `console.log`  by default.
 external trace : ( message : string ) -> ()  {
   cs "Primitive.Trace"
   js "$trace"
@@ -2032,7 +2035,7 @@ function show( xs : list<a>, showElem : (a) -> string ) : string
 }
 
 
-// RightAlign a string to width |width| using |char| (default is a space) to fill from the left.
+// RightAlign a string to width `width`  using `char`  (default is a space) to fill from the left.
 function align( s : string, width : int, char : char = ' ') : string
 {
   n = s.length
@@ -2128,7 +2131,7 @@ external inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with hdiv<h
 }
 
 // If a heap effect is unobservable, the heap effect can be erased by using the "run" function.
-// See also: ''State in Haskell, by Simon Peyton Jones and John Launchbury''.
+// See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 external inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  { 
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
@@ -2141,20 +2144,20 @@ external inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> 
 
 private external inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a) = inline "#1"
 
-// ''Unsafe''. This function calls a function and pretends it did not have any effect at all.
+// _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 function unsafeTotal( action : () -> e a ) : total a
 {
   unsafeTotalCast( action )()
 }
 
 
-// ''Unsafe''. This function removes the exception effect (":exn") from the effect of an action
+// _Unsafe_. This function removes the exception effect (":exn") from the effect of an action
 function unsafeNoExn( action : () -> <exn|e> a ) : e a
 {
   unsafeTotal( action )
 }
 
-// ''Unsafe''. This function removes the nonTermination effect (":div") from the effect of an action
+// _Unsafe_. This function removes the nonTermination effect (":div") from the effect of an action
 function unsafeNoDiv( action : () -> <div|e> a ) : e a
 {
   unsafeTotal( action )
@@ -2176,7 +2179,7 @@ function unique() : ndet int
   }
 }
 
-// Returns one of its arguments |x| or |y| based on a nonDeterministic choice.
+// Returns one of its arguments `x`  or `y`  based on a nonDeterministic choice.
 function choose( x: a, y: a) : ndet a {
   if (odd(randomInt())) then x else y
 }
@@ -2197,7 +2200,7 @@ external randomInt: () -> ndet int  {
 // Control
 // ----------------------------------------------------------------------------
 
-// The "while" function executes |action| as long as |pred| is "true".
+// The "while" function executes `action`  as long as `pred`  is "true".
 function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
 {
   if (predicate()) {
@@ -2206,14 +2209,14 @@ function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <d
   }
 }
 
-// The "repeat" function executes |action| |n| times.
+// The "repeat" function executes `action`  `n`  times.
 function repeat( n : int, action : () -> e () ) : e ()
 {
   for(1,n) fun(i) { action() }
 }
 
-// Executes |action| for each integer between |start| upto |end| (including both |start| and |end|).
-// If |start > end| the function returns without any call to |action|.
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
 function for( start: int, end : int, action : (int) -> e () ) : e ()
 {
   fun rep( i : int ) {

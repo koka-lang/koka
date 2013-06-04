@@ -88,7 +88,7 @@
 		</dict>
 		<dict>
 			<key>begin</key>
-			<string>^\s*\|\s*$</string>
+			<string>^```\s*koka\s*$</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>0</key>
@@ -100,7 +100,7 @@
 			<key>contentName</key>
 			<string>source.embedded.koka</string>
 			<key>end</key>
-			<string>^\s*\|\s*$</string>
+			<string>^```\s*$</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -112,16 +112,43 @@
 			<key>patterns</key>
 			<array>
 				<dict>
+					<key>match</key>
+					<string>^\s*""\s*$</string>
+					<key>name</key>
+					<string>meta.tag.block.any.html</string>
+				</dict>
+				<dict>
 					<key>include</key>
 					<string>source.koka</string>
 				</dict>
 			</array>
 		</dict>
 		<dict>
-			<key>match</key>
-			<string>\|\|</string>
-			<key>name</key>
-			<string>html</string>
+			<key>begin</key>
+			<string>^\s*```\s*((?!koka\b)\w+\s*)?$</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag.block.any.html</string>
+				</dict>
+			</dict>
+			<key>contentName</key>
+			<string>source.embedded</string>
+			<key>end</key>
+			<string>^\s*```</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag.block.any.html</string>
+				</dict>
+			</dict>
+			<key>patterns</key>
+			<array>
+			</array>
 		</dict>
 		<dict>
 			<key>match</key>
@@ -131,15 +158,46 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>\|[^\|]+\|</string>
+			<string>`[^`]*`</string>
 			<key>name</key>
 			<string>source.embedded.koka</string>
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>''([^']|'[^'])*''</string>
+			<string>_([^_
+]|_\w)*_</string>
 			<key>name</key>
 			<string>markup.quote</string>
+		</dict>
+		<dict>
+			<key>match</key>
+			<string>\*([^\*
+]|\*\w)*\*</string>
+			<key>name</key>
+			<string>enitity.name.section</string>
+		</dict>
+		<dict>
+			<key>match</key>
+			<string>^\s*#+.*$</string>
+			<key>name</key>
+			<string>markup.heading</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>\[([^\]\n]*)\]\s*(\(([^\)\n]*)\))?</string>
 		</dict>
 		<dict>
 			<key>include</key>

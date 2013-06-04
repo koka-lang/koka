@@ -69,12 +69,11 @@ h1 {
 body.koka.doc,
 .koka .mo, .koka .module,
 .koka.source,
-.koka.code,
+.koka.code, code,
 .koka.codeblock,
-.koka.pre,
+.koka.pre, pre,
 .koka.preblock, 
-.monospace
-{ 
+.monospace { 
   font-family: Consolas, Monaco, 'Ubuntu Mono', 'Source Code Pro', 'Andale Mono', 'Courier New', monospace;
   color: black;
 } 
@@ -98,8 +97,8 @@ body.koka.doc,
   margin-right: 1ex;
 }
 
-.koka.code,
-.koka.pre { 
+.koka.code, code,
+.koka.pre, pre { 
   padding: 0px 3px 0px 3px;
 }
 
@@ -124,17 +123,12 @@ body.koka.doc,
 
 
 /* Pre */
-.koka .comment,
 .koka.source,
 .koka.codeblock,
 .koka.preblock,
-.koka.code,
-.koka.pre { 
+.koka.code, code,
+.koka.pre, pre { 
   white-space: pre-wrap 
-}
-
-.koka.doc .comment  { 
-  white-space: pre-line 
 }
 
 .koka.doc .comment p {
@@ -282,7 +276,7 @@ h1.koka.module
       }
 
 .koka.doc .decl .comment
-      { margin: 0em 0em 1em 1em }
+      { margin: 0em 0em 0em 1em }
 
 .koka.doc.body>.comment
       { margin-bottom: 2em }

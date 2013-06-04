@@ -37,31 +37,55 @@
   	  ]
   	},
 
-  	{ "begin": "^\\s*\\|\\s*$"
-  	, "end": "^\\s*\\|\\s*$"
-  	, "contentName": "source.embedded.koka"
+    { "begin": "^```\\s*koka\\s*$"
+    , "end": "^```\\s*$"
+    , "contentName": "source.embedded.koka"
+    , "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+    , "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+    , "patterns": [
+      { "match": "^\\s*\"\"\\s*$"
+      , "name": "meta.tag.block.any.html"
+      },
+      { "include": "source.koka" }
+      ]
+    },
+
+  	{ "begin": "^\\s*```\\s*((?!koka\\b)\\w+\\s*)?$"
+  	, "end": "^\\s*```"
+  	, "contentName": "source.embedded"
   	, "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
   	, "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
   	, "patterns": [
-  		{ "include": "source.koka" }
-  	  ]
+  		]
   	},
-
-    { "match": "\\|\\|"
-    , "name": "html"
-    },
 
     { "match": "\\|//\\||\\|/\\*\\|"
     , "name": "source.embedded.koka"
     },
 
-	  { "match": "\\|[^\\|]+\\|"
+	  { "match": "`[^`]*`"
   	, "name": "source.embedded.koka"
   	},
 
-    { "match": "''([^']|'[^'])*''"
+    { "match": "_([^_\n]|_\\w)*_"
     , "name": "markup.quote" 
     },
+
+    { "match": "\\*([^\\*\n]|\\*\\w)*\\*"
+    , "name": "enitity.name.section" 
+    },
+
+    { "match": "^\\s*#+.*$"
+    , "name": "markup.heading" 
+    },
+
+    { "match": "\\[([^\\]\\n]*)\\]\\s*(\\(([^\\)\\n]*)\\))?"
+    , "captures": {
+      "1": { "name": "meta.tag" },
+      "3": { "name": "string" }
+      }
+    },
+
 
   	{ "include": "text.html.basic" }
   ],

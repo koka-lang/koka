@@ -23,7 +23,9 @@
     "amdefine"   : ">=0.0.4",    
     "requirejs"  : ">=2.1",
     "node-static": ">=0.6",
-    "ws"         : ">=0.4"
+    "ws"         : ">=0.4",
+    "marked"     : ">=0.2.8",
+    "commander"  : ">=1.1.1"
   },
   "scripts": {
     "preinstall": "npm install -g jake"

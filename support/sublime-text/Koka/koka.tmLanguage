@@ -730,7 +730,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>([a-z]\w*/)([a-z]\w*)</string>
+			<string>([a-z]\w*/)+([a-z]\w*)</string>
 		</dict>
 		<key>reservedid</key>
 		<dict>
@@ -1080,9 +1080,13 @@
 				</dict>
 				<dict>
 					<key>match</key>
-					<string>(\-&gt;|::?|\.)(?![$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;])</string>
+					<string>(\-&gt;|::?|\.)(?![$%&amp;\*\+@!\\\^~=\.:\-\?\|&lt;&gt;])</string>
 					<key>name</key>
 					<string>keyword.type.koka</string>
+				</dict>
+				<dict>
+					<key>include</key>
+					<string>#type_qidentifier</string>
 				</dict>
 				<dict>
 					<key>include</key>
@@ -1091,10 +1095,6 @@
 				<dict>
 					<key>include</key>
 					<string>#type_identifier</string>
-				</dict>
-				<dict>
-					<key>include</key>
-					<string>#type_qidentifier</string>
 				</dict>
 				<dict>
 					<key>include</key>
@@ -1249,21 +1249,10 @@
 		</dict>
 		<key>type_qidentifier</key>
 		<dict>
-			<key>captures</key>
-			<dict>
-				<key>1</key>
-				<dict>
-					<key>name</key>
-					<string>entity.name.class.module.koka</string>
-				</dict>
-				<key>3</key>
-				<dict>
-					<key>name</key>
-					<string>storage.type.koka</string>
-				</dict>
-			</dict>
 			<key>match</key>
-			<string>(([a-z]\w*/)*)([a-z]\w*)</string>
+			<string>([a-z]\w*/)+</string>
+			<key>name</key>
+			<string>entity.name.class.module.koka</string>
 		</dict>
 		<key>type_variable</key>
 		<dict>

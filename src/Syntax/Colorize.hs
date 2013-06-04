@@ -237,7 +237,9 @@ showDoc :: Env -> KGamma -> Gamma -> String -> String
 showDoc env kgamma gamma [] = ""
 showDoc env kgamma gamma doc
   = -- concat $ showLexemes env kgamma gamma [Lexeme rangeNull (LexComment (removeComment doc))]
-    doctag "div" (prefix ++ "comment") $ concatMap (fmtComment Nothing env kgamma gamma) $
+    doctag "div" (prefix ++ "comment") $
+    doctag "xmp" "" $
+    concatMap (fmtComment Nothing env kgamma gamma) $
     (lexComment "" 1 (removeComment doc))
 
 showLexemes :: Env -> KGamma -> Gamma -> [Lexeme] -> [String]

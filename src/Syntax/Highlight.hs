@@ -328,8 +328,7 @@ adjustContext ctx lex lexs
 lexComment :: FilePath -> Int -> String -> [TokenComment Lexeme]
 lexComment sourceName lineNo content
   = -- trace "lex comment: " $
-    -- [ComText "<p>"] ++ 
-    scan lineNo [] [] (filter (/= '\r') content)  -- ++ [ComText "</p>"]
+    scan lineNo [] [] (filter (/= '\r') content)  
   where
     -- Top level
     scan :: Int -> [TokenComment Lexeme] -> [Char] -> [Char] -> [TokenComment Lexeme]
@@ -337,25 +336,6 @@ lexComment sourceName lineNo content
     -- skip inside tags (so html renders correctly)
     scan n lacc acc ('<':c:rest)  | not (isSpace c)  = scanTag n (ComText (reverse acc) : lacc) ('<':c:rest)
 
-    -- links
-    scan n lacc acc url@('h':'t':'t':'p':':':'/':'/':rest) = scanUrl n (ComText (reverse acc) : lacc) url
-    scan n lacc acc url@('h':'t':'t':'p':'s':':':'/':'/':rest) = scanUrl n (ComText (reverse acc) : lacc) url
-    scan n lacc acc url@('f':'t':'p':':':'/':'/':rest) = scanUrl n (ComText (reverse acc) : lacc) url
-    scan n lacc acc url@('m':'a':'i':'l':'t':'o':':':rest) = scanUrl n (ComText (reverse acc) : lacc) url
-    scan n lacc acc url@('w':'w':'w':'.':rest)             = scanUrl n (ComText (reverse acc) : lacc) ("http://" ++ url)
-
-    -- lines are tricky since we need to include the newline characters for nice html output
-    scan n lacc acc ('-':'-':'-':'-':rest)= let (dashes,drest)   = span (=='-') ("----" ++ rest)
-                                                (m,whites,nrest)  = case span (\c -> c `elem` " \t") drest of
-                                                                     (ws,'\n':cs) -> (n+1,ws++"\n",cs)
-                                                                     (ws,cs)      -> (n,ws,cs)
-
-                                                (accpre,accpost) = case span (\c -> c `elem` "/ \t") acc of
-                                                                     (ws,'\n':cs) -> (ws++"\n",cs)
-                                                                     (ws,cs)      -> (ws,cs)
-                                            in if (onLine (dropWhile (=='/') acc) drest)
-                                                then scan m (ComLine (reverse accpre ++ dashes ++ whites) : ComText (reverse accpost) : lacc) [] nrest
-                                                else scan n lacc (dashes ++ acc) drest
 
     -- code
     scan n lacc acc ('"':':':rest)  = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest
@@ -367,47 +347,15 @@ lexComment sourceName lineNo content
                                        else scanCode n ComCode (ComText (reverse (acc)) : lacc) [] rest
     
     -- pre
-    scan n lacc acc ('|':'|':rest)  = scan n lacc ('|':acc) rest
-    scan n lacc acc ('|':rest)      = if (onLine acc rest) 
-                                       then scanPreBlock n (ComText (reverse (dropLine acc)) : lacc) [] (dropLine rest)
-                                       else scanPre n (ComText (reverse (acc)) : lacc) [] rest
-
-    -- italic
-    scan n lacc acc ('\'':'\'':c:rest) | isAlphaNum c = scanEmph n (ComText (reverse (acc)) : lacc) [] (c:rest)
+    scan n lacc acc ('`':'`':'`':rest)    | whiteLine acc  = scanPreBlock n (ComText (reverse ("```" ++ acc)) : lacc) [] rest
+    scan n lacc acc ('`':'`':rest)  = scanPre True n (ComText (reverse ('`':'`':acc)) : lacc) [] rest
+    scan n lacc acc ('`':rest)      = scanPre False n (ComText (reverse ('`':acc)) : lacc) [] rest
 
     -- regular
-    scan n lacc acc ('\n':rest)     = let (acc',rest') = scanNL rest
-                                      in scanIndent (n+1) lacc (reverse acc'  ++ acc) rest'
+    scan n lacc acc ('\n':rest)     = scan (n+1) lacc ('\n':acc) rest
     scan n lacc acc (c:rest)        = scan n lacc (c:acc) rest
     scan n lacc acc []              = reverse (ComText (reverse acc) : lacc)
     
-    scanNL cs@(c:_)  | c `elem` " \t\r\n" = ("\n",cs)
-    scanNL cs        = (" ",cs)
-    {-
-    -- unfortunately, does not work well in html documentation since it adds
-    -- paragraph separators also in head element for example
-
-    scanNL cs
-      = case span (\c -> c `elem` " \t\r\n") cs of
-          (pre,post) | null pre  -> (" ",cs)
-                     | otherwise -> let indent = reverse (takeWhile (/= '\n') (reverse pre)) 
-                                    in if (length indent == length pre)
-                                        then ("\n",cs)
-                                        else ("</p><p>",indent ++ post)
-    -}
-
-    scanIndent n lacc acc rest
-      = let (pre,post) = span (\c -> c `elem` " \t") rest
-        in if (null pre) 
-            then scan n lacc acc rest
-            else scan n (ComIndent (length pre) : ComText (reverse acc) : lacc) "" post
-
-    -- scanUrl: www.link or http://link
-    scanUrl n lacc content          = let (url,rest) = span (isValidUrlChar) content
-                                      in scan n (ComUrl url : lacc) [] rest
-                                    where
-                                      isValidUrlChar c = isAlphaNum c || c `elem` ":/.-_%?#;~"
-
     -- scanTag: ignore things inside "<tag...>" and "<script .. </script>" or "<style .. </style>" tags
     scanTag n lacc ('<':rest)       | (tag == "script" || tag == "style") = skipToEndTag 
                                     where
@@ -432,19 +380,13 @@ lexComment sourceName lineNo content
                                           (end,rest)  = if null close then ([],[]) else ([head close], tail close)
                                       in scan (if ('\n' `elem` end) then (n+1) else n) (ComText (tag ++ end) : lacc) [] rest
 
-    -- scanEmph ''emphasized''
-    scanEmph n lacc acc ('\'':'\'':rest) = scan n (ComEmph (reverse acc) : lacc) "" rest
-    scanEmph n lacc acc ('\n':rest)      = scan n (ComEmph (reverse acc) : lacc) "\n" rest
-    scanEmph n lacc acc (c:rest)         = scanEmph (if (c=='\n') then n+1 else n) lacc (c:acc) rest
-    scanEmph n lacc acc []               = scan n (ComEmph (reverse acc) : lacc) [] []
-
-
-    -- scanPre formatted |pre|
-    scanPre n lacc acc ('|':'|':rest)    = scanPre n lacc ('|':acc) rest
-    scanPre n lacc acc ('|':rest)        = scan n (ComPre (reverse (dropWhile (==' ') acc)) : lacc) "" rest
-    scanPre n lacc acc ('\n':rest)       = scan n (ComPre (reverse (dropWhile (==' ') acc)) : lacc) "\n" rest
-    scanPre n lacc acc (c:rest)          = scanPre n lacc (c:acc) rest
-    scanPre n lacc acc []                = scan n (ComPre (reverse (dropWhile (==' ') acc)) : lacc) [] []
+    
+    -- scanPre formatted `pre`
+    scanPre isDouble n lacc acc ('`':'`':rest)  | isDouble     = scan n lacc ('`':'`':acc) rest
+    scanPre isDouble n lacc acc ('`':rest)      | not isDouble = scan n lacc ('`':acc) rest
+    scanPre isDouble n lacc acc ('\n':rest)     = scan n lacc acc ('\n':rest) -- don't go through newlines
+    scanPre isDouble n lacc acc (c:rest)        = scanPre isDouble n lacc (c:acc) rest
+    scanPre isDouble n lacc acc []              = scan n lacc acc []
 
     -- scanCode "f(x)"
     scanCode n com lacc acc ('"':'"':rest)  = scanCode n com lacc ('"':acc) rest
@@ -456,12 +398,10 @@ lexComment sourceName lineNo content
     endCode n com lacc acc post rest = let lexemes = lexer sourceName n (stringToBString $ reverse (dropWhile (==' ') acc)) 
                                        in scan n (com (lexemes) (reverse acc) : lacc) (reverse post) rest
 
-    -- pre block |
-    scanPreBlock n lacc acc ('|':rest)      = if (onLine acc rest)
-                                               then scan (n+1) (ComPreBlock (reverse (dropLine acc)) : lacc) [] (dropLine rest)
-                                               else scanPreBlock n lacc ('|':acc) rest
+    -- pre block ```
+    scanPreBlock n lacc acc ('`':'`':'`':rest) = scan n lacc ("```" ++ acc) rest
     scanPreBlock n lacc acc (c:rest)        = scanPreBlock (if (c=='\n') then n+1 else n) lacc (c:acc) rest
-    scanPreBlock n lacc acc []              = scan n (ComPreBlock (reverse acc) : lacc) [] []
+    scanPreBlock n lacc acc []              = scan n lacc acc []
 
 
     -- code block
