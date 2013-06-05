@@ -861,7 +861,8 @@ _pattern_ | ::= | _identifier_
 &nbsp; |
 _patterns_ | ::= | _pattern_ <span class="many">{ "," _pattern_ }</span>
 _patargs_ | ::= | _patarg_ <span class="many">{ "," _patarg_ }</span>
-_patarg_ | ::= | <span class="opt">[_identifier_ "="]</span> _pattern_ | (possibly named parameter)</div>
+_patarg_ | ::= | <span class="opt">[_identifier_ "="]</span> _pattern_ | (possibly named parameter)
+</div>
 ## Type schemes
 
 <div class="grammar parse">
@@ -880,7 +881,8 @@ _sigqualifier_ | ::= | "with" _predicates_ <span class="bar">&#124;</span> _qual
 _qualifier_ | ::= | "with" "(" _predicates_ ")"
 &nbsp; |
 _predicates_ | ::= | _predicate_ <span class="many">{ "," _predicate_ }</span>
-_predicate_ | ::= | _typeapp_ | (interface)</div>
+_predicate_ | ::= | _typeapp_ | (interface)
+</div>
 ## Types
 
 <div class="grammar parse">
@@ -925,7 +927,8 @@ _katom_ | ::= | "V" | (value type)
  | &#124; | "X" | (effect type)
  | &#124; | "E" | (effect row)
  | &#124; | "H" | (heap type)
- | &#124; | "P" | (predicate type)</div>
+ | &#124; | "P" | (predicate type)
+</div>
 ## Implementation
 
 As a companion to the Flex lexical implementation, there is a full 

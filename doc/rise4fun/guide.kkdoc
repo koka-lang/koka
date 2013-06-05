@@ -1,4 +1,4 @@
-<!DOCTYPE html">
+<!DOCTYPE html>
 <html>
 
 <!--
@@ -45,11 +45,14 @@ change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 JavaScript like syntax.
 
-For more background information, see the 
-<a href="http://research.microsoft.com/en-us/projects/koka" target="_top">Koka
-research page</a> and the 
-<a href="http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf" target="_top">slides</a> of a talk
-presented Lang.Next (April 2012)
+For more background information, see:
+
+* The draft <a href="http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html" target="_top">language specification</a>
+  or browse the <a href="http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html" target="_top">library documentation</a>.
+* The <a href="http://research.microsoft.com/en-us/projects/koka" target="_top">Koka research page</a>
+   and the <a href="http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf" target="_top">slides</a> 
+   of a talk presented Lang.Next (April 2012)
+* The <a href="http://koka.codeplex.com" target="_top">source code</a> of the Koka compiler
 
 ## Hello world
 
@@ -751,7 +754,7 @@ todo
 For the purposes of equational reasoning and termination checking, a "type"
 declaration is limited to finite inductive types. There are two more
 declarations, namely "cotype" and "rectype" that allow for co-inductive types,
-and arbitrary _recursive types_ respectively.
+and arbitrary recursive types respectively.
 
 </xmp>
 </body>

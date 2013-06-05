@@ -313,7 +313,7 @@ type list<a> {
   con Cons(head:a, tail : list<a> )
 }
 
-// A ":stream" is a coInductive type reprenting an infinite list of elements.
+// A ":stream" is a co-inductive type reprenting an infinite list of elements.
 cotype stream<a> {
   con Next(head:a, tail: stream<a> )
 }
@@ -564,7 +564,7 @@ function foldr(xs,z,f)
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
-// Since "foldl" is tailRecursive, it is preferred over "foldr" when using an associative function `f` 
+// Since "foldl" is tail recursive, it is preferred over "foldr" when using an associative function `f` 
 function foldl(xs,z,f)
 {
   match(xs) {
@@ -765,7 +765,7 @@ function init( xs : list<a> ) : exn list<a>
   }
 }
 
-// Get (zeroBased) element `n`  of a list. Raise an exception on an outOfBounds access.
+// Get (zero-based) element `n`  of a list. Raise an exception on an out-of-bounds access.
 function []( xs : list<a>, n : int ) : exn a
 {
   match(xs) {
@@ -816,18 +816,18 @@ external inline int : (char) -> int { cs inline "(int)(#1)"; js inline "(#1).cha
 // Convert a unicode code point to a character
 external inline char : (int) -> char { cs inline "(char)(#1)"; js inline "String.fromCharCode(#1)" }
 
-// Add two character codePoints
+// Add two character code points
 function (+)(c : char, d : char) : total char  = (c.int + d.int).char
 // Substract two character codePoints
 function (-)(c : char, d : char) : total char  = (c.int - d.int).char
 
-// Is the character a lowerCase ASCII character ?
+// Is the character a lower-case ASCII character ?
 function isLower( c : char ) : bool = (c >= 'a' && c <= 'z')
-// Is the character an upperCase ASCII character ?
+// Is the character an upper-case ASCII character ?
 function isUpper( c : char ) : bool = (c >= 'A' && c <= 'Z')
 // Is the character an ASCII digit ?
 function isDigit( c : char ) : bool = (c >= '0' && c <= '9')
-// Is the character an ASCII hexaDecimal digit ?
+// Is the character an ASCII hexa-decimal digit ?
 function isHexDigit( c : char ) : bool = (c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
 // Is the character an ASCII letter ?
 function isAlpha( c : char ) : bool = (isLower(c) || isUpper(c))
@@ -846,7 +846,7 @@ function isWhite( c : char )     : bool = (c == ' ' || c == '\t' || c == '\n' ||
 // Booleans
 // ----------------------------------------------------------------------------
 
-// For shortCircuit we use external here
+// For short-circuiting we use external here
 // function (&&)( x : bool, y : bool) : bool = if (x) then y else false
 // function (||)( x : bool, y : bool) : bool = if (x) then true else y
 
@@ -1340,7 +1340,7 @@ private external inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x 
   js inline "(#1)[#2] = #3";
 }
 
-// Return the "index" element of an array. Raises an exception for outOfBounds access.
+// Return the "index" element of an array. Raises an exception for out-of-bounds access.
 external inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with hdiv<h,a,e> 
   = inline "(#1)[#2]"
 
@@ -1350,7 +1350,7 @@ external inline length : forall<h,a> ( self : array<h,a> ) -> int {
   js inline "(#1).length"
 }
 
-// Assign to element `i`  in an array `a` . May raise an outOfBounds exception
+// Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
 external inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
   = inline "(#1)[#2] = #3"
 
@@ -1551,7 +1551,7 @@ function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
 // Append two strings.
 external (+) : (string,string) -> string = inline "(#1 + #2)"
 
-// Return the `n` th character in a string `s` . Raise an outOfBounds exception if "n < 0" or "n >= s.length".
+// Return the `n` th character in a string `s` . Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
 external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
 
 // Return the length of a string.
@@ -1871,7 +1871,8 @@ private function gprintln( x : a ) : console () {
   println( x.gshow )
 }
 
-// Generic print routine: prints the internal representation as a string to the console, including a final newline character.  
+// Generic print routine: prints the internal representation as a string to the console, 
+// including a final newline character.  
 // Note: this breaks parametricity so it should not be public
 private function gprint( x : a ) : console () {
   print( x.gshow )
@@ -2157,7 +2158,7 @@ function unsafeNoExn( action : () -> <exn|e> a ) : e a
   unsafeTotal( action )
 }
 
-// _Unsafe_. This function removes the nonTermination effect (":div") from the effect of an action
+// _Unsafe_. This function removes the non-termination effect (":div") from the effect of an action
 function unsafeNoDiv( action : () -> <div|e> a ) : e a
 {
   unsafeTotal( action )
@@ -2179,7 +2180,7 @@ function unique() : ndet int
   }
 }
 
-// Returns one of its arguments `x`  or `y`  based on a nonDeterministic choice.
+// Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
 function choose( x: a, y: a) : ndet a {
   if (odd(randomInt())) then x else y
 }
@@ -2190,7 +2191,7 @@ external random : () -> ndet double   {
   js "Math.random"
 }
 
-// Return a nonNegative random integer (including 0)
+// Return a positive random integer (including 0)
 external randomInt: () -> ndet int  { 
   cs "Primitive.RandomInt"
   js inline "Math.floor(Math.random()*2147483647)"
