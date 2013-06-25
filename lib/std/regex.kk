@@ -10,7 +10,7 @@
 
    The regular expressions conform to the regular expressions of JavaScript
    as described at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions   
-*/   
+*/  
 module std/regex
 
 external include {
