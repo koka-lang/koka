@@ -46,7 +46,7 @@ externalNames :: [(TName, Doc)]
 externalNames
   = [ (conName exprTrue,  text "true")
     , (conName exprFalse, text "false")
-    , (TName nameOptionalNone typeOptional, text "undefined")
+    , (TName nameOptionalNone typeOptional, text "undefined")  -- ugly but has real performance benefit
     ]
 
 --------------------------------------------------------------------------

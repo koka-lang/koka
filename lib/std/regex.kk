@@ -43,7 +43,7 @@ public external []( groups : groups, index : int ) : string {
 
 // Returns "True" if a particular capture group actually matched.
 // This is used if the group can match, but may capture the empty string.
-public external matchedOn( groups : groups, index : int ) : bool {
+public external inline matchedOn( groups : groups, index : int ) : bool {
   js inline "(#1[#2] != null)"
 } 
 
