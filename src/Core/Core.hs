@@ -165,7 +165,7 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                   
               | ConSingleton{ conTypeName :: Name, conTag :: Int }                -- the only constructor without fields
               | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
               | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype
+              | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
               | ConNormal{ conTypeName :: Name, conTag :: Int }                   -- a regular constructor
               deriving (Eq,Ord,Show)
 

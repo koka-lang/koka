@@ -46,7 +46,7 @@ externalNames :: [(TName, Doc)]
 externalNames
   = [ (conName exprTrue,  text "true")
     , (conName exprFalse, text "false")
-    , (TName nameOptionalNone typeOptional, text "null")
+    , (TName nameOptionalNone typeOptional, text "undefined")
     ]
 
 --------------------------------------------------------------------------
@@ -220,8 +220,10 @@ genTypeDef (Data info _ _)
                                         else return $ case repr of
                                           ConEnum{}   
                                              -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> comment (Pretty.ppType penv (conInfoType c))
-                                          ConSingleton{}
-                                             -> text "var" <+> name <+> text "= null;" <+> comment (Pretty.ppType penv (conInfoType c))
+                                          ConSingleton{}                                             
+                                             -> text "var" <+> name <+> text "=" <+> 
+                                                  text (if conInfoName c == nameOptionalNone then "undefined" else "null")
+                                                   <> semi <+> comment (Pretty.ppType penv (conInfoType c))
                                           -- tagless
                                           ConSingle{}  -> genConstr penv c repr name args [] 
                                           ConAsCons{}  -> genConstr penv c repr name args []
@@ -237,7 +239,9 @@ genTypeDef (Data info _ _)
             $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> comment (Pretty.ppType penv (conInfoType c)) 
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
-          <+> block ( text "return" <+> object (tagFields ++ map (\arg -> (arg, arg))  args) <> semi )
+          <+> block ( text "return" <+> 
+                      (if conInfoName c == nameOptional then head args 
+                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
 
 ---------------------------------------------------------------------------------
 -- Statements 
@@ -417,10 +421,11 @@ genMatch result scrutinees branches
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
-              PatCon _ args _ _ info -> concatMap (\(pat',fn)-> getSubstitutions 
-                                                                 (nameDoc <> text "."  <> fn)
-                                                                 pat'
-                                                  ) (zip args (map (ppName . fst) (conInfoParams info)) )
+              PatCon tn args _ _ info 
+                -> concatMap (\(pat',fn)-> getSubstitutions 
+                                             (nameDoc <> (if (getName tn == nameOptional) then empty else (text "."  <> fn)))
+                                             pat'
+                            ) (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
               PatWild             -> [] 
 
@@ -458,7 +463,10 @@ genMatch result scrutinees branches
                      ConStruct{}
                        -> fail "Backend.JavaScript.FromCore.genTest: encountered ConStruct, which is not supposed to happen"
                      ConAsCons{}
-                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use == instead of === since undefined == null (for optional arguments)
+                       | getName tn == nameOptional
+                       -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest (scrutinee,field) ) fields
+                       | otherwise
+                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use === instead of == since undefined == null (for optional arguments)
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
@@ -513,10 +521,12 @@ genExpr expr
              TypeLam _ e -> genExpr e
              
              -- handle not inlineable cases
+             App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
+               -> genExpr arg
              App f args 
                 -- | isFunExpr f
                -- -> 
-                | otherwise
+               --  | otherwise
                -> do (decls,fdoc:docs) <- genExprs (f:args) 
                      return (vcat decls, fdoc <> tupled docs <> debugComment "genExpr: App")
 
@@ -609,6 +619,8 @@ genInline expr
               -> genPure expr
             TypeLam _ e -> genInline e 
             TypeApp e _ -> genInline e
+            App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
+              -> genInline arg
             App f args     
               -> do fdoc    <- genInline f
                     argDocs <- mapM genInline args

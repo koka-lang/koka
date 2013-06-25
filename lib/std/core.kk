@@ -716,6 +716,7 @@ function foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 // Insert a separator `sep`  between all elements of a list `xs` .
 function intersperse( xs : list<a>, sep : a ) : list<a>
 {
+  //TODO: make tail recursive
   function before(ys,s) {
     match(ys) {
       Cons(y,yy) -> Cons(s,Cons(y,before(yy,s)))
@@ -732,7 +733,21 @@ function intersperse( xs : list<a>, sep : a ) : list<a>
 // Concatenate all strings in a list
 function join( xs : list<string> ) : string
 {
-  xs.foldl( "", function(x,y){ x + y } )  // TODO: should use a string builder
+  function joinAcc( ys : list<string>, acc : string ) {
+    match(ys) {
+      Cons(y,yy) -> joinAcc(yy, acc+y)
+      Nil -> acc
+    }
+  }
+  
+  match(xs) {
+    Nil -> ""
+    Cons(x,xx) -> match(xx) {
+      Nil -> x
+      _   -> joinAcc(xx,x)
+    }
+  }
+  //xs.foldl( "", function(x,y){ x + y } )  // TODO: should use a string builder
 }
 
 // Concatenate all strings in a list using a specific separator
@@ -1641,9 +1656,9 @@ external join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string 
   js inline "(#1).join(#2)"
 }
 
-private external inline substr1 : (s : string, start : int ) -> string { 
-  cs inline "#1.Substring(#2)";
-  js inline "#1.substr(#2)";
+public external inline substr : (s : string, start : int ) -> string { 
+  cs inline "((#1).Substring(#2))";
+  js inline "((#1).substr(#2))";
 }
 
 private external inline substr2 : (s : string, start : int, len : int ) -> string { 
@@ -1672,11 +1687,9 @@ function string( ms : maybe<string> ) : string {
 
 // Return a substring from start position "start" up to either the end of the string, 
 // or of at most length "len"
-function substr( s : string, start : int, len : int = maxInt )
+function substr( s : string, start : int, len : int   )
 {
   if (len <= 0) then ""
-  elif (len == maxInt)
-   then substr1(s,start)
    else substr2(s,start,len)
 }
 
