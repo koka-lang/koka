@@ -448,7 +448,7 @@ function unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
       Nil            -> (reverse(acc1),reverse(acc2))
     }
   }
-
+  
   iter(xs,[],[])
 }
 
@@ -640,6 +640,19 @@ function filter( xs : list<a>, pred : a -> bool ) : list<a>
   }
 }
 
+// Retain only those elements of a list that satisfy the given predicate "pred".
+// For example: "filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]"
+function filterMap( xs : list<a>, pred : a -> maybe<b> ) : list<b>
+{
+  match(xs) {
+    Nil -> Nil
+    Cons(x,xx) -> match(pred(x)) {
+      Nothing -> xx.filterMap(pred)
+      Just(y) -> Cons(y,xx.filterMap(pred))
+    }
+  }
+}
+
 // Find the first element satisfying some predicate
 function find( xs : list<a>, pred : a -> bool ) : maybe<a>
 {
@@ -719,7 +732,7 @@ function intersperse( xs : list<a>, sep : a ) : list<a>
 // Concatenate all strings in a list
 function join( xs : list<string> ) : string
 {
-  xs.foldr( "", (+) )  // TODO: should use a string builder
+  xs.foldl( "", function(x,y){ x + y } )  // TODO: should use a string builder
 }
 
 // Concatenate all strings in a list using a specific separator
@@ -1410,13 +1423,12 @@ function list( a : array<h,a> ) : read<h> list<a>
 {
   unsafeTotal {
     len = a.length()
-    function build( i : int )
+    function build( i : int, acc : list<_a> )
     {
-      if (i >= len) return []
-      return Cons(a[i],build(i+1))
+      if (i >= 0) then build(i-1, Cons(a[i],acc)) else acc
     }
 
-    build(0)
+    build(len-1,Nil)
   }
 }
 
@@ -1480,7 +1492,16 @@ function foreach( v : vector<a>, f : a -> e () ) : e ()
   }
 }
 
-// Apply function "f" to each element in a vector "v"
+// Invoke a function "f" for each element in a vector "v".
+// If "f" returns "Just", the iteration is stopped early and the result is returned.
+function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
+{
+  forWhile( 0, v.length-1 ) fun(i) {
+    f(v.unsafeIdx(i))
+  }
+}
+
+// Apply function "f" to each element in a vector "v"Ju
 function map( v : vector<a>, f : a -> e b ) : e vector<b>
 {
   n = v.length
@@ -1549,57 +1570,69 @@ function (>)( x : string, y : string ) : bool  = compare(x,y) == Gt
 function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
 
 // Append two strings.
-external (+) : (string,string) -> string = inline "(#1 + #2)"
+external inline (+) : (string,string) -> string = inline "(#1 + #2)"
 
 // Return the `n` th character in a string `s` . Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
 external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
 
 // Return the length of a string.
-external length : ( s : string ) -> int  { 
+external inline length : ( s : string ) -> int  { 
   cs inline "(#1).Length";
   js inline "(#1).length";
 }
 
 // Does string `s`  contain the character `c`  ?
-external contains : (s : string, c : char ) -> bool { 
+external inline indexOf : (s : string, c : char ) -> int { 
+  cs inline "(#1.IndexOf(#2))";
+  js inline "((#1).indexOf(#2))";
+}
+
+// Does string `s`  contain the string `sub`  ?
+external inline indexOf : (s : string, sub : string ) -> int { 
+  cs inline "(#1.IndexOf(#2))";
+  js inline "((#1).indexOf(#2))";
+}
+
+// Does string `s`  contain the character `c`  ?
+external inline contains : (s : string, c : char ) -> bool { 
   cs inline "(#1.IndexOf(#2) >= 0)";
-  js inline "((#1).indexOf(#2) != -1)";
+  js inline "((#1).indexOf(#2) >= 0)";
 }
 
 // Is `pre`  a prefix of `s`  ?
 external startsWith: (s : string, pre : string ) -> bool { 
   cs inline "#1.StartsWith(#2)";
-  js inline "(#1).indexOf(#2) == 0"
+  js inline "#1.substr(0,#2.length) === #2"
 }
 
 // Does string `s`  end with `post`  ?
 external endsWith: (s : string, post : string ) -> bool { 
   cs inline "#1.EndsWith(#2)";
-  js inline "((#2).indexOf(#1, (#2).length - (#1).length) !== -1)"
+  js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
 }
 
 // Does string `s`  contain the string `sub`  ?
-external contains: (s : string, sub : string ) -> bool { 
-  cs inline "#1.Contains(#2)";
-  js inline "(#1).indexOf(#2) != -1"
+external inline contains: (s : string, sub : string ) -> bool { 
+  cs inline "((#1).Contains(#2))";
+  js inline "((#1).indexOf(#2) >= 0)"
 }
 
 // Concatenate a vector of strings
-external join: (v : vector<string> ) -> string { 
+external inline join: (v : vector<string> ) -> string { 
   cs "String.Concat";
-  js inline "(#1).join('')"
+  js inline "((#1).join(''))"
 }
 
 // Concatenate a vector of strings with a separator "sep"
-external join: (v : vector<string>, sep : string ) -> total string { 
+external inline join: (v : vector<string>, sep : string ) -> total string { 
   cs "Primitive.Concat";
-  js inline "(#1).join(#2)"
+  js inline "((#1).join(#2))"
 }
 
 // Concatenate an array of strings
 external inline join: forall<h> (a : array<h,string> ) -> read<h> string { 
   cs inline "String.Concat(#1)";
-  js inline "#1.join('')";
+  js inline "((#1).join(''))";
 }
 
 // Concatenate an array of strings with a separator "sep"
@@ -1608,12 +1641,12 @@ external join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string 
   js inline "(#1).join(#2)"
 }
 
-private external inline substring1 : (s : string, start : int ) -> string { 
+private external inline substr1 : (s : string, start : int ) -> string { 
   cs inline "#1.Substring(#2)";
   js inline "#1.substr(#2)";
 }
 
-private external inline substring2 : (s : string, start : int, len : int ) -> string { 
+private external inline substr2 : (s : string, start : int, len : int ) -> string { 
   cs inline "#1.Substring(#2,#3)";
   js inline "#1.substr(#2, #3)"
 }
@@ -1629,13 +1662,22 @@ function string( n : int, c : char ) : string
   if (n <= 0) then "" else makeString(n,c)
 }
 
-// Return a substring from start position "start" up to either the end of the string, or of at most length "len"
-function substring( s : string, start : int, len : int = maxInt )
+// Convert a ":maybe" string to a string using the empty sting for "Nothing"
+function string( ms : maybe<string> ) : string {
+  match(ms) {
+    Nothing -> ""
+    Just(s) -> s
+  }
+}
+
+// Return a substring from start position "start" up to either the end of the string, 
+// or of at most length "len"
+function substr( s : string, start : int, len : int = maxInt )
 {
   if (len <= 0) then ""
   elif (len == maxInt)
-   then substring1(s,start)
-   else substring2(s,start,len)
+   then substr1(s,start)
+   else substr2(s,start,len)
 }
 
 private external inline splitv : ( s : string,  sep : string ) -> vector<string> { 
@@ -2036,13 +2078,22 @@ function show( xs : list<a>, showElem : (a) -> string ) : string
 }
 
 
-// RightAlign a string to width `width`  using `char`  (default is a space) to fill from the left.
+// Right-align a string to width `width`  using `char`  (default is a space) to fill from the left.
 function align( s : string, width : int, char : char = ' ') : string
 {
   n = s.length
   if (n >= width)
    then s
    else string(width - n, char) + s
+}
+
+// Left-align a string to width `width`  using `char`  (default is a space) to fill on the right.
+function fill( s : string, width : int, char : char = ' ') : string
+{
+  n = s.length
+  if (n >= width)
+   then s
+   else s + string(width - n, char)
 }
 
 // ----------------------------------------------------------------------------
@@ -2225,6 +2276,23 @@ function for( start: int, end : int, action : (int) -> e () ) : e ()
       injectDiv(action)(i)
       rep(i+1)
     }
+  }
+  unsafeNoDiv { rep(start) }
+}
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns "Just", the iteration is stopped and the result returned
+function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
+{
+  fun rep( i : int ) {
+    if (i <= end) {
+      match(injectDiv(action)(i)) {
+        Nothing -> rep(i+1)
+        Just(x) -> Just(x)
+      }
+    }
+    else Nothing
   }
   unsafeNoDiv { rep(start) }
 }

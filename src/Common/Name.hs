@@ -283,6 +283,7 @@ asciiEncode isModule name
       "(,)"   -> "_tuple2_"
       "(,,)"  -> "_tuple3_"
       "(,,,)" -> "_tuple4_"
+      "[]"    -> "_index_"
       '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
       '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
       _       -> encodeChars name

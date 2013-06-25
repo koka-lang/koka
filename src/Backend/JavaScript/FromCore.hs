@@ -633,6 +633,8 @@ genExternal tname format argDocs
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
      = empty
+    ppExternalF name k@('\\':'#':xs) args
+     = char '#' <> ppExternalF name xs args
     ppExternalF name k@('#':'#':xs) args
      = failure ("Backend.JavaScript.FromCore: type arguments in javascript external in: " ++ show tname)
     ppExternalF name k@('#':y:xs)  args
@@ -854,8 +856,16 @@ ppLit lit
       LitString s -> dquotes (hcat (map escape s))
     where
       escape c
-        = if (c >= ' ' && c <= '~' && not (elem c "\\\"'"))
-           then char c
+        = if (c < ' ') 
+           then (if (c=='\n') then text "\\n"
+                 else if (c == '\r') then text "\\r"
+                 else if (c == '\t') then text "\\t"
+                 else text "\\u" <> text (showHex 4 (fromEnum c)))
+          else if (c <= '~')
+           then (if (c == '\"') then text "\\\""
+                 else if (c=='\'') then text "\\'" 
+                 else if (c=='\\') then text "\\\\"
+                 else char c)
           else if (fromEnum c <= 0xFFFF)
            then text "\\u" <> text (showHex 4 (fromEnum c))
            else text "\\U" <> text (showHex 8 (fromEnum c))

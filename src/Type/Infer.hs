@@ -247,7 +247,10 @@ addDivergentEffect coreDefs0
       = do let rng = Core.defNameRange def
            (tp0,_,coref) <- instantiateNoEx rng (Core.defType def) -- no effect extension or otherwise div can be added even if the user specified total for example.
            case splitFunType tp0 of
-             Nothing -> failure ( "Type.Infer.addDivergentEffect: unexpected non-function type:\n " ++ show coreDefs0) -- ?? should never happen?
+             Nothing 
+              -> -- failure ( "Type.Infer.addDivergentEffect: unexpected non-function type:\n " ++ show coreDefs0) -- ?? should never happen?
+                 -- can happen if a value contains a data structure containing recursive functions that refer to the value
+                 return def 
              Just (targs,teff,tres)
               -> do -- trace ("addDivergent: " ++ show (Core.defName def) ++ ": " ++ show (Core.defType def, tp0)) $ return ()
                     -- seff <- subst teff

@@ -8,7 +8,7 @@
 //----------------------------------------------------------------------------
 var fs = require("fs");
 var path = require("path");
-var marked = require("marked");
+var marked = require("../../../marked/lib/marked");
 var commander = require("commander");
             
 commander.version("0.1")
@@ -70,6 +70,6 @@ function markdown(input)
   if (!input) return;
   var regXmp = /<xmp\b[^>]*>((?:[^<]|<(?!\/xmp))*)<\/xmp>/g;
   return input.replace(regXmp,function(all,content) { 
-    return marked(content, { breaks: (commander.breaks ? true : false) });
+    return marked(content, { smartypants: true, extra: true, breaks: (commander.breaks ? true : false) });
   });
 }

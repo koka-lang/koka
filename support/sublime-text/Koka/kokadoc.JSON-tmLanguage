@@ -2,7 +2,11 @@
   "scopeName": "source.kokadoc",
   "fileTypes": ["kkdoc"],
   "patterns": [
-  	
+
+    { "match": "^\\s*(={3,}|-{3,})\\s*$"
+    , "name": "markup.heading"
+    },
+
     { "begin": "^\\s*\"\"?\\s*$"
   	, "end": "^\\s*\"\\s*$"
   	, "contentName": "source.embedded.koka"
@@ -37,10 +41,11 @@
   	  ]
   	},
 
-    { "begin": "^```\\s*koka\\s*$"
-    , "end": "^```\\s*$"
+    { "begin": "^\\s*((`{3,}|~{3,})\\s*koka\\b)(.*)(\\n|$)"
+    , "end": "^\\s*(`{3,}|~{3,})\\s*$"
     , "contentName": "source.embedded.koka"
-    , "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+    , "beginCaptures": { "1": { "name": "meta.tag.block.any.html" },
+                         "3": { "name": "string"} }
     , "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
     , "patterns": [
       { "match": "^\\s*\"\"\\s*$"
@@ -50,10 +55,11 @@
       ]
     },
 
-  	{ "begin": "^\\s*```\\s*((?!koka\\b)\\w+\\s*)?$"
-  	, "end": "^\\s*```"
+  	{ "begin": "^\\s*((`{3,}|~{3,})\\s*((?!koka\\b)\\w+\\b)?)(.*)(\\n|$)"
+  	, "end": "^\\s*(`{3,}|~{3,})\\s*"
   	, "contentName": "source.embedded"
-  	, "beginCaptures": { "0": { "name": "meta.tag.block.any.html" } }
+    , "beginCaptures": { "1": { "name": "meta.tag.block.any.html" },
+                         "4": { "name": "string"} }
   	, "endCaptures": { "0": { "name": "meta.tag.block.any.html" } }
   	, "patterns": [
   		]
@@ -75,21 +81,33 @@
     , "name": "enitity.name.section" 
     },
 
-    { "match": "^\\s*#+.*$"
-    , "name": "markup.heading" 
+    { "match": "^\\s*(#+[^\\{\\n]*)(\\{([^\\n\\}]*)\\}\\s*)?$"
+    , "captures": {
+      "1": { "name": "markup.heading" },
+      "3": { "name": "string" }
+      }
     },
 
-    { "match": "\\[([^\\]\\n]*)\\](?!:)\\s*(\\(([^\\)\\n]*)\\))?"
+    { "match": "\\[([^\\]\\n]*)\\](?!:)\\(([^\\)\\n]*)\\)(\\{([^\\n\\}]*)\\})?"
+    , "captures": {
+      "1": { "name": "meta.tag" },
+      "2": { "name": "string" },
+      "4": { "name": "string" }
+      }
+    },
+
+    { "match": "\\[([^\\]\\n]*)\\](?!:)\\s*(\\[([^\\]\\n]*)\\])?"
     , "captures": {
       "1": { "name": "meta.tag" },
       "3": { "name": "string" }
       }
     },
 
-    { "match": "^\\s*\\[([^\\]\\n]*)\\]:(.*)$"
+    { "match": "^\\s*\\[([^\\]\\n]*)\\]:([^\\n\\{]*)(\\{([^\\n\\}]*)\\})?\\s*$"
     , "captures": {
       "1": { "name": "meta.tag" },
-      "3": { "name": "string" }
+      "2": { "name": "string" },
+      "4": { "name": "string" }
       }
     },
 

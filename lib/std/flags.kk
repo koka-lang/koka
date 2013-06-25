@@ -106,7 +106,7 @@ public function usageInfo( flags : list<option<a>>, header : string ) : string
 
   function alignLeft( xs : list<string> )
   {
-    val n = xs.map(length).maximum
+    val n = xs.map(fun(s){ s.length }).maximum
     xs.map( fun(s){ s.flushLeft(n) } )
   }
 
@@ -197,9 +197,9 @@ function processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>
   if ("--" == arg)
    then [End]
   elif (arg.startsWith("--"))
-   then [parseLong( arg.substring(2), flags )]
+   then [parseLong( arg.substr(2), flags )]
   elif (arg.startsWith("-") && arg.length >= 2)
-   then parseShorts( arg.substring(1), flags )
+   then parseShorts( arg.substr(1), flags )
    else [Arg(arg)]
 }
 
@@ -260,13 +260,13 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
               Flag(default)
                 -> Just(Flg(default))
               Req(parse,help) -> {
-                arg = s.substring(i+1)
+                arg = s.substr(i+1)
                 if (arg.length > 0)
                  then { done := True; Just(Flg(parse(arg))) }
                  else Just(errorRequired(help,opt))
               }
               Opt(parse) -> {
-                arg = s.substring(i+1)
+                arg = s.substr(i+1)
                 if (arg.length > 0)
                  then { done := True; Just(Flg(parse(Just(arg)))) }
                  else Just(Flg(parse(Nothing)))

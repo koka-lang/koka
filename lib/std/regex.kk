@@ -9,7 +9,7 @@
 /* This module supports JavaScriptStyle regular expressions.
 
    The regular expressions conform to the regular expressions of JavaScript
-   as described at https://developer.mozilla.org/enUS/docs/JavaScript/Guide/Regular_Expressions   
+   as described at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions   
 */   
 module std/regex
 
@@ -21,18 +21,47 @@ external include {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
-// The result of a regular expression match, where "index" is the index in the
-// original source string where the match begins, "matched" is the content that
-// was matched, and "groups" is a vector that contains the content for each 
-// capture groups (where "groups[0] == matched").
-public struct matched( index :int, matched :string, groups :vector<string>  )
+// return the pattern as a string
+public external source( r : regex ) : string {
+  js inline "#1.obj.source"
+}
 
-external regexCreate : (string,int,int) -> exn any {
+
+// The result of a regular expression match, where "index" is the index in the
+// original source string where the match begins, "next" is the index just after
+// this match ("next == index + min(1,matched.length)"), "matched" is the content that
+// was matched, and "groups" is a vector that contains the content for each 
+// capture group (where "groups[0] == matched").
+public struct matched( index :int, next :int, matched :string, groups : groups )
+
+public type groups
+
+// Return the string captured by a particular group or the empty string.
+public external []( groups : groups, index : int ) : string {
+  js inline "((#1)[#2] != null ? (#1)[#2] : '')"
+} 
+
+// Returns "True" if a particular capture group actually matched.
+// This is used if the group can match, but may capture the empty string.
+public external matchedOn( groups : groups, index : int ) : bool {
+  js inline "(#1[#2] != null)"
+} 
+
+// For alternative regular expressions, return the alternative that was matched.
+public external alternative( groups : groups ) : int {
+  js inline "(#1.alternative ? #1.alternative : 0)"
+}
+
+external regexCreate : (string,int,int) -> any {
   cs "RegEx.Create"
   js "$regexCreate"
 }
 
-external regexExec : (any,string,int) -> matched {
+external regexCreateAlt : (vector<string>,int,int) -> any {
+  js "$regexCreateAlt"
+}
+
+external regexExec : (any,string,int) -> maybe<matched> {
   cs "RegEx.Exec"
   js "$regexExec"
 }
@@ -40,6 +69,11 @@ external regexExec : (any,string,int) -> matched {
 external regexExecAll : (any,string,int) -> vector<matched> {
   cs "RegEx.ExecAll"
   js "$regexExecAll"
+}
+
+external regexXExecAll : (vector<any>,string,int) -> vector<matched> {
+  cs "RegEx.XExecAll"
+  js "$regexXExecAll"
 }
 
 external regexReplaceFun : forall<e> (any, string, (matched) -> e string, int, int ) -> e string {
@@ -57,12 +91,25 @@ external regexSplit : (any, string, int, int ) -> vector<string> {
   js "$regexSplit"
 }
 
+
 // Create a new regular expression. Takes two optional parameters. Set "ignoreCase" to "True"
 // to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"
 // match also the beginning and end of every line (instead of the entire input).
-public function regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : exn regex
+public function regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex
 {
   Regex(regexCreate(regex,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
+}
+
+// Create a new _alternative_ regular expression. 
+// Matches any of the given patterns but the groups are local to each alternative.
+// See "alternative" to find out which alternative was matched. Contains an optimization
+// where a common prefix of all patterns is lifted out of the alternative to increase efficiency.
+// Takes two optional parameters. Set "ignoreCase" to "True"
+// to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"
+// match also the beginning and end of every line (instead of the entire input).
+public function regexAlt( regexs :list<string>, ignorecase :bool = False, multiline : bool = False ) : regex
+{
+  Regex(regexCreateAlt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
 }
 
 // Find a match for a regular expression starting at start position "start" (by default "0").
@@ -71,8 +118,8 @@ public function regex( regex :string, ignorecase :bool = False, multiline : bool
 public function find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
 {  
   if (start >= s.length) return Nothing
-  matched = regexExec(regex.obj,s,max(start,0))
-  return (if (matched.index < 0) then Nothing else Just(matched))
+  regexExec(regex.obj,s,max(start,0))
+  //return (if (matched.index < 0) then Nothing else Just(matched))
 }
 
 // Find all matches for a regular expression in a string.

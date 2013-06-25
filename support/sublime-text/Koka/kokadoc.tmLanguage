@@ -11,6 +11,12 @@
 	<key>patterns</key>
 	<array>
 		<dict>
+			<key>match</key>
+			<string>^\s*(={3,}|-{3,})\s*$</string>
+			<key>name</key>
+			<string>markup.heading</string>
+		</dict>
+		<dict>
 			<key>begin</key>
 			<string>^\s*""?\s*$</string>
 			<key>beginCaptures</key>
@@ -88,19 +94,24 @@
 		</dict>
 		<dict>
 			<key>begin</key>
-			<string>^```\s*koka\s*$</string>
+			<string>^\s*((`{3,}|~{3,})\s*koka\b)(.*)(\n|$)</string>
 			<key>beginCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>meta.tag.block.any.html</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
 				</dict>
 			</dict>
 			<key>contentName</key>
 			<string>source.embedded.koka</string>
 			<key>end</key>
-			<string>^```\s*$</string>
+			<string>^\s*(`{3,}|~{3,})\s*$</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -125,19 +136,24 @@
 		</dict>
 		<dict>
 			<key>begin</key>
-			<string>^\s*```\s*((?!koka\b)\w+\s*)?$</string>
+			<string>^\s*((`{3,}|~{3,})\s*((?!koka\b)\w+\b)?)(.*)(\n|$)</string>
 			<key>beginCaptures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>meta.tag.block.any.html</string>
+				</dict>
+				<key>4</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
 				</dict>
 			</dict>
 			<key>contentName</key>
 			<string>source.embedded</string>
 			<key>end</key>
-			<string>^\s*```</string>
+			<string>^\s*(`{3,}|~{3,})\s*</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -177,10 +193,43 @@
 			<string>enitity.name.section</string>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>markup.heading</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+			</dict>
 			<key>match</key>
-			<string>^\s*#+.*$</string>
-			<key>name</key>
-			<string>markup.heading</string>
+			<string>^\s*(#+[^\{\n]*)(\{([^\n\}]*)\}\s*)?$</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+				<key>4</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>\[([^\]\n]*)\](?!:)\(([^\)\n]*)\)(\{([^\n\}]*)\})?</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -197,7 +246,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>\[([^\]\n]*)\](?!:)\s*(\(([^\)\n]*)\))?</string>
+			<string>\[([^\]\n]*)\](?!:)\s*(\[([^\]\n]*)\])?</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -207,14 +256,19 @@
 					<key>name</key>
 					<string>meta.tag</string>
 				</dict>
-				<key>3</key>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>string</string>
+				</dict>
+				<key>4</key>
 				<dict>
 					<key>name</key>
 					<string>string</string>
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>^\s*\[([^\]\n]*)\]:(.*)$</string>
+			<string>^\s*\[([^\]\n]*)\]:([^\n\{]*)(\{([^\n\}]*)\})?\s*$</string>
 		</dict>
 		<dict>
 			<key>include</key>

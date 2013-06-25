@@ -32,14 +32,14 @@ span.logo { font-family: ""Century Gothic""
 
 <xmp>
 
-# An overview of Koka
+# An overview of Koka 
 
 This is a short introduction to the Koka programming language meant for
 programmers familiar with languages like C++, C#, or JavaScript.
 
 Koka is a _function-oriented_ language that separates pure values from
 side-effecting computations (The word 'koka' (or &#x52B9;&#x679C;) means
-&ldquo;effect&rdquo; or &ldquo;effective&rdquo; in Japanese). Koka is also
+""effect"" or ""effective"" in Japanese). Koka is also
 flexible and "fun": Koka has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
@@ -47,12 +47,15 @@ JavaScript like syntax.
 
 For more background information, see:
 
-* The draft <a href="http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html" target="_top">language specification</a>
-  or browse the <a href="http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html" target="_top">library documentation</a>.
-* The <a href="http://research.microsoft.com/en-us/projects/koka" target="_top">Koka research page</a>
-   and the <a href="http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf" target="_top">slides</a> 
-   of a talk presented Lang.Next (April 2012)
-* The <a href="http://koka.codeplex.com" target="_top">source code</a> of the Koka compiler
+* The draft [language specification][langspec] or browse the [library documentation][libraries].
+* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
+* The [source code][codeplex] of the Koka compiler.
+
+[langspec]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html  {target='_top'}
+[libraries]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html {target='_top'}
+[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
+[codeplex]: http://koka.codeplex.com {target='_top'} 
+[kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 
 ## Hello world
 
@@ -296,10 +299,10 @@ mathematical type signature, we have:
 
 | | 
 --- | ---- | ---
-&#x301A;":int -> total int "&#x301B;        | =&nbsp;&nbsp; | <span class="math">&#8484;<sub>32</sub> &rarr; &#8484;<sub>32</sub></span>
-&#x301A;":int -> exn int "&#x301B;          | = | <span class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)</span>
-&#x301A;":int -> pure int "&#x301B;         | = | <span class="math">&#8484;<sub>32</sub> &rarr; (1 + &#8484;<sub>32</sub>)<sub>&#8869;</sub></span>
-&#x301A;":int -> <st<h>,pure> int "&#x301B; | = | <span class="math">(Heap &times; &#8484;<sub>32</sub>) &rarr; (Heap &times; (1 + &#8484;<sub>32</sub>))<sub>&#8869;</sub></span>
+&#x301A;":int -> total int "&#x301B;        | =&nbsp;&nbsp; | <span class="math">&#8484;~32~ &rarr; &#8484;~32~</span>
+&#x301A;":int -> exn int "&#x301B;          | = | <span class="math">&#8484;~32~ &rarr; (1 + &#8484;~32~)</span>
+&#x301A;":int -> pure int "&#x301B;         | = | <span class="math">&#8484;~32~ &rarr; (1 + &#8484;~32~)~&#8869;~</span>
+&#x301A;":int -> <st<h>,pure> int "&#x301B; | = | <span class="math">(Heap &times; &#8484;~32~) &rarr; (Heap &times; (1 + &#8484;~32~))~&#8869;~</span>
 
 In the above translation, we use <span class="math">1 + t</span> as a sum
 where we have either a unit 1 (i.e. exception) or a type t, and we use 
@@ -327,7 +330,7 @@ Often, a function contains multiple effects, for example:
 function combineEffects() 
 {
   i = randomInt()  // non-deterministic
-  error("hi")       // exception raising
+  error("hi")      // exception raising
   combineEffects() // and non-terminating
 }
 "
@@ -486,7 +489,9 @@ Haskell) to discard the ":st<h> " effect.
 
 The Garsia-Wachs algorithm is nice example where side-effects are used
 internally but where the algorithm itself behaves like a pure function, see
-the <a href="http://www.rise4fun.com/koka/garsiaWachs" target="_top">garsiaWachs</a> sample online.
+the [garsiaWachs] sample online.
+
+  [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
 
 ## Cracking Caesar
 
@@ -564,7 +569,7 @@ it out in the editor!
 
 Being a function-oriented languague, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function "substring" takes a string, a `start` position, and the length `len` of the
+function "substr" takes a string, a `start` position, and the length `len` of the
 desired substring:
 
 "
@@ -572,7 +577,7 @@ function main() { println(world()) }
 ""
 function world() 
 {
-  return substring("hi world", 3, 5)  // returns "world"
+  return substr("hi world", 3, 5)  // returns "world"
 }
 "
 
@@ -583,7 +588,7 @@ function main() { println(world2()) }
 ""
 function world2() 
 {
-  return "hi world".substring( len=5, start=3 )
+  return "hi world".substr( len=5, start=3 )
 }
 "
 

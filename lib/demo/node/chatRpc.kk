@@ -57,8 +57,8 @@ public function main(): io ()
     function interact(client)
     { 
       log("`serverCode.interact`")
-      Display("|  Welcome to tierSplitted rpcChat. Have fun!").client
-      Display("|     (use `/nick` to change your username)\n").client
+      Display("|  Welcome").client
+      Display("|  (use `/nick` to change your username)\n").client
       broadcast.listen fun(s) {
         Display(s).client 
       }

@@ -17,32 +17,34 @@ static class RegEx
     return new Regex( s, options );                           
   }
 
-  public static koka_text_regex._matched Matches( Match match ) 
+  public static koka_dot_std_regex._matched Matches( Match match ) 
   {
-    if (!match.Success) return new koka_text_regex._matched( -1, "", null );    
+    if (!match.Success) return new koka_dot_std_regex._matched( -1, 0, "", null );    
     string[] groups = new string[match.Groups.Count];
     for( int i = 0; i < match.Groups.Count; i++) {
       groups[i] = (match.Groups[i].Success ? match.Groups[i].Value : "");
     }
-    return new koka_text_regex._matched( match.Index, groups[0], groups );
+    int next = match.Index + match.Length;
+    if (next<=match.Index) next = match.Index+1;
+    return new koka_dot_std_regex._matched( match.Index, next, groups[0], groups );
   }
 
-  public static koka_text_regex._matched Exec( object r, string s, int start ) {
+  public static koka_dot_std_regex._matched Exec( object r, string s, int start ) {
     Regex regex = (Regex)(r);
     return Matches(regex.Match(s,start));
   }  
 
-  public static koka_text_regex._matched[] ExecAll( object r, string s, int start ) {
+  public static koka_dot_std_regex._matched[] ExecAll( object r, string s, int start ) {
     Regex regex = (Regex)(r);
     MatchCollection matches = regex.Matches(s,start);
-    koka_text_regex._matched[] result = new koka_text_regex._matched[matches.Count];
+    koka_dot_std_regex._matched[] result = new koka_dot_std_regex._matched[matches.Count];
     for (int i = 0; i < matches.Count; i++) {
       result[i] = Matches(matches[i]);
     }
     return result;
   }  
 
-  public static string ReplaceFun( object r, string s, Fun1<koka_text_regex._matched,string> repl, int all, int start) 
+  public static string ReplaceFun<E>( object r, string s, Fun1<koka_dot_std_regex._matched,string> repl, int all, int start) 
   {
     Regex regex = (Regex)(r);
     int count = (all != 0 ? int.MaxValue : 1);
