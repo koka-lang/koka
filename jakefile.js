@@ -184,7 +184,7 @@ task("spec", ["compiler"], function(mode) {
   command(cmd + "kokaspec.kkdoc", function() {
     command(cmd + "toc.kk", function() {
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"));
-      command(cmdMarkdown + " " + xmpFiles.toArray().join(" "), function () {
+      command(cmdMarkdown + " -v " + xmpFiles.toArray().join(" "), function () {
         // copy style file
         jake.mkdirP(outstyles);
         jake.cpR(path.join("doc","koka.css"),outstyles);
@@ -219,18 +219,21 @@ task("guide", ["compiler"], function(publish) {
   });
 });
 
-desc("install Sublime Text 2 support files for Koka");
-task("sublime", function() {
-  jake.logger.log("install Sublime Text 2 support");
+desc(["install Sublime Text 2 support files for Koka",
+     "     sublime[<version>]  # install for <version> instead (2 or 3)"].join("\n")
+    );
+task("sublime", function(sversion) {
+  jake.logger.log("install Sublime Text support");
   var sublime =　"";
+  var sversion = sversion || "2"
   if (process.env.APPDATA) {
-    sublime = path.join(process.env.APPDATA,"Sublime Text 2");
+    sublime = path.join(process.env.APPDATA,"Sublime Text " + sversion);
   } 
   else if (process.env.HOME) {
     if (path.platform === "darwin") 
-      sublime = path.join(process.env.HOME,"Library","Application Support","Sublime Text 2");
+      sublime = path.join(process.env.HOME,"Library","Application Support","Sublime Text " + sversion);
     else 
-      sublime = path.join(process.env.HOME,".config","sublime-text-2");
+      sublime = path.join(process.env.HOME,".config","sublime-text-" + sversion);
   }
   sublime = path.join(sublime,"Packages");
 

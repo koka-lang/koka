@@ -15,7 +15,7 @@ public module std/core
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
-infixl 60  (+), (-)
+infixr 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 infixr 30  (&&)
 infixr 20  (||)
@@ -282,6 +282,9 @@ struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
 // A quadruple of values.
 struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 
+// A quintuple of values.
+struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
+
 // The ":maybe" type is used to represent either a value ("Just(x)") or "Nothing".
 // This type is often used to represent values that can be _null_.
 type maybe<a> {
@@ -393,7 +396,7 @@ function list( lo : char, hi : char ) : total list<char>
 }
 
 
-private val maxListStack = 100
+private val maxListStack = 200
 
 
 private function zipWithAcc( f, acc, xs, ys )
@@ -554,13 +557,10 @@ function (+)(xs : list<a>, ys : list<a> ) : list<a>
 }
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)` 
-// See also "foldl"
+// Note, "foldr" is less efficient than "foldl" as it reverses the list first. 
 function foldr(xs,z,f)
 {
-  match(xs) {
-    Cons(x,xx) -> f(x,foldr(xx,z,f))
-    Nil        -> z
-  }
+  xs.reverse.foldl(z,fun(x,y){f(y,x)}) 
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
@@ -642,7 +642,7 @@ function filter( xs : list<a>, pred : a -> bool ) : list<a>
 
 // Retain only those elements of a list that satisfy the given predicate "pred".
 // For example: "filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]"
-function filterMap( xs : list<a>, pred : a -> maybe<b> ) : list<b>
+function filterMap( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 {
   match(xs) {
     Nil -> Nil
@@ -1169,6 +1169,32 @@ function sum( xs : list<int> ) : int
   xs.foldl( 0, (+) )
 }
 
+// Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
+// An empty string will result in "Just(0)".
+function parseInt( s : string, hex : bool = False) : maybe<int> {
+  parseDigits(s.list, if (hex) then 16 else 10)
+}
+
+// Parse digits in a "base" between 2 and 36 (default 10) given an initial value "acc" (default 0)
+// Returns "acc" on the empty string, and "Nothing" if an invalid digit is encountered.
+private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) : maybe<int> {
+  match(cs) {
+    Nil -> Just(acc)
+    Cons(c,cc) -> {
+      d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base-1).char))) then {
+            (c - '0').int
+          }
+          elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base-11).char)) then { 
+            (c - 'a').int + 10
+          }
+          elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base-11).char)) then { 
+            (c - 'A').int + 10
+          }
+          else return Nothing   
+      parseDigits(cc, base, base*acc + d)
+    }
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Doubles
@@ -1489,7 +1515,9 @@ external inline length : forall<a> (v : vector<a> ) -> int  {
 }
 
 // Create a new vector of length `n`  with initial elements `default` .
-external inline vector : forall<a> (n : int, default : a) -> vector<a> = "Primitive.NewArray"
+public function vector(n : int, default : a) : vector<a> {
+  list(1,n).map( fun(i){ default }).vector
+} 
 
 // Create an empty vector.
 external inline vector : forall<a> () -> vector<a> {
@@ -1587,7 +1615,8 @@ function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
 // Append two strings.
 external inline (+) : (string,string) -> string = inline "(#1 + #2)"
 
-// Return the `n` th character in a string `s` . Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
+// Return the `n` th character in a string `s` . 
+// Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
 external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
 
 // Return the length of a string.
@@ -1602,10 +1631,22 @@ external inline indexOf : (s : string, c : char ) -> int {
   js inline "((#1).indexOf(#2))";
 }
 
+// Does string `s`  contain the character `c`  ?
+external inline lastIndexOf : (s : string, c : char ) -> int { 
+  cs inline "(#1.LastIndexOf(#2))";
+  js inline "((#1).lastIndexOf(#2))";
+}
+
 // Does string `s`  contain the string `sub`  ?
 external inline indexOf : (s : string, sub : string ) -> int { 
   cs inline "(#1.IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
+}
+
+// Does string `s`  contain the string `sub`  ?
+external inline lastIndexOf : (s : string, sub : string ) -> int { 
+  cs inline "(#1.LastIndexOf(#2))";
+  js inline "((#1).lastIndexOf(#2))";
 }
 
 // Does string `s`  contain the character `c`  ?
@@ -1661,6 +1702,7 @@ public external inline substr : (s : string, start : int ) -> string {
   js inline "((#1).substr(#2))";
 }
 
+
 private external inline substr2 : (s : string, start : int, len : int ) -> string { 
   cs inline "#1.Substring(#2,#3)";
   js inline "#1.substr(#2, #3)"
@@ -1684,6 +1726,20 @@ function string( ms : maybe<string> ) : string {
     Just(s) -> s
   }
 }
+
+/*
+function substr1( s : string, start : int, len : int = maxInt   )
+{
+  if (len <= 0) then ""
+   else substr2(s, if (start <= 0) then 1 else start, len)
+}
+*/
+
+public external inline substr1 : (s : string, start : int ) -> string { 
+  cs inline "((#1).Substring(#2))";
+  js inline "((#1).substr(#2 >=1 ? #2 : 1))";
+}
+
 
 // Return a substring from start position "start" up to either the end of the string, 
 // or of at most length "len"
@@ -1751,12 +1807,7 @@ function list( s : string ) : total list<char>
 // Convert a list of characters to a string
 function string( cs : list<char> ) : total string
 {
-  n = cs.length()
-  a = array(n,' ')
-  cs.foreachIndexed fun(i,c) {
-    a.unsafeAssign(i,c)
-  }
-  a.string()
+  cs.map( fun(c){ c.string } ).join()
 }
 
 // Apply a function "f" to each character in a string
@@ -1813,107 +1864,6 @@ external toLower : (s : string) -> string {
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()" 
 }
-
-// ----------------------------------------------------------------------------
-// Dictionaries
-// ----------------------------------------------------------------------------
-
-// A dictionary is a map from strings to values
-type dict :: V -> V
-
-private external inline isNull( x : a) : bool  = inline "(#1 == null)"
-
-private external createDict() : dict<a> {
-  cs inline "new System.Collections.Generic.Dictionary<string,##1>()"
-  js inline "{}"
-}  
-
-private external unsafeDictAdd( d : dict<a>, key : string, value : a ) : () = inline "(#1)[#2] = #3"
-
-private external unsafeDictGet( d : dict<a>, key : string ) : a = inline "(#1)[#2]"
-
-private external dictCopy( d : dict<a> ) : dict<a> {
-  cs inline "new System.Collections.Generic.Dictionary<string,##1>(#1)"
-  js inline "$copy(#1)"
-}
-
-// Convert a dictionary to a vector of key/value pairs
-function vector( d : dict<a> ) : vector<(string,a)> {
-  d.keys.map fun(key) {
-    (key,unsafeDictGet(d,key))
-  }
-}
-
-// Convert a dictionary to a list of key/value pairs
-function list( d : dict<a> ) : list<(string,a)> {
-  d.vector.list
-}
-
-// Return the keys in a
-external keys( d : dict<a> ) : vector<string> {
-  cs inline "Primitive.DictKeys(#1)"
-  js inline "$fields(#1)"
-}
-
-// Return the value at a specified "key"
-function []( d : dict<a>, key : string ) : maybe<a> {
-  val value = unsafeDictGet(d,key);
-  if (isNull(value)) then Nothing else Just(value)
-}
-
-// Create a new dictionary from a ":list" of key value pairs.
-public function dict( elems : list<(string,a)> ) : dict<a> {
-  val d = createDict();
-  elems.foreach fun(elem) {
-    val (key,value) = elem
-    unsafeDictAdd(d,key,value)
-  }
-  return d
-}
-
-// Create a new dictionary from a ":vector" of key/value pairs.
-public function dict( elems : vector<(string,a)> ) : dict<a> {
-  val d = createDict();
-  elems.foreach fun(elem) {
-    val (key,value) = elem
-    unsafeDictAdd(d,key,value)
-  }
-  return d
-}
-
-
-// Append a list of key/value pairs to a dictionary.
-function add( d : dict<a>, elems : list<(string,a)> ) : dict<a> {
-  val dnew = dictCopy(d);
-  elems.foreach fun(elem) {
-    val (key,value) = elem
-    unsafeDictAdd(dnew,key,value)
-  }
-  return dnew
-}
-
-
-// Append two dictionaries.
-function add( d1 : dict<a>, d2 : dict<a> ) : dict<a> {
-  val dnew = dictCopy(d1);
-  d2.foreach fun(key,value) {
-    unsafeDictAdd(dnew,key,value)
-  }
-  return dnew
-}
-
-
-// Execute action for each key/value pair in a dictionary.
-public function foreach( d : dict<a>, action : (string,a) -> e () ) : e () {
-  d.keys.foreach fun(k) {
-    action(k,unsafeDictGet(d,k))
-  }
-}
-
-// Map a function over the values in a dictionary.
-public function map( d : dict<a>, f : (string,a) -> e b ) : e dict<b> {
-  d.keys.map( fun(k) { (k, f(k,unsafeDictGet(d,k))) } ).dict
-}  
 
 
 // ----------------------------------------------------------------------------
@@ -2076,6 +2026,26 @@ function println( u : () )  { printsln(show(())) }
 external trace : ( message : string ) -> ()  {
   cs "Primitive.Trace"
   js "$trace"
+}
+
+
+private val logRef : ref<global,string> = unsafeTotal { ref("") }
+
+function withLog( action : () -> <ndet|e> a ) : <ndet|e> (string, a) {
+  unsafeTotal {
+    oldLog = !logRef
+    logRef := ""
+    x = unsafeTotal(action)
+    l = !logRef
+    logRef := oldLog
+    (l,x)
+  }
+}
+
+function log( msg : string ) : () {
+  unsafeTotal {
+    logRef := !logRef + (msg + "\n")
+  }
 }
 
 // Convert a ":bool" to a string

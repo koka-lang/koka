@@ -156,101 +156,36 @@ table .kw, table .tp, table .co,
 function genTOC() {
   var toc = document.getElementById('toc');  
   if (toc == null) return;
-
-  var empty = ' '.substr(1);
-  var elems = document.getElementsByTagName('*');
-  var i = 0;
-  
-  var localToc = document.createElement('div'); 
   var tocToggle = document.getElementById('toc-toggle');
   
   function showToc() {
-    localToc.style.display = 'block';
+    toc.style.display = 'block';
     if (tocToggle){
       tocToggle.innerHTML = '&#x25BC;'
       tocToggle.style.fontSize = '12pt'
     }
   }
   function hideToc() {
-    localToc.style.display = 'none';
+    toc.style.display = 'none';
     if (tocToggle) {
       tocToggle.innerHTML = '&#x25B6;';    
       tocToggle.style.fontSize = '16pt';
     }
   }
   function switchToc() {
-    (localToc.style.display != 'none' ? hideToc() : showToc());
+    (toc.style.display != 'none' ? hideToc() : showToc());
   }
-  if (tocToggle) tocToggle.onclick = switchToc;
-  hideToc();
 
-  function genHeaders(toc,tocNum,level) {
-    var match = null;
-    var num = 1;
-    var appendix = -1;
-    var ul = null;
-    var li = null;
-    while(i < elems.length) {
-      var elem = elems[i];
-      match = elem.tagName.match(/^[hH]([0-9])$/);      
-      if (match && elem.className.indexOf('notoc') < 0) {
-        var newLevel = (match[1]||0);
-        if (newLevel <= level) return;
-        i++;
-        if (ul == null) {
-          ul = document.createElement('ul');
-          toc.appendChild(ul);
-        }  
-        if (!(newLevel != level+1 && li != null)) {
-          var li = document.createElement('li');
-          ul.appendChild(li);
-          if (elem.className.indexOf("appendix") >= 0) {
-            if (appendix < 0) appendix = num;
-            var liNum = tocNum + String.fromCharCode("A".charCodeAt(0) + num - appendix) + '.';     
-          }
-          else {
-            var liNum = tocNum + num + '.'; 
-          }
-          num++;
-        }
-        if (newLevel == level+1) {
-          var id = elem.id;
-          if (id==null||id.length==0) {
-            id = 'sec:' + liNum;
-            elem.id = id;
-          }
-          var liNumDisplay = (level <= 2 ? liNum : empty);
-          li.innerHTML= '<span class=\'toc-num\'>' + liNumDisplay + '</span><a href=\'#' + id + '\'>' + elem.innerHTML + '</a>';
-          var aref = document.createElement('a');
-          aref.setAttribute('href','#toc');
-          aref.onclick = showToc;
-          aref.innerHTML = liNumDisplay;
-          var spanNum = document.createElement('span');
-          spanNum.className = 'toc-num';
-          spanNum.appendChild(aref);
-          elem.insertBefore(spanNum,elem.firstChild);
-          //elem.innerHTML = spanTocNum('<a href=\'#toc\'>' + liNumDisplay + '</a>') + elem.innerHTML;
-        }
-        else {
-          i--;
-          genHeaders(li,liNum,level+1);        
-        }
-      }
-      else {
-        i++;
-      }
-    }
-  }
-  genHeaders(localToc,'',0);
-  toc.appendChild(localToc);
-  toc.style.display = 'block'; /* make it visible */
+  if (tocToggle) tocToggle.onclick = switchToc;
+  hideToc()
 }
 
 function genFullGrammar() {
   var fullLex = "";
   var fullParse = "";
-  var div = document.getElementById("fullgrammar");
-  if (!div) return;
+  var divLex = document.getElementById("full-lexical");
+  var divGrammar = document.getElementById("full-grammar");
+  if (!divLex || !divGrammar) return;
 
   var gs = document.getElementsByClassName("grammar");
   for(var i = 0; i < gs.length; i++) {
@@ -259,23 +194,26 @@ function genFullGrammar() {
     if (elem.className.indexOf("lex") >= 0) fullLex += elem.innerHTML;
     else if (elem.className.indexOf("parse") >= 0) fullParse += elem.innerHTML;
   }
-  div.innerHTML="<h2>Lexical syntax</h2>\n<table class='grammar'>\n"+
-                fullLex + "</table>\n" +
-                "<h2>Context-free syntax</h2>\n<table class='grammar'>\n" +
-                fullParse + "</table>";
+  divLex.innerHTML="<table class='grammar'>\n"+ fullLex + "</table>"; 
+  divGrammar.innerHTML="<table class='grammar'>\n" + fullParse + "</table>";
 }
 
-window.onload = function() { genFullGrammar(); genTOC(); };
+window.onload = function() { genTOC(); genFullGrammar() };
 </script>
 <title>Koka language specification</title>
 </head>
 
 <body>
-<div id="toc">
+
+<!-- <div id="toc">
 <h2 class="notoc"><span id="toc-toggle"></span>Table of contents</h2>
 </div>
+-->
 
 <xmp>
+
+## <span id="toc-toggle"></span> Table of contents {-}
+[TOC]
 
 # Koka language specification
 
@@ -630,14 +568,14 @@ done before the semicolon insertion:
   indentation of the current lexeme on the layout stack. The pushed indentation
   must be larger than the previous layout indentation (unless the current lexeme
   is a closing brace).  When a closing brace "}" is encountered the top
-  indentation is popped from the layout stack.</span>
+  indentation is popped from the layout stack.
 
 * _Semicolon insertion_: For each non-blank line, the
   indentation must be equal or larger to the layout indentation. A semicolon is
   inserted before the line whenever the indentation is equal, unless the first
   lexeme on the line is one of "then", "else", "elif", or one of "{", ")", or
   "]". Also, a semicolon is always inserted before a closing brace "}" and
-  before the end of the token sequence.</span>
+  before the end of the token sequence.
 {.grammar} 
 
 As defined, semicolons are inserted whenever statements or declarations are
@@ -653,7 +591,7 @@ stream. In particular, there are no intricate dependencies with the parser
 that lead to bizarrely complex layout rules, as is the case in languages like
 [Haskell] or [JavaScript].
 
-## Implementation
+## Implementation { #sec:lex-implementation }
 
 There is a full [Flex (Lex) implementation][FlexLexer] of lexical analysis, which
 includes an implementation of the layout rule. Ultimately, the Flex
@@ -952,14 +890,15 @@ be in agreement with that implementation.
 [BisonGrammar]: https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y
 [FlexLexer]:    https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex
 
+# Appendix {-}
 
-# Appendix {.notoc}
+# Full grammar specification { @h1='A' } 
 
-# Complete syntax definition {.appendix} 
+## Lexical syntax { #sec:full-lexical }
+<div id="full-lexical"></div>
 
-<div id="fullgrammar"></div>  
-
-&nbsp;
+## Context-free syntax  { #sec:full-grammar }
+<div id="full-grammar"></div>
 
 </xmp>
 </body>

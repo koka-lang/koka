@@ -18,6 +18,7 @@ environment and command line is supplied.
 */
 module std/env
 
+import std/dict
 
 external getEnvironment() : dict<string>  {
   cs "System.Environment.GetEnvironmentVariables"
@@ -44,4 +45,4 @@ external getArgv() : vector<string>  {
 
 // The unprocessed command line that was used to start this program.
 // On ''Node'' the first arguments will often be of the form "[""node"",""interactive.js"",...]".
-public val argv = getArgv()
+public val argv = getArgv().list

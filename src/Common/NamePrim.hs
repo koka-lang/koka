@@ -23,6 +23,7 @@ module Common.NamePrim
           , nameCopy
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
+          , nameSubStr1
 
           , nameUnit
           , nameReturn
@@ -66,6 +67,8 @@ module Common.NamePrim
           , nameKindHeap
 
           , toShortModuleName
+
+          , namesSameSize
           ) where
 
 import Common.Name
@@ -111,6 +114,7 @@ nameTpDelay          = preludeName "delay"
 
 namePatternMatchError = preludeName "patternMatchError"
 nameMainConsole      = preludeName "mainConsole"
+nameSubStr1          = preludeName "substr1"
 
 nameAssign      = preludeName ":="
 nameAssigned    = newName "assigned"
@@ -123,6 +127,8 @@ nameIndex       = newName "[]"
 nameTpArray     = preludeName "array"
 nameTpVector    = preludeName "vector"
 nameTpDict      = preludeName "dict"
+
+namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 
 {--------------------------------------------------------------------------
   Lists

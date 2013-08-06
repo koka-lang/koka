@@ -772,7 +772,9 @@ inferApp propagated expect fun nargs rng
              Just prop  -> -- TODO: we re-infer the fixed arguments again. it is hard to optimize this due to optional and delayed arguments that need wrapping...
                            -- what we could do is check if the check arguments up to this point (in acc) are not optional or delayed, and in that case
                            -- we can avoid redoing the inference for those.
-                           inferAppFunFirst (Just prop) fixed named
+                           -- TODO: this can lead to exponential behavior... really bad
+                           -- trace(" reinfer") $
+                            inferAppFunFirst (Just prop) fixed named
              Nothing    -> {-
                            if (not (null named0)) 
                             then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <$> text " hint: annotate the function parameters?" )

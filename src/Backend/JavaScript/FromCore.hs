@@ -916,6 +916,8 @@ reserved
   = S.fromList $ -- JavaScript pseudo-keywords
     [ "prototype"
     , "toString"
+    , "arguments"
+    , "eval"
     ]
     ++ -- word literals
     [ "null"

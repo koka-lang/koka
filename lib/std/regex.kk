@@ -9,7 +9,7 @@
 /* This module supports JavaScriptStyle regular expressions.
 
    The regular expressions conform to the regular expressions of JavaScript
-   as described at https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions   
+   as described at <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions>
 */  
 module std/regex
 
@@ -23,9 +23,12 @@ abstract struct regex( obj: any )
 
 // return the pattern as a string
 public external source( r : regex ) : string {
-  js inline "#1.obj.source"
+  js inline "#1.obj.regex.source"
 }
 
+private external source( groups : groups ) : string {
+  js inline "#1.obj.regex.source"
+}
 
 // The result of a regular expression match, where "index" is the index in the
 // original source string where the match begins, "next" is the index just after
@@ -47,9 +50,33 @@ public external inline matchedOn( groups : groups, index : int ) : bool {
   js inline "(#1[#2] != null)"
 } 
 
+// How many groups are captured by this regex?
+public function groupsCount( r : regex ) : int 
+{
+  r.source.replaceAll(rxNonGroup,"").length;
+}
+val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
+
+// Return first group that was matched (or -1 if nothing was matched) 
+public function firstMatchedOn( groups : groups, max : int = 10 ) : int
+{
+  match (list(1,max).find(fun(i) { groups.matchedOn(i) })) {
+    Nothing -> -1
+    Just(i) -> i
+  }
+}
+
+// Return the first matched group (or "" if nothing matched)
+public function firstMatched(groups : groups, max : int = 10 ) : string
+{
+  i = groups.firstMatchedOn(max)
+  if (i >= 0) then groups[i] else ""
+}
+
 // For alternative regular expressions, return the alternative that was matched.
+// If this was not an alternative regex, returns "-1"
 public external alternative( groups : groups ) : int {
-  js inline "(#1.alternative ? #1.alternative : 0)"
+  js inline "(#1.alternative!=null ? #1.alternative : -1)"
 }
 
 external regexCreate : (string,int,int) -> any {
@@ -117,7 +144,7 @@ public function regexAlt( regexs :list<string>, ignorecase :bool = False, multil
 // (note: this function is called |exec| in JavaScript).
 public function find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
 {  
-  if (start >= s.length) return Nothing
+  //if (start >= s.length) return Nothing
   regexExec(regex.obj,s,max(start,0))
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
@@ -177,3 +204,4 @@ public function contains( s :string, r :regex, start :int = 0 ) : bool
 {
   return s.find(r,start).bool
 }
+

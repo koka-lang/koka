@@ -16,6 +16,7 @@ module Core.Divergent( analyzeDivergence ) where
 -- import Lib.Trace
 import Data.List( transpose, permutations )
 import Common.Name
+import Common.NamePrim( nameSubStr1, namesSameSize )
 import Common.Failure
 import Common.Syntax
 import qualified Common.NameSet as S
@@ -205,7 +206,9 @@ divBranch exprs (Branch patterns guards)
     extractName expr
       = case expr of
           Var tname _ -> Just (getName tname)
-          _           -> Nothing
+          App (TypeApp (Var sameSize _) _) [Var tname _] | getName sameSize `elem` namesSameSize 
+              -> Just(getName tname) 
+          _   -> Nothing
 
 divPattern :: Size -> (Maybe Name,Pattern) -> Div (Div a -> Div a)
 divPattern size (mbName,pat)
@@ -237,12 +240,19 @@ argumentSize name (pos,arg)
   = case arg of
       Var tname info
         -> lookupSize name pos (getName tname)
+      -- special case substr1
+      App (Var substrName _) (Var sname _ : args) | getName substrName == nameSubStr1
+        -> do sz <- lookupSize name pos (getName sname)
+              return (reduceSize sz) 
       -- these two cases state that the call to a function f where f < name is itself < name.
       App (Var tname info) args
         -> lookupSize name pos (getName tname)
       App (TypeApp (Var tname info) targs) args
         -> lookupSize name pos (getName tname)
       _ -> return Unknown
+  where
+    reduceSize Eq    = Lt
+    reduceSize other = other      
 
 compose :: [(a -> a)] -> a -> a
 compose [] x = x 

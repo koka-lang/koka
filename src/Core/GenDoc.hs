@@ -261,7 +261,7 @@ fmtImport env kgamma gamma root name (imp)
      doctag "td" "" (synopsis env kgamma gamma (importModDoc imp)))
   where
     fmtModuleName env name qname
-      = atag (linkFromModName env qname "") $ span "module" $ limit 10 name
+      = atag (linkFromModName env qname "") $ span "module" $ limit 15 name
       
 
 synopsis env kgamma gamma doc

@@ -85,7 +85,7 @@ public function main(): io ()
         readln() fun(input) { 
           if( input.startsWith("/") ) {
             if( input.startsWith("/nick ") ) {
-              SetUsername( input.substring(6) ).server
+              SetUsername( input.substr(6) ).server
             } 
             else {
               println( ">>> unknown command " )

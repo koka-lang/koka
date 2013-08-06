@@ -1,0 +1,43 @@
+/*---------------------------------------------------------------------------
+    Copyright 2012 Microsoft Corporation.
+ 
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
+
+
+/*
+File operations. 
+*/
+public module std/file
+
+external import {
+  js "fs"
+}
+
+// Try to a text file synchronously (using UTF8 encoding)
+function tryReadTextFile( fileName : string ) : io either<exception,string> 
+{
+  catch( { Right(readTextFileSync(fileName)) }, fun(exn) { Left(exn) }) 
+}
+
+// Read a text file synchronously (using UTF8 encoding)
+external readTextFileSync( fileName : string ) : io string
+{
+  cs inline "System.IO.ReadAllText(#1,System.Text.Encoding.UTF8)"
+  js inline "fs.readFileSync(#1,{encoding: 'utf8'})"
+}
+
+// Try to write a text file synchronously (using UTF8 encoding). 
+// Returns "True" if successful.
+function tryWriteTextFile( fileName : string, content : string )  : io bool 
+{
+  catch( { writeTextFileSync(fileName,content); True }, fun(_exn) { False } )
+}
+
+// Write a text file synchronously (using UTF8 encoding)
+external writeTextFileSync( fileName : string, content : string )  : io () {
+  cs inline "System.IO.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
+  js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
+}

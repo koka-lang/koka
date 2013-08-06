@@ -30,65 +30,69 @@ public type optionOrder<a> {
 public struct option<a>( 
   shortNames : string,
   longNames  : list<string>,
-  arg         : optionArg<a>,
-  help        : string
+  arg        : optionArg<a>,
+  help       : string,
+  llongNames : list<string> = longNames.map(toLower)
 )
 
 // Specifies the argument of an option
 public type optionArg<a> {
   // Boolean flag without an argument.
-  con Flag( default : a)
+  // For a flag `foo` Automatically enables forms `--nofoo` and `--foo=true|false`.
+  con Flag( default : (a,bool) -> a)
   // A required argument.
-  con Req( parse : string -> a, help : string )
+  con Req( parse : (a,string) -> a, help : string )
   // An optional argument.
-  con Opt( parse : maybe<string> -> a, help : string )
+  con Opt( parse : (a,maybe<string>) -> a, help : string )
 }
 
 
 
-type testOptions {
-  Verbose
-  Version
-  Name(s : string )
-  Output( s : string )
-  Argument( s : string )
-}
+struct testOptions(
+  verbose : bool = False,
+  version : bool = False, 
+  name : string = "",
+  output : string = "",
+  arguments : list<string> = []
+)
 
 function showOptions( o : testOptions ) {
-  match(o) {
-    Verbose -> "verbose"
-    Version -> "version"
-    Name(s) -> "name: " + show(s)
-    Output(s) -> "output: " + show(s)
-    Argument(s) -> "arg: " + show(s)
-  }
+  "{" + ["verbose=" + o.verbose.show,
+         "version=" + o.version.show,
+         "name=" + o.name.show,
+         "output=" + o.output.show,
+         "arguments=" + o.arguments.join(",")].join(";") + "}"
 }
 
-fun out( mbs : maybe<string> ) : testOptions
+fun setOutput( t : testOptions, mbs : maybe<string> ) : testOptions
 {
   match(mbs) {
-    Nothing -> Output("stdout")
-    Just(s) -> Output(s)
+    Nothing -> t(output = "stdout")
+    Just(s) -> t(output = s)
   } 
 }
+function setName( t : testOptions, name )  = t(name = name)
+function setVerbose( t : testOptions, v )  = t(verbose = v)
+function setVersion( t : testOptions, v )  = t(version = v)
 
-val testOptions
-  = [ Option( "V?", ["version"], Flag(Version),     "display version information" ),
-      Option( "v",  ["verbose"], Flag(Verbose),     "verbosely list files"),
-      Option( "o",  ["output"],  Opt(out,"FILE"),   "use FILE for dump" ),
-      Option( "n",  ["name"],    Req(Name,"USER"),  "only show USER files" ),
+val testOptions : list<option<testOptions>>
+  = [ Option( "V?", ["version"], Flag(setVersion),     "display version information" ),
+      Option( "v",  ["verbose"], Flag(setVerbose),     "verbosely list files"),
+      Option( "o",  ["output"],  Opt(setOutput,"FILE"),"use FILE for dump" ),
+      Option( "n",  ["name"],    Req(setName,"USER"),  "only show USER files" ),
     ]
+
 
 public function test( cmdargs )
 {
   header = "usage:\n program [options] files\n\noptions:"
   // testOptions.usageInfo( header ).println
-  val (options,args,errs) = parse( testOptions, cmdargs )
+  val (options,args,errs) = parse( TestOptions(), testOptions, cmdargs )
   if (errs.isNil) {
     println( "\nsuccess!" );
-    println( "options: " + options.map(showOptions).join(", "))
+    println( "options: " + options.showOptions)
     println( "arguments: " + args.join(" ") );
-    if (options.any(isVersion)) testOptions.usageInfo(header).println
+    if (options.version) testOptions.usageInfo(header).println
   }
   else {
     println( errs.join("\n") + "\n" + testOptions.usageInfo(header) )
@@ -149,7 +153,7 @@ function showLongArg( arg : optionArg<a> )
 
 type flagKind<a>
 {
-  Flg( value : a )
+  Flg( set : a -> a )
   Arg( arg : string )
   End
   Unknown( arg : string )
@@ -161,11 +165,10 @@ type flagKind<a>
 // "ordering" that specifies how flags are handled that follow nonFlag arguments.
 // The default ordering is "Permute". Returns three lists: the list of parsed options,
 // a list of nonOption arguments, and a list of potential error messages.
-public function parse( flags : list<option<a>>, args : list<string>, ordering : optionOrder<a> = Permute ) 
-                        : total (list<a>, list<string>, list<string>)
+public function parse( initial : a, flags : list<option<a>>, args : list<string>, ordering : optionOrder<a> = Permute ) 
+                        : total (a, list<string>, list<string>)
 {
   var done := False  // done scanning flags? (the rest is treated as an argument)
-
   val opts = args.map fun(arg) 
   {
     val opts = if (done) then [Arg(arg)] else processNext(arg,flags)
@@ -179,14 +182,14 @@ public function parse( flags : list<option<a>>, args : list<string>, ordering : 
     opts
   }
 
-  opts.concat.foldr(([],[],[])) fun(opt,acc) {
-    val (fs,xs,errs) = acc
+  opts.concat.foldl((initial,[],[])) fun(acc,opt) {
+    val (o,xs,errs) = acc
     match(opt) {
-      Flg(f)     -> (Cons(f,fs),xs,errs)
-      Unknown(e) -> (fs,xs,Cons(errorUnknownMessage(e),errs))
-      Error(e)   -> (fs,xs,Cons(e,errs))
-      Arg(x)     -> (fs,Cons(x,xs),errs)
-      End        -> (fs,xs,errs)
+      Flg(set)   -> (set(o),xs,errs)
+      Unknown(e) -> (o,xs,Cons(errorUnknownMessage(e),errs))
+      Error(e)   -> (o,xs,Cons(e,errs))
+      Arg(x)     -> (o,Cons(x,xs),errs)
+      End        -> (o,xs,errs)
     }
   }
 }
@@ -215,10 +218,14 @@ function break( s : string, c : char ) : (string,string)
 
 function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 {
-  val (flagname,flagarg) = s.break('=')
-  opt      = "--" + s
-  exacts   = flags.filter( fun(flag){ flag.longNames.any( fun(name){ name == flagname } ) } )
-  prefixes = flags.filter( fun(flag){ flag.longNames.any( fun(name){ name.startsWith(flagname) } ) } )
+  val (cflagname,flagarg) = s.break('=')
+  opt = "--" + s
+  flagname     = cflagname.toLower
+  baseflagname = if (flagname.startsWith("no")) then flagname.substr(2) else ""
+  
+  lnames   = flags.concat(fun(flag) { flag.llongNames } )
+  exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
+  prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.startsWith(flagname) || (baseflagname != "" && name.startsWith(baseflagname)) } ) } )
   applicable = if (exacts.isNil) then prefixes else exacts
   
   match(applicable) {
@@ -226,18 +233,22 @@ function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
     Cons(_,Cons(_,_)) -> errorAmbiguous(applicable,opt) 
     Cons(desc,_) -> {
       match(desc.arg) {
-          Flag(default)
-            -> if (flagarg.length == 0)
-                then Flg(default)
+          Flag(set)
+            -> if (flagarg == "")
+                then Flg(fun(o){ set(o, !(baseflagname!=""&&lnames.any(fun(name){name.startsWith(baseflagname)}))) })
+               elif (flagarg.toLower == "true")
+                then Flg(fun(o) { set(o,True) })
+               elif (flagarg.toLower == "false")
+                then Flg(fun(o) { set(o,False) })
                 else errorNoarg(opt)
           Req(parse,help)
             -> if (flagarg.length>0)
-                then Flg(parse(flagarg))
+                then Flg(fun(o) { parse(o,flagarg) })
                 else errorRequired(help,opt)
           Opt(parse)
             -> if (flagarg.length>0)
-                then Flg(parse(Just(flagarg)))
-                else Flg(parse(Nothing))
+                then Flg(fun(o) { parse(o,Just(flagarg)) })
+                else Flg(fun(o) { parse(o,Nothing) } )
       }
     }        
   }  
@@ -257,19 +268,19 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
         -> Just(errorAmbiguous(applicable,opt))
       Cons(desc,_)
         -> match(desc.arg) {
-              Flag(default)
-                -> Just(Flg(default))
+              Flag(set)
+                -> Just(Flg(fun(o){ set(o,True) }))
               Req(parse,help) -> {
                 arg = s.substr(i+1)
                 if (arg.length > 0)
-                 then { done := True; Just(Flg(parse(arg))) }
+                 then { done := True; Just(Flg(fun(o){ parse(o,arg) })) }
                  else Just(errorRequired(help,opt))
               }
               Opt(parse) -> {
                 arg = s.substr(i+1)
                 if (arg.length > 0)
-                 then { done := True; Just(Flg(parse(Just(arg)))) }
-                 else Just(Flg(parse(Nothing)))
+                 then { done := True; Just(Flg(fun(o){ parse(o,Just(arg)) })) }
+                 else Just(Flg(fun(o){parse(o,Nothing)}))
               }
           }
     }

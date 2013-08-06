@@ -18,7 +18,7 @@ type serverCommand {
 }
 
 
-function log( s : string ) {
+function xlog( s : string ) {
   trace( "[log] " + s );
 }
 
@@ -26,7 +26,7 @@ public function main() : io ()
 {  
   function serverCode()         
   { 
-    log("moebius server listening on localhost:8080")
+    xlog("moebius server listening on localhost:8080")
 
     // exit node server if the user presses enter
     println("press enter to exit..")
@@ -38,7 +38,7 @@ public function main() : io ()
     
     function serverSession(client)
     { 
-      log("`serverCode.serverSession` is executed") 
+      xlog("`serverCode.serverSession` is executed") 
 
       var username := "anonymous"
 
@@ -69,16 +69,16 @@ public function main() : io ()
   }
 
   function clientCode() { 
-    log("`clientCode` is executed")
+    xlog("`clientCode` is executed")
 
     function clientSession(server) { 
-      log("`clientCode.clientSession` is executed")
+      xlog("`clientCode.clientSession` is executed")
       
       function loop() { 
         readln() fun(input) {
           if( input.startsWith("/") ) {
             if( input.startsWith("/nick ") ) {
-              server(SetUsername( input.substring(6) ))
+              server(SetUsername( input.substr(6) ))
             } 
             else {
               println( ">>> unknown command " )
