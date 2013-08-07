@@ -18,6 +18,7 @@ environment and command line is supplied.
 */
 module std/env
 
+import std/path
 import std/dict
 
 external getEnvironment() : dict<string>  {
@@ -46,3 +47,11 @@ external getArgv() : vector<string>  {
 // The unprocessed command line that was used to start this program.
 // On ''Node'' the first arguments will often be of the form "[""node"",""interactive.js"",...]".
 public val argv = getArgv().list
+
+
+// Return the arguments that were passed to program itself.
+public val arguments 
+  = match(argv) {
+      Cons(x,xs) | x.basename.noext == "node" -> xs.drop(1)
+      _ -> argv.drop(1)
+    }  

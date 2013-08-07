@@ -294,7 +294,7 @@ function errorAmbiguous( applicable, opt ) {
 }
 
 function errorRequired( help, opt ) {
-  return Error( "option \"" + opt + "\" requires an argument " + help + "\n")
+  return Error( "option \"" + opt + "\" requires an argument " + help)
 }
 
 function errorUnknown( opt ) {
@@ -302,7 +302,7 @@ function errorUnknown( opt ) {
 }
 
 function errorUnknownMessage( opt ) {
-  return ( "unrecognized option \"" + opt + "\"\n")
+  return ( "unrecognized option \"" + opt + "\"")
 }
 
 function errorNoarg( opt ) {

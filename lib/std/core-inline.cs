@@ -142,7 +142,7 @@ public static class Primitive
   public static void Trace( string msg ) 
   {
     System.Diagnostics.Debug.Print(msg);
-    Console.Error.WriteLine("trace: " + msg);
+    Console.Error.WriteLine(msg);
   }
   
   //---------------------------------------
