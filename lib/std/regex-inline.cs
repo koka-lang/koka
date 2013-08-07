@@ -8,30 +8,66 @@
 
 using System.Text.RegularExpressions;
 
+class KokaRegex : Regex {
+  public string source;
+  public bool alternative = false;
+  public KokaRegex( string source, RegexOptions options ) : base(source,options) {
+    this.source = source;
+  } 
+}
+
 static class RegEx
 {
+  public static Regex CreateAlt( string[] xs, int ignoreCase, int multiLine ) {
+    throw new Exception("regex.createAlt: not supported on .NET");
+  }
+  
   public static Regex Create( string s, int ignoreCase, int multiLine ) 
   {
     RegexOptions options = (ignoreCase != 0 ? RegexOptions.IgnoreCase : RegexOptions.None) |
                            (multiLine != 0 ? RegexOptions.Multiline : RegexOptions.None);
-    return new Regex( s, options );                           
+    return new KokaRegex( s, options );                           
+  }
+
+  public static string Source( object r ) {
+    KokaRegex regex = (KokaRegex)(r);
+    return regex.source;
+  }
+
+  public static string GroupsIndex( object g, int index ) {
+    GroupCollection groups = (GroupCollection)(g);
+    if (groups==null || index < 0 || index >= groups.Count) 
+      return "";
+    else 
+      return groups[index].Value;
+  }
+
+  public static int GroupsMatchedOn( object g, int index ) {
+    GroupCollection groups = (GroupCollection)(g);
+    if (groups==null || index < 0 || index >= groups.Count || !groups[index].Success) 
+      return 0;
+    else 
+      return 1;
   }
 
   public static koka_dot_std_regex._matched Matches( Match match ) 
   {
-    if (!match.Success) return new koka_dot_std_regex._matched( -1, 0, "", null );    
-    string[] groups = new string[match.Groups.Count];
-    for( int i = 0; i < match.Groups.Count; i++) {
-      groups[i] = (match.Groups[i].Success ? match.Groups[i].Value : "");
-    }
+    if (!match.Success) return new koka_dot_std_regex._matched( -1, 0, "", new koka_dot_std_regex._groups(null) );    
     int next = match.Index + match.Length;
     if (next<=match.Index) next = match.Index+1;
-    return new koka_dot_std_regex._matched( match.Index, next, groups[0], groups );
+    return new koka_dot_std_regex._matched( match.Index, next, match.Value, new koka_dot_std_regex._groups(match.Groups) );
   }
 
-  public static koka_dot_std_regex._matched Exec( object r, string s, int start ) {
+  public static koka_dot_std_core._maybe<koka_dot_std_regex._matched> MaybeMatches( Match match ) {
+    if (!match.Success)
+      return new koka_dot_std_core._maybe<koka_dot_std_regex._matched>(koka_dot_std_core._maybe_Tag.Nothing);
+    else 
+      return new koka_dot_std_core._maybe<koka_dot_std_regex._matched>(koka_dot_std_core._maybe_Tag.Just, Matches(match) );
+  }
+  
+  public static koka_dot_std_core._maybe<koka_dot_std_regex._matched> Exec( object r, string s, int start ) {
     Regex regex = (Regex)(r);
-    return Matches(regex.Match(s,start));
+    return MaybeMatches(regex.Match(s,start));
   }  
 
   public static koka_dot_std_regex._matched[] ExecAll( object r, string s, int start ) {

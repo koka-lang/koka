@@ -44,11 +44,12 @@ module Common.NamePrim
           , nameTpAny
           , nameTpAsync
           , nameTpException
+          , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
           , nameTpRef, nameRef
           , nameTpOptional
-          , nameTpArray, nameTpVector, nameTpDict
+          , nameTpArray, nameTpVector
 
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
@@ -126,7 +127,6 @@ nameIndex       = newName "[]"
 
 nameTpArray     = preludeName "array"
 nameTpVector    = preludeName "vector"
-nameTpDict      = preludeName "dict"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 
@@ -176,6 +176,10 @@ nameTpVoid      = preludeName "void"
 nameTpAsync     = preludeName "async"
 nameTpException = preludeName "exception"
 
+nameTpMDict     = qualify nameDict (newName "mdict")
+nameTpDict      = qualify nameDict (newName "dict")
+nameTpBuilder   = qualify (newName "std/string") (newName "builder")
+
 nameTuple :: Int -> Name
 nameTuple n     = preludeName ("(" ++ (replicate (n-1) ',') ++ ")")
 
@@ -190,7 +194,7 @@ preludeName s
 
 nameSystemCore  = newName "std/core"
 nameCore        = newName "core"
-
+nameDict        = newName "std/dict"
 
 toShortModuleName :: Name -> Name
 toShortModuleName name

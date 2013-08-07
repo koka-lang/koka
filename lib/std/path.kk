@@ -70,7 +70,7 @@ external extname( p : string ) : string {
 
 
 private external pathsep() : string {
-  cs inline "System.IO.Path.DirectorySeparatorChar"
+  cs inline "System.IO.Path.DirectorySeparatorChar.ToString()"
   js inline "path.sep"
 }
 
@@ -78,7 +78,7 @@ private external pathsep() : string {
 val sep : string = pathsep()
 
 private external pathdelim() : string {
-  cs inline "System.IO.Path.PathSeparator"
+  cs inline "System.IO.Path.PathSeparator.ToString()"
   js inline "path.delimiter"
 }
 

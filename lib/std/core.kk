@@ -1172,7 +1172,17 @@ function sum( xs : list<int> ) : int
 // Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
 // An empty string will result in "Just(0)".
 function parseInt( s : string, hex : bool = False) : maybe<int> {
-  parseDigits(s.list, if (hex) then 16 else 10)
+  base = if (hex) then 16 else 10
+  match(s.list.dropWhile(isWhite)) {
+    Nil -> Just(0)
+    Cons(c,cc) | c=='-' -> {
+      match(parseDigits(cc,base)) {
+        Nothing -> Nothing
+        Just(i) -> Just(-i)
+      }
+    }
+    cs -> parseDigits(cs,base)     
+  }
 }
 
 // Parse digits in a "base" between 2 and 36 (default 10) given an initial value "acc" (default 0)

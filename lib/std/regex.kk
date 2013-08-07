@@ -21,15 +21,6 @@ external include {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
-// return the pattern as a string
-public external source( r : regex ) : string {
-  js inline "#1.obj.regex.source"
-}
-
-private external source( groups : groups ) : string {
-  js inline "#1.obj.regex.source"
-}
-
 // The result of a regular expression match, where "index" is the index in the
 // original source string where the match begins, "next" is the index just after
 // this match ("next == index + min(1,matched.length)"), "matched" is the content that
@@ -37,18 +28,70 @@ private external source( groups : groups ) : string {
 // capture group (where "groups[0] == matched").
 public struct matched( index :int, next :int, matched :string, groups : groups )
 
-public type groups
+abstract struct groups( grp : any )
 
-// Return the string captured by a particular group or the empty string.
-public external []( groups : groups, index : int ) : string {
+private external regexSource( r : any ) : string {
+  cs "RegEx.Source"
+  js inline "#1.regex.source"
+}
+
+private external groupsIndex( groups : any, index : int ) : string {
+  cs "RegEx.GroupsIndex"
   js inline "((#1)[#2] != null ? (#1)[#2] : '')"
 } 
 
-// Returns "True" if a particular capture group actually matched.
-// This is used if the group can match, but may capture the empty string.
-public external inline matchedOn( groups : groups, index : int ) : bool {
-  js inline "(#1[#2] != null)"
+private external groupsMatchedOn( groups : any, index : int ) : int {
+  cs "RegEx.GroupsMatchedOn"
+  js inline "(#1[#2] != null ? 1 : 0)"
 } 
+
+// For alternative regular expressions, return the alternative that was matched.
+// If this was not an alternative regex, returns "-1"
+public external alternative( groups : groups ) : int {
+  cs inline "-1"
+  js inline "(#1.alternative!=null ? #1.alternative : -1)"
+}
+
+external regexCreate : (string,int,int) -> any {
+  cs "RegEx.Create"
+  js "$regexCreate"
+}
+
+external regexCreateAlt : (vector<string>,int,int) -> any {
+  cs "RegEx.CreateAlt"
+  js "$regexCreateAlt"
+}
+
+external regexExec : (any,string,int) -> maybe<matched> {
+  cs "RegEx.Exec"
+  js "$regexExec"
+}
+
+external regexExecAll : (any,string,int) -> vector<matched> {
+  cs "RegEx.ExecAll"
+  js "$regexExecAll"
+}
+
+external regexReplaceFun : forall<e> (any, string, (matched) -> e string, int, int ) -> e string {
+  cs "RegEx.ReplaceFun"
+  js "$regexReplaceFun"
+}
+
+external regexReplace : (any, string, string, int, int ) -> string {
+  cs "RegEx.Replace"
+  js "$regexReplace"
+}
+
+external regexSplit : (any, string, int, int ) -> vector<string> {
+  cs "RegEx.Split"
+  js "$regexSplit"
+}
+
+
+// Return the pattern as a string
+public function source( r : regex ) : string {
+  regexSource(r.obj)
+}
 
 // How many groups are captured by this regex?
 public function groupsCount( r : regex ) : int 
@@ -73,51 +116,16 @@ public function firstMatched(groups : groups, max : int = 10 ) : string
   if (i >= 0) then groups[i] else ""
 }
 
-// For alternative regular expressions, return the alternative that was matched.
-// If this was not an alternative regex, returns "-1"
-public external alternative( groups : groups ) : int {
-  js inline "(#1.alternative!=null ? #1.alternative : -1)"
+// Return the string captured by a particular group or the empty string.
+public function []( groups : groups, index : int ) : string {
+  groupsIndex(groups.grp, index)
 }
 
-external regexCreate : (string,int,int) -> any {
-  cs "RegEx.Create"
-  js "$regexCreate"
+// Returns "True" if a particular capture group actually matched.
+// This is used if the group can match, but may capture the empty string.
+public function matchedOn( groups : groups, index : int ) : bool {
+  groupsMatchedOn(groups.grp, index).bool
 }
-
-external regexCreateAlt : (vector<string>,int,int) -> any {
-  js "$regexCreateAlt"
-}
-
-external regexExec : (any,string,int) -> maybe<matched> {
-  cs "RegEx.Exec"
-  js "$regexExec"
-}
-
-external regexExecAll : (any,string,int) -> vector<matched> {
-  cs "RegEx.ExecAll"
-  js "$regexExecAll"
-}
-
-external regexXExecAll : (vector<any>,string,int) -> vector<matched> {
-  cs "RegEx.XExecAll"
-  js "$regexXExecAll"
-}
-
-external regexReplaceFun : forall<e> (any, string, (matched) -> e string, int, int ) -> e string {
-  cs "RegEx.ReplaceFun"
-  js "$regexReplaceFun"
-}
-
-external regexReplace : (any, string, string, int, int ) -> string {
-  cs "RegEx.Replace"
-  js "$regexReplace"
-}
-
-external regexSplit : (any, string, int, int ) -> vector<string> {
-  cs "RegEx.Split"
-  js "$regexSplit"
-}
-
 
 // Create a new regular expression. Takes two optional parameters. Set "ignoreCase" to "True"
 // to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"

@@ -74,6 +74,29 @@ public static class Primitive
   //---------------------------------------
   // Dictionary
   //---------------------------------------
+  public class Dict<T> : System.Collections.Generic.Dictionary<string,T> {
+    public Dict() : base() {}
+    public Dict( System.Collections.Generic.IDictionary<string,T> d ) : base(d) {}    
+  }
+
+  public static Dict<string> DictFromStringCollection( System.Collections.IDictionary d ) {
+    Dict<string> dict = new Dict<string>();
+    foreach( object key in d.Keys ) {
+      if (key != null && key is string) {
+        object val = d[key];
+        if (val is string) {
+          dict[(string)key] = (string)val;
+        }
+      }
+    }
+    return dict;
+  }
+
+  public class MDict<H,T> : System.Collections.Generic.Dictionary<string,T> {
+    public MDict() : base() {}
+    public MDict( System.Collections.Generic.IDictionary<string,T> d ) : base(d) {}
+  }
+
   public static string[] DictKeys<A>( System.Collections.Generic.IDictionary<string,A> d ) {
     int i = 0;
     string[] result = new string[d.Keys.Count];

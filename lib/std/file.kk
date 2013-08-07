@@ -25,7 +25,7 @@ function tryReadTextFile( fileName : string ) : io either<exception,string>
 // Read a text file synchronously (using UTF8 encoding)
 external readTextFileSync( fileName : string ) : io string
 {
-  cs inline "System.IO.ReadAllText(#1,System.Text.Encoding.UTF8)"
+  cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
   js inline "fs.readFileSync(#1,{encoding: 'utf8'})"
 }
 
@@ -38,6 +38,6 @@ function tryWriteTextFile( fileName : string, content : string )  : io bool
 
 // Write a text file synchronously (using UTF8 encoding)
 external writeTextFileSync( fileName : string, content : string )  : io () {
-  cs inline "System.IO.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
+  cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
   js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
 }

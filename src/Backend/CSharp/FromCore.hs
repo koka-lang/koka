@@ -230,7 +230,7 @@ ppConField ctx (name,tp)
 
 ppConConstructor :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [Doc]
 ppConConstructor ctx con conRepr defaults
-  = if (null (conInfoParams con))
+  = if (null (conInfoParams con) && not (isConNormal conRepr))
      then []
      else [text "public" <+> 
            (case conRepr of
@@ -658,7 +658,7 @@ genCon tname repr targs args
                          -> ppQName ctx (typeClassName typeName) 
                       _  -> ppQName ctx (conClassName (getName tname))) <> 
                    (ppTypeArgs ctx targs) <//> 
-                   (if (null targs && null args) then empty else tupled argDocs)
+                   (if (null targs && null args && not (isConNormal repr)) then empty else tupled argDocs)
 
 ppConEnum :: ModuleName -> TName -> Doc
 ppConEnum ctx tname
@@ -1218,6 +1218,12 @@ ppTypeCon ctx c kind
          then text "Async"
         else if (name == nameTpException)
          then text "Exception"
+        else if (name == nameTpDict)
+         then text "Primitive.Dict"
+        else if (name == nameTpMDict)
+         then text "Primitive.MDict"
+        else if (name == nameTpException)
+         then text "Exception"
         else if (isKindFun kind)
          then ppQName ctx (typeConClassName name)
          else ppQName ctx (typeClassName name)
@@ -1227,8 +1233,8 @@ ppTypeApp ctx t ts
       TVar v -> ppTAApp ctx t ts
       TCon c  | typeConName c == nameTpArray && length ts == 2
              -> ppType ctx (head (tail ts)) <> text "[]"
-             | typeConName c == nameTpDict && length ts == 1
-             -> text "System.Collections.Generic.IDictionary<string," <> ppType ctx (last ts) <> text ">"
+             | typeConName c == nameTpBuilder && length ts == 1
+             -> text "System.Text.StringBuilder"
              | typeConName c == nameTpVector && length ts == 1
              -> ppType ctx (head ts) <> text "[]"
              | otherwise

@@ -21,7 +21,7 @@ module std/env
 import std/dict
 
 external getEnvironment() : dict<string>  {
-  cs "System.Environment.GetEnvironmentVariables"
+  cs inline "Primitive.DictFromStringCollection(System.Environment.GetEnvironmentVariables())"
   js inline "(typeof process !== 'undefined' ? process.env : {})"
 }
 

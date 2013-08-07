@@ -181,24 +181,25 @@ getDataRepr maxStructFields info
         conInfos = dataInfoConstrs info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
-        (dataRepr,conReprFuns) = if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
-         then (DataEnum,map (const (ConEnum typeName)) conInfos)
+        (dataRepr,conReprFuns) = 
+         if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
+          then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
-              then let conInfo = head conInfos
-                   in (if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info)) 
-                        then DataSingleStruct 
-                        else DataSingle
-                      ,[if length singletons == 1 then ConSingleton typeName else ConSingle typeName])
-             else if (length singletons == length conInfos-1 && length (concatMap conInfoParams conInfos) <= maxStructFields && not (dataInfoIsRec info))
-              then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
-             else if (length conInfos == 2 && length singletons == 1)
-              then (DataAsList
-                   ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName
-                                  else ConAsCons typeName (conInfoName (head singletons))) conInfos)
-              else (if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal 
-                   ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -} 
-                                  ConNormal typeName) conInfos 
-                   )
+          then let conInfo = head conInfos
+               in (if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info)) 
+                    then DataSingleStruct 
+                    else DataSingle
+                  ,[if length singletons == 1 then ConSingleton typeName else ConSingle typeName])
+         else if (length singletons == length conInfos-1 && length (concatMap conInfoParams conInfos) <= maxStructFields && not (dataInfoIsRec info))
+          then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
+         else if (length conInfos == 2 && length singletons == 1)
+          then (DataAsList
+               ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName
+                              else ConAsCons typeName (conInfoName (head singletons))) conInfos)
+         else (if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal 
+               ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -} 
+                              ConNormal typeName) conInfos 
+               )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
 
 

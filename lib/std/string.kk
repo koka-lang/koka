@@ -18,11 +18,13 @@ public function trim( s : string ) : string {
 
 // Trim the starting white space of a string 
 public external inline trimLeft( s : string ) : string {
+  cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 }
 
 // Trim the ending white space of a string.
 public external inline trimRight( s : string ) : string {
+  cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
 }
 
@@ -35,6 +37,7 @@ public type builder<h ::H>
 
 // Create a string builder
 public external inline builder() : alloc<h> builder<h> {
+  cs inline "new System.Text.StringBuilder()"
   js inline "{ value: '' }"
 }
 
@@ -52,14 +55,17 @@ public function prepend( b : builder<h>, s : string ) : write<h> builder<h> {
 }
 
 private external inline unitAppend( b : builder<h>, s : string ) : write<h> () {
+  cs inline "(#1).Append(#2)"
   js inline "((#1).value += (#2))"
 }
 
 private external inline unitPrepend( b : builder<h>, s : string ) : write<h> () {
+  cs inline "(#1).Insert(0,#2)"
   js inline "((#1).value = (#2) + (#1).value)"
 }
 
 // O(n). Read the current string from a string builder.
 public external inline string( b : builder<h> ) : read<h> string {
+  cs inline "(#1).ToString()"
   js inline "(#1).value"
 }

@@ -22,14 +22,26 @@ external include {
 type mdict<h::H,a>
 
 // Create a mutable string dictionary
-external mdict() : alloc<h> mdict<h,a> {
+external mdict : forall<h,a> () -> alloc<h> mdict<h,a> {
+  cs inline "new Primitive.MDict<##1,##2>()"
   js inline "{}"
 }
 
-// Index into a string dictionary
-external []( md : mdict<h,a>, s : string ) : read<h> maybe<a> {
-  js inline "(#1[#2]!==undefined ? $std_core.Just(#1[#2]) : null)"
+private external unsafeIndex( md : mdict<h,a>, s : string ) : read<h> a {
+  cs inline "#1[#2]"
+  js inline "#1[#2]"  
 }
+
+external containsKey( md : mdict<h,a>, s : string ) : read<h> bool {
+  cs inline "#1.ContainsKey(#2)"
+  js inline "#1[#2]!==undefined"
+} 
+
+// Index into a string dictionary
+function []( md : mdict<h,a>, s : string ) : read<h> maybe<a> {
+  if (md.containsKey(s)) then Just(md.unsafeIndex(s)) else Nothing
+}
+
 
 // Return the keys in a dictionary
 external keys( d : mdict<h,a> ) : vector<string> {
@@ -39,21 +51,19 @@ external keys( d : mdict<h,a> ) : vector<string> {
 
 // Assign to a string dictionary
 external inline []( md : mdict<h,a>, s : string, assigned : a ) : write<h> () {
-  inline "(#1[#2] = #3)"
+  cs inline "(#1)[#2] = #3"
+  js inline "(#1)[#2] = #3"
 }
 
-external copy( md : mdict<h,a> ) : <alloc<h>,read<h>> mdict<h,a> {
+external copy : forall<h,a> ( md : mdict<h,a> ) -> <alloc<h>,read<h>> mdict<h,a> {
+  cs inline "new Primitive.MDict<##1,##2>(#1)"
   js "$dictCopy"
 }
 
 // Freeze a mutable dictionary into a ":dict"
-function freeze( md : mdict<h,a> ) : <alloc<h>,read<h>> dict<a> {
-  md.copy.unsafeFreeze
-}
-
-// Freeze a mutable dictionary without making a copy first.
-private external unsafeFreeze( md : mdict<h,a> ) : read<h> dict<a> {
-  inline "#1"
+external freeze : forall<h,a> ( md : mdict<h,a> ) -> <alloc<h>,read<h>> dict<a> {
+  cs inline "new Primitive.Dict<##2>(#1)"
+  js "$dictCopy"
 }
 
 
@@ -69,7 +79,7 @@ private external inline isNull( x : a) : bool  = inline "(#1 == null)"
 
 // Create a new empty dictionary
 external dict() : dict<a> {
-  cs inline "new System.Collections.Generic.Dictionary<string,##1>()"
+  cs inline "new Primitive.Dict<##1>()"
   js inline "{}"
 }  
 
@@ -78,11 +88,17 @@ private external unsafeDictAdd( d : dict<a>, key : string, value : a ) : () {
 }
 
 private external unsafeDictGet( d : dict<a>, key : string ) : a {
- inline "(#1)[#2]"
+  inline "(#1)[#2]"
 }
 
+
+external containsKey( d : dict<a>, key : string ) : bool {
+  cs inline "#1.ContainsKey(#2)"
+  js inline "#1[#2]!==undefined"
+} 
+
 private external dictCopy( d : dict<a> ) : dict<a> {
-  cs inline "new System.Collections.Generic.Dictionary<string,##1>(#1)"
+  cs inline "new Primitive.Dict<##1>(#1)"
   js inline "$dictCopy(#1)"
 }
 
@@ -104,9 +120,9 @@ external keys( d : dict<a> ) : vector<string> {
   js inline "$dictKeys(#1)"
 }
 
-// Return the value at a specified "key"
-external []( d : dict<a>, key : string ) : maybe<a> {
-  js inline "(#1[#2]!==undefined ? $std_core.Just(#1[#2]) : null)"
+// Index into a string dictionary
+function []( d : dict<a>, key : string ) : maybe<a> {
+  if (d.containsKey(key)) then Just(d.unsafeDictGet(key)) else Nothing
 }
 
 // Create a new dictionary from a ":list" of key value pairs.
