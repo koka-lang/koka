@@ -30,17 +30,17 @@ public struct matched( index :int, next :int, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
 
-private external regexSource( r : any ) : string {
+external regexSource( r : any ) : string {
   cs "RegEx.Source"
   js inline "#1.regex.source"
 }
 
-private external groupsIndex( groups : any, index : int ) : string {
+external groupsIndex( groups : any, index : int ) : string {
   cs "RegEx.GroupsIndex"
   js inline "((#1)[#2] != null ? (#1)[#2] : '')"
 } 
 
-private external groupsMatchedOn( groups : any, index : int ) : int {
+external inline groupsMatchedOn( groups : any, index : int ) : int {
   cs "RegEx.GroupsMatchedOn"
   js inline "(#1[#2] != null ? 1 : 0)"
 } 
@@ -141,7 +141,8 @@ public function regex( regex :string, ignorecase :bool = False, multiline : bool
 // where a common prefix of all patterns is lifted out of the alternative to increase efficiency.
 // Takes two optional parameters. Set "ignoreCase" to "True"
 // to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"
-// match also the beginning and end of every line (instead of the entire input).
+// match also the beginning and end of every line (instead of the entire input).  
+// Note: currently only supported in the javascript backend.
 public function regexAlt( regexs :list<string>, ignorecase :bool = False, multiline : bool = False ) : regex
 {
   Regex(regexCreateAlt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));

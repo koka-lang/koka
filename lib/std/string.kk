@@ -48,7 +48,7 @@ public function append( b : builder<h>, s : string ) : write<h> builder<h> {
 }
 
 
-// O(1). Append a string in front of a string builder
+// O(1). Prepend a string in front of a string builder
 public function prepend( b : builder<h>, s : string ) : write<h> builder<h> {
   b.unitPrepend(s)
   b

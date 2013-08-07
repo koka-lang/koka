@@ -27,14 +27,14 @@ external mdict : forall<h,a> () -> alloc<h> mdict<h,a> {
   js inline "{}"
 }
 
-private external unsafeIndex( md : mdict<h,a>, s : string ) : read<h> a {
-  cs inline "#1[#2]"
-  js inline "#1[#2]"  
+private external inline unsafeIndex( md : mdict<h,a>, s : string ) : read<h> a {
+  cs inline "((#1)[#2])"
+  js inline "((#1)[#2])"  
 }
 
-external containsKey( md : mdict<h,a>, s : string ) : read<h> bool {
-  cs inline "#1.ContainsKey(#2)"
-  js inline "#1[#2]!==undefined"
+external inline containsKey( md : mdict<h,a>, s : string ) : read<h> bool {
+  cs inline "((#1).ContainsKey(#2)"
+  js inline "((#1)[#2]!==undefined)"
 } 
 
 // Index into a string dictionary
@@ -83,18 +83,18 @@ external dict() : dict<a> {
   js inline "{}"
 }  
 
-private external unsafeDictAdd( d : dict<a>, key : string, value : a ) : () {
-  inline "(#1)[#2] = #3"
+private external inline unsafeDictAdd( d : dict<a>, key : string, value : a ) : () {
+  inline "(#1)[#2] = (#3)"
 }
 
-private external unsafeDictGet( d : dict<a>, key : string ) : a {
+private external inline unsafeDictGet( d : dict<a>, key : string ) : a {
   inline "(#1)[#2]"
 }
 
 
-external containsKey( d : dict<a>, key : string ) : bool {
-  cs inline "#1.ContainsKey(#2)"
-  js inline "#1[#2]!==undefined"
+external inline containsKey( d : dict<a>, key : string ) : bool {
+  cs inline "((#1).ContainsKey(#2))"
+  js inline "((#1)[#2]!==undefined)"
 } 
 
 private external dictCopy( d : dict<a> ) : dict<a> {

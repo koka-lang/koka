@@ -17,6 +17,9 @@ import std/atom
 import std/env
 import std/flags
 import std/regex
+import std/path
+import std/file
+import std/string
 
 import sys/dom
 import sys/dom/types

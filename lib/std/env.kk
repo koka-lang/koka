@@ -50,6 +50,10 @@ public val argv = getArgv().list
 
 
 // Return the arguments that were passed to program itself.
+// Strips off the initial program from the unprocessed command line.
+// i.e. If a program started as:
+//     > node myprogram.js --flag bla
+// The "arguments" list will be "[""--flag"",""bla""]"
 public val arguments 
   = match(argv) {
       Cons(x,xs) | x.basename.noext == "node" -> xs.drop(1)
