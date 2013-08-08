@@ -784,12 +784,15 @@ function last( xs : list<a> ) : exn a
 }
 
 // Return the list without its last element.
-// Raise an exception if an empty list is passed
-function init( xs : list<a> ) : exn list<a>
+// Return an empty list for an empty list.
+function init( xs : list<a> ) : list<a>
 {
   match(xs) {
-    Cons(x,Nil) -> [x]
-    Cons(x,xx)  -> Cons(x,init(xx))
+    Cons(x,xx)  -> match(xx) {
+                     Nil -> Nil
+                     _   -> Cons(x,init(xx))
+                   }
+    Nil         -> Nil
   }
 }
 
@@ -1176,12 +1179,20 @@ function parseInt( s : string, hex : bool = False) : maybe<int> {
   match(s.list.dropWhile(isWhite)) {
     Nil -> Just(0)
     Cons(c,cc) | c=='-' -> {
-      match(parseDigits(cc,base)) {
+      match(parsePosInt(cc,base)) {
         Nothing -> Nothing
         Just(i) -> Just(-i)
       }
     }
-    cs -> parseDigits(cs,base)     
+    cs -> parsePosInt(cs,base)     
+  }
+}
+
+private function parsePosInt( s : list<char>, base : int = 10 ) : maybe<int> {
+  match(s) {
+    Cons(c1,Cons(c2,cs)) | c1=='0' && (c2=='x' || c2=='X')
+      -> parseDigits(cs,16)
+    _ -> parseDigits(s,base)
   }
 }
 
