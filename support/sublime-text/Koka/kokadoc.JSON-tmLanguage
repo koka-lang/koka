@@ -73,26 +73,44 @@
   	, "name": "source.embedded.koka"
   	},
 
+    { "match": "\\b#\\w+"
+    , "name": "meta.tag"
+    },
+
     { "match": "_([^_\n]|_\\w)*_"
     , "name": "markup.quote" 
     },
 
     { "match": "\\*([^\\*\n]|\\*\\w)*\\*"
-    , "name": "enitity.name.section" 
+    , "name": "entity.name.section" 
     },
 
-    { "match": "^\\s*(#+[^\\{\\n]*)(\\{([^\\n\\}]*)\\}\\s*)?$"
+    { "match": "^\\{[^\\n\\}]*\\}\\s*$"
+    , "name": "meta.tag.preprocessor.xml"
+    },
+
+    { "match": "^\\s*(#+.*?)(\\{[^\\n\\}]*\\})\\s*$"
     , "captures": {
       "1": { "name": "markup.heading" },
-      "3": { "name": "string" }
+      "2": { "name": "meta.tag.preprocessor.xml" }
       }
     },
 
-    { "match": "\\[([^\\]\\n]*)\\](?!:)\\(([^\\)\\n]*)\\)(\\{([^\\n\\}]*)\\})?"
+    { "match": "^\\s*(#+.*)$"
+    , "name": "markup.heading" 
+    },
+
+    { "match": "\\[([^\\]\\n]*)\\](?!:)\\(([^\\)\\n]*)\\)(\\{[^\\n\\}]*\\})?"
     , "captures": {
       "1": { "name": "meta.tag" },
       "2": { "name": "string" },
-      "4": { "name": "string" }
+      "4": { "name": "meta.tag.preprocessor.xml" }
+      }
+    },
+
+    { "match": "(\\[)([^\\]\\n]*)(\\])(\\{[^\\n\\}]*\\})?"
+    , "captures": {
+      "4": { "name": "meta.tag.preprocessor.xml" }
       }
     },
 
@@ -103,11 +121,11 @@
       }
     },
 
-    { "match": "^\\s*\\[([^\\]\\n]*)\\]:([^\\n\\{]*)(\\{([^\\n\\}]*)\\})?\\s*$"
+    { "match": "^\\s*\\[([^\\]\\n]*)\\]:([^\\n\\{]*)(\\{[^\\n\\}]*\\})?\\s*$"
     , "captures": {
       "1": { "name": "meta.tag" },
       "2": { "name": "string" },
-      "4": { "name": "string" }
+      "3": { "name": "meta.tag.preprocessor.xml" }
       }
     },
 

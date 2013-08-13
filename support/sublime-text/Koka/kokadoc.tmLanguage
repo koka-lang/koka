@@ -180,6 +180,12 @@
 		</dict>
 		<dict>
 			<key>match</key>
+			<string>\b#\w+</string>
+			<key>name</key>
+			<string>meta.tag</string>
+		</dict>
+		<dict>
+			<key>match</key>
 			<string>_([^_
 ]|_\w)*_</string>
 			<key>name</key>
@@ -190,7 +196,13 @@
 			<string>\*([^\*
 ]|\*\w)*\*</string>
 			<key>name</key>
-			<string>enitity.name.section</string>
+			<string>entity.name.section</string>
+		</dict>
+		<dict>
+			<key>match</key>
+			<string>^\{[^\n\}]*\}\s*$</string>
+			<key>name</key>
+			<string>meta.tag.preprocessor.xml</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -200,14 +212,20 @@
 					<key>name</key>
 					<string>markup.heading</string>
 				</dict>
-				<key>3</key>
+				<key>2</key>
 				<dict>
 					<key>name</key>
-					<string>string</string>
+					<string>meta.tag.preprocessor.xml</string>
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>^\s*(#+[^\{\n]*)(\{([^\n\}]*)\}\s*)?$</string>
+			<string>^\s*(#+.*?)(\{[^\n\}]*\})\s*$</string>
+		</dict>
+		<dict>
+			<key>match</key>
+			<string>^\s*(#+.*)$</string>
+			<key>name</key>
+			<string>markup.heading</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -225,11 +243,23 @@
 				<key>4</key>
 				<dict>
 					<key>name</key>
-					<string>string</string>
+					<string>meta.tag.preprocessor.xml</string>
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>\[([^\]\n]*)\](?!:)\(([^\)\n]*)\)(\{([^\n\}]*)\})?</string>
+			<string>\[([^\]\n]*)\](?!:)\(([^\)\n]*)\)(\{[^\n\}]*\})?</string>
+		</dict>
+		<dict>
+			<key>captures</key>
+			<dict>
+				<key>4</key>
+				<dict>
+					<key>name</key>
+					<string>meta.tag.preprocessor.xml</string>
+				</dict>
+			</dict>
+			<key>match</key>
+			<string>(\[)([^\]\n]*)(\])(\{[^\n\}]*\})?</string>
 		</dict>
 		<dict>
 			<key>captures</key>
@@ -261,14 +291,14 @@
 					<key>name</key>
 					<string>string</string>
 				</dict>
-				<key>4</key>
+				<key>3</key>
 				<dict>
 					<key>name</key>
-					<string>string</string>
+					<string>meta.tag.preprocessor.xml</string>
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>^\s*\[([^\]\n]*)\]:([^\n\{]*)(\{([^\n\}]*)\})?\s*$</string>
+			<string>^\s*\[([^\]\n]*)\]:([^\n\{]*)(\{[^\n\}]*\})?\s*$</string>
 		</dict>
 		<dict>
 			<key>include</key>
