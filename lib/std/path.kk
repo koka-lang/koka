@@ -38,7 +38,10 @@ function combine( path1 : string, path2 : string ) : string {
 
 // Join a list of paths 
 function combine( paths : list<string> ) : string {
-  paths.foldl( "", combine )
+  match(paths) {
+    Nil -> ""
+    Cons(p,ps) -> ps.foldl( p, combine )
+  }
 }
 
 // Return the full normalized path
