@@ -1,256 +1,63 @@
-﻿<!DOCTYPE html>
-<html>
-<!-- NO_CLICK_TRACKING -->
-<!--
-  Copyright 2012 Microsoft Corporation.
- 
-  This is free software; you can redistribute it and/or modify it under the
-  terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
--->
-
-<head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-
-<style type="text/css">
-.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }
-</style>
-<link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=PT+Sans'>
-<link rel='stylesheet' type='text/css' href='http://fonts.googleapis.com/css?family=Source+Code+Pro'>
-<link rel="stylesheet" type="text/css" href="styles/koka.css" /> 
-<style type="text/css">
-body {
-  margin: 2em 12% 2em 8%;
-}
-
-h3 {
-  font-size: 120%;
-}
-
-p {
-  text-align: justify;
-}
-
-.koka.source,
-.koka.source.unchecked {
-  margin-left: 2ex;  
-  background-color: white;
-  border: none;
-  /* border-left: 1px solid #DDD; */
-}
-
-.koka.source.unchecked {
-  /* border-left: 1px dashed #DDD ; */
-}
-
-.grammar table,
-table.grammar  {   
-  margin: 0.5ex 0.5ex 0.5ex 2ex;
-  padding: 0.5ex 1ex 0.5ex 1ex;
-  /*
-  background-color: #FAFAFA;
-  border: solid 1px #DDD;
-  */
-}
-
-.grammar .code,
-.grammar code {
-  padding: 0pt;
-}
-
-.grammar .bar {
-  padding: 0ex 0.5ex;
-}
-
-.grammar td:nth-child(2) {
-  font-style: normal; 
-  padding: 0em 1ex;
-  text-align: center;
-}
-
-.grammar .thin,
-.grammar .bar
-.grammar td:nth-child(2) {
-  font-family: Georgia, sans-serif;  /* a thinner font, widely available */
-}
+﻿<xmp>
+Title         : Koka language specification
+Heading Base  : 2
+Css           : http://fonts.googleapis.com/css?family=PT+Sans
+Css           : http://fonts.googleapis.com/css?family=Source+Code+Pro
+Css           : styles/koka.css
+Css           : styles/kokaspec.css 
+Script        : scripts/kokaspec.js
+~bar          : before='|' 
+~many         : before='{ ' after=' }'
+~opt          : before='[ ' after=' ]'
+Html Header   : 
+  <!-- NO_CLICK_TRACKING -->
+  <!--
+    Copyright 2012 Microsoft Corporation.
+   
+    This is free software; you can redistribute it and/or modify it under the
+    terms of the Apache License, Version 2.0. A copy of the License can be
+    found in the file "license.txt" at the root of this distribution.
+  -->
 
 
-.grammar td:nth-child(4) {
-  font-style: normal; 
-  padding-left: 2ex;
-}
+# []{#toc-toggle} Table of contents {-}
 
-.grammar td {
-  white-space: nowrap;
-}
-.grammar .code, .grammar code,
-.grammar .pre, .grammar pre {
-  font-weight: bold;
-}
-
-table .kw, table .tp, table .co,
-.grammar .keyword, .grammar .kw,
-.grammar .type, .grammar .tp,
-.grammar .constructor, .grammar .co {
-  color: black;
-}
-
-.nt {
-  font-style: italic;
-}          
-
-.opt, .many {   
-  padding: 0ex 0.5ex;
-}
-
-#toc {
-  display: none;
-}
-
-#toc li>a,
-.toc-num>a {
-  color: black;
-  text-decoration: none;
-}
-#toc li>a:hover,
-.toc-num>a:hover {
-  color: black;
-  border-bottom: 1px dotted blue;
-}
-#toc li {
-  padding-top: 0.1ex;
-}
-#toc>div>ul>li {
-  padding-top: 0.25ex;
-}
-
-#toc ul {
-  list-style-type: none;
-  margin-left: 0ex;
-  padding-left: 0ex;
-} 
-#toc ul {
-  font-size: 110%;
-}
-
-#toc ul ul {
-  margin-left: 1.5em;
-  font-size: 90%;
-}
-
-.toc-num {
-  font-size: 80%;
-  margin-right: 0.5em;
-}
-
-#toc-toggle {
-  cursor: pointer;
-  vertical-align: center;
-  margin-right: 10px;
-  font-size: 16pt;
-}
-</style>
-
-<script type='text/javascript'>
-
-function genTOC() {
-  var toc = document.getElementById('toc');  
-  if (toc == null) return;
-  var tocToggle = document.getElementById('toc-toggle');
-  
-  function showToc() {
-    toc.style.display = 'block';
-    if (tocToggle){
-      tocToggle.innerHTML = '&#x25BC;'
-      tocToggle.style.fontSize = '12pt'
-    }
-  }
-  function hideToc() {
-    toc.style.display = 'none';
-    if (tocToggle) {
-      tocToggle.innerHTML = '&#x25B6;';    
-      tocToggle.style.fontSize = '16pt';
-    }
-  }
-  function switchToc() {
-    (toc.style.display != 'none' ? hideToc() : showToc());
-  }
-
-  if (tocToggle) tocToggle.onclick = switchToc;
-  hideToc()
-}
-
-function genFullGrammar() {
-  var fullLex = "";
-  var fullParse = "";
-  var divLex = document.getElementById("full-lexical");
-  var divGrammar = document.getElementById("full-grammar");
-  if (!divLex || !divGrammar) return;
-
-  var gs = document.getElementsByClassName("grammar");
-  for(var i = 0; i < gs.length; i++) {
-    var elem = gs[i];
-    if (elem.tagName.toLowerCase() != "table") continue;
-    if (elem.className.indexOf("lex") >= 0) fullLex += elem.innerHTML;
-    else if (elem.className.indexOf("parse") >= 0) fullParse += elem.innerHTML;
-  }
-  divLex.innerHTML="<table class='grammar'>\n"+ fullLex + "</table>"; 
-  divGrammar.innerHTML="<table class='grammar'>\n" + fullParse + "</table>";
-}
-
-window.onload = function() { genTOC(); genFullGrammar() };
-</script>
-<title>Koka language specification</title>
-</head>
-
-<body>
-
-<!-- <div id="toc">
-<h2 class="notoc"><span id="toc-toggle"></span>Table of contents</h2>
-</div>
--->
-
-<xmp>
-
-## <span id="toc-toggle"></span> Table of contents {-}
 [TOC]
 
 # Koka language specification
 
-This is the draft language specification of the Koka language, version 0.1.<br>
+This is the draft language specification of the Koka language, version 0.1.\
 Currently only the lexical and context-free grammar and the layout rule are specified. 
 The [standard libraries](toc.html) are documented separately.
 
-# Lexical syntax
+# Lexical syntax 
 
 We define the grammar and lexical syntax of the language using standard BNF
 notation where non-terminals are generated by alternative patterns:
 
-  |  |  |  
---- | --- | --- | ---
-_nonterm_ | ::= | _pattern_<sub>1</sub> <span class="bar">&#124;</span> _pattern_<sub>2</sub> | 
+|===========|=====|====================================|===|
+| _nonterm_ | ::= | _pattern_~1~ []{.bar} _pattern_~2~ |   |
 {.grammar}
-
 
 In the patterns, we use the following notations:
 
-  |  |  |  
---- | --- | --- | ---
-"terminal" |  |  | A terminal symbol
-`x0A` |  |  | A character with hexadecimal code 0A
-`a..f` |  |  | The characters from a to f
-&nbsp; | |  |  |
-( _pattern_ ) |  |  | Grouping
-[ _pattern_ ] |  |  | Optional occurrence of _pattern_
-{ _pattern_ } |  |  | Zero or more occurrences of _pattern_
-_pattern_<sub>1</sub> <span class="bar">&#124;</span> _pattern_<sub>2</sub> | |  | Choice: either _pattern_<sub>1</sub> or _pattern_<sub>2</sub>
-&nbsp; | |  |  |
-_pattern_<sub>&lt;_diff_&gt;</sub> |  |  | Difference: elements generated by _pattern_ except those in _diff_
-_nonterm_<sub>[_lex_]</sub> |  |  | Generate _nonterm_ by drawing lexemes from _lex_
+|====================================|===|====================================================================|
+| "terminal"                         |   | A terminal symbol                                                  |
+| `x0A`                              |   | A character with hexadecimal code 0A                               |
+| `a..f`                             |   | The characters from a to f                                         |
+| &nbsp;                             |   |                                                                    |
+| ( _pattern_ )                      |   | Grouping                                                           |
+| [ _pattern_ ]                      |   | Optional occurrence of _pattern_                                   |
+| { _pattern_ }                      |   | Zero or more occurrences of _pattern_                              |
+| _pattern_~1~ []{.bar} _pattern_~2~ |   | Choice: either _pattern_~1~ or _pattern_~2~                        |
+| &nbsp;                             |   |                                                                    |
+| _pattern_~<_diff_>~                |   | Difference: elements generated by _pattern_ except those in _diff_ |
+| _nonterm_~[_lex_]~                 |   | Generate _nonterm_ by drawing lexemes from _lex_                   |
 {.grammar}
 
-<span class="grammar">Care must be taken to distinguish meta-syntax such as 
-<span class="thin">&#124;</span> and ) from concrete terminal symbols as `|` and `)`.</span>
+Care must be taken to distinguish meta-syntax such as 
+[]{.bar} and ) from concrete terminal symbols as `|` and `)`.
+{.grammar}
 
 ## Source code
 
@@ -282,144 +89,138 @@ Before doing lexical analysis, there is a _linefeed_ character inserted at the
 start and end of the input, which makes it easier to specify line comments and
 directives. 
 
-### Lexical tokens
+### Lexical tokens { test }
 
- | | |  
- --- | --- | --- | ---
-_lex_  |  ::= | <span class="many">{ _whitespace_ <span class="bar">&#124;</span> _lexeme_ }</span>
-_lexeme_&nbsp;&nbsp; | ::= | _conid_ <span class="bar">&#124;</span> _qconid_
- | &#124; | _varid_ <span class="bar">&#124;</span> _qvarid_
- | &#124; | _op_ <span class="bar">&#124;</span> _opid_ <span class="bar">&#124;</span> _qopid_ <span class="bar">&#124;</span> _wildcard_
- | &#124; | _natural_ <span class="bar">&#124;</span> _float_ <span class="bar">&#124;</span> _string_ <span class="bar">&#124;</span> _char_
- | &#124; | _reserved_ <span class="bar">&#124;</span> _reservedop_ <span class="bar">&#124;</span> _special_
+|======================|========|==============================================================|===|
+| _lex_                | ::=    | _lexeme_ []{.bar} _whitespace_                               |   |
+| _lexeme_&nbsp;&nbsp; | ::=    | _conid_ []{.bar} _qconid_                                    |   |
+|                      | &#124; | _varid_ []{.bar} _qvarid_                                    |   |
+|                      | &#124; | _op_ []{.bar} _opid_ []{.bar} _qopid_ []{.bar} _wildcard_    |   |
+|                      | &#124; | _natural_ []{.bar} _float_ []{.bar} _string_ []{.bar} _char_ |   |
+|                      | &#124; | _reserved_ []{.bar} _reservedop_ []{.bar} _special_          |   |
 {.grammar .lex}
 
 ### Identifiers
 
- | | |  
---- | --- | --- | ---
-_qconid_ | ::= | _modulepath_ _conid_
-_qvarid_ | ::= | _modulepath_ _lowerid_  
-_modulepath_ | ::= | _lowerid_ "/" <span class="many">{ _lowerid_ "/" }</span>
-&nbsp; | | 
-_conid_ | ::= | _upperid_
-_varid_ | ::= | _lowerid_<sub>&lt;_reserved_&gt;</sub>
-&nbsp; | | 
-_lowerid_ | ::= | _lower_ <span class="many">{ _idchar_ }</span> 
-_upperid_ | ::= | _upper_ <span class="many">{ _idchar_ }</span>
-_idchar_ | ::= | _letter_ <span class="bar">&#124;</span> _digit_ <span class="bar">&#124;</span> `_` 
-&nbsp; | | 
-_wildcard_ | ::= | `_` <span class="many">{ _idchar_ }</span>
-_typevarid_ | ::= | _letter_ <span class="many">{ _digit_ }</span>
-&nbsp; | | 
-_reserved_ | ::= | "infix" <span class="bar">&#124;</span> "infixr" <span class="bar">&#124;</span> "infixl" <span class="bar">&#124;</span> "prefix" 
-  | &#124; | "type" <span class="bar">&#124;</span> "cotype" <span class="bar">&#124;</span> "rectype" <span class="bar">&#124;</span> "alias" 
-  | &#124; | "forall" <span class="bar">&#124;</span> "exists" <span class="bar">&#124;</span> "some"
- | &#124; | "fun" <span class="bar">&#124;</span> "function" <span class="bar">&#124;</span> "val" <span class="bar">&#124;</span> "var" <span class="bar">&#124;</span> "con"
- | &#124; | "if" <span class="bar">&#124;</span> "then" <span class="bar">&#124;</span> "else" <span class="bar">&#124;</span> "elif" <span class="bar">&#124;</span> "match" <span class="bar">&#124;</span> "return"
- | &#124; | "module" <span class="bar">&#124;</span> "import" <span class="bar">&#124;</span> "as"
- | &#124; | "public" <span class="bar">&#124;</span> "private" <span class="bar">&#124;</span> "abstract" 
- | &#124; | "interface" <span class="bar">&#124;</span> "instance" <span class="bar">&#124;</span> "with"
- | &#124; | "external" <span class="bar">&#124;</span> "inline" <span class="bar">&#124;</span> "include"
- | &#124; | "yield" <span class="bar">&#124;</span> "qualified" <span class="bar">&#124;</span> "hiding"  | (future reserved words)
+|==============|========|=========================================================================================|=========================|
+| _qconid_     | ::=    | _modulepath_ _conid_                                                                    |                         |
+| _qvarid_     | ::=    | _modulepath_ _lowerid_                                                                  |                         |
+| _modulepath_ | ::=    | _lowerid_ "/" [_lowerid_ "/"]{.many}                                                    |                         |
+| &nbsp;       |        |                                                                                         |                         |
+| _conid_      | ::=    | _upperid_                                                                               |                         |
+| _varid_      | ::=    | _lowerid_~&lt;_reserved_&gt;~                                                           |                         |
+| &nbsp;       |        |                                                                                         |                         |
+| _lowerid_    | ::=    | _lower_ [_idchar_]{.many}                                                               |                         |
+| _upperid_    | ::=    | _upper_ [_idchar_]{.many}                                                               |                         |
+| _idchar_     | ::=    | _letter_ []{.bar} _digit_ []{.bar} `_`                                                  |                         |
+| &nbsp;       |        |                                                                                         |                         |
+| _wildcard_   | ::=    | `_` [_idchar_]{.many}                                                                   |                         |
+| _typevarid_  | ::=    | _letter_ [_digit_]{.many}                                                               |                         |
+| &nbsp;       |        |                                                                                         |                         |
+| _reserved_   | ::=    | "infix" []{.bar} "infixr" []{.bar} "infixl" []{.bar} "prefix"                           |                         |
+|              | &#124; | "type" []{.bar} "cotype" []{.bar} "rectype" []{.bar} "alias"                            |                         |
+|              | &#124; | "forall" []{.bar} "exists" []{.bar} "some"                                              |                         |
+|              | &#124; | "fun" []{.bar} "function" []{.bar} "val" []{.bar} "var" []{.bar} "con"                  |                         |
+|              | &#124; | "if" []{.bar} "then" []{.bar} "else" []{.bar} "elif" []{.bar} "match" []{.bar} "return" |                         |
+|              | &#124; | "module" []{.bar} "import" []{.bar} "as"                                                |                         |
+|              | &#124; | "public" []{.bar} "private" []{.bar} "abstract"                                         |                         |
+|              | &#124; | "interface" []{.bar} "instance" []{.bar} "with"                                         |                         |
+|              | &#124; | "external" []{.bar} "inline" []{.bar} "include"                                         |                         |
+|              | &#124; | "yield" []{.bar} "qualified" []{.bar} "hiding"                                          | (future reserved words) |
 {.grammar .lex}
 
 ### Operators and symbols
 
- | | | 
---- | --- | --- | ---  
-_qopid_ | ::= | _modulepath_ _opid_ 
-_opid_ | ::= | "(" _symbols_ ")"
-&nbsp; | |
-_op_ | ::= | _symbols_<sub>&lt;_reservedop_ <span class="bar">&#124;</span> _typeop_&gt;</sub>
-&nbsp; | |
-_symbols_ | ::= | _symbol_ <span class="many">{ _symbol_ } <span class="bar">&#124;</span> `/`</span>
-_symbol_ | ::= | "$" <span class="bar">&#124;</span> "%" <span class="bar">&#124;</span> `&` <span class="bar">&#124;</span> "*" <span class="bar">&#124;</span> "+"
- | &#124; | `"` <span class="bar">&#124;</span> "!" <span class="bar">&#124;</span> "\" <span class="bar">&#124;</span> "^" <span class="bar">&#124;</span> `#`
- | &#124; | `=` <span class="bar">&#124;</span> `.` <span class="bar">&#124;</span> `:` <span class="bar">&#124;</span> "-" <span class="bar">&#124;</span> "?"
- | &#124; | <span class="koka code">&#124;</span> <span class="bar">&#124;</span> "<" <span class="bar">&#124;</span> ">"
-&nbsp; | |
-_special_ | ::= | "{" <span class="bar">&#124;</span> "}" <span class="bar">&#124;</span> "(" <span class="bar">&#124;</span> ")" <span class="bar">&#124;</span> "[" <span class="bar">&#124;</span> "]" <span class="bar">&#124;</span> ";" <span class="bar">&#124;</span> "," <span class="bar">&#124;</span><code>&#96;</code>
-&nbsp; | |
-_reservedop_ | ::= | "=" <span class="bar">&#124;</span> "." <span class="bar">&#124;</span> <span class="koka code keyword">:</span> <span class="bar">&#124;</span> "->"
-_typeop_ | ::= | ">" _anglebar_ <span class="many">{ _anglebar_ }</span>    
- | &#124; | "<" _anglebar_ <span class="many">{ _anglebar_ }</span>
- | &#124; | <span class="koka code">&#124;</span> _angle_ <span class="many">{ _symbol_ }</span>
- | &#124; | "-><" <span class="many">{ _symbol_ }</span>
- | &#124; | `:?` <span class="many">{ _symbol_ }</span>
-&nbsp; | |
-_anglebar_ | ::= | <span class="koka code">&#124;</span> <span class="bar">&#124;</span> _angle_
-_angle_ | ::= | "<" <span class="bar">&#124;</span> ">"
+|==============|========|===========================================================================================================================|===|
+| _qopid_      | ::=    | _modulepath_ _opid_                                                                                                       |   |
+| _opid_       | ::=    | "(" _symbols_ ")"                                                                                                         |   |
+| &nbsp;       |        |                                                                                                                           |   |
+| _op_         | ::=    | _symbols_~&lt;_reservedop_\ []{.bar}\ _typeop_&gt;~                                                                       |   |
+| &nbsp;       |        |                                                                                                                           |   |
+| _symbols_    | ::=    | _symbol_ []{.bar} `/`                                                                                                     |   |
+| _symbol_     | ::=    | "$" []{.bar} "%" []{.bar} `&` []{.bar} "*" []{.bar} "+"                                                               |   |
+|              | &#124; | `"` []{.bar} "!" []{.bar} "\" []{.bar} "^" []{.bar} `#`                                                                   |   |
+|              | &#124; | `=` []{.bar} `.` []{.bar} `:` []{.bar} "-" []{.bar} "?"                                                                   |   |
+|              | &#124; | [&#124;]{.koka .code} []{.bar} "<" []{.bar} ">"                                                                           |   |
+| &nbsp;       |        |                                                                                                                           |   |
+| _special_    | ::=    | "{" []{.bar} "}" []{.bar} "(" []{.bar} ")" []{.bar} "[" []{.bar} "]" []{.bar} ";" []{.bar} "," []{.bar}<code>&#96;</code> |   |
+| &nbsp;       |        |                                                                                                                           |   |
+| _reservedop_ | ::=    | "=" []{.bar} "." []{.bar} [:]{.koka .code .keyword} []{.bar} "->"                                                         |   |
+| _typeop_     | ::=    | ">" _anglebar_ [_anglebar_]{.many}                                                                                        |   |
+|              | &#124; | "<" _anglebar_ [_anglebar_]{.many}                                                                                        |   |
+|              | &#124; | [&#124;]{.koka .code} _angle_ [_symbol_]{.many}                                                                           |   |
+|              | &#124; | "-><" [_symbol_]{.many}                                                                                                   |   |
+|              | &#124; | `:?` [_symbol_]{.many}                                                                                                    |   |
+| &nbsp;       |        |                                                                                                                           |   |
+| _anglebar_   | ::=    | [&#124;]{.koka .code} []{.bar} _angle_                                                                                    |   |
+| _angle_      | ::=    | "<" []{.bar} ">"                                                                                                          |   |
 {.grammar .lex}
 
 ### Literals
 
- | | |  
---- | --- | --- | ---
-_string_ | ::= | `@"` <span class="many">{ _graphic_<sub>&lt;`"`&gt;</sub> <span class="bar">&#124;</span> _utf8_ <span class="bar">&#124;</span> _space_ <span class="bar">&#124;</span> _tab_ <span class="bar">&#124;</span> _newline_ <span class="bar">&#124;</span> `""` }</span> `"` | (raw string)
- | &#124; | `"` <span class="many">{ _graphic_<sub>&lt;`"`<span>&#124;</span>`\`&gt;</sub> <span class="bar">&#124;</span> _utf8_ <span class="bar">&#124;</span> _space_ <span class="bar">&#124;</span> _escape_ }</span> `"`
-_char_ | ::= | `'` ( _graphic_<sub>&lt;`'`<span>&#124;</span>`\`&gt;</sub> <span class="bar">&#124;</span> _utf8_ <span class="bar">&#124;</span> _space_ <span class="bar">&#124;</span> _escape_ ) `'`
-&nbsp; | |
-_escape_ | ::= | `\` ( _charesc_ <span class="bar">&#124;</span> _hexesc_ )
-_charesc_ | ::= | "n" <span class="bar">&#124;</span> "r" <span class="bar">&#124;</span> "t" <span class="bar">&#124;</span> `\` <span class="bar">&#124;</span> `"` <span class="bar">&#124;</span> `'` 
-_hexesc_ | ::= | "x" _hexdigit_<sub>2</sub> <span class="bar">&#124;</span>   "u" _hexdigit_<sub>4</sub> <span class="bar">&#124;</span>   `U` _hexdigit_<sub>4</sub> _hexdigit_<sub>2</sub>
-_hexdigit_<sub>4</sub> | ::= | _hexdigit_ _hexdigit_ _hexdigit_ _hexdigit_
-_hexdigit_<sub>2</sub> | ::= | _hexdigit_ _hexdigit_
-&nbsp; | |
-_float_ | ::= | _decimal_ "." _decimal_ <span class="opt">[_exponent_]</span>
-_exponent_ | ::= | (`e` &#124; `E`) <span class="opt">[`-` &#124; "+"]</span> _decimal_
-_natural_ | ::= | _decimal_ <span class="bar">&#124;</span> "0" &nbsp; (`x` &#124; `X`) _hexadecimal_
-_decimal_ | ::= | _digit_ <span class="many">{ _digit_ }</span>
-_hexadecimal_ | ::= | _hexdigit_ <span class="many">{ _hexdigit_ }</span>
+|===============|========|===========================================================================================================================|==============|
+| _string_      | ::=    | `@"` [_graphic_~&lt;`"`&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_ []{.bar} `""`]{.many} `"` | (raw string) |
+|               | &#124; | `"` [_graphic_~&lt;`"`[]{.bar}`\`&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_]{.many} `"`                     |              |
+| _char_        | ::=    | `'` ( _graphic_~&lt;`'`[]{.bar}`\`&gt;~ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _escape_ ) `'`                          |              |
+| &nbsp;        |        |                                                                                                                           |              |
+| _escape_      | ::=    | `\` ( _charesc_ []{.bar} _hexesc_ )                                                                                       |              |
+| _charesc_     | ::=    | "n" []{.bar} "r" []{.bar} "t" []{.bar} `\` []{.bar} `"` []{.bar} `'`                                                      |              |
+| _hexesc_      | ::=    | "x" _hexdigit_~2~ []{.bar}   "u" _hexdigit_~4~ []{.bar}   `U` _hexdigit_~4~ _hexdigit_~2~                                 |              |
+| _hexdigit_~4~ | ::=    | _hexdigit_ _hexdigit_ _hexdigit_ _hexdigit_                                                                               |              |
+| _hexdigit_~2~ | ::=    | _hexdigit_ _hexdigit_                                                                                                     |              |
+| &nbsp;        |        |                                                                                                                           |              |
+| _float_       | ::=    | _decimal_ "." _decimal_ [_exponent_]{.opt}                                                                                |              |
+| _exponent_    | ::=    | (`e` &#124; `E`) [`-` &#124; `+`]{.opt} _decimal_                                                                     |              |
+| _natural_     | ::=    | _decimal_ []{.bar} "0" &nbsp; (`x` &#124; `X`) _hexadecimal_                                                              |              |
+| _decimal_     | ::=    | _digit_ [_digit_]{.many}                                                                                                  |              |
+| _hexadecimal_ | ::=    | _hexdigit_ [_hexdigit_]{.many}                                                                                            |              |
 {.grammar .lex}
 
 ### White space
 
- | | |  
---- | --- | --- | ---
-_whitespace_ | ::= | _white_ <span class="many">{ _white_ }</span>
-_white_ | ::= | _newline_ <span class="bar">&#124;</span> _space_
- | &#124; | _linecomment_ <span class="bar">&#124;</span> _blockcomment_
- | &#124; | _linedirective_  
-&nbsp; | |
-_linecomment_ | ::= | `//` <span class="many">{ _linechar_ }</span> _newline_
-_linedirective_ | ::= | _newline_ `#` <span class="many">{ _linechar_ } _newline_</span>
-_linechar_ | ::= | _graphic_ <span class="bar">&#124;</span> _utf8_ <span class="bar">&#124;</span> _space_ <span class="bar">&#124;</span> _tab_
-&nbsp; | |
-_blockcomment_ | ::= | <code>/&#42;</code> _blockpart_ <span class="many">{ _blockcomment_ _blockpart_ }</span> <code>&#42;/</code> | (allows nested comments)
-_blockpart_ | ::= | _blockchars_<sub>&lt;_blockchars_ (<code>/&#42;</code><span class="bar">&#124;</span><code>&#42;/</code>) _blockchars_&gt;</sub>
-_blockchars_ | ::= | <span class="many">{ _blockchar_ }</span>
-_blockchar_ | ::= | _graphic_ <span class="bar">&#124;</span> _utf8_ <span class="bar">&#124;</span> _space_ <span class="bar">&#124;</span> _tab_ <span class="bar">&#124;</span> _newline_
+|=================|========|====================================================================================================|==========================|
+| _whitespace_    | ::=    | _white_ [_white_]{.many}                                                                           |                          |
+| _white_         | ::=    | _newline_ []{.bar} _space_                                                                         |                          |
+|                 | &#124; | _linecomment_ []{.bar} _blockcomment_                                                              |                          |
+|                 | &#124; | _linedirective_                                                                                    |                          |
+| &nbsp;          |        |                                                                                                    |                          |
+| _linecomment_   | ::=    | `//` [_linechar_]{.many} _newline_                                                                 |                          |
+| _linedirective_ | ::=    | _newline_ `#` [{ _linechar_ } _newline_]{.many}                                                    |                          |
+| _linechar_      | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_                                          |                          |
+| &nbsp;          |        |                                                                                                    |                          |
+| _blockcomment_  | ::=    | <code>/&#42;</code> _blockpart_ [_blockcomment_ _blockpart_]{.many} <code>&#42;/</code>            | (allows nested comments) |
+| _blockpart_     | ::=    | _blockchars_~&lt;_blockchars_\ (<code>/&#42;</code>[]{.bar}<code>&#42;/</code>)\ _blockchars_&gt;~ |                          |
+| _blockchars_    | ::=    | [_blockchar_]{.many}                                                                               |                          |
+| _blockchar_     | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_ []{.bar} _newline_                       |                          |
 {.grammar .lex}
 
 ### Character classes
 
- | | |  
---- | --- | --- | ---
-_letter_  | ::= | _upper_ <span class="bar">&#124;</span> _lower_
-_upper_   | ::= | `A..Z`
-_lower_   | ::= | `a..z`
-_digit_   | ::= | `0..9`
-_hexdigit_| ::= | `a..f` <span class="bar">&#124;</span> `A..F` <span class="bar">&#124;</span> _digit_
-&nbsp; |    |
-_newline_ | ::= | <span class="opt">[_return_]</span> _linefeed_ | (windows or unix style end of line)
-&nbsp; |    |
-_space_   | ::= | `x20` | (a space)
-_tab_     | ::= | `x09` | (a tab (`\t`))
-_linefeed_| ::= | `x0A` | (a line feed (`\n`))
-_return_  | ::= | `x0D` | (a carriage return (`\r`))
-_graphic_ | ::= | `x21`..`x7E` | (a visible character)
-&nbsp; |    |
-_utf8_    | ::= | `xC0` `x80` | (encoded 0 character)
- | &#124; | (`xC2`..`xDF`) _cont_  
- | &#124; | `xE0` (`xA0`..`xBF`) _cont_ 
- | &#124; | (`xE1`..`xEC`) _cont_ _cont_ 
- | &#124; | `xED` (`x80`..`x9F`) _cont_ 
- | &#124; | (`xEE`..`xEF`) _cont_ _cont_ 
- | &#124; | `xF0` (`x90`..`xBF`) _cont_ _cont_ 
- | &#124; | (`xF1`..`xF3`) _cont_ _cont_ _cont_ 
- | &#124; | `xF4` (`x80`..`x8F`) _cont_ _cont_
-_cont_ | ::= | `x80`..`xBF`            
+|============|========|=========================================|=====================================|
+| _letter_   | ::=    | _upper_ []{.bar} _lower_                |                                     |
+| _upper_    | ::=    | `A..Z`                                  |                                     |
+| _lower_    | ::=    | `a..z`                                  |                                     |
+| _digit_    | ::=    | `0..9`                                  |                                     |
+| _hexdigit_ | ::=    | `a..f` []{.bar} `A..F` []{.bar} _digit_ |                                     |
+| &nbsp;     |        |                                         |                                     |
+| _newline_  | ::=    | [_return_]{.opt} _linefeed_             | (windows or unix style end of line) |
+| &nbsp;     |        |                                         |                                     |
+| _space_    | ::=    | `x20`                                   | (a space)                           |
+| _tab_      | ::=    | `x09`                                   | (a tab (`\t`))                      |
+| _linefeed_ | ::=    | `x0A`                                   | (a line feed (`\n`))                |
+| _return_   | ::=    | `x0D`                                   | (a carriage return (`\r`))          |
+| _graphic_  | ::=    | `x21`..`x7E`                            | (a visible character)               |
+| &nbsp;     |        |                                         |                                     |
+| _utf8_     | ::=    | `xC0` `x80`                             | (encoded 0 character)               |
+|            | &#124; | (`xC2`..`xDF`) _cont_                   |                                     |
+|            | &#124; | `xE0` (`xA0`..`xBF`) _cont_             |                                     |
+|            | &#124; | (`xE1`..`xEC`) _cont_ _cont_            |                                     |
+|            | &#124; | `xED` (`x80`..`x9F`) _cont_             |                                     |
+|            | &#124; | (`xEE`..`xEF`) _cont_ _cont_            |                                     |
+|            | &#124; | `xF0` (`x90`..`xBF`) _cont_ _cont_      |                                     |
+|            | &#124; | (`xF1`..`xF3`) _cont_ _cont_ _cont_     |                                     |
+|            | &#124; | `xF4` (`x80`..`x8F`) _cont_ _cont_      |                                     |
+| _cont_     | ::=    | `x80`..`xBF`                            |                                     |
 {.grammar .lex}
 
 ## Semicolon insertion  {#sec:layout}
@@ -492,7 +293,7 @@ examples in other programming languages are often based on a mismatch between
 the visual representation and how a compiler interprets the tokens. With
 Koka's layout rule, there is no such mismatch.
 
-To still allow for &ldquo;block-style&rdquo; layout, the
+To still allow for "block-style" layout, the
 layout rule does not insert a  semi-colon for an aligned statement if it
 starts with "then", "else", "elif", or one of "{", ")", or "]".
 {.grammar}
@@ -606,142 +407,136 @@ ignored.
 
 ## Modules
 
- | | |  
---- | --- | --- | ---
-_module_<sub><span class="opt">[_lex_]</span></sub> | ::= | <span class="opt">[_moduledecl_]</span> _modulebody_
-&nbsp; |
-_moduledecl_ | ::= | <span class="opt">[_semis_]</span>  <span  class="opt">[_visibility_]</span> "module" _moduleid_
-_moduleid_ | ::= | _qvarid_ <span class="bar">&#124;</span> _varid_
-&nbsp; |
-_modulebody_ | ::= |  "{" <span class="opt">[_semis_]</span> _declarations_ "}" <span class="opt">[_semis_]</span>
- | &#124; | <span class="opt">[_semis_]</span> _declarations_
-&nbsp; |
-_visibility_ | ::= | "public" <span class="bar">&#124;</span> "private"
-_semis_ | ::= | ";" <span class="many">{ ";" }</span>
+|=========================|========|===========================================================|===|
+| _module_~[_lex_]{.opt}~ | ::=    | [_moduledecl_]{.opt} _modulebody_                         |   |
+| &nbsp;                  |        |                                                           |   |
+| _moduledecl_            | ::=    | [_semis_]{.opt}  [_visibility_]{.opt} "module" _moduleid_ |   |
+| _moduleid_              | ::=    | _qvarid_ []{.bar} _varid_                                 |   |
+| &nbsp;                  |        |                                                           |   |
+| _modulebody_            | ::=    | "{" [_semis_]{.opt} _declarations_ "}" [_semis_]{.opt}    |   |
+|                         | &#124; | [_semis_]{.opt} _declarations_                            |   |
+| &nbsp;                  |        |                                                           |   |
+| _visibility_            | ::=    | "public" []{.bar} "private"                               |   |
+| _semis_                 | ::=    | ";" [";"]{.many}                                          |   |
 {.grammar .parse}
 
 ## Top level declarations
 
- | | |  
---- | --- | --- | ---
-_declarations_ | ::= | <span class="many">{ _import_ _semis_ }</span> <span class="many">{ _fixitydecl_ _semis_ }</span> <span class="many">{ _topdecl_ _semis_ }</span>
-&nbsp; |
-_import_ | ::= | <span  class="opt">[_visibility_]</span> "import" <span class="opt">[_moduleid_ "="]</span> _moduleid_
-&nbsp; |
-_fixitydecl_ | ::= | <span  class="opt">[_visibility_]</span> _fixity_ _natural_ _identifier_ <span class="many">{ "," _identifier_ }</span>
-_fixity_ | ::= | "infixl"
- | &#124; | "infixr"
- | &#124; | "infix"
-&nbsp; |
-_topdecl_ | ::= | <span class="opt">[_visibility_]</span> _puredecl_
- | &#124; | <span class="opt">[_visibility_]</span> _aliasdecl_
- | &#124; | <span class="opt">[_visibility_]</span> _typedecl_
- | &#124; | <span class="opt">[_visibility_]</span> _externdecl_
- | &#124; | "abstract " _typedecl_
+|================|========|====================================================================================|===|
+| _declarations_ | ::=    | [_import_ _semis_]{.many} [_fixitydecl_ _semis_]{.many} [_topdecl_ _semis_]{.many} |   |
+| &nbsp;         |        |                                                                                    |   |
+| _import_       | ::=    | [_visibility_]{.opt} "import" [_moduleid_ "="]{.opt} _moduleid_                    |   |
+| &nbsp;         |        |                                                                                    |   |
+| _fixitydecl_   | ::=    | [_visibility_]{.opt} _fixity_ _natural_ _identifier_ ["," _identifier_]{.many}     |   |
+| _fixity_       | ::=    | "infixl"                                                                           |   |
+|                | &#124; | "infixr"                                                                           |   |
+|                | &#124; | "infix"                                                                            |   |
+| &nbsp;         |        |                                                                                    |   |
+| _topdecl_      | ::=    | [_visibility_]{.opt} _puredecl_                                                    |   |
+|                | &#124; | [_visibility_]{.opt} _aliasdecl_                                                   |   |
+|                | &#124; | [_visibility_]{.opt} _typedecl_                                                    |   |
+|                | &#124; | [_visibility_]{.opt} _externdecl_                                                  |   |
+|                | &#124; | "abstract " _typedecl_                                                             |   |
 {.grammar .parse}
 
 ## Type declarations
 
- | | |  
---- | --- | --- | ---
-_aliasdecl_ | ::= | "alias" _typeid_ <span class="opt">[_typeparams_]</span> <span class="opt">[_kannot_]</span> "=" _type_
-_typedecl_ | ::= | _typesort_ _typeid_ <span class="opt">[_typeparams_]</span> <span class="opt">[_kannot_]</span> <span class="opt">[_typebody_]</span>
- | &#124; | "struct" _typeid_ <span class="opt">[_typeparams_]</span> <span class="opt">[_kannot_]</span> <span class="opt">[_conparams_]</span>
-_typesort_ | ::= | "type" <span class="bar">&#124;</span> "cotype" <span class="bar">&#124;</span> "rectype"
-&nbsp; |
-_typeid_ | ::= | _varid_
- | &#124; | `[]`
- | &#124; | "(" <span class="many">{ "," }</span> ")"
- | &#124; | "<" ">"
- | &#124; | "<" <span class="koka code">&#124;</span> ">"
-&nbsp; |
-_typeparams_ | ::= | "<" <span class="opt"><span class="opt">[_tbinders_]</span></span> ">"
-_tbinders_ | ::= | _tbinder_ <span class="many">{ "," _tbinder_ }</span>
-_tbinder_ | ::= | _varid_ <span class="opt">[_kannot_]</span>
-_typebody_ | ::= | "{" <span class="opt">[_semis_]</span> <span class="many">{_constructor_ _semis_ }</span> "}"
-&nbsp; |
-_constructor_ | ::= | <span class="opt">["con"]</span> <span class="opt">[_equantifier_]</span> _conid_ <span class="opt">[_conparams_]</span>
-_conparams_ | ::= | "(" <span class="opt">[_conparam_ <span class="many">{ "," _conparam_ }</span>]</span> ")"
-_conparam_ | ::= | <span class="opt">[_paramid_]</span> `:` _paramtype_ <span class="opt">["=" _expr_]</span>
+|===============|========|==============================================================================|===|
+| _aliasdecl_   | ::=    | "alias" _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} "=" _type_            |   |
+| _typedecl_    | ::=    | _typesort_ _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_typebody_]{.opt} |   |
+|               | &#124; | "struct" _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_conparams_]{.opt}  |   |
+| _typesort_    | ::=    | "type" []{.bar} "cotype" []{.bar} "rectype"                                  |   |
+| &nbsp;        |        |                                                                              |   |
+| _typeid_      | ::=    | _varid_                                                                      |   |
+|               | &#124; | `[]`                                                                         |   |
+|               | &#124; | "(" [","]{.many} ")"                                                         |   |
+|               | &#124; | "<" ">"                                                                      |   |
+|               | &#124; | "<" [&#124;]{.koka .code} ">"                                                |   |
+| &nbsp;        |        |                                                                              |   |
+| _typeparams_  | ::=    | "<" [_tbinders_]{.opt} ">"                                                   |   |
+| _tbinders_    | ::=    | _tbinder_ ["," _tbinder_]{.many}                                             |   |
+| _tbinder_     | ::=    | _varid_ [_kannot_]{.opt}                                                     |   |
+| _typebody_    | ::=    | "{" [_semis_]{.opt} [_constructor_ _semis_]{.many} "}"                       |   |
+| &nbsp;        |        |                                                                              |   |
+| _constructor_ | ::=    | ["con"]{.opt} [_equantifier_]{.opt} _conid_ [_conparams_]{.opt}              |   |
+| _conparams_   | ::=    | "(" [_conparam_ ["," _conparam_]{.many}]{.opt} ")"                           |   |
+| _conparam_    | ::=    | [_paramid_]{.opt} `:` _paramtype_ ["=" _expr_]{.opt}                         |   |
 {.grammar .parse}
 
 ## Value and function declarations
 
- | | |  
---- | --- | --- | ---
-_puredecl_ | ::= | "val" _valdecl_
- | &#124; | ("fun" <span class="bar">&#124;</span> "function") _fundecl_
-&nbsp; |
-_valdecl_ | ::= | _binder_ "=" _expr_
-_binder_ | ::= | _identifier_ <span class="opt">[`:` _type_]</span>
-&nbsp; |
-_fundecl_ | ::= | <span class="opt">[_quantifiers_]</span> _funid_ _fundef_ (_block_ <span class="bar">&#124;</span> "=" _blockexpr_)
-_fundef_ | ::= | _parameters_ <span class="opt">[_annotres_]</span> <span class="opt">[_sigqualifier_]</span> <span class="opt">[_annotfull_]</span>
-_funid_ | ::= | _identifier_
- | &#124; | `[` <span class="many">{ "," }</span> `]` | (indexing operator)
-&nbsp; |
-_parameters_ | ::= | "(" <span class="opt">[_parameter_ <span class="many">{ "," _parameter_ }</span>]</span> ")"
-_parameter_ | ::= | _paramid_ <span class="opt">[ `:` _paramtype_]</span> <span class="opt">["=" _expr_]</span>
-_paramid_ | ::= | _identifier_ <span class="bar">&#124;</span> _wildcard_
-_paramtype_ | ::= | _type_
- | &#124; | "?" _type_
-&nbsp; |
-_annotres_ | ::= | `:` _tresult_
-_annotfull_ | ::= | `::` _typesig_
-&nbsp; |
-_qidentifier_ | ::= | _qvarid_ <span class="bar">&#124;</span> _qidop_ <span class="bar">&#124;</span> _identifier_
-_identifier_ | ::= | _varid_ <span class="bar">&#124;</span> _idop_
-&nbsp; |
-_qoperator_ | ::= | _op_ <span class="bar">&#124;</span> <code>&#96;</code> (_qidentifier_ <span class="bar">&#124;</span> _qconstructor_) <code>&#96;</code> 
-&nbsp; |
-_qconstructor_ | ::= | _conid_ <span class="bar">&#124;</span> _qconid_
+|================|========|=============================================================================================|=====================|
+| _puredecl_     | ::=    | "val" _valdecl_                                                                             |                     |
+|                | &#124; | ("fun" []{.bar} "function") _fundecl_                                                       |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _valdecl_      | ::=    | _binder_ "=" _expr_                                                                         |                     |
+| _binder_       | ::=    | _identifier_ [`:` _type_]{.opt}                                                             |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _fundecl_      | ::=    | [_quantifiers_]{.opt} _funid_ _fundef_ (_block_ []{.bar} "=" _blockexpr_)                   |                     |
+| _fundef_       | ::=    | _parameters_ [_annotres_]{.opt} [_sigqualifier_]{.opt} [_annotfull_]{.opt}                  |                     |
+| _funid_        | ::=    | _identifier_                                                                                |                     |
+|                | &#124; | `[` [","]{.many} `]`                                                                        | (indexing operator) |
+| &nbsp;         |        |                                                                                             |                     |
+| _parameters_   | ::=    | "(" [_parameter_ ["," _parameter_]{.many}]{.opt} ")"                                        |                     |
+| _parameter_    | ::=    | _paramid_ [`:` _paramtype_]{.opt} ["=" _expr_]{.opt}                                        |                     |
+| _paramid_      | ::=    | _identifier_ []{.bar} _wildcard_                                                            |                     |
+| _paramtype_    | ::=    | _type_                                                                                      |                     |
+|                | &#124; | "?" _type_                                                                                  |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _annotres_     | ::=    | `:` _tresult_                                                                               |                     |
+| _annotfull_    | ::=    | `::` _typesig_                                                                              |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _qidentifier_  | ::=    | _qvarid_ []{.bar} _qidop_ []{.bar} _identifier_                                             |                     |
+| _identifier_   | ::=    | _varid_ []{.bar} _idop_                                                                     |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _qoperator_    | ::=    | _op_ []{.bar} <code>&#96;</code> (_qidentifier_ []{.bar} _qconstructor_) <code>&#96;</code> |                     |
+| &nbsp;         |        |                                                                                             |                     |
+| _qconstructor_ | ::=    | _conid_ []{.bar} _qconid_                                                                   |                     |
 {.grammar .parse}
 
 ## Statements
 
- | | |  
---- | --- | --- | ---
-_block_ | ::= | `{` <span class="opt">[_semis_]</span> <span class="many">{ _statement_ _semis_ }</span> `}`
-&nbsp; |
-_statement_ | ::= | _nofunexpr_ | 
- | &#124; | _decl_ | 
-&nbsp; |
-_decl_ | ::= | ("fun" <span class="bar">&#124;</span> "function") _fundecl_
- | &#124; | "val" _pattern_ "=" _valexpr_ | (local values can use a pattern binding)
- | &#124; | _valdecl_ | (local values have an optional `val` keyword)
- | &#124; | "var" _binder_ `:=` _valexpr_
+|=============|========|======================================================|===============================================|
+| _block_     | ::=    | `{` [_semis_]{.opt} [_statement_ _semis_]{.many} `}` |                                               |
+| &nbsp;      |        |                                                      |                                               |
+| _statement_ | ::=    | _nofunexpr_                                          |                                               |
+|             | &#124; | _decl_                                               |                                               |
+| &nbsp;      |        |                                                      |                                               |
+| _decl_      | ::=    | ("fun" []{.bar} "function") _fundecl_                |                                               |
+|             | &#124; | "val" _pattern_ "=" _valexpr_                        | (local values can use a pattern binding)      |
+|             | &#124; | _valdecl_                                            | (local values have an optional `val` keyword) |
+|             | &#124; | "var" _binder_ `:=` _valexpr_                        |                                               |
 {.grammar .parse}
 
 ## Expressions
 
- | | |  
---- | --- | --- | ---
-_blockexpr_ | ::= | _funexpr_
- | &#124; | _nofunexpr_ | (implicitly wrapped in a block)
-&nbsp; |
-_expr_ | ::= | _funexpr_
- | &#124; | _nofunexpr_ | (_returnexpr_ not allowed)
-&nbsp; |
-_nofunexpr_ | ::= | _matchexpr_
- | &#124; | _opexpr_
- | &#124; | _ifexpr_
- | &#124; | _returnexpr_
-&nbsp; |
-_noifexpr_ | ::= | _matchexpr_
- | &#124; | _opexpr_
- | &#124; | _returnexpr_
- | &#124; | _funexpr_
-&nbsp; |
-_ifexpr_ | ::= | "if" _atom_ _then_ <span class="many">{ _elif_ }</span> <span class="opt">["else" _noifexpr_]</span>
-_then_ | ::= | <span class="opt">["then"]</span> _noifexpr_
-_elif_ | ::= | "elif" _atom_ _then_
-&nbsp; |
-_matchexpr_ | ::= | "match" _atom_ "{" <span class="opt">[_semis_]</span> <span class="many">{ _matchrule_ _semis_ }</span> "}"
-&nbsp; |
-_returnexpr_ | ::= | "return" _noifexpr_ | (but no _returnexpr_ allowed)
-&nbsp; |
-_funexpr_ | ::= | ("fun" <span class="bar">&#124;</span> "function") <span class="opt">[_quantifiers_]</span> _fundef_ _block_
- | &#124; | _block_ | (zero-argument anonymous function)
+|==============|========|=====================================================================|====================================|
+| _blockexpr_  | ::=    | _funexpr_                                                           |                                    |
+|              | &#124; | _nofunexpr_                                                         | (implicitly wrapped in a block)    |
+| &nbsp;       |        |                                                                     |                                    |
+| _expr_       | ::=    | _funexpr_                                                           |                                    |
+|              | &#124; | _nofunexpr_                                                         | (_returnexpr_ not allowed)         |
+| &nbsp;       |        |                                                                     |                                    |
+| _nofunexpr_  | ::=    | _matchexpr_                                                         |                                    |
+|              | &#124; | _opexpr_                                                            |                                    |
+|              | &#124; | _ifexpr_                                                            |                                    |
+|              | &#124; | _returnexpr_                                                        |                                    |
+| &nbsp;       |        |                                                                     |                                    |
+| _noifexpr_   | ::=    | _matchexpr_                                                         |                                    |
+|              | &#124; | _opexpr_                                                            |                                    |
+|              | &#124; | _returnexpr_                                                        |                                    |
+|              | &#124; | _funexpr_                                                           |                                    |
+| &nbsp;       |        |                                                                     |                                    |
+| _ifexpr_     | ::=    | "if" _atom_ _then_ [_elif_]{.many} ["else" _noifexpr_]{.opt}        |                                    |
+| _then_       | ::=    | ["then"]{.opt} _noifexpr_                                           |                                    |
+| _elif_       | ::=    | "elif" _atom_ _then_                                                |                                    |
+| &nbsp;       |        |                                                                     |                                    |
+| _matchexpr_  | ::=    | "match" _atom_ "{" [_semis_]{.opt} [_matchrule_ _semis_]{.many} "}" |                                    |
+| &nbsp;       |        |                                                                     |                                    |
+| _returnexpr_ | ::=    | "return" _noifexpr_                                                 | (but no _returnexpr_ allowed)      |
+| &nbsp;       |        |                                                                     |                                    |
+| _funexpr_    | ::=    | ("fun" []{.bar} "function") [_quantifiers_]{.opt} _fundef_ _block_  |                                    |
+|              | &#124; | _block_                                                             | (zero-argument anonymous function) |
 {.grammar .parse}
 
 ## Operator expressions
@@ -751,19 +546,18 @@ the same precedence. We assume that a separate pass in the compiler will use
 the fixity declarations that are in scope to properly associate all operators
 in an expressions.
 
- | | |  
---- | --- | --- | ---
-_opexpr_ | ::= | _fappexpr_ <span class="many">{ _qoperator_ _fappexpr_ }</span>
-_fappexpr_ | ::= | _appexpr_ <span class="many">{ _funexpr_ }</span>
-&nbsp; |
-_appexpr_ | ::= | _appexpr_ "(" <span class="opt">[_arguments_]</span> ")" | (regular application)
- | &#124; | _appexpr_ "[" <span class="opt">[_arguments_]</span> "]" | (index operation)
- | &#124; | _appexpr_ "." _prefix_
- | &#124; | _prefix_
-_prefix_ | ::= | <span class="many">{ _qoperator_ }</span> _atom_
-&nbsp; |
-_arguments_ | ::= | _argument_ <span class="many">{ "," _argument_ }</span>
-_argument_ | ::= | <span class="opt">[_identifier_ "="]</span> _expr_
+|=============|========|============================================|=======================|
+| _opexpr_    | ::=    | _fappexpr_ [_qoperator_ _fappexpr_]{.many} |                       |
+| _fappexpr_  | ::=    | _appexpr_ [_funexpr_]{.many}               |                       |
+| &nbsp;      |        |                                            |                       |
+| _appexpr_   | ::=    | _appexpr_ "(" [_arguments_]{.opt} ")"      | (regular application) |
+|             | &#124; | _appexpr_ "[" [_arguments_]{.opt} "]"      | (index operation)     |
+|             | &#124; | _appexpr_ "." _prefix_                     |                       |
+|             | &#124; | _prefix_                                   |                       |
+| _prefix_    | ::=    | [_qoperator_]{.many} _atom_                |                       |
+| &nbsp;      |        |                                            |                       |
+| _arguments_ | ::=    | _argument_ ["," _argument_]{.many}         |                       |
+| _argument_  | ::=    | [_identifier_ "="]{.opt} _expr_            |                       |
 {.grammar .parse}
 
 In the grammer we use the dot (".") for both qualifying identifiers with a
@@ -777,106 +571,102 @@ are returned as single tokens by the lexical analyzer, i.e. `List.primes` and
 
 ## Atomic expressions
 
- | | |  
---- | --- | --- | ---
-_atom_ | ::= | _qidentifier_
- | &#124; | _qconstructor_
- | &#124; | _literal_
- | &#124; | "(" ")" | (unit)
- | &#124; | "(" _annexpr_ ")" | (parenthesized expression)
- | &#124; | "(" _annexprs_ ")" | (tuple expression)
- | &#124; | "[" <span class="opt">[_annexprs_ <span class="opt">[","]</span>]</span> "]" | (list expression)
-&nbsp; |
-_literal_ | ::= | _natural_ <span class="bar">&#124;</span> _float_ <span class="bar">&#124;</span> _char_ <span class="bar">&#124;</span> _string_
-&nbsp; |
-_annexprs_ | ::= | _annexpr_ <span class="many">{ "," _annexpr_ }</span>
-_annexpr_ | ::= | _expr_ <span class="opt">[ `:` _typescheme_ ]</span>
+
+|============|========|==============================================================|============================|
+| _atom_     | ::=    | _qidentifier_                                                |                            |
+|            | &#124; | _qconstructor_                                               |                            |
+|            | &#124; | _literal_                                                    |                            |
+|            | &#124; | "(" ")"                                                      | (unit)                     |
+|            | &#124; | "(" _annexpr_ ")"                                            | (parenthesized expression) |
+|            | &#124; | "(" _annexprs_ ")"                                           | (tuple expression)         |
+|            | &#124; | "[" [_annexpr_ ["," _annexprs_]{.many}]{.opt} "]"            | (list expression)          |
+| &nbsp;     |        |                                                              |                            |
+| _literal_  | ::=    | _natural_ []{.bar} _float_ []{.bar} _char_ []{.bar} _string_ |                            |
+| &nbsp;     |        |                                                              |                            |
+| _annexprs_ | ::=    | _annexpr_ ["," _annexpr_]{.many}                             |                            |
+| _annexpr_  | ::=    | _expr_ [`:` _typescheme_]{.opt}                              |                            |
 {.grammar .parse}
 
 ## Matching
 
- | | |  
---- | --- | --- | ---
-_matchrule_ | ::= | _patterns_ <span class="opt">[_guard_]</span> "->" _branchexpr_
-_guard_ | ::= | <span class="koka code">&#124;</span> _compound_
-&nbsp; |
-_pattern_ | ::= | _identifier_
- | &#124; | _wildcard_
- | &#124; | _qconstructor_ <span class="opt">["(" [_patargs_]</span> ")"]
- | &#124; | "(" <span class="opt">[_patterns_]</span> ")" | (unit, parenthesized pattern, tuple pattern)
- | &#124; | "[" <span class="opt">[_patterns_]</span> "]" | (list pattern)
- | &#124; | _pattern_ "as" _identifier_ | (named pattern)
- | &#124; | _literal_
-&nbsp; |
-_patterns_ | ::= | _pattern_ <span class="many">{ "," _pattern_ }</span>
-_patargs_ | ::= | _patarg_ <span class="many">{ "," _patarg_ }</span>
-_patarg_ | ::= | <span class="opt">[_identifier_ "="]</span> _pattern_ | (possibly named parameter)
+|=============|========|==============================================|==============================================|
+| _matchrule_ | ::=    | _patterns_ [_guard_]{.opt} "->" _branchexpr_ |                                              |
+| _guard_     | ::=    | [&#124;]{.koka .code} _compound_             |                                              |
+| &nbsp;      |        |                                              |                                              |
+| _pattern_   | ::=    | _identifier_                                 |                                              |
+|             | &#124; | _wildcard_                                   |                                              |
+|             | &#124; | _qconstructor_ ["(" [_patargs_]{.opt} ")"]   |                                              |
+|             | &#124; | "(" [_patterns_]{.opt} ")"                   | (unit, parenthesized pattern, tuple pattern) |
+|             | &#124; | "[" [_patterns_]{.opt} "]"                   | (list pattern)                               |
+|             | &#124; | _pattern_ "as" _identifier_                  | (named pattern)                              |
+|             | &#124; | _literal_                                    |                                              |
+| &nbsp;      |        |                                              |                                              |
+| _patterns_  | ::=    | _pattern_ ["," _pattern_]{.many}             |                                              |
+| _patargs_   | ::=    | _patarg_ ["," _patarg_]{.many}               |                                              |
+| _patarg_    | ::=    | [_identifier_ "="]{.opt} _pattern_           | (possibly named parameter)                   |
 {.grammar .parse}
 
 ## Type schemes
 
- | | |  
---- | --- | --- | ---
-_typesig_ | ::= | <span class="opt">[_quantifiers_]</span> _tarrow_ <span class="opt">[_sigqualifier_]</span>
-_typescheme_ | ::= | <span class="opt">[_quantifiers_]</span> _tarrow_ <span class="opt">[_qualifier_]</span>
-_type_ | ::= | <span class="opt">[_aquantifier_]</span> _tarrow_ <span class="opt">[_qualifier_]</span>
-&nbsp; |
-_quantifiers_ | ::= | <span class="opt">[_squantifier_]</span> <span class="opt">[_aquantifier_]</span>
-_aquantifier_ | ::= | "forall" "<" _tbinders_ ">"
-_squantifier_ | ::= | "some" "<" _tbinders_ ">"
-_equantifier_ | ::= | "exists" "<" _tbinders_ ">"
-&nbsp; |
-_sigqualifier_ | ::= | "with" _predicates_ <span class="bar">&#124;</span> _qualifier_
-_qualifier_ | ::= | "with" "(" _predicates_ ")"
-&nbsp; |
-_predicates_ | ::= | _predicate_ <span class="many">{ "," _predicate_ }</span>
-_predicate_ | ::= | _typeapp_ | (interface)
+|================|=====|=======================================================|=============|=====|
+| _typesig_      | ::= | [_quantifiers_]{.opt} _tarrow_ [_sigqualifier_]{.opt} |             |     |
+| _typescheme_   | ::= | [_quantifiers_]{.opt} _tarrow_ [_qualifier_]{.opt}    |             |     |
+| _type_         | ::= | [_aquantifier_]{.opt} _tarrow_ [_qualifier_]{.opt}    |             |     |
+| &nbsp;         |     |                                                       |             |     |
+| _quantifiers_  | ::= | [_squantifier_]{.opt} [_aquantifier_]{.opt}           |             |     |
+| _aquantifier_  | ::= | "forall" "<" _tbinders_ ">"                           |             |     |
+| _squantifier_  | ::= | "some" "<" _tbinders_ ">"                             |             |     |
+| _equantifier_  | ::= | "exists" "<" _tbinders_ ">"                           |             |     |
+| &nbsp;         |     |                                                       |             |     |
+| _sigqualifier_ | ::= | "with" _predicates_ []{.bar} _qualifier_              |             |     |
+| _qualifier_    | ::= | "with" "(" _predicates_ ")"                           |             |     |
+| &nbsp;         |     |                                                       |             |     |
+| _predicates_   | ::= | _predicate_ ["," _predicate_]{.many}                  |             |     |
+| _predicate_    | ::= | _typeapp_                                             | (interface) |     |
 {.grammar .parse}
 
 ## Types
 
- | | |  
---- | --- | --- | ---
-_tarrow_  | ::= | _tatom_ <span class="opt">["->" _tresult_]</span>
-_tresult_ | ::= | _tatom_ <span class="opt">[_tbasic_]</span>
-&nbsp; |
-_tatom_   | ::= | _tbasic_
- | &#124; | "<" _anntype_ <span class="many">{ "," _anntype_ }</span> <span class="opt">[ <span class="koka code">&#124;</span> _tatom_ ]</span> ">"
- | &#124; | "<" ">"
-&nbsp; |
-_tbasic_  | ::= | _typeapp_
- | &#124; | "(" ")" | (unit type)
- | &#124; | "(" _tparam_ ")" | (parenthesized type or type parameter)
- | &#124; | "(" _tparam_ <span class="many">{ "," _tparam_ }</span> ")" | (tuple type or parameters)
- | &#124; | "[" _anntype_ "]" | (list type)
-&nbsp; |
-_typeapp_ | ::= | _typecon_ <span class="opt">["<" [_anntype_ <span class="many">{ "," _anntype_ }</span>]</span> ">"]
-&nbsp; |
-_typecon_ | ::=    | _varid_ <span class="bar">&#124;</span> _qvarid_
-          | &#124; | _wildcard_
-          | &#124; | "(" "," <span class="many">{ "," }</span> ")" | (tuple constructor)
-          | &#124; | "[" "]" | (list constructor)
-          | &#124; | "(" "->" ")" | (function constructor)
-&nbsp; |
-_tparam_  | ::=    | <span class="opt">[_varid_ `:` ]</span> _anntype_
-_anntype_ | ::=    | _type_ <span class="opt">[_kannot_]</span>
+|===========|========|================================================================================|========================================|
+| _tarrow_  | ::=    | _tatom_ ["->" _tresult_]{.opt}                                                 |                                        |
+| _tresult_ | ::=    | _tatom_ [_tbasic_]{.opt}                                                       |                                        |
+| &nbsp;    |        |                                                                                |                                        |
+| _tatom_   | ::=    | _tbasic_                                                                       |                                        |
+|           | &#124; | "<" _anntype_ ["," _anntype_]{.many} [[&#124;]{.koka .code} _tatom_]{.opt} ">" |                                        |
+|           | &#124; | "<" ">"                                                                        |                                        |
+| &nbsp;    |        |                                                                                |                                        |
+| _tbasic_  | ::=    | _typeapp_                                                                      |                                        |
+|           | &#124; | "(" ")"                                                                        | (unit type)                            |
+|           | &#124; | "(" _tparam_ ")"                                                               | (parenthesized type or type parameter) |
+|           | &#124; | "(" _tparam_ ["," _tparam_]{.many} ")"                                         | (tuple type or parameters)             |
+|           | &#124; | "[" _anntype_ "]"                                                              | (list type)                            |
+| &nbsp;    |        |                                                                                |                                        |
+| _typeapp_ | ::=    | _typecon_ ["<" _anntype_ ["," _anntype_]{.many} ">"]{.opt}                     |                                        |
+| &nbsp;    |        |                                                                                |                                        |
+| _typecon_ | ::=    | _varid_ []{.bar} _qvarid_                                                      |                                        |
+|           | &#124; | _wildcard_                                                                     |                                        |
+|           | &#124; | "(" "," [","]{.many} ")"                                                       | (tuple constructor)                    |
+|           | &#124; | "[" "]"                                                                        | (list constructor)                     |
+|           | &#124; | "(" "->" ")"                                                                   | (function constructor)                 |
+| &nbsp;    |        |                                                                                |                                        |
+| _tparam_  | ::=    | [_varid_ `:`]{.opt} _anntype_                                                  |                                        |
+| _anntype_ | ::=    | _type_ [_kannot_]{.opt}                                                        |                                        |
 {.grammar .parse}
 
 ## Kinds
 
- | | |  
---- | --- | --- | ---
-_kannot_ | ::= | `::` _kind_
-&nbsp; |
-_kind_ | ::= | "(" _kind_ <span class="many">{ "," _kind_ }</span> ")" "->" _kind_
- | &#124; | _katom_ "->" _kind_
- | &#124; | _katom_
-&nbsp; |
-_katom_ | ::= | "V" | (value type)
- | &#124; | "X" | (effect type)
- | &#124; | "E" | (effect row)
- | &#124; | "H" | (heap type)
- | &#124; | "P" | (predicate type)
+|==========|========|================================================|==================|
+| _kannot_ | ::=    | `::` _kind_                                    |                  |
+| &nbsp;   |        |                                                |                  |
+| _kind_   | ::=    | "(" _kind_ ["," _kind_]{.many} ")" "->" _kind_ |                  |
+|          | &#124; | _katom_ "->" _kind_                            |                  |
+|          | &#124; | _katom_                                        |                  |
+| &nbsp;   |        |                                                |                  |
+| _katom_  | ::=    | "V"                                            | (value type)     |
+|          | &#124; | "X"                                            | (effect type)    |
+|          | &#124; | "E"                                            | (effect row)     |
+|          | &#124; | "H"                                            | (heap type)      |
+|          | &#124; | "P"                                            | (predicate type) |
 {.grammar .parse}
 
 ## Implementation
@@ -887,19 +677,20 @@ available. Again, the Bison parser functions
 as _the_ specification of the grammar and this document should always
 be in agreement with that implementation.
 
-[BisonGrammar]: https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y
-[FlexLexer]:    https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex
+  [BisonGrammar]: https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y
+  [FlexLexer]:    https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex
 
 # Appendix {-}
 
 # Full grammar specification { @h1='A' } 
 
 ## Lexical syntax { #sec:full-lexical }
-<div id="full-lexical"></div>
+
+~ {#full-lexical}
+~
 
 ## Context-free syntax  { #sec:full-grammar }
-<div id="full-grammar"></div>
 
+~ {#full-grammar}
+~
 </xmp>
-</body>
-</html>

@@ -9,14 +9,8 @@
 /* Text size and margins for screen & print */
 @media screen {
   body { 
-    font-size: large;
     margin: 1em 6% 1em 4%;
     padding-bottom: 50em; /* so a link to the end always puts the definition on top of the screen */
-  }
-
-  /* just for IE */
-  pre { 
-    font-size: large;
   }
 }
 
