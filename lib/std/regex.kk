@@ -161,19 +161,19 @@ public function find( s :string,  regex :regex, start :int = 0 ) : maybe<matched
 // Find all matches for a regular expression in a string.
 public function findAll( s :string,  regex :regex, start :int = 0 ) : vector<matched>
 {
-  if (start >= s.length) return vector()  
+  if (start > s.length) return vector()  
   return regexExecAll(regex.obj,s,max(start,0))
 }
 
 function replaceEx( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False, start :int = 0) : e string
 {
-  if (start >= s.length) return s
+  if (start > s.length) return s
   return regexReplaceFun(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
 }
 
 function replaceEx( s :string, regex :regex, repl :string, all :bool = False, start :int = 0) : string
 {
-  if (start >= s.length) return s
+  if (start > s.length) return s
   return regexReplace(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
 }
 
@@ -181,7 +181,7 @@ function replaceEx( s :string, regex :regex, repl :string, all :bool = False, st
 public function split( s :string, r :regex, n :int = maxInt, start : int = 0 ) : vector<string>
 {
   if (n<=0) return vector();
-  if (start>=s.length) return vector(1,s);
+  if (start>s.length) return vector(1,s);
   return regexSplit( r.obj, s, if (n==maxInt) then 0 else n, max(start,0) );
 }
 
