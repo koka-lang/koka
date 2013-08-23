@@ -777,12 +777,16 @@ localValueDecl
                               Nothing -> e
                   vbinder = ValueBinder (binderName binder) () annexpr (binderNameRange binder) (binderRange binder)
               in \body -> Bind (Def vbinder rng Private DefVal "") body (combineRanged krng body)
-       case pat of
+       case unParens(pat) of
          PatVar (binder@ValueBinder{ binderExpr = PatWild _ })
            -> return $ bindVar binder (binderType binder) (binderRange binder)
          PatAnn (PatVar (binder@ValueBinder{ binderExpr = PatWild _})) tp rng
            -> return $ bindVar binder (Just tp) rng
          _ -> return $ \body -> Case e [Branch pat guardTrue body] (combineRanged krng body)
+
+  where
+    unParens (PatParens p _) = unParens(p)
+    unParens p               = p         
 
 typeAnnotation :: LexParser (UserExpr -> UserExpr)
 typeAnnotation 

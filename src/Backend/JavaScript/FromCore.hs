@@ -342,7 +342,7 @@ genMatch :: Result -> [Doc] -> [Branch] -> Asm Doc
 genMatch result scrutinees branches
   = fmap (debugWrap "genMatch") $ do
     case branches of
-        []  -> fail "Backend.JavaScript.FromCore.genMatch: no branch in match statement"
+        []  -> fail ("Backend.JavaScript.FromCore.genMatch: no branch in match statement: " ++ show(scrutinees))
         [b] -> fmap snd $ genBranch True result scrutinees b
 
        {-- Special handling of return related cases - would be nice to get rid of it
