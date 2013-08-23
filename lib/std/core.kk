@@ -399,29 +399,29 @@ function list( lo : char, hi : char ) : total list<char>
 private val maxListStack = 200
 
 
-private function zipWithAcc( f, acc, xs, ys )
+private function zipWithAcc( f, i, acc, xs, ys )
 {
   match(xs) {
     Nil -> reverse(acc)
     Cons(x,xx) ->
       match(ys) {
         Nil -> reverse(acc)
-        Cons(y,yy) -> zipWithAcc(f, Cons( f(x,y), acc), xx, yy)
+        Cons(y,yy) -> zipWithAcc(f, i+1, Cons( f(i,x,y), acc), xx, yy)
       }
   }
 }
 
-private function zipWithIter( f, n, xs, ys )
+private function zipWithIter( f, i, xs, ys )
 {
   // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
-  if (n > maxListStack) then zipWithAcc( f, Nil, xs, ys )
+  if (i > maxListStack) then zipWithAcc( f, i, Nil, xs, ys )
   else {
     match(xs) {
       Nil -> Nil
       Cons(x,xx) ->
         match(ys) {
           Nil -> Nil
-          Cons(y,yy) -> Cons( f(x,y), zipWithIter(f,n+1,xx,yy))
+          Cons(y,yy) -> Cons( f(i,x,y), zipWithIter(f,i+1,xx,yy))
         }
     }
   }
@@ -431,12 +431,20 @@ private function zipWithIter( f, n, xs, ys )
 // The returned list is only as long as the smallest input list.
 function zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
 {
-  zipWith( xs, ys, fun(x,y) { (x,y) } )
+  zipWithIndexed( xs, ys, fun(i,x,y) { (x,y) } )
 }
 
 // Zip two lists together by apply a function "f" to all corresponding elements.
 // The returned list is only as long as the smallest input list.
 function zipWith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
+{
+  zipWithIndexed(xs,ys,fun(i,x,y) { f(x,y) })
+}
+
+// Zip two lists together by apply a function "f" to all corresponding elements
+// and their index in the list.
+// The returned list is only as long as the smallest input list.
+function zipWithIndexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
 {
   zipWithIter(f,0,xs,ys)
 }
@@ -480,30 +488,44 @@ function drop( xs : list<a>, n : int ) : list<a>
 // Apply a function `f`  to each element of the input list in sequence.
 function map(xs : list<a>, f : a -> e b) : e list<b>
 {
-  xs.mapIndexed( fun(i,x) { f(x) } )
+  xs.mapIndexedPeek( fun(i,x,xx) { f(x) } )
 }
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element and the element itself as arguments.
 function mapIndexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
 {
+  xs.mapIndexedPeek( fun(i,x,xx) { f(i,x) })
+}
+
+// Apply a function `f`  to each element of the input list in sequence where `f` takes
+// both the current element and the tail list as arguments.
+function mapPeek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
+{
+  xs.mapIndexedPeek( fun(i,x,xx) { f(x,xx) })
+}
+
+// Apply a function `f`  to each element of the input list in sequence where takes
+// both the index of the current element, the element itself, and the tail list as arguments.
+function mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
+{
   // recurse using an accumulator using constant heap space
-  function mapAcc(g : (int,a) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
+  function mapAcc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
 
     match(ys) {
-      Cons(x,xx) -> mapAcc(g,n+1,Cons(g(n,x),acc),xx)
+      Cons(x,xx) -> mapAcc(g,n+1,Cons(g(n,x,xx),acc),xx)
       Nil -> reverse(acc)
     }
   }
 
   // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
-  function mapIter(g : (int,a) -> e b, n : int, ys : list<a>) : e list<b> {
+  function mapIter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
     if (n > maxListStack) {
       mapAcc(g,n,Nil,ys)
     }
     else {
       match(ys) {
-        Cons(x,xx) -> Cons(g(n,x),mapIter(g,n+1,xx))
+        Cons(x,xx) -> Cons(g(n,x,xx),mapIter(g,n+1,xx))
         Nil        -> Nil
       }
     }
@@ -639,6 +661,25 @@ function filter( xs : list<a>, pred : a -> bool ) : list<a>
     Cons(x,xx) -> if (pred(x)) then Cons(x,xx.filter(pred)) else xx.filter(pred)
   }
 }
+
+// Partition a list in two lists where the first list contains
+// those elements that satisfy the given predicate "pred".
+// For example: "partition([1,2,3],odd) == ([1,3],[2])"
+function partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
+{
+  partitionAcc( xs, pred, Nil, Nil)
+}
+
+private function partitionAcc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>)
+{
+  match(xs) {
+    Nil -> (acc1.reverse, acc2.reverse)
+    Cons(x,xx) -> if (pred(x)) 
+                    then partitionAcc(xx,pred,Cons(x,acc1),acc2)
+                    else partitionAcc(xx,pred,acc1,Cons(x,acc2))
+  }
+}
+
 
 // Retain only those elements of a list that satisfy the given predicate "pred".
 // For example: "filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]"
