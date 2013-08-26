@@ -101,18 +101,19 @@ public function groupsCount( r : regex ) : int
 val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
 // Return first group that was matched (or -1 if nothing was matched) 
-public function firstMatchedOn( groups : groups, max : int = 10 ) : int
+public function firstMatchedOn( groups : groups, start : int = 1, end : int = 10 ) : int
 {
-  match (list(1,max).find(fun(i) { groups.matchedOn(i) })) {
+  match (list(start,end).find(fun(i) { groups.matchedOn(i) })) {
     Nothing -> -1
     Just(i) -> i
   }
 }
 
-// Return the first matched group (or "" if nothing matched)
-public function firstMatched(groups : groups, max : int = 10 ) : string
+// Return the first matched group (or "" if nothing matched) starting at "start"
+// and returning at most group "end"
+public function firstMatched(groups : groups, start : int = 1, end : int = 10 ) : string
 {
-  i = groups.firstMatchedOn(max)
+  i = groups.firstMatchedOn(start,end)
   if (i >= 0) then groups[i] else ""
 }
 
