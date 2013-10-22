@@ -44,9 +44,21 @@ function []( md : mdict<h,a>, s : string ) : read<h> maybe<a> {
 
 
 // Return the keys in a dictionary
-external keys( d : mdict<h,a> ) : vector<string> {
+external keys( d : mdict<h,a> ) : read<h> vector<string> {
   cs inline "Primitive.DictKeys(#1)"
   js inline "$dictKeys(#1)"
+}
+
+// Convert a dictionary to a vector of key/value pairs
+function vector( d : mdict<h,a> ) : read<h> vector<(string,a)> {
+  d.keys.map fun(key) {
+    (key,unsafeIndex(d,key))
+  }
+}
+
+// Convert a dictionary to a list of key/value pairs
+function list( d : mdict<h,a> ) : read<h> list<(string,a)> {
+  d.vector.list
 }
 
 // Assign to a string dictionary

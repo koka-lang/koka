@@ -215,3 +215,30 @@ public function contains( s :string, r :regex, start :int = 0 ) : bool
   return s.find(r,start).bool
 }
 
+
+// Split a string "s" over separator "sep" where "sep" does not occur in 
+// _tokens_ matching "exclude".
+// For example: |splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))|
+public function splitExclude( s : string, sep : regex, exclude : regex ) : list<string>
+{
+  if (s=="") then [] else {
+    splitr = regex( @"^(?:((?:" + exclude.source + ")+)|(" + sep.source + "))")
+    s.splitExcludeX(splitr,"")
+  }
+}
+
+function splitExcludeX( s : string, splitr : regex, acc : string ) : list<string>
+{
+  if (s=="") return [acc]
+  match( s.find(splitr) ) {
+    Nothing -> s.substr1(1).splitExcludeX( splitr, acc + s.substr(0,1)) // todo: improve efficiency?
+    Just(cap) -> {
+      if (cap.groups.matchedOn(1)) {
+        s.substr1(cap.next).splitExcludeX( splitr, acc + s.substr(0,cap.next)) 
+      }
+      else {
+        Cons(acc, s.substr1(cap.next).splitExcludeX( splitr, "")) // todo: make tail recursive
+      }
+    }
+  }
+}

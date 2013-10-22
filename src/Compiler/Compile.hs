@@ -757,18 +757,17 @@ codeGen term flags compileTarget loaded
        -- write documentation
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
-           outHtmlDocFile = outBase ++ ".xmp.html"
            source   = maybe sourceNull programSource (modProgram mod)
        if (extname (sourceName source) == (sourceExtension ++ "doc"))
         then do termPhase term "write html document" 
-                withNewFilePrinter outHtmlDocFile $ \printer ->
+                withNewFilePrinter (outBase ++ ".doc.html") $ \printer ->
                  colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
               do termPhase term "write html source" 
                  withNewFilePrinter outHtmlFile $ \printer ->
                   colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
                  termPhase term "write html documentation" 
-                 withNewFilePrinter outHtmlDocFile $ \printer ->
+                 withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
                   genDoc env (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
 
        mbRuns <- sequence [backendCodeGen term flags (loadedModules loaded)  compileTarget  outBase (modCore mod)  | backendCodeGen <- backends] 
