@@ -1215,6 +1215,8 @@ function sum( xs : list<int> ) : int
 
 // Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
 // An empty string will result in "Just(0)".
+// A string can start with a `-` sign for negative numbers, 
+// and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
 function parseInt( s : string, hex : bool = False) : maybe<int> {
   base = if (hex) then 16 else 10
   match(s.list.dropWhile(isWhite)) {
@@ -2082,32 +2084,27 @@ function println( b : bool )  { printsln(show(b)) }
 // Print a unit value to the console, including a final newline character
 function println( u : () )  { printsln(show(())) }
 
-// Trace a message used for debug purposes. 
-// The behaviour is system dependent. On a browser and node it uses
-// `console.log`  by default.
-external trace : ( message : string ) -> ()  {
+
+private external xtrace : ( message : string ) -> ()  {
   cs "Primitive.Trace"
   js "$trace"
 }
 
+private val traceEnabled : ref<global,bool> = unsafeTotal { ref(True) }
 
-private val logRef : ref<global,string> = unsafeTotal { ref("") }
-
-function withLog( action : () -> <ndet|e> a ) : <ndet|e> (string, a) {
+// Trace a message used for debug purposes. 
+// The behaviour is system dependent. On a browser and node it uses
+// `console.log`  by default. 
+// Disabled if "notrace" is called.
+public function trace( message : string ) : () {
   unsafeTotal {
-    oldLog = !logRef
-    logRef := ""
-    x = unsafeTotal(action)
-    l = !logRef
-    logRef := oldLog
-    (l,x)
-  }
+    if (!traceEnabled) then xtrace(message) 
+  }    
 }
 
-function log( msg : string ) : () {
-  unsafeTotal {
-    logRef := !logRef + (msg + "\n")
-  }
+// Disable tracing completely.
+public function notrace() : st<global> () {
+  traceEnabled := False
 }
 
 // Convert a ":bool" to a string

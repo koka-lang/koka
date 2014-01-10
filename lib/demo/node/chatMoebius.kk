@@ -7,6 +7,7 @@
 ----------------------------------------------------------------------------*/
 
 import sys/node/tiersplit
+import sys/dom
 
 type clientCommand { 
   Display( message: string ) 
@@ -14,16 +15,15 @@ type clientCommand {
 
 type serverCommand { 
   Utter( message :string ) 
-  SetUsername( username :string ) 
+  SetUsername( uname :string ) 
 }
-
 
 function xlog( s : string ) {
   trace( "[log] " + s );
 }
 
 public function main() : io ()
-{  
+{    
   function serverCode()         
   { 
     xlog("moebius server listening on localhost:8080")
@@ -57,7 +57,7 @@ public function main() : io ()
           SetUsername(name) -> { 
             Display("/nick " + name).client
             broadcast.emit( "*** `" + username + "` is now known as `" + name + "`" )
-            username := name
+            username := name                     
           }
         }
       }
@@ -68,6 +68,7 @@ public function main() : io ()
     return serverSession
   }
 
+  
   function clientCode() { 
     xlog("`clientCode` is executed")
 
@@ -94,7 +95,9 @@ public function main() : io ()
 
       return fun(c) {
         match(c) {
-          Display( message ) -> println( message ) 
+          Display( message ) -> {
+            println( message )
+          }
         }
       }
     }
