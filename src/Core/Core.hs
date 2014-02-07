@@ -130,7 +130,7 @@ data External = External{ externalName :: Name
                         }
               | ExternalInclude{ externalInclude :: [(Target,String)]
                                , externalRange :: Range } 
-              | ExternalImport { externalImport :: [(Target,String)]
+              | ExternalImport { externalImport :: [(Target,(Name,String))]
                                , externalRange :: Range } 
 
 externalVis :: External -> Visibility

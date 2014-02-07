@@ -33,7 +33,7 @@ function noext( path : string ) : string {
 function combine( path1 : string, path2 : string ) : string {
   p2 = if (path2.startsWith(sep)) then path2.substr(1) else path2
   p1 = if (path1.endsWith(sep)) then path1.substr(0,path1.length-1) else path1
-  p1 + sep + p2
+  if (p1=="") then p2 else p1 + sep + p2
 }
 
 // Join a list of paths 
@@ -51,14 +51,20 @@ external normalize( p : string ) : io string {
 }
 
 // Return the directory name portion of the path (excluding the directory separator).
+// Return an empty string if no directory part exists in the path.  
 // `dirname("foo/bar.ext") == "foo")`
-external dirname( p : string ) : string {
+function dirname( p : string ) : string {
+  d = p.xdirname
+  if (d=="." && !(p.startsWith("."))) then "" else d
+}
+
+private external xdirname( p : string ) : string {
   cs inline "System.IO.Path.GetDirectoryName(#1)"
   js inline "path.dirname(#1)"
 }
 
 // Return the base name (file name) portion of the path.
-// `basename("foo/bar.ext") == "bar.ext")`
+// `basename("foo/bar.ext") == "bar.ext"`
 external basename( p : string ) : string {
   cs inline "System.IO.Path.GetFileName(#1)"
   js inline "path.basename(#1)"
@@ -71,6 +77,16 @@ external extname( p : string ) : string {
   js inline "path.extname(#1)"
 }
 
+// Return the stem name portion of the path, i.e. without directory or extension.
+// `stemname("foo/bar.ext") == "bar"`
+public function stemname( p : string ) : string {
+  p.basename.noext
+}
+
+// Append to the stem name of a path
+public function appendStem( path : string, extra : string ) : string {
+  combine(path.dirname, path.stemname + extra + path.extname)
+}
 
 private external pathsep() : string {
   cs inline "System.IO.Path.DirectorySeparatorChar.ToString()"

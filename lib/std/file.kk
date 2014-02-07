@@ -16,6 +16,14 @@ external import {
   js "fs"
 }
 
+// Try to read a text file; return a default value in case of an error.
+function readTextFileDef( fileName : string, def : string ) : io string {
+  match (fileName.tryReadTextFile()) {
+    Left(_exn) -> def
+    Right(content) -> content
+  }
+}
+
 // Try to a text file synchronously (using UTF8 encoding)
 function tryReadTextFile( fileName : string ) : io either<exception,string> 
 {

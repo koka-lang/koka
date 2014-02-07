@@ -73,8 +73,8 @@ genModule mbMain core
         return $  text "// koka generated module: " <> string (showName (coreProgName core)) 
               <$> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <$> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <$> 
-                   list ( {- (squotes $ text "_external"): -} (map squotes externalImports ++ map moduleImport (coreProgImports core))) <> comma <+>
-                   text "function" <> tupled ( {- (text "_external"): -} (externalImports ++ map ppModName imports)) <+> text "{" <$>
+                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <> comma <+>
+                   text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <$>
                     vcat (
                     [ text "\"use strict\";"
                     , text " "
@@ -106,7 +106,7 @@ genModule mbMain core
                           u (TypeDefGroup xs) = xs
                       in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
 
-    externalImports :: [Doc]
+    externalImports :: [(Doc,Doc)]
     externalImports
       = concatMap importExternal (coreProgExternals core)                      
 
@@ -125,14 +125,14 @@ includeExternal (ExternalInclude includes range)
 includeExternal _  = []  
 
 
-importExternal :: External -> [Doc]
+importExternal :: External -> [(Doc,Doc)]
 importExternal (ExternalImport imports range)
-  = let content = case lookup JS imports of
+  = let (nm,s) = case lookup JS imports of
                     Just s -> s
                     Nothing -> case lookup Default imports of
                                  Just s -> s
                                  Nothing -> failure ("javascript backend does not support external import at " ++ show range)
-    in [text content]
+    in [(text s,pretty nm)]
 importExternal _
   = []                                 
 

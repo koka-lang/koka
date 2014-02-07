@@ -359,9 +359,13 @@ externalImport rng1
        return (ExternalImport entries (combineRange rng1 rng2))
   where
     externalImportEntry
-      = do target <- externalTarget
+      = do target  <- externalTarget
+           mbId    <- optionMaybe identifier
            (s,rng) <- stringLit
-           return (target,s)
+           let id = case mbId of
+                      Just(nm,_) -> nm
+                      Nothing    -> newName s
+           return (target,(id,s))
 
 
 externalInclude :: Range -> LexParser External

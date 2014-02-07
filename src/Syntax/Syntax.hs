@@ -64,7 +64,7 @@ data External
   | ExternalInclude{ extInclude :: [(Target,String)]
                    , extRange :: Range
                    }
-  | ExternalImport{ extImport :: [(Target,String)]
+  | ExternalImport{ extImport :: [(Target,(Name,String))]
                   , extRange :: Range }                   
 
 data ExternalCall

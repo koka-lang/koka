@@ -147,6 +147,7 @@ external show( exn : exception ) : string {
 }
 
 // Catch an exception raised by "error" and handle it.
+// Use "onExn" or "onFail" when appropiate.
 external catch : forall<e,a> ( action : () -> <exn|e> a, handler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
   js "$primcatch"
@@ -179,9 +180,14 @@ external patternMatchError : forall<a> (range : string, def : string) -> exn a {
 }
 
 // Set a "handler" that is called when an exception is raised in the "action" block.
-function onFail( handler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
+function onFail( handler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
-  catchOnFail( action, fun(exn){ handler(exn); throw(exn) })
+  catchOnFail( action, fun(exn){ handler(); throw(exn) })
+}
+
+// Return a default value when an exception is raised
+function onExn( value : a , action : () -> <exn|e> a ) : e a {
+  catch( action, fun(_) { value })
 }
 
 private external catchOnFail : forall<e,a> ( action : () -> e a, handler: exception -> e a) -> e a {
@@ -203,6 +209,12 @@ function onSuccess( handler : () -> e (), action : () -> e a ) : e a
   handler()
   return x
 }
+
+// Ignore any Exceptions
+function ignore( action : () -> <exn|e> () ) : e () {
+  catch( action, fun(_) { () })
+}
+
 
 // ----------------------------------------------------------------------------
 // Internal types
@@ -305,6 +317,14 @@ function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 type either<a,b> {
   con Left( left : a )
   con Right( left : b )
+}
+
+function maybe( e : either<a,b> ) : maybe<b> 
+{
+  match(e) {
+    Left -> Nothing
+    Right(x) -> Just(x)
+  }
 }
 
 // The type of lists, which can be either empty ("Nil") or an element followed
@@ -741,6 +761,33 @@ function foreach( xs : list<a>, action : (a) -> e () ) : e ()
   }
 }
 
+// Invoke "action" for each element of a list while "action" return "Nothing"
+function foreachUntil( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
+{
+  match(xs) {
+    Nil        -> Nothing
+    Cons(x,xx) -> { 
+      match(action(x)) {
+        Nothing -> xx.foreachUntil(action) 
+        just    -> just
+      }
+    }
+  }
+}
+
+// Invoke "action" on each element of a list while "action" returns "Just"
+function mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
+{
+  match(xs) {
+    Nil        -> Nil
+    Cons(x,xx) -> { 
+      match(action(x)) {
+        Just(y) -> Cons(y,xx.mapWhile(action))
+        Nothing -> Nil
+      }
+    }
+  }
+}
 
 private external inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  = inline "#1"
 
@@ -1836,6 +1883,12 @@ function split( s : string, sep : string ) : vector<string>
 function split( s : string, sep: string, n : int) : vector<string>
 {
   splitv(s,sep,n)
+}
+
+// Replace every occurrence of "pattern" to "repl" in a string.
+public external inline replaceAll( s : string, pattern : string, repl : string ) : string { 
+  cs inline "(#1).Replace(#2,#3)";
+  js inline @"(#1).replace(new RegExp(#2.replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";  
 }
 
 // Convert a string to a vector of characters.
