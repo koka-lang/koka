@@ -18,6 +18,7 @@ module Common.ColorScheme( ColorScheme(..)
 
 import Data.Char( toLower, isSpace )
 import Lib.PPrint
+import Lib.Printer
 
 {--------------------------------------------------------------------------
   ColorScheme

@@ -197,8 +197,8 @@ public function replaceAll( s : string, regex: regex, repl : (matched :matched) 
 }
 
 // Replace the first occurrence of "regex" by the result a replacement string "repl" in a string "s".
-// The replacement string can contain |$$| for a |$| sign, |$n| for a capture group,
-// |$&| for the entire match (|==$0|).
+// The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match (`==$0`).
 public function replace( s : string, regex: regex, repl :string, start : int = 0) : string {
   replaceEx( s, regex, repl, all = False, start = start )
 }
@@ -209,7 +209,7 @@ public function replaceAll( s : string, regex: regex, repl :string, start : int 
 }
 
 // Does a regular expression pattern occur in a string "s"?
-// (note: called |test| in javascript)
+// (note: called `test` in javascript)
 public function contains( s :string, r :regex, start :int = 0 ) : bool 
 {
   return s.find(r,start).bool
@@ -218,7 +218,7 @@ public function contains( s :string, r :regex, start :int = 0 ) : bool
 
 // Split a string "s" over separator "sep" where "sep" does not occur in 
 // _tokens_ matching "exclude".
-// For example: |splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))|
+// For example: `splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))`
 public function splitExclude( s : string, sep : regex, exclude : regex ) : list<string>
 {
   if (s=="") then [] else {

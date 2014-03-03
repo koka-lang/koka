@@ -14,6 +14,8 @@ import qualified Common.NameSet as S
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
 import Common.NamePrim (toShortModuleName)
+import Common.Range
+import Common.Syntax
 import Syntax.Syntax
 
 -- import Lib.Trace (trace)

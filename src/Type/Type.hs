@@ -53,6 +53,7 @@ module Type.Type (-- * Types
                   -- ** Primitive
                   , isFun, splitFunType
                   , getConArities
+                  , module Common.Name
                   ) where
 
 -- import Lib.Trace

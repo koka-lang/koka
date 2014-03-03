@@ -17,6 +17,7 @@ import Common.Range hiding (after)
 -- testing
 -----------------------------------------------------------
 -- import Lib.Trace
+import Syntax.Lexeme
 import Syntax.Lexer
 import Common.Name  ( Name )
 
