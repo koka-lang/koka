@@ -299,11 +299,12 @@ var hsModules = [
   { name: "Platform.Config", 
       flags: defD("MAIN",main) + defD("VERSION",version) + defD("VARIANT",variant) + "-DOSTYPE=" + process.platform,
       deps: ["package.json"] }, // dependent on this build file (due to version)
-  "Platform.Runtime",
+  "Platform.Runtime",  
   "Platform.Var",
   { name: "Platform.Console", deps: [sourcePath("Platform/cconsole.c")] },
   "Platform.ReadLine",
   "Platform.GetOptions",
+  "Platform.Filetime",
 //  "Platform.IntMap",
 //  "Platform.IntSet",
 

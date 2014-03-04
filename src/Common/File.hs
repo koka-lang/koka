@@ -46,14 +46,14 @@ import Common.Failure   ( raiseIO, catchIO )
 import System.Cmd       ( system )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getProgName )
-import System.Time      ( ClockTime(TOD), getClockTime  )
 import System.Directory ( doesFileExist, doesDirectoryExist
-                        , getModificationTime, copyFile
+                        , copyFile
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
 
 import qualified Platform.Console as C (getProgramPath)
 import Lib.Trace
+import Platform.Filetime
 
 startsWith, endsWith :: String -> String -> Bool
 startsWith s  [] = True
@@ -215,28 +215,6 @@ fileTimeCompare fname1 fname2
        time2 <- getFileTime fname2
        return (compare time1 time2)
 
-type FileTime = ClockTime
-              
--- | Returns the file modification time or 0 if it does not exist.
-getFileTime :: FilePath -> IO FileTime
-getFileTime fname
-  = do getModificationTime fname 
-    `catchIO` \_ -> do -- putStrLn $ "filetime: 0 for : " ++ fname
-                       return fileTime0
-
--- | returns the file modification time or the current time if it does not exist.
-getFileTimeOrCurrent :: FilePath -> IO FileTime
-getFileTimeOrCurrent fname
-  = do getModificationTime fname 
-    `catchIO` \_ -> getCurrentTime
-
-getCurrentTime :: IO FileTime
-getCurrentTime
-  = getClockTime
-
-fileTime0 :: FileTime
-fileTime0
-  = TOD 0 0
 
 maxFileTime :: FileTime -> FileTime -> FileTime
 maxFileTime t1 t2
