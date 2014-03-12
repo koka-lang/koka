@@ -12,8 +12,8 @@ Handle and transform file paths
 */
 public module std/path
 
-external import {
-  js "path"
+external include {
+  js file "path-inline.js"
 }
 
 // Change the extension of a path
