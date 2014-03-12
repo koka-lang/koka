@@ -7,7 +7,7 @@
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
-    Reading file times
+    Reading file times 
 -}
 -----------------------------------------------------------------------------
 module Platform.Filetime( FileTime

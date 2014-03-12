@@ -43,6 +43,8 @@ compiler :: String
 compiler = COMPILER
 #elif __GHCI__
 compiler = "ghci"
+#elif __GLASGOW_HASKELL__
+compiler = "ghc"
 #else
 compiler = "unknown"
 #endif

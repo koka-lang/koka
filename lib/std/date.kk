@@ -63,8 +63,9 @@ external month( d : date ) : int {
 }
 
 // Get the day of the month, starting at 0
+// (Equivalent to javacript `getDate()-1`)
 external day( d : date ) : int {
-  js inline "#1.getDay()"
+  js inline "#1.getDate()-1"
 }
 
 // return the ISO date in local time
