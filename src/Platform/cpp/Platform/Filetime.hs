@@ -20,7 +20,7 @@ module Platform.Filetime( FileTime
 import System.Directory( getModificationTime )
 import Platform.Runtime( exCatch )
 
-#if __GLASGOW_HASKELL__ >= 760
+#if __GLASGOW_HASKELL__ >= 706
 import qualified Data.Time as T
 
 type FileTime = T.UTCTime
