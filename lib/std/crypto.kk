@@ -6,7 +6,6 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
 /*
 Basic cryptography. 
 */

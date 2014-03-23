@@ -2392,4 +2392,8 @@ function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e may
   unsafeNoDiv { rep(start) }
 }
 
-  
+// Return the host environment: `dotnet`, `browser`, or `nodejs`. 
+external getHost() : ndet string {
+  cs inline "\"dotnet\""
+  js inline "($inBrowser ? 'browser' : 'nodejs')"
+}
