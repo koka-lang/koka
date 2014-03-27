@@ -2088,16 +2088,42 @@ function show( s : string ) : string
   "\"" + s.list.map(showChar).join + "\""
 }
 
+private val redirect : ref<global,maybe<(string) -> console ()>> = unsafeTotal { ref(Nothing) }
+
+// redirect "print" and "println" calls to a specified function.
+public function printRedirect( print : (msg : string) -> console () ) : io ()
+{
+  redirect := Just(print);
+}
+
 // Print a string to the console, including a final newline character.
-private external printsln : string -> console ()  { 
+private external xprintsln : string -> console ()  { 
   cs "Console.WriteLine";
   js "$println"
 }
 
 // Print a string to the console
-private external prints : string -> console ()  { 
+private external xprints : string -> console ()  { 
   cs "Console.Write";
   js "$print"
+}
+
+private function prints( s : string ) : console () {
+  unsafeTotal { 
+    match(!redirect) {
+      Nothing -> xprints(s)
+      Just(f) -> f(s)
+    }
+  }
+}
+
+private function printsln( s : string ) : console () {
+  unsafeTotal { 
+    match(!redirect) {
+      Nothing -> xprintsln(s)
+      Just(f) -> f(s + "\n")
+    }
+  }
 }
 
 // Print a string to the console.
@@ -2392,8 +2418,8 @@ function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e may
   unsafeNoDiv { rep(start) }
 }
 
-// Return the host environment: `dotnet`, `browser`, or `nodejs`. 
+// Return the host environment: `dotnet`, `browser`, (web)`worker`, or `nodejs`. 
 external getHost() : ndet string {
   cs inline "\"dotnet\""
-  js inline "($inBrowser ? 'browser' : 'nodejs')"
+  js inline "($inBrowser ? 'browser' : ($inWebWorker ? 'worker' : 'nodejs'))"
 }

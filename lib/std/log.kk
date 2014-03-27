@@ -24,6 +24,11 @@ function withLog( logName : string, action : () -> <ndet|e> a ) : <ndet|e> (stri
   }
 }
 
+// Get the current log. Since this is in the "io" effect, "withLog" is preferred.
+function getLog( logName : string ) : io string {
+  logDict[logName].maybe("",id)
+}
+
 // Total function that logs a message in a certain log "logName".
 // Has no observable effect but see "withLog".
 function log( logName : string, message : string ) : () {
