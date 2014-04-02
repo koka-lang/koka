@@ -136,6 +136,17 @@ public static class Primitive
     return sb.ToString();
   }
 
+  public static int Count( string s, string pattern ) 
+  {
+    if (String.isNullOrEmpty(pattern)) return 0;
+    int count = 0;
+    int i = 0;
+    while( (i = s.IndexOf(pattern,i)) > 0 ) {
+      count++;
+    }
+    return count;
+  }
+
   //---------------------------------------
   // Trace
   //---------------------------------------

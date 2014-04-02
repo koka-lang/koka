@@ -1888,7 +1888,13 @@ function split( s : string, sep: string, n : int) : vector<string>
 // Replace every occurrence of "pattern" to "repl" in a string.
 public external inline replaceAll( s : string, pattern : string, repl : string ) : string { 
   cs inline "(#1).Replace(#2,#3)";
-  js inline @"(#1).replace(new RegExp(#2.replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";  
+  js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";  
+}
+
+// Count occurences of "pattern" in a string.
+public external inline count( s : string, pattern : string ) : int { 
+  cs inline "Primitive.Count(#1,#2)";
+  js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";  
 }
 
 // Convert a string to a vector of characters.
