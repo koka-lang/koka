@@ -5,6 +5,10 @@
 
 %pure_parser
 
+%{ 
+typedef void*        yyscan_t;
+%}
+
 %parse-param { yyscan_t scanner }
 %lex-param { yyscan_t scanner }
 
@@ -21,7 +25,6 @@
 %{
 #include <stdio.h>
 #define yylex        mylex
-typedef void*        yyscan_t;
 
 void yyerror(YYLTYPE* loc, yyscan_t scanner, char* s, ...);
 int  mylex( YYSTYPE* val, YYLTYPE* loc, yyscan_t scanner );
@@ -91,8 +94,8 @@ importdecl  : visibility IMPORT modulepath
             | visibility IMPORT modulepath '=' modulepath 
             ;
 
-modulepath  : varid                       { $$ = $1 }
-            | qvarid                      { $$ = $1 }
+modulepath  : varid                       { $$ = $1; }
+            | qvarid                      { $$ = $1; }
             ;
 
 visibility  : PUBLIC
@@ -504,9 +507,9 @@ qvarid      : QID
             ;
 
 varid       : ID
-            | ID_CS           { $$ = "cs" }
-            | ID_JS           { $$ = "js" }      
-            | ID_FILE         { $$ = "file" }
+            | ID_CS           { $$ = "cs"; }
+            | ID_JS           { $$ = "js"; }      
+            | ID_FILE         { $$ = "file"; }
             ; 
 
 qconstructor: conid 
@@ -518,10 +521,10 @@ conid       : CONID  { $$ = $1; }
             ;
 
 op          : OP 
-            | '>'       { $$ = ">"}
-            | '<'       { $$ = "<"}
-            | '|'       { $$ = "|"}
-            | ASSIGN    { $$ = ":="}
+            | '>'       { $$ = ">"; }
+            | '<'       { $$ = "<"; }
+            | '|'       { $$ = "|"; }
+            | ASSIGN    { $$ = ":="; }
             ;            
 
 
