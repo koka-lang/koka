@@ -295,9 +295,11 @@ var cSources = [
 // small helper to quote pre-processor define options in Platform.Config
 function defD(name,val) { return ("-D" + name + (val ? "=\\\"" + val + "\\\" " : " ")); }
 
+var defWindows = (/^win.*$/.test(process.platform) ? " -DWINDOWS" : "");
+
 var hsModules = [ 
   { name: "Platform.Config", 
-      flags: defD("MAIN",main) + defD("VERSION",version) + defD("VARIANT",variant) + "-DOSTYPE=" + process.platform,
+      flags: defD("MAIN",main) + defD("VERSION",version) + defD("VARIANT",variant) + defWindows,
       deps: ["package.json"] }, // dependent on this build file (due to version)
   "Platform.Runtime",  
   "Platform.Var",

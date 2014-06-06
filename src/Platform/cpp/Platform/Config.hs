@@ -51,7 +51,7 @@ compiler = "unknown"
 
 exeExtension   :: String
 pathSep,pathDelimiter :: Char
-#if (OSTYPE==windows || OSTYPE==win32)
+#ifdef WINDOWS
 exeExtension  = ".exe"
 pathSep       = '\\'
 pathDelimiter = ';'
