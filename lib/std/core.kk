@@ -205,7 +205,7 @@ function onExit( handler : () -> e (), action : () -> e a ) : e a
 // Set a "handler" that is called if "action" returns without raising an exception.
 function onSuccess( handler : () -> e (), action : () -> e a ) : e a
 {
-  x = action()
+  val x = action()
   handler()
   return x
 }
@@ -236,22 +236,22 @@ type optional<a> {
 
 // The identify function returns its argument unchanged.
 function id(x) {
-  return x;
+  x;
 }
 
 // The "const" functions returns its first argument and ignores the second.
 function const(x,y) {
-  return x;
+  x;
 }
 
 // Apply a function "f" to a specified argument "x".
 function apply(f,x) {
-  return f(x);
+  f(x);
 }
 
 // Compose two functions "f" and "g".
 function o(f,g) {
-  return (function(x){ f(g(x)) })
+  (fun(x){ f(g(x)) })
 }
 
 
@@ -368,8 +368,8 @@ function (==)( x : order, y : order ) : bool = (x.int == y.int)
 function (!=)( x : order, y : order ) : bool = (x.int != y.int)
 function (>=)( x : order, y : order ) : bool = (x.int >= y.int)
 function (<=)( x : order, y : order ) : bool = (x.int <= y.int)
-function (>) ( x : order, y : order ) : bool = (x.int > y.int)
-function (<) ( x : order, y : order ) : bool = (x.int < y.int)
+function (>)( x : order, y : order ) : bool = (x.int > y.int)
+function (<)( x : order, y : order ) : bool = (x.int < y.int)
 
 // ----------------------------------------------------------------------------
 // List functions
@@ -633,7 +633,7 @@ function foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 // Create a list of `n`  repeated elementes `x` 
 function replicate( x : a, n : int ) : list<a>
 {
-  fun enumerate( i : int, acc : list<_a> ) {
+  function enumerate( i : int, acc : list<_a> ) {
     if (i <= 0) then acc else enumerate(i-1,Cons(x,acc))
   }
 
@@ -1227,8 +1227,8 @@ val bitsInt = 32
 function (/)( x : int, y : int ) : int
 {
   if (y == 0) then return 0
-  q = x `unsafeCdiv` y
-  r = x `unsafeCmod` y
+  val q = unsafeCdiv(x,y)
+  val r = unsafeCmod(x,y)
   if (r >= 0) then q
   elif (y > 0) then q-1
   else q+1
@@ -1238,7 +1238,7 @@ function (/)( x : int, y : int ) : int
 function (%)( x : int, y : int ) : int
 {
   if (y == 0) then return x
-  r = x `unsafeCmod` y
+  val r = unsafeCmod(x,y)
   if (r >= 0) then r
   elif (y > 0) then (r+y)
   else (r - y)
@@ -1265,13 +1265,13 @@ function sum( xs : list<int> ) : int
 // A string can start with a `-` sign for negative numbers, 
 // and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
 function parseInt( s : string, hex : bool = False) : maybe<int> {
-  base = if (hex) then 16 else 10
+  val base = if (hex) then 16 else 10
   match(s.list.dropWhile(isWhite)) {
     Nil -> Just(0)
     Cons(c,cc) | c=='-' -> {
       match(parsePosInt(cc,base)) {
         Nothing -> Nothing
-        Just(i) -> Just(-i)
+        Just(i) -> Just(0-i)
       }
     }
     cs -> parsePosInt(cs,base)     
@@ -1292,16 +1292,16 @@ private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) 
   match(cs) {
     Nil -> Just(acc)
     Cons(c,cc) -> {
-      d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base-1).char))) then {
-            (c - '0').int
-          }
-          elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base-11).char)) then { 
-            (c - 'a').int + 10
-          }
-          elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base-11).char)) then { 
-            (c - 'A').int + 10
-          }
-          else return Nothing   
+      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base-1).char))) then {
+                (c - '0').int
+              }
+              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base-11).char)) then { 
+                (c - 'a').int + 10
+              }
+              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base-11).char)) then { 
+                (c - 'A').int + 10
+              }
+              else return Nothing   
       parseDigits(cc, base, base*acc + d)
     }
   }
@@ -1495,7 +1495,7 @@ function maximum( xs : list<double> ) : double
 type array :: (H,V) -> V
 
 // used internally to have non-bound-checked access
-private external inline unsafeIdx : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>|e> a with hdiv<h,a,e> {
+private external inline unsafeIdx : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>|e> a with(hdiv<h,a,e>) {
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
@@ -1506,7 +1506,7 @@ private external inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x 
 }
 
 // Return the "index" element of an array. Raises an exception for out-of-bounds access.
-external inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with hdiv<h,a,e> 
+external inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
   = inline "(#1)[#2]"
 
 // Return the length of an ":array".
@@ -1545,7 +1545,7 @@ private external inline unsafeFreeze : forall<h,a> ( self : array<h,a> ) -> read
 
 // Copy an array
 function copy( self : array<h,a> ) : read<h> array<h,a> {
-  dest = unsafeArray(self.length)
+  val dest = unsafeArray(self.length)
   arrayCopy(self,dest,self.length)
   return dest
 }
@@ -1561,8 +1561,8 @@ function vector( self : array<h,a> ) : read<h> vector<a>
 function array( xs : list<a> ) : array<h,a>
 {
   unsafeTotal {
-    n = xs.length
-    a = unsafeArray(n)
+    val n = xs.length
+    val a = unsafeArray(n)
     xs.foreachIndexed fun(i,x) {
       a[i] := x
     }
@@ -1574,7 +1574,7 @@ function array( xs : list<a> ) : array<h,a>
 function list( a : array<h,a> ) : read<h> list<a>
 {
   unsafeTotal {
-    len = a.length()
+    val len = a.length()
     function build( i : int, acc : list<_a> )
     {
       if (i >= 0) then build(i-1, Cons(a[i],acc)) else acc
@@ -1658,8 +1658,8 @@ function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
 // Apply function "f" to each element in a vector "v"Ju
 function map( v : vector<a>, f : a -> e b ) : e vector<b>
 {
-  n = v.length
-  a = unsafeArray(n)
+  val n = v.length
+  val a = unsafeArray(n)
   for( 0, v.length-1 ) fun(i) {
     a.unsafeAssign( i, injectSt(f)(v.unsafeIdx(i)) )
   }
@@ -2031,8 +2031,8 @@ function show( i : int ) : string
 // Uses capital letters for hexadecimal digits by default.
 function showHex( i : int, width : int = 1, useCapitals : bool = True )
 {
-  w = if (width < 0) then 0 else width
-  x = if (useCapitals) then "X" else "x"
+  val w = if (width < 0) then 0 else width
+  val x = if (useCapitals) then "X" else "x"
   gformat(i, x + w.show)
 }
 
@@ -2041,20 +2041,20 @@ function showHex( i : int, width : int = 1, useCapitals : bool = True )
 // Uses either "showFixed" or "showExp" depending on what is the most compact representation
 function show( d : double, precision : int = 6 ) : string
 {
-  p = if (precision < 0) then 0 else precision
+  val p = if (precision < 0) then 0 else precision
   gformat(d,"g" + show(p))
 }
 
 function showFixed( d : double, precision : int = 6 )
 {
-  p = if (precision < 0) then 0 else precision
+  val p = if (precision < 0) then 0 else precision
   gformat(d,"F" + show(p))
 }
 
 // Show a ":double" in exponential (scientific) notation 
 function showExp( d : double, precision : int = 6 )
 {
-  p = if (precision < 0) then 0 else precision
+  val p = if (precision < 0) then 0 else precision
   gformat(d,"e" + show(p))
 }
 
@@ -2208,7 +2208,7 @@ function show( xs : list<a>, showElem : (a) -> string ) : string
 // Right-align a string to width `width`  using `char`  (default is a space) to fill from the left.
 function align( s : string, width : int, char : char = ' ') : string
 {
-  n = s.length
+  val n = s.length
   if (n >= width)
    then s
    else string(width - n, char) + s
@@ -2217,7 +2217,7 @@ function align( s : string, width : int, char : char = ' ') : string
 // Left-align a string to width `width`  using `char`  (default is a space) to fill on the right.
 function fill( s : string, width : int, char : char = ' ') : string
 {
-  n = s.length
+  val n = s.length
   if (n >= width)
    then s
    else s + string(width - n, char)
@@ -2304,7 +2304,7 @@ external inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> ()
 }
 
 // Read the value of reference.
-external inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with hdiv<h,a,e>  { 
+external inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  { 
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
@@ -2352,7 +2352,7 @@ private val uniqueCount : ref<global,int> = unsafeTotal { ref(0) }
 function unique() : ndet int
 {
   unsafeTotal {
-    u = !uniqueCount
+    val u = !uniqueCount
     uniqueCount := u+1
     u
   }
@@ -2398,7 +2398,7 @@ function repeat( n : int, action : () -> e () ) : e ()
 // If `start > end`  the function returns without any call to `action` .
 function for( start: int, end : int, action : (int) -> e () ) : e ()
 {
-  fun rep( i : int ) {
+  function rep( i : int ) {
     if (i <= end) {
       injectDiv(action)(i)
       rep(i+1)
@@ -2412,7 +2412,7 @@ function for( start: int, end : int, action : (int) -> e () ) : e ()
 // If `action` returns "Just", the iteration is stopped and the result returned
 function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
 {
-  fun rep( i : int ) {
+  function rep( i : int ) {
     if (i <= end) {
       match(injectDiv(action)(i)) {
         Nothing -> rep(i+1)

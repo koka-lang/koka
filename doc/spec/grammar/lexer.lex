@@ -171,6 +171,8 @@ instance                  { return INST; }
 \|                        { return '|';    }
 \<                        { return '<';    }
 \>                        { return '>';    }
+!                         { return '!';    }
+\~                        { return '~';    }
 
 file                      { return ID_FILE;    }
 cs                        { return ID_CS;      }
@@ -414,6 +416,13 @@ static bool contains( Token tokens[], Token token )
   return false;
 }
 
+static Token appTokens[] = { ')', ']', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
+
+static bool isAppToken( Token token ) {
+  return contains(appTokens, token );
+}
+
+
 #ifdef INDENT_LAYOUT
   static Token continuationTokens[] = { THEN, ELSE, ELIF, ')', ']', '{', 0 };
 
@@ -456,7 +465,10 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   else {
     token = yylex( lval, loc, scanner ); 
     *loc = updateLoc( scanner );
-    
+
+    if (token=='(' && isAppToken(yyextra->previous)) token = APP;
+    if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
+
     // skip whitespace
     while (token == LEX_WHITE || token == LEX_COMMENT) {
 #ifdef INDENT_LAYOUT
@@ -469,7 +481,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner ); 
       *loc = updateLoc(scanner);
     }
-    
+
     // Do layout ?
     if (!yyextra->noLayout) 
     {

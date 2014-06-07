@@ -43,6 +43,9 @@ void printDecl( const char* sort, const char* name );
 %token <String> STRING 
 %token <Char>   CHAR
 
+%token APP   /* '(' for applications */
+%token IDX   /* '[' for indexing */
+
 %token IF THEN ELSE ELIF
 %token MATCH 
 %token RARROW 
@@ -71,6 +74,7 @@ void printDecl( const char* sort, const char* name );
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder 
 %type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
+
 
 %%
 
@@ -103,16 +107,19 @@ visibility  : PUBLIC
             | /* empty */
             ;
                 
-semis1      : semis semi
+semis1      : semis
             ;
 
-semis       : semis1
+semis       : semis semi
             | /* empty */   
             ;
 
 semi        : ';' 
             | SEMI
             ;
+
+lparen      : APP | '(';
+
 
 /* ---------------------------------------------------------
 -- Top level declarations
@@ -158,8 +165,8 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERNAL externinline funid ':' typesig externbody   { $$ = $3; }
-            | EXTERNAL externinline funid '(' parameters ')' annotres externbody { $$ = $3; } 
+externdecl  : EXTERNAL externinline funid ':' typescheme externbody   { $$ = $3; }
+            | EXTERNAL externinline funid APP parameters ')' annotres externbody { $$ = $3; } 
             | EXTERNAL INCLUDE externincbody                       { $$ = "<external include>"; }
             ;
 
@@ -246,12 +253,12 @@ constructor : visibility con equantifier conid conparams
             | visibility con conid conparams
             ;
 
-con         : CON 
-            | /* empty */
+con         : CON
+            | /* empty */ 
             ; 
 
-conparams   : '(' conpars1 ')'
-            | '(' ')'
+conparams   : lparen conpars1 ')'
+            | lparen ')'
             | /* empty */
             ;
 
@@ -269,7 +276,6 @@ conpar      : paramid ':' paramtype
 -- Pure Declarations
 ----------------------------------------------------------*/   
 puredecl    : VAL valdecl                   { $$ = $2; }
-            | FUN fundecl                   { $$ = $2; }
             | FUNCTION fundecl              { $$ = $2; }
             ;
 
@@ -289,7 +295,7 @@ fundecl     : quantifiers funid fundef block          { $$ = $2; }
             | quantifiers funid fundef '=' blockexpr  { $$ = $2; } 
             ;
 
-fundef      : '(' parameters ')' annotres 
+fundef      : lparen parameters ')' annotres qualifier
             ;
 
 
@@ -336,43 +342,44 @@ statement   : decl
             | nofunexpr
             ;
 
-decl        : FUN fundecl     
-            | FUNCTION fundecl
-            | VAL localvaldecl              /* local value declaration can use a pattern binding */
-            | valdecl                       /* for a local declaration the VAL keyword is optional */
+decl        : FUNCTION fundecl
+            | VAL pattern '=' expr          /* local value declaration can use a pattern binding */
             | VAR binder ASSIGN expr        /* local variable declaration */
-            ;
-
-localvaldecl: pattern '=' expr
             ;
 
 
 /* ---------------------------------------------------------
 -- Expressions
---
--- returnexpr is not allowed anywhere under 'expr' or 'returnexpr'
 ----------------------------------------------------------*/
-expr        : funexpr            
-            | nofunexpr
-            ;  
-
-blockexpr   : expr               /* block is interpreted specially; used in branches and functions */
+blockexpr   : expr          /* block is interpreted specially; used in branches and functions */
             ;            
 
-nofunexpr   : ifexpr             /* not 'function' (or 'block'); used for statement expressions */
+expr        : ifexpr
+            | noifexpr
+            ;
+
+noifexpr    : returnexpr
+            | matchexpr
+            | funexpr
+            | opexpr
+            ;
+
+nofunexpr   : ifexpr
+            | returnexpr
             | matchexpr
             | opexpr
-            | returnexpr           
+
+/* keyword expressions */
+
+matchexpr   : MATCH atom '{' semis matchrules '}'
+            ;            
+
+funexpr     : FUN quantifiers fundef block
+            | block /* zero-argument function */
             ;
 
-noifexpr    : matchexpr          /* not an 'if' but includes 'block'; used for nested-if disambiguation */
-            | opexpr
-            | returnexpr
-            | funexpr
+returnexpr  : RETURN opexpr          
             ;
-
-
-/* keyword expressions: if, match, fun, return  */
 
 ifexpr      : IF atom then elifs else
             ;
@@ -389,48 +396,42 @@ elifs       : elifs ELIF atom then
             | /* empty */
             ;
 
+/* operator expression */
 
-matchexpr   : MATCH atom '{' semis matchrules '}'
-            ;            
-
-funexpr     : FUN quantifiers fundef block
-            | FUNCTION quantifiers fundef block
-            | block /* zero-argument function */
+opexpr      : opexpr qoperator prefixexpr
+            | prefixexpr
             ;
 
-/* returnexpr is not allowed under expr or returnexpr */
-returnexpr  : RETURN noifexpr          
-            ;
+prefixexpr  : '!' prefixexpr
+            | '~' prefixexpr
+            | fappexpr
+            ;         
 
+fappexpr    : fappexpr funexpr                /* trailing function application */  
+            | appexpr
+            ;               
 
-/* operator expressions */
-/* note: associativity and precedence is to be handled in a later compiler phase */
-
-opexpr      : opexpr qoperator funappexpr
-            | funappexpr
-            ;
-
-funappexpr  : appexpr funexprs
-            ;
-
-funexprs    : funexprs funexpr
-            | /* empty */
-            ;
-
-/* dot and application expressions */
-
-appexpr     : appexpr '(' arguments ')'       /* application */
-            | appexpr '[' arguments ']'       /* index expression */
-            | appexpr '.' prefix              /* dot application */
-            | prefix
-            ;
-
-prefix      : qoperator prefix
+appexpr     : appexpr APP arguments ')'       /* application */
+            | appexpr IDX arguments ']'       /* index expression */
+            | appexpr '.' atom                /* dot application */
             | atom
+            ; 
+
+
+/* atomic expressions */
+
+atom        : qidentifier
+            | qconstructor
+            | literal
+            | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
+            | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
+            ;
+
+literal     : NAT | FLOAT | CHAR | STRING
             ;
 
 
-/* arguments: separated or terminated by comma */
+/* arguments: separated by comma */
 
 
 arguments   : arguments1 
@@ -472,26 +473,12 @@ annot       : ':' typescheme
             ;
 
 
-/* atomic expressions */
-
-atom        : qidentifier
-            | qconstructor
-            | literal
-            | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
-            | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
-            ;
-
-
-literal     : NAT | FLOAT | CHAR | STRING
-            ;
 
 /* ---------------------------------------------------------
 -- Identifiers and operators
 ----------------------------------------------------------*/
 
-qoperator   : '`' qidentifier '`'   { $$ = $2; }
-            | '`' qconstructor '`'  { $$ = $2; }
-            | op
+qoperator   : op
             ;
 
 qidentifier : qvarid 
@@ -521,9 +508,9 @@ conid       : CONID  { $$ = $1; }
             ;
 
 op          : OP 
-            | '>'       { $$ = ">"; }
-            | '<'       { $$ = "<"; }
-            | '|'       { $$ = "|"; }
+            | '>'       { $$ = ">";  }
+            | '<'       { $$ = "<";  }
+            | '|'       { $$ = "|";  }
             | ASSIGN    { $$ = ":="; }
             ;            
 
@@ -557,7 +544,7 @@ patterns1   : patterns1 ',' pattern
 
 pattern     : identifier
             | conid
-            | conid '(' patargs ')'
+            | conid APP patargs ')'
             | '(' patterns ')'                   /* unit, parenthesized pattern, tuple pattern */
             | '[' patterns ']'                   /* list pattern */
             | pattern AS identifier              /* named pattern */
@@ -593,9 +580,6 @@ tbinder     : varid kannot
 
 
 /* full type */
-typesig     : quantifiers tarrow sigqualifier     /* used for full type signatures in definitions */
-            ;
-
 typescheme  : quantifiers tarrow qualifier        /* used for type annotations */
             ;
 
@@ -616,11 +600,6 @@ squantifier : SOME '<' tbinders1 '>'
             ;
 
 equantifier : EXISTS '<' tbinders1 '>'
-            ;
-
-
-sigqualifier: WITH predicates1
-            | qualifier
             ;
 
 qualifier   : WITH '(' predicates1 ')'

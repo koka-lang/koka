@@ -42,8 +42,8 @@ $return   = \r
 $linefeed = \n
 $graphic  = [\x21-\x7E]
 $cont     = [\x80-\xBF]
-$symbol   = [\$\%\&\*\+\!\\\^\#\=\.\:\-\?\|\<\>]
-$special  = [\(\)\[\]\{\}\;\,\`]
+$symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
+$special  = [\(\)\[\]\{\}\;\,]
 $anglebar = [\<\>\|]
 $angle    = [\<\>]
 $charesc  = [nrt\\\'\"]    -- "
@@ -227,7 +227,6 @@ specialNames
     , "<", ">"
     , "[", "]"
     , ";", ","
-    , "`"
     ]
 
 reservedNames :: Set.Set String
@@ -256,7 +255,7 @@ reservedNames
 
 symbols :: [Char]
 symbols
-  = "$%&*+@!/\\^~=.:-?<>|"    
+  = "$%&*+~!/\\^~=.:-?<>|"    
 
 isReserved :: String -> Bool
 isReserved name

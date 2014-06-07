@@ -1187,7 +1187,7 @@ tqual
 
 pqualifier tp
   = do keyword "with"
-       ps <- many1 predicate
+       ps <- parens (many1 predicate)
        return (TpQual ps tp)
   <|>
     return tp
