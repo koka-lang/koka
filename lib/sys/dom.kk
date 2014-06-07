@@ -14,7 +14,7 @@ import sys/dom/types
 // Execute an action that gains access to the global ":window" object. 
 public function withWindow( action: (window) -> <dom|e> () ) : <dom|e> ()
 {
-  success = applyWindow(action);
+  val success = applyWindow(action);
   if (!success) error("this application can only run inside a browser")
 }
 

@@ -10,7 +10,7 @@ function collatz(n : int, steps : int = 0) : div maybe<int>
 
 public function main() : <div,console> () 
 {
-  i = 27
+  val i = 27
   match(collatz(i)) {
     Nothing -> println("Collatz(" + i.show + ") overflowed" )
     Just(n) -> println("Collatz(" + i.show + ") took " + n.show + " steps to reach 1.")

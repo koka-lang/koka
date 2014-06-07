@@ -12,10 +12,10 @@ private val logDict : mdict<global,string> = unsafeTotal { mdict() }
 // However, if "nolog" was called, the log is always empty.
 function withLog( logName : string, action : () -> <ndet|e> a ) : <ndet|e> (string, a) {
   unsafeTotal {
-    oldLog = logDict[logName]
+    val oldLog = logDict[logName]
     logDict[logName] := ""
-    x = unsafeTotal(action)
-    l = logDict[logName].maybe("",id)
+    val x = unsafeTotal(action)
+    val l = logDict[logName].maybe("",id)
     match(oldLog) {
       Nothing -> ()
       Just(old) -> logDict[logName] := old

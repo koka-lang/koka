@@ -10,8 +10,8 @@
 // However, koka does infer that no other effect (i.e. an exception due to a partial match) can occur.
 
 public function main() {
-  wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
-  tree  = wlist.garsiaWachs()
+  val wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
+  val tree  = wlist.garsiaWachs()
   tree.show.println()
 }
 
@@ -100,11 +100,11 @@ function build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>
 {
   if (!(xs.head.snd) == depth) return (Leaf(xs.head.fst), xs.tail)
 
-  l = build(depth+1, xs)
+  val l = build(depth+1, xs)
   match(l.snd) {
     Nil -> (l.fst, Nil)
     Cons(y,ys) -> {
-      r = build(depth+1, Cons1(y,ys))
+      val r = build(depth+1, Cons1(y,ys))
       (Node(l.fst,r.fst), r.snd)
     }
   }
@@ -116,10 +116,10 @@ function build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>
 
 public function garsiaWachs( xs : list1<(a,int)> ) : div tree<a>
 {
-  refs   = xs.map(fst).map( fun(x) { (x, ref(0)) } )
-  wleafs = zip( refs.map(Leaf), xs.map(snd) )
+  val refs   = xs.map(fst).map( fun(x) { (x, ref(0)) } )
+  val wleafs = zip( refs.map(Leaf), xs.map(snd) )
 
-  tree = balance(wleafs)
+  val tree = balance(wleafs)
   mark(0,tree)
   build(0,refs).fst
 }

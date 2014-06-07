@@ -104,7 +104,7 @@ val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 public function firstMatchedOn( groups : groups, start : int = 1, end : int = 10 ) : int
 {
   match (list(start,end).find(fun(i) { groups.matchedOn(i) })) {
-    Nothing -> -1
+    Nothing -> ~1
     Just(i) -> i
   }
 }
@@ -113,7 +113,7 @@ public function firstMatchedOn( groups : groups, start : int = 1, end : int = 10
 // and returning at most group "end"
 public function firstMatched(groups : groups, start : int = 1, end : int = 10 ) : string
 {
-  i = groups.firstMatchedOn(start,end)
+  val i = groups.firstMatchedOn(start,end)
   if (i >= 0) then groups[i] else ""
 }
 
@@ -222,7 +222,7 @@ public function contains( s :string, r :regex, start :int = 0 ) : bool
 public function splitExclude( s : string, sep : regex, exclude : regex ) : list<string>
 {
   if (s=="") then [] else {
-    splitr = regex( @"^(?:((?:" + exclude.source + ")+)|(" + sep.source + "))")
+    val splitr = regex( @"^(?:((?:" + exclude.source + ")+)|(" + sep.source + "))")
     s.splitExcludeX(splitr,"")
   }
 }

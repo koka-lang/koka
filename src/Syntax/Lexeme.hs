@@ -43,6 +43,7 @@ data Lex    = LexInt     !Integer
             | LexId       !Name
             | LexCons     !Name       
             | LexOp       !Name
+            | LexPrefix   !Name
             | LexIdOp     !Name
             | LexWildCard !Name
             | LexKeyword  !String !String
@@ -97,6 +98,7 @@ instance Enum Lex where
         LexString _     -> 3
         LexId  _        -> 4
         LexOp    _      -> 5
+        LexPrefix _     -> 19
         LexIdOp _       -> 20
         LexWildCard _   -> 6
         LexModule _ _   -> 7
@@ -138,6 +140,7 @@ showLex lex
       LexString s   -> show s
       LexId  id     -> "identifier \"" ++ show id ++ "\""
       LexOp id      -> "operator \"" ++ show id ++ "\""
+      LexPrefix id  -> "prefix operator \"" ++ show id ++ "\""
       LexIdOp id    -> "identifier \"(" ++ show id ++ ")\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""

@@ -40,15 +40,15 @@ external isoDateTime : (date) -> string {
 
 // Return the date portion of an ISO date/time string.
 function isoDate(d : date) : string {
-  s = d.isoDateTime
-  i = s.indexOf("T")
+  val s = d.isoDateTime
+  val i = s.indexOf("T")
   if (i >= 0) then s.substr(0,i) else s
 }
 
 // Return the time portion of an ISO date/time string.
 function isoTime(d : date) : string {
-  s = d.isoDateTime
-  i = s.indexOf("T")
+  val s = d.isoDateTime
+  val i = s.indexOf("T")
   if (i >= 0) then s.substr(i) else s
 }
 

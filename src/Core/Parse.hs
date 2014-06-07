@@ -267,7 +267,7 @@ externalTarget
 
 parameters :: Env -> LexParser [(Name,Type)]
 parameters env
-  = parens (parameter env `sepBy` comma)
+  = parensCommas (lparen <|> lapp) (parameter env)
     <|>
     return []
 
@@ -493,7 +493,7 @@ qualifiedTypeId
 
 pkind :: LexParser Kind
 pkind
-  = do params <- parensCommas pkind 
+  = do params <- parensCommas lparen pkind 
        keyword "->"
        res    <- pkind
        return (foldr kindFun res params)

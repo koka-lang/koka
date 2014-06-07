@@ -32,7 +32,7 @@ public function main() : _ ()
   var starColor       := "white"
   var flightDirection := Forward
 
-  fun moveStars(ctx: canvasRenderingContext2d, stars: list<star>) : dom list<star>
+  function moveStars(ctx: canvasRenderingContext2d, stars: list<star>) : dom list<star>
   { 
     ctx.fillStyle := "black"
     val w = ctx.canvas.width.double
@@ -62,7 +62,7 @@ public function main() : _ ()
   }
 
   includeLogo()
-  withWindow function(window) {
+  withWindow fun(window) {
 
       val canvas = window.document.createHtmlCanvasElement()
       window.document.body.style.margin := "0px"
@@ -70,7 +70,7 @@ public function main() : _ ()
       window.document.body.appendChild(canvas.node)
 
       val ctx    = canvas.getContext("2d").toCanvasRenderingContext2d
-      fun loop(stars: list<star>) : _ ()
+      function loop(stars: list<star>) : _ ()
       { val newStars = moveStars(ctx, stars)
         window.setTimeout( fun () { loop(newStars) }, timeout )
         return ()

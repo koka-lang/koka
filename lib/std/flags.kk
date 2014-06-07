@@ -64,7 +64,7 @@ function showOptions( o : testOptions ) {
          "arguments=" + o.arguments.join(",")].join(";") + "}"
 }
 
-fun setOutput( t : testOptions, mbs : maybe<string> ) : testOptions
+function setOutput( t : testOptions, mbs : maybe<string> ) : testOptions
 {
   match(mbs) {
     Nothing -> t(output = "stdout")
@@ -85,7 +85,7 @@ val testOptions : list<option<testOptions>>
 
 public function test( cmdargs )
 {
-  header = "usage:\n program [options] files\n\noptions:"
+  val header = "usage:\n program [options] files\n\noptions:"
   // testOptions.usageInfo( header ).println
   val (options,args,errs) = parse( TestOptions(), testOptions, cmdargs )
   if (errs.isNil) {
@@ -126,7 +126,7 @@ public function usageInfo( flags : list<option<a>>, header : string ) : string
 function showFlag( flag : option<a> ) :  list<(string,string,string)>
 {
   val short = flag.shortNames.list.map(fun(c){ "-" + c.string + showShortArg(flag.arg) }).join(" ")
-  long  = flag.longNames.map(fun(name){ "--" + name + showLongArg(flag.arg) }).join(" ")
+  val long  = flag.longNames.map(fun(name){ "--" + name + showLongArg(flag.arg) }).join(" ")
   match (lines(flag.help).list) {
     Cons(hd,tl) -> [(short,long,hd)] + tl.map( fun(s){ ("","",s)}) 
     Nil         -> [(short,long,"")]
@@ -209,7 +209,7 @@ function processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>
 
 function break( s : string, c : char ) : (string,string)
 {
-  parts = s.split(c.string,2).list
+  val parts = s.split(c.string,2).list
   match (parts) {
     Cons(x,Cons(y,_)) -> (x,y)
     _                 -> (s,"")
@@ -219,14 +219,14 @@ function break( s : string, c : char ) : (string,string)
 function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 {
   val (cflagname,flagarg) = s.break('=')
-  opt = "--" + s
-  flagname     = cflagname.toLower
-  baseflagname = if (flagname.startsWith("no")) then flagname.substr(2) else ""
+  val opt = "--" + s
+  val flagname     = cflagname.toLower
+  val baseflagname = if (flagname.startsWith("no")) then flagname.substr(2) else ""
   
-  lnames   = flags.concat(fun(flag) { flag.llongNames } )
-  exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
-  prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.startsWith(flagname) || (baseflagname != "" && name.startsWith(baseflagname)) } ) } )
-  applicable = if (exacts.isNil) then prefixes else exacts
+  val lnames   = flags.concat(fun(flag) { flag.llongNames } )
+  val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
+  val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.startsWith(flagname) || (baseflagname != "" && name.startsWith(baseflagname)) } ) } )
+  val applicable = if (exacts.isNil) then prefixes else exacts
   
   match(applicable) {
     Nil -> errorUnknown(opt) 
@@ -260,8 +260,8 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
   var done := False
   val fs = s.list.mapIndexed fun(i,c) {
     if (done) then return Nothing
-    opt = "-" + c.string
-    applicable = flags.filter( fun(flag){ flag.shortNames.contains(c) } )
+    val opt = "-" + c.string
+    val applicable = flags.filter( fun(flag){ flag.shortNames.contains(c) } )
     match(applicable) {
       Nil -> Just(errorUnknown(opt))
       Cons(_,Cons(_,_))   
@@ -271,13 +271,13 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
               Flag(set)
                 -> Just(Flg(fun(o){ set(o,True) }))
               Req(parse,help) -> {
-                arg = s.substr(i+1)
+                val arg = s.substr(i+1)
                 if (arg.length > 0)
                  then { done := True; Just(Flg(fun(o){ parse(o,arg) })) }
                  else Just(errorRequired(help,opt))
               }
               Opt(parse) -> {
-                arg = s.substr(i+1)
+                val arg = s.substr(i+1)
                 if (arg.length > 0)
                  then { done := True; Just(Flg(fun(o){ parse(o,Just(arg)) })) }
                  else Just(Flg(fun(o){parse(o,Nothing)}))
@@ -289,7 +289,7 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
 }
 
 function errorAmbiguous( applicable, opt ) {
-  header = "option \"" + opt + "\" is ambiguous. It could be one of:"
+  val header = "option \"" + opt + "\" is ambiguous. It could be one of:"
   return Error( usageInfo( applicable, header ) )
 }
 

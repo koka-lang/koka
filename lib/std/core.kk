@@ -1189,7 +1189,7 @@ function negate( i : int ) {
 }
 
 // Negate an integer
-function (-)(i : int) : total int {
+function (~)(i : int) : total int {
   return (0 - i)
 }
 

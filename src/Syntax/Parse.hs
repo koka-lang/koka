@@ -22,7 +22,7 @@ module Syntax.Parse( parseProgramFromFile
                    , tbinderId, constructorId, funid, paramid
                    , braced, semiBraces, semis, semiColons
                    , angles, anglesCommas, parensCommas, parens
-                   , semiColon, lparen, rparen, langle, rangle, comma
+                   , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx
                    , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId
@@ -586,7 +586,7 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
     isJust _        = False
 
 conPars
-  = parensCommasRng conBinder
+  = parensCommasRng (lparen <|> lapp) conBinder
   <|>
     return ([],rangeNull)
 
@@ -621,7 +621,7 @@ constructorId
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
   = do (vis,vrng,rng,doc,isVal) <- try $ do (vis,vrng) <- visibility dvis
-                                            (do (rng,doc) <- (dockeyword "fun" <|> dockeyword "function"); return (vis,vrng,rng,doc,False)
+                                            (do (rng,doc) <- dockeyword "function"; return (vis,vrng,rng,doc,False)
                                              <|>
                                              do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,True)) 
        (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis
@@ -695,7 +695,7 @@ typeparams
 
 parameters :: Bool -> LexParser ([ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
 parameters allowDefaults
-  = parensCommasRng (parameter allowDefaults)
+  = parensCommasRng (lparen <|> lapp) (parameter allowDefaults)
 
 parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr))
 parameter allowDefaults
@@ -759,7 +759,9 @@ statement
     do var <- varDecl 
        return (StatFun (\body -> Bind var body (combineRanged var body)))
   <|> 
-    do exp <- compound
+    do exp <- nofunexpr
+       return (StatExpr exp)
+       {-
        case exp of
          Var name _ rng -> do ann <- typeAnnotation
                               keyword "="
@@ -769,6 +771,7 @@ statement
                            <|>
                            return (StatExpr exp)
          _              -> return (StatExpr exp)
+      -}
         
 localValueDecl 
   = do krng <- keyword "val"
@@ -804,31 +807,36 @@ typeAnnotation
 --------------------------------------------------------------------------}
 valexpr :: LexParser UserExpr
 valexpr
-  = compound <|> funexpr <|> block
+  = ifexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
   <?> "expression"
 
 expr :: LexParser UserExpr
 expr
-  = compound <|> funexpr <|> funblock
+  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
   <?> "expression"
-
-ifbranch :: LexParser UserExpr
-ifbranch
-  = returnexpr <|> matchexpr <|> funexpr <|> block  
 
 branchexpr :: LexParser UserExpr
 branchexpr
-  = returnexpr <|> compound <|> funexpr <|> block
+  = ifexpr <|> noifexpr
+
+noifexpr :: LexParser UserExpr
+noifexpr
+  = returnexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
+ 
+nofunexpr :: LexParser UserExpr
+nofunexpr
+  = ifexpr <|> returnexpr <|> matchexpr <|> opexpr
+  <?> "expression"
 
 
-compound
+ifexpr
   = do rng <- keyword "if"
        tst <- parens expr
        optional (keyword "then")
-       texpr   <- ifbranch
+       texpr   <- noifexpr
        eexprs  <- many elif
        eexpr   <- do keyword "else"
-                     ifbranch
+                     noifexpr
                   <|>
                      return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs) 
@@ -839,14 +847,12 @@ compound
                                    (combineRanged tst eexpr)
        
        return fullMatch
-  <|> 
-    matchexpr
   where
     elif
       = do keyword "elif"
            tst <- parens expr
            optional (keyword "then")
-           texpr <- ifbranch
+           texpr <- noifexpr
            return (tst,texpr)
 
 returnexpr 
@@ -860,8 +866,6 @@ matchexpr
        tst <- parens expr  -- todo: multiple patterns
        (branches,rng2) <- semiBracesRanged1 branch 
        return (Case tst branches (combineRange rng rng2))
-  <|>
-    opexpr
 
 {--------------------------------------------------------------------------
   Branches
@@ -886,11 +890,25 @@ guard
 --------------------------------------------------------------------------}
 opexpr :: LexParser UserExpr
 opexpr
-  = do e1 <- fappexpr
-       (do ess <- many1(do{ op <- operatorVar; e2 <- fappexpr; return [op,e2]; }) 
+  = do e1 <- prefixexpr
+       (do ess <- many1(do{ op <- operatorVar; e2 <- prefixexpr; return [op,e2]; }) 
            return (App (Var nameOpExpr True rangeNull) [(Nothing,e) | e <- e1 : concat ess] (combineRanged e1 (concat ess)))
         <|>
            return e1)
+
+operatorVar
+  = do (name,rng) <- qoperator
+       return (Var name True rng)
+    <|>
+    do rng <- keyword ":="
+       return (Var nameAssign True rng)   
+
+
+prefixexpr :: LexParser UserExpr
+prefixexpr
+  = do ops  <- many prefixOp
+       aexp <- fappexpr
+       return (foldr (\op e -> App op [(Nothing,e)] (combineRanged op e)) aexp ops)
 
 fappexpr :: LexParser UserExpr
 fappexpr
@@ -909,15 +927,15 @@ fappexpr
 
 appexpr :: LexParser UserExpr
 appexpr 
-  = do e0 <- prefix
+  = do e0 <- atom
        fs <- many (dotexpr <|> applier <|> indexer)
        return (foldl (\e f -> f e) e0 fs)
   where      
     dotexpr, indexer, applier :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
-           e <- prefix
-           (do rng0 <- lparen
+           e <- atom
+           (do rng0 <- lapp
                args <- sepBy argument (comma)
                rng1 <- rparen
                return (\arg0 -> App e ((Nothing,arg0):args) (combineRanged arg0 rng1))
@@ -925,30 +943,17 @@ appexpr
                return (\arg0 -> App e [(Nothing,arg0)] (combineRanged arg0 e)))
 
     indexer 
-      = do rng0 <- special "["
+      = do rng0 <- lidx
            idxs <- sepBy1 expr comma
            rng1 <- special "]"
            return (\exp -> App (Var nameIndex False (combineRange rng0 rng1)) (map (\a -> (Nothing,a)) (exp:idxs)) (combineRange rng0 rng1))
 
     applier 
-      = do rng0 <- lparen
+      = do rng0 <- lapp
            args <- sepBy argument (comma)
            rng1 <- rparen
            return (\exp -> App exp (args) (combineRanged exp rng1))
 
-prefix :: LexParser UserExpr
-prefix
-  = do ops <- many operatorVar
-       aexp <- atom
-       return (foldr (\op e -> App op [(Nothing,e)] (combineRanged op e)) aexp ops)
-
-
-operatorVar
-  = do (name,rng) <- qoperator
-       return (Var name True rng)
-    <|>
-    do rng <- keyword ":="
-       return (Var nameAssign True rng)   
 
 argument :: LexParser (Maybe (Name,Range),UserExpr)
 argument
@@ -969,7 +974,7 @@ funblock
        return (Lam [] exp (getRange exp))    
 
 funexpr
-  = do rng <- keyword "fun" <|> keyword "function"
+  = do rng <- keyword "fun" 
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,ann) <- funDef 
        body <- block
@@ -1078,7 +1083,7 @@ patAs
 patAtom :: LexParser UserPattern 
 patAtom
   = do (name,rng) <- qconstructor
-       (ps,r) <- parensRng (sepBy namedPattern (comma)) <|> return ([],rangeNull)
+       (ps,r) <- parensCommasRng (lparen <|> lapp) namedPattern <|> return ([],rangeNull)
        return (PatCon name ps rng (combineRanged rng r))
   <|>
     do (name,rng) <- identifier     
@@ -1088,7 +1093,7 @@ patAtom
     do (_,range) <- wildcard
        return (PatWild range)
   <|>
-    do (ps,rng) <- parensRng (sepBy namedPattern comma)
+    do (ps,rng) <- parensCommasRng lparen namedPattern
        case ps of
          [p] -> return (PatParens (snd p) rng)
          _   -> return (PatCon (nameTuple (length ps)) ps rng rng)
@@ -1449,7 +1454,7 @@ kindAnnot
 --------------------------------------------------------------------------}
 pkind :: LexParser UserKind
 pkind
-  = do params <- parensCommas pkind 
+  = do params <- parensCommas lparen pkind 
        keyword "->"
        res    <- pkind
        return (foldr KindArrow res params)
@@ -1463,7 +1468,7 @@ pkind
   <?> "kind"
 
 katom
-  = do parensx KindParens pkind
+  = do parensx lparen KindParens pkind
   <|>
     do rng <- specialConId "V" 
        return (KindCon nameKindStar rng)
@@ -1509,7 +1514,7 @@ semis p
   = sepEndBy p semiColons
 
 semiColons  
-  = many1 semiColon
+  = many semiColon
 
 anglesRanged p
   = bracketed langle rangle (,) p
@@ -1521,20 +1526,20 @@ anglesCommas p
 angles p
   = bracketed langle rangle const p
 
-parensCommas p
-  = parens (sepBy p comma)
+parensCommas lpar p
+  = parensx lpar const (sepBy p comma)
 
 parensRng p
-  = parensx (,) p
+  = parensx lparen (,) p
 
 parens p
-  = parensx const p
+  = parensx lparen const p
 
-parensCommasRng p
-  = parensx (,) (sepBy p comma)
+parensCommasRng lpar p
+  = parensx lpar (,) (sepBy p comma)
 
-parensx f p
-  = bracketed lparen rparen f p
+parensx lpar f p
+  = bracketed lpar rparen f p
 
 curliesx f p
   = bracketed lcurly rcurly f p
@@ -1549,14 +1554,18 @@ bracketed open close f p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
+lapp     = special "((" <?> show "("
+lidx     = special "[[" <?> show "["
 lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<" 
 rangle   = specialOp ">"
-bar      = specialOp "|"
-comma    = special ","
 lcurly   = special "{"
 rcurly   = special "}"
+
+bar      = specialOp "|"
+comma    = special ","
+
 
 {-
 liparen :: LexParser Range
@@ -1569,7 +1578,7 @@ semiColon :: LexParser Range
 semiColon
   = do (Lexeme rng _) <- parseLex LexInsSemi <|> parseLex (LexSpecial ";")
        return rng
-  <?> "semi colon"
+  <?> show ";"
 
 
 -----------------------------------------------------------
@@ -1591,11 +1600,13 @@ qconstructor
 qoperator :: LexParser (Name,Range)
 qoperator 
   = qop 
+  {-
   <|>
     do rng1 <- special "`"
        (name,rng) <- (qidentifier <|> qconstructor)
        rng2 <- special "`"
        return (name,rng {- combineRange rng1 rng2 -})
+  -}
 
 -----------------------------------------------------------
 -- Unqualified Identifiers
@@ -1647,6 +1658,11 @@ qop
        return (id,rng)
   <?> "operator"
 
+prefixOp :: LexParser UserExpr
+prefixOp
+  = do (Lexeme rng (LexPrefix id)) <- parseLex (LexPrefix nameNil)
+       return (Var id True rng)
+  <?> ""
 
 -- is really qvarid, varid, from the spec
 qvarid :: LexParser (Name,Range)
@@ -1753,13 +1769,13 @@ keyword :: String -> LexParser Range
 keyword s
   = do (Lexeme rng _) <- parseLex (LexKeyword s "")
        return rng
-  <?> s
+  <?> show s
 
 dockeyword :: String -> LexParser (Range,String)
 dockeyword s
   = do (Lexeme rng (LexKeyword _ doc)) <- parseLex (LexKeyword s "")
        return (rng,doc)
-  <?> s
+  <?> show s
 
 
 {--------------------------------------------------------------------------

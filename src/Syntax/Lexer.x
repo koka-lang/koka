@@ -123,6 +123,8 @@ program :-
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
 <0> @symbols              { string $ \s -> if isReserved s
                                              then LexKeyword s "" 
+                                           else if isPrefix s 
+                                             then LexPrefix (newName s)
                                              else LexOp (newName s) }
 
 -- literals
@@ -261,6 +263,10 @@ isReserved :: String -> Bool
 isReserved name
   = Set.member name reservedNames
 
+isPrefix :: String -> Bool
+isPrefix name
+  = (name == "!" || name == "~")
+
 digitsToNum :: Num a => a -> String -> a
 digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
@@ -275,6 +281,7 @@ data State = State { pos      :: !Pos    -- current position
                    , retained :: ![BString]
                    , previous :: !Char
                    , current  :: !BString
+                   , previousLex :: Lex          
                    }
 
 type Action = BString -> State -> State -> (Maybe Lex, State)
@@ -355,7 +362,7 @@ lexer sourceName lineNo input
 lexing :: Source -> Int -> BString -> [Lexeme]
 lexing source lineNo input 
   = let initPos = makePos source 0 lineNo 1
-        initSt  = State initPos initPos [0] [] '\n' input
+        initSt  = State initPos initPos [0] [] '\n' input (LexWhite "")
     in go initSt
   where go st =
           -- trace ("scan: " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
@@ -376,8 +383,25 @@ lexing source lineNo input
                  in case mbtoken of
                       Nothing    -> go st2  -- more
                       Just token -> let range = makeRange (startPos st) (before (pos st2))
-                                    in  -- trace ("result: " ++ showFullRange range ++ ": " ++ show token) $
-                                        seq range $ Lexeme range token : go st2{ startPos = pos st2 }
+                                        ltoken = lparen token (previousLex st1)                                        
+                                    in -- trace ("result: " ++ showFullRange range ++ ": " ++ show ltoken) $
+                                       seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
+
+        lparen token prev
+          = case token of
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(("  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[["  -- indexing
+              _ -> token
+
+        isApplyToken prev 
+          = case prev of
+              LexSpecial ")" -> True
+              LexSpecial "]" -> True
+              LexId _        -> True
+              LexCons _      -> True  
+              LexIdOp _      -> True
+              _              -> False
+                  
 
 before p
   = p{ posColumn = max 1 (posColumn p - 1 ) }

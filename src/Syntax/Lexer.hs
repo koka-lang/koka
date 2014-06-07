@@ -48,7 +48,7 @@ alex_deflt :: Array Int Int
 alex_deflt = listArray (0,195) [124,162,174,186,133,147,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,15,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
 
 alex_accept = listArray (0::Int,195) [AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAccNone,AlexAcc (alex_action_0),AlexAcc (alex_action_1),AlexAcc (alex_action_2),AlexAcc (alex_action_3),AlexAccPred  (alex_action_4) (alexPrevCharMatches(\c -> c >= '\n' && c <= '\n' || False))(AlexAcc (alex_action_18)),AlexAcc (alex_action_5),AlexAcc (alex_action_6),AlexAcc (alex_action_7),AlexAcc (alex_action_8),AlexAcc (alex_action_9),AlexAcc (alex_action_10),AlexAcc (alex_action_10),AlexAcc (alex_action_11),AlexAcc (alex_action_12),AlexAcc (alex_action_13),AlexAcc (alex_action_14),AlexAcc (alex_action_15),AlexAcc (alex_action_16),AlexAcc (alex_action_17),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_18),AlexAcc (alex_action_19),AlexAcc (alex_action_19),AlexAcc (alex_action_20),AlexAcc (alex_action_21),AlexAcc (alex_action_21),AlexAcc (alex_action_22),AlexAcc (alex_action_23),AlexAcc (alex_action_24),AlexAcc (alex_action_25),AlexAcc (alex_action_26),AlexAcc (alex_action_27),AlexAcc (alex_action_27),AlexAcc (alex_action_28),AlexAcc (alex_action_28),AlexAcc (alex_action_28),AlexAcc (alex_action_28),AlexAcc (alex_action_29),AlexAcc (alex_action_30),AlexAcc (alex_action_31),AlexAcc (alex_action_32),AlexAcc (alex_action_33),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_34),AlexAcc (alex_action_35),AlexAcc (alex_action_36),AlexAcc (alex_action_37),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_38),AlexAcc (alex_action_39),AlexAcc (alex_action_40),AlexAcc (alex_action_41),AlexAcc (alex_action_42),AlexAcc (alex_action_42),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_43),AlexAcc (alex_action_44),AlexAcc (alex_action_45),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_46),AlexAcc (alex_action_47),AlexAcc (alex_action_48),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49),AlexAcc (alex_action_49)]
-{-# LINE 183 "src\Syntax\Lexer.x" #-}
+{-# LINE 185 "src\Syntax\Lexer.x" #-}
 
 -----------------------------------------------------------
 -- helpers
@@ -130,6 +130,10 @@ isReserved :: String -> Bool
 isReserved name
   = Set.member name reservedNames
 
+isPrefix :: String -> Bool
+isPrefix name
+  = (name == "!" || name == "~")
+
 digitsToNum :: Num a => a -> String -> a
 digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
@@ -144,6 +148,7 @@ data State = State { pos      :: !Pos    -- current position
                    , retained :: ![BString]
                    , previous :: !Char
                    , current  :: !BString
+                   , previousLex :: Lex          
                    }
 
 type Action = BString -> State -> State -> (Maybe Lex, State)
@@ -224,7 +229,7 @@ lexer sourceName lineNo input
 lexing :: Source -> Int -> BString -> [Lexeme]
 lexing source lineNo input 
   = let initPos = makePos source 0 lineNo 1
-        initSt  = State initPos initPos [0] [] '\n' input
+        initSt  = State initPos initPos [0] [] '\n' input (LexWhite "")
     in go initSt
   where go st =
           -- trace ("scan: " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
@@ -245,8 +250,25 @@ lexing source lineNo input
                  in case mbtoken of
                       Nothing    -> go st2  -- more
                       Just token -> let range = makeRange (startPos st) (before (pos st2))
-                                    in  -- trace ("result: " ++ showFullRange range ++ ": " ++ show token) $
-                                        seq range $ Lexeme range token : go st2{ startPos = pos st2 }
+                                        ltoken = lparen token (previousLex st1)                                        
+                                    in -- trace ("result: " ++ showFullRange range ++ ": " ++ show ltoken) $
+                                       seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
+
+        lparen token prev
+          = case token of
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(("  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[["  -- indexing
+              _ -> token
+
+        isApplyToken prev 
+          = case prev of
+              LexSpecial ")" -> True
+              LexSpecial "]" -> True
+              LexId _        -> True
+              LexCons _      -> True  
+              LexIdOp _      -> True
+              _              -> False
+                  
 
 before p
   = p{ posColumn = max 1 (posColumn p - 1 ) }
@@ -280,6 +302,8 @@ alex_action_16 =  string $ LexIdOp . newQName . stripParens
 alex_action_17 =  string $ LexIdOp . newName . stripParens 
 alex_action_18 =  string $ \s -> if isReserved s
                                              then LexKeyword s "" 
+                                           else if isPrefix s 
+                                             then LexPrefix (newName s)
                                              else LexOp (newName s) 
 alex_action_19 =  string $ LexInt . digitsToNum 10 
 alex_action_20 =  string $ LexInt . digitsToNum 16 . drop 2 

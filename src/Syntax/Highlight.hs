@@ -91,12 +91,15 @@ showLexeme (Lexeme _ lex)
       LexId id      -> show id
       LexIdOp id    -> (if (isQualified id) then show (qualifier id) ++ "/" else "") ++ "(" ++ show (unqualify id) ++ ")"
       LexOp id      -> show id
+      LexPrefix id  -> show id
       LexWildCard id-> show id
       LexModule id _ -> show id
       LexCons id    -> show id
       LexTypedId id tp -> show id
       LexKeyword k _ -> k
-      LexSpecial s  -> s
+      LexSpecial s  | s == "((" -> "("
+                    | s == "[[" -> "["
+                    | otherwise -> s
       LexComment s  -> s
       LexWhite w    -> w
       LexInsLCurly  -> ""
@@ -214,6 +217,7 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
             LexOp id      -> fmt (if (isCtxType ctx) then (if (show id) `elem` ["<",">","|","::"] then TokTypeSpecial else TokTypeOp id) 
                                                      else TokOp id "") 
                                  (showOp (unqualify id))
+            LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
             LexInt i      -> fmt TokNumber (show i)
             LexFloat d    -> fmt TokNumber (show d)

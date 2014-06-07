@@ -37,13 +37,13 @@ testEx fname input
 layout :: Bool -> [Lexeme] -> [Lexeme]
 layout semiInsert lexemes
   = let semi f = if semiInsert then f else id
-        ls =  semi indentLayout $ 
+        ls =  -- semi indentLayout $ 
               -- semi lineLayout $
               removeWhite $ 
               associateComments $
               removeWhiteSpace $ 
               combineLineComments $ 
-              semi checkComments $ 
+              -- semi checkComments $ 
               lexemes
     in -- trace (unlines (map show (take 100 ls))) $
        seq (last ls) ls          
@@ -59,73 +59,6 @@ removeWhiteSpace lexemes
     lexemeIsWhiteSpace (Lexeme _ (LexWhite _)) = True
     lexemeIsWhiteSpace _ = False
 
-
-
-{----------------------------------------------------------
-  Semicolon insertion: assumes no whitespace
-----------------------------------------------------------}
-indentLayout :: [Lexeme] -> [Lexeme]
-indentLayout []     = [Lexeme rangeNull LexInsSemi]
-indentLayout (l:ls) = tail $
-                      brace 0 -- (posColumn (rangeStart (getRange l)))
-                            [] 
-                            (before (getRange l)) 
-                            (Lexeme (before (getRange l)) (LexSpecial "{"):l:ls)
-
-brace :: Int ->   [Int] -> Range -> [Lexeme] -> [Lexeme]
-brace layout layouts prevRng []
-  = [Lexeme (after prevRng) LexInsSemi] -- end of file
-brace layout layouts prevRng lexemes@(lexeme@(Lexeme rng lex):ls)
-  = case lex of
-      LexSpecial "{"
-        -> case ls of
-             [] -> check layout layouts prevRng lexemes
-             (Lexeme rng2 lex2 : _)
-                -> let layoutNew = startCol rng2
-                   in  checkNewLayout layoutNew rng2 lex2 ++
-                       check layoutNew (layout:layouts) rng lexemes
-      LexSpecial "}"
-        -> [Lexeme (after prevRng) LexInsSemi] ++
-           case layouts of
-             []     -> check 0 [] rng lexemes -- unbalanced braces
-             (i:is) -> check i is rng lexemes -- pop the layout stack
-      LexError _
-        -> lexeme : check layout layouts prevRng lexemes   -- ignore lexical errors 
-      _ -> check layout layouts prevRng lexemes
-  where
-    checkNewLayout layoutNew rng2 lex2
-      = if (layoutNew <= layout) 
-         then case lex2 of
-                LexSpecial "}" 
-                  -> []
-                _ -> [Lexeme rng2 (LexError ("layout start: line must be indented more than the enclosing layout context (column " ++ show layout ++ ")"))] 
-         else []
-
-
-check :: Int -> [Int] -> Range -> [Lexeme] -> [Lexeme]
-check layout layouts prevRng []
-  = []
-
-check layout layouts prevRng (lexeme@(Lexeme rng lex):ls)
-  = checkIndent ++
-    insertSemi ++
-    (lexeme : brace layout layouts rng ls)
-  where
-    newline = endLine prevRng < startLine rng 
-    indent  = startCol rng
-       
-    checkIndent 
-      = if (newline && indent < layout)
-         then [Lexeme rng (LexError ("layout: line must be indented at least as much as the enclosing layout context (column " ++ show layout ++ ")"))]
-         else []
-
-    insertSemi
-      = if (newline && indent == layout)
-         then case lex of
-                 LexSpecial s    |  s `elem` ["{","]",")"] -> []
-                 LexKeyword k _  |  k `elem` ["then","else","elif"] -> []
-                 _ -> [Lexeme (after prevRng) LexInsSemi]
-         else []
 
 
 -----------------------------------------------------------
@@ -196,6 +129,10 @@ combineLineComments lexs
               -> l : scan ls
           []  -> []
 
+{----------------------------------------------------------
+  Deprecated
+----------------------------------------------------------}
+
 -----------------------------------------------------------
 -- Check for comments in indentation
 -----------------------------------------------------------
@@ -218,9 +155,74 @@ checkComments lexemes
              then [Lexeme commentRng (LexError "layout: comments cannot be placed in the indentation of a line")]
              else []
 
+
 {----------------------------------------------------------
-  Deprecated
+  Semicolon insertion: assumes no whitespace
 ----------------------------------------------------------}
+indentLayout :: [Lexeme] -> [Lexeme]
+indentLayout []     = [Lexeme rangeNull LexInsSemi]
+indentLayout (l:ls) = tail $
+                      brace 0 -- (posColumn (rangeStart (getRange l)))
+                            [] 
+                            (before (getRange l)) 
+                            (Lexeme (before (getRange l)) (LexSpecial "{"):l:ls)
+
+brace :: Int ->   [Int] -> Range -> [Lexeme] -> [Lexeme]
+brace layout layouts prevRng []
+  = [Lexeme (after prevRng) LexInsSemi] -- end of file
+brace layout layouts prevRng lexemes@(lexeme@(Lexeme rng lex):ls)
+  = case lex of
+      LexSpecial "{"
+        -> case ls of
+             [] -> check layout layouts prevRng lexemes
+             (Lexeme rng2 lex2 : _)
+                -> let layoutNew = startCol rng2
+                   in  checkNewLayout layoutNew rng2 lex2 ++
+                       check layoutNew (layout:layouts) rng lexemes
+      LexSpecial "}"
+        -> [Lexeme (after prevRng) LexInsSemi] ++
+           case layouts of
+             []     -> check 0 [] rng lexemes -- unbalanced braces
+             (i:is) -> check i is rng lexemes -- pop the layout stack
+      LexError _
+        -> lexeme : check layout layouts prevRng lexemes   -- ignore lexical errors 
+      _ -> check layout layouts prevRng lexemes
+  where
+    checkNewLayout layoutNew rng2 lex2
+      = if (layoutNew <= layout) 
+         then case lex2 of
+                LexSpecial "}" 
+                  -> []
+                _ -> [Lexeme rng2 (LexError ("layout start: line must be indented more than the enclosing layout context (column " ++ show layout ++ ")"))] 
+         else []
+
+
+check :: Int -> [Int] -> Range -> [Lexeme] -> [Lexeme]
+check layout layouts prevRng []
+  = []
+
+check layout layouts prevRng (lexeme@(Lexeme rng lex):ls)
+  = checkIndent ++
+    insertSemi ++
+    (lexeme : brace layout layouts rng ls)
+  where
+    newline = endLine prevRng < startLine rng 
+    indent  = startCol rng
+       
+    checkIndent 
+      = if (newline && indent < layout)
+         then [Lexeme rng (LexError ("layout: line must be indented at least as much as the enclosing layout context (column " ++ show layout ++ ")"))]
+         else []
+
+    insertSemi
+      = if (newline && indent == layout)
+         then case lex of
+                 LexSpecial s    |  s `elem` ["{","]",")"] -> []
+                 LexKeyword k _  |  k `elem` ["then","else","elif"] -> []
+                 _ -> [Lexeme (after prevRng) LexInsSemi]
+         else []
+
+
 
 
 -----------------------------------------------------------

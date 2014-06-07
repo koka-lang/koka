@@ -1,7 +1,7 @@
 // Example of an imperative version of the fibonacci function;
 function main()
 {
-  n = 10
+  val n = 10
   println("fibonacci(" + n.show + ") is " + fib(n).show );
 }
 
@@ -11,7 +11,7 @@ function fib(n)
   var x := 0
   var y := 1
   repeat(n) {
-    y0 = y
+    val y0 = y
     y := x+y
     x := y0
   }
