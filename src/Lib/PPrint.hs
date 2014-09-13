@@ -504,7 +504,7 @@ displayP p w simpleDoc
 -- | Display a document on a 'Printer'.
 writePretty :: Printer p => p -> Doc -> IO ()
 writePretty p doc
-  = displayP p defaultWidth (renderPretty 0.8 defaultWidth doc)
+  = displayP p defaultWidth (renderPretty 0.5 defaultWidth doc)
 
 writePrettyLn :: Printer p => p -> Doc -> IO ()
 writePrettyLn p doc
@@ -526,7 +526,7 @@ hPutDoc handle doc
     
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
-  = TL.hPutStr handle (B.toLazyText $ renderPrettyB 0.8 width doc)
+  = TL.hPutStr handle (B.toLazyText $ renderPrettyB 0.5 width doc)
 
 writeDoc :: FilePath -> Doc -> IO ()
 writeDoc fpath doc

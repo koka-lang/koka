@@ -42,7 +42,7 @@ external groupsIndex( groups : any, index : int ) : string {
 
 external inline groupsMatchedOn( groups : any, index : int ) : int {
   cs "RegEx.GroupsMatchedOn"
-  js inline "(#1[#2] != null ? 1 : 0)"
+  js inline "(#1[#2] ? 1 : 0)"  // mmm, doesn't catch empty group match.. but FireFox does not distinguish those :-(
 } 
 
 // For alternative regular expressions, return the alternative that was matched.

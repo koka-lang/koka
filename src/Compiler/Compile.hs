@@ -834,7 +834,7 @@ codeGenJS term flags modules compileTarget outBase core
                        _                 -> Nothing
        let js    = javascriptFromCore mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
-       writeDoc outjs js 
+       writeDocW 80 outjs js 
        when (showAsmJavaScript flags) (termDoc term js)
 
        case mbEntry of

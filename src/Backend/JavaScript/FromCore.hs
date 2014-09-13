@@ -971,13 +971,13 @@ reserved
 
 block :: Doc -> Doc
 block doc
-  = text "{" <$> tab doc <$> text "}"        
+  = text "{" <$$> tab doc <$$> text "}"        
 
 
 tcoBlock :: Doc -> Doc
 tcoBlock doc
   = text "{ tailcall: while(1)" <$> 
-    text "{" <$> tab ( doc ) <$> text "}}" 
+    text "{" <$$> tab ( doc ) <$$> text "}}" 
 
 tailcall :: Doc
 tailcall  = text "continue tailcall;" 
