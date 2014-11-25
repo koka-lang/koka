@@ -221,7 +221,7 @@ function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
   val (cflagname,flagarg) = s.break('=')
   val opt = "--" + s
   val flagname     = cflagname.toLower
-  val baseflagname = if (flagname.startsWith("no")) then flagname.substr(2) else ""
+  val baseflagname = if (flagname.startsWith("no-") && flagname.length > 3) then flagname.substr(3) else ""
   
   val lnames   = flags.concat(fun(flag) { flag.llongNames } )
   val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
@@ -235,18 +235,22 @@ function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
       match(desc.arg) {
           Flag(set)
             -> if (flagarg == "")
-                then Flg(fun(o){ set(o, !(baseflagname!=""&&lnames.any(fun(name){name.startsWith(baseflagname)}))) })
+                then Flg(fun(o){ set(o, baseflagname=="") })
                elif (flagarg.toLower == "true")
                 then Flg(fun(o) { set(o,True) })
                elif (flagarg.toLower == "false")
                 then Flg(fun(o) { set(o,False) })
                 else errorNoarg(opt)
           Req(parse,help)
-            -> if (flagarg.length>0)
+            -> if (baseflagname!="")
+                then errorNegate(baseflagname)
+               elif (flagarg.length>0)
                 then Flg(fun(o) { parse(o,flagarg) })
                 else errorRequired(help,opt)
           Opt(parse)
-            -> if (flagarg.length>0)
+            -> if (baseflagname!="")
+                then errorNegate(baseflagname)
+               elif (flagarg.length>0)
                 then Flg(fun(o) { parse(o,Just(flagarg)) })
                 else Flg(fun(o) { parse(o,Nothing) } )
       }
@@ -297,6 +301,14 @@ function errorRequired( help, opt ) {
   return Error( "option \"" + opt + "\" requires an argument " + help)
 }
 
+function errorNegate( flagname ) {
+  return Error( "option \"--" + flagname + "\" cannot be negated" );
+}
+
+function errorNoarg( opt ) {
+  return Error( "option \"" + opt + "\" does not take an argument")
+}
+
 function errorUnknown( opt ) {
   return Error( errorUnknownMessage(opt) )
 }
@@ -304,11 +316,6 @@ function errorUnknown( opt ) {
 function errorUnknownMessage( opt ) {
   return ( "unrecognized option \"" + opt + "\"")
 }
-
-function errorNoarg( opt ) {
-  return Error( "option \"" + opt + "\" does not take an argument")
-}
-
 
 
 
