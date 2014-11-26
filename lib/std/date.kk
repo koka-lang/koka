@@ -57,20 +57,19 @@ external year( d : date ) : int {
   js inline "#1.getFullYear()"
 }
 
-// Get the month, starting at 0
+// Get the month, starting at 1
 external month( d : date ) : int {
-  js inline "#1.getMonth()"
+  js inline "#1.getMonth()+1"
 }
 
-// Get the day of the month, starting at 0
-// (Equivalent to javacript `getDate()-1`)
+// Get the day of the month, starting at 1
 external day( d : date ) : int {
-  js inline "#1.getDate()-1"
+  js inline "#1.getDate()"
 }
 
 // return the ISO date in local time
 function isoLocalDate( d : date ) : string {
-  d.year.show + "-" + (d.month + 1).show2 + "-" + (d.day+1).show2
+  d.year.show + "-" + d.month.show2 + "-" + d.day.show2
 }
 
 // return the ISO time in local time
@@ -78,6 +77,6 @@ function isoLocalTime( d : date ) : string {
   d.hours.show2 + ":" + d.minutes.show2 + ":" + d.seconds.show2
 }
 
-private function show2( i : int ) : string {
+function show2( i : int ) : string {
   i.show.align(2,'0')
 } 
