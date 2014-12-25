@@ -682,6 +682,13 @@ function filter( xs : list<a>, pred : a -> bool ) : list<a>
   }
 }
 
+
+// Remove those elements of a list that satisfy the given predicate "pred".
+// For example: "remove([1,2,3],odd) == [2]"
+function remove( xs : list<a>, pred : a -> bool ) : list<a> {
+  xs.filter( fun(x) { !pred(x) } )
+}
+
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate "pred".
 // For example: "partition([1,2,3],odd) == ([1,3],[2])"
@@ -1257,7 +1264,18 @@ function even( i ) {
 // Return the sum of a list of integers
 function sum( xs : list<int> ) : int
 {
-  xs.foldl( 0, (+) )
+  xs.foldl( 0, fun(x,y) { x + y } )
+}
+
+// Parse an integer using `parseInt`. If an illegal digit character is encountered the 
+// `default` value is returned. An empty string will also result in `default`.
+function parseIntDefault( s : string, default : int = 0, hex : bool = False ) : int {
+  if (s.isEmpty) then default else {
+    match( s.parseInt(hex) ) {
+      Nothing -> default
+      Just(i) -> i
+    }
+  }
 }
 
 // Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
@@ -1836,6 +1854,11 @@ function string( ms : maybe<string> ) : string {
     Nothing -> ""
     Just(s) -> s
   }
+}
+
+// Is a string empty?
+function isEmpty( s : string ) : bool {
+  s == ""
 }
 
 /*
