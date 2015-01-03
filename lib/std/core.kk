@@ -272,7 +272,7 @@ type bool {
 
 function int( b : bool ) : int = if (b) then 1 else 0
 
-function bool( i : int ) : bool = if (i==0) then False else True
+function bool( i : int ) : bool = (i!=0)
 
 function bool( m : maybe<a> ) : bool {
   match(m) {
@@ -280,6 +280,8 @@ function bool( m : maybe<a> ) : bool {
     _       -> True
   }
 }
+
+function bool( s : string ) : bool = (s!="")
 
 // The unit type ":()" is inhabited by just a single value, namely "()".
 // See also the ":void" type and the ":bool" type.
@@ -1325,6 +1327,37 @@ private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) 
   }
 }
 
+
+public function parseFixed( s : string ) : maybe<double> {
+  match(s.split(".",2).list) {
+    Cons(pre,Cons(post,Nil)) -> {
+      match(pre.parseInt) {
+        Nothing -> Nothing
+        Just(d) -> match(post.parseInt) {
+          Nothing -> Nothing
+          Just(f) -> {
+            if (f < 0) then Nothing
+            elif (f == 0) then Just(d.double)
+            else Just( d.double + (10.0^(post.length.double) / f.double) )
+          }
+        }
+      }
+    }
+    _ -> match(s.parseInt) {
+      Nothing -> Nothing
+      Just(i) -> Just(i.double)
+    }
+  }
+}
+
+public function parseFixedDefault( s : string, default : double = 0.0 ) : double {
+  match(s.parseFixed) {
+    Nothing -> default
+    Just(d) -> d
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Doubles
 // ----------------------------------------------------------------------------
@@ -1743,6 +1776,11 @@ function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
 
 // Append two strings.
 external inline (+) : (string,string) -> string = inline "(#1 + #2)"
+
+// Choose a non-empty string
+function (||)( x : string, y : string ) : string {
+  if (x.isEmpty) then y else x 
+}
 
 // Return the `n` th character in a string `s` . 
 // Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
