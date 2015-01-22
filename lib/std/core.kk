@@ -272,6 +272,13 @@ type bool {
 
 function int( b : bool ) : int = if (b) then 1 else 0
 
+function int( m : maybe<int> ) : int {
+  match(m) {
+    Nothing -> 0
+    Just(i) -> i
+  }
+}
+
 function bool( i : int ) : bool = (i!=0)
 
 function bool( m : maybe<a> ) : bool {
@@ -898,7 +905,7 @@ function []( xs : list<a>, n : int ) : maybe<a>
 {
   match(xs) {
     Cons(x,xx) -> if (n==0) then Just(x) else xx[n-1]
-    Nil        -> Nothing
+    Nil -> Nothing
   }
 }
 
