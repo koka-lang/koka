@@ -65,7 +65,7 @@ private external inline unitPrepend( b : builder<h>, s : string ) : write<h> () 
 }
 
 // O(n). Read the current string from a string builder.
-public external inline string( b : builder<h> ) : read<h> string {
+public external inline build( b : builder<h> ) : read<h> string {
   cs inline "(#1).ToString()"
   js inline "(#1).value"
 }

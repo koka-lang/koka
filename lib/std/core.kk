@@ -893,11 +893,12 @@ function init( xs : list<a> ) : list<a>
   }
 }
 
-// Get (zero-based) element `n`  of a list. Raise an exception on an out-of-bounds access.
-function []( xs : list<a>, n : int ) : exn a
+// Get (zero-based) element `n`  of a list. Return a `:maybe` type.
+function []( xs : list<a>, n : int ) : maybe<a>
 {
   match(xs) {
-    Cons(x,xx) -> if (n==0) then x else xx[n-1]
+    Cons(x,xx) -> if (n==0) then Just(x) else xx[n-1]
+    Nil        -> Nothing
   }
 }
 
@@ -1887,7 +1888,7 @@ function string( n : int, c : char ) : string
 }
 
 // Convert a ":maybe" string to a string using the empty sting for "Nothing"
-function string( ms : maybe<string> ) : string {
+function mbstring( ms : maybe<string> ) : string {
   match(ms) {
     Nothing -> ""
     Just(s) -> s
