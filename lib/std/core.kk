@@ -272,7 +272,7 @@ type bool {
 
 function int( b : bool ) : int = if (b) then 1 else 0
 
-function int( m : maybe<int> ) : int {
+function mbint( m : maybe<int> ) : int {
   match(m) {
     Nothing -> 0
     Just(i) -> i
