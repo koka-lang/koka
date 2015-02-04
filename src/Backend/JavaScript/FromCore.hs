@@ -527,8 +527,11 @@ genExpr expr
                 -- | isFunExpr f
                -- -> 
                --  | otherwise
-               -> do (decls,fdoc:docs) <- genExprs (f:args) 
-                     return (vcat decls, fdoc <> tupled docs <> debugComment "genExpr: App")
+               -> case extractList expr of
+                    Just (xs,tl) -> genList xs tl
+                    Nothing  
+                      -> do (decls,fdoc:docs) <- genExprs (f:args) 
+                            return (vcat decls, fdoc <> tupled docs <> debugComment "genExpr: App")
 
              Let groups body 
                -> do decls1       <- genGroups groups
@@ -541,6 +544,26 @@ genExpr expr
                      return (doc, nameDoc)
 
              _ -> failure ("JavaScript.FromCore.genExpr: invalid expression:\n" ++ show expr)
+
+extractList :: Expr -> Maybe ([Expr],Expr)
+extractList e
+  = let (elems,tl) = extract [] e
+    in if (length elems > 10) -- only use inlined array for larger lists
+        then Just (elems,tl) 
+        else Nothing
+  where
+    extract acc expr
+      = case expr of
+          App (TypeApp (Con name info) _) [hd,tl]  | getName name == nameCons
+            -> extract (hd:acc) tl
+          _ -> (reverse acc, expr)
+
+genList :: [Expr] -> Expr -> Asm (Doc,Doc)
+genList elems tl
+  = do (decls,docs) <- genExprs elems
+       (tdecl,tdoc) <- genExpr tl
+       return (vcat (decls ++ [tdecl]), text "$std_core.conslist" <> tupled [list docs, tdoc])
+
 
 genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
 genExternalExpr tname format args 

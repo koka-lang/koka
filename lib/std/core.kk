@@ -230,6 +230,12 @@ type optional<a> {
 }
 
 
+type primarray<a>
+
+external conslist( elems: primarray<a>, tail : list<a> ) : total list<a> {
+  js "$list"
+}
+
 // ----------------------------------------------------------------------------
 // Standard functions
 // ----------------------------------------------------------------------------
@@ -423,7 +429,6 @@ function list( lo : char, hi : char ) : total list<char>
 {
   list(lo.int, hi.int).map( char )
 }
-
 
 private val maxListStack = 200
 
@@ -2498,3 +2503,4 @@ external getHost() : ndet string {
   cs inline "\"dotnet\""
   js inline "($inBrowser ? 'browser' : ($inWebWorker ? 'worker' : 'nodejs'))"
 }
+
