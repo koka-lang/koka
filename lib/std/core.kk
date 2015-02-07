@@ -1397,8 +1397,8 @@ function compare( x : double, y : double) : order
 
 
 // Convert a ":double" to ":int" using "round" to round the double to its nearest integer.
-// Raises an overflow exception if the double is larger than "maxInt" or smaller than "minInt".
-external inline int : (double) -> exn int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
+// if the double is larger than "maxInt" or smaller than "minInt" just the lower 32 bits are returned.
+external inline unsafeInt : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
 
 private external inline getNan : () -> double { 
   cs inline "double.NaN";
@@ -1428,6 +1428,14 @@ private external inline getMinDouble : () -> double {
 private external inline getEpsilon : () -> double { 
   cs inline "double.Epsilon";
   js inline "(4.94065645841247e-324)"
+}
+
+// convert a ":double" to an ":int" using "round" to round to its nearest integer.
+// If the double is larger than "maxInt" or smaller than "minInt" this returns "default" (=0)
+public function int(d : double, default : int = 0 ) : int {
+  if (d > maxInt.double || d < minInt.double)
+   then default
+   else d.unsafeInt
 }
 
 // Represents a value that is _not a number_ (NaN)
