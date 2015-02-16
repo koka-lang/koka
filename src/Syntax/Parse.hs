@@ -1092,6 +1092,8 @@ patAtom
   <|>
     do (_,range) <- wildcard
        return (PatWild range)
+  <|> 
+    do listPattern
   <|>
     do (ps,rng) <- parensCommasRng lparen namedPattern
        case ps of
@@ -1119,6 +1121,22 @@ maybeTypeAnnot def f
   <|>
     return def
 
+
+listPattern :: LexParser UserPattern
+listPattern
+  = do rng1 <- special "[" <?> ""
+       es <- sepEndBy pattern comma 
+       rng2 <- special "]"
+       if null es 
+        then return (makeNilPat (combineRange rng1 rng2))
+        else let pat = (foldr makeConsPat (makeNilPat (after rng2)) (es)) :: UserPattern
+             in return (PatParens pat (combineRange rng1 rng2))
+
+makeNilPat :: Range -> UserPattern
+makeNilPat rng   = PatCon nameNull [] rng rng
+
+makeConsPat :: UserPattern -> UserPattern -> UserPattern
+makeConsPat x xs = PatCon nameCons [(Nothing,x),(Nothing,xs)] (getRange x) (getRange x) 
 
 
 
