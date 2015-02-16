@@ -29,10 +29,9 @@ public external inline trimRight( s : string ) : string {
 }
 
 public function indent( s : string, n : int = 2, c : char = ' ' ) {
+  if (n<=0) return s
   val pre = string(n,c)
   s.lines.map( fun(line) { pre + line } ).unlines
-}
-
 }
 
 /* --------------------------------------
