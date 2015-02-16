@@ -28,11 +28,11 @@ public external inline trimRight( s : string ) : string {
   js inline "((#1).replace(/\\s+$/,''))"
 }
 
-// Indent every line in a string with _n_ (=2) `c` (=`' '`) characters
-public function indent( s : string, n : int = 2, c : char = ' ') {
-  val pre = string(2,c)
-  if (n <= 0) return s
+public function indent( s : string, n : int = 2, c : char = ' ' ) {
+  val pre = string(n,c)
   s.lines.map( fun(line) { pre + line } ).unlines
+}
+
 }
 
 /* --------------------------------------
