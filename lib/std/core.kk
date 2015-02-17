@@ -386,6 +386,18 @@ function (<=)( x : order, y : order ) : bool = (x.int <= y.int)
 function (>)( x : order, y : order ) : bool = (x.int > y.int)
 function (<)( x : order, y : order ) : bool = (x.int < y.int)
 
+function map( t : (a,a), f : a -> e b ) : e (b, b) {
+  (t.fst.f, t.snd.f)
+}
+
+function map( t : (a,a,a), f : a -> e b ) : e (b, b, b) {
+  (t.fst.f, t.snd.f, t.thd.f)
+}
+
+function map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b) {
+  (t.fst.f, t.snd.f, t.thd.f, t.field4.f)
+}
+
 // ----------------------------------------------------------------------------
 // List functions
 // ----------------------------------------------------------------------------
@@ -2069,6 +2081,12 @@ external toLower : (s : string) -> string {
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()" 
 }
+
+function capitalize( s : string ) : string {
+  s.substr(0,1).toUpper + s.substr(1)
+}
+
+
 
 
 // ----------------------------------------------------------------------------
