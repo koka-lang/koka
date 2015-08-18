@@ -79,7 +79,9 @@ task("default",["interactive"]);
 
 desc("build and run the compiler (default)");
 task("interactive", ["config","compiler"], function(rebuild) {
-  var cmd = mainExe + " " + hsRunFlags + " --outdir=" + path.join(outputDir,"lib") + " " + kokaFlags;
+  var libDir = path.join(outputDir,libraryDir);
+  jake.mkdirP(libDir);
+  var cmd = mainExe + " " + hsRunFlags + " --outdir=" + libDir + " " + kokaFlags;
   jake.logger.log("> " + cmd);
   jake.exec(cmd + " 2>&1", {interactive: true});
 },{async:true});
