@@ -14,6 +14,7 @@ module Backend.CSharp.FromCore( csharpFromCore
                               -- , arityMapInit, externalMapInit 
                               ) where
 
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.Char( isDigit )
 import Data.List( transpose )

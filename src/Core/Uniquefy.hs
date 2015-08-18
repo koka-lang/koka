@@ -14,6 +14,7 @@ module Core.Uniquefy ( uniquefy
                      ) where
 
 import Control.Monad
+import Control.Applicative
 import Common.Name
 import qualified Common.NameSet as S
 import qualified Common.NameMap as M

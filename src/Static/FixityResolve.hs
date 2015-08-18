@@ -18,6 +18,7 @@ module Static.FixityResolve( fixityResolve
                            where
 
 -- import Lib.Trace
+import Control.Applicative
 import Control.Monad
 import qualified Common.NameMap as M
 import Lib.PPrint       
@@ -266,7 +267,7 @@ ambigious fixCtx fix op
     where
       opText  = case op of
                   Var name _ _  -> pretty name <> space
-                  _             -> empty
+                  _             -> Lib.PPrint.empty
 
 ppFixity (FixInfix prec assoc)
   = case assoc of

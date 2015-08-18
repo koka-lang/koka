@@ -63,6 +63,7 @@ module Type.InferMonad( Inf, InfGamma
                       ) where
 
 import Data.List( partition, sortBy)
+import Control.Applicative
 import Control.Monad
 import Lib.PPrint
 import Common.Range
@@ -1144,7 +1145,7 @@ caseOverlaps name qname info
         else Nothing
     
 ppOr :: Pretty.Env -> [Name] -> Doc
-ppOr env []     = empty
+ppOr env []     = Lib.PPrint.empty
 ppOr env [name] = Pretty.ppName env name
 ppOr env names  = hcat (map (\name -> Pretty.ppName env name <> text ", ") (init names)) <+> text "or" <+> Pretty.ppName env (last names)
 

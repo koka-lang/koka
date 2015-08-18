@@ -22,6 +22,8 @@ module Kind.InferMonad( KInfer
                       , infQualifiedName
                       )  where
 
+
+import Control.Applicative
 import Control.Monad
 
 import Lib.PPrint

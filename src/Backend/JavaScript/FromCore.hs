@@ -10,6 +10,7 @@ module Backend.JavaScript.FromCore
       ( javascriptFromCore )
  where
 
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List ( intersperse )
 import Data.Char

@@ -33,6 +33,7 @@ import Data.Char              ( isAlphaNum )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath )
 import Data.List              ( isPrefixOf )
+import Control.Applicative 
 import Control.Monad          ( ap, when )
 import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
@@ -744,14 +745,14 @@ codeGen term flags compileTarget loaded
                
        let env      = (prettyEnvFromFlags flags){ context = loadedName loaded, importsMap = loadedImportMap loaded }
            outIface = outBase ++ ifaceExtension
-           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (modCore mod) <-> empty
+           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (modCore mod) <-> Lib.PPrint.empty
        
        -- create output directory if it does not exist
        createDirectoryIfMissing True (dirname outBase)
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False } (modCore mod) <-> empty                 
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False } (modCore mod) <-> Lib.PPrint.empty                 
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging

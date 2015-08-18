@@ -14,6 +14,7 @@
 module Core.Divergent( analyzeDivergence ) where
 
 -- import Lib.Trace
+import Control.Applicative
 import Control.Monad
 import Data.List( transpose, permutations )
 import Common.Name

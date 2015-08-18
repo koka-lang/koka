@@ -19,6 +19,7 @@ module Type.Unify ( Unify, UnifyError(..), runUnify
                   , extractNormalizeEffect
                   ) where
 
+import Control.Applicative
 import Control.Monad
 import Common.Range
 import Common.Unique
