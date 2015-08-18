@@ -658,7 +658,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
         then return ()
         else if (any (occursNegative recNames) (concatMap (map snd . conInfoParams) infos))
               then do cs <- getColorScheme
-                      addError range (text "Type" <+> color (colorType cs) (pretty (unqualify (getName newtp'))) <+> text "is declared as being (co)inductive but it occurs" <$> text " recursively in a negative position." <$>
+                      addError range (text "Type" <+> color (colorType cs) (pretty (unqualify (getName newtp'))) <+> text "is declared as being (co)inductive but it occurs" <-> text " recursively in a negative position." <->
                                      text " hint: declare it as a 'rectype' to allow negative occurrences")
               else return ()
        -- trace (showTypeBinder newtp') $
@@ -809,7 +809,7 @@ resolveApp idmap partialSyn (TpVar name r,args) rng
   = do (tp',kind) <- case M.lookup name idmap of
                       Nothing   -> do cs <- getColorScheme
                                       -- failure ("Kind.Infer.ResolveApp: cannot find: " ++ show name ++ " at " ++ show rng)                 
-                                      addError rng (text "Type variable" <+> color (colorType cs) (pretty name) <+> text "is undefined" <$>
+                                      addError rng (text "Type variable" <+> color (colorType cs) (pretty name) <+> text "is undefined" <->
                                                     text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> pretty name <> text ">"))
                                       id <- uniqueId (show name)
                                       return (TVar (TypeVar id kindStar Bound), kindStar)

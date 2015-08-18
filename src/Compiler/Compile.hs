@@ -33,7 +33,7 @@ import Data.Char              ( isAlphaNum )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath )
 import Data.List              ( isPrefixOf )
-import Control.Monad          ( when )
+import Control.Monad          ( ap, when )
 import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
@@ -118,6 +118,10 @@ lift ie   = IOErr ie
 
 instance Functor IOErr where
   fmap f (IOErr ie)  = IOErr (fmap (fmap f) ie)
+
+instance Applicative IOErr where
+  pure  = return
+  (<*>) = ap
 
 instance Monad IOErr where
   return x          = IOErr (return (return x))
@@ -205,7 +209,7 @@ errorFileNotFound flags name
   = ErrorIO $ text "error:" <+> errorNotFound flags colorSource "" (text name)
 
 errorNotFound flags clr kind namedoc
-  = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <$>
+  = text ("could not find" ++ (if null kind then "" else (" " ++ kind)) ++ ":") <+> color (clr cscheme) namedoc <->
     text "search path:" <+> prettyIncludePath flags 
   where
     cscheme = colorSchemeFromFlags flags
@@ -359,14 +363,14 @@ compileProgram' term flags modules compileTarget fname program
              Executable entryName _
                -> let mainName = if (isQualified entryName) then entryName else qualify (getName program) (entryName) in
                   case map infoType (gammaLookupQ mainName (loadedGamma loaded2)) of
-                     []   -> errorMsg (ErrorGeneral rangeNull (text "there is no 'main' function defined" <$> text "hint: use the '-l' flag to generate a library?"))
+                     []   -> errorMsg (ErrorGeneral rangeNull (text "there is no 'main' function defined" <-> text "hint: use the '-l' flag to generate a library?"))
                      tps  -> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
                                  isMainType tp = case expandSyn tp of
                                                    TFun [] eff resTp  -> True -- resTp == typeUnit
                                                    _                  -> False
                              in case filter isMainType tps of
                                [tp] -> return (Executable mainName tp)
-                               []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <$> 
+                               []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <-> 
                                                                                       table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
                                                                                             ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head tps))]))
                                _    -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
@@ -740,14 +744,14 @@ codeGen term flags compileTarget loaded
                
        let env      = (prettyEnvFromFlags flags){ context = loadedName loaded, importsMap = loadedImportMap loaded }
            outIface = outBase ++ ifaceExtension
-           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (modCore mod) <$> empty
+           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (modCore mod) <-> empty
        
        -- create output directory if it does not exist
        createDirectoryIfMissing True (dirname outBase)
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False } (modCore mod) <$> empty                 
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False } (modCore mod) <-> empty                 
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
@@ -935,7 +939,7 @@ ifaceExtension
 compilerCatch comp term defValue io 
   = io `catchSystem` \msg -> 
     do (termError term) (ErrorIO (hang 2 $ text ("failure while running " ++ comp ++ ":")
-                                           <$> (fillSep $ map string $ words msg)))
+                                           <-> (fillSep $ map string $ words msg)))
        return defValue
 
 

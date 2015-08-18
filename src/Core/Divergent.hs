@@ -14,6 +14,7 @@
 module Core.Divergent( analyzeDivergence ) where
 
 -- import Lib.Trace
+import Control.Monad
 import Data.List( transpose, permutations )
 import Common.Name
 import Common.NamePrim( nameSubStr1, namesSameSize )
@@ -100,6 +101,10 @@ runDiv defName args (Div d)
 
 instance Functor Div where
   fmap f (Div d)   = Div (\rel -> case d rel of (x,calls) -> (f x, calls))
+
+instance Applicative Div where
+  pure  = return
+  (<*>) = ap  
 
 instance Monad Div where
   return x  = Div (\rel -> (x,[]))

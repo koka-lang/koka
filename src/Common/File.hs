@@ -43,7 +43,7 @@ import Platform.Config  ( pathSep, pathDelimiter )
 import qualified Platform.Runtime as B ( copyBinaryFile )
 import Common.Failure   ( raiseIO, catchIO )
  
-import System.Cmd       ( system )
+import System.Process   ( system )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getProgName )
 import System.Directory ( doesFileExist, doesDirectoryExist

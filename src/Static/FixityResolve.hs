@@ -18,6 +18,7 @@ module Static.FixityResolve( fixityResolve
                            where
 
 -- import Lib.Trace
+import Control.Monad
 import qualified Common.NameMap as M
 import Lib.PPrint       
 import Common.Failure( failure )
@@ -147,6 +148,13 @@ runFixM fixities (FixM f)
   = case f fixities of
       Res x errors -> if null errors then return x else errorMsg (ErrorStatic errors)
 
+instance Functor FixM where
+  fmap  = liftM
+
+instance Applicative FixM where
+  pure  = return
+  (<*>) = ap      
+
 instance Monad FixM where
   return x          = FixM (\fixmap -> Res x [])
   (FixM fm) >>= f   = FixM (\fixmap -> case fm fixmap of
@@ -253,7 +261,7 @@ ambigious :: Fixity -> Fixity -> UserExpr -> FixM ()
 ambigious fixCtx fix op
     = emitError (getRange op) 
                 (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <> text "in a" 
-                  <+> ppFixity fixCtx <+> text "context" <$>
+                  <+> ppFixity fixCtx <+> text "context" <->
                  text " hint: add parenthesis around the sub-expression to disambiguate")        
     where
       opText  = case op of

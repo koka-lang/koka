@@ -23,7 +23,7 @@ module Lib.PPrint
         , (<>)
         , (<+>)
         , (</>), (<//>)
-        , (<$>), (<$$>)
+        , (<->), (<-->)
 
         , sep, fillSep, hsep, vsep
         , cat, fillCat, hcat, vcat
@@ -69,7 +69,7 @@ import qualified Data.Text.Lazy.IO as TL
 
 import Data.Monoid (mempty, mappend)
 
-infixr 5 </>,<//>,<$>,<$$>
+infixr 5 </>,<//>,<->,<-->
 infixr 6 <>,<+>
 
 isEmptyDoc :: Doc -> Bool
@@ -108,12 +108,12 @@ punctuate p (d:ds)  = (d <> p) : punctuate p ds
 sep             = group . vsep
 fillSep         = fold (</>)
 hsep            = fold (<+>)
-vsep            = fold (<$>) . filter (not . isEmpty)
+vsep            = fold (<->) . filter (not . isEmpty)
 
 cat             = group . vcat
 fillCat         = fold (<//>)
 hcat            = fold (<>) 
-vcat            = fold (<$$>) . filter (not . isEmpty)
+vcat            = fold (<-->) . filter (not . isEmpty)
 
 fold f []       = empty
 fold f ds       = foldr1 f ds
@@ -127,11 +127,11 @@ x </> y         = x <> softline <> y
 
 x <//> y        = x <> softbreak <> y
 
-Empty <$> x     = x
-x <$> Empty     = x
-x <$> y         = x <> line <> y
+Empty <-> x     = x
+x <-> Empty     = x
+x <-> y         = x <> line <> y
 
-x <$$> y        = x <> linebreak <> y
+x <--> y        = x <> linebreak <> y
 
 softline        = group line
 softbreak       = group linebreak

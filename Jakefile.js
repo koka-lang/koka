@@ -97,7 +97,7 @@ task("compiler", [], function(rebuild) {
 
 desc("load the compiler in ghci");
 task("ghci", ["compiler"], function(module) {
-  var cmd = "ghci out\\debug\\Platform\\cconsole.o" + hsRunFlags + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
+  var cmd = "ghci out/debug/Platform/cconsole.o" + hsRunFlags + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
                 + " " + path.join(sourceDir,(module ? module + ".hs" : "Main.hs"));
   jake.logger.log("> " + cmd);
   jake.exec(cmd + " 2>&1", {interactive: true});  
@@ -289,7 +289,7 @@ else if (jake.program.opts.tasks) {
 // Note: the sources must be given in a canonical build order.
 //-----------------------------------------------------
 var cSources = [
-  cSource("Platform/cconsole.c",[sourcePath("Platform/cconsole.h")]), 
+  cSource("Platform/cconsole.c",[sourcePath("Platform/cconsole.h")],"-fPIC"), 
 ];
 
 // small helper to quote pre-processor define options in Platform.Config

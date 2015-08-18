@@ -225,8 +225,8 @@ prettyDataInfo env0 showBody publicOnly info@(DataInfo datakind name kind args c
       (if null args then empty else space <> angled (map (ppTypeVar env) args)) <>
       (if kind /= kindStar then text " ::" <+> ppKind (colors env) 0 kind else empty) <+> 
       (if (showBody && not (null cons))
-        then (text "{" <$> 
-              indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <$> text "}")
+        then (text "{" <-> 
+              indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <-> text "}")
         else empty))
 
 prettyConInfo env publicOnly (vis,ConInfo conName ntname exists fields scheme sort range paramRanges singleton doc)
@@ -247,7 +247,7 @@ prettyConInfo env publicOnly (vis,ConInfo conName ntname exists fields scheme so
 prettyComment env comment doc
   = if null comment then doc 
     else let cmt = if last comment == '\n' then init comment else comment
-         in color (colorComment (colors env)) (text cmt) <$> doc
+         in color (colorComment (colors env)) (text cmt) <-> doc
 
 
 ppVis env vis

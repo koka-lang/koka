@@ -234,9 +234,11 @@ hexesc
                  do{ char 'U'; count 4 hexDigit }
        return (toEnum (fromInteger (digitsToNum 16 digits)))  -- TODO: check overflow
 
+charesc :: Parser Char
 charesc         
   = choice (map parseEsc escMap)
  where
+    parseEsc :: (Char,Char) -> Parser Char
     parseEsc (c,code) = do{ char c; return code }
     escMap            = zip ("bfnrt\\/\"")
                             ("\b\f\n\r\t\\/\"")

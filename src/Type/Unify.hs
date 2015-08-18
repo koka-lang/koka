@@ -19,6 +19,7 @@ module Type.Unify ( Unify, UnifyError(..), runUnify
                   , extractNormalizeEffect
                   ) where
 
+import Control.Monad
 import Common.Range
 import Common.Unique
 import Common.Failure
@@ -429,6 +430,10 @@ instance Functor Unify where
   fmap f (Unify u)  = Unify (\st1 -> case u st1 of
                                        Ok x st2 -> Ok (f x) st2
                                        Err err st2 -> Err err st2)
+
+instance Applicative Unify where
+  pure  = return
+  (<*>) = ap
 
 instance Monad Unify where
   return x          = Unify (\st -> Ok x st)

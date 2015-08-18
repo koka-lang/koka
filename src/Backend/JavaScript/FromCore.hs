@@ -10,6 +10,7 @@ module Backend.JavaScript.FromCore
       ( javascriptFromCore )
  where
 
+import Control.Monad
 import Data.List ( intersperse )
 import Data.Char
 -- import Data.Maybe
@@ -68,13 +69,13 @@ genModule mbMain core
         let imports = map importName (coreProgImports core)
             mainEntry = case mbMain of
                           Nothing -> empty
-                          Just (name) -> text " " <$> text "// koka main entry:" <$> 
+                          Just (name) -> text " " <-> text "// koka main entry:" <-> 
                                            ppName (unqualify name) <> text "();"
         return $  text "// koka generated module: " <> string (showName (coreProgName core)) 
-              <$> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
-              <$> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <$> 
+              <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
+              <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 
                    list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <> comma <+>
-                   text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <$>
+                   text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
                     , text " "
@@ -95,7 +96,7 @@ genModule mbMain core
                                      <> semi 
                     ])
                  ) 
-              <$> text "});"
+              <-> text "});"
   where
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
@@ -231,7 +232,7 @@ genTypeDef (Data info _ _)
 
                     ) $ zip (dataInfoConstrs $ info) conReprs
        return $ debugComment ( "Value constructors for type '" ++ (show $ dataInfoName info) ++ "' (" ++ (show dataRepr) ++ ")" )
-            <$> vcat docs
+            <-> vcat docs
   where
     genConstr penv c repr name args tagFields
       = if null args
@@ -257,7 +258,7 @@ getResult result doc
              ResultAssign n ml -> ( if isWildcard n
                                       then doc <> semi
                                       else text "var" <+> ppName (unqualify n) <+> text "=" <+> doc <> semi
-                                  ) <$> case ml of
+                                  ) <-> case ml of
                                           Nothing -> empty 
                                           Just l  -> text "break" <+> ppName l <> semi 
 
@@ -271,7 +272,7 @@ tryTailCall result expr
                           )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <$> tailcall
+             return $ Just $ block $ stmts <-> tailcall
 
      -- Tailcall case 2
      App (TypeApp (Var n _) _) args | ( case result of
@@ -280,7 +281,7 @@ tryTailCall result expr
                                       )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <$> tailcall
+             return $ Just $ block $ stmts <-> tailcall
 
      _ -> return Nothing
   where
@@ -295,7 +296,7 @@ tryTailCall result expr
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
                                             else debugComment ("genOverride: preparing tailcall") <> p <+> text "=" <+> a <> semi
                                 ) (zip docs1 docs2)
-           return $ vcat stmts <$> vcat assigns
+           return $ vcat stmts <-> vcat assigns
 
 -- | Generates a statement from an expression by applying a return context (deeply) inside
 genStat :: Result -> Expr -> Asm Doc
@@ -304,7 +305,7 @@ genStat result expr
     case extractExternal expr of
       Just (tn,fs,es)
         -> do (statDoc, exprDoc) <- genExternalExpr tn fs es 
-              return (statDoc <$> getResult result exprDoc)
+              return (statDoc <-> getResult result exprDoc)
       Nothing
         -> do mdoc <- tryTailCall result expr 
               case mdoc of
@@ -326,16 +327,16 @@ genStat result expr
                                                                                          return (sd, vd)
                                                                          ) exprs
                                  doc                <- genMatch result scrutinees branches
-                                 return (vcat docs <$> doc)
+                                 return (vcat docs <-> doc)
 
                         Let groups body
                           -> do doc1 <- genGroups groups
                                 doc2 <- genStat result body
-                                return (doc1 <$> doc2)
+                                return (doc1 <-> doc2)
 
                         -- Handling all other cases
                         _ -> do (statDoc,exprDoc) <- genExpr expr
-                                return (statDoc <$> getResult result exprDoc)
+                                return (statDoc <-> getResult result exprDoc)
 
 -- | Generates a statement for a match expression regarding a given return context
 genMatch :: Result -> [Doc] -> [Branch] -> Asm Doc
@@ -354,13 +355,13 @@ genMatch result scrutinees branches
                    -> do (stmts1, expr1) <- genExpr r1
                          (stmts2, expr2) <- genExpr r2
                          tnameDocs       <- mapM genTName tnames
-                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts1 <$> text "return" <+> expr1 <> semi)
-                                                        <$> text "else" <+> block (stmts2 <$> text "return" <+> expr2 <> semi)
+                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts1 <-> text "return" <+> expr1 <> semi)
+                                                        <-> text "else" <+> block (stmts2 <-> text "return" <+> expr2 <> semi)
                  Con tn _
                     | getName tn == nameTuple 0
                    -> do (stmts, expr) <- genExpr r1
                          tnameDocs     <- mapM genTName tnames
-                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts <$> text "return" <+> expr <> semi)
+                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts <-> text "return" <+> expr <> semi)
                  _ -> fail "Backend.JavaScript.genMatch: found something different than () or return in explicit return"
 -}
         [Branch [p1] [Guard t1 e1], Branch [p2] [Guard t2 e2]]
@@ -384,7 +385,7 @@ genMatch result scrutinees branches
           -> do xs <- mapM (genBranch True result scrutinees) bs
                 return $  debugWrap "genMatch: guard-free case"
                        $  hcat  ( map (\(conds,d)-> text "if" <+> parens (conjunction conds)
-                                                             <+> block d <$> text "else "
+                                                             <+> block d <-> text "else "
                                       ) (init xs)
                                 )
                       <> block (snd (last xs))
@@ -404,7 +405,7 @@ genMatch result scrutinees branches
                              ) bs
                 let d  = snd b
                 return $ debugWrap "genMatch: regular case" 
-                       $ labelF (vcat ds <$> d)
+                       $ labelF (vcat ds <-> d)
   where
     -- | Generates a statement for a branch with given return context
     genBranch :: Bool -> Result -> [Doc] -> Branch -> Asm ([ConditionDoc], Doc)
@@ -416,7 +417,7 @@ genMatch result scrutinees branches
 
            gs <- mapM (se . genGuard False      result) (init guards)
            g  <-      (se . genGuard lastBranch result) (last guards)
-           return (conditions, debugWrap "genBranch" $ vcat gs <$> g)
+           return (conditions, debugWrap "genBranch" $ vcat gs <-> g)
     
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
@@ -438,7 +439,7 @@ genMatch result scrutinees branches
            exprSt          <- genStat result' expr
            return $ if isExprTrue t
                       then exprSt
-                      else testSt <$> text "if" <+> parens testE <> block exprSt
+                      else testSt <-> text "if" <+> parens testE <> block exprSt
 
     -- | Generates a list of boolish expression for matching the pattern
     genTest :: (Doc, Pattern) -> [Doc]
@@ -536,7 +537,7 @@ genExpr expr
              Let groups body 
                -> do decls1       <- genGroups groups
                      (decls2,doc) <- genExpr body
-                     return (decls1 <$> decls2, doc)
+                     return (decls1 <-> decls2, doc)
 
              Case _ _
                -> do (doc, tname) <- genVarBinding expr
@@ -569,7 +570,7 @@ genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
 genExternalExpr tname format args 
   | getName tname == nameReturn
   = do (statDoc,exprDoc) <- genExpr (head args)
-       return (statDoc <$> text "return" <+> exprDoc <> semi <> debugComment "premature return statement (2)"
+       return (statDoc <-> text "return" <+> exprDoc <> semi <> debugComment "premature return statement (2)"
               , text "") -- emptyness of doc is important! no other way to tell to not generate assignment/return/whatever!
   | otherwise
   = do (statDocs,argDocs) <- genExprs args
@@ -798,6 +799,10 @@ instance Functor Asm where
   fmap f (Asm a) = Asm (\env st -> case a env st of
                                      (x,st') -> (f x, st'))
 
+instance Applicative Asm where
+  pure  = return
+  (<*>) = ap
+
 instance Monad Asm where
   return x      = Asm (\env st -> (x,st))
   (Asm a) >>= f = Asm (\env st -> case a env st of
@@ -994,13 +999,13 @@ reserved
 
 block :: Doc -> Doc
 block doc
-  = text "{" <$$> tab doc <$$> text "}"        
+  = text "{" <--> tab doc <--> text "}"        
 
 
 tcoBlock :: Doc -> Doc
 tcoBlock doc
-  = text "{ tailcall: while(1)" <$> 
-    text "{" <$$> tab ( doc ) <$$> text "}}" 
+  = text "{ tailcall: while(1)" <-> 
+    text "{" <--> tab ( doc ) <--> text "}}" 
 
 tailcall :: Doc
 tailcall  = text "continue tailcall;" 
@@ -1030,7 +1035,7 @@ debugComment s
 debugWrap     :: String -> Doc -> Doc
 debugWrap s d
   = if debug 
-      then debugComment ("<" ++ s ++ ">") <$> tab d <$> debugComment ("</" ++ s ++ ">")
+      then debugComment ("<" ++ s ++ ">") <-> tab d <-> debugComment ("</" ++ s ++ ">")
       else d
 
 tagField :: Doc

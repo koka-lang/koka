@@ -22,7 +22,7 @@ module Kind.InferMonad( KInfer
                       , infQualifiedName
                       )  where
 
-import Control.Monad( foldM )
+import Control.Monad
 
 import Lib.PPrint
 import Common.Failure( failure )
@@ -70,6 +70,10 @@ runKindInfer cscheme mbRangeMap moduleName imports kgamma syns unique (KInfer ki
 instance Functor KInfer where
   fmap f (KInfer ki)  
     = KInfer (\env -> \st -> let r = ki env st in r{ result = f (result r) })
+
+instance Applicative KInfer where
+  pure  = return
+  (<*>) = ap    
 
 instance Monad KInfer where
   return x  = KInfer (\env -> \st -> KResult x [] [] st)
@@ -271,7 +275,7 @@ findInfKind name0 range
                                               _ -> return ()
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
-                                             addError range (text "Type" <+> (ppType cs name) <+> text "is undefined" <$>
+                                             addError range (text "Type" <+> (ppType cs name) <+> text "is undefined" <->
                                                              text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> ppType cs name <> text ">"))
                                              k <- freshKind
                                              return (name,k)
@@ -282,11 +286,11 @@ findInfKind name0 range
 
 ambiguous :: ColorScheme -> [Name] -> Doc
 ambiguous cs [name1,name2]
-  = text "is ambiguous." <$> text " hint: It can refer to either" <+> ppType cs name1 <> text ", or" <+> ppType cs name2
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text ", or" <+> ppType cs name2
 ambiguous cs [name1,name2,name3]
-  = text "is ambiguous." <$> text " hint: It can refer to either" <+> ppType cs name1 <> text "," <+> ppType cs name2 <> text ", or" <+> ppType cs name3
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text "," <+> ppType cs name2 <> text ", or" <+> ppType cs name3
 ambiguous cs names
-  = text "is ambiguous and can refer to multiple imports:" <$> indent 1 (list (map (ppType cs) names))
+  = text "is ambiguous and can refer to multiple imports:" <-> indent 1 (list (map (ppType cs) names))
 
 ppType cs name
   = color (colorType cs) (pretty name)

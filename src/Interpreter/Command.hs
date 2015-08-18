@@ -18,7 +18,7 @@ module Interpreter.Command
 
 import Data.Char         ( isSpace, toLower )
 import Data.List         ( isPrefixOf )
-import Lib.PPrint   ( Doc, text,vcat,(<$>),hang,empty,fill,(<>),color)
+import Lib.PPrint   ( Doc, text,vcat,(<->),hang,empty,fill,(<>),color)
 import Common.ColorScheme
 import Common.Name  ( Name, newName )
 -- import Syntax.Lexer ( idchars )
@@ -125,7 +125,7 @@ cmdeval
 
 commandHelp :: ColorScheme -> Doc
 commandHelp colors
-  = hang 2 (infotext "commands:" <$> vcat 
+  = hang 2 (infotext "commands:" <-> vcat 
     [cmd "<expression>" ""          "evaluate the given expression"
     ,cmd "val"      "<definition>"  "add a value definition"
     ,cmd "fun"      "<definition>"  "add a function definition"
@@ -150,8 +150,8 @@ commandHelp colors
     ,cmd ":?"      ""               "show this information"
     ,cmd ":q[uit]"  ""              "quit the interpreter"
     ,empty
-    ]) <$>
-    hang 2 (infotext "remarks:" <$> vcat
+    ]) <->
+    hang 2 (infotext "remarks:" <-> vcat
     [text "The type command can also be cotype, rectype, or struct."
     ,text "Use :set -? to see help on command line flags."
     ]) 
@@ -246,6 +246,7 @@ symbol :: String -> Parser ()
 symbol name
   = lexeme (try (do{ istring name; notFollowedBy alphaNum }))
 
+istring :: String -> Parser ()
 istring s
   = (mapM_ (\c -> satisfy (\d -> toLower d == toLower c)) s)
     <?> s

@@ -14,6 +14,7 @@ module Common.Error( Error, ErrorMessage(..), errorMsg, ok
                    , ppErrorMessage, errorWarning ) where
 
 import Control.Monad
+import Control.Applicative
 import Lib.PPrint
 import Common.Range
 import Common.ColorScheme
@@ -104,8 +105,8 @@ ppErrorMessage endToo cscheme msg
       ErrorKind ks          -> err (head ks)
       ErrorType es          -> err (head es)
       ErrorWarning  ws m    | null ws   -> ppErrorMessage endToo cscheme m
-                            | otherwise -> prettyWarnings endToo cscheme ws <$> 
-                                            (case m of ErrorZero -> empty
+                            | otherwise -> prettyWarnings endToo cscheme ws <-> 
+                                            (case m of ErrorZero -> Lib.PPrint.empty
                                                        _         -> ppErrorMessage endToo cscheme m)
       ErrorIO doc           -> color (colorError cscheme) doc
       ErrorZero             -> hang 1 (color (colorError cscheme) (text "<unknown error>"))
@@ -128,6 +129,10 @@ instance Functor Error where
                     Ok x w    -> Ok (f x) w
                     Error msg w -> Error msg w
 
+instance Applicative Error where
+  pure  = return
+  (<*>) = ap                    
+
 instance Monad Error where
   return x      = Ok x []
   fail s        = Error (ErrorGeneral rangeNull (text s)) []
@@ -143,6 +148,10 @@ instance MonadPlus Error where
                                       Ok _ _   -> e2
                                       Error m2 w2 -> Error (errorMerge m1 m2) (w1 ++ w2)
 
+
+instance Alternative Error where
+  (<|>) = mplus
+  empty = mzero
 
 instance Ranged ErrorMessage where
   getRange msg
