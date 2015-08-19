@@ -62,7 +62,7 @@ if (variant === "profile") {
 else if (variant === "release") {
   hsFlags += " -O2";
 }
-else if (variant === "debug") {
+else if (variant === "trace") {
   // add profile information so failure can use Debug.traceStack
   hsFlags += " -prof -fprof-auto"
   hsLinkFlags += " -prof -rtsopts"
@@ -99,7 +99,8 @@ task("compiler", [], function(rebuild) {
 
 desc("load the compiler in ghci");
 task("ghci", ["compiler"], function(module) {
-  var cmd = "ghci out/debug/Platform/cconsole.o" + hsRunFlags + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
+  var cmd = "ghci " + path.join(outputDir,variant,"Platform","cconsole.o") + hsRunFlags 
+                + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
                 + " " + path.join(sourceDir,(module ? module + ".hs" : "Main.hs"));
   jake.logger.log("> " + cmd);
   jake.exec(cmd + " 2>&1", {interactive: true});  
@@ -131,7 +132,7 @@ task("iclean", function() {
   jake.logger.log("remove koka generated files");
   var outdirs = new jake.FileList()
                  .include(path.join(outputDir,"*"))
-                 .exclude(["debug","release","profile"].map(function(s){ return path.join(outputDir,s); }))
+                 .exclude(["trace","debug","release","profile"].map(function(s){ return path.join(outputDir,s); }))
                  .toArray();
   outdirs.forEach( function(dirName) { jake.rmRf(dirName); } );
 });
@@ -262,7 +263,7 @@ task("sublime", function(sversion) {
 var usageInfo = [
   "usage: jake target[options] [variant=<build>]",
   "  <options>        are target specific, i.e. jake test[./test/type]",
-  "  variant=<build>  build mode: 'release', 'profile', or 'debug' (default)",
+  "  variant=<build>  any of 'release', 'profile', 'trace', or 'debug' (default)",
   ""].join("\n");
 
 function showHelp() {
