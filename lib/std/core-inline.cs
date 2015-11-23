@@ -138,7 +138,7 @@ public static class Primitive
 
   public static int Count( string s, string pattern ) 
   {
-    if (String.isNullOrEmpty(pattern)) return 0;
+    if (String.IsNullOrEmpty(pattern)) return 0;
     int count = 0;
     int i = 0;
     while( (i = s.IndexOf(pattern,i)) > 0 ) {
