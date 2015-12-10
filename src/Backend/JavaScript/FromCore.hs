@@ -57,7 +57,7 @@ externalNames
 
 javascriptFromCore :: Maybe (Name) -> Core -> Doc
 javascriptFromCore mbMain core
-  = runAsm (Env moduleName penv externalNames) (genModule mbMain core)
+  = runAsm (Env moduleName penv externalNames False) (genModule mbMain core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
@@ -177,17 +177,23 @@ tryFunDef name comment expr
   = case expr of
       TypeApp e _   ->             tryFunDef  name comment e 
       TypeLam _ e   ->             tryFunDef  name comment e
-      Lam args body -> fmap Just $ genFunDef' name args comment body 
+      Lam args body -> do inStat <- getInStatement
+                          if (inStat)
+                           then return Nothing
+                           else do fun <- genFunDef' name args comment body 
+                                   return (Just fun)
       _             -> return Nothing
   where
     genFunDef' :: Name -> [TName] -> CommentDoc -> Expr -> Asm Doc
     genFunDef' name params comm body
       = do let args = map ( ppName . getName ) params
-           bodyDoc <- genStat (ResultReturn (Just name) params) body
+               isTailCall = body `isTailCalling` name
+           bodyDoc <- (if isTailCall then withStatement else id) 
+                      (genStat (ResultReturn (Just name) params) body)
            return   $ text "function" <+> ppName (unqualify name) 
                                        <> tupled args 
                                       <+> comm
-                                      <+> ( if body `isTailCalling` name
+                                      <+> ( if isTailCall
                                               then tcoBlock bodyDoc
                                               else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found") 
                                                 <> block bodyDoc
@@ -383,7 +389,7 @@ genMatch result scrutinees branches
         bs
            | all (\b-> length (branchGuards   b) == 1) bs 
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
-          -> do xs <- mapM (genBranch True result scrutinees) bs
+          -> do xs <- mapM (withStatement . genBranch True result scrutinees) bs
                 return $  debugWrap "genMatch: guard-free case"
                        $  hcat  ( map (\(conds,d)-> text "if" <+> parens (conjunction conds)
                                                              <+> block d <-> text "else "
@@ -397,8 +403,8 @@ genMatch result scrutinees branches
                       ResultAssign n Nothing  -> return ( \d-> text "match: " <> block d
                                                         , ResultAssign n (Just $ newName "match")
                                                         )
-                bs <- mapM (genBranch False result' scrutinees) (init branches)
-                b  <-      (genBranch True  result' scrutinees) (last branches) 
+                bs <- mapM (withStatement . genBranch False result' scrutinees) (init branches)
+                b  <-      (withStatement . genBranch True  result' scrutinees) (last branches) 
                 let ds = map (\(cds,stmts)-> if null cds
                                                   then stmts
                                                   else text "if" <+> parens (conjunction cds)
@@ -821,6 +827,7 @@ data St  = St  { uniq     :: Int
 data Env = Env { moduleName        :: Name                    -- | current module
                , prettyEnv         :: Pretty.Env              -- | for printing nice types
                , substEnv          :: [(TName, Doc)]          -- | substituting names
+               , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
                }
 
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
@@ -882,6 +889,15 @@ withTypeVars vars asm
 withNameSubstitutions :: [(TName, Doc)] -> Asm a -> Asm a
 withNameSubstitutions subs asm
   = withEnv (\env -> env{ substEnv = subs ++ substEnv env }) asm
+
+withStatement :: Asm a -> Asm a
+withStatement asm
+  = withEnv (\env -> env{ inStatement = True }) asm
+
+getInStatement :: Asm Bool
+getInStatement 
+  = do env <- getEnv
+       return (inStatement env)
 
 ---------------------------------------------------------------------------------
 -- Pretty printing
