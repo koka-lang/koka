@@ -1914,7 +1914,7 @@ private external inline makeString : (n : int, c : char ) -> string {
 }
 
 // Construct a string of `n`  characters `c`  (or the empty string if `n <= 0` )
-function string( n : int, c : char ) : string
+function string( n : int, c : char ) : string 
 {
   if (n <= 0) then "" else makeString(n,c)
 }
@@ -1930,6 +1930,11 @@ function mbstring( ms : maybe<string> ) : string {
 // Is a string empty?
 function isEmpty( s : string ) : bool {
   s == ""
+}
+
+// Is a string not empty?
+function notEmpty( s : string ) : bool {
+  s != ""
 }
 
 /*

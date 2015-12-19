@@ -14,6 +14,8 @@ module Backend.CSharp.FromCore( csharpFromCore
                               -- , arityMapInit, externalMapInit 
                               ) where
 
+import Control.Applicative hiding (empty)
+import Control.Monad
 import Data.Char( isDigit )
 import Data.List( transpose )
 import Lib.PPrint
@@ -41,15 +43,15 @@ import Core.Core
 csharpFromCore :: Int -> Maybe (Name,Type) -> Core -> Doc
 csharpFromCore maxStructFields mbMain core
   = let body = runAsm initEnv (genProgram maxStructFields core)
-    in text "#pragma warning disable 164 // unused label" <$>  
-       text "#pragma warning disable 162 // unreachable code" <$>
-       text "#pragma warning disable 219 // variable is assigned but never used" <$>
-       text "using System;" <$>
-       vcat (concatMap includeExternal (coreProgExternals core)) <$>
-       text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <> body)  <$>
+    in text "#pragma warning disable 164 // unused label" <->  
+       text "#pragma warning disable 162 // unreachable code" <->
+       text "#pragma warning disable 219 // variable is assigned but never used" <->
+       text "using System;" <->
+       vcat (concatMap includeExternal (coreProgExternals core)) <->
+       text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <> body)  <->
        (case mbMain of
           Just (name,tp)
-            -> (text "public static class Program {" <$> indent 2 (ppMain name tp) <$> text "}")
+            -> (text "public static class Program {" <-> indent 2 (ppMain name tp) <-> text "}")
           Nothing 
             -> empty)
   where
@@ -73,9 +75,9 @@ includeExternal _  = []
 
 ppMain :: Name -> Type -> Doc
 ppMain name tp
-  = classFun <$>
-    text "static void Main() {" <$>     
-     indent 4 (ppName nameMainConsole <> text "<Unit,Unit>( new MainFun() );" ) <$> 
+  = classFun <->
+    text "static void Main() {" <->     
+     indent 4 (ppName nameMainConsole <> text "<Unit,Unit>( new MainFun() );" ) <-> 
     text "}"
   where
     classFun = vcat [
@@ -155,7 +157,7 @@ genTypeDef maxStructFields (Data info vis conViss)
                        then do onTopLevel $
                                   putLn (text "public enum" <+> ppTagType ctx (unqualify (dataInfoName info)) <+> 
                                           block (vcatBreak (punctuate comma (map ppDefName (map conInfoName (dataInfoConstrs info))))))
-                               putLn (text "public" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <$>
+                               putLn (text "public" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
                                              text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
                                                block (linebreak <> vcat (
                                                  [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
@@ -1320,6 +1322,9 @@ newtype Asm a = Asm { unAsm :: Env -> St -> (a, St)}
 instance Functor Asm where
   fmap f (Asm a) = Asm (\env st -> case a env st of
                                      (x,st') -> (f x, st'))
+instance Applicative Asm where
+  pure  = return
+  (<*>) = ap
 
 instance Monad Asm where
   return x      = Asm (\env st -> (x,st))
@@ -1424,7 +1429,7 @@ putLn :: Doc -> Asm ()
 putLn doc
   = do env <- getEnv
        let ndoc = indent (currentIndent env) doc
-       updateSt (\st -> st{ toplevel = case (toplevel st) of { [] -> [ndoc]; (d:ds) -> ((d <$> ndoc) : ds)}})
+       updateSt (\st -> st{ toplevel = case (toplevel st) of { [] -> [ndoc]; (d:ds) -> ((d <-> ndoc) : ds)}})
        return ()
 
 put :: Doc -> Asm ()
@@ -1654,7 +1659,7 @@ fblock doc
   = linebreak <> block doc
 
 block doc
-  = lbrace <> tab doc <$> rbrace
+  = lbrace <> tab doc <-> rbrace
 
 tab doc
   = nest 2 doc

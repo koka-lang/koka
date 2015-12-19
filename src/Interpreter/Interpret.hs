@@ -331,7 +331,7 @@ errorFileNotFound flags name
   = ErrorIO (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
 
 docNotFound cscheme path name
-  = text "could not find:" <+> ppPath name <$>
+  = text "could not find:" <+> ppPath name <->
     if (null path)
      then text ("search path empty. (use the \"-i\" flag at command line?)")
      else text "search path   :" <+> align (cat (punctuate comma (map ppPath path))) 

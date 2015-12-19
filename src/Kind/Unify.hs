@@ -37,7 +37,7 @@ unify context range kind1 kind2
 
 kindError colors context range err kind1 kind2
   = addError range $
-    text message <$>
+    text message <->
     table ([(text "type context", docFromRange colors rangeContext)
            ,(text "type", docFromRange colors range)
            ,(text "inferred kind", niceKind2)

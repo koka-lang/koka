@@ -404,7 +404,7 @@ showHelp flags p
 showEnv :: Printer p => Flags -> p -> IO ()
 showEnv flags p
   = do doc <- environmentInfo (colorSchemeFromFlags flags)
-       writePrettyLn p (showIncludeInfo flags <$> doc)
+       writePrettyLn p (showIncludeInfo flags <-> doc)
 
 
 commandLineHelp :: Flags -> IO Doc
@@ -434,7 +434,7 @@ commandLineHelp flags
       = color (colorInterpreter colors) (text s)
 
 showIncludeInfo flags
-  = hang 2 (infotext "include path:" <$> prettyIncludePath flags) -- text (if null paths then "<empty>" else paths))
+  = hang 2 (infotext "include path:" <-> prettyIncludePath flags) -- text (if null paths then "<empty>" else paths))
   where
     paths 
       = concat $ intersperse [pathDelimiter] (includePath flags)
@@ -447,8 +447,8 @@ showIncludeInfo flags
 
 environmentInfo colors 
   = do vals <- mapM getEnvValue environment
-       return (hang 2 (infotext "environment:" <$>
-                       vcat (map ppEnv vals) <$> text " "))
+       return (hang 2 (infotext "environment:" <->
+                       vcat (map ppEnv vals) <-> text " "))
   where
     infotext s 
       = color (colorInterpreter colors) (text s)
@@ -477,7 +477,7 @@ versionMessage
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
-  <$>
+  <->
   (color DarkGray $ vcat $ map text
   [ "Copyright 2012 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."

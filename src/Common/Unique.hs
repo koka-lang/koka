@@ -17,6 +17,12 @@ module Common.Unique( -- * Unique
 
 import Common.Id   ( Id, genId, idNumber )
 import Common.Name
+import Control.Monad
+import Control.Applicative
+
+instance Applicative Unique where
+  pure  = return
+  (<*>) = ap
 
 class (Monad m, Functor m) => HasUnique m where
   updateUnique :: (Int -> Int) -> m Int

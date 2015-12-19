@@ -13,6 +13,8 @@ module Core.Uniquefy ( uniquefy
                      , uniquefyDefGroup {- used for divergence analysis -}
                      ) where
 
+import Control.Monad
+import Control.Applicative
 import Common.Name
 import qualified Common.NameSet as S
 import qualified Common.NameMap as M
@@ -28,6 +30,10 @@ data State = St{ locals :: Locals, renaming :: Renaming }
 instance Functor Un where
   fmap f (Un u)  = Un (\st -> case u st of
                                 (x,st1) -> (f x,st1))
+
+instance Applicative Un where
+  pure  = return
+  (<*>) = ap
 
 instance Monad Un where
   return x  = Un (\st -> (x,st))

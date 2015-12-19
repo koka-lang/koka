@@ -63,6 +63,8 @@ module Type.InferMonad( Inf, InfGamma
                       ) where
 
 import Data.List( partition, sortBy)
+import Control.Applicative
+import Control.Monad
 import Lib.PPrint
 import Common.Range
 import Common.Unique
@@ -612,7 +614,7 @@ unifyError context range err xtp1 xtp2
 
 unifyError' env context range err tp1 tp2
   = do infError range $
-        text message <$>
+        text message <->
         table ([(text "context", docFromRange (Pretty.colors env) rangeContext)
                ,(text "term", docFromRange (Pretty.colors env) range)
                ,(text ("inferred " ++ nameType), nice2)
@@ -669,7 +671,7 @@ predicateError contextRange range message pred
 
 predicateError' env contextRange range message pred
   = do infError range $
-        text message <$>
+        text message <->
         table  [(text "context", docFromRange (Pretty.colors env) contextRange)
                ,(text "origin", docFromRange (Pretty.colors env) range)
                ,(text "constraint", nicePred)
@@ -687,7 +689,7 @@ typeError contextRange range message xtp extra
 
 typeError' env contextRange range message tp extra
   = do infError range $
-        message <$>
+        message <->
         table ([(text "context", docFromRange (Pretty.colors env) contextRange)
               ,(text "term", docFromRange (Pretty.colors env) range)
               ,(text "inferred type", Pretty.niceType env tp)
@@ -700,7 +702,7 @@ contextError contextRange range message extra
 
 contextError' env contextRange range message extra
   = do infError range $
-        message <$>
+        message <->
         table  ([(text "context", docFromRange (Pretty.colors env) contextRange)
                 ,(text "term", docFromRange (Pretty.colors env) range)
                 ]
@@ -745,6 +747,10 @@ instance Functor Inf where
   fmap f (Inf i)  = Inf (\env st -> case i env st of
                                       Ok x st1 w -> Ok (f x) st1 w
                                       Err err w  -> Err err w) 
+
+instance Applicative Inf where
+  pure  = return
+  (<*>) = ap
 
 instance Monad Inf where
   return x        = Inf (\env st -> Ok x st [])
@@ -902,12 +908,12 @@ extendGamma isAlreadyCanonical defs inf
                      (_,_,rho2)    = splitPredType (infoType info2)
                      valueType     = not (isFun rho1 && isFun rho2)
                  if (isFun rho1 && isFun rho2)
-                  then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <$>
+                  then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->
                                                   table ([(text "type",nice1) 
                                                          ,(text "overlaps",nice2)
                                                          ,(text "because", text "definitions with the same name must differ on the argument types")])
                                                  )
-                  else infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "is already defined in this module" <$>
+                  else infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "is already defined in this module" <->
                                                   text "because: only functions can have overloaded names")
             Left _ -> return ()
 
@@ -941,7 +947,7 @@ extendInfGamma topLevel tnames inf
               -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                     env <- getEnv
                     infError range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
-                                     <$> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
+                                     <-> text " hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.")
             Nothing
               -> do case (infgammaLookupX name infgamma) of
                       Just info2 | infoCanonicalName name info2 /= nameReturn
@@ -1060,12 +1066,12 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                    case (ctx,amb) of
                     (CtxType tp, [(qname,info)])
                       -> do let [nice1,nice2] = Pretty.niceTypes penv [tp,infoType info]
-                            infError range (text "identifier" <+> Pretty.ppName penv name <+> text "does not match the argument types" <$>
+                            infError range (text "identifier" <+> Pretty.ppName penv name <+> text "does not match the argument types" <->
                                                table (ctxTerm rangeContext ++
                                                       [(text "inferred type",nice2)
                                                       ,(text "expected type",nice1)]))                                                
                     (CtxType tp, (_:rest))
-                      -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <$>
+                      -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <->
                                          table (ctxTerm rangeContext ++ 
                                                 [(text "inferred type", Pretty.niceType penv tp)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
@@ -1082,7 +1088,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                 argsDoc = color (colorType (Pretty.colors penv)) $
                                            parens (hsep (punctuate comma (fdocs ++ ndocs ++ pdocs))) <+>
                                            text "-> ..."
-                            infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <$>
+                            infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
                                          table (ctxTerm rangeContext ++ 
                                                 [(text "inferred type", argsDoc)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
@@ -1092,7 +1098,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                       Nothing            -> return []
                             case amb2 of
                               (_:_)
-                                -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "is undefined") <$>
+                                -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "is undefined") <->
                                                    (text "perhaps you meant: " <> ppOr penv (map fst amb2)))
                               _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "is undefined")
                     
@@ -1139,14 +1145,14 @@ caseOverlaps name qname info
         else Nothing
     
 ppOr :: Pretty.Env -> [Name] -> Doc
-ppOr env []     = empty
+ppOr env []     = Lib.PPrint.empty
 ppOr env [name] = Pretty.ppName env name
 ppOr env names  = hcat (map (\name -> Pretty.ppName env name <> text ", ") (init names)) <+> text "or" <+> Pretty.ppName env (last names)
 
 
 ppAmbiguous :: Env -> String -> [(Name,NameInfo)] -> Doc
 ppAmbiguous env hint infos
-  = text ". Possible candidates: " <$> table (ppCandidates env hint infos)
+  = text ". Possible candidates: " <-> table (ppCandidates env hint infos)
 
 ppCandidates :: Env -> String -> [(Name,NameInfo)] -> [(Doc,Doc)]
 ppCandidates env hint nameInfos

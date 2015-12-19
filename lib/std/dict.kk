@@ -33,7 +33,7 @@ private external inline unsafeIndex( md : mdict<h,a>, s : string ) : read<h> a {
 }
 
 external inline containsKey( md : mdict<h,a>, s : string ) : read<h> bool {
-  cs inline "((#1).ContainsKey(#2)"
+  cs inline "((#1).ContainsKey(#2))"
   js inline "((#1)[#2]!==undefined)"
 } 
 

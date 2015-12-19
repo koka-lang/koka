@@ -182,9 +182,9 @@ inferDefGroup topLevel (DefRec defs) cont
           (Just _) 
             -> do env <- getPrettyEnv
                   if topLevel
-                   then infError nameRng (text "recursive functions with the same overloaded name must all have a full type signature" <+> parens (ppName env name) <$>
+                   then infError nameRng (text "recursive functions with the same overloaded name must all have a full type signature" <+> parens (ppName env name) <->
                                           text " hint: give a type annotation for each function (including the effect type).") 
-                   else infError nameRng (text "recursive functions with the same overloaded name cannot be defined as local definitions" <+> parens (ppName env name) <$>
+                   else infError nameRng (text "recursive functions with the same overloaded name cannot be defined as local definitions" <+> parens (ppName env name) <->
                                           text " hint: use different names for each function.") 
 
           Nothing 
@@ -384,7 +384,7 @@ inferRecDef topLevel infgamma def
                   
                   if (False && not topLevel && not (Core.isTopLevel coreDef2) && not (isRho (Core.typeOf coreDef2)))
                    then do -- trace ("local rec with free vars: " ++ show coreDef2) $ return ()
-                           typeError rng nameRng (text "local recursive definitions with free (type) variables cannot have a polymorphic type" <$> 
+                           typeError rng nameRng (text "local recursive definitions with free (type) variables cannot have a polymorphic type" <-> 
                                                   text " hint: make the function a top-level definition?" ) (Core.typeOf coreDef2) []
                    else return ()
 
@@ -752,7 +752,7 @@ inferApp propagated expect fun nargs rng
     inferAppArgsFirst acc [] fixed []
       = inferAppFixedArgs acc
     inferAppArgsFirst acc [] fixed named
-      = infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <$> text " hint: annotate the function parameters?" )
+      = infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
 
     inferAppArgsFirst acc (fix:fixs) fixed named
       = do (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
@@ -777,7 +777,7 @@ inferApp propagated expect fun nargs rng
                             inferAppFunFirst (Just prop) fixed named
              Nothing    -> {-
                            if (not (null named0)) 
-                            then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <$> text " hint: annotate the function parameters?" )
+                            then infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
                             else do (tpArgs,effArgs,coreArgs)  <- fmap unzip3 $ mapM (inferExpr Nothing Instantiated) fixed
                                     inferAppFixedArgs (tpArg1:tpArgs) (zip (map getRange fixed) (effArg1:effArgs)) (coreArg1:coreArgs)
                            -}
@@ -804,7 +804,7 @@ inferApp propagated expect fun nargs rng
                            inferAppFunFirst (Just prop) [] fixed named
              Nothing    -> if (null named)
                             then inferAppFixedArgs tpArgs (zip (map getRange fixed) effArgs) (coreArgs)
-                            else infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <$> text " hint: annotate the function parameters?" )
+                            else infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
      -}
      
     inferAppFixedArgs :: [(Type,(Range,Effect),Core.Expr)] -> Inf (Type,Effect,Core.Expr)
@@ -913,7 +913,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
            case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
              [] -> return ()
              (name:_) -> do env <- getPrettyEnv
-                            infError (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <$>
+                            infError (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
                                                          text " hint: prepend an underscore to make it a wildcard pattern")
            return (btp,beff,resCore)
   where
@@ -1224,7 +1224,7 @@ matchFunTypeArgs context fun tp fixed named
        TSyn _ _ t          -> matchFunTypeArgs context fun t fixed named
        TVar tv             -> do if (null named)
                                   then return ()
-                                  else infError range (text "cannot used named arguments on an inferred function" <$> text " hint: annotate the parameters")
+                                  else infError range (text "cannot used named arguments on an inferred function" <-> text " hint: annotate the parameters")
                                  targs <- mapM (\name -> do{ tv <- Op.freshTVar kindStar Meta; return (name,tv)}) ([nameNil | a <- fixed] ++ map (fst . fst) named)
                                  teff  <- Op.freshTVar kindEffect Meta
                                  tres  <- Op.freshTVar kindStar Meta

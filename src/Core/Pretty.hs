@@ -60,7 +60,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
   = prettyComment env doc $
     keyword env "module" <+> 
     (if (coreIface env) then text "interface " else empty) <>    
-    prettyDefName env name <$>
+    prettyDefName env name <->
     (vcat $ concat $
       [ map (prettyImport envX) (imports ++ extraImports)
       , map (prettyFixDef envX) fixDefs
@@ -110,7 +110,7 @@ prettyExternal env (External name tp body vis nameRng doc)
     keyword env "external" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <> semi
-    prettyEntries entries             = text "{" <$> tab (vcat (map prettyEntry entries)) <$> text "}"
+    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "}"
     prettyEntry (target,content)      = ppTarget env target <> keyword env "inline" <+> prettyLit env (LitString content) <> semi
 
 prettyExternal env (ExternalInclude includes range)
@@ -119,8 +119,8 @@ prettyExternal env (ExternalImport imports range)
   = empty
 
   {-
-    keyword env "external inline" <+> text "{" <$>
-    tab (vcat (map prettyInclude includes)) <$>
+    keyword env "external inline" <+> text "{" <->
+    tab (vcat (map prettyInclude includes)) <->
     text "}"
   where
     prettyInclude (target,content) 
@@ -135,7 +135,7 @@ ppTarget env target
 
 prettyTypeDefGroup :: Env -> TypeDefGroup -> Doc
 prettyTypeDefGroup env (TypeDefGroup defs) 
-  = -- (if (length defs==1) then id else (\ds -> text "rec {" <$> tab ds <$> text "}")) $
+  = -- (if (length defs==1) then id else (\ds -> text "rec {" <-> tab ds <-> text "}")) $
     vcat (map (prettyTypeDef env) defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
@@ -148,7 +148,7 @@ prettyTypeDef env (Data dataInfo vis conViss )
 
 prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)   
-  = -- (\ds -> text "rec {" <$> tab ds <$> text "}") $
+  = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
     prettyDefs env defs
     
 prettyDefGroup env (DefNonRec def) 
@@ -241,7 +241,7 @@ prettyExpr env (Lit lit)
 
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
-  = vcat [ text "let" <+> nest 2 (prettyName env x <+> text ":" <+> prettyType env tp <$> text "=" <+> prettyExpr env e <> semi)
+  = vcat [ text "let" <+> nest 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> prettyExpr env e <> semi)
          , prettyExpr env e' 
          ]
 prettyExpr env (Let defGroups expr)
