@@ -101,7 +101,7 @@ desc("load the compiler in ghci");
 task("ghci", ["compiler"], function(module) {
   var cmd = "ghci " + path.join(outputDir,variant,"Platform","cconsole.o") + hsRunFlags 
                 + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
-                + " " + path.join(sourceDir,(module ? module + ".hs" : "Main.hs"));
+                  + " " + path.join(sourceDir,(module ? module + ".hs" : "Main.hs"));
   jake.logger.log("> " + cmd);
   jake.exec(cmd + " 2>&1", {interactive: true});  
 });
