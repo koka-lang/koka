@@ -700,7 +700,7 @@ function dropWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
 
 // Retain only those elements of a list that satisfy the given predicate "pred".
 // For example: "filter([1,2,3],odd) == [1,3]"
-function filter( xs : list<a>, pred : a -> bool ) : list<a>
+function filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 {
   match(xs) {
     Nil -> Nil
