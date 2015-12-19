@@ -21,6 +21,12 @@ function changeExt( path : string, ext : string ) : string {
   path.noext + (if (ext.startsWith(".")) then "" else ".") + ext
 }
 
+// If a path has no extension, set it to the provided one.
+function defaultExt( fname, ext ) {
+  if (fname.extname=="") then fname.changeExt(ext) else fname
+}
+
+
 // Remove the extension from a path
 function noext( path : string ) : string {
   val ext = path.extname
