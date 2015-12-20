@@ -236,6 +236,10 @@ external conslist( elems: primarray<a>, tail : list<a> ) : total list<a> {
   js "$list"
 }
 
+external unlist( list : list<a> ) : total primarray<a> {
+  js "$unlist"
+}
+
 // ----------------------------------------------------------------------------
 // Standard functions
 // ----------------------------------------------------------------------------
