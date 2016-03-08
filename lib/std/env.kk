@@ -56,6 +56,6 @@ public val argv = getArgv().list
 // The "arguments" list will be "[""--flag"",""bla""]"
 public val arguments 
   = match(argv) {
-      Cons(x,xs) | x.basename.noext == "node" -> xs.drop(1)
+      Cons(x,xs) | x.stemname == "node" -> xs.drop(1)
       _ -> argv.drop(1)
     }  
