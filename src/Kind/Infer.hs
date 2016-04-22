@@ -293,7 +293,8 @@ infTypeDefGroup (TypeDefNonRec tdef)
   = infTypeDefs False [tdef]
  
 infTypeDefs isRec tdefs
-  = do infgamma <- mapM bindTypeDef tdefs -- set up recursion
+  = do infgammas<- mapM bindTypeDef tdefs -- set up recursion
+       let infgamma = concat(infgammas)
        ctdefs   <- extendInfGamma infgamma $ -- extend inference gamma, also checks for duplicates
                    do let names = map tbinderName infgamma
                       tdefs1 <- mapM infTypeDef (zip infgamma tdefs)
@@ -315,11 +316,13 @@ checkRecursion tdefs
 {---------------------------------------------------------------
   Setup type environment for recursive definitions
 ---------------------------------------------------------------}
-bindTypeDef :: TypeDef UserType UserType UserKind -> KInfer (TypeBinder InfKind)
+bindTypeDef :: TypeDef UserType UserType UserKind -> KInfer [TypeBinder InfKind]
+bindTypeDef (DataType newtp args constructors range vis sort isOpen True doc) -- extension
+  = return []
 bindTypeDef tdef
   = do (TypeBinder name kind rngName rng) <- bindTypeBinder (typeDefBinder tdef)
        qname <- qualifyDef name
-       return (TypeBinder qname kind rngName rng)
+       return [TypeBinder qname kind rngName rng]
 
 bindTypeBinder :: TypeBinder UserKind -> KInfer (TypeBinder InfKind)
 bindTypeBinder (TypeBinder name userKind rngName rng)
@@ -511,12 +514,13 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        unifyBinder tbinder range infgamma kind
        return (Synonym tbinder infgamma tp' range vis doc)
 
-infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort doc))
-  = do infgamma <- mapM bindTypeBinder args
+infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort isOpen isExtend doc))
+  = do infgamma <- if isExtend then return [] else mapM bindTypeBinder args
        constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
+       -- todo: unify extended datatype kind with original
        reskind <- freshKind
        unifyBinder tbinder range infgamma reskind
-       return (DataType tbinder infgamma constructors' range vis sort doc)
+       return (DataType tbinder infgamma constructors' range vis sort isOpen isExtend doc)
 
 unifyBinder tbinder range infgamma reskind
  = do let kind = infKindFunN (map typeBinderKind infgamma) reskind 
@@ -643,8 +647,14 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
 
-resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort doc)
-  = do newtp' <- resolveTypeBinderDef newtp
+resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort isOpen isExtend doc)
+  = do trace ("datatype: " ++ show(tbinderName newtp)) $ return ()                          
+       newtp' <- if isExtend
+                  then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
+                          kind  <- resolveKind ikind
+                          addRangeInfo range (Id qname (NITypeCon kind) False)
+                          return (TypeBinder qname kind (tbinderNameRange newtp) (tbinderRange newtp))
+                  else resolveTypeBinderDef newtp
        params' <- mapM resolveTypeBinder params
        let typeResult = TCon (TypeCon (getName newtp') (typeBinderKind newtp'))
        typeVars  <- let (kargs,kres) = extractKindFun (typeBinderKind newtp')

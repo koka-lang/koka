@@ -51,7 +51,7 @@ dependencyTypeDef :: UserTypeDef -> (Name,S.NameSet)
 dependencyTypeDef typeDef
   = case typeDef of
       Synonym binder args tp range vis doc    -> (typeDefName typeDef, freeTypes tp)
-      DataType binder args cons range vis sort doc -> (typeDefName typeDef, freeTypes cons)
+      DataType binder args cons range vis sort _ _ doc -> (typeDefName typeDef, freeTypes cons)
 
 ---------------------------------------------------------------------------
 -- Free type constructors

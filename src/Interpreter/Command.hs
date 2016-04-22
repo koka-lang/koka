@@ -170,7 +170,7 @@ expression
          then return (Define src)
         else if (isPrefixOf "val" src)
          then return (Define src)
-        else if (isPrefixOf "type" src)
+        else if (isPrefixOf "type" src || isPrefixOf "open type" src || isPrefixOf "extend type" src)
          then return (TypeDef src)
         else if (isPrefixOf "cotype" src)
          then return (TypeDef src)

@@ -118,6 +118,8 @@ data TypeDef t u k
             , typeDefRange :: Range 
             , typeDefVis :: Visibility 
             , typeDefSort :: DataKind
+            , typeDefOpen   :: Bool  -- ^ is the type exensible
+            , typeDefExtend :: Bool  -- ^ is this an extension? In that case typeDefBinder contains a qualified name
             , typeDefDoc  :: String
             }
 
