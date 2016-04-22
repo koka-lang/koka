@@ -258,7 +258,7 @@ getConTag coninfo repr
       _ -> int (conTag repr)
                       
 openConTag name
-  = unqualify name
+  = name
 
 ---------------------------------------------------------------------------------
 -- Statements 

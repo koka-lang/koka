@@ -146,11 +146,14 @@ typeDecl env
                                   DataDefNormal -> DataDefRec
                                   _ -> ddef0)                         
                      <|> return ddef0
-       (name,_)   <- tbinderId
+       tname <- if (isExtend)
+                 then qualifiedTypeId
+                 else do (name,_)   <- tbinderId
+                         return (qualify (modName env) name)
+
        -- trace ("core type: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind       <- kindAnnotFull
-       let tname = qualify (modName env) name
        cons       <- semiBraces (conDecl tname sort env) <|> return []
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]

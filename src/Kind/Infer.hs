@@ -676,7 +676,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                      then mapM (\karg -> do{ id <- uniqueId "k"; return (TypeVar id karg Bound) }) kargs  -- invent parameters if they are not given (and it has an arrow kind)
                      else mapM (\param -> freshTypeVar param Bound) params'          
        let tvarMap = M.fromList (zip (map getName params') typeVars)       
-       consinfos <- mapM (resolveConstructor (getName newtp') sort (length constructors == 1) typeResult typeVars tvarMap) constructors
+       consinfos <- mapM (resolveConstructor (getName newtp') sort (not (dataDefIsOpen ddef) && length constructors == 1) typeResult typeVars tvarMap) constructors
        let (constructors',infos) = unzip consinfos
        if (sort == Retractive)
         then return ()
