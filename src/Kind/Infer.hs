@@ -209,7 +209,7 @@ synAccessors modName info vis conviss
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) rng
                 visibility = if (all (==Public) (map fst branches)) then Public else Private
 
-                isPartial = (length branches < length (dataInfoConstrs info))
+                isPartial = (length branches < length (dataInfoConstrs info)) || dataInfoIsOpen info
 
                 branches :: [(Visibility,Branch Type)]
                 branches = concatMap makeBranch (zip conviss (dataInfoConstrs info))
