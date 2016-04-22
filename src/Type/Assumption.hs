@@ -33,7 +33,7 @@ module Type.Assumption (
                     , createNameInfoX
                     , getArity
                     ) where
-
+import Lib.Trace
 import Common.Range
 import Common.Failure
 import Common.Syntax( DefSort(..) )
@@ -155,9 +155,8 @@ gammaLookup name (Gamma gamma)
       Just xs -> -- let qname = if isQualified name then name else qualify context name 
                  -- in filter (\(n,_) -> n == qname) xs 
                  if (isQualified name)
-                  then filter (\(n,_) -> n == name) xs
+                  then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
                   else xs
-
 
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)

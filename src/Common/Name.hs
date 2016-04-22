@@ -54,8 +54,11 @@ data Name  = Name
              , hashId     :: !Int
              }
 
-nameCaseEqual (Name m1 _ n1 _) (Name m2 _ n2 _)
-  = (m1 == m2) && (n1 == n2) 
+nameCaseEqual name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
+  = nameId name1 == nameId name2
+    &&
+    and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
+    -- (m1 == m2) && (n1 == n2) 
 
 nameCaseOverlap :: Name -> Name -> Bool
 nameCaseOverlap name1 name2 
@@ -166,6 +169,7 @@ splitModuleName name
 unsplitModuleName :: [Name] -> Name
 unsplitModuleName xs
   = newName (concat (intersperse "/" (map show xs)))
+
 
 ----------------------------------------------------------------
 -- wildcards & constructors
