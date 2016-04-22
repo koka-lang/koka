@@ -103,7 +103,8 @@ genModule mbMain core
                           f (DefNonRec x) = [defName x]
                       in map unqualify $ concatMap f (coreProgDefs core) 
     exportedConstrs = let f (Synonym _ _)    = []
-                          f (Data info _ vs) = let xs = zip vs $ map conInfoName (dataInfoConstrs info)
+                          f (Data info _ vs _) 
+                                             = let xs = zip vs $ map conInfoName (dataInfoConstrs info)
                                                in  map snd $ filter (\(v,_)-> v == Public) xs
                           u (TypeDefGroup xs) = xs
                       in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
@@ -216,28 +217,28 @@ genTypeDefGroup  (TypeDefGroup tds)
 genTypeDef :: TypeDef -> Asm Doc
 genTypeDef (Synonym {})
   = return empty
-genTypeDef (Data info _ _)
+genTypeDef (Data info _ _ isExtend)
   = do let (dataRepr, conReprs) = getDataRepr (-1) {- maxStructFields -} info
-       docs <- mapM ( \(c,repr)  -> do let args = map ppName (map fst (conInfoParams c))
-                                       name <- genName (conInfoName c)
-                                       penv <- getPrettyEnv
-                                       if (conInfoName c == nameTrue)
-                                        then return (text "var" <+> name <+> text "=" <+> text "true" <> semi)
-                                        else if (conInfoName c == nameFalse)
-                                        then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
-                                        else return $ case repr of
-                                          ConEnum{}   
-                                             -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> comment (Pretty.ppType penv (conInfoType c))
-                                          ConSingleton{}                                             
-                                             -> text "var" <+> name <+> text "=" <+> 
-                                                  text (if conInfoName c == nameOptionalNone then "undefined" else "null")
-                                                   <> semi <+> comment (Pretty.ppType penv (conInfoType c))
-                                          -- tagless
-                                          ConSingle{}  -> genConstr penv c repr name args [] 
-                                          ConAsCons{}  -> genConstr penv c repr name args []
-                                          _            -> genConstr penv c repr name args [(tagField, int (conTag repr))]
-
-                    ) $ zip (dataInfoConstrs $ info) conReprs
+       docs <- mapM ( \(c,repr)  -> 
+          do let args = map ppName (map fst (conInfoParams c))
+             name <- genName (conInfoName c)
+             penv <- getPrettyEnv
+             if (conInfoName c == nameTrue)
+              then return (text "var" <+> name <+> text "=" <+> text "true" <> semi)
+              else if (conInfoName c == nameFalse)
+              then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
+              else return $ case repr of
+                ConEnum{}   
+                   -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                ConSingleton{}                                             
+                   -> text "var" <+> name <+> text "=" <+> 
+                        text (if conInfoName c == nameOptionalNone then "undefined" else "null")
+                         <> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                -- tagless
+                ConSingle{}  -> genConstr penv c repr name args [] 
+                ConAsCons{}  -> genConstr penv c repr name args []
+                _            -> genConstr penv c repr name args [(tagField, int (conTag repr))]
+          ) $ zip (dataInfoConstrs $ info) conReprs
        return $ debugComment ( "Value constructors for type '" ++ (show $ dataInfoName info) ++ "' (" ++ (show dataRepr) ++ ")" )
             <-> vcat docs
   where
@@ -505,6 +506,8 @@ genMatch result scrutinees branches
 -}
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [Doc] -> Doc
+    conjunction []
+      = text "true"
     conjunction docs
       = hcat (intersperse (text " && ") docs)
 

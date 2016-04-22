@@ -201,20 +201,22 @@ instance Show DataInfo where
   show = show . pretty
 
 instance Pretty DataInfo where
-  pretty = ppDataInfo Type.Pretty.defaultEnv True
+  pretty = ppDataInfo Type.Pretty.defaultEnv True False
 
-ppDataInfo env showBody dataInfo
-  = prettyDataInfo env showBody False dataInfo Private (repeat Private)
+ppDataInfo env showBody isExtend dataInfo
+  = prettyDataInfo env showBody False isExtend dataInfo Private (repeat Private)
 
 
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly info@(DataInfo datakind name kind args cons range isRec doc) vis conViss
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range isRec isOpen doc) vis conViss
   = if (publicOnly && isPrivate vis) then empty else 
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
+      (if isExtend then keyword env "extend " 
+        else if isOpen then keyword env "open " else empty) <>
       (case datakind of
          Inductive -> keyword env "type"
          CoInductive -> keyword env "cotype"

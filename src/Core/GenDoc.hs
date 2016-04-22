@@ -91,8 +91,8 @@ genDoc env kgamma gamma core p
     sizeOf (tdef,ds)
       = length ds +
         case tdef of
-          Data info _ _ -> length (dataInfoConstrs info)
-          _             -> 1
+          Data info _ _ _ -> length (dataInfoConstrs info)
+          _               -> 1
 
 
     (otherDefs,typeDefsDefs)
@@ -138,8 +138,8 @@ genDoc env kgamma gamma core p
         
         typeDefTCon tdef
           = case tdef of
-              (Data info _ _) -> TypeCon (dataInfoName info) (dataInfoKind info)
-              (Synonym info _) -> TypeCon (synInfoName info) (synInfoKind info)
+              (Data info _ _ _) -> TypeCon (dataInfoName info) (dataInfoKind info) -- todo: handle exten
+              (Synonym info _)  -> TypeCon (synInfoName info) (synInfoKind info)
 
     sortDefs ds
       = sortOn (show . defName) ds
@@ -165,8 +165,8 @@ genDoc env kgamma gamma core p
       where
         getTDef (TypeDefGroup ts) = ts
 
-        filterCon (Data info vis conViss)
-          = Data (info{ dataInfoConstrs = sortOn conInfoName [cons | (v,cons) <- zip conViss (dataInfoConstrs info), v == Public]}) vis conViss
+        filterCon (Data info vis conViss isExtend)
+          = Data (info{ dataInfoConstrs = sortOn conInfoName [cons | (v,cons) <- zip conViss (dataInfoConstrs info), v == Public]}) vis conViss isExtend
         filterCon other
           = other
 
@@ -291,7 +291,7 @@ fmtTypeDefTOC  (Synonym info _, defs)
     map (fmtDefTOC True) defs
 
 
-fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss, defs)  | conInfoName conInfo == dataInfoName info
+fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
@@ -299,7 +299,7 @@ fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [
      ++
     map (fmtDefTOC True) defs
 
-fmtTypeDefTOC (Data info _ conViss, defs)  
+fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info)))]
@@ -354,7 +354,7 @@ fmtTypeDef env kgamma gamma (Synonym info _, defs)
    where
       (fmtTp:fmtTVars) = showTypes env kgamma gamma (synInfoType info : map TVar (synInfoParams info))
 
-fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss, defs)  | conInfoName conInfo == dataInfoName info
+fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
@@ -377,7 +377,7 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
 
 
 
-fmtTypeDef env kgamma gamma (Data info _ conViss, defs)
+fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show extend correctly
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
     concat 

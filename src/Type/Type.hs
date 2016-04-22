@@ -161,6 +161,7 @@ data DataInfo = DataInfo{ dataInfoSort :: DataKind
                         , dataInfoConstrs :: [ConInfo] 
                         , dataInfoRange  :: Range
                         , dataInfoIsRec  :: Bool  {- ^ recursive? -}
+                        , dataInfoIsOpen :: Bool  {- ^ open data type? -}
                         , dataInfoDoc    :: String
                         }
 

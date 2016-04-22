@@ -125,9 +125,10 @@ hasTagField _          = False
 genTypeDef :: Int -> TypeDef -> Asm ()
 genTypeDef maxStructFields (Synonym synInfo vis)
   = return ()
-genTypeDef maxStructFields (Data info vis conViss)
+genTypeDef maxStructFields (Data info vis conViss isExtend)
   = onTopLevel $
     do -- generate the type constructor
+       if (isExtend) then failure ("sorry, C# backend does not support extension of types yet; " ++ show (dataInfoName info)) else return ()
        ctx <- getModule
        case getDataRepr maxStructFields info of
          (DataEnum,_) 

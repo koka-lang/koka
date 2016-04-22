@@ -26,6 +26,7 @@ module Kind.InferMonad( KInfer
 import Control.Applicative
 import Control.Monad
 
+import Lib.Trace
 import Lib.PPrint
 import Common.Failure( failure )
 import Common.Range
@@ -193,16 +194,18 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
   where
     check :: (KGamma,[Core.TypeDef]) -> (Range,Core.TypeDef) -> KInfer (KGamma,[Core.TypeDef])
     check (kgamma,tdefs) (range,tdef)
-      = do let (name,kind) = nameKind tdef
-           case kgammaLookupQ name kgamma of
-             Nothing -> return (kgammaExtend name kind kgamma,tdef:tdefs)
-             Just _  -> do env <- getKindEnv
-                           addError range $ text "Type" <+> ppType (cscheme env) name <+> 
-                                            text "is already defined"
-                           return (kgamma,tdefs)
+      = if (Core.typeDefIsExtension tdef) then return (kgamma,tdefs)
+         else do let (name,kind) = nameKind tdef
+                 trace("extend kgamma: " ++ show (name)) $
+                  case kgammaLookupQ name kgamma of
+                   Nothing -> return (kgammaExtend name kind kgamma,tdef:tdefs)
+                   Just _  -> do env <- getKindEnv
+                                 addError range $ text "Type" <+> ppType (cscheme env) name <+> 
+                                                  text "is already defined"
+                                 return (kgamma,tdefs)
       where
         nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-        nameKind (Core.Data dataInfo vis conviss)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+        nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
   
 
 -- | This extend KGamma does not check for duplicates
@@ -215,7 +218,7 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
   where
     kGamma = kgammaNewNub (map nameKind tdefs) -- duplicates are removed here
     nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-    nameKind (Core.Data dataInfo vis conviss)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+    nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
 
     kSyns  = synonymsNew (concatMap nameSyn tdefs)
     nameSyn (Core.Synonym synInfo vis) = [synInfo]
@@ -255,6 +258,7 @@ findInfKind name0 range
        -- lookup locally
        -- note: also lookup qualified since it might be recursive definition 
        -- todo: check for the locally inferred names for casing too.
+       trace("find: " ++ show (name,qname) ++ ": " ++ show (M.elems (infgamma env))) $ return ()
        case M.lookup name (infgamma env)  of
          Just infkind -> return (name,infkind)
          Nothing ->
@@ -277,8 +281,8 @@ findInfKind name0 range
                                               _ -> return ()
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
-                                             addError range (text "Type" <+> (ppType cs name) <+> text "is undefined" <->
-                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> ppType cs name <> text ">"))
+                                             addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
+                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> ppType cs name <> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k)
                       Ambiguous names  -> do let cs = cscheme env

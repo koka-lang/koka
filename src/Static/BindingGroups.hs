@@ -11,6 +11,7 @@ module Static.BindingGroups( bindingGroups ) where
 import qualified Common.NameMap as M
 import qualified Common.NameSet as S
 
+import Data.List(partition)
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
 import Common.NamePrim (toShortModuleName)
@@ -33,25 +34,22 @@ bindingGroups (Program source modName nameRange typeDefs defs imports externals 
 ---------------------------------------------------------------------------
 bindingsTypeDefs :: [UserTypeDefGroup] -> [UserTypeDefGroup]
 bindingsTypeDefs typeDefGroups
-  = groupTypeDefs (flatten typeDefGroups) (M.unions (map dependencyTypeDefGroup typeDefGroups))
+  = let (ds,extends) = partition isDefinition (flatten typeDefGroups)
+    in groupTypeDefs ds (M.fromList (map dependencyTypeDef ds)) ++ (map TypeDefNonRec extends)
   where
     flatten groups
       = concatMap (\g -> case g of { TypeDefRec typeDefs -> typeDefs; TypeDefNonRec td -> [td]}) groups
 
-          
-dependencyTypeDefGroup :: UserTypeDefGroup -> Deps
-dependencyTypeDefGroup (TypeDefRec typeDefs)
-  = M.fromList (map dependencyTypeDef typeDefs)
-dependencyTypeDefGroup (TypeDefNonRec typeDef)
-  = M.fromList (map dependencyTypeDef [typeDef])
-
-
+    isDefinition td
+      = case td of
+          DataType binder args cons range vis sort isOpen isExtend doc -> not isExtend
+          _ -> True
 
 dependencyTypeDef :: UserTypeDef -> (Name,S.NameSet)
 dependencyTypeDef typeDef
   = case typeDef of
       Synonym binder args tp range vis doc    -> (typeDefName typeDef, freeTypes tp)
-      DataType binder args cons range vis sort _ _ doc -> (typeDefName typeDef, freeTypes cons)
+      DataType binder args cons range vis sort isOpen isExtend doc -> (typeDefName typeDef, freeTypes cons)
 
 ---------------------------------------------------------------------------
 -- Free type constructors

@@ -140,7 +140,7 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (sort,doc) <- typeSort
+  = do (isOpen,sort,doc) <- typeSort
        isRec      <- do{ keyword "rec"; return True } <|> return False
        (name,_)   <- tbinderId
        -- trace ("core type: " ++ show name) $ return ()
@@ -151,8 +151,8 @@ typeDecl env
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 rangeNull isRec doc
-       return (Data dataInfo Public (map (const Public) cons), env)
+           dataInfo = DataInfo sort tname kind params cons1 rangeNull isRec isOpen doc
+       return (Data dataInfo Public (map (const Public) cons) False, env)
   <|>
     do (_,doc) <- dockeyword "alias"
        (name,_) <- tbinderId
@@ -177,14 +177,12 @@ conDecl tname sort env
        return (ConInfo (qualify (modName env) name) tname existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
 
 
-typeSort :: LexParser (DataKind,String)
+typeSort :: LexParser (Bool, DataKind,String)
 typeSort
-  =   do (_,doc) <- dockeyword "type"
-         return (Inductive,doc)
-  <|> do (_,doc) <- dockeyword "cotype"
-         return (CoInductive,doc)
-  <|> do (_,doc) <- dockeyword "rectype"
-         return (Retractive,doc)
+  = do isOpen <- do{ keyword "open"; return True } <|> return False
+       let f kw sort = do (_,doc) <- dockeyword kw
+                          return (isOpen,sort,doc)
+       (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
 
 {--------------------------------------------------------------------------
   Value definitions 

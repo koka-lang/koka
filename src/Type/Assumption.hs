@@ -219,7 +219,7 @@ extractTypeDefGroup isVisible msf (Core.TypeDefGroup tdefs)
 
 extractTypeDef isVisible msf tdef
   = case tdef of
-     Core.Data dataInfo vis conViss   | isVisible vis
+     Core.Data dataInfo vis conViss isExtend  | isVisible vis
        -> gammaUnions (L.map extractConInfo 
             [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo) 
                (zip conViss (snd (Core.getDataRepr msf {- struct fields do not matter for extraction -} dataInfo))), isVisible vis])

@@ -22,6 +22,7 @@ module Core.Core ( -- Data structures
                    , showTName
                    , flattenDefGroups
                    , extractSignatures
+                   , typeDefIsExtension
                    
                      -- Term substitution
                    , (|~>)
@@ -150,10 +151,14 @@ type TypeDefs = [TypeDef]
 -- | A type definition
 data TypeDef =
     Synonym{ typeDefSynInfo :: SynInfo, typeDefVis ::  Visibility }             -- ^ name, synonym info, and the visibility
-  | Data{ typeDefDataInfo :: DataInfo, typeDefVis ::  Visibility, typeDefConViss :: [Visibility] }  -- ^ name, info, visibility, and the visibilities of the constructors
+  | Data{ typeDefDataInfo :: DataInfo, typeDefVis ::  Visibility, typeDefConViss :: [Visibility], typeDefIsExtend :: Bool }  -- ^ name, info, visibility, and the visibilities of the constructors, the isExtend is true if this is an extension of the datatype.
 
 typeDefName (Synonym info _) = synInfoName info
-typeDefName (Data info _ _)  = dataInfoName info
+typeDefName (Data info _ _ _)  = dataInfoName info
+
+typeDefIsExtension (Data _ _ _ True) = True
+typeDefIsExtension _                 = False
+
 
 {--------------------------------------------------------------------------
   Data representation

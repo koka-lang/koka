@@ -27,13 +27,19 @@ import Type.Pretty ()
 import Core.Core
 
 analyzeBranches :: [Branch] -> Name -> Range -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
-analyzeBranches branches defName range infos
-  = let conNamess = [map conInfoName (dataInfoConstrs info) | info <- infos]
-        allCases  = cart conNamess 
-    in visitBranches allCases branches
+analyzeBranches branches defName range infos 
+  = if  any dataInfoIsOpen infos 
+     then (False, [], branches ++ catchAll) -- todo: skip the catch all if there is one already
+     else let conNamess = [map conInfoName (dataInfoConstrs info) | info <- infos]
+              allCases  = cart conNamess 
+          in visitBranches allCases branches
   where
     patternCount = length (branchPatterns (head branches))
     resultType   = typeOf (head branches)
+    catchAll     = [ Branch (replicate patternCount PatWild) 
+                         [Guard exprTrue (patternMatchError resultType defName range)]
+                   ]
+
     noguards    :: Bool -- true if all branches have just one guard that is true
     noguards     = all (\b-> case branchGuards b of
                                [Guard t _] -> isExprTrue t
@@ -60,9 +66,7 @@ analyzeBranches branches defName range infos
                                        []
                         in ( False
                            , warnings
-                           , [ Branch (replicate patternCount PatWild) 
-                                      [Guard exprTrue (patternMatchError resultType defName range)]
-                             ]
+                           , catchAll
                            )
                   (branch@(Branch patterns guards):rest)
                      -- since every guard more complex than 'true', we have no idea if it matches anything

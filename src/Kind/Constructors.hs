@@ -109,7 +109,7 @@ extractTypeDefGroup isVisible (Core.TypeDefGroup tdefs)
 extractTypeDef :: (Visibility -> Bool) -> Core.TypeDef -> M.NameMap ConInfo
 extractTypeDef isVisible tdef
   = case tdef of
-      Core.Data dataInfo vis conViss | isVisible vis
+      Core.Data dataInfo vis conViss isExtend | isVisible vis
         -> let conInfos = dataInfoConstrs dataInfo
            in M.fromList [(conInfoName conInfo,conInfo) | (conInfo,vis) <- zip conInfos conViss, isVisible vis]
       _ -> M.empty
