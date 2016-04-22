@@ -127,10 +127,9 @@ external inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <wri
 
 // Add the "ndet" effect to a function effect.
 external inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  = inline "#1"
-
+ 
 // Add the "io" effect to a function effect.
 external inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  = inline "#1"
-
 
 
 // ----------------------------------------------------------------------------
@@ -2539,3 +2538,31 @@ external getHost() : ndet string {
   js inline "($inBrowser ? 'browser' : ($inWebWorker ? 'worker' : 'nodejs'))"
 }
 
+
+
+
+// ----------------------------------------------------------------------------
+// Handled effects
+// ----------------------------------------------------------------------------
+
+// Continuation effect
+type cont :: X;
+
+// Effect operations
+open type op<a> 
+
+// The CPS monad
+type cps<e,a> {
+  Yield<b>( op:op<b>, f : b -> e cps<e,a> )
+  Result( res: a )
+}
+
+// Run a CPS converted function
+function pure( cps : ( k : a -> e cps<e,a> ) -> e cps<e,a> ) : <exn|e> a {
+  match(cps(Result)) {
+    Result(x) -> x
+  }
+}
+
+external inline unsafenocont( action : () -> <cont|e> a ) : () -> e a = inline "#1"
+external unsafeyield( op : op<a> ) : e a = inline "Yield(#1,k)"
