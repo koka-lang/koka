@@ -42,14 +42,14 @@ bindingsTypeDefs typeDefGroups
 
     isDefinition td
       = case td of
-          DataType binder args cons range vis sort isOpen isExtend doc -> not isExtend
+          DataType binder args cons range vis sort ddef isExtend doc -> not isExtend
           _ -> True
 
 dependencyTypeDef :: UserTypeDef -> (Name,S.NameSet)
 dependencyTypeDef typeDef
   = case typeDef of
       Synonym binder args tp range vis doc    -> (typeDefName typeDef, freeTypes tp)
-      DataType binder args cons range vis sort isOpen isExtend doc -> (typeDefName typeDef, freeTypes cons)
+      DataType binder args cons range vis sort ddef isExtend doc -> (typeDefName typeDef, freeTypes cons)
 
 ---------------------------------------------------------------------------
 -- Free type constructors

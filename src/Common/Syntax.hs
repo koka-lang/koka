@@ -17,6 +17,8 @@ module Common.Syntax( Visibility(..)
                     , Target(..)
                     , Host(..)
                     , isPublic, isPrivate
+                    , DataDef(..)
+                    , dataDefIsRec, dataDefIsOpen 
                     ) where
 
 {--------------------------------------------------------------------------
@@ -60,6 +62,19 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
+data DataDef = DataDefNormal | DataDefRec | DataDefOpen
+             deriving Eq
+
+
+dataDefIsRec ddef 
+  = case ddef of
+      DataDefNormal -> False
+      _  -> True
+
+dataDefIsOpen ddef 
+  = case ddef of
+      DataDefOpen -> True
+      _ -> False
 
 
 {--------------------------------------------------------------------------

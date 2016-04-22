@@ -210,18 +210,18 @@ ppDataInfo env showBody isExtend dataInfo
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range isRec isOpen doc) vis conViss
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef doc) vis conViss
   = if (publicOnly && isPrivate vis) then empty else 
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
       (if isExtend then keyword env "extend " 
-        else if isOpen then keyword env "open " else empty) <>
+        else if dataDefIsOpen datadef then keyword env "open " else empty) <>
       (case datakind of
          Inductive -> keyword env "type"
          CoInductive -> keyword env "cotype"
          Retractive  -> keyword env "rectype") <+>
-      (if isRec then keyword env "rec " else empty) <>
+      (if dataDefIsRec datadef && not (dataDefIsOpen datadef) then keyword env "rec " else empty) <>
       -- ppVis env vis <+>
       ppName env name <> 
       (if null args then empty else space <> angled (map (ppTypeVar env) args)) <>

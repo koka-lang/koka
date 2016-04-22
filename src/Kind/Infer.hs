@@ -658,7 +658,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
 
-resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort isOpen isExtend doc)
+resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
   = do trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()                          
        newtp' <- if isExtend
                   then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
@@ -684,7 +684,10 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               else return ()
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
-       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range isRec isOpen doc
+       let ddef' = case ddef of
+                     DataDefNormal | isRec -> DataDefRec
+                     _ -> ddef
+           dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' doc
        return (Core.Data dataInfo vis (map conVis constructors) isExtend)
   where
     conVis (UserCon name exist params rngName rng vis _) = vis

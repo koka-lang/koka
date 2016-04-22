@@ -237,7 +237,7 @@ genTypeDef (Data info _ _ isExtend)
                 -- tagless
                 ConSingle{}  -> genConstr penv c repr name args [] 
                 ConAsCons{}  -> genConstr penv c repr name args []
-                _            -> genConstr penv c repr name args [(tagField, int (conTag repr))]
+                _            -> genConstr penv c repr name args [(tagField, getConTag c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
        return $ debugComment ( "Value constructors for type '" ++ (show $ dataInfoName info) ++ "' (" ++ (show dataRepr) ++ ")" )
             <-> vcat docs
@@ -251,6 +251,14 @@ genTypeDef (Data info _ _ isExtend)
           <+> block ( text "return" <+> 
                       (if conInfoName c == nameOptional then head args 
                         else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
+
+getConTag coninfo repr
+  = case repr of
+      ConOpen{} -> ppLit (LitString (show (openConTag (conInfoName coninfo))))
+      _ -> int (conTag repr)
+                      
+openConTag name
+  = unqualify name
 
 ---------------------------------------------------------------------------------
 -- Statements 
@@ -480,8 +488,7 @@ genMatch result scrutinees branches
                                              (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     ConNormal{}
-                       -> let conTest    = debugWrap "genTest: normal" $ scrutinee <> dot <> tagField <+> text "===" <+> int (conTag repr)
+                     _ -> let conTest    = debugWrap "genTest: normal" $ scrutinee <> dot <> tagField <+> text "===" <+> getConTag info repr
                               fieldTests  =  concatMap
                                              (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
                                              ( zip fields (map (ppName . fst) (conInfoParams info)) )

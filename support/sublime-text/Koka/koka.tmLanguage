@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>author</key>
@@ -735,7 +735,7 @@
 		<key>reservedid</key>
 		<dict>
 			<key>match</key>
-			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\w)</string>
+			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|open|extend|yield)(?!\w)</string>
 			<key>name</key>
 			<string>keyword.other.koka</string>
 		</dict>

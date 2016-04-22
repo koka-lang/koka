@@ -140,8 +140,12 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (isOpen,sort,doc) <- typeSort
-       isRec      <- do{ keyword "rec"; return True } <|> return False
+  = do (ddef0,isExtend,sort,doc) <- typeSort
+       ddef       <- do keyword "rec"
+                        return (case ddef0 of 
+                                  DataDefNormal -> DataDefRec
+                                  _ -> ddef0)                         
+                     <|> return ddef0
        (name,_)   <- tbinderId
        -- trace ("core type: " ++ show name) $ return ()
        (env,params) <- typeParams env
@@ -151,8 +155,8 @@ typeDecl env
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 rangeNull isRec isOpen doc
-       return (Data dataInfo Public (map (const Public) cons) False, env)
+           dataInfo = DataInfo sort tname kind params cons1 rangeNull ddef doc
+       return (Data dataInfo Public (map (const Public) cons) isExtend, env)
   <|>
     do (_,doc) <- dockeyword "alias"
        (name,_) <- tbinderId
@@ -177,11 +181,13 @@ conDecl tname sort env
        return (ConInfo (qualify (modName env) name) tname existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
 
 
-typeSort :: LexParser (Bool, DataKind,String)
+typeSort :: LexParser (DataDef, Bool, DataKind,String)
 typeSort
-  = do isOpen <- do{ keyword "open"; return True } <|> return False
+  = do (ddef,isExtend) <- do{ keyword "open"; return (DataDefOpen,False) } 
+                          <|> do{ keyword "extend"; return (DataDefOpen, True) }
+                          <|> return (DataDefNormal,False)
        let f kw sort = do (_,doc) <- dockeyword kw
-                          return (isOpen,sort,doc)
+                          return (ddef,isExtend,sort,doc)
        (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
 
 {--------------------------------------------------------------------------

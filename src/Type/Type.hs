@@ -13,6 +13,7 @@ module Type.Type (-- * Types
                     Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType, Pred(..)
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
+                  , dataInfoIsRec, dataInfoIsOpen
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -64,7 +65,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( DataKind(..) )
+import Common.Syntax( DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -160,10 +161,15 @@ data DataInfo = DataInfo{ dataInfoSort :: DataKind
                         , dataInfoParams :: [TypeVar] {- ^ arguments -} 
                         , dataInfoConstrs :: [ConInfo] 
                         , dataInfoRange  :: Range
-                        , dataInfoIsRec  :: Bool  {- ^ recursive? -}
-                        , dataInfoIsOpen :: Bool  {- ^ open data type? -}
+                        , dataInfoDef    :: DataDef
                         , dataInfoDoc    :: String
                         }
+
+dataInfoIsRec info 
+  = dataDefIsRec (dataInfoDef info)
+
+dataInfoIsOpen info 
+  = dataDefIsOpen (dataInfoDef info)
 
 -- | Constructor information: constructor name, name of the newtype, field types, and the full type of the constructor
 data ConInfo = ConInfo{ conInfoName :: Name

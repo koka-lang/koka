@@ -29,7 +29,8 @@ import Core.Core
 analyzeBranches :: [Branch] -> Name -> Range -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
 analyzeBranches branches defName range infos 
   = if  any dataInfoIsOpen infos 
-     then (False, [], branches ++ catchAll) -- todo: skip the catch all if there is one already
+     then (False, [], branches ++ 
+                      if finalBranchIsCatchAll then [] else catchAll) 
      else let conNamess = [map conInfoName (dataInfoConstrs info) | info <- infos]
               allCases  = cart conNamess 
           in visitBranches allCases branches
@@ -40,11 +41,18 @@ analyzeBranches branches defName range infos
                          [Guard exprTrue (patternMatchError resultType defName range)]
                    ]
 
+    finalBranchIsCatchAll :: Bool
+    finalBranchIsCatchAll
+      = case reverse branches of 
+          (Branch [pat] [Guard t _]:_) | alwaysMatch pat && isExprTrue t -> True
+          _ -> False
+
     noguards    :: Bool -- true if all branches have just one guard that is true
     noguards     = all (\b-> case branchGuards b of
                                [Guard t _] -> isExprTrue t
                                _           -> False
                        ) branches
+
     visitBranches :: [[Name]] -> [Branch] -> (Bool, [(Range, Doc)], [Branch])
     visitBranches cases branches
       = case cases of
@@ -97,11 +105,11 @@ matchPatterns patterns conNames
           PatVar _ pat    -> match (pat,conName)
           PatCon tname pats _ _ info
             -> (getName tname == conName && all alwaysMatch pats)  -- TODO: properly address nested patterns
-            where
-              alwaysMatch PatWild               = True
-              alwaysMatch (PatVar _ pat)        = alwaysMatch pat
-              alwaysMatch (PatCon _ _ _ _ info) = conInfoSingleton info
-              -- alwaysMatch _                  = False
+
+alwaysMatch PatWild               = True
+alwaysMatch (PatVar _ pat)        = alwaysMatch pat
+alwaysMatch (PatCon _ _ _ _ info) = conInfoSingleton info
+-- alwaysMatch _                  = False
 
 
 cart :: [[a]] -> [[a]]

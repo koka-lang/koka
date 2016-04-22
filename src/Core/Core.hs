@@ -171,6 +171,7 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                   
               | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
               | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
               | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConOpen  { conTypeName :: Name }                                  -- constructor of open data type   
               | ConNormal{ conTypeName :: Name, conTag :: Int }                   -- a regular constructor
               deriving (Eq,Ord,Show)
 
@@ -187,7 +188,9 @@ getDataRepr maxStructFields info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         (dataRepr,conReprFuns) = 
-         if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
+         if (dataInfoIsOpen(info))
+          then (DataNormal, map (\conInfo conTag -> ConOpen typeName) conInfos)
+         else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos

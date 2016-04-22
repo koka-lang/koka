@@ -482,7 +482,7 @@ typeDecl dvis
   = dataTypeDecl dvis <|> structDecl dvis
 
 dataTypeDecl dvis =
-   do (vis,defvis,vrng,(typeSort,trng,doc,isOpen,isExtend)) <- 
+   do (vis,defvis,vrng,(typeSort,trng,doc,ddef,isExtend)) <- 
           do rng <- keyword "abstract"
              x   <- typeDeclKind 
              return (Public,Private,rng,x)
@@ -490,7 +490,7 @@ dataTypeDecl dvis =
             (try $ do (vis,vrng) <- visibility dvis
                       x <- typeDeclKind 
                       return (vis,vis,vrng,x))
-      tbind <- if isExtend 
+      tbind <- if isExtend
                 then do (qid,rng) <- qtypeid
                         return (\kind -> TypeBinder qid kind rng rng)
                 else tbinderDef
@@ -500,7 +500,7 @@ dataTypeDecl dvis =
       (cs,crng)    <- semiBracesRanged (constructor defvis tpars resTp) <|> return ([],rangeNull)
       let (constrs,creatorss) = unzip cs
           range   = combineRanges [vrng,trng, getRange (tbind kind),prng,crng]
-      return (DataType name tpars constrs range vis typeSort isOpen isExtend doc, concat creatorss)
+      return (DataType name tpars constrs range vis typeSort ddef isExtend doc, concat creatorss)
    where
     tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
     tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
@@ -524,7 +524,7 @@ structDecl dvis =
       let (tid,rng) = getRName name
           conId     = toConstructorName tid
           (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
-      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive False False doc, creators)
+      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive DataDefNormal False doc, creators)
    where
     tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
     tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
@@ -541,15 +541,15 @@ enum
        return (UserCon con [] [] rng rng)
   -}
 
-typeDeclKind :: LexParser (DataKind,Range,String,Bool,Bool)
+typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do (isOpen,isExtend) <- do{ keyword "open"; return (True,False) }
-                            <|>
-                            do{ keyword "extend"; return (True,True) }
-                            <|>
-                            return (False,False)
+  = do (ddef,isExtend)  <- do{ keyword "open"; return (DataDefOpen, False) }
+                <|>
+                do{ keyword "extend"; return (DataDefOpen, True) }
+                <|>
+                return (DataDefNormal, False)
        let f kw sort = do (rng,doc) <- dockeyword kw   
-                          return (sort,rng,doc,isOpen,isExtend)                            
+                          return (sort,rng,doc,ddef,isExtend)                            
        (f "type" (Inductive)
         <|> 
         f "cotype" (CoInductive)
