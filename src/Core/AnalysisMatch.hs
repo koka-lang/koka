@@ -29,8 +29,7 @@ import Core.Core
 analyzeBranches :: [Branch] -> Name -> Range -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
 analyzeBranches branches defName range infos 
   = if  any dataInfoIsOpen infos 
-     then (False, [], branches ++ 
-                      if finalBranchIsCatchAll then [] else catchAll) 
+     then (finalBranchIsCatchAll, [], branches ++ if finalBranchIsCatchAll then [] else catchAll) 
      else let conNamess = [map conInfoName (dataInfoConstrs info) | info <- infos]
               allCases  = cart conNamess 
           in visitBranches allCases branches
