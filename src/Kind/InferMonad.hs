@@ -258,7 +258,7 @@ findInfKind name0 range
        -- lookup locally
        -- note: also lookup qualified since it might be recursive definition 
        -- todo: check for the locally inferred names for casing too.
-       trace("find: " ++ show (name,qname) ++ ": " ++ show (M.elems (infgamma env))) $ return ()
+       -- trace("find: " ++ show (name,qname) ++ ": " ++ show (M.elems (infgamma env))) $ return ()
        case M.lookup name (infgamma env)  of
          Just infkind -> return (name,infkind)
          Nothing ->
