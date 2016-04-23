@@ -13,7 +13,7 @@ function xor() : amb bool {
 // ----------------------------------------------------------------------------
 type amb :: X
 
-private external inline unsafenoamb( action: () -> <amb|e> a ) : ( (a -> cps<e,x>) ) -> cps<e,x> = inline "#1"
+private external inline unsafenoamb( action: () -> <amb|e> a ) : ( (a -> e cps<<cont|e>,x>) ) -> <cont|e> cps<<cont|e>,x> = inline "#1"
 
 extend type op<a> {
   Flip
@@ -23,32 +23,24 @@ function flip() : amb bool {
   unsafeyield(Flip)
 }
 
+external reyield( op : op<a>, f : a -> <cont|e> b) : <cont|e> b = inline "Yield(#1,function(x){ (#2)(x,k) })"
+external unsafenocont( f : () -> <cont|e> a) : () -> e a = inline "#1"  
+
 // ----------------------------------------------------------------------------
 // Ambiguity handler
 // ----------------------------------------------------------------------------
-function amb_result(x : a ) : list<a> {
-  [x]
-}
-
-function amb_flip( cont : bool -> list<a> ) : list<a> {
-  cont(False) + cont(True)
-}
-
 function amb_handle( action : () -> <amb|e> a ) : e list<a> {
-  (fun(k) { amb_handlex( unsafenoamb(action)(Result), k ) }).pure
-}
-
-function amb_handlex( cps : cps<e,a>, k : list<a> -> e cps<e,x> ) : e cps<e,x> {
-  match(cps) {
-    Result(x)   -> amb_result(x,k)
-    Yield(op,f) -> {
-      function cont(x,kc) { amb_handlex(f(x),kc) } // wrap the continuation
-      match(op) {
-        Flip -> amb_flip(cont,k)
-        _    -> Yield(op, fun(x) { cont(x,k) })
+  function amb_handlex( cps : cps<<cont|e>,a> ) : <cont|e> list<a> {
+    match(cps) {
+      Result(x)   -> [x]
+      Yield(Flip,f) -> {
+        function cont(x : bool) { amb_handlex(f(x)) } 
+        cont(False) + cont(True)
       }
+      Yield(op,f) -> reyield(op, fun(x) { amb_handlex(f(x)) })
     }
   }
+  (unsafenocont{ amb_handlex(unsafenoamb(action)(Result)) })
 }
 
 // ----------------------------------------------------------------------------

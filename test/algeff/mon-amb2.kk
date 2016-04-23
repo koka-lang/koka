@@ -85,6 +85,17 @@ function xor() : e free<e,bool> {
 }
 
 
+                   
+function foo() : e free<e,bool> {
+  bind( flip(), fun(p) {
+    bind( get(), fun(i) {
+      bind( set(i+1), fun(_) {
+          if (i >= 0 && p) then xor() else unit(False)
+      })
+    })
+  })
+}
+
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
 // ----------------------------------------------------------------------------
@@ -112,15 +123,15 @@ function amb_flip( cont : bool -> e free<e,list<a>> ) : e free<e,list<a>> {
 }
 
 
-function amb_handler( action : () -> e free<e,a> ) : e free<e,list<a>> {
-  unsafe_nodiv(amb_handlerx)( action() )
+function amb_handler( free : free<e,a> ) : e free<e,list<a>> {
+  unsafe_nodiv(amb_handlerx)( free )
 }
 
-function amb_handlerx( free : free<<div|e>,a> ) : <div|e> free<<div|e>,list<a>> {
+function amb_handlerx( free ) {
   match(free) {
     Unit(x) -> amb_result(x)
     Op(op,cop) -> {
-      function cont(x) { amb_handlerx(apply(cop,x)) }  // wrap the continuation
+      function cont(x) { amb_handlerx(apply(cop,x)) }  
       match(op) {
         Flip  -> amb_flip(cont)
         _     -> Op(op, Fun(cont))
@@ -130,6 +141,49 @@ function amb_handlerx( free : free<<div|e>,a> ) : <div|e> free<<div|e>,list<a>> 
 }
 
 private external inline unsafe_nodiv : forall<e,a,b> ( (x : free<<div|e>,a> ) -> <div|e> free<<div|e>,b> ) -> ( ( x : free<e,a> ) -> e free<e,b>) = inline "#1"
+private external inline unsafe_nodiv2 : forall<e,a,b,c> ( (x : free<<div|e>,a>, c ) -> <div|e> free<<div|e>,b> ) -> ( ( x : free<e,a>, c ) -> e free<e,b>) = inline "#1"
+private external inline unsafe_nodivx : forall<e,a> ( () -> <div|e> free<<div|e>,a> ) -> ( () -> e free<e,a>) = inline "#1"
+
+// ----------------------------------------------------------------------------
+// State
+// ----------------------------------------------------------------------------
+
+extend type op<a> {
+  Get
+  Set(i:int)
+}
+
+function get() : e free<e,int> {
+  lift(Get)
+}
+
+function set(i : int) : e free<e,()> {
+  lift(Set(i))
+}
+
+
+function state_handler( free : free<e,a>, i : int ) : e free<e,(a,int)> {
+  function state_handlerx( free, i ) {
+    match(free) {
+      Unit(x) -> unit( (x,i) )
+      Op(Get,cop) -> {        
+        function cont(i,x) { state_handlerx(apply(cop,x),i) }  
+        cont(i,i)
+      }
+      Op(Set(j),cop) -> {
+        function cont(i,x) { state_handlerx(apply(cop,x),i) }  
+        cont(j,())
+      }
+      Op(op,cop) -> {
+        function cont(x) { state_handlerx(apply(cop,x),i) }  
+        Op(op, Fun(cont))
+      }
+    }
+  }
+
+  unsafe_nodiv2(state_handlerx)( free, i )
+}
+
 
 
 // ----------------------------------------------------------------------------
@@ -137,6 +191,18 @@ private external inline unsafe_nodiv : forall<e,a,b> ( (x : free<<div|e>,a> ) ->
 // ----------------------------------------------------------------------------
 
 function test0() {
-  amb_handler(xor).pure.map(show).join(",")
+  amb_handler(xor()).pure.map(show).join(",")
 }
 
+
+                   
+function show1( x : (list<bool>,int) ) {
+  "([" + x.fst.map(show).join(",") + "], " + x.snd.show + ")"
+}
+                   
+function show2( xs : list<(bool,int)> ) {
+  "[" + xs.map(fun(x){ "(" + x.fst.show + "," + x.snd.show + ")"}).join(",") + "]"
+}
+                   
+function test1() = state_handler(amb_handler(foo()),1).pure.show1
+function test2() = amb_handler(state_handler(foo(),1)).pure.show2
