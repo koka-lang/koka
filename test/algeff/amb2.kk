@@ -2,10 +2,6 @@
 // Program
 // ----------------------------------------------------------------------------
 
-open type free<e::E,a> {
-  Result( result : a )
-}
-
 function xor( k : bool -> <amb|e> free<<amb|e>,x>) : <amb|e> free<<amb|e>,x> {
   flip(fun(p) {
     flip(fun(q) {
@@ -14,7 +10,13 @@ function xor( k : bool -> <amb|e> free<<amb|e>,x>) : <amb|e> free<<amb|e>,x> {
   })
 }
 
-             
+type free<e,a> {
+  Res( res : a )
+  Yld<b>( eff: effect<b,e,a>, f : b -> e free<e,a> )
+}
+
+open type effect<b,e::E,a>
+
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
 // ----------------------------------------------------------------------------
@@ -22,38 +24,49 @@ type amb :: X
 
 private external inline unsafeNoAmb : forall<e,a> ( action: ( k : a -> <amb|e> free<<amb|e>,a> ) -> <amb|e> free<<amb|e>,a> ) -> ((k : a -> e free<e,a>) -> e free<e,a>) = inline "#1"
 
-extend type free<e,a> {
-  Flip( k : bool -> e free<e,a> )
+extend type effect<b,e::E,a> {
+  Amb( mkop : (b -> e free<e,a>) -> e ambop<b,e,a> )
 }
 
-function flip( k : bool -> <amb|e> free<<amb|e>,x> ) : amb free<<amb|e>,x> {
-  Flip(k)
+type ambop<b,e,a> {
+  Flip( f : bool -> e free<e,a> )
+}
+
+function flip( k : bool -> e free<e,x> ) : amb free<e,x> {
+  Yld( Amb(fun(f) { Flip(f) }) , k)
 }
 
 // ----------------------------------------------------------------------------
 // Ambiguity handler
 // ----------------------------------------------------------------------------
+function amb_result(x : a, k : list<a> -> e free<e,x> ) : e free<e,x> {
+  k([x])
+}
+
+function amb_flip(cont : (bool, list<a> -> e free<e,x> ) -> e free<e,x>, k : list<a> -> e free<e,x> ) : e free<e,x> {
+  cont(False, fun(xs) {
+    cont(True, fun(ys) {
+      k(xs+ys)
+    })
+  })
+}
 
 function amb_handle( action : ( k : a -> <amb|e> free<<amb|e>,a> ) -> <amb|e> free<<amb|e>,a>, k : list<a> -> e free<e,x> ) : e free<e,x> {
-  amb_handlex( unsafeNoAmb(action)(Result), k )
+  amb_handlex( unsafeNoAmb(action)(Res), k )
 }
 
 function amb_handlex( free : free<e,a>, k : list<a> -> e free<e,x> ) : e free<e,x> {
   match(free) {
-    Yield(yfree,ywrap) -> amb_handlex(yfree, fun(xs){ ywrap(xs,k) })
-    Result(x) -> k([x])
-    Flip(f) -> {
-      function cont(x,kc) { amb_handlex(f(x),kc) } // wrap the continuation
-      cont(False, fun(xs) {
-        cont(True, fun(ys) {
-          k(xs++ys)
-        })
-      })
+    Res(x)   -> amb_result(x,k)
+    Yld(Amb(mkop),f) -> {
+      function ccont(x,kc) { amb_handlex(f(x),kc) } // wrap the continuation
+      match(mkop(ccont)) {
+        Flip(cont) -> amb_flip(cont,k)
+      }
     }
-    _ -> Yield(free, fun(f) { amb_handlex(f(x),k) })
+    Yld(op,f) -> Yld(op, fun(x) { amb_handlex(f(x),k) })
   }
 }
-
 
 // ----------------------------------------------------------------------------
 // Testing
@@ -63,11 +76,13 @@ function test0() {
   (fun(k) { amb_handle(xor,k) }).pure.map(show).join(",")
 }
 
+
 /* 
 // ----------------------------------------------------------------------------
-// Program with state
+// State program
 // ----------------------------------------------------------------------------
 
+             
 function foo( k : bool -> <amb,state|e> free<<amb,state|e>,x> ) : <amb,state|e> free<<amb,state|e>,x> {
   flip( fun(p) {
     get( fun(i) {
@@ -77,7 +92,6 @@ function foo( k : bool -> <amb,state|e> free<<amb,state|e>,x> ) : <amb,state|e> 
     })
   })
 }
-
 
 // ----------------------------------------------------------------------------
 // State primitives
@@ -128,7 +142,8 @@ function state_handle( action : ( k : a -> <state|e> free<<state|e>,a> ) -> <sta
 // ----------------------------------------------------------------------------
 // Testing
 // ----------------------------------------------------------------------------
-                   
+ 
+
          
 function show1( x : (list<bool>,int) ) {
   "([" + x.fst.map(show).join(",") + "], " + x.snd.show + ")"
@@ -145,4 +160,5 @@ function test1() {
 function test2() {
   (fun(k) { amb_handle( fun(k2) { state_handle(foo,1,k2) }, k ) }).pure.show2          
 }
+
 */
