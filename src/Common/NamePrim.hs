@@ -65,7 +65,7 @@ module Common.NamePrim
           , nameKindStar, nameKindFun
           , nameKindLabel
           , nameKindPred, nameKindEffect
-          , nameKindHeap
+          , nameKindHeap, nameKindHandled
 
           , toShortModuleName
 
@@ -210,3 +210,4 @@ nameKindFun     = newName "->"
 nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
+nameKindHandled = newName "HX"

@@ -1518,7 +1518,10 @@ katom
   <|>
     do rng <- specialConId "P"
        return (KindCon nameKindPred rng)
-  <?> "kind constant (V,E,H,X, or P)"
+  <|>
+    do rng <- specialConId "HX"
+       return (KindCon nameKindHandled rng)
+  <?> "kind constant (V,E,H,X,HX, or P)"
 
 -----------------------------------------------------------
 -- Braces and parenthesis

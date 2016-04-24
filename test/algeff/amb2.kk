@@ -12,10 +12,10 @@ function xor( k : bool -> <amb|e> free<<amb|e>,x>) : <amb|e> free<<amb|e>,x> {
 
 type free<e,a> {
   Res( res : a )
-  Yld<b>( eff: effect<b,e,a>, f : b -> e free<e,a> )
+  Yld( eff: effect<e,a>, f : any -> e free<e,a> )
 }
 
-open type effect<b,e::E,a>
+open type effect<e::E,a>
 
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
@@ -24,16 +24,20 @@ type amb :: X
 
 private external inline unsafeNoAmb : forall<e,a> ( action: ( k : a -> <amb|e> free<<amb|e>,a> ) -> <amb|e> free<<amb|e>,a> ) -> ((k : a -> e free<e,a>) -> e free<e,a>) = inline "#1"
 
-extend type effect<b,e::E,a> {
-  Amb( mkop : (b -> e free<e,a>) -> e ambop<b,e,a> )
+extend type effect<e::E,a> {
+  Amb( mkamb : (f : any -> e free<e,a>) -> e ambop<e,a> )
 }
 
-type ambop<b,e,a> {
+type ambop<e,a> {
   Flip( f : bool -> e free<e,a> )
 }
 
-function flip( k : bool -> e free<e,x> ) : amb free<e,x> {
-  Yld( Amb(fun(f) { Flip(f) }) , k)
+external inline unsafecastx( f : a -> e free<e,x> ) : any -> e free<e,x> = inline "#1"
+external inline safecastx( f : any -> e free<e,x> ) : b -> e free<e,x> = inline "#1"
+external unsafecast( a : any ) : b = inline "#1"
+
+function flip( k : bool -> <amb|e> free<<amb|e>,x> ) : <amb|e> free<<amb|e>,x> {
+  Yld( Amb( fun(f) { Flip(safecastx(f)) }), unsafecastx(k) )
 }
 
 // ----------------------------------------------------------------------------
@@ -58,15 +62,19 @@ function amb_handle( action : ( k : a -> <amb|e> free<<amb|e>,a> ) -> <amb|e> fr
 function amb_handlex( free : free<e,a>, k : list<a> -> e free<e,x> ) : e free<e,x> {
   match(free) {
     Res(x)   -> amb_result(x,k)
-    Yld(Amb(mkop),f) -> {
-      function ccont(x,kc) { amb_handlex(f(x),kc) } // wrap the continuation
-      match(mkop(ccont)) {
-        Flip(cont) -> amb_flip(cont,k)
+    Yld(Amb(mkamb),f) -> {
+      match(mkamb(f)) {
+        Flip(g) -> {
+          function cont(x,kc) { amb_handlex(g(x),kc) }
+          amb_flip(cont,k)
+        }
       }
     }
     Yld(op,f) -> Yld(op, fun(x) { amb_handlex(f(x),k) })
   }
 }
+
+external magic( x: a) : b = inline "#1"
 
 // ----------------------------------------------------------------------------
 // Testing

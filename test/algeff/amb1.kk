@@ -32,9 +32,12 @@ extend type op<a> {
   Flip
 }
 
-function flip( k : bool -> <amb|e> cps<<amb|e>,x> ) : amb cps<<amb|e>,x> {
-  Yield(Flip,k)
+function flip( k : bool -> e cps<e,x>) : amb cps<e,x> { 
+  yieldop(Flip,k)
 }
+
+external inline unsafecastcont( k: a -> e cps<e,x>) : (any -> e cps<e,x>) = inline "#1"
+external inline toany( x : a ) : any = inline "#1"
 
 // ----------------------------------------------------------------------------
 // Ambiguity handler
@@ -57,14 +60,12 @@ function amb_handle( action : ( k : a -> <amb|e> cps<<amb|e>,a> ) -> <amb|e> cps
 
 function amb_handlex( cps : cps<e,a>, k : list<a> -> e cps<e,x> ) : e cps<e,x> {
   match(cps) {
-    Result(x)   -> amb_result(x,k)
-    Yield(op,f) -> {
-      function cont(x,kc) { amb_handlex(f(x),kc) } // wrap the continuation
-      match(op) {
-        Flip -> amb_flip(cont,k)
-        _    -> Yield(op, fun(x) { cont(x,k) })
-      }
+    Result(x) -> amb_result(x,k)
+    Yield(Flip,f) -> {
+      function cont(x:bool,kc) { amb_handlex(f(x),kc) } // wrap the continuation      
+      amb_flip(cont,k)
     }
+    Yield(op,f) -> Yield(op, fun(x) { amb_handlex(f(x),k) })
   }
 }
 
@@ -77,17 +78,17 @@ type state :: X
 private external inline unsafeNoState : forall<e,a> ( action: ( k : a -> <state|e> cps<<state|e>,a> ) -> <state|e> cps<<state|e>,a> ) -> ((k : a -> e cps<e,a>) -> e cps<e,a>) = inline "#1"
 
 extend type op<a> {
-  Get
-  Set(i:int)
+  Get          // : op<int>
+  Set(i:int)   // : op<()>
 }
 
-function get( k : int -> <state|e> cps<<state|e>,x> ) : state cps<<state|e>,x> {
-  Yield(Get,k)
+function get( k : int -> e cps<e,x> ) : state cps<e,x> {
+  yieldop(Get,k)
 }
 
 
-function set( i : int, k : (()) -> <state|e> cps<<state|e>,x> ) : state cps<<state|e>,x> {
-  Yield(Set(i),k)
+function set( i : int, k : (()) -> e cps<e,x> ) : state cps<e,x> {
+  yieldop(Set(i),k)
 }
 
 // ----------------------------------------------------------------------------
@@ -97,18 +98,22 @@ function set( i : int, k : (()) -> <state|e> cps<<state|e>,x> ) : state cps<<sta
 function state_handle( action : ( k : a -> <state|e> cps<<state|e>,a> ) -> <state|e> cps<<state|e>,a>, i0 : int, k0 : ((a,int)) -> e cps<e,x> ) : e cps<e,x> {
   function state_handlex( cps : cps<e,a>, i : int, k : ((a,int)) -> e cps<e,x> ) : e cps<e,x> {
     match(cps) {
-      Result(x)   -> k((x,i))
-      Yield(Get,f) -> {
-        function cont(ic,x,kc) { state_handlex(f(x),ic,kc) } // wrap the continuation
-        cont(i,i,k)
-      }
-      Yield(Set(j),f) -> {
-        function cont(ic,x,kc) { state_handlex(f(x),ic,kc) } // wrap the continuation
-        cont(j,(),k)
-      }
+      Result(x) -> k((x,i))
       Yield(op,f) -> {
-        function cont(x) { state_handlex(f(x),i,k) } // wrap the continuation
-        Yield(op,cont)
+        function xcont(ic,x:any,kc) { state_handlex(f(x),ic,kc) } // wrap the continuation
+        match(op) {
+          Get -> {
+            function cont(ic,x:int,kc) { xcont(ic,x.toany,kc) }
+            cont(i,i,k)
+          }
+          Set(j) -> {
+            function cont(ic,x:(),kc) { xcont(ic,x.toany,kc) }
+            cont(j,(),k)
+          }
+          _ -> {
+            Yield(op, fun(x) { xcont(i,x,k) } )
+          }
+        }
       }
     }
   }

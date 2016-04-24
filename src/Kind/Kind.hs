@@ -80,6 +80,10 @@ kindHeap :: Kind
 kindHeap
   = KCon nameKindHeap
 
+kindHandled :: Kind
+kindHandled
+  = KCon nameKindHandled
+
 kindExtend :: Kind 
 kindExtend 
   = kindFun kindLabel (kindFun kindEffect kindEffect)
@@ -104,12 +108,13 @@ extractKindFun k
            in (k1:args,res)
       _ -> ([],k)
 
-isKindStar, isKindEffect :: Kind -> Bool
+isKindStar, isKindEffect, isKindHandled :: Kind -> Bool
 isKindStar k
   = k == kindStar
 isKindEffect k
   = k == kindEffect
-
+isKindHandled k
+  = k == kindHandled
 
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
@@ -120,4 +125,5 @@ builtinKinds
     ,(nameKindEffect, kindEffect)
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
+    ,(nameKindHandled, kindHandled)
     ]

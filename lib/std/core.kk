@@ -2545,16 +2545,21 @@ external getHost() : ndet string {
 // Handled effects
 // ----------------------------------------------------------------------------
 
-// Continuation effect
-type cont :: X;
+// Handled effects
+type handled :: HX -> X;
 
-// Effect operations
+// Effect operations with result type a
 open type op<a> 
 
 // The CPS monad
 type cps<e,a> {
   Yield<b>( op:op<b>, f : b -> e cps<e,a> )
   Result( res: a )
+}
+
+// Yield is abstracted as a function for future compatibility
+function yieldop( op : op<a>, k : a -> e cps<e,x> ) : cps<e,x> {
+  Yield(op,k)  
 }
 
 // Run a CPS converted function
@@ -2564,5 +2569,9 @@ function pure( cps : ( k : a -> e cps<e,a> ) -> e cps<e,a> ) : <exn|e> a {
   }
 }
 
-external inline unsafenocont( action : () -> <cont|e> a ) : () -> e a = inline "#1"
-external unsafeyield( op : op<a> ) : e a = inline "Yield(#1,k)"
+
+// Continuation effect
+type cont :: X;
+
+// Remove the continuation effect
+external inline unsafeNoCont( action : () -> <cont|e> a ) : () -> e a = inline "#1"
