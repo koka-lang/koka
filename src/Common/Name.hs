@@ -23,7 +23,7 @@ module Common.Name
           , newHiddenExternalName
           , newHiddenName, isHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName
+          , newCreatorName, toOperationsName
           , toConstructorName, isConstructorName
           , splitModuleName, unsplitModuleName
           
@@ -227,6 +227,13 @@ newHiddenExternalName name
 newCreatorName :: Name -> Name
 newCreatorName name
   = prepend ".create" name
+
+
+-- | Create an operations type name from an effect type name.
+toOperationsName :: Name -> Name
+toOperationsName name
+  = prepend ".ops" name
+
 
 prepend :: String -> Name -> Name
 prepend s name

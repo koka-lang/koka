@@ -44,7 +44,7 @@ module Common.NamePrim
           , nameTpAny
           , nameTpAsync
           , nameTpException
-          , nameTpHandled
+          , nameTpHandled, nameTpOperation
           , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
@@ -148,7 +148,9 @@ nameTpList      = preludeName "list"
 nameEffectEmpty = preludeName "<>"
 nameEffectExtend= preludeName "<|>"
 nameEffectAppend= newName ".<+>"
+
 nameTpHandled   = preludeName "handled"
+nameTpOperation = preludeName "operation"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"

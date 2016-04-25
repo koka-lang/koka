@@ -246,10 +246,11 @@ topdef vis
        return [DefType tdef]
   <|> 
     do (tdef,cdefs) <- typeDecl vis
-       return ([DefType tdef] ++ map DefValue cdefs)
+       return ([DefType tdef] ++ map DefValue cdefs)       
   <|> 
     do externDecl vis
-
+  <|> 
+    do effectDecl vis
 
 {---------------------------------------------------------------
   Import declaration
@@ -628,6 +629,37 @@ constructorId
   <|> 
     conid
   <?> "constructor"
+
+-----------------------------------------------------------
+-- Effect definitions
+-----------------------------------------------------------
+effectDecl :: Visibility -> LexParser [TopDef]
+effectDecl dvis
+  = do (vis,vrng,erng,doc) <- try$ do (vis,vrng) <- visibility dvis
+                                      (erng,doc) <- dockeyword "effect"
+                                      return (vis,vrng,erng,doc)                           
+       (id,irng) <- typeid
+       let ename   = TypeBinder id (KindCon nameKindHandled irng) irng irng
+           effTp   = TpCon (tbinderName ename) (tbinderRange ename)
+           rng     = combineRanges [vrng,erng,irng]
+
+           -- declare the effect type
+           effTpDecl = DataType ename [] [] rng vis Inductive DataDefNormal False doc
+
+           -- declare the effect operations type
+           kindStar = KindCon nameKindStar irng
+           tname    = TypeBinder (toOperationsName id) (KindArrow kindStar kindStar) irng irng
+           opsTp    = TpCon (tbinderName tname) (tbinderRange tname)
+           opsTpDecl= DataType tname [TypeBinder nameA kindStar irng irng] [] rng vis Inductive DataDefNormal False ""
+
+           -- extend the core operations type
+           
+
+           nameA    = newName ".a"
+           tpVarA   = TpVar nameA irng      
+
+       -- ops <- semiBracesRanged1 (operations   
+       return [DefType effTpDecl, DefType opsTpDecl]
 
 
 -----------------------------------------------------------

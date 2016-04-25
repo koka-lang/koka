@@ -240,6 +240,7 @@ reservedNames
     , "open", "extend"
     , "fun", "function", "val", "var"
     , "external"
+    , "effect", "handle"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"

@@ -24,10 +24,14 @@ function foo( k : bool -> <amb,state|e> cps<<amb,state|e>,x> ) : <amb,state|e> c
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
 // ----------------------------------------------------------------------------
-type amb :: HX
+
 
 private external inline unsafeNoAmb : forall<e,a> ( action: ( k : a -> <amb|e> cps<<amb|e>,a> ) -> <amb|e> cps<<amb|e>,a> ) -> ((k : a -> e cps<e,a>) -> e cps<e,a>) = inline "#1"
+external inline toany( x : a ) : any = inline "#1"
 
+/*
+type amb :: HX
+*/
 extend type operation<a> {
   Amb( : ambop<a> )
 }
@@ -35,13 +39,14 @@ extend type operation<a> {
 type ambop<a> {
   Flip
 }
-
+ 
 
 function flip( k : bool -> e cps<e,x>) : amb cps<e,x> { 
   yieldop(Amb(Flip),k)
 }
 
-external inline toany( x : a ) : any = inline "#1"
+
+effect amb 
 
 // ----------------------------------------------------------------------------
 // Ambiguity handler
