@@ -42,6 +42,9 @@ module Type.Type (-- * Types
                   , typeDivergent, typeTotal, typePartial 
                   , typeList, typeApp, typeRef, typeOptional
                   , isOptional, makeOptional
+
+                  , handledToLabel, isHandledEffect, tconHandled
+
                   -- , isDelay
                   -- ** Standard tests
                   , isTau, isRho, isTVar, isTCon
@@ -54,7 +57,7 @@ module Type.Type (-- * Types
                   -- ** Primitive
                   , isFun, splitFunType
                   , getConArities
-                  , module Common.Name
+                  , module Common.Name                
                   ) where
 
 -- import Lib.Trace
@@ -500,9 +503,31 @@ labelName :: Tau -> Name
 labelName tp
   = case expandSyn tp of
       TCon tc -> typeConName tc
+      TApp (TCon (TypeCon name _)) [htp] | name == nameTpHandled
+        -> labelName htp -- use the handled effect name for handled<htp> types.
       TApp (TCon tc) _  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
                            typeConName tc
       _  -> failure "Type.Unify.labelName: label is not a constant"
+
+
+isHandledEffect :: Type -> Bool
+isHandledEffect tp
+  = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) _  | name == nameTpHandled -> True 
+      TCon (TypeCon _ kind) -> isKindHandled kind
+      _ -> False
+
+handledToLabel :: Type -> Type
+handledToLabel e 
+  = TApp tconHandled [e] 
+
+tconHandled :: Type
+tconHandled = TCon $ TypeCon nameTpHandled kind
+  where
+    kind = kindFun kindHandled kindLabel
+
+isEffectTyVar (TVar v) = isKindEffect $ typevarKind v 
+isEffectTyVar _        = False
 
 
 effectEmpty :: Tau

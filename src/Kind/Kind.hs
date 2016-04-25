@@ -13,12 +13,12 @@ module Kind.Kind( -- * Kinds
                     Kind(..)
                   , KindCon
                  -- * Standard kinds
-                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap
+                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap, kindHandled
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
                   , isKindFun
                   , isKindStar
-                  , isKindEffect
+                  , isKindEffect, isKindHandled
                   ) where
 
 import Common.Name

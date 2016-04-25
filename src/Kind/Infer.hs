@@ -36,7 +36,8 @@ import Common.Error
 import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
 import Common.Name
-import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend, nameCopy, namePatternMatchError )
+import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend, 
+                        nameTpHandled, nameCopy, namePatternMatchError )
 import Common.Syntax
 import qualified Common.NameMap as M
 import Syntax.Syntax
@@ -294,12 +295,11 @@ infTypeDefGroup (TypeDefNonRec tdef)
   = infTypeDefs False [tdef]
  
 infTypeDefs isRec tdefs
-  = do trace ("infTypeDefs: " ++ show (length tdefs)) $ return ()
+  = do -- trace ("infTypeDefs: " ++ show (length tdefs)) $ return ()
        xinfgamma <- mapM bindTypeDef tdefs -- set up recursion
        let infgamma = map fst (filter snd xinfgamma)
        ctdefs   <- extendInfGamma infgamma $ -- extend inference gamma, also checks for duplicates
                    do let names = map tbinderName infgamma
-                      trace ("mapM tdefs") $ return ()
                       tdefs1 <- mapM infTypeDef (zip (map fst xinfgamma) tdefs)
                       mapM (resolveTypeDef isRec names) tdefs1
        checkRecursion tdefs -- check for recursive type synonym definitions rather late so we spot duplicate definitions first
@@ -514,24 +514,20 @@ infBranch (Branch pattern guard body)
 ---------------------------------------------------------------}
 infTypeDef :: (TypeBinder InfKind, TypeDef UserType UserType UserKind) -> KInfer (TypeDef (KUserType InfKind) UserType InfKind)
 infTypeDef (tbinder, Synonym syn args tp range vis doc)
-  = do trace ("infTypeDef: " ++ show (tbinderName syn)) $ return ()
-       infgamma <- mapM bindTypeBinder args
+  = do infgamma <- mapM bindTypeBinder args
        kind <- freshKind
        tp' <- extendInfGamma infgamma (infUserType kind (Infer range) tp)
        tbinder' <- unifyBinder tbinder syn range infgamma kind
        return (Synonym tbinder' infgamma tp' range vis doc)
 
 infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
-  = do trace ("infTypeDef: " ++ show (tbinderName newtp) ++ " " ++ show isExtend) $ return ()
-       infgamma <- mapM bindTypeBinder args
+  = do infgamma <- mapM bindTypeBinder args
        constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original
        reskind <- if dataDefIsOpen ddef then return infKindStar else freshKind
        tbinder' <- unifyBinder tbinder newtp range infgamma reskind
        if not isExtend then return ()
         else do (qname,kind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
-                trace ("found " ++ show (tbinderName newtp) ++ ": " ++ show kind) $ return ()
-                trace ("inferred " ++ show (tbinderKind tbinder')) $ return ()
                 unify (Check "extended type must have the same kind as the open type" (tbinderRange newtp) ) (tbinderRange newtp) (typeBinderKind tbinder') kind                
        return (DataType tbinder' infgamma constructors' range vis sort ddef isExtend doc)
 
@@ -577,6 +573,8 @@ infUserType expected  context userType
               skind   <- subst ekind
               effect' <- case skind of
                           KICon kind | kind == kindLabel -> return (makeEffectExtend etp makeEffectEmpty)
+                          KICon kind | isKindHandled kind ->  -- TODO: check if there is an effect declaration
+                                          return (makeEffectExtend (makeHandled etp rng) makeEffectEmpty)
                           _  -> do unify (checkEff range) range (KICon kindEffect) skind
                                    return etp              
               tp'     <- infUserType infKindStar (checkRes range) tp
@@ -593,6 +591,9 @@ infUserType expected  context userType
               case skind of
                 KICon kind | kind == kindEffect
                   -> return (makeEffectAppend ltp tl')
+                KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
+                  -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
+                        return (TpApp tp' [makeHandled ltp rng, tl'] rng)
                 _ -> do unify (checkExtendLabel range) range (KICon kindLabel) skind
                         return (TpApp tp' [ltp,tl'] rng)
 
@@ -662,7 +663,7 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity _ = []
 
 resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
-  = do trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()                          
+  = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()                          
        newtp' <- if isExtend
                   then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
                           kind  <- resolveKind ikind
@@ -895,3 +896,6 @@ makeEffectExtend (label) ext
 
 makeEffectEmpty 
   = TpCon nameEffectEmpty rangeNull
+
+makeHandled u rng
+  = TpApp (TpCon nameTpHandled rng) [u] rng

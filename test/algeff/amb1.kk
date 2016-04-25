@@ -24,12 +24,12 @@ function foo( k : bool -> <amb,state|e> cps<<amb,state|e>,x> ) : <amb,state|e> c
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
 // ----------------------------------------------------------------------------
-type amb :: X
+type amb :: HX
 
 private external inline unsafeNoAmb : forall<e,a> ( action: ( k : a -> <amb|e> cps<<amb|e>,a> ) -> <amb|e> cps<<amb|e>,a> ) -> ((k : a -> e cps<e,a>) -> e cps<e,a>) = inline "#1"
 
-extend type op<a> {
-  Amb( ambop: ambop<a> )
+extend type operation<a> {
+  Amb( : ambop<a> )
 }
 
 type ambop<a> {
@@ -41,7 +41,6 @@ function flip( k : bool -> e cps<e,x>) : amb cps<e,x> {
   yieldop(Amb(Flip),k)
 }
 
-external inline unsafecastcont( k: a -> e cps<e,x>) : (any -> e cps<e,x>) = inline "#1"
 external inline toany( x : a ) : any = inline "#1"
 
 // ----------------------------------------------------------------------------
@@ -83,12 +82,12 @@ function amb_handlex( cps : cps<e,a>, k : list<a> -> e cps<e,x> ) : e cps<e,x> {
 // ----------------------------------------------------------------------------
 // State primitives
 // ----------------------------------------------------------------------------
-type state :: X
+type state :: HX
 
 private external inline unsafeNoState : forall<e,a> ( action: ( k : a -> <state|e> cps<<state|e>,a> ) -> <state|e> cps<<state|e>,a> ) -> ((k : a -> e cps<e,a>) -> e cps<e,a>) = inline "#1"
 
-extend type op<a> {
-  State( op : stateop<a> )
+extend type operation<a> {
+  State( : stateop<a> )
 }
 
 type stateop<a> {

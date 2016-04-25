@@ -2549,16 +2549,16 @@ external getHost() : ndet string {
 type handled :: HX -> X;
 
 // Effect operations with result type a
-open type op<a> 
+open type operation<a> 
 
 // The CPS monad
 type cps<e,a> {
-  Yield<b>( op:op<b>, f : b -> e cps<e,a> )
-  Result( res: a )
+  Yield<b>( operation: operation<b>, continuation : b -> e cps<e,a> )
+  Result( result: a )
 }
 
 // Yield is abstracted as a function for future compatibility
-function yieldop( op : op<a>, k : a -> e cps<e,x> ) : cps<e,x> {
+function yieldop( op : operation<a>, k : a -> e cps<e,x> ) : cps<e,x> {
   Yield(op,k)  
 }
 

@@ -25,7 +25,8 @@ import Platform.Config( programName )
 import Data.List( partition )
 import Lib.PPrint
 import Common.Name
-import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, nameTpDelay, nameSystemCore )
+import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, 
+                        nameTpHandled, nameTpDelay, nameSystemCore )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -336,13 +337,15 @@ ppType env tp
 
       TApp (TCon con) [eff,res]
                     | typeConName con == nameTpDelay
-                    -> text "$" <+>            
+                    -> text "$" <+>                                
                        (if (isTypeTotal eff) then empty else (ppType env{prec = precArrow} eff <> space)) <>
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional
                     -> text "?" <> ppType env{prec=precTop} arg
+                    | typeConName con == nameTpHandled
+                    -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name) 
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))
       TApp f args   -> pparens (prec env) precApp $

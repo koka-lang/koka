@@ -528,6 +528,9 @@ katom
     do specialConId "H"
        return kindHeap
   <|>
+    do specialConId "HX"
+       return kindHandled
+  <|>
     do specialConId "P"
        return kindPred
   <?> "kind"
