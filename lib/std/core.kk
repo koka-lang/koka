@@ -2357,7 +2357,7 @@ external isDone : forall<a> ( async : async<a> ) -> bool {
 }
 
 // Read a line from the console.
-external readln : forall<e> () -> <console|e> async<string>  { 
+external readln : () -> console async<string>  { 
   js "$read_line"
   cs inline "Primitive.ReadLine()"
 }
@@ -2558,7 +2558,7 @@ type cps<e,a> {
 }
 
 // Yield is abstracted as a function for future compatibility
-external unsafeyieldop( op : operation<a> ) : e a {
+external unsafeyieldop( op : operation<a> ) : a {
   js inline "Yield(#1,k)" 
   // , k : a -> e cps<e,x> ) : cps<e,x> {
   // Yield(op,k)  

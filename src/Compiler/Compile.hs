@@ -52,7 +52,7 @@ import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpres
 import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
-import Core.Check             ( check )
+import Core.Check             ( checkCore )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -693,12 +693,8 @@ inferCheck loaded flags line coreImports program1
               defs
 
        -- make sure generated core is valid
-       if (not (checkCore flags)) then return () 
-        else trace "checking core.." $ case Core.Check.check unique4 coreDefs0 gamma of
-         Left str 
-           -> warningMsg ("Generated core fails to type check!\n" ++ str ++ "\n\nGenerated core:\n" ++ show coreDefs0) 
-         Right ()   
-           -> return ()
+       if (not (coreCheck flags)) then return () 
+        else Core.Check.checkCore (prettyEnv loaded3 flags) unique4 gamma coreDefs0 
 
        -- simplify coreF if enabled
        let coreDefs1 = if noSimplify flags 

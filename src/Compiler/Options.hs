@@ -110,7 +110,7 @@ data Flags
          , console          :: String
          , rebuild          :: Bool
          , genCore          :: Bool
-         , checkCore        :: Bool
+         , coreCheck        :: Bool
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
@@ -149,7 +149,7 @@ flagsNull
           "ansi"  -- console: ansi, html
           False -- rebuild
           False -- genCore
-          False -- checkCore
+          False -- coreCheck
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
@@ -202,7 +202,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
  , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
- , flag   []    ["checkcore"]      (\b f -> f{checkCore=b})         "check generated core"
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"

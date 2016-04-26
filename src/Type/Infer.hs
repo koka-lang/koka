@@ -945,7 +945,7 @@ inferPattern matchType matchRange (PatCon name patterns0 nameRange range)
        (cpatterns,infGamma) <- fmap unzip $ mapM (\(parTp,pat) -> 
                                          do sparTp <- subst parTp
                                             inferPattern sparTp matchRange pat) (zip (map snd conParTps) (patterns))                                   
-       return (Core.PatCon (Core.TName qname conTp) cpatterns repr (map TVar tvars) coninfo, concat infGamma)
+       return (Core.PatCon (Core.TName qname conTp) cpatterns repr (map snd conParTps) coninfo, concat infGamma)
   where
     splitConTp tp
       = case expandSyn tp of

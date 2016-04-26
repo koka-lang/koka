@@ -254,7 +254,8 @@ prettyExpr env (Let defGroups expr)
 
 -- Case expressions
 prettyExpr env (Case exprs branches)
-  = text "case" <+> hsep (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "of" <+> prettyBranches env branches
+  = text "case" <+> hsep (map (prettyExpr env{ prec = precAtom }) exprs) <+> 
+    text "of" <+> prettyBranches env branches
 
 prettyVar env tname
   = prettyName env (getName tname) -- <> braces (ppType env{ prec = precTop } (typeOf tname))
@@ -278,12 +279,15 @@ prettyGuard env (Guard test expr)
        else text " |" <+> prettyExpr env{ prec = precTop } test
     )   <+> text "->" <+> prettyExpr env{ prec = precTop } expr
 
+prettyPatternType env (pat,tp)
+  = prettyPattern env pat <+> text ":" <+> prettyType env tp
+
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
   = case pat of
       PatCon tname args repr targs info
                         -> -- pparens (prec env) precApp $
-                           prettyName env (getName tname) <> tupled (map (prettyPattern (decPrec env)) args)
+                           prettyName env (getName tname) <> tupled (map (prettyPatternType (decPrec env)) (zip args targs))
       PatVar tname PatWild  -> prettyName env (getName tname)
       PatVar tname pat      -> pparens (prec env) precApp $
                                prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)

@@ -12,6 +12,7 @@
 module Core.Check (checkCore) where
 
 import Control.Monad
+import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
 import Common.Failure
@@ -38,7 +39,7 @@ import qualified Data.Set as S
 checkCore :: Env -> Int -> Gamma -> DefGroups -> Error () 
 checkCore prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv gamma prettyEnv) of 
+      Check c -> case c uniq (CEnv gamma prettyEnv []) of 
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
        
@@ -48,14 +49,14 @@ checkCore prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}  
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ gamma :: Gamma, prettyEnv :: Env }
+data CheckEnv = CEnv{ gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int 
               | Err Doc
 
 instance Functor Check where
-  fmap f (Check c)  = \u env -> case c u env of Ok x u' -> Ok (f x) u'
-                                                Err doc -> Err doc
+  fmap f (Check c)  = Check (\u env -> case c u env of Ok x u' -> Ok (f x) u'
+                                                       Err doc -> Err doc)
 
 instance Applicative Check where
   pure  = return
@@ -64,10 +65,10 @@ instance Applicative Check where
 instance Monad Check where
   return x      = Check (\u g -> Ok x u)
   fail s        = Check (\u g -> Err (text s))
-  (Check c) >>= f  = Check (\u g -> case c u of 
+  (Check c) >>= f  = Check (\u g -> case c u g of 
                                       Ok x u' -> case f x of 
                                                    Check d -> d u' g
-                                      err -> err)
+                                      Err doc -> Err doc)
 
 instance HasUnique Check where
   updateUnique f = Check (\u g -> Ok u (f u))
@@ -76,6 +77,9 @@ instance HasUnique Check where
 extendGamma :: [(Name,NameInfo)] -> Check a -> Check a
 extendGamma ex (Check c) = Check (\u env -> c u env{ gamma = (gammaExtends ex (gamma env)) })
 
+withDef :: Def -> Check a -> Check a
+withDef def (Check c) = Check (\u env -> c u env{ currentDef = def : (currentDef env) })
+
 getGamma :: Check Gamma
 getGamma
   = Check (\u env -> Ok (gamma env) u)
@@ -83,14 +87,21 @@ getGamma
 lookupVar :: Name -> Check Scheme
 lookupVar name
   = do gamma <- getGamma
-       case gammaLookupQ name of
+       case gammaLookupQ name gamma of
          [info] -> return (infoType info)
          []     -> fail ("unknown variable: " ++ show name)
          _      -> fail ("cannot pick overloaded variable: " ++ show name)
 
 failDoc :: (Env -> Doc) -> Check a
 failDoc fdoc
-  = Check (\u env -> Err (show (fdoc (prettyEnv env))))
+  = Check (\u env -> Err (fdoc (prettyEnv env) <-> ppDefs (prettyEnv env) (currentDef env)))
+
+ppDefs :: Env -> [Def] -> Doc
+ppDefs env []
+  = Lib.PPrint.empty
+ppDefs env defs
+  = text "in definition:" <+> tupled (map (text.show.defName) defs)
+    <-> prettyDef (head defs) env
 
 
 {--------------------------------------------------------------------------
@@ -118,11 +129,12 @@ checkDefGroup defGroup body
           body
 
 checkDef :: Def -> Check () 
-checkDef d@(Def name tp expr) 
-  = do tp' <- check expr 
-       match "checking annotation on definition" (prettyDef d) tp tp'
+checkDef d
+  = withDef d $
+    do tp <- check (defExpr d)
+       match "checking annotation on definition" (prettyDef d) (defType d) tp
 
-coreNameInfo :: TName -> NameInfo
+coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX tname True
 
 coreNameInfoX tname isVal
@@ -139,9 +151,9 @@ check expr
         -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
               return (typeFun [(name,tp) | TName name tp <- pars] eff tpRes)
       Var tname info
-        -> typeOf tname
+        -> return $ typeOf tname
       Con tname info
-        -> typeOf tname
+        -> return $ typeOf tname
       App fun args
         -> do tpFun <- check fun
               tpArgs <- mapM check args
@@ -150,15 +162,15 @@ check expr
                 Just (tpPars,eff,tpRes) 
                   -> do sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
                         return tpRes
-      TypeLam x tp
-        -> do tp' <- check tp
-              return (TForall x tp')
+      TypeLam tvars body
+        -> do tp <- check body
+              return (quantifyType tvars tp)
       TypeApp e tps
         -> do tpTForall <- check e
               let (tvars,_,tp) = splitPredType tpTForall  
               -- We can use actual equality for kinds, because any kind variables will have been
               -- substituted when doing kind application (above)
-              when (length tps /= length tvars || any [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+              when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
                 failDoc (\env -> text "kind error in type application:" <+> prettyExpr expr env)
               return (subNew (zip tvars tps) |-> tp) 
       Lit lit 
@@ -169,36 +181,40 @@ check expr
       
       Case exprs branches
         -> do tpScrutinees <- mapM check exprs
-              tpBranches   <- mapM (checkBranch tpScrutinees) branches
-              mapConseqM (match "verifying that all branches have the same type" (prettyExpr expr)) tpBranches
-              return (head tpBranches)
-        where
-          mapConseqM f [tp1:tp2:tps]
-            = do f tp1 tp2
-                 mapConseqM (tp2:tps)
-          mapConseqM f _ 
-            = return ()
+              tpBranchess   <- mapM (checkBranch tpScrutinees) branches
+              mapConseqM (match "verifying that all branches have the same type" (prettyExpr expr)) (concat tpBranchess)
+              return (head (head tpBranchess))
+        
+mapConseqM f (tp1:tp2:tps)
+  = do f tp1 tp2
+       mapConseqM f (tp2:tps)
+mapConseqM f _ 
+  = return ()
 
 {--------------------------------------------------------------------------
   Type of a branch 
 --------------------------------------------------------------------------}
 
-checkBranch :: [Type] -> Branch -> Check Type
-checkBranch tpScrutinees b@(Branch patterns guard expr) 
+checkBranch :: [Type] -> Branch -> Check [Type]
+checkBranch tpScrutinees b@(Branch patterns guard) 
   = do mapM_ checkPattern (zip tpScrutinees patterns)
        let vars = [coreNameInfo tname | tname <- S.toList (bv patterns)]
-       extendGamma vars $
-        do tp <- check guard
-           match "verify that the guard is a boolean expression" (prettyExpr guard) tp typeBool
-           check expr
+       extendGamma vars (mapM checkGuard guard)
+
+
+checkGuard (Guard guard expr)
+  = do gtp <- check guard       
+       match "verify that the guard is a boolean expression" (prettyExpr guard) gtp typeBool
+       check expr
 
 checkPattern :: (Type,Pattern) -> Check ()
 checkPattern (tpScrutinee,pat)
   = case pat of
-      PatCon tname args  -> do constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
-                               mapM_  checkPattern  (zip constrArgs args)
-      PatVar tname       -> match "comparing constructor argument to case annotation" (prettyPattern pat) tpScrutinee (typeOf tname)
-      PatWild            -> return ()
+      PatCon tname args _ tpargs coninfo 
+        -> do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
+              mapM_  checkPattern  (zip tpargs args)
+      PatVar tname _ -> match "comparing constructor argument to case annotation" (prettyPattern pat) tpScrutinee (typeOf tname)
+      PatWild        -> return ()
 
 
 {--------------------------------------------------------------------------
@@ -217,7 +233,7 @@ findConstrArgs fdoc tpScrutinee con
        ures <- runUnify (unify tpRes tpScrutinee)
        case ures of
         (Left error, _)  -> showCheck "comparing scrutinee with branch type" "cannot unify" tpRes tpScrutinee fdoc
-        (Right _, subst) -> return $ (subst |-> tpArgs)
+        (Right _, subst) -> return $ (subst |-> map snd tpArgs)
 
 
 -- In Core, when we are comparing types, we are interested in exact 
@@ -227,7 +243,7 @@ match when fdoc a b
   = do ures <- runUnify (unify a b)
        case ures of
          (Left error, _)  -> showCheck "cannot unify" when a b fdoc
-         (Right subst, _) -> if subIsNull subst 
+         (Right _, subst) -> if subIsNull subst
                               then return () 
                               else showCheck "non-empty substitution" when a b fdoc 
 
