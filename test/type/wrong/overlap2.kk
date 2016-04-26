@@ -1,3 +1,3 @@
 // test overlap error
-fun g( x : int ) { x }
-fun g(x) { x }
+function g( x : int ) { x }
+function g(x) { x }

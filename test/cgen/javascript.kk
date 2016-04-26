@@ -1,4 +1,4 @@
-module codegen.javascript
+module codegen/javascript
 
 function prematureReturn(xs: list<int>): bool {
   val x = match(xs) {
@@ -23,6 +23,10 @@ function last2(xs : list<a>) : exn a {
     Cons(x,Nil) -> x
     Cons(_,zs)  -> last2(zs) 
   }
+}
+
+function main() {
+  print(show(deepPatternMatching([1,2])))
 }
 
 /* optimizations to do: tco

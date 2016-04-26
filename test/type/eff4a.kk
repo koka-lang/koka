@@ -1,8 +1,8 @@
 // test subtyping etc
-fun ioapp( f : () -> <io|e> () ) : <io|e> () {
+function ioapp( f : () -> <io|e> () ) : <io|e> () {
   return f()
 }
 
-fun test() {
+function test() {
   ioapp(fun(){ () })
 }

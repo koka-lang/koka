@@ -1,12 +1,12 @@
-fun main() {
+function main() {
   print("hi");  print("world")
   print("!")
 }
 
 
-fun map(f,xs) {
+function map(f,xs) {
   match(xs) {
     Nil -> Nil
-    Cons(x,xx) -> { y = f(x); yy = map(f,xx); Cons(y,yy) }
+    Cons(x,xx) -> { val y = f(x); val yy = map(f,xx); Cons(y,yy) }
   }
 }

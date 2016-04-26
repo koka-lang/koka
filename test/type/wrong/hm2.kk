@@ -1,1 +1,1 @@
-fun selfapp(x) = x(x)
+function selfapp(x) = x(x)

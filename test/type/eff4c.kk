@@ -1,9 +1,9 @@
 // test subtyping etc
-fun ioapp( f ) : _e () {
+function ioapp( f ) : _e () {
   print("hi")
   return f()
 }
 
-fun test() {
+function test() {
   ioapp(fun(){ () })
 }

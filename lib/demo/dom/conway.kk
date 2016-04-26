@@ -45,7 +45,7 @@ function gameOfLife( window:   window,
   canvas.width := 400
 
   function isAlive(world : world, row : int, col : int) : exn bool {  
-    world[row % gridSize][col % gridSize].alive
+    ((world[row % gridSize].unJust)[col % gridSize]).unJust.alive
   }
 
   function countNeighbors( w : world, c : cell ) : exn int {

@@ -1,8 +1,8 @@
-fun xauto(f:forall<a> a -> a) {
+function xauto(f:forall<a> a -> a) {
   f(f)
 }
 
-fun auto(f:forall<a> a -> a) : (forall<a> a -> a)
+function auto(f:forall<a> a -> a) : (forall<a> a -> a)
 {
   f(f)
 }

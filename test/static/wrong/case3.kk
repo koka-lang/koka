@@ -1,2 +1,2 @@
-import static.a as D
-alias bar = Da.aint
+import d = static/modA 
+alias bar = d/aint

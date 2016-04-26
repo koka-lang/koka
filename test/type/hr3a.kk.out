@@ -1,2 +1,2 @@
-ids       : list<forall<a> (a) -> a>
-test1     : () -> exn int
+ids : list<forall<a> (a) -> a>
+test1 : () -> exn int

@@ -1,9 +1,9 @@
-fun forever(f) {
+function forever(f) {
   f("hi");
   error("hi");
   forever(f);
 }
 
-fun test() {
+function test() {
   forever( print );
 }

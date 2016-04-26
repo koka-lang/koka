@@ -1,3 +1,3 @@
-fun idp( x : c<a> ) : c<a> { x }
+function idp( x : c<a> ) : c<a> { x }
 
-fun main() = Cons(1,idp([1]))
+function main() = Cons(1,idp([1]))

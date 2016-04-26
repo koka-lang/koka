@@ -1,1 +1,1 @@
-test/cgen/rec4a.kk(2,13): warning: xs shadows an earlier local definition or parameter
+test/cgen/rec4a.kk(2,18): warning: xs shadows an earlier local definition or parameter

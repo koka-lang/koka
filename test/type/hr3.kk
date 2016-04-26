@@ -1,3 +1,3 @@
 val ids = [id : forall<a> a -> a]
 
-fun test1() = head(ids)(1)
+function test1() = head(ids)(1)

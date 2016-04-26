@@ -1,2 +1,2 @@
 // shadow parameter
-fun id(x,x) = x
+function id(x,x) = x

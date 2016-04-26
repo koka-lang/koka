@@ -1,2 +1,2 @@
-remote     : (f : () -> exn ()) -> exn ()
-test       : (f : () -> exn ()) -> <exn,console> ()
+remote : (f : () -> exn ()) -> exn ()
+test : (f : () -> exn ()) -> <exn,console> ()

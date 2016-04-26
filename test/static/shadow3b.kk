@@ -1,6 +1,6 @@
 // shadow definition
 function id(x) {
-  fun id2(x) = x
-  fun id(y) = id2(y)
+  function id2(x) = x
+  function id(y) = id2(y)
   id(x)
 }

@@ -1,7 +1,7 @@
-fun omega(): div () {
+function omega(): div () {
   return ()
 }
 
-fun main() {
+function main() {
   choose (error("hi"),omega())
 }

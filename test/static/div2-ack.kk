@@ -4,7 +4,7 @@ type nat {
 }
 
 
-fun ack(x,y) {
+function ack(x,y) {
   match(x) {
     Zero -> Succ(y)
     Succ(s) -> ack(s,match(y) {
