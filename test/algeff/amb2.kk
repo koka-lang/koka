@@ -15,7 +15,7 @@ type free<e,a> {
   Yld( eff: effect<e,a>, f : any -> e free<e,a> )
 }
 
-open type effect<e::E,a>
+type open effect<e::E,a>
 
 // ----------------------------------------------------------------------------
 // Ambiguity primitives
@@ -24,7 +24,7 @@ type amb :: X
 
 private external inline unsafeNoAmb : forall<e,a> ( action: ( k : a -> <amb|e> free<<amb|e>,a> ) -> <amb|e> free<<amb|e>,a> ) -> ((k : a -> e free<e,a>) -> e free<e,a>) = inline "#1"
 
-extend type effect<e::E,a> {
+type extend effect<e::E,a> {
   Amb( mkamb : (f : any -> e free<e,a>) -> e ambop<e,a> )
 }
 
