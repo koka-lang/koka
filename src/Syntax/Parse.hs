@@ -632,6 +632,9 @@ constructorId
 
 -----------------------------------------------------------
 -- Effect definitions
+-- 
+-- We don't return a syntactic construction for effects
+-- but immediately build the underlying data structures.
 -----------------------------------------------------------
 effectDecl :: Visibility -> LexParser [TopDef]
 effectDecl dvis
@@ -646,21 +649,72 @@ effectDecl dvis
            -- declare the effect type
            effTpDecl = DataType ename [] [] rng vis Inductive DataDefNormal False doc
 
-           -- declare the effect operations type
+           -- define the effect operations type
            kindStar = KindCon nameKindStar irng
            tname    = TypeBinder (toOperationsName id) (KindArrow kindStar kindStar) irng irng
            opsTp    = TpCon (tbinderName tname) (tbinderRange tname)
-           opsTpDecl= DataType tname [TypeBinder nameA kindStar irng irng] [] rng vis Inductive DataDefNormal False ""
+
+           extendConName = toConstructorName (tbinderName ename)
+           
+       -- parse the operations and return the constructors and function definitions
+       (ops,xrng) <- semiBracesRanged1 (operation vis effTp opsTp extendConName)
+          
+       let (opCons,opDefs) = unzip ops 
+           -- declare the effect operations type
+           opsTpDecl= DataType tname [TypeBinder nameA kindStar irng irng] (opCons) rng vis Inductive DataDefNormal False ""
 
            -- extend the core operations type
-           
+           extendResTp  = TpApp (TpCon nameTpOperation irng) [tpVarA] rng
+           extendPars   = [ValueBinder nameNil (TpApp opsTp [tpVarA] rng) Nothing rng rng]
+           (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp [] extendPars irng rng vis ""
+           extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
 
+           nameA    = newName "a"
+           tpVarA   = TpVar nameA irng   
+           tpBindA  = TypeBinder nameA kindStar irng irng   
+
+       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ map DefValue ( opDefs ++ extendConDefs)
+
+
+operation :: Visibility -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
+operation vis effTp opsTp extendConName
+  = do optional (keyword "function")
+       (id,idrng)   <- identifier
+       exists       <- typeparams
+       (pars,prng)  <- conPars
+       (teff0,tres) <- annotResult
+       teff <- case teff0 of
+                  TpCon tpName _ | tpName == nameEffectEmpty -> return (makeEffectExtend (getRange tres) effTp teff0)
+                  _ -> fail "The effect type of operations must be empty"
+       let rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
-           tpVarA   = TpVar nameA irng      
+           tpVarA   = TpVar nameA idrng   
+           tpConRes = TpApp opsTp [tpVarA] rng             
+           -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
 
-       -- ops <- semiBracesRanged1 (operations   
-       return [DefType effTpDecl, DefType opsTpDecl]
+           conName  = toConstructorName id
+           conDef   = UserCon conName exists conParams idrng rng vis ""
+           conParams= [par{ binderExpr = Nothing } | par <- pars]
+           opDef  = let def  = Def binder rng vis DefFun ""
+                        nameRng   = idrng
+                        binder    = ValueBinder id () body nameRng nameRng
+                        body      = Ann (Lam lparams innerBody rng) tpFull rng
+                        innerBody = App (Var nameYieldOp False nameRng) 
+                                      [(Nothing, App (Var extendConName False nameRng) 
+                                                    [(Nothing,if null arguments then conNameVar else App conNameVar arguments rng)] rng)] rng
+                        conNameVar = Var conName False nameRng                                      
+                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars]
+                        lparams   = [par{ binderType = Nothing} | par <- params]
+                        arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
+                        tpParams  = [(binderName par, binderType par) | par <- params] 
+                        tpFull    = quantify QForall exists (TpFun tpParams teff tres rng)
+                        makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
+                        isJust (Just{}) = True
+                        isJust _        = False
+                    in def          
+       return (conDef,opDef)
 
+       
 
 -----------------------------------------------------------
 -- Value definitions

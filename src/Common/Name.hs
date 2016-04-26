@@ -232,7 +232,7 @@ newCreatorName name
 -- | Create an operations type name from an effect type name.
 toOperationsName :: Name -> Name
 toOperationsName name
-  = prepend ".ops" name
+  = postpend "_ops" name
 
 
 prepend :: String -> Name -> Name
