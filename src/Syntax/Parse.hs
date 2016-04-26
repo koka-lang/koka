@@ -694,7 +694,7 @@ operation vis effTp opsTp extendConName
 
            conName  = toConstructorName id
            conDef   = UserCon conName exists conParams idrng rng vis ""
-           conParams= [par{ binderExpr = Nothing } | par <- pars]
+           conParams= [par{ binderName = nameNil, binderExpr = Nothing } | par <- pars]
            opDef  = let def  = Def binder rng vis DefFun ""
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng

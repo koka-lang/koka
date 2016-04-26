@@ -8,23 +8,18 @@ function xor() : amb bool {
   p||q && not(p&&q)
 }
 
-             
-// ----------------------------------------------------------------------------
-// Ambiguity primitives
-// ----------------------------------------------------------------------------
-
-/*
-type amb :: HX
-extend type operation<a> {
-  Amb( : ambop<a> )
-}
-
-type ambop<a> {
-  Flip  
-}
-*/
+function foo() : <amb,state> bool {
+  val p = flip()
+  val i = get()
+  set(i+1)
+  if (i>=0 && p) then xor() else False
+}             
 
 effect amb {
   flip() : bool
 }
  
+effect state {
+  get() : int; 
+  set(i : int) : ();
+}
