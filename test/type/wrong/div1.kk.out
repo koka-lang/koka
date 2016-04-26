@@ -1,0 +1,6 @@
+test/type/wrong/div1.kk(3,10): error: effects do not match
+ context : recursive
+ term : recursive
+ inferred effect: total
+ expected effect: <div|_e>
+ because : effect cannot be subsumed
