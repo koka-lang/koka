@@ -1,2 +1,2 @@
-main      : () -> <pure,ndet> ()
-omega     : () -> div ()
+main : forall<a> () -> pure (a, ())
+omega : () -> div ()

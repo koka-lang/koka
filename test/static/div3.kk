@@ -5,7 +5,7 @@ type ord {
 }
 
 
-fun addord(x,y) {
+function addord(x,y) {
   match(x) {
     Zero    -> y
     Succ(s) -> Succ(addord(s,y))

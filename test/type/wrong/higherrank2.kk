@@ -1,1 +1,1 @@
-fun auto(f) = f(f)
+function auto(f) = f(f)

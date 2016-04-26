@@ -1,13 +1,13 @@
-fun id(x) = x
+function id(x) = x
 
-fun id2(x) { x }
+function id2(x) { x }
 
-fun id3(x:a) : a { x }
+function id3(x:a) : a { x }
 
-fun id4(x:a) : a
+function id4(x:a) : a
 { x  }
 
-fun id5<a>(x : a ) : a
+function id5<a>(x : a ) : a
 {
   x
 }

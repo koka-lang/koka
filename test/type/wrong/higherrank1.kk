@@ -1,5 +1,5 @@
 val ids = [id : forall<a> a -> a]
 
-fun wrong(x) {
+function wrong(x) {
   choose(x,ids)
 }

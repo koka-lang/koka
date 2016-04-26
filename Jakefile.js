@@ -825,6 +825,9 @@ function runTest(n,testMode,testFile,flags,callback) {
           });  
         }
         else {
+          if (testMode==="verbose") {
+            jake.logger.log(output)
+          }
           jake.logger.log( n + ": no out file." );
           callback(1);
         }

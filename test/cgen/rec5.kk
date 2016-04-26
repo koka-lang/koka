@@ -1,5 +1,5 @@
-fun foo(xs,n) {
-    fun bar(xs) {
+function foo(xs,n) {
+    function bar(xs) {
        match(xs) {
          // cons(x,xx) -> bar(xx);
          Nil -> n
@@ -9,4 +9,4 @@ fun foo(xs,n) {
 }
 
 
-fun main() { print(foo([],1)) }
+function main() { print(foo([],1)) }

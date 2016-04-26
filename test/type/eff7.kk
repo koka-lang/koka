@@ -1,4 +1,4 @@
-fun while(p,f) {
+function while(p,f) {
   if (p()) then {
     f();
     while(p,f);

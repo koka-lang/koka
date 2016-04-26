@@ -1,1 +1,1 @@
-ok     : () -> exn int
+ok : () -> exn int

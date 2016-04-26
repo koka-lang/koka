@@ -1,8 +1,8 @@
-fun g (x : (forall <a> a -> a) -> int) {
+function g (x : (forall <a> a -> a) -> int) {
   x(id)
 }
 
-fun f(x : int -> int) {
+function f(x : int -> int) {
   x(1)
 }
 

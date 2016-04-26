@@ -1,5 +1,5 @@
 // shadow definition
 function id(x) {
-  fun id(y) = y;
+  function id(y) = y;
   id(x)
 }

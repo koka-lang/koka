@@ -1,19 +1,19 @@
-fun id(x) {
+function id(x) {
   return x;
 }
 
-fun apply(f,x) {
+function apply(f,x) {
   f(x)
 }
 
-fun test() {
+function test() {
   fun i(x) { x }
   i(i)
 }
 
-fun test2() {
+function test2() {
   single(hm1/id)
 }
 
-fun test3() = choose(fun(x,y){x},fun(x,y){y})
-fun test4(f) = choose(core/id,f)
+function test3() = choose(fun(x,y){x},fun(x,y){y})
+function test4(f) = choose(core/id,f)

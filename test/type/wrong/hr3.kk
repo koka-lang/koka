@@ -1,7 +1,7 @@
-fun poly(xs : list<forall<a> a -> a>)  {
+function poly(xs : list<forall<a> a -> a>)  {
   1
 }
 
-fun wrong(x) {
+function wrong(x) {
   poly(x)
 }

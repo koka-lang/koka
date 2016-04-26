@@ -3,32 +3,32 @@
    We accept all variants in contrast to all the other compared systems in that paper.
 */
 
-fun rid(x) {
+function rid(x) {
   val r = ref(x)
   !r
 }
 
-fun nop(f,x) {
+function nop(f,x) {
   fun g(y) { f(x) }
   x
 }
 
-val id1 = { x = id(1); rid }
+val id1 = { val x = id(1); rid }
 
-fun id2(y) = rid(id)(y)
+function id2(y) = rid(id)(y)
 
 val id3 = nop(rid, id)
 
-fun foo4(z) {
-  fun id4(x) {
+function foo4(z) {
+  function id4(x) {
     if (True) z else (fun(y){ var r := x; y })
     return x
   }
   id4(id4)
 }
 
-fun foo5(f) {
-  fun id5(y) {
+function foo5(f) {
+  function id5(y) {
     val r = ref(y)
     if(True) then (fun(z){ if(True) then r else ref(y); z }) else f
     y
@@ -36,13 +36,13 @@ fun foo5(f) {
   id5(id5)
 }
 
-fun etaRef(f) {
-  r = ref(f)
-  if(True) f else (fun(x : ref<_h,_t>){ s = if(True) r else ref(f); !x})
+function etaRef(f) {
+  val r = ref(f)
+  if(True) f else (fun(x : ref<_h,_t>){ val s = if(True) r else ref(f); !x})
 }
 
-fun t1() = id1(id1)
-fun t2() = id2(id2)
-fun t3() = id3(id3)
+function t1() = id1(id1)
+function t2() = id2(id2)
+function t3() = id3(id3)
 
 val t4 = if (True) (fun(x){x}) else (fun(x) { !(ref(x)) })

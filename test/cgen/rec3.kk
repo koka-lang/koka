@@ -1,6 +1,6 @@
 // polymorphic recursion on a dynamic closure
-fun bar(ys,m) {
-  fun foo(xs:list<a>, n:int) : _ int
+function bar(ys,m) {
+  function foo(xs:list<a>, n:int) : _ int
   {
     if (n==0) then m else foo(single(xs),n - 1)
   }
@@ -8,4 +8,4 @@ fun bar(ys,m) {
   return foo(ys,m)
 }
 
-fun main() { print(bar([],1)) }
+function main() { print(bar([],1)) }

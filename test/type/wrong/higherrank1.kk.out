@@ -1,5 +1,5 @@
-test/type/wrong/higherrank1.kk(3,11): error: unannotated parameters cannot be polymorphic
- context : fun wrong(x) {
+test/type/wrong/higherrank1.kk(3,16): error: unannotated parameters cannot be polymorphic
+ context : function wrong(x) {
  choose(x,ids)
  }
  term : x

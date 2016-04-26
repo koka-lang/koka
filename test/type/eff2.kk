@@ -1,7 +1,7 @@
-fun twice(f,x) {
+function twice(f,x) {
   return f(f(x))
 }
 
-fun twice2(f,x) {
+function twice2(f,x) {
   return id(f(id(f(x))))
 }
