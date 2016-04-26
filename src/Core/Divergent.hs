@@ -56,7 +56,7 @@ isDivergentBody dname body
         -> isDivergentBody dname expr
       TypeApp expr targs
         -> isDivergentBody dname expr
-      Lam pars body  
+      Lam pars eff body  
         -> isDivFun dname pars body
       _ -> -- ctrace DarkRed ("Core.Divergent.isDivergentBody: not a function? " ++ show body) $
            True  -- assume that non-functions are divergent
@@ -173,7 +173,7 @@ addRelation sz name1 name2 div
 divExpr :: Expr -> Div ()
 divExpr expr
   = case expr of
-      Lam tnames expr   
+      Lam tnames eff expr   
         -> divExpr expr
       App (TypeApp var@(Var tname info) targs) args
         -> divExpr (App var args)

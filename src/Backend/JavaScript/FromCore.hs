@@ -176,14 +176,14 @@ genDef def@(Def name tp expr vis sort rng comm)
 tryFunDef :: Name -> CommentDoc -> Expr -> Asm (Maybe Doc)
 tryFunDef name comment expr 
   = case expr of
-      TypeApp e _   ->             tryFunDef  name comment e 
-      TypeLam _ e   ->             tryFunDef  name comment e
-      Lam args body -> do inStat <- getInStatement
-                          if (inStat)
-                           then return Nothing
-                           else do fun <- genFunDef' name args comment body 
-                                   return (Just fun)
-      _             -> return Nothing
+      TypeApp e _   -> tryFunDef  name comment e 
+      TypeLam _ e   -> tryFunDef  name comment e
+      Lam args eff body  -> do inStat <- getInStatement
+                               if (inStat)
+                                then return Nothing
+                                else do fun <- genFunDef' name args comment body 
+                                        return (Just fun)
+      _ -> return Nothing
   where
     genFunDef' :: Name -> [TName] -> CommentDoc -> Expr -> Asm Doc
     genFunDef' name params comm body
@@ -229,23 +229,24 @@ genTypeDef (Data info _ _ isExtend)
               then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
               else return $ case repr of
                 ConEnum{}   
-                   -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                   -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 ConSingleton{}                                             
                    -> text "var" <+> name <+> text "=" <+> 
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
-                         <> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                         <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 -- tagless
                 ConSingle{}  -> genConstr penv c repr name args [] 
                 ConAsCons{}  -> genConstr penv c repr name args []
                 _            -> genConstr penv c repr name args [(tagField, getConTag c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
-       return $ debugComment ( "Value constructors for type '" ++ (show $ dataInfoName info) ++ "' (" ++ (show dataRepr) ++ ")" )
+       return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
             <-> vcat docs
+            <-> text ""
   where
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> comment (Pretty.ppType penv (conInfoType c)) 
+            $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> linecomment (Pretty.ppType penv (conInfoType c)) 
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
           <+> block ( text "return" <+> 
@@ -634,7 +635,7 @@ genPure expr
                -> genTName name
              Lit l
                -> return $ ppLit l
-             Lam params body
+             Lam params eff body
                -> do args    <- mapM genCommentTName params
                      bodyDoc <- genStat (ResultReturn Nothing params) body
                      return (text "function" <> tupled args <+> block bodyDoc)
@@ -760,8 +761,8 @@ isFunExpr expr
   = case expr of
       TypeApp e _   -> isFunExpr e
       TypeLam _ e   -> isFunExpr e
-      Lam args body -> True 
-      _             -> False
+      Lam args eff body -> True 
+      _                 -> False
 
 isInlineableExpr :: Expr -> Bool
 isInlineableExpr expr
@@ -780,7 +781,7 @@ isPureExpr expr
                | otherwise               -> True
       Con _ _ -> True
       Lit _   -> True      
-      Lam _ _ -> True
+      Lam _ _ _ -> True
       _       -> False             
 
 
@@ -789,7 +790,7 @@ isTailCalling expr n
   = case expr of
       TypeApp expr _    -> expr `isTailCalling` n     -- trivial
       TypeLam _ expr    -> expr `isTailCalling` n     -- trivial
-      Lam _ _           -> False                      -- lambda body is a new context, can't tailcall
+      Lam _ _ _           -> False                      -- lambda body is a new context, can't tailcall
       Var _ _           -> False                      -- a variable is not a call
       Con _ _           -> False                      -- a constructor is not a call
       Lit _             -> False                      -- a literal is not a call
@@ -1051,7 +1052,11 @@ typeComment = comment
 
 comment :: Doc -> Doc
 comment d
-  = text " /*" <+> d <+> text "*/ "
+  = text "/*" <+> d <+> text "*/ "
+
+linecomment :: Doc -> Doc
+linecomment d
+  = text "//" <+> d 
 
 debugComment :: String -> Doc
 debugComment s

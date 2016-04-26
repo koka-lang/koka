@@ -367,11 +367,11 @@ genDef isRec (Def name tp expr vis isVal nameRng doc)
     do ctx <- getModule
        putLineNo nameRng 
        case expr of
-         TypeLam tpars (Lam pars e)
+         TypeLam tpars (Lam pars eff e)
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppTypeParams tpars <> ppParams ctx (unzipTNames pars))
                   genBody isRec True e            
 
-         Lam pars e
+         Lam pars eff e
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppParams ctx (unzipTNames pars))
                   genBody isRec True e                       
          Lit lit
@@ -384,9 +384,9 @@ genDef isRec (Def name tp expr vis isVal nameRng doc)
 extractArgs :: Name -> Expr -> ([Type],[Name])
 extractArgs name expr
   = case expr of
-      TypeLam tpars (Lam pars e)
+      TypeLam tpars (Lam pars eff e)
         -> (map TVar tpars,map getName pars)
-      Lam pars e
+      Lam pars eff e
         -> ([],map getName pars)
       _ -> failure ("CSharp.FromCore.genDef.extractArgs: recursive definition that is not a function? " ++ show name)
 
@@ -398,7 +398,7 @@ etaExpand fun args n
        let types = map snd (fst (splitFun (typeOf fun)))
            tnames = zipWith TName names types
            args'  = map (\n -> Var n InfoNone) tnames
-       return (Lam tnames (App fun (args ++ args')))
+       return (Lam tnames typeTotal (App fun (args ++ args')))
 
 tetaExpand :: Expr -> [Type] -> Int -> Asm Expr
 tetaExpand fun targs m
@@ -733,7 +733,7 @@ genExprBasic expr
             -> do (newTp,gen) <- genLamOrTypeLam False expr 
                   gen
 
-          Lam vars e
+          Lam vars eff e
             -> do funname <- getCurrentDef
                   name <- genName funname
                   let freeTVars = tvsList (ftv expr)
@@ -787,7 +787,7 @@ genLamOrTypeLam tailCtx expr
                            then (newType <> dot <> ppSingletonName)
                            else (text "new" <+> newType <> ppArgs (map fst freeVars)))
                         )
-         Lam vars e
+         Lam vars eff e
            -> do let freeTVars = tvsList (ftv expr)
                      freeVars  = {- filter (\(nm,tp) -> nm /= funname) -} (localFv expr)
                      newType   = ppQName ctx name <> ppTypeParams freeTVars
@@ -835,8 +835,8 @@ genLetDefs isRec defs groups expr
       
 liftDefToTopLevel def
   = case (defExpr def) of
-      TypeLam tpars (Lam pars e) -> isTopLevel def
-      Lam pars e                 -> isTopLevel def
+      TypeLam tpars (Lam pars eff e) -> isTopLevel def
+      Lam pars eff e                 -> isTopLevel def
       _ -> False
 
 
@@ -888,8 +888,8 @@ isStatement expr
 isLambda :: Expr -> Bool
 isLambda expr
   = case expr of
-      TypeLam tpars (Lam pars e) -> True
-      Lam pars e                 -> True
+      TypeLam tpars (Lam pars eff e) -> True
+      Lam pars eff e                 -> True
       _ -> False
 
 

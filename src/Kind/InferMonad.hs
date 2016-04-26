@@ -196,8 +196,8 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
     check (kgamma,tdefs) (range,tdef)
       = if (Core.typeDefIsExtension tdef) then return (kgamma,tdefs)
          else do let (name,kind) = nameKind tdef
-                 trace("extend kgamma: " ++ show (name)) $
-                  case kgammaLookupQ name kgamma of
+                 -- trace("extend kgamma: " ++ show (name)) $
+                 case kgammaLookupQ name kgamma of
                    Nothing -> return (kgammaExtend name kind kgamma,tdef:tdefs)
                    Just _  -> do env <- getKindEnv
                                  addError range $ text "Type" <+> ppType (cscheme env) name <+> 

@@ -267,7 +267,7 @@ canonicalSplit name
 
 data Expr =
   -- Core lambda calculus
-    Lam [TName] Expr  
+    Lam [TName] Effect Expr  
   | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
   | App Expr [Expr]
   -- Type (universal) abstraction/application
@@ -322,7 +322,7 @@ data Lit =
 isTotal:: Expr -> Bool
 isTotal expr
   = case expr of
-      Lam _ _ -> True
+      Lam _ _ _ -> True
       Var _ _ -> True
       TypeLam _ _ -> True  
       TypeApp e _ -> isTotal e
@@ -368,7 +368,7 @@ instance HasTypeVar Def where
 instance HasTypeVar Expr where
   sub `substitute` expr 
     = case expr of
-        Lam tnames expr   -> Lam (sub `substitute` tnames) (sub `substitute` expr)
+        Lam tnames eff expr -> Lam (sub `substitute` tnames) (sub `substitute` eff) (sub `substitute` expr)
         Var tname info    -> Var (sub `substitute` tname) info
         App f args        -> App (sub `substitute` f) (sub `substitute` args)
         TypeLam tvs expr  -> let sub' = subRemove tvs sub 
@@ -381,7 +381,7 @@ instance HasTypeVar Expr where
 
   ftv expr
     = case expr of
-        Lam tname expr     -> ftv tname `tvsUnion` ftv expr
+        Lam tname eff expr -> tvsUnions [ftv tname, ftv eff, ftv expr]
         Var tname info     -> ftv tname
         App a b            -> ftv a `tvsUnion` ftv b
         TypeLam tvs expr   -> tvsRemove tvs (ftv expr) 
@@ -393,7 +393,7 @@ instance HasTypeVar Expr where
 
   btv expr
     = case expr of
-        Lam tname  expr    -> btv tname `tvsUnion` btv expr
+        Lam tname eff expr -> tvsUnions [btv tname, btv eff, btv expr]
         Var tname info     -> btv tname
         App a b            -> btv a `tvsUnion` btv b
         TypeLam tvs expr   -> tvsInsertAll tvs (btv expr)  
@@ -522,7 +522,7 @@ instance HasExpVar Def where
 
 instance HasExpVar Expr where
   -- extract free variables from an expression
-  fv (Lam tnames expr)    = foldr S.delete (fv expr) tnames 
+  fv (Lam tnames eff expr)= foldr S.delete (fv expr) tnames 
   fv v@(Var tname info)   = S.singleton tname
   fv (App e1 e2)          = fv e1 `S.union` fv e2
   fv (TypeLam tyvar expr) = fv expr
@@ -581,8 +581,8 @@ instance HasExprVar Def where
 instance HasExprVar Expr where
   sub |~> expr = 
     case expr of
-      Lam tnames  expr    -> assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $ 
-                              Lam tnames (sub |~> expr)
+      Lam tnames eff expr  -> assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $ 
+                              Lam tnames eff (sub |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
       App e1 e2            -> App (sub |~> e1) (sub |~> e2)
       TypeLam typeVar exp  -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam") (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVar) $
@@ -637,15 +637,15 @@ addTypeLambdas pars e              = TypeLam pars e
 
 -- | Add term lambdas
 addLambdas :: [(Name, Type)] -> (Expr -> Expr)
-addLambdas [] e              = e
-addLambdas pars (Lam ps e)   = Lam ([TName x tp | (x,tp) <- pars] ++ ps) e
-addLambdas pars e            = Lam [TName x tp | (x,tp) <- pars] e
+addLambdas [] e                 = e
+addLambdas pars (Lam ps eff e)  = Lam ([TName x tp | (x,tp) <- pars] ++ ps) eff e
+addLambdas pars e               = Lam [TName x tp | (x,tp) <- pars] typeTotal e -- todo: effect can be wrong
 
 -- | Add term lambdas
 addLambda :: [TName] -> (Expr -> Expr)
-addLambda [] e              = e
-addLambda pars (Lam ps e)   = Lam (pars ++ ps) e
-addLambda pars e            = Lam pars e
+addLambda [] e                  = e
+addLambda pars (Lam ps eff e)   = Lam (pars ++ ps) eff e
+addLambda pars e                = Lam pars typeTotal e -- todo: effect can be wrong?
 
 
 -- | Bind a variable inside a term
@@ -654,9 +654,9 @@ addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then 
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool
-isValueExpr (TypeLam tpars (Lam pars e))   = False
-isValueExpr (Lam pars e)                   = False
-isValueExpr _                              = True
+isValueExpr (TypeLam tpars (Lam pars eff e))   = False
+isValueExpr (Lam pars eff e)                   = False
+isValueExpr _                                  = True
 
 -- | Add a definition 
 addCoreDef :: Core -> Def -> Core
@@ -688,8 +688,8 @@ instance HasType TName where
 
 instance HasType Expr where
   -- Lambda abstraction
-  typeOf (Lam pars expr)
-    = typeFun [(name,tp) | TName name tp <- pars] typeTotal (typeOf expr) -- TODO: effect is wrong
+  typeOf (Lam pars eff expr)
+    = typeFun [(name,tp) | TName name tp <- pars] eff (typeOf expr) 
 
   -- Variables
   typeOf (Var tname info)

@@ -21,5 +21,5 @@ effect amb {
  
 effect state {
   get() : int; 
-  set(i : int) : ();
+  set(i : int) : ();  
 }

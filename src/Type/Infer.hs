@@ -478,7 +478,7 @@ inferExpr propagated expect (Lam binders body rng)
 
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2          
-           bodyCore1 = (Core.addLambdas optPars (Core.Lam [] (coref core))) -- need empty Lam to ensure a lambda is there if pars is empty
+           bodyCore1 = (Core.addLambdas optPars (Core.Lam [] topEff (coref core))) -- need empty Lam to ensure a lambda is there if pars is empty
        bodyCore2 <- subst bodyCore1
        let pars = optPars
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars topEff tp) bodyCore2

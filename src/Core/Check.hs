@@ -76,9 +76,9 @@ typeOfT env uniq expr
 typeOf :: Gamma -> Int -> Expr -> Exception Type 
 
 -- Lambda abstraction
-typeOf env uniq (Lam tname expr)
+typeOf env uniq (Lam tname eff expr)
   = do body <- typeOfT (gammaExtend (getName tname) (Core.typeOf tname) env) uniq expr
-       return (typeFun (Core.typeOf tname) body)
+       return (typeFun (Core.typeOf tname) eff body)
 
 -- Variables
 typeOf env uniq (Var tname)

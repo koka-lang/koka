@@ -88,7 +88,7 @@ instance Simplify Expr where
   simplify e 
     = bottomUp $
       case topDown e of
-        Lam tnames expr    -> Lam tnames (simplify expr)
+        Lam tnames eff expr-> Lam tnames eff (simplify expr)
         Var tname info     -> Var tname info
         App e1 e2          -> App (simplify e1) (simplify e2)
         TypeLam tv expr    -> TypeLam tv (simplify expr)

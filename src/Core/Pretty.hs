@@ -193,9 +193,11 @@ tab doc
 prettyExpr :: Env -> Expr -> Doc
 
 -- Core lambda calculus
-prettyExpr env lam@(Lam tnames expr) 
+prettyExpr env lam@(Lam tnames eff expr) 
   = pparens (prec env) precArrow $
-    tab (keyword env "fun" <> tupled [prettyTName env' tname | tname <- tnames] <> text "{" <+> prettyExpr env expr) <+> text "}"
+    tab (keyword env "fun" <> 
+      (if isTypeTotal eff then empty else text "<" <> prettyType env' eff <> text ">") <> 
+        tupled [prettyTName env' tname | tname <- tnames] <> text "{" <+> prettyExpr env expr) <+> text "}"
   where
     env'  = env { prec = precTop }
     env'' = env { prec = precArrow }
