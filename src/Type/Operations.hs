@@ -56,8 +56,8 @@ instantiate range tp
 instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
-       erho <- extend rho
-       return (ids,preds,erho,coref)
+       (erho,coreg) <- extend rho
+       return (ids,preds,erho, coreg . coref)
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
@@ -70,16 +70,18 @@ instantiateNoEx rng tp
 -- This is necessary to do on instantiation since we simplify such effect variables
 -- away during generalization. Effectively, the set of accepted programs does not 
 -- change but the types look simpler to the user.
-extend :: HasUnique m => Rho -> m Rho
+extend :: HasUnique m => Rho -> m (Rho, Core.Expr -> Core.Expr)
 extend tp
   = case expandSyn tp of
       TFun args eff res
         -> let (ls,tl) = extractOrderedEffect eff
            in if isEffectEmpty tl
                then do tv <- freshTVar kindEffect Meta
-                       return (TFun args (effectExtends ls tv) res)
-               else return tp
-      _ -> return tp
+                       let openEff = effectExtends ls tv
+                           openTp  = TFun args openEff res
+                       return (openTp, \core -> Core.openEffectExpr eff openEff tp openTp core)
+               else return (tp,id)
+      _ -> return (tp,id)
 
 
 -- | Skolemize a type

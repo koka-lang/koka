@@ -36,6 +36,7 @@ module Core.Core ( -- Data structures
                    , typeOf
                    , HasExpVar, fv, bv
                    , isExprTrue,  exprTrue
+                   , openEffectExpr
 
                    , isExprFalse, exprFalse
                    , Visibility(..), Fixity(..), Assoc(..)
@@ -63,9 +64,9 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTpBool )
+import Common.NamePrim( nameTrue, nameFalse, nameTpBool, nameEffectOpen )
 import Common.Syntax
-
+import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
@@ -673,6 +674,17 @@ freshName prefix
   = do id <- unique 
        return (newName $ prefix ++ "." ++ show id)
 
+
+-- | Create a phantom application that opens the effect type of a function
+openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
+openEffectExpr effFrom effTo tpFrom tpTo expr
+  = App (TypeApp varOpen [effFrom,effTo]) [expr]
+  where
+    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])
+    tpOpen  = TForall [a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo) 
+    a       = TypeVar (-1) kindEffect Bound
+    b       = TypeVar (-2) kindEffect Bound
+    
 
 ---------------------------------------------------------------------------
 -- type of a core term

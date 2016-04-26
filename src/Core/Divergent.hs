@@ -18,7 +18,7 @@ import Control.Applicative
 import Control.Monad
 import Data.List( transpose, permutations )
 import Common.Name
-import Common.NamePrim( nameSubStr1, namesSameSize )
+import Common.NamePrim( nameSubStr1, namesSameSize, nameEffectOpen )
 import Common.Failure
 import Common.Syntax
 import qualified Common.NameSet as S
@@ -175,15 +175,26 @@ divExpr expr
   = case expr of
       Lam tnames eff expr   
         -> divExpr expr
+      -- Ignore .open effect calls
+      App (App (TypeApp (Var openName _) _) [f]) args  | getName openName == nameEffectOpen        
+        -> divExpr (App f args)
+      App (TypeApp (App (TypeApp (Var openName _) _) [f]) targs) args  | getName openName == nameEffectOpen        
+        -> divExpr (App (TypeApp f targs) args)
+      -- applications        
       App (TypeApp var@(Var tname info) targs) args
         -> divExpr (App var args)
       App (Var tname info) args
         -> do isRec <- isRecursiveCall (getName tname)
               if isRec 
-                then do call <- mapM (argumentSize (getName tname)) (zip [0..] args)
+                then do call <- mapM (argumentSize (getName tname)) (zip [0..] args) -- todo: should we add 'Unknown's for partial applications?
                         addCall (getName tname) call
                 else return ()
               mapM_ divExpr args
+
+      Var tname info  -- recursive call may appear as argument, say id(recfun)(x)
+        -> do isRec <- isRecursiveCall (getName tname)
+              if isRec then addCall (getName tname) [Unknown] else return ()
+              
       App f args        
         -> do divExpr f
               mapM_ divExpr args

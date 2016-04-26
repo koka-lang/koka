@@ -11,6 +11,7 @@
 
 module Core.Simplify (simplify) where
 
+import Common.NamePrim( nameEffectOpen )
 import Type.Type
 import Type.TypeVar
 import Core.Core
@@ -32,6 +33,10 @@ topDown :: Expr -> Expr
 topDown expr@(Let (DefGroups [DefNonRec (Def x tp e)]) e')
   = simplify $ [(x, e)] |~> e'
 -}
+
+-- Remove effect open applications
+topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
+  = topDown arg
 
 -- No optimization applies
 topDown expr

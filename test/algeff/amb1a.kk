@@ -9,7 +9,7 @@ function xor() : amb bool {
 }
 
 function foo() : <amb,state> bool {
-  val p = flip()
+  val p = flip() 
   val i = get()
   set(i+1)
   if (i>=0 && p) then xor() else False

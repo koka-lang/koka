@@ -27,6 +27,7 @@ module Common.NamePrim
 
           , nameUnit
           , nameReturn
+          , nameEffectOpen
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -101,6 +102,9 @@ namePredHeapDiv = preludeName "hdiv"
 
 nameReturn :: Name
 nameReturn = preludeName ".return"
+
+nameEffectOpen :: Name
+nameEffectOpen = newName ".open"
 
 {--------------------------------------------------------------------------
   Primitive constructors

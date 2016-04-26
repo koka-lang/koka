@@ -239,8 +239,8 @@ improve contextRange range eff0 rho0 core0
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiate range tp | isRho tp
-  = do rho <- Op.extend tp
-       return (rho,[],id)
+  = do (rho,coref) <- Op.extend tp
+       return (rho,[],coref)
 instantiate range tp 
   = do (tvars,ps,rho,coref) <- instantiateEx range tp
        addPredicates ps
