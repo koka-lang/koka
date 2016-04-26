@@ -768,6 +768,7 @@ var testMessage = "total time ";
 function runTests(test,testMode,flags,callback) {
   testMode = testMode||"";
   flags = flags || ("-i" + testDir + " --outdir=" + path.join(outputDir,"test"));
+  flags = "--checkcore " + flags 
   fs.stat(test,function(err,stats) {
     if (err) {
       jake.logger.error("file or directory does not exist: " + test);

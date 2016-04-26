@@ -27,6 +27,7 @@ module Syntax.Parse( parseProgramFromFile
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId
                    , keyword, dockeyword
+                   , parseOpenExtend
                    ) where
 
 -- import Lib.Trace
@@ -544,19 +545,21 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do (ddef,isExtend)  <- do{ keyword "open"; return (DataDefOpen, False) }
-                <|>
-                do{ keyword "extend"; return (DataDefOpen, True) }
-                <|>
-                return (DataDefNormal, False)
-       let f kw sort = do (rng,doc) <- dockeyword kw   
+  = do let f kw sort = do (rng,doc) <- dockeyword kw   
+                          (ddef,isExtend) <- parseOpenExtend
                           return (sort,rng,doc,ddef,isExtend)                            
        (f "type" (Inductive)
         <|> 
         f "cotype" (CoInductive)
         <|> 
         f "rectype" (Retractive))
-        
+
+parseOpenExtend :: LexParser (DataDef,Bool) 
+parseOpenExtend
+  =   do{ specialId "open"; return (DataDefOpen, False) }
+  <|> do{ specialId "extend"; return (DataDefOpen, True) }
+  <|> return (DataDefNormal, False)
+  <?> ""
 
 typeKindParams
    = do (tpars,rng) <- anglesRanged tbinders

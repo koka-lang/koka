@@ -14,7 +14,7 @@ function foo() : <amb,state> bool {
   set(i+1)
   if (i>=0 && p) then xor() else False
 }             
-
+ 
 effect amb {
   flip() : bool
 }

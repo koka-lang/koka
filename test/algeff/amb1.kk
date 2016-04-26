@@ -32,7 +32,7 @@ external inline toany( x : a ) : any = inline "#1"
 /*
 type amb :: HX
 */
-extend type operation<a> {
+type extend operation<a> {
   Amb( : ambop<a> )
 }
 
@@ -91,7 +91,7 @@ type state :: HX
 
 private external inline unsafeNoState : forall<e,a> ( action: ( k : a -> <state|e> cps<<state|e>,a> ) -> <state|e> cps<<state|e>,a> ) -> ((k : a -> e cps<e,a>) -> e cps<e,a>) = inline "#1"
 
-extend type operation<a> {
+type extend operation<a> {
   State( : stateop<a> )
 }
 

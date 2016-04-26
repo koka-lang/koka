@@ -237,7 +237,6 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "open", "extend"
     , "fun", "function", "val", "var"
     , "external"
     , "effect", "handle"

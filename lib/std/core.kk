@@ -2549,7 +2549,7 @@ external getHost() : ndet string {
 type handled :: HX -> X;
 
 // Effect operations with result type a
-open type operation<a> 
+type open operation<a> 
 
 // The CPS monad
 type cps<e,a> {

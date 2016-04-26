@@ -186,12 +186,11 @@ conDecl tname sort env
 
 typeSort :: LexParser (DataDef, Bool, DataKind,String)
 typeSort
-  = do (ddef,isExtend) <- do{ keyword "open"; return (DataDefOpen,False) } 
-                          <|> do{ keyword "extend"; return (DataDefOpen, True) }
-                          <|> return (DataDefNormal,False)
-       let f kw sort = do (_,doc) <- dockeyword kw
+  = do let f kw sort = do (_,doc) <- dockeyword kw
+                          (ddef,isExtend) <- parseOpenExtend
                           return (ddef,isExtend,sort,doc)
        (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
+
 
 {--------------------------------------------------------------------------
   Value definitions 
