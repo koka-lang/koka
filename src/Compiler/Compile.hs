@@ -52,6 +52,7 @@ import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpres
 import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
+import Core.Check             ( check )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -62,7 +63,7 @@ import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
 import Type.Type              
-import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, gammaUnions, extractGammaImports, gammaLookup )
+import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )            
 import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath )
@@ -692,13 +693,12 @@ inferCheck loaded flags line coreImports program1
               defs
 
        -- make sure generated core is valid
-       {-
-       case Core.Check.check unique4 coreFDefs' (gammaMap coreType $ loadedGamma loaded3) of
+       if (not (checkCore flags)) then return () 
+        else trace "checking core.." $ case Core.Check.check unique4 coreDefs0 gamma of
          Left str 
-           -> error ("Type error in generated code!\n" ++ str ++ "\n\nGENERATED CODE:\n" ++ show coreFDefs') 
+           -> warningMsg ("Generated core fails to type check!\n" ++ str ++ "\n\nGenerated core:\n" ++ show coreDefs0) 
          Right ()   
            -> return ()
-       -}
 
        -- simplify coreF if enabled
        let coreDefs1 = if noSimplify flags 

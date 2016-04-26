@@ -730,11 +730,7 @@ instance HasType Expr where
 
   -- Literals
   typeOf (Lit l) 
-    = case l of
-        LitInt _    -> typeInt
-        LitFloat _  -> typeFloat
-        LitChar _   -> typeChar
-        LitString _ -> typeString
+    = typeOf l
 
   -- Let
   typeOf (Let defGroups expr) 
@@ -743,6 +739,15 @@ instance HasType Expr where
   -- Case
   typeOf (Case exprs branches)
     = typeOf (head branches)
+
+
+instance HasType Lit where
+  typeOf lit
+    = case lit of
+        LitInt _    -> typeInt
+        LitFloat _  -> typeFloat
+        LitChar _   -> typeChar
+        LitString _ -> typeString
 
 {--------------------------------------------------------------------------
   Type of a branch 

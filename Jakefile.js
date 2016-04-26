@@ -385,6 +385,7 @@ var hsModules = [
   "Core.Simplify",
   "Core.Divergent",
   "Core.BindingGroups",
+  "Core.Check",
   
   "Type.Infer",
   

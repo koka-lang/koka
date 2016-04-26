@@ -110,6 +110,7 @@ data Flags
          , console          :: String
          , rebuild          :: Bool
          , genCore          :: Bool
+         , checkCore        :: Bool
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
@@ -148,6 +149,7 @@ flagsNull
           "ansi"  -- console: ansi, html
           False -- rebuild
           False -- genCore
+          False -- checkCore
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
@@ -200,6 +202,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
  , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
+ , flag   []    ["checkcore"]      (\b f -> f{checkCore=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
@@ -479,7 +482,7 @@ versionMessage
   ])
   <->
   (color DarkGray $ vcat $ map text
-  [ "Copyright 2012 Microsoft Corporation, by Daan Leijen."
+  [ "Copyright (c) 2012-2016 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"
