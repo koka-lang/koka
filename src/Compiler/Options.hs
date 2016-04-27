@@ -114,6 +114,7 @@ data Flags
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
+         , forceModule      :: FilePath
          }
 
 flagsNull :: Flags
@@ -153,6 +154,7 @@ flagsNull
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
+          "" -- forceModule
 
 isHelp Help = True
 isHelp _    = False

@@ -254,19 +254,20 @@ compileTypeDef term flags loaded program line input
   These are meant to be called from the interpreter/main compiler
 ---------------------------------------------------------------}
 
-compileModuleOrFile :: Terminal -> Flags -> Modules -> String -> IO (Error Loaded)
-compileModuleOrFile term flags modules fname
+compileModuleOrFile :: Terminal -> Flags -> Modules -> String -> Bool -> IO (Error Loaded)
+compileModuleOrFile term flags modules fname force
   | any (not . validModChar) fname = compileFile term flags modules Object fname
   | otherwise
     = do let modName = newName fname
          exist <- searchModule flags "" modName
          case (exist) of
-          Just _  -> compileModule term flags modules modName
+          Just fpath -> compileModule term (if force then flags{ forceModule = fpath } else flags) 
+                                      modules modName 
           Nothing -> do fexist <- searchSourceFile flags "" fname
                         runIOErr $
                          case (fexist) of
                           Just (root,stem)  
-                            -> compileProgramFromFile term flags modules Object root stem
+                            -> compileProgramFromFile term flags modules Object root stem 
                           Nothing 
                             -> liftError $ errorMsg $ errorFileNotFound flags fname 
   where
@@ -280,7 +281,7 @@ compileFile term flags modules compileTarget fpath
        case mbP of
          Nothing -> liftError $ errorMsg (errorFileNotFound flags fpath) 
          Just (root,stem)
-           -> compileProgramFromFile term flags modules compileTarget root stem
+           -> compileProgramFromFile term flags modules compileTarget root stem 
   
 -- | Make a file path relative to a set of given paths: return the (maximal) root and stem
 -- if it is not relative to the paths, return dirname/notdir
@@ -292,7 +293,7 @@ makeRelativeToPaths paths fname
 
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
-compileModule term flags modules name
+compileModule term flags modules name  -- todo: take force into account
   = runIOErr $ -- trace ("compileModule: " ++ show name) $
     do let imp = ImpProgram (Import name name rangeNull Private) 
        (loaded,(mod:_)) <- resolveImports term flags "" initialLoaded{ loadedModules = modules } [imp]
@@ -307,7 +308,7 @@ compileProgram term flags modules compileTarget fname program
   
 
 compileProgramFromFile :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> FilePath -> IOErr Loaded
-compileProgramFromFile term flags modules compileTarget rootPath stem
+compileProgramFromFile term flags modules compileTarget rootPath stem 
   = do let fname = joinPath rootPath stem
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
        liftIO $ termPhase term ("parsing " ++ fname)
@@ -506,7 +507,7 @@ resolveModule term flags currentDir modules mimp
                         loadFromSource modules root stem  
                 Nothing ->
                   -- trace ("module " ++ show (name) ++ " not yet loaded") $ 
-                  if (not (rebuild flags) && ifaceTime > sourceTime)
+                  if (not (rebuild flags) && joinPath root stem /= forceModule flags && ifaceTime > sourceTime)
                     then loadFromIface iface root stem
                     else loadFromSource modules root stem
 

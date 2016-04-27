@@ -33,7 +33,7 @@ type Parser a = Parsec String () a
 -- | A commmand line command.
 data Command  = Quit
               | Error    String
-              | Load     [FilePath]
+              | Load     [FilePath] Bool
               | Reload 
               | Eval     String
               | TypeOf   String
@@ -96,7 +96,8 @@ command
 
 
 cmdeval
-  =   do{ symbol "l" <|> symbol "load"; fpaths <- filenames; return (Load fpaths) }
+  =   do{ symbol "l" <|> symbol "load"; fpaths <- filenames; return (Load fpaths False) }
+  <|> do{ symbol "f" <|> symbol "fload"; fpaths <- filenames; return (Load fpaths True) }
   <|> do{ symbol "r" <|> symbol "reload"; return Reload }
   <|> do{ symbol "q" <|> symbol "quit"; return Quit }
   -- external
