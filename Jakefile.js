@@ -52,7 +52,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -143,7 +143,7 @@ task("iclean", function() {
 //-----------------------------------------------------
 desc(["run tests.",
       "     test[<dir|file>,<mode>]  # use <dir|file> to run the tests ('test')",
-      "                              # optional <mode> is 'update', or 'new'"].join("\n"));
+      "                              # optional <mode> is 'update','new',or 'verbose'"].join("\n"));
 task("test", ["compiler"], function(testdir,testmode) {
   testdir=testdir||"test";
   testmode=testmode||"";
@@ -385,7 +385,6 @@ var hsModules = [
   "Core.Simplify",
   "Core.Divergent",
   "Core.BindingGroups",
-  "Core.Check",
   
   "Type.Infer",
   
@@ -395,6 +394,8 @@ var hsModules = [
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
+  "Core.Check",
+  "Core.Cps",
   
   "Compiler.Package",
   "Compiler.Options",

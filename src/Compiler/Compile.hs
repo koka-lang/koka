@@ -53,6 +53,7 @@ import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
+import Core.Cps               ( cpsTransform )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -679,9 +680,11 @@ inferCheck loaded flags line coreImports program1
            
 
        -- type inference
+       let penv = prettyEnv loaded3 flags
+
        (gamma,coreDefs0,unique4,mbRangeMap2) 
          <- inferTypes 
-              (prettyEnv loaded3 flags)
+              penv
               mbRangeMap1
               (loadedSynonyms loaded3)
               (loadedNewtypes loaded3)
@@ -694,18 +697,25 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return () 
-        else Core.Check.checkCore (prettyEnv loaded3 flags) unique4 gamma coreDefs0 
+        else Core.Check.checkCore penv unique4 gamma coreDefs0 
+
+       -- cps tranform program
+       coreDefs1 <- Core.Cps.cpsTransform penv coreDefs0
 
        -- simplify coreF if enabled
-       let coreDefs1 = if noSimplify flags 
-                        then coreDefs0
-                        else Core.Simplify.simplify coreDefs0 
+       let coreDefs2 = if noSimplify flags 
+                        then coreDefs1
+                        else Core.Simplify.simplify coreDefs1
+
+       -- recheck cps transformed core
+       if (not (coreCheck flags)) then return () 
+        else Core.Check.checkCore (prettyEnv loaded3 flags) unique4 gamma coreDefs0 
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
                           coreProgram1{ Core.coreProgImports = coreImports 
-                                      , Core.coreProgDefs = coreDefs1 
+                                      , Core.coreProgDefs = coreDefs2 
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
            loaded4 = loaded3{ loadedGamma = gamma
