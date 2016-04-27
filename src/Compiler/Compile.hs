@@ -496,18 +496,19 @@ resolveModule term flags currentDir modules mimp
       name = impFullName mimp 
     
       loadDepend iface root stem 
-         = do ifaceTime <- liftIO $ getFileTimeOrCurrent iface
-              sourceTime <- liftIO $ getFileTimeOrCurrent (joinPath root stem)
+         = do let srcpath = joinPath root stem
+              ifaceTime <- liftIO $ getFileTimeOrCurrent iface
+              sourceTime <- liftIO $ getFileTimeOrCurrent srcpath
               case lookupImport iface modules of
                 Just mod ->
-                  if (modTime mod >= sourceTime)
+                  if (srcpath /= forceModule flags && modTime mod >= sourceTime)
                    then -- trace ("module " ++ show (name) ++ " already loaded") $ 
                         loadFromModule iface root stem mod
                    else -- trace ("module " ++ show ( name) ++ " already loaded but not recent enough..\n " ++ show (modTime mod, sourceTime)) $
                         loadFromSource modules root stem  
                 Nothing ->
                   -- trace ("module " ++ show (name) ++ " not yet loaded") $ 
-                  if (not (rebuild flags) && joinPath root stem /= forceModule flags && ifaceTime > sourceTime)
+                  if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime > sourceTime)
                     then loadFromIface iface root stem
                     else loadFromSource modules root stem
 
