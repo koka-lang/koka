@@ -89,7 +89,7 @@ cpsExpr expr
               let ff  = f' id
                   ftp = typeOf ff
               isCps <- needsCpsTypeX ftp
-              cpsTraceDoc $ \env -> text "app:" <+> pretty isCps <+> text "tp:" <+> niceType env ftp
+              cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
               if (not (isCps || isSpecialCps f))
                then return $ \k -> 
                 f' (\ff -> 
