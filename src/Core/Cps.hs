@@ -18,10 +18,10 @@ import Lib.PPrint
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpCps, nameEffectOpen, nameYieldOp )
+import Common.NamePrim( nameTpCps, nameEffectOpen, nameYieldOp, nameTpCont )
 import Common.Error
 
-import Kind.Kind( kindStar, isKindEffect )
+import Kind.Kind( kindStar, isKindEffect, kindHandled )
 import Type.Type
 import Type.Kind
 import Type.TypeVar
@@ -77,24 +77,27 @@ cpsExpr expr
       Lam args eff body 
         -> do body' <- cpsExpr body
               isCps <- needsCpsEffectX eff
+              args' <- mapM cpsTName args
               if (not isCps)
                then do cpsTrace "not effectful lambda"
-                       return $ \k -> k (Lam args eff (body' id))
+                       return $ \k -> k (Lam args' eff (body' id))
                else let bodyTp = typeOf body
-                    in return $ \k -> k (Lam (args ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
+                    in return $ \k -> k (Lam (args' ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
       App f args
         -> do f' <- cpsExpr f
               args' <- mapM cpsExpr args
-              let ftp = typeOf f
-              isCps <- needsCpsTypeX (typeOf f)
-              cpsTraceDoc $ \env -> text "app:" <+> pretty isCps <+> text "tp:" <+> niceType env (typeOf f)                         
+              let ff  = f' id
+                  ftp = typeOf ff
+              isCps <- needsCpsTypeX ftp
+              cpsTraceDoc $ \env -> text "app:" <+> pretty isCps <+> text "tp:" <+> niceType env ftp
               if (not (isCps || isSpecialCps f))
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
                     k (App ff argss)
                 ))
-               else  do cpsTraceDoc $ \env -> text "app tp:" <+> niceType env (typeOf f) 
+               else  do -- cpsTraceDoc $ \env -> text "app tp:" <+> niceType env (typeOf f) 
+                        nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
                               tnameY = TName nameY resTp
@@ -126,7 +129,8 @@ cpsExpr expr
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
       TypeApp body tps
         -> do body' <- cpsExpr body
-              tps'  <- mapM cpsTypeX tps
+              tps0  <- mapM cpsTypeX tps
+              tps'  <- mapM cpsTypePar tps0
               return $ \k -> body' (\xx -> k (TypeApp xx tps'))
       Var (TName name tp) info
         -> do tp' <- cpsTypeX tp
@@ -183,6 +187,21 @@ applies [] f = f []
 applies (t:ts) f 
   = t (\c -> applies ts (\cs -> f (c:cs)))
 
+cpsTName :: TName -> Cps TName
+cpsTName (TName name tp)
+  = do tp' <- cpsTypeX tp
+       return (TName name tp')
+
+cpsTypePar :: Type -> Cps Type
+cpsTypePar tp
+  = if (not (isKindEffect (getKind tp))) then return tp 
+     else do isCps <- needsCpsTypeX tp
+             if (isCps) then return tp
+              else -- we go from a polymorpic (cps) type to a non-cps type; mark it with a cont effect
+                   -- to do a sound translation. At an application to cont we pass the identity as the continuation.
+                   return $ effectExtend (handledToLabel (TCon (TypeCon nameTpCont kindHandled))) tp
+
+
 needsCpsTypeX :: Type -> Cps Bool
 needsCpsTypeX tp
   = do pureTvs <- getPureTVars
@@ -198,6 +217,7 @@ needsCpsEffectX tp
   = do pureTvs <- getPureTVars
        return (needsCpsEffect pureTvs tp)
 
+
 cpsType :: Tvs -> Type -> Type
 cpsType pureTvs tp
   = case tp of
@@ -206,7 +226,7 @@ cpsType pureTvs tp
                res'  = cpsType pureTvs res
                eff'  = cpsType pureTvs eff
            in if (needsCpsEffect pureTvs eff')
-               then TFun (pars ++ [(nameK, typeK res')]) eff' typeCps 
+               then TFun (pars' ++ [(nameK, typeK res')]) eff' typeCps 
                else TFun pars' eff' res'
       TForall tvars preds t
         -> TForall tvars preds (cpsType pureTvs t)
@@ -224,7 +244,7 @@ typeCps   = TCon (TypeCon (nameTpCps) kindStar)
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
-nameY = newHiddenName "y"
+-- nameY = newHiddenName "y"
 
 
 {--------------------------------------------------------------------------
@@ -260,7 +280,7 @@ needsCpsExpr pureTvs expr
         -> any (needsCpsDefGroup pureTvs) defs || needsCpsExpr pureTvs body
       Case exprs bs
         -> any (needsCpsExpr pureTvs) exprs || any (needsCpsBranch pureTvs) bs
-      _ -> False
+      _ -> needsCpsType pureTvs (typeOf expr) -- because instantiating polymorphic variables may need translation
 
 needsCpsDefGroup pureTvs defGroup
   = case defGroup of

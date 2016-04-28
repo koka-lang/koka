@@ -45,7 +45,7 @@ module Common.NamePrim
           , nameTpAny
           , nameTpAsync
           , nameTpException
-          , nameTpHandled, nameTpOperation, nameYieldOp, nameTpCps
+          , nameTpHandled, nameTpOperation, nameYieldOp, nameTpCps, nameTpCont
           , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
@@ -157,6 +157,7 @@ nameTpHandled   = preludeName "handled"
 nameTpOperation = preludeName "operation"
 nameYieldOp     = preludeName "unsafeyieldop"
 nameTpCps       = preludeName "cps"
+nameTpCont      = preludeName "cont"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
