@@ -18,7 +18,7 @@ import Lib.PPrint
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpCps, nameEffectOpen, nameYieldOp, nameTpCont )
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps )
 import Common.Error
 
 import Kind.Kind( kindStar, isKindEffect, kindHandled )
@@ -199,7 +199,7 @@ cpsTypePar tp
              if (isCps) then return tp
               else -- we go from a polymorpic (cps) type to a non-cps type; mark it with a cont effect
                    -- to do a sound translation. At an application to cont we pass the identity as the continuation.
-                   return $ effectExtend (handledToLabel (TCon (TypeCon nameTpCont kindHandled))) tp
+                   return $ effectExtend (handledToLabel (TCon (TypeCon nameTpCps kindHandled))) tp
 
 
 needsCpsTypeX :: Type -> Cps Bool
@@ -226,7 +226,7 @@ cpsType pureTvs tp
                res'  = cpsType pureTvs res
                eff'  = cpsType pureTvs eff
            in if (needsCpsEffect pureTvs eff')
-               then TFun (pars' ++ [(nameK, typeK res')]) eff' typeCps 
+               then TFun (pars' ++ [(nameK, typeK res')]) eff' typeYld 
                else TFun pars' eff' res'
       TForall tvars preds t
         -> TForall tvars preds (cpsType pureTvs t)
@@ -239,8 +239,8 @@ cpsType pureTvs tp
 
 varK tp   = Var (tnameK tp) (InfoArity 0 1)
 tnameK tp = TName nameK (typeK tp)
-typeK tp  = TFun [(nameNil,tp)] typeTotal typeCps
-typeCps   = TCon (TypeCon (nameTpCps) kindStar)
+typeK tp  = TFun [(nameNil,tp)] typeTotal typeYld
+typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"

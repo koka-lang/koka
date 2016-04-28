@@ -2551,22 +2551,20 @@ type handled :: HX -> X;
 // Effect operations with result type a
 type open operation<a> 
 
-// The CPS monad
-type cps<a> {
-  Yield<b>( operation: operation<b>, continuation : b -> cps<a> )
+// The Yield monad
+type yld<a> {
+  Yield<b>( operation: operation<b>, continuation : b -> yld<a> )
   Result( result: a )
 }
 
 // Yield is abstracted as a function for future compatibility
-external inline unsafeyieldop( op : operation<a> ) : e a {
+external inline unsafeyield( op : operation<a> ) : e a {
   js inline "$std_core.Yield(#1,_k)" 
   // , k : a -> e cps<e,x> ) : cps<e,x> {
   // Yield(op,k)  
 }
 
 
-// Continuation effect
-type cont :: HX;
+// Cps effect
+type cps :: HX;
 
-// Remove the continuation effect
-external inline unsafeNoCont( action : () -> <cont|e> a ) : e a = inline "#1()"
