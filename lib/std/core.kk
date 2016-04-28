@@ -2559,7 +2559,7 @@ type cps<a> {
 
 // Yield is abstracted as a function for future compatibility
 external inline unsafeyieldop( op : operation<a> ) : e a {
-  js inline "Yield(#1,_k)" 
+  js inline "$std_core.Yield(#1,_k)" 
   // , k : a -> e cps<e,x> ) : cps<e,x> {
   // Yield(op,k)  
 }
