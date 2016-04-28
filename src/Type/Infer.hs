@@ -605,7 +605,12 @@ inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
     do (ctp,ceff,ccore) <- allowReturn False $ inferExpr Nothing Instantiated expr
        -- infer branches
-       bress <- mapM (inferBranch propagated ctp (getRange expr)) branches
+       bress <- case (propagated,branches) of
+                  (Nothing,(b:bs)) -> -- propagate the type of the first branch
+                    do bres@(tp,eff,bcore) <- inferBranch propagated ctp (getRange expr) b
+                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr)) bs
+                       return (bres:bress)
+                  _ -> mapM (inferBranch propagated ctp (getRange expr)) branches
        let (tps,effs,bcores) = unzip3 bress
        -- ensure branches match
        let rngs = map (getRange . branchExpr) branches
