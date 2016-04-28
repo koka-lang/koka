@@ -2552,8 +2552,8 @@ type handled :: HX -> X;
 type open operation<a> 
 
 // The CPS monad
-type cps<e,a> {
-  Yield<b>( operation: operation<b>, continuation : b -> e cps<e,a> )
+type cps<a> {
+  Yield<b>( operation: operation<b>, continuation : b -> cps<a> )
   Result( result: a )
 }
 
@@ -2565,16 +2565,8 @@ external inline unsafeyieldop( op : operation<a> ) : e a {
 }
 
 
-// Run a CPS converted function
-function pure( cps : ( k : a -> e cps<e,a> ) -> e cps<e,a> ) : <exn|e> a {
-  match(cps(fun(x) { Result(x) })) {
-    Result(x) -> x
-  }
-}
-
-
 // Continuation effect
-type cont :: X;
+type cont :: HX;
 
 // Remove the continuation effect
-external inline unsafeNoCont( action : () -> <cont|e> a ) : () -> e a = inline "#1"
+external inline unsafeNoCont( action : () -> <cont|e> a ) : e a = inline "#1()"
