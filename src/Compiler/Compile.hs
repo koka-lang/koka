@@ -702,16 +702,23 @@ inferCheck loaded flags line coreImports program1
         else Core.Check.checkCore penv unique4 gamma coreDefs0 
 
        -- cps tranform program
-       coreDefs1 <- Core.Cps.cpsTransform penv coreDefs0
+       coreDefs1 <- if (Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
+                     then return coreDefs0
+                     else Core.Cps.cpsTransform penv coreDefs0
+
+       -- recheck cps transformed core
+       if (not (coreCheck flags)) then return () 
+        else Core.Check.checkCore penv unique4 gamma coreDefs1
+
 
        -- simplify coreF if enabled
        let coreDefs2 = if noSimplify flags 
                         then coreDefs1
                         else Core.Simplify.simplify coreDefs1
 
-       -- recheck cps transformed core
+       -- recheck simplified core
        if (not (coreCheck flags)) then return () 
-        else Core.Check.checkCore (prettyEnv loaded3 flags) unique4 gamma coreDefs0 
+        else Core.Check.checkCore penv unique4 gamma coreDefs2
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

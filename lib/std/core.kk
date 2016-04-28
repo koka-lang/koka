@@ -2558,8 +2558,8 @@ type cps<e,a> {
 }
 
 // Yield is abstracted as a function for future compatibility
-external unsafeyieldop( op : operation<a> ) : a {
-  js inline "Yield(#1,k)" 
+external inline unsafeyieldop( op : operation<a> ) : e a {
+  js inline "Yield(#1,_k)" 
   // , k : a -> e cps<e,x> ) : cps<e,x> {
   // Yield(op,k)  
 }
@@ -2567,7 +2567,7 @@ external unsafeyieldop( op : operation<a> ) : a {
 
 // Run a CPS converted function
 function pure( cps : ( k : a -> e cps<e,a> ) -> e cps<e,a> ) : <exn|e> a {
-  match(cps(Result)) {
+  match(cps(fun(x) { Result(x) })) {
     Result(x) -> x
   }
 }

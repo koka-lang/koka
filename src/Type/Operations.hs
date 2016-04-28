@@ -79,7 +79,8 @@ extend tp
                then do tv <- freshTVar kindEffect Meta
                        let openEff = effectExtends ls tv
                            openTp  = TFun args openEff res
-                       return (openTp, \core -> Core.openEffectExpr eff openEff tp openTp core)
+                       return (openTp, id)
+                       -- return (openTp, \core -> Core.openEffectExpr eff openEff tp openTp core)
                else return (tp,id)
       _ -> return (tp,id)
 

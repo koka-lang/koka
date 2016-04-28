@@ -78,7 +78,9 @@ extendGamma :: [(Name,NameInfo)] -> Check a -> Check a
 extendGamma ex (Check c) = Check (\u env -> c u env{ gamma = (gammaExtends ex (gamma env)) })
 
 withDef :: Def -> Check a -> Check a
-withDef def (Check c) = Check (\u env -> c u env{ currentDef = def : (currentDef env) })
+withDef def (Check c) 
+  = trace ("checking: " ++ show (defName def)) $
+    Check (\u env -> c u env{ currentDef = def : (currentDef env) })
 
 getGamma :: Check Gamma
 getGamma
@@ -132,6 +134,7 @@ checkDef :: Def -> Check ()
 checkDef d
   = withDef d $
     do tp <- check (defExpr d)
+       -- trace ("deftype: " ++ show (defType d) ++ "\ninferred: " ++ show tp) $ return ()
        match "checking annotation on definition" (prettyDef d) (defType d) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
