@@ -101,7 +101,7 @@ import qualified Lib.Trace( trace )
 
 trace s x =
    -- Lib.Trace.trace (" " ++ s)
-     x
+   x
 
 {--------------------------------------------------------------------------
   Generalization
@@ -356,7 +356,7 @@ normalizeX free tp
                   -}
                               _ -> do ls' <- mapM (normalizex var) ls
                                       tl' <- normalizex var tl
-                                      return (effectExtends ls' tl')          
+                                      return $ effectExtends ls' tl'
                   args' <- mapM (\(name,arg) -> do{arg' <- normalizex (vflip var) arg; return (name,arg')}) args
                   res'  <- normalizex var res
                   niceEff <- nicefyEffect eff'
@@ -547,7 +547,7 @@ instance Ranged Context where
 inferUnify :: Context -> Range -> Type -> Type -> Inf ()
 inferUnify context range expected tp
   = do (sexp,stp) <- subst (expected,tp)
-       -- trace ("infer unify: " ++ show (sexp,stp)) $ return ()
+       trace ("infer unify: " ++ show (Pretty.niceTypes Pretty.defaultEnv [sexp,stp])) $ return ()
        res <- doUnify (unify sexp stp)
        case res of
          Right () -> return ()
@@ -569,7 +569,7 @@ inferSubsume :: Context -> Range -> Type -> Type -> Inf (Type,Core.Expr -> Core.
 inferSubsume context range expected tp
   = do free <- freeInGamma
        (sexp,stp) <- subst (expected,tp)
-       -- trace ("inferSubsume: " ++ show (sexp,stp) ++ " with free " ++ show (tvsList free)) $ return ()
+       trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
        res <- doUnify (subsume range free sexp stp)
        case res of
          Right (t,ps,coref) -> do addPredicates ps
@@ -863,11 +863,15 @@ extendGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf (a)
 extendGammaCore isAlreadyCanonical [] inf
   = inf
 extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
-  = -- Lib.Trace.trace ("extend gamma: " ++ show (zip (nameSchemes coreDefs) (nameInfos coreDefs))) $
+  = Lib.Trace.trace ("extend gamma: " ++ show ((nameInfos coreGroup))) $
     extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
   where
-    nameInfos (Core.DefRec defs)    = map coreDefInfo defs
+    nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
     nameInfos (Core.DefNonRec def)  = [coreDefInfo def]
+
+-- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
+coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)
+  = (Core.nonCanonicalName name, createNameInfoX name sort nameRng tp)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -891,8 +895,8 @@ extendGamma isAlreadyCanonical defs inf
                             InfoFun{} -> info{ infoCName = cname }
                             InfoExternal{} -> info{ infoCName = cname }
                             _ -> info
-           -- Lib.Trace.trace (" extend gamma: " ++ show (name,infoType info) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
-           extend ctx rest (gammaExtend name cinfo gamma)
+           Lib.Trace.trace (" extend gamma: " ++ show (pretty name, pretty (infoType info), show cinfo) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
+            extend ctx rest (gammaExtend name cinfo gamma)
            
      
     checkNoOverlap :: Name -> Name -> NameInfo -> (Name,NameInfo) -> Inf ()

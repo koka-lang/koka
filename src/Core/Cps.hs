@@ -81,8 +81,9 @@ cpsExpr expr
         | getName open == nameEffectOpen 
         -> cpsExpr (App f args)
       -}
+
       -- otherwise lift the function
-      App (TypeApp (Var open _) [effFrom,effTo]) [f]
+      App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
         | getName open == nameEffectOpen         
         -> do isCpsFrom <- needsCpsTypeX effFrom
               isCpsTo   <- needsCpsTypeX effTo
@@ -90,6 +91,10 @@ cpsExpr expr
                -- simplify open away if already in cps form, or not in cps at all
                then do cpsTraceDoc $ \env -> text "open: ignore: " <+> tupled (niceTypes env [effFrom,effTo])
                        cpsExpr f
+                       {-
+                       f' <- cpsExpr f
+                       return $ \k -> f' (\ff -> k (App eopen [ff]))
+                       -}
                -- lift the function to a continuation function
                else do let Just((partps,_,restp)) = splitFunType (typeOf f)
                        pars <- mapM (\(name,partp) ->
@@ -326,6 +331,7 @@ needsCpsType pureTvs tp
   = case expandSyn tp of
       TForall vars preds t -> needsCpsType pureTvs t
       TFun args eff res    -> needsCpsEffect pureTvs eff
+      TVar tv -> not (tvsMember tv pureTvs)
       _ -> False
 
 needsCpsEffect :: Tvs -> Effect -> Bool

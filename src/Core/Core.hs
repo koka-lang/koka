@@ -298,6 +298,7 @@ data VarInfo
   = InfoNone
   | InfoArity Int Int -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]
+  deriving Show
 
 data Branch = Branch { branchPatterns :: [Pattern]
                      , branchGuards   :: [Guard] 

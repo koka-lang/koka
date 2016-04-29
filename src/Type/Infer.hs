@@ -291,7 +291,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         (resTp1,resCore1) <- generalize rng nameRng typeTotal resTp0 (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
 
         let name = Core.defName coreDef
-            csort = if (topLevel || Core.isTopLevel coreDef) then Core.defSort coreDef else DefVal   
+            csort = if (topLevel || Core.isTopLevel coreDef) then DefFun {- Core.defSort coreDef -} else DefVal   
             info = coreVarInfoFromNameInfo (createNameInfoX name csort (defRange def) resTp1)
         (resTp2,coreExpr) 
               <- case (mbAssumed,resCore1) of
@@ -709,14 +709,8 @@ inferApp propagated expect fun nargs rng
        (tp,eff,core) <- case amb of
                            Nothing   -> inferAppArgsFirst [] fixed fixed named
                            Just prop -> inferAppFunFirst prop fixed named
-       seff <- subst eff                           
-       return (tp,removeCps seff,core)                           
+       return (tp,eff,core)                           
   where
-    -- remove cps effect
-    removeCps eff
-      = let (ls,tl) = extractEffectExtend eff
-        in effectExtends (filter (not . isEffectCps) ls) tl
-
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop fixed named

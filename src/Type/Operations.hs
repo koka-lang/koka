@@ -55,7 +55,7 @@ instantiate range tp
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
-  = do (ids,preds,rho,coref) <- instantiateExFl TVar {-makeCpsTVar-} Meta rng tp
+  = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
        (erho,coreg) <- extend rho
        return (ids,preds,erho, coreg . coref)
 
@@ -63,7 +63,7 @@ instantiateEx rng tp
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 instantiateNoEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateNoEx rng tp
-  = do (ids,preds,rho,coref) <- instantiateExFl TVar Meta rng tp
+  = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
        return (ids,preds,rho,coref)
 
 -- | Ensure the result of function always gets an extensible effect type
@@ -94,16 +94,16 @@ skolemize range tp
 -- | Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 skolemizeEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
-skolemizeEx = instantiateExFl TVar Skolem
+skolemizeEx = instantiateExFl Skolem
 
 
 -- | General instantiation for skolemize and instantiate
-instantiateExFl :: HasUnique m => (TypeVar -> Type) -> Flavour -> Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
-instantiateExFl makeTVar flavour range tp
+instantiateExFl :: HasUnique m => Flavour -> Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
+instantiateExFl flavour range tp
   = case splitPredType tp of
       ([],[],rho) -> return ([],[],rho,id)
       (vars,preds,rho)
-        ->  do (tvars,sub) <- freshSubX makeTVar flavour vars
+        ->  do (tvars,sub) <- freshSubX TVar flavour vars
                let srho   = sub |-> rho
                    spreds = sub |-> preds
                pnames <- mapM predName spreds
@@ -133,9 +133,6 @@ freshSubX makeTVar flavour vars
   = do tvars <- mapM (\tv -> freshTypeVar (typevarKind tv) flavour) vars
        let sub = subNew (zip vars (map makeTVar tvars))
        return (tvars,sub)
-
-makeCpsTVar tv 
- = if (isKindEffect (typevarKind tv)) then effectExtend typeCps (TVar tv) else (TVar tv)
 
 {-
 -- | Instantiate the the "some" quantifiers of an annotation to fresh type variables
