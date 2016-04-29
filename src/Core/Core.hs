@@ -29,7 +29,7 @@ module Core.Core ( -- Data structures
                      -- Core term builders
                    , defIsVal
                    , defTName
-                   , addTypeLambdas, addTypeApps, addLambdas, addApps, addLambda
+                   , addTypeLambdas, addTypeApps, addLambdas, addApps
                    , makeLet
                    , addNonRec, addCoreDef, coreNull
                    , freshName                   
@@ -637,16 +637,10 @@ addTypeLambdas pars (TypeLam ps e) = TypeLam (pars ++ ps) e
 addTypeLambdas pars e              = TypeLam pars e
 
 -- | Add term lambdas
-addLambdas :: [(Name, Type)] -> (Expr -> Expr)
-addLambdas [] e                 = e
-addLambdas pars (Lam ps eff e)  = Lam ([TName x tp | (x,tp) <- pars] ++ ps) eff e
-addLambdas pars e               = Lam [TName x tp | (x,tp) <- pars] typeTotal e -- todo: effect can be wrong
-
--- | Add term lambdas
-addLambda :: [TName] -> (Expr -> Expr)
-addLambda [] e                  = e
-addLambda pars (Lam ps eff e)   = Lam (pars ++ ps) eff e
-addLambda pars e                = Lam pars typeTotal e -- todo: effect can be wrong?
+addLambdas :: [(Name, Type)] -> (Type -> Expr -> Expr)
+addLambdas [] eff e              = e
+addLambdas pars eff (Lam ps _ e) = Lam ([TName x tp | (x,tp) <- pars] ++ ps) eff e
+addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e 
 
 
 -- | Bind a variable inside a term

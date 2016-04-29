@@ -471,17 +471,18 @@ inferExpr propagated expect (Lam binders body rng)
        
        topEff <- case propEff of
                    Nothing -> return eff
-                   Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
+                   Just (topEff,r) -> trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
 
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2          
-           bodyCore1 = (Core.addLambdas optPars (Core.Lam [] topEff (coref core))) -- need empty Lam to ensure a lambda is there if pars is empty
+           bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
+       stopEff <- subst topEff
        let pars = optPars
-       (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars topEff tp) bodyCore2
+       (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars stopEff tp) bodyCore2
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
        unannotBinders <- mapM (\b -> do tp <- subst (binderType b); return b{ binderType = tp }) 
@@ -705,10 +706,16 @@ inferApp propagated expect fun nargs rng
                           [(_,info)] -> return (Just (Just (infoType info, rng))) -- known type
                           _          -> return Nothing -- many matches
                 _ -> return (Just Nothing) -- fun first
-       case amb of
-         Nothing   -> inferAppArgsFirst [] fixed fixed named
-         Just prop -> inferAppFunFirst prop fixed named
+       (tp,eff,core) <- case amb of
+                           Nothing   -> inferAppArgsFirst [] fixed fixed named
+                           Just prop -> inferAppFunFirst prop fixed named
+       seff <- subst eff                           
+       return (tp,removeCps seff,core)                           
   where
+    -- remove cps effect
+    removeCps eff
+      = let (ls,tl) = extractEffectExtend eff
+        in effectExtends (filter (not . isEffectCps) ls) tl
 
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)

@@ -35,8 +35,10 @@ topDown expr@(Let (DefGroups [DefNonRec (Def x tp e)]) e')
 -}
 
 -- Remove effect open applications
+{-
 topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = topDown arg
+-}
 
 -- No optimization applies
 topDown expr

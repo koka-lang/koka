@@ -72,14 +72,39 @@ type Trans a = TransX a a
 type TransX a b  = (a -> b) ->b
 
 cpsExpr :: Expr -> Cps (TransX Expr Expr)
-cpsExpr expr
+cpsExpr expr 
   = case expr of
+      -- open
+      -- simplify open away if it is directly applied
+        {-
+      App (App (TypeApp (Var open _) [effFrom, effTo]) [f]) args
+        | getName open == nameEffectOpen 
+        -> cpsExpr (App f args)
+      -}
+      -- otherwise lift the function
+      App (TypeApp (Var open _) [effFrom,effTo]) [f]
+        | getName open == nameEffectOpen         
+        -> do isCpsFrom <- needsCpsTypeX effFrom
+              isCpsTo   <- needsCpsTypeX effTo
+              if (isCpsFrom || not (isCpsTo))
+               -- simplify open away if already in cps form, or not in cps at all
+               then do cpsTraceDoc $ \env -> text "open: ignore: " <+> tupled (niceTypes env [effFrom,effTo])
+                       cpsExpr f
+               -- lift the function to a continuation function
+               else do let Just((partps,_,restp)) = splitFunType (typeOf f)
+                       pars <- mapM (\(name,partp) ->
+                                     do pname <- if (name==nameNil) then uniqueName "x" else return name
+                                        return (TName pname partp)) partps
+                       let args = [Var tname InfoNone | tname <- pars]
+                           lam  = Lam pars effTo (App f args)
+                       cpsExpr lam
+      -- regular cases
       Lam args eff body 
         -> do body' <- cpsExpr body
               isCps <- needsCpsEffectX eff
               args' <- mapM cpsTName args
               if (not isCps)
-               then do cpsTrace "not effectful lambda"
+               then do cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        return $ \k -> k (Lam args' eff (body' id))
                else let bodyTp = typeOf body
                     in return $ \k -> k (Lam (args' ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
@@ -129,8 +154,8 @@ cpsExpr expr
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
       TypeApp body tps
         -> do body' <- cpsExpr body
-              tps0  <- mapM cpsTypeX tps
-              tps'  <- mapM cpsTypePar tps0
+              tps'  <- mapM cpsTypeX tps
+              -- tps'  <- mapM cpsTypePar tps0
               return $ \k -> body' (\xx -> k (TypeApp xx tps'))
       Var (TName name tp) info
         -> do tp' <- cpsTypeX tp
@@ -192,6 +217,7 @@ cpsTName (TName name tp)
   = do tp' <- cpsTypeX tp
        return (TName name tp')
 
+{-
 cpsTypePar :: Type -> Cps Type
 cpsTypePar tp
   = if (not (isKindEffect (getKind tp))) then return tp 
@@ -200,7 +226,7 @@ cpsTypePar tp
               else -- we go from a polymorpic (cps) type to a non-cps type; mark it with a cont effect
                    -- to do a sound translation. At an application to cont we pass the identity as the continuation.
                    return $ effectExtend (handledToLabel (TCon (TypeCon nameTpCps kindHandled))) tp
-
+-}
 
 needsCpsTypeX :: Type -> Cps Bool
 needsCpsTypeX tp
@@ -245,6 +271,7 @@ typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
 -- nameY = newHiddenName "y"
+
 
 
 {--------------------------------------------------------------------------
@@ -309,7 +336,7 @@ needsCpsEffect pureTvs eff
 needsCpsTVar :: Tvs -> Type -> Bool
 needsCpsTVar pureTvs tp
   = case expandSyn tp of
-      TVar tv -> not (tvsMember tv pureTvs)
+      TVar tv -> False -- not (tvsMember tv pureTvs)
       _       -> False
 
 
@@ -387,3 +414,85 @@ cpsTrace :: String -> Cps ()
 cpsTrace msg
   = do env <- getEnv
        trace ("cps: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
+
+
+
+{--------------------------------------------------------------------------
+  Get CpsType
+--------------------------------------------------------------------------}
+{-
+class HasCpsType a where
+  cpsTypeOf :: Tvs -> a -> Type
+
+instance HasCpsType Def where
+  cpsTypeOf ptvs def  = cpsType ptvs (defType def)
+
+instance HasCpsType TName where
+  cpsTypeOf ptvs (TName _ tp)   = cpsType ptvs tp
+
+instance HasCpsType Expr where
+  -- Lambda abstraction
+  cpsTypeOf ptvs (Lam pars eff expr)
+    = let resTp  = cpsTypeOf ptvs expr 
+          effTp  = cpsType ptvs eff
+          parTps = [(name,cpsType ptvs tp) | TName name tp <- pars]
+      in if (needsCpsEffect pureTvs effTp)
+          then TFun (parTps ++ [(nameK,typeK resTp)]) effTp typeYld
+          else TFun parTps effTp resTp 
+
+  -- Variables
+  cpsTypeOf ptvs (Var tname info)
+    = cpsTypeOf ptvs tname
+
+  -- Constants 
+  cpsTypeOf ptvs (Con tname repr)
+    = cpsTypeOf ptvs tname
+
+  -- Application
+  cpsTypeOf ptvs (App fun args)
+    = snd (splitFun (cpsTypeOf ptvs fun))
+
+  -- Type lambdas
+  cpsTypeOf ptvs (TypeLam xs expr)
+    = TForall xs [] (cpsTypeOf ptvs expr)
+
+  -- Type application
+  cpsTypeOf ptvs (TypeApp expr [])
+    = cpsTypeOf ptvs expr
+
+  cpsTypeOf ptvs (TypeApp expr tps)
+    = let (tvs,tp1) = splitTForall (cpsTypeOf ptvs expr)
+      in -- assertion "Core.Core.cpsTypeOf.TypeApp" (getKind a == getKind tp) $
+         subNew (zip tvs (map (cpsTypeOf ptvs tps)) |-> tp1
+
+  -- Literals
+  cpsTypeOf (Lit l) 
+    = cpsTypeOf l
+
+  -- Let
+  cpsTypeOf (Let defGroups expr) 
+    = cpsTypeOf expr 
+
+  -- Case
+  cpsTypeOf (Case exprs branches)
+    = cpsTypeOf (head branches)
+
+
+instance HasCpsType Lit where
+  cpsTypeOf lit
+    = case lit of
+        LitInt _    -> typeInt
+        LitFloat _  -> typeFloat
+        LitChar _   -> typeChar
+        LitString _ -> typeString
+
+instance HasCpsType Branch where
+  cpsTypeOf (Branch _ guards) 
+    = case guards of
+        (guard:_) -> cpsTypeOf guard
+        _         -> failure "Core.Core.HasCpsType Branch: branch without any guards" 
+
+instance HasCpsType Guard where
+  cpsTypeOf (Guard _ expr)
+    = cpsTypeOf expr
+-}

@@ -44,6 +44,7 @@ module Type.Type (-- * Types
                   , isOptional, makeOptional
 
                   , handledToLabel, isHandledEffect, tconHandled
+                  , isEffectCps, typeCps
 
                   -- , isDelay
                   -- ** Standard tests
@@ -520,6 +521,19 @@ isHandledEffect tp
 handledToLabel :: Type -> Type
 handledToLabel e 
   = TApp tconHandled [e] 
+
+typeCps :: Type
+typeCps
+  = handledToLabel (TCon (TypeCon nameTpCps kindHandled))
+
+isEffectCps :: Type -> Bool
+isEffectCps tp
+  = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) [arg] 
+        -> (name == nameTpHandled && isEffectCps arg)
+      TCon (TypeCon cpsname _) 
+        -> cpsname == nameTpCps 
+      _ -> False
 
 tconHandled :: Type
 tconHandled = TCon $ TypeCon nameTpHandled kind
