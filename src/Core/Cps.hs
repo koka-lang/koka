@@ -336,7 +336,7 @@ needsCpsEffect pureTvs eff
 needsCpsTVar :: Tvs -> Type -> Bool
 needsCpsTVar pureTvs tp
   = case expandSyn tp of
-      TVar tv -> False -- not (tvsMember tv pureTvs)
+      TVar tv -> not (tvsMember tv pureTvs)
       _       -> False
 
 

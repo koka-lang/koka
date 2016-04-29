@@ -1,9 +1,9 @@
 // test lifting of cps functions
-function myid() : total (a -> <cps|e> a) {
+function myid() : total ((x:a) -> e a) {
   return fun(x){ x }
 }
 
-val hs : forall<e> list<int -> <cps|e> int> = [myid()]
+val hs : forall<e> list<int -> e int> = [myid()]
 
 function bar() {
   head(hs)(10)
