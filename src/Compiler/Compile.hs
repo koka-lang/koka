@@ -714,7 +714,7 @@ inferCheck loaded flags line coreImports program1
        -- simplify coreF if enabled
        let coreDefs2 = if noSimplify flags 
                         then coreDefs1
-                        else Core.Simplify.simplify coreDefs1
+                        else trace "simplify" $ Core.Simplify.simplify coreDefs1
 
        -- recheck simplified core
        if (not (coreCheck flags)) then return () 

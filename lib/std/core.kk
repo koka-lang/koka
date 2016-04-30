@@ -2568,3 +2568,4 @@ external inline unsafeyield( op : operation<a> ) : e a {
 // Cps effect
 type cps :: HX;
 
+alias cont<a> = a -> a
