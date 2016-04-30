@@ -64,9 +64,8 @@ cpsDef def
 cpsDefX :: Def -> Cps [Def]
 cpsDefX def
   = withCurrentDef def $
-    do tp   <- cpsTypeX (defType def)
-       expr <- cpsExpr (defExpr def)
-       return [def{ defType = tp, defExpr = expr id}]
+    do expr <- cpsExpr (defExpr def)
+       return [def{defExpr = expr id}]
 
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
@@ -116,8 +115,8 @@ cpsExpr expr
       App f args
         -> do f' <- cpsExpr f
               args' <- mapM cpsExpr args
-              let ff  = f' id
-                  ftp = typeOf ff
+              let -- ff  = f' id
+                  ftp = typeOf f -- ff
               isCps <- needsCpsTypeX ftp
               cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
               if (not (isCps || isSpecialCps f))
@@ -159,12 +158,12 @@ cpsExpr expr
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
       TypeApp body tps
         -> do body' <- cpsExpr body
-              tps'  <- mapM cpsTypeX tps
+              -- tps'  <- mapM cpsTypeX tps
               -- tps'  <- mapM cpsTypePar tps0
-              return $ \k -> body' (\xx -> k (TypeApp xx tps'))
+              return $ \k -> body' (\xx -> k (TypeApp xx tps))
       Var (TName name tp) info
-        -> do tp' <- cpsTypeX tp
-              return (\k -> k (Var (TName name tp') info))              
+        -> do -- tp' <- cpsTypeX tp
+              return (\k -> k (Var (TName name tp) info))              
       _ -> return (\k -> k expr) -- leave unchanged
 
 cpsBranch :: Branch -> Cps ((Expr -> Expr) -> Branch)
@@ -198,9 +197,9 @@ cpsLetDef def
         else 
     -}
     withCurrentDef def $
-             do tp'   <- cpsTypeX (defType def)
+             do -- tp'   <- cpsTypeX (defType def)
                 expr' <- cpsExpr (defExpr def)
-                return $ \k -> expr' (\xx -> k def{ defType=tp', defExpr=xx })
+                return $ \k -> expr' (\xx -> k def{ defExpr=xx })
 
 cpsTrans :: (a -> Cps (TransX a b)) -> [a] -> Cps (TransX [a] b)
 cpsTrans f xs
@@ -219,8 +218,8 @@ applies (t:ts) f
 
 cpsTName :: TName -> Cps TName
 cpsTName (TName name tp)
-  = do tp' <- cpsTypeX tp
-       return (TName name tp')
+  = do -- tp' <- cpsTypeX tp
+       return (TName name tp)
 
 {-
 cpsTypePar :: Type -> Cps Type
@@ -331,8 +330,8 @@ needsCpsType pureTvs tp
   = case expandSyn tp of
       TForall vars preds t -> needsCpsType pureTvs t
       TFun args eff res    -> needsCpsEffect pureTvs eff
-      TVar tv -> not (tvsMember tv pureTvs)
-      _ -> False
+      -- TVar tv -> not (tvsMember tv pureTvs)
+      _ -> isKindEffect (getKind tp) && needsCpsEffect pureTvs tp
 
 needsCpsEffect :: Tvs -> Effect -> Bool
 needsCpsEffect pureTvs eff

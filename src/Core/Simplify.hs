@@ -11,10 +11,17 @@
 
 module Core.Simplify (simplify) where
 
+import Common.Range
+import Common.Syntax
 import Common.NamePrim( nameEffectOpen )
 import Type.Type
 import Type.TypeVar
 import Core.Core
+import qualified Common.NameMap as M
+import qualified Data.Set as S
+
+-- data Env = Env{ inlineMap :: M.NameMap Expr }
+-- data Info = Info{ occurrences :: M.NameMap Int }
 
 class Simplify a where
   simplify :: a -> a
@@ -29,10 +36,16 @@ class Simplify a where
 topDown :: Expr -> Expr
 
 -- Inline simple let-definitions
-{-
-topDown expr@(Let (DefGroups [DefNonRec (Def x tp e)]) e')
-  = simplify $ [(x, e)] |~> e'
--}
+topDown expr@(Let (DefNonRec (Def{defName=x,defType=tp,defExpr=e}):dgs) body) 
+  | isCheap e || (isTotal e && occursAtMostOnce x body)
+  = simplify $ [((TName x tp), e)] |~> Let dgs body
+
+topDown expr@(Let (dg:dgs) body) 
+  = let expr' = topDown (Let dgs body)
+    in case expr' of
+         Let dgs' body' -> Let (simplify dg : dgs') body'
+         _ -> Let [simplify dg] expr'
+
 
 -- Remove effect open applications
 {-
@@ -40,9 +53,81 @@ topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffe
   = topDown arg
 -}
 
+-- Direct function applications
+topDown (App (Lam pars eff body) args) | length pars == length args
+  = simplify $ Let (zipWith makeDef pars args) body
+  where
+    makeDef (TName par parTp) arg 
+      = DefNonRec (Def par parTp arg Private DefVal rangeNull "") 
+
 -- No optimization applies
 topDown expr
   = expr
+
+isCheap :: Expr -> Bool
+isCheap expr
+  = case expr of
+      Var{} -> True
+      Con{} -> True
+      Lit{} -> True
+      TypeLam _ body -> isCheap body
+      TypeApp body _ -> isCheap body
+      _     -> False
+{-
+isTotal :: Expr -> Bool
+isTotal expr
+  = case expr of
+      Var{} -> True
+      Con{} -> True
+      Lit{} -> True
+      Lam{} -> True
+      TypeLam _ body -> isCheap body
+      TypeApp body _ -> isCheap body
+      _ -> False
+-}
+occursAtMostOnce :: Name -> Expr -> Bool
+occursAtMostOnce name expr
+  = case M.lookup name (occurrences expr) of
+      Nothing -> True
+      Just i  -> i<=1
+
+
+occurrences :: Expr -> M.NameMap Int
+occurrences expr
+  = case expr of
+      Var v _ -> M.singleton (getName v) 1
+      Con{} -> M.empty
+      Lit{} -> M.empty
+      App f args
+        -> ounions (occurrences f : map occurrences args)
+      Lam pars eff body 
+        -> foldr M.delete (occurrences body) (map getName pars)
+      TypeLam _ body -> occurrences body
+      TypeApp body _ -> occurrences body
+      Let dgs body -> foldr occurrencesDefGroup (occurrences body) dgs
+      Case scruts bs -> ounions (map occurrences scruts ++ map occurrencesBranch bs)
+
+occurrencesBranch :: Branch -> M.NameMap Int
+occurrencesBranch (Branch pat guards)
+  = foldr M.delete (ounions (map occurrencesGuard guards)) (map getName (S.elems (bv pat)))
+
+occurrencesGuard (Guard g e)
+  = ounion (occurrences g) (occurrences e) 
+
+ounion :: M.NameMap Int -> M.NameMap Int -> M.NameMap Int
+ounion oc1 oc2
+  = M.unionWith (+) oc1 oc2
+
+ounions :: [M.NameMap Int] -> M.NameMap Int
+ounions ocs
+  = M.unionsWith (+) ocs
+
+occurrencesDefGroup :: DefGroup -> M.NameMap Int -> M.NameMap Int
+occurrencesDefGroup dg oc
+  = case dg of
+      DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
+      DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs)) 
+                                      (map defName defs)
 
 {--------------------------------------------------------------------------
   Bottom-up optimizations 

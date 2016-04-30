@@ -776,7 +776,6 @@ extractSignatures core
 
     extractDefs = map defType . filter (\d -> defVis d == Public) . flattenDefGroups 
 
-
 {--------------------------------------------------------------------------
   Decompose types 
 --------------------------------------------------------------------------}

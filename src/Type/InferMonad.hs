@@ -863,7 +863,7 @@ extendGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf (a)
 extendGammaCore isAlreadyCanonical [] inf
   = inf
 extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
-  = Lib.Trace.trace ("extend gamma: " ++ show ((nameInfos coreGroup))) $
+  = -- Lib.Trace.trace ("extend gamma: " ++ show ((nameInfos coreGroup))) $
     extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
   where
     nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
@@ -895,8 +895,8 @@ extendGamma isAlreadyCanonical defs inf
                             InfoFun{} -> info{ infoCName = cname }
                             InfoExternal{} -> info{ infoCName = cname }
                             _ -> info
-           Lib.Trace.trace (" extend gamma: " ++ show (pretty name, pretty (infoType info), show cinfo) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
-            extend ctx rest (gammaExtend name cinfo gamma)
+           -- Lib.Trace.trace (" extend gamma: " ++ show (pretty name, pretty (infoType info), show cinfo) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
+           extend ctx rest (gammaExtend name cinfo gamma)
            
      
     checkNoOverlap :: Name -> Name -> NameInfo -> (Name,NameInfo) -> Inf ()
