@@ -863,11 +863,12 @@ extendGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf (a)
 extendGammaCore isAlreadyCanonical [] inf
   = inf
 extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
-  = -- Lib.Trace.trace ("extend gamma: " ++ show ((nameInfos coreGroup))) $
-    extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
+  = extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
   where
     nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
-    nameInfos (Core.DefNonRec def)  = [coreDefInfo def]
+    nameInfos (Core.DefNonRec def)  
+      = Lib.Trace.trace ("extendGammaCore.Def: " ++ show (Core.defName def) ++ ":  " ++ show (pretty (Core.defType def)) ) $    
+        [coreDefInfo def]
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)

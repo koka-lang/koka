@@ -67,7 +67,7 @@ else if (variant === "trace") {
   hsFlags += " -prof -fprof-auto"
   hsLinkFlags += " -prof -rtsopts"
   // for now a bit useless since 'internal exceptions' are raised on things like doesFileExist...
-  // hsRunFlags  += " +RTS -xc -RTS"
+  hsRunFlags  += " +RTS -xc -RTS"
 }
 
 
