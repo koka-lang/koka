@@ -333,7 +333,9 @@ isTotal expr
       App f args -> case typeOf f of
                       TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
                       _                 -> False
-      _       -> False  -- todo: a let could be total
+      _       -> False  -- todo: a let or case could be total
+
+
 
 {--------------------------------------------------------------------------
   Type variables inside core expressions 

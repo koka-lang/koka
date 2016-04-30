@@ -54,10 +54,40 @@ topDown (Let dgs body)
         in case sdg of 
           DefRec defs -> topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
-            -> if (isTotalAndCheap se || (isTotal se && occursAtMostOnce x (Let dgs body))) -- todo: exponential revisits of occursAtMostOnce
-                then -- inline the expression :-)
+            -> if (isTotalAndCheap se) 
+                then -- inline very small expressions
                      topDownLet ((TName x tp, se):sub) acc dgs body
-                else topDownLet sub (sdg:acc) dgs body
+               else case extractFun se of
+                Just (tpars,pars,_,_)  
+                  | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
+                  -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
+                     -- let f = \x -> x in f(2) ~> 2
+                     topDownLet ((TName x tp, se):sub) acc dgs body
+                _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
+                  -> -- inline small total expressions
+                     topDownLet ((TName x tp, se):sub) acc dgs body                     
+                _ -> -- no inlining
+                     topDownLet sub (sdg:acc) dgs body
+
+    extractFun expr
+      = case expr of
+          TypeLam tpars (Lam pars eff body) -> Just (tpars,pars,eff,body)
+          Lam pars eff body                 -> Just ([],pars,eff,body)
+          _ -> Nothing
+
+    isSmall expr
+      = isSmallX 3 expr -- at most 3 applications deep
+
+    isSmallX n expr
+      = if (n <= 0) then False
+        else case expr of
+          Var{} -> True
+          Con{} -> True
+          Lit{} -> True
+          TypeLam _ e -> isSmallX n e
+          TypeApp e _ -> isSmallX n e
+          App f args  -> all (isSmallX (n-1)) (f:args)
+          _ -> False
 
 -- Remove effect open applications
 {-
@@ -167,40 +197,67 @@ occursAtMostOnce :: Name -> Expr -> Bool
 occursAtMostOnce name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
-      Just i  -> i<=1
+      Just oc -> case oc of 
+                   Many -> False
+                   _    -> True
 
 
-occurrences :: Expr -> M.NameMap Int
+-- occurs at most once; and if so, it was fully applied to `tn` type arguments and `n` arguments.
+occursAtMostOnceApplied :: Name -> Int -> Int -> Expr -> Bool
+occursAtMostOnceApplied name tn n expr
+  = case M.lookup name (occurrences expr) of
+      Nothing -> True
+      Just oc -> case oc of 
+                   Many      -> False
+                   Once tm m -> (tn==tm && n==m)
+                   _         -> True
+
+
+
+data Occur = None | Once Int Int | Many
+
+add oc1 oc2
+  = case oc1 of  
+      None -> oc2
+      Many -> Many
+      Once _ _ -> case oc2 of 
+                    None -> oc1
+                    _    -> Many
+
+occurrences :: Expr -> M.NameMap Occur
 occurrences expr
   = case expr of
-      Var v _ -> M.singleton (getName v) 1
+      App (TypeApp (Var v _) targs) args
+        -> ounions (M.singleton (getName v) (Once (length targs) (length args)) : map occurrences args)
+      App (Var v _) args 
+        -> ounions (M.singleton (getName v) (Once 0 (length args)) : map occurrences args)
+      Var v _ -> M.singleton (getName v) (Once 0 0)
+
       Con{} -> M.empty
       Lit{} -> M.empty
-      App f args
-        -> ounions (occurrences f : map occurrences args)
-      Lam pars eff body 
-        -> foldr M.delete (occurrences body) (map getName pars)
-      TypeLam _ body -> occurrences body
-      TypeApp body _ -> occurrences body
-      Let dgs body -> foldr occurrencesDefGroup (occurrences body) dgs
-      Case scruts bs -> ounions (map occurrences scruts ++ map occurrencesBranch bs)
+      App f args        -> ounions (occurrences f : map occurrences args)
+      Lam pars eff body -> foldr M.delete (occurrences body) (map getName pars)
+      TypeLam _ body    -> occurrences body
+      TypeApp body _    -> occurrences body
+      Let dgs body      -> foldr occurrencesDefGroup (occurrences body) dgs
+      Case scruts bs    -> ounions (map occurrences scruts ++ map occurrencesBranch bs)
 
-occurrencesBranch :: Branch -> M.NameMap Int
+occurrencesBranch :: Branch -> M.NameMap Occur
 occurrencesBranch (Branch pat guards)
   = foldr M.delete (ounions (map occurrencesGuard guards)) (map getName (S.elems (bv pat)))
 
 occurrencesGuard (Guard g e)
   = ounion (occurrences g) (occurrences e) 
 
-ounion :: M.NameMap Int -> M.NameMap Int -> M.NameMap Int
+ounion :: M.NameMap Occur -> M.NameMap Occur -> M.NameMap Occur
 ounion oc1 oc2
-  = M.unionWith (+) oc1 oc2
+  = M.unionWith add oc1 oc2
 
-ounions :: [M.NameMap Int] -> M.NameMap Int
+ounions :: [M.NameMap Occur] -> M.NameMap Occur
 ounions ocs
-  = M.unionsWith (+) ocs
+  = M.unionsWith add ocs
 
-occurrencesDefGroup :: DefGroup -> M.NameMap Int -> M.NameMap Int
+occurrencesDefGroup :: DefGroup -> M.NameMap Occur -> M.NameMap Occur
 occurrencesDefGroup dg oc
   = case dg of
       DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
