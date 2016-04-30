@@ -36,16 +36,28 @@ class Simplify a where
 topDown :: Expr -> Expr
 
 -- Inline simple let-definitions
-topDown expr@(Let (DefNonRec (Def{defName=x,defType=tp,defExpr=e}):dgs) body) 
-  | isCheap e || (isTotal e && occursAtMostOnce x body)
-  = simplify $ [((TName x tp), e)] |~> Let dgs body
+topDown (Let dgs body)
+  = topDownLet [] [] dgs body
+  where
+    subst sub expr
+      = if null sub then expr else (sub |~> expr)
 
-topDown expr@(Let (dg:dgs) body) 
-  = let expr' = topDown (Let dgs body)
-    in case expr' of
-         Let dgs' body' -> Let (simplify dg : dgs') body'
-         _ -> Let [simplify dg] expr'
+    topDownLet sub acc [] body 
+      = case subst sub body of 
+          Let sdgs sbody -> topDownLet sub acc sdgs sbody  -- merge nested Let's
+          sbody -> if (null acc) 
+                    then topDown sbody 
+                    else Let (reverse acc) sbody
 
+    topDownLet sub acc (dg:dgs) body
+      = let sdg = subst sub dg
+        in case sdg of 
+          DefRec defs -> topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
+            -> if (isTotalAndCheap se || (isTotal se && occursAtMostOnce x (Let dgs body))) -- todo: exponential revisits of occursAtMostOnce
+                then -- inline the expression :-)
+                     topDownLet ((TName x tp, se):sub) acc dgs body
+                else topDownLet sub (sdg:acc) dgs body
 
 -- Remove effect open applications
 {-
@@ -55,7 +67,7 @@ topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffe
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars == length args
-  = simplify $ Let (zipWith makeDef pars args) body
+  = topDown $ Let (zipWith makeDef pars args) body
   where
     makeDef (TName par parTp) arg 
       = DefNonRec (Def par parTp arg Private DefVal rangeNull "") 
@@ -64,70 +76,7 @@ topDown (App (Lam pars eff body) args) | length pars == length args
 topDown expr
   = expr
 
-isCheap :: Expr -> Bool
-isCheap expr
-  = case expr of
-      Var{} -> True
-      Con{} -> True
-      Lit{} -> True
-      TypeLam _ body -> isCheap body
-      TypeApp body _ -> isCheap body
-      _     -> False
-{-
-isTotal :: Expr -> Bool
-isTotal expr
-  = case expr of
-      Var{} -> True
-      Con{} -> True
-      Lit{} -> True
-      Lam{} -> True
-      TypeLam _ body -> isCheap body
-      TypeApp body _ -> isCheap body
-      _ -> False
--}
-occursAtMostOnce :: Name -> Expr -> Bool
-occursAtMostOnce name expr
-  = case M.lookup name (occurrences expr) of
-      Nothing -> True
-      Just i  -> i<=1
 
-
-occurrences :: Expr -> M.NameMap Int
-occurrences expr
-  = case expr of
-      Var v _ -> M.singleton (getName v) 1
-      Con{} -> M.empty
-      Lit{} -> M.empty
-      App f args
-        -> ounions (occurrences f : map occurrences args)
-      Lam pars eff body 
-        -> foldr M.delete (occurrences body) (map getName pars)
-      TypeLam _ body -> occurrences body
-      TypeApp body _ -> occurrences body
-      Let dgs body -> foldr occurrencesDefGroup (occurrences body) dgs
-      Case scruts bs -> ounions (map occurrences scruts ++ map occurrencesBranch bs)
-
-occurrencesBranch :: Branch -> M.NameMap Int
-occurrencesBranch (Branch pat guards)
-  = foldr M.delete (ounions (map occurrencesGuard guards)) (map getName (S.elems (bv pat)))
-
-occurrencesGuard (Guard g e)
-  = ounion (occurrences g) (occurrences e) 
-
-ounion :: M.NameMap Int -> M.NameMap Int -> M.NameMap Int
-ounion oc1 oc2
-  = M.unionWith (+) oc1 oc2
-
-ounions :: [M.NameMap Int] -> M.NameMap Int
-ounions ocs
-  = M.unionsWith (+) ocs
-
-occurrencesDefGroup :: DefGroup -> M.NameMap Int -> M.NameMap Int
-occurrencesDefGroup dg oc
-  = case dg of
-      DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
-      DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs)) 
-                                      (map defName defs)
 
 {--------------------------------------------------------------------------
   Bottom-up optimizations 
@@ -195,3 +144,65 @@ instance Simplify Branch where
 
 instance Simplify Guard where
   simplify (Guard test expr) = Guard (simplify test) (simplify expr)
+
+
+
+{--------------------------------------------------------------------------
+  Occurrences 
+--------------------------------------------------------------------------}
+
+
+isTotalAndCheap :: Expr -> Bool
+isTotalAndCheap expr
+  = case expr of
+      Var{} -> True
+      Con{} -> True
+      Lit{} -> True
+      TypeLam _ body -> isTotalAndCheap body
+      TypeApp body _ -> isTotalAndCheap body
+      _     -> False
+
+
+occursAtMostOnce :: Name -> Expr -> Bool
+occursAtMostOnce name expr
+  = case M.lookup name (occurrences expr) of
+      Nothing -> True
+      Just i  -> i<=1
+
+
+occurrences :: Expr -> M.NameMap Int
+occurrences expr
+  = case expr of
+      Var v _ -> M.singleton (getName v) 1
+      Con{} -> M.empty
+      Lit{} -> M.empty
+      App f args
+        -> ounions (occurrences f : map occurrences args)
+      Lam pars eff body 
+        -> foldr M.delete (occurrences body) (map getName pars)
+      TypeLam _ body -> occurrences body
+      TypeApp body _ -> occurrences body
+      Let dgs body -> foldr occurrencesDefGroup (occurrences body) dgs
+      Case scruts bs -> ounions (map occurrences scruts ++ map occurrencesBranch bs)
+
+occurrencesBranch :: Branch -> M.NameMap Int
+occurrencesBranch (Branch pat guards)
+  = foldr M.delete (ounions (map occurrencesGuard guards)) (map getName (S.elems (bv pat)))
+
+occurrencesGuard (Guard g e)
+  = ounion (occurrences g) (occurrences e) 
+
+ounion :: M.NameMap Int -> M.NameMap Int -> M.NameMap Int
+ounion oc1 oc2
+  = M.unionWith (+) oc1 oc2
+
+ounions :: [M.NameMap Int] -> M.NameMap Int
+ounions ocs
+  = M.unionsWith (+) ocs
+
+occurrencesDefGroup :: DefGroup -> M.NameMap Int -> M.NameMap Int
+occurrencesDefGroup dg oc
+  = case dg of
+      DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
+      DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs)) 
+                                      (map defName defs)

@@ -245,19 +245,19 @@ prettyExpr env (Lit lit)
 
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
-  = vcat [ text "val" <+> nest 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> prettyExpr env e <> semi)
+  = vcat [ text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> prettyExpr env e <> semi)
          , prettyExpr env e' 
          ]
 prettyExpr env (Let defGroups expr)
-  = vcat [ text "val" <+> vcat (map (\dg -> prettyDefGroup env dg <> semi) defGroups)
+  = vcat [ hang 2 $ vcat (map (\dg -> prettyDefGroup env dg <> semi) defGroups)
          , prettyExpr env expr
          ]
 
 
 -- Case expressions
 prettyExpr env (Case exprs branches)
-  = text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-> 
-    tab (prettyBranches env branches) <-> text "}"
+  = text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <--> 
+    tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
   = prettyName env (getName tname) -- <> braces (ppType env{ prec = precTop } (typeOf tname))
