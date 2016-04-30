@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 
-module Core.Cps( cpsTransform ) where
+module Core.Cps( cpsTransform, cpsType, typeYld ) where
 
 
 import Lib.Trace 
@@ -18,7 +18,7 @@ import Lib.PPrint
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps )
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps, nameTpCont )
 import Common.Error
 
 import Kind.Kind( kindStar, isKindEffect, kindHandled )
@@ -28,6 +28,7 @@ import Type.TypeVar
 import Type.Pretty hiding (Env)
 import qualified Type.Pretty as Pretty
 import Type.Assumption
+import Type.Operations( freshTVar )
 import Core.Core
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
@@ -110,8 +111,10 @@ cpsExpr expr
               if (not isCps)
                then do cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        return $ \k -> k (Lam args' eff (body' id))
-               else let bodyTp = typeOf body
-                    in return $ \k -> k (Lam (args' ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
+               else -- cps converted lambda: add continuation parameter
+                    do resTp <- freshTVar kindStar Meta
+                       let bodyTp = typeOf body
+                       return $ \k -> k (Lam (args' ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
       App f args
         -> do f' <- cpsExpr f
               args' <- mapM cpsExpr args
@@ -267,9 +270,13 @@ cpsType pureTvs tp
       TSyn syn tps t 
         -> TSyn syn (map (cpsType pureTvs) tps) (cpsType pureTvs t)
 
-varK tp   = Var (tnameK tp) (InfoArity 0 1)
-tnameK tp = TName nameK (typeK tp)
-typeK tp  = TFun [(nameNil,tp)] typeTotal typeYld
+varK tp    = Var (tnameK tp) (InfoArity 0 1)
+tnameK tp  = TName nameK (typeK tp)
+typeK tp   = TSyn (TypeSyn nameTpCont kindStar 0 Nothing) 
+                   [tp]
+                   (TFun [(nameNil,tp)] typeTotal typeYld) 
+                  -- TFun [(nameNil,tp)] typeTotal typeYld
+ 
 typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 
 nameK = newHiddenName "k"

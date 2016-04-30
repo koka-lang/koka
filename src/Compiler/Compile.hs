@@ -699,16 +699,18 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return () 
-        else Core.Check.checkCore penv unique4 gamma coreDefs0 
+        else Core.Check.checkCore False penv unique4 gamma coreDefs0 
 
        -- cps tranform program
-       coreDefs1 <- if (Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
-                     then return coreDefs0
-                     else Core.Cps.cpsTransform penv coreDefs0
+       (isCps,coreDefs1)
+           <- if (Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
+                     then return (False,coreDefs0)
+                     else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
+                             return (True,cdefs)
 
        -- recheck cps transformed core
        if (not (coreCheck flags)) then return () 
-        else Core.Check.checkCore penv unique4 gamma coreDefs1
+        else Core.Check.checkCore isCps penv unique4 gamma coreDefs1
 
 
        -- simplify coreF if enabled
@@ -718,7 +720,7 @@ inferCheck loaded flags line coreImports program1
 
        -- recheck simplified core
        if (not (coreCheck flags)) then return () 
-        else Core.Check.checkCore penv unique4 gamma coreDefs2
+        else Core.Check.checkCore isCps penv unique4 gamma coreDefs2
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

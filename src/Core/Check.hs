@@ -16,6 +16,7 @@ import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
 import Common.Failure
+import Common.NamePrim( nameYieldOp )
 import Common.Name
 import Common.Unique
 import Common.Error
@@ -24,6 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
+import Core.Cps( cpsType, typeYld )
 
 import Kind.Kind
 import Type.Type
@@ -31,15 +33,16 @@ import Type.TypeVar
 import Type.Assumption
 import Type.Pretty
 import Type.Kind
+import Type.TypeVar
 import Type.Unify( unify, runUnify )
 import Type.Operations( instantiate )
 
 import qualified Data.Set as S
 
-checkCore :: Env -> Int -> Gamma -> DefGroups -> Error () 
-checkCore prettyEnv uniq gamma  defGroups
+checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error () 
+checkCore cps prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv gamma prettyEnv []) of 
+      Check c -> case c uniq (CEnv cps gamma prettyEnv []) of 
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
        
@@ -49,7 +52,7 @@ checkCore prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}  
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+data CheckEnv = CEnv{ cps :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int 
               | Err Doc
@@ -82,9 +85,14 @@ withDef def (Check c)
   = trace ("checking: " ++ show (defName def)) $
     Check (\u env -> c u env{ currentDef = def : (currentDef env) })
 
+getEnv :: Check CheckEnv
+getEnv
+  = Check (\u env -> Ok env u)
+
 getGamma :: Check Gamma
 getGamma
-  = Check (\u env -> Ok (gamma env) u)
+  = do env <- getEnv
+       return (gamma env)
 
 lookupVar :: Name -> Check Scheme
 lookupVar name
@@ -105,6 +113,10 @@ ppDefs env defs
   = text "in definition:" <+> tupled (map (text.show.defName) defs)
     <-> prettyDef (head defs) env
 
+checkType :: Type -> Check Type
+checkType tp
+  = do env <- getEnv
+       return (if (cps env) then cpsType tvsEmpty tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups 
@@ -134,8 +146,9 @@ checkDef :: Def -> Check ()
 checkDef d
   = withDef d $
     do tp <- check (defExpr d)
+       dtp <- checkType (defType d)
        -- trace ("deftype: " ++ show (defType d) ++ "\ninferred: " ++ show tp) $ return ()
-       match "checking annotation on definition" (prettyDef d) (defType d) tp
+       match "checking annotation on definition" (prettyDef d) (dtp) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX tname True
@@ -154,7 +167,19 @@ check expr
         -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
               return (typeFun [(name,tp) | TName name tp <- pars] eff tpRes)
       Var tname info
-        -> return $ typeOf tname
+        | getName tname == nameYieldOp
+        -> do env <- getEnv
+              if (cps env) 
+               then trace ("found unsafeyield: " ++ show (pretty (typeOf tname))) $
+                     let (tvars,preds,rho) = splitPredType (typeOf tname) 
+                     in case splitFunType rho of 
+                      Nothing -> return $ typeOf tname
+                      Just (tpPars,eff,tpRes)
+                        -> trace ("adjust result") $
+                           return (tForall tvars preds (TFun tpPars eff typeYld))
+               else return (typeOf tname)
+      Var tname info  
+        -> return $ typeOf tname                
       Con tname info
         -> return $ typeOf tname
       App fun args
@@ -248,19 +273,22 @@ match when fdoc a b
          (Left error, _)  -> showCheck "cannot unify" when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return () 
-                              else showCheck "non-empty substitution" when a b fdoc 
+                              else trace (show (showMessage "non-empty substitution" when a b (\env -> text "") defaultEnv)) $
+                                    return ()
 
 -- Print unification error
 showCheck :: String -> String -> Type -> Type -> (Env -> Doc) -> Check a 
 showCheck err when a b fdoc 
-  = failDoc (\env -> 
-      let [docA,docB] = niceTypes env [a,b]
-      in align $ vcat [ text err 
-                       , text "     " <> docA
-                       , text "  =~ " <> docB
-                       , text "when" <+> text when 
-                       , indent 2 (fdoc env)
-                       ])
+  = failDoc (showMessage err when a b fdoc)
+
+showMessage err when a b fdoc env
+  = let [docA,docB] = niceTypes env [a,b]
+    in align $ vcat [ text err 
+                     , text "     " <> docA
+                     , text "  =~ " <> docB
+                     , text "when" <+> text when 
+                     , indent 2 (fdoc env)
+                     ]  
 
 prettyExpr e env = PrettyCore.prettyExpr env e
 prettyPattern e env = PrettyCore.prettyPattern env e
