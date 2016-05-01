@@ -64,7 +64,7 @@ function makeHandlerAmb( res : a -> e b, ops : (amb_ops<c>, cont:c -> e b) -> e 
   xhandlerAmb(makeHandler( matchAmb, res, ops ))
 }
 external xhandlerAmb( handler : yld<a> -> e b ) : total ((action : () -> <amb|e> a) -> e b) {
-  js inline "function(_action,_k){ return (#1)(_action($std_core.Result),_k); }"
+  js inline "function(_action,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_k); }"
 }
 
 function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
@@ -75,16 +75,14 @@ function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
 }
 
 
-function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
+function makeHandler( matchop : operation<c> -> maybe<o<c>>, res : a -> e b, ops : (op:o<c>, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
   function handler(yld) {
     match(yld) {
       Yield(op,f) -> {
+        function cont(x) { handler(f(x)) }        
         match(matchop(op)) {
-          Just(eop) -> {
-            function cont(x) { handler(f(x)) }        
-            ops(eop,cont)
-          }
-          Nothing -> reyield(op, fun(x) { handler(f(x)) })          
+          Just(eop) -> ops(eop,cont)
+          Nothing -> reyield(op, cont)          
         }
       }
       Result(x) -> res(x)          
@@ -123,7 +121,7 @@ function makeHandlerState( res, ops ) {
   xhandlerState(makeHandler1( matchState, res, ops ))
 }
 external xhandlerState( handler : (yld<a>,d) -> e b ) : total ((action : () -> <state|e> a, loc : d) -> e b) {
-  js inline "function(_action,_loc,_k){ return (#1)(_action($std_core.Result),_loc,_k); }"
+  js inline "function(_action,_loc,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_loc,_k); }"
 }
 
 
@@ -140,12 +138,10 @@ function makeHandler1( matchop : operation<c> -> maybe<o>, res : ((a,d) -> e b),
   function handler(yld,loc) {
     match(yld) {
       Yield(op,f) -> {
+        function cont(x,loc0) { handler(f(x),loc0) }        
         match(matchop(op)) {
-          Just(eop) -> {
-            function cont(x,loc0) { handler(f(x),loc0) }        
-            ops(eop,cont,loc)
-          }
-          Nothing -> reyield(op, fun(x) { handler(f(x),loc) })          
+          Just(eop) -> ops(eop,cont,loc)
+          Nothing   -> reyield(op, fun(x) { cont(x,loc) })          
         }
       }
       Result(x) -> res(x,loc)          

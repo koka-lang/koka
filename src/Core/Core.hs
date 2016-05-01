@@ -585,8 +585,9 @@ instance HasExprVar Def where
 instance HasExprVar Expr where
   sub |~> expr = 
     case expr of
-      Lam tnames eff expr  -> assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $ 
-                              Lam tnames eff (sub |~> expr)
+      Lam tnames eff expr  -> -- assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $ 
+                              let sub' = [(name,e) | (name,e) <- sub, all (name /=) tnames]
+                              in Lam tnames eff (sub' |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
       App e1 e2            -> App (sub |~> e1) (sub |~> e2)
       TypeLam typeVar exp  -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam") (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVar) $
