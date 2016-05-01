@@ -709,7 +709,7 @@ inferCheck loaded flags line coreImports program1
                              return (True,cdefs)
 
        -- recheck cps transformed core
-       if (not (coreCheck flags)) then return () 
+       if (False && not (coreCheck flags)) then return () 
         else Core.Check.checkCore isCps penv unique4 gamma coreDefs1
 
 

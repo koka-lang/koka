@@ -56,18 +56,22 @@ topDown (Let dgs body)
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
             -> if (isTotalAndCheap se) 
                 then -- inline very small expressions
-                     topDownLet ((TName x tp, se):sub) acc dgs body
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
                 Just (tpars,pars,_,_)  
                   | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
-                     topDownLet ((TName x tp, se):sub) acc dgs body
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- inline small total expressions
-                     topDownLet ((TName x tp, se):sub) acc dgs body                     
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body                     
                 _ -> -- no inlining
                      topDownLet sub (sdg:acc) dgs body
+
+    extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
+    extend (name,e) sub
+      = (name,e):sub                     
 
     extractFun expr
       = case expr of

@@ -56,8 +56,8 @@ function test1() : string {
 function makeHandlerAmb( res : a -> e b, ops : (amb_ops<c>, cont:c -> e b) -> e b ) : ((action: () -> <amb|e> a) -> e b) {
   xhandlerAmb(makeHandler( matchAmb, res, ops ))
 }
-external xhandlerAmb( handler : cps<a> -> e b ) : total ((action : () -> <amb|e> a) -> e b) {
-  js inline "function(_action,_k){ return (#1)(_action($std_core.Result),_k); }"
+external xhandlerAmb( handler : yld<a> -> e b ) : total ((action : () -> <amb|e> a) -> e b) {
+  js inline "function(_action,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_k); }"
 }
 
 function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
@@ -68,16 +68,18 @@ function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
 }
 
 
-function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) :  (cps<a> -> e b) {
-  function handler(cps) {
-    match(cps) {
+function makeHandler( matchop : operation<c> -> maybe<o<c>>, res : a -> e b, ops : (op:o<c>, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
+  function handler(yld) {
+    match(yld) {
       Yield(op,f) -> {
+        function cont(x) { handler(f(x)) }
         match(matchop(op)) {
-          Just(eop) -> {
-            function cont(x) { handler(f(x)) }        
+          Just(eop) -> {            
             ops(eop,cont)
+          }          
+          Nothing -> {
+            reyield(op,cont)
           }
-          Nothing -> reyield(op, fun(x) { handler(f(x)) })          
         }
       }
       Result(x) -> res(x)          
@@ -87,7 +89,7 @@ function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : 
 }
 
 
-external reyield( op: operation<b>, f : b -> e a ) : e a {
+external inline reyield( op: operation<b>, f : b -> e a ) : e a {
   js inline "$std_core.Yield(#1,function(_x) { return #2(_x,_k); } )"
 }
 

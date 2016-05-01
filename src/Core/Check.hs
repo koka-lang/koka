@@ -25,7 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
-import Core.Cps( cpsType, typeYld )
+import Core.Cps( cpsType, typeK )
 
 import Kind.Kind
 import Type.Type
@@ -166,18 +166,26 @@ check expr
       Lam pars eff body
         -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
               return (typeFun [(name,tp) | TName name tp <- pars] eff tpRes)
-      Var tname info
+      App (TypeApp (Var tname info) _) [x,k]
         | getName tname == nameYieldOp
-        -> do env <- getEnv
-              if (cps env) 
-               then trace ("found unsafeyield: " ++ show (pretty (typeOf tname))) $
+        -> -- trace ("found unsafeyield: " ++ show (pretty (typeOf tname)) ++ ", " ++ show (pretty (typeOf k))) $
+           case splitFunType (expandSyn (typeOf k)) of
+            Nothing -> failDoc $ \env -> text "illegal unsafeyield:" <+> prettyExpr expr env
+            Just(_,_,tpYld)
+              -> return tpYld
+                  {- 
                      let (tvars,preds,rho) = splitPredType (typeOf tname) 
                      in case splitFunType rho of 
                       Nothing -> return $ typeOf tname
                       Just (tpPars,eff,tpRes)
                         -> trace ("adjust result") $
-                           return (tForall tvars preds (TFun tpPars eff typeYld))
+                           do tvYld <- freshTypeVar kindStar Meta
+                              let tpYld = TVar tvYld
+                                  tpK   = typeK tpRes eff tpYld
+                              return (tForall (tvars) preds -- should add tvYld but leads to kind error...
+                                        (TFun (tpPars ++ [(nameNil,tpK)]) eff (TVar tvYld)))
                else return (typeOf tname)
+               -}
       Var tname info  
         -> return $ typeOf tname                
       Con tname info
@@ -188,7 +196,10 @@ check expr
               case splitFunType tpFun of
                 Nothing -> fail "expecting function type in application"
                 Just (tpPars,eff,tpRes) 
-                  -> do sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                  -> do -- env <- getEnv
+                        --when (length tpPars /= length args + n) $
+                        --  failDoc (\env -> text "wrong number of arguments in application: " <+> prettyExpr expr env)
+                        sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
                         return tpRes
       TypeLam tvars body
         -> do tp <- check body
@@ -273,8 +284,10 @@ match when fdoc a b
          (Left error, _)  -> showCheck "cannot unify" when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return () 
-                              else trace (show (showMessage "non-empty substitution" when a b (\env -> text "") defaultEnv)) $
-                                    return ()
+                              else do env <- getEnv
+                                      if (cps env) then return () 
+                                        else showCheck "non-empty substitution" when a b (\env -> text "") 
+                                      return ()
 
 -- Print unification error
 showCheck :: String -> String -> Type -> Type -> (Env -> Doc) -> Check a 

@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 
-module Core.Cps( cpsTransform, cpsType, typeYld ) where
+module Core.Cps( cpsTransform, cpsType, typeK ) where
 
 
 import Lib.Trace 
@@ -114,12 +114,13 @@ cpsExpr expr
                else -- cps converted lambda: add continuation parameter
                     do resTp <- freshTVar kindStar Meta
                        let bodyTp = typeOf body
-                       return $ \k -> k (Lam (args' ++ [tnameK bodyTp]) eff (body' (\xx -> App (varK bodyTp) [xx])))
+                       return $ \k -> k (Lam (args' ++ [tnameK bodyTp eff resTp]) eff (body' (\xx -> App (varK bodyTp eff resTp) [xx])))
       App f args
         -> do f' <- cpsExpr f
               args' <- mapM cpsExpr args
               let -- ff  = f' id
                   ftp = typeOf f -- ff
+                  Just(_,feff,_) = splitFunType ftp
               isCps <- needsCpsTypeX ftp
               cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
               if (not (isCps || isSpecialCps f))
@@ -137,12 +138,12 @@ cpsExpr expr
                                         -- optimize (fun(y) { let x = y in .. })
                                        Let [DefNonRec def@(Def{ defExpr = Var v _ })] body 
                                         | getName v == nameY 
-                                        -> Lam [TName (defName def) (defType def)] typeTotal body 
+                                        -> Lam [TName (defName def) (defType def)] feff body 
                                        -- optimize (fun (y) { k(y) } )
                                        App vark@(Var k _) [Var v _] 
                                         | getName k == nameK && getName v == nameY
                                         -> vark
-                                       body -> Lam [tnameY] typeTotal body
+                                       body -> Lam [tnameY] feff body
                           in
                           f' (\ff ->
                             applies args' (\argss -> 
@@ -240,8 +241,8 @@ needsCpsTypeX tp
   = do pureTvs <- getPureTVars
        return (needsCpsType pureTvs tp)
 
-cpsTypeX :: Type -> Cps Type
-cpsTypeX tp
+cpsTypeU :: Type -> Cps Type
+cpsTypeU tp
   = do pureTvs <- getPureTVars
        return (cpsType pureTvs tp)
 
@@ -253,29 +254,41 @@ needsCpsEffectX tp
 
 cpsType :: Tvs -> Type -> Type
 cpsType pureTvs tp
+  = fst $ runUnique 0 (cpsTypeX pureTvs tp)
+  where
+    quantify t = quantifyType (tvsList (ftv t)) t
+
+cpsTypeX :: HasUnique m => Tvs -> Type -> m Type  
+cpsTypeX pureTvs tp
   = case tp of
       TFun pars eff res  
-        -> let pars' = [(name, cpsType pureTvs par) | (name,par) <- pars]
-               res'  = cpsType pureTvs res
-               eff'  = cpsType pureTvs eff
-           in if (needsCpsEffect pureTvs eff')
-               then TFun (pars' ++ [(nameK, typeK res')]) eff' typeYld 
-               else TFun pars' eff' res'
+        -> do pars' <- mapM (\(name,par) -> do{ t' <- cpsTypeX pureTvs par; return (name,t') }) pars
+              res'  <- cpsTypeX pureTvs res
+              eff'  <- cpsTypeX pureTvs eff
+              if (needsCpsEffect pureTvs eff')
+               then do tpYld <- freshTVar kindStar Meta
+                       return $ TFun (pars' ++ [(nameK, typeK res' eff' tpYld)]) eff' tpYld 
+               else return $ TFun pars' eff' res'
       TForall tvars preds t
-        -> TForall tvars preds (cpsType pureTvs t)
+        -> do t' <- cpsTypeX (tvsRemove tvars pureTvs) t
+              return $ TForall tvars preds t'
       TApp t targs
-        -> TApp (cpsType pureTvs t) (map (cpsType pureTvs) targs)
-      TVar _ -> tp
-      TCon _ -> tp
-      TSyn syn tps t 
-        -> TSyn syn (map (cpsType pureTvs) tps) (cpsType pureTvs t)
+        -> do t'     <- cpsTypeX pureTvs t
+              targs' <- mapM (cpsTypeX pureTvs) targs
+              return $ TApp t' targs'
+      TVar _ -> return tp
+      TCon _ -> return tp
+      TSyn syn targs t 
+        -> do targs' <- mapM (cpsTypeX pureTvs) targs
+              t'     <- cpsTypeX pureTvs t
+              return $ TSyn syn targs' t'
 
-varK tp    = Var (tnameK tp) (InfoArity 0 1)
-tnameK tp  = TName nameK (typeK tp)
-typeK tp   = TSyn (TypeSyn nameTpCont kindStar 0 Nothing) 
-                   [tp]
-                   (TFun [(nameNil,tp)] typeTotal typeYld) 
-                  -- TFun [(nameNil,tp)] typeTotal typeYld
+varK tp effTp resTp    = Var (tnameK tp effTp resTp) (InfoArity 0 1)
+tnameK tp effTp resTp  = TName nameK (typeK tp effTp resTp)
+typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont kindStar 0 Nothing) 
+                           [tp,effTp,resTp]
+                           (TFun [(nameNil,tp)] effTp resTp) 
+                          -- TFun [(nameNil,tp)] typeTotal typeYld
  
 typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 

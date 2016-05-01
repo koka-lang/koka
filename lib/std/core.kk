@@ -2450,6 +2450,11 @@ function unsafeNoDiv( action : () -> <div|e> a ) : e a
   unsafeTotal( action )
 }
 
+// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (":div").
+function unsafeDecreasing( x : a ) : a {
+  x
+}
+
 // ----------------------------------------------------------------------------
 // Non determinism
 // ----------------------------------------------------------------------------
@@ -2568,4 +2573,4 @@ external inline unsafeyield( op : operation<a> ) : e a {
 // Cps effect
 type cps :: HX;
 
-alias cont<a> = a -> yld<a>
+alias cont<a,e,b> = a -> e b

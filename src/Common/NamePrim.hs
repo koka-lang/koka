@@ -23,7 +23,7 @@ module Common.NamePrim
           , nameCopy
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
-          , nameSubStr1
+          , nameDecreasing, nameSubStr1
 
           , nameUnit
           , nameReturn
@@ -134,6 +134,7 @@ nameTpArray     = preludeName "array"
 nameTpVector    = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
+nameDecreasing  = preludeName "unsafeDecreasing"
 
 {--------------------------------------------------------------------------
   Lists

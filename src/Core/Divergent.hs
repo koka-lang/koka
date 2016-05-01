@@ -18,7 +18,7 @@ import Control.Applicative
 import Control.Monad
 import Data.List( transpose, permutations )
 import Common.Name
-import Common.NamePrim( nameSubStr1, namesSameSize, nameEffectOpen )
+import Common.NamePrim( nameSubStr1, namesSameSize, nameEffectOpen, nameDecreasing )
 import Common.Failure
 import Common.Syntax
 import qualified Common.NameSet as S
@@ -257,6 +257,14 @@ argumentSize name (pos,arg)
   = case arg of
       Var tname info
         -> lookupSize name pos (getName tname)
+      -- Ignore .open effect calls
+      App (App (TypeApp (Var openName _) _) [f]) args  | getName openName == nameEffectOpen        
+        -> argumentSize name (pos,App f args)
+      App (TypeApp (App (TypeApp (Var openName _) _) [f]) targs) args  | getName openName == nameEffectOpen        
+        -> argumentSize name (pos,App (TypeApp f targs) args)
+      -- special 'unsafeDecreasing' call
+      App (TypeApp (Var name _) [targ]) [arg] | getName name == nameDecreasing
+        -> return Lt  
       -- special case substr1
       App (Var substrName _) (Var sname _ : args) | getName substrName == nameSubStr1
         -> do sz <- lookupSize name pos (getName sname)
