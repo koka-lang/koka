@@ -14,7 +14,7 @@ function foo() : <amb,state> bool {
   val p = flip() 
   val i = get()
   set(i+1)
-  if (i>=0 && p) then xor() else False
+  if (i>0 && p) then xor() else False
 }         
 
 function foos() : <amb,state> string {
@@ -42,4 +42,13 @@ function state_handle() {
 
 function test1() : string {
   amb_handle()(xors).join(",")
+}
+
+
+function test2() : string {
+  state_handle()({amb_handle()(foos)},0).join(",")
+}
+
+function test3() :  string {
+  amb_handle()({state_handle()(foos,0)}).join(",")
 }
