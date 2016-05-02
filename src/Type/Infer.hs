@@ -22,7 +22,7 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
-                      , namePatternMatchError, nameSystemCore, nameTpHandled )
+                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny )
 import Common.Range
 import Common.Unique
 import Common.Syntax
@@ -713,14 +713,18 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        actionResTp <- case propActionRes of 
                         Nothing -> Op.freshTVar kindStar Meta
                         Just (tp,rng) -> return tp
-       pretEff <- freshEffect                        
-       let propRet  = case propRes of 
-                        Nothing    -> Nothing
-                        Just (resTp,rng) -> Just (TFun [(nameNil,actionResTp)] pretEff resTp, rng)
-           retExpr = case ret of
+       {-
+       propRet <- case propRes of 
+                    Nothing -> return Nothing
+                    Just (resTp,rng) -> 
+                      do pretEff <- freshEffect                        
+                         let propRetArgs = [(binderName b,binderType b) | b <- propParBinders]
+                         return $ Just (TFun ((newName "action",actionResTp):propRetArgs) pretEff resTp, rng)
+       -}
+       let retExpr = case ret of
                        Lam [arg] body rng -> Lam (arg:propParBinders) body rng
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
-       (retTp,_,retCore) <- inferExpr propRet Instantiated retExpr
+       (retTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
            ((_,retInTp):argPars) = retArgs
            parTypes = map snd argPars
@@ -730,7 +734,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
-           resumeTp = TFun ((nameNil,opsResTp):argPars) retEff retOutTp 
+           resumeTp = TFun ((newHiddenName "x",opsResTp):argPars) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            opsgamma = inferBinders [] [opsBinder,resumeBinder]
            infgamma = inferBinders [] parBinders
@@ -829,25 +833,33 @@ inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch 
        sparTps <- subst parTps
 
        -- create resume definition with the type specialized to this operation
-       let xresumeTp = case splitFunType (binderType resumeBinder) of 
-                        Just ((_:targs),teff,tres) -> TFun ((nameNil,resTp):targs) teff tres
+       let (xresumeTp,xresumeArgs)
+                    = case splitFunType (binderType resumeBinder) of 
+                        Just (((xname,_):targs),teff,tres) 
+                          -> let newargs = ((xname,resTp):targs)
+                             in (TFun newargs teff tres,
+                                  [ValueBinder name (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
                         _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
            xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
+           xresumeAppArgs = (Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng) :
+                              [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+           xresumeExpr   = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng)
+                               xresumeTp rng
+           xresumeDef    = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng)
+                               rng Private DefFun ""
+
            parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
-           exprGamma     = inferBinders [] (xresumeBinder:parBinders)                        
+           parGamma     = inferBinders [] parBinders                        
 
        -- and infer the body type    
-       (exprTp,exprEff,exprCore) <- extendInfGamma False exprGamma $ 
-                                    inferExpr propagated expect expr
-
-       let resumeCore = (Core.|~>) [(Core.TName (binderName xresumeBinder) (binderType xresumeBinder), 
-                                    Core.Var (Core.TName (binderName resumeBinder) (binderType resumeBinder)) Core.InfoNone)] exprCore
+       (exprTp,exprEff,exprCore) <- extendInfGamma False parGamma $ 
+                                    inferExpr propagated expect $ Let (DefNonRec xresumeDef) expr (getRange expr)
 
        -- build a Core pattern match
        let patCore = Core.PatCon (Core.TName conname gconTp) 
                           [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
                            conrepr (parTps) coninfo
-           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue resumeCore]             
+           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]             
        return (exprTp,exprEff,branchCore)
   where
     splitOpTp rho
