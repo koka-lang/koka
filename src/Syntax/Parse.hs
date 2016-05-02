@@ -32,6 +32,7 @@ module Syntax.Parse( parseProgramFromFile
 
 -- import Lib.Trace
 import Data.List (intersperse)
+import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
 
@@ -971,6 +972,50 @@ matchexpr
        tst <- parens expr  -- todo: multiple patterns
        (branches,rng2) <- semiBracesRanged1 branch 
        return (Case tst branches (combineRange rng rng2))
+  <|> handlerExpr
+  
+handlerExpr
+  = do rng <- keyword "handler"
+       pars <- parensCommas lparen handlerPar <|> return []
+       (retops,rng2) <- semiBracesRanged1 handlerOp
+       let (rets,ops) = partitionEithers retops
+       case rets of
+         [ret] -> return (Handler pars ret ops (combineRanges [rng,rng2]))
+         _     -> fail "There must be (at most) one 'return' clause in a handler body"
+
+handlerOp :: LexParser (Either UserExpr UserBranch)
+handlerOp 
+  = do rng <- keyword "return"
+       (name,prng) <- paramid
+       tp         <- optionMaybe typeAnnotPar 
+       keyword "->"
+       exp <- branchexpr
+       return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] exp (combineRanged rng exp)))
+  <|>
+    do (name,nameRng) <- qidentifier
+       pars <- handlerParams 
+       keyword "->"
+       exp <- branchexpr
+       let pat = PatCon name pars nameRng (combineRanged nameRng (map snd pars))
+       return (Right (Branch pat guardTrue exp))
+
+handlerParams :: LexParser [(Maybe (Name,Range), UserPattern)]
+handlerParams
+  = parensCommas (lparen <|> lapp) handlerParam <|> return []
+
+handlerParam :: LexParser (Maybe (Name,Range),UserPattern)
+handlerParam
+  = do (name,rng) <- identifier     
+       tp <- optionMaybe typeAnnot
+       return (Nothing,PatVar (ValueBinder name tp (PatWild rng) rng (combineRanged rng tp)))
+
+
+handlerPar :: LexParser (ValueBinder (Maybe UserType) ()) 
+handlerPar
+  = do (name,rng) <- identifier     
+       tp <- optionMaybe typeAnnot
+       return (ValueBinder name tp () rng (combineRanged rng tp))  
+
 
 {--------------------------------------------------------------------------
   Branches

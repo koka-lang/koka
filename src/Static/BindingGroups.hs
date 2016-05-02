@@ -163,12 +163,19 @@ dependencyExpr modName expr
       Ann expr t rng       -> let (depExpr,fv) = dependencyExpr modName expr
                               in (Ann depExpr t rng, fv)
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr 
-                                    (depBranches,fv2) = unzipWith (id,S.unions) (map (dependencyBranch modName) branches)
+                                    (depBranches,fv2) = dependencyBranches modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
       Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit             -> (expr, S.empty)
+      Handler pars ret ops rng 
+        -> let (depRet,fv1)     = dependencyExpr modName ret
+               (depBranches,fv2)= dependencyBranches modName ops
+           in (Handler pars depRet depBranches rng, S.difference (S.union fv1 fv2) (S.fromList (map binderName pars)))
+
+dependencyBranches modName branches
+  = unzipWith (id,S.unions) (map (dependencyBranch modName) branches)
 
 dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
 dependencyBranch modName (Branch pattern guard expr)

@@ -198,6 +198,7 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
+  | Handler [ValueBinder (Maybe t) ()] (Expr t) [Branch t] Range
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)
@@ -310,6 +311,7 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
+        Handler pars ret ops range -> range
 
 instance Ranged Lit where
   getRange lit

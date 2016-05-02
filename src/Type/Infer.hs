@@ -600,7 +600,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()       
        return (resTp,resEff,resCore)
                            
-      
+inferExpr propagated expect (Handler pars ret ops rng)
+  = inferHandler propagated expect pars ret ops rng      
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -691,6 +692,28 @@ inferExpr propagated expect (Parens expr rng)
 inferExpr propagated expect expr
   = todo ("Type.Infer.inferExpr")
 -}
+
+inferHandler :: Maybe (Type,Range) -> Expect -> [ValueBinder Type ()] -> Expr Type -> [Branch Type] -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect pars ret ops rng
+  = do ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
+       (_,propActionEff,propActionRes,expectActionRes)   <- matchFun propAction
+       let binders0 = [case binderType binder of
+                         Nothing -> binder{ binderType = fmap snd mbProp }
+                         Just _  -> binder
+                      | (binder,mbProp) <- zip pars propArgs]
+       binders1 <- mapM instantiateBinder binders0
+       actionResTp <- case propActionRes of 
+                        Nothing -> freshTVar kindStar Meta
+                        Just tp -> return tp
+       retEff <- freshEffect                        
+       let infgamma = inferBinders binders1
+           propRet  = case propRes of 
+                        Nothing    -> Nothing
+                        Just resTp -> TFun [(nameNil,actionResTp)] retEff resTp
+       (retTp,eff,coreRet) <- extendInfGamma False infgamma  $ 
+                              inferExpr propRet Instantiated ret
+        
+                              
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
 inferApp propagated expect fun nargs rng
@@ -873,6 +896,7 @@ inferVar propagated expect name rng isRhs
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
 
+
 {-       
 inferVar propagated expect name rng isRhs
   = do (qname1,tp1,info1) <- resolveName name (propagated) rng
@@ -989,6 +1013,15 @@ inferPattern matchType matchRange (PatParens pat range)
 inferPattern matchType matchRange pattern
   = todo ("Type.Infer.inferPattern")
 -}
+
+inferBinders :: [(Name,NameInfo)] -> [ValueBinder Type ()] -> [(Name,NameInfo)]
+inferBinders infgamma binders
+  = case binders of
+      [] -> infgamma
+      (par:pars) -> 
+        let info = (binderName par,createNameInfoX (binderName par) DefVal (getRange par) (binderType par))
+        in inferBinders (infgamma ++ [info]) pars
+
 
 -- | Infer automatic unwrapping for parameters with default values, and adjust their type from optional<a> to a
 -- Takes an accumulated InfGamma (initially empty), a list of parameters (as value binders) and returns

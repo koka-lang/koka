@@ -106,7 +106,7 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "function", "val", "var"
     , "external"
-    , "effect", "handle"
+    , "effect", "handle", "handler"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"
@@ -342,12 +342,7 @@ alex_action_49 =  string $ \s -> LexError ("illegal character in line directive:
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
-
-
-
-
-
-
+{-# LINE 9 "<command-line>" #-}
 {-# LINE 1 "G:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
 
 
@@ -366,7 +361,7 @@ alex_action_49 =  string $ \s -> LexError ("illegal character in line directive:
 
 
 
-{-# LINE 6 "<command-line>" #-}
+{-# LINE 9 "<command-line>" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE

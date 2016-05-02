@@ -147,14 +147,14 @@ external show( exn : exception ) : string {
 
 // Catch an exception raised by "error" and handle it.
 // Use "onExn" or "onFail" when appropiate.
-external catch : forall<e,a> ( action : () -> <exn|e> a, handler: exception -> e a) -> e a {
+external catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
   js "$primcatch"
 }
   
-// Execute a "handler" no matter what exception was raised in "action".
+// Execute a "hndler" no matter what exception was raised in "action".
 // Use of "onExit" is preferred (which has its arguments swapped).
-external inline finally : forall<e,a> (action: () -> e a, handler: () -> e ()) -> e a  {
+external inline finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)"
   js "$finally"
 }
@@ -178,10 +178,10 @@ external patternMatchError : forall<a> (range : string, def : string) -> exn a {
     js "$pattern_match_error"
 }
 
-// Set a "handler" that is called when an exception is raised in the "action" block.
-function onFail( handler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
+// Set a "hndler" that is called when an exception is raised in the "action" block.
+function onFail( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
-  catchOnFail( action, fun(exn){ handler(); throw(exn) })
+  catchOnFail( action, fun(exn){ hndler(); throw(exn) })
 }
 
 // Return a default value when an exception is raised
@@ -189,23 +189,23 @@ function onExn( value : a , action : () -> <exn|e> a ) : e a {
   catch( action, fun(_) { value })
 }
 
-private external catchOnFail : forall<e,a> ( action : () -> e a, handler: exception -> e a) -> e a {
+private external catchOnFail : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
   js "$catch"
 }
 
 
-// Set a "handler" that is always called when the "action" finishes (either normally or with an exception).
-function onExit( handler : () -> e (), action : () -> e a ) : e a
+// Set a "hndler" that is always called when the "action" finishes (either normally or with an exception).
+function onExit( hndler : () -> e (), action : () -> e a ) : e a
 {
-  finally(action,handler)  
+  finally(action,hndler)  
 }
 
-// Set a "handler" that is called if "action" returns without raising an exception.
-function onSuccess( handler : () -> e (), action : () -> e a ) : e a
+// Set a "hndler" that is called if "action" returns without raising an exception.
+function onSuccess( hndler : () -> e (), action : () -> e a ) : e a
 {
   val x = action()
-  handler()
+  hndler()
   return x
 }
 
@@ -2338,14 +2338,14 @@ function fill( s : string, width : int, char : char = ' ') : string
 // Represents values that are computed asynchronously
 type async<a>
 
-// When an asynchronous value is computed, call the specified "handler" (at most once).
-external on : forall<a,b,e> ( async : async<a>, handler : (value : a) -> e b ) -> e async<b> {
+// When an asynchronous value is computed, call the specified "hndler" (at most once).
+external on : forall<a,b,e> ( async : async<a>, hndler : (value : a) -> e b ) -> e async<b> {
   js "async_on"
   cs inline "#1.On<##2>(#2)"
 }
 
-// When an asynchronous value computation fails, call the specified "handler" (at most once).
-external onExn : forall<a,e> ( async : async<a>, handler : (exn : exception) -> e a) -> e async<a> {
+// When an asynchronous value computation fails, call the specified "hndler" (at most once).
+external onExn : forall<a,e> ( async : async<a>, hndler : (exn : exception) -> e a) -> e async<a> {
   js "async_on_exn"
   cs inline "#1.OnExn<##1>(#2)"
 }
@@ -2362,21 +2362,21 @@ external readln : () -> console async<string>  {
   cs inline "Primitive.ReadLine()"
 }
 
-// Read a line from the console and immediately supply a handler 
+// Read a line from the console and immediately supply a hndler 
 // For convenience, returns a unit value. Use an explicit "on" if
 // the returned ":async" is needed.
-function readln( handler : (string) -> <console|e> a ) : <console|e> () 
+function readln( hndler : (string) -> <console|e> a ) : <console|e> () 
 {
-  readln().on(handler)
+  readln().on(hndler)
   return ()
 }
 
-// Displays "query" to the user (with a space attached) and invokes "handler" with 
+// Displays "query" to the user (with a space attached) and invokes "hndler" with 
 // the user's response. 
-function question( query : string, handler : (input : string) -> <console|e> a ) : <console|e> ()
+function question( query : string, hndler : (input : string) -> <console|e> a ) : <console|e> ()
 {
   print(query + " ")
-  readln( handler )
+  readln( hndler )
 }
 
  
