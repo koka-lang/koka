@@ -413,6 +413,10 @@ infResolveType tp ctx
   = do infTp <- infUserType infKindStar ctx tp
        resolveType M.empty False infTp
        
+infResolveHX :: UserType -> Context -> KInfer Type
+infResolveHX tp ctx
+  = do infTp <- infUserType infKindHandled ctx tp
+       resolveType M.empty False infTp
 
 {---------------------------------------------------------------
   Infer kinds of definitions
@@ -457,7 +461,14 @@ infPatValueBinder (ValueBinder name mbTp pat nameRng rng)
                                 return (Just tp')
        pat'  <- infPat pat
        return (ValueBinder name mbTp' pat' nameRng rng)
-     
+
+infHandlerValueBinder (ValueBinder name mbTp () nameRng rng)
+  = do mbTp' <- case mbTp of
+                  Nothing -> return Nothing
+                  Just tp -> do tp' <- infResolveType tp (Check "Handler parameters must be values" rng)
+                                return (Just tp')
+       return (ValueBinder name mbTp' () nameRng rng)
+       
 
 infExpr :: Expr UserType -> KInfer (Expr Type)
 infExpr expr
@@ -487,6 +498,16 @@ infExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- infExpr expr
                                    return (Parens expr' range)
+      Handler meff pars ret ops hrng rng 
+                             -> do pars' <- mapM infHandlerValueBinder pars 
+                                   meff' <- case meff of
+                                              Nothing  -> return Nothing
+                                              Just eff -> do eff' <- infResolveHX eff (Check "Handler types must be effects" hrng)
+                                                             return (Just eff')
+                                   ret' <- infExpr ret
+                                   ops' <- mapM infBranch ops
+                                   return (Handler meff' pars' ret' ops' hrng rng)
+
 
 infPat pat
   = case pat of

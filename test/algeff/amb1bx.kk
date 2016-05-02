@@ -36,15 +36,15 @@ effect state {
 function amb_handle() {
   handler {
     return x -> [x]
-    flip()   -> cont(False) + cont(True)
+    flip()   -> resume(False) + resume(True)
   }
 }
 
 function state_handle() {
   handler(i:int) {
     return x -> x
-    get()    -> cont(i,i)
-    set(j)   -> cont((),j) 
+    get()    -> resume(i,i)
+    set(j)   -> resume((),j) 
   }
 }
 

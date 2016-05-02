@@ -23,7 +23,7 @@ module Common.Name
           , newHiddenExternalName
           , newHiddenName, isHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName, toOperationsName
+          , newCreatorName, toOperationsName, fromOperationsName
           , toConstructorName, isConstructorName
           , splitModuleName, unsplitModuleName
           
@@ -233,7 +233,11 @@ newCreatorName name
 toOperationsName :: Name -> Name
 toOperationsName name
   = postpend "_ops" name
-
+  
+-- | Create an effect type name from an operations type name.
+fromOperationsName :: Name -> Name
+fromOperationsName name
+  = newQualified (nameModule name) (reverse (drop 4 (reverse (nameId name))))
 
 prepend :: String -> Name -> Name
 prepend s name

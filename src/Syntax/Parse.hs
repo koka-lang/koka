@@ -976,11 +976,12 @@ matchexpr
   
 handlerExpr
   = do rng <- keyword "handler"
+       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
        pars <- parensCommas lparen handlerPar <|> return []
        (retops,rng2) <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
-         [ret] -> return (Handler pars ret ops (combineRanges [rng,rng2]))
+         [ret] -> return (Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
 handlerOp :: LexParser (Either UserExpr UserBranch)
@@ -996,7 +997,7 @@ handlerOp
        pars <- handlerParams 
        keyword "->"
        exp <- branchexpr
-       let pat = PatCon name pars nameRng (combineRanged nameRng (map snd pars))
+       let pat = PatCon (toConstructorName name) pars nameRng (combineRanged nameRng (map snd pars))
        return (Right (Branch pat guardTrue exp))
 
 handlerParams :: LexParser [(Maybe (Name,Range), UserPattern)]

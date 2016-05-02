@@ -101,9 +101,10 @@ resolveExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- resolveExpr expr
                                    return (Parens expr' range)    
-      Handler pars ret ops rng -> do ret' <- resolveExpr ret 
-                                     ops' <- mapM resolveBranch ops                                   
-                                     return (Handler pars ret' ops' rng)
+      Handler eff pars ret ops hrng rng 
+                             -> do ret' <- resolveExpr ret 
+                                   ops' <- mapM resolveBranch ops                                   
+                                   return (Handler eff pars ret' ops' hrng rng)
       
 isJust (Just _) = True
 isJust Nothing  = False

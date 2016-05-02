@@ -217,7 +217,7 @@
       },
 
     "libraryid":
-      { "match": "(repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned)(?!\\w)"
+      { "match": "(repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned|resume|cont)(?!\\w)"
       , "name": "support.function.koka"
       },
 

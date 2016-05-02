@@ -600,8 +600,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()       
        return (resTp,resEff,resCore)
                            
-inferExpr propagated expect (Handler pars ret ops rng)
-  = inferHandler propagated expect pars ret ops rng      
+inferExpr propagated expect (Handler mbEff pars ret ops hrng rng)
+  = inferHandler propagated expect mbEff pars ret ops hrng rng      
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -693,27 +693,67 @@ inferExpr propagated expect expr
   = todo ("Type.Infer.inferExpr")
 -}
 
-inferHandler :: Maybe (Type,Range) -> Expect -> [ValueBinder Type ()] -> Expr Type -> [Branch Type] -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect pars ret ops rng
-  = do ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
-       (_,propActionEff,propActionRes,expectActionRes)   <- matchFun propAction
+inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [Branch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect mbeff pars ret ops hrng rng
+  = do -- infer the handled effect
+       hxeff <- inferHandledEffect hrng mbeff ops
+
+        -- peel propagated type apart
+       ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
+       (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
+       -- find propagated parameter types for the handler
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
                          Just _  -> binder
-                      | (binder,mbProp) <- zip pars propArgs]
-       binders1 <- mapM instantiateBinder binders0
+                      | (binder,mbProp) <- zip pars propArgs]                    
+       binders1    <- mapM instantiateBinder binders0
+       -- infer the 'return' clause
        actionResTp <- case propActionRes of 
-                        Nothing -> freshTVar kindStar Meta
-                        Just tp -> return tp
-       retEff <- freshEffect                        
-       let infgamma = inferBinders binders1
+                        Nothing -> Op.freshTVar kindStar Meta
+                        Just (tp,rng) -> return tp
+       pretEff <- freshEffect                        
+       let infgamma = inferBinders [] binders1
            propRet  = case propRes of 
                         Nothing    -> Nothing
-                        Just resTp -> TFun [(nameNil,actionResTp)] retEff resTp
-       (retTp,eff,coreRet) <- extendInfGamma False infgamma  $ 
-                              inferExpr propRet Instantiated ret
-        
+                        Just (resTp,rng) -> Just (TFun [(nameNil,actionResTp)] pretEff resTp, rng)
+       (retTp,_,retCore) <- extendInfGamma False infgamma  $ 
+                            inferExpr propRet Instantiated ret
+       let Just([(_,retInTp)],retEff,retOutTp) = splitFunType retTp
+       -- get the inferred parameter types
+       parTypes <- subst (map binderType binders1)
+
+       -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff retOutTp
+       let heff      = retEff
+           actionEff = effectExtend hxeff heff
+           actionPar = (newName "action",TFun [] actionEff retInTp)
+           argPars   = zip (map binderName binders1) parTypes
+           handlerTp = TFun (actionPar:argPars) heff retOutTp
+
+       -- possibly generalize the handler type
+       (ghandlerTp,gcore) <- maybeGeneralize hrng rng heff expect handlerTp retCore
+
+       -- build binders for the operator and resumption function
+       let bindOp = ValueBinder (newHiddenName "op") ()
+    
+       return (handlerTp,typeTotal,gcore)           
+
+
                               
+inferHandledEffect :: Range -> Maybe Effect -> [Branch Type] -> Inf (Effect,Type)
+inferHandledEffect rng mbeff ops
+  = case mbeff of
+      -- Just eff -> return (handledToLabel eff)
+      Nothing  -> case ops of
+        (Branch (PatCon name _ nameRange _) _ _ : _)
+          -> do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing nameRange
+                (conTp,tvars,_) <- instantiate nameRange gconTp 
+                let (conParTps,conResTp) = splitConTp conTp
+       
+                let opsTpName = conInfoTypeName coninfo
+                    effTpName = fromOperationsName opsTpName 
+                return (handledToLabel (TCon (TypeCon effTpName kindHandled)))
+        _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
+
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
 inferApp propagated expect fun nargs rng
@@ -1396,7 +1436,7 @@ freshEffect
 {--------------------------------------------------------------------------
   Helpers
 --------------------------------------------------------------------------}
-instantiateBinder :: ValueBinder (Maybe Type) (Maybe (Expr Type)) -> Inf (ValueBinder Type (Maybe (Expr Type)))
+instantiateBinder :: ValueBinder (Maybe Type) e -> Inf (ValueBinder Type e)
 instantiateBinder binder
   = do tp <- case binderType binder of
               Just tp -> return tp
