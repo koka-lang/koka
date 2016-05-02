@@ -113,6 +113,12 @@ ppDefs env defs
   = text "in definition:" <+> tupled (map (text.show.defName) defs)
     <-> prettyDef (head defs) env
 
+checkTName :: TName -> Check TName
+checkTName (TName name tp)
+  = do tp' <- checkType tp
+       return (TName name tp')
+
+
 checkType :: Type -> Check Type
 checkType tp
   = do env <- getEnv
@@ -165,7 +171,8 @@ check expr
   = case expr of
       Lam pars eff body
         -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
-              return (typeFun [(name,tp) | TName name tp <- pars] eff tpRes)
+              pars' <- mapM checkTName pars
+              return (typeFun [(name,tp) | TName name tp <- pars'] eff tpRes)
       App (TypeApp (Var tname info) _) [x,k]
         | getName tname == nameYieldOp
         -> -- trace ("found unsafeyield: " ++ show (pretty (typeOf tname)) ++ ", " ++ show (pretty (typeOf k))) $
@@ -281,7 +288,7 @@ match :: String -> (Env -> Doc) -> Type -> Type -> Check ()
 match when fdoc a b 
   = do ures <- runUnify (unify a b)
        case ures of
-         (Left error, _)  -> showCheck ("cannot unify" ++ show error) when a b fdoc
+         (Left error, _)  -> showCheck ("cannot unify (" ++ show error ++ ")") when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return () 
                               else do env <- getEnv

@@ -168,7 +168,7 @@ nameTpInt       = preludeName "int"
 nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"
-nameTpAny       = newName ".any"
+nameTpAny       = preludeName "any"
 
 nameTpIO        = preludeName "io"
 nameTpUnit      = preludeName "()"

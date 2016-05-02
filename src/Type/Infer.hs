@@ -838,12 +838,14 @@ inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch 
                         Just (((xname,_):targs),teff,tres) 
                           -> let newargs = ((xname,resTp):targs)
                              in (TFun newargs teff tres,
-                                  [ValueBinder name (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
+                                  [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
                         _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
            xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
-           xresumeAppArgs = (Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng) :
-                              [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
-           xresumeExpr   = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng)
+           xresumeAppArgs = (Nothing, 
+                              App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng) 
+                            : [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+           xresumeExpr   = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) 
+                                                    xresumeAppArgs rng) rng)
                                xresumeTp rng
            xresumeDef    = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng)
                                rng Private DefFun ""

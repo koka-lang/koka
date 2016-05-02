@@ -11,12 +11,16 @@
 
 module Core.Simplify (simplify) where
 
+import Lib.Trace
+import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen )
+import Common.NamePrim( nameEffectOpen, nameToAny )
 import Type.Type
 import Type.TypeVar
+import Type.Pretty
 import Core.Core
+import Core.Pretty
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
@@ -94,8 +98,10 @@ topDown (Let dgs body)
           _ -> False
 
 -- Remove effect open applications
+{-
 topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = topDown arg
+-}
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars == length args
@@ -190,10 +196,23 @@ isTotalAndCheap expr
       Var{} -> True
       Con{} -> True
       Lit{} -> True
+      -- toany(x)
+      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg
+      -- functions that are immediately applied to something cheap (cps generates this for resumes)
+      -- Lam pars eff (App e args) 
+      --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
+      -- type application / abstraction
       TypeLam _ body -> isTotalAndCheap body
       TypeApp body _ -> isTotalAndCheap body
-      _     -> False
 
+      _     -> False
+  where
+    matchParArg (par,Var v _) = par == v
+    matchParArg (par,App (TypeApp (Var v _) [_]) [Var arg _]) = par == arg && getName v == nameToAny
+    matchParArg _ = False
+
+    matchTParTArg (tv1,TVar tv2) = tv1 == tv2
+    matchTParTArg _ = False
 
 occursAtMostOnce :: Name -> Expr -> Bool
 occursAtMostOnce name expr

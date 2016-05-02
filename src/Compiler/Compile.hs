@@ -709,17 +709,17 @@ inferCheck loaded flags line coreImports program1
                              return (True,cdefs)
 
        -- recheck cps transformed core
-       if (False && not (coreCheck flags)) then return () 
+       if (True || not (coreCheck flags)) then return () 
         else Core.Check.checkCore isCps penv unique4 gamma coreDefs1
 
 
        -- simplify coreF if enabled
        let coreDefs2 = if noSimplify flags 
                         then coreDefs1
-                        else trace "simplify" $ Core.Simplify.simplify coreDefs1
+                        else trace "simplify" $ Core.Simplify.simplify $ Core.Simplify.simplify coreDefs1
 
        -- recheck simplified core
-       if (not (coreCheck flags)) then return () 
+       if (True || not (coreCheck flags)) then return () 
         else Core.Check.checkCore isCps penv unique4 gamma coreDefs2
 
        -- Assemble core program and return

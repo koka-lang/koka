@@ -26,7 +26,7 @@ import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Name
-import Common.NamePrim( namePredHeapDiv, nameTpAny )
+import Common.NamePrim( namePredHeapDiv, nameTpCont )
 import Kind.Kind
 import qualified Kind.Unify( match )
 import Type.Type
@@ -40,7 +40,7 @@ import qualified Lib.Trace(trace)
 
 trace s x =
    Lib.Trace.trace s
-   x
+    x
 
 -- | Do two types overlap on the argument types? Used to check for overlapping definitions of overloaded identifiers.
 overlaps :: Range -> Tvs -> Type -> Type -> Unify ()
@@ -123,7 +123,7 @@ matchArguments matchSome range free tp fixed named
 -- may be quantified).
 subsume :: Range -> Tvs -> Type -> Type -> Unify (Type,[Evidence], Core.Expr -> Core.Expr)
 subsume range free tp1 tp2
-  = trace (" subsume: " ++ show (tp1,tp2) ++ ", free: " ++ show (tvsList free)) $
+  = -- trace (" subsume: " ++ show (tp1,tp2) ++ ", free: " ++ show (tvsList free)) $
     do -- skolemize,instantiate and unify
        (sks,evs1,rho1,core1) <- skolemizeEx range tp1
        (tvs,evs2,rho2,core2) <- instantiateEx range tp2
@@ -133,10 +133,10 @@ subsume range free tp1 tp2
        -- entailment check: predicates should be entailed
        -- todo: we should check for skolems since predicates with skolems must be entailed directly
        sub  <- getSubst
-       trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
+       -- trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
        let allfree = tvsUnion free (ftv tp1)
            escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree] 
-       trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
+       -- trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
        if (tvsDisjoint (tvsNew sks) escaped) 
          then return ()
          else unifyError NoSubsume
@@ -166,7 +166,7 @@ entails skolems known (ev:evs)
   = case evPred ev of
       PredIFace name [_,_,_]  | name == namePredHeapDiv  -- can always be solved
         -> entails skolems known evs
-      _ -> trace ("Type.Unify.subsume.entails: cannot show entailment: " ++ show (tvsList skolems,known,ev:evs)) $
+      _ -> -- trace ("Type.Unify.subsume.entails: cannot show entailment: " ++ show (tvsList skolems,known,ev:evs)) $
            unifyError NoEntail
 
 
@@ -175,15 +175,6 @@ entails skolems known (ev:evs)
 --------------------------------------------------------------------------}
 -- | Unify two types.
 unify :: Type -> Type -> Unify ()
-
-
--- special handling of .any; just for cps translation :-(
-unify (TCon tc1) t2 | typeConName tc1 == nameTpAny
-  = return ()
-
-unify t1 (TCon tc2) | typeConName tc2 == nameTpAny
-  = return ()
-  
 
 -- effects
 unify t1@(TApp (TCon tc1) _) t2@(TApp (TCon tc2) _)  | tc2 == tconEffectExtend && tc1 == tconEffectExtend
@@ -243,8 +234,18 @@ unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == le
        unifyPreds preds1 preds2
        -- no need to check for escaping skolems as we don't unify to bound variables
 
--- synonyms     
+-- special unsafe(!) handling of continuations; just for cps translation :-(
+unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2) | typesynName syn1 == nameTpCont && typesynName syn2 == nameTpCont
+  = -- trace ("cont==cont") $
+    unifies (take (n-1) args1) (take (n-1) args2)
+  where
+    n = length args1
 
+unify t1@(TSyn syn1 args1 tp1) t2@(TFun [(_,tpar)] teff tres) | typesynName syn1 == nameTpCont
+  = -- trace ("cont==fun") $
+    unifies (take 2 args1) [tpar,teff]
+
+-- synonyms     
 unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2) 
   = if (typesynRank syn1 > typesynRank syn2)
      then unify tp1 t2
@@ -259,7 +260,7 @@ unify tp1 (TSyn _ _ tp2)
 
 -- no match
 unify tp1 tp2
-  = trace ("no match: " ++  show (pretty tp1, pretty tp2)) $ 
+  = -- trace ("no match: " ++  show (pretty tp1, pretty tp2)) $ 
     unifyError NoMatch
 
 
@@ -367,7 +368,7 @@ unifyEffectVar tv1 tp2
   = do let (ls2,tl2) = extractOrderedEffect tp2  -- ls2 must be non-empty
        case expandSyn tl2 of
          TVar tv2 | tv1 == tv2  -- e ~ <div,exn|e>  ~> e := <div,exn|e'>
-           -> trace ("unifyEffectVar: " ++ show tv1 ++ ":=" ++ show tp2 ++ " is infinite") $
+           -> -- trace ("unifyEffectVar: " ++ show tv1 ++ ":=" ++ show tp2 ++ " is infinite") $
                  unifyError Infinite
          _ -> do tv <- freshTVar kindEffect Meta
                  unifyTVar tv1 (effectExtends ls2 tl2)
