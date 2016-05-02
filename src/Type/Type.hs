@@ -31,7 +31,7 @@ module Type.Type (-- * Types
                   -- ** Standard types
                   , typeInt, typeBool, typeFun, typeVoid
                   , typeUnit, typeChar, typeString, typeFloat
-                  , typeTuple
+                  , typeTuple, typeAny
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -711,6 +711,10 @@ tconUnit
 typeVoid :: Tau
 typeVoid
   = TCon (TypeCon nameTpVoid kindStar)
+
+typeAny :: Tau
+typeAny
+  = TCon (TypeCon nameTpAny kindStar)
 
 typeTuple :: Int -> Tau
 typeTuple n

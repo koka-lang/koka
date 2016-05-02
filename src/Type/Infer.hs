@@ -22,7 +22,7 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
-                      , namePatternMatchError, nameSystemCore )
+                      , namePatternMatchError, nameSystemCore, nameTpHandled )
 import Common.Range
 import Common.Unique
 import Common.Syntax
@@ -54,7 +54,7 @@ import Core.Simplify( simplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s 
+   Lib.Trace.trace s 
     x
 
 {--------------------------------------------------------------------------
@@ -471,7 +471,7 @@ inferExpr propagated expect (Lam binders body rng)
        
        topEff <- case propEff of
                    Nothing -> return eff
-                   Just (topEff,r) -> trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
+                   Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
@@ -693,66 +693,167 @@ inferExpr propagated expect expr
   = todo ("Type.Infer.inferExpr")
 -}
 
-inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [Branch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect mbeff pars ret ops hrng rng
   = do -- infer the handled effect
-       hxeff <- inferHandledEffect hrng mbeff ops
+       (hxeff) <- inferHandledEffect hrng mbeff ops
 
-        -- peel propagated type apart
+      -- analyze propagated type 
        ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
        (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
+
        -- find propagated parameter types for the handler
-       let binders0 = [case binderType binder of
-                         Nothing -> binder{ binderType = fmap snd mbProp }
-                         Just _  -> binder
+       let propParBinders = [case binderType binder of
+                         Nothing -> binder{ binderType = fmap snd mbProp, binderExpr = Nothing }
+                         Just _  -> binder{ binderExpr = Nothing }
                       | (binder,mbProp) <- zip pars propArgs]                    
-       binders1    <- mapM instantiateBinder binders0
+       -- parBinders <- mapM instantiateBinder binders0
+       
        -- infer the 'return' clause
        actionResTp <- case propActionRes of 
                         Nothing -> Op.freshTVar kindStar Meta
                         Just (tp,rng) -> return tp
        pretEff <- freshEffect                        
-       let infgamma = inferBinders [] binders1
-           propRet  = case propRes of 
+       let propRet  = case propRes of 
                         Nothing    -> Nothing
                         Just (resTp,rng) -> Just (TFun [(nameNil,actionResTp)] pretEff resTp, rng)
-       (retTp,_,retCore) <- extendInfGamma False infgamma  $ 
-                            inferExpr propRet Instantiated ret
-       let Just([(_,retInTp)],retEff,retOutTp) = splitFunType retTp
-       -- get the inferred parameter types
-       parTypes <- subst (map binderType binders1)
+           retExpr = case ret of
+                       Lam [arg] body rng -> Lam (arg:propParBinders) body rng
+                       _ -> failure "Type.Infer.inferHandler: illegal return clause"
+       (retTp,_,retCore) <- inferExpr propRet Instantiated retExpr
+       let Just(retArgs,retEff,retOutTp) = splitFunType retTp
+           ((_,retInTp):argPars) = retArgs
+           parTypes = map snd argPars
+           parBinders = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propParBinders parTypes]
+
+       -- build binders for the operator and resumption function      
+       opsResTp <- Op.freshTVar kindStar Meta
+       (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
+       let opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
+           resumeTp = TFun ((nameNil,opsResTp):argPars) retEff retOutTp 
+           resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
+           opsgamma = inferBinders [] [opsBinder,resumeBinder]
+           infgamma = inferBinders [] parBinders
+
+       iops  <- extendInfGamma False infgamma $
+                extendInfGamma False opsgamma $
+                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated hxName opsInfo resumeBinder) ops
+
+       -- unify effects
+       let (opTps,opEffs,opsCore) = unzip3 iops
+           rngs = map (getRange . hbranchExpr) ops
+       mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
+
+       -- build match for operations
+       let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
+           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff retOutTp
        let heff      = retEff
-           actionEff = effectExtend hxeff heff
+           actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
-           argPars   = zip (map binderName binders1) parTypes
            handlerTp = TFun (actionPar:argPars) heff retOutTp
 
+       -- apply to makeHandler
+       -- ctp <- Op.freshTVar kindStar Meta
+       let mkHandlerName = prepend "makeHandler" (toConstructorName hxName) 
+       mbMkHandler <- lookupFunName (unqualify mkHandlerName) Nothing hrng
+       let coreMkHandler = case mbMkHandler of
+                            Just (qname,tp,info) -> coreExprFromNameInfo qname info
+                            Nothing -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show mkHandlerName
+           tpargs = [heff,typeAny,retInTp,retOutTp] ++ parTypes                          
+           handlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
+
        -- possibly generalize the handler type
-       (ghandlerTp,gcore) <- maybeGeneralize hrng rng heff expect handlerTp retCore
+       (ghandlerTp,gcore) <- maybeGeneralize hrng rng heff expect handlerTp handlerCore
+       sgcore <- subst gcore
+       return (handlerTp,typeTotal,sgcore)           
 
-       -- build binders for the operator and resumption function
-       let bindOp = ValueBinder (newHiddenName "op") ()
-    
-       return (handlerTp,typeTotal,gcore)           
 
+effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
+effectToOperation eff tres
+  = let (ename, optp) = case expandSyn eff of
+                          TCon tc -> (typeConName tc, TApp (TCon (tcToOp tc)) [tres])
+                          TApp (TCon tc) targs -> (typeConName tc, TApp (TCon (tcToOp tc)) (targs ++ [tres]))
+    in do dataInfo <- findDataInfo (toOperationsName ename)                          
+          return (optp,ename,dataInfo)
+  where
+    tcToOp (TypeCon name kind)
+      = TypeCon (toOperationsName name) (kindAddArg kind kindStar {- result -})
 
                               
-inferHandledEffect :: Range -> Maybe Effect -> [Branch Type] -> Inf (Effect,Type)
+inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf Effect
 inferHandledEffect rng mbeff ops
   = case mbeff of
-      -- Just eff -> return (handledToLabel eff)
+      Just eff -> return eff
       Nothing  -> case ops of
-        (Branch (PatCon name _ nameRange _) _ _ : _)
-          -> do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing nameRange
-                (conTp,tvars,_) <- instantiate nameRange gconTp 
-                let (conParTps,conResTp) = splitConTp conTp
-       
-                let opsTpName = conInfoTypeName coninfo
-                    effTpName = fromOperationsName opsTpName 
-                return (handledToLabel (TCon (TypeCon effTpName kindHandled)))
+        (HandlerBranch name pars expr nameRng rng: _)
+          -> -- todo: handle errors if we find a non-operator
+             do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
+                (rho,_,_) <- instantiate nameRng tp
+                case splitFunType rho of
+                  Just(_,eff,_) -> let ([l],_) = extractEffectExtend eff
+                                   in case expandSyn l of 
+                                        TApp (TCon tc) [hx] | typeConName tc == nameTpHandled -> return hx
+
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
+
+inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Name -> DataInfo -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
+inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch name pars expr nameRng rng) 
+  = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name) 
+                            (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
+       
+       -- check if it was part of the handled effect operations
+       let cname = toConstructorName qname
+           constrs = dataInfoConstrs opsInfo
+       -- trace ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs)) $
+       (conname,gconTp,conrepr,coninfo)
+           <- case filter (\ci -> cname == conInfoName ci) constrs of
+                    [ci] -> resolveConName (conInfoName ci) Nothing nameRng
+                    _ -> do env <- getPrettyEnv
+                            infError nameRng (text "operator" <+> ppName env qname <+> text "is not defined as part of the handled effect" <+> ppName env hxName) 
+
+       -- check the types of the parameters against the operator declaration
+       (rho,_,_) <- instantiate rng tp
+       let (parTps,effTp,resTp) = splitOpTp rho
+       if (length parTps < length pars)
+        then typeError rng nameRng (text "operator has not enough parameters") rho []
+        else if (length parTps > length pars)
+              then typeError rng nameRng (text "operator has too many parameters") rho []
+              else return ()
+       parsTps <- mapM (\par -> case binderType par of 
+                                  Nothing -> Op.freshTVar kindStar Meta
+                                  Just tp -> return tp) pars              
+       let propTp = TFun [(nameNil,tp) | tp <- parsTps] effTp resTp
+       inferUnify (checkOp rng) nameRng rho propTp
+       sparTps <- subst parTps
+
+       -- create resume definition with the type specialized to this operation
+       let xresumeTp = case splitFunType (binderType resumeBinder) of 
+                        Just ((_:targs),teff,tres) -> TFun ((nameNil,resTp):targs) teff tres
+                        _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
+           xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
+           parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
+           exprGamma     = inferBinders [] (xresumeBinder:parBinders)                        
+
+       -- and infer the body type    
+       (exprTp,exprEff,exprCore) <- extendInfGamma False exprGamma $ 
+                                    inferExpr propagated expect expr
+
+       let resumeCore = (Core.|~>) [(Core.TName (binderName xresumeBinder) (binderType xresumeBinder), 
+                                    Core.Var (Core.TName (binderName resumeBinder) (binderType resumeBinder)) Core.InfoNone)] exprCore
+
+       -- build a Core pattern match
+       let patCore = Core.PatCon (Core.TName conname gconTp) 
+                          [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
+                           conrepr (parTps) coninfo
+           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue resumeCore]             
+       return (exprTp,exprEff,branchCore)
+  where
+    splitOpTp rho
+      = case expandSyn rho of                
+          TFun targs teff tres -> (map snd targs,teff,tres)
+          _ -> ([],typeTotal,rho)
 
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
@@ -1124,6 +1225,7 @@ inferOptionals infgamma (par:pars)
        
 
 checkFun        = Check "function type does not match the argument types"
+checkOp         = Check "operator type does not match the parameter types"
 checkMatch      = Check "branch has not the same type as previous branches"
 checkAnn        = Check "type cannot be instantiated to match the annotation"
 checkRec        = Check "recursive invocations do not match the assumed type; add a type annotation?"

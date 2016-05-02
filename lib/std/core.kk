@@ -2574,3 +2574,5 @@ external inline unsafeyield( op : operation<a> ) : e a {
 type cps :: HX;
 
 alias cont<a,e,b> = a -> e b
+
+external inline toAny( x : a ) : any { inline "#1" }

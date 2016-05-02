@@ -103,7 +103,7 @@ resolveExpr expr
                                    return (Parens expr' range)    
       Handler eff pars ret ops hrng rng 
                              -> do ret' <- resolveExpr ret 
-                                   ops' <- mapM resolveBranch ops                                   
+                                   ops' <- mapM resolveHandlerBranch ops                                   
                                    return (Handler eff pars ret' ops' hrng rng)
       
 isJust (Just _) = True
@@ -113,6 +113,10 @@ resolveBranch (Branch pattern guard body)
   = do guard'  <- resolveExpr guard
        body'   <- resolveExpr body
        return (Branch pattern guard' body')
+
+resolveHandlerBranch hb@(HandlerBranch{ hbranchExpr=expr })
+  = do expr'   <- resolveExpr expr
+       return hb{ hbranchExpr = expr' }
 
 {--------------------------------------------------------------------------
   Fixity map for all operators

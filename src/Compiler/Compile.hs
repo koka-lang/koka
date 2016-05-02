@@ -703,7 +703,7 @@ inferCheck loaded flags line coreImports program1
 
        -- cps tranform program
        (isCps,coreDefs1)
-           <- if (Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
+           <- if (True || Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
                      then return (False,coreDefs0)
                      else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
                              return (True,cdefs)

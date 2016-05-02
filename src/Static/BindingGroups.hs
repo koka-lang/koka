@@ -163,7 +163,7 @@ dependencyExpr modName expr
       Ann expr t rng       -> let (depExpr,fv) = dependencyExpr modName expr
                               in (Ann depExpr t rng, fv)
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr 
-                                    (depBranches,fv2) = dependencyBranches modName branches
+                                    (depBranches,fv2) = dependencyBranches dependencyBranch modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
       Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
@@ -171,12 +171,20 @@ dependencyExpr modName expr
       Lit    lit             -> (expr, S.empty)
       Handler eff pars ret ops hrng rng 
         -> let (depRet,fv1)     = dependencyExpr modName ret
-               (depBranches,fv2)= dependencyBranches modName ops
+               (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
            in (Handler eff pars depRet depBranches hrng rng, 
                 S.difference (S.union fv1 fv2) (S.fromList (map binderName pars)))
 
-dependencyBranches modName branches
-  = unzipWith (id,S.unions) (map (dependencyBranch modName) branches)
+dependencyBranches f modName branches
+  = unzipWith (id,S.unions) (map (f modName) branches)
+
+
+dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
+dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchPars=pars, hbranchExpr=expr })
+  = (hb{ hbranchExpr = depExpr }, S.difference fvExpr (S.fromList (map getName pars)))
+  where
+    (depExpr, fvExpr)   = dependencyExpr modName expr
+
 
 dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
 dependencyBranch modName (Branch pattern guard expr)
@@ -217,7 +225,6 @@ instance HasFreeVar (Pattern t) where
         PatVar  binder           -> S.singleton (getName binder)
         PatAnn  pat tp range     -> freeVar pat
         PatParens pat range      -> freeVar pat
-      
 
 unzipWith (f,g) xs
   = let (x,y) = unzip xs in (f x, g y)

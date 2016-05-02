@@ -28,6 +28,7 @@ module Common.NamePrim
           , nameUnit
           , nameReturn
           , nameEffectOpen
+          , nameToAny
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -160,7 +161,7 @@ nameYieldOp     = preludeName "unsafeyield"
 nameTpCps       = preludeName "cps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
-
+nameToAny       = preludeName "toAny"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"

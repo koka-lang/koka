@@ -984,7 +984,7 @@ handlerExpr
          [ret] -> return (Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
-handlerOp :: LexParser (Either UserExpr UserBranch)
+handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
 handlerOp 
   = do rng <- keyword "return"
        (name,prng) <- paramid
@@ -997,18 +997,17 @@ handlerOp
        pars <- handlerParams 
        keyword "->"
        exp <- branchexpr
-       let pat = PatCon (toConstructorName name) pars nameRng (combineRanged nameRng (map snd pars))
-       return (Right (Branch pat guardTrue exp))
+       return (Right (HandlerBranch name pars exp nameRng (combineRanged nameRng pars)))
 
-handlerParams :: LexParser [(Maybe (Name,Range), UserPattern)]
+handlerParams :: LexParser [ValueBinder (Maybe UserType) ()]
 handlerParams
   = parensCommas (lparen <|> lapp) handlerParam <|> return []
 
-handlerParam :: LexParser (Maybe (Name,Range),UserPattern)
+handlerParam :: LexParser (ValueBinder (Maybe UserType) ())
 handlerParam
   = do (name,rng) <- identifier     
        tp <- optionMaybe typeAnnot
-       return (Nothing,PatVar (ValueBinder name tp (PatWild rng) rng (combineRanged rng tp)))
+       return (ValueBinder name tp () rng (combineRanged rng tp))
 
 
 handlerPar :: LexParser (ValueBinder (Maybe UserType) ()) 

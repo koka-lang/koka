@@ -43,6 +43,7 @@ type UserTypeDef = TypeDef UserType UserType UserKind
 type UserTypeDefGroup = TypeDefGroup UserType UserKind
 type UserPattern = Pattern UserType
 type UserBranch  = Branch UserType
+type UserHandlerBranch = HandlerBranch UserType
 type UserValueBinder = ValueBinder () -- (Maybe UserType)
 type UserTypeBinder = TypeBinder UserKind
 
@@ -198,7 +199,15 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [Branch t] Range Range
+  | Handler (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+
+data HandlerBranch t
+  = HandlerBranch{ hbranchName :: Name
+                 , hbranchPars :: [ValueBinder (Maybe t) ()]
+                 , hbranchExpr :: Expr t
+                 , hbranchNameRange :: Range
+                 , hbranchPatRange  :: Range
+                 }
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)
@@ -333,6 +342,10 @@ instance Ranged (Pattern t) where
 instance Ranged (Branch t) where
   getRange (Branch patterns guard body)
     = combineRange (getRange patterns) (getRange body)
+
+instance Ranged (HandlerBranch t) where
+  getRange (HandlerBranch{ hbranchPatRange=rng, hbranchExpr=expr })
+    = combineRange rng (getRange expr)
 
 ---------------------------------------------------------------------------
 -- Get Name

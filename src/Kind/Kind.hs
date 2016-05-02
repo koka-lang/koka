@@ -19,6 +19,7 @@ module Kind.Kind( -- * Kinds
                   , isKindFun
                   , isKindStar
                   , isKindEffect, isKindHandled
+                  , kindAddArg
                   ) where
 
 import Common.Name
@@ -67,6 +68,13 @@ kindArrow
 kindArrowN :: Int -> Kind
 kindArrowN n
   = foldr kindFun (kindFun kindEffect kindStar) (replicate n kindStar)
+
+kindAddArg :: Kind -> Kind -> Kind
+kindAddArg kfun karg
+  = case kfun of
+      KApp (KApp k0 k1) k2  | k0 == kindArrow && not (isKindEffect k1 && isKindStar k2)
+        -> KApp (KApp k0 k1) (kindAddArg k1 karg)
+      _ -> kindFun karg kfun
 
 kindPred :: Kind
 kindPred

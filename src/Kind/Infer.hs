@@ -505,7 +505,7 @@ infExpr expr
                                               Just eff -> do eff' <- infResolveHX eff (Check "Handler types must be effects" hrng)
                                                              return (Just eff')
                                    ret' <- infExpr ret
-                                   ops' <- mapM infBranch ops
+                                   ops' <- mapM infHandlerBranch ops
                                    return (Handler meff' pars' ret' ops' hrng rng)
 
 
@@ -522,6 +522,11 @@ infPat pat
       PatParens pat range     -> do pat' <- infPat pat
                                     return (PatParens pat' range)
 
+
+infHandlerBranch (HandlerBranch name pars expr nameRng rng) 
+  = do pars' <- mapM infHandlerValueBinder pars
+       expr' <- infExpr expr
+       return (HandlerBranch name pars' expr' nameRng rng)
 
 infBranch (Branch pattern guard body)
   = do pattern'<- infPat pattern
