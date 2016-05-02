@@ -26,17 +26,16 @@ function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
   }
 }
 
-function makeHandler<e,o,a,b,c>( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
+function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
   function hndler(yld) {
     match(yld) {
       Yield(op,f) -> {
-        function cont(x) { hndler(f(x)) }
         match(matchop(op)) {
           Just(eop) -> {            
-            ops(eop,cont)
+            ops(eop,fun(x) { hndler(f(x))})
           }          
           Nothing -> {
-            reyield(op,cont)
+            reyield(op,fun(x) { hndler(f(x))})
           }
         }
       }

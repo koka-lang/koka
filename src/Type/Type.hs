@@ -714,7 +714,7 @@ typeVoid
 
 typeAny :: Tau
 typeAny
-  = TCon (TypeCon nameTpAny kindStar)
+  = TCon (TypeCon (nameTpAny) kindStar)
 
 typeTuple :: Int -> Tau
 typeTuple n

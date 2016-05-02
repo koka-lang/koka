@@ -318,7 +318,7 @@ prettyLit env lit
 
 prettyTName :: Env -> TName -> Doc
 prettyTName env (TName name tp)
-  = prettyName env name -- <> text ":" <> ppType env tp
+  = prettyName env name <> text ":" <> ppType env tp
 
 prettyName :: Env -> Name -> Doc
 prettyName env name

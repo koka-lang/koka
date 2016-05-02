@@ -21,7 +21,7 @@ import Common.Unique
 import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps, nameTpCont )
 import Common.Error
 
-import Kind.Kind( kindStar, isKindEffect, kindHandled )
+import Kind.Kind( kindStar, isKindEffect, kindFun, kindEffect,   kindHandled )
 import Type.Type
 import Type.Kind
 import Type.TypeVar
@@ -112,7 +112,8 @@ cpsExpr expr
                then do cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        return $ \k -> k (Lam args' eff (body' id))
                else -- cps converted lambda: add continuation parameter
-                    do resTp <- freshTVar kindStar Meta
+                    do -- resTp <- freshTVar kindStar Meta
+                       let resTp = typeAny
                        let bodyTp = typeOf body
                        return $ \k -> k (Lam (args' ++ [tnameK bodyTp eff resTp]) eff (body' (\xx -> App (varK bodyTp eff resTp) [xx])))
       App f args
@@ -266,8 +267,8 @@ cpsTypeX pureTvs tp
               res'  <- cpsTypeX pureTvs res
               eff'  <- cpsTypeX pureTvs eff
               if (needsCpsEffect pureTvs eff')
-               then do tpYld <- freshTVar kindStar Meta
-                       return $ TFun (pars' ++ [(nameK, typeK res' eff' tpYld)]) eff' tpYld 
+               then do let tpYld = typeAny --  <- freshTVar kindStar Meta
+                       return $ TFun (pars' ++ [(nameK, typeK res' eff' tpYld)]) eff' tpYld
                else return $ TFun pars' eff' res'
       TForall tvars preds t
         -> do t' <- cpsTypeX (tvsRemove tvars pureTvs) t
@@ -285,7 +286,7 @@ cpsTypeX pureTvs tp
 
 varK tp effTp resTp    = Var (tnameK tp effTp resTp) (InfoArity 0 1)
 tnameK tp effTp resTp  = TName nameK (typeK tp effTp resTp)
-typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont kindStar 0 Nothing) 
+typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing) 
                            [tp,effTp,resTp]
                            (TFun [(nameNil,tp)] effTp resTp) 
                           -- TFun [(nameNil,tp)] typeTotal typeYld

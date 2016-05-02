@@ -187,7 +187,7 @@ check expr
                else return (typeOf tname)
                -}
       Var tname info  
-        -> return $ typeOf tname                
+        -> checkType $ typeOf tname                
       Con tname info
         -> return $ typeOf tname
       App fun args
@@ -281,7 +281,7 @@ match :: String -> (Env -> Doc) -> Type -> Type -> Check ()
 match when fdoc a b 
   = do ures <- runUnify (unify a b)
        case ures of
-         (Left error, _)  -> showCheck "cannot unify" when a b fdoc
+         (Left error, _)  -> showCheck ("cannot unify" ++ show error) when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return () 
                               else do env <- getEnv

@@ -21,11 +21,12 @@ module Type.Unify ( Unify, UnifyError(..), runUnify
 
 import Control.Applicative
 import Control.Monad
+import Lib.PPrint
 import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Name
-import Common.NamePrim( namePredHeapDiv )
+import Common.NamePrim( namePredHeapDiv, nameTpAny )
 import Kind.Kind
 import qualified Kind.Unify( match )
 import Type.Type
@@ -38,7 +39,7 @@ import qualified Core.Core as Core
 import qualified Lib.Trace(trace)
 
 trace s x =
-  -- Lib.Trace.trace s
+   Lib.Trace.trace s
    x
 
 -- | Do two types overlap on the argument types? Used to check for overlapping definitions of overloaded identifiers.
@@ -175,6 +176,15 @@ entails skolems known (ev:evs)
 -- | Unify two types.
 unify :: Type -> Type -> Unify ()
 
+
+-- special handling of .any; just for cps translation :-(
+unify (TCon tc1) t2 | typeConName tc1 == nameTpAny
+  = return ()
+
+unify t1 (TCon tc2) | typeConName tc2 == nameTpAny
+  = return ()
+  
+
 -- effects
 unify t1@(TApp (TCon tc1) _) t2@(TApp (TCon tc2) _)  | tc2 == tconEffectExtend && tc1 == tconEffectExtend
   = unifyEffect t1 t2
@@ -184,7 +194,6 @@ unify t1@(TApp (TCon tc1) _) (TVar tv2)  | tc1 == tconEffectExtend && isMeta tv2
 
 unify (TVar tv1) t2@(TApp (TCon tc2) _)  | tc2 == tconEffectExtend && isMeta tv1
   = unifyEffectVar tv1 t2
-
 
 -- type variables
 unify (TVar v1) (TVar v2) | v1 == v2
@@ -233,8 +242,9 @@ unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == le
        unify stp1 stp2
        unifyPreds preds1 preds2
        -- no need to check for escaping skolems as we don't unify to bound variables
-    
--- synonyms       
+
+-- synonyms     
+
 unify t1@(TSyn syn1 args1 tp1) t2@(TSyn syn2 args2 tp2) 
   = if (typesynRank syn1 > typesynRank syn2)
      then unify tp1 t2
@@ -246,9 +256,11 @@ unify (TSyn _ _ tp1) tp2
 unify tp1 (TSyn _ _ tp2)
   = unify tp1 tp2
 
+
 -- no match
 unify tp1 tp2
-  = unifyError NoMatch
+  = trace ("no match: " ++  show (pretty tp1, pretty tp2)) $ 
+    unifyError NoMatch
 
 
 -- | Unify a type variable with a type
@@ -273,6 +285,7 @@ unifyTVar tv@(TypeVar id kind Meta) tp
                   else do -- trace ("unifyVar: " ++ show tv ++ ":=" ++ show tp) $ return ()
                           extendSub tv tp
                           return ()
+
 unifyTVar tv tp
   = failure "Type.Unify.unifyTVar: called with skolem or bound variable"
 
@@ -414,6 +427,7 @@ data UnifyError
   | NoEntail
   | Infinite
   | NoArgMatch Int Int
+  deriving Show
 
 runUnify :: HasUnique m => Unify a -> m (Either UnifyError a,Sub)
 runUnify (Unify f)
