@@ -759,21 +759,36 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            actionPar = (newName "action",TFun [] actionEff retInTp)
            handlerTp = TFun (actionPar:argPars) heff retOutTp
 
+       -- build the type of the ops argument and the handler maker
+       let opsArgTp = TFun ([(newName "op", opsTp),(newName "resume", resumeTp)] ++ argPars)
+                          retEff retOutTp
+           makeHTp = TFun [(newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
+
        -- apply to makeHandler
        -- ctp <- Op.freshTVar kindStar Meta
        let mkHandlerName = prepend "makeHandler" (toConstructorName hxName) 
-       mbMkHandler <- lookupFunName (unqualify mkHandlerName) Nothing hrng
-       let coreMkHandler = case mbMkHandler of
-                            Just (qname,tp,info) -> coreExprFromNameInfo qname info
-                            Nothing -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show mkHandlerName
-           -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
+       (mkhQname,mkhTp,mkhInfo) <-  do mbh <- lookupFunName (unqualify mkHandlerName) Nothing hrng
+                                       case mbh of
+                                         Just res -> return res
+                                         _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show mkHandlerName
+       (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
+       smakeHTp <- subst makeHTp
+       env <- getPrettyEnv
+       trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
+        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp
+
+       let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
+           handlerCore = Core.App (mkhCore coreMkHandler) [retCore,opsfunCore]
+
+    -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
            tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          
-           handlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
+           xhandlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
 
        -- possibly generalize the handler type
        (ghandlerTp,gcore) <- maybeGeneralize hrng rng heff expect handlerTp handlerCore
-       sgcore <- subst gcore
-       return (handlerTp,typeTotal,sgcore)           
+       sgcore      <- subst gcore
+       sghandlerTp <- subst ghandlerTp
+       return (sghandlerTp,typeTotal,sgcore)           
 
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
@@ -1245,7 +1260,6 @@ inferOptionals infgamma (par:pars)
        
 
 checkFun        = Check "function type does not match the argument types"
-checkOp         = Check "operator type does not match the parameter types"
 checkMatch      = Check "branch has not the same type as previous branches"
 checkAnn        = Check "type cannot be instantiated to match the annotation"
 checkRec        = Check "recursive invocations do not match the assumed type; add a type annotation?"
@@ -1261,6 +1275,9 @@ checkEffectSubsume = Check "effect cannot be subsumed"
 
 checkReturnResult  = Check "function returns values of different types"
 checkReturn        = Check "return type does not match an earlier return type"
+
+checkOp         = Check "operator type does not match the parameter types"
+checkMakeHandler= Check "handler types do not match the handler maker; please report this as a bug!"
 
 isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr

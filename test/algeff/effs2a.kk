@@ -32,23 +32,22 @@ function amb_handle() {
 }
 
 function state_handle() {
-  handler(i) {
+  handler(i:int) {
     return x -> x
-    get()    -> resume(i,i)
+    get()    -> { print(i); set(True); resume(i,i) }
     set(j)   -> resume((),j) 
   }
 }
 
-
-function test1() : string {
+function test1()  {
   amb_handle()(xors).join(",")
 }
 
 
-function test2() : string {
+function test2()  {
   state_handle()({amb_handle()(foos)},0).join(",")
 }
 
-function test3() :  string {
+function test3()  {
   amb_handle()({state_handle()(foos,0)}).join(",")
 }

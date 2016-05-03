@@ -45,7 +45,7 @@ function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : 
   hndler
 }
 
-function makeHandlerState<a,d,b,c,e>( res : (a,d) -> e b, ops : (state_ops<d,c>, cont:(c,d) -> e b, d) -> e b ) : ((action: () -> <state<d>|e> a, d) -> e b) {
+function makeHandlerState(res,ops) {// <a,d,b,c,e>( res : (a,d) -> e b, ops : (state_ops<d,c>, cont:(c,d) -> e b, d) -> e b ) : ((action: () -> <state<d>|e> a, d) -> e b) {
   xhandlerState(makeHandler1( matchState, res, ops ))
 }
 private external xhandlerState( hndler : (yld<a>,d) -> e b ) : total ((action : () -> <state<s>|e> a, loc : d) -> e b) {
