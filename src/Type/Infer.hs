@@ -22,6 +22,7 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
+                      , nameMakeHandler
                       , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny )
 import Common.Range
 import Common.Unique
@@ -759,18 +760,28 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            actionPar = (newName "action",TFun [] actionEff retInTp)
            handlerTp = TFun (actionPar:argPars) heff retOutTp
 
+       
+       -- lookup relevelant opmatchX
+       (opmatchName,opmatchTp,opmatchInfo) 
+             <- do mbf <- lookupFunName (prepend "opmatch" (toConstructorName hxName)) Nothing hrng
+                   case mbf of
+                     Just res -> return res
+                     _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find opmatch for " ++ show hxName
+
+       (opmatchRho,_,opmatchICore) <- instantiate rng opmatchTp
+       let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
+
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun ([(newName "op", opsTp),(newName "resume", resumeTp)] ++ argPars)
                           retEff retOutTp
-           makeHTp = TFun [(newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
+           makeHTp = TFun [(newName "opmatch",opmatchRho),
+                              (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
-       -- apply to makeHandler
        -- ctp <- Op.freshTVar kindStar Meta
-       let mkHandlerName = prepend "makeHandler" (toConstructorName hxName) 
-       (mkhQname,mkhTp,mkhInfo) <-  do mbh <- lookupFunName (unqualify mkHandlerName) Nothing hrng
+       (mkhQname,mkhTp,mkhInfo) <-  do mbh <- lookupFunName (nameMakeHandler (length pars)) Nothing hrng
                                        case mbh of
                                          Just res -> return res
-                                         _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show mkHandlerName
+                                         _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show (nameMakeHandler (length pars))
        (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
        smakeHTp <- subst makeHTp
        env <- getPrettyEnv
@@ -778,7 +789,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
         inferUnify (checkMakeHandler rng) rng mkhRho makeHTp
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           handlerCore = Core.App (mkhCore coreMkHandler) [retCore,opsfunCore]
+           handlerCore = Core.App (mkhCore coreMkHandler) [opmatchCore,retCore,opsfunCore]
 
     -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
            tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          

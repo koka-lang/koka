@@ -22,6 +22,21 @@ function foos() : <amb,state<int>> string {
 }    
  
 function amb_handle() {
+  handler {
+    return x -> [x]
+    flip()   -> resume(False) + resume(True)
+  }
+}
+
+function state_handle() {
+  handler(i) {
+    return x -> x
+    get()    -> resume(i,i)
+    set(j)   -> resume((),j)
+  }
+}
+/*
+function amb_handle() {
   makeHandler(opmatchAmb,
     fun(x) { [x] },
     fun(ops,cont) {
@@ -43,7 +58,7 @@ function state_handle() {
     }
   )
 }
-
+*/
 
 function test1()  {
   amb_handle()(xors).join(",")
@@ -57,3 +72,4 @@ function test2()  {
 function test3()  {
   amb_handle()({state_handle()(foos,0)}).join(",")
 }
+  

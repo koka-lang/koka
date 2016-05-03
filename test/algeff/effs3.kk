@@ -10,7 +10,7 @@ effect state<s> {
   set(i : s) : ();  
 }
 
-function makeHandler( matchop : operation<c> -> opmatch<e1,e,o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) : total ((action : () -> e1 a) -> e b) {
+function makeHandler0( matchop : operation<c> -> opmatch<e1,e,o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) : total ((action : () -> e1 a) -> e b) {
   function hndler(yld) {
     match(yld) {
       Yield(op,f) -> {
@@ -22,7 +22,7 @@ function makeHandler( matchop : operation<c> -> opmatch<e1,e,o>, res : a -> e b,
       Result(x) -> res(x)          
     }
   }
-  unsafeMakeHandler(hndler)
+  unsafeMakeHandler0(hndler)
 }
 
 function makeHandler1( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> e b, ops : (op:o, cont: ((c,d) -> e b), loc:d) -> e b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
@@ -41,7 +41,7 @@ function makeHandler1( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) ->
 }
 
 
-private external unsafeMakeHandler( hndler : yld<a> -> e b ) : total ((action : () -> e1 a) -> e b) {
+private external unsafeMakeHandler0( hndler : yld<a> -> e b ) : total ((action : () -> e1 a) -> e b) {
   js inline "function(_action,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_k); }"
 }
 
