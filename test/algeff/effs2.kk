@@ -19,13 +19,6 @@ private external xhandlerAmb( hndler : yld<a> -> e b ) : total ((action : () -> 
 }
 
 
-function matchAmb( op : operation<a> ) : maybe<amb_ops<a>> {
-  match(op) {
-    Amb(ambop) -> Just(ambop)
-    _          -> Nothing
-  }
-}
-
 function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : (op:o, cont:c -> e b) -> e b  ) :  (yld<a> -> e b) {
   function hndler(yld) {
     match(yld) {
@@ -50,14 +43,6 @@ function makeHandlerState(res,ops) {// <a,d,b,c,e>( res : (a,d) -> e b, ops : (s
 }
 private external xhandlerState( hndler : (yld<a>,d) -> e b ) : total ((action : () -> <state<s>|e> a, loc : d) -> e b) {
   js inline "function(_action,_loc,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_loc,_k); }"
-}
-
-
-function matchState( op : operation<a> ) : maybe<state_ops<s,a>> {
-  match(op) {
-    State(x) -> Just(x)
-    _        -> Nothing
-  }
 }
 
 

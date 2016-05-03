@@ -680,11 +680,26 @@ effectDecl dvis
            extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) 
                           [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
 
+           -- create an external for the handler  
+           externTp   = promoteType $
+                          TpFun [(newName "handler", 
+                                  TpFun [(newName "yld", TpApp (TpCon nameTpYld irng) [tpVarA] irng)] 
+                                    tpVarE tpVarB irng)] 
+                                (makeTpTotal irng) tpVarB irng
+           externDecl = External (prepend "installHandler" extendConName) externTp irng rng 
+                          [(Default,ExternalInline "#1")] Public ""
+
+
            nameA    = newName "a"
+           nameB    = newName "b"
+           nameE    = newName "e"
+           tpVarE   = TpVar nameE irng
+           tpVarB   = TpVar nameB irng
            tpVarA   = TpVar nameA irng   
            tpBindA  = TypeBinder nameA kindStar irng irng   
 
-       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ map DefValue ( opDefs ++ extendConDefs)
+       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl, DefExtern externDecl] ++ 
+                  map DefValue ( opDefs ++ extendConDefs)
 
 
 operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)

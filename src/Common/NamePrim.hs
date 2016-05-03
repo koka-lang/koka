@@ -32,6 +32,7 @@ module Common.NamePrim
 
           -- * Constructors
           , nameTrue, nameFalse
+          , nameJust, nameNothing
           , nameOptional, nameOptionalNone
           , nameTpDelay
           -- * Lists
@@ -112,6 +113,9 @@ nameEffectOpen = newName ".open"
 --------------------------------------------------------------------------}
 nameTrue        = preludeName "True"
 nameFalse       = preludeName "False"
+
+nameJust        = preludeName "Just"
+nameNothing     = preludeName "Nothing"
 
 nameOptional         = preludeName "Optional"
 nameOptionalNone     = preludeName "None"
