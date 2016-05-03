@@ -10,7 +10,7 @@ effect state<s> {
   set(i : s) : ();  
 }
 
-function makeHandlerAmb<e,c,a,b>( res : a -> e b, ops : (amb_ops<c>, cont:c -> e b) -> e b ) : ((action: () -> <amb|e> a) -> e b) {
+function makeHandlerAmb(res,ops) { //<a,b,c,e>( res : a -> e b, ops : (amb_ops<c>, cont:c -> e b) -> e b ) : ((action: () -> <amb|e> a) -> e b) {
   xhandlerAmb(makeHandler( matchAmb, res, ops ))
 }
 
@@ -45,10 +45,10 @@ function makeHandler( matchop : operation<c> -> maybe<o>, res : a -> e b, ops : 
   hndler
 }
 
-function makeHandlerState<e,c,a,b,s>( res : (a,s) -> e b, ops : (state_ops<s,c>, cont:(c,s) -> e b, s) -> e b ) : ((action: () -> <state<s>|e> a, s) -> e b) {
+function makeHandlerState<a,d,b,c,e>( res : (a,d) -> e b, ops : (state_ops<d,c>, cont:(c,d) -> e b, d) -> e b ) : ((action: () -> <state<d>|e> a, d) -> e b) {
   xhandlerState(makeHandler1( matchState, res, ops ))
 }
-private external xhandlerState( hndler : (yld<a>,s) -> e b ) : total ((action : () -> <state<s>|e> a, loc : s) -> e b) {
+private external xhandlerState( hndler : (yld<a>,d) -> e b ) : total ((action : () -> <state<s>|e> a, loc : d) -> e b) {
   js inline "function(_action,_loc,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_loc,_k); }"
 }
 
@@ -62,14 +62,14 @@ function matchState( op : operation<a> ) : maybe<state_ops<s,a>> {
 
 
 
-function makeHandler1<e,o,a,b,c,d>( matchop : operation<c> -> maybe<o>, res : ((a,d) -> e b), ops : (op:o, cont: ((c,d) -> e b), loc:d) -> e b  ) :  ((yld<a>,d) -> e b) {
+function makeHandler1<e,o,a,b,c,d>( matchop : operation<c> -> maybe<o>, res : (a,d) -> e b, ops : (op:o, cont: ((c,d) -> e b), loc:d) -> e b  ) :  ((yld<a>,d) -> e b) {
   function hndler(yld,loc) {
     match(yld) {
       Yield(op,f) -> {
-        function cont(x,loc0) { hndler(f(x),loc0) }        
+        function resume(x,loc0) { hndler(f(x),loc0) }        
         match(matchop(op)) {
-          Just(eop) -> ops(eop,cont,loc)
-          Nothing   -> reyield(op, fun(x) { cont(x,loc) })          
+          Just(eop) -> ops(eop,resume,loc)
+          Nothing   -> reyield(op, fun(x) { resume(x,loc) })          
         }
       }
       Result(x) -> res(x,loc)          

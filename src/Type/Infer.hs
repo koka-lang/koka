@@ -766,7 +766,8 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        let coreMkHandler = case mbMkHandler of
                             Just (qname,tp,info) -> coreExprFromNameInfo qname info
                             Nothing -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show mkHandlerName
-           tpargs = [heff,typeAny,retInTp,retOutTp] ++ parTypes                          
+           -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
+           tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          
            handlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
 
        -- possibly generalize the handler type

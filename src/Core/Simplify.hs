@@ -98,10 +98,9 @@ topDown (Let dgs body)
           _ -> False
 
 -- Remove effect open applications
-{-
 topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = topDown arg
--}
+
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars == length args

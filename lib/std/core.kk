@@ -2558,7 +2558,7 @@ type open operation<a>
 
 // The Yield monad
 type yld<a> {
-  Yield<b>( operation: operation<b>, continuation : b -> yld<a> )
+  Yield<b>( operation: operation<b>, resume : b -> yld<a> )
   Result( result: a )
 }
 
