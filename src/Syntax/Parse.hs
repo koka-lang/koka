@@ -528,9 +528,9 @@ structDecl dvis =
           conId     = toConstructorName tid
           (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
       return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive DataDefNormal False doc, creators)
-   where
-    tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
-    tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
+
+tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
+tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
                
   {-
   <|>
@@ -646,32 +646,39 @@ effectDecl dvis
                                       (erng,doc) <- dockeyword "effect"
                                       return (vis,vrng,erng,doc)                           
        (id,irng) <- typeid
-       let ename   = TypeBinder id (KindCon nameKindHandled irng) irng irng
-           effTp   = TpCon (tbinderName ename) (tbinderRange ename)
+       (tpars,kind,prng) <- typeKindParams
+       let infkind = case kind of
+                      KindNone -> foldr KindArrow (KindCon nameKindHandled irng) (map tbinderKind tpars)
+                      _ -> kind
+           ename   = TypeBinder id infkind {- KindCon nameKindHandled irng) -} irng irng
+           effTp   = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng 
            rng     = combineRanges [vrng,erng,irng]
 
            -- declare the effect type
-           effTpDecl = DataType ename [] [] rng vis Inductive DataDefNormal False doc
+           effTpDecl = DataType ename tpars [] rng vis Inductive DataDefNormal False doc
 
            -- define the effect operations type
-           kindStar = KindCon nameKindStar irng
-           tname    = TypeBinder (toOperationsName id) (KindArrow kindStar kindStar) irng irng
-           opsTp    = TpCon (tbinderName tname) (tbinderRange tname)
-
+           opsName   = TypeBinder (toOperationsName id) KindNone irng irng
+           opsTp    = -- TpCon (tbinderName tname) (tbinderRange tname)
+                      tpCon opsName
+                      --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            extendConName = toConstructorName (tbinderName ename)
            
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation vis effTp opsTp extendConName)
+       (ops,xrng) <- semiBracesRanged1 (operation vis tpars effTp opsTp extendConName)
           
-       let (opCons,opDefs) = unzip ops 
+       let kindStar = (KindCon nameKindStar rng)
+           (opCons,opDefs) = unzip ops 
            -- declare the effect operations type
-           opsTpDecl= DataType tname [TypeBinder nameA kindStar irng irng] (opCons) rng vis Inductive DataDefNormal False ""
+           opsTpDecl= DataType opsName (tpars ++ [TypeBinder nameA kindStar irng irng]) 
+                        (opCons) rng vis Inductive DataDefNormal False ""
 
            -- extend the core operations type
            extendResTp  = TpApp (TpCon nameTpOperation irng) [tpVarA] rng
-           extendPars   = [ValueBinder nameNil (TpApp opsTp [tpVarA] rng) Nothing rng rng]
-           (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp [] extendPars irng rng vis ""
-           extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
+           extendPars   = [ValueBinder nameNil (TpApp opsTp (map tpVar tpars ++ [tpVarA]) rng) Nothing rng rng]
+           (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp tpars extendPars irng rng vis ""
+           extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) 
+                          [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
 
            nameA    = newName "a"
            tpVarA   = TpVar nameA irng   
@@ -680,8 +687,8 @@ effectDecl dvis
        return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ map DefValue ( opDefs ++ extendConDefs)
 
 
-operation :: Visibility -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
-operation vis effTp opsTp extendConName
+operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
+operation vis foralls effTp opsTp extendConName
   = do optional (keyword "function")
        (id,idrng)   <- identifier
        exists       <- typeparams
@@ -711,7 +718,7 @@ operation vis effTp opsTp extendConName
                         lparams   = [par{ binderType = Nothing} | par <- params]
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
                         tpParams  = [(binderName par, binderType par) | par <- params] 
-                        tpFull    = quantify QForall exists (TpFun tpParams teff tres rng)
+                        tpFull    = quantify QForall (foralls ++ exists) (TpFun tpParams teff tres rng)
                         makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
                         isJust (Just{}) = True
                         isJust _        = False

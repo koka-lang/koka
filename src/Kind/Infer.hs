@@ -336,17 +336,19 @@ bindTypeBinder (TypeBinder name userKind rngName rng)
        return (TypeBinder name kind rngName rng)
 
 userKindToKind :: UserKind -> KInfer InfKind
-userKindToKind KindNone
-  = freshKind
 userKindToKind userKind
-  = return (KICon (convert userKind))
+  = convert userKind
   where
     convert userKind
       = case userKind of
-          KindCon name rng -> KCon name
-          KindArrow k1 k2  -> kindFun (convert k1) (convert k2)
+          KindCon name rng -> return $ KICon (KCon name)
+          KindArrow k1 k2  -> do k1' <- convert k1
+                                 k2' <- convert k2
+                                 case (k1',k2') of
+                                   (KICon kk1,KICon kk2) -> return (KICon (kindFun kk1 kk2))
+                                   _ -> return $ KIApp k1' k2'
           KindParens k rng -> convert k
-          KindNone         -> failure ("Kind.Infer.userKindToKind.convert: unexpected kindNone")
+          KindNone         -> freshKind -- failure ("Kind.Infer.userKindToKind.convert: unexpected kindNone")
 
 
 {---------------------------------------------------------------
@@ -547,7 +549,8 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        return (Synonym tbinder' infgamma tp' range vis doc)
 
 infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
-  = do infgamma <- mapM bindTypeBinder args
+  = trace ("inf datatype: " ++ show (tbinderName newtp)) $
+    do infgamma <- mapM bindTypeBinder args
        constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original
        reskind <- if dataDefIsOpen ddef then return infKindStar else freshKind
