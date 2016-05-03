@@ -733,7 +733,8 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
-       let opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
+       let opsEff    = handledToLabel hxeff
+           opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
            resumeTp = TFun ((newHiddenName "x",opsResTp):argPars) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            opsgamma = inferBinders [] [opsBinder,resumeBinder]
@@ -741,7 +742,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        iops  <- extendInfGamma False infgamma $
                 extendInfGamma False opsgamma $
-                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated hxName opsInfo resumeBinder) ops
+                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated opsEff hxName opsInfo resumeBinder) ops
 
        -- unify effects
        let (opTps,opEffs,opsCore) = unzip3 iops
@@ -802,8 +803,8 @@ inferHandledEffect rng mbeff ops
 
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
-inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Name -> DataInfo -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
-inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch name pars expr nameRng rng) 
+inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
+inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (HandlerBranch name pars expr nameRng rng) 
   = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name) 
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
        
@@ -831,6 +832,9 @@ inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch 
        let propTp = TFun [(nameNil,tp) | tp <- parsTps] effTp resTp
        inferUnify (checkOp rng) nameRng rho propTp
        sparTps <- subst parTps
+
+       -- subsume effect type
+       inferUnify (checkEffectSubsume rng) rng effTp (effectFixed [opsEffTp])
 
        -- create resume definition with the type specialized to this operation
        let (xresumeTp,xresumeArgs)
@@ -861,7 +865,8 @@ inferHandlerBranch propagated expect hxName opsInfo resumeBinder (HandlerBranch 
        let patCore = Core.PatCon (Core.TName conname gconTp) 
                           [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
                            conrepr (parTps) coninfo
-           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]             
+           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]  
+
        return (exprTp,exprEff,branchCore)
   where
     splitOpTp rho
