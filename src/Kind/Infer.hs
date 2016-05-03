@@ -155,10 +155,7 @@ synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
     (if (length (dataInfoConstrs dataInfo) > 1 || (dataInfoIsOpen dataInfo))
       then map (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
       else [])
-    ++
-    (if (isExtend) then concatMap (synMatcher dataInfo) (zip conviss (dataInfoConstrs dataInfo))
-      else [])
-      
+    
 
 synCopyCon :: Name -> DataInfo -> Visibility -> ConInfo -> DefGroup Type
 synCopyCon modName info vis con
@@ -251,24 +248,6 @@ synTester info (vis,con)
     in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)
 
 
-synMatcher :: DataInfo -> (Visibility,ConInfo) -> [DefGroup Type]
-synMatcher info (vis,con)
-  = case conInfoParams con of
-      [conInfoParam] ->
-        let name = (newName ("match" ++ nameId (conInfoName con)))
-            arg = unqualify $ dataInfoName info
-            fld = newHiddenName "x"
-            rc  = conInfoRange con
-
-            expr      = Lam [ValueBinder arg Nothing Nothing rc rc] caseExpr rc
-            caseExpr  = Case (Var arg False rc) [branch1,branch2] rc
-            branch1   = Branch (PatCon (conInfoName con) patterns rc rc) guardTrue 
-                            (App (Var nameJust False rc) [(Nothing,Var fld False rc)] rc)
-            branch2   = Branch (PatWild rc) guardTrue (Var nameNothing False rc)
-            patterns  = [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rc) rc rc))]
-            doc = "// Automatically generated. matches for the \"" ++ nameId (conInfoName con) ++ "\" constructor of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
-        in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)]
-      _ -> []        
 
 {---------------------------------------------------------------
   Types for constructors

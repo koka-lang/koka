@@ -2550,10 +2550,10 @@ external getHost() : ndet string {
 // Handled effects
 // ----------------------------------------------------------------------------
 
-// Handled effects
+// Handled effects are lifted to an atomic effect using the ":handled" type constructor
 type handled :: HX -> X;
 
-// Effect operations with result type a
+// Effect operations with result type ":a"
 type open operation<a> 
 
 // The Yield monad
@@ -2561,6 +2561,14 @@ type yld<a> {
   Yield<b>( operation: operation<b>, resume : b -> yld<a> )
   Result( result: a )
 }
+
+
+// Abstract operation matching
+type opmatch<e1::E,e2::E,a> {
+  OpMatch( : a )
+  OpNoMatch
+}
+
 
 // Yield is abstracted as a function for future compatibility
 external inline unsafeyield( op : operation<a> ) : e a {
@@ -2570,9 +2578,12 @@ external inline unsafeyield( op : operation<a> ) : e a {
 }
 
 
+
+
 // Cps effect
 type cps :: HX;
 
 alias cont<a,e,b> = a -> e b
 
 external inline toAny( x : a ) : any { inline "#1" }
+

@@ -674,20 +674,30 @@ effectDecl dvis
                         (opCons) rng vis Inductive DataDefNormal False ""
 
            -- extend the core operations type
+           opsTpFull    = TpApp opsTp (map tpVar tpars ++ [tpVarA]) irng
            extendResTp  = TpApp (TpCon nameTpOperation irng) [tpVarA] rng
-           extendPars   = [ValueBinder nameNil (TpApp opsTp (map tpVar tpars ++ [tpVarA]) rng) Nothing rng rng]
+           extendPars   = [ValueBinder nameNil opsTpFull Nothing rng rng]
            (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp tpars extendPars irng rng vis ""
            extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) 
                           [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
 
-           -- create an external for the handler  
-           externTp   = promoteType $
-                          TpFun [(newName "handler", 
-                                  TpFun [(newName "yld", TpApp (TpCon nameTpYld irng) [tpVarA] irng)] 
-                                    tpVarE tpVarB irng)] 
-                                (makeTpTotal irng) tpVarB irng
-           externDecl = External (prepend "installHandler" extendConName) externTp irng rng 
-                          [(Default,ExternalInline "#1")] Public ""
+           -- create opmatchX function
+           tpEffE     = makeEffectExtend rng effTp tpVarE
+           opmatchTp  = promoteType $
+                        TpFun [(newName "operation",extendResTp)] (makeEffectEmpty irng)
+                              (TpApp (TpCon nameTpOpMatch irng) 
+                                [tpEffE,tpVarE,opsTpFull] irng) rng
+
+           opmatchDef = Def (ValueBinder (prepend "opmatch" extendConName) () opmatch irng rng)
+                              rng vis DefFun "// Automatically generated operation matcher" 
+           opmatch   = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) opmatchTp rng
+           caseExpr  = Case (Var arg False rng) [branch1,branch2] rng
+           branch1   = Branch (PatCon (extendConName) patterns rng rng) guardTrue 
+                            (App (Var nameOpMatch False rng) [(Nothing,Var fld False rng)] rng)
+           branch2   = Branch (PatWild rng) guardTrue (Var nameOpNoMatch False rng)
+           patterns  = [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
+           fld       = newName "x"
+           arg       = newName "op"
 
 
            nameA    = newName "a"
@@ -698,8 +708,8 @@ effectDecl dvis
            tpVarA   = TpVar nameA irng   
            tpBindA  = TypeBinder nameA kindStar irng irng   
 
-       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl, DefExtern externDecl] ++ 
-                  map DefValue ( opDefs ++ extendConDefs)
+       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ 
+                  map DefValue ( opDefs ++ extendConDefs ++ [opmatchDef])
 
 
 operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)

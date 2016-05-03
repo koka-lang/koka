@@ -48,6 +48,7 @@ module Common.NamePrim
           , nameTpAsync
           , nameTpException
           , nameTpHandled, nameTpOperation, nameYieldOp, nameTpCps, nameTpYld, nameTpCont
+          , nameMakeHandler, nameTpOpMatch, nameOpMatch, nameOpNoMatch
           , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
@@ -166,6 +167,10 @@ nameTpCps       = preludeName "cps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameToAny       = preludeName "toAny"
+nameMakeHandler n = preludeName ("makeHandler" ++ show n)
+nameTpOpMatch   = preludeName "opmatch"
+nameOpMatch     = preludeName "OpMatch"
+nameOpNoMatch   = preludeName "OpNoMatch"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
