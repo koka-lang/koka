@@ -15,7 +15,7 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny )
+import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
@@ -94,13 +94,13 @@ topDown (Let dgs body)
           Lit{} -> True
           TypeLam _ e -> isSmallX n e
           TypeApp e _ -> isSmallX n e
+          App (Var v _) _ | getName v == nameEnsureK -> False
           App f args  -> all (isSmallX (n-1)) (f:args)
           _ -> False
 
 -- Remove effect open applications
 topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = topDown arg
-
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars == length args
@@ -140,9 +140,18 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
     varEqual (tv,TVar tw) = tv == tw
     varEqual _            = False
 
+bottomUp (App f args)
+  = App f (map bottomUpArg args)
+
 -- No optimization applies
 bottomUp expr
   = expr
+
+bottomUpArg :: Expr -> Expr
+bottomUpArg arg
+  = case arg of
+      App (Var v _) [expr] | getName v == nameEnsureK -> expr
+      _ -> arg
 
 {--------------------------------------------------------------------------
   Definitions 
@@ -196,7 +205,7 @@ isTotalAndCheap expr
       Con{} -> True
       Lit{} -> True
       -- toany(x)
-      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg
+      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg      
       -- functions that are immediately applied to something cheap (cps generates this for resumes)
       -- Lam pars eff (App e args) 
       --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)

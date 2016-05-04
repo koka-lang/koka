@@ -49,6 +49,6 @@ private external unsafeMakeHandler1( hndler : (yld<a>,d) -> e b ) : total ((acti
   js inline "function(_action,_loc,_k){ _k = _k || $std_core.id; return (#1)(_action($std_core.Result),_loc,_k); }"
 }
 
-private external inline reyield( op: operation<b>, f : b -> e a ) : e a {
+private external reyield( op: operation<b>, f : b -> e a ) : e a {
   js inline "$std_core.Yield(#1,function(_x) { return (#2)(_x,_k); } )"
 }

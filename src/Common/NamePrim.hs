@@ -29,6 +29,7 @@ module Common.NamePrim
           , nameReturn
           , nameEffectOpen
           , nameToAny
+          , nameEnsureK
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -171,6 +172,7 @@ nameMakeHandler n = newName ("makeHandler" ++ show n)
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName "OpMatch"
 nameOpNoMatch   = preludeName "OpNoMatch"
+nameEnsureK     = preludeName "ensureK"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"

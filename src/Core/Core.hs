@@ -578,9 +578,10 @@ instance HasExprVar DefGroup where
 
 
 instance HasExprVar Def where
-  sub |~> (Def name scheme expr vis isVal nameRng doc) 
-    = assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
-      Def name scheme (sub |~> expr) vis isVal nameRng doc
+  sub |~> (Def dname scheme expr vis isVal nameRng doc) 
+    = -- assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
+      let sub' = [(name,e) | (name,e) <- sub, getName name /= dname]
+      in Def dname scheme (sub' |~> expr) vis isVal nameRng doc
 
 instance HasExprVar Expr where
   sub |~> expr = 
