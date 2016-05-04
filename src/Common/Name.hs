@@ -22,6 +22,7 @@ module Common.Name
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName
           , newHiddenName, isHiddenName
+          , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, toOperationsName, fromOperationsName
           , toConstructorName, isConstructorName
@@ -202,6 +203,8 @@ isHiddenName name
       ('.':_) -> True
       _       -> False
 
+makeHiddenName s name
+  = prepend ("." ++ s ++ "_") name
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -218,7 +221,7 @@ isImplicitTypeVarName name
 
 
 newHiddenExternalName name
-  = newHiddenName (show name ++ "@extern")
+  = makeHiddenName "extern" name
 
 
 -- | Create a constructor creator name from the constructor name.

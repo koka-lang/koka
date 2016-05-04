@@ -19,7 +19,7 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps, nameTpCont, nameEnsureK, nameTrue, nameFalse, nameTpBool )
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameEnsureK, nameTrue, nameFalse, nameTpBool )
 import Common.Error
 import Common.Syntax
 
@@ -71,7 +71,8 @@ cpsDefX :: Bool -> Def -> Cps [Def]
 cpsDefX recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
-       if (cpsk == PolyCps && defSort def == DefFun)
+       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
+       if (cpsk == PolyCps) -- && defSort def == DefFun)
         then cpsDefDup recursive def 
         else do expr <- cpsExpr' (defExpr def) -- don't increase depth
                 return [def{defExpr = expr id}]
@@ -82,8 +83,8 @@ cpsDefDup recursive def
                      TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
                      _ -> []
 
-       exprCps0   <- cpsExpr' (defExpr def)
-       exprNoCps0 <- withPureTVars teffs $ cpsExpr' (defExpr def)
+       exprCps0   <- cpsTraceDoc (\env -> text "cps translation") >> cpsExpr' (defExpr def)
+       exprNoCps0 <- cpsTraceDoc (\env -> text "fast translation") >> (withPureTVars teffs $ cpsExpr' (defExpr def))
        let createDef name expr
             = let tname    = TName name (defType def)
                   (n,m)    = getArity (defType def)
@@ -92,8 +93,8 @@ cpsDefDup recursive def
                                then [(defTName def, var)] |~> expr
                                else expr
               in (def{ defName = name, defExpr = expr' }, var)
-           nameCps  = postpend "@cps" (defName def)
-           nameNoCps= postpend "@fast" (defName def)
+           nameCps  = makeHiddenName "cps" (defName def)
+           nameNoCps= makeHiddenName "fast" (defName def)
            (defCps,varCps)   = createDef nameCps (exprCps0 id)     
            (defNoCps,varNoCps) = createDef nameNoCps (exprNoCps0 id)
 
@@ -136,7 +137,8 @@ cpsExpr' expr
         -> cpsExpr (App f args)
       -}
 
-      -- otherwise lift the function
+
+      --  lift _open_ applications
       App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
         | getName open == nameEffectOpen         
         -> do isCpsFrom <- needsCpsTypeX effFrom
@@ -156,6 +158,14 @@ cpsExpr' expr
                        let args = [Var tname InfoNone | tname <- pars]
                            lam  = Lam pars effTo (App f args)
                        cpsExpr lam
+
+      -- leave 'return' in place
+      App var@(Var v _) [arg] | getName v == nameReturn
+        -> do cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
+              -- cpsExpr arg
+              arg' <- cpsExpr arg
+              return $ \k -> App var [arg' k]
+
       -- regular cases
       Lam args eff body 
         -> do depth <- getExprDepth
@@ -163,7 +173,7 @@ cpsExpr' expr
               cpsk  <- getCpsEffectX eff
               args' <- mapM cpsTName args
               if (cpsk == NoCps)
-               then do cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
+               then do -- cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        return $ \k -> k (Lam args' eff (body' id))
                else -- cps converted lambda: add continuation parameter
                     do resTp <- freshTVar kindStar Meta
@@ -180,6 +190,7 @@ cpsExpr' expr
                        return $ \k -> 
                         k (Lam (args' ++ [nameK0]) eff 
                             (initk (body' (\xx -> App (varK bodyTp eff resTp) [xx]))))
+
       App f args
         -> do f' <- cpsExpr f
               args' <- mapM cpsExpr args
@@ -187,14 +198,14 @@ cpsExpr' expr
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
               isCps <- needsCpsTypeX ftp
-              cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
+              -- cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
               if (not (isCps || isSpecialCps f))
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
                     k (App ff argss)
                 ))
-               else  do -- cpsTraceDoc $ \env -> text "app tp:" <+> niceType env (typeOf f) 
+               else  do -- cpsTraceDoc $ \env -> text "app cps:" <+> prettyExpr env expr
                         nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
@@ -217,7 +228,7 @@ cpsExpr' expr
       Let defgs body 
         -> do defgs' <- cpsLetGroups defgs
               body'  <- cpsExpr body
-              return $ \k -> defgs' (\dgs -> Let dgs (body' k))
+              return $ \k -> Let defgs' (body' k)
       Case exprs bs
         -> do exprs' <- cpsTrans cpsExpr exprs
               bs'    <- mapM cpsBranch bs
@@ -250,29 +261,34 @@ cpsGuard (Guard guard body)
        body'  <- cpsExpr body
        return $ \k -> Guard guard (body' k)
 
-cpsLetGroups :: DefGroups -> Cps (TransX DefGroups Expr)
-cpsLetGroups 
-  = cpsTrans cpsLetGroup 
+cpsLetGroups :: DefGroups -> Cps DefGroups -- (TransX DefGroups Expr)
+cpsLetGroups dgs = cpsDefGroups dgs
+  
+  -- = do dgss <- mapM cpsLetGroup dgs 
+  --     return (concat dgss)
 
-cpsLetGroup :: DefGroup -> Cps (TransX DefGroup Expr)
+cpsLetGroup :: DefGroup -> Cps [DefGroup] -- (TransX [DefGroup] Expr)
 cpsLetGroup dg
   = case dg of
-      DefRec defs -> do ldefs <- cpsTrans cpsLetDef defs
-                        return $ \k -> ldefs (\ds -> k (DefRec ds))
-      DefNonRec d -> do ldef <- cpsLetDef d
-                        return $ \k -> ldef (\dd -> k (DefNonRec dd))
+      DefRec defs -> do ldefs <- mapM (cpsLetDef True) defs
+                        return $ [DefRec (concat ldefs)]
+      DefNonRec d -> do ldef <- cpsLetDef False d
+                        return $ (map DefNonRec ldef)
 
-cpsLetDef :: Def -> Cps (TransX Def Expr)
-cpsLetDef def
+cpsLetDef :: Bool -> Def -> Cps [Def] -- Cps (TransX [Def] Expr)
+cpsLetDef recursive def
   = {- do pureTvs <- getPureTVars
        if (not (needsCpsDef pureTvs def)) -- only translate when necessary
         then return $ \k -> k def
         else 
     -}
+    do cpsDef recursive def
+    {-
     withCurrentDef def $
              do -- tp'   <- cpsTypeX (defType def)
                 expr' <- cpsExpr (defExpr def)
                 return $ \k -> expr' (\xx -> k def{ defExpr=xx })
+    -}
 
 cpsTrans :: (a -> Cps (TransX a b)) -> [a] -> Cps (TransX [a] b)
 cpsTrans f xs
