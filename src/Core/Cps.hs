@@ -15,10 +15,11 @@ import Control.Monad
 import Control.Applicative
 
 import Lib.PPrint
+import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps, nameTpCont, nameEnsureK )
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameTpCps, nameTpCont, nameEnsureK, nameTrue, nameFalse, nameTpBool )
 import Common.Error
 import Common.Syntax
 
@@ -32,6 +33,8 @@ import Type.Assumption
 import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
+import Core.Pretty
+import Core.Simplify( simplify )
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 cpsTransform penv defs
@@ -46,29 +49,74 @@ cpsDefGroups cpsDefGroups
        return (concat defGroupss)
 
 cpsDefGroup (DefRec defs) 
-  = do defss <- mapM  cpsDef defs
+  = do defss <- mapM (cpsDef True) defs
        return [DefRec (concat defss)]
 
 cpsDefGroup (DefNonRec def)
-  = do defs <- cpsDef def
+  = do defs <- cpsDef False def
        return (map DefNonRec defs)
 
 
 {--------------------------------------------------------------------------
   transform a definition
 --------------------------------------------------------------------------}  
-cpsDef :: Def -> Cps [Def]
-cpsDef def 
+cpsDef :: Bool -> Def -> Cps [Def]
+cpsDef recursive def 
   = do pureTvs <- getPureTVars
        if (needsCpsDef pureTvs def) -- only translate when necessary
-        then cpsDefX def 
+        then cpsDefX recursive def 
         else return [def]
 
-cpsDefX :: Def -> Cps [Def]
-cpsDefX def
+cpsDefX :: Bool -> Def -> Cps [Def]
+cpsDefX recursive def
   = withCurrentDef def $
-    do expr <- cpsExpr' (defExpr def) -- don't increase depth
-       return [def{defExpr = expr id}]
+    do cpsk <- getCpsTypeX (defType def)
+       if (cpsk == PolyCps && defSort def == DefFun)
+        then cpsDefDup recursive def 
+        else do expr <- cpsExpr' (defExpr def) -- don't increase depth
+                return [def{defExpr = expr id}]
+
+cpsDefDup :: Bool -> Def -> Cps [Def]
+cpsDefDup recursive def
+  = do let teffs = case (expandSyn (defType def)) of
+                     TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
+                     _ -> []
+
+       exprCps0   <- cpsExpr' (defExpr def)
+       exprNoCps0 <- withPureTVars teffs $ cpsExpr' (defExpr def)
+       let createDef name expr
+            = let tname    = TName name (defType def)
+                  (n,m)    = getArity (defType def)
+                  var      = Var tname (InfoArity n m)
+                  expr'    = if (recursive) 
+                               then [(defTName def, var)] |~> expr
+                               else expr
+              in (def{ defName = name, defExpr = expr' }, var)
+           nameCps  = postpend "@cps" (defName def)
+           nameNoCps= postpend "@fast" (defName def)
+           (defCps,varCps)   = createDef nameCps (exprCps0 id)     
+           (defNoCps,varNoCps) = createDef nameNoCps (exprNoCps0 id)
+
+           defPick  = def{ defExpr = exprPick }
+           exprPick = case (defExpr defCps) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the cps transform..
+                        TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
+                        Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
+                        _ -> failure $ "Core.Cps.cpsDefDup: illegal cps transformed non-function?: " ++ show (prettyDef defaultEnv def) 
+
+           bodyPick :: [TypeVar] -> [TName] -> Expr
+           bodyPick tpars pars 
+            = let tnameK = head (reverse pars)
+              in makeIfExpr (App (TypeApp varValidK [typeOf tnameK]) [Var tnameK InfoNone])
+                            (callPick varCps tpars pars) 
+                            (callPick varNoCps tpars (init pars))
+           
+           callPick :: Expr -> [TypeVar] -> [TName] -> Expr
+           callPick var tpars pars
+            = let typeApp e = (if null tpars then e else TypeApp e (map TVar tpars))                    
+              in App (typeApp var) [Var par InfoNone | par <- pars]
+
+       return [defPick,defCps,defNoCps]
+
 
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
@@ -122,10 +170,13 @@ cpsExpr' expr
                        -- let resTp = typeAny
                        let bodyTp = typeOf body
                            nameK  = tnameK bodyTp eff resTp
-                           (nameK0,initk)  = if (depth>0 || cpsk /= PolyCps) 
+                           (nameK0,initk)  = (nameK,id) 
+                                             {-
+                                              if (depth>0 || cpsk /= PolyCps) 
                                               then (nameK,id) 
                                               else (tnameKN "0" bodyTp eff resTp, 
                                                      ensureK nameK nameK0)
+                                             -}
                        return $ \k -> 
                         k (Lam (args' ++ [nameK0]) eff 
                             (initk (body' (\xx -> App (varK bodyTp eff resTp) [xx]))))
@@ -171,6 +222,10 @@ cpsExpr' expr
         -> do exprs' <- cpsTrans cpsExpr exprs
               bs'    <- mapM cpsBranch bs
               return $ \k -> exprs' (\xxs -> Case xxs (map (\b -> b k) bs'))              
+      TypeApp (TypeLam tvars body) tps  | length tvars == length tps
+        -- propagate types so that the pure tvs are maintained.
+        -- todo: This will fail if the typeapp is not directly around the type lambda!
+        -> do cpsExpr' (subNew (zip tvars tps) |-> body)
       TypeLam tvars body
         -> do body' <- cpsExpr' body
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
@@ -260,6 +315,11 @@ getCpsEffectX eff
   = do pureTvs <- getPureTVars
        return (getCpsEffect pureTvs eff)
 
+getCpsTypeX :: Type -> Cps CpsTypeKind
+getCpsTypeX tp
+  = do pureTvs <- getPureTVars
+       return (getCpsType pureTvs tp)       
+
 cpsTypeU :: Type -> Cps Type
 cpsTypeU tp
   = do pureTvs <- getPureTVars
@@ -302,6 +362,11 @@ cpsTypeX pureTvs tp
               t'     <- cpsTypeX pureTvs t
               return $ TSyn syn targs' t'
 
+varValidK :: Expr
+varValidK 
+  = let typeVar = TypeVar 1 kindStar Bound
+    in  Var (TName (newName "@validk") (TForall [typeVar] [] (TFun [(nameNil,TVar typeVar)] typeTotal typeBool)))
+            (Core.InfoExternal [(JS,"(#1 !== undefined)")])
 
 ensureK :: TName -> TName -> (Expr -> Expr)
 ensureK tname@(TName name tp) namek body
@@ -322,7 +387,6 @@ typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
--- nameY = newHiddenName "y"
 
 
 
@@ -388,7 +452,7 @@ data CpsTypeKind = NoCps | PolyCps | AlwaysCps deriving (Eq,Show)
 getCpsType :: Tvs -> Type -> CpsTypeKind
 getCpsType pureTvs tp
   = case expandSyn tp of
-      TForall vars preds t -> getCpsType pureTvs t
+      TForall vars preds t -> getCpsType (tvsRemove vars pureTvs) t
       TFun args eff res    -> getCpsEffect pureTvs eff
       -- TVar tv -> not (tvsMember tv pureTvs)
       _ -> if (isKindEffect (getKind tp))

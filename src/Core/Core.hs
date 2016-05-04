@@ -35,10 +35,10 @@ module Core.Core ( -- Data structures
                    , freshName                   
                    , typeOf
                    , HasExpVar, fv, bv
-                   , isExprTrue,  exprTrue
+                   , isExprTrue,  exprTrue, patTrue
+                   , isExprFalse, exprFalse, patFalse
                    , openEffectExpr
-
-                   , isExprFalse, exprFalse
+                   , makeIfExpr
                    , Visibility(..), Fixity(..), Assoc(..)
                    , coreName
                    , tnamesList
@@ -77,8 +77,22 @@ isExprTrue _              = False
 isExprFalse (Con tname _)  = (getName tname == nameFalse)
 isExprFalse _              = False
 
-exprTrue   = Con (TName nameTrue         typeBool) (ConEnum nameTpBool 2)
-exprFalse  = Con (TName nameFalse        typeBool) (ConEnum nameTpBool 1)
+(patFalse,exprFalse) = patExprBool nameFalse 1
+(patTrue,exprTrue)   = patExprBool nameTrue 2
+
+patExprBool name tag
+  = let tname   = TName name typeBool
+        conEnum = ConEnum nameTpBool tag
+        conInfo = ConInfo name nameTpBool [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] False ""
+        pat = PatCon tname [] conEnum [] conInfo
+        expr = Con tname conEnum
+    in (pat,expr)
+
+makeIfExpr :: Expr -> Expr -> Expr -> Expr
+makeIfExpr pexpr texpr eexpr
+  = Case [pexpr] [Branch [patTrue] [Guard exprTrue texpr], 
+                  Branch [PatWild] [Guard exprTrue eexpr]]
+           
 
 {--------------------------------------------------------------------------
   Top-level structure 
