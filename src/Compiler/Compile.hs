@@ -171,6 +171,7 @@ compileExpression term flags loaded compileTarget program line input
            -> do ld <- compileProgram' term flags{ evaluate = False } (loadedModules loaded) compileTarget  "<interactive>" programDef
                  let tp = infoType (gammaFind qnameExpr (loadedGamma ld))
                      (_,_,rho) = splitPredType tp
+                 liftError $ checkUnhandledEffects flags nameExpr rangeNull rho
                  case splitFunType rho of
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
@@ -373,7 +374,8 @@ compileProgram' term flags modules compileTarget fname program
                                                    TFun [] eff resTp  -> True -- resTp == typeUnit
                                                    _                  -> False
                              in case filter isMainType tps of
-                               [tp] -> return (Executable mainName tp)
+                               [tp] -> do checkUnhandledEffects flags mainName rangeNull tp
+                                          return (Executable mainName tp)
                                []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <-> 
                                                                                       table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
                                                                                             ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head tps))]))
@@ -399,6 +401,13 @@ compileProgram' term flags modules compileTarget fname program
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded3))
        return loaded3{ loadedModules = addOrReplaceModule (loadedModule loaded3) (loadedModules loaded3) }
 
+checkUnhandledEffects flags name range tp
+  = case expandSyn tp of
+      TFun _ eff _  | containsHandledEffect eff 
+        -> errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
+                                         text " inferred effect:" <+> ppType (prettyEnvFromFlags flags) eff <-->
+                                         text " hint           : wrap the main function in a handler"))
+      _ -> return ()
 
 data ModImport = ImpProgram Import
                | ImpCore    Core.Import 

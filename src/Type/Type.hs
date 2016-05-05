@@ -43,7 +43,7 @@ module Type.Type (-- * Types
                   , typeList, typeApp, typeRef, typeOptional
                   , isOptional, makeOptional
 
-                  , handledToLabel, isHandledEffect, tconHandled
+                  , handledToLabel, isHandledEffect, containsHandledEffect, tconHandled
                   , isEffectCps, typeCps
 
                   -- , isDelay
@@ -510,6 +510,10 @@ labelName tp
                            typeConName tc
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
+containsHandledEffect :: Effect -> Bool
+containsHandledEffect eff
+  = let (ls,_) = extractEffectExtend eff
+    in any isHandledEffect ls
 
 isHandledEffect :: Type -> Bool
 isHandledEffect tp

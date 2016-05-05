@@ -64,60 +64,10 @@ cpsDef :: Bool -> Def -> Cps [Def]
 cpsDef recursive def 
   = do pureTvs <- getPureTVars
        if (needsCpsDef pureTvs def) -- only translate when necessary
-        then cpsDefX recursive def 
+        then do defs' <- cpsLetDef recursive def 
+                case (defs' (\ds -> Let [DefRec ds] exprTrue)) of
+                  Let [DefRec ds] _ -> return ds
         else return [def]
-
-cpsDefX :: Bool -> Def -> Cps [Def]
-cpsDefX recursive def
-  = withCurrentDef def $
-    do cpsk <- getCpsTypeX (defType def)
-       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
-       if (cpsk == PolyCps) -- && defSort def == DefFun)
-        then cpsDefDup recursive def 
-        else do expr <- cpsExpr' (defExpr def) -- don't increase depth
-                return [def{defExpr = expr id}]
-
-cpsDefDup :: Bool -> Def -> Cps [Def]
-cpsDefDup recursive def
-  = do let teffs = case (expandSyn (defType def)) of
-                     TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
-                     _ -> []
-
-       exprCps0   <- cpsTraceDoc (\env -> text "cps translation") >> cpsExpr' (defExpr def)
-       exprNoCps0 <- cpsTraceDoc (\env -> text "fast translation") >> (withPureTVars teffs $ cpsExpr' (defExpr def))
-       let createDef name expr
-            = let tname    = TName name (defType def)
-                  (n,m)    = getArity (defType def)
-                  var      = Var tname (InfoArity n m)
-                  expr'    = if (recursive) 
-                               then [(defTName def, var)] |~> expr
-                               else expr
-              in (def{ defName = name, defExpr = expr' }, var)
-           nameCps  = makeHiddenName "cps" (defName def)
-           nameNoCps= makeHiddenName "fast" (defName def)
-           (defCps,varCps)   = createDef nameCps (exprCps0 id)     
-           (defNoCps,varNoCps) = createDef nameNoCps (exprNoCps0 id)
-
-           defPick  = def{ defExpr = exprPick }
-           exprPick = case (defExpr defCps) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the cps transform..
-                        TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
-                        Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
-                        _ -> failure $ "Core.Cps.cpsDefDup: illegal cps transformed non-function?: " ++ show (prettyDef defaultEnv def) 
-
-           bodyPick :: [TypeVar] -> [TName] -> Expr
-           bodyPick tpars pars 
-            = let tnameK = head (reverse pars)
-              in makeIfExpr (App (TypeApp varValidK [typeOf tnameK]) [Var tnameK InfoNone])
-                            (callPick varCps tpars pars) 
-                            (callPick varNoCps tpars (init pars))
-           
-           callPick :: Expr -> [TypeVar] -> [TName] -> Expr
-           callPick var tpars pars
-            = let typeApp e = (if null tpars then e else TypeApp e (map TVar tpars))                    
-              in App (typeApp var) [Var par InfoNone | par <- pars]
-
-       return [defPick,defCps,defNoCps]
-
 
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
@@ -276,26 +226,13 @@ cpsLetGroups dgs
 cpsLetGroup :: DefGroup -> Cps (TransX [DefGroup] Expr)
 cpsLetGroup dg
   = case dg of
-      DefRec defs -> do ldefs <- cpsTrans (cpsLetDefX True) defs
+      DefRec defs -> do ldefs <- cpsTrans (cpsLetDef True) defs
                         return $ \k -> ldefs (\dds -> k [DefRec (concat dds)])
-      DefNonRec d -> do ldef <- cpsLetDefX False d
+      DefNonRec d -> do ldef <- cpsLetDef False d
                         return $ \k -> ldef (\dgs -> k (map DefNonRec dgs))
 
 cpsLetDef :: Bool -> Def -> Cps (TransX [Def] Expr)
 cpsLetDef recursive def
-  = {- do pureTvs <- getPureTVars
-       if (not (needsCpsDef pureTvs def)) -- only translate when necessary
-        then return $ \k -> k def
-        else 
-    -}
-    -- do cpsDef recursive def
-    withCurrentDef def $
-    do expr' <- cpsExpr (defExpr def)
-       return $ \k -> expr' (\xx -> k [def{ defExpr=xx }])
-
-
-cpsLetDefX :: Bool -> Def -> Cps (TransX [Def] Expr)
-cpsLetDefX recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
        -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
