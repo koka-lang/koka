@@ -1009,16 +1009,16 @@ matchexpr
 handlerExpr
   = do rng <- keyword "handler"
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
-       handlerExprX rng mbEff
+       handlerExprX lparen rng mbEff
   <|> 
     do rng <- keyword "handle"
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
        args <- parensCommas lparen argument 
-       expr <- handlerExprX rng mbEff
+       expr <- handlerExprX lapp rng mbEff
        return (App expr args (combineRanged rng expr))
 
-handlerExprX rng mbEff
-  = do pars <- parensCommas lapp handlerPar <|> return []
+handlerExprX lp rng mbEff
+  = do pars <- parensCommas lp handlerPar <|> return []
        (retops,rng2) <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of

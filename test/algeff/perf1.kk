@@ -24,7 +24,7 @@ function count() {
   }
 }
 
-function test(i0) {
+function testH(i0) {
   handle(count,i0)(i) {
     return x -> x
     get()    -> resume(i,i)
@@ -38,6 +38,6 @@ function testD(i) {
 }
 
 function main() {
-  timer({test(10000000)}).show
+  timer({testH(10000000)}).show
   timer({testD(100000000)}).show
 }
