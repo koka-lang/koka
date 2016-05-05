@@ -406,12 +406,12 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
             
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            inferUnify (checkValue rng) nameRng typeTotal eff           
-           -- trace (" inferred: " ++ show (pretty tp, pretty resTp)) $
-           subst (Core.Def name resTp resCore vis   sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
+           trace (" inferred: " ++ show name ++ ": " ++ show (pretty tp, pretty resTp)) $
+            subst (Core.Def name resTp resCore vis   sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
-  = -- trace ("infer bind def: " ++ show name) $
+  = trace ("infer bind def: " ++ show name) $
     do withDefName name $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)           
@@ -788,6 +788,9 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
         inferUnify (checkMakeHandler rng) rng mkhRho makeHTp
 
+       shandlerTp  <- subst handlerTp
+       trace (" result: " ++ show (pretty shandlerTp)) $ return ()
+
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
            handlerCore = Core.App (mkhCore coreMkHandler) [opmatchCore,retCore,opsfunCore]
 
@@ -795,11 +798,15 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          
            xhandlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
 
-       -- possibly generalize the handler type
-       (ghandlerTp,gcore) <- maybeGeneralize hrng rng heff expect handlerTp handlerCore
+       -- generalize the handler type
+       (ghandlerTp,gcore) <- maybeGeneralize hrng rng typeTotal expect shandlerTp handlerCore
+       -- (ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
        sgcore      <- subst gcore
-       sghandlerTp <- subst ghandlerTp
-       return (sghandlerTp,typeTotal,sgcore)           
+       sghandlerTp <- subst shandlerTp
+
+       geff <- freshEffect
+       trace ("inferred handler type: " ++ show (pretty sghandlerTp)) $
+        return (sghandlerTp,geff,sgcore)           
 
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)

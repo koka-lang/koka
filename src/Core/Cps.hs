@@ -34,7 +34,6 @@ import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
-import Core.Simplify( simplify )
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 cpsTransform penv defs
@@ -236,7 +235,7 @@ cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
        -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
-       if (cpsk == PolyCps) -- && defSort def == DefFun)
+       if (cpsk == PolyCps && isFunctionDef (defExpr def))
         then cpsLetDefDup recursive def 
         else do expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
@@ -267,10 +266,10 @@ cpsLetDefDup recursive def
              (defNoCps,varNoCps) = createDef nameNoCps (exprNoCps)
 
              defPick  = def{ defExpr = exprPick }
-             exprPick = case (defExpr defCps) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the cps transform..
+             exprPick = case simplify (defExpr defCps) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the cps transform..
                           TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
                           Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
-                          _ -> failure $ "Core.Cps.cpsDefDup: illegal cps transformed non-function?: " ++ show (prettyDef defaultEnv def) 
+                          _ -> failure $ "Core.Cps.cpsLetDefDup: illegal cps transformed non-function?: " ++ show (prettyDef defaultEnv def) 
 
              bodyPick :: [TypeVar] -> [TName] -> Expr
              bodyPick tpars pars 
@@ -286,8 +285,26 @@ cpsLetDefDup recursive def
 
          in k [defCps,defNoCps,defPick]
 
+isFunctionDef :: Expr -> Bool
+isFunctionDef expr
+  = case expr of
+      TypeLam tpars (Lam pars eff body) | length pars > 0 -> True
+      Lam pars eff body                 | length pars > 0 -> True
+      TypeApp (TypeLam tvars body) tps  | length tvars == length tps
+        -> isFunctionDef body
+      _ -> False
 
 
+
+simplify :: Expr -> Expr
+simplify expr
+  = case expr of
+      App (TypeApp (Var openName _) [eff1,eff2]) [arg]  
+        | getName openName == nameEffectOpen && matchType eff1 eff2
+        -> simplify arg
+      TypeApp (TypeLam tvars body) tps  | length tvars == length tps
+        -> simplify (subNew (zip tvars tps) |-> body)
+      _ -> expr
 
 
 cpsTrans :: (a -> Cps (TransX b c)) -> [a] -> Cps (TransX [b] c)

@@ -100,7 +100,7 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import qualified Lib.Trace( trace ) 
 
 trace s x =
-   -- Lib.Trace.trace (" " ++ s)
+  Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
@@ -133,11 +133,11 @@ generalize contextRange range eff0 rho0 core0
        score0 <- subst core0
 
        sub <- getSub
-       trace (" generalize: " ++ show (seff,srho) ++ " with " ++ show ps0 
+        -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0 
                   {- ++ " and free " ++ show (tvsList free) -} 
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -} 
-                  {- ++ "\ncore: " ++ show score0 -}) 
-             $ return ()
+                  {- ++ "\ncore: " ++ show score0 -} 
+            -- return ()
        -- simplify and improve predicates
        (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho) 
        -- trace (" improved to: " ++ show (eff1,rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
@@ -151,7 +151,7 @@ generalize contextRange range eff0 rho0 core0
                 -- substitute more free variables in the core with ()
                 let score1 = substFree free score
                 nrho <- normalizeX free rho1
-                trace (" generalized to (as rho type): " ++ show (nrho)) $ return () 
+                trace ("generalized to (as rho type): " ++ show (pretty nrho)) $ return () 
                 return (nrho,score1)
 
         else do -- check that the computation is total
@@ -194,7 +194,7 @@ generalize contextRange range eff0 rho0 core0
                 -- extendSub bsub
                 -- substitute more free variables in the core with ()
                 let core6 = substFree free core5
-                trace (" generalized to: " ++ show (resTp)) $ return () 
+                trace ("generalized to: " ++ show (pretty resTp)) $ return () 
                 return (resTp, core6)
 
   where
@@ -220,7 +220,7 @@ improve contextRange range eff0 rho0 core0
        -- let free = tvsUnion free0 (fuv seff)
        sps    <- splitPredicates free
        score0 <- subst core0
-       trace (" improve: " ++ show (seff,srho) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
+       -- trace (" improve: " ++ show (Pretty.niceTypes Pretty.defaultEnv [seff,srho]) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        
        -- isolate: do first to discharge certain hdiv predicates.
        -- todo: in general, we must to this after some improvement since that can lead to substitutions that may enable isolation..
@@ -234,7 +234,7 @@ improve contextRange range eff0 rho0 core0
        
        (nrho) <- normalizeX free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
-       trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
+       -- trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
@@ -330,7 +330,8 @@ normalizeX free tp
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type 
                           (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
-                            -> return (effectFixed ls)
+                            -> trace ("close effect: " ++ show (pretty tp)) $
+                                return (effectFixed ls)
                           _ -> do ls' <- mapM (normalizex Pos) ls
                                   tl' <- normalizex Pos tl
                                   return (effectExtends ls' tl')
@@ -547,7 +548,7 @@ instance Ranged Context where
 inferUnify :: Context -> Range -> Type -> Type -> Inf ()
 inferUnify context range expected tp
   = do (sexp,stp) <- subst (expected,tp)
-       trace ("infer unify: " ++ show (Pretty.niceTypes Pretty.defaultEnv [sexp,stp])) $ return ()
+       -- trace ("infer unify: " ++ show (Pretty.niceTypes Pretty.defaultEnv [sexp,stp])) $ return ()
        res <- doUnify (unify sexp stp)
        case res of
          Right () -> return ()
@@ -569,7 +570,7 @@ inferSubsume :: Context -> Range -> Type -> Type -> Inf (Type,Core.Expr -> Core.
 inferSubsume context range expected tp
   = do free <- freeInGamma
        (sexp,stp) <- subst (expected,tp)
-       trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
+       -- trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
        res <- doUnify (subsume range free sexp stp)
        case res of
          Right (t,ps,coref) -> do addPredicates ps
