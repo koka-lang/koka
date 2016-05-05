@@ -2604,17 +2604,17 @@ external ".conYield"( op : operation<a>, resume : b -> yld<a> ) : a {
 external inline ".yieldop"( op : operation<a> ) : e a {
   js inline "$std_core._conYield(#1,_k)" 
 }
-
+  
 external inline ".toany"( x : a ) : any { 
   inline "#1" 
 }
 
-function ".makeHandler0"( matchop : operation<c> -> opmatch<e1,e,o>, res : a -> <cps|e> b, ops : (op:o, cont:c -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, res : a -> <cps|e> b, ops : (op:o, resume:(c,bool) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
   function hndler(yld) {
     match(yld) {
       Yield(op,f) -> {
         match(matchop(op)) {
-          OpMatch(eop) -> ops(eop,fun(x) { hndler(f(x))}) 
+          OpMatch(eop) -> ops(eop,fun(x,_) { hndler(f(x))}) 
           OpNoMatch    -> reyield(op,fun(x) { hndler(f(x))})
         }
       }
@@ -2625,8 +2625,8 @@ function ".makeHandler0"( matchop : operation<c> -> opmatch<e1,e,o>, res : a -> 
 }
 
 
-external ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> <cps|e> b, ops : (op:o, cont: ((c,d,bool) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  js inline "$directMakeHandler1(matchop,res,ops)"
+external ".makeHandler1"( optag : string, matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> <cps|e> b, ops : (op:o, resume: ((c,d,bool) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
+  js inline "$directMakeHandler1(optag,matchop,res,ops)"
 }
 
 /*

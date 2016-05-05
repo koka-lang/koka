@@ -27,8 +27,8 @@ function count() {
 function test(i0) {
   handle(count,i0)(i) {
     return x -> x
-    get()    -> resume(i,i,True)
-    put(j)   -> resume((),j,True)
+    get()    -> resume(i,i)
+    put(j)   -> resume((),j)
   }
 }
 

@@ -23,7 +23,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
                       , nameMakeHandler
-                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny )
+                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny, nameFalse )
 import Common.Range
 import Common.Unique
 import Common.Syntax
@@ -770,11 +770,12 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        (opmatchRho,_,opmatchICore) <- instantiate rng opmatchTp
        let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
-
+           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun ([(newName "op", opsTp),(newName "resume", resumeTp)] ++ argPars)
                           retEff retOutTp
-           makeHTp = TFun [(newName "opmatch",opmatchRho),
+           makeHTp = TFun [ (newName "optag",typeString),
+                            (newName "opmatch",opmatchRho),
                               (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
        -- ctp <- Op.freshTVar kindStar Meta
@@ -789,7 +790,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           handlerCore = Core.App (mkhCore coreMkHandler) [opmatchCore,retCore,opsfunCore]
+           handlerCore = Core.App (mkhCore coreMkHandler) [optagCore,opmatchCore,retCore,opsfunCore]
 
     -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
            tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          
@@ -871,14 +872,14 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (Handl
        let (xresumeTp,xresumeArgs)
                     = case splitFunType (binderType resumeBinder) of 
                         Just (((xname,_):targs),teff,tres) 
-                          -> let newargs = ((xname,resTp):targs)
+                          -> let newargs = ((xname,resTp):init targs)
                              in (TFun newargs teff tres,
                                   [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
                         _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
            xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
-           xresumeAppArgs = (Nothing, 
-                              App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng) 
-                            : [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+           xresumeAppArgs = [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
+                              ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+                              ++ [(Nothing,Var nameFalse False rng)]
            xresumeExpr   = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) 
                                                     xresumeAppArgs rng) rng)
                                xresumeTp rng

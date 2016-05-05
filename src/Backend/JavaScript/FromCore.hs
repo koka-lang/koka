@@ -300,6 +300,13 @@ tryTailCall result expr
              stmts <- genOverride params args
              return $ Just $ block $ stmts <-> tailcall
 
+     App v@(Var resume _) args | getName resume == newHiddenName "resume" && length args > 2 &&
+                               (case result of { ResultReturn _ _ -> True; _ -> False }) 
+       -> case reverse args of
+            (argK:argTail:rargs) 
+              -> do doc <- genExprStat result (App v (reverse rargs ++ [exprTrue,argK]))
+                    return (Just doc)
+            _ -> failure "Backend.JavaScript.FromCore.tryTailCall: invalid arguments"
      _ -> return Nothing
   where
     -- overriding function arguments carefully
@@ -329,31 +336,34 @@ genStat result expr
                 Just doc
                   -> return doc
                 Nothing 
-                  -> case expr of
-                        -- If expression is inlineable, inline it
-                        _  | isInlineableExpr expr
-                          -> do exprDoc <- genInline expr
-                                return (getResult result exprDoc)
+                  -> genExprStat result expr
 
-                        Case exprs branches
-                           -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
-                                                                                 then do d       <- genInline e
-                                                                                         return (text "", d)
-                                                                                 else do (sd,vn) <- genVarBinding e 
-                                                                                         vd      <- genTName vn
-                                                                                         return (sd, vd)
-                                                                         ) exprs
-                                 doc                <- genMatch result scrutinees branches
-                                 return (vcat docs <-> doc)
+genExprStat result expr
+  = case expr of
+          -- If expression is inlineable, inline it
+          _  | isInlineableExpr expr
+            -> do exprDoc <- genInline expr
+                  return (getResult result exprDoc)
 
-                        Let groups body
-                          -> do doc1 <- genGroups groups
-                                doc2 <- genStat result body
-                                return (doc1 <-> doc2)
+          Case exprs branches
+             -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
+                                                                   then do d       <- genInline e
+                                                                           return (text "", d)
+                                                                   else do (sd,vn) <- genVarBinding e 
+                                                                           vd      <- genTName vn
+                                                                           return (sd, vd)
+                                                           ) exprs
+                   doc                <- genMatch result scrutinees branches
+                   return (vcat docs <-> doc)
 
-                        -- Handling all other cases
-                        _ -> do (statDoc,exprDoc) <- genExpr expr
-                                return (statDoc <-> getResult result exprDoc)
+          Let groups body
+            -> do doc1 <- genGroups groups
+                  doc2 <- genStat result body
+                  return (doc1 <-> doc2)
+
+          -- Handling all other cases
+          _ -> do (statDoc,exprDoc) <- genExpr expr
+                  return (statDoc <-> getResult result exprDoc)
 
 -- | Generates a statement for a match expression regarding a given return context
 genMatch :: Result -> [Doc] -> [Branch] -> Asm Doc
