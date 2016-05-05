@@ -111,6 +111,7 @@ data Flags
          , rebuild          :: Bool
          , genCore          :: Bool
          , coreCheck        :: Bool
+         , enableCps        :: Bool
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
@@ -151,6 +152,7 @@ flagsNull
           False -- rebuild
           False -- genCore
           False -- coreCheck
+          True  -- enableCps
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
@@ -215,9 +217,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hiddenFlag   []    ["simplify"]  (\b f -> f{noSimplify= not b})       "enable core simplification"
- , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
- 
+ , hiddenFlag   []    ["simplify"]  (\b f -> f{noSimplify= not b})    "enable core simplification"
+ , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=not b})      "enable cps translation"
+ , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack" 
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
  ]
  where

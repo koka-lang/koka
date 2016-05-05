@@ -82,7 +82,7 @@ extendGamma ex (Check c) = Check (\u env -> c u env{ gamma = (gammaExtends ex (g
 
 withDef :: Def -> Check a -> Check a
 withDef def (Check c) 
-  = trace ("checking: " ++ show (defName def)) $
+  = -- trace ("checking: " ++ show (defName def)) $
     Check (\u env -> c u env{ currentDef = def : (currentDef env) })
 
 getEnv :: Check CheckEnv

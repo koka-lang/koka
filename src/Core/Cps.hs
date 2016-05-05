@@ -94,7 +94,7 @@ cpsExpr' expr
               isCpsTo   <- needsCpsTypeX effTo
               if (isCpsFrom || not (isCpsTo))
                -- simplify open away if already in cps form, or not in cps at all
-               then do cpsTraceDoc $ \env -> text "open: ignore: " <+> tupled (niceTypes env [effFrom,effTo])
+               then do -- cpsTraceDoc $ \env -> text "open: ignore: " <+> tupled (niceTypes env [effFrom,effTo])
                        -- cpsExpr f                       
                        f' <- cpsExpr f
                        return $ \k -> f' (\ff -> k (App eopen [ff]))
@@ -110,7 +110,7 @@ cpsExpr' expr
 
       -- leave 'return' in place
       App var@(Var v _) [arg] | getName v == nameReturn
-        -> do cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
+        -> do -- cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
               -- cpsExpr arg
               arg' <- cpsExpr arg
               return $ \k -> App var [arg' k]
@@ -246,8 +246,10 @@ cpsLetDefDup recursive def
                      TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
                      _ -> []
 
-       exprCps'    <- cpsTraceDoc (\env -> text "cps translation") >> cpsExpr' (defExpr def)
-       exprNoCps'  <- cpsTraceDoc (\env -> text "fast translation") >> (withPureTVars teffs $ cpsExpr' (defExpr def))
+       -- cpsTraceDoc (\env -> text "cps translation") >> 
+       exprCps'    <- cpsExpr' (defExpr def)
+       -- cpsTraceDoc (\env -> text "fast translation")                      
+       exprNoCps'  <- withPureTVars teffs $ cpsExpr' (defExpr def)
 
        return $ \k -> 
         exprCps' $ \exprCps -> 
@@ -555,7 +557,7 @@ updateSt f
 
 withCurrentDef :: Def -> Cps a -> Cps a
 withCurrentDef def 
-  = trace ("cps def: " ++ show (defName def)) $
+  = -- trace ("cps def: " ++ show (defName def)) $
     withEnv (\env -> env{ depth = 0, currentDef = def:currentDef env})
 
 withIncDepth :: Cps a -> Cps a

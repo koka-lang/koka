@@ -552,7 +552,7 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        return (Synonym tbinder' infgamma tp' range vis doc)
 
 infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
-  = trace ("inf datatype: " ++ show (tbinderName newtp)) $
+  = -- trace ("inf datatype: " ++ show (tbinderName newtp)) $
     do infgamma <- mapM bindTypeBinder args
        constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original

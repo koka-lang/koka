@@ -712,24 +712,25 @@ inferCheck loaded flags line coreImports program1
 
        -- cps tranform program
        (isCps,coreDefs1)
-           <- if (False && Core.coreProgName coreProgram1 == nameSystemCore) -- don't cps transform the core library for now
-                     then return (False,coreDefs0)
-                     else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
-                             return (True,cdefs)
+           <- if (not (enableCps flags)) 
+               then return (False,coreDefs0)
+               else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
+                       -- recheck cps transformed core
+                       when (False && coreCheck flags) $
+                          Core.Check.checkCore True penv unique4 gamma cdefs
+                       return (True,cdefs)
 
-       -- recheck cps transformed core
-       if (True || not (coreCheck flags)) then return () 
-        else Core.Check.checkCore isCps penv unique4 gamma coreDefs1
-
+       
 
        -- simplify coreF if enabled
-       let coreDefs2 = if noSimplify flags 
-                        then coreDefs1
-                        else trace "simplify" $ Core.Simplify.simplify $ Core.Simplify.simplify coreDefs1
-
-       -- recheck simplified core
-       if (True || not (coreCheck flags)) then return () 
-        else Core.Check.checkCore isCps penv unique4 gamma coreDefs2
+       coreDefs2 <- if noSimplify flags 
+                      then return coreDefs1
+                      else -- trace "simplify" $ 
+                           do let cdefs = Core.Simplify.simplify $ Core.Simplify.simplify coreDefs1
+                              -- recheck simplified core
+                              when (not isCps && coreCheck flags) $
+                                Core.Check.checkCore isCps penv unique4 gamma cdefs
+                              return cdefs
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
