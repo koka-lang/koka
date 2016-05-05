@@ -11,7 +11,7 @@ module Static.BindingGroups( bindingGroups ) where
 import qualified Common.NameMap as M
 import qualified Common.NameSet as S
 
-import Data.List(partition)
+import Data.List(partition,isPrefixOf)
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
 import Common.NamePrim (toShortModuleName)
@@ -244,9 +244,14 @@ group defs deps
   = let -- get definition id's
         defVars  = S.fromList (M.keys deps)
         -- constrain to the current group of id's
-        defDeps  = M.map (\fvs -> S.intersection defVars fvs) deps
+        defDeps  = M.map (\fvs -> S.intersection defVars fvs) deps        
         -- determine strongly connected components
-        defOrder = scc [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps]
+        defOrder0 = scc [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps]
+        defOrder  = let (xs,ys) = partition noDeps defOrder0
+                        noDeps ids = case ids of
+                                       [id] -> S.null (M.find id defDeps)
+                                       _    -> False 
+                    in (xs++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.
@@ -255,7 +260,7 @@ group defs deps
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: binding order: " ++ show defOrder) $
+    in -- trace ("trace: binding order:\n " ++ show (defVars) ++ "\n " ++ show defOrder) $
        concatMap makeGroup defOrder
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]

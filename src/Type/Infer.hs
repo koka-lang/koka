@@ -765,10 +765,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        
        -- lookup relevelant opmatchX
        (opmatchName,opmatchTp,opmatchInfo) 
-             <- do mbf <- lookupFunName (prepend "opmatch" (toConstructorName hxName)) Nothing hrng
-                   case mbf of
-                     Just res -> return res
-                     _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find opmatch for " ++ show hxName
+             <- resolveFunName (prepend "opmatch" (toConstructorName hxName)) (CtxFunArgs 1 []) hrng hrng
 
        (opmatchRho,_,opmatchICore) <- instantiate rng opmatchTp
        let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
@@ -780,10 +777,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
                               (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
        -- ctp <- Op.freshTVar kindStar Meta
-       (mkhQname,mkhTp,mkhInfo) <-  do mbh <- lookupFunName (nameMakeHandler (length pars)) Nothing hrng
-                                       case mbh of
-                                         Just res -> return res
-                                         _ -> failure $ "Type.Infer.inferHandlerBranch: cannot find makeHandler: " ++ show (nameMakeHandler (length pars))
+       (mkhQname,mkhTp,mkhInfo) <- resolveFunName (nameMakeHandler (length pars)) (CtxFunArgs 3 []) hrng hrng
        (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
        smakeHTp <- subst makeHTp
        env <- getPrettyEnv
