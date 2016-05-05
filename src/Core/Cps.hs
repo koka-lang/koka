@@ -228,26 +228,32 @@ cpsExpr' expr
       Let defgs body 
         -> do defgs' <- cpsLetGroups defgs
               body'  <- cpsExpr body
-              return $ \k -> Let defgs' (body' k)
+              return $ \k -> defgs' (\dgs -> Let dgs (body' k))
       Case exprs bs
         -> do exprs' <- cpsTrans cpsExpr exprs
               bs'    <- mapM cpsBranch bs
               return $ \k -> exprs' (\xxs -> Case xxs (map (\b -> b k) bs'))              
+      Var (TName name tp) info
+        -> do -- tp' <- cpsTypeX tp
+              return (\k -> k (Var (TName name tp) info)) 
+
+      -- type application and abstraction
+
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
         -- propagate types so that the pure tvs are maintained.
         -- todo: This will fail if the typeapp is not directly around the type lambda!
         -> do cpsExpr' (subNew (zip tvars tps) |-> body)
+
       TypeLam tvars body
         -> do body' <- cpsExpr' body
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
+      
       TypeApp body tps
         -> do body' <- cpsExpr body
               -- tps'  <- mapM cpsTypeX tps
               -- tps'  <- mapM cpsTypePar tps0
               return $ \k -> body' (\xx -> k (TypeApp xx tps))
-      Var (TName name tp) info
-        -> do -- tp' <- cpsTypeX tp
-              return (\k -> k (Var (TName name tp) info))              
+                   
       _ -> return (\k -> k expr) -- leave unchanged
 
 cpsBranch :: Branch -> Cps ((Expr -> Expr) -> Branch)
@@ -261,42 +267,100 @@ cpsGuard (Guard guard body)
        body'  <- cpsExpr body
        return $ \k -> Guard guard (body' k)
 
-cpsLetGroups :: DefGroups -> Cps DefGroups -- (TransX DefGroups Expr)
-cpsLetGroups dgs = cpsDefGroups dgs
+cpsLetGroups :: DefGroups -> Cps (TransX DefGroups Expr)
+cpsLetGroups dgs 
+  = do dgss' <- cpsTrans cpsLetGroup dgs
+       return $ \k -> dgss' (\dgss -> k (concat dgss))
+  -- = cpsDefGroups dgs
   
-  -- = do dgss <- mapM cpsLetGroup dgs 
-  --     return (concat dgss)
-
-cpsLetGroup :: DefGroup -> Cps [DefGroup] -- (TransX [DefGroup] Expr)
+cpsLetGroup :: DefGroup -> Cps (TransX [DefGroup] Expr)
 cpsLetGroup dg
   = case dg of
-      DefRec defs -> do ldefs <- mapM (cpsLetDef True) defs
-                        return $ [DefRec (concat ldefs)]
-      DefNonRec d -> do ldef <- cpsLetDef False d
-                        return $ (map DefNonRec ldef)
+      DefRec defs -> do ldefs <- cpsTrans (cpsLetDefX True) defs
+                        return $ \k -> ldefs (\dds -> k [DefRec (concat dds)])
+      DefNonRec d -> do ldef <- cpsLetDefX False d
+                        return $ \k -> ldef (\dgs -> k (map DefNonRec dgs))
 
-cpsLetDef :: Bool -> Def -> Cps [Def] -- Cps (TransX [Def] Expr)
+cpsLetDef :: Bool -> Def -> Cps (TransX [Def] Expr)
 cpsLetDef recursive def
   = {- do pureTvs <- getPureTVars
        if (not (needsCpsDef pureTvs def)) -- only translate when necessary
         then return $ \k -> k def
         else 
     -}
-    do cpsDef recursive def
-    {-
+    -- do cpsDef recursive def
     withCurrentDef def $
-             do -- tp'   <- cpsTypeX (defType def)
-                expr' <- cpsExpr (defExpr def)
-                return $ \k -> expr' (\xx -> k def{ defExpr=xx })
-    -}
+    do expr' <- cpsExpr (defExpr def)
+       return $ \k -> expr' (\xx -> k [def{ defExpr=xx }])
 
-cpsTrans :: (a -> Cps (TransX a b)) -> [a] -> Cps (TransX [a] b)
+
+cpsLetDefX :: Bool -> Def -> Cps (TransX [Def] Expr)
+cpsLetDefX recursive def
+  = withCurrentDef def $
+    do cpsk <- getCpsTypeX (defType def)
+       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
+       if (cpsk == PolyCps) -- && defSort def == DefFun)
+        then cpsLetDefDup recursive def 
+        else do expr' <- cpsExpr' (defExpr def) -- don't increase depth
+                return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
+
+cpsLetDefDup :: Bool -> Def -> Cps (TransX [Def] Expr)
+cpsLetDefDup recursive def
+  = do let teffs = case (expandSyn (defType def)) of
+                     TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
+                     _ -> []
+
+       exprCps'    <- cpsTraceDoc (\env -> text "cps translation") >> cpsExpr' (defExpr def)
+       exprNoCps'  <- cpsTraceDoc (\env -> text "fast translation") >> (withPureTVars teffs $ cpsExpr' (defExpr def))
+
+       return $ \k -> 
+        exprCps' $ \exprCps -> 
+        exprNoCps' $ \exprNoCps ->           
+         let createDef name expr
+              = let tname    = TName name (defType def)
+                    (n,m)    = getArity (defType def)
+                    var      = Var tname (InfoArity n m)
+                    expr'    = if (recursive) 
+                                 then [(defTName def, var)] |~> expr
+                                 else expr
+                in (def{ defName = name, defExpr = expr' }, var)
+             nameCps  = makeHiddenName "cps" (defName def)
+             nameNoCps= makeHiddenName "fast" (defName def)
+             (defCps,varCps)   = createDef nameCps (exprCps)     
+             (defNoCps,varNoCps) = createDef nameNoCps (exprNoCps)
+
+             defPick  = def{ defExpr = exprPick }
+             exprPick = case (defExpr defCps) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the cps transform..
+                          TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
+                          Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
+                          _ -> failure $ "Core.Cps.cpsDefDup: illegal cps transformed non-function?: " ++ show (prettyDef defaultEnv def) 
+
+             bodyPick :: [TypeVar] -> [TName] -> Expr
+             bodyPick tpars pars 
+              = let tnameK = head (reverse pars)
+                in makeIfExpr (App (TypeApp varValidK [typeOf tnameK]) [Var tnameK InfoNone])
+                              (callPick varCps tpars pars) 
+                              (callPick varNoCps tpars (init pars))
+             
+             callPick :: Expr -> [TypeVar] -> [TName] -> Expr
+             callPick var tpars pars
+              = let typeApp e = (if null tpars then e else TypeApp e (map TVar tpars))                    
+                in App (typeApp var) [Var par InfoNone | par <- pars]
+
+         in k [defCps,defNoCps,defPick]
+
+
+
+
+
+cpsTrans :: (a -> Cps (TransX b c)) -> [a] -> Cps (TransX [b] c)
 cpsTrans f xs
   = case xs of
       [] -> return $ \k -> k []
       (x:xx) -> do x'  <- f x
                    xx' <- cpsTrans f xx
                    return $ \k -> x' (\y -> xx' (\ys -> k (y:ys)))
+
 
 
 
