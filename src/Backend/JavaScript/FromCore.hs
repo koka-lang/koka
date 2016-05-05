@@ -299,7 +299,7 @@ tryTailCall result expr
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
              return $ Just $ block $ stmts <-> tailcall
-
+{-
      App v@(Var resume _) args | getName resume == newHiddenName "resume" && length args > 2 &&
                                (case result of { ResultReturn _ _ -> True; _ -> False }) 
        -> case reverse args of
@@ -307,6 +307,7 @@ tryTailCall result expr
               -> do doc <- genExprStat result (App v (reverse rargs ++ [exprTrue,argK]))
                     return (Just doc)
             _ -> failure "Backend.JavaScript.FromCore.tryTailCall: invalid arguments"
+-}            
      _ -> return Nothing
   where
     -- overriding function arguments carefully

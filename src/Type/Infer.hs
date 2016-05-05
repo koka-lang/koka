@@ -740,7 +740,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        let opsEff    = handledToLabel hxeff
            opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
            isTailPar = [(newName "isTailCall", typeBool)]
-           resumeTp = TFun (((newHiddenName "x",opsResTp):argPars) ++ isTailPar) retEff retOutTp 
+           resumeTp = TFun (isTailPar ++ [(newHiddenName "x",opsResTp)] ++ argPars) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            opsgamma = inferBinders [] [opsBinder,resumeBinder]
            infgamma = inferBinders [] parBinders
@@ -871,15 +871,16 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (Handl
        -- create resume definition with the type specialized to this operation
        let (xresumeTp,xresumeArgs)
                     = case splitFunType (binderType resumeBinder) of 
-                        Just (((xname,_):targs),teff,tres) 
-                          -> let newargs = ((xname,resTp):init targs)
+                        Just ((_:(xname,_):targs),teff,tres) 
+                          -> let newargs = ((xname,resTp):targs)
                              in (TFun newargs teff tres,
                                   [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
                         _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
            xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
-           xresumeAppArgs = [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
-                              ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
-                              ++ [(Nothing,Var nameFalse False rng)]
+           xresumeAppArgs =     [(Nothing,Var nameFalse False rng)]
+                             ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
+                             ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+                              
            xresumeExpr   = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) 
                                                     xresumeAppArgs rng) rng)
                                xresumeTp rng
