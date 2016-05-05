@@ -100,7 +100,7 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import qualified Lib.Trace( trace ) 
 
 trace s x =
-  Lib.Trace.trace (" " ++ s)
+--  Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------

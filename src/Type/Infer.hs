@@ -55,7 +55,7 @@ import Core.Simplify( simplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   Lib.Trace.trace s 
+--   Lib.Trace.trace s 
     x
 
 {--------------------------------------------------------------------------
