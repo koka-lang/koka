@@ -2307,11 +2307,22 @@ function show( b : bool ) : string =  if (b) then "True" else "False"
 function show( u : () ) : string =  "()"
 
 // Convert a list to a string
-function show( xs : list<a>, showElem : (a) -> string ) : string
+function showList( xs : list<a>, showElem : (a) -> string ) : string
 {
   "[" + xs.map(showElem).join(",") + "]"
 }
 
+function show( xs : list<string> ) : string {
+  showList(xs,show)
+}
+
+function show( xs : list<int> ) : string {
+  showList(xs,show)
+}
+
+function show( xs : list<bool> ) : string {
+  showList(xs,show)
+}
 
 // Right-align a string to width `width`  using `char`  (default is a space) to fill from the left.
 function align( s : string, width : int, char : char = ' ') : string
