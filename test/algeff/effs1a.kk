@@ -1,4 +1,11 @@
-import effs1
+effect amb {
+  flip() : bool
+}
+
+effect state<s> {
+  get()  : s;
+  set(i:s) : ()
+}
 
 function xor() : amb bool {
   val p = flip() 
@@ -6,23 +13,16 @@ function xor() : amb bool {
   (p||q) && not(p&&q)
 }
 
-function xors() : amb string {
-  show(xor())
-}
 
-function foo() : <amb,state> bool {
+function foo() : <amb,state<int>> bool {
   val p = flip() 
   val i = get()
   set(i+1)
   if (i>0 && p) then xor() else False
 }         
 
-function foos() : <amb,state> string {
-  show(foo())
-}    
  
 // handlers
-
 
 function amb_handle() {
   handler {
@@ -32,23 +32,22 @@ function amb_handle() {
 }
 
 function state_handle() {
-  handler(i:int) {
+  handler(i) {
     return x -> x
     get()    -> resume(i,i)
     set(j)   -> resume((),j) 
   }
 }
 
-
-function test1() : string {
-  amb_handle()(xors).join(",")
+function test1() {
+  amb_handle()(xor)
 }
 
 
-function test2() : string {
-  state_handle()({amb_handle()(foos)},0).join(",")
+function test2()  {
+  state_handle()({amb_handle()(foo)},0)
 }
 
-function test3() :  string {
-  amb_handle()({state_handle()(foos,0)}).join(",")
+function test3()  {
+  amb_handle()({state_handle()(foo,0)})
 }

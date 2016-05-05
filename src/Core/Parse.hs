@@ -235,7 +235,7 @@ binderDot
 externDecl :: Env -> LexParser External
 externDecl env
   = do (_,doc) <- dockeyword "external"
-       (name) <- canonical funid 
+       (name) <- canonical (funid  <|> binderDot)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp <- ptype env

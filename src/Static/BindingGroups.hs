@@ -180,9 +180,10 @@ dependencyBranches f modName branches
 
 
 dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
-dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchPars=pars, hbranchExpr=expr })
-  = (hb{ hbranchExpr = depExpr }, S.difference fvExpr (S.fromList (map getName pars)))
+dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
+  = (hb{ hbranchExpr = depExpr }, S.insert uname (S.difference fvExpr (S.fromList (map getName pars))))
   where
+    uname = if (qualifier name == modName) then unqualify name else name                              
     (depExpr, fvExpr)   = dependencyExpr modName expr
 
 

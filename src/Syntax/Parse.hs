@@ -694,7 +694,7 @@ effectDecl dvis
            caseExpr  = Case (Var arg False rng) [branch1,branch2] rng
            branch1   = Branch (PatCon (extendConName) patterns rng rng) guardTrue 
                             (App (Var nameOpMatch False rng) [(Nothing,Var fld False rng)] rng)
-           branch2   = Branch (PatWild rng) guardTrue (Var nameOpNoMatch False rng)
+           branch2   = Branch (PatWild rng) guardTrue (App (Var nameOpNoMatch False rng) [] rng)
            patterns  = [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
            fld       = newName "x"
            arg       = newName "op"
@@ -1244,7 +1244,10 @@ funid
     do rng1 <- special "["
        rng2 <- special "]"
        return (nameIndex,combineRange rng1 rng2)
-
+  -- secretly allow definition of any name       
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s, rng)
 
 pattern :: LexParser UserPattern
 pattern
@@ -1825,6 +1828,10 @@ idop
 conid :: LexParser (Name,Range)
 conid
   = ensureUnqualified "constructor" qconid
+  -- secretly allow any name
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s,rng)
 
 op :: LexParser (Name,Range)
 op = ensureUnqualified "operator" qop

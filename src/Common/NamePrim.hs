@@ -163,16 +163,19 @@ nameEffectAppend= newName ".<+>"
 
 nameTpHandled   = preludeName "handled"
 nameTpOperation = preludeName "operation"
-nameYieldOp     = preludeName "unsafeyield"
+
 nameTpCps       = preludeName "cps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
-nameToAny       = preludeName "toAny"
-nameMakeHandler n = newName ("makeHandler" ++ show n)
-nameTpOpMatch   = preludeName "opmatch"
-nameOpMatch     = preludeName "OpMatch"
-nameOpNoMatch   = preludeName "OpNoMatch"
 nameEnsureK     = preludeName "ensureK"
+
+nameYieldOp     = preludeName ".yieldop"
+nameToAny       = preludeName ".toany"
+nameMakeHandler n = preludeName (".makeHandler" ++ show n)
+nameTpOpMatch   = preludeName "opmatch"
+nameOpMatch     = preludeName ".conOpMatch"
+nameOpNoMatch   = preludeName ".conOpNoMatch"
+
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
