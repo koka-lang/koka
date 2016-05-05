@@ -1009,12 +1009,23 @@ matchexpr
 handlerExpr
   = do rng <- keyword "handler"
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
-       pars <- parensCommas lparen handlerPar <|> return []
+       handlerExprX rng mbEff
+  <|> 
+    do rng <- keyword "handle"
+       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
+       args <- parensCommas lparen argument 
+       expr <- handlerExprX rng mbEff
+       return (App expr args (combineRanged rng expr))
+
+handlerExprX rng mbEff
+  = do pars <- parensCommas lapp handlerPar <|> return []
        (retops,rng2) <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
          [ret] -> return (Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
+
+
 
 handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
 handlerOp 

@@ -739,7 +739,8 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let opsEff    = handledToLabel hxeff
            opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
-           resumeTp = TFun ((newHiddenName "x",opsResTp):argPars) retEff retOutTp 
+           isTailPar = [(newName "isTailCall", typeBool)]
+           resumeTp = TFun (((newHiddenName "x",opsResTp):argPars) ++ isTailPar) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            opsgamma = inferBinders [] [opsBinder,resumeBinder]
            infgamma = inferBinders [] parBinders
