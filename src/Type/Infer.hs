@@ -731,6 +731,9 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            parTypes = map snd argPars
            parBinders = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propParBinders parTypes]
 
+       heff <- freshEffect
+       inferUnify (checkEffectSubsume hrng) hrng (effectExtend typeCps heff) retEff
+
        -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
@@ -755,8 +758,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff retOutTp
-       let heff      = retEff
-           actionEff = effectExtend (handledToLabel hxeff) heff
+       let actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
            handlerTp = TFun (actionPar:argPars) heff retOutTp
 
