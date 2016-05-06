@@ -110,10 +110,12 @@ cpsExpr' expr
 
       -- leave 'return' in place
       App var@(Var v _) [arg] | getName v == nameReturn
-        -> do -- cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
+        -> do cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
               -- cpsExpr arg
               arg' <- cpsExpr arg
-              return $ \k -> App var [arg' k]
+              return $ \k -> arg' (\xx -> 
+                          let cexpr = App (varK typeAny typeTotal typeAny) [xx] in  -- ignore  k since nothing can happen after return!
+                              trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ cexpr)
 
       -- regular cases
       Lam args eff body 

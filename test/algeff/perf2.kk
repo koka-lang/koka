@@ -58,31 +58,31 @@ effect choose {
   fail<b>()     : b
 }
 
-function concatN(n : int, f : int -> e list<a>) : e list<a> {
-  if (n < 1) then [] else f(n) + concatN(unsafeDecreasing(n-1),f)
-}
+
 
 function chooseAll( action ) {
   handle(action){
     return x  -> [x]
-    pick(n)   -> concatN(n,resume) // list(1,n).map(resume).concat
+    pick(n)   -> list(1,n,resume).concat
     fail      -> []
   }
 }
 
 function findSolution( n : int, queen : int ) : <choose,div> solution {
+  /*
   if (queen==0) then [] else {
     val xs = findSolution(n,queen-1)
     val i  = pick(n)
-    if (safe(i,1,xs)) then Cons(i,xs) else fail() // extend1(n, findSolution(n, queen-1))
+    if (safe(i,1,xs)) then Cons(i,xs) else fail() 
   }
-  /*
+  */
   // this goes wrong due to the return being mistranslated
   if (queen==0) then return []
+  
   val xs = findSolution(n,queen-1)
   val i  = pick(n)
   if (safe(i,1,xs)) then Cons(i,xs) else fail() // extend1(n, findSolution(n, queen-1))
-  */
+  
 }
 
 function showSolutions( xss : solutions ) : io () {
