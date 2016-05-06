@@ -235,9 +235,11 @@ cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
        -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
-       if (cpsk == PolyCps && isFunctionDef (defExpr def))
+       let isFunDef = isFunctionDef (defExpr def)
+       if (cpsk == PolyCps && isFunDef)
         then cpsLetDefDup recursive def 
-        else do expr' <- cpsExpr' (defExpr def) -- don't increase depth
+        else do when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type: " <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
+                expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
 
 cpsLetDefDup :: Bool -> Def -> Cps (TransX [Def] Expr)
@@ -294,6 +296,8 @@ isFunctionDef expr
       Lam pars eff body                 | length pars > 0 -> True
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
         -> isFunctionDef body
+      TypeLam tpars (TypeApp body tps)  | length tpars == length tps 
+         -> isFunctionDef body
       _ -> False
 
 
