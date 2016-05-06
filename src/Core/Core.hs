@@ -64,7 +64,7 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTpBool, nameEffectOpen )
+import Common.NamePrim( nameTrue, nameFalse, nameTpBool, nameEffectOpen, nameReturn )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -344,6 +344,7 @@ isTotal expr
       TypeApp e _ -> isTotal e
       Con _ _ -> True
       Lit _   -> True
+      App (Var v _) _ | getName v == nameReturn -> False
       App f args -> case typeOf f of
                       TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
                       _                 -> False
