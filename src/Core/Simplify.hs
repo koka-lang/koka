@@ -15,7 +15,7 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK )
+import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
@@ -94,7 +94,7 @@ topDown (Let dgs body)
           Lit{} -> True
           TypeLam _ e -> isSmallX n e
           TypeApp e _ -> isSmallX n e
-          App (Var v _) _ | getName v == nameEnsureK -> False
+          App (Var v _) _ | getName v == nameReturn -> False  -- and ensureK?
           App f args  -> all (isSmallX (n-1)) (f:args)
           _ -> False
 
