@@ -401,7 +401,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
       else return ()
      withDefName name $
       (if (sort /= DefFun || nameIsNil name) then id else allowReturn True) $
-        do (tp,eff,coreExpr) <- inferExpr Nothing expect True expr
+        do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
             
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
@@ -413,7 +413,7 @@ inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
   = trace ("infer bind def: " ++ show name) $
     do withDefName name $
-        do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated True expr
+        do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)           
            coreDef <- if (sort /= DefVar) 
                        then return (Core.Def name tp coreExpr vis sort nameRng doc)
@@ -447,8 +447,8 @@ inferIsolated contextRange range inf
 -- | @inferExpr propagated expect expr@ takes a potential propagated type, whether the result is expected to be generalized or instantiated,
 -- and the expression. It returns its type, effect, and core expression. Note that the resulting type is not necessarily checked that it matches
 -- the propagated type: the propagated type is just a hint (used for example to resolve overloaded names).
-inferExpr :: Maybe (Type,Range) -> Expect -> Bool -> Expr Type -> Inf (Type,Effect,Core.Expr)
-inferExpr propagated expect tailPos (Lam binders body rng)  
+inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
+inferExpr propagated expect (Lam binders body rng)  
   = -- trace (" inferExpr.Lam: " ++ show propagated ++ ", " ++ show expect) $
     do (propArgs,propEff,propBody,expectBody) <- matchFun propagated
        let binders0 = [case binderType binder of
@@ -466,7 +466,7 @@ inferExpr propagated expect tailPos (Lam binders body rng)
        (tp,eff,core) <- extendInfGamma False infgamma  $ 
                         extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
                         inferIsolated rng (getRange body) $ 
-                        inferExpr propBody expectBody True body
+                        inferExpr propBody expectBody body
       
        inferUnify (checkReturnResult rng) (getRange body) returnTp tp 
        
@@ -500,26 +500,26 @@ inferExpr propagated expect tailPos (Lam binders body rng)
        eff <- freshEffect                   
        return (ftp, eff, fcore ) 
 
-inferExpr propagated expect tailPos (Let defgroup body rng)
-  = do (cgroups,(tp,eff,core)) <- inferDefGroup False defgroup (inferExpr propagated expect tailPos body)
+inferExpr propagated expect (Let defgroup body rng)
+  = do (cgroups,(tp,eff,core)) <- inferDefGroup False defgroup (inferExpr propagated expect body)
        return (tp,eff,Core.Let cgroups core)
 
-inferExpr propagated expect tailPos (Bind def body rng)
+inferExpr propagated expect (Bind def body rng)
   = -- trace ("infer bind") $
     do (eff1,coreDef) <- inferBindDef def
        mod  <- getModuleName
        let cgroup = Core.DefNonRec coreDef
-       (tp,eff2,coreBody) <- extendInfGammaCore False [cgroup] (inferExpr propagated expect tailPos body)
+       (tp,eff2,coreBody) <- extendInfGammaCore False [cgroup] (inferExpr propagated expect body)
        -- topEff <- addTopMorphisms rng [(defRange def,eff1),(getRange body,eff2)]
        inferUnify (checkEffect rng) (getRange rng) eff1 eff2
        return (tp,eff2,Core.Let [cgroup] coreBody)
         
 -- | Return expressions
-inferExpr propagated expect tailPos (App (Var name _ nameRng) [(_,expr)] rng)  | name == nameReturn
+inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name == nameReturn
   = do allowed <- isReturnAllowed
        if (False && not allowed) 
         then infError rng (text "illegal expression context for a return statement")
-        else  do (tp,eff,core) <- inferExpr propagated expect True expr
+        else  do (tp,eff,core) <- inferExpr propagated expect expr
                  mbTp <- lookupInfName (unqualify nameReturn)
                  case mbTp of
                    Nothing 
@@ -531,16 +531,16 @@ inferExpr propagated expect tailPos (App (Var name _ nameRng) [(_,expr)] rng)  |
                  addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue tp) False)
                  return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn) (Core.InfoExternal [(CS,"return #1"),(JS,"return #1")])) [core])
 -- | Assign expression
-inferExpr propagated expect tailPos (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
+inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of
       App fun args lrng 
-        -> inferExpr propagated expect tailPos (App fun (args ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
+        -> inferExpr propagated expect (App fun (args ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiate lrng gtp
               r <- freshRefType
               inferUnify (checkAssign rng) lrng r tp
-              inferExpr propagated expect tailPos
+              inferExpr propagated expect
                         (App (Var nameRefSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
               {-  
               (_,_,info) <- resolveName target Nothing lrng
@@ -578,20 +578,16 @@ inferExpr propagated expect (App assign@(Var name _ _) args@[lhs@(_,Var target _
 -}
 
 -- | Byref expressions
-inferExpr propagated expect tailPos (App (Var byref _ _) [(_,Var name _ rng)] _)  | byref == nameByref
-  = inferVar propagated expect tailPos name rng False
-
--- | Resume
-inferExpr propagated expect tailPos (App (Var resume isop rng) args arng)  | tailPos && resume == newName "resume" && not (null args)
-  = inferExpr propagated expect tailPos (App (Var (newHiddenName "tailresume") isop rng) args arng)
+inferExpr propagated expect (App (Var byref _ _) [(_,Var name _ rng)] _)  | byref == nameByref
+  = inferVar propagated expect name rng False
 
 -- | Application nodes. Inference is complicated here since we need to disambiguate overloaded identifiers.
-inferExpr propagated expect tailPos (App fun nargs rng)
-  = inferApp propagated expect tailPos fun nargs rng
+inferExpr propagated expect (App fun nargs rng)
+  = inferApp propagated expect fun nargs rng
 
-inferExpr propagated expect tailPos (Ann expr annTp rng)
+inferExpr propagated expect (Ann expr annTp rng)
   = -- trace (" inferExpr.Ann: " ++ show (pretty annTp)) $
-    do (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) tailPos expr
+    do (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
        sannTp <- subst annTp
        -- trace (" inferExpr.Ann: subsume annotation: " ++ show (sannTp,tp)) $ return ()
        (resTp0,coref) <- -- withGammaType rng sannTp $ 
@@ -604,19 +600,19 @@ inferExpr propagated expect tailPos (Ann expr annTp rng)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()       
        return (resTp,resEff,resCore)
                            
-inferExpr propagated expect tailPos (Handler mbEff pars ret ops hrng rng)
+inferExpr propagated expect (Handler mbEff pars ret ops hrng rng)
   = inferHandler propagated expect mbEff pars ret ops hrng rng      
 
-inferExpr propagated expect tailPos (Case expr branches rng)
+inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
-    do (ctp,ceff,ccore) <- allowReturn False $ inferExpr Nothing Instantiated False expr
+    do (ctp,ceff,ccore) <- allowReturn False $ inferExpr Nothing Instantiated expr
        -- infer branches
        bress <- case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
-                    do bres@(tp,eff,bcore) <- inferBranch propagated tailPos ctp (getRange expr) b
-                       bress <- mapM (inferBranch (Just (tp,getRange b)) tailPos ctp (getRange expr)) bs
+                    do bres@(tp,eff,bcore) <- inferBranch propagated ctp (getRange expr) b
+                       bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr)) bs
                        return (bres:bress)
-                  _ -> mapM (inferBranch propagated tailPos ctp (getRange expr)) branches
+                  _ -> mapM (inferBranch propagated ctp (getRange expr)) branches
        let (tps,effs,bcores) = unzip3 bress
        -- ensure branches match
        let rngs = map (getRange . branchExpr) branches
@@ -670,10 +666,10 @@ inferExpr propagated expect tailPos (Case expr branches rng)
     unzipx3 acc1 acc2 acc3 []           = (reverse acc1, reverse acc2, reverse acc3)
     unzipx3 acc1 acc2 acc3 ((x,y,z):xs) = unzipx3 (x:acc1) (y:acc2) (z:acc3) xs
 
-inferExpr propagated expect tailPos (Var name isOp rng)
-  = inferVar propagated expect tailPos name rng True
+inferExpr propagated expect (Var name isOp rng)
+  = inferVar propagated expect name rng True
 
-inferExpr propagated expect tailPos (Lit lit)
+inferExpr propagated expect (Lit lit)
   = do let (tp,core) =
               case lit of
                 LitInt i _  -> (typeInt,Core.Lit (Core.LitInt i))
@@ -684,8 +680,8 @@ inferExpr propagated expect tailPos (Lit lit)
        return (tp,eff,core)
        
 
-inferExpr propagated expect tailPos (Parens expr rng)
-  = inferExpr propagated expect tailPos expr
+inferExpr propagated expect (Parens expr rng)
+  = inferExpr propagated expect expr
 {-
 inferExpr propagated expect expr
   = todo ("Type.Infer.inferExpr")
@@ -730,7 +726,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        let retExpr = case ret of
                        Lam [arg] body rng -> Lam (arg:propParBinders) body rng
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
-       (retTp,_,retCore) <- inferExpr Nothing Instantiated True retExpr
+       (retTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
            ((_,retInTp):argPars) = retArgs
            parTypes = map snd argPars
@@ -743,16 +739,18 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let opsEff    = handledToLabel hxeff
-           opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
-           isTailPar = [(newName "isTailCall", typeBool)]
-           resumeTp = TFun (isTailPar ++ [(newHiddenName "x",opsResTp)] ++ argPars) retEff retOutTp 
+           opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng           
+           contTp     = TFun [(nameNil,opsResTp)] retEff retOutTp
+           contBinder = ValueBinder (newHiddenName "cont") contTp () hrng hrng
+           contPar  = [(newName "cont", contTp)]
+           resumeTp = TFun (contPar ++ [(newName "x",opsResTp)] ++ argPars) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
-           opsgamma = inferBinders [] [opsBinder,resumeBinder]
+           opsgamma = inferBinders [] [opsBinder,contBinder,resumeBinder]
            infgamma = inferBinders [] parBinders
 
        iops  <- extendInfGamma False infgamma $
                 extendInfGamma False opsgamma $
-                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated opsEff hxName opsInfo resumeBinder) ops
+                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated opsEff hxName opsInfo contBinder resumeBinder) ops
 
 
        -- unify effects and branches
@@ -765,7 +763,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
-           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,resumeBinder] ++ parBinders] retEff matchCore
+           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,contBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
        let actionEff = effectExtend (handledToLabel hxeff) heff
@@ -781,7 +779,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
            optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
        -- build the type of the ops argument and the handler maker
-       let opsArgTp = TFun ([(newName "op", opsTp),(newName "resume", resumeTp)] ++ argPars)
+       let opsArgTp = TFun ([(newName "op", opsTp),(newName "cont", contTp),(newName "resume", resumeTp)] ++ argPars)
                           retEff resTp
            makeHTp = TFun [ (newName "optag",typeString),
                             (newName "opmatch",opmatchRho),
@@ -844,8 +842,9 @@ inferHandledEffect rng mbeff ops
 
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
-inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
-inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (HandlerBranch name pars expr nameRng rng) 
+inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo 
+                          -> (ValueBinder Type ()) -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
+inferHandlerBranch propagated expect opsEffTp hxName opsInfo contBinder resumeBinder (HandlerBranch name pars expr nameRng rng) 
   = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name) 
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
        
@@ -889,23 +888,19 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (Handl
            -- xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
            -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
 
-           xresumeAppArgs b =   [(Nothing,Var (if b then nameTrue else nameFalse) False rng)]
+           xresumeAppArgs   =   [(Nothing,Var (binderName contBinder) False rng)]
                              ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
                              ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
                               
-           xresumeExpr b  = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) (xresumeAppArgs b) rng) rng)
-                               xresumeTp rng
-           xresumeDef b   = Def (ValueBinder (if b then newHiddenName "tailresume" else newName "resume") () (xresumeExpr b) nameRng rng)
-                               rng Private DefFun ""
-
-           xresumeDefs    = Let (DefNonRec (xresumeDef False)) (Let (DefNonRec (xresumeDef True)) expr (getRange expr)) (getRange expr) 
+           xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng) xresumeTp rng
+           xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng) rng Private DefFun "" 
 
            parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
            parGamma     = inferBinders [] parBinders                        
 
        -- and infer the body type    
        (exprTp,exprEff,exprCore) <- extendInfGamma False parGamma $ 
-                                    inferExpr propagated expect True $ xresumeDefs
+                                    inferExpr propagated expect $ Let (DefNonRec xresumeDef) expr (getRange expr)
 
        -- build a Core pattern match
        let patCore = Core.PatCon (Core.TName conname gconTp) 
@@ -921,8 +916,8 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo resumeBinder (Handl
           _ -> ([],typeTotal,rho)
 
 
-inferApp :: Maybe (Type,Range) -> Expect -> Bool -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
-inferApp propagated expect tailPos fun nargs rng
+inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
+inferApp propagated expect fun nargs rng
   = -- trace "infer: App" $
     do (fixed,named) <- splitNamedArgs nargs
        amb <- case rootExpr fun of
@@ -944,7 +939,7 @@ inferApp propagated expect tailPos fun nargs rng
     inferAppFunFirst prop fixed named
       = -- trace ("inferAppFunFirst") $
         do -- infer type of function
-           (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated tailPos fun
+           (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated fun
            -- match the type with a function type
            (iargs,pars,funEff,funTp,coreApp)  <- matchFunTypeArgs rng fun ftp fixed named
 
@@ -989,7 +984,7 @@ inferApp propagated expect tailPos fun nargs rng
       = infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
 
     inferAppArgsFirst acc (fix:fixs) fixed named
-      = do (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated False fix
+      = do (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
            let acc' = (acc ++ [(tpArg,(getRange fix, effArg),coreArg)])
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
@@ -1052,7 +1047,7 @@ inferApp propagated expect tailPos fun nargs rng
                          Just (tp,_) -> return tp
                          _           -> Op.freshTVar kindStar Meta
            let propType = TFun [(newName "",targ) | targ <- tpArgs] funEff expTp
-           (ftp,eff1,fcore) <- allowReturn False $ inferExpr (Just (propType,rng)) Instantiated tailPos fun
+           (ftp,eff1,fcore) <- allowReturn False $ inferExpr (Just (propType,rng)) Instantiated fun
            -- check the inferred type matches the arguments
            inferUnify (checkFun rng) rng propType ftp
            -- add morphisms
@@ -1067,8 +1062,8 @@ inferApp propagated expect tailPos fun nargs rng
 
     fst3 (x,y,z) = x
 
-inferVar :: Maybe (Type,Range) -> Expect -> Bool -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
-inferVar propagated expect tailPos name rng isRhs  | isConstructorName name
+inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
+inferVar propagated expect name rng isRhs  | isConstructorName name
   = do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
        let info1 = InfoCon tp1 conRepr conInfo rng
        (qname,tp,info) <- do defName <- currentDefName
@@ -1087,11 +1082,11 @@ inferVar propagated expect tailPos name rng isRhs  | isConstructorName name
        eff <- freshEffect
        return (itp,eff,coref coreVar)                              
 
-inferVar propagated expect tailPos name rng isRhs
+inferVar propagated expect name rng isRhs
   = do (qname,tp,info) <- resolveName name propagated rng
        case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
-           -> do (tp1,eff1,core1) <- inferExpr propagated expect tailPos (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
+           -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                  return (tp1,eff1,core1)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
@@ -1130,17 +1125,17 @@ inferVarX propagated expect name rng qname1 tp1 info1
        return (itp,eff,coref coreVar)
 -}
 
-inferBranch :: Maybe (Type,Range) -> Bool -> Type -> Range -> Branch Type -> Inf (Type,Effect,Core.Branch)
-inferBranch propagated tailPos matchType matchRange branch@(Branch pattern guard expr)
+inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf (Type,Effect,Core.Branch)
+inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
   = do (pcore,infGamma) <- inferPattern matchType matchRange pattern
        -- infGamma <- extractInfGamma pcore 
        extendInfGamma False infGamma $
         do -- check guard expression
-           (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange guard)) Instantiated False guard
+           (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange guard)) Instantiated guard
            inferUnify (checkGuardTotal (getRange branch)) (getRange guard) typeTotal geff
            inferUnify (checkGuardBool (getRange branch)) (getRange guard) typeBool gtp
            -- check branch expression
-           (btp,beff,bcore) <- inferExpr propagated Instantiated tailPos expr
+           (btp,beff,bcore) <- inferExpr propagated Instantiated expr
            resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
            -- check for unused pattern variables
            let defined = Core.bv pcore
@@ -1253,7 +1248,7 @@ inferOptionals infgamma (par:pars)
             partp <- subst tvar
 
             -- infer expression      
-            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par)) (if isRho partp then Instantiated else Generalized) False expr
+            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par)) (if isRho partp then Instantiated else Generalized) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
             inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
             tp <- subst partp
@@ -1364,7 +1359,7 @@ inferSubsumeN' range acc []
   = return (map snd (sortBy (\(i,_) (j,_) -> compare i j) acc))
 inferSubsumeN' range acc parArgs
   = do ((i,(tpar,arg)):rest) <- pickArgument parArgs
-       (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized) False arg
+       (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized) arg
        tpar1  <- subst tpar
        (_,coref)  <- if isAnnot arg
                       then do inferUnify (Infer range) (getRange arg) tpar1 targ

@@ -2608,9 +2608,10 @@ external inline ".toany"( x : a ) : any {
 }
 
 
-external ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
-                          res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
-  js inline "$directMakeHandler0(optag,matchop,res,ops)"
+external ".makeHandler0"( optag:string, opmatch : operation<c> -> opmatch<e1,e,o>, 
+                          ret : a -> <cps|e> b, 
+                          ops : (op:o, cont: (c) -> <cps|e> b, resume:((c) -> <cps|e> b,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+  js inline "$directMakeHandler0(optag,opmatch,ret,ops)"
 }
 
 /*
@@ -2631,9 +2632,10 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
 }
 */
 
-external ".makeHandler1"( optag : string, matchop : operation<c> -> opmatch<e1,e,o>, 
-                            res : (a,d) -> <cps|e> b, ops : (op:o, resume: ((bool,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  js inline "$directMakeHandler1(optag,matchop,res,ops)"
+external ".makeHandler1"( optag : string, opmatch : operation<c> -> opmatch<e1,e,o>, 
+                            ret : (a,d) -> <cps|e> b, 
+                            ops : (op:o, cont:(c) -> <cps|e> b, resume: (((c) -> <cps|e> b,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
+  js inline "$directMakeHandler1(optag,opmatch,ret,ops)"
 }
 
 /*
