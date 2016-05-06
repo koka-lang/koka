@@ -429,14 +429,14 @@ function length(xs)
 // If `lo > hi`  the function returns the empty list.
 function list( lo: int, hi: int ) : total list<int>
 {
-  function enumerate( low:int, high:int, acc: list<int> ) : div list<int>
+  function enumerate( low:int, high:int, acc: list<int> ) : list<int>
   {
     if (low > high)
      then acc
-     else enumerate(low, high-1, Cons(high,acc))
+     else enumerate(low, unsafeDecreasing(high-1), Cons(high,acc))
   }
 
-  unsafeNoDiv { enumerate(lo,hi,[]) }
+  enumerate(lo,hi,[]) 
 }
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
@@ -2592,7 +2592,7 @@ abstract type yld<a> {
 abstract type opmatch<e1::E,e2::E,a> {
   OpMatch( : a )
   OpNoMatch
-}
+} 
 
 function ".conOpMatch"(x)  { OpMatch(x) }
 function ".conOpNoMatch"() { OpNoMatch  }
@@ -2609,6 +2609,12 @@ external inline ".toany"( x : a ) : any {
   inline "#1" 
 }
 
+external ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
+                          res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+  js inline "$directMakeHandler0(optag,matchop,res,ops)"
+}
+
+/*
 function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
                           res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
   function hndler(yld) {
@@ -2624,7 +2630,7 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
   }
   unsafeMakeHandler0(hndler)
 }
-
+*/
 
 external ".makeHandler1"( optag : string, matchop : operation<c> -> opmatch<e1,e,o>, 
                             res : (a,d) -> <cps|e> b, ops : (op:o, resume: ((bool,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
