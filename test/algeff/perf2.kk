@@ -47,9 +47,9 @@ function findSolutions( n : int, queen : int ) : div solutions
    else extend(n,[], findSolutions(n,queen-1))  
 }
 
-public function queens( n : int ) : div int
+public function queens( n : int ) : div solutions
 {
-  length(findSolutions(n,n))
+  findSolutions(n,n)
 }
 
 
@@ -58,29 +58,31 @@ effect choose {
   fail<b>()     : b
 }
 
-function listmap(n : int, f : int -> e a) : e list<a> {
-  if (n < 1) then [] else Cons(f(n),listmap(unsafeDecreasing(n-1),f))
+function concatN(n : int, f : int -> e list<a>) : e list<a> {
+  if (n < 1) then [] else f(n) + concatN(unsafeDecreasing(n-1),f)
 }
 
 function chooseAll( action ) {
-  val h = handler{
+  handle(action){
     return x  -> [x]
-    pick(n)   -> {
-      list(1,n).map(resume).concat
-    }
+    pick(n)   -> concatN(n,resume) // list(1,n).map(resume).concat
     fail      -> []
   }
-  h(action)
 }
 
-function extend1( n : int, xs : solution ) : choose solution {
-  val i = pick(n)
-  if (safe(i,1,xs)) then Cons(i,xs) else fail()
-}
-
-function findSolution( n : int, queen : int ) : choose solution {
-  if (queen==0) then []
-   else extend1(n, findSolution(n, unsafeDecreasing(queen-1)))
+function findSolution( n : int, queen : int ) : <choose,div> solution {
+  if (queen==0) then [] else {
+    val xs = findSolution(n,queen-1)
+    val i  = pick(n)
+    if (safe(i,1,xs)) then Cons(i,xs) else fail() // extend1(n, findSolution(n, queen-1))
+  }
+  /*
+  // this goes wrong due to the return being mistranslated
+  if (queen==0) then return []
+  val xs = findSolution(n,queen-1)
+  val i  = pick(n)
+  if (safe(i,1,xs)) then Cons(i,xs) else fail() // extend1(n, findSolution(n, queen-1))
+  */
 }
 
 function showSolutions( xss : solutions ) : io () {
@@ -90,14 +92,13 @@ function showSolutions( xss : solutions ) : io () {
   }  
 }
 
-function queensChoose(n : int ) : io () {
-  val xss = chooseAll({findSolution(n,n)} )
-  xss.showSolutions
+function queensChoose(n : int ) : div solutions {
+  chooseAll({findSolution(n,n)} )
 }
 
 function test(n) {
-  println( queens(n).show )
-  queensChoose(n) 
+  timer({ queens(n) }).length.show.println
+  timer({ queensChoose(n) }).length.show.println
 }
 
 /*

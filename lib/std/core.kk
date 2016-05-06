@@ -2462,9 +2462,7 @@ function unsafeNoDiv( action : () -> <div|e> a ) : e a
 }
 
 // _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (":div").
-function unsafeDecreasing( x : a ) : a {
-  x
-}
+external inline unsafeDecreasing( x : a ) : a = inline "#1"
 
 // ----------------------------------------------------------------------------
 // Non determinism
