@@ -11,9 +11,9 @@ function timer(f) {
   x
 }
 
-effect state {
-  get()        : int;
-  put(i : int) : ()
+effect state<s> {
+  get()      : s;
+  put(i : s) : ()
 }
  
 function count() {

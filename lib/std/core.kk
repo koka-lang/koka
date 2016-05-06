@@ -2609,12 +2609,13 @@ external inline ".toany"( x : a ) : any {
   inline "#1" 
 }
 
+/*
 external ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
                           res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
   js inline "$directMakeHandler0(optag,matchop,res,ops)"
 }
+*/
 
-/*
 function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
                           res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
   function hndler(yld) {
@@ -2630,7 +2631,6 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
   }
   unsafeMakeHandler0(hndler)
 }
-*/
 
 external ".makeHandler1"( optag : string, matchop : operation<c> -> opmatch<e1,e,o>, 
                             res : (a,d) -> <cps|e> b, ops : (op:o, resume: ((bool,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {

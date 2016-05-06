@@ -58,15 +58,19 @@ effect choose {
   fail<b>()     : b
 }
 
+function listmap(n : int, f : int -> e a) : e list<a> {
+  if (n < 1) then [] else Cons(f(n),listmap(unsafeDecreasing(n-1),f))
+}
+
 function chooseAll( action ) {
-  val h = handler(i:bool){
+  val h = handler{
     return x  -> [x]
     pick(n)   -> {
-      list(1,n).map(fun(x){ id(resume(x,i)) }).filter(isCons)
+      list(1,n).map(resume).concat
     }
-    fail()    -> []
+    fail      -> []
   }
-  h(action,True)
+  h(action)
 }
 
 function extend1( n : int, xs : solution ) : choose solution {
@@ -75,15 +79,24 @@ function extend1( n : int, xs : solution ) : choose solution {
 }
 
 function findSolution( n : int, queen : int ) : choose solution {
-  list(1,n).foldr([],fun(_,xs) { extend1(n,xs)})
+  if (queen==0) then []
+   else extend1(n, findSolution(n, unsafeDecreasing(queen-1)))
 }
 
-function queensChoose(n : int ) : int {
-  chooseAll({findSolution(n,n)} ).length
+function showSolutions( xss : solutions ) : io () {
+  xss.foreach fun(xs) {
+    println(xs.show)
+  }
 }
 
-function main() {
-  println( queensChoose(8).show )
+function queensChoose(n : int ) : io () {
+  val xss = chooseAll({findSolution(n,n)} )
+  xss.showSolutions
+}
+
+function test(n) {
+  println( queens(n).show )
+  queensChoose(n) 
 }
 
 /*
