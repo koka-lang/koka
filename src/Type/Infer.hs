@@ -23,7 +23,8 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
                       , nameMakeHandler
-                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny, nameFalse, nameTrue )
+                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny, nameFalse, nameTrue
+                      , nameTpYld )
 import Common.Range
 import Common.Unique
 import Common.Syntax
@@ -739,8 +740,9 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let opsEff    = handledToLabel hxeff
-           opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng           
-           contTp     = TFun [(nameNil,opsResTp)] retEff retOutTp
+           opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng        
+           tconYld    = TCon (TypeCon nameTpYld (kindFun kindStar kindStar))   
+           contTp     = TFun [(nameNil,opsResTp)] typeTotal (TApp tconYld [retInTp])
            contBinder = ValueBinder (newHiddenName "cont") contTp () hrng hrng
            contPar  = [(newName "cont", contTp)]
            resumeTp = TFun (contPar ++ [(newName "x",opsResTp)] ++ argPars) retEff retOutTp 
