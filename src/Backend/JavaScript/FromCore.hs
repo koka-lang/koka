@@ -306,7 +306,7 @@ tryTailCall result expr
     genOverride :: [TName] -> [Expr] -> Asm Doc
     genOverride params args
       = fmap (debugWrap "genOverride") $
-        do (stmts, varNames) <- fmap unzip $ mapM genVarBinding args
+        do (stmts, varNames) <- fmap unzip $ mapM genVarBinding (map tailCallArg args)
            docs1             <- mapM genTName params
            docs2             <- mapM genTName varNames
            let assigns    = map (\(p,a)-> if p == a
@@ -314,6 +314,41 @@ tryTailCall result expr
                                             else debugComment ("genOverride: preparing tailcall") <> p <+> text "=" <+> a <> semi
                                 ) (zip docs1 docs2)
            return $ vcat stmts <-> vcat assigns
+
+    -- if local variables are captured inside a tailcalling function argument, 
+    -- we need to capture it by value (instead of reference since we will overwrite the local variables on a tailcall)
+    -- we do this by wrapping the argument inside another function application.
+    tailCallArg :: Expr -> Expr
+    tailCallArg expr
+      = let captured = filter (not . isQualified . getName) $ tnamesList $ capturedVar expr
+        in if (null captured)
+            then expr
+            else App (Lam captured typeTotal expr) [Var arg InfoNone | arg <- captured]
+
+    capturedVar :: Expr -> TNames
+    capturedVar expr
+      = case expr of
+          Lam _ _  _  -> fv expr  -- we only care about captures inside a lambda
+          Let bgs body -> S.unions (capturedVar body : map capturedDefGroup bgs)
+          Case es bs   -> S.unions (map capturedVar es ++ map capturedBranch bs)
+          App f args   -> S.unions (capturedVar f : map capturedVar args)
+          TypeLam _ e  -> capturedVar e
+          TypeApp e _  -> capturedVar e
+          _            -> S.empty
+
+    capturedDefGroup bg
+      = case bg of
+          DefRec defs  -> S.difference (S.unions (map capturedDef defs)) (bv defs)
+          DefNonRec def-> capturedDef def
+
+    capturedDef def
+      = capturedVar (defExpr def)
+
+    capturedBranch (Branch pat grds)
+      = S.difference (S.unions (map capturedGuard grds)) (bv pat) 
+
+    capturedGuard (Guard test expr)  
+      = S.union (capturedVar test) (capturedVar expr)
 
 -- | Generates a statement from an expression by applying a return context (deeply) inside
 genStat :: Result -> Expr -> Asm Doc
