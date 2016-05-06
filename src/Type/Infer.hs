@@ -670,12 +670,6 @@ inferExpr propagated expect tailPos (Case expr branches rng)
     unzipx3 acc1 acc2 acc3 []           = (reverse acc1, reverse acc2, reverse acc3)
     unzipx3 acc1 acc2 acc3 ((x,y,z):xs) = unzipx3 (x:acc1) (y:acc2) (z:acc3) xs
 
-    inferUnifyTypes contextF [] = matchFailure "Type.Infer.inferExpr.Case.inferUnifyTypes"
-    inferUnifyTypes contextF [(tp,_)]  = subst tp
-    inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
-      = do inferUnify (contextF ctx2) rng2 tp1 tp2
-           inferUnifyTypes contextF ((tp1,r):tps)
-
 inferExpr propagated expect tailPos (Var name isOp rng)
   = inferVar propagated expect tailPos name rng True
 
@@ -696,6 +690,14 @@ inferExpr propagated expect tailPos (Parens expr rng)
 inferExpr propagated expect expr
   = todo ("Type.Infer.inferExpr")
 -}
+
+inferUnifyTypes contextF [] = matchFailure "Type.Infer.inferinferUnifyTypes"
+inferUnifyTypes contextF [(tp,_)]  = subst tp
+inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
+  = do inferUnify (contextF ctx2) rng2 tp1 tp2
+       inferUnifyTypes contextF ((tp1,r):tps)
+
+
 
 inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect mbeff pars ret ops hrng rng
@@ -752,19 +754,23 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
                 extendInfGamma False opsgamma $
                 mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated opsEff hxName opsInfo resumeBinder) ops
 
-       -- unify effects
+
+       -- unify effects and branches
        let (opTps,opEffs,opsCore) = unzip3 iops
            rngs = map (getRange . hbranchExpr) ops
+           brngs = map (getRange) ops
+
+       resTp  <- inferUnifyTypes checkMatch (zip (retOutTp:opTps) (zip (getRange retExpr:brngs) (getRange retExpr:rngs)))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
            opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,resumeBinder] ++ parBinders] retEff matchCore
 
-       -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff retOutTp
+       -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
        let actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
-           handlerTp = TFun (actionPar:argPars) heff retOutTp
+           handlerTp = TFun (actionPar:argPars) heff resTp
 
        
        -- lookup relevelant opmatchX
@@ -776,7 +782,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun ([(newName "op", opsTp),(newName "resume", resumeTp)] ++ argPars)
-                          retEff retOutTp
+                          retEff resTp
            makeHTp = TFun [ (newName "optag",typeString),
                             (newName "opmatch",opmatchRho),
                               (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp

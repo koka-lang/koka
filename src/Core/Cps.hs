@@ -238,7 +238,7 @@ cpsLetDef recursive def
        let isFunDef = isFunctionDef (defExpr def)
        if (cpsk == PolyCps && isFunDef)
         then cpsLetDefDup recursive def 
-        else do when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type: " <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
+        else do when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" --  <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
                 expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
 
