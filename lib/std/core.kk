@@ -439,6 +439,19 @@ function list( lo: int, hi: int ) : total list<int>
   enumerate(lo,hi,[]) 
 }
 
+// Applies a function `f` to list of increasing elements from `lo`  to `hi` 
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+function list( lo : int, hi: int, f : int -> e a) : e list<a> {
+  function enumerate( low:int, high:int, acc ) 
+  {
+    if (low > high)
+     then acc
+     else enumerate(low, unsafeDecreasing(high-1), Cons(f(high),acc))
+  }
+  enumerate(lo,hi,[]) 
+}
+
 // Create a list of characters from `lo`  to `hi`  (inclusive).
 function list( lo : char, hi : char ) : total list<char>
 {
@@ -880,10 +893,16 @@ function join( xs : list<string>, sep : string ) : string
   return xs.intersperse(sep).join()
 }
 
-// Concatenate all lists in a list (e.g. flatten the list)
+// Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
 function concat( xs : list<list<a>> ) : list<a>
 {
-  xs.foldr( [], (+) )
+  function concatRev( xss : list<list<a>>, acc : list<a> ) : list<a> {
+    match(xss) {
+      Cons(ys,yss) -> concatRev( yss, ys + acc )
+      Nil          -> acc
+    }
+  }
+  concatRev(xs.reverse,[])
 }
 
 // Concatenate the result lists from applying a function to all elements
@@ -2582,7 +2601,7 @@ alias cont<a,e,b> = a -> e b
 
 // The Yield monad
 abstract type yld<a> {
-  Yield<b>( operation: operation<b>, resume : b -> yld<a> )
+  Yield<b>( op: operation<b>, cont : b -> yld<a> )
   Result( result: a )
 }
 
@@ -2610,8 +2629,8 @@ external inline ".toany"( x : a ) : any {
 
 external ".makeHandler0"( optag:string, opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b, 
-                          ops : (op:o, cont: (c) -> <cps|e> b, resume:((c) -> <cps|e> b,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
-  js inline "$directMakeHandler0(optag,opmatch,ret,ops)"
+                          ops : (op:o, cont: (c) -> yld<a>, resume:((c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+  js inline "$makeHandler0(optag,opmatch,ret,ops)"
 }
 
 /*
@@ -2634,8 +2653,8 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
 
 external ".makeHandler1"( optag : string, opmatch : operation<c> -> opmatch<e1,e,o>, 
                             ret : (a,d) -> <cps|e> b, 
-                            ops : (op:o, cont:(c) -> <cps|e> b, resume: (((c) -> <cps|e> b,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  js inline "$directMakeHandler1(optag,opmatch,ret,ops)"
+                            ops : (op:o, cont:(c) -> yld<a>, resume: (((c) -> yld<a>,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
+  js inline "$makeHandler1(optag,opmatch,ret,ops)"
 }
 
 /*
