@@ -84,9 +84,10 @@ function findSolution( n : int, queen : int ) : choose solution {
 }
 
 function showSolutions( xss : solutions ) : io () {
+  println(xss.length.show)
   xss.foreach fun(xs) {
-    println(xs.show)
-  }
+    println(" " + xs.show)
+  }  
 }
 
 function queensChoose(n : int ) : io () {
