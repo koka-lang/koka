@@ -774,18 +774,20 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        
        -- lookup relevelant opmatchX
+       {-
        (opmatchName,opmatchTp,opmatchInfo) 
              <- resolveFunName (prepend "opmatch" (toConstructorName hxName)) (CtxFunArgs 1 []) hrng hrng
 
        (opmatchRho,_,opmatchICore) <- instantiate rng opmatchTp
        let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
-           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
+       -}
+           
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun ([(newName "op", opsTp),(newName "cont", contTp),(newName "resume", resumeTp)] ++ argPars)
                           retEff resTp
            makeHTp = TFun [ (newName "optag",typeString),
-                            (newName "opmatch",opmatchRho),
-                              (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
+                            -- (newName "opmatch",opmatchRho),
+                            (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
        -- ctp <- Op.freshTVar kindStar Meta
        (mkhQname,mkhTp,mkhInfo) <- resolveFunName (nameMakeHandler (length pars)) (CtxFunArgs 3 []) hrng hrng
@@ -793,27 +795,25 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        smakeHTp <- subst makeHTp
        env <- getPrettyEnv
        trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
-        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp
+        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp  
 
        shandlerTp  <- subst handlerTp
        trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           handlerCore = Core.App (mkhCore coreMkHandler) [optagCore,opmatchCore,retCore,opsfunCore]
-
-    -- todo: the type parameters must match exactly the quantification of the makeHandlerX function!
-           tpargs = [retInTp] ++ parTypes ++ [retOutTp,typeAny, heff] -- ,typeAny,retInTp,retOutTp] ++ parTypes                          
-           xhandlerCore = Core.App (Core.TypeApp coreMkHandler tpargs) [retCore,opsfunCore]
+           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
+           handlerCore = Core.App (mkhCore coreMkHandler) [optagCore,{- opmatchCore,-} retCore,opsfunCore]
 
        -- generalize the handler type
-       (ghandlerTp,gcore) <- maybeGeneralize hrng rng typeTotal expect shandlerTp handlerCore
-       -- (ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
-       sgcore      <- subst gcore
-       sghandlerTp <- subst shandlerTp
+       (ghandlerTp,gcore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect shandlerTp handlerCore
+       -- and perhaps instantiate
+       --(ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
+       sicore      <- subst gcore
+       sihandlerTp <- subst ghandlerTp
 
        geff <- freshEffect
-       trace ("inferred handler type: " ++ show (pretty sghandlerTp)) $
-        return (sghandlerTp,geff,sgcore)           
+       trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
+        return (sihandlerTp,geff,sicore)           
 
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
@@ -825,7 +825,14 @@ effectToOperation eff tres
           return (optp,ename,dataInfo)
   where
     tcToOp (TypeCon name kind)
-      = TypeCon (toOperationsName name) (kindAddArg kind kindStar {- result -})
+      = TypeCon (toOperationsName name) (kindFix kind {- result -})
+
+    kindFix k
+      = case k of
+          KApp (KApp k0 k1) k2  | k0 == kindArrow -- && not (isKindEffect k1 && isKindStar k2)
+            -> KApp (KApp k0 k1) (kindFix k2)
+          _ -> kindFun kindStar kindStar
+
 
                               
 inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf Effect

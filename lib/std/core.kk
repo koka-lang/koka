@@ -2326,7 +2326,7 @@ function show( b : bool ) : string =  if (b) then "True" else "False"
 function show( u : () ) : string =  "()"
 
 // Convert a list to a string
-function showList( xs : list<a>, showElem : (a) -> string ) : string
+function showList( xs : list<a>, showElem : (a) -> e string ) : e string
 {
   "[" + xs.map(showElem).join(",") + "]"
 }
@@ -2603,6 +2603,8 @@ alias cont<a,e,b> = a -> e b
 abstract type yld<a> {
   Yield<b>( op: operation<b>, cont : b -> yld<a> )
   Result( result: a )
+  Resume
+  Done( done: a )
 }
 
 // Abstract operation matching
@@ -2627,10 +2629,10 @@ external inline ".toany"( x : a ) : any {
 }
 
 
-external ".makeHandler0"( optag:string, opmatch : operation<c> -> opmatch<e1,e,o>, 
+external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b, 
-                          ops : (op:o, cont: (c) -> yld<a>, resume:((c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
-  js inline "$makeHandler0(optag,opmatch,ret,ops)"
+                          ops : (op:o<c>, cont: (c) -> yld<a>, resume:((c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+  js inline "$makeHandler0(optag,ret,ops)"
 }
 
 /*
@@ -2651,10 +2653,10 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
 }
 */
 
-external ".makeHandler1"( optag : string, opmatch : operation<c> -> opmatch<e1,e,o>, 
+external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                             ret : (a,d) -> <cps|e> b, 
                             ops : (op:o, cont:(c) -> yld<a>, resume: (((c) -> yld<a>,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  js inline "$makeHandler1(optag,opmatch,ret,ops)"
+  js inline "$makeHandler1(optag,ret,ops)"
 }
 
 /*
@@ -2673,7 +2675,7 @@ function ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d)
   unsafeMakeHandler1(hndler)
 }
 */
-
+/*
 function ".makeHandler2"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d1,d2) -> <cps|e> b, ops : (op:o, cont: ((c,d1,d2) -> <cps|e> b), loc1:d1, loc2:d2) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc1:d1, loc2:d2) -> e b) {
   function hndler(yld,loc1,loc2) {
     match(yld) {
@@ -2688,7 +2690,7 @@ function ".makeHandler2"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d1
   }
   unsafeMakeHandler2(hndler)
 }
-
+*/
 private external unsafeMakeHandler0( hndler : yld<a> -> <cps|e> b ) : total ((action : () -> e1 a) -> e b) {
   js inline "function(_action,_k){ _k = _k || id; return hndler(_action(Result),_k); }"
 }
