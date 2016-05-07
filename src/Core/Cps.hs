@@ -73,7 +73,7 @@ type TransX a b  = (a -> b) ->b
 
 cpsExpr :: Expr -> Cps (TransX Expr Expr)
 cpsExpr expr
-  = withIncDepth $ cpsExpr' expr
+  = cpsExpr' expr
 
 cpsExpr' :: Expr -> Cps (TransX Expr Expr)
 cpsExpr' expr 
@@ -109,38 +109,41 @@ cpsExpr' expr
                        cpsExpr lam
 
       -- leave 'return' in place
-      App var@(Var v _) [arg] | getName v == nameReturn
-        -> do cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
+      App ret@(Var v _) [arg] | getName v == nameReturn
+        -> do -- cpsTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
               -- cpsExpr arg
               arg' <- cpsExpr arg
-              return $ \k -> arg' (\xx -> 
-                          let cexpr = App (varK typeAny typeTotal typeAny) [xx] in  -- ignore  k since nothing can happen after return!
-                              trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ cexpr)
+              mbK  <- getCurrentK
+              case mbK of
+                Nothing -- no cps
+                  -> return $ \k -> arg' (\xx -> k (App ret [xx]))
+                Just exprK 
+                  -> return $ \k -> arg' (\xx -> 
+                          let cexpr = App ret [App exprK [xx]] in  -- ignore  k since nothing can happen after return!
+                              --trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ 
+                              cexpr)
 
       -- regular cases
       Lam args eff body 
-        -> do depth <- getExprDepth
-              body' <- cpsExpr body
-              cpsk  <- getCpsEffectX eff
-              args' <- mapM cpsTName args
+        -> do cpsk  <- getCpsEffectX eff
               if (cpsk == NoCps)
-               then do -- cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
+               then withCurrentK Nothing $
+                    do -- cpsTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
+                       body' <- cpsExpr body
+                       args' <- mapM cpsTName args                      
                        return $ \k -> k (Lam args' eff (body' id))
                else -- cps converted lambda: add continuation parameter
                     do resTp <- freshTVar kindStar Meta
                        -- let resTp = typeAny
                        let bodyTp = typeOf body
                            nameK  = tnameK bodyTp eff resTp
-                           (nameK0,initk)  = (nameK,id) 
-                                             {-
-                                              if (depth>0 || cpsk /= PolyCps) 
-                                              then (nameK,id) 
-                                              else (tnameKN "0" bodyTp eff resTp, 
-                                                     ensureK nameK nameK0)
-                                             -}
-                       return $ \k -> 
-                        k (Lam (args' ++ [nameK0]) eff 
-                            (initk (body' (\xx -> App (varK bodyTp eff resTp) [xx]))))
+                           exprK  = varK bodyTp eff resTp
+                       withCurrentK (Just exprK) $
+                         do body' <- cpsExpr body
+                            args' <- mapM cpsTName args                
+                            return $ \k -> 
+                              k (Lam (args' ++ [nameK]) eff 
+                                (body' (\xx -> App exprK [xx])))
 
       App f args
         -> do f' <- cpsExpr f
@@ -520,7 +523,7 @@ getCpsTVar pureTvs tp
 --------------------------------------------------------------------------}  
 newtype Cps a = Cps (Env -> State -> Result a)
 
-data Env = Env{ depth:: Int, pureTVars :: Tvs, prettyEnv :: Pretty.Env, currentDef :: [Def] }
+data Env = Env{ currentK:: Maybe Expr, pureTVars :: Tvs, prettyEnv :: Pretty.Env, currentDef :: [Def] }
 
 data State = State{ uniq :: Int }
 
@@ -528,7 +531,7 @@ data Result a = Ok a State
 
 runCps :: Monad m => Pretty.Env -> Int -> Cps a -> m a
 runCps penv u (Cps c)
-  = case c (Env 0 tvsEmpty penv []) (State u) of
+  = case c (Env Nothing tvsEmpty penv []) (State u) of
       Ok x _ -> return x
 
 instance Functor Cps where
@@ -564,16 +567,16 @@ updateSt f
 withCurrentDef :: Def -> Cps a -> Cps a
 withCurrentDef def 
   = -- trace ("cps def: " ++ show (defName def)) $
-    withEnv (\env -> env{ depth = 0, currentDef = def:currentDef env})
+    withEnv (\env -> env{currentDef = def:currentDef env})
 
-withIncDepth :: Cps a -> Cps a
-withIncDepth cps
-  = withEnv (\env -> env{ depth = 1 + depth env } ) cps
+withCurrentK :: Maybe Expr -> Cps a -> Cps a
+withCurrentK mbk cps
+  = withEnv (\env -> env{ currentK = mbk } ) cps
 
-getExprDepth :: Cps Int
-getExprDepth
+getCurrentK :: Cps (Maybe Expr)
+getCurrentK
   = do env <- getEnv
-       return (depth env)
+       return (currentK env)
 
 withPureTVars :: [TypeVar] -> Cps a -> Cps a
 withPureTVars vs
