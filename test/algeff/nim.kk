@@ -1,12 +1,11 @@
+// --------------------------------------------------------
+// Definition of players
+// --------------------------------------------------------
+
 type player {
   Bob 
   Alice
 }
-
-effect nim {
-  move(player:player,sticks:int) : int
-}
-
 
 function show(p:player) : string {
   match(p) {
@@ -14,6 +13,20 @@ function show(p:player) : string {
     Alice -> "alice"
   }
 }
+
+function show(ps : list<player> ) : string {
+  ps.showList(show)
+}
+
+
+// --------------------------------------------------------
+// Game of Nim
+// --------------------------------------------------------
+
+effect nim {
+  move(player:player,sticks:int) : int
+}
+
 
 function aliceTurn(n) {
   if (n <= 0) then Bob else bobTurn( n - move(Alice,n) )
@@ -27,13 +40,28 @@ function game(n) {
   aliceTurn(n)
 }
 
+// --------------------------------------------------------
+// Perfect strategy
+// --------------------------------------------------------
+
 val perfect = 
   handler {
     return x  -> x
     move(p,n) -> resume(max(1,n%4))
   }
 
-// game trees
+function testPerfect1() {
+  perfect{ game(7) }  // alice
+}
+function testPerfect2() {
+  perfect{ game(12) } // bob
+}
+
+
+// --------------------------------------------------------
+// Game trees
+// --------------------------------------------------------
+
 type gtree {
   Take( player: player, moves: list<(int,gtree)> )
   Winner( player: player )
@@ -56,16 +84,22 @@ function show(gt :gtree) : div string {
   showGt(gt,2)
 }
 
-val showi = (show : (int) -> string)
-
 function showGt(gt :gtree, indent:int) : _ string {
+  val showi = (show : (int) -> string)
   match(gt) {
     Take(p,moves) -> p.show + moves.showList(fun(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }
 
-// cheating
+function testGt() {
+  gametree{ game(3) }  // figure 1 in the paper
+}
+
+
+// --------------------------------------------------------
+// Cheating
+// --------------------------------------------------------
 
 effect cheating {
   cheat<b>(player:player) : b
@@ -91,6 +125,10 @@ function testCheck() {
 }
 
 
+// --------------------------------------------------------
+// Cheating strategy
+// --------------------------------------------------------
+
 val pc = handler {
   return x -> x
   move(p,n) -> match(p){
@@ -105,4 +143,37 @@ function testPc1() {
 
 function testPc2() { 
   perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
+  // the `perfect` on the outside is necessary as the type system
+  // does not detect that `check` will never perform a `move`.
+}
+
+
+// --------------------------------------------------------
+// Choosing a strategy
+// --------------------------------------------------------
+
+effect choose {
+  choice() : bool
+}
+
+function bobChooses(m) {
+  if (choice()) then pc(m) else perfect(m)
+}
+
+val allResults = handler {
+  return x -> [x]
+  choice() -> resume(True) + resume(False)
+}
+
+function testChoose() {
+  allResults{ bobChooses { game(7) } }  // [bob,alice]
+}
+
+val coin = handler {
+  return x -> x
+  choice() -> resume(random() > 0.5)
+}
+
+function testCoin() {
+  coin{ bobChooses { game(7) } }
 }
