@@ -40,7 +40,7 @@ class Simplify a where
 topDown :: Expr -> Expr
 
 -- Inline simple let-definitions
-topDown (Let dgs body)
+topDown (Let dgs body) 
   = topDownLet [] [] dgs body
   where
     subst sub expr
@@ -48,7 +48,7 @@ topDown (Let dgs body)
 
     topDownLet sub acc [] body 
       = case subst sub body of 
-          Let sdgs sbody -> topDownLet sub acc sdgs sbody  -- merge nested Let's
+          Let sdgs sbody -> topDownLet [] acc sdgs sbody  -- merge nested Let's
           sbody -> if (null acc) 
                     then topDown sbody 
                     else Let (reverse acc) sbody
@@ -103,11 +103,15 @@ topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffe
   = topDown arg
 
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars == length args
-  = topDown $ Let (zipWith makeDef pars args) body
+topDown (App (Lam pars eff body) args) | length pars == length args 
+  = topDown $ Let (zipWith makeDef newNames args) (sub |~> body)
   where
-    makeDef (TName par parTp) arg 
-      = DefNonRec (Def par parTp arg Private DefVal rangeNull "") 
+    names = [(TName par parTp, TName (postpend "_" par) parTp) | (TName par parTp) <- pars] -- todo: generate more unique names?
+    sub   = map (\(p,np) -> (p,Var np InfoNone)) names
+    newNames = map snd names
+
+    makeDef (TName npar nparTp) arg 
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
 
 -- No optimization applies
 topDown expr
