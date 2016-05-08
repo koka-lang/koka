@@ -2656,7 +2656,7 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
 external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                             ret : (a,d) -> <cps|e> b, 
                             ops : (op:o, cont:(c) -> yld<a>, resume: (((c) -> yld<a>,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  js inline "$makeHandler1(optag,ret,ops)"
+  js inline "$makeGenOptHandler1(optag,ret,ops)"
 }
 
 /*
