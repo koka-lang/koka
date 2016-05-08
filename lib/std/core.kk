@@ -2632,7 +2632,7 @@ external inline ".toany"( x : a ) : any {
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b, 
                           ops : (op:o<c>, cont: (c) -> yld<a>, resume:((c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
-  js inline "$makeOptHandler0(optag,ret,ops)"
+  js inline "$makeGenHandler0(optag,ret,ops)"
 }
 
 /*
