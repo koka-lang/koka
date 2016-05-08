@@ -611,7 +611,9 @@ instance HasExprVar Expr where
       TypeApp expr tp      -> TypeApp (sub |~> expr) tp
       Con tname repr       -> expr
       Lit lit              -> expr
-      Let defGroups expr   -> Let (sub |~> defGroups) (sub |~> expr)
+      Let defGroups expr   -> let defnames = map defName (flattenDefGroups defGroups)
+                                  sub' = [(name,e) | (name,e) <- sub, all (getName name /=) defnames]
+                              in Let (sub |~> defGroups) (sub' |~> expr)
       Case expr branches   -> Case (sub |~> expr) (sub |~> branches)  
 
 
