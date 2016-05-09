@@ -24,7 +24,7 @@ module Common.Name
           , newHiddenName, isHiddenName
           , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName, toOperationsName, fromOperationsName
+          , newCreatorName, toOperationsName, fromOperationsName, toEffectConName
           , toConstructorName, isConstructorName
           , splitModuleName, unsplitModuleName
           
@@ -182,14 +182,16 @@ isWildcard name
 
 isConstructorName name
   = case nameId name of
-      (c:cs) -> isUpper c || c == '('
-      _      -> False
+      ('.':c:cs) -> isUpper c || c == '('
+      (c:cs)     -> isUpper c || c == '('
+      _          -> False
 
 toConstructorName name
   = newQualified (nameModule name) $
     case nameId name of
-      (c:cs) -> toUpper c : cs
-      ""     -> ""
+      ('.':c:cs) -> '.':toUpper c : cs  -- keep hidden names hidden
+      (c:cs)     -> toUpper c : cs
+      ""         -> ""
 
 ----------------------------------------------------------------
 -- various special names
@@ -242,9 +244,18 @@ fromOperationsName :: Name -> Name
 fromOperationsName name
   = newQualified (nameModule name) (reverse (drop 4 (reverse (nameId name))))
 
+-- | Create an effects constructor (in the operations type) from an effect type name.
+toEffectConName :: Name -> Name
+toEffectConName name
+  = makeHiddenName "Eff" name
+
 prepend :: String -> Name -> Name
 prepend s name
-  = newQualified (nameModule name) (s ++ nameId name)
+  = newQualified (nameModule name) 
+    (case nameId name of 
+      ('.':t) -> '.' : s ++ t  -- keep hidden names hidden
+      t       -> s ++ t
+    )
 
 postpend :: String -> Name -> Name
 postpend s name
