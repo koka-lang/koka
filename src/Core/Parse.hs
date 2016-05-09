@@ -175,7 +175,7 @@ typeDecl env
 
 conDecl tname sort env
   = do (_,doc) <- dockeyword "con"
-       (name,_)  <- constructorId
+       (name,_)  <- constructorId <|> constructorDot
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        params <- parameters env1 
@@ -226,6 +226,12 @@ binderDot
   = parens $
     do keyword "."
        (name,rng) <- identifier
+       return (prepend "." name,rng)
+
+constructorDot
+  = -- parens $
+    do keyword "."
+       (name,rng) <- constructorId
        return (prepend "." name,rng)
 
 
