@@ -729,7 +729,7 @@ operation vis foralls effTp opsTp extendConName
            tpConRes = TpApp opsTp [tpVarA] rng             
            -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
 
-           conName  = toConstructorName id
+           conName  = toOpConName id
            conDef   = UserCon conName exists conParams idrng rng vis ""
            conParams= [par{ binderName = nameNil, binderExpr = Nothing } | par <- pars]
            opDef  = let def  = Def binder rng vis DefFun ""

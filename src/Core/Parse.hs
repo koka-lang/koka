@@ -148,7 +148,7 @@ typeDecl env
                      <|> return ddef0
        tname <- if (isExtend)
                  then qualifiedTypeId
-                 else do (name,_)   <- tbinderId
+                 else do (name,_)   <- tbinderId <|> tbinderDot
                          return (qualify (modName env) name)
 
        -- trace ("core type: " ++ show name) $ return ()
@@ -162,7 +162,7 @@ typeDecl env
        return (Data dataInfo Public (map (const Public) cons) isExtend, env)
   <|>
     do (_,doc) <- dockeyword "alias"
-       (name,_) <- tbinderId
+       (name,_) <- tbinderId <|> tbinderDot
        --trace ("core alias: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
@@ -221,6 +221,7 @@ pdefSort
   <|>
     do (_,doc) <- dockeyword "val"
        return (DefVal,doc)
+
        
 binderDot
   = parens $
@@ -234,6 +235,10 @@ constructorDot
        (name,rng) <- constructorId
        return (prepend "." name,rng)
 
+tbinderDot
+  = do keyword "."
+       (name,rng) <- tbinderId
+       return (prepend "." name,rng)
 
 {--------------------------------------------------------------------------
   External definitions 
@@ -496,7 +501,10 @@ qualifiedTypeId
        cs <- many comma
        special ")"
        return (nameTuple (length cs+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
-
+  <|>
+    do keyword "."
+       (name,_) <- qvarid
+       return (prepend "." name)     
 
 
 {--------------------------------------------------------------------------

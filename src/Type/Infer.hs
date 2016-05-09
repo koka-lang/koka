@@ -887,7 +887,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
        
        -- check if it was part of the handled effect operations
-       let cname = toConstructorName qname
+       let cname = toOpConName qname
            constrs = dataInfoConstrs opsInfo
        -- trace ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs)) $
        (conname,gconTp,conrepr,coninfo)
