@@ -510,14 +510,18 @@ labelName tp
                            typeConName tc
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
-containsHandledEffect :: Effect -> Bool
-containsHandledEffect eff
+containsHandledEffect :: [Name] -> Effect -> Bool
+containsHandledEffect exclude eff
   = let (ls,_) = extractEffectExtend eff
-    in any isHandledEffect ls
+    in any (isHandledEffectX exclude) ls
 
 isHandledEffect :: Type -> Bool
 isHandledEffect tp
+  = isHandledEffectX [] tp
+
+isHandledEffectX exclude tp
   = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) [TCon (TypeCon hxName _)]  | name == nameTpHandled -> not (hxName `elem` exclude) 
       TApp (TCon (TypeCon name _)) _  | name == nameTpHandled -> True 
       TCon (TypeCon _ kind) -> isKindHandled kind
       _ -> False

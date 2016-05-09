@@ -71,7 +71,7 @@ genModule mbMain core
             mainEntry = case mbMain of
                           Nothing -> empty
                           Just (name) -> text " " <-> text "// koka main entry:" <-> 
-                                           ppName (unqualify name) <> text "();"
+                                           ppName (unqualify name) <> text "($std_core.id);"  -- pass id for cps translated main
         return $  text "// koka generated module: " <> string (showName (coreProgName core)) 
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 

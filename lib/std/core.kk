@@ -2586,7 +2586,16 @@ type open operation<a>
 
 // Cps effect. This is used by the compiler internally to ensure certain functions
 // are compile with a cps translation
-type cps :: HX;
+effect cps {
+  cps() : ()
+}
+
+// Handle the ":cps" effect. 
+val uncps = handler {
+  return x -> x
+  cps()    -> resume(())
+}
+
 
 // Continuation alias. Used internally to do special checks on cps converted code.
 alias cont<a,e,b> = a -> e b
@@ -2632,7 +2641,7 @@ external inline ".toany"( x : a ) : any {
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b, 
                           ops : (l1:any, l2:int, cont: (c) -> yld<a>,
-                                 op:o<c>, 
+                                 op:o, 
                                  resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  
                         ) : total ((action : () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler0(optag,ret,ops)"
