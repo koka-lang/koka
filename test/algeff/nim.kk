@@ -7,6 +7,13 @@ type player {
   Alice
 }
 
+function (==)(p1, p2) {
+  match(p1) {
+    Bob   -> p2.isBob
+    Alice -> p2.isAlice
+  }
+}
+
 function show(p:player) : string {
   match(p) {
     Bob   -> "bob"
@@ -183,7 +190,6 @@ function testCoin() {
 // Scoreboard
 // --------------------------------------------------------
 
-/*
 effect state<s> {
   get() : s;
   put(x : s) : ()
@@ -205,11 +211,10 @@ val scoreUpdater = handler {
     p
   }
 }
-
 function updateScore( p : player, gs : gstate ) : gstate {
   gs.map fun(qs) {
     val (q,s) = qs
-    if (p==q) then (q,score+1) else qs
+    if (p==q) then (q,s+1) else qs
   }
 }
 
@@ -222,15 +227,16 @@ val printer = handler {
 
 function printBoard( gs : gstate ) : io () {
   gs.map( fun(ps) {
-    p.fst.show + " -> " + p.snd.show 
-  }).join("\n").print
+    ps.fst.show + " -> " + ps.snd.show 
+  }).join("\n").println
 }
 
 function testPrint1() {
-  state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
+  hstate({ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}},s0)
 }
 
-function replay(n,action) {
+/*
+function replay(n : int,action : () -> <div,cps|e> a) : <div,cps|e> a {
   handle(action) {
     return x -> if (n <= 1) then x else replay(n-1,action)
   }
@@ -239,5 +245,4 @@ function replay(n,action) {
 function testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
-
 */

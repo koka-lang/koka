@@ -22,7 +22,7 @@ import Common.Name
 import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy, nameTpDelay
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
-                      , nameMakeHandler
+                      , nameMakeHandler, nameMakeHandlerRet
                       , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny, nameFalse, nameTrue
                       , nameTpYld )
 import Common.Range
@@ -698,10 +698,7 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect mbeff pars ret ops hrng rng
-  = do -- infer the handled effect
-       (hxeff) <- inferHandledEffect hrng mbeff ops
-
-      -- analyze propagated type 
+  = do -- analyze propagated type 
        ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
        (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
 
@@ -736,8 +733,64 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        heff <- freshEffect
        inferUnify (checkEffectSubsume hrng) hrng (effectExtend typeCps heff) retEff
 
-       -- build binders for the operator and resumption function      
-       opsResTp <- Op.freshTVar kindStar Meta
+       -- infer the handled effect
+       mbhxeff <- inferHandledEffect hrng mbeff ops
+
+       (handlerTp,opsfunCore,makeHTp,hxName,mkHandlerName) 
+          <- case mbhxeff of
+               Nothing 
+                -> inferHandlerRet parBinders argPars 
+                                   retInTp retEff retOutTp retTp
+                                   heff hrng (getRange retExpr)
+
+               Just hxeff 
+                -> inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp
+                                   ops heff hrng (getRange retExpr)
+
+       -- get makeHandlerN and unify
+       (mkhQname,mkhTp,mkhInfo) <- resolveFunName mkHandlerName (CtxFunArgs 3 []) hrng hrng
+       (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
+       smakeHTp <- subst makeHTp
+       env <- getPrettyEnv
+       trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
+        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp  
+
+       shandlerTp  <- subst handlerTp
+       trace (" result: " ++ show (pretty shandlerTp)) $ return ()
+
+       let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
+           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
+           handlerCore = Core.App (mkhCore coreMkHandler) 
+                                    [optagCore,{- opmatchCore,-} retCore,opsfunCore]
+
+       -- generalize the handler type
+       (ghandlerTp,gcore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect shandlerTp handlerCore
+       -- and perhaps instantiate
+       --(ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
+       sicore      <- subst gcore
+       sihandlerTp <- subst ghandlerTp
+
+       geff <- freshEffect
+       trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
+        return (sihandlerTp,geff,sicore)           
+
+inferHandlerRet parBinders argPars retInTp retEff retOutTp retTp heff hrng exprRng
+  = do let opsfunCore= Core.Lit (Core.LitInt 0) 
+
+       -- build up the type of the handler (() -> retEff retInTp) -> retEff resTp
+       let actionPar = (newName "action",TFun [] heff retInTp)
+           handlerTp = TFun (actionPar:argPars) heff retOutTp
+           makeHTp = TFun [(newName "optag", typeString),
+                           (newName "ret",retTp),
+                           (newName "ops",typeInt)] typeTotal handlerTp
+
+       return (handlerTp,opsfunCore,makeHTp,newName "",nameMakeHandlerRet (length parBinders))
+
+
+
+inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff hrng exprRng
+  = do -- build binders for the operator and resumption function      
+       opsResTp <- Op.freshTVar kindStar Meta 
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let -- op
            opsEff    = handledToLabel hxeff
@@ -770,7 +823,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
            rngs = map (getRange . hbranchExpr) ops
            brngs = map (getRange) ops
 
-       resTp  <- inferUnifyTypes checkMatch (zip (retOutTp:opTps) (zip (getRange retExpr:brngs) (getRange retExpr:rngs)))
+       resTp  <- inferUnifyTypes checkMatch (zip (retOutTp:opTps) (zip (exprRng:brngs) (exprRng:rngs)))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
 
        -- build match for operations
@@ -789,32 +842,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
                             -- (newName "opmatch",opmatchRho),
                             (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
-       -- ctp <- Op.freshTVar kindStar Meta
-       (mkhQname,mkhTp,mkhInfo) <- resolveFunName (nameMakeHandler (length pars)) (CtxFunArgs 3 []) hrng hrng
-       (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
-       smakeHTp <- subst makeHTp
-       env <- getPrettyEnv
-       trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
-        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp  
-
-       shandlerTp  <- subst handlerTp
-       trace (" result: " ++ show (pretty shandlerTp)) $ return ()
-
-       let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
-           handlerCore = Core.App (mkhCore coreMkHandler) [optagCore,{- opmatchCore,-} retCore,opsfunCore]
-
-       -- generalize the handler type
-       (ghandlerTp,gcore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect shandlerTp handlerCore
-       -- and perhaps instantiate
-       --(ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
-       sicore      <- subst gcore
-       sihandlerTp <- subst ghandlerTp
-
-       geff <- freshEffect
-       trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
-        return (sihandlerTp,geff,sicore)           
-
+       return (handlerTp,opsfunCore,makeHTp,hxName,nameMakeHandler (length parBinders))
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
 effectToOperation eff tres
@@ -835,10 +863,10 @@ effectToOperation eff tres
 
 
                               
-inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf Effect
+inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng mbeff ops
   = case mbeff of
-      Just eff -> return eff
+      Just eff -> return (Just eff)
       Nothing  -> case ops of
         (HandlerBranch name pars expr nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
@@ -847,9 +875,10 @@ inferHandledEffect rng mbeff ops
                 case splitFunType rho of
                   Just(_,eff,_) -> let ([l],_) = extractEffectExtend eff
                                    in case expandSyn l of 
-                                        TApp (TCon tc) [hx] | typeConName tc == nameTpHandled -> return hx
+                                        TApp (TCon tc) [hx] | typeConName tc == nameTpHandled -> return (Just hx)
 
-        _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
+        _ -> return Nothing
+              -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo 
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
