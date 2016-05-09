@@ -759,7 +759,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           optagCore   = Core.Lit (Core.LitString (show (toConstructorName hxName)))
+           optagCore   = Core.Lit (Core.LitString (show (toEffectConName hxName)))
            handlerCore = Core.App (mkhCore coreMkHandler) 
                                     [optagCore,{- opmatchCore,-} retCore,opsfunCore]
 

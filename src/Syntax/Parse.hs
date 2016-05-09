@@ -662,7 +662,7 @@ effectDecl dvis
            opsTp    = -- TpCon (tbinderName tname) (tbinderRange tname)
                       tpCon opsName
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
-           extendConName = toConstructorName (tbinderName ename)
+           extendConName = toEffectConName (tbinderName ename)
            
        -- parse the operations and return the constructors and function definitions
        (ops,xrng) <- semiBracesRanged1 (operation vis tpars effTp opsTp extendConName)
@@ -682,6 +682,7 @@ effectDecl dvis
                           [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
 
            -- create opmatchX function
+           {-
            tpEffE     = makeEffectExtend rng effTp tpVarE
            opmatchTp  = promoteType $
                         TpFun [(newName "operation",extendResTp)] (makeEffectEmpty irng)
@@ -698,7 +699,7 @@ effectDecl dvis
            patterns  = [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
            fld       = newName "x"
            arg       = newName "op"
-
+           -}
 
            nameA    = newName "a"
            nameB    = newName "b"
@@ -709,7 +710,7 @@ effectDecl dvis
            tpBindA  = TypeBinder nameA kindStar irng irng   
 
        return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ 
-                  map DefValue ( opDefs ++ extendConDefs ++ [opmatchDef])
+                  map DefValue ( opDefs ++ extendConDefs {- ++ [opmatchDef] -})
 
 
 operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
@@ -869,9 +870,10 @@ block
                     return []
        rng2 <- rcurly
        let stats = stmts1 ++ stmts2
-       case (last stats) of
-         StatExpr exp -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
-         _            -> fail "Last statement in a block must be an expression"
+       case (reverse stats) of
+         (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
+         []               -> return (Var nameUnit False (combineRange rng1 rng2))
+         _                -> fail "Last statement in a block must be an expression"
   where
     combine :: Statement -> UserExpr -> UserExpr
     combine (StatFun f) exp   = f exp

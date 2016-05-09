@@ -153,7 +153,7 @@ synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
       else [])
     ++
     (if (length (dataInfoConstrs dataInfo) > 1 || (dataInfoIsOpen dataInfo))
-      then map (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
+      then concatMap (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
       else [])
     
 
@@ -233,9 +233,11 @@ synAccessors modName info vis conviss
     
     in map synAccessor fields
     
-synTester :: DataInfo -> (Visibility,ConInfo) -> DefGroup Type
+synTester :: DataInfo -> (Visibility,ConInfo) -> [DefGroup Type]
+synTester info (vis,con) | isHiddenName (conInfoName con) 
+  = []
 synTester info (vis,con)
-  = let name = (newName ("is" ++ nameId (conInfoName con)))
+  = let name = (prepend "is" (unqualify (conInfoName con)))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
 
@@ -245,7 +247,7 @@ synTester info (vis,con)
         branch2   = Branch (PatWild rc) guardTrue (Var nameFalse False rc)
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
         doc = "// Automatically generated. Tests for the \"" ++ nameId (conInfoName con) ++ "\" constructor of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
-    in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)
+    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)]
 
 
 
