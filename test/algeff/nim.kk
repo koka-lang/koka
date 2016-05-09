@@ -177,3 +177,67 @@ val coin = handler {
 function testCoin() {
   coin{ bobChooses { game(7) } }
 }
+
+
+// --------------------------------------------------------
+// Scoreboard
+// --------------------------------------------------------
+
+/*
+effect state<s> {
+  get() : s;
+  put(x : s) : ()
+}
+
+val hstate = handler(s) {
+  return x -> x
+  get()    -> resume(s,s)
+  put(t)   -> resume((),t)
+}
+
+alias gstate = list<(player,int)>
+
+val s0 = [(Alice,0),(Bob,0)]
+
+val scoreUpdater = handler {
+  return p -> {
+    put(updateScore(p,get()))
+    p
+  }
+}
+
+function updateScore( p : player, gs : gstate ) : gstate {
+  gs.map fun(qs) {
+    val (q,s) = qs
+    if (p==q) then (q,score+1) else qs
+  }
+}
+
+val printer = handler {
+  return x -> {
+    printBoard(get())
+    x
+  }
+}
+
+function printBoard( gs : gstate ) : io () {
+  gs.map( fun(ps) {
+    p.fst.show + " -> " + p.snd.show 
+  }).join("\n").print
+}
+
+function testPrint1() {
+  state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
+}
+
+function replay(n,action) {
+  handle(action) {
+    return x -> if (n <= 1) then x else replay(n-1,action)
+  }
+}
+
+function testPrint2() {
+  state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
+}
+
+*/

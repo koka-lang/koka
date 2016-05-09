@@ -2631,7 +2631,10 @@ external inline ".toany"( x : a ) : any {
 
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b, 
-                          ops : (op:o<c>, cont: (c) -> yld<a>, resume:((c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+                          ops : (l1:any, l2:int, cont: (c) -> yld<a>,
+                                 op:o<c>, 
+                                 resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  
+                        ) : total ((action : () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler0(optag,ret,ops)"
 }
 
@@ -2655,7 +2658,11 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
 
 external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                             ret : (a,d) -> <cps|e> b, 
-                            ops : (op:o, cont:(c) -> yld<a>, resume: (((c) -> yld<a>,c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
+                            ops : (l1:any, l2:int, cont:(c) -> yld<a>, 
+                                    op:o, 
+                                    resume: ((l1:any, l2:int, cont:(c) -> yld<a>, x: c, loc: d) -> <cps|e> b), 
+                                    loc:d) -> <cps|e> b  
+                        ) :  total ((action: () -> e1 a, loc:d) -> e b) {
   js inline "$makeGenOptHandler1(optag,ret,ops)"
 }
 

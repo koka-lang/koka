@@ -739,20 +739,30 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
-       let opsEff    = handledToLabel hxeff
+       let -- op
+           opsEff    = handledToLabel hxeff
            opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng        
+           opsPar    = [(newName "op", opsTp )]
+           -- cont
            tconYld    = TCon (TypeCon nameTpYld (kindFun kindStar kindStar))   
            contTp     = TFun [(nameNil,opsResTp)] typeTotal (TApp tconYld [retInTp])
            contBinder = ValueBinder (newHiddenName "cont") contTp () hrng hrng
            contPar  = [(newName "cont", contTp)]
-           resumeTp = TFun (contPar ++ [(newName "x",opsResTp)] ++ argPars) retEff retOutTp 
+           -- l1,l2,l3
+           ltps      = [typeAny,typeInt]
+           lBinders  = [ValueBinder (newHiddenName ("l" ++ show i)) ltp () hrng hrng | (i,ltp) <- zip [1..] ltps]
+           lPars     = [(binderName b, binderType b) | b <- lBinders]
+           -- resume
+           resumeTp = TFun (lPars ++ contPar ++ [(newName "x",opsResTp)] ++ argPars) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
-           opsgamma = inferBinders [] [opsBinder,contBinder,resumeBinder]
+           -- gammas
+           opsgamma = inferBinders [] (lBinders ++ [opsBinder,contBinder,resumeBinder])
            infgamma = inferBinders [] parBinders
 
        iops  <- extendInfGamma False infgamma $
                 extendInfGamma False opsgamma $
-                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated opsEff hxName opsInfo contBinder resumeBinder) ops
+                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated 
+                        opsEff hxName opsInfo (lBinders ++ [contBinder]) resumeBinder) ops
 
 
        -- unify effects and branches
@@ -765,25 +775,15 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
-           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- [opsBinder,contBinder,resumeBinder] ++ parBinders] retEff matchCore
+           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- lBinders ++ [opsBinder,contBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
        let actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
            handlerTp = TFun (actionPar:argPars) heff resTp
-
        
-       -- lookup relevelant opmatchX
-       {-
-       (opmatchName,opmatchTp,opmatchInfo) 
-             <- resolveFunName (prepend "opmatch" (toConstructorName hxName)) (CtxFunArgs 1 []) hrng hrng
-
-       (opmatchRho,_,opmatchICore) <- instantiate rng opmatchTp
-       let opmatchCore = opmatchICore (coreExprFromNameInfo opmatchName opmatchInfo)                 
-       -}
-           
        -- build the type of the ops argument and the handler maker
-       let opsArgTp = TFun ([(newName "op", opsTp),(newName "cont", contTp),(newName "resume", resumeTp)] ++ argPars)
+       let opsArgTp = TFun (lPars ++ contPar ++ opsPar ++ [(newName "resume", resumeTp)] ++ argPars)
                           retEff resTp
            makeHTp = TFun [ (newName "optag",typeString),
                             -- (newName "opmatch",opmatchRho),
@@ -852,8 +852,8 @@ inferHandledEffect rng mbeff ops
         _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo 
-                          -> (ValueBinder Type ()) -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
-inferHandlerBranch propagated expect opsEffTp hxName opsInfo contBinder resumeBinder (HandlerBranch name pars expr nameRng rng) 
+                          -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
+inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resumeBinder (HandlerBranch name pars expr nameRng rng) 
   = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name) 
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
        
@@ -888,16 +888,19 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo contBinder resumeBi
        -- create resume definition with the type specialized to this operation
        let (xresumeTp,xresumeArgs)
                     = case splitFunType (binderType resumeBinder) of 
-                        Just ((_:(xname,_):targs),teff,tres) 
-                          -> let newargs = ((xname,resTp):targs)
-                             in (TFun newargs teff tres,
-                                  [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
+                        Just (targs0,teff,tres)
+                          -> case drop (length extraBinders) targs0 of
+                               ((xname,_):targs) -> 
+                                 let newargs = ((xname,resTp):targs)
+                                 in (TFun newargs teff tres,
+                                      [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
+                               _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
                         _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
            
            -- xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
            -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
 
-           xresumeAppArgs   =   [(Nothing,Var (binderName contBinder) False rng)]
+           xresumeAppArgs   =   [(Nothing,Var (binderName b) False rng) | b <- extraBinders]
                              ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
                              ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
                               
