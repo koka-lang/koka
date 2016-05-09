@@ -699,28 +699,19 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect mbeff pars ret ops hrng rng
   = do -- analyze propagated type 
-       ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
-       (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
+       (propArgsAll,propEff,propRes,expectRes) <- matchFun propagated
+       let (propAction,propArgs) = case reverse propArgsAll of 
+                                      (pa:prest) -> (pa,reverse prest)
+                                      _ -> (Nothing,[])
+       -- (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
 
        -- find propagated parameter types for the handler
        let propParBinders = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp, binderExpr = Nothing }
                          Just _  -> binder{ binderExpr = Nothing }
                       | (binder,mbProp) <- zip pars propArgs]                    
-       -- parBinders <- mapM instantiateBinder binders0
-       
-       -- infer the 'return' clause
-       actionResTp <- case propActionRes of 
-                        Nothing -> Op.freshTVar kindStar Meta
-                        Just (tp,rng) -> return tp
-       {-
-       propRet <- case propRes of 
-                    Nothing -> return Nothing
-                    Just (resTp,rng) -> 
-                      do pretEff <- freshEffect                        
-                         let propRetArgs = [(binderName b,binderType b) | b <- propParBinders]
-                         return $ Just (TFun ((newName "action",actionResTp):propRetArgs) pretEff resTp, rng)
-       -}
+              
+       -- infer the return clause
        let retExpr = case ret of
                        Lam [arg] body rng -> Lam (arg:propParBinders) body rng
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
@@ -747,7 +738,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
                 -> inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp
                                    ops heff hrng (getRange retExpr)
 
-       -- get makeHandlerN and unify
+       -- get makeHandlerN and unify as an extra check
        (mkhQname,mkhTp,mkhInfo) <- resolveFunName mkHandlerName (CtxFunArgs 3 []) hrng hrng
        (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
        smakeHTp <- subst makeHTp
@@ -806,7 +797,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
            lBinders  = [ValueBinder (newHiddenName ("l" ++ show i)) ltp () hrng hrng | (i,ltp) <- zip [1..] ltps]
            lPars     = [(binderName b, binderType b) | b <- lBinders]
            -- resume
-           resumeTp = TFun (lPars ++ contPar ++ [(newName "x",opsResTp)] ++ argPars) retEff retOutTp 
+           resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            -- gammas
            opsgamma = inferBinders [] (lBinders ++ [opsBinder,contBinder,resumeBinder])
@@ -833,7 +824,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
        let actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
-           handlerTp = TFun (actionPar:argPars) heff resTp
+           handlerTp = TFun (argPars ++ [actionPar]) heff resTp
        
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun (lPars ++ contPar ++ opsPar ++ [(newName "resume", resumeTp)] ++ argPars)
