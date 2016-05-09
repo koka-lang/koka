@@ -2653,7 +2653,7 @@ external ".makeHandlerRet0"( optag:string, ret : a -> <cps|e> b, ops : int ) : t
 
 
 external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
-                            ret : (a,d) -> <cps|e> b, 
+                            ret : (d,a) -> <cps|e> b, 
                             ops : (l1:any, l2:int, cont:(c) -> yld<a>, 
                                     op:o, 
                                     resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b), 

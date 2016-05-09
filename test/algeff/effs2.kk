@@ -35,7 +35,7 @@ function state_handle() {
   handler(i) {
     return x -> x
     get()    -> resume(i,i)
-    set(j)   -> resume((),j) 
+    set(j)   -> resume(j,()) 
   }
 }
 
@@ -45,9 +45,15 @@ function test1() {
 
 
 function test2()  {
-  state_handle()({amb_handle()(foo)},0)
+  state_handle()(0){amb_handle()(foo)}
 }
 
 function test3()  {
-  amb_handle()({state_handle()(foo,0)})
+  amb_handle()({state_handle()(0,foo)})
+}
+
+function main() {
+  test1().show.println
+  test2().show.println
+  test3().show.println
 }

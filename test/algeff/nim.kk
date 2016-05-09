@@ -160,16 +160,16 @@ function testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  choice() : bool
+  choose() : bool
 }
 
 function bobChooses(m) {
-  if (choice()) then pc(m) else perfect(m)
+  if (choose()) then pc(m) else perfect(m)
 }
 
 val allResults = handler {
   return x -> [x]
-  choice() -> resume(True) + resume(False)
+  choose() -> resume(True) + resume(False)
 }
 
 function testChoose() {
@@ -178,7 +178,7 @@ function testChoose() {
 
 val coin = handler {
   return x -> x
-  choice() -> resume(random() > 0.5)
+  choose() -> resume(random() > 0.5)
 }
 
 function testCoin() {
@@ -195,10 +195,10 @@ effect state<s> {
   put(x : s) : ()
 }
 
-val hstate = handler(s) {
+val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  put(t)   -> resume((),t)
+  put(t)   -> resume(t,())
 }
 
 alias gstate = list<(player,int)>
@@ -232,7 +232,7 @@ function printBoard( gs : gstate ) : io () {
 }
 
 function testPrint1() {
-  hstate({ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}},s0)
+  state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
 }
 
 function replay(n : int,action : () -> <div|e> a) : <div|e> a {
@@ -244,7 +244,7 @@ function replay(n : int,action : () -> <div|e> a) : <div|e> a {
 external inline incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
 
 function testPrint2() {
-  hstate({ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}},s0)
+  state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
 
 // the following fails to type check due to the recursive 'cps' effect occurring in 'action'

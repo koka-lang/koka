@@ -699,25 +699,35 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect mbeff pars ret ops hrng rng
   = do -- analyze propagated type 
-       (propArgsAll,propEff,propRes,expectRes) <- matchFun propagated
-       let (propAction,propArgs) = case reverse propArgsAll of 
-                                      (pa:prest) -> (pa,reverse prest)
-                                      _ -> (Nothing,[])
-       -- (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
+       ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
+       (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
 
        -- find propagated parameter types for the handler
        let propParBinders = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp, binderExpr = Nothing }
                          Just _  -> binder{ binderExpr = Nothing }
                       | (binder,mbProp) <- zip pars propArgs]                    
-              
-       -- infer the return clause
+       -- parBinders <- mapM instantiateBinder binders0
+       
+       -- infer the 'return' clause
+       actionResTp <- case propActionRes of 
+                        Nothing -> Op.freshTVar kindStar Meta
+                        Just (tp,rng) -> return tp
+       {-
+       propRet <- case propRes of 
+                    Nothing -> return Nothing
+                    Just (resTp,rng) -> 
+                      do pretEff <- freshEffect                        
+                         let propRetArgs = [(binderName b,binderType b) | b <- propParBinders]
+                         return $ Just (TFun ((newName "action",actionResTp):propRetArgs) pretEff resTp, rng)
+       -}
        let retExpr = case ret of
-                       Lam [arg] body rng -> Lam (arg:propParBinders) body rng
+                       Lam [arg] body rng -> Lam (propParBinders ++ [arg]) body rng
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
        (retTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
-           ((_,retInTp):argPars) = retArgs
+           ((_,retInTp):rargPars) = reverse retArgs
+           argPars  = reverse rargPars
            parTypes = map snd argPars
            parBinders = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propParBinders parTypes]
 
@@ -738,7 +748,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
                 -> inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp
                                    ops heff hrng (getRange retExpr)
 
-       -- get makeHandlerN and unify as an extra check
+       -- get makeHandlerN and unify
        (mkhQname,mkhTp,mkhInfo) <- resolveFunName mkHandlerName (CtxFunArgs 3 []) hrng hrng
        (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
        smakeHTp <- subst makeHTp
@@ -800,7 +810,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
            resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) retEff retOutTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            -- gammas
-           opsgamma = inferBinders [] (lBinders ++ [opsBinder,contBinder,resumeBinder])
+           opsgamma = inferBinders [] (lBinders ++ [contBinder,opsBinder,resumeBinder])
            infgamma = inferBinders [] parBinders
 
        iops  <- extendInfGamma False infgamma $
@@ -909,9 +919,9 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
        let (xresumeTp,xresumeArgs)
                     = case splitFunType (binderType resumeBinder) of 
                         Just (targs0,teff,tres)
-                          -> case drop (length extraBinders) targs0 of
-                               ((xname,_):targs) -> 
-                                 let newargs = ((xname,resTp):targs)
+                          -> case reverse (drop (length extraBinders) targs0) of
+                               ((xname,_):rtargs) -> 
+                                 let newargs = reverse ((xname,resTp):rtargs)
                                  in (TFun newargs teff tres,
                                       [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
                                _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
@@ -921,8 +931,8 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
            -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
 
            xresumeAppArgs   =   [(Nothing,Var (binderName b) False rng) | b <- extraBinders]
-                             ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (head xresumeArgs)) False rng)] rng)] 
-                             ++ [(Nothing,Var (binderName b) False rng) | b <- tail xresumeArgs]
+                             ++ [(Nothing,Var (binderName b) False rng) | b <- init xresumeArgs]
+                             ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (last xresumeArgs)) False rng)] rng)] 
                               
            xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng) xresumeTp rng
            xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng) rng Private DefFun "" 

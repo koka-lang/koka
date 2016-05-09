@@ -8,7 +8,7 @@ effect state<s> {
 val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  set(t)   -> resume((),t)
+  set(t)   -> resume(t,())
 }
 
 function test() {
@@ -16,5 +16,5 @@ function test() {
 }
 
 function main() {
-  state({test() },0)
+  state(0){ test() }
 }
