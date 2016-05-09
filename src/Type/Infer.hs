@@ -775,7 +775,7 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
-           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- lBinders ++ [opsBinder,contBinder,resumeBinder] ++ parBinders] retEff matchCore
+           opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- lBinders ++ [contBinder,opsBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
        let actionEff = effectExtend (handledToLabel hxeff) heff
