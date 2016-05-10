@@ -1,75 +1,29 @@
-import effs3
+// test locals with initializer
 
-function xor() : amb bool {
-  val p = flip() 
-  val q = flip()
-  (p||q) && not(p&&q)
+effect state<s> {
+  get()    : s;
+  set(x:s) : ()
 }
 
-function xors() : amb string {
-  show(xor())
+val state = handler(s=0) {
+  return x -> x
+  get()    -> resume(s,s)
+  set(t)   -> resume(t,())
 }
 
-function foo() : <amb,state<int>> bool {
-  val p = flip() 
-  val i = get()
-  set(i+1)
-  if (i>0 && p) then xor() else False
-}         
-
-function foos() : <amb,state<int>> string {
-  show(foo())
-}    
- 
-function amb_handle() {
-  handler {
-    return x -> [x]
-    flip()   -> resume(False) + resume(True)
-  }
-}
-
-function state_handle() {
-  handler(i) {
+function fstate(action) {
+  handle(action)(s=0) {
     return x -> x
-    get()    -> resume(i,i)
-    set(j)   -> resume((),j)
+    get()    -> resume(s,s)
+    set(t)   -> resume(t,())
   }
 }
-/*
-function amb_handle() {
-  makeHandler(opmatchAmb,
-    fun(x) { [x] },
-    fun(ops,cont) {
-      match(ops) {
-        Flip -> cont(False) + cont(True)
-      }
-    }
-  )
-}
 
-function state_handle() {
-  makeHandler1(opmatchState,
-    fun(x,i:int) { x },
-    fun(ops,cont,i:int) {
-      match(ops) {
-        Get -> cont(i.toAny,i)
-        Set(j) -> cont(().toAny,j)
-      }
-    }
-  )
-}
-*/
-
-function test1()  {
-  amb_handle()(xors).join(",")
+function test() {
+  if (get() > 0) then "positive" else "negative or zero"
 }
 
 
-function test2()  {
-  state_handle()({amb_handle()(foos)},0).join(",")
+function main() {
+  state{ test() }
 }
-
-function test3()  {
-  amb_handle()({state_handle()(foos,0)}).join(",")
-}
-  

@@ -1020,14 +1020,32 @@ handlerExpr
        return (App expr args (combineRanged rng expr))
 
 handlerExprX lp rng mbEff
-  = do pars <- parensCommas lp handlerPar <|> return []
-       (retops,rng2) <- semiBracesRanged1 handlerOp
+  = do (pars,parsLam,rng) <- handlerParams -- parensCommas lp handlerPar <|> return []
+       (retops,rng2)  <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
-         [ret] -> return (Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
+         [ret] -> return (parsLam $ Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
-
+handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
+handlerParams
+  = do (pars,rng) <- parameters True {-allow defaults-}
+       let hpars  = [p{ binderExpr = () } | p <- pars]
+           isJust (Just _) = True
+           isJust _        = False
+           hlam   = if (any (isJust.binderExpr) pars) 
+                      then let apar   = [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
+                               xpars  = [p | p <- pars ++ apar, not (isJust (binderExpr p))] 
+                               xargs  = [(Nothing,
+                                          case binderExpr p of
+                                            Nothing -> Var (binderName p) False rng
+                                            Just e  -> e) |  p <- pars ++ apar]
+                               hlam h = Lam xpars (App h xargs rng) rng
+                           in hlam
+                      else id
+       return (hpars,hlam,rng)
+    <|>
+       return ([],id,rangeNull)
 
 handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
 handlerOp 
@@ -1039,17 +1057,17 @@ handlerOp
        return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] exp (combineRanged rng exp)))
   <|>
     do (name,nameRng) <- qidentifier
-       pars <- handlerParams 
+       pars <- opParams 
        keyword "->"
        exp <- branchexpr
        return (Right (HandlerBranch name pars exp nameRng (combineRanged nameRng pars)))
 
-handlerParams :: LexParser [ValueBinder (Maybe UserType) ()]
-handlerParams
-  = parensCommas (lparen <|> lapp) handlerParam <|> return []
+opParams :: LexParser [ValueBinder (Maybe UserType) ()]
+opParams
+  = parensCommas (lparen <|> lapp) opParam <|> return []
 
-handlerParam :: LexParser (ValueBinder (Maybe UserType) ())
-handlerParam
+opParam :: LexParser (ValueBinder (Maybe UserType) ())
+opParam
   = do (name,rng) <- identifier     
        tp <- optionMaybe typeAnnot
        return (ValueBinder name tp () rng (combineRanged rng tp))
