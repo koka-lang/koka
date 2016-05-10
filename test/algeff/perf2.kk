@@ -101,6 +101,10 @@ function test(n) {
   timer({ queensChoose(n) }).length.show.println
 }
 
+function main() {
+  test(11)
+}
+
 /*
 safeAddition :: [Int] -> Int -> Int -> Bool
 safeAddition [] _ _ = True

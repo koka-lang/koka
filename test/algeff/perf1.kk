@@ -18,17 +18,17 @@ effect state<s> {
  
 function count() {
   val i = get()
-  if (i == 0) then return i else {
+  if (i == 0) then i else {
     put(i-1)
     count()
   }
 }
 
 function testH(i0) {
-  handle(count,i0)(i) {
+  handle(count)(i=i0) {
     return x -> x
     get()    -> resume(i,i)
-    put(j)   -> resume((),j)
+    put(j)   -> resume(j,())
   }
 }
 

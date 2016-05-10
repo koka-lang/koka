@@ -74,3 +74,11 @@ function manyy(p) {
     Cons(x,xs)
   } { [] } 
 }
+
+function test1() {
+  parse("12",{many(digit)}).showP1.println 
+}
+
+function main() {
+  test1()
+}

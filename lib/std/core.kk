@@ -2609,41 +2609,24 @@ alias cont<a,e,b> = a -> e b
 // ----------------------------------------------------------------------------
 
 // The Yield monad
-abstract type yld<a> {
+type yld<a> {
   Yield<b>( op: operation<b>, cont : b -> yld<a> )
-  Result( result: a )
-  Resume
-  Done( done: a )
-}
-
-// Abstract operation matching
-abstract type opmatch<e1::E,e2::E,a> {
-  OpMatch( : a )
-  OpNoMatch
-} 
-
-function ".conOpMatch"(x)  { OpMatch(x) }
-function ".conOpNoMatch"() { OpNoMatch  }
-
-external ".conYield"( op : operation<a>, resume : b -> yld<a> ) : a {
-  inline "Yield(op,resume)"
+  Result( result: a ) 
 }
 
 external inline ".yieldop"( op : operation<a> ) : e a {
-  js inline "$std_core._conYield(#1,_k)" 
+  js inline "$std_core.Yield(#1,_k)" 
 }
   
 external inline ".toany"( x : a ) : any { 
   inline "#1" 
-}
-
+} 
 
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
-                          ret : a -> <cps|e> b, 
-                          ops : (l1:any, l2:int, cont: (c) -> yld<a>,
-                                 op:o, 
+                          ret : a -> <cps|e> b,  
+                          ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
                                  resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  
-                        ) : total ((action : () -> e1 a) -> e b) {
+                        ) : total ((action : () -> e1 a) -> e b) { 
   js inline "$makeGenOptHandler0(optag,ret,ops)"
 }
 
@@ -2653,17 +2636,25 @@ external ".makeHandlerRet0"( optag:string, ret : a -> <cps|e> b, ops : int ) : t
 
 
 external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
-                            ret : (d,a) -> <cps|e> b, 
-                            ops : (l1:any, l2:int, cont:(c) -> yld<a>, 
-                                    op:o, 
-                                    resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b), 
-                                    loc:d) -> <cps|e> b  
+                          ret : (d,a) -> <cps|e> b, 
+                          ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o, 
+                                  resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b), 
+                                  loc:d) -> <cps|e> b  
                         ) :  total ((loc:d, action: () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler1(optag,ret,ops)"
 }
 
 
 /*
+// Abstract operation matching
+abstract type opmatch<e1::E,e2::E,a> {
+  OpMatch( : a )
+  OpNoMatch
+} 
+
+function ".conOpMatch"(x)  { OpMatch(x) }
+function ".conOpNoMatch"() { OpNoMatch  }
+
 function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
                           res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
   function hndler(yld) {
@@ -2679,8 +2670,7 @@ function ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o
   }
   unsafeMakeHandler0(hndler)
 }
-*/
-/*
+
 function ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> <cps|e> b, ops : (op:o, cont: ((c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
   function hndler(yld,loc) {
     match(yld) {
@@ -2695,23 +2685,7 @@ function ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d)
   }
   unsafeMakeHandler1(hndler)
 }
-*/
-/*
-function ".makeHandler2"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d1,d2) -> <cps|e> b, ops : (op:o, cont: ((c,d1,d2) -> <cps|e> b), loc1:d1, loc2:d2) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc1:d1, loc2:d2) -> e b) {
-  function hndler(yld,loc1,loc2) {
-    match(yld) {
-      Yield(op,f) -> {      
-        match(matchop(op)) {
-          OpMatch(eop) -> ops(eop, fun(x,l1,l2) { hndler(f(x),l1,l2) }, loc1, loc2)
-          OpNoMatch    -> reyield(op, fun(x) { hndler(f(x),loc1,loc2) }) 
-        }
-      }
-      Result(x) -> res(x,loc1,loc2)          
-    }
-  }
-  unsafeMakeHandler2(hndler)
-}
-*/
+
 private external unsafeMakeHandler0( hndler : yld<a> -> <cps|e> b ) : total ((action : () -> e1 a) -> e b) {
   js inline "function(_action,_k){ _k = _k || id; return hndler(_action(Result),_k); }"
 }
@@ -2720,12 +2694,11 @@ private external unsafeMakeHandler1( hndler : (yld<a>,d) -> <cps|e> b ) : total 
   js inline "function(_action,_loc,_k){ _k = _k || id; return hndler(_action(Result),_loc,_k); }"
 }
 
-private external unsafeMakeHandler2( hndler : (yld<a>,d1,d2) -> <cps|e> b ) : total ((action : () -> e1 a, loc1 : d1, loc2 : d2) -> e b) {
-  js inline "function(_action,_loc1,_loc2,_k){ _k = _k || id; return hndler(_action(Result),_loc1,_loc2,_k); }"
-}
-
 private external reyield( op: operation<b>, f : b -> <cps|e> a ) : <cps|e> a {
   js inline "Yield(op,function(_x) { return f(_x,_k); } )"
 }
+*/
+
+
 
 
