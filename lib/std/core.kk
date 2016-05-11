@@ -2585,7 +2585,7 @@ type handled :: HX -> X;
 type open operation<a> 
 
 // Cps effect. This is used by the compiler internally to ensure certain functions
-// are compile with a cps translation
+// are compiled with a cps translation
 effect cps {
   cps() : ()
 }
