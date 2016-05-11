@@ -148,15 +148,15 @@ external show( exn : exception ) : string {
 // Catch an exception raised by "error" and handle it.
 // Use "onExn" or "onFail" when appropiate.
 external catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
-  cs inline "Primitive.Catch<##2>(#1,#2)"
-  js "$primcatch"
+  cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
+  js inline "$primcatch(action,hndl,_k)"
 }
   
 // Execute a "hndler" no matter what exception was raised in "action".
 // Use of "onExit" is preferred (which has its arguments swapped).
-external inline finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
-  cs inline "Primitive.Finally<##2>(#1,#2)"
-  js "$finally"
+external finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
+  cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
+  js inline "$primfinally(action,hndl,_k)"
 }
 
 // Raise an exception with a specified message.
@@ -2600,7 +2600,34 @@ val uncps = handler {
 // Continuation alias. Used internally to do special checks on cps converted code.
 alias cont<a,e,b> = a -> e b
 
+// ----------------------------------------------------------------------------
+// Handling exceptions when in cps / effect handling mode.
+// These are called transparently from the primcatch/primfinally functions
+// ----------------------------------------------------------------------------
 
+private effect hexn {
+  hthrow(exn : exception) : void  // cannot resume
+}
+
+private function hcatch( action, ehandler ) {
+  handle(action) {
+    return x    -> x
+    hthrow(exn) -> ehandler(exn)
+  }
+}
+
+private function hfinally( action, fhandler ) {
+  handle(action) {
+    return x    -> { 
+      fhandler() 
+      x
+    }
+    hthrow(exn) -> {
+      fhandler()
+      throw(exn)
+    }
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Handler primitives. 

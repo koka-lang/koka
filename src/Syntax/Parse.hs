@@ -250,9 +250,9 @@ topdef vis
     do (tdef,cdefs) <- typeDecl vis
        return ([DefType tdef] ++ map DefValue cdefs)       
   <|> 
-    do externDecl vis
-  <|> 
     do effectDecl vis
+  <|> 
+    do externDecl vis
 
 {---------------------------------------------------------------
   Import declaration
