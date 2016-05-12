@@ -4,17 +4,15 @@
 
 function test() {
   println("starting")
-  function f() {
-    println("what is your name?")
-    readline()
-  }
-  function g() {
-    println("and waiting at least 3 secs")
-    wait(3000)
-    println("(done waiting)")
-    "timing"
-  }
-  val xs = asyncAll( [f,g] )
+  val xs = asyncAll( [
+    { println("what is your name?")
+      readline()
+    },
+    { println("and waiting at most 3 secs")
+      wait(3000)
+      "done waiting"
+    }
+  ])
   println("hi " + xs.join(","))  
 }
 
