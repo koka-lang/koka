@@ -119,6 +119,10 @@ external inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b) = inlin
 // Add the state effect to a function effect.
 external inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)  = inline "#1"
 
+
+// Add the state effect to a function effect.
+external inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  = inline "#1"
+
 // Add the "read" effect to a function effect.
 external inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  = inline "#1"
 
@@ -2644,6 +2648,17 @@ external asyncOn( async : async<a> ) : asyn a {
 
 function readline() : <asyn,console> string {
   asyncOn(readln())
+}
+
+function asyncAll( actions : list<() -> <asyn|e> a> ) : <asyn|e> list<a> {
+  val res = unsafeArray(actions.length)
+  actions.foreachIndexed fun(i,action) {
+    async{ // this will stop async requests from stopping the loop
+      res.unsafeAssign(i,injectSt(action)()) 
+    }
+  }
+  ayield()
+  res.list
 }
 
 // ----------------------------------------------------------------------------
