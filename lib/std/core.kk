@@ -2651,14 +2651,15 @@ function readline() : <asyn,console> string {
 }
 
 function asyncAll( actions : list<() -> <asyn|e> a> ) : <asyn|e> list<a> {
-  val res = unsafeArray(actions.length)
-  actions.foreachIndexed fun(i,action) {
-    async{ // this will stop async requests from stopping the loop
-      res.unsafeAssign(i,injectSt(action)()) 
-    }
-  }
-  ayield()
-  res.list
+  asyncAllPrim( actions.vector ).list;
+}
+
+private external asyncAllPrim( actions : vector<() -> <asyn|e> a> ) : <asyn|e> vector<a>  {
+  js inline "$asyncAll(actions,_k)"
+}
+
+external readTextFile( fname : string ) : <asyn,exn> string {
+  js inline "(function(){ fs.readFile(fname,'utf8', $asyncCallback(_k)); return ayield(); })()"
 }
 
 // ----------------------------------------------------------------------------
