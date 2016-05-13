@@ -64,8 +64,13 @@ cpsDef recursive def
   = do pureTvs <- getPureTVars
        if (needsCpsDef pureTvs def) -- only translate when necessary
         then do defs' <- cpsLetDef recursive def 
-                case (defs' (\ds -> Let [DefRec ds] exprTrue)) of
+                case (defs' (\ds -> Let [DefRec ds] (Var (defTName def) InfoNone))) of
                   Let [DefRec ds] _ -> return ds
+                  expr -> do cpsTraceDoc $ \env -> text "Core.Cps.cpsDef: strange lifting: " <+> prettyExpr env expr
+                             -- failure "Core.Cps.cpsDef: error"
+                             return [def{defExpr = expr}]
+                             
+
         else return [def]
 
 type Trans a = TransX a a 
@@ -243,9 +248,10 @@ cpsLetDef recursive def
        let isFunDef = isFunctionDef (defExpr def)
        if (cpsk == PolyCps && isFunDef)
         then cpsLetDefDup recursive def 
-        else do when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" --  <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
+        else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" --  <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
                 expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
+                         -- \k -> k [def{ defExpr = expr' id}]
 
 cpsLetDefDup :: Bool -> Def -> Cps (TransX [Def] Expr)
 cpsLetDefDup recursive def
@@ -329,7 +335,7 @@ cpsTrans f xs
 
 
 
-applies :: [Trans Expr] -> ([Expr] -> Expr) -> Expr
+applies :: [Trans a] -> ([a] -> a) -> a
 applies [] f = f []
 applies (t:ts) f 
   = t (\c -> applies ts (\cs -> f (c:cs)))

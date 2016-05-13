@@ -218,7 +218,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hiddenFlag   []    ["simplify"]  (\b f -> f{noSimplify= not b})    "enable core simplification"
- , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=not b})      "enable cps translation"
+ , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=b})          "enable cps translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack" 
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
  ]
