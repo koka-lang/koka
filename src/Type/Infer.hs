@@ -59,6 +59,9 @@ trace s x =
 --   Lib.Trace.trace s 
     x
 
+traceDoc fdoc = do -- penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
+                   return () 
+
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
@@ -891,8 +894,10 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
        
        -- check if it was part of the handled effect operations
-       let cname = toOpConName qname
+       let fullRng = combineRanged rng expr
+           cname = toOpConName qname
            constrs = dataInfoConstrs opsInfo
+
        -- trace ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs)) $
        (conname,gconTp,conrepr,coninfo)
            <- case filter (\ci -> cname == conInfoName ci) constrs of
@@ -901,59 +906,70 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
                             infError nameRng (text "operator" <+> ppName env qname <+> text "is not defined as part of the handled effect" <+> ppName env hxName) 
 
        -- check the types of the parameters against the operator declaration
-       (rho,_,_) <- instantiate rng tp
-       let (parTps,effTp,resTp) = splitOpTp rho
-       if (length parTps < length pars)
-        then typeError rng nameRng (text "operator has not enough parameters") rho []
-        else if (length parTps > length pars)
-              then typeError rng nameRng (text "operator has too many parameters") rho []
-              else return ()
-       parsTps <- mapM (\par -> case binderType par of 
-                                  Nothing -> Op.freshTVar kindStar Meta
-                                  Just tp -> return tp) pars              
-       let propTp = TFun [(nameNil,tp) | tp <- parsTps] effTp resTp
-       inferUnify (checkOp rng) nameRng rho propTp
-       sparTps <- subst parTps
+       conResTp <- Op.freshTVar kindStar Meta
+       let conXTp = TForall (conInfoExists coninfo) [] (TFun (conInfoParams coninfo) (effectFixed [opsEffTp]) conResTp) 
+       withSkolemized fullRng conXTp (Just $ text "perhaps you forgot to apply 'resume'?") $ \xrho ->
+        do 
+         ixrho <- Op.instantiate rng (TForall (conInfoForalls coninfo) [] xrho)
+         (rho,_,_)  <- instantiate rng tp
+         inferUnify (checkOp rng) nameRng ixrho rho 
 
-       -- subsume effect type
-       inferUnify (checkEffectSubsume rng) rng effTp (effectFixed [opsEffTp])
+         srho <- subst rho
+         let (parTps,effTp,resTp) = splitOpTp srho
+         if (length parTps < length pars)
+          then typeError rng nameRng (text "operator has not enough parameters") rho []
+          else if (length parTps > length pars)
+                then typeError rng nameRng (text "operator has too many parameters") rho []
+                else return ()
+         parsTps <- mapM (\par -> case binderType par of 
+                                    Nothing -> Op.freshTVar kindStar Meta
+                                    Just tp -> return tp) pars              
+         let propTp = TFun [(nameNil,tp) | tp <- parsTps] effTp resTp
+         inferUnify (checkOp rng) nameRng rho propTp
+         sparTps <- subst parTps
 
-       -- create resume definition with the type specialized to this operation
-       let (xresumeTp,xresumeArgs)
-                    = case splitFunType (binderType resumeBinder) of 
-                        Just (targs0,teff,tres)
-                          -> case reverse (drop (length extraBinders) targs0) of
-                               ((xname,_):rtargs) -> 
-                                 let newargs = reverse ((xname,resTp):rtargs)
-                                 in (TFun newargs teff tres,
-                                      [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
-                               _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
-                        _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
-           
-           -- xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
-           -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
+         -- subsume effect type
+         inferUnify (checkEffectSubsume rng) rng effTp (effectFixed [opsEffTp])
 
-           xresumeAppArgs   =   [(Nothing,Var (binderName b) False rng) | b <- extraBinders]
-                             ++ [(Nothing,Var (binderName b) False rng) | b <- init xresumeArgs]
-                             ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (last xresumeArgs)) False rng)] rng)] 
-                              
-           xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng) xresumeTp rng
-           xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng) rng Private DefFun "" 
+         -- create resume definition with the type specialized to this operation
+         let (xresumeTp,xresumeArgs)
+                      = case splitFunType (binderType resumeBinder) of 
+                          Just (targs0,teff,tres)
+                            -> case reverse (drop (length extraBinders) targs0) of
+                                 ((xname,_):rtargs) -> 
+                                   let newargs = reverse ((xname,resTp):rtargs)
+                                   in (TFun newargs teff tres,
+                                        [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
+                                 _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
+                          _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
+             
+             -- xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
+             -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
 
-           parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
-           parGamma     = inferBinders [] parBinders                        
+             xresumeAppArgs   =   [(Nothing,Var (binderName b) False rng) | b <- extraBinders]
+                               ++ [(Nothing,Var (binderName b) False rng) | b <- init xresumeArgs]
+                               ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (last xresumeArgs)) False rng)] rng)] 
+                                
+             xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng) xresumeTp rng
+             xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng) rng Private DefFun "" 
 
-       -- and infer the body type    
-       (exprTp,exprEff,exprCore) <- extendInfGamma False parGamma $ 
-                                    inferExpr propagated expect $ Let (DefNonRec xresumeDef) expr (getRange expr)
+             parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
+             parGamma     = inferBinders [] parBinders                        
 
-       -- build a Core pattern match
-       let patCore = Core.PatCon (Core.TName conname gconTp) 
-                          [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
-                           conrepr (parTps) coninfo
-           branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]  
+         -- and infer the body type    
+         (exprTp,exprEff,exprCore) <- extendInfGamma False parGamma $ 
+                                      inferExpr propagated expect $ Let (DefNonRec xresumeDef) expr (getRange expr)
 
-       return (exprTp,exprEff,branchCore)
+         -- build a Core pattern match
+         let patCore = Core.PatCon (Core.TName conname gconTp) 
+                            [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
+                             conrepr (parTps) coninfo
+             branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]  
+
+         sexprTp <- subst exprTp
+         sexprEff <- subst exprEff
+         traceDoc $ \env -> text "types:" <+> tupled (niceTypes env [sexprTp,sexprEff])
+         return ((sexprTp,sexprEff,branchCore),ftv [sexprTp,sexprEff])
   where
     splitOpTp rho
       = case expandSyn rho of                

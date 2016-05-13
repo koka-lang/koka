@@ -233,7 +233,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
               indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <-> text "}")
         else empty))
 
-prettyConInfo env0 publicOnly (vis,ConInfo conName ntname exists fields scheme sort range paramRanges singleton doc)
+prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields scheme sort range paramRanges singleton doc)
   = if (publicOnly && isPrivate vis) then empty else 
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <>

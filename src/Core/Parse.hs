@@ -154,7 +154,7 @@ typeDecl env
        -- trace ("core type: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind       <- kindAnnotFull
-       cons       <- semiBraces (conDecl tname sort env) <|> return []
+       cons       <- semiBraces (conDecl tname params sort env) <|> return []
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
@@ -173,7 +173,7 @@ typeDecl env
        let synInfo = SynInfo qname kind params tp (fromInteger rank) rangeNull doc       
        return (Synonym synInfo Public, envExtendSynonym env synInfo)
 
-conDecl tname sort env
+conDecl tname foralls sort env
   = do (_,doc) <- dockeyword "con"
        (name,_)  <- constructorId <|> constructorDot
        -- trace ("core con: " ++ show name) $ return ()
@@ -181,7 +181,7 @@ conDecl tname sort env
        params <- parameters env1 
        tp     <- typeAnnot env
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       return (ConInfo (qualify (modName env) name) tname existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
+       return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
 
 
 typeSort :: LexParser (DataDef, Bool, DataKind,String)

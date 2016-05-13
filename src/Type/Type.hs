@@ -179,6 +179,7 @@ dataInfoIsOpen info
 data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoTypeName :: Name 
                       -- , conInfoTypeSort :: Name 
+                      , conInfoForalls:: [TypeVar] {- ^ quantifiers -}
                       , conInfoExists :: [TypeVar] {- ^ existentials -} 
                       , conInfoParams :: [(Name,Type)] {- ^ field types -} 
                       , conInfoType   :: Scheme  

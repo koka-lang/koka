@@ -53,6 +53,7 @@ module Type.InferMonad( Inf, InfGamma
                       , Context(..)
                       , inferUnify, inferUnifies
                       , inferSubsume
+                      , withSkolemized
 
                       , typeError
                       , contextError
@@ -589,6 +590,20 @@ nofailUnify u
           -> do extendSub sub
                 failure ("Type.InferMonad.runUnify: should never fail!")
 
+withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> Inf (a,Tvs)) -> Inf a
+withSkolemized rng tp mhint action
+  = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
+       (x,extraFree) <- action xrho
+       --sub <- getSub
+       free <- freeInGamma
+       let allfree = tvsUnion free extraFree
+           --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]     
+       if (tvsDisjoint (tvsNew xvars) allfree) 
+         then return ()
+         else do sxrho <- subst xrho
+                 let escaped = [v | v <- xvars, tvsMember v allfree]
+                 typeError rng rng (text "abstract type(s) escape into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
+       return x
 
 doUnify :: Unify a -> Inf (Either UnifyError a)
 doUnify u

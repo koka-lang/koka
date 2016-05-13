@@ -785,7 +785,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        addRangeInfo rngName (Id qname (NICon scheme) True)
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        return (UserCon qname exist' params' rngName rng vis doc
-              ,ConInfo qname typeName existVars 
+              ,ConInfo qname typeName typeParams existVars 
                   (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] params')) 
                   scheme 
                   typeSort rngName
