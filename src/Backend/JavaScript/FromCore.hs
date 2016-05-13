@@ -10,6 +10,7 @@ module Backend.JavaScript.FromCore
       ( javascriptFromCore )
  where
 
+import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List ( intersperse )
@@ -306,24 +307,31 @@ tryTailCall result expr
     genOverride :: [TName] -> [Expr] -> Asm Doc
     genOverride params args
       = fmap (debugWrap "genOverride") $
-        do (stmts, varNames) <- fmap unzip $ mapM genVarBinding (map tailCallArg args)
+        do (stmts, varNames) <- do args' <- mapM tailCallArg args
+                                   bs    <- mapM genVarBinding args'
+                                   return (unzip bs)
            docs1             <- mapM genTName params
            docs2             <- mapM genTName varNames
            let assigns    = map (\(p,a)-> if p == a
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
                                             else debugComment ("genOverride: preparing tailcall") <> p <+> text "=" <+> a <> semi
                                 ) (zip docs1 docs2)
-           return $ vcat stmts <-> vcat assigns
+           return $ 
+             linecomment (text "tail call") <-> vcat stmts <-> vcat assigns
 
     -- if local variables are captured inside a tailcalling function argument, 
     -- we need to capture it by value (instead of reference since we will overwrite the local variables on a tailcall)
     -- we do this by wrapping the argument inside another function application.
-    tailCallArg :: Expr -> Expr
+    tailCallArg :: Expr -> Asm Expr
     tailCallArg expr
       = let captured = filter (not . isQualified . getName) $ tnamesList $ capturedVar expr
         in if (null captured)
-            then expr
-            else App (Lam captured typeTotal expr) [Var arg InfoNone | arg <- captured]
+            then return expr
+            else -- trace ("Backend.JavaScript.FromCore.tailCall: capture: " ++ show captured ++ ":\n" ++ show expr) $
+                 do ns <- mapM (newVarName . show) captured
+                    let cnames = [TName cn tp | (cn,TName _ tp) <- zip ns captured]
+                        sub    = [(n,Var cn InfoNone) | (n,cn) <- zip captured cnames]
+                    return $ App (Lam cnames typeTotal (sub |~> expr)) [Var arg InfoNone | arg <- captured]
 
     capturedVar :: Expr -> TNames
     capturedVar expr
