@@ -80,7 +80,7 @@ import Backend.CSharp.FromCore( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
 
 import qualified Core.Core as Core
-import Core.Simplify( simplify )
+import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
 import qualified Core.Pretty
 import Core.Parse(  parseCore )
@@ -723,14 +723,17 @@ inferCheck loaded flags line coreImports program1
        
 
        -- simplify coreF if enabled
-       coreDefs2 <- if noSimplify flags 
-                      then return coreDefs1
+       (coreDefs2,unique5)
+                  <- if noSimplify flags 
+                      then return (coreDefs1,unique4)
                       else -- trace "simplify" $ 
-                           do let cdefs = Core.Simplify.simplify $ Core.Simplify.simplify coreDefs1
+                           do let (cdefs,uniq) -- Core.Simplify.simplify $ 
+                                          -- Core.Simplify.simplify 
+                                     = simplifyDefs unique4 coreDefs1
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
                                 Core.Check.checkCore isCps penv unique4 gamma cdefs
-                              return cdefs
+                              return (cdefs,uniq)
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

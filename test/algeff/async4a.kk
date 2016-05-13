@@ -8,7 +8,7 @@ function test() {
     { println("what is your name?")
       readline()
     },
-    { println("and waiting at most 3 secs")
+    { println("and waiting at least 3 secs")
       wait(3000)
       "done waiting"
     }

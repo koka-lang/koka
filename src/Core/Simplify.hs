@@ -9,13 +9,14 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Simplify (simplify) where
+module Core.Simplify (simplify, simplifyDefs) where
 
 import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn )
+import Common.Unique
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
@@ -27,8 +28,12 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
+simplifyDefs :: Int -> DefGroups -> (DefGroups,Int)
+simplifyDefs uniq defs
+  = runUnique uniq (do defs1 <- simplify defs; simplify defs1)
+
 class Simplify a where
-  simplify :: a -> a
+  simplify :: a -> Unique a
 
 {--------------------------------------------------------------------------
   Top-down optimizations 
@@ -37,21 +42,22 @@ class Simplify a where
   when necessary.
 --------------------------------------------------------------------------}
 
-topDown :: Expr -> Expr
+topDown :: Expr -> Unique Expr
 
 -- Inline simple let-definitions
-topDown (Let dgs body) 
+topDown (Let dgs body)  
   = topDownLet [] [] dgs body
   where
     subst sub expr
       = if null sub then expr else (sub |~> expr)
 
+    topDownLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Unique Expr
     topDownLet sub acc [] body 
       = case subst sub body of 
           Let sdgs sbody -> topDownLet [] acc sdgs sbody  -- merge nested Let's
           sbody -> if (null acc) 
                     then topDown sbody 
-                    else Let (reverse acc) sbody
+                    else return $ Let (reverse acc) sbody
 
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
@@ -104,18 +110,16 @@ topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffe
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars == length args 
-  = topDown $ Let (zipWith makeDef newNames args) (sub |~> body)
-  where
-    names = [(TName par parTp, TName (postpend "_" par) parTp) | (TName par parTp) <- pars] -- todo: generate more unique names?
-    sub   = map (\(p,np) -> (p,Var np InfoNone)) names
-    newNames = map snd names
-
+  = do newNames <- mapM uniqueTName pars
+       let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
+       topDown $ Let (zipWith makeDef newNames args) (sub |~> body)       
+  where           
     makeDef (TName npar nparTp) arg 
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
 
 -- No optimization applies
 topDown expr
-  = expr
+  = return expr
 
 
 
@@ -162,14 +166,16 @@ bottomUpArg arg
 --------------------------------------------------------------------------}
 
 instance Simplify DefGroup where
-  simplify (DefRec    defs) = DefRec    (simplify defs)
-  simplify (DefNonRec def ) = DefNonRec (simplify def)
+  simplify (DefRec    defs) = fmap DefRec (mapM simplify defs)
+  simplify (DefNonRec def ) = fmap DefNonRec (simplify def)
 
 instance Simplify Def where
-  simplify (Def name tp expr vis isVal nameRng doc) = Def name tp (simplify expr) vis isVal nameRng doc
+  simplify (Def name tp expr vis isVal nameRng doc) 
+    = do expr' <- simplify expr
+         return $ Def name tp expr' vis isVal nameRng doc
 
 instance Simplify a => Simplify [a] where
-  simplify = map simplify
+  simplify  = mapM simplify
 
 {--------------------------------------------------------------------------
   Expressions 
@@ -177,23 +183,43 @@ instance Simplify a => Simplify [a] where
 
 instance Simplify Expr where
   simplify e 
-    = bottomUp $
-      case topDown e of
-        Lam tnames eff expr-> Lam tnames eff (simplify expr)
-        Var tname info     -> Var tname info
-        App e1 e2          -> App (simplify e1) (simplify e2)
-        TypeLam tv expr    -> TypeLam tv (simplify expr)
-        TypeApp expr tp    -> TypeApp (simplify expr) tp
-        Con tname repr     -> Con tname repr
-        Lit lit            -> Lit lit
-        Let defGroups expr -> Let (simplify defGroups) (simplify expr)
-        Case exprs branches-> Case (simplify exprs) (simplify branches) 
+    = do td <- topDown e
+         e' <- case td of
+                Lam tnames eff expr
+                  -> do x <- simplify expr; return $ Lam tnames eff x
+                Var tname info     
+                  -> return td
+                App e1 e2          
+                  -> do x1 <- simplify e1
+                        x2 <- simplify e2
+                        return $ App x1 x2
+                TypeLam tv expr    
+                  -> fmap (TypeLam tv) (simplify expr)
+                TypeApp expr tp    
+                  -> do x <- simplify expr; return $ TypeApp x tp
+                Con tname repr     
+                  -> return td
+                Lit lit            
+                  -> return td
+                Let defGroups expr 
+                  -> do dgs <- simplify defGroups
+                        x   <- simplify expr
+                        return $ Let dgs x
+                Case exprs branches
+                  -> do xs <- simplify exprs
+                        bs <- simplify branches
+                        return $ Case xs bs
+         return (bottomUp e')
 
 instance Simplify Branch where
-  simplify (Branch patterns guards) = Branch patterns (map simplify guards)
+  simplify (Branch patterns guards) 
+    = fmap (Branch patterns) (mapM simplify guards)
 
 instance Simplify Guard where
-  simplify (Guard test expr) = Guard (simplify test) (simplify expr)
+  simplify (Guard test expr) 
+    = do xt <- simplify test
+         xe <- simplify expr
+         return $ Guard xt xe
 
 
 
@@ -296,3 +322,8 @@ occurrencesDefGroup dg oc
       DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
       DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs)) 
                                       (map defName defs)
+
+
+uniqueTName (TName name tp)
+  = do i <- unique
+       return (TName (postpend ("." ++ show i) name) tp)
