@@ -20,7 +20,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Syntax.Promote( promote, promoteType, quantify ) where
+module Syntax.Promote( promote, promoteType, quantify, promoteFree ) where
 
 import Data.List( partition )
 import Common.NamePrim( nameTpOptional, nameEffectEmpty, nameEffectExtend )
@@ -38,6 +38,10 @@ promoteType tp
              in quantify QSome (map toTypeBinder someVars) $
                 quantify QForall (map toTypeBinder forallVars) $
                 tp
+
+promoteFree :: [UserTypeBinder] -> [UserType] -> [UserTypeBinder]
+promoteFree bound tps
+  = map toTypeBinder (S.toList (S.difference (freeTypeVars tps) (S.fromList (map tbinderName bound))))
 
 {--------------------------------------------------------------------------
   Type variable promotion

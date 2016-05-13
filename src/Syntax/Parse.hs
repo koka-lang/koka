@@ -54,7 +54,7 @@ import Syntax.Syntax
 import Syntax.Lexeme
 import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout )
-import Syntax.Promote ( promote, promoteType, quantify )
+import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 
 
 -----------------------------------------------------------
@@ -701,11 +701,9 @@ effectDecl dvis
            arg       = newName "op"
            -}
 
-           nameA    = newName "a"
-           nameB    = newName "b"
-           nameE    = newName "e"
+           nameA    = newHiddenName "a"
+           nameE    = newHiddenName "e"
            tpVarE   = TpVar nameE irng
-           tpVarB   = TpVar nameB irng
            tpVarA   = TpVar nameA irng   
            tpBindA  = TypeBinder nameA kindStar irng irng   
 
@@ -717,7 +715,7 @@ operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> L
 operation vis foralls effTp opsTp extendConName
   = do optional (keyword "function")
        (id,idrng)   <- identifier
-       exists       <- typeparams
+       exists0      <- typeparams
        (pars,prng)  <- conPars
        (teff0,tres) <- annotResult
        teff <- case teff0 of
@@ -728,6 +726,9 @@ operation vis foralls effTp opsTp extendConName
            tpVarA   = TpVar nameA idrng   
            tpConRes = TpApp opsTp [tpVarA] rng             
            -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
+
+           exists   = if (not (null exists0)) then exists0
+                       else promoteFree foralls (map binderType pars ++ [teff,tres])
 
            conName  = toOpConName id
            conDef   = UserCon conName exists conParams idrng rng vis ""
@@ -1053,18 +1054,18 @@ handlerOp
        (name,prng) <- paramid
        tp         <- optionMaybe typeAnnotPar 
        keyword "->"
-       exp <- branchexpr
-       return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] exp (combineRanged rng exp)))
+       expr <- branchexpr
+       return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
   <|>
     do (name,nameRng) <- qidentifier
-       pars <- opParams 
+       (pars,prng) <- opParams 
        keyword "->"
        exp <- branchexpr
-       return (Right (HandlerBranch name pars exp nameRng (combineRanged nameRng pars)))
+       return (Right (HandlerBranch name pars exp nameRng (combineRanges [nameRng,prng])))
 
-opParams :: LexParser [ValueBinder (Maybe UserType) ()]
+opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
-  = parensCommas (lparen <|> lapp) opParam <|> return []
+  = parensCommasRng (lparen <|> lapp) opParam <|> return ([],rangeNull)
 
 opParam :: LexParser (ValueBinder (Maybe UserType) ())
 opParam
