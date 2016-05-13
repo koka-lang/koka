@@ -62,16 +62,18 @@ cpsDefGroup (DefNonRec def)
 cpsDef :: Bool -> Def -> Cps [Def]
 cpsDef recursive def 
   = do pureTvs <- getPureTVars
-       if (needsCpsDef pureTvs def) -- only translate when necessary
-        then do defs' <- cpsLetDef recursive def 
-                case (defs' (\ds -> Let [DefRec ds] (Var (defTName def) InfoNone))) of
-                  Let [DefRec ds] _ -> return ds
-                  expr -> do cpsTraceDoc $ \env -> text "Core.Cps.cpsDef: strange lifting: " <+> prettyExpr env expr
-                             -- failure "Core.Cps.cpsDef: error"
-                             return [def{defExpr = expr}]
-                             
-
-        else return [def]
+       if (not (needsCpsDef pureTvs def)) -- only translate when necessary
+        then return [def]
+        else if (isDupFunctionDef (defExpr def))
+              then do defs' <- cpsLetDef recursive def -- re-use letdef
+                      case (defs' (\ds -> Let [DefRec ds] (Var (defTName def) InfoNone))) of
+                        Let [DefRec ds] _ -> return ds
+                        expr -> do cpsTraceDoc $ \env -> text "Core.Cps.cpsDef: illegal duplicated definition: " <+> prettyExpr env expr
+                                   failure "Core.Cps.cpsDef: internal failure"
+              else withCurrentDef def $
+                   do expr' <- cpsExpr (defExpr def)
+                      return [def{ defExpr = expr' id }] -- at top level this should be ok since the type is total
+                                   
 
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
@@ -245,16 +247,15 @@ cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
        -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
-       let isFunDef = isFunctionDef (defExpr def)
-       if (cpsk == PolyCps && isFunDef)
-        then cpsLetDefDup recursive def 
+       if ((cpsk == PolyCps {-|| cpsk == MixedCps-}) && isDupFunctionDef (defExpr def))
+        then cpsLetDefDup cpsk recursive def 
         else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" --  <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
                 expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
                          -- \k -> k [def{ defExpr = expr' id}]
 
-cpsLetDefDup :: Bool -> Def -> Cps (TransX [Def] Expr)
-cpsLetDefDup recursive def
+cpsLetDefDup :: CpsTypeKind -> Bool -> Def -> Cps (TransX [Def] Expr)
+cpsLetDefDup cpsk recursive def
   = do let teffs = case (expandSyn (defType def)) of
                      TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
                      _ -> []
@@ -300,15 +301,17 @@ cpsLetDefDup recursive def
 
          in k [defCps,defNoCps,defPick]
 
-isFunctionDef :: Expr -> Bool
-isFunctionDef expr
+-- is  this a function definition that may need to be duplicated with a
+-- plain and cps-translated definition?
+isDupFunctionDef :: Expr -> Bool
+isDupFunctionDef expr
   = case expr of
       TypeLam tpars (Lam pars eff body) | length pars > 0 -> True
       Lam pars eff body                 | length pars > 0 -> True
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
-        -> isFunctionDef body
+        -> isDupFunctionDef body
       TypeLam tpars (TypeApp body tps)  | length tpars == length tps 
-         -> isFunctionDef body
+         -> isDupFunctionDef body
       _ -> False
 
 
@@ -497,18 +500,23 @@ needsCpsEffect :: Tvs -> Effect -> Bool
 needsCpsEffect pureTvs eff
   = getCpsEffect pureTvs eff /= NoCps
 
-data CpsTypeKind = NoCps | PolyCps | AlwaysCps deriving (Eq,Show)
+data CpsTypeKind 
+  = NoCps     -- no cps type
+  | AlwaysCps -- always cps translated
+  | PolyCps   -- polymorphic in cps: needs fast and cps version
+  deriving (Eq,Ord,Show)
+
 
 -- Is the type a function with a handled effect?
 getCpsType :: Tvs -> Type -> CpsTypeKind
 getCpsType pureTvs tp
-  = case expandSyn tp of
+  | isKindEffect (getKind tp) = getCpsEffect pureTvs tp
+  | otherwise =
+    case expandSyn tp of
       TForall vars preds t -> getCpsType (tvsRemove vars pureTvs) t
-      TFun args eff res    -> getCpsEffect pureTvs eff
-      -- TVar tv -> not (tvsMember tv pureTvs)
-      _ -> if (isKindEffect (getKind tp))
-            then getCpsEffect pureTvs tp
-            else NoCps
+      TFun pars eff res    -> getCpsEffect pureTvs eff 
+      _ -> NoCps
+
 
 getCpsEffect :: Tvs -> Effect -> CpsTypeKind
 getCpsEffect pureTvs eff
@@ -520,7 +528,7 @@ getCpsEffect pureTvs eff
 getCpsTVar :: Tvs -> Type -> CpsTypeKind
 getCpsTVar pureTvs tp
   = case expandSyn tp of
-      TVar tv | not (tvsMember tv pureTvs) -> PolyCps
+      TVar tv | isKindEffect (typevarKind tv) && not (tvsMember tv pureTvs) -> PolyCps
       _       -> NoCps
 
 
