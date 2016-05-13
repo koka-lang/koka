@@ -2659,7 +2659,7 @@ private external asyncAllPrim( actions : vector<() -> <asyn|e> a> ) : <asyn|e> v
 }
 
 external readTextFile( fname : string ) : <asyn,exn> string {
-  js inline "(function(){ fs.readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
+  js inline "(function(){ require('fs').readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
 }
 
 external wait( ms : int ) : asyn () {
