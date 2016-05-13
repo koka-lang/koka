@@ -16,7 +16,7 @@ public module std/core
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
 infixr 60  (+), (-)
-infix  40  (!=), (==), (<=), (>=), (<), (>)
+infix  40  (!=), (==), (<=), (>=), (<), (>) 
 infixr 30  (&&)
 infixr 20  (||)
 
@@ -2659,11 +2659,11 @@ private external asyncAllPrim( actions : vector<() -> <asyn|e> a> ) : <asyn|e> v
 }
 
 external readTextFile( fname : string ) : <asyn,exn> string {
-  js inline "(function(){ fs.readFile(fname,'utf8', $asyncCallback(_k)); return ayield(); })()"
+  js inline "(function(){ fs.readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
 }
 
 external wait( ms : int ) : asyn () {
-  js inline "(function(){ setTimeout( $asyncCallback(_k), #1 ); return ayield(); })()"
+  js inline "(function(){ setTimeout( $asyncCallback0(_k), #1 ); return ayield(); })()"
 }
 // ----------------------------------------------------------------------------
 // Handler primitives. 
