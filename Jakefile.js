@@ -172,7 +172,7 @@ task("grammar",[],function()
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "madoko";
+var cmdMarkdown = "node ../madoko/lib/cli.js";
 var docsite  = (process.env.docsite || "http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
 var doclocal = (process.env.doclocal || "\\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
           
@@ -189,7 +189,7 @@ task("spec", ["compiler"], function(mode) {
     command(cmd + "toc.kk", function() {
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"*.doc.html"));
-      command(cmdMarkdown + " --odir=" + outspec + " -v " + xmpFiles.toArray().join(" "), function () {
+      command(cmdMarkdown + " --odir=" + outspec + " -v -mlogo:false " + xmpFiles.toArray().join(" "), function () {
         // copy style file
         jake.mkdirP(outstyles);
         jake.cpR(path.join("doc","koka.css"),outstyles);
