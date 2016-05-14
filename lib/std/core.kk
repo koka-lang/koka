@@ -459,7 +459,7 @@ function list( lo : int, hi: int, f : int -> e a) : e list<a> {
 // Create a list of characters from `lo`  to `hi`  (inclusive).
 function list( lo : char, hi : char ) : total list<char>
 {
-  list(lo.int, hi.int).map( char )
+  list(lo.int, hi.int).map( fun(c){ char(c) } )
 }
 
 private val maxListStack = 200
