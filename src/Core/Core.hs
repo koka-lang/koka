@@ -60,6 +60,7 @@ module Core.Core ( -- Data structures
 import Data.Char( isDigit )
 import qualified Data.Set as S
 import Data.Maybe
+import Lib.PPrint
 import Common.Name
 import Common.Range
 import Common.Failure
@@ -806,10 +807,10 @@ splitFun :: Type -> ([(Name,Type)], Type)
 splitFun tp
   = case expandSyn tp of
       TFun args eff res -> (args,res)
-      _ -> failure ("Core.Core.splitFun: Expected function: " ++ show tp) 
+      _ -> failure ("Core.Core.splitFun: Expected function: " ++ show (pretty tp)) 
   
 splitTForall :: Type -> ([TypeVar], Type)
 splitTForall tp
   = case expandSyn tp of
       (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
-      _ ->  failure ("Core.Core.splitTForall: Expected forall" ++ show tp)
+      _ ->  failure ("Core.Core.splitTForall: Expected forall" ++ show (pretty tp))
