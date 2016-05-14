@@ -101,7 +101,7 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import qualified Lib.Trace( trace ) 
 
 trace s x =
---  Lib.Trace.trace (" " ++ s)
+  -- Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
@@ -883,7 +883,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
   where
     nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
     nameInfos (Core.DefNonRec def)  
-      = [coreDefInfo def]
+      = [coreDefInfoX def]  -- used to be coreDefInfo
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)
@@ -1273,13 +1273,14 @@ data NameContext
 
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameEx infoFilter name ctx range 
-  = -- trace ("lookup: " ++ show name ++ ": " ++ show mbType) $
+  = -- trace ("lookup: " ++ show name) $
     do env <- getEnv
+       -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
        case infgammaLookupX name (infgamma env) of
          Just info  | infoFilter info  
                   -> do sinfo <- subst info
                         return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
-         _        -> -- trace ("gamma: " ++ show (gamma env)) $
+         _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
                      -- lookup global candidates
                      do let candidates = filter (infoFilter . snd) (gammaLookup name (gamma env))
                         case candidates of
@@ -1295,7 +1296,6 @@ lookupNameEx infoFilter name ctx range
                                                                           return (concat mss)
                                                  CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates
                                                                                        return (concat mss)
-                                    -- trace ("matches: " ++ show matches) $
                                     case matches of
                                       [(qname,info)] -> return matches
                                       _  -> do -- lookup global names defined in the current module

@@ -154,10 +154,11 @@ gammaLookup name (Gamma gamma)
       Nothing -> []
       Just xs -> -- let qname = if isQualified name then name else qualify context name 
                  -- in filter (\(n,_) -> n == qname) xs 
+                 -- trace (" in gamma found: " ++ show (map fst xs)) $ 
                  if (isQualified name)
                   then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
                   else xs
-
+                 
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)
   = Gamma (M.map (\xs -> [(name,f tp) | (name,tp) <- xs]) gamma)
@@ -236,8 +237,8 @@ extractDefGroup isVisible (Core.DefNonRec def)
 
 
 
-extractDef isVisible def@(Core.Def name tp expr vis isVal nameRng doc) | isVisible vis
-  = let info = createNameInfo name (Core.defIsVal def) nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
+extractDef isVisible def@(Core.Def name tp expr vis sort nameRng doc) | isVisible vis
+  = let info = createNameInfoX name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
     in gammaSingle (Core.nonCanonicalName name) info
 extractDef isVisible _
   = gammaEmpty

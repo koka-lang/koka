@@ -56,10 +56,10 @@ import Core.Simplify( simplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
---   Lib.Trace.trace s 
+   Lib.Trace.trace s 
     x
 
-traceDoc fdoc = do -- penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
+traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
                    return () 
 
 {--------------------------------------------------------------------------
@@ -108,7 +108,7 @@ inferDefGroupX topLevel defGroup cont
 
 inferDefGroup :: Bool -> DefGroup Type -> Inf a -> Inf ([Core.DefGroup], a)
 inferDefGroup topLevel (DefNonRec def) cont
-  = -- trace "infer single:" $
+  = --- trace ("\ninfer single " ++ show (defName def)) $
     do core <- inferDef Generalized def
        mod  <- getModuleName
 
@@ -125,7 +125,7 @@ inferDefGroup topLevel (DefNonRec def) cont
        let cgroup1 = Core.DefNonRec core1
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs) cont
-  = -- trace "infer group:" $
+  = -- trace ("\ninfer group: " ++ show (map defName defs)) $
     do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGamma topLevel infgamma $
@@ -413,12 +413,14 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
             
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            inferUnify (checkValue rng) nameRng typeTotal eff           
-           trace (" inferred: " ++ show name ++ ": " ++ show (pretty tp, pretty resTp)) $
-            subst (Core.Def name resTp resCore vis   sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
+           if (verbose penv >= 2)
+            then Lib.Trace.trace (show (text " inferred" <+> pretty name <> text ":" <+> niceType penv tp)) $ return ()
+            else return ()
+           subst (Core.Def name resTp resCore vis   sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
-  = trace ("infer bind def: " ++ show name) $
+  = -- trace ("infer bind def: " ++ show name) $
     do withDefName name $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)           
@@ -759,11 +761,11 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        (mkhRho,tvars,mkhCore) <- instantiate rng mkhTp
        smakeHTp <- subst makeHTp
        env <- getPrettyEnv
-       trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
-        inferUnify (checkMakeHandler rng) rng mkhRho makeHTp  
+       -- trace ("handlers: " ++ show (niceTypes env [mkhRho,smakeHTp])) $
+       inferUnify (checkMakeHandler rng) rng mkhRho makeHTp  
 
        shandlerTp  <- subst handlerTp
-       trace (" result: " ++ show (pretty shandlerTp)) $ return ()
+       -- trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
            optagCore   = Core.Lit (Core.LitString (show (toEffectConName hxName)))
@@ -778,8 +780,8 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        sihandlerTp <- subst ghandlerTp
 
        geff <- freshEffect
-       trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
-        return (sihandlerTp,geff,sicore)           
+       -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
+       return (sihandlerTp,geff,sicore)           
 
 inferHandlerRet parBinders argPars retInTp retEff retOutTp retTp heff hrng exprRng
   = do let opsfunCore= Core.Lit (Core.LitInt 0) 
@@ -968,7 +970,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
 
          sexprTp <- subst exprTp
          sexprEff <- subst exprEff
-         traceDoc $ \env -> text "types:" <+> tupled (niceTypes env [sexprTp,sexprEff])
+         -- traceDoc $ \env -> text "types:" <+> tupled (niceTypes env [sexprTp,sexprEff])
          return ((sexprTp,sexprEff,branchCore),ftv [sexprTp,sexprEff])
   where
     splitOpTp rho
@@ -1133,8 +1135,10 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
                              if (defName /= unqualify creatorName && defName /= nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
                                then do mbRes <- lookupFunName creatorName propagated rng 
                                        case mbRes of
-                                          Just (qname',tp',info') -> return (qname',tp',info')
-                                          Nothing  -> return (qname1,tp1,info1)
+                                          Just (qname',tp',info') -> 
+                                            do return (qname',tp',info')
+                                          Nothing  -> 
+                                            do return (qname1,tp1,info1)
                                else return (qname1,tp1,info1)
        let coreVar = coreExprFromNameInfo qname info
        addRangeInfo rng (RM.Id (infoCanonicalName qname1 info1) (RM.NICon tp) False)                                  
