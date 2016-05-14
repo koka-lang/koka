@@ -253,8 +253,8 @@ For example, in the following program:
 function eq1( x : int, y : int ) : io bool 
 {  
   print("calculate equality")
-  result = if (x == y) then True            
-              else False
+  val result = if (x == y) then True            
+                else False
   result
 }  
 "
@@ -265,8 +265,8 @@ we get semicolons before each statement that was aligned between the braces:
 function eqSemi( x : int, y : int ) : io bool 
 {;  
   print("calculate equality");
-  result = if (x == y) then True            
-              else False;
+  val result = if (x == y) then True            
+                else False;
   result;
 }  
 "
@@ -280,9 +280,9 @@ function eq2( x : int, y : int ) : io bool
   print("calculate " +
          "equ" +
          "ality")
-  result = if (x == y)
-            then True 
-            else False
+  val result = if (x == y)
+                then True 
+                else False
   result
 }  
 "

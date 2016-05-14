@@ -189,7 +189,7 @@ task("spec", ["compiler"], function(mode) {
     command(cmd + "toc.kk", function() {
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"*.doc.html"));
-      command(cmdMarkdown + " -v " + xmpFiles.toArray().join(" "), function () {
+      command(cmdMarkdown + " --odir=" + outspec + " -v " + xmpFiles.toArray().join(" "), function () {
         // copy style file
         jake.mkdirP(outstyles);
         jake.cpR(path.join("doc","koka.css"),outstyles);
