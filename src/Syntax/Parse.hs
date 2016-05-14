@@ -486,13 +486,14 @@ typeDecl dvis
 
 dataTypeDecl dvis =
    do (vis,defvis,vrng,(typeSort,trng,doc,ddef,isExtend)) <- 
-          do rng <- keyword "abstract"
-             x   <- typeDeclKind 
-             return (Public,Private,rng,x)
-          <|>
-            (try $ do (vis,vrng) <- visibility dvis
-                      x <- typeDeclKind 
-                      return (vis,vis,vrng,x))
+          (try $
+            do rng <- keyword "abstract"
+               x   <- typeDeclKind 
+               return (Public,Private,rng,x)
+            <|>
+            do (vis,vrng) <- visibility dvis
+               x <- typeDeclKind 
+               return (vis,vis,vrng,x))
       tbind <- if isExtend
                 then do (qid,rng) <- qtypeid
                         return (\kind -> TypeBinder qid kind rng rng)
@@ -510,13 +511,14 @@ dataTypeDecl dvis =
 
 structDecl dvis =            
    do (vis,defvis,vrng,trng,doc) <- 
+        (try $
           do rng     <- keyword "abstract"
              (trng,doc) <- dockeyword "struct"
              return (Public,Private,rng,trng,doc)
           <|>
-            (try $ do (vis,vrng) <- visibility dvis
-                      (trng,doc) <- dockeyword "struct"
-                      return (vis,vis,vrng,trng,doc))
+          do (vis,vrng) <- visibility dvis
+             (trng,doc) <- dockeyword "struct"
+             return (vis,vis,vrng,trng,doc))
 
       tbind <- tbinderDef
       tpars <- angles tbinders <|> return []
@@ -642,9 +644,15 @@ constructorId
 -----------------------------------------------------------
 effectDecl :: Visibility -> LexParser [TopDef]
 effectDecl dvis
-  = do (vis,vrng,erng,doc) <- try$ do (vis,vrng) <- visibility dvis
-                                      (erng,doc) <- dockeyword "effect"
-                                      return (vis,vrng,erng,doc)                           
+  = do (vis,defvis,vrng,erng,doc) <- 
+          (try $
+            do rng     <- keyword "abstract"
+               (trng,doc) <- dockeyword "effect"
+               return (Public,Private,rng,trng,doc)
+            <|>
+            do (vis,vrng) <- visibility dvis
+               (erng,doc) <- dockeyword "effect"
+               return (vis,vis,vrng,erng,doc))
        (id,irng) <- typeid
        (tpars,kind,prng) <- typeKindParams
        let infkind = case kind of
@@ -665,7 +673,7 @@ effectDecl dvis
            extendConName = toEffectConName (tbinderName ename)
            
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation vis tpars effTp opsTp extendConName)
+       (ops,xrng) <- semiBracesRanged1 (operation defvis tpars effTp opsTp extendConName)
           
        let kindStar = (KindCon nameKindStar rng)
            (opCons,opDefs) = unzip ops 
