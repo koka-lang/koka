@@ -231,7 +231,7 @@ newHiddenExternalName name
 -- in particular for the case of optional arguments.
 newCreatorName :: Name -> Name
 newCreatorName name
-  = prepend ".create" name
+  = makeHiddenName "create" name
 
 
 -- | Create an operations type name from an effect type name.
