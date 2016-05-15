@@ -206,7 +206,7 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = prepend ("." ++ s ++ "_") name
+  = prepend ("." ++ s ++ "-") name
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -301,7 +301,7 @@ moduleNameToPath name
 {---------------------------------------------------------------
   Ascii encode a name
   - on module names  '/' becomes '_'
-  - on normal names '.' becomes '_' 
+  - on normal names '-' becomes '_' 
 ---------------------------------------------------------------}
 asciiEncode :: Bool -> String -> String
 asciiEncode isModule name
@@ -319,24 +319,26 @@ asciiEncode isModule name
       "(,,)"  -> "_tuple3_"
       "(,,,)" -> "_tuple4_"
       "[]"    -> "_index_"
-      '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
-      '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
+      -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
+      -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
       _       -> encodeChars name
   where
     encodeChars s
-      = let (dots,rest) = span (=='.') s
-        in map (const '_') dots ++ concatMap encodeChar rest
-  
-    encodeChar :: Char -> String
-    encodeChar c | isAlphaNum c  = [c]
-    encodeChar c
+      = concat (zipWith3 encodeChar (' ':s) s (tail (s ++ " ")))
+
+    encodeChar :: Char -> Char -> Char -> String
+    encodeChar pre c post | isAlphaNum c  = [c]
+    encodeChar pre c post
       = case c of
           '/' | isModule -> "_"
-          '.' | not isModule -> "_"
+          '-' | not isModule && isAlphaNum post -> "_"
+          '.' | isDigit post || post == ' ' || pre == ' ' -> "_"
 
           '_' -> "__"
           '.' -> "_dot_"
           '-' -> "_dash_"   
+          '/' -> "_fs_"
+          
           '+' -> "_plus_"
           '*' -> "_star_"
           '&' -> "_amp_"
@@ -354,7 +356,6 @@ asciiEncode isModule name
           '[' -> "_lb_"
           ']' -> "_rb_"
           '?' -> "_ques_"
-          '/' -> "_fs_"
           '\\'-> "_bs_"
           '(' -> "_lp_"
           ')' -> "_rp_"
@@ -365,6 +366,7 @@ asciiEncode isModule name
           '`'  -> "_bq_"
           '{'  -> "_lc_"
           '}'  -> "_rc_"
+          '|'  -> "_bar_"
             
           _   -> "_x" ++ showHex 2 (fromEnum c) ++ "_"
 

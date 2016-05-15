@@ -373,7 +373,7 @@ type order {
 function int( x : order ) : int
 {
   match(x) {
-    Lt -> 0-1
+    Lt -> 0 - 1
     Eq -> 0
     Gt -> 1
   }
@@ -437,7 +437,7 @@ function list( lo: int, hi: int ) : total list<int>
   {
     if (low > high)
      then acc
-     else enumerate(low, unsafeDecreasing(high-1), Cons(high,acc))
+     else enumerate(low, unsafeDecreasing(high - 1), Cons(high,acc))
   }
 
   enumerate(lo,hi,[]) 
@@ -451,7 +451,7 @@ function list( lo : int, hi: int, f : int -> e a) : e list<a> {
   {
     if (low > high)
      then acc
-     else enumerate(low, unsafeDecreasing(high-1), Cons(f(high),acc))
+     else enumerate(low, unsafeDecreasing(high - 1), Cons(f(high),acc))
   }
   enumerate(lo,hi,[]) 
 }
@@ -535,7 +535,7 @@ function take( xs : list<a>, n : int ) : list<a>
   if (n <= 0) return Nil
   match(xs) {
     Nil -> Nil
-    Cons(x,xx) -> Cons(x,take(xx,n-1))
+    Cons(x,xx) -> Cons(x,take(xx,n - 1))
   }
 }
 
@@ -545,7 +545,7 @@ function drop( xs : list<a>, n : int ) : list<a>
   if (n <= 0) return xs
   match(xs) {
     Nil -> Nil
-    Cons(_,xx) -> drop(xx,n-1)
+    Cons(_,xx) -> drop(xx,n - 1)
   }
 }
 
@@ -680,7 +680,7 @@ function foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 function replicate( x : a, n : int ) : list<a>
 {
   function enumerate( i : int, acc : list<_a> ) {
-    if (i <= 0) then acc else enumerate(i-1,Cons(x,acc))
+    if (i <= 0) then acc else enumerate(i - 1,Cons(x,acc))
   }
 
   unsafeNoDiv{ enumerate(n,[]) }
@@ -794,7 +794,7 @@ function list( m : maybe<a> ) : list<a>
 private function indexOfAcc( xs : list<a>, pred : a -> bool, idx : int ) : int
 {
   match(xs) {
-    Nil -> 0-1
+    Nil -> 0 - 1
     Cons(x,xx) -> if (pred(x)) then idx else indexOfAcc(xx,pred,idx+1)
   }
 }
@@ -947,7 +947,7 @@ function init( xs : list<a> ) : list<a>
 function []( xs : list<a>, n : int ) : maybe<a>
 {
   match(xs) {
-    Cons(x,xx) -> if (n==0) then Just(x) else xx[n-1]
+    Cons(x,xx) -> if (n==0) then Just(x) else xx[n - 1]
     Nil -> Nothing
   }
 }
@@ -1174,7 +1174,7 @@ function shr( i : int, n : int ) {
 // Returns "i" when "n" is negative. When "n >= bitsInt" returns either "-1" when "i<0", or "0" when "i>=0".
 function sar( i : int, n : int ) {
   if (n < 0) return i;
-  if (n >= bitsInt) return (if (i < 0) then (0-1) else 0);
+  if (n >= bitsInt) return (if (i < 0) then (0 - 1) else 0);
   primSar(i,n);
 }
 
@@ -1290,7 +1290,7 @@ function (/)( x : int, y : int ) : int
   val q = unsafeCdiv(x,y)
   val r = unsafeCmod(x,y)
   if (r >= 0) then q
-  elif (y > 0) then q-1
+  elif (y > 0) then q - 1
   else q+1
 }
 
@@ -1363,13 +1363,13 @@ private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) 
   match(cs) {
     Nil -> Just(acc)
     Cons(c,cc) -> {
-      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base-1).char))) then {
+      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base - 1).char))) then {
                 (c - '0').int
               }
-              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base-11).char)) then { 
+              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base - 11).char)) then { 
                 (c - 'a').int + 10
               }
-              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base-11).char)) then { 
+              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base - 11).char)) then { 
                 (c - 'A').int + 10
               }
               else return Nothing   
@@ -1687,10 +1687,10 @@ function list( a : array<h,a> ) : read<h> list<a>
     val len = a.length()
     function build( i : int, acc : list<_a> )
     {
-      if (i >= 0) then build(i-1, Cons(a[i],acc)) else acc
+      if (i >= 0) then build(i - 1, Cons(a[i],acc)) else acc
     }
 
-    build(len-1,Nil)
+    build(len - 1,Nil)
   }
 }
 
@@ -1698,7 +1698,7 @@ function list( a : array<h,a> ) : read<h> list<a>
 // Note: this can diverge by storing self referential functions in the array
 function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 {
-  for( 0, a.length-1 ) fun(i) {
+  for( 0, a.length - 1 ) fun(i) {
     f(a.unsafeIdx(i))
   }
 }
@@ -1707,7 +1707,7 @@ function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e
 // Note: this can diverge by storing self referential functions in the array
 function map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
 {
-  for( 0, a.length-1 ) fun(i) {
+  for( 0, a.length - 1 ) fun(i) {
     a.unsafeAssign( i, f(a.unsafeIdx(i)) )
   }
   a
@@ -1751,7 +1751,7 @@ private external inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,
 // Invoke a function "f" for each element in a vector "v"
 function foreach( v : vector<a>, f : a -> e () ) : e ()
 {
-  for( 0, v.length-1 ) fun(i) {
+  for( 0, v.length - 1 ) fun(i) {
     f(v.unsafeIdx(i))
   }
 }
@@ -1760,7 +1760,7 @@ function foreach( v : vector<a>, f : a -> e () ) : e ()
 // If "f" returns "Just", the iteration is stopped early and the result is returned.
 function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
 {
-  forWhile( 0, v.length-1 ) fun(i) {
+  forWhile( 0, v.length - 1 ) fun(i) {
     f(v.unsafeIdx(i))
   }
 }
@@ -1770,7 +1770,7 @@ function map( v : vector<a>, f : a -> e b ) : e vector<b>
 {
   val n = v.length
   val a = unsafeArray(n)
-  for( 0, v.length-1 ) fun(i) {
+  for( 0, v.length - 1 ) fun(i) {
     a.unsafeAssign( i, injectSt(f)(v.unsafeIdx(i)) )
   }
   a.unsafeFreeze
@@ -2067,7 +2067,7 @@ function map( s : string, f : char -> e char ) : e string
 // Invoke a function for each character in a string
 function foreach( s : string, f : char -> e () ) : e ()
 {
-  for( 0, s.length-1 ) fun(i) {
+  for( 0, s.length - 1 ) fun(i) {
     f(s.unsafeIdx(i))
   }
 }

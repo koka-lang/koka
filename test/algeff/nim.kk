@@ -237,7 +237,7 @@ function testPrint1() {
 
 function replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
-    return x -> if (n <= 1) then x else replay(n-1, incps(action))
+    return x -> if (n <= 1) then x else replay(n - 1, incps(action))
   }
 }
 
