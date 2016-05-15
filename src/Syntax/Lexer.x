@@ -70,7 +70,7 @@ $charesc  = [nrt\\\'\"]    -- "
 @charchar     = ([$graphic$space] # [\\\'])|@utf8    
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
-@idchar       = $letter|$digit|_
+@idchar       = $letter|$digit|_|\-
 @lowerid      = $lower @idchar*
 @upperid      = $upper @idchar*
 @conid        = @upperid
@@ -104,6 +104,8 @@ program :-
 <0> @qvarid               { string $ LexId . newQName }
 <0> @lowerid              { string $ \s -> if isReserved s
                                                then LexKeyword s "" 
+                                           else if isMalformed s
+                                               then LexError messageMalformed
                                                else LexId (newName s) }
 <0> @conid                { string $ LexCons . newName }
 <0> _@idchar*             { string $ LexWildCard . newName }             
@@ -273,6 +275,16 @@ digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
     in seq n n
 
+isMalformed :: String -> Bool
+isMalformed s
+  = case s of
+      '-':c:[]   -> True
+      '-':c:cs   | not (isLetter c) -> True
+      c:'-':cs   | not (isLetter c) -> True
+      c:cs       -> isMalformed cs
+      []         -> False
+
+messageMalformed = "malformed identifier: a dash must be preceded and followed by a letter"
 ------------------------------------------------------------------------------
 -- Lexer state and actions
 ------------------------------------------------------------------------------

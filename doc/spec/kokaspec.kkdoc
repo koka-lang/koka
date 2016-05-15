@@ -117,7 +117,7 @@ directives.
 | &nbsp;       |        |                                                                                         |                         |
 | _lowerid_    | ::=    | _lower_ [_idchar_]{.many}                                                               |                         |
 | _upperid_    | ::=    | _upper_ [_idchar_]{.many}                                                               |                         |
-| _idchar_     | ::=    | _letter_ []{.bar} _digit_ []{.bar} `_`                                                  |                         |
+| _idchar_     | ::=    | _letter_ []{.bar} _digit_ []{.bar} `_` []{.bar} `-`                                                  |                         |
 | &nbsp;       |        |                                                                                         |                         |
 | _wildcard_   | ::=    | `_` [_idchar_]{.many}                                                                   |                         |
 | _typevarid_  | ::=    | _letter_ [_digit_]{.many}                                                               |                         |
