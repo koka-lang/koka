@@ -19,7 +19,7 @@ import Common.Range
 import Common.Syntax
 import Syntax.Syntax
 
--- import Lib.Trace (trace)
+import Lib.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- Program
@@ -121,7 +121,8 @@ dependencyDef modName (Def binding range vis isVal defDoc)
 
 dependencyBinding :: Name -> UserValueBinder UserExpr -> (UserValueBinder UserExpr, Deps)
 dependencyBinding modName vb
-  = (vb{ binderExpr = depBody }, M.singleton (binderName vb) freeVar)
+  = -- trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
+    (vb{ binderExpr = depBody }, M.singleton ((binderName vb)) freeVar)
   where    
     (depBody, freeVar) = dependencyExpr modName (binderExpr vb) 
 
@@ -152,7 +153,7 @@ dependencyExpr modName expr
       Let group body rng   -> let (depGroups,fv1,names) = dependencyDefGroupFv modName group
                                   (depBody,fv2)   = dependencyExpr modName body
                               in (foldr (\g b -> Let g b rng)  depBody depGroups, S.union fv1 (S.difference fv2 names))
-      Var name op rng      -> let uname = if (qualifier name == modName) then unqualify name else name
+      Var name op rng      -> let uname = name -- if (qualifier name == modName) then unqualify name else name
                               in if isConstructorName name
                                   then (expr,S.fromList [uname,newCreatorName uname])  
                                   else (expr,S.singleton uname)
@@ -245,23 +246,24 @@ group defs deps
   = let -- get definition id's
         defVars  = S.fromList (M.keys deps)
         -- constrain to the current group of id's
-        defDeps  = M.map (\fvs -> S.intersection defVars fvs) deps        
+        defDeps0 = M.map (\fvs -> S.intersection defVars fvs) deps        
         -- determine strongly connected components
-        defOrder0 = scc [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps]
+        defDeps   = [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps0]
+        defOrder0 = scc defDeps
         defOrder  = let (xs,ys) = partition noDeps defOrder0
                         noDeps ids = case ids of
-                                       [id] -> S.null (M.find id defDeps)
+                                       [id] -> S.null (M.find id defDeps0)
                                        _    -> False 
                     in (xs++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.
         makeGroup ids  = case ids of
-                           [id] -> if S.member id (M.find id defDeps)
+                           [id] -> if S.member id (M.find id defDeps0)
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: binding order:\n " ++ show (defVars) ++ "\n " ++ show defOrder) $
+    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder) $
        concatMap makeGroup defOrder
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]
