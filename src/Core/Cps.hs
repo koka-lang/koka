@@ -19,7 +19,8 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameEnsureK, nameTrue, nameFalse, nameTpBool )
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, 
+                        nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK )
 import Common.Error
 import Common.Syntax
 
@@ -126,7 +127,7 @@ cpsExpr' expr
                   -> return $ \k -> arg' (\xx -> k (App ret [xx]))
                 Just exprK 
                   -> return $ \k -> arg' (\xx -> 
-                          let cexpr = App ret [App exprK [xx]] in  -- ignore  k since nothing can happen after return!
+                          let cexpr = App ret [varApplyK exprK xx] in  -- ignore  k since nothing can happen after return!
                               --trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ 
                               cexpr)
 
@@ -145,12 +146,15 @@ cpsExpr' expr
                        let bodyTp = typeOf body
                            nameK  = tnameK bodyTp eff resTp
                            exprK  = varK bodyTp eff resTp
+                           appK x = if (cpsk==AlwaysCps) 
+                                     then App exprK [x]
+                                     else varApplyK exprK x
                        withCurrentK (Just exprK) $
                          do body' <- cpsExpr body
                             args' <- mapM cpsTName args                
                             return $ \k -> 
                               k (Lam (args' ++ [nameK]) eff 
-                                (body' (\xx -> App exprK [xx])))
+                                (body' (\xx -> appK xx)))
 
       App f args
         -> do f' <- cpsExpr f
@@ -442,6 +446,12 @@ typeYld   = TCon (TypeCon (nameTpYld) kindStar)
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
 
+varApplyK k x
+  = let (Just (_,effTp,resTp)) = splitFunType (typeOf k)
+        tp = typeFun [(nameNil,typeOf k),(nameNil,typeOf x)] effTp resTp
+        applyK = Var (TName nameApplyK tp)
+                     (Core.InfoExternal [(JS,"(#1||$std_core.id)(#2)")]) -- InfoArity (3,2)
+    in App applyK [k,x]
 
 
 {--------------------------------------------------------------------------
