@@ -609,8 +609,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()       
        return (resTp,resEff,resCore)
                            
-inferExpr propagated expect (Handler mbEff pars ret ops hrng rng)
-  = inferHandler propagated expect mbEff pars ret ops hrng rng      
+inferExpr propagated expect (Handler shallow mbEff pars ret ops hrng rng)
+  = inferHandler propagated expect shallow mbEff pars ret ops hrng rng      
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -704,8 +704,8 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect mbeff pars ret ops hrng rng
+inferHandler :: Maybe (Type,Range) -> Expect -> Bool -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect shallow mbeff pars ret ops hrng rng
   = do -- analyze propagated type 
        ((propAction:propArgs),propEff,propRes,expectRes) <- matchFun propagated
        (_,propActionEff,propActionRes,expectActionRes)   <- matchFun (fmap (\nt -> (snd nt,hrng)) propAction)
@@ -745,15 +745,17 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        -- infer the handled effect
        mbhxeff <- inferHandledEffect hrng mbeff ops
 
+       let branchTp = if (shallow) then retInTp else retOutTp
+
        (handlerTp,opsfunCore,makeHTp,hxName,mkHandlerName) 
           <- case mbhxeff of
                Nothing 
                 -> inferHandlerRet parBinders argPars 
-                                   retInTp retEff retOutTp retTp
+                                   retInTp retEff branchTp retTp
                                    heff hrng (getRange retExpr)
 
                Just hxeff 
-                -> inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp
+                -> inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp
                                    ops heff hrng (getRange retExpr)
 
        -- get makeHandlerN and unify
@@ -783,12 +785,12 @@ inferHandler propagated expect mbeff pars ret ops hrng rng
        -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
        return (sihandlerTp,geff,sicore)           
 
-inferHandlerRet parBinders argPars retInTp retEff retOutTp retTp heff hrng exprRng
+inferHandlerRet parBinders argPars retInTp retEff branchTp retTp heff hrng exprRng
   = do let opsfunCore= Core.Lit (Core.LitInt 0) 
 
        -- build up the type of the handler (() -> retEff retInTp) -> retEff resTp
        let actionPar = (newName "action",TFun [] heff retInTp)
-           handlerTp = TFun (actionPar:argPars) heff retOutTp
+           handlerTp = TFun (actionPar:argPars) heff branchTp
            makeHTp = TFun [(newName "optag", typeString),
                            (newName "ret",retTp),
                            (newName "ops",typeInt)] typeTotal handlerTp
@@ -797,7 +799,7 @@ inferHandlerRet parBinders argPars retInTp retEff retOutTp retTp heff hrng exprR
 
 
 
-inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff hrng exprRng
+inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp ops heff hrng exprRng
   = do -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta 
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
@@ -815,7 +817,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
            lBinders  = [ValueBinder (newHiddenName ("l" ++ show i)) ltp () hrng hrng | (i,ltp) <- zip [1..] ltps]
            lPars     = [(binderName b, binderType b) | b <- lBinders]
            -- resume
-           resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) retEff retOutTp 
+           resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) retEff branchTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            -- gammas
            opsgamma = inferBinders [] (lBinders ++ [contBinder,opsBinder,resumeBinder])
@@ -823,7 +825,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
 
        iops  <- extendInfGamma False infgamma $
                 extendInfGamma False opsgamma $
-                mapM (inferHandlerBranch (Just (retOutTp,hrng)) Instantiated 
+                mapM (inferHandlerBranch (Just (branchTp,hrng)) Instantiated 
                         opsEff hxName opsInfo (lBinders ++ [contBinder]) resumeBinder) ops
 
 
@@ -832,7 +834,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
            rngs = map (getRange . hbranchExpr) ops
            brngs = map (getRange) ops
 
-       resTp  <- inferUnifyTypes checkMatch (zip (retOutTp:opTps) (zip (exprRng:brngs) (exprRng:rngs)))
+       resTp  <- inferUnifyTypes checkMatch (zip (branchTp:opTps) (zip (exprRng:brngs) (exprRng:rngs)))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
 
        -- build match for operations
@@ -851,7 +853,7 @@ inferHandlerOps hxeff parBinders argPars retInTp retEff retOutTp retTp ops heff 
                             -- (newName "opmatch",opmatchRho),
                             (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
-       return (handlerTp,opsfunCore,makeHTp,hxName,nameMakeHandler (length parBinders))
+       return (handlerTp,opsfunCore,makeHTp,hxName,nameMakeHandler shallow (length parBinders))
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
 effectToOperation eff tres

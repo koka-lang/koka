@@ -1019,21 +1019,23 @@ matchexpr
   
 handlerExpr
   = do rng <- keyword "handler"
+       shallow <- do{ specialId "shallow"; return True } <|> return False
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
-       handlerExprX lparen rng mbEff
+       handlerExprX lparen rng shallow mbEff
   <|> 
     do rng <- keyword "handle"
+       shallow <- do{ specialId "shallow"; return True } <|> return False
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
        args <- parensCommas lparen argument 
-       expr <- handlerExprX lapp rng mbEff
+       expr <- handlerExprX lapp rng shallow mbEff
        return (App expr args (combineRanged rng expr))
 
-handlerExprX lp rng mbEff
+handlerExprX lp rng shallow mbEff
   = do (pars,parsLam,rng) <- handlerParams -- parensCommas lp handlerPar <|> return []
        (retops,rng2)  <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
-         [ret] -> return (parsLam $ Handler mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
+         [ret] -> return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)

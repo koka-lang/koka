@@ -174,8 +174,11 @@ nameEnsureK     = preludeName "ensureK"
 nameYieldOp     = preludeName ".yieldop"
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
-nameMakeHandler n = preludeName (".makeHandler" ++ show n)
-nameMakeHandlerRet n = preludeName (".makeHandlerRet" ++ show n)
+nameMakeHandler shallow n 
+  = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
+nameMakeHandlerRet n 
+  = preludeName (".makeHandlerRet" ++ show n)
+
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
 nameOpNoMatch   = preludeName ".conOpNoMatch"

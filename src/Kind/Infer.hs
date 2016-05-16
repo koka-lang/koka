@@ -505,7 +505,7 @@ infExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- infExpr expr
                                    return (Parens expr' range)
-      Handler meff pars ret ops hrng rng 
+      Handler shallow meff pars ret ops hrng rng 
                              -> do pars' <- mapM infHandlerValueBinder pars 
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
@@ -513,7 +513,7 @@ infExpr expr
                                                              return (Just eff')
                                    ret' <- infExpr ret
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler meff' pars' ret' ops' hrng rng)
+                                   return (Handler shallow meff' pars' ret' ops' hrng rng)
 
 
 infPat pat

@@ -170,10 +170,10 @@ dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit             -> (expr, S.empty)
-      Handler eff pars ret ops hrng rng 
+      Handler shallow eff pars ret ops hrng rng 
         -> let (depRet,fv1)     = dependencyExpr modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-           in (Handler eff pars depRet depBranches hrng rng, 
+           in (Handler shallow eff pars depRet depBranches hrng rng, 
                 S.difference (S.union fv1 fv2) (S.fromList (map binderName pars)))
 
 dependencyBranches f modName branches
