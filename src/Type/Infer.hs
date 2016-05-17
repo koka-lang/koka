@@ -800,7 +800,19 @@ inferHandlerRet parBinders argPars retInTp retEff branchTp retTp heff hrng exprR
 
 
 inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp ops heff hrng exprRng
-  = do -- build binders for the operator and resumption function      
+  = do -- build up the type of the action parameter
+       actionEff <- if shallow 
+                     then do aeff <- Op.freshTVar kindEffect Meta
+                             inferUnify (checkEffectSubsume hrng) hrng (effectExtend (handledToLabel hxeff) aeff) heff
+                             return heff
+                     else return $ effectExtend (handledToLabel hxeff) heff  
+       let -- actionEff = effectExtend (handledToLabel hxeff) heff
+           actionPar = (newName "action",TFun [] actionEff retInTp)
+
+       -- effect of resume
+       let resumeEff = if shallow then effectExtend typeCps actionEff else retEff
+       
+       -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta 
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
        let -- op
@@ -817,7 +829,8 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
            lBinders  = [ValueBinder (newHiddenName ("l" ++ show i)) ltp () hrng hrng | (i,ltp) <- zip [1..] ltps]
            lPars     = [(binderName b, binderType b) | b <- lBinders]
            -- resume
-           resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) retEff branchTp 
+           resumeTp = TFun (lPars ++ contPar ++ argPars ++ [(newName "x",opsResTp)]) 
+                            resumeEff branchTp 
            resumeBinder = ValueBinder (newHiddenName "resume") resumeTp () hrng hrng           
            -- gammas
            opsgamma = inferBinders [] (lBinders ++ [contBinder,opsBinder,resumeBinder])
@@ -842,9 +855,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
            opsfunCore= Core.Lam [Core.TName (binderName b) (binderType b) | b <- lBinders ++ [contBinder,opsBinder,resumeBinder] ++ parBinders] retEff matchCore
 
        -- build up the type of the handler (() -> <hxeff|heff> retInTp) -> heff resTp
-       let actionEff = effectExtend (handledToLabel hxeff) heff
-           actionPar = (newName "action",TFun [] actionEff retInTp)
-           handlerTp = TFun (argPars ++ [actionPar]) heff resTp
+       let handlerTp = TFun (argPars ++ [actionPar]) heff resTp
        
        -- build the type of the ops argument and the handler maker
        let opsArgTp = TFun (lPars ++ contPar ++ opsPar ++ [(newName "resume", resumeTp)] ++ argPars)
