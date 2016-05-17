@@ -1,0 +1,6 @@
+test/algeff/wrong/ops3.kk(47, 5): error: types do not match
+ context : set(j:bool)
+ term : set
+ inferred type: (bool) -> state ()
+ expected type: (i : int) -> state ()
+ because : operator type does not match the parameter types

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Program
+// Operator not part of effect
 // ----------------------------------------------------------------------------
  
 function xor() : amb bool {
@@ -44,7 +44,7 @@ function state_handle() {
   handler(i:int) {
     return x -> x
     get()    -> resume(i,i)
-    set(j)   -> resume((),j) 
+    set(j)   -> resume(j,()) 
     flip()   -> resume(true)
   }
 }
