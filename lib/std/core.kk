@@ -2600,6 +2600,9 @@ val uncps = handler {
   cps()    -> resume(())
 }
 
+// inject the ":cps" effect
+external inline incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
+
 
 // Continuation alias. Used internally to do special checks on cps converted code.
 alias cont<a,e,b> = a -> e b

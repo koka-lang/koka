@@ -10,7 +10,8 @@ function test() {
     },
     { println("and waiting at least 3 secs")
       wait(3000)
-      "done waiting"
+      println("(done waiting)")
+      "timing"
     }
   ])
   println("hi " + xs.join(","))  

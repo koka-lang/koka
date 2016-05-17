@@ -71,12 +71,12 @@ topDown (Let dgs body)
           DefRec [def]
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                if (occursNot (defName def) (Let dgs body))
-                then trace ("simplify dead: " ++ show (defName def)) $
-                      topDownLet sub (acc) dgs body -- dead definition
-                else trace ("no simplify rec def: " ++ show (defName def)) $
-                      topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+                then -- trace ("simplify dead: " ++ show (defName def)) $
+                     topDownLet sub (acc) dgs body -- dead definition
+                else -- trace ("no simplify rec def: " ++ show (defName def)) $
+                     topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefRec defs 
-            -> trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
+            -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
             -> -- trace ("simplify let: " ++ show x) $

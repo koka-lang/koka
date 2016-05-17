@@ -81,8 +81,9 @@ function validMoves(n) {
 val gametree = handler {
   return x  -> Winner(x)
   move(p,n) -> {
-    val subgames = validMoves(n).map(resume)
-    val subtrees = zip([1,2,3],subgames)
+    val moves    = validMoves(n)
+    val subgames = moves.map(resume)
+    val subtrees = zip(moves,subgames)
     Take(p,subtrees)
   }
 }
@@ -240,8 +241,6 @@ function replay(n : int,action : () -> <div|e> a) : <div|e> a {
     return x -> if (n <= 1) then x else replay(n - 1, incps(action))
   }
 }
-
-external inline incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
 
 function testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}

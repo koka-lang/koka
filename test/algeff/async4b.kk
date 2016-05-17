@@ -10,7 +10,9 @@ function test() {
   }
   function g() {
     println("and reading a file")
-    readTextFile("package.json")    
+    val content = readTextFile("package.json")    
+    println("(done reading file)")
+    content
   }
   val xs = asyncAll( [f,g] )
   println("hi " + xs.join(","))  
