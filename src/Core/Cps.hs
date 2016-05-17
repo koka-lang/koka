@@ -72,7 +72,7 @@ cpsDef recursive def
                         expr -> do cpsTraceDoc $ \env -> text "Core.Cps.cpsDef: illegal duplicated definition: " <+> prettyExpr env expr
                                    failure "Core.Cps.cpsDef: internal failure"
               else withCurrentDef def $
-                   do expr' <- cpsExpr (defExpr def)
+                   do expr' <- cpsExpr' True (defExpr def)
                       return [def{ defExpr = expr' id }] -- at top level this should be ok since the type is total
                                    
 
@@ -81,10 +81,10 @@ type TransX a b  = (a -> b) ->b
 
 cpsExpr :: Expr -> Cps (TransX Expr Expr)
 cpsExpr expr
-  = cpsExpr' expr
+  = cpsExpr' False expr
 
-cpsExpr' :: Expr -> Cps (TransX Expr Expr)
-cpsExpr' expr 
+cpsExpr' :: Bool -> Expr -> Cps (TransX Expr Expr)
+cpsExpr' topLevel expr 
   = case expr of
       -- open
       -- simplify open away if it is directly applied
@@ -114,7 +114,7 @@ cpsExpr' expr
                                         return (TName pname partp)) partps
                        let args = [Var tname InfoNone | tname <- pars]
                            lam  = Lam pars effTo (App f args)
-                       cpsExpr lam
+                       cpsExpr' True lam -- pretend toplevel so it does not get lifted by cpsExprAsDef
 
       -- leave 'return' in place
       App ret@(Var v _) [arg] | getName v == nameReturn
@@ -130,6 +130,12 @@ cpsExpr' expr
                           let cexpr = App ret [App exprK [xx]] in  -- ignore  k since nothing can happen after return!
                               --trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ 
                               cexpr)
+
+      -- lift out lambda's into definitions so they can be duplicated if necessary                  
+      TypeLam tpars (Lam pars eff body) | not topLevel 
+        -> cpsExprAsDef tpars pars eff body
+      Lam pars eff body | not topLevel
+        -> cpsExprAsDef [] pars eff body
 
       -- regular cases
       Lam args eff body 
@@ -210,19 +216,30 @@ cpsExpr' expr
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
         -- propagate types so that the pure tvs are maintained.
         -- todo: This will fail if the typeapp is not directly around the type lambda!
-        -> do cpsExpr' (subNew (zip tvars tps) |-> body)
+        -> do cpsExpr' topLevel (subNew (zip tvars tps) |-> body)
 
       TypeLam tvars body
-        -> do body' <- cpsExpr' body
+        -> do body' <- cpsExpr' topLevel body
               return $ \k -> body' (\xx -> k (TypeLam tvars xx))
       
       TypeApp body tps
-        -> do body' <- cpsExpr body
+        -> do body' <- cpsExpr' topLevel body
               -- tps'  <- mapM cpsTypeX tps
               -- tps'  <- mapM cpsTypePar tps0
               return $ \k -> body' (\xx -> k (TypeApp xx tps))
                    
       _ -> return (\k -> k expr) -- leave unchanged
+
+
+cpsExprAsDef :: [TypeVar] -> [TName] -> Effect -> Expr -> Cps (Trans Expr)
+cpsExprAsDef tpars pars eff body
+  = do name <- uniqueName "lam"
+       let expr = addTypeLambdas tpars (Lam pars eff body)
+           tp   = typeOf expr
+           def  = Def name tp expr Private DefFun rangeNull ""
+           var  = Var (TName name tp) (InfoArity (length tpars) (length pars))
+       -- cpsTraceDoc $ \env -> text "cps as expr:" <--> prettyExpr env expr
+       cpsExpr (Let [DefNonRec def] var) -- process as let definition
 
 cpsBranch :: Branch -> Cps ((Expr -> Expr) -> Branch)
 cpsBranch (Branch pat guards)
@@ -253,11 +270,11 @@ cpsLetDef :: Bool -> Def -> Cps (TransX [Def] Expr)
 cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsTypeX (defType def)
-       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
+       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((cpsk == PolyCps {-|| cpsk == MixedCps-}) && isDupFunctionDef (defExpr def))
         then cpsLetDefDup cpsk recursive def 
         else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" <+> ppType env (defType def)
-                expr' <- cpsExpr' (defExpr def) -- don't increase depth
+                expr' <- cpsExpr' True (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
                          -- \k -> k [def{ defExpr = expr' id}]
 
@@ -270,10 +287,10 @@ cpsLetDefDup cpsk recursive def
                       -- return those as part of CpsPoly or CpsAlways
                       (tvsList (ftv rho))
 
-       --cpsTraceDoc (\env -> text "cps translation") 
-       exprCps'    <- cpsExpr' (defExpr def)
-       --cpsTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
-       exprNoCps'  <- withPureTVars teffs $ cpsExpr' (defExpr def)
+       -- cpsTraceDoc (\env -> text "cps translation") 
+       exprCps'    <- cpsExpr' True (defExpr def)
+       -- cpsTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
+       exprNoCps'  <- withPureTVars teffs $ cpsExpr' True (defExpr def)
 
        return $ \k -> 
         exprCps' $ \exprCps -> 
@@ -323,6 +340,8 @@ isDupFunctionDef expr
       TypeLam tpars (TypeApp body tps)  | length tpars == length tps 
          -> isDupFunctionDef body
       _ -> False
+
+
 
 
 
@@ -611,8 +630,8 @@ getCurrentK
 withPureTVars :: [TypeVar] -> Cps a -> Cps a
 withPureTVars vs cps
   = withEnv (\env -> env{ pureTVars = tvsUnion (tvsNew vs) (pureTVars env)}) $
-    do env <- getEnv
-       cpsTraceDoc $ \penv -> text "with pure tvars:" <+> tupled (niceTypes penv (map TVar (tvsList (pureTVars env))))
+    do -- env <- getEnv
+       -- cpsTraceDoc $ \penv -> text "with pure tvars:" <+> tupled (niceTypes penv (map TVar (tvsList (pureTVars env))))
        cps
 
 getPureTVars :: Cps Tvs

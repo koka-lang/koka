@@ -259,7 +259,9 @@ prepend :: String -> Name -> Name
 prepend s name
   = newQualified (nameModule name) 
     (case nameId name of 
-      ('.':t) -> '.' : s ++ t  -- keep hidden names hidden
+      ('.':t) -> case s of
+                   '.':_ -> s ++ t  -- keep hidden names hidden
+                   _     -> '.' : s ++ t
       t       -> s ++ t
     )
 
