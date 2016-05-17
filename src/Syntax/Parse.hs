@@ -1031,11 +1031,11 @@ handlerExpr
        return (App expr args (combineRanged rng expr))
 
 handlerExprX lp rng shallow mbEff
-  = do (pars,parsLam,rng) <- handlerParams -- parensCommas lp handlerPar <|> return []
+  = do (pars,parsLam,rng1) <- handlerParams -- parensCommas lp handlerPar <|> return []
        (retops,rng2)  <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
-         [ret] -> return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng2]))
+         [ret] -> return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)

@@ -840,12 +840,16 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
 
 
        -- unify effects and branches
-       let (opTps,opEffs,opsCore) = unzip3 iops
+       let (opTps,opEffs,opsBranches) = unzip3 iops
+           (conNames,opsCore) = unzip opsBranches
            rngs = map (getRange . hbranchExpr) ops
            brngs = map (getRange) ops
 
        resTp  <- inferUnifyTypes checkMatch (zip (branchTp:opTps) (zip (exprRng:brngs) (exprRng:rngs)))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
+
+       -- check coverage
+       checkCoverage hrng hxeff (map conInfoName (dataInfoConstrs opsInfo)) conNames
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
@@ -862,6 +866,30 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
                             (newName "ret",retTp),(newName "ops", opsArgTp)] typeTotal handlerTp
 
        return (handlerTp,opsfunCore,makeHTp,hxName,nameMakeHandler shallow (length parBinders))
+
+checkCoverage :: Range -> Effect -> [Name] -> [Name] -> Inf ()
+checkCoverage rng eff conNames opConNames
+  = case conNames of
+      [] -> if null opConNames 
+             then return ()
+             -- should not occur if branches typechecked previously
+             else infError rng (text "some operators are handled multiple times")
+      (cname:cnames)
+        -> do let (matches,opcnames) = partition (==cname) opConNames 
+              env <- getPrettyEnv
+              case matches of
+                [m] -> return ()
+                []  -> infError rng (text "operator" <+> ppOpName env cname <+> text "is not handled")
+                _   -> infError rng (text "operator" <+> ppOpName env cname <+> text "is handled multiple times")
+              checkCoverage rng eff cnames opcnames  
+  where
+    ppOpName env cname
+      = ppName env (opNameFromCon cname)
+
+    opNameFromCon name
+      = qualify (qualifier name) (newName (drop 4 (show (unqualify name))))
+
+
 
 effectToOperation :: Effect -> Type -> Inf (Type,Name, DataInfo)
 effectToOperation eff tres
@@ -900,7 +928,7 @@ inferHandledEffect rng mbeff ops
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo 
-                          -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,Core.Branch)
+                          -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
 inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resumeBinder (HandlerBranch name pars expr nameRng rng) 
   = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name) 
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
@@ -981,7 +1009,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
          sexprTp <- subst exprTp
          sexprEff <- subst exprEff
          -- traceDoc $ \env -> text "types:" <+> tupled (niceTypes env [sexprTp,sexprEff])
-         return ((sexprTp,sexprEff,branchCore),ftv [sexprTp,sexprEff])
+         return ((sexprTp,sexprEff,(conname,branchCore)),ftv [sexprTp,sexprEff])
   where
     splitOpTp rho
       = case expandSyn rho of                
