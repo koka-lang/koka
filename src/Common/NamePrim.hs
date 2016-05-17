@@ -30,6 +30,7 @@ module Common.NamePrim
           , nameEffectOpen
           , nameToAny
           , nameEnsureK
+          , nameUnsafeTotal
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -144,6 +145,7 @@ nameTpVector    = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 nameDecreasing  = preludeName "unsafeDecreasing"
+nameUnsafeTotal = preludeName "unsafeTotal"
 
 {--------------------------------------------------------------------------
   Lists

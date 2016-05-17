@@ -30,7 +30,13 @@ import qualified Data.Set as S
 
 simplifyDefs :: Int -> DefGroups -> (DefGroups,Int)
 simplifyDefs uniq defs
-  = runUnique uniq (do defs1 <- simplify defs; simplify defs1)
+  = runUnique uniq (simplifyN 3 defs)
+
+simplifyN :: Int -> DefGroups -> Unique DefGroups
+simplifyN n defs
+  = if (n <= 0) then return defs
+    else do defs' <- simplify defs
+            simplifyN (n-1) defs' 
 
 class Simplify a where
   simplify :: a -> Unique a
@@ -62,9 +68,12 @@ topDown (Let dgs body)
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
         in case sdg of 
-          DefRec defs -> topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+          DefRec defs 
+            -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
+               topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
-            -> if (isTotalAndCheap se) 
+            -> -- trace ("simplify let: " ++ show x) $
+               if (isTotalAndCheap se) 
                 then -- inline very small expressions
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of

@@ -25,7 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
-import Core.Cps( cpsType, typeK )
+-- import Core.Cps( cpsType, typeK )
 
 import Kind.Kind
 import Type.Type
@@ -122,7 +122,7 @@ checkTName (TName name tp)
 checkType :: Type -> Check Type
 checkType tp
   = do env <- getEnv
-       return (if (cps env) then cpsType tvsEmpty tp else tp)
+       return tp -- return (if (cps env) then cpsType tvsEmpty tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups 
