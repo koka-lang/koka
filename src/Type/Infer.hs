@@ -740,7 +740,8 @@ inferHandler propagated expect shallow mbeff pars ret ops hrng rng
            parBinders = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propParBinders parTypes]
 
        heff <- freshEffect
-       inferUnify (checkEffectSubsume hrng) hrng (effectExtend typeCps heff) retEff
+       inferUnify (checkEffectSubsume hrng) hrng 
+          (if shallow then heff else (effectExtend typeCps heff)) retEff
 
        -- infer the handled effect
        mbhxeff <- inferHandledEffect hrng mbeff ops
@@ -801,16 +802,12 @@ inferHandlerRet parBinders argPars retInTp retEff branchTp retTp heff hrng exprR
 
 inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp ops heff hrng exprRng
   = do -- build up the type of the action parameter
-       actionEff <- if shallow 
-                     then do aeff <- Op.freshTVar kindEffect Meta
-                             inferUnify (checkEffectSubsume hrng) hrng (effectExtend (handledToLabel hxeff) aeff) heff
-                             return heff
-                     else return $ effectExtend (handledToLabel hxeff) heff  
-       let -- actionEff = effectExtend (handledToLabel hxeff) heff
+       let actionEff = if shallow then heff else effectExtend (handledToLabel hxeff) heff  
+           -- actionEff = effectExtend (handledToLabel hxeff) heff
            actionPar = (newName "action",TFun [] actionEff retInTp)
 
        -- effect of resume
-       let resumeEff = if shallow then effectExtend typeCps actionEff else retEff
+       let resumeEff = if shallow then actionEff else retEff
        
        -- build binders for the operator and resumption function      
        opsResTp <- Op.freshTVar kindStar Meta 

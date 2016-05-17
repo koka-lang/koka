@@ -2702,9 +2702,9 @@ external ".makeHandlerRet0"( optag:string, ret : a -> <cps|e> b, ops : int ) : t
 }
 
 external ".makeShallowHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
-                          ret : a -> <cps|e> b,  
+                          ret : a -> e b,  
                           ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
-                                resume:(l1:any,l2:int, cont:(c) -> yld<a>, c) -> <cps|e> a) -> <cps|e> b  
+                                resume:(l1:any,l2:int, cont:(c) -> yld<a>, c) -> e a) -> e b  
                         ) : total ((action : () -> e a) -> e b) { 
   js inline "$makeGenOptHandler0(optag,true,ret,ops)"
 }
