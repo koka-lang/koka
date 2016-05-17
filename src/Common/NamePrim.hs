@@ -30,6 +30,7 @@ module Common.NamePrim
           , nameEffectOpen
           , nameToAny
           , nameEnsureK
+          , nameIsValidK
           , nameUnsafeTotal
 
           -- * Constructors
@@ -176,6 +177,7 @@ nameEnsureK     = preludeName "ensureK"
 nameYieldOp     = preludeName ".yieldop"
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
+nameIsValidK    = preludeName ".isValidK"
 nameMakeHandler shallow n 
   = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n 

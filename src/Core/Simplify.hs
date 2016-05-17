@@ -15,7 +15,7 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn )
+import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK )
 import Common.Unique
 import Type.Type
 import Type.TypeVar
@@ -30,7 +30,7 @@ import qualified Data.Set as S
 
 simplifyDefs :: Int -> DefGroups -> (DefGroups,Int)
 simplifyDefs uniq defs
-  = runUnique uniq (simplifyN 3 defs)
+  = runUnique uniq (simplifyN 5 defs)
 
 simplifyN :: Int -> DefGroups -> Unique DefGroups
 simplifyN n defs
@@ -68,8 +68,15 @@ topDown (Let dgs body)
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
         in case sdg of 
-          DefRec defs 
+          DefRec [def]
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
+               if (occursNot (defName def) (Let dgs body))
+                then trace ("simplify dead: " ++ show (defName def)) $
+                      topDownLet sub (acc) dgs body -- dead definition
+                else trace ("no simplify rec def: " ++ show (defName def)) $
+                      topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+          DefRec defs 
+            -> trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
             -> -- trace ("simplify let: " ++ show x) $
@@ -81,6 +88,9 @@ topDown (Let dgs body)
                   | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body    
+                Just ([],pars,eff,App (Var _ _) args)  | all cheap args
+                  -> -- inline functions that are direct applications to another function
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- inline small total expressions
@@ -97,6 +107,16 @@ topDown (Let dgs body)
           TypeLam tpars (Lam pars eff body) -> Just (tpars,pars,eff,body)
           Lam pars eff body                 -> Just ([],pars,eff,body)
           _ -> Nothing
+
+    cheap expr
+      = case expr of
+          Var{} -> True
+          Con{} -> True
+          Lit{} -> True
+          TypeLam _ e -> cheap e
+          TypeApp e _ -> cheap e
+          _ -> False
+              
 
     isSmall expr
       = isSmallX 3 expr -- at most 3 applications deep
@@ -118,13 +138,15 @@ topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffe
   = topDown arg
 
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars == length args 
+topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
-       topDown $ Let (zipWith makeDef newNames args) (sub |~> body)       
+           argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
+       topDown $ Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)       
   where           
     makeDef (TName npar nparTp) arg 
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+
 
 -- No optimization applies
 topDown expr
@@ -157,6 +179,36 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
     varEqual (tv,TVar tw) = tv == tw
     varEqual _            = False
 
+-- eta contract
+{-
+bottomUp (Lam pars eff (App expr args)) | parsMatchArgs 
+  = expr
+  where
+    parsMatchArgs = length pars == length args && all match (zip pars args)
+    match (par,arg)
+      = case arg of
+          Var v _  -> v == par
+          _ -> False
+-}
+
+-- continuation validation
+bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == nameIsValidK
+  = case arg of
+      Var optNone _  | getName optNone == nameOptionalNone  -> exprFalse
+      Lam _ _ _ -> exprTrue
+      App _ _ -> exprTrue
+      _ -> expr   
+
+-- case on singleton constructor
+bottomUp expr@(Case [con@(Con name repr)] bs)  
+  = case matchBranches con bs of
+      Just b -> b
+      _ -> expr
+
+-- return immediately from a lambda
+bottomUp (Lam pars eff (App (Var ret _) [arg]))  | getName ret == nameReturn
+  = Lam pars eff arg
+
 bottomUp (App f args)
   = App f (map bottomUpArg args)
 
@@ -169,6 +221,35 @@ bottomUpArg arg
   = case arg of
       App (Var v _) [expr] | getName v == nameEnsureK -> expr
       _ -> arg
+
+
+matchBranches :: Expr -> [Branch] -> Maybe Expr      
+matchBranches scrutinee branches
+  = case (foldl f NoMatch branches) of
+      Match expr -> Just expr
+      _ -> Nothing
+  where
+    f NoMatch branch = matchBranch scrutinee branch
+    f found _ = found
+
+matchBranch :: Expr -> Branch -> Match Expr
+matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard 
+  = case (scrut,pat) of
+      (Con name _repr, PatCon pname [] _prepr [] _info) 
+        | name == pname -> Match expr
+        | otherwise     -> NoMatch
+      (_,PatVar name PatWild) 
+        -> let def = Def (getName name) (typeOf name) scrut Private DefVal rangeNull ""
+           in Match (Let [DefNonRec def] expr)
+      (_,PatWild)
+        -> let def = Def (nameNil) (typeOf scrut) scrut Private DefVal rangeNull ""
+           in Match (Let [DefNonRec def] expr)
+      _ -> Unknown
+matchBranch scrut branch
+  = Unknown      
+
+
+data Match a = Match a | Unknown | NoMatch
 
 {--------------------------------------------------------------------------
   Definitions 
@@ -261,6 +342,16 @@ isTotalAndCheap expr
     matchTParTArg (tv1,TVar tv2) = tv1 == tv2
     matchTParTArg _ = False
 
+occursNot :: Name -> Expr -> Bool
+occursNot name expr
+  = case M.lookup name (occurrences expr) of
+      Nothing -> True
+      Just oc -> case oc of 
+                   None -> True
+                   _    -> False
+
+
+
 occursAtMostOnce :: Name -> Expr -> Bool
 occursAtMostOnce name expr
   = case M.lookup name (occurrences expr) of
@@ -277,7 +368,7 @@ occursAtMostOnceApplied name tn n expr
       Nothing -> True
       Just oc -> case oc of 
                    Many      -> False
-                   Once tm m -> (tn==tm && n==m)
+                   Once tm m -> (tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
                    _         -> True
 
 

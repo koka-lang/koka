@@ -20,7 +20,7 @@ import Common.Name
 import Common.Range
 import Common.Unique
 import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, 
-                        nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal )
+                        nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK )
 import Common.Error
 import Common.Syntax
 
@@ -67,7 +67,7 @@ cpsDef recursive def
         then return [def]
         else if (isDupFunctionDef (defExpr def))
               then do defs' <- cpsLetDef recursive def -- re-use letdef
-                      case (defs' (\(ds,ns) -> Let (DefRec ds:map DefNonRec ns) (Var (defTName def) InfoNone))) of
+                      case (defs' (\(xds,yds,nds) -> Let (DefRec xds:DefRec yds:map DefNonRec nds) (Var (defTName def) InfoNone))) of
                         Let dgs _ -> return (flattenDefGroups dgs)
                         expr -> do cpsTraceDoc $ \env -> text "Core.Cps.cpsDef: illegal duplicated definition: " <+> prettyExpr env expr
                                    failure "Core.Cps.cpsDef: internal failure"
@@ -266,11 +266,11 @@ cpsLetGroup :: DefGroup -> Cps (TransX [DefGroup] Expr)
 cpsLetGroup dg
   = case dg of
       DefRec defs -> do ldefs <- cpsTrans (cpsLetDef True) defs
-                        return $ \k -> ldefs (\xss -> k (concat [DefRec dds : map DefNonRec nds | (dds,nds) <- xss]))
+                        return $ \k -> ldefs (\xss -> k (concat [DefRec xds : DefRec yds : map DefNonRec nds | (xds,yds,nds) <- xss]))
       DefNonRec d -> do ldef <- cpsLetDef False d
-                        return $ \k -> ldef (\(dgs,nds) -> k (map DefNonRec (dgs ++ nds)))
+                        return $ \k -> ldef (\(xds,yds,nds) -> k (map DefNonRec (xds ++ yds ++ nds)))
 
-cpsLetDef :: Bool -> Def -> Cps (TransX ([Def],[Def]) Expr)
+cpsLetDef :: Bool -> Def -> Cps (TransX ([Def],[Def],[Def]) Expr)
 cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsType (defType def)
@@ -279,10 +279,10 @@ cpsLetDef recursive def
         then cpsLetDefDup cpsk recursive def 
         else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" <+> ppType env (defType def)
                 expr' <- cpsExpr' True (defExpr def) -- don't increase depth
-                return $ \k -> expr' (\xx -> k ([def{defExpr = xx}],[]))
+                return $ \k -> expr' (\xx -> k ([def{defExpr = xx}],[],[]))
                          -- \k -> k [def{ defExpr = expr' id}]
 
-cpsLetDefDup :: CpsTypeKind -> Bool -> Def -> Cps (TransX ([Def],[Def]) Expr)
+cpsLetDefDup :: CpsTypeKind -> Bool -> Def -> Cps (TransX ([Def],[Def],[Def]) Expr)
 cpsLetDefDup cpsk recursive def
   = do let teffs = let (tvars,_,rho) = splitPredType (defType def)
                    in filter (isKindEffect . getKind) 
@@ -330,7 +330,7 @@ cpsLetDefDup cpsk recursive def
               = let typeApp e = (if null tpars then e else TypeApp e (map TVar tpars))                    
                 in App (typeApp var) [Var par InfoNone | par <- pars]
 
-         in k ([defCps,defNoCps],[defPick])
+         in k ([defCps],[defNoCps],[defPick])
 
 -- is  this a function definition that may need to be duplicated with a
 -- plain and cps-translated definition?
@@ -428,7 +428,7 @@ cpsTypeX pureTvs tp
 varValidK :: Expr
 varValidK 
   = let typeVar = TypeVar 1 kindStar Bound
-    in  Var (TName (newName "@validk") (TForall [typeVar] [] (TFun [(nameNil,TVar typeVar)] typeTotal typeBool)))
+    in  Var (TName nameIsValidK (TForall [typeVar] [] (TFun [(nameNil,TVar typeVar)] typeTotal typeBool)))
             (Core.InfoExternal [(JS,"(#1 !== undefined)")])
 
 ensureK :: TName -> TName -> (Expr -> Expr)
