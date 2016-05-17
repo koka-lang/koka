@@ -232,7 +232,7 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|yield|effect|cont)(?!\\w)"
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|yield|effect|cont)(?!\\w)"
       , "name": "keyword.other.koka"
       },
 
