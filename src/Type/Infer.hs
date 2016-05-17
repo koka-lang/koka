@@ -915,7 +915,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
            <- case filter (\ci -> cname == conInfoName ci) constrs of
                     [ci] -> resolveConName (conInfoName ci) Nothing nameRng
                     _ -> do env <- getPrettyEnv
-                            infError nameRng (text "operator" <+> ppName env qname <+> text "is not defined as part of the handled effect" <+> ppName env hxName) 
+                            infError nameRng (text "operator" <+> ppName env qname <+> text "is not defined as part of the handled effect" <+> parens (ppName env hxName)) 
 
        -- check the types of the parameters against the operator declaration
        conResTp <- Op.freshTVar kindStar Meta
@@ -928,9 +928,9 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
 
          srho <- subst rho
          let (parTps,effTp,resTp) = splitOpTp srho
-         if (length parTps < length pars)
+         if (length parTps > length pars)
           then typeError rng nameRng (text "operator has not enough parameters") rho []
-          else if (length parTps > length pars)
+          else if (length parTps < length pars)
                 then typeError rng nameRng (text "operator has too many parameters") rho []
                 else return ()
          parsTps <- mapM (\par -> case binderType par of 

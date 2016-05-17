@@ -57,6 +57,7 @@ module Type.InferMonad( Inf, InfGamma
 
                       , typeError
                       , contextError
+                      , termError
                       , infError, infWarning
 
                       -- * Documentation, Intellisense
@@ -602,7 +603,7 @@ withSkolemized rng tp mhint action
          then return ()
          else do sxrho <- subst xrho
                  let escaped = [v | v <- xvars, tvsMember v allfree]
-                 typeError rng rng (text "abstract type(s) escape into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
+                 termError rng (text "abstract type(s) escape(s) into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
        return x
 
 doUnify :: Unify a -> Inf (Either UnifyError a)
@@ -723,6 +724,21 @@ contextError' env contextRange range message extra
                 ,(text "term", docFromRange (Pretty.colors env) range)
                 ]
                 ++ extra)
+
+termError :: Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
+termError range message tp extra
+  = do env <- getEnv
+       termError' (prettyEnv env) range message tp extra
+
+termError' env range message tp extra
+  = do infError range $
+        message <->
+        table  ([(text "term", docFromRange (Pretty.colors env) range)
+                ,(text "inferred type", Pretty.niceType env tp)
+                ]
+                ++ extra)
+    
+
     
 {--------------------------------------------------------------------------
   Inference monad
