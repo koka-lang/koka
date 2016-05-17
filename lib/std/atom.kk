@@ -9,7 +9,8 @@
 /* This module provides a perfect hash for strings.
 
    These ":atom"s can be compared very efficiently. If you compare only
-   seldomly, a straight string compare will probably be faster.
+   seldomly, a straight string compare will probably be faster since 
+   creating an atom takes some initial work.
 */
 module std/atom
 

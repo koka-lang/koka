@@ -127,7 +127,7 @@ cpsExpr' expr
                   -> return $ \k -> arg' (\xx -> k (App ret [xx]))
                 Just exprK 
                   -> return $ \k -> arg' (\xx -> 
-                          let cexpr = App ret [varApplyK exprK xx] in  -- ignore  k since nothing can happen after return!
+                          let cexpr = App ret [App exprK [xx]] in  -- ignore  k since nothing can happen after return!
                               --trace ("return after cps: " ++ show (prettyExpr defaultEnv cexpr)) $ 
                               cexpr)
 
@@ -146,9 +146,12 @@ cpsExpr' expr
                        let bodyTp = typeOf body
                            nameK  = tnameK bodyTp eff resTp
                            exprK  = varK bodyTp eff resTp
-                           appK x = if (cpsk==AlwaysCps) 
+                           appK x = App exprK [x]
+                                    {-
+                                    if (cpsk==AlwaysCps) 
                                      then App exprK [x]
                                      else varApplyK exprK x
+                                    -}
                        withCurrentK (Just exprK) $
                          do body' <- cpsExpr body
                             args' <- mapM cpsTName args                
@@ -253,20 +256,23 @@ cpsLetDef recursive def
        -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def))
        if ((cpsk == PolyCps {-|| cpsk == MixedCps-}) && isDupFunctionDef (defExpr def))
         then cpsLetDefDup cpsk recursive def 
-        else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" --  <+> ppType env (defType def) <--> prettyExpr env (defExpr def)
+        else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" <+> ppType env (defType def)
                 expr' <- cpsExpr' (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k [def{defExpr = xx}])
                          -- \k -> k [def{ defExpr = expr' id}]
 
 cpsLetDefDup :: CpsTypeKind -> Bool -> Def -> Cps (TransX [Def] Expr)
 cpsLetDefDup cpsk recursive def
-  = do let teffs = case (expandSyn (defType def)) of
-                     TForall tvars _ _ -> filter (isKindEffect . getKind) tvars
-                     _ -> []
+  = do let teffs = let (tvars,_,rho) = splitPredType (defType def)
+                   in filter (isKindEffect . getKind) 
+                      -- todo: we use all free effect type variables; that seems too much. 
+                      -- we should use the ones that caused this to be cps-translated and
+                      -- return those as part of CpsPoly or CpsAlways
+                      (tvsList (ftv rho))
 
-       -- cpsTraceDoc (\env -> text "cps translation") >> 
+       --cpsTraceDoc (\env -> text "cps translation") 
        exprCps'    <- cpsExpr' (defExpr def)
-       -- cpsTraceDoc (\env -> text "fast translation")                      
+       --cpsTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
        exprNoCps'  <- withPureTVars teffs $ cpsExpr' (defExpr def)
 
        return $ \k -> 
@@ -603,8 +609,11 @@ getCurrentK
        return (currentK env)
 
 withPureTVars :: [TypeVar] -> Cps a -> Cps a
-withPureTVars vs
-  = withEnv (\env -> env{ pureTVars = tvsUnion (tvsNew vs) (pureTVars env)})
+withPureTVars vs cps
+  = withEnv (\env -> env{ pureTVars = tvsUnion (tvsNew vs) (pureTVars env)}) $
+    do env <- getEnv
+       cpsTraceDoc $ \penv -> text "with pure tvars:" <+> tupled (niceTypes penv (map TVar (tvsList (pureTVars env))))
+       cps
 
 getPureTVars :: Cps Tvs
 getPureTVars
