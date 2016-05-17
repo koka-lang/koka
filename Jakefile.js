@@ -394,7 +394,6 @@ var hsModules = [
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
-  "Core.Normalize",
   "Core.Cps",
   "Core.Check",
   
