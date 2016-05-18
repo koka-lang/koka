@@ -8,3 +8,7 @@ val hs : forall<e> list<int -> e int> = [myid()]
 function bar() {
   head(hs)(10)
 }
+
+function main() {
+  bar().show.println
+}

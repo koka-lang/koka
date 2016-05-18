@@ -84,5 +84,5 @@ function eval( e : expr ) : stexn<int> {
 }
 
 function main() {
-  run(0,eval(expr2))
+  run(0,eval(expr2)).show.println
 }

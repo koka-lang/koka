@@ -874,25 +874,28 @@ function runTestFile(n,testFile,testMode,flags,callback) {
   var flags = flags || "";
   fs.readFile(path.join(testDir,".flags"), { encoding: "utf8" }, function(err,content) {
     if (!err) flags += " " + content.trim().replace("\n"," ");
-    var cmd = [mainExe,hsRunFlags,kokaFlags," -c --console=raw",flags,testFile].join(" ");
-    jake.logger.log(n + ": " + testFile);
-    if (testMode==="verbose") jake.logger.log("> " + cmd);
-    child.exec(cmd, function (error, stdout, stderr) {
-      var output = "";
-      if (stdout && stdout.length > 0) output += stdout;
-      if (stderr && stderr.length > 0) output += stderr;
-      if (error !== null) {
-        // output += "command failed with exit code " + error.code + ".";
-      }
-      if (testMode) jake.logger.log(output);
-      output = testSanitize(output);      
-      if (callback) {
-        callback(output);
-      }
-      else {
-        jake.logger.log(output);
-        complete();
-      }
+    fs.readFile(testFile + ".flags", { encoding: "utf8" }, function(err,content) {
+      if (!err) flags += " " + content.trim().replace("\n"," ");      
+      var cmd = [mainExe,hsRunFlags,kokaFlags," -c --console=raw",flags,testFile].join(" ");
+      jake.logger.log(n + ": " + testFile);
+      if (testMode==="verbose") jake.logger.log("> " + cmd);
+      child.exec(cmd, function (error, stdout, stderr) {
+        var output = "";
+        if (stdout && stdout.length > 0) output += stdout;
+        if (stderr && stderr.length > 0) output += stderr;
+        if (error !== null) {
+          // output += "command failed with exit code " + error.code + ".";
+        }
+        if (testMode) jake.logger.log(output);
+        output = testSanitize(output);      
+        if (callback) {
+          callback(output);
+        }
+        else {
+          jake.logger.log(output);
+          complete();
+        }
+      });
     });    
   });
 }

@@ -194,3 +194,9 @@ function eval3( e : expr ) : eval3 int {
 function test3(e) {
   htick(0,{ hout{ hexc{ eval3(e) }}}) .show2.println
 }
+
+function main() {
+  test1(expr2)
+  test2(expr2)
+  test3(expr2)
+}

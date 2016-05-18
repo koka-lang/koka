@@ -1,8 +1,8 @@
-
+// Test creation of direct- and cps- converted functions.
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element, the element itself, and the tail list as arguments.
-function mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
+function mapIndexedPeekX(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
 {
   // recurse using an accumulator using constant heap space
   function mapAcc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
@@ -29,3 +29,6 @@ function mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> 
   return mapIter(f,0,xs)
 }
 
+function main() {
+  [1,2].mapIndexedPeekX( fun(idx,x:int,xs) { x+idx }).showList(show).println
+}

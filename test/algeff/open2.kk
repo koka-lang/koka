@@ -11,6 +11,10 @@ val myfunc = Func(myid())
 
 function bar() {
   match(myfunc) {
-    Func(f) -> f(1)
+    Func(f) -> f(42)
   }
+}
+
+function main() {
+  bar().show.println
 }

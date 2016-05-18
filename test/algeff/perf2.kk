@@ -27,8 +27,8 @@ function appendSafe( queen : int, xs : solution, xss : solutions ) : div solutio
   if (queen <= 0) xss
   else {
    if (safe(queen,1,xs))
-    then appendSafe( queen-1, xs, Cons(Cons(queen,xs),xss) )
-    else appendSafe( queen-1, xs, xss )
+    then appendSafe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
+    else appendSafe( queen - 1, xs, xss )
   }
 }
 
@@ -44,7 +44,7 @@ function findSolutions( n : int, queen : int ) : div solutions
 {
   if (queen == 0) 
    then [[]]
-   else extend(n,[], findSolutions(n,queen-1))  
+   else extend(n,[], findSolutions(n,queen - 1))  
 }
 
 public function queens( n : int ) : div solutions
@@ -79,7 +79,7 @@ function findSolution( n : int, queen : int ) : <choose,div> solution {
   // this goes wrong due to the return being mistranslated
   if (queen==0) then return []
   
-  val xs = findSolution(n,queen-1)
+  val xs = findSolution(n,queen - 1)
   val i  = pick(n)
   if (safe(i,1,xs)) then Cons(i,xs) else fail() // extend1(n, findSolution(n, queen-1))
   

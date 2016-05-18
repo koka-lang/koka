@@ -16,5 +16,5 @@ function test() {
 }
 
 function main() {
-  state(0){ test() }
+  state(0,test).println
 }

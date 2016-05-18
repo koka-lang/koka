@@ -8,3 +8,8 @@ val hs : forall<e> list<int -> e int> = [id]
 function bar(x:int) : <exn> int {
   head(hs)(x)
 }
+
+
+function main() {
+  bar(42).show.println
+}

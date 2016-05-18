@@ -1,0 +1,3 @@
+[1,3]
+main : () -> console ()
+mapIndexedPeekX: forall<a,b,e> (xs : list<a>, f : (idx : int, value : a, rest : list<a>) -> e b) -> e list<b>

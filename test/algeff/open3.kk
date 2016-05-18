@@ -12,5 +12,9 @@ function myid(x) {
 }
 
 function test() {
-  mymap(id,[1])
+  mymap(id,[42])
+}
+
+function main() {
+  test().head.show.println
 }

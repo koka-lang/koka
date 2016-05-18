@@ -1,0 +1,54 @@
+1
+ticks: 2
+1
+((10/2)/3)
+(10/2)
+10
+2
+3
+ticks: 2
+1
+.Eff-exc : forall<a> (.ops-exc<a>) -> operation<a>
+.Eff-out : forall<a> (.ops-out<a>) -> operation<a>
+.Eff-tick : forall<a> (.ops-tick<a>) -> operation<a>
+.Op-line : forall<a> (expr) -> .ops-out<a>
+.Op-raise : forall<a,b> (string) -> .ops-exc<a>
+.Op-xtick : forall<a> .ops-tick<a>
+.copy : forall<a> (.ops-tick<a>) -> .ops-tick<a>
+.copy : forall<a> (.ops-out<a>, expr) -> .ops-out<a>
+.copy : forall<a,b> (.ops-exc<a>, string) -> .ops-exc<a>
+>>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
+Div : (e1 : expr, e2 : expr) -> expr
+Int : (i : int) -> expr
+e1 : (expr : expr) -> exn expr
+e2 : (expr : expr) -> exn expr
+eval : (e : expr) -> stexn<int>
+eval0 : (e : expr) -> int
+eval1 : (e : expr) -> exc int
+eval2 : (e : expr) -> <exc,tick> int
+eval3 : (e : expr) -> <exc,out,tick> int
+expr1 : expr
+expr2 : expr
+exprX : expr
+fail : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
+hexc : forall<a,e> (action : () -> <exc|e> a) -> e either<string,a>
+hout : forall<a,e> (action : () -> <out,console|e> a) -> <console|e> a
+htick : forall<a,e> (i : int, action : () -> <tick|e> a) -> e (a, int)
+i : (expr : expr) -> exn int
+isDiv : (expr : expr) -> bool
+isInt : (expr : expr) -> bool
+line : (e : expr) -> out ()
+main : () -> console ()
+raise : forall<a> (s : string) -> exc a
+run : forall<a,b,e> (s : a, m : (a) -> e b) -> e b
+show : (r : either<string,(int, int)>) -> total string
+show : (e : expr) -> total string
+show1 : (x : either<string,int>) -> string
+show2 : (x : (either<string,int>, int)) -> string
+showErr : forall<a> (s : (a) -> string, x : either<string,a>) -> string
+test1 : (e : expr) -> console ()
+test2 : (e : expr) -> console ()
+test3 : (e : expr) -> console ()
+tick : forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
+unit : forall<a> (x : a) -> stexn<a>
+xtick : () -> tick ()

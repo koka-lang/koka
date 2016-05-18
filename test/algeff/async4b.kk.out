@@ -1,0 +1,2 @@
+main : () -> <exn,console> ()
+test : () -> <exn,asyn,console> ()

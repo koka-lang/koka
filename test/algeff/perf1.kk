@@ -19,7 +19,7 @@ effect state<s> {
 function count() {
   val i = get()
   if (i == 0) then i else {
-    put(i-1)
+    put(i - 1)
     count()
   }
 }
@@ -34,7 +34,7 @@ function testH(i0) {
 
 
 function testD(i) {
-  if (i==0) then i else testD(i-1)
+  if (i==0) then i else testD(i - 1)
 }
 
 function main() {

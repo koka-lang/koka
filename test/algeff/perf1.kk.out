@@ -1,0 +1,10 @@
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-put : forall<a,b> (a) -> .ops-state<a,b>
+count : () -> <state<int>,div> int
+get : forall<a> () -> (state<a>) a
+main : () -> <div,console,ndet> string
+put : forall<a> (i : a) -> (state<a>) ()
+testD : (int) -> div int
+testH : (i0 : int) -> div int
+timer : forall<a,e> (f : () -> <console,ndet|e> a) -> <console,ndet|e> a

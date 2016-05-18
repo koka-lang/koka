@@ -1,0 +1,7 @@
+.Eff-amb : forall<a> (.ops-amb<a>) -> operation<a>
+.Op-flip : forall<a> .ops-amb<a>
+.copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
+amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
+flip : () -> amb bool
+main : () -> console ()
+test : () -> <amb,asyn,console> ()

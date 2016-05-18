@@ -263,9 +263,9 @@ function main() {
   ,testCheck().show
   ,testPc2().show
   ,testChoose().show
-  ,testCoin().show
-  ,testPrint1().show
-  ,testPrint2().show
+  //,testCoin().show
+  //,testPrint1().show
+  //,testPrint2().show
   ,""
   ].join("\n-----------\n").print
   testPc1().show.println // raises exception

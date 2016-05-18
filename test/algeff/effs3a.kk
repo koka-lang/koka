@@ -25,5 +25,5 @@ function test() {
 
 
 function main() {
-  state{ test() }
+  state(test).println
 }

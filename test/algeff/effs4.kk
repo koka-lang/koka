@@ -12,9 +12,10 @@ val state = handler {
 }
 
 function test() {
+  set(2)
   if (get() > 0) then "positive" else "negative or zero"
 }
 
 function main() {
-  uncps{ state(test)(0) }
+  uncps{ state(test)(0).println }
 }

@@ -1,4 +1,11 @@
-import effs3
+effect amb {
+  flip() : bool
+}
+
+effect state<s> {
+  get()    :  s;
+  set(x:s) : ()
+}
 
 function xor() : amb bool {
   val p = flip() 
@@ -33,9 +40,9 @@ function state_handle(i,action) {
   val h = handler(i) {
     return x -> x
     get()    -> resume(i,i)
-    set(j)   -> resume((),j)
+    set(j)   -> resume(j,())
   }
-  h(action,i)
+  h(i,action)
 }
 
 function test1()  {
@@ -49,4 +56,8 @@ function test2()  {
 
 function test3()  {
   amb_handle({state_handle(0,foos)}).join(",")
+}
+
+function main() {
+  [test1(),test2(),test3()].join("\n").println
 }

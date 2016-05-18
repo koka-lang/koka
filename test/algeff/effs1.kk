@@ -18,6 +18,7 @@ function amb_handle(action) {
   })(action)
 }
 
-function test() {
-  amb_handle(xor)
+function main() {
+  amb_handle(xor).showList(show).println
 }
+

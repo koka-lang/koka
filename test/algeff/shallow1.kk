@@ -47,5 +47,5 @@ val unsend = handler {
 }
 
 function main() {
-  unsend{ unawait{ down( producer, consumer ) } } 
+  (unsend{ unawait{ down( producer, consumer ) } }).show.println
 }

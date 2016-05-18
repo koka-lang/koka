@@ -1,4 +1,6 @@
-import effs3
+effect amb {
+  flip() : bool
+}
 
 function mmap( f, xs ) {
   match(xs) {
@@ -38,3 +40,6 @@ function amb_handle() {
   }
 }
 
+function main() {
+  amb_handle()(xors).join(",").println
+}
