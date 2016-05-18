@@ -1,7 +1,6 @@
 // test lifting of cps functions
-function myid() : ((x:a) -> e a) {
-  return fun(x){ x }
-}
+// here the 'id' must first be lifted, but then is used 
+// as non-cps
 
 val hs : forall<e> list<int -> e int> = [id]
 

@@ -113,8 +113,9 @@ cpsExpr' topLevel expr
                                      do pname <- if (name==nameNil) then uniqueName "x" else return name
                                         return (TName pname partp)) partps
                        let args = [Var tname InfoNone | tname <- pars]
-                           lam  = Lam pars effTo (App f args)
-                       cpsExpr' True lam -- pretend toplevel so it does not get lifted by cpsExprAsDef
+                           -- lam  = Lam pars effTo (App f args)
+                       -- cpsExpr' True lam -- pretend toplevel so it does not get lifted by cpsExprAsDef
+                       cpsLambda False pars effTo (App f args) -- todo: we need to pass True here
 
       -- leave 'return' in place
       App ret@(Var v _) [arg] | getName v == nameReturn
@@ -147,23 +148,7 @@ cpsExpr' topLevel expr
                        args' <- mapM cpsTName args                      
                        return $ \k -> k (Lam args' eff (body' id))
                else -- cps converted lambda: add continuation parameter
-                    do resTp <- freshTVar kindStar Meta
-                       -- let resTp = typeAny
-                       let bodyTp = typeOf body
-                           nameK  = tnameK bodyTp eff resTp
-                           exprK  = varK bodyTp eff resTp
-                           appK x = App exprK [x]
-                                    {-
-                                    if (cpsk==AlwaysCps) 
-                                     then App exprK [x]
-                                     else varApplyK exprK x
-                                    -}
-                       withCurrentK (Just exprK) $
-                         do body' <- cpsExpr body
-                            args' <- mapM cpsTName args                
-                            return $ \k -> 
-                              k (Lam (args' ++ [nameK]) eff 
-                                (body' (\xx -> appK xx)))
+                    cpsLambda False args eff body
 
       App f args
         -> do f' <- cpsExpr f
@@ -230,6 +215,28 @@ cpsExpr' topLevel expr
                    
       _ -> return (\k -> k expr) -- leave unchanged
 
+
+cpsLambda ensure pars eff body 
+  = do resTp <- freshTVar kindStar Meta
+       unameK <- uniqueName "k"
+       -- let resTp = typeAny
+       let bodyTp = typeOf body
+           nameK  = tnameK bodyTp eff resTp
+           pnameK = if (ensure) then TName unameK (typeOf nameK) else nameK
+           exprK  = varK bodyTp eff resTp
+           appK x = App exprK [x]
+                    {-
+                    if (cpsk==AlwaysCps) 
+                     then App exprK [x]
+                     else varApplyK exprK x
+                    -}
+       withCurrentK (Just exprK) $
+         do body' <- cpsExpr body
+            pars' <- mapM cpsTName pars 
+            return $ \k -> 
+              k (Lam (pars' ++ [pnameK]) eff 
+                  ((if ensure then ensureK nameK pnameK else id)
+                   (body' (\xx -> appK xx))))
 
 cpsExprAsDef :: [TypeVar] -> [TName] -> Effect -> Expr -> Cps (Trans Expr)
 cpsExprAsDef tpars pars eff body
