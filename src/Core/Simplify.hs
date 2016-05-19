@@ -109,14 +109,7 @@ topDown (Let dgs body)
           _ -> Nothing
 
     cheap expr
-      = case expr of
-          Var{} -> True
-          Con{} -> True
-          Lit{} -> True
-          TypeLam _ e -> cheap e
-          TypeApp e _ -> cheap e
-          _ -> False
-              
+      = isSmallX 1 expr
 
     isSmall expr
       = isSmallX 3 expr -- at most 3 applications deep
@@ -130,6 +123,8 @@ topDown (Let dgs body)
           TypeLam _ e -> isSmallX n e
           TypeApp e _ -> isSmallX n e
           App (Var v _) _ | getName v == nameReturn -> False  -- and ensureK?
+          -- next one enables inlining of resume; improve performance on 'test/algeff/perf2'
+          App (TypeApp (Var v _) [_]) [e] | getName v == nameToAny -> cheap e
           App f args  -> all (isSmallX (n-1)) (f:args)
           _ -> False
 

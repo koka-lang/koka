@@ -50,7 +50,7 @@ effect state<s> {
 val state = handler(i) {
   return x -> (i,x)
   get()    -> resume(i,i)
-  put(j)   -> resume(j,()) 
+  put(j)   -> resume(j,())
 }
 
 function incr(i = 1) : state<int> () {

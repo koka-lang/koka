@@ -98,9 +98,9 @@ cpsExpr' topLevel expr
       --  lift _open_ applications
       App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
         | getName open == nameEffectOpen         
-        -> do isCpsFrom <- needsCpsType effFrom
-              isCpsTo   <- needsCpsType effTo
-              if (isCpsFrom || not (isCpsTo))
+        -> do cpskFrom <- getCpsType effFrom
+              cpskTo   <- getCpsType effTo
+              if (cpskFrom /= NoCps || cpskTo == NoCps)
                -- simplify open away if already in cps form, or not in cps at all
                then do -- cpsTraceDoc $ \env -> text "open: ignore: " <+> tupled (niceTypes env [effFrom,effTo])
                        -- cpsExpr f                       
@@ -112,10 +112,11 @@ cpsExpr' topLevel expr
                        pars <- mapM (\(name,partp) ->
                                      do pname <- if (name==nameNil) then uniqueName "x" else return name
                                         return (TName pname partp)) partps
-                       let args = [Var tname InfoNone | tname <- pars]
-                           -- lam  = Lam pars effTo (App f args)
-                       -- cpsExpr' True lam -- pretend toplevel so it does not get lifted by cpsExprAsDef
-                       cpsLambda False pars effTo (App f args) -- todo: we need to pass True here
+                       let args = [Var tname InfoNone | tname <- pars]                       
+                       -- The first argument should be 'True' if we need to ensure _k is defined;
+                       -- see algeff/open1a for a good example. If the to effect is guaranteed to be 
+                       -- in cps, we can leave out the check (which enables the simplifier to do a better job)
+                       cpsLambda (cpskTo/=AlwaysCps) pars effTo (App f args) 
 
       -- leave 'return' in place
       App ret@(Var v _) [arg] | getName v == nameReturn
@@ -231,6 +232,7 @@ cpsLambda ensure pars eff body
                      else varApplyK exprK x
                     -}
        withCurrentK (Just exprK) $
+        withCpsTVars (freeEffectTVars eff) $ -- todo: is this correct?
          do body' <- cpsExpr body
             pars' <- mapM cpsTName pars 
             return $ \k -> 
@@ -292,11 +294,10 @@ cpsLetDef recursive def
 cpsLetDefDup :: CpsTypeKind -> Bool -> Def -> Cps (TransX ([Def],[Def],[Def]) Expr)
 cpsLetDefDup cpsk recursive def
   = do let teffs = let (tvars,_,rho) = splitPredType (defType def)
-                   in filter (isKindEffect . getKind) 
-                      -- todo: we use all free effect type variables; that seems too much. 
+                   in -- todo: we use all free effect type variables; that seems too much. 
                       -- we should use the ones that caused this to be cps-translated and
                       -- return those as part of CpsPoly or CpsAlways
-                      (tvsList (ftv rho))
+                      freeEffectTVars rho
 
        -- cpsTraceDoc (\env -> text "cps translation") 
        exprCps'    <- withCpsTVars teffs $ cpsExpr' True (defExpr def)
@@ -574,6 +575,10 @@ getCpsTVar tp
                 else PolyCps
       _  -> return NoCps
 
+
+freeEffectTVars :: Type -> [TypeVar]
+freeEffectTVars tp
+  = filter (isKindEffect . getKind) (tvsList (ftv tp))
 
 {--------------------------------------------------------------------------
   Cps monad

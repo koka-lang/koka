@@ -8,16 +8,9 @@ type expr {
   Div( e1 : expr, e2: expr )
 }
 
-function show( e : expr ) : total string {
-  match(e) {
-    Int(i) -> core/show(i)
-    Div(e1,e2) -> "(" + e1.show + "/" + e2.show + ")"
-  }
-}
-
 val expr1 = Int(1)
-val expr2 = Div(Div(Int(10),Int(2)),Int(3))
-val exprX = Div(Div(Int(10),Int(2)),Int(0))
+val expr2 = Div(Div(Int(16),Int(2)),Int(3))
+val exprX = Div(Div(Int(16),Int(2)),Int(0))
 
 function eval0( e : expr ) : int {
   match(e) {
@@ -30,6 +23,12 @@ function eval0( e : expr ) : int {
   }
 }
 
+function show( e : expr ) : total string {
+  match(e) {
+    Int(i) -> core/show(i)
+    Div(e1,e2) -> "(" + e1.show + "/" + e2.show + ")"
+  }
+}
 
 // --------------------------------------------------------
 // Monadic
@@ -40,13 +39,6 @@ alias stexn<a> = int -> either<string,(a,int)>
 
 function run(s,m) {
   m(s)
-}
-
-function show( r : either<string,(int,int)> ) : total string {
-  match(r) {
-    Right((x,s)) -> x.core/show + " (state=" + s.core/show + ")"
-    Left(str)    -> "error: " + str
-  }
 }
 
 function unit(x : a) : stexn<a> {
@@ -62,11 +54,11 @@ function (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
   }
 }
 
-function tick() {
+function mtick() {
   return fun(s) { Right(((),s+1))}
 }
 
-function fail(err) {
+function mfail(err) {
   return fun(s) { Left(err) }
 }
 
@@ -74,29 +66,53 @@ function eval( e : expr ) : stexn<int> {
   match(e) {
     Int(i)   -> unit(i)
     Div(x,y) ->
-      tick() >>= (fun(_){
+      mtick() >>= (fun(_){
         eval(x) >>= (fun(i) {
           eval(y) >>= (fun(j) {
-            (if (j==0) then fail("division by zero") else unit(())) >>= (fun(_){
+            (if (j==0) then mfail("division by zero") else unit(())) >>= (fun(_){
                unit( i / j )
       })})})}) 
   }
 }
+
+function show( r : either<string,(int,int)> ) : total string {
+  match(r) {
+    Right((x,s)) -> x.core/show + " (state=" + s.core/show + ")"
+    Left(str)    -> "error: " + str
+  }
+}
+
+
 
 // --------------------------------------------------------
 // Exceptions
 // --------------------------------------------------------
 
 effect exc {
-  raise<b>(s : string) : b
+  fail(s : string) : a
 }
 
-alias eval0 = <exc>
-
-val hexc = handler {
+val exc = handler {
   return x -> Right(x)
-  raise(s) -> Left(s)
+  fail(s)  -> Left(s)
 }
+
+function eval1( e : expr ) : exc int {
+  match(e) {
+    Int(i) -> i
+    Div(e1,e2) -> {
+      val x = eval1(e1)
+      val y = eval1(e2)
+      if (y==0) then fail("divide by zero") else x / y
+    }
+  }
+}
+
+function test1(e) {
+  val r = exc{ eval1(e) }
+  println(show1(r))
+}
+
 
 function showErr( s : a -> string, x : either<string,a> ) : string {
   match(x) {
@@ -109,54 +125,38 @@ function show1( x : either<string,int> ) {
   showErr(show,x)
 }
 
-function eval1( e : expr ) : eval0 int {
-  match(e) {
-    Int(i) -> i
-    Div(e1,e2) -> {
-      val x = eval1(e1)
-      val y = eval1(e2)
-      if (y==0) then raise("divide by zero") else x / y
-    }
-  }
-}
-
-function test1(e) {
-  val r = hexc{ eval1(e) }
-  println(show1(r))
-}
 // --------------------------------------------------------
 // State
 // --------------------------------------------------------
 
-effect tick {
-  xtick() : ()
+effect state {
+  tick() : ()
 }
 
-alias eval2 = <tick,exc>
-
-val htick = handler(i) {
+val state = handler(i) {
   return x -> (x,i)
-  xtick()   -> resume(i+1,())
+  tick()   -> resume(i+1,())
 }
 
-function show2( x : (either<string,int>,int) ) : string {
-  "ticks: " + x.snd.show + "\n" + show1(x.fst)
-}
-
-function eval2( e : expr ) : eval2 int {
+function eval2( e : expr ) : <state,exc> int {
   match(e) {
     Int(i) -> i
     Div(e1,e2) -> {
       val x = eval2(e1)
       val y = eval2(e2)
-      xtick()
-      if (y==0) then raise("divide by zero") else x / y
+      tick()
+      if (y==0) then fail("divide by zero") else x / y
     }
   }
 }
 
 function test2(e) {
-  htick(0,{ hexc{ eval2(e) }}).show2.println
+  val res = state(0){ exc{ eval2(e) }}
+  res.show2.println
+}
+
+function show2( x : (either<string,int>,int) ) : string {
+  "ticks: " + x.snd.show + "\n" + show1(x.fst)
 }
 
 
@@ -168,9 +168,7 @@ effect out {
   line(e:expr) : ()
 }
 
-alias eval3 = <out,tick,exc>
-
-val hout = handler {
+val out = handler {
   return x -> x
   line(e)  -> {
     println(e.show)
@@ -178,21 +176,22 @@ val hout = handler {
   }
 }
 
-function eval3( e : expr ) : eval3 int {
+function eval3( e : expr ) : <out,state,exc> int {
   line(e)
   match(e) {
     Int(i) -> i
     Div(e1,e2) -> {
       val x = eval3(e1)
       val y = eval3(e2)
-      xtick()
-      if (y==0) then raise("divide by zero") else x / y
+      tick()
+      if (y==0) then fail("divide by zero") else x / y
     }
   }
 }
 
 function test3(e) {
-  htick(0,{ hout{ hexc{ eval3(e) }}}) .show2.println
+  val res = state(0){ out{ exc{ eval3(e) }}}
+  res.show2.println
 }
 
 function main() {
