@@ -14,6 +14,8 @@
 %x litstring
 
 %{
+#define CHECK_BALANCED  // check balanced parenthesis
+
 #define INDENT_LAYOUT   // use full layout rule based on nested indentation
 #undef LINE_LAYOUT    // use simple layout based on line ending token
 
@@ -354,6 +356,7 @@ char* showString( const char* s, yyscan_t scanner );
 ---------------------------------------------------------*/
 #define errorMax  25
 #define layoutMax 255   /* Limit maximal layout stack to 255 for simplicity */
+#define braceMax  255   /* maximal nesting depth of parenthesis */
 #define Token     int
 
 typedef struct _ExtraState {
@@ -372,6 +375,13 @@ typedef struct _ExtraState {
   
   /* location of the last seen comment -- used to prevent comments in indentation */
   YYLTYPE     commentLoc;              
+#endif
+
+#ifdef CHECK_BALANCED
+  /* balanced braces */
+  int         braceTop;
+  Token       braces[braceMax];
+  YYLTYPE     bracesLoc[braceMax];
 #endif
 
   /* the previous non-white token and its location */
@@ -409,14 +419,18 @@ void printToken( int token, int state, yyscan_t scanner );  /* print a token for
    For semi-colon insertion, we look at the tokens that
    end statements, and ones that continue a statement
 ----------------------------------------------------*/
-static bool contains( Token tokens[], Token token )
+static int find( Token tokens[], Token token )
 {
   int i = 0;
   while (tokens[i] != 0) {
-    if (tokens[i] == token) return true;
+    if (tokens[i] == token) return i;
     i++;
   }
-  return false;
+  return -1;
+}
+
+static bool contains( Token tokens[], Token token ) {
+  return (find(tokens,token) >= 0);
 }
 
 static Token appTokens[] = { ')', ']', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
@@ -447,6 +461,21 @@ static bool isAppToken( Token token ) {
   }
 #endif
 
+#ifdef CHECK_BALANCED
+  static Token closeTokens[] = { ')', '}', ']', ')', ']', 0 };
+  static Token openTokens[]  = { '(', '{', '[', APP, IDX, 0 };
+
+  Token isCloseBrace( Token token ) {
+    int i = find(closeTokens,token);
+    return (i >= 0 ? openTokens[i] : -1);
+  }
+
+  Token isOpenBrace( Token token ) {
+    int i = find(openTokens,token);
+    return (i >= 0 ? closeTokens[i] : -1);
+  }
+#endif
+
 /*----------------------------------------------------
    Main lexical analysis routine 'mylex'
 ----------------------------------------------------*/
@@ -468,7 +497,8 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   else {
     token = yylex( lval, loc, scanner ); 
     *loc = updateLoc( scanner );
-
+    
+    // this is to avoid needing semicolons
     if (token=='(' && isAppToken(yyextra->previous)) token = APP;
     if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
 
@@ -484,6 +514,48 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner ); 
       *loc = updateLoc(scanner);
     }
+
+#ifdef CHECK_BALANCED
+    // check balanced braces
+    Token closeBrace = isOpenBrace(token);
+    //fprintf(stderr,"scan: %d, %d, (%d,%d)\n", token, closeBrace, loc->first_line, loc->first_column);
+    if (closeBrace>=0) {
+      if (yyextra->braceTop >= (braceMax-1)) {
+        yyerror(loc,scanner, "nesting level of parenthesis is too deep");        
+      }
+      else {
+        // push the close brace
+        yyextra->braceTop++;
+        yyextra->braces[yyextra->braceTop] = closeBrace;
+        yyextra->bracesLoc[yyextra->braceTop] = *loc;
+      }
+    }
+    else if (isCloseBrace(token) >= 0) {
+      // check if the close brace matches the context
+      if (yyextra->braceTop < 0) {
+        yyerror(loc, scanner, "unbalanced parenthesis: '%c' is not opened", token);
+      }
+      else if (yyextra->braces[yyextra->braceTop] != token) {
+        YYLTYPE openLoc = yyextra->bracesLoc[yyextra->braceTop];
+        // try to pop to nearest open brace; otherwise don't pop at all
+        int top = yyextra->braceTop-1;
+        while( top >= 0 && yyextra->braces[top] != token) top--;
+        if (top >= 0) {
+          // there is a matching open brace on the stack
+          yyerror(&openLoc, scanner, "unbalanced parenthesis: '%c' is not closed", isCloseBrace(yyextra->braces[yyextra->braceTop]) );
+          yyextra->braceTop = top-1; // pop to matching one          
+        }
+        else {
+          // no matching brace
+          yyerror(loc, scanner, "unbalanced parenthesis: '%c' is not opened", token ); //, yyextra->braces[yyextra->braceTop],openLoc.first_line,openLoc.first_column);
+        }       
+      }
+      else {
+        // pop
+        yyextra->braceTop--;
+      }
+    }
+#endif
 
     // Do layout ?
     if (!yyextra->noLayout) 
@@ -605,7 +677,11 @@ void initScanState( ExtraState* st )
   st->layout[0] = 0;  
   initLoc(&st->commentLoc, 0);
 #endif  
-  
+
+#ifdef CHECK_BALANCED
+  st->braceTop = -1;
+#endif
+
   st->column = 1;
   st->line = 1;
   
