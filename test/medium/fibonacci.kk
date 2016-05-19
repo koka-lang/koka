@@ -11,6 +11,6 @@ public function fibonacci(n : int) : div int {
 function fibonacci_(n : int, x1 : int, x2 : int) : div int 
 {
   if (n<=0) return x1
-  fibonacci_(n-1, x2, x1+x2)
+  fibonacci_(n - 1, x2, x1+x2)
 }
 

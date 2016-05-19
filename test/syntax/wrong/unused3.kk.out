@@ -1,0 +1,2 @@
+test/syntax/wrong/unused3.kk(3, 3): error: expression has no effect and is unused
+ hint: did you forget an operator? or is there a space between an application?

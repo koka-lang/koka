@@ -435,12 +435,23 @@ inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
 
            if (not (isWildcard name)) 
             then addRangeInfo nameRng (RM.Id name (RM.NIValue (Core.defType coreDef)) True)
-            else return ()
+            else if (isTypeUnit (Core.typeOf coreDef))
+             then return ()
+             else do seff <- subst eff
+                     -- traceDoc $ \env -> text "wildcard definition:" <+> pretty name <> colon <+> niceType env seff
+                     let (ls,tl) = extractEffectExtend seff
+                     case (ls,tl) of
+                       ([],tl) | isTypeTotal tl -> unusedError rng
+                       ([],TVar tv) 
+                         -> do occ <- occursInContext tv (ftv tp)
+                               if (not occ) then unusedError rng else return ()
+                       _ -> return ()
            return (eff,coreDef)
        
 
-checkValue = Check "Values cannot have an effect"
-
+checkValue      = Check "Values cannot have an effect"
+unusedError rng = infError rng (text "expression has no effect and is unused" <--> 
+                                text " hint: did you forget an operator? or is there a space between an application?")
 {--------------------------------------------------------------------------
   Expression
 --------------------------------------------------------------------------}

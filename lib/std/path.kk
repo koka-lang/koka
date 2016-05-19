@@ -38,7 +38,7 @@ function noext( path : string ) : string {
 // Note: unlike NodeJS the resulting path is not yet normalized
 function combine( path1 : string, path2 : string ) : string {
   val p2 = if (path2.startsWith(sep)) then path2.substr(1) else path2
-  val p1 = if (path1.endsWith(sep)) then path1.substr(0,path1.length-1) else path1
+  val p1 = if (path1.endsWith(sep)) then path1.substr(0,path1.length - 1) else path1
   if (p1=="") then p2 else p1 + sep + p2
 }
 

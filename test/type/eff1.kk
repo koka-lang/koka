@@ -3,5 +3,5 @@ function omega(): div () {
 }
 
 function main() {
-  choose (error("hi"),omega())
+  choose(error("hi"),omega())
 }

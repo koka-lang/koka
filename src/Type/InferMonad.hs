@@ -40,6 +40,7 @@ module Type.InferMonad( Inf, InfGamma
                       , withLhs, isLhs
                       , getPrettyEnv
                       , splitEffect
+                      , occursInContext
 
                       -- * Operations
                       , generalize
@@ -617,6 +618,11 @@ doUnify u
           -> do extendSub sub
                 return (Left err)
 
+occursInContext :: TypeVar -> Tvs -> Inf Bool
+occursInContext tv extraFree
+  = do free <- freeInGamma
+       let allFree = tvsUnion free extraFree
+       return (tvsMember tv allFree)
 
 {--------------------------------------------------------------------------
   Unification errors

@@ -269,7 +269,6 @@ postpend :: String -> Name -> Name
 postpend s name
   = newQualified (nameModule name) (nameId name ++ s)
 
-
 ----------------------------------------------------------------
 -- camel-case to dash-case
 ----------------------------------------------------------------
