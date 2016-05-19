@@ -1,6 +1,9 @@
-/* Copyright 2012 Microsoft Corporation, Daan Leijen
+/* Copyright 2012-2016 Microsoft Corporation, Daan Leijen
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
+*/
+/* Requires at least Flex 2.5.37; you can get a version for windows from 
+   https://sourceforge.net/projects/winflexbison
 */
 %option 8bit noyywrap bison-bridge bison-locations reentrant 
 
@@ -70,7 +73,7 @@ Angle           [\<\>]
 
 ConId           {Upper}{IdChar}*
 Id              {Lower}{IdChar}*
-IdChar          {Letter}|{Digit}|[_]
+IdChar          {Letter}|{Digit}|[_\-]
 
 HexEsc          x{Hex}{Hex}|u{Hex}{Hex}{Hex}{Hex}|U{Hex}{Hex}{Hex}{Hex}{Hex}{Hex}  
 CharEsc         [nrt\\\"\']                         
@@ -717,8 +720,27 @@ char* stringDup( const char* s, yyscan_t scanner )
 /*----------------------------------------------------
    identifier allocation
 ----------------------------------------------------*/
+
+bool isLetter(char c) {
+  return ((c>='a' && c <= 'z') || (c>='A' && c<='Z'));
+}
+
+bool wellformed( const char* s ) {
+  char prev = ' ';
+  char next = ' ';
+  const char* c;
+  for(c = s; *c != 0; c++) {
+    next = *(c+1);
+    if (*c=='-' && (!isLetter(prev) || !isLetter(next))) return false;
+    prev = *c;
+  }
+  return true;
+}
+
 char* identifier( const char* s, yyscan_t scanner )
 {
+  EnableMacros(scanner);
+  if (!wellformed(s)) yyerror(yylloc,scanner,"malformed identifier: a dash must be preceded and followed by a letter");
   return stringDup(s,scanner);
 }
 

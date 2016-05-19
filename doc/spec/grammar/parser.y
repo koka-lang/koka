@@ -375,7 +375,7 @@ matchexpr   : MATCH atom '{' semis matchrules '}'
             ;            
 
 funexpr     : FUN quantifiers fundef block
-            | block /* zero-argument function */
+            | block                    /* zero-argument function */
             ;
 
 returnexpr  : RETURN opexpr          
@@ -404,16 +404,19 @@ opexpr      : opexpr qoperator prefixexpr
 
 prefixexpr  : '!' prefixexpr
             | '~' prefixexpr
-            | fappexpr
+            | appexpr
             ;         
 
-fappexpr    : fappexpr funexpr                /* trailing function application */  
+/*
+fappexpr    : fappexpr funexpr               
             | appexpr
             ;               
+*/
 
 appexpr     : appexpr APP arguments ')'       /* application */
             | appexpr IDX arguments ']'       /* index expression */
             | appexpr '.' atom                /* dot application */
+            | appexpr funexpr                 /* trailing function application */  
             | atom
             ; 
 
