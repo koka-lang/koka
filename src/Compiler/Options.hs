@@ -91,7 +91,7 @@ data Flags
          , library          :: Bool
          , targets          :: [Target]
          , host             :: Host
-         , noSimplify       :: Bool
+         , simplify         :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
          , includePath      :: [FilePath]
@@ -132,7 +132,7 @@ flagsNull
           False -- library
           [JS]
           Node
-          False -- noSimplify
+          3     -- simplify passes
           defaultColorScheme
           "."    -- out-dir
           []
@@ -217,7 +217,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hiddenFlag   []    ["simplify"]  (\b f -> f{noSimplify= not b})    "enable core simplification"
+ , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
  , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=b})          "enable cps translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack" 
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
@@ -239,6 +239,17 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   hiddenFlag short long f desc
     = ([],[Option short long (NoArg (Flag (f True))) desc
           ,Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+
+  hiddenNumOption def optarg short long f desc
+    = ([],[Option short long (OptArg (\mbs -> Flag (numOption def f mbs)) optarg) desc
+          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
+
+  numOption def f mbs
+    = case mbs of
+        Nothing -> f def
+        Just s  -> case reads s of 
+                     ((i,""):_) -> f i
+                     _ -> f def  -- parse error
 
   config short long opts f desc
     = option short long (ReqArg validate valid) desc  

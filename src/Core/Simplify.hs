@@ -28,9 +28,9 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Int -> DefGroups -> (DefGroups,Int)
-simplifyDefs uniq defs
-  = runUnique uniq (simplifyN 5 defs)
+simplifyDefs :: Int -> Int -> DefGroups -> (DefGroups,Int)
+simplifyDefs n uniq defs
+  = runUnique uniq (simplifyN n defs)
 
 simplifyN :: Int -> DefGroups -> Unique DefGroups
 simplifyN n defs
