@@ -2692,6 +2692,14 @@ external inline ".applyK"(k : a -> e b, x : a) : e b {
   inline "(#1 || $std_core.id)(#2)"
 }
 
+external ".htop"() : any {
+  inline "$htop"
+}
+
+external ".hstack"() : any {
+  inline "$hstack"
+}
+
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b,  
                           ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
