@@ -511,7 +511,7 @@ genExpr expr
 
 genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
- = let (m,n) = getConArities (typeOf tname) in
+ = let (m,n) = getTypeArities (typeOf tname) in
    if (n > length args)
     then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
@@ -632,7 +632,7 @@ extractResultType tp
 
 genCon :: TName -> ConRepr -> [Type] -> [Expr] -> Asm ()
 genCon tname repr targs args
- = let (m,n) = getConArities (typeOf tname)
+ = let (m,n) = getTypeArities (typeOf tname)
    in if (n > length args)
        then assertion "CSharp.FromCore.genCon: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Con tname repr) targs) args n

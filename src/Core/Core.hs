@@ -312,7 +312,7 @@ defTName def
 data VarInfo
   = InfoNone
   | InfoArity Int Int -- #Type parameters, #parameters
-  | InfoExternal [(Target,String)]
+  | InfoExternal [(Target,String)]  -- inline body
   deriving Show
 
 data Branch = Branch { branchPatterns :: [Pattern]

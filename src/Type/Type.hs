@@ -57,7 +57,7 @@ module Type.Type (-- * Types
                   , IsType( toType) 
                   -- ** Primitive
                   , isFun, splitFunType
-                  , getConArities
+                  , getTypeArities
                   , module Common.Name                
                   ) where
 
@@ -370,8 +370,8 @@ applyType tp1 tp2
           _           -> False
 
 
-getConArities :: Type -> (Int,Int)
-getConArities tp
+getTypeArities :: Type -> (Int,Int)
+getTypeArities tp
   = let (tvars, preds, rho) = splitPredType tp
     in case splitFunType rho of
          Just (pars,eff,res) -> (length tvars, length pars)
