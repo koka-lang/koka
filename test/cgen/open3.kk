@@ -1,8 +1,8 @@
-open type test {
+type open test {
   X
 }
 
-extend type test {
+type extend test {
   Y
 }
 
@@ -11,3 +11,7 @@ function test(x) {
     Y -> println("its a Y")
   }
 }      
+
+function main() {
+  test(Y).print
+}

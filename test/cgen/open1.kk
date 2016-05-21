@@ -18,5 +18,5 @@ function foo(t) {
 }
 
 function main() {
-  foo(C(2))
+  foo(C(2)).print
 }

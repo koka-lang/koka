@@ -1,0 +1,6 @@
+.copy : (test, x : ?int, y : ?int) -> test
+.create-Test: (x : int, y : ?int) -> test
+Test : (x : int, y : int) -> test
+foo : () -> test
+x : (test : test) -> int
+y : (test : test) -> int

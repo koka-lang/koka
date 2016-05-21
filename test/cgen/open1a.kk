@@ -5,7 +5,7 @@ import open0
 val theY = open0/Y
 val theX = open0/X
 
-extend type test {
+type extend test {
   X
 }
 
@@ -15,3 +15,8 @@ function test( x : test ) {
     open1a/X -> "the new X"
   }
 } 
+
+function main() {
+  open1a/test(theX).print
+  open1a/test(open1a/X).print
+}

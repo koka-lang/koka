@@ -1,10 +1,10 @@
 // see: https://wiki.haskell.org/Extensible_datatypes
 
-open type tpA;
+type open tpA;
 
 alias tpB = int;
 
-extend type tpA {
+type extend tpA {
   B( b : tpB )
 }
 
@@ -17,4 +17,8 @@ function down(a : tpA) : maybe<tpB> {
     B(b) -> Just(b)
     _    -> Nothing
   }
+}
+
+function main() {
+  up(42).down.maybe(0,id).print
 }
