@@ -89,7 +89,7 @@ patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool tag
         conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] False ""
-        pat = PatCon tname [] conEnum [] conInfo
+        pat = PatCon tname [] conEnum [] typeBool conInfo
         expr = Con tname conEnum
     in (pat,expr)
 
@@ -183,7 +183,9 @@ typeDefIsExtension _                 = False
 {--------------------------------------------------------------------------
   Data representation
 --------------------------------------------------------------------------}
-data DataRepr = DataEnum | DataSingleStruct | DataSingle | DataAsList | DataSingleNormal | DataStruct | DataNormal 
+data DataRepr = DataEnum | DataSingleStruct | DataSingle 
+              | DataAsList | DataSingleNormal | DataStruct 
+              | DataNormal | DataOpen 
               deriving (Eq,Ord,Show)
 
 data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                     -- part of enumeration (none has fields)
@@ -209,7 +211,7 @@ getDataRepr maxStructFields info
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         (dataRepr,conReprFuns) = 
          if (dataInfoIsOpen(info))
-          then (DataNormal, map (\conInfo conTag -> ConOpen typeName) conInfos)
+          then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
          else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
@@ -328,7 +330,7 @@ data Guard  = Guard { guardTest :: Expr
                     }
 
 data Pattern
-  = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patConInfo :: ConInfo }
+  = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patTypeRes :: Type, patConInfo :: ConInfo }
   | PatVar{ patName :: TName, patPattern :: Pattern }
   | PatWild
 
@@ -452,20 +454,20 @@ instance HasTypeVar Pattern where
   sub `substitute` pat
     = case pat of
         PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
-        PatCon tname args repr tps info -> PatCon (sub `substitute` tname) (sub `substitute` args) repr (sub `substitute` tps) info
+        PatCon tname args repr tps restp info -> PatCon (sub `substitute` tname) (sub `substitute` args) repr (sub `substitute` tps) (sub `substitute` restp) info
         PatWild           -> PatWild
 
  
   ftv pat
     = case pat of
         PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
-        PatCon tname args _ targs _ -> tvsUnions [ftv tname,ftv args,ftv targs]
+        PatCon tname args _ targs tres _ -> tvsUnions [ftv tname,ftv args,ftv targs,ftv tres]
         PatWild             -> tvsEmpty
 
   btv pat
     = case pat of
         PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
-        PatCon tname args _ targs _  -> tvsUnions [btv tname,btv args,btv targs]
+        PatCon tname args _ targs tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres]
         PatWild                 -> tvsEmpty
 
 
@@ -533,7 +535,7 @@ instance HasExpVar DefGroup where
   fv defGroup
    = case defGroup of
       DefRec defs   -> fv defs `S.difference` bv defs
-      DefNonRec def -> fv def
+      DefNonRec def -> fv def 
 
   bv defGroup
    = case defGroup of
@@ -544,16 +546,21 @@ instance HasExpVar Def where
   fv (Def name tp expr vis isVal nameRng doc) = fv expr
   bv (Def name tp expr vis isVal nameRng doc) = S.singleton (TName name tp)
 
+fvDefGroups defGroups expr
+  = case defGroups of
+      [] -> fv expr
+      (dg:dgs) -> fv dg `S.union` (fvDefGroups dgs expr `S.difference` bv dg)
+
 instance HasExpVar Expr where
   -- extract free variables from an expression
   fv (Lam tnames eff expr)= foldr S.delete (fv expr) tnames 
-  fv v@(Var tname info)   = S.singleton tname
+  fv (Var tname info)     = S.singleton tname
   fv (App e1 e2)          = fv e1 `S.union` fv e2
   fv (TypeLam tyvar expr) = fv expr
   fv (TypeApp expr ty)    = fv expr
   fv (Con tname repr)     = S.empty
   fv (Lit i)              = S.empty
-  fv (Let dfgrps expr)    = fv dfgrps `S.union` (fv expr `S.difference` bv dfgrps)
+  fv (Let dfgrps expr)    = fvDefGroups dfgrps expr
   fv (Case exprs bs)      = fv exprs `S.union` fv bs
   
   bv exp                  = failure "Backend.CSharp.FromCore.bv on expr"
@@ -571,7 +578,7 @@ instance HasExpVar Pattern where
     = S.empty
   bv pat
     = case pat of 
-        PatCon tname args _ _  _ -> bv args
+        PatCon tname args _ _ _ _ -> bv args
         PatVar tname pat         -> S.union (S.singleton tname) (bv pat)
         PatWild                  -> S.empty
 

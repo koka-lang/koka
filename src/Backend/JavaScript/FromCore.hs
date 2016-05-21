@@ -489,7 +489,7 @@ genMatch result scrutinees branches
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
-              PatCon tn args _ _ info 
+              PatCon tn args _ _ _ info 
                 -> concatMap (\(pat',fn)-> getSubstitutions 
                                              (nameDoc <> (if (getName tn == nameOptional) then empty else (text "."  <> fn)))
                                              pat'
@@ -515,7 +515,7 @@ genMatch result scrutinees branches
               PatWild ->  []
               PatVar _ pat 
                 -> genTest (scrutinee,pat)
-              PatCon tn fields repr _ info
+              PatCon tn fields repr _ _ info
                 | getName tn == nameTrue
                 -> [scrutinee]
                 | getName tn == nameFalse

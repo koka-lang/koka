@@ -1014,7 +1014,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
          -- build a Core pattern match
          let patCore = Core.PatCon (Core.TName conname gconTp) 
                             [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
-                             conrepr (parTps) coninfo
+                             conrepr (parTps) resTp coninfo
              branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]  
 
          sexprTp <- subst exprTp
@@ -1267,7 +1267,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
           Core.PatVar (Core.TName name tp) pat -> do stp <- subst tp
                                                      xs  <- extractInfGamma pat
                                                      return ((name,stp) : xs)
-          Core.PatCon _ args _ _ _         -> do xss <- mapM extractInfGamma args
+          Core.PatCon _ args _ _ _ _       -> do xss <- mapM extractInfGamma args
                                                  return (concat xss)
           Core.PatWild                     -> return []
 
@@ -1289,7 +1289,7 @@ inferPattern matchType matchRange (PatCon name patterns0 nameRange range)
        (cpatterns,infGamma) <- fmap unzip $ mapM (\(parTp,pat) -> 
                                          do sparTp <- subst parTp
                                             inferPattern sparTp matchRange pat) (zip (map snd conParTps) (patterns))                                   
-       return (Core.PatCon (Core.TName qname conTp) cpatterns repr (map snd conParTps) coninfo, concat infGamma)
+       return (Core.PatCon (Core.TName qname conTp) cpatterns repr (map snd conParTps) conResTp coninfo, concat infGamma)
   where
     splitConTp tp
       = case expandSyn tp of
@@ -1382,6 +1382,7 @@ inferOptionals infgamma (par:pars)
                                                     [Core.PatVar tempName Core.PatWild] 
                                                     (coreReprOpt)
                                                     [tp]
+                                                    coreTpOpt
                                                     conInfoOpt
                                       ] 
                                       [ Core.Guard   Core.exprTrue (Core.Var tempName Core.InfoNone) ]

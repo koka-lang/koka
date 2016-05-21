@@ -29,6 +29,10 @@ public static class Primitive
     throw new ErrorException( "unreachable code reached");
   }
 
+  public static A UnsupportedExternal<A>( string name ) {
+    throw new ErrorException( "external '" + name + "' is not supported on this platform" );
+  }
+
   public static A Catch<A>( Fun0<A> action, Fun1<Exception,A> handler )
   {
     try
@@ -356,6 +360,11 @@ public interface TypeFun5
   object TypeApply<A,B,C,D,E>();
 }
 
+public interface TypeFun6
+{
+  object TypeApply<A,B,C,D,E,F>();
+}
+
 public interface Fun0<in A> 
 {
    object Apply();
@@ -384,4 +393,9 @@ public interface Fun4<in A1,in A2,in A3,in A4,in B>
 public interface Fun5<in A1,in A2,in A3,in A4,in A5, in B> 
 {
   object Apply( A1 x1, A2 x2, A3 x3, A4 x4, A5 x5 );
+}
+
+public interface Fun6<in A1,in A2,in A3,in A4,in A5,in A6, in B> 
+{
+  object Apply( A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6 );
 }

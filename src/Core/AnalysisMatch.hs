@@ -102,12 +102,12 @@ matchPatterns patterns conNames
       = case pattern of
           PatWild         -> True
           PatVar _ pat    -> match (pat,conName)
-          PatCon tname pats _ _ info
+          PatCon tname pats _ _ _ info
             -> (getName tname == conName && all alwaysMatch pats)  -- TODO: properly address nested patterns
 
 alwaysMatch PatWild               = True
 alwaysMatch (PatVar _ pat)        = alwaysMatch pat
-alwaysMatch (PatCon _ _ _ _ info) = conInfoSingleton info
+alwaysMatch (PatCon _ _ _ _ _ info) = conInfoSingleton info
 -- alwaysMatch _                  = False
 
 

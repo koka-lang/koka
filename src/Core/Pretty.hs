@@ -149,7 +149,9 @@ prettyTypeDef env (Data dataInfo vis conViss isExtend)
 prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)   
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
+    -- text "rec" <+> align (
     prettyDefs env defs
+    --)
     
 prettyDefGroup env (DefNonRec def) 
   = prettyDef env def 
@@ -249,7 +251,7 @@ prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
          , prettyExpr env e' 
          ]
 prettyExpr env (Let defGroups expr)
-  = vcat [ hang 2 $ vcat (map (\dg -> prettyDefGroup env dg <> semi) defGroups)
+  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg <> semi) defGroups)
          , prettyExpr env expr
          ]
 
@@ -287,7 +289,7 @@ prettyPatternType env (pat,tp)
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
   = case pat of
-      PatCon tname args repr targs info
+      PatCon tname args repr targs _ info
                         -> -- pparens (prec env) precApp $
                            prettyName env (getName tname) <> tupled (map (prettyPatternType (decPrec env)) (zip args targs))
       PatVar tname PatWild  -> prettyName env (getName tname)

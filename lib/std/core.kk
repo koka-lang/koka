@@ -338,7 +338,7 @@ function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 // The choice type represents one of two possible types ":a" or ":b".
 type either<a,b> {
   con Left( left : a )
-  con Right( left : b )
+  con Right( right : b )
 }
 
 function maybe( e : either<a,b> ) : maybe<b> 
@@ -2373,7 +2373,7 @@ function fill( s : string, width : int, char : char = ' ') : string
 type async<a>
 
 // When an asynchronous value is computed, call the specified "hndler" (at most once).
-external on : forall<a,b,e> ( async : async<a>, hndler : (value : a) -> e b ) -> e async<b> {
+external inline on : forall<a,b,e> ( async : async<a>, hndler : (value : a) -> e b ) -> e async<b> {
   js "async_on"
   cs inline "#1.On<##2>(#2)"
 }
@@ -2689,15 +2689,15 @@ external inline ".toany"( x : a ) : any {
 } 
 
 external inline ".applyK"(k : a -> e b, x : a) : e b {
-  inline "(#1 || $std_core.id)(#2)"
+  js inline "(#1 || $std_core.id)(#2)"
 }
 
 external ".htop"() : any {
-  inline "$htop"
+  js inline "$htop"
 }
 
 external ".hstack"() : any {
-  inline "$hstack"
+  js inline "$hstack"
 }
 
 external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
