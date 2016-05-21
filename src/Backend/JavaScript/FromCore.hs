@@ -424,15 +424,12 @@ genMatch result scrutinees branches
                          (stmts2, expr2) <- genExpr r2
                          return $ text "if" <> parens (head scrutinees) <+> block (stmts1 <-> text "return" <+> expr1 <> semi)
                                                         <-> text "else" <+> block (stmts2 <-> text "return" <+> expr2 <> semi)
-                 Con tn _
-                    | getName tn == nameTuple 0
-                   -> do (stmts, expr) <- genExpr r1
-                         (_,expr2) <- genExpr e2
+                 _ -> do (stmts1,expr1) <- genExpr r1
+                         (stmts2,expr2) <- genExpr e2
                          return $ 
-                           (text "if" <> parens (head scrutinees) <+> block (stmts <-> text "return" <+> expr <> semi))
+                           (text "if" <> parens (head scrutinees) <+> block (stmts1 <-> text "return" <+> expr1 <> semi))
                             <-->
-                           (getResultX result (text "",expr2))
-                 _ -> fail "Backend.JavaScript.genMatch: found something different than () or return in explicit return"
+                           (stmts2 <-> getResultX result (if (isExprUnit e2) then text "" else expr2,expr2))
 
         [Branch [p1] [Guard t1 e1], Branch [p2] [Guard t2 e2]]
            | isExprTrue t1

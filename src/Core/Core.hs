@@ -35,6 +35,7 @@ module Core.Core ( -- Data structures
                    , freshName                   
                    , typeOf
                    , HasExpVar, fv, bv
+                   , isExprUnit
                    , isExprTrue,  exprTrue, patTrue
                    , isExprFalse, exprFalse, patFalse
                    , openEffectExpr
@@ -65,12 +66,15 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTpBool, nameEffectOpen, nameReturn )
+import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
+
+isExprUnit (Con tname _)  = getName tname == nameTuple 0
+isExprUnit _              = False
 
 isExprTrue (Con tname _)  = (getName tname == nameTrue)
 isExprTrue _              = False
