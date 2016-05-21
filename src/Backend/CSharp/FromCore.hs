@@ -14,6 +14,7 @@ module Backend.CSharp.FromCore( csharpFromCore
                               -- , arityMapInit, externalMapInit 
                               ) where
 
+import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -32,6 +33,8 @@ import Common.Name
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
+import Common.Range
+import Common.File(notdir)
 
 import Core.Core  
 import Core.Pretty
@@ -45,11 +48,13 @@ import Type.Pretty(defaultEnv)
 csharpFromCore :: Int -> Maybe (Name,Type) -> Core -> Doc
 csharpFromCore maxStructFields mbMain core
   = let body = runAsm initEnv (genProgram maxStructFields core)
-    in text "#pragma warning disable 164 // unused label" <->  
+    in text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version <->
+       text "#pragma warning disable 164 // unused label" <->  
        text "#pragma warning disable 162 // unreachable code" <->
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
        vcat (concatMap includeExternal (coreProgExternals core)) <->
+       text "// module" <+> pretty (coreProgName core) <->
        text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <> body)  <->
        (case mbMain of
           Just (name,tp)
@@ -131,6 +136,7 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
   = onTopLevel $
     do -- generate the type constructor
        ctx <- getModule
+       putLn $ text "// type" <+> pretty (dataInfoName info)
        case getDataRepr maxStructFields info of
          (DataEnum,_) 
            -> do putLn (ppVis vis <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+> 
@@ -319,7 +325,7 @@ ppFunctionHeaderGen ctx name vars preds tp
       _ -> matchFailure "Backend.CSharp.FromCore.ppFunctionHeaderGen"
   where
     predToParam (p,n)
-      = (newName ("." ++ show n), predType p)
+      = (newHiddenName (show n), predType p)
 
 
 type ModuleName = Name
@@ -370,6 +376,7 @@ genDef isRec (Def name tp expr vis isVal nameRng doc)
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
     do ctx <- getModule
+       putLn empty
        putLineNo nameRng 
        case expr of
          TypeLam tpars (Lam pars eff e)
@@ -746,8 +753,8 @@ genExprBasic expr
                   name <- genName funname
                   let freeTVars = tvsList (ftv expr)
                       freeVars  = {- filter (\(nm,tp) -> nm /= funname) -} (localFv expr)
-                  trace ("lift expr: " ++ show funname ++ ": " ++ show (map fst freeVars) ++ "\n" ++ show (prettyExpr defaultEnv expr)) $
-                   genClass name freeTVars freeVars 
+                  -- trace ("lift expr: " ++ show funname ++ ": " ++ show (map fst freeVars) ++ "\n" ++ show (prettyExpr defaultEnv expr)) $
+                  genClass name freeTVars freeVars 
                       (text "Fun" <> pretty (length vars) <> angled (map (ppType ctx) ([tp | TName _ tp <- vars] ++ [typeOf e])))
                       ((genApplyMethod False vars e))
                   result (if null freeVars 
@@ -800,8 +807,8 @@ genLamOrTypeLam tailCtx expr
            -> do let freeTVars = tvsList (ftv expr)
                      freeVars  = {- filter (\(nm,tp) -> nm /= funname) -} (localFv expr)
                      newType   = ppQName ctx name <> ppTypeParams freeTVars
-                 trace("lift: " ++ show (map fst freeVars)) $    
-                  genClass name freeTVars freeVars 
+                 -- trace("lift: " ++ show (map fst freeVars)) $    
+                 genClass name freeTVars freeVars 
                       (text "Fun" <> pretty (length vars) <> angled (map (ppType ctx) ([tp | TName _ tp <- vars] ++ [typeOf e])))
                       ((genApplyMethod tailCtx vars e))
                  return (newType
@@ -836,7 +843,7 @@ genLetDefs isRec defs groups expr
       = if not (liftDefToTopLevel  def)
          then return ([],def)
          else do defname <- getCurrentDef
-                 newVName <- (newVarName (show (unqualify defname) ++ "." ++ show (unqualify name)))
+                 newVName <- (newVarName (show (unqualify defname) ++ "-" ++ show (unqualify name)))
                  let newName = qualify (qualifier defname) newVName -- need to qualify or otherwise its considered local
                      newDef = Def newName tp expr vis isVal nameRng ""
                      (m,n)  = getArity tp
@@ -1096,7 +1103,7 @@ tnames tns
   = [(name,tp) | (TName name tp) <- tnamesList tns]
 
 ppEvalName name
-  = ppDefName (postpend ".eval" name)
+  = ppDefName (makeHiddenName "eval" name)
 
 ppNewName
   = text "New"
@@ -1437,12 +1444,11 @@ onLocals asm
        return ((locals st1), x)
 
 putLineNo range
-  = return ()
-  {-
+  = -- return ()
     if (rangeNull == range || posLine (rangeStart range) >= bigLine)
      then putLn (text "#line default")
      else putLn (text "#line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
-  -}
+  
 
 putLn :: Doc -> Asm ()
 putLn doc
@@ -1574,7 +1580,7 @@ newVarNames i
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
-       return (newName ("." ++ s ++ show u))
+       return (newHiddenName (s ++ show u))
 
 ---------------------------------------------------------------------------
 -- Helpers for name generation
@@ -1597,7 +1603,7 @@ ppName name
 
 ppModName :: Name -> Doc
 ppModName name
-  = encode True (prepend "koka." name)
+  = encode True name -- (prepend "koka." name)
 
 encode :: Bool -> Name -> Doc
 encode isModule name

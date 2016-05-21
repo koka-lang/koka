@@ -10,6 +10,7 @@ module Backend.JavaScript.FromCore
       ( javascriptFromCore )
  where
 
+import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -73,7 +74,7 @@ genModule mbMain core
                           Nothing -> empty
                           Just (name) -> text " " <-> text "// main entry:" <-> 
                                            ppName (unqualify name) <> text "($std_core.id);"  -- pass id for cps translated main
-        return $  text "// koka generated module: " <> string (showName (coreProgName core)) 
+        return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 
                    list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <> comma <+>

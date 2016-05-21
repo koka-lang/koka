@@ -712,7 +712,7 @@ inferCheck loaded flags line coreImports program1
 
        -- cps tranform program
        (isCps,coreDefs1)
-           <- if (not (enableCps flags)) 
+           <- if (CS `elem` targets flags || not (enableCps flags))
                then return (False,coreDefs0)
                else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
                        -- recheck cps transformed core
