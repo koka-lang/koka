@@ -724,17 +724,18 @@ inferCheck loaded flags line coreImports program1
 
        -- simplify coreF if enabled
        (coreDefs2,unique5)
-                  <- if simplify flags <= 0 
+                  <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications 
                       then return (coreDefs1,unique4)
                       else -- trace "simplify" $ 
-                           do let (cdefs,uniq) -- Core.Simplify.simplify $ 
+                           do let (cdefs,unique4a) -- Core.Simplify.simplify $ 
                                           -- Core.Simplify.simplify 
-                                     = simplifyDefs (simplify flags) unique4 coreDefs1
+                                     = simplifyDefs False (simplify flags) unique4 penv coreDefs1
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
-                                Core.Check.checkCore isCps penv unique4 gamma cdefs
-                              return (cdefs,uniq)
-
+                                Core.Check.checkCore isCps penv unique4a gamma cdefs
+                              -- and one more unsafe simplify to remove open calls etc.
+                              return $ simplifyDefs True 1 unique4a penv cdefs
+                              
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $

@@ -51,7 +51,7 @@ import Core.AnalysisMatch( analyzeBranches )
 
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
-import Core.Simplify( simplify )
+import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
 
@@ -304,7 +304,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize 
-                                  simexpr <- liftUnique $ simplify expr
+                                  simexpr <- liftUnique $ uniqueSimplify expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Meta | TypeVar id kind _ <- tvars]              
@@ -327,13 +327,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ simplify resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (Core.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize assumedTp >>= subst 
-                                  simResCore1 <- liftUnique $ simplify resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (Core.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)

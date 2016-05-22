@@ -9,8 +9,10 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Simplify (simplify, simplifyDefs) where
+module Core.Simplify (simplify, uniqueSimplify, simplifyDefs) where
 
+import Control.Monad
+import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
 import Common.Range
@@ -19,7 +21,7 @@ import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, name
 import Common.Unique
 import Type.Type
 import Type.TypeVar
-import Type.Pretty
+import Type.Pretty as Pretty
 import Core.Core
 import Core.Pretty
 import qualified Common.NameMap as M
@@ -28,18 +30,26 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Int -> Int -> DefGroups -> (DefGroups,Int)
-simplifyDefs n uniq defs
-  = runUnique uniq (simplifyN n defs)
+simplifyDefs :: Bool -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
+simplifyDefs unsafe n uniq penv defs
+  = runSimplify unsafe uniq penv (simplifyN n defs)
 
-simplifyN :: Int -> DefGroups -> Unique DefGroups
+simplifyN :: Int -> DefGroups -> Simp DefGroups
 simplifyN n defs
   = if (n <= 0) then return defs
     else do defs' <- simplify defs
             simplifyN (n-1) defs' 
 
+uniqueSimplify :: Simplify a => a -> Unique a
+uniqueSimplify expr
+  = do u <- unique
+       let (x,u') = runSimplify False u Pretty.defaultEnv (simplify expr)
+       setUnique u'
+       return x
+
+
 class Simplify a where
-  simplify :: a -> Unique a
+  simplify :: a -> Simp a
 
 {--------------------------------------------------------------------------
   Top-down optimizations 
@@ -48,7 +58,7 @@ class Simplify a where
   when necessary.
 --------------------------------------------------------------------------}
 
-topDown :: Expr -> Unique Expr
+topDown :: Expr -> Simp Expr
 
 -- Inline simple let-definitions
 topDown (Let dgs body)  
@@ -57,7 +67,7 @@ topDown (Let dgs body)
     subst sub expr
       = if null sub then expr else (sub |~> expr)
 
-    topDownLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Unique Expr
+    topDownLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Simp Expr
     topDownLet sub acc [] body 
       = case subst sub body of 
           Let sdgs sbody -> topDownLet [] acc sdgs sbody  -- merge nested Let's
@@ -125,12 +135,18 @@ topDown (Let dgs body)
           App (Var v _) _ | getName v == nameReturn -> False  -- and ensureK?
           -- next one enables inlining of resume; improve performance on 'test/algeff/perf2'
           App (TypeApp (Var v _) [_]) [e] | getName v == nameToAny -> cheap e
+          App (TypeApp (Var v _) _) [e]   | getName v == nameEffectOpen -> cheap e
           App f args  -> all (isSmallX (n-1)) (f:args)
           _ -> False
 
--- Remove effect open applications
-topDown (App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
-  = topDown arg
+-- Remove effect open applications; only if 'unsafe' is enabled since
+-- the effect types won't match up
+topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
+  = do unsafe <- getUnsafe
+       if (unsafe) 
+        then topDown arg
+        else return expr
+
 
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
@@ -321,6 +337,7 @@ isTotalAndCheap expr
       Lit{} -> True
       -- toany(x)
       App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg      
+      App (TypeApp (Var v _) _) [arg]   | getName v == nameEffectOpen -> isTotalAndCheap arg      
       -- functions that are immediately applied to something cheap (cps generates this for resumes)
       -- Lam pars eff (App e args) 
       --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
@@ -422,3 +439,47 @@ occurrencesDefGroup dg oc
 uniqueTName (TName name tp)
   = do i <- unique
        return (TName (postpend ("." ++ show i) name) tp)
+
+
+{--------------------------------------------------------------------------
+  Simplify Monad 
+--------------------------------------------------------------------------}
+
+newtype Simp a = Simplify (Int -> SEnv -> Result a)
+
+runSimplify :: Bool -> Int -> Pretty.Env -> Simp a -> (a,Int)
+runSimplify unsafe uniq penv (Simplify c)
+  = case (c uniq (SEnv unsafe penv [])) of
+      Ok x u' -> (x,u')
+
+
+
+data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def] }
+
+data Result a = Ok a Int
+
+instance Functor Simp where
+  fmap f (Simplify c)  = Simplify (\u env -> case c u env of Ok x u' -> Ok (f x) u')
+
+instance Applicative Simp where
+  pure  = return
+  (<*>) = ap                    
+
+instance Monad Simp where
+  return x      = Simplify (\u g -> Ok x u)
+  (Simplify c) >>= f  = Simplify (\u g -> case c u g of 
+                                      Ok x u' -> case f x of 
+                                                   Simplify d -> d u' g)
+
+instance HasUnique Simp where
+  updateUnique f = Simplify (\u g -> Ok u (f u))
+  setUnique  i   = Simplify (\u g -> Ok () i)
+
+getEnv :: Simp SEnv
+getEnv 
+  = Simplify (\u g -> Ok g u)
+
+getUnsafe :: Simp Bool
+getUnsafe 
+  = do env <- getEnv
+       return (unsafe env)
