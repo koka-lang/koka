@@ -27,6 +27,7 @@ import Type.Type
 import Type.TypeVar
 import Type.Kind( getKind )
 import Type.Assumption( getArity )
+import Type.Pretty( niceType )
 
 import Common.Syntax( Target(..) )
 import Common.Name 
@@ -1050,7 +1051,8 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
           tpars 
             = case expandSyn tres of
                 TApp _ targs -> targs
-                _ -> []
+                _ -> -- trace ("could not expand to app: " ++ show (niceType defaultEnv tres)) $ 
+                     []
 
           conTest ctx typeName
             =do -- generate local for the test result

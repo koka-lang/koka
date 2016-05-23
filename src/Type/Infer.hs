@@ -1377,12 +1377,13 @@ inferOptionals infgamma (par:pars)
             let tempName = Core.TName temp tp
             let parName  = Core.TName (binderName par) optTp
                 corePar = Core.Var parName Core.InfoNone
+                coreResTp = TApp (TCon (TypeCon (dataInfoName dataInfo) (dataInfoKind dataInfo))) [tp]
                 init = Core.Case [corePar]
                        [  Core.Branch [ Core.PatCon (Core.TName coreNameOpt coreTpOpt)
                                                     [Core.PatVar tempName Core.PatWild] 
                                                     (coreReprOpt)
                                                     [tp]
-                                                    coreTpOpt
+                                                    coreResTp
                                                     conInfoOpt
                                       ] 
                                       [ Core.Guard   Core.exprTrue (Core.Var tempName Core.InfoNone) ]
