@@ -26,7 +26,7 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, 
-                        nameTpHandled, nameTpDelay, nameSystemCore )
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -345,7 +345,7 @@ ppType env tp
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional
                     -> text "?" <> ppType env{prec=precTop} arg
-                    | typeConName con == nameTpHandled && not (coreIface env)
+                    | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name) 
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))

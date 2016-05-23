@@ -5,11 +5,18 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-module Type.Kind ( HasKind( getKind ) ) where
+module Type.Kind ( HasKind( getKind ), handledToLabel ) where
 
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
+
+
+handledToLabel :: Type -> Type
+handledToLabel e 
+  = if (isKindHandled1 (getKind e)) 
+     then TApp tconHandled1 [e]
+     else TApp tconHandled [e]
 
 {--------------------------------------------------------------------------
   Get the kind of a type.

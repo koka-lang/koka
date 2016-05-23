@@ -544,6 +544,9 @@ katom
     do specialConId "HX"
        return kindHandled
   <|>
+    do specialConId "HX1"
+       return kindHandled1
+  <|>
     do specialConId "P"
        return kindPred
   <?> "kind"

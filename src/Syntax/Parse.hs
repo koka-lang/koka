@@ -196,7 +196,7 @@ programBody vis source modName nameRange doc
        (imports, fixDefss, topDefss)
           <- braced (do imps <- semis importDecl
                         fixs <- semis fixDecl
-                        tdefs <- semis (topdef vis)
+                        tdefs <- semis (topdef modName vis)
                         return (imps,fixs,tdefs))
        many semiColon          
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
@@ -239,8 +239,8 @@ splitTopDefs ds
           DefExtern edef-> fold (defs, tdefs, edef:edefs) ds
 
 
-topdef :: Visibility -> LexParser [TopDef]
-topdef vis
+topdef :: Name -> Visibility -> LexParser [TopDef]
+topdef modName vis 
   = do def <- pureDecl vis
        return [DefValue def]
   <|>
@@ -250,7 +250,7 @@ topdef vis
     do (tdef,cdefs) <- typeDecl vis
        return ([DefType tdef] ++ map DefValue cdefs)       
   <|> 
-    do effectDecl vis
+    do effectDecl modName vis
   <|> 
     do externDecl vis
 
@@ -642,8 +642,8 @@ constructorId
 -- We don't return a syntactic construction for effects
 -- but immediately build the underlying data structures.
 -----------------------------------------------------------
-effectDecl :: Visibility -> LexParser [TopDef]
-effectDecl dvis
+effectDecl :: Name -> Visibility -> LexParser [TopDef]
+effectDecl modName dvis 
   = do (vis,defvis,vrng,erng,doc) <- 
           (try $
             do rng     <- keyword "abstract"
@@ -678,7 +678,7 @@ effectDecl dvis
            extendConName = toEffectConName (tbinderName ename)
            
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation defvis tpars effTp opsTp extendConName)
+       (ops,xrng) <- semiBracesRanged1 (operation singleShot modName defvis tpars effTp opsTp extendConName)
           
        let kindStar = (KindCon nameKindStar rng)
            (opCons,opDefs) = unzip ops 
@@ -724,8 +724,8 @@ effectDecl dvis
                   map DefValue ( opDefs ++ extendConDefs {- ++ [opmatchDef] -})
 
 
-operation :: Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
-operation vis foralls effTp opsTp extendConName
+operation :: Bool -> Name -> Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
+operation singleShot modName vis foralls effTp opsTp extendConName
   = do optional (keyword "function")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -750,9 +750,14 @@ operation vis foralls effTp opsTp extendConName
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
-                        innerBody = App (Var nameYieldOp False nameRng) 
-                                      [(Nothing, App (Var extendConName False nameRng) 
-                                                    [(Nothing,if null arguments then conNameVar else App conNameVar arguments rng)] rng)] rng
+                        opCon     = if null arguments then conNameVar else App conNameVar arguments rng
+                        innerBody = if (singleShot) 
+                                     then App (Var nameYieldOp1 False nameRng)
+                                              [(Nothing,Lit (LitString (show (qualify modName extendConName)) nameRng)),
+                                               (Nothing,opCon)] rng
+                                     else App (Var nameYieldOp False nameRng) 
+                                            [(Nothing, App (Var extendConName False nameRng) 
+                                                          [(Nothing,opCon)] rng)] rng
                         conNameVar = Var conName False nameRng                                      
                         params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars]
                         lparams   = [par{ binderType = Nothing} | par <- params]

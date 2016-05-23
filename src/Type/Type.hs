@@ -43,8 +43,8 @@ module Type.Type (-- * Types
                   , typeList, typeApp, typeRef, typeOptional
                   , isOptional, makeOptional
 
-                  , handledToLabel
-                  , HandledSort(..), getHandledEffect, containsHandledEffect, tconHandled
+                  --, handledToLabel
+                  , HandledSort(..), getHandledEffect, containsHandledEffect, tconHandled, tconHandled1
                   , typeCps
 
                   -- , isDelay
@@ -538,18 +538,19 @@ getHandledEffectX exclude tp
         | isKindHandled1 kind -> Just ResumeOnce
       _ -> Nothing
 
-handledToLabel :: Type -> Type
-handledToLabel e 
-  = TApp tconHandled [e]
-
 typeCps :: Type
 typeCps
-  = handledToLabel (TCon (TypeCon nameTpCps kindHandled))
+  = TApp tconHandled [TCon (TypeCon nameTpCps kindHandled)]
 
 tconHandled :: Type
 tconHandled = TCon $ TypeCon nameTpHandled kind
   where
     kind = kindFun kindHandled kindLabel
+
+tconHandled1 :: Type
+tconHandled1 = TCon $ TypeCon nameTpHandled1 kind
+  where
+    kind = kindFun kindHandled1 kindLabel    
 
 isEffectTyVar (TVar v) = isKindEffect $ typevarKind v 
 isEffectTyVar _        = False

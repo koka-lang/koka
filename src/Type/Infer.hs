@@ -23,7 +23,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameReturn, nameRef, nameByref, nameDeref 
                       , nameRefSet, nameAssign, nameTpUnit, nameTuple
                       , nameMakeHandler, nameMakeHandlerRet
-                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameToAny, nameFalse, nameTrue
+                      , namePatternMatchError, nameSystemCore, nameTpHandled, nameTpHandled1, nameToAny, nameFalse, nameTrue
                       , nameTpYld )
 import Common.Range
 import Common.Unique
@@ -41,6 +41,7 @@ import Kind.Newtypes
 import Kind.ImportMap
 
 import Type.Type
+import Type.Kind( handledToLabel )
 import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
@@ -815,7 +816,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
   = do -- build up the type of the action parameter
        let actionEff = if shallow then heff else effectExtend (handledToLabel hxeff) heff  
            -- actionEff = effectExtend (handledToLabel hxeff) heff
-           actionPar = (newName "action",TFun [] actionEff retInTp)
+           actionPar = (newName "action",TFun [] (effectExtend typeCps actionEff) retInTp)
 
        -- effect of resume
        let resumeEff = if shallow then actionEff else retEff
@@ -933,7 +934,9 @@ inferHandledEffect rng mbeff ops
                 case splitFunType rho of
                   Just(_,eff,_) -> let ([l],_) = extractEffectExtend eff
                                    in case expandSyn l of 
-                                        TApp (TCon tc) [hx] | typeConName tc == nameTpHandled -> return (Just hx)
+                                        TApp (TCon tc) [hx] 
+                                          | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 
+                                          -> return (Just hx)
 
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
