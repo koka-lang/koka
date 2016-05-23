@@ -2686,10 +2686,15 @@ external inline ".yieldop"( op : operation<a> ) : e a {
   js inline "$std_core.Yield(#1,_k)" 
 }
 
-external ".yieldop1"( efftag : string, op : a ) : e b {
-  js inline "$yield_linear(#1,#2)" 
+external ".yieldop1"( efftag: string, op : a ) : e b {
+  js inline "$yield_linearx(#1,#2)" 
 }
 
+/*
+external ".yieldop1"( op : operation<a> ) : e a {
+  js inline "$yield_linear(#1)" 
+}
+*/
   
 external inline ".toany"( x : a ) : any { 
   inline "#1" 

@@ -755,7 +755,8 @@ operation singleShot modName vis foralls effTp opsTp extendConName
                                      then App (Var nameYieldOp1 False nameRng)
                                               [(Nothing,Lit (LitString (show (qualify modName extendConName)) nameRng)),
                                                (Nothing,opCon)] rng
-                                     else App (Var nameYieldOp False nameRng) 
+                                     else 
+                                    App (Var (if singleShot then nameYieldOp1 else nameYieldOp) False nameRng) 
                                             [(Nothing, App (Var extendConName False nameRng) 
                                                           [(Nothing,opCon)] rng)] rng
                         conNameVar = Var conName False nameRng                                      

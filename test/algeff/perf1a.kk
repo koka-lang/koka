@@ -69,7 +69,7 @@ function testD(i) {
   if (i==0) then i else testD(i - 1)
 }
 
-val n = 10000000
+val n = 5000000
 function main() {
   timer({testD(n)}).show
   timer({testH1(n)}).show
