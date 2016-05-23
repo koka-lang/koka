@@ -46,6 +46,7 @@ module Type.Type (-- * Types
                   --, handledToLabel
                   , HandledSort(..), getHandledEffect, containsHandledEffect, tconHandled, tconHandled1
                   , typeCps
+                  , isEffectAsync, isAsyncFunction
 
                   -- , isDelay
                   -- ** Standard tests
@@ -527,15 +528,12 @@ getHandledEffect tp
 
 getHandledEffectX exclude tp
   = case expandSyn tp of
-      TApp (TCon (TypeCon name _)) [TCon (TypeCon hxName _)]  
-        | name == nameTpHandled && not (hxName `elem` exclude) -> Just ResumeMany
-        | name == nameTpHandled1 && not (hxName `elem` exclude) -> Just ResumeOnce
-      TApp (TCon (TypeCon name _)) _  
-        | name == nameTpHandled -> Just ResumeMany
-        | name == nameTpHandled1 -> Just ResumeOnce
-      TCon (TypeCon _ kind) 
-        | isKindHandled kind -> Just ResumeMany
-        | isKindHandled1 kind -> Just ResumeOnce
+      TApp (TCon (TypeCon name _)) [t]  
+        | name == nameTpHandled  -> getHandledEffectX exclude t
+        | name == nameTpHandled1 -> getHandledEffectX exclude t
+      TCon (TypeCon hxName kind) 
+        | isKindHandled kind  && not (hxName `elem` exclude) -> Just ResumeMany
+        | isKindHandled1 kind && not (hxName `elem` exclude) -> Just ResumeOnce
       _ -> Nothing
 
 typeCps :: Type
@@ -551,6 +549,24 @@ tconHandled1 :: Type
 tconHandled1 = TCon $ TypeCon nameTpHandled1 kind
   where
     kind = kindFun kindHandled1 kindLabel    
+
+
+isAsyncFunction tp
+  = let (_,_,rho) = splitPredType tp
+    in case splitFunType rho of
+         Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff 
+                           in any isEffectAsync ls
+         _ -> False    
+
+isEffectAsync tp
+  = case expandSyn tp of
+      TForall _ _ rho -> isEffectAsync rho
+      TFun _ eff _    -> isEffectAsync eff
+      TApp (TCon (TypeCon name _)) [t]  
+        | name == nameTpHandled -> isEffectAsync t
+      TCon (TypeCon hxName _)
+        -> hxName == nameTpAsync
+      _ -> False
 
 isEffectTyVar (TVar v) = isKindEffect $ typevarKind v 
 isEffectTyVar _        = False

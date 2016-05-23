@@ -2642,9 +2642,11 @@ effect asyn {
   ayield() : ()
 }
 
-val async = handler {
-  return x -> x
-  ayield() -> () // todo: do a zero timeout?
+function ".async"(action) {
+  handle(action) {
+    return x -> x
+    ayield() -> () // todo: do a zero timeout?
+  }
 }
 
 external asyncOn( async : async<a> ) : asyn a {

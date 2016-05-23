@@ -34,5 +34,5 @@ function test() {
 }
 
 function main() {
-  async{ amb(test); () }
+  amb(test); ()
 }

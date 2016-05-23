@@ -18,5 +18,5 @@ function test() {
 }
 
 function main() {
-  async(test)
+  test()
 }

@@ -39,7 +39,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync )
 import Common.Error
 import Common.File            
 import Common.ColorScheme
@@ -403,7 +403,7 @@ compileProgram' term flags modules compileTarget fname program
 
 checkUnhandledEffects flags name range tp
   = case expandSyn tp of
-      TFun _ eff _  | containsHandledEffect [nameTpCps] eff 
+      TFun _ eff _  | containsHandledEffect [nameTpCps,nameTpAsync] eff 
         -> errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
                                          text " inferred effect:" <+> ppType (prettyEnvFromFlags flags) eff <-->
                                          text " hint           : wrap the main function in a handler"))
@@ -860,14 +860,14 @@ codeGenCS term flags modules compileTarget outBase core
        return (Just (runSystem targetName))
 
 
-codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget a -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 codeGenJS term flags modules compileTarget outBase core  | not (JS `elem` targets flags)
   = return Nothing
 codeGenJS term flags modules compileTarget outBase core
   = do let outjs = outBase ++ ".js"
        let mbEntry = case compileTarget of 
-                       Executable name _ -> Just name
-                       _                 -> Nothing
+                       Executable name tp -> Just (name,isAsyncFunction tp)
+                       _                  -> Nothing
        let js    = javascriptFromCore mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js 
@@ -902,6 +902,8 @@ codeGenJS term flags modules compileTarget outBase core
                do return (Just (runSystem (dquote outHtml ++ " &")))
               Node ->
                do return (Just (runSystem ("node " ++ outjs))) 
+
+
 
   
 copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()

@@ -48,11 +48,12 @@ module Common.NamePrim
           , nameTpFloat
           , nameTpString
           , nameTpAny
-          , nameTpAsync
+          , nameTpAsyncEvent
           , nameTpException
           , nameTpHandled, nameTpHandled1
           , nameTpOperation, nameYieldOp, nameYieldOp1
           , nameTpCps, nameTpYld, nameTpCont
+          , nameTpAsync
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
@@ -177,6 +178,7 @@ nameTpCps       = preludeName "cps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"
+nameTpAsync     = preludeName "asyn"
 
 nameYieldOp     = preludeName ".yieldop"
 nameYieldOp1    = preludeName ".yieldop1"
@@ -218,8 +220,8 @@ nameTpST           = preludeName "st"
 
 nameTpVoid      = preludeName "void"
 
-nameTpAsync     = preludeName "async"
-nameTpException = preludeName "exception"
+nameTpAsyncEvent = preludeName "async"
+nameTpException  = preludeName "exception"
 
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")

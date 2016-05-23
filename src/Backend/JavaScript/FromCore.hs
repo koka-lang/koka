@@ -57,14 +57,14 @@ externalNames
 -- Generate JavaScript code from System-F core language 
 --------------------------------------------------------------------------
 
-javascriptFromCore :: Maybe (Name) -> Core -> Doc
+javascriptFromCore :: Maybe (Name,Bool) -> Core -> Doc
 javascriptFromCore mbMain core
   = runAsm (Env moduleName penv externalNames False) (genModule mbMain core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name) -> Core -> Asm Doc 
+genModule :: Maybe (Name,Bool) -> Core -> Asm Doc 
 genModule mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core)) 
         decls1 <- genTypeDefs (coreProgTypeDefs core)
@@ -72,8 +72,11 @@ genModule mbMain core
         let imports = map importName (coreProgImports core)
             mainEntry = case mbMain of
                           Nothing -> empty
-                          Just (name) -> text " " <-> text "// main entry:" <-> 
-                                           ppName (unqualify name) <> text "($std_core.id);"  -- pass id for cps translated main
+                          Just (name,isAsync) 
+                            -> text " " <-> text "// main entry:" <-> 
+                               (if isAsync
+                                 then text "$std_core._async" <> parens (ppName (unqualify name)) <> semi
+                                 else ppName (unqualify name) <> text "($std_core.id);")  -- pass id for possible cps translated main
         return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 
