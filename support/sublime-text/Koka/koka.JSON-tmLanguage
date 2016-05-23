@@ -398,7 +398,7 @@
 
     "top_type": 
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(with|iff|when)(?!\\w)"
-      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "storage.type.koka" },
                            "2" : { "name": "keyword.koka" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}

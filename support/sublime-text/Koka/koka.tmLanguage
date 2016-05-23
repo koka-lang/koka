@@ -823,7 +823,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[,\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
+			<string>(?=[,\)\{\}\[\]=;"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|yield)(?!\w))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>

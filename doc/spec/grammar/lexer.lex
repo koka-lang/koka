@@ -157,6 +157,10 @@ as                        { return AS;}
 inline                    { return INLINE;  }
 include                   { return INCLUDE; }
 
+handler                   { return HANDLER; }
+handle                    { return HANDLE; }
+effect                    { return EFFECT; } 
+
   /* unused reserved identifiers */
 yield                     { return YIELD;}
 rec                       { return REC; }
@@ -521,7 +525,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     //fprintf(stderr,"scan: %d, %d, (%d,%d)\n", token, closeBrace, loc->first_line, loc->first_column);
     if (closeBrace>=0) {
       if (yyextra->braceTop >= (braceMax-1)) {
-        yyerror(loc,scanner, "nesting level of parenthesis is too deep");        
+        yyerror(loc,scanner, "maximal nesting level of braces reached");        
       }
       else {
         // push the close brace
@@ -533,7 +537,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     else if (isCloseBrace(token) >= 0) {
       // check if the close brace matches the context
       if (yyextra->braceTop < 0) {
-        yyerror(loc, scanner, "unbalanced parenthesis: '%c' is not opened", token);
+        yyerror(loc, scanner, "unbalanced braces: '%c' is not opened", token);
       }
       else if (yyextra->braces[yyextra->braceTop] != token) {
         YYLTYPE openLoc = yyextra->bracesLoc[yyextra->braceTop];
@@ -542,12 +546,12 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         while( top >= 0 && yyextra->braces[top] != token) top--;
         if (top >= 0) {
           // there is a matching open brace on the stack
-          yyerror(&openLoc, scanner, "unbalanced parenthesis: '%c' is not closed", isCloseBrace(yyextra->braces[yyextra->braceTop]) );
+          yyerror(&openLoc, scanner, "unbalanced braces: '%c' is not closed", isCloseBrace(yyextra->braces[yyextra->braceTop]) );
           yyextra->braceTop = top-1; // pop to matching one          
         }
         else {
           // no matching brace
-          yyerror(loc, scanner, "unbalanced parenthesis: '%c' is not opened", token ); //, yyextra->braces[yyextra->braceTop],openLoc.first_line,openLoc.first_column);
+          yyerror(loc, scanner, "unbalanced braces: '%c' is not opened", token ); //, yyextra->braces[yyextra->braceTop],openLoc.first_line,openLoc.first_column);
         }       
       }
       else {

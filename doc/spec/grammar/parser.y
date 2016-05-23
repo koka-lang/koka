@@ -66,6 +66,8 @@ void printDecl( const char* sort, const char* name );
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN 
 
+%token HANDLER HANDLE EFFECT
+
 %token YIELD REC TRY IFACE INST
 
 %token INLINE INCLUDE ID_CS ID_JS ID_FILE
@@ -74,6 +76,7 @@ void printDecl( const char* sort, const char* name );
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder 
 %type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
+%type <Id>  effectdecl
 
 
 %%
@@ -158,6 +161,8 @@ topdecl     : visibility puredecl                             { printDecl("value
             | visibility typedecl                             { printDecl("type",$2); }
             | ABSTRACT typedecl                               { printDecl("type",$2); }
             | visibility externdecl                           { printDecl("external",$2); }
+            | visibility effectdecl                           { printDecl("effect",$2); }
+            | ABSTRACT effectdecl                             { printDecl("effect",$2); }
             ;
 
 
@@ -273,6 +278,21 @@ conpar      : paramid ':' paramtype
             ;
 
 /* ---------------------------------------------------------
+-- Effect declarations
+----------------------------------------------------------*/
+
+effectdecl  : EFFECT typeid typeparams kannot  '{' semis operations '}'     { $$ = $2; }
+            | EFFECT typeid typeparams kannot                               { $$ = $2; }
+            ;
+
+operations  : operation operations
+            | /* empty */
+            ;
+
+operation   : visibility identifier lparen parameters ')' ':' tatomic
+            ;
+
+/* ---------------------------------------------------------
 -- Pure Declarations
 ----------------------------------------------------------*/   
 puredecl    : VAL valdecl                   { $$ = $2; }
@@ -360,6 +380,7 @@ expr        : ifexpr
 
 noifexpr    : returnexpr
             | matchexpr
+            | handleexpr
             | funexpr
             | opexpr
             ;
@@ -367,12 +388,25 @@ noifexpr    : returnexpr
 nofunexpr   : ifexpr
             | returnexpr
             | matchexpr
+            | handleexpr
             | opexpr
 
 /* keyword expressions */
 
 matchexpr   : MATCH atom '{' semis matchrules '}'
-            ;            
+            ; 
+
+handleexpr  : HANDLER handleeff handlepars '{' semis matchrules '}'
+            | HANDLE handleeff lparen expr ')' handlepars '{' semis matchrules '}'
+            ; 
+
+handlepars  : lparen parameters ')'
+            | /* empty */
+            ;
+
+handleeff   : '<' anntype '>'
+            | /* empty */
+            ;          
 
 funexpr     : FUN quantifiers fundef block
             | block                    /* zero-argument function */
