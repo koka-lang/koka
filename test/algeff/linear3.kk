@@ -1,0 +1,22 @@
+
+effect linear state<s> {
+  get() : s;
+  put(x : s) : ()
+}
+
+val state = handler(s) {
+  return x -> x + 2
+  get()    -> resume(s,s)
+  put(t)   -> 42
+}
+
+function foo() {
+  val i = get()
+  put(i+1)
+  put(i+2)
+  get()
+}
+
+function main() {
+  state(0,foo).print  // 42
+}
