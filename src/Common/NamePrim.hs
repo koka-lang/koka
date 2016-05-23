@@ -50,7 +50,8 @@ module Common.NamePrim
           , nameTpAny
           , nameTpAsync
           , nameTpException
-          , nameTpHandled, nameTpOperation, nameYieldOp, nameTpCps, nameTpYld, nameTpCont
+          , nameTpHandled, nameTpHandled1
+          , nameTpOperation, nameYieldOp, nameTpCps, nameTpYld, nameTpCont
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
@@ -75,7 +76,8 @@ module Common.NamePrim
           , nameKindStar, nameKindFun
           , nameKindLabel
           , nameKindPred, nameKindEffect
-          , nameKindHeap, nameKindHandled
+          , nameKindHeap
+          , nameKindHandled1, nameKindHandled
 
           , toShortModuleName
 
@@ -167,6 +169,7 @@ nameEffectExtend= preludeName "<|>"
 nameEffectAppend= newName ".<+>"
 
 nameTpHandled   = preludeName "handled"
+nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
 
 nameTpCps       = preludeName "cps"
@@ -251,3 +254,4 @@ nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
 nameKindHandled = newName "HX"
+nameKindHandled1 = newName "HX1"

@@ -37,7 +37,7 @@ import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
 import Common.Name
 import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend, 
-                        nameTpHandled, nameCopy, namePatternMatchError,
+                        nameTpHandled, nameTpHandled1, nameCopy, namePatternMatchError,
                         nameJust, nameNothing )
 import Common.Syntax
 import qualified Common.NameMap as M
@@ -610,6 +610,8 @@ infUserType expected  context userType
                           KICon kind | kind == kindLabel -> return (makeEffectExtend etp makeEffectEmpty)
                           KICon kind | isKindHandled kind ->  -- TODO: check if there is an effect declaration
                                           return (makeEffectExtend (makeHandled etp rng) makeEffectEmpty)
+                          KICon kind | isKindHandled1 kind ->  -- TODO: check if there is an effect declaration
+                                          return (makeEffectExtend (makeHandled1 etp rng) makeEffectEmpty)
                           _  -> do unify (checkEff range) range (KICon kindEffect) skind
                                    return etp              
               tp'     <- infUserType infKindStar (checkRes range) tp
@@ -629,6 +631,9 @@ infUserType expected  context userType
                 KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
                   -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
                         return (TpApp tp' [makeHandled ltp rng, tl'] rng)
+                KICon kind | isKindHandled1 kind -- TODO: check effects environment if really effect?
+                  -> do unify (checkExtendLabel range) range (KICon kindHandled1) skind
+                        return (TpApp tp' [makeHandled1 ltp rng, tl'] rng)
                 _ -> do unify (checkExtendLabel range) range (KICon kindLabel) skind
                         return (TpApp tp' [ltp,tl'] rng)
 
@@ -934,3 +939,6 @@ makeEffectEmpty
 
 makeHandled u rng
   = TpApp (TpCon nameTpHandled rng) [u] rng
+
+makeHandled1 u rng
+  = TpApp (TpCon nameTpHandled1 rng) [u] rng

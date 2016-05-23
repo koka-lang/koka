@@ -2583,7 +2583,9 @@ external getHost() : ndet string {
 // ----------------------------------------------------------------------------
 
 // Handled effects are lifted to an atomic effect using the ":handled" type constructor
-type handled :: HX -> X;
+type handled    :: HX -> X;
+// Single-shot handled effects are lifted to an atomic effect using the ":handled1" type constructor
+type handled1   :: HX1 -> X;
 
 // Effect operations with result type ":a"
 type open operation<a> 

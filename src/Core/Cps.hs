@@ -559,7 +559,9 @@ getCpsType tp
 getCpsEffect :: Effect -> Cps CpsTypeKind
 getCpsEffect eff
   = let (ls,tl) = extractEffectExtend eff 
-    in if (any isHandledEffect ls)
+    in if (any (\l -> case getHandledEffect l of
+                        Just ResumeMany -> True
+                        _ -> False) ls)
         then return AlwaysCps 
         else getCpsTVar tl
 

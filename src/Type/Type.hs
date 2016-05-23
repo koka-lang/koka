@@ -43,8 +43,9 @@ module Type.Type (-- * Types
                   , typeList, typeApp, typeRef, typeOptional
                   , isOptional, makeOptional
 
-                  , handledToLabel, isHandledEffect, containsHandledEffect, tconHandled
-                  , isEffectCps, typeCps
+                  , handledToLabel
+                  , HandledSort(..), getHandledEffect, containsHandledEffect, tconHandled
+                  , typeCps
 
                   -- , isDelay
                   -- ** Standard tests
@@ -62,6 +63,7 @@ module Type.Type (-- * Types
                   ) where
 
 -- import Lib.Trace
+import Data.Maybe(isJust)
 import Data.List( nub, sortBy )
 
 import Common.Name
@@ -514,35 +516,35 @@ labelName tp
 containsHandledEffect :: [Name] -> Effect -> Bool
 containsHandledEffect exclude eff
   = let (ls,_) = extractEffectExtend eff
-    in any (isHandledEffectX exclude) ls
+    in any (isJust . getHandledEffectX exclude) ls
 
-isHandledEffect :: Type -> Bool
-isHandledEffect tp
-  = isHandledEffectX [] tp
+data HandledSort = ResumeOnce | ResumeMany
+                 deriving (Eq,Show)
 
-isHandledEffectX exclude tp
+getHandledEffect :: Type -> Maybe HandledSort
+getHandledEffect tp
+  = getHandledEffectX [] tp
+
+getHandledEffectX exclude tp
   = case expandSyn tp of
-      TApp (TCon (TypeCon name _)) [TCon (TypeCon hxName _)]  | name == nameTpHandled -> not (hxName `elem` exclude) 
-      TApp (TCon (TypeCon name _)) _  | name == nameTpHandled -> True 
-      TCon (TypeCon _ kind) -> isKindHandled kind
-      _ -> False
+      TApp (TCon (TypeCon name _)) [TCon (TypeCon hxName _)]  
+        | name == nameTpHandled && not (hxName `elem` exclude) -> Just ResumeMany
+        | name == nameTpHandled1 && not (hxName `elem` exclude) -> Just ResumeOnce
+      TApp (TCon (TypeCon name _)) _  
+        | name == nameTpHandled -> Just ResumeMany
+        | name == nameTpHandled1 -> Just ResumeOnce
+      TCon (TypeCon _ kind) 
+        | isKindHandled kind -> Just ResumeMany
+        | isKindHandled1 kind -> Just ResumeOnce
+      _ -> Nothing
 
 handledToLabel :: Type -> Type
 handledToLabel e 
-  = TApp tconHandled [e] 
+  = TApp tconHandled [e]
 
 typeCps :: Type
 typeCps
   = handledToLabel (TCon (TypeCon nameTpCps kindHandled))
-
-isEffectCps :: Type -> Bool
-isEffectCps tp
-  = case expandSyn tp of
-      TApp (TCon (TypeCon name _)) [arg] 
-        -> (name == nameTpHandled && isEffectCps arg)
-      TCon (TypeCon cpsname _) 
-        -> cpsname == nameTpCps 
-      _ -> False
 
 tconHandled :: Type
 tconHandled = TCon $ TypeCon nameTpHandled kind

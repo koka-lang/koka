@@ -13,12 +13,13 @@ module Kind.Kind( -- * Kinds
                     Kind(..)
                   , KindCon
                  -- * Standard kinds
-                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap, kindHandled
+                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap
+                  , kindHandled, kindHandled1
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled
+                  , isKindEffect, isKindHandled, isKindHandled1
                   , kindAddArg
                   ) where
 
@@ -92,6 +93,10 @@ kindHandled :: Kind
 kindHandled
   = KCon nameKindHandled
 
+kindHandled1 :: Kind
+kindHandled1
+  = KCon nameKindHandled1
+
 kindExtend :: Kind 
 kindExtend 
   = kindFun kindLabel (kindFun kindEffect kindEffect)
@@ -123,6 +128,8 @@ isKindEffect k
   = k == kindEffect
 isKindHandled k
   = k == kindHandled
+isKindHandled1 k
+  = k == kindHandled1
 
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
@@ -134,4 +141,5 @@ builtinKinds
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
     ,(nameKindHandled, kindHandled)
+    ,(nameKindHandled1, kindHandled1)
     ]

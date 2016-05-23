@@ -653,13 +653,18 @@ effectDecl dvis
             do (vis,vrng) <- visibility dvis
                (erng,doc) <- dockeyword "effect"
                return (vis,vis,vrng,erng,doc))
+       singleShot <- do{ specialId "linear"; return True} <|> return False          
        (id,irng) <- typeid
        (tpars,kind,prng) <- typeKindParams
        let infkind = case kind of
-                      KindNone -> foldr KindArrow (KindCon nameKindHandled irng) (map tbinderKind tpars)
+                      KindNone -> foldr KindArrow 
+                                    (KindCon (if singleShot then nameKindHandled1 else nameKindHandled) irng) 
+                                    (map tbinderKind tpars)
                       _ -> kind
            ename   = TypeBinder id infkind {- KindCon nameKindHandled irng) -} irng irng
-           effTp   = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng 
+           effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
+           effTp   = TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename)) 
+                           [effTpH] irng
            rng     = combineRanges [vrng,erng,irng]
 
            -- declare the effect type
@@ -1732,7 +1737,10 @@ katom
   <|>
     do rng <- specialConId "HX"
        return (KindCon nameKindHandled rng)
-  <?> "kind constant (V,E,H,X,HX, or P)"
+  <|>
+    do rng <- specialConId "HX1"
+       return (KindCon nameKindHandled1 rng)
+  <?> "kind constant (V,E,H,X,HX,HX1, or P)"
 
 -----------------------------------------------------------
 -- Braces and parenthesis
