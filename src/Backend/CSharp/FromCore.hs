@@ -675,7 +675,8 @@ genCon tname repr targs args
                          -> ppQName ctx (typeClassName typeName) 
                       _  -> ppQName ctx (conClassName (getName tname))) <> 
                    (ppTypeArgs ctx targs) <//> 
-                   (if (null targs && null args && not (isConNormal repr)) then empty else tupled argDocs)
+                   (-- if (null targs && null args && not (isConNormal repr)) then empty else 
+                      tupled argDocs)
 
 ppConEnum :: ModuleName -> TName -> Doc
 ppConEnum ctx tname
@@ -1244,7 +1245,7 @@ ppTypeCon ctx c kind
          then text "Ref"
         else if (name == nameTpAny)
          then text "object"
-        else if (name == nameTpAsync)
+        else if (name == nameTpAsyncEvent)
          then text "Async"
         else if (name == nameTpException)
          then text "Exception"

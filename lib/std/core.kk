@@ -2642,7 +2642,7 @@ effect asyn {
   ayield() : ()
 }
 
-function ".async"(action) {
+function ".handleasync"(action) {
   handle(action) {
     return x -> x
     ayield() -> () // todo: do a zero timeout?
