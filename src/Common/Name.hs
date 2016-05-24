@@ -26,6 +26,7 @@ module Common.Name
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, toOperationsName, fromOperationsName, toEffectConName, toOpConName
           , toConstructorName, isConstructorName
+          , toOpenTagName, isOpenTagName
           , splitModuleName, unsplitModuleName
           
           , prepend, postpend
@@ -254,6 +255,15 @@ toOpConName name
 toEffectConName :: Name -> Name
 toEffectConName name
   = makeHiddenName "Eff" name
+
+-- | Create an open tag name from a constructor name in an open type
+toOpenTagName :: Name -> Name
+toOpenTagName name
+  = makeHiddenName "tag" name  
+
+isOpenTagName :: Name -> Bool
+isOpenTagName name
+  = nameId name `startsWith` ".tag-"
 
 prepend :: String -> Name -> Name
 prepend s name

@@ -91,7 +91,8 @@ encloseSep left right sep ds
     = case ds of
         []  -> left <> right
         [d] -> left <> d <> right
-        _   -> align (hcat (zipWith (<>) (left : repeat sep) ds) <> right)
+        _   -> nest 2  -- align
+               (hcat (zipWith (<>) (left : repeat sep) ds) <> right)
 
 
 -----------------------------------------------------------

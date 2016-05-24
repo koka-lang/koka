@@ -14,7 +14,7 @@ import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Data.List ( intersperse )
+import Data.List ( intersperse, partition )
 import Data.Char
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
@@ -67,8 +67,10 @@ javascriptFromCore mbMain core
 genModule :: Maybe (Name,Bool) -> Core -> Asm Doc 
 genModule mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core)) 
+            (tagDefs,defs) = partition isTagDef (coreProgDefs core)
+        decls0 <- genGroups tagDefs
         decls1 <- genTypeDefs (coreProgTypeDefs core)
-        decls2 <- genGroups   (coreProgDefs core) -- (removeTypeLamApp $ coreProgDefs core)
+        decls2 <- genGroups defs
         let imports = map importName (coreProgImports core)
             mainEntry = case mbMain of
                           Nothing -> empty
@@ -85,9 +87,14 @@ genModule mbMain core
                     vcat (
                     [ text "\"use strict\";"
                     , text " "
-                    , text "// declarations"
+                    , text "// externals"
                     , externs 
-                    , decls1  
+                    , text " "
+                    , text "// type declarations"
+                    , decls0
+                    , decls1
+                    , text " "  
+                    , text "// declarations"
                     , decls2  
                     , mainEntry
                     , text " "
@@ -110,6 +117,9 @@ genModule mbMain core
                                                in  map snd $ filter (\(v,_)-> v == Public) xs
                           u (TypeDefGroup xs) = xs
                       in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
+
+    isTagDef (DefNonRec def) = isOpenTagName (defName def)
+    isTagDef _               = False                      
 
     externalImports :: [(Doc,Doc)]
     externalImports
@@ -220,7 +230,8 @@ genTypeDef :: TypeDef -> Asm Doc
 genTypeDef (Synonym {})
   = return empty
 genTypeDef (Data info _ _ isExtend)
-  = do let (dataRepr, conReprs) = getDataRepr (-1) {- maxStructFields -} info
+  = do modName <- getModule
+       let (dataRepr, conReprs) = getDataRepr (-1) {- maxStructFields -} info
        docs <- mapM ( \(c,repr)  -> 
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)
@@ -239,7 +250,7 @@ genTypeDef (Data info _ _ isExtend)
                 -- tagless
                 ConSingle{}  -> genConstr penv c repr name args [] 
                 ConAsCons{}  -> genConstr penv c repr name args []
-                _            -> genConstr penv c repr name args [(tagField, getConTag c repr)]
+                _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
        return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
             <-> vcat docs
@@ -255,9 +266,11 @@ genTypeDef (Data info _ _ isExtend)
                       (if conInfoName c == nameOptional then head args 
                         else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
 
-getConTag coninfo repr
+getConTag modName coninfo repr
   = case repr of
-      ConOpen{} -> ppLit (LitString (show (openConTag (conInfoName coninfo))))
+      ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
+                   let name = toOpenTagName (conInfoName coninfo)
+                   in ppName (if (qualifier name == modName) then unqualify name else name)
       _ -> int (conTag repr)
                       
 openConTag name
@@ -440,8 +453,9 @@ genMatch result scrutinees branches
           && isExprTrue t2
           && isInlineableExpr e1
           && isInlineableExpr e2
-          -> do let nameDoc = head scrutinees
-                let test    = genTest  (nameDoc, p1) 
+          -> do modName <- getModule
+                let nameDoc = head scrutinees
+                let test    = genTest modName (nameDoc, p1) 
                 if (isExprTrue e1 && isExprFalse e2)
                   then return $ getResult result $ parens (conjunction test)
                   else do doc1 <- withNameSubstitutions (getSubstitutions nameDoc p1) (genInline e1)
@@ -482,8 +496,9 @@ genMatch result scrutinees branches
     genBranch :: Bool -> Result -> [Doc] -> Branch -> Asm ([ConditionDoc], Doc)
     -- Regular catch-all branch generation
     genBranch lastBranch result tnDocs branch@(Branch patterns guards)
-      = do let substs     = concatMap (uncurry getSubstitutions) (zip tnDocs patterns)
-           let conditions = concatMap genTest (zip tnDocs patterns)
+      = do modName <- getModule
+           let substs     = concatMap (uncurry getSubstitutions) (zip tnDocs patterns)
+           let conditions = concatMap (genTest modName) (zip tnDocs patterns)
            let se         = withNameSubstitutions substs
 
            gs <- mapM (se . genGuard False      result) (init guards)
@@ -513,12 +528,12 @@ genMatch result scrutinees branches
                       else testSt <-> text "if" <+> parens testE <> block exprSt
 
     -- | Generates a list of boolish expression for matching the pattern
-    genTest :: (Doc, Pattern) -> [Doc]
-    genTest (scrutinee,pattern)
+    genTest :: Name -> (Doc, Pattern) -> [Doc]
+    genTest modName (scrutinee,pattern)
       = case pattern of
               PatWild ->  []
               PatVar _ pat 
-                -> genTest (scrutinee,pat)
+                -> genTest modName (scrutinee,pat)
               PatCon tn fields repr _ _ info
                 | getName tn == nameTrue
                 -> [scrutinee]
@@ -536,16 +551,16 @@ genMatch result scrutinees branches
                        -> fail "Backend.JavaScript.FromCore.genTest: encountered ConStruct, which is not supposed to happen"
                      ConAsCons{}
                        | getName tn == nameOptional
-                       -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest (scrutinee,field) ) fields
+                       -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
                        -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use === instead of == since undefined == null (for optional arguments)
                               fieldTests = concatMap
-                                             (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
+                                             (\(field,fieldName) -> genTest modName (scrutinee <> dot <> fieldName, field) ) 
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     _ -> let conTest    = debugWrap "genTest: normal" $ scrutinee <> dot <> tagField <+> text "===" <+> getConTag info repr
+                     _ -> let conTest    = debugWrap "genTest: normal" $ scrutinee <> dot <> tagField <+> text "===" <+> getConTag modName info repr
                               fieldTests  =  concatMap
-                                             (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
+                                             (\(field,fieldName) -> genTest modName (scrutinee <> dot <> fieldName, field) ) 
                                              ( zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
 

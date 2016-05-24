@@ -155,6 +155,10 @@ synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
     (if (length (dataInfoConstrs dataInfo) > 1 || (dataInfoIsOpen dataInfo))
       then concatMap (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
       else [])
+    ++
+    (if (dataInfoIsOpen dataInfo)
+      then map synConstrTag (zip conviss (dataInfoConstrs dataInfo))
+      else [])
     
 
 synCopyCon :: Name -> DataInfo -> Visibility -> ConInfo -> DefGroup Type
@@ -249,6 +253,12 @@ synTester info (vis,con)
         doc = "// Automatically generated. Tests for the \"" ++ nameId (conInfoName con) ++ "\" constructor of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
     in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)]
 
+synConstrTag :: (Visibility,ConInfo) -> DefGroup Type
+synConstrTag (vis,con) 
+  = let name = toOpenTagName (unqualify (conInfoName con))
+        rc   = conInfoRange con
+        expr = Lit (LitString (show (conInfoName con)) rc)
+    in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefVal "")
 
 
 {---------------------------------------------------------------

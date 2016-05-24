@@ -197,7 +197,7 @@ programBody vis source modName nameRange doc
        (imports, fixDefss, topDefss)
           <- braced (do imps <- semis importDecl
                         fixs <- semis fixDecl
-                        tdefs <- semis (topdef modName vis)
+                        tdefs <- semis (topdef vis)
                         return (imps,fixs,tdefs))
        many semiColon          
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
@@ -240,8 +240,8 @@ splitTopDefs ds
           DefExtern edef-> fold (defs, tdefs, edef:edefs) ds
 
 
-topdef :: Name -> Visibility -> LexParser [TopDef]
-topdef modName vis 
+topdef :: Visibility -> LexParser [TopDef]
+topdef vis 
   = do def <- pureDecl vis
        return [DefValue def]
   <|>
@@ -251,7 +251,7 @@ topdef modName vis
     do (tdef,cdefs) <- typeDecl vis
        return ([DefType tdef] ++ map DefValue cdefs)       
   <|> 
-    do effectDecl modName vis
+    do effectDecl vis
   <|> 
     do externDecl vis
 
@@ -643,8 +643,8 @@ constructorId
 -- We don't return a syntactic construction for effects
 -- but immediately build the underlying data structures.
 -----------------------------------------------------------
-effectDecl :: Name -> Visibility -> LexParser [TopDef]
-effectDecl modName dvis 
+effectDecl :: Visibility -> LexParser [TopDef]
+effectDecl dvis 
   = do (vis,defvis,vrng,erng,doc) <- 
           (try $
             do rng     <- keyword "abstract"
@@ -679,7 +679,7 @@ effectDecl modName dvis
            extendConName = toEffectConName (tbinderName ename)
            
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation singleShot modName defvis tpars effTp opsTp extendConName)
+       (ops,xrng) <- semiBracesRanged1 (operation singleShot defvis tpars effTp opsTp extendConName)
           
        let kindStar = (KindCon nameKindStar rng)
            (opCons,opDefs) = unzip ops 
@@ -725,8 +725,8 @@ effectDecl modName dvis
                   map DefValue ( opDefs ++ extendConDefs {- ++ [opmatchDef] -})
 
 
-operation :: Bool -> Name -> Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
-operation singleShot modName vis foralls effTp opsTp extendConName
+operation :: Bool -> Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
+operation singleShot vis foralls effTp opsTp extendConName
   = do optional (keyword "function")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -754,7 +754,7 @@ operation singleShot modName vis foralls effTp opsTp extendConName
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
                         innerBody = if (singleShot) 
                                      then App (Var nameYieldOp1 False nameRng)
-                                              [(Nothing,Lit (LitString (show (qualify modName extendConName)) nameRng)),
+                                              [(Nothing,Var (toOpenTagName extendConName) False nameRng),
                                                (Nothing,opCon)] rng
                                      else 
                                     App (Var (if singleShot then nameYieldOp1 else nameYieldOp) False nameRng) 
