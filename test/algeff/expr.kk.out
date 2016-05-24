@@ -17,6 +17,9 @@ ticks: 2
 .copy : forall<a> (.ops-state<a>) -> .ops-state<a>
 .copy : forall<a> (.ops-out<a>, expr) -> .ops-out<a>
 .copy : forall<a,b> (.ops-exc<a>, string) -> .ops-exc<a>
+.tag-Eff-exc: string
+.tag-Eff-out: string
+.tag-Eff-state: string
 >>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr

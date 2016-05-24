@@ -5,6 +5,8 @@
 .Op-send : forall<a,b> (a) -> .ops-send<a,b>
 .copy : forall<a,b> (.ops-send<a,b>, a) -> .ops-send<a,b>
 .copy : forall<a,b> (.ops-await<a,b>) -> .ops-await<a,b>
+.tag-Eff-await: string
+.tag-Eff-send: string
 await : forall<a> () -> (await<a>) a
 consumer : () -> (await<int>) int
 down : forall<a,b,e> (prod : () -> <await<a>,send<a>,div|e> b, action : () -> <await<a>,send<a>,div|e> b) -> <await<a>,send<a>,div|e> b

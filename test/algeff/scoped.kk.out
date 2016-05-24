@@ -15,6 +15,10 @@
 .Op-symbol : forall<a> (char) -> .ops-symbol<a>
 .copy : forall<a> (.ops-symbol<a>, char) -> .ops-symbol<a>
 .copy : forall<a,b> (.ops-cutfail<a>) -> .ops-cutfail<a>
+.tag-Eff-cutfail: string
+.tag-Eff-nondet: string
+.tag-Eff-state: string
+.tag-Eff-symbol: string
 call : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
 choice : forall<a,e> (p1 : () -> <nondet|e> a, p2 : () -> <nondet|e> a) -> <nondet|e> a
 choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<int>|e> a

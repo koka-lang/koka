@@ -8,6 +8,8 @@ one: [3]
 .Op-get : forall<a,b> .ops-state<a,b>
 .Op-put : forall<a,b> (a) -> .ops-state<a,b>
 .copy : forall<a,b> (.ops-nondet<a>, list<b>) -> .ops-nondet<a>
+.tag-Eff-nondet: string
+.tag-Eff-state: string
 choice : forall<a> (xs : list<a>) -> nondet a
 choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<int>|e> a
 fail : forall<a> () -> nondet a

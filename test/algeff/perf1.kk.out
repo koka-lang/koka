@@ -2,6 +2,7 @@
 .Op-get : forall<a,b> .ops-state<a,b>
 .Op-put : forall<a,b> (a) -> .ops-state<a,b>
 .extern-direct_count: () -> (state<int>) int
+.tag-Eff-state: string
 comp : () -> div int
 count : () -> <state<int>,div> int
 direct_count: () -> (state<int>) int

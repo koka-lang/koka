@@ -18,5 +18,5 @@ function foo() {
 }
 
 function main() {
-  state(0,foo).print  // 42
+  state(0,foo).println  // 42
 }

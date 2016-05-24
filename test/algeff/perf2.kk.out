@@ -1,6 +1,7 @@
 .Eff-choose : forall<a> (.ops-choose<a>) -> operation<a>
 .Op-fail : forall<a,b> .ops-choose<a>
 .Op-pick : forall<a> (int) -> .ops-choose<a>
+.tag-Eff-choose: string
 appendSafe : (queen : int, xs : solution, xss : solutions) -> div solutions
 chooseAll : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 extend : (queen : int, acc : solutions, xss : solutions) -> div solutions

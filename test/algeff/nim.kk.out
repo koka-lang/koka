@@ -32,6 +32,10 @@ failure while running program:
 .copy : forall<a> (.ops-nim<a>, player, int) -> .ops-nim<a>
 .copy : forall<a> (.ops-choose<a>) -> .ops-choose<a>
 .copy : forall<a,b> (.ops-cheating<a>, player) -> .ops-cheating<a>
+.tag-Eff-cheating: string
+.tag-Eff-choose: string
+.tag-Eff-nim: string
+.tag-Eff-state: string
 == : (p1 : player, p2 : player) -> bool
 Alice : player
 Bob : player
@@ -82,7 +86,7 @@ testPrint1 : () -> io player
 testPrint2 : () -> io player
 updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
-.../out/test/std_core.js:785
+.../out/test/std_core.js:782
  throw exn;
  ^
 bob cheated!
