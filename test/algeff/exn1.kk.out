@@ -17,7 +17,7 @@ test1 : () -> exn list<bool>
 test2 : () -> list<bool>
 test3 : () -> list<bool>
 xor : () -> <amb,exn> bool
-.../out/test/std_core.js:760
+.../out/test/std_core.js:785
  throw exn;
  ^
 oops

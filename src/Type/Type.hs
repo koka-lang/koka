@@ -44,7 +44,7 @@ module Type.Type (-- * Types
                   , isOptional, makeOptional
 
                   --, handledToLabel
-                  , HandledSort(..), getHandledEffect, containsHandledEffect, tconHandled, tconHandled1
+                  , tconHandled, tconHandled1
                   , typeCps
                   , isEffectAsync, isAsyncFunction
 
@@ -514,27 +514,6 @@ labelName tp
                            typeConName tc
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
-containsHandledEffect :: [Name] -> Effect -> Bool
-containsHandledEffect exclude eff
-  = let (ls,_) = extractEffectExtend eff
-    in any (isJust . getHandledEffectX exclude) ls
-
-data HandledSort = ResumeOnce | ResumeMany
-                 deriving (Eq,Show)
-
-getHandledEffect :: Type -> Maybe HandledSort
-getHandledEffect tp
-  = getHandledEffectX [] tp
-
-getHandledEffectX exclude tp
-  = case expandSyn tp of
-      TApp (TCon (TypeCon name _)) [t]  
-        | name == nameTpHandled  -> getHandledEffectX exclude t
-        | name == nameTpHandled1 -> getHandledEffectX exclude t
-      TCon (TypeCon hxName kind) 
-        | isKindHandled kind  && not (hxName `elem` exclude) -> Just ResumeMany
-        | isKindHandled1 kind && not (hxName `elem` exclude) -> Just ResumeOnce
-      _ -> Nothing
 
 typeCps :: Type
 typeCps

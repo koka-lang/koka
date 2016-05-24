@@ -816,7 +816,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
   = do -- build up the type of the action parameter
        let actionEff = if shallow then heff else effectExtend (handledToLabel hxeff) heff  
            -- actionEff = effectExtend (handledToLabel hxeff) heff
-           actionPar = (newName "action",TFun [] (effectExtend typeCps actionEff) retInTp)
+           actionPar = (newName "action",TFun [] ({-effectExtend typeCps-} actionEff) retInTp)
 
        -- effect of resume
        let resumeEff = if shallow then actionEff else retEff

@@ -53,6 +53,8 @@ module Common.NamePrim
           , nameTpHandled, nameTpHandled1
           , nameTpOperation, nameYieldOp, nameYieldOp1
           , nameTpCps, nameTpYld, nameTpCont
+          , nameInCps
+
           , nameTpAsync
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
@@ -175,6 +177,7 @@ nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
 
 nameTpCps       = preludeName "cps"
+nameInCps       = preludeName "incps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"

@@ -2603,7 +2603,7 @@ val uncps = handler {
 }
 
 // inject the ":cps" effect
-external inline incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
+external  incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.
@@ -2684,16 +2684,16 @@ type yld<a> {
   Result( result: a ) 
 }
 
-external inline ".yieldop"( op : operation<a> ) : e a {
+external inline ".yieldop"( op : operation<a> ) : a {
   js inline "$std_core.Yield(#1,_k)" 
 }
 
-external ".yieldop1"( efftag: string, op : a ) : e b {
+external ".yieldop1"( efftag: string, op : a ) : b {
   js inline "$yield_linearx(#1,#2)" 
 }
 
 /*
-external ".yieldop1"( op : operation<a> ) : e a {
+external ".yieldop1"( op : operation<a> ) : a {
   js inline "$yield_linear(#1)" 
 }
 */
@@ -2718,7 +2718,7 @@ external ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,
                           ret : a -> <cps|e> b,  
                           ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
                                  resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  
-                        ) : total ((action : () -> <cps|e1> a) -> e b) { 
+                        ) : total ((action : () -> e1 a) -> e b) { 
   js inline "$makeGenOptHandler0(optag,false,ret,ops)"
 }
 
@@ -2740,7 +2740,7 @@ external ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e
                           ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o, 
                                   resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b), 
                                   loc:d) -> <cps|e> b  
-                        ) :  total ((loc:d, action: () -> <cps|e1> a) -> e b) {
+                        ) :  total ((loc:d, action: () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler1(optag,false,ret,ops)"
 }
 

@@ -64,6 +64,7 @@ import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
 import Type.Type              
+import Type.Kind              ( containsHandledEffect )
 import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )            

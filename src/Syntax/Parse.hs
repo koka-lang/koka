@@ -32,6 +32,7 @@ module Syntax.Parse( parseProgramFromFile
 
 -- import Lib.Trace
 import Data.List (intersperse)
+import Data.Maybe( isJust )
 import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
@@ -1042,7 +1043,7 @@ handlerExpr
        return (App expr args (combineRanged rng expr))
 
 handlerExprX lp rng shallow mbEff
-  = do (pars,parsLam,rng1) <- handlerParams -- parensCommas lp handlerPar <|> return []
+  = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        (retops,rng2)  <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
        case rets of
@@ -1050,24 +1051,26 @@ handlerExprX lp rng shallow mbEff
          _     -> fail "There must be (at most) one 'return' clause in a handler body"
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
-handlerParams
-  = do (pars,rng) <- parameters True {-allow defaults-}
+handlerParams 
+  = do (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
        let hpars  = [p{ binderExpr = () } | p <- pars]
-           isJust (Just _) = True
-           isJust _        = False
            hlam   = if (any (isJust.binderExpr) pars) 
-                      then let apar   = [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
-                               xpars  = [p | p <- pars ++ apar, not (isJust (binderExpr p))] 
+                      then let apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
+                               xpars  = [case binderExpr p of
+                                           Nothing -> p{binderName = makeHiddenName "par" (binderName p)} 
+                                           Just _  -> p
+                                        | p <- pars] 
                                xargs  = [(Nothing,
                                           case binderExpr p of
                                             Nothing -> Var (binderName p) False rng
-                                            Just e  -> e) |  p <- pars ++ apar]
-                               hlam h = Lam xpars (App h xargs rng) rng
+                                            Just e  -> e) |  p <- xpars] 
+                                        ++ 
+                                        [(Nothing, (Var (binderName apar) False rng) )]
+                               xxpars = [p | p <- xpars, not (isJust (binderExpr p))]         
+                               hlam h = Lam (xxpars ++ [apar]) (App h xargs rng) rng
                            in hlam
                       else id
        return (hpars,hlam,rng)
-    <|>
-       return ([],id,rangeNull)
 
 handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
 handlerOp 

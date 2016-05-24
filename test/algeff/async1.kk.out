@@ -1,1 +1,1 @@
-main : () -> console ()
+main : () -> <asyn,console> ()
