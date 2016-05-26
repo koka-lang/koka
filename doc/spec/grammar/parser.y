@@ -70,7 +70,7 @@ void printDecl( const char* sort, const char* name );
 
 %token YIELD REC TRY IFACE INST
 
-%token INLINE INCLUDE ID_CS ID_JS ID_FILE
+%token INLINE INCLUDE ID_CS ID_JS ID_FILE LINEAR
 
 %type <Id>  varid conid qvarid qconid op  
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -242,10 +242,6 @@ commas1     : commas ','
             ;
 
 
-typeparams  : '<' tbinders '>'
-            | /* empty */
-            ;
-
 constructors: constructors1 semis
             | /* empty */
             ;
@@ -254,8 +250,7 @@ constructors1: constructors1 semis1 constructor
             | constructor
             ;
 
-constructor : visibility con equantifier conid conparams
-            | visibility con conid conparams
+constructor : visibility con conid typeparams conparams
             ;
 
 con         : CON
@@ -281,15 +276,20 @@ conpar      : paramid ':' paramtype
 -- Effect declarations
 ----------------------------------------------------------*/
 
-effectdecl  : EFFECT typeid typeparams kannot  '{' semis operations '}'     { $$ = $2; }
-            | EFFECT typeid typeparams kannot                               { $$ = $2; }
+effectdecl  : EFFECT effectmod typeid typeparams kannot opdecls { $$ = $3; }
             ;
 
-operations  : operation operations
+effectmod   : LINEAR
             | /* empty */
             ;
 
-operation   : visibility identifier lparen parameters ')' ':' tatomic
+opdecls     : '{' semis operations '}'            
+
+operations  : operations operation semis
+            | /* empty */
+            ;
+
+operation   : visibility identifier typeparams lparen parameters ')' ':' tatomic
             ;
 
 /* ---------------------------------------------------------
@@ -311,11 +311,11 @@ funid       : identifier         { $$ = $1; }
             ;
 
 
-fundecl     : quantifiers funid fundef block          { $$ = $2; }
-            | quantifiers funid fundef '=' blockexpr  { $$ = $2; } 
+fundecl     : some funid fundef block          { $$ = $2; }
+            | some funid fundef '=' blockexpr  { $$ = $2; } 
             ;
 
-fundef      : lparen parameters ')' annotres qualifier
+fundef      : typeparams lparen parameters ')' annotres qualifier
             ;
 
 
@@ -396,8 +396,8 @@ nofunexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ; 
 
-handleexpr  : HANDLER handleeff handlepars '{' semis matchrules '}'
-            | HANDLE handleeff lparen expr ')' handlepars '{' semis matchrules '}'
+handleexpr  : HANDLER handleeff handlepars '{' semis oprules1 semis '}'
+            | HANDLE handleeff lparen expr ')' handlepars '{' semis oprules1 semis '}'
             ; 
 
 handlepars  : lparen parameters ')'
@@ -408,7 +408,7 @@ handleeff   : '<' anntype '>'
             | /* empty */
             ;          
 
-funexpr     : FUN quantifiers fundef block
+funexpr     : FUN fundef block
             | block                    /* zero-argument function */
             ;
 
@@ -601,6 +601,37 @@ patarg      : identifier '=' pattern                  /* named argument */
             | pattern
             ;
 
+
+/* ---------------------------------------------------------
+-- Operations
+----------------------------------------------------------*/
+
+oprules1    : oprules1 semis1 oprule
+            | oprule
+            ;
+
+oprule      : qidentifier opparamsx RARROW blockexpr
+            | RETURN paramid RARROW blockexpr
+            | RETURN lparen paramid ')' RARROW blockexpr
+            ;
+                        
+opparamsx   : lparen opparams ')'
+            | /* empty */
+            ;
+
+opparams    : opparams1
+            | /* empty */
+            ;
+
+opparams1   : opparams1 ',' opparam
+            | opparam
+            ;
+
+opparam     : paramid 
+            | paramid ':' type
+            ;
+
+
 /* ---------------------------------------------------------
 -- Types
 ----------------------------------------------------------*/
@@ -617,27 +648,31 @@ tbinder     : varid kannot
 
 
 /* full type */
-typescheme  : quantifiers tarrow qualifier        /* used for type annotations */
+typescheme  : someforalls tarrow qualifier        /* used for type annotations */
             ;
 
-type        : aquantifier tarrow qualifier        /* used for plain types (without some or exists quantifiers) */
+type        : FORALL typeparams1 tarrow qualifier
             | tarrow qualifier
             ;
 
-quantifiers : squantifier aquantifier
-            | squantifier
-            | aquantifier
+
+some        : SOME typeparams1
             | /* empty */
             ;
-            
-aquantifier : FORALL '<' tbinders1 '>'
+
+
+someforalls : SOME typeparams1 FORALL typeparams1
+            | SOME typeparams1
+            | FORALL typeparams1
+            | /* empty */
             ;
 
-squantifier : SOME '<' tbinders1 '>'
+typeparams  : typeparams1
+            | /* empty */
             ;
 
-equantifier : EXISTS '<' tbinders1 '>'
-            ;
+typeparams1 : '<' tbinders '>'
+            ;            
 
 qualifier   : WITH '(' predicates1 ')'
             | /* empty */

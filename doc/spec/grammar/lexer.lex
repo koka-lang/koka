@@ -160,6 +160,7 @@ include                   { return INCLUDE; }
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
 effect                    { return EFFECT; } 
+linear                    { return LINEAR;  }
 
   /* unused reserved identifiers */
 yield                     { return YIELD;}
@@ -802,12 +803,12 @@ char* stringDup( const char* s, yyscan_t scanner )
 ----------------------------------------------------*/
 
 bool isLetter(char c) {
-  return ((c>='a' && c <= 'z') || (c>='A' && c<='Z'));
+  return ((c>='a' && c <= 'z') || (c>='A' && c<='Z') || c=='\0' || c==' ');
 }
 
 bool wellformed( const char* s ) {
-  char prev = ' ';
-  char next = ' ';
+  char prev = '\0';
+  char next = '\0';
   const char* c;
   for(c = s; *c != 0; c++) {
     next = *(c+1);
