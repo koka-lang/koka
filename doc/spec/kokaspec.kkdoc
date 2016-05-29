@@ -113,11 +113,11 @@ directives.
 | _modulepath_ | ::=    | _lowerid_ "/" [_lowerid_ "/"]{.many}                                                    |                         |
 | &nbsp;       |        |                                                                                         |                         |
 | _conid_      | ::=    | _upperid_                                                                               |                         |
-| _varid_      | ::=    | _lowerid_~&lt;!_reserved_&gt;~                                                           |                         |
+| _varid_      | ::=    | _lowerid_~&lt;!_reserved_&gt;~                                                          |                         |
 | &nbsp;       |        |                                                                                         |                         |
 | _lowerid_    | ::=    | _lower_ [_idchar_]{.many}                                                               |                         |
 | _upperid_    | ::=    | _upper_ [_idchar_]{.many}                                                               |                         |
-| _idchar_     | ::=    | _letter_ []{.bar} _digit_ []{.bar} `_` []{.bar} `-`                                                  |                         |
+| _idchar_     | ::=    | _letter_ []{.bar} _digit_ []{.bar} `_` []{.bar} `-`                                     |                         |
 | &nbsp;       |        |                                                                                         |                         |
 | _wildcard_   | ::=    | `_` [_idchar_]{.many}                                                                   |                         |
 | _typevarid_  | ::=    | _letter_ [_digit_]{.many}                                                               |                         |
@@ -131,6 +131,7 @@ directives.
 |              | &bar;  | "public" []{.bar} "private" []{.bar} "abstract"                                         |                         |
 |              | &bar;  | "interface" []{.bar} "instance" []{.bar} "with"                                         |                         |
 |              | &bar;  | "external" []{.bar} "inline" []{.bar} "include"                                         |                         |
+|              | &bar;  | "effect" []{.bar} "handle" []{.bar} "handler" []{.bar} "linear"                         |                         |
 |              | &bar;  | "yield" []{.bar} "qualified" []{.bar} "hiding"                                          | (future reserved words) |
 {.grammar .lex}
 
@@ -193,7 +194,7 @@ directives.
 |                 | &bar;  | _linedirective_                                                                                    |                          |
 | &nbsp;          |        |                                                                                                    |                          |
 | _linecomment_   | ::=    | `//` [_linechar_]{.many} _newline_                                                                 |                          |
-| _linedirective_ | ::=    | _newline_ `#` [{ _linechar_ } _newline_]{.many}                                                    |                          |
+| _linedirective_ | ::=    | ~&lt;_newline_&gt;~ `#` [_linechar_]{.many} _newline_                                            |                          |
 | _linechar_      | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_                                          |                          |
 | &nbsp;          |        |                                                                                                    |                          |
 | _blockcomment_  | ::=    | <code>/&#42;</code> _blockpart_ [_blockcomment_ _blockpart_]{.many} <code>&#42;/</code>            | (allows nested comments) |
@@ -231,6 +232,7 @@ directives.
 | _cont_     | ::=    | `x80`..`xBF`                            |                                     |
 {.grammar .lex}
 
+<!--
 ## Semicolon insertion  {#sec:layout}
 
 Just like programming languages like 
@@ -393,6 +395,7 @@ also be implemented as a straightforward transformation on the lexical token
 stream. In particular, there are no intricate dependencies with the parser
 that lead to bizarrely complex layout rules, as is the case in languages like
 [Haskell] or [JavaScript].
+-->
 
 ## Implementation { #sec:lex-implementation }
 
@@ -447,6 +450,7 @@ ignored.
 | _aliasdecl_     | ::=      | "alias" _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} "=" _type_              |     |
 | _typedecl_      | ::=      | _typesort_ _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_typebody_]{.opt}   |     |
 |                 | &bar;    | "struct" _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_conparams_]{.opt}    |     |
+|                 | &bar;    | "effect" ["linear"]{.opt} _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}    |     |
 | _typesort_      | ::=      | "type" []{.bar} "cotype" []{.bar} "rectype"                                    |     |
 | &nbsp;          |          |                                                                                |     |
 | _typeid_        | ::=      | _varid_                                                                        |     |
@@ -460,10 +464,15 @@ ignored.
 | _tbinder_       | ::=      | _varid_ [_kannot_]{.opt}                                                       |     |
 | _typebody_      | ::=      | "{" _semis_ [_constructor_ _semis_]{.many} "}"                                 |     |
 | &nbsp;          |          |                                                                                |     |
-| _constructor_   | ::=      | ["con"]{.opt} [_equantifier_]{.opt} _conid_ [_conparams_]{.opt}                |     |
+| _constructor_   | ::=      | ["con"]{.opt} _conid_ [_typeparams_]{.opt} [_conparams_]{.opt}                |     |
 | _conparams_     | ::=      | _lparen_ [_conparam_ ["," _conparam_]{.many}]{.opt} ")"                        |     |
 | _conparam_      | ::=      | [_paramid_]{.opt} `:` _paramtype_ ["=" _expr_]{.opt}                           |     |
 | _lparen_        | ::=      | _lapp_ []{.bar} "("                                                                               |     |
+| &nbsp;          |          |                                                                                |     |
+| _opdecls_       | ::=      | "{" _semis_ [_opdecl_ _semis_]{.many} "}"                                 |     |
+| _opdecl_        | ::=      | [_visibility_]{.opt} _identifier_ [_typeparams_]{.opt} _opparams_ [ `:` _tatom_]{.opt}  |     |
+| _opparams_      | ::=      | _lparen_ [_opparam_ ["," _opparam_]{.many}]{.opt} ")"                           |     |
+| _opparam_       | ::=      | [_paramid_]{.opt} `:` _paramtype_                           |     |
 {.grammar .parse}
 
 ## Value and function declarations
@@ -475,8 +484,8 @@ ignored.
 | _valdecl_        | ::=      | _binder_ "=" _expr_                                                                           |                       |
 | _binder_         | ::=      | _identifier_ [`:` _type_]{.opt}                                                               |                       |
 | &nbsp;           |          |                                                                                               |                       |
-| _fundecl_        | ::=      | [_quantifiers_]{.opt} _funid_ _fundef_ (_block_ []{.bar} "=" _blockexpr_)                     |                       |
-| _fundef_         | ::=      | _parameters_ [`:` _tresult_]{.opt} [_qualifier_]{.opt}                                        |                       |
+| _fundecl_        | ::=      | _somes_ _funid_ _fundef_ (_block_ []{.bar} "=" _blockexpr_)                     |                       |
+| _fundef_         | ::=      | [_typeparams_]{.opt} _parameters_ [`:` _tresult_]{.opt} [_qualifier_]{.opt}                                        |                       |
 | _funid_          | ::=      | _identifier_                                                                                  |                       |
 |                  | &bar;    | `[` [","]{.many} `]`                                                                          | (indexing operator)   |
 | &nbsp;           |          |                                                                                               |                       |
@@ -515,6 +524,7 @@ ignored.
 | &nbsp;         |          |                                                                             |                                      |
 | _expr_         | ::=      | _returnexpr_                                                                |                                      |
 |                | &bar;    | _matchexpr_                                                                 |                                      |
+|                | &bar;    | _handlerexpr_                                                                 |                                      |
 |                | &bar;    | _funexpr_                                                                   |                                      |
 |                | &bar;    | _ifexpr_                                                                    |                                      |
 |                | &bar;    | _opexpr_                                                                    |                                      |
@@ -525,8 +535,11 @@ ignored.
 | &nbsp;         |          |                                                                             |                                      |
 | _matchexpr_    | ::=      | "match" _atom_ "{" _semis_ [_matchrule_ _semis_]{.many} "}"                 |                                      |
 | _returnexpr_   | ::=      | "return" _opexpr_                                                           |                                      |
-| _funexpr_      | ::=      | "fun" [_quantifiers_]{.opt} _fundef_ _block_                                |                                      |
+| _funexpr_      | ::=      | "fun" _fundef_ _block_                                |                                      |
 |                | &bar;    | _block_                                                                     | (zero-argument anonymous function)   |
+| _handlerexpr_  | ::=      | "handler" _handleeff_ _handlepars_ "{" _handlerules_ "}"                    |                                      |
+|                | &bar;    | "handle" _handleeff_ _haction_ _handlepars_ "{" _handlerules_ "}"      |                                      |
+| _haction_      | ::=      | lparen _expr ")"                                                            |                                      |
 {.grammar .parse}
 
 ## Operator expressions
@@ -587,16 +600,25 @@ in an expressions.
 | _patarg_      | ::=      | [_identifier_ "="]{.opt} _pattern_              | (possibly named parameter)                     |
 {.grammar .parse}
 
+## Handlers
+
+| ~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
+| _handlerules_ | ::=      | semis _handlerule_ [_semis_ _handlerule_]{.many} semis     |                                                |
+| _handlerule_  | ::=      | _qidentifier_ _handleparams_ "->" _blockexpr_                  |                                                |
+|               | &bar;    | "return"  (_handleparams_ []{.bar} _paramid_) "->" _blockexpr_ |                                                |
+| &nbsp;        |          |                                                 |                                                |
+| _handleparams_ | &bar;    | _lparen_ [_handleparam_ ["," _handleparam_]{.many}]{.opt} ")"   |                                                |
+| _handleparam_  | &bar;    | _paramid_ [`:` _type_]{.opt}   |                                                |
+{.grammar .parse}
+
 ## Type schemes
 
 |~~~~~~~~~~~~~~~~|~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~|~~~~~|
-| _typescheme_   | ::= | [_quantifiers_]{.opt} _tarrow_ [_qualifier_]{.opt}    |             |     |
-| _type_         | ::= | [_aquantifier_]{.opt} _tarrow_ [_qualifier_]{.opt}    |             |     |
+| _typescheme_   | ::= | _somes_ _foralls_ _tarrow_ [_qualifier_]{.opt}    |             |     |
+| _type_         | ::= | _foralls_ _tarrow_ [_qualifier_]{.opt}    |             |     |
 | &nbsp;         |     |                                                       |             |     |
-| _quantifiers_  | ::= | [_squantifier_]{.opt} [_aquantifier_]{.opt}           |             |     |
-| _aquantifier_  | ::= | "forall" "<" _tbinders_ ">"                           |             |     |
-| _squantifier_  | ::= | "some" "<" _tbinders_ ">"                             |             |     |
-| _equantifier_  | ::= | "exists" "<" _tbinders_ ">"                           |             |     |
+| _foralls_      | ::= | ["forall" _typeparams_]{.opt}           |             |     |
+| _some_         | ::= | ["some" _typeparams_]{.opt}           |             |     |
 | &nbsp;         |     |                                                       |             |     |
 | _qualifier_    | ::= | "with" "(" _predicates_ ")"                           |             |     |
 | &nbsp;         |     |                                                       |             |     |

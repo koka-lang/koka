@@ -76,7 +76,6 @@ void printDecl( const char* sort, const char* name );
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder 
 %type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
-%type <Id>  effectdecl
 
 
 %%
@@ -161,8 +160,6 @@ topdecl     : visibility puredecl                             { printDecl("value
             | visibility typedecl                             { printDecl("type",$2); }
             | ABSTRACT typedecl                               { printDecl("type",$2); }
             | visibility externdecl                           { printDecl("external",$2); }
-            | visibility effectdecl                           { printDecl("effect",$2); }
-            | ABSTRACT effectdecl                             { printDecl("effect",$2); }
             ;
 
 
@@ -222,6 +219,7 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
 typedecl    : typesort typeid typeparams kannot  '{' semis constructors '}'     { $$ = $2; }
             | typesort typeid typeparams kannot                                 { $$ = $2; }
             | STRUCT typeid typeparams kannot  conparams                        { $$ = $2; }
+            | EFFECT effectmod typeid typeparams kannot opdecls                 { $$ = $3; }
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
@@ -275,9 +273,6 @@ conpar      : paramid ':' paramtype
 /* ---------------------------------------------------------
 -- Effect declarations
 ----------------------------------------------------------*/
-
-effectdecl  : EFFECT effectmod typeid typeparams kannot opdecls { $$ = $3; }
-            ;
 
 effectmod   : LINEAR
             | /* empty */
