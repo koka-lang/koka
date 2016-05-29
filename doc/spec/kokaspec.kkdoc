@@ -1,6 +1,8 @@
 ﻿Title         : Koka language specification
 Heading Base  : 2
 Css           : http://fonts.googleapis.com/css?family=PT+Sans
+Css           : http://fonts.googleapis.com/css?family=PT+Serif
+Css           : http://fonts.googleapis.com/css?family=PT+Mono
 Css           : http://fonts.googleapis.com/css?family=Source+Code+Pro
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
@@ -537,8 +539,8 @@ ignored.
 | _returnexpr_   | ::=      | "return" _opexpr_                                                           |                                      |
 | _funexpr_      | ::=      | "fun" _fundef_ _block_                                |                                      |
 |                | &bar;    | _block_                                                                     | (zero-argument anonymous function)   |
-| _handlerexpr_  | ::=      | "handler" _handleeff_ _handlepars_ "{" _handlerules_ "}"                    |                                      |
-|                | &bar;    | "handle" _handleeff_ _haction_ _handlepars_ "{" _handlerules_ "}"      |                                      |
+| _handlerexpr_  | ::=      | "handler" _handlereff_ _handlerpars_ "{" _handlerrules_ "}"                    |                                      |
+|                | &bar;    | "handle" _handlereff_ _haction_ _handlerpars_ "{" _handlerrules_ "}"      |                                      |
 | _haction_      | ::=      | lparen _expr ")"                                                            |                                      |
 {.grammar .parse}
 
@@ -603,12 +605,12 @@ in an expressions.
 ## Handlers
 
 | ~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
-| _handlerules_ | ::=      | semis _handlerule_ [_semis_ _handlerule_]{.many} semis     |                                                |
-| _handlerule_  | ::=      | _qidentifier_ _handleparams_ "->" _blockexpr_                  |                                                |
-|               | &bar;    | "return"  (_handleparams_ []{.bar} _paramid_) "->" _blockexpr_ |                                                |
+| _handlerrules_ | ::=      | semis _handlerrule_ [_semis_ _handlerrule_]{.many} semis     |                                                |
+| _handlerrule_  | ::=      | _qidentifier_ _opargs_ "->" _blockexpr_                  |                                                |
+|               | &bar;    | "return"  (_lparen_ _oparg_ ")" []{.bar} _paramid_) "->" _blockexpr_ |                                                |
 | &nbsp;        |          |                                                 |                                                |
-| _handleparams_ | &bar;    | _lparen_ [_handleparam_ ["," _handleparam_]{.many}]{.opt} ")"   |                                                |
-| _handleparam_  | &bar;    | _paramid_ [`:` _type_]{.opt}   |                                                |
+| _opargs_ | &bar;    | _lparen_ [_oparg_ ["," _oparg_]{.many}]{.opt} ")"   |                                                |
+| _oparg_  | &bar;    | _paramid_ [`:` _type_]{.opt}   |                                                |
 {.grammar .parse}
 
 ## Type schemes

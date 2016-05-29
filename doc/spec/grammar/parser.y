@@ -391,17 +391,9 @@ nofunexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ; 
 
-handleexpr  : HANDLER handleeff handlepars '{' semis oprules1 semis '}'
-            | HANDLE handleeff lparen expr ')' handlepars '{' semis oprules1 semis '}'
-            ; 
-
-handlepars  : lparen parameters ')'
-            | /* empty */
-            ;
-
-handleeff   : '<' anntype '>'
-            | /* empty */
-            ;          
+handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
+            | HANDLE handlereff lparen expr ')' handlerpars '{' semis handlerrules1 semis '}'
+            ;        
 
 funexpr     : FUN fundef block
             | block                    /* zero-argument function */
@@ -598,31 +590,39 @@ patarg      : identifier '=' pattern                  /* named argument */
 
 
 /* ---------------------------------------------------------
--- Operations
+-- Handlers
 ----------------------------------------------------------*/
 
-oprules1    : oprules1 semis1 oprule
-            | oprule
+handlerpars : lparen parameters ')'
+            | /* empty */
             ;
 
-oprule      : qidentifier opparamsx RARROW blockexpr
+handlereff  : '<' anntype '>'
+            | /* empty */
+            ; 
+
+handlerrules1: handlerrules1 semis1 handlerrule
+            | handlerrule
+            ;
+
+handlerrule : qidentifier opargs RARROW blockexpr
+            | RETURN lparen oparg ')' RARROW blockexpr
             | RETURN paramid RARROW blockexpr
-            | RETURN lparen paramid ')' RARROW blockexpr
             ;
                         
-opparamsx   : lparen opparams ')'
+opargs      : lparen opargs0 ')'
             | /* empty */
             ;
 
-opparams    : opparams1
+opargs0     : opargs1
             | /* empty */
             ;
 
-opparams1   : opparams1 ',' opparam
-            | opparam
+opargs1     : opargs1 ',' oparg
+            | oparg
             ;
 
-opparam     : paramid 
+oparg       : paramid 
             | paramid ':' type
             ;
 
