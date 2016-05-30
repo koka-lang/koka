@@ -2,9 +2,11 @@
 Heading Base  : 2
 Css           : http://fonts.googleapis.com/css?family=PT+Sans
 Css           : http://fonts.googleapis.com/css?family=PT+Serif
-Css           : http://fonts.googleapis.com/css?family=Source+Serif+Pro
-Css           : http://fonts.googleapis.com/css?family=Source+Sans+Pro
-Css           : http://fonts.googleapis.com/css?family=Source+Code+Pro
+Css           : http://fonts.googleapis.com/css?family=Noto+Sans
+Css           : http://fonts.googleapis.com/css?family=Noto+Serif
+Css           : http://fonts.googleapis.com/css?family=Roboto+Slab
+Css           : http://fonts.googleapis.com/css?family=Roboto+Mono
+Css           : http://fonts.googleapis.com/css?family=Roboto
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
 Script        : scripts/kokaspec.js
@@ -16,9 +18,15 @@ xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
 body {
-  font-family: 'PT Sans', 'Segoe UI', 'Candara', 'DejaVu Sans', sans-serif;
-
+  font-family: 'Noto Serif', 'Roboto Slab', 'PT Sans', 'Segoe UI', 'Candara', 'DejaVu Sans', sans-serif;  
+  line-height: 1.4;
 }
+Css Header:
+  .madoko pre, .madoko code {
+    font-size: 1em;
+    font-family: Consolas, 'Roboto Mono', monospace;
+  }
+
 Html Header   : 
   <!-- NO_CLICK_TRACKING -->
   <!--
@@ -39,6 +47,7 @@ Html Header   :
 This is the draft language specification of the Koka language, version 0.1.\
 Currently only the lexical and context-free grammar and the layout rule are specified. 
 The [standard libraries](toc.html) are documented separately.
+
 
 # Lexical syntax 
 

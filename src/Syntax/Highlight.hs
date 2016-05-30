@@ -97,9 +97,7 @@ showLexeme (Lexeme _ lex)
       LexCons id    -> show id
       LexTypedId id tp -> show id
       LexKeyword k _ -> k
-      LexSpecial s  | s == "((" -> "("
-                    | s == "[[" -> "["
-                    | otherwise -> s
+      LexSpecial s  -> normalizeSpecial s
       LexComment s  -> s
       LexWhite w    -> w
       LexInsLCurly  -> ""
@@ -107,6 +105,10 @@ showLexeme (Lexeme _ lex)
       LexInsSemi    -> ""
       LexError msg  -> ""
 
+normalizeSpecial :: String -> String
+normalizeSpecial s  | s == "((" = "("
+                    | s == "[[" = "["
+                    | otherwise = s
 
 isKeywordOp :: String -> Bool
 isKeywordOp s
@@ -230,7 +232,7 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
 
             LexKeyword ":" _ -> fmt TokTypeKeyword ":"
             LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) k
-            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) s
+            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) (normalizeSpecial s)
             LexComment s  -> fmt (TokRichComment ({- map highlightComment -} (lexComment (sourceName (rangeSource rng)) (posLine (rangeStart rng)) s))) s
             LexWhite w    -> fmt TokWhite w
             LexInsLCurly  -> fmt TokWhite ""
@@ -347,7 +349,7 @@ lexComment sourceName lineNo content
       | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest      
     scan n lacc acc ('`':'`':'`':c:rest) | whiteLine acc && c /= '`'
       = let (pre,post) = span (/='\n') (c:rest)
-            comCode = if (pre == "unchecked") then ComCodeLit else ComCodeBlock
+            comCode = if (pre == "unchecked") then ComCodeBlock else ComCodeLit
         in if (pre=="unchecked" || pre=="koka" || pre=="")
             then scanCodeBlock (n+1) comCode (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine post)
             else scanPreBlock 3 n (ComText (reverse ("```" ++ pre ++ acc)) : lacc) [] post
@@ -418,7 +420,7 @@ lexComment sourceName lineNo content
 
 
     -- code block
-    scanCodeBlock n com m lacc acc ('/':'/':rest) | (onLine acc rest)
+    scanCodeBlock n com m lacc acc ('/':'/':'/':'/':rest) | (onLine acc rest)
                                                 = scanCodeBlock2 (n+1) ComCodeLit (n+1) lacc (reverse (acc)) "" (dropLine rest)
     scanCodeBlock n com m lacc acc ('`':'`':'`':rest)   | onLine acc rest
                                                 = endCodeBlock (n+1) com m lacc "" acc (dropLine rest)
