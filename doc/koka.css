@@ -6,10 +6,6 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-@import url(https://fonts.googleapis.com/css?family=PT+Mono);
-@import url(https://fonts.googleapis.com/css?family=Source+Code+Pro);
-@import url(https://fonts.googleapis.com/css?family=PT+Sans);
-
 /* Text size and margins for screen & print */
 @media screen {
   body { 
@@ -47,11 +43,11 @@ body {
 body,
 .koka .comment,
 .sans-serif { 
-  font-family: 'Segoe UI', 'PT Sans', 'Candara', 'DejaVu Sans', sans-serif;
+  font-family: 'PT Sans', 'Segoe UI', 'Candara', 'DejaVu Sans', sans-serif;
 }
 
 .serif {
-  font-family: Cambria,"Times New Roman","Liberation Serif","Times",serif;
+  font-family: 'PT Serif', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
 }
 
 h1 { 

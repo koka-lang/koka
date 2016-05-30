@@ -342,19 +342,22 @@ lexComment sourceName lineNo content
 
 
     -- code
-    scan n lacc acc ('"':':':rest)  = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest
-    scan n lacc acc ('"':'"':rest)  = if (onLine acc rest)
-                                       then scanCodeBlock2 (n+1) ComCodeLit (n+1) (ComText (reverse (dropLine acc)) : lacc) "" [] (dropLine rest)
-                                       else scan n lacc ('"':acc) rest
-    scan n lacc acc ('"':rest)      = if (onLine acc rest)
-                                       then scanCodeBlock (n+1) ComCodeBlock (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine rest)
-                                       else scanCode n ComCode (ComText (reverse (acc)) : lacc) [] rest
+    scan n lacc acc ('`':c:rest)    
+      | c /= '`' = scanCode n ComCode (ComText (reverse acc) : lacc) "" (c:rest)                                   
+      | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest      
+    scan n lacc acc ('`':'`':'`':c:rest) | whiteLine acc && c /= '`'
+      = let (pre,post) = span (/='\n') (c:rest)
+            comCode = if (pre == "unchecked") then ComCodeLit else ComCodeBlock
+        in if (pre=="unchecked" || pre=="koka" || pre=="")
+            then scanCodeBlock (n+1) comCode (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine post)
+            else scanPreBlock 3 n (ComText (reverse ("```" ++ pre ++ acc)) : lacc) [] post
+    scan n lacc acc ('`':rest)       
+      = let (pre,post) = span (=='`') rest 
+            lacc' = ComText (reverse ('`':pre ++ acc)) : lacc
+        in if (whiteLine acc && length pre >= 2) 
+            then scanPreBlock (length pre + 1) n lacc' [] post
+            else scanPre (length pre + 1) n lacc' [] post
     
-    -- pre
-    scan n lacc acc ('`':'`':'`':rest)    | whiteLine acc  = scanPreBlock n (ComText (reverse ("```" ++ acc)) : lacc) [] rest
-    scan n lacc acc ('`':'`':rest)  = scanPre True n (ComText (reverse ('`':'`':acc)) : lacc) [] rest
-    scan n lacc acc ('`':rest)      = scanPre False n (ComText (reverse ('`':acc)) : lacc) [] rest
-
     -- regular
     scan n lacc acc ('\n':rest)     = scan (n+1) lacc ('\n':acc) rest
     scan n lacc acc (c:rest)        = scan n lacc (c:acc) rest
@@ -385,16 +388,18 @@ lexComment sourceName lineNo content
                                       in scan (if ('\n' `elem` end) then (n+1) else n) (ComText (tag ++ end) : lacc) [] rest
 
     
-    -- scanPre formatted `pre`
-    scanPre isDouble n lacc acc ('`':'`':rest)  | isDouble     = scan n lacc ('`':'`':acc) rest
-    scanPre isDouble n lacc acc ('`':rest)      | not isDouble = scan n lacc ('`':acc) rest
-    scanPre isDouble n lacc acc ('\n':rest)     = scan n lacc acc ('\n':rest) -- don't go through newlines
-    scanPre isDouble n lacc acc (c:rest)        = scanPre isDouble n lacc (c:acc) rest
-    scanPre isDouble n lacc acc []              = scan n lacc acc []
+    -- scanPre formatted ``pre``
+    scanPre m n lacc acc ('`':rest)  
+      = let (pre,post) = span (=='`') rest
+        in if (length pre+1 == m)
+            then scan n lacc ('`':pre ++ acc) post
+            else scanPre m n lacc ('`':acc) rest
+    scanPre m n lacc acc ('\n':rest)     = scan n lacc acc ('\n':rest) -- don't go through newlines
+    scanPre m n lacc acc (c:rest)        = scanPre m n lacc (c:acc) rest
+    scanPre m n lacc acc []              = scan n lacc acc []
 
     -- scanCode "f(x)"
-    scanCode n com lacc acc ('"':'"':rest)  = scanCode n com lacc ('"':acc) rest
-    scanCode n com lacc acc ('"':rest)      = endCode n com lacc acc "" rest
+    scanCode n com lacc acc ('`':rest)      = endCode n com lacc acc "" rest
     scanCode n com lacc acc ('\n':rest)     = endCode n com lacc acc "\n" rest
     scanCode n com lacc acc (c:rest)        = scanCode n com lacc (c:acc) rest
     scanCode n com lacc acc []              = endCode n com lacc acc "" []
@@ -403,20 +408,24 @@ lexComment sourceName lineNo content
                                        in scan n (com (lexemes) (reverse acc) : lacc) (reverse post) rest
 
     -- pre block ```
-    scanPreBlock n lacc acc ('`':'`':'`':rest) = scan n lacc ("```" ++ acc) rest
-    scanPreBlock n lacc acc (c:rest)        = scanPreBlock (if (c=='\n') then n+1 else n) lacc (c:acc) rest
-    scanPreBlock n lacc acc []              = scan n lacc acc []
+    scanPreBlock m n lacc acc ('`':rest) 
+      = let (pre,post) = span (=='`') rest
+        in if (m == length pre + 1) 
+            then scan n lacc ('`':pre ++ acc) post
+            else scanPreBlock m n lacc ('`':acc) rest
+    scanPreBlock m n lacc acc (c:rest)        = scanPreBlock m (if (c=='\n') then n+1 else n) lacc (c:acc) rest
+    scanPreBlock m n lacc acc []              = scan n lacc acc []
 
 
     -- code block
-    scanCodeBlock n com m lacc acc ('"':'"':rest) | (onLine acc rest)
+    scanCodeBlock n com m lacc acc ('/':'/':rest) | (onLine acc rest)
                                                 = scanCodeBlock2 (n+1) ComCodeLit (n+1) lacc (reverse (acc)) "" (dropLine rest)
-    scanCodeBlock n com m lacc acc ('"':rest)   | onLine acc rest
+    scanCodeBlock n com m lacc acc ('`':'`':'`':rest)   | onLine acc rest
                                                 = endCodeBlock (n+1) com m lacc "" acc (dropLine rest)
     scanCodeBlock n com m lacc acc (c:rest)     = scanCodeBlock (if (c=='\n') then n+1 else n) com m lacc (c:acc) rest
     scanCodeBlock n com m lacc acc []           = endCodeBlock n com m lacc (reverse acc) "" []
 
-    scanCodeBlock2 n com m lacc pre acc ('"':rest)  | (onLine acc rest)
+    scanCodeBlock2 n com m lacc pre acc ('`':'`':'`':rest)  | (onLine acc rest)
                                                 = endCodeBlock (n+1) com m lacc pre acc (dropLine rest)
     scanCodeBlock2 n com m lacc pre acc (c:rest)= scanCodeBlock2 (if (c=='\n') then n+1 else n) com m lacc pre (c:acc) rest
     scanCodeBlock2 n com m lacc pre acc []      = endCodeBlock n com m lacc pre acc []

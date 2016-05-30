@@ -46,7 +46,7 @@ layout semiInsert lexemes
               -- semi checkComments $ 
               lexemes
     in -- trace (unlines (map show (take 100 ls))) $
-       seq (last ls) ls          
+       seq (length ls) ls          
 
 removeWhite :: [Lexeme] -> [Lexeme]
 removeWhite lexemes

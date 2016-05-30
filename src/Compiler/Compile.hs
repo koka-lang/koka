@@ -602,7 +602,7 @@ searchSource flags currentDir name
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ postfix ++ " from " ++ currentDir) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++"doc"] fname 
+       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] fname 
        case mbP of
          Just (root,stem) | root == currentDir 
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
@@ -796,8 +796,9 @@ codeGen term flags compileTarget loaded
            outHtmlFile  = outBase ++ "-source.html"
            source   = maybe sourceNull programSource (modProgram mod)
        if (extname (sourceName source) == (sourceExtension ++ "doc"))
-        then do termPhase term "write html document" 
-                withNewFilePrinter (outBase ++ ".doc.html") $ \printer ->
+        then do termPhase term "write html document"
+                let baseext = extname (notext (sourceName source)) 
+                withNewFilePrinter (outBase ++ (if baseext == "" then ".md" else baseext)) $ \printer ->
                  colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
               do termPhase term "write html source" 
