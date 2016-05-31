@@ -14,9 +14,11 @@ xlapp          : &#x2987;
 xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
+
 body {
-  font-family: 'Segoe UI', 'Noto Sans', 'DejaVu Sans', sans-serif;  
+  font-family: 'Noto Serif','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
 }
+
 Css Header:
   .madoko pre, .madoko code {
     font-size: 1em;
