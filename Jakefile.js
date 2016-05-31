@@ -215,10 +215,10 @@ task("guide", ["compiler"], function(publish) {
   var outstyles = path.join(outguide,"styles");
   var guidedir  = path.join("doc","rise4fun");
   var docflags  = publish ? "--htmlbases=" + docsite + " " : "";  
-  var cmd = mainExe + " -c -l --target=cs --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
+  var cmd = mainExe + " -c -l --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "guide.kkdoc", function() {
     // convert markdown
-    command(cmdMarkdown + " " + path.join(outguide,"guide.xmp.html"), function() {
+    command(cmdMarkdown + " --odir=" + outguide + " -v " + path.join(outguide,"guide.md"), function() {
       // copy style files
       jake.mkdirP(outstyles);
       jake.cpR(path.join("doc","koka.css"),outstyles);
