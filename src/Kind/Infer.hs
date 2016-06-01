@@ -232,7 +232,7 @@ synAccessors modName info vis conviss
                      else []
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]      
-                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
+                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
             in DefNonRec (Def (ValueBinder name () expr rng rng) rng visibility DefFun doc)
     
     in map synAccessor fields
@@ -250,7 +250,7 @@ synTester info (vis,con)
         branch1   = Branch (PatCon (conInfoName con) patterns rc rc) guardTrue (Var nameTrue False rc)
         branch2   = Branch (PatWild rc) guardTrue (Var nameFalse False rc)
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
-        doc = "// Automatically generated. Tests for the \"" ++ nameId (conInfoName con) ++ "\" constructor of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
+        doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
     in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)]
 
 synConstrTag :: (Visibility,ConInfo) -> DefGroup Type

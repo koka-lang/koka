@@ -21,11 +21,11 @@ external include {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
-// The result of a regular expression match, where "index" is the index in the
-// original source string where the match begins, "next" is the index just after
-// this match ("next == index + min(1,matched.length)"), "matched" is the content that
-// was matched, and "groups" is a vector that contains the content for each 
-// capture group (where "groups[0] == matched").
+// The result of a regular expression match, where `index` is the index in the
+// original source string where the match begins, `next` is the index just after
+// this match (`next == index + min(1,matched.length)`), `matched` is the content that
+// was matched, and `groups` is a vector that contains the content for each 
+// capture group (where `groups[0] == matched`).
 public struct matched( index :int, next :int, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
@@ -46,7 +46,7 @@ external inline groupsMatchedOn( groups : any, index : int ) : int {
 } 
 
 // For alternative regular expressions, return the alternative that was matched.
-// If this was not an alternative regex, returns "-1"
+// If this was not an alternative regex, returns `-1`
 public external alternative( groups : groups ) : int {
   cs inline "-1"
   js inline "(#1.alternative!=null ? #1.alternative : -1)"
@@ -109,8 +109,8 @@ public function firstMatchedOn( groups : groups, start : int = 1, end : int = 10
   }
 }
 
-// Return the first matched group (or "" if nothing matched) starting at "start"
-// and returning at most group "end"
+// Return the first matched group (or "" if nothing matched) starting at `start`
+// and returning at most group `end`
 public function firstMatched(groups : groups, start : int = 1, end : int = 10 ) : string
 {
   val i = groups.firstMatchedOn(start,end)
@@ -122,14 +122,14 @@ public function []( groups : groups, index : int ) : string {
   groupsIndex(groups.grp, index)
 }
 
-// Returns "True" if a particular capture group actually matched.
+// Returns `True` if a particular capture group actually matched.
 // This is used if the group can match, but may capture the empty string.
 public function matchedOn( groups : groups, index : int ) : bool {
   groupsMatchedOn(groups.grp, index).bool
 }
 
-// Create a new regular expression. Takes two optional parameters. Set "ignoreCase" to "True"
-// to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"
+// Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
+// to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
 // match also the beginning and end of every line (instead of the entire input).
 public function regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex
 {
@@ -138,10 +138,10 @@ public function regex( regex :string, ignorecase :bool = False, multiline : bool
 
 // Create a new _alternative_ regular expression. 
 // Matches any of the given patterns but the groups are local to each alternative.
-// See "alternative" to find out which alternative was matched. Contains an optimization
+// See `alternative` to find out which alternative was matched. Contains an optimization
 // where a common prefix of all patterns is lifted out of the alternative to increase efficiency.
-// Takes two optional parameters. Set "ignoreCase" to "True"
-// to ignore uppercase/lowercase distinction. If  "multiline" is set to "True", then "^" and "$"
+// Takes two optional parameters. Set `ignoreCase` to `True`
+// to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
 // match also the beginning and end of every line (instead of the entire input).  
 // Note: currently only supported in the javascript backend.
 public function regexAlt( regexs :list<string>, ignorecase :bool = False, multiline : bool = False ) : regex
@@ -149,8 +149,8 @@ public function regexAlt( regexs :list<string>, ignorecase :bool = False, multil
   Regex(regexCreateAlt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
 }
 
-// Find a match for a regular expression starting at start position "start" (by default "0").
-// See also "contains"
+// Find a match for a regular expression starting at start position `start` (by default `0`).
+// See also `contains`
 // (note: this function is called |exec| in JavaScript).
 public function find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
 {  
@@ -178,7 +178,7 @@ function replaceEx( s :string, regex :regex, repl :string, all :bool = False, st
   return regexReplace(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
 }
 
-// Split a string "s" in at most "n" parts using a regular expression "r" as separator.
+// Split a string `s` in at most `n` parts using a regular expression `r` as separator.
 public function split( s :string, r :regex, n :int = maxInt, start : int = 0 ) : vector<string>
 {
   if (n<=0) return vector();
@@ -186,29 +186,29 @@ public function split( s :string, r :regex, n :int = maxInt, start : int = 0 ) :
   return regexSplit( r.obj, s, if (n==maxInt) then 0 else n, max(start,0) );
 }
 
-// Replace the first occurrence of "regex" by the result of the replacement function "repl" in a string "s".
+// Replace the first occurrence of `regex` by the result of the replacement function `repl` in a string `s`.
 public function replace( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
   replaceEx( s, regex, repl, all = False, start = start )
 }
 
-// Replace the all occurrences of "regex" by the result of the replacement function "repl" in a string "s".
+// Replace the all occurrences of `regex` by the result of the replacement function `repl` in a string `s`.
 public function replaceAll( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
   replaceEx( s, regex, repl, all = True, start = start )
 }
 
-// Replace the first occurrence of "regex" by the result a replacement string "repl" in a string "s".
+// Replace the first occurrence of `regex` by the result a replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
 public function replace( s : string, regex: regex, repl :string, start : int = 0) : string {
   replaceEx( s, regex, repl, all = False, start = start )
 }
 
-// Replace all ocurrences of "regex" by the result of a replacement string "repl" in a string "s".
+// Replace all ocurrences of `regex` by the result of a replacement string `repl` in a string `s`.
 public function replaceAll( s : string, regex: regex, repl :string, start : int = 0) : string {
   replaceEx( s, regex, repl, all = True, start = start )
 }
 
-// Does a regular expression pattern occur in a string "s"?
+// Does a regular expression pattern occur in a string `s`?
 // (note: called `test` in javascript)
 public function contains( s :string, r :regex, start :int = 0 ) : bool 
 {
@@ -216,8 +216,8 @@ public function contains( s :string, r :regex, start :int = 0 ) : bool
 }
 
 
-// Split a string "s" over separator "sep" where "sep" does not occur in 
-// _tokens_ matching "exclude".
+// Split a string `s` over separator `sep` where `sep` does not occur in 
+// _tokens_ matching `exclude`.
 // For example: `splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))`
 public function splitExclude( s : string, sep : regex, exclude : regex ) : list<string>
 {

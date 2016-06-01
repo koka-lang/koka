@@ -26,7 +26,7 @@ public type optionOrder<a> {
 
 
 // Specifies a single option
-// For example: "Option(""h?"",[""help""],Flag(Help),""show help information"")".
+// For example: `Option("h?",["help"],Flag(Help),"show help information")`.
 public struct option<a>( 
   shortNames : string,
   longNames  : list<string>,
@@ -38,7 +38,7 @@ public struct option<a>(
 // Specifies the argument of an option
 public type optionArg<a> {
   // Boolean flag without an argument.
-  // For a flag `foo` Automatically enables forms `--nofoo` and `--foo=true|false`.
+  // For a flag `foo` Automatically enables forms `--no-foo` and `--foo=true|false`.
   con Flag( default : (a,bool) -> a)
   // A required argument.
   con Req( parse : (a,string) -> a, help : string )

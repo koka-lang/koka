@@ -8,7 +8,7 @@
 
 /* This module provides a perfect hash for strings.
 
-   These ":atom"s can be compared very efficiently. If you compare only
+   These `:atom`s can be compared very efficiently. If you compare only
    seldomly, a straight string compare will probably be faster since 
    creating an atom takes some initial work.
 */
@@ -19,30 +19,30 @@ external include {
   js file "atom-inline.js"
 }
 
-// An "atom" corresponding to the empty string
+// An `atom` corresponding to the empty string
 public val atomNull = atom("")
 
 // An atom is an abstract representation of a string that can be compared quickly
 abstract struct atom( value: int )  
 
-// Create an ":atom"
+// Create an `:atom`
 external atomCreate : ( s : string ) -> int {
   cs "Atom.Create"
   js "$atomCreate"
 }
 
-// Convert an ":atom" back to a ":string"
+// Convert an `:atom` back to a `:string`
 external atomToString : ( x : int ) -> string {
   cs "Atom.ToString"
   js "$atomToString"
 }
 
-// Create an ":atom"
+// Create an `:atom`
 public function atom( s : string ) : atom {
   atomCreate(s).Atom
 }
 
-// Convert an ":atom" back to a ":string"
+// Convert an `:atom` back to a `:string`
 public function toString( a : atom ) : string {
   atomToString(a.value)
 }

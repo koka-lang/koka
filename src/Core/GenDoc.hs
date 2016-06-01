@@ -52,14 +52,14 @@ genDoc env kgamma gamma core p
     htmlBody $
     do writeLn p $ ptag "h1" "" ( (atag (linkFromModName env (coreProgName core) "-source") $ span "module" $ fmtName (coreProgName core))
                                  ++ (atag "toc.html" (span "toc-link" "&#x25b2;toc")))
-       writeLn p $ doctag "div" "toc" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
+       writeLn p $ doctag "div" "toc" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
        mapM_ (writeLn p) (map (fmtDef env kgamma gamma) otherDefs)
   where
     table []   = ""
     table [x]  = x
-    table xs   = doctag "table" "toc" (doctag "tr" "" (concatMap (doctag "td" "") xs))
+    table xs   = doctag "table" "toc" (doctag "tr" "" (concatMap (doctag "td" "") xs) ++ "\n")
       
     tocFmts
       = let fmts = concatMap fmtTypeDefTOC typeDefsDefs 
@@ -192,6 +192,8 @@ genDoc env kgamma gamma core p
         ,""
         ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
         ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ htmlCss env ++ "\" />"
+        ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic\" />"
+        ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic\" />"
         ,if (null (htmlJs env)) then "" 
           else if (extname (htmlJs env) == "require") 
            then "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ dirname (htmlJs env) ++ "require.js\"></script>"
@@ -286,7 +288,7 @@ fmtTypeDefTOC :: (TypeDef,[Def]) -> [String]
 fmtTypeDefTOC  (Synonym info _, defs)
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) $
-      cspan "keyword" "alias" ++ "&nbsp;" ++ cspan "type" (niceTypeName (synInfoName info)))]
+      cspan "keyword" "alias" ++ "&nbsp;" ++ cspan "type" (niceTypeName (synInfoName info))) ++ "\n"]
     ++
     map (fmtDefTOC True) defs
 
@@ -295,14 +297,14 @@ fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [
   -- struct
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-      cspan "keyword" "struct" ++ "&nbsp;" ++ cspan "type" (niceTypeName (dataInfoName info)))]
+      cspan "keyword" "struct" ++ "&nbsp;" ++ cspan "type" (niceTypeName (dataInfoName info))) ++ "\n"]
      ++
     map (fmtDefTOC True) defs
 
 fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-      cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info)))]
+      cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
     ++ map fmtConTOC (dataInfoConstrs info) 
     ++ map (fmtDefTOC True) defs
 

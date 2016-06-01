@@ -38,7 +38,7 @@ public function indent( s : string, n : int = 2, c : char = ' ' ) {
  String builder 
 ---------------------------------------- */
 
-// A ":builder" is used to append strings in linear time.
+// A `:builder` is used to append strings in linear time.
 public type builder<h ::H>
 
 // Create a string builder

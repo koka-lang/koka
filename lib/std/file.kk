@@ -38,7 +38,7 @@ external readTextFileSync( fileName : string ) : io string
 }
 
 // Try to write a text file synchronously (using UTF8 encoding). 
-// Returns "True" if successful.
+// Returns `True` if successful.
 function tryWriteTextFile( fileName : string, content : string )  : io bool 
 {
   catch( { writeTextFileSync(fileName,content); True }, fun(_exn) { False } )

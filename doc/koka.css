@@ -8,9 +8,10 @@
 
 /* Text size and margins for screen & print */
 @media screen {
-  body { 
-    padding: 1em 8% 1em 8%;
-    padding-bottom: 50em; /* so a link to the end always puts the definition on top of the screen */
+  body {
+    max-width: 60em;
+    margin: 1em auto;
+    padding: 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
   }
 }
 
@@ -31,6 +32,7 @@
 /* p,li,div.koka.doc.comment { text-align: justify;} */
 
 
+
 /* source code font styles: 
    font stack designed for windows, mac, and linux.
    see also: http://www.apaddedcell.com/sites/www.apaddedcell.com/files/fonts-article/final/index.html
@@ -40,14 +42,14 @@ body {
   color: black;
 }
 
-body,
-.koka .comment,
 .sans-serif { 
-  font-family: 'PT Sans', 'Segoe UI', 'Candara', 'DejaVu Sans', sans-serif;
+  font-family: 'Noto Sans', 'Segoe UI', 'DejaVu Sans', sans-serif;
 }
 
+body,
+.koka .comment,
 .serif {
-  font-family: 'PT Serif', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
+  font-family: 'Noto Serif', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
 }
 
 h1 { 
@@ -67,7 +69,7 @@ body.koka.doc,
 .koka.pre, pre,
 .koka.preblock, 
 .monospace { 
-  font-family: Consolas,"Andale Mono WT","Andale Mono",Lucida Console,Monaco,monospace,monospace;
+  font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
 }
 
 .koka.code, code {
@@ -86,14 +88,14 @@ body.koka.doc,
 .koka.codeblock,
 .koka.preblock,
 .koka.source  { 
-  background: #F8F8F8;  
-  border: 1px solid #DDD;   /* dark grey */
+  background: #F0F0F0;  
+  border: 1px solid #AAA;   /* dark grey */
   padding: 0.5ex 1ex 0.5ex 1ex;
   margin: 1ex 5% 1ex 0ex;
 }
 
 .koka.source.unchecked {
-  border: 1px dotted #DDD;
+  border: 1px dotted #AAA;
 }
 
 .koka.source-body .source {
@@ -258,8 +260,8 @@ h1.koka.module
       }
 
 .koka.doc .header
-      { background: #F8F8F8     /* light grey */
-      ; padding: 1px
+      { background: #F0F0F0
+      ; padding: 0.25ex
       ; padding-left: 0.5ex
       ; margin-top: 0px
       ; margin-bottom: 0.5em
@@ -282,12 +284,12 @@ h1.koka.module
       { margin: 0em 0em 0em 1em }
 
 .koka.doc.body>.comment
-      { margin-bottom: 2em }
+      { margin-bottom: 1em }
 
 .koka.doc .decl, 
 .koka.doc .con-decl
       { margin-top: 1em
-      ; border: 1px solid #DDD
+      ; border: 1px solid #AAA
       ; border-width: 1px 0px 0px 1px
       }
   

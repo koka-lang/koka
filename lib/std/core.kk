@@ -9,7 +9,7 @@
 /* This module defines standard operations that are always available.
 
    Some types and operations are required to be defined for the compiler
-   to work correctly (i.e. types like ":int" or ":list")
+   to work correctly (i.e. types like `:int` or `:list`)
 */
 public module std/core
 
@@ -66,13 +66,13 @@ type div :: X
 // results even when called with the same input values.
 type ndet :: X
 
-// The alloc effect signifies a function may allocate in a heap ":h"
+// The alloc effect signifies a function may allocate in a heap `:h`
 type alloc :: H -> X
 
-// The read effect: signifies that a function may read from from heap ":h".
+// The read effect: signifies that a function may read from from heap `:h`.
 type read :: H -> X
 
-// The write effect: signifies that a function may write to heap ":h".
+// The write effect: signifies that a function may write to heap `:h`.
 type write :: H -> X
 
 // The console effect signifies that a function may read or write to the console.
@@ -85,25 +85,25 @@ alias total = <>
 // when called with the same arguments but may not terminate or raise an exception.
 alias pure = <exn,div>
 
-// Stateful functions can manipulate heap ":h" using allocations, reads and writes.
+// Stateful functions can manipulate heap `:h` using allocations, reads and writes.
 alias st<h> = <read<h>, write<h>, alloc<h>>
 
-// The ":global" heap is a special heap constant to denote the global shared heap
+// The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
 
-// The ":net" effect signifies a function may access the network
+// The `:net` effect signifies a function may access the network
 type net :: X
 
-// The ":file" effect signifies a function may access the file system
+// The `:file` effect signifies a function may access the file system
 type file :: X
 
-// The ":ui" effect signifies a function may access the graphics system
+// The `:ui` effect signifies a function may access the graphics system
 type ui :: X
 
-// The ":blocking" effect signifies that a function may block
+// The `:blocking` effect signifies that a function may block
 type blocking :: X
 
-// The ":io" effect is used for functions that perform arbitrary I/O operations.
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
 alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 
 // ----------------------------------------------------------------------------
@@ -123,16 +123,16 @@ external inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|
 // Add the state effect to a function effect.
 external inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  = inline "#1"
 
-// Add the "read" effect to a function effect.
+// Add the `read` effect to a function effect.
 external inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  = inline "#1"
 
-// Add the "write" effect to a function effect.
+// Add the `write` effect to a function effect.
 external inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)  = inline "#1"
 
-// Add the "ndet" effect to a function effect.
+// Add the `ndet` effect to a function effect.
 external inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  = inline "#1"
  
-// Add the "io" effect to a function effect.
+// Add the `io` effect to a function effect.
 external inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  = inline "#1"
 
 
@@ -149,15 +149,15 @@ external show( exn : exception ) : string {
   js inline "(#1 ? #1.toString() : 'unknown exception')"
 }
 
-// Catch an exception raised by "error" and handle it.
-// Use "onExn" or "onFail" when appropiate.
+// Catch an exception raised by `error` and handle it.
+// Use `onExn` or `onFail` when appropiate.
 external catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
   js inline "$primcatch(action,hndl,_k)"
 }
   
-// Execute a "hndler" no matter what exception was raised in "action".
-// Use of "onExit" is preferred (which has its arguments swapped).
+// Execute a `hndler` no matter what exception was raised in `action`.
+// Use of `onExit` is preferred (which has its arguments swapped).
 external finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
   js inline "$primfinally(action,hndl,_k)"
@@ -182,7 +182,7 @@ external patternMatchError : forall<a> (range : string, def : string) -> exn a {
     js "$pattern_match_error"
 }
 
-// Set a "hndler" that is called when an exception is raised in the "action" block.
+// Set a `hndler` that is called when an exception is raised in the `action` block.
 function onFail( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
   catchOnFail( action, fun(exn){ hndler(); throw(exn) })
@@ -199,13 +199,13 @@ private external catchOnFail : forall<e,a> ( action : () -> e a, hndler: excepti
 }
 
 
-// Set a "hndler" that is always called when the "action" finishes (either normally or with an exception).
+// Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 function onExit( hndler : () -> e (), action : () -> e a ) : e a
 {
   finally(action,hndler)  
 }
 
-// Set a "hndler" that is called if "action" returns without raising an exception.
+// Set a `hndler` that is called if `action` returns without raising an exception.
 function onSuccess( hndler : () -> e (), action : () -> e a ) : e a
 {
   val x = action()
@@ -224,11 +224,11 @@ function ignore( action : () -> <exn|e> () ) : e () {
 // ----------------------------------------------------------------------------
 
 // Optional is used internally by the compiler to pass optional arguments.
-// It is usually displayed as ":?a" for some type ":a".
+// It is usually displayed as `:?a` for some type `:a`.
 type optional<a> {
-  // The "Optional" constructor is used when an optional argument is given.
+  // The `Optional` constructor is used when an optional argument is given.
   con Optional(value:a)
-  // "None" is used when an optional argument is not provided.
+  // `None` is used when an optional argument is not provided.
   con None
 }
 
@@ -252,17 +252,17 @@ function id(x) {
   x;
 }
 
-// The "const" functions returns its first argument and ignores the second.
+// The `const` functions returns its first argument and ignores the second.
 function const(x,y) {
   x;
 }
 
-// Apply a function "f" to a specified argument "x".
+// Apply a function `f` to a specified argument `x`.
 function apply(f,x) {
   f(x);
 }
 
-// Compose two functions "f" and "g".
+// Compose two functions `f` and `g`.
 function o(f,g) {
   (fun(x){ f(g(x)) })
 }
@@ -272,11 +272,11 @@ function o(f,g) {
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-// The ":void" type is empty and has no constructors.
-// See also the ":()" unit type and the ":bool" type.
+// The `:void` type is empty and has no constructors.
+// See also the `:()` unit type and the `:bool` type.
 type void
 
-// The type of booleans has two inhabitants: "True" and "False".
+// The type of booleans has two inhabitants: `True` and `False`.
 type bool {
   con False
   con True
@@ -303,11 +303,11 @@ function bool( m : maybe<a> ) : bool {
 
 function bool( s : string ) : bool = (s!="")
 
-// The unit type ":()" is inhabited by just a single value, namely "()".
-// See also the ":void" type and the ":bool" type.
+// The unit type `:()` is inhabited by just a single value, namely `()`.
+// See also the `:void` type and the `:bool` type.
 struct ()
 
-// A pair of values ":a" and ":b".
+// A pair of values `:a` and `:b`.
 struct (,)<a,b>(fst:a,snd:b)
 
 // A triple of values.
@@ -319,14 +319,14 @@ struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 // A quintuple of values.
 struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
-// The ":maybe" type is used to represent either a value ("Just(x)") or "Nothing".
+// The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
 type maybe<a> {
   con Nothing
   con Just( unJust : a )
 }
 
-// Match a ":maybe" value and either return a default value on "Nothing" or apply a function to the value on "Just"
+// Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
 function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 {
   match(m) {
@@ -335,7 +335,7 @@ function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
   }
 }
 
-// The choice type represents one of two possible types ":a" or ":b".
+// The choice type represents one of two possible types `:a` or `:b`.
 type either<a,b> {
   con Left( left : a )
   con Right( right : b )
@@ -349,16 +349,16 @@ function maybe( e : either<a,b> ) : maybe<b>
   }
 }
 
-// The type of lists, which can be either empty ("Nil") or an element followed
-// by a list ("Cons").
+// The type of lists, which can be either empty (`Nil`) or an element followed
+// by a list (`Cons`).
 type list<a> {
   // The empty list.
   con Nil
-  // A `head`  element followed by the `tail`  of the list.
+  // A ``head``  element followed by the ``tail``  of the list.
   con Cons(head:a, tail : list<a> )
 }
 
-// A ":stream" is a co-inductive type reprenting an infinite list of elements.
+// A `:stream` is a co-inductive type reprenting an infinite list of elements.
 cotype stream<a> {
   con Next(head:a, tail: stream<a> )
 }
@@ -479,7 +479,7 @@ private function zipWithAcc( f, i, acc, xs, ys )
 
 private function zipWithIter( f, i, xs, ys )
 {
-  // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
+  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
   if (i > maxListStack) then zipWithAcc( f, i, Nil, xs, ys )
   else {
     match(xs) {
@@ -500,14 +500,14 @@ function zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
   zipWithIndexed( xs, ys, fun(i,x,y) { (x,y) } )
 }
 
-// Zip two lists together by apply a function "f" to all corresponding elements.
+// Zip two lists together by apply a function `f` to all corresponding elements.
 // The returned list is only as long as the smallest input list.
 function zipWith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
 {
   zipWithIndexed(xs,ys,fun(i,x,y) { f(x,y) })
 }
 
-// Zip two lists together by apply a function "f" to all corresponding elements
+// Zip two lists together by apply a function `f` to all corresponding elements
 // and their index in the list.
 // The returned list is only as long as the smallest input list.
 function zipWithIndexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
@@ -529,7 +529,7 @@ function unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
   iter(xs,[],[])
 }
 
-// Take the first "n" elements of a list (or fewer if the list is shorter than "n")
+// Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
 function take( xs : list<a>, n : int ) : list<a>
 {
   if (n <= 0) return Nil
@@ -539,7 +539,7 @@ function take( xs : list<a>, n : int ) : list<a>
   }
 }
 
-// Drop the first "n" elements of a list (or fewer if the list is shorter than "n")
+// Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
 function drop( xs : list<a>, n : int ) : list<a>
 {
   if (n <= 0) return xs
@@ -584,7 +584,7 @@ function mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> 
     }
   }
 
-  // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
+  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
   function mapIter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
     if (n > maxListStack) {
       mapAcc(g,n,Nil,ys)
@@ -622,7 +622,7 @@ function (+)(xs : list<a>, ys : list<a> ) : list<a>
       _          -> yy
     }
   }
-  // append for the first "maxListStack" elements over the stack
+  // append for the first `maxListStack` elements over the stack
   function append(n,xx,yy) {
     if (n > maxListStack) {
       revAppend(reverse(xx),yy)
@@ -645,14 +645,14 @@ function (+)(xs : list<a>, ys : list<a> ) : list<a>
 }
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)` 
-// Note, "foldr" is less efficient than "foldl" as it reverses the list first. 
+// Note, `foldr` is less efficient than `foldl` as it reverses the list first. 
 function foldr(xs,z,f)
 {
   xs.reverse.foldl(z,fun(x,y){f(y,x)}) 
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
-// Since "foldl" is tail recursive, it is preferred over "foldr" when using an associative function `f` 
+// Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f` 
 function foldl(xs,z,f)
 {
   match(xs) {
@@ -718,8 +718,8 @@ function dropWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
   xs.span(predicate).snd
 }
 
-// Retain only those elements of a list that satisfy the given predicate "pred".
-// For example: "filter([1,2,3],odd) == [1,3]"
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filter([1,2,3],odd) == [1,3]`
 function filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 {
   match(xs) {
@@ -729,15 +729,15 @@ function filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 }
 
 
-// Remove those elements of a list that satisfy the given predicate "pred".
-// For example: "remove([1,2,3],odd) == [2]"
+// Remove those elements of a list that satisfy the given predicate `pred`.
+// For example: `remove([1,2,3],odd) == [2]`
 function remove( xs : list<a>, pred : a -> bool ) : list<a> {
   xs.filter( fun(x) { !pred(x) } )
 }
 
 // Partition a list in two lists where the first list contains
-// those elements that satisfy the given predicate "pred".
-// For example: "partition([1,2,3],odd) == ([1,3],[2])"
+// those elements that satisfy the given predicate `pred`.
+// For example: `partition([1,2,3],odd) == ([1,3],[2])`
 function partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
 {
   partitionAcc( xs, pred, Nil, Nil)
@@ -754,8 +754,8 @@ private function partitionAcc( xs : list<a>, pred : a -> bool, acc1 : list<a>, a
 }
 
 
-// Retain only those elements of a list that satisfy the given predicate "pred".
-// For example: "filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]"
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]`
 function filterMap( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 {
   match(xs) {
@@ -773,7 +773,7 @@ function find( xs : list<a>, pred : a -> bool ) : maybe<a>
   xs.filter(pred).maybe
 }
 
-// Convert a list to a ":maybe" type, using "Nothing" for an empty list, and otherwise "Just" on the head element.
+// Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
 function maybe( xs : list<a> ) : maybe<a>
 {
   match(xs) {
@@ -782,7 +782,7 @@ function maybe( xs : list<a> ) : maybe<a>
   }
 }
 
-// Convert a ":maybe" type to a list type.
+// Convert a `:maybe` type to a list type.
 function list( m : maybe<a> ) : list<a> 
 {
   match(m) {
@@ -799,13 +799,13 @@ private function indexOfAcc( xs : list<a>, pred : a -> bool, idx : int ) : int
   }
 }
 
-// Returns the index of the first element where "pred" holds, or "-1" if no such element exists.
+// Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
 function indexOf( xs : list<a>, pred : a -> bool ) : int
 {
   indexOfAcc( xs, pred, 0 )
 }
 
-// Invoke "action" for each element of a list
+// Invoke `action` for each element of a list
 function foreach( xs : list<a>, action : (a) -> e () ) : e ()
 {
   match(xs) {
@@ -814,7 +814,7 @@ function foreach( xs : list<a>, action : (a) -> e () ) : e ()
   }
 }
 
-// Invoke "action" for each element of a list while "action" return "Nothing"
+// Invoke `action` for each element of a list while `action` return `Nothing`
 function foreachUntil( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
 {
   match(xs) {
@@ -828,7 +828,7 @@ function foreachUntil( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
   }
 }
 
-// Invoke "action" on each element of a list while "action" returns "Just"
+// Invoke `action` on each element of a list while `action` returns `Just`
 function mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 {
   match(xs) {
@@ -844,7 +844,7 @@ function mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 
 private external inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  = inline "#1"
 
-// Invoke "action" for each element of a list, passing also the position of the element.
+// Invoke `action` for each element of a list, passing also the position of the element.
 function foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
@@ -915,7 +915,7 @@ function concat( xs: list<a>, f : a -> e list<b> ) : e list<b>
   xs.map(f).concat()
 }
 
-// Concatenate a list of ":maybe" values
+// Concatenate a list of `:maybe` values
 function concatMaybe( xs : list<maybe<a>> ) : list<a>
 {
   xs.map(list).concat()
@@ -1090,8 +1090,8 @@ function compare( x : int, y : int) : order
 
 
 // Return the absolute value of an integer.
-// Raises an exception if the ":int" is "minInt"
-// (since the negation of "minInt" equals itself and is still negative)
+// Raises an exception if the `:int` is `minInt`
+// (since the negation of `minInt` equals itself and is still negative)
 function abs( i : int ) : exn int
 {
   if (i >= 0) return i
@@ -1099,25 +1099,25 @@ function abs( i : int ) : exn int
   error( "system.core.abs: cannot make minInt into a positive int without overflow" )
 }
 
-// Take the bitwise _and_ of two ":int"s
+// Take the bitwise _and_ of two `:int`s
 external inline (&) : (int,int) -> int { 
   cs inline "((#1)&(#2))";
   js inline "((#1)&(#2))"
 }
   
-// Take the bitwise _or_ of two ":int"s
+// Take the bitwise _or_ of two `:int`s
 external inline (|) : (int,int) -> int { 
   cs inline "((#1)|(#2))";
   js inline "((#1)|(#2))";
 }
 
-// Take the bitwise _xor_ of two ":int"s
+// Take the bitwise _xor_ of two `:int`s
 external inline (^) : (int,int) -> int { 
   cs inline "((#1)^(#2))";
   js inline "((#1)^(#2))"
 }
 
-// Bitwise _not_ of an ":int", i.e. flips all bits.
+// Bitwise _not_ of an `:int`, i.e. flips all bits.
 external inline not : ( i : int ) -> int  { 
   cs inline "(~(#1))";
   js inline "(~(#1))"
@@ -1138,40 +1138,40 @@ private external inline primSar : (int,int) -> int {
   js inline "((#1)>>(#2))";
 }
 
-// Bitwise rotate an ":int" "n" bits to the left.
-// Does not rotate when "n" is negative.
+// Bitwise rotate an `:int` `n` bits to the left.
+// Does not rotate when `n` is negative.
 function rotl( i : int, n : int ) : int {
   if (n < 0) return i;
   val r = n & (bitsInt - 1)  // modulo bits in an int
   (primShl(i,r) | primShr(i,bitsInt - r))
 }
 
-// Bitwise rotate an ":int" "n" bits to the right.
-// Does not rotate when "n" is negative.
+// Bitwise rotate an `:int` `n` bits to the right.
+// Does not rotate when `n` is negative.
 function rotr( i : int, n : int ) : int {
   if (n < 0) return i;
   val r = n & (bitsInt - 1)  // modulo bits in an int
   (primShr(i,r) | primShl(i,bitsInt - r))
 }
 
-// Shift an ":int" "i" to the left by "n" bits.
-// Returns "i" when "n" is negative, or "0" when "n >= bitsInt".
+// Shift an `:int` `i` to the left by `n` bits.
+// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
 function shl( i : int, n : int ) {
   if (n < 0) return i
   if (n >= bitsInt) return 0
   primShl(i,n)
 }
 
-// Logical shift an ":int" to the right by "n" bits. Shift in zeros from the left.
-// Returns "i" when "n" is negative, or "0" when "n >= bitsInt".
+// Logical shift an `:int` to the right by `n` bits. Shift in zeros from the left.
+// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
 function shr( i : int, n : int ) {
   if (n < 0) return i;
   if (n >= bitsInt) return 0;
   primShr(i,n);
 }
 
-// Arithmetic shift an ":int" to the right by "n" bits. Preserves the sign bit.
-// Returns "i" when "n" is negative. When "n >= bitsInt" returns either "-1" when "i<0", or "0" when "i>=0".
+// Arithmetic shift an `:int` to the right by `n` bits. Preserves the sign bit.
+// Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
 function sar( i : int, n : int ) {
   if (n < 0) return i;
   if (n >= bitsInt) return (if (i < 0) then (0 - 1) else 0);
@@ -1186,7 +1186,7 @@ function min( i : int, j : int ) : int =  if (i <= j) then i else j
 function max( i : int, j : int ) : int =  if (i >= j) then i else j
 
 
-// Returns the smallest element of a list of integers (or "0" for the empty list)
+// Returns the smallest element of a list of integers (or `0` for the empty list)
 function minimum( xs : list<int> ) : int
 {
   match(xs) {
@@ -1195,7 +1195,7 @@ function minimum( xs : list<int> ) : int
   }
 }
 
-// Returns the largest element of a list of integers (or "0" for the empty list)
+// Returns the largest element of a list of integers (or `0` for the empty list)
 function maximum( xs : list<int> ) : int
 {
   match(xs) {
@@ -1216,25 +1216,25 @@ external intCmod : (int,int) -> exn int {
   js "$int32_cmod"
 }
 
-// Truncated division (as in C). See also "(/):(x : int, y : int) -> int".
+// Truncated division (as in C). See also `(/):(x : int, y : int) -> int`.
 external inline cdiv : (int,int) -> exn int { 
   cs inline "(#1/#2)";
   js "$std_core.intCdiv"
 }
 
-// Truncated modulus (as in C). See also "(%):(x : int, y : int) -> int".
+// Truncated modulus (as in C). See also `(%):(x : int, y : int) -> int`.
 external inline cmod : (int,int) -> exn int { 
   cs inline "(#1 % #2)";
   js "$std_core.intCmod"
 }
 
-// Truncated division (as in C). See also "(/):(x : int, y : int) -> int".
+// Truncated division (as in C). See also `(/):(x : int, y : int) -> int`.
 private external inline unsafeCdiv : (int,int) -> int {
   cs inline "(#1/#2)";
   js inline "((#1/#2)|0)"
 }
 
-// Truncated modulus (as in C). See also "(%):(x : int, y : int) -> int".
+// Truncated modulus (as in C). See also `(%):(x : int, y : int) -> int`.
 private external inline unsafeCmod : (int,int) -> int { 
   cs inline "(#1 % #2)";
   js inline "((#1 % #2)|0)"
@@ -1259,7 +1259,7 @@ val maxInt = 0x7FFFFFFF
 // The minimal integer value before underflow happens
 val minInt = 0 - maxInt - 1
 
-// The number of bits in an ":int" (always 32)
+// The number of bits in an `:int` (always 32)
 val bitsInt = 32
 
 // Euclidean-0 division.
@@ -1278,9 +1278,9 @@ val bitsInt = 32
 // * ``D/(2^n) == D `sar` n        ``  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 // * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 //
-// Note that an interesting edge case is "minInt / -1" which equals "minInt" since in modulo 32-bit 
-// arithmetic "minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)" satisfying property (1).
-// Of course "(minInt + 1) / -1" is again positive (namely "maxInt").  
+// Note that an interesting edge case is `minInt / -1` which equals `minInt` since in modulo 32-bit 
+// arithmetic `minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)` satisfying property (1).
+// Of course `(minInt + 1) / -1` is again positive (namely `maxInt`).  
 // 
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
@@ -1294,7 +1294,7 @@ function (/)( x : int, y : int ) : int
   else q+1
 }
 
-// Euclidean-0 modulus. See "(/):(x : int, y : int) -> int" division for more information.
+// Euclidean-0 modulus. See `(/):(x : int, y : int) -> int` division for more information.
 function (%)( x : int, y : int ) : int
 {
   if (y == 0) then return x
@@ -1304,12 +1304,12 @@ function (%)( x : int, y : int ) : int
   else (r - y)
 }
 
-// Returns "true" if the integer `i`  is an odd number.
+// Returns `true` if the integer `i`  is an odd number.
 function odd( i ) {
   return (i&1==1);
 }
 
-// Returns "true" if the integer `i`  is an even number.
+// Returns `true` if the integer `i`  is an even number.
 function even( i ) {
   return (i&1==0);
 }
@@ -1331,8 +1331,8 @@ function parseIntDefault( s : string, default : int = 0, hex : bool = False ) : 
   }
 }
 
-// Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
-// An empty string will result in "Just(0)".
+// Parse an integer. If an illegal digit character is encountered `Nothing` is returned.
+// An empty string will result in `Just(0)`.
 // A string can start with a `-` sign for negative numbers, 
 // and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
 function parseInt( s : string, hex : bool = False) : maybe<int> {
@@ -1357,8 +1357,8 @@ private function parsePosInt( s : list<char>, base : int = 10 ) : maybe<int> {
   }
 }
 
-// Parse digits in a "base" between 2 and 36 (default 10) given an initial value "acc" (default 0)
-// Returns "acc" on the empty string, and "Nothing" if an invalid digit is encountered.
+// Parse digits in a `base` between 2 and 36 (default 10) given an initial value `acc` (default 0)
+// Returns `acc` on the empty string, and `Nothing` if an invalid digit is encountered.
 private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) : maybe<int> {
   match(cs) {
     Nil -> Just(acc)
@@ -1434,8 +1434,8 @@ function compare( x : double, y : double) : order
 }
 
 
-// Convert a ":double" to ":int" using "round" to round the double to its nearest integer.
-// if the double is larger than "maxInt" or smaller than "minInt" just the lower 32 bits are returned.
+// Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
+// if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
 external inline unsafeInt : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
 
 private external inline getNan : () -> double { 
@@ -1468,8 +1468,8 @@ private external inline getEpsilon : () -> double {
   js inline "(4.94065645841247e-324)"
 }
 
-// convert a ":double" to an ":int" using "round" to round to its nearest integer.
-// If the double is larger than "maxInt" or smaller than "minInt" this returns "default" (=0)
+// convert a `:double` to an `:int` using `round` to round to its nearest integer.
+// If the double is larger than `maxInt` or smaller than `minInt` this returns `default` (=0)
 public function int(d : double, default : int = 0 ) : int {
   if (d > maxInt.double || d < minInt.double)
    then default
@@ -1491,7 +1491,7 @@ val maxDouble : double = getMaxDouble()
 // The minimal double value
 val minDouble : double = getMinDouble()
 
-// The number of bits in a ":double" (64)
+// The number of bits in a `:double` (64)
 val bitsDouble = 64
 
 // Is this value equal to NaN ?
@@ -1527,14 +1527,14 @@ external inline (^) : (d:double,p:double) -> double {
 }
 
 // Return the square root of a value `d` 
-// Returns "nan" if `d == nan`  or if `d`  is negative.
-// Returns "inf" if `d == inf` .
+// Returns `nan` if `d == nan`  or if `d`  is negative.
+// Returns `inf` if `d == inf` .
 external inline sqrt : (d:double) -> double {
   cs "Math.Sqrt"
   js "Math.sqrt"
 }
 
-// Return the absolute value of a ":double" `d` 
+// Return the absolute value of a `:double` `d` 
 external inline abs : (d:double) -> double  { 
   cs "Math.Abs"
   js "Math.abs" 
@@ -1552,7 +1552,7 @@ external inline ceiling : (d:double) -> double {
   js "Math.ceiling"
 }
 
-// Return the integral part of a ":double" `d` .
+// Return the integral part of a `:double` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
 // If `d < 0.0` , return the smallest integer equal or larger to `d` .
 external inline trunc : (d:double) -> double {
@@ -1579,7 +1579,7 @@ function min( x : double, y : double ) : double = if (x <= y) then x else y
 // Returns the largest of two doubles
 function max( x : double, y : double ) : double = if (x >= y) then x else y
 
-// Returns the smallest element of a list of doubles (or "0" for the empty list)
+// Returns the smallest element of a list of doubles (or `0` for the empty list)
 function minimum( xs : list<double> ) : double
 {
   match(xs) {
@@ -1588,7 +1588,7 @@ function minimum( xs : list<double> ) : double
   }
 }
 
-// Returns the largest element of a list of doubles (or "0" for the empty list)
+// Returns the largest element of a list of doubles (or `0` for the empty list)
 function maximum( xs : list<double> ) : double
 {
   match(xs) {
@@ -1601,7 +1601,7 @@ function maximum( xs : list<double> ) : double
 // Arrays
 // ----------------------------------------------------------------------------
 
-// The type of mutable arrays. See also ":vector" for immutable arrays.
+// The type of mutable arrays. See also `:vector` for immutable arrays.
 type array :: (H,V) -> V
 
 // used internally to have non-bound-checked access
@@ -1615,11 +1615,11 @@ private external inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x 
   js inline "(#1)[#2] = #3";
 }
 
-// Return the "index" element of an array. Raises an exception for out-of-bounds access.
+// Return the `index` element of an array. Raises an exception for out-of-bounds access.
 external inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
   = inline "(#1)[#2]"
 
-// Return the length of an ":array".
+// Return the length of an `:array`.
 external inline length : forall<h,a> ( self : array<h,a> ) -> int { 
   cs inline "(#1 == null ? 0 : (#1).Length)";
   js inline "(#1).length"
@@ -1694,7 +1694,7 @@ function list( a : array<h,a> ) : read<h> list<a>
   }
 }
 
-// Invoke a function "f" for each element in a an array `a`.   
+// Invoke a function `f` for each element in a an array `a`.   
 // Note: this can diverge by storing self referential functions in the array
 function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 {
@@ -1717,7 +1717,7 @@ function map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h
 //  Vectors
 // ----------------------------------------------------------------------------
 
-// The type of immutable arrays is called ":vector".
+// The type of immutable arrays is called `:vector`.
 type vector<a>
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
@@ -1748,7 +1748,7 @@ external inline vector : forall<a> () -> vector<a> {
 
 private external inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a> = inline "(#1)"
 
-// Invoke a function "f" for each element in a vector "v"
+// Invoke a function `f` for each element in a vector `v`
 function foreach( v : vector<a>, f : a -> e () ) : e ()
 {
   for( 0, v.length - 1 ) fun(i) {
@@ -1756,8 +1756,8 @@ function foreach( v : vector<a>, f : a -> e () ) : e ()
   }
 }
 
-// Invoke a function "f" for each element in a vector "v".
-// If "f" returns "Just", the iteration is stopped early and the result is returned.
+// Invoke a function `f` for each element in a vector `v`.
+// If `f` returns `Just`, the iteration is stopped early and the result is returned.
 function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
 {
   forWhile( 0, v.length - 1 ) fun(i) {
@@ -1765,7 +1765,7 @@ function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
   }
 }
 
-// Apply function "f" to each element in a vector "v"Ju
+// Apply function `f` to each element in a vector `v`Ju
 function map( v : vector<a>, f : a -> e b ) : e vector<b>
 {
   val n = v.length
@@ -1842,7 +1842,7 @@ function (||)( x : string, y : string ) : string {
 }
 
 // Return the `n` th character in a string `s` . 
-// Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
+// Raise an out-of-bounds exception if `n < 0` or `n >= s.length`.
 external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
 
 // Return the length of a string.
@@ -1905,7 +1905,7 @@ external inline join: (v : vector<string> ) -> string {
   js inline "((#1).join(''))"
 }
 
-// Concatenate a vector of strings with a separator "sep"
+// Concatenate a vector of strings with a separator `sep`
 external inline join: (v : vector<string>, sep : string ) -> total string { 
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
@@ -1917,7 +1917,7 @@ external inline join: forall<h> (a : array<h,string> ) -> read<h> string {
   js inline "((#1).join(''))";
 }
 
-// Concatenate an array of strings with a separator "sep"
+// Concatenate an array of strings with a separator `sep`
 external join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string { 
   cs inline "Primitive.Concat(#1,#2)";
   js inline "(#1).join(#2)"
@@ -1945,7 +1945,7 @@ function string( n : int, c : char ) : string
   if (n <= 0) then "" else makeString(n,c)
 }
 
-// Convert a ":maybe" string to a string using the empty sting for "Nothing"
+// Convert a `:maybe` string to a string using the empty sting for `Nothing`
 function mbstring( ms : maybe<string> ) : string {
   match(ms) {
     Nothing -> ""
@@ -1977,8 +1977,8 @@ public external inline substr1 : (s : string, start : int ) -> string {
 }
 
 
-// Return a substring from start position "start" up to either the end of the string, 
-// or of at most length "len"
+// Return a substring from start position `start` up to either the end of the string, 
+// or of at most length `len`
 function substr( s : string, start : int, len : int   )
 {
   if (len <= 0) then ""
@@ -1995,28 +1995,28 @@ private external inline splitv : ( s : string,  sep : string, n : int ) -> vecto
   js inline "(#1).split(#2, #3)"
 }
 
-// Split a string into parts that were delimited by "sep". The delimeters are not included in the results.
-// For example: "split(""1,,2"","","") == [""1"","""",""2""]"
+// Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
+// For example: `split("1,,2",",") == ["1","","2]`
 
 function split( s : string, sep : string ) : vector<string>
 {
   splitv(s,sep)
 }
 
-// Split a string into at most "n" parts that were delimited by a string "sep". The delimeters are not included in the results (except for possibly the final part).
-// For example: "split(""1,2,3"","","",2) == [""1"",""2,3""]"
+// Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
+// For example: `split("1,2,3",",",2) == ["1","2,3"]`
 function split( s : string, sep: string, n : int) : vector<string>
 {
   splitv(s,sep,n)
 }
 
-// Replace every occurrence of "pattern" to "repl" in a string.
+// Replace every occurrence of `pattern` to `repl` in a string.
 public external inline replaceAll( s : string, pattern : string, repl : string ) : string { 
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";  
 }
 
-// Count occurences of "pattern" in a string.
+// Count occurences of `pattern` in a string.
 public external inline count( s : string, pattern : string ) : int { 
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";  
@@ -2058,7 +2058,7 @@ function string( cs : list<char> ) : total string
   cs.map( fun(c){ c.string } ).join()
 }
 
-// Apply a function "f" to each character in a string
+// Apply a function `f` to each character in a string
 function map( s : string, f : char -> e char ) : e string
 {
   s.list().map(f).string()
@@ -2151,13 +2151,13 @@ private external inline gformat : forall<a> (value:a,format:string) -> string {
   js inline "$gformat(#1, #2)";
 }
 
-// Convert an ":int" to a string
+// Convert an `:int` to a string
 function show( i : int ) : string 
 { 
   i.gshow()  
 }
 
-// Show an ":int" as a hexadecimal value.
+// Show an `:int` as a hexadecimal value.
 // The `width`  parameter specifies how wide the hex value is where `0`  is used to align
 // Uses capital letters for hexadecimal digits by default.
 function showHex( i : int, width : int = 1, useCapitals : bool = True )
@@ -2167,9 +2167,9 @@ function showHex( i : int, width : int = 1, useCapitals : bool = True )
   gformat(i, x + w.show)
 }
 
-// Show a ":double" as a string with a default `precision`  of `0` .
+// Show a `:double` as a string with a default `precision`  of `0` .
 // Pass a precision of `0`  (or less) to display numbers precisely.
-// Uses either "showFixed" or "showExp" depending on what is the most compact representation
+// Uses either `showFixed` or `showExp` depending on what is the most compact representation
 function show( d : double, precision : int = 6 ) : string
 {
   val p = if (precision < 0) then 0 else precision
@@ -2182,7 +2182,7 @@ function showFixed( d : double, precision : int = 6 )
   gformat(d,"F" + show(p))
 }
 
-// Show a ":double" in exponential (scientific) notation 
+// Show a `:double` in exponential (scientific) notation 
 function showExp( d : double, precision : int = 6 )
 {
   val p = if (precision < 0) then 0 else precision
@@ -2213,7 +2213,7 @@ private function showChar( c : char ) : string
   }
 }
 
-// Show a ":char" as a char literal
+// Show a `:char` as a char literal
 function show( c : char ) : string
 {
   "'" + c.showChar + "'"
@@ -2227,7 +2227,7 @@ function show( s : string ) : string
 
 private val redirect : ref<global,maybe<(string) -> console ()>> = unsafeTotal { ref(Nothing) }
 
-// redirect "print" and "println" calls to a specified function.
+// redirect `print` and `println` calls to a specified function.
 public function printRedirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
@@ -2311,7 +2311,7 @@ private val traceEnabled : ref<global,bool> = unsafeTotal { ref(True) }
 // Trace a message used for debug purposes. 
 // The behaviour is system dependent. On a browser and node it uses
 // `console.log`  by default. 
-// Disabled if "notrace" is called.
+// Disabled if `notrace` is called.
 public function trace( message : string ) : () {
   unsafeTotal {
     if (!traceEnabled) then xtrace(message) 
@@ -2323,10 +2323,10 @@ public function notrace() : st<global> () {
   traceEnabled := False
 }
 
-// Convert a ":bool" to a string
+// Convert a `:bool` to a string
 function show( b : bool ) : string =  if (b) then "True" else "False"
 
-// Convert a unit value "()" to a string
+// Convert a unit value `()` to a string
 function show( u : () ) : string =  "()"
 
 // Convert a list to a string
@@ -2372,13 +2372,13 @@ function fill( s : string, width : int, char : char = ' ') : string
 // Represents values that are computed asynchronously
 type async<a>
 
-// When an asynchronous value is computed, call the specified "hndler" (at most once).
+// When an asynchronous value is computed, call the specified `hndler` (at most once).
 external inline on : forall<a,b,e> ( async : async<a>, hndler : (value : a) -> e b ) -> e async<b> {
   js "async_on"
   cs inline "#1.On<##2>(#2)"
 }
 
-// When an asynchronous value computation fails, call the specified "hndler" (at most once).
+// When an asynchronous value computation fails, call the specified `hndler` (at most once).
 external onExn : forall<a,e> ( async : async<a>, hndler : (exn : exception) -> e a) -> e async<a> {
   js "async_on_exn"
   cs inline "#1.OnExn<##1>(#2)"
@@ -2397,15 +2397,15 @@ external readln : () -> console async<string>  {
 }
 
 // Read a line from the console and immediately supply a hndler 
-// For convenience, returns a unit value. Use an explicit "on" if
-// the returned ":async" is needed.
+// For convenience, returns a unit value. Use an explicit `on` if
+// the returned `:async` is needed.
 function readln( hndler : (string) -> <console|e> a ) : <console|e> () 
 {
   readln().on(hndler)
   return ()
 }
 
-// Displays "query" to the user (with a space attached) and invokes "hndler" with 
+// Displays `query` to the user (with a space attached) and invokes `hndler` with 
 // the user's response. 
 function question( query : string, hndler : (input : string) -> <console|e> a ) : <console|e> ()
 {
@@ -2424,13 +2424,13 @@ external mainConsole : forall<a,e> ( main : () -> e a ) -> e a {
 // References
 // ----------------------------------------------------------------------------
 
-// The predicate ":hdiv<h,a,e>" signifies that if the type ":a" contains a reference to ":h",
-// then the effect ":e" must contain the divergent effect (":div"). This constraint is generated
-// when writing to the heap (see "(!)") and is necessary to catch cases where code can diverge
+// The predicate `:hdiv<h,a,e>` signifies that if the type `:a` contains a reference to `:h`,
+// then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
+// when writing to the heap (see `(!)`) and is necessary to catch cases where code can diverge
 // by storing selfReferential functions in the heap.
 type hdiv :: (H,V,E) -> P
 
-// A reference ":ref<h,a>" points to a value of type ":a" in heap ":h".
+// A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
@@ -2451,7 +2451,7 @@ external inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h
   js inline "((#1).value)";
 }
 
-// If a heap effect is unobservable, the heap effect can be erased by using the "run" function.
+// If a heap effect is unobservable, the heap effect can be erased by using the `run` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 external inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  { 
   cs inline "Primitive.Run<##2>(#1)";
@@ -2472,19 +2472,19 @@ function unsafeTotal( action : () -> e a ) : total a
 }
 
 
-// _Unsafe_. This function removes the exception effect (":exn") from the effect of an action
+// _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
 function unsafeNoExn( action : () -> <exn|e> a ) : e a
 {
   unsafeTotal( action )
 }
 
-// _Unsafe_. This function removes the non-termination effect (":div") from the effect of an action
+// _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
 function unsafeNoDiv( action : () -> <div|e> a ) : e a
 {
   unsafeTotal( action )
 }
 
-// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (":div").
+// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
 external inline unsafeDecreasing( x : a ) : a = inline "#1"
 
 // ----------------------------------------------------------------------------
@@ -2524,7 +2524,7 @@ external randomInt: () -> ndet int  {
 // Control
 // ----------------------------------------------------------------------------
 
-// The "while" function executes `action`  as long as `pred`  is "true".
+// The `while` function executes `action`  as long as `pred`  is `true`.
 function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
 {
   if (predicate()) {
@@ -2533,7 +2533,7 @@ function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <d
   }
 }
 
-// The "repeat" function executes `action`  `n`  times.
+// The `repeat` function executes `action`  `n`  times.
 function repeat( n : int, action : () -> e () ) : e ()
 {
   for(1,n) fun(i) { action() }
@@ -2554,7 +2554,7 @@ function for( start: int, end : int, action : (int) -> e () ) : e ()
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-// If `action` returns "Just", the iteration is stopped and the result returned
+// If `action` returns `Just`, the iteration is stopped and the result returned
 function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
 {
   function rep( i : int ) {
@@ -2582,12 +2582,12 @@ external getHost() : ndet string {
 // Handled effects
 // ----------------------------------------------------------------------------
 
-// Handled effects are lifted to an atomic effect using the ":handled" type constructor
+// Handled effects are lifted to an atomic effect using the `:handled` type constructor
 type handled    :: HX -> X;
-// Single-shot handled effects are lifted to an atomic effect using the ":handled1" type constructor
+// Single-shot handled effects are lifted to an atomic effect using the `:handled1` type constructor
 type handled1   :: HX1 -> X;
 
-// Effect operations with result type ":a"
+// Effect operations with result type `:a`
 type open operation<a> 
 
 // Cps effect. This is used by the compiler internally to ensure certain functions
@@ -2596,13 +2596,13 @@ effect cps {
   cps() : ()
 }
 
-// Handle the ":cps" effect. 
+// Handle the `:cps` effect. 
 val uncps = handler {
   return x -> x
   cps()    -> resume(())
 }
 
-// inject the ":cps" effect
+// inject the `:cps` effect
 external  incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
 
 
