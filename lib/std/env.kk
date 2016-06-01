@@ -30,7 +30,7 @@ external getEnvironment() : dict<string>  {
 public val env : dict<string>  = getEnvironment()
 
 // Returns the value of an environment variable `name`.
-// Returns `default` (= |""|) if the environment variable was not present.
+// Returns `default` (= `""`) if the environment variable was not present.
 public function getEnv( name : string, default : string = "" ) : string
 {
   match(env[name]) {
@@ -52,8 +52,10 @@ public val argv = getArgv().list
 // Return the arguments that were passed to program itself.
 // Strips off the initial program from the unprocessed command line.
 // i.e. If a program started as:
-//     > node myprogram.js --flag bla
-// The `arguments` list will be `["--flag","bla]`
+// ````
+// > node myprogram.js --flag bla
+// ````
+// The `arguments` list will be `["--flag","bla"]`
 public val arguments 
   = match(argv) {
       Cons(x,xs) | x.stemname == "node" -> xs.drop(1)

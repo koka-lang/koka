@@ -28,6 +28,7 @@ module Common.File(
                   , isAbsolute
                   , commonPathPrefix
                   , normalizeWith
+                  , isLiteralDoc 
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
@@ -39,7 +40,7 @@ module Common.File(
 
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
-import Platform.Config  ( pathSep, pathDelimiter )
+import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile )
 import Common.Failure   ( raiseIO, catchIO )
  
@@ -71,6 +72,11 @@ splitOn pred xs
       = case (span (not . pred) xs) of
           (pre,post) -> normalize (pre:acc) (dropWhile pred post)
 
+
+isLiteralDoc :: FileName -> Bool
+isLiteralDoc fname
+  = endsWith fname (sourceExtension ++ ".md") ||
+    endsWith fname (sourceExtension ++ ".mdk")
 
 {--------------------------------------------------------------------------
   File names

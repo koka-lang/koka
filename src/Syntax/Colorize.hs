@@ -60,7 +60,8 @@ import Core.Core (canonicalSplit)
 -- | Print source in color, given a color scheme, source name, initial line number, the input string, and
 -- a 'Printer'.
 colorize :: Printer p => Maybe RangeMap -> Env -> KGamma -> Gamma -> Bool -> FilePath -> Int -> BString -> p -> IO ()
-colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | extname sourceName == (sourceExtension ++ "doc")
+colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  
+  | extname sourceName == ".md" && extname (notext sourceName) == sourceExtension -- ".kk.md"
   = let coms = lexComment sourceName lineNo (bstringToString input)
     in mapM_ (write p . fmtComment (fmap rangeMapSort mbRangeMap) env kgamma gamma) coms
 

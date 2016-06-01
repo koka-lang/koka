@@ -104,7 +104,7 @@ lexParseS semiInsert p sourceName line str
 lexParse :: Bool -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
 lexParse semiInsert p sourceName line rawinput
   = let source = Source sourceName rawinput 
-        input  = if (extname sourceName == sourceExtension ++ "doc") then extractLiterate rawinput else rawinput
+        input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
         xs = lexing source line input 
         lexemes = layout semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $

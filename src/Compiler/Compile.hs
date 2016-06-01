@@ -795,10 +795,9 @@ codeGen term flags compileTarget loaded
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
            source   = maybe sourceNull programSource (modProgram mod)
-       if (extname (sourceName source) == (sourceExtension ++ "doc"))
+       if (isLiteralDoc (sourceName source)) -- .kk.md
         then do termPhase term "write html document"
-                let baseext = extname (notext (sourceName source)) 
-                withNewFilePrinter (outBase ++ (if baseext == "" then ".md" else baseext)) $ \printer ->
+                withNewFilePrinter (outBase ++ ".md") $ \printer ->
                  colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
               do termPhase term "write html source" 
