@@ -2666,11 +2666,11 @@ private extern asyncAllPrim( actions : vector<() -> <asyn|e> a> ) : <asyn|e> vec
 }
 
 extern readTextFile( fname : string ) : <asyn,exn> string {
-  js inline "(fun(){ require('fs').readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
+  js inline "(function(){ require('fs').readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
 }
 
 extern wait( ms : int ) : asyn () {
-  js inline "(fun(){ setTimeout( $asyncCallback0(_k), #1 ); return ayield(); })()"
+  js inline "(function(){ setTimeout( $asyncCallback0(_k), #1 ); return ayield(); })()"
 }
 // ----------------------------------------------------------------------------
 // Handler primitives. 

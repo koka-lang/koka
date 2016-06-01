@@ -72,7 +72,7 @@ public function main() : _ ()
       val ctx    = canvas.getContext("2d").toCanvasRenderingContext2d
       function loop(stars: list<star>) : _ ()
       { val newStars = moveStars(ctx, stars)
-        window.setTimeout( fun () { loop(newStars) }, timeout )
+        window.setTimeout( fun(){ loop(newStars) }, timeout )
         return ()
       }
       canvas.height := window.innerHeight

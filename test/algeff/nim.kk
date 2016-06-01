@@ -1,4 +1,9 @@
 // --------------------------------------------------------
+// Examples from the paper "Liberating effects with rows and handlers"
+// by Daniel Hillerström and Sam Lindley.
+// --------------------------------------------------------
+
+// --------------------------------------------------------
 // Definition of players
 // --------------------------------------------------------
 
@@ -51,11 +56,10 @@ function game(n) {
 // Perfect strategy
 // --------------------------------------------------------
 
-val perfect = 
-  handler {
-    return x  -> x
-    move(p,n) -> resume(max(1,n%4))
-  }
+val perfect = handler {
+  return x  -> x
+  move(p,n) -> resume(max(1,n%4))
+}
 
 function testPerfect1() {
   perfect{ game(7) }  // alice

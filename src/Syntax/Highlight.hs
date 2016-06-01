@@ -107,7 +107,7 @@ showLexeme (Lexeme _ lex)
 
 normalize :: String -> String
 normalize s 
-  = takeWhile (/='.') s
+  = take 1 s ++ takeWhile (/='.') (drop 1 s)
 
 isKeywordOp :: String -> Bool
 isKeywordOp s
