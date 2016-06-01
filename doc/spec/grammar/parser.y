@@ -50,7 +50,7 @@ void printDecl( const char* sort, const char* name );
 %token MATCH 
 %token RARROW 
 
-%token FUN FUNCTION VAL VAR
+%token FUN FUNX VAL VAR
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -58,7 +58,7 @@ void printDecl( const char* sort, const char* name );
 
 %token IMPORT AS MODULE 
 %token PUBLIC PRIVATE ABSTRACT
-%token EXTERNAL
+%token EXTERN
 %token INFIX INFIXL INFIXR 
 
 %token LEX_WHITE LEX_COMMENT 
@@ -70,7 +70,7 @@ void printDecl( const char* sort, const char* name );
 
 %token YIELD REC TRY IFACE INST
 
-%token INLINE INCLUDE ID_CS ID_JS ID_FILE LINEAR
+%token INLINE INCLUDE ID_CS ID_JS ID_FILE LINEAR OPEN
 
 %type <Id>  varid conid qvarid qconid op  
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -159,7 +159,7 @@ topdecl     : visibility puredecl                             { printDecl("value
             | visibility aliasdecl                            { printDecl("alias",$2); }
             | visibility typedecl                             { printDecl("type",$2); }
             | ABSTRACT typedecl                               { printDecl("type",$2); }
-            | visibility externdecl                           { printDecl("external",$2); }
+            | visibility externdecl                           { printDecl("extern",$2); }
             ;
 
 
@@ -167,9 +167,9 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERNAL externinline funid ':' typescheme externbody   { $$ = $3; }
-            | EXTERNAL externinline funid APP parameters ')' annotres externbody { $$ = $3; } 
-            | EXTERNAL INCLUDE externincbody                       { $$ = "<external include>"; }
+externdecl  : EXTERN externinline funid ':' typescheme externbody   { $$ = $3; }
+            | EXTERN externinline funid lparen parameters ')' annotres externbody { $$ = $3; } 
+            | EXTERN INCLUDE externincbody                          { $$ = "<extern include>"; }
             ;
 
 externbody  : '=' externstat
@@ -216,14 +216,18 @@ externinline: INLINE
 aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
-typedecl    : typesort typeid typeparams kannot  '{' semis constructors '}'     { $$ = $2; }
-            | typesort typeid typeparams kannot                                 { $$ = $2; }
+typedecl    : typesort typeopen typeid typeparams kannot  '{' semis constructors '}'     { $$ = $3; }
+            | typesort typeopen typeid typeparams kannot                                 { $$ = $3; }
             | STRUCT typeid typeparams kannot  conparams                        { $$ = $2; }
             | EFFECT effectmod typeid typeparams kannot opdecls                 { $$ = $3; }
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
             ;
+
+typeopen    : OPEN 
+            | /* empty */
+            ;            
 
 typeid      : '(' commas ')'      { $$ = "(,)"; }       /* tuples */
             | '[' ']'             { $$ = "[]"; }        /* lists */
@@ -291,7 +295,7 @@ operation   : visibility identifier typeparams lparen parameters ')' ':' tatomic
 -- Pure Declarations
 ----------------------------------------------------------*/   
 puredecl    : VAL valdecl                   { $$ = $2; }
-            | FUNCTION fundecl              { $$ = $2; }
+            | FUN fundecl                   { $$ = $2; }
             ;
 
 valdecl     : binder '=' expr               { $$ = $1; }
@@ -303,6 +307,7 @@ binder      : identifier                    { $$ = $1; }
 
 funid       : identifier         { $$ = $1; }
             | '[' commas ']'     { $$ = "[]"; }
+            | STRING             { $$ = $1; }
             ;
 
 
@@ -357,7 +362,7 @@ statement   : decl
             | nofunexpr
             ;
 
-decl        : FUNCTION fundecl
+decl        : FUN fundecl
             | VAL pattern '=' expr          /* local value declaration can use a pattern binding */
             | VAR binder ASSIGN expr        /* local variable declaration */
             ;
@@ -395,7 +400,7 @@ handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
             | HANDLE handlereff lparen expr ')' handlerpars '{' semis handlerrules1 semis '}'
             ;        
 
-funexpr     : FUN fundef block
+funexpr     : FUNX fundef block
             | block                    /* zero-argument function */
             ;
 

@@ -154,7 +154,7 @@ task("test", ["compiler"], function(testdir,testmode) {
 //-----------------------------------------------------
 // Tasks: c-grammar specification
 //-----------------------------------------------------
-task("grammar",[],function()
+task("grammar",[],function(testfile)
 {
   var outdir = path.join(outputDir,"grammar");
   var gdir = path.join("doc","spec","grammar");
@@ -163,7 +163,13 @@ task("grammar",[],function()
   command("cd " + outdir + " && bison -vd -W parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -v8 lexer.lex 2>&1", function() {
       command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
-        complete();
+        if (testfile==null) complete();
+         else {
+            console.log("testing..")
+            command( path.join(outdir,"koka-parser") + " --nosemi " + testfile, function() {
+              complete();
+            });
+         };
       });
     });
   });

@@ -99,6 +99,11 @@ program :-
 <0> "//" $symbol*         { next linecom $ more id }
 <0> ^\# $symbol*          { next linedir $ more id }
 
+
+-- fun/function followed by '(' or '<'
+<0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
+<0> "function" [\(\<]     { less 7 $ constant $ LexKeyword "function.anon" "" }
+
 -- identifiers
 <0> @qconid               { string $ LexCons . newQName }
 <0> @qvarid               { string $ LexId . newQName }
@@ -239,8 +244,8 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "fun", "function", "val", "var"
-    , "external"
+    , "fun", "val", "var"
+    , "extern"
     , "effect", "handle", "handler"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
@@ -251,6 +256,8 @@ reservedNames
     , ":"
     , "->"
     , ":="
+    -- backward compatibility
+    , "function","external"
     -- for core interfaces
     , "rec"
     -- future reserved
@@ -402,8 +409,8 @@ lexing source lineNo input
 
         lparen token prev
           = case token of
-              LexSpecial "("  | isApplyToken prev -> LexSpecial "(("  -- application
-              LexSpecial "["  | isApplyToken prev -> LexSpecial "[["  -- indexing
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.("  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.["  -- indexing
               _ -> token
 
         isApplyToken prev 

@@ -290,7 +290,7 @@ visibility vis
 externDecl :: Visibility -> LexParser [TopDef]
 externDecl dvis
   = do (vis,vrng)  <- visibility dvis
-       (krng,doc) <- dockeyword "external"
+       (krng,doc) <- dockeyword "external" <|> dockeyword "extern"
        (do specialId "include"
            extern <- externalInclude (combineRange vrng krng)
            return [DefExtern extern]
@@ -727,7 +727,7 @@ effectDecl dvis
 
 operation :: Bool -> Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
 operation singleShot vis foralls effTp opsTp extendConName
-  = do optional (keyword "function")
+  = do optional (keyword "function" <|> keyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
        (pars,prng)  <- conPars
@@ -781,7 +781,7 @@ operation singleShot vis foralls effTp opsTp extendConName
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
   = do (vis,vrng,rng,doc,isVal) <- try $ do (vis,vrng) <- visibility dvis
-                                            (do (rng,doc) <- dockeyword "function"; return (vis,vrng,rng,doc,False)
+                                            (do (rng,doc) <- (dockeyword "function" <|> dockeyword "fun"); return (vis,vrng,rng,doc,False)
                                              <|>
                                              do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,True)) 
        (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis
@@ -1212,7 +1212,7 @@ funblock
        return (Lam [] exp (getRange exp))    
 
 funexpr
-  = do rng <- keyword "fun" 
+  = do rng <- keyword "fun.anon" <|> keyword "function.anon" 
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,ann) <- funDef 
        body <- block
@@ -1819,8 +1819,8 @@ bracketed open close f p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-lapp     = special "((" <?> show "("
-lidx     = special "[[" <?> show "["
+lapp     = special "(.(" <?> show "("
+lidx     = special "[.[" <?> show "["
 lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<" 

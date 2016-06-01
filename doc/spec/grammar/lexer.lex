@@ -43,7 +43,7 @@ void  commentNestingInc(yyscan_t scanner);
 int   commentNestingDec(yyscan_t scanner);   
 
 /*  Allocation of identifiers and string literals */
-char* identifier( const char* s, yyscan_t scanner );
+char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
 char* stringDup( const char* s, yyscan_t scanner );
 void  stringStart( yyscan_t scanner );
 void  stringAdd( unsigned int c, yyscan_t scanner);
@@ -132,10 +132,15 @@ some                      { return SOME; }
 with                      { return WITH; }
 
 abstract                  { return ABSTRACT; }
-external                  { return EXTERNAL; }
+extern                    { return EXTERN; }
+external                  { return EXTERN; }
 
+function[\(\<]            { yyless(7); return FUNX; }
+fun[\(\<]                 { yyless(3); return FUNX; }
+
+function                  { return FUN; }
 fun                       { return FUN; }
-function                  { return FUNCTION; }
+
 val                       { return VAL; }
 var                       { return VAR; }
 con                       { return CON; }
@@ -156,6 +161,8 @@ as                        { return AS;}
 
 inline                    { return INLINE;  }
 include                   { return INCLUDE; }
+
+open                      { return OPEN; }
 
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
@@ -220,15 +227,15 @@ js                        { return ID_JS;      }
                          }
 
   /* Identifiers and operators */
-({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner); return QCONID; }
-({Id}\/)+{Id}             { yylval->Id = identifier(yytext,yyscanner); return QID; }
-({Id}\/)+\({Op}\)         { yylval->Id = identifier(yytext,yyscanner); return QIDOP; }
+({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner,true); return QCONID; }
+({Id}\/)+{Id}             { yylval->Id = identifier(yytext,yyscanner,true); return QID; }
+({Id}\/)+\({Op}\)         { yylval->Id = identifier(yytext,yyscanner,true); return QIDOP; }
 
-{ConId}                   { yylval->Id = identifier(yytext,yyscanner); return CONID; }
-{Id}                      { yylval->Id = identifier(yytext,yyscanner); return ID; }
-\({Op}\)                  { yylval->Id = identifier(yytext,yyscanner); return IDOP; }
-{Op}                      { yylval->Id = identifier(yytext,yyscanner); return OP; }
-_{IdChar}*                { yylval->Id = identifier(yytext,yyscanner); return WILDCARD; }
+{ConId}                   { yylval->Id = identifier(yytext,yyscanner,true); return CONID; }
+{Id}                      { yylval->Id = identifier(yytext,yyscanner,true); return ID; }
+\({Op}\)                  { yylval->Id = identifier(yytext,yyscanner,false); return IDOP; }
+{Op}                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
+_{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); return WILDCARD; }
 
   /* Numbers */
 0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
@@ -813,15 +820,16 @@ bool wellformed( const char* s ) {
   for(c = s; *c != 0; c++) {
     next = *(c+1);
     if (*c=='-' && (!isLetter(prev) || !isLetter(next))) return false;
+    if (*c=='(') return true; // qualified operator, or operator name
     prev = *c;
   }
   return true;
 }
 
-char* identifier( const char* s, yyscan_t scanner )
+char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck )
 {
   EnableMacros(scanner);
-  if (!wellformed(s)) yyerror(yylloc,scanner,"malformed identifier: a dash must be preceded and followed by a letter");
+  if (wellformedCheck && !wellformed(s)) yyerror(yylloc,scanner,"malformed identifier: a dash must be preceded and followed by a letter");
   return stringDup(s,scanner);
 }
 

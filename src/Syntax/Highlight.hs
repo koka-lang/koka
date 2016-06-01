@@ -96,8 +96,8 @@ showLexeme (Lexeme _ lex)
       LexModule id _ -> show id
       LexCons id    -> show id
       LexTypedId id tp -> show id
-      LexKeyword k _ -> k
-      LexSpecial s  -> normalizeSpecial s
+      LexKeyword k _ -> normalize k
+      LexSpecial s  -> normalize s
       LexComment s  -> s
       LexWhite w    -> w
       LexInsLCurly  -> ""
@@ -105,10 +105,9 @@ showLexeme (Lexeme _ lex)
       LexInsSemi    -> ""
       LexError msg  -> ""
 
-normalizeSpecial :: String -> String
-normalizeSpecial s  | s == "((" = "("
-                    | s == "[[" = "["
-                    | otherwise = s
+normalize :: String -> String
+normalize s 
+  = takeWhile (/='.') s
 
 isKeywordOp :: String -> Bool
 isKeywordOp s
@@ -231,8 +230,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
             LexTypedId id tp  -> fmt (TokId id tp) (showId (unqualify id))
 
             LexKeyword ":" _ -> fmt TokTypeKeyword ":"
-            LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) k
-            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) (normalizeSpecial s)
+            LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) (normalize k)
+            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) (normalize s)
             LexComment s  -> fmt (TokRichComment ({- map highlightComment -} (lexComment (sourceName (rangeSource rng)) (posLine (rangeStart rng)) s))) s
             LexWhite w    -> fmt TokWhite w
             LexInsLCurly  -> fmt TokWhite ""
