@@ -185,22 +185,28 @@ task("spec", ["compiler"], function(mode) {
   var specdir   = path.join("doc","spec");
   var docflags  = (mode === "publish") ? "--htmlbases=" + docsite + " " : "";  
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
-  command(cmd + "kokaspec.kkdoc", function() {
+  command(cmd + "kokaspec.kk.md", function() {
     command(cmd + "toc.kk", function() {
+      // copy style file
+      jake.mkdirP(outstyles);
+      jake.mkdirP(outscripts);
+      jake.cpR(path.join("doc","koka.css"),outstyles);
+      var files = new jake.FileList().include(path.join(specdir,"styles/*.css"))
+                                     .include(path.join(specdir,"styles/*.mdk"))
+                                     .toArray();
+      copyFiles(specdir,files,outspec);
+      files = new jake.FileList().include(path.join(specdir,"scripts/*.js"))
+                                 .toArray();
+      copyFiles(specdir,files,outspec);
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"*.md"));
       command(cmdMarkdown + " --odir=" + outspec + " -v -mline-no:false -mlogo:false " + xmpFiles.toArray().join(" "), function () {
-        // copy style file
-        jake.mkdirP(outstyles);
-        jake.cpR(path.join("doc","koka.css"),outstyles);
-        jake.cpR(path.join(specdir,"kokaspec.css"),outstyles);
-        jake.mkdirP(outscripts);
-        jake.cpR(path.join(specdir,"kokaspec.js"),outscripts);
         if (mode === "publish") {
           // copy to website
-          var files = new jake.FileList().include(path.join(outspec,"*.html"))
-                                         .include(path.join(outstyles,"*.css"));
-          copyFiles(outspec,files.toArray(),doclocal);
+          files = new jake.FileList().include(path.join(outspec,"*.html"))
+                                     .include(path.join(outstyles,"*.css"))
+                                     .toArray();
+          copyFiles(outspec,files,doclocal);
         }
         complete();
       });
@@ -216,7 +222,7 @@ task("guide", ["compiler"], function(publish) {
   var guidedir  = path.join("doc","rise4fun");
   var docflags  = publish ? "--htmlbases=" + docsite + " " : "";  
   var cmd = mainExe + " -c -l --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
-  command(cmd + "guide.kkdoc", function() {
+  command(cmd + "guide.kk.md", function() {
     // convert markdown
     command(cmdMarkdown + " --odir=" + outguide + " -v " + path.join(outguide,"guide.md"), function() {
       // copy style files
@@ -539,11 +545,17 @@ function fileExist(fileName) {
   return (stats != null);
 }
 
+function normalize(filename) {
+  if (filename==null) return "";
+  return filename.replace(/\\/g,"/");
+}
+
 // copyFiles 'files' to 'destdir' where the files in destdir are named relative to 'rootdir'
 // i.e. copyFiles('A',['A/B/c.txt'],'D')  creates 'D/B/c.txt'
 function copyFiles(rootdir,files,destdir) {
-  rootdir = rootdir || "";
+  rootdir = normalize(rootdir || "");
   files.forEach(function(filename) {
+    filename = normalize(filename);
     // make relative
     var destname = path.join(destdir,(rootdir && filename.lastIndexOf(rootdir,0)===0 ? filename.substr(rootdir.length) : filename));
     var logfilename = (filename.length > 30 ? "..." + filename.substr(filename.length-30) : filename);    
