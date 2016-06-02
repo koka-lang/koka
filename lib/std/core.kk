@@ -111,29 +111,29 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // ----------------------------------------------------------------------------
 
 // Add the divergent effect to a fun effect.
-extern inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) = inline "#1"
+extern inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b)  -> inline "#1"
 
 // Add the exception effect to a fun effect.
-extern inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b) = inline "#1"
+extern inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b)  -> inline "#1"
 
 // Add the state effect to a fun effect.
-extern inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)  = inline "#1"
+extern inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   -> inline "#1"
 
 
 // Add the state effect to a fun effect.
-extern inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  = inline "#1"
+extern inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)   -> inline "#1"
 
 // Add the `read` effect to a fun effect.
-extern inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  = inline "#1"
+extern inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)   -> inline "#1"
 
 // Add the `write` effect to a fun effect.
-extern inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)  = inline "#1"
+extern inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)   -> inline "#1"
 
 // Add the `ndet` effect to a fun effect.
-extern inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  = inline "#1"
+extern inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)   -> inline "#1"
  
 // Add the `io` effect to a fun effect.
-extern inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  = inline "#1"
+extern inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)   -> inline "#1"
 
 
 // ----------------------------------------------------------------------------
@@ -283,7 +283,7 @@ type bool {
 }
 
 
-fun int( b : bool ) : int = if (b) then 1 else 0
+fun int( b : bool ) : int  -> if (b) then 1 else 0
 
 fun mbint( m : maybe<int> ) : int {
   match(m) {
@@ -292,7 +292,7 @@ fun mbint( m : maybe<int> ) : int {
   }
 }
 
-fun bool( i : int ) : bool = (i!=0)
+fun bool( i : int ) : bool  -> (i!=0)
 
 fun bool( m : maybe<a> ) : bool {
   match(m) {
@@ -301,7 +301,7 @@ fun bool( m : maybe<a> ) : bool {
   }
 }
 
-fun bool( s : string ) : bool = (s!="")
+fun bool( s : string ) : bool  -> (s!="")
 
 // The unit type `:()` is inhabited by just a single value, namely `()`.
 // See also the `:void` type and the `:bool` type.
@@ -386,12 +386,12 @@ fun order( i : int ) : order
   else Eq
 }
 
-fun (==)( x : order, y : order ) : bool = (x.int == y.int)
-fun (!=)( x : order, y : order ) : bool = (x.int != y.int)
-fun (>=)( x : order, y : order ) : bool = (x.int >= y.int)
-fun (<=)( x : order, y : order ) : bool = (x.int <= y.int)
-fun (>)( x : order, y : order ) : bool = (x.int > y.int)
-fun (<)( x : order, y : order ) : bool = (x.int < y.int)
+fun (==)( x : order, y : order ) : bool  -> (x.int == y.int)
+fun (!=)( x : order, y : order ) : bool  -> (x.int != y.int)
+fun (>=)( x : order, y : order ) : bool  -> (x.int >= y.int)
+fun (<=)( x : order, y : order ) : bool  -> (x.int <= y.int)
+fun (>)( x : order, y : order ) : bool   -> (x.int > y.int)
+fun (<)( x : order, y : order ) : bool   -> (x.int < y.int)
 
 fun map( t : (a,a), f : a -> e b ) : e (b, b) {
   (t.fst.f, t.snd.f)
@@ -842,7 +842,7 @@ fun mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
   }
 }
 
-private extern inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  = inline "#1"
+private extern inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)   -> inline "#1"
 
 // Invoke `action` for each element of a list, passing also the position of the element.
 fun foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
@@ -977,10 +977,10 @@ fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 
 extern inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 extern inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (char,char) -> bool  = inline "(#1 <= #2)"
-extern inline (>=) : (char,char) -> bool  = inline "(#1 >= #2)"
-extern inline (<)  : (char,char) -> bool  = inline "(#1 < #2)"
-extern inline (>)  : (char,char) -> bool  = inline "(#1 > #2)"
+extern inline (<=) : (char,char) -> bool   -> inline "(#1 <= #2)"
+extern inline (>=) : (char,char) -> bool   -> inline "(#1 >= #2)"
+extern inline (<)  : (char,char) -> bool   -> inline "(#1 < #2)"
+extern inline (>)  : (char,char) -> bool   -> inline "(#1 > #2)"
 
 fun compare( x : char, y : char ) : order
 {
@@ -996,28 +996,28 @@ extern inline int : (char) -> int { cs inline "(int)(#1)"; js inline "(#1).charC
 extern inline char : (int) -> char { cs inline "(char)(#1)"; js inline "String.fromCharCode(#1)" }
 
 // Add two character code points
-fun (+)(c : char, d : char) : total char  = (c.int + d.int).char
+fun (+)(c : char, d : char) : total char  -> (c.int + d.int).char
 // Substract two character codePoints
-fun (-)(c : char, d : char) : total char  = (c.int - d.int).char
+fun (-)(c : char, d : char) : total char  -> (c.int - d.int).char
 
 // Is the character a lower-case ASCII character ?
-fun isLower( c : char ) : bool = (c >= 'a' && c <= 'z')
+fun isLower( c : char ) : bool  -> (c >= 'a' && c <= 'z')
 // Is the character an upper-case ASCII character ?
-fun isUpper( c : char ) : bool = (c >= 'A' && c <= 'Z')
+fun isUpper( c : char ) : bool  -> (c >= 'A' && c <= 'Z')
 // Is the character an ASCII digit ?
-fun isDigit( c : char ) : bool = (c >= '0' && c <= '9')
+fun isDigit( c : char ) : bool  -> (c >= '0' && c <= '9')
 // Is the character an ASCII hexa-decimal digit ?
-fun isHexDigit( c : char ) : bool = (c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
+fun isHexDigit( c : char ) : bool  -> (c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
 // Is the character an ASCII letter ?
-fun isAlpha( c : char ) : bool = (isLower(c) || isUpper(c))
+fun isAlpha( c : char ) : bool  -> (isLower(c) || isUpper(c))
 // Is the character ASCII letter or digit?
-fun isAlphaNum( c : char ) : bool = (isAlpha(c) || isDigit(c))
+fun isAlphaNum( c : char ) : bool  -> (isAlpha(c) || isDigit(c))
 // Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
-fun isAscii( c : char )     : bool = (c <= '\x7F')
+fun isAscii( c : char )     : bool  -> (c <= '\x7F')
 // Is the character an ASCII control character, e.g. `c < ' '`  ?
-fun isControl( c : char )   : bool = (c < ' ')
+fun isControl( c : char )   : bool  -> (c < ' ')
 // Tests if a character is an element of `" \t\n\r"` 
-fun isWhite( c : char )     : bool = (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+fun isWhite( c : char )     : bool  -> (c == ' ' || c == '\t' || c == '\n' || c == '\r')
 
 
 
@@ -1029,23 +1029,23 @@ fun isWhite( c : char )     : bool = (c == ' ' || c == '\t' || c == '\n' || c ==
 // fun (&&)( x : bool, y : bool) : bool = if (x) then y else false
 // fun (||)( x : bool, y : bool) : bool = if (x) then true else y
 
-extern inline (&&) : (bool,bool) -> bool  = inline "(#1 && #2)"
-extern inline (||) : (bool,bool) -> bool  = inline "(#1 || #2)"
+extern inline (&&) : (bool,bool) -> bool   -> inline "(#1 && #2)"
+extern inline (||) : (bool,bool) -> bool   -> inline "(#1 || #2)"
 
 // for efficiency we use extern here
 // fun (!)( b : bool ) : bool = if (x) then false else true
 // fun not( b : bool ) : bool = if (x) then false else true
 
-extern inline not  : (bool) -> bool  = inline "!(#1)"
-extern inline (!)  : (bool) -> bool  = inline "!(#1)"
+extern inline not  : (bool) -> bool   -> inline "!(#1)"
+extern inline (!)  : (bool) -> bool   -> inline "!(#1)"
 
-fun (==)( x : bool, y : bool) : bool = if (x) then y else !y
-fun (!=)( x : bool, y : bool) : bool = if (x) then !y else y
+fun (==)( x : bool, y : bool) : bool  -> if (x) then y else !y
+fun (!=)( x : bool, y : bool) : bool  -> if (x) then !y else y
 
-fun (<)( x : bool, y : bool) : bool  = (!x && y)
-fun (<=)( x : bool, y : bool) : bool = !(x > y)
-fun (>)( x : bool, y : bool) : bool  = (x && !y)
-fun (>=)( x : bool, y : bool) : bool = !(x < y)
+fun (<)( x : bool, y : bool) : bool   -> (!x && y)
+fun (<=)( x : bool, y : bool) : bool  -> !(x > y)
+fun (>)( x : bool, y : bool) : bool   -> (x && !y)
+fun (>=)( x : bool, y : bool) : bool  -> !(x < y)
 
 fun compare( x : bool, y : bool) : order
 {
@@ -1181,9 +1181,9 @@ fun sar( i : int, n : int ) {
 
 
 // Return the minimum of two integers
-fun min( i : int, j : int ) : int =  if (i <= j) then i else j
+fun min( i : int, j : int ) : int  -> if (i <= j) then i else j
 // Return the maximum of two integers
-fun max( i : int, j : int ) : int =  if (i >= j) then i else j
+fun max( i : int, j : int ) : int  -> if (i >= j) then i else j
 
 
 // Returns the smallest element of a list of integers (or `0` for the empty list)
@@ -1415,16 +1415,16 @@ public fun parseFixedDefault( s : string, default : double = 0.0 ) : double {
 
 extern inline (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 extern inline (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (double,double) -> bool  = inline "(#1 <= #2)"
-extern inline (>=) : (double,double) -> bool  = inline "(#1 >= #2)"
-extern inline (<)  : (double,double) -> bool  = inline "(#1 < #2)"
-extern inline (>)  : (double,double) -> bool  = inline "(#1 > #2)"
+extern inline (<=) : (double,double) -> bool   -> inline "(#1 <= #2)"
+extern inline (>=) : (double,double) -> bool   -> inline "(#1 >= #2)"
+extern inline (<)  : (double,double) -> bool   -> inline "(#1 < #2)"
+extern inline (>)  : (double,double) -> bool   -> inline "(#1 > #2)"
 
-extern inline (+) : (double,double) -> double = inline "(#1 + #2)"
-extern inline (-) : (double,double) -> double = inline "(#1 - #2)"
-extern inline (*) : (double,double) -> double = inline "(#1 * #2)"
-extern inline (/) : (double,double) -> double = inline "(#1 / #2)"
-extern inline (%) : (double,double) -> double = inline "(#1 % #2)"
+extern inline (+) : (double,double) -> double  -> inline "(#1 + #2)"
+extern inline (-) : (double,double) -> double  -> inline "(#1 - #2)"
+extern inline (*) : (double,double) -> double  -> inline "(#1 * #2)"
+extern inline (/) : (double,double) -> double  -> inline "(#1 / #2)"
+extern inline (%) : (double,double) -> double  -> inline "(#1 % #2)"
 
 fun compare( x : double, y : double) : order
 {
@@ -1574,10 +1574,10 @@ fun sum( xs : list<double> ) : double
 }
 
 // Returns the smallest of two doubles
-fun min( x : double, y : double ) : double = if (x <= y) then x else y
+fun min( x : double, y : double ) : double  -> if (x <= y) then x else y
 
 // Returns the largest of two doubles
-fun max( x : double, y : double ) : double = if (x >= y) then x else y
+fun max( x : double, y : double ) : double  -> if (x >= y) then x else y
 
 // Returns the smallest element of a list of doubles (or `0` for the empty list)
 fun minimum( xs : list<double> ) : double
@@ -1617,7 +1617,7 @@ private extern inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x : 
 
 // Return the `index` element of an array. Raises an exception for out-of-bounds access.
 extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
-  = inline "(#1)[#2]"
+   -> inline "(#1)[#2]"
 
 // Return the length of an `:array`.
 extern inline length : forall<h,a> ( self : array<h,a> ) -> int { 
@@ -1627,7 +1627,7 @@ extern inline length : forall<h,a> ( self : array<h,a> ) -> int {
 
 // Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
 extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
-  = inline "(#1)[#2] = #3"
+   -> inline "(#1)[#2] = #3"
 
 // Create a new array of length `n`  with initial elements `a` .
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
@@ -1636,7 +1636,7 @@ extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> {
 }
  
 // Create a zero length array
-extern inline array : forall<h,a> () -> array<h,a> = cs inline "new ##2[0]"
+extern inline array : forall<h,a> () -> array<h,a>  -> cs inline "new ##2[0]"
 
 private extern inline unsafeArray  : forall<h,a> (n : int) -> array<h,a> { 
   cs inline "new ##2[#1]";
@@ -1727,7 +1727,7 @@ private extern inline unsafeIdx : forall<a> ( v : vector<a>, index : int ) -> to
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  = inline "(#1)[#2]"
+extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a   -> inline "(#1)[#2]"
 
 // Return the length of a vector.
 extern inline length : forall<a> (v : vector<a> ) -> int  { 
@@ -1746,7 +1746,7 @@ extern inline vector : forall<a> () -> vector<a> {
   js inline "[]"
 }
 
-private extern inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a> = inline "(#1)"
+private extern inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a>  -> inline "(#1)"
 
 // Invoke a fun `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : a -> e () ) : e ()
@@ -1802,7 +1802,7 @@ extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> {
 // ----------------------------------------------------------------------------
 
 // Return the `n` th character in a string `s` .
-private extern inline unsafeIdx : ( s : string, n : int ) -> char  = inline "(#1)[#2]"
+private extern inline unsafeIdx : ( s : string, n : int ) -> char   -> inline "(#1)[#2]"
 
 // Are two strings equal?
 extern inline (==) : (string,string) -> bool {
@@ -1828,13 +1828,13 @@ fun compare( x : string, y : string) : order
   stringCompare(x,y).order;
 }
 
-fun (>=)( x : string, y : string ) : bool = compare(x,y) > Lt
-fun (<=)( x : string, y : string ) : bool = compare(x,y) < Gt
-fun (>)( x : string, y : string ) : bool  = compare(x,y) == Gt
-fun (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
+fun (>=)( x : string, y : string ) : bool  -> compare(x,y) > Lt
+fun (<=)( x : string, y : string ) : bool  -> compare(x,y) < Gt
+fun (>)( x : string, y : string ) : bool   -> compare(x,y) == Gt
+fun (<)( x : string, y : string ) : bool   -> compare(x,y) == Lt
 
 // Append two strings.
-extern inline (+) : (string,string) -> string = inline "(#1 + #2)"
+extern inline (+) : (string,string) -> string  -> inline "(#1 + #2)"
 
 // Choose a non-empty string
 fun (||)( x : string, y : string ) : string {
@@ -1843,7 +1843,7 @@ fun (||)( x : string, y : string ) : string {
 
 // Return the `n` th character in a string `s` . 
 // Raise an out-of-bounds exception if `n < 0` or `n >= s.length`.
-extern inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
+extern inline [] : ( s : string, n : int ) -> exn char   -> inline "(#1)[#2]"
 
 // Return the length of a string.
 extern inline length : ( s : string ) -> int  { 
@@ -2324,10 +2324,10 @@ public fun notrace() : st<global> () {
 }
 
 // Convert a `:bool` to a string
-fun show( b : bool ) : string =  if (b) then "True" else "False"
+fun show( b : bool ) : string  -> if (b) then "True" else "False"
 
 // Convert a unit value `()` to a string
-fun show( u : () ) : string =  "()"
+fun show( u : () ) : string  -> "()"
 
 // Convert a list to a string
 fun showList( xs : list<a>, showElem : (a) -> e string ) : e string
@@ -2463,7 +2463,7 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e 
 // Unsafe
 // ----------------------------------------------------------------------------
 
-private extern inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a) = inline "#1"
+private extern inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a)  -> inline "#1"
 
 // _Unsafe_. This fun calls a fun and pretends it did not have any effect at all.
 fun unsafeTotal( action : () -> e a ) : total a
@@ -2485,7 +2485,7 @@ fun unsafeNoDiv( action : () -> <div|e> a ) : e a
 }
 
 // _Unsafe_. Mark a fun parameter as decreasing to suppress the non-termination effect (`:div`).
-extern inline unsafeDecreasing( x : a ) : a = inline "#1"
+extern inline unsafeDecreasing( x : a ) : a  -> inline "#1"
 
 // ----------------------------------------------------------------------------
 // Non determinism
@@ -2603,7 +2603,7 @@ val uncps = handler {
 }
 
 // inject the `:cps` effect
-extern  incps( action: () -> e a ) : total (() -> <cps|e> a) = inline "#1"
+extern  incps( action: () -> e a ) : total (() -> <cps|e> a)  -> inline "#1"
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.

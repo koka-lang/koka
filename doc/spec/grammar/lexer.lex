@@ -1094,9 +1094,11 @@ int main( int argc, char** argv )
     /* final message */
     if (errorCount == 0) {
       printf("Success!\n");
+      return 0;
     }
     else {
       printf("Failure (%i errors encountered)\n", errorCount);
+      return 1;
     }
   }
 }

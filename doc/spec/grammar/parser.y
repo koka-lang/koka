@@ -298,7 +298,7 @@ puredecl    : VAL valdecl                   { $$ = $2; }
             | FUN fundecl                   { $$ = $2; }
             ;
 
-valdecl     : binder '=' expr               { $$ = $1; }
+valdecl     : binder '=' blockexpr          { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -311,8 +311,7 @@ funid       : identifier         { $$ = $1; }
             ;
 
 
-fundecl     : some funid fundef block          { $$ = $2; }
-            | some funid fundef '=' blockexpr  { $$ = $2; } 
+fundecl     : some funid fundef bodyexpr    { $$ = $2; }
             ;
 
 fundef      : typeparams lparen parameters ')' annotres qualifier
@@ -363,16 +362,23 @@ statement   : decl
             ;
 
 decl        : FUN fundecl
-            | VAL pattern '=' expr          /* local value declaration can use a pattern binding */
-            | VAR binder ASSIGN expr        /* local variable declaration */
+            | VAL pattern '=' blockexpr     /* local value declaration can use a pattern binding */
+            | VAR binder ASSIGN blockexpr   /* local variable declaration */
             ;
 
 
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
-blockexpr   : expr          /* block is interpreted specially; used in branches and functions */
-            ;            
+bodyexpr    : bodyexpr1
+            | block
+            ;
+
+bodyexpr1   : RARROW blockexpr
+            ;
+
+blockexpr   : expr              /* a block is not interpreted as an anonymous function but as grouping */
+            ;
 
 expr        : ifexpr
             | noifexpr
@@ -556,12 +562,10 @@ matchrules1 : matchrules1 semis1 matchrule
             | matchrule
             ;
 
-matchrule   : patterns1 guard RARROW blockexpr
+matchrule   : patterns1 '|' expr bodyexpr1
+            | patterns1 bodyexpr
             ;            
 
-guard       : '|' expr
-            | /* empty */
-            ;
 
 patterns    : patterns1
             | /* empty */
@@ -610,9 +614,9 @@ handlerrules1: handlerrules1 semis1 handlerrule
             | handlerrule
             ;
 
-handlerrule : qidentifier opargs RARROW blockexpr
-            | RETURN lparen oparg ')' RARROW blockexpr
-            | RETURN paramid RARROW blockexpr
+handlerrule : qidentifier opargs bodyexpr
+            | RETURN lparen oparg ')' bodyexpr
+            | RETURN paramid bodyexpr
             ;
                         
 opargs      : lparen opargs0 ')'
