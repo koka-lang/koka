@@ -15,7 +15,7 @@ module Syntax.Colorize( colorize
                       , tag
                       , span, cspan
                       , escapes, escape
-                      , prefix
+                      , prefix, htmlHeader, htmlFooter
                       , signature, linkModule
                       , popup
                       , fmtHtml
@@ -76,39 +76,41 @@ colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | other
   where
     htmlBody pre
       = if not fullHtml then pre
-        else do mapM_ (writeLn p) header
+        else do mapM_ (writeLn p) (htmlHeader env (concatMap escape (notdir sourceName)))
                 pre
-                mapM_ (writeLn p) footer
+                mapM_ (writeLn p) htmlFooter
         
     htmlPre body
       = do write p ("<pre class=\"" ++ prefix ++ "source\">")
            body
            writeLn p ("</pre>\n")  -- add empty line for correct markdown
 
-    header
-      = ["<!DOCTYPE html>"
-        ,"<html>"
-        ,"<!-- NO_CLICK_TRACKING -->" -- for MS website
-        ,""
-        ,"<head>"
-        ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
-        ,""
-        ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
-        ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ htmlCss env ++ "\" />"
-        ,if (null (htmlJs env)) then "" 
-          else if (extname (htmlJs env) == "require") 
-           then "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ dirname (htmlJs env) ++ "require.js\"></script>"
-           else "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ htmlJs env ++ "\"></script>"
-        ,"<title>" ++ concatMap escape (notdir sourceName) ++ " source code</title>"
-        ,"</head>"
-        ,""
-        ,"<body class=\"" ++ prefix ++ "source-body\">"
-        ]
-
-    footer
-      = ["</body>"
-        ,"</html>"
-        ]
+htmlHeader env title
+  = ["<!DOCTYPE html>"
+    ,"<html>"
+    ,"<!-- NO_CLICK_TRACKING -->" -- for MS website
+    ,""
+    ,"<head>"
+    ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
+    ,""
+    ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ htmlCss env ++ "\" />"
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic\" />"
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic\" />"
+    ,if (null (htmlJs env)) then "" 
+      else if (extname (htmlJs env) == "require") 
+       then "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ dirname (htmlJs env) ++ "require.js\"></script>"
+       else "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ htmlJs env ++ "\"></script>"
+    ,"<title>" ++ title ++ " documentation</title>"
+    ,"</head>"
+    ,""
+    ,"<body class=\"" ++ prefix ++ "doc body\">"
+    ]
+  
+htmlFooter
+  = ["</body>"
+    ,"</html>"
+    ]
 
 
 ---------------------------------------------------------------------------------------------
