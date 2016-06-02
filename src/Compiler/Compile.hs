@@ -317,7 +317,7 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
        exist <- liftIO $ doesFileExist fname
        if (exist) then return () else liftError $ errorMsg (errorFileNotFound flags fname)
        program <- lift $ parseProgramFromFile (semiInsert flags) fname
-       let isSuffix = map (\c -> if isPathSep c then '/' else c) (notext stem)
+       let isSuffix = map (\c -> if isPathSep c then '/' else c) (noexts stem)
                        `endsWith` show (programName program)                        
            ppcolor c doc = color (c (colors (prettyEnvFromFlags flags))) doc
        if (isExecutable compileTarget || isSuffix) then return ()
@@ -332,7 +332,7 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
 nameFromFile :: FilePath -> Name
 nameFromFile fname
   = newName $ map (\c -> if isPathSep c then '/' else c) $ 
-    dropWhile isPathSep $ notext fname
+    dropWhile isPathSep $ noexts fname
 
 data CompileTarget a
   = Object

@@ -21,7 +21,7 @@ module Common.File(
 
                   -- * File names
                   , FileName
-                  , basename, notdir, notext, joinPath, joinPaths, extname, dirname
+                  , basename, notdir, notext, joinPath, joinPaths, extname, dirname, noexts
                   , splitPath, undelimPaths
                   , isPathSep, isPathDelimiter
                   , findMaximalPrefix
@@ -114,6 +114,10 @@ notdir fname
 notext :: FileName -> FileName
 notext fname
   = reverse (drop (length (extname fname)) (reverse fname))  
+
+noexts :: FileName -> FileName
+noexts fname
+  = joinPaths [dirname fname, takeWhile (/='.') (notdir fname)]
 
 -- | Split a (semi-)colon separated list of directories into a directory list
 undelimPaths :: String -> [FilePath]

@@ -32,9 +32,8 @@ body {
 }
 
 Css Header:
-  .madoko pre, .madoko code {
-    font-size: 1em;
-    font-family: Consolas, 'Roboto Mono', monospace;
+  .madoko pre {
+    border: 1px dotted #CCC;
   }
 
 Html Header   : 
@@ -70,16 +69,16 @@ The following programs are required to build Koka:
 
 Next, get the compiler and libraries from codeplex, and build them: 
 
-* `hg clone https://hg.codeplex.com/koka -b algeff`\
+* ``> hg clone https://hg.codeplex.com/koka -b algeff``\
   (clone the Koka sources with algebraic effects support)
 
-* `cd koka`\
+* ``> cd koka``\
   (go to the new Koka directory) 
 
-* `npm install`\
+* ``> npm install``\
   (install needed Node libraries) 
 
-* `jake`\
+* ``> jake``\
   (build the compiler and run the Koka interactive environment)
 
 
@@ -87,7 +86,7 @@ The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
     > jake sublime
-    
+
 Or 
 
     > jake sublime[3]
@@ -188,7 +187,7 @@ Another small demo is `effs1` that demonstrates the ambiguity effect:
     flip        : () -> amb bool
     main        : () -> console ()
     xor         : () -> amb bool
-    
+
 It is defined as:
 
 ```unchecked

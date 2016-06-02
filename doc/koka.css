@@ -64,17 +64,19 @@ h1 {
 body.koka.doc,
 .koka .mo, .koka .module,
 .koka.source,
-.koka.code, code,
+code, code.koka, .madoko code,
 .koka.codeblock,
-.koka.pre, pre,
+pre, pre.koka, .madoko pre,
 .koka.preblock, 
 .monospace { 
   font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
+  font-size: 0.9em;
 }
-
-.koka.code, code {
+/*
+code.koka, code {
   font-size: 0.9em;
 } 
+*/
 
 .koka pre code,
 .koka.pre, 
@@ -88,10 +90,12 @@ body.koka.doc,
 .koka.codeblock,
 .koka.preblock,
 .koka.source  { 
-  background: #F0F0F0;  
   border: 1px solid #AAA;   /* dark grey */
   padding: 0.5ex 1ex 0.5ex 1ex;
+  /*
   margin: 1ex 5% 1ex 0ex;
+  background: #F0F0F0;  
+  */
 }
 
 .koka.source.unchecked {
@@ -100,11 +104,6 @@ body.koka.doc,
 
 .koka.source-body .source {
   margin-right: 1ex;
-}
-
-.koka.code, code,
-.koka.pre, pre { 
-  padding: 0px 3px 0px 3px;
 }
 
 .koka .dash { 
