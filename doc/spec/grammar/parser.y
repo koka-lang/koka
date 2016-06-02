@@ -361,7 +361,7 @@ statement   : decl
             ;
 
 decl        : FUN fundecl
-            | VAL pattern '=' blockexpr     /* local value declaration can use a pattern binding */
+            | VAL apattern '=' blockexpr    /* local value declaration can use a pattern binding */
             | VAR binder ASSIGN blockexpr   /* local variable declaration */
             ;
 
@@ -399,7 +399,7 @@ matchexpr   : MATCH atom '{' semis matchrules '}'
             ; 
 
 handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
-            | HANDLE handlereff lparen expr ')' handlerpars '{' semis handlerrules1 semis '}'
+            | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
             ;        
 
 funexpr     : FUNX fundef block
@@ -562,21 +562,27 @@ matchrule   : patterns1 '|' expr RARROW blockexpr
             | patterns1 bodyexpr
             ;            
 
+patterns1   : patterns1 ',' pattern
+            | pattern
+            ;
 
-patterns    : patterns1
+apatterns   : apatterns1 
             | /* empty */
             ;
 
-patterns1   : patterns1 ',' pattern
-            | pattern
+apatterns1  : apatterns1 ',' apattern
+            | apattern
+            ;
+
+apattern    : pattern annot                      /* annotated pattern */
             ;
 
 pattern     : identifier
             | conid
             | conid APP patargs ')'
-            | '(' patterns ')'                   /* unit, parenthesized pattern, tuple pattern */
-            | '[' patterns ']'                   /* list pattern */
-            | pattern AS identifier              /* named pattern */
+            | '(' apatterns ')'                  /* unit, parenthesized, and tuple pattern */
+            | '[' apatterns ']'                  /* list pattern */
+            | apattern AS identifier             /* named pattern */
             | literal
             | WILDCARD
             ;
@@ -589,8 +595,8 @@ patargs1    : patargs ',' patarg
             | patarg
             ;
 
-patarg      : identifier '=' pattern                  /* named argument */
-            | pattern
+patarg      : identifier '=' apattern            /* named argument */
+            | apattern
             ;
 
 
@@ -598,13 +604,13 @@ patarg      : identifier '=' pattern                  /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 
-handlerpars : lparen parameters ')'
-            | /* empty */
-            ;
-
 handlereff  : '<' anntype '>'
             | /* empty */
             ; 
+
+handlerpars : lparen parameters ')'
+            | /* empty */
+            ;
 
 handlerrules1: handlerrules1 semis1 handlerrule
             | handlerrule
