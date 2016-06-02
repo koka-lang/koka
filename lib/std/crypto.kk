@@ -11,10 +11,10 @@ Basic cryptography.
 */
 public module std/crypto
 
-external include {
+extern include {
   js file "crypto-inline.js"
 }
 // Compute an md5 hash of a string.
-external md5( s : string ) : string {
+extern md5( s : string ) : string {
   js "$md5"
 }

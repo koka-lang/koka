@@ -10,7 +10,7 @@ private val logDict : mdict<global,string> = unsafeTotal { mdict() }
 // are non-deterministically determined. However, in practice, they contain
 // any messages that were recorded in the `action` by calls to `log`.
 // However, if `nolog` was called, the log is always empty.
-function withLog( logName : string, action : () -> <ndet|e> a ) : <ndet|e> (string, a) {
+fun withLog( logName : string, action : () -> <ndet|e> a ) : <ndet|e> (string, a) {
   unsafeTotal {
     val oldLog = logDict[logName]
     logDict[logName] := ""
@@ -25,13 +25,13 @@ function withLog( logName : string, action : () -> <ndet|e> a ) : <ndet|e> (stri
 }
 
 // Get the current log. Since this is in the `io` effect, `withLog` is preferred.
-function getLog( logName : string ) : io string {
+fun getLog( logName : string ) : io string {
   logDict[logName].maybe("",id)
 }
 
-// Total function that logs a message in a certain log `logName`.
+// Total fun that logs a message in a certain log `logName`.
 // Has no observable effect but see `withLog`.
-function log( logName : string, message : string ) : () {
+fun log( logName : string, message : string ) : () {
   unsafeTotal {
     if (!(logDict.containsKey("nolog")) && logDict.containsKey(logName)) {
       logDict[logName] := logDict[logName].maybe("",id) + (message + "\n")      
@@ -40,6 +40,6 @@ function log( logName : string, message : string ) : () {
 }
 
 // Disable logging completely.
-function nolog() : st<global> () {
+fun nolog() : st<global> () {
   logDict["nolog"] := ""
 }

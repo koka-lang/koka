@@ -21,7 +21,7 @@ module std/env
 import std/path
 import std/dict
 
-external getEnvironment() : dict<string>  {
+extern getEnvironment() : dict<string>  {
   cs inline "Primitive.DictFromStringCollection(System.Environment.GetEnvironmentVariables())"
   js inline "(typeof process !== 'undefined' ? process.env : {})"
 }
@@ -31,7 +31,7 @@ public val env : dict<string>  = getEnvironment()
 
 // Returns the value of an environment variable `name`.
 // Returns `default` (= `""`) if the environment variable was not present.
-public function getEnv( name : string, default : string = "" ) : string
+public fun getEnv( name : string, default : string = "" ) : string
 {
   match(env[name]) {
     Nothing -> default
@@ -39,7 +39,7 @@ public function getEnv( name : string, default : string = "" ) : string
   }
 }
 
-external getArgv() : vector<string>  {
+extern getArgv() : vector<string>  {
   cs "System.Environment.GetCommandLineArgs"
   js inline "(typeof process !== 'undefined' ? process.argv : [])"
 }

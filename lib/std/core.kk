@@ -111,29 +111,29 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // ----------------------------------------------------------------------------
 
 // Add the divergent effect to a fun effect.
-extern inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b)  -> inline "#1"
+extern inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
 
 // Add the exception effect to a fun effect.
-extern inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b)  -> inline "#1"
+extern inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b)  { inline "#1" }
 
 // Add the state effect to a fun effect.
-extern inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   -> inline "#1"
+extern inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
 
 // Add the state effect to a fun effect.
-extern inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)   -> inline "#1"
+extern inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
 
 // Add the `read` effect to a fun effect.
-extern inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)   -> inline "#1"
+extern inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  { inline "#1" }
 
 // Add the `write` effect to a fun effect.
-extern inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)   -> inline "#1"
+extern inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)  { inline "#1" }
 
 // Add the `ndet` effect to a fun effect.
-extern inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)   -> inline "#1"
+extern inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  { inline "#1" }
  
 // Add the `io` effect to a fun effect.
-extern inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)   -> inline "#1"
+extern inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  { inline "#1" }
 
 
 // ----------------------------------------------------------------------------
@@ -842,7 +842,7 @@ fun mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
   }
 }
 
-private extern inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)   -> inline "#1"
+private extern inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  { inline "#1" }
 
 // Invoke `action` for each element of a list, passing also the position of the element.
 fun foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
@@ -977,10 +977,10 @@ fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 
 extern inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 extern inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (char,char) -> bool   -> inline "(#1 <= #2)"
-extern inline (>=) : (char,char) -> bool   -> inline "(#1 >= #2)"
-extern inline (<)  : (char,char) -> bool   -> inline "(#1 < #2)"
-extern inline (>)  : (char,char) -> bool   -> inline "(#1 > #2)"
+extern inline (<=) : (char,char) -> bool  { inline "(#1 <= #2)" }
+extern inline (>=) : (char,char) -> bool  { inline "(#1 >= #2)" }
+extern inline (<)  : (char,char) -> bool  { inline "(#1 < #2)" }
+extern inline (>)  : (char,char) -> bool  { inline "(#1 > #2)" }
 
 fun compare( x : char, y : char ) : order
 {
@@ -1029,15 +1029,15 @@ fun isWhite( c : char )     : bool  -> (c == ' ' || c == '\t' || c == '\n' || c 
 // fun (&&)( x : bool, y : bool) : bool = if (x) then y else false
 // fun (||)( x : bool, y : bool) : bool = if (x) then true else y
 
-extern inline (&&) : (bool,bool) -> bool   -> inline "(#1 && #2)"
-extern inline (||) : (bool,bool) -> bool   -> inline "(#1 || #2)"
+extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
+extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
 // for efficiency we use extern here
 // fun (!)( b : bool ) : bool = if (x) then false else true
 // fun not( b : bool ) : bool = if (x) then false else true
 
-extern inline not  : (bool) -> bool   -> inline "!(#1)"
-extern inline (!)  : (bool) -> bool   -> inline "!(#1)"
+extern inline not  : (bool) -> bool  { inline "!(#1)" }
+extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
 
 fun (==)( x : bool, y : bool) : bool  -> if (x) then y else !y
 fun (!=)( x : bool, y : bool) : bool  -> if (x) then !y else y
@@ -1415,16 +1415,16 @@ public fun parseFixedDefault( s : string, default : double = 0.0 ) : double {
 
 extern inline (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 extern inline (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (double,double) -> bool   -> inline "(#1 <= #2)"
-extern inline (>=) : (double,double) -> bool   -> inline "(#1 >= #2)"
-extern inline (<)  : (double,double) -> bool   -> inline "(#1 < #2)"
-extern inline (>)  : (double,double) -> bool   -> inline "(#1 > #2)"
+extern inline (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
+extern inline (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
+extern inline (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
+extern inline (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
 
-extern inline (+) : (double,double) -> double  -> inline "(#1 + #2)"
-extern inline (-) : (double,double) -> double  -> inline "(#1 - #2)"
-extern inline (*) : (double,double) -> double  -> inline "(#1 * #2)"
-extern inline (/) : (double,double) -> double  -> inline "(#1 / #2)"
-extern inline (%) : (double,double) -> double  -> inline "(#1 % #2)"
+extern inline (+) : (double,double) -> double { inline "(#1 + #2)" }
+extern inline (-) : (double,double) -> double { inline "(#1 - #2)" }
+extern inline (*) : (double,double) -> double { inline "(#1 * #2)" }
+extern inline (/) : (double,double) -> double { inline "(#1 / #2)" }
+extern inline (%) : (double,double) -> double { inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {
@@ -1617,7 +1617,7 @@ private extern inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x : 
 
 // Return the `index` element of an array. Raises an exception for out-of-bounds access.
 extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
-   -> inline "(#1)[#2]"
+  { inline "(#1)[#2]" }
 
 // Return the length of an `:array`.
 extern inline length : forall<h,a> ( self : array<h,a> ) -> int { 
@@ -1627,30 +1627,32 @@ extern inline length : forall<h,a> ( self : array<h,a> ) -> int {
 
 // Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
 extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
-   -> inline "(#1)[#2] = #3"
+  { inline "(#1)[#2] = #3" }
 
 // Create a new array of length `n`  with initial elements `a` .
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
-  cs inline "Primitive.NewArray<##2>(#1,#2)";
+  cs inline "Primitive.NewArray<##2>(#1,#2)"
   js inline "Array(#2)"
 }
  
 // Create a zero length array
-extern inline array : forall<h,a> () -> array<h,a>  -> cs inline "new ##2[0]"
+extern inline array : forall<h,a> () -> array<h,a> {
+  cs inline "new ##2[0]"
+}
 
 private extern inline unsafeArray  : forall<h,a> (n : int) -> array<h,a> { 
-  cs inline "new ##2[#1]";
-  js inline "Array(#1)";
+  cs inline "new ##2[#1]"
+  js inline "Array(#1)"
 }
 
 private extern inline arrayCopy    : forall<h,a> ( src : array<h,a>, dest : array<h,a>, len : int ) -> read<h> ()  { 
-  cs inline "Array.Copy(#1,#2,#3)";
+  cs inline "Array.Copy(#1,#2,#3)"
   js inline "error('arrayCopy')"
 }
 
 private extern inline unsafeFreeze : forall<h,a> ( self : array<h,a> ) -> read<h> vector<a> { 
-  cs inline "(#1)";
-  js inline "(#1)";
+  cs inline "(#1)"
+  js inline "(#1)"
 }
 
 // Copy an array
@@ -1727,7 +1729,7 @@ private extern inline unsafeIdx : forall<a> ( v : vector<a>, index : int ) -> to
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a   -> inline "(#1)[#2]"
+extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { inline "(#1)[#2]" }
 
 // Return the length of a vector.
 extern inline length : forall<a> (v : vector<a> ) -> int  { 
@@ -1746,7 +1748,7 @@ extern inline vector : forall<a> () -> vector<a> {
   js inline "[]"
 }
 
-private extern inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a>  -> inline "(#1)"
+private extern inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a> { inline "(#1)" }
 
 // Invoke a fun `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : a -> e () ) : e ()
@@ -1802,7 +1804,7 @@ extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> {
 // ----------------------------------------------------------------------------
 
 // Return the `n` th character in a string `s` .
-private extern inline unsafeIdx : ( s : string, n : int ) -> char   -> inline "(#1)[#2]"
+private extern inline unsafeIdx : ( s : string, n : int ) -> char  { inline "(#1)[#2]" }
 
 // Are two strings equal?
 extern inline (==) : (string,string) -> bool {
@@ -1834,7 +1836,7 @@ fun (>)( x : string, y : string ) : bool   -> compare(x,y) == Gt
 fun (<)( x : string, y : string ) : bool   -> compare(x,y) == Lt
 
 // Append two strings.
-extern inline (+) : (string,string) -> string  -> inline "(#1 + #2)"
+extern inline (+) : (string,string) -> string { inline "(#1 + #2)" }
 
 // Choose a non-empty string
 fun (||)( x : string, y : string ) : string {
@@ -1843,7 +1845,7 @@ fun (||)( x : string, y : string ) : string {
 
 // Return the `n` th character in a string `s` . 
 // Raise an out-of-bounds exception if `n < 0` or `n >= s.length`.
-extern inline [] : ( s : string, n : int ) -> exn char   -> inline "(#1)[#2]"
+extern inline [] : ( s : string, n : int ) -> exn char  { inline "(#1)[#2]" }
 
 // Return the length of a string.
 extern inline length : ( s : string ) -> int  { 
@@ -2463,7 +2465,7 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e 
 // Unsafe
 // ----------------------------------------------------------------------------
 
-private extern inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a)  -> inline "#1"
+private extern inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a) { inline "#1" }
 
 // _Unsafe_. This fun calls a fun and pretends it did not have any effect at all.
 fun unsafeTotal( action : () -> e a ) : total a
@@ -2485,7 +2487,7 @@ fun unsafeNoDiv( action : () -> <div|e> a ) : e a
 }
 
 // _Unsafe_. Mark a fun parameter as decreasing to suppress the non-termination effect (`:div`).
-extern inline unsafeDecreasing( x : a ) : a  -> inline "#1"
+extern inline unsafeDecreasing( x : a ) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
 // Non determinism
@@ -2603,7 +2605,7 @@ val uncps = handler {
 }
 
 // inject the `:cps` effect
-extern  incps( action: () -> e a ) : total (() -> <cps|e> a)  -> inline "#1"
+extern  incps( action: () -> e a ) : total (() -> <cps|e> a) { inline "#1" }
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.

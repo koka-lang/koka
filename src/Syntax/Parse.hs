@@ -404,11 +404,7 @@ externalIncludeEntry
 
 externalBody :: LexParser ([(Target,ExternalCall)],Range)
 externalBody 
-  = do keyword "="
-       (target,inline,rng) <- externalEntryRanged
-       return ([(target,inline)],rng)
-  <|>
-    do semiBracesRanged externalEntry
+  = semiBracesRanged externalEntry
 
 externalEntry
   = do (target,inline,_) <- externalEntryRanged
@@ -799,13 +795,13 @@ varDecl
   = do (vrng,doc) <- dockeyword "var"
        bind <- binder
        keyword ":="
-       body <- valexpr
+       body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar doc)
 
 valDecl rng doc vis
   = do bind <- binder
        keyword "="
-       body <- valexpr
+       body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal doc)
  
 funDecl rng doc vis
@@ -813,7 +809,7 @@ funDecl rng doc vis
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,ann) <- funDef  
-       body   <- block <|> do{ keyword "="; branchexpr }
+       body   <- bodyexpr
        let fun = promote spars tpars mbtres
                   (Lam pars body (combineRanged rng body)) 
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis DefFun doc)
@@ -938,7 +934,7 @@ localValueDecl
   = do krng <- keyword "val"
        pat  <- pattern
        keyword "="
-       e    <- valexpr
+       e    <- blockexpr
        let bindVar binder mbTp rng
             = let annexpr = case mbTp of
                               Just tp -> Ann e tp rng
@@ -966,19 +962,22 @@ typeAnnotation
 {--------------------------------------------------------------------------
   Expressions
 --------------------------------------------------------------------------}
-valexpr :: LexParser UserExpr
-valexpr
-  = ifexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
-  <?> "expression"
+bodyexpr :: LexParser UserExpr
+bodyexpr
+  = do keyword "->"
+       blockexpr
+  <|>
+    block
 
 expr :: LexParser UserExpr
 expr
   = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
   <?> "expression"
 
-branchexpr :: LexParser UserExpr
-branchexpr
+blockexpr :: LexParser UserExpr
+blockexpr
   = ifexpr <|> noifexpr
+  <?> "expression"
 
 noifexpr :: LexParser UserExpr
 noifexpr
@@ -1077,15 +1076,13 @@ handlerOp
   = do rng <- keyword "return"
        (name,prng) <- paramid
        tp         <- optionMaybe typeAnnotPar 
-       keyword "->"
-       expr <- branchexpr
+       expr <- bodyexpr
        return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
   <|>
     do (name,nameRng) <- qidentifier
        (pars,prng) <- opParams 
-       keyword "->"
-       exp <- branchexpr
-       return (Right (HandlerBranch name pars exp nameRng (combineRanges [nameRng,prng])))
+       expr <- bodyexpr
+       return (Right (HandlerBranch name pars expr nameRng (combineRanges [nameRng,prng])))
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
@@ -1110,17 +1107,19 @@ handlerPar
 --------------------------------------------------------------------------}
 branch
   = do pat  <- pattern
-       grd  <- guard
-       keyword "->"
-       exp  <- branchexpr
+       (grd,exp) <- guard
        return (Branch pat grd exp)
   <?> "pattern match"
 
 guard
   = do bar
-       expr <?> "guard expression"
+       grd <- expr <?> "guard expression"
+       keyword "->"
+       exp <- blockexpr
+       return (grd,exp)
   <|>
-    do return guardTrue
+    do exp <- bodyexpr
+       return (guardTrue, exp)
 
 
 {--------------------------------------------------------------------------
@@ -1505,10 +1504,10 @@ tresult :: LexParser ([(Name,UserType)],Maybe UserType,UserType)
 tresult
   = do (tps1,rng1)  <- tatom
 
-       (targs,tps2) <-  do ts <- many (do{ keyword "->"; tatom})
+       (targs,tps2) <- return ([],tps1) {- do ts <- many (do{ keyword "->"; tatom})
                            if null ts
                             then return ([],tps1)
-                            else return (merge ((tps1,rng1):init ts), fst (last ts))
+                            else return (merge ((tps1,rng1):init ts), fst (last ts)) -}
        (teff,tres) <- do (tps,rng) <- tatom
                          return (Just (tuple (tps2,rng)), tuple (tps,rng))
                       <|>

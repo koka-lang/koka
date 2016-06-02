@@ -172,8 +172,7 @@ externdecl  : EXTERN externinline funid ':' typescheme externbody   { $$ = $3; }
             | EXTERN INCLUDE externincbody                          { $$ = "<extern include>"; }
             ;
 
-externbody  : '=' externstat
-            | '{' semis externstats1 '}'
+externbody  : '{' semis externstats1 '}'
             ;
 
 externstats1: externstats1 externstat semis1
@@ -370,11 +369,8 @@ decl        : FUN fundecl
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
-bodyexpr    : bodyexpr1
+bodyexpr    : RARROW blockexpr
             | block
-            ;
-
-bodyexpr1   : RARROW blockexpr
             ;
 
 blockexpr   : expr              /* a block is not interpreted as an anonymous function but as grouping */
@@ -562,7 +558,7 @@ matchrules1 : matchrules1 semis1 matchrule
             | matchrule
             ;
 
-matchrule   : patterns1 '|' expr bodyexpr1
+matchrule   : patterns1 '|' expr RARROW blockexpr
             | patterns1 bodyexpr
             ;            
 
@@ -770,5 +766,5 @@ katom       : conid
 
 void printDecl( const char* sort, const char* name )
 {
-  fprintf( stderr, "parsed %s declaration: %s\n", sort, name );
+  printf( "parsed %s declaration: %s\n", sort, name );
 }

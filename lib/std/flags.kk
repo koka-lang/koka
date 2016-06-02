@@ -56,7 +56,7 @@ struct testOptions(
   arguments : list<string> = []
 )
 
-function showOptions( o : testOptions ) {
+fun showOptions( o : testOptions ) {
   "{" + ["verbose=" + o.verbose.show,
          "version=" + o.version.show,
          "name=" + o.name.show,
@@ -64,16 +64,16 @@ function showOptions( o : testOptions ) {
          "arguments=" + o.arguments.join(",")].join(";") + "}"
 }
 
-function setOutput( t : testOptions, mbs : maybe<string> ) : testOptions
+fun setOutput( t : testOptions, mbs : maybe<string> ) : testOptions
 {
   match(mbs) {
     Nothing -> t(output = "stdout")
     Just(s) -> t(output = s)
   } 
 }
-function setName( t : testOptions, name )  = t(name = name)
-function setVerbose( t : testOptions, v )  = t(verbose = v)
-function setVersion( t : testOptions, v )  = t(version = v)
+fun setName( t : testOptions, name )  -> t(name = name)
+fun setVerbose( t : testOptions, v )  -> t(verbose = v)
+fun setVersion( t : testOptions, v )  -> t(version = v)
 
 val testOptions : list<option<testOptions>>
   = [ Option( "V?", ["version"], Flag(setVersion),     "display version information" ),
@@ -83,7 +83,7 @@ val testOptions : list<option<testOptions>>
     ]
 
 
-public function test( cmdargs )
+public fun test( cmdargs )
 {
   val header = "usage:\n program [options] files\n\noptions:"
   // testOptions.usageInfo( header ).println
@@ -101,20 +101,20 @@ public function test( cmdargs )
 
 // Return a nicely formatted string describing the usage of a command,
 // consisting of a "header" followed by the descriptions of the "flags".
-public function usageInfo( flags : list<option<a>>, header : string ) : string
+public fun usageInfo( flags : list<option<a>>, header : string ) : string
 {
-  function flushLeft(s : string, width : int ) {
+  fun flushLeft(s : string, width : int ) {
     if (s.length >= width) return s
     return (s + string(width - s.length,' '))
   }
 
-  function alignLeft( xs : list<string> )
+  fun alignLeft( xs : list<string> )
   {
     val n = xs.map(fun(s){ s.length }).maximum
     xs.map( fun(s){ s.flushLeft(n) } )
   }
 
-  function paste(x,y,z) {
+  fun paste(x,y,z) {
     return (" " + x + "  " + y + "  " + z)
   }
 
@@ -123,7 +123,7 @@ public function usageInfo( flags : list<option<a>>, header : string ) : string
   return (header + "\n" + table.vector.unlines)
 }
 
-function showFlag( flag : option<a> ) :  list<(string,string,string)>
+fun showFlag( flag : option<a> ) : list<(string,string,string)>
 {
   val short = flag.shortNames.list.map(fun(c){ "-" + c.string + showShortArg(flag.arg) }).join(" ")
   val long  = flag.longNames.map(fun(name){ "--" + name + showLongArg(flag.arg) }).join(" ")
@@ -133,7 +133,7 @@ function showFlag( flag : option<a> ) :  list<(string,string,string)>
   }
 }
 
-function showShortArg( arg : optionArg<a> )
+fun showShortArg( arg : optionArg<a> )
 {
   match(arg) {
     Flag -> ""
@@ -142,7 +142,7 @@ function showShortArg( arg : optionArg<a> )
   }
 }
 
-function showLongArg( arg : optionArg<a> )
+fun showLongArg( arg : optionArg<a> )
 {
   match(arg) {
     Flag(_) -> ""
@@ -165,7 +165,7 @@ type flagKind<a>
 // "ordering" that specifies how flags are handled that follow nonFlag arguments.
 // The default ordering is "Permute". Returns three lists: the list of parsed options,
 // a list of nonOption arguments, and a list of potential error messages.
-public function parse( initial : a, flags : list<option<a>>, args : list<string>, ordering : optionOrder<a> = Permute ) 
+public fun parse( initial : a, flags : list<option<a>>, args : list<string>, ordering : optionOrder<a> = Permute ) 
                         : total (a, list<string>, list<string>)
 {
   var done := False  // done scanning flags? (the rest is treated as an argument)
@@ -195,7 +195,7 @@ public function parse( initial : a, flags : list<option<a>>, args : list<string>
 }
 
 
-function processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>>
+fun processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>>
 {
   if ("--" == arg)
    then [End]
@@ -207,7 +207,7 @@ function processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>
 }
 
 
-function break( s : string, c : char ) : (string,string)
+fun break( s : string, c : char ) : (string,string)
 {
   val parts = s.split(c.string,2).list
   match (parts) {
@@ -216,7 +216,7 @@ function break( s : string, c : char ) : (string,string)
   }
 }
 
-function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
+fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 {
   val (cflagname,flagarg) = s.break('=')
   val opt = "--" + s
@@ -259,7 +259,7 @@ function parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 }
   
 
-function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
+fun parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
 {
   var done := False
   val fs = s.list.mapIndexed fun(i,c) {
@@ -292,37 +292,37 @@ function parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
   fs.map(list).concat
 }
 
-function errorAmbiguous( applicable, opt ) {
+fun errorAmbiguous( applicable, opt ) {
   val header = "option \"" + opt + "\" is ambiguous. It could be one of:"
   return Error( usageInfo( applicable, header ) )
 }
 
-function errorRequired( help, opt ) {
+fun errorRequired( help, opt ) {
   return Error( "option \"" + opt + "\" requires an argument " + help)
 }
 
-function errorNegate( flagname ) {
+fun errorNegate( flagname ) {
   return Error( "option \"--" + flagname + "\" cannot be negated" );
 }
 
-function errorNoarg( opt ) {
+fun errorNoarg( opt ) {
   return Error( "option \"" + opt + "\" does not take an argument")
 }
 
-function errorUnknown( opt ) {
+fun errorUnknown( opt ) {
   return Error( errorUnknownMessage(opt) )
 }
 
-function errorUnknownMessage( opt ) {
+fun errorUnknownMessage( opt ) {
   return ( "unrecognized option \"" + opt + "\"")
 }
 
 
 
 // Unzip a list of triples into three lists
-function unzip3( xs : list<(a,b,c)> ) : (list<a>,list<b>,list<c>)
+fun unzip3( xs : list<(a,b,c)> ) : (list<a>,list<b>,list<c>)
 {
-  function iter( ys, acc1, acc2, acc3 )
+  fun iter( ys, acc1, acc2, acc3 )
   {
     match(ys) {
       Cons((x,y,z),xx) -> iter(xx,Cons(x,acc1),Cons(y,acc2),Cons(z,acc3))
@@ -333,13 +333,13 @@ function unzip3( xs : list<(a,b,c)> ) : (list<a>,list<b>,list<c>)
   iter(xs,[],[],[])
 }
 
-function zipWith3(f : (a,b,c) -> e d, xs : list<a>, ys : list<b>, zs : list<c> ) : e list<d>
+fun zipWith3(f : (a,b,c) -> e d, xs : list<a>, ys : list<b>, zs : list<c> ) : e list<d>
 {
   zipWith3Acc(f, [], xs, ys, zs )
 }
 
 
-function zipWith3Acc( f, acc, xs, ys, zs )
+fun zipWith3Acc( f, acc, xs, ys, zs )
 {
   match(xs) {
     Nil -> reverse(acc)

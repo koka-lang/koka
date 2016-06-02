@@ -26,54 +26,54 @@ public val atomNull = atom("")
 abstract struct atom( value: int )  
 
 // Create an `:atom`
-external atomCreate : ( s : string ) -> int {
+extern atomCreate : ( s : string ) -> int {
   cs "Atom.Create"
   js "$atomCreate"
 }
 
 // Convert an `:atom` back to a `:string`
-external atomToString : ( x : int ) -> string {
+extern atomToString : ( x : int ) -> string {
   cs "Atom.ToString"
   js "$atomToString"
 }
 
 // Create an `:atom`
-public function atom( s : string ) : atom {
+public fun atom( s : string ) : atom {
   atomCreate(s).Atom
 }
 
 // Convert an `:atom` back to a `:string`
-public function toString( a : atom ) : string {
+public fun toString( a : atom ) : string {
   atomToString(a.value)
 }
 
 // Compare two atoms for equality
-public function (==)(x : atom, y : atom) : bool = (x.value == y.value)
+public fun (==)(x : atom, y : atom) : bool  -> (x.value == y.value)
 
 // Compare if two atoms are not equal.
-public function (!=)(x : atom, y : atom) : bool = (x.value != y.value)
+public fun (!=)(x : atom, y : atom) : bool  -> (x.value != y.value)
 
 
-private external atomMatcher : ( xs : vector<string>, ignoreCase: int ) -> any
+extern atomMatcher : ( xs : vector<string>, ignoreCase: int ) -> any
 {
   cs "Atom.CreateMatcher"
   js "$atomCreateMatcher"
 }
 
-private external atomMatch : ( m : any, s : string, ignoreCase: int ) -> int
+extern atomMatch : ( m : any, s : string, ignoreCase: int ) -> int
 {
   cs "Atom.Match"
   js "$atomMatch"
 }
 
-// Create an efficient string matcher which given a list of strings returns a matching function.
-public function matcher( xs : list<string>, ignoreCase: bool = False ) : ( s : string ) -> bool 
+// Create an efficient string matcher which given a list of strings returns a matching fun.
+public fun matcher( xs : list<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
   matcher(vector(xs), ignoreCase)
 }
 
-// Create an efficient string matcher which given a vector of strings returns a matching function.
-public function matcher( xs : vector<string>, ignoreCase: bool = False ) : ( s : string ) -> bool 
+// Create an efficient string matcher which given a vector of strings returns a matching fun.
+public fun matcher( xs : vector<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
   val m = atomMatcher( xs, ignoreCase.int );
   return fun(s) { return bool(atomMatch(m,s,int(ignoreCase))); }

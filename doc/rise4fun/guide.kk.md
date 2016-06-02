@@ -132,7 +132,7 @@ are equivalent). The dot notation is intu&iuml;tive and quite convenient to
 chain multiple calls together, as in:
 
 ```
-function showit( s : string ) = s.encode(3).length.println
+function showit( s : string ) -> s.encode(3).length.println
 ``` 
 
 for example (where the body desugars as `println(length(encode(s,3)))`). An
@@ -273,7 +273,7 @@ When the effect is `:total` we usually leave it out in the type annotation.
 For example, when we write:
 
 ```
-function square5( x : int ) : int  = x*x
+function square5( x : int ) : int  -> x*x
 ```
 
 Then the assumed effect is `:total`. Sometimes, we write an effectful
