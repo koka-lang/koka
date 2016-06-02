@@ -1037,8 +1037,8 @@ handlerExpr
     do rng <- keyword "handle"
        shallow <- do{ specialId "shallow"; return True } <|> return False
        mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
-       args <- parensCommas (lparen <|> lapp) argument 
-       expr <- handlerExprX lapp rng shallow mbEff
+       args <- parensCommas1 lparen argument 
+       expr <- handlerExprX lparen rng shallow mbEff
        return (App expr args (combineRanged rng expr))
 
 handlerExprX lp rng shallow mbEff
