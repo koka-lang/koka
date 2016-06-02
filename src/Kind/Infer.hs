@@ -948,7 +948,7 @@ makeEffectEmpty
   = TpCon nameEffectEmpty rangeNull
 
 makeHandled u rng
-  = TpApp (TpCon nameTpHandled rng) [u] rng
+  = TpApp (TpCon nameTpHandled rangeNull) [u] rangeNull
 
 makeHandled1 u rng
-  = TpApp (TpCon nameTpHandled1 rng) [u] rng
+  = TpApp (TpCon nameTpHandled1 rangeNull) [u] rangeNull

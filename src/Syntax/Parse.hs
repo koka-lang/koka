@@ -1279,10 +1279,10 @@ listExpr
        rng2 <- special "]"
        if null es 
         then return (makeNil (combineRange rng1 rng2))
-        else return (adjustRange (combineRange rng1 rng2) (foldr makeCons (makeNil (after rng2)) (es)))
+        else return (adjustRange (combineRange rng1 rng2) (foldr (makeCons rng1) (makeNil rng2) (es)))
 
 makeNil rng   = Var nameNull False rng
-makeCons x xs = makeApp (Var nameCons False (after (getRange x))) [x,xs]
+makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
 -----------------------------------------------------------
 -- Patterns (and binders)

@@ -66,13 +66,13 @@ extern atomMatch : ( m : any, s : string, ignoreCase: int ) -> int
   js "$atomMatch"
 }
 
-// Create an efficient string matcher which given a list of strings returns a matching fun.
+// Create an efficient string matcher which given a list of strings returns a matching function.
 public fun matcher( xs : list<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
   matcher(vector(xs), ignoreCase)
 }
 
-// Create an efficient string matcher which given a vector of strings returns a matching fun.
+// Create an efficient string matcher which given a vector of strings returns a matching function.
 public fun matcher( xs : vector<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
   val m = atomMatcher( xs, ignoreCase.int );

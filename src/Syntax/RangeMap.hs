@@ -87,6 +87,13 @@ instance Enum RangeInfo where
   toEnum i
     = failure "Syntax.RangeMap.toEnum"
 
+isHidden ri 
+  = case ri of
+      Decl kind nm1 nm2  -> isHiddenName nm1
+      Id name info isDef -> isHiddenName name
+      _ -> False
+
+
 rangeMapNew :: RangeMap
 rangeMapNew 
   = RM []
@@ -97,7 +104,7 @@ cut r
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
   = -- trace ("insert: " ++ showFullRange (r)) $
-    RM ((r,info):rm)
+    if isHidden info then RM rm else RM ((r,info):rm)
 
 rangeMapAppend :: RangeMap -> RangeMap -> RangeMap
 rangeMapAppend (RM rm1) (RM rm2)

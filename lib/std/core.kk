@@ -56,32 +56,32 @@ type <> :: E
 // The effect constructor extends an effect with another effect.
 type <|> :: (X,E) -> E
 
-// The exception effect: a partial fun may raise an exception.
+// The exception effect: a partial function may raise an exception.
 type exn :: X
 
-// The divergence effect: a divergent fun may not terminate.
+// The divergence effect: a divergent function may not terminate.
 type div :: X
 
-// NonDeterminism: a nonDeterministic fun may return varying
+// NonDeterminism: a nonDeterministic function may return varying
 // results even when called with the same input values.
 type ndet :: X
 
-// The alloc effect signifies a fun may allocate in a heap `:h`
+// The alloc effect signifies a function may allocate in a heap `:h`
 type alloc :: H -> X
 
-// The read effect: signifies that a fun may read from from heap `:h`.
+// The read effect: signifies that a function may read from from heap `:h`.
 type read :: H -> X
 
-// The write effect: signifies that a fun may write to heap `:h`.
+// The write effect: signifies that a function may write to heap `:h`.
 type write :: H -> X
 
-// The console effect signifies that a fun may read or write to the console.
+// The console effect signifies that a function may read or write to the console.
 type console :: X
 
 // An alias for the empty effect.
 alias total = <>
 
-// An alias for pure effects: a pure fun always returns the same result
+// An alias for pure effects: a pure function always returns the same result
 // when called with the same arguments but may not terminate or raise an exception.
 alias pure = <exn,div>
 
@@ -91,16 +91,16 @@ alias st<h> = <read<h>, write<h>, alloc<h>>
 // The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
 
-// The `:net` effect signifies a fun may access the network
+// The `:net` effect signifies a function may access the network
 type net :: X
 
-// The `:file` effect signifies a fun may access the file system
+// The `:file` effect signifies a function may access the file system
 type file :: X
 
-// The `:ui` effect signifies a fun may access the graphics system
+// The `:ui` effect signifies a function may access the graphics system
 type ui :: X
 
-// The `:blocking` effect signifies that a fun may block
+// The `:blocking` effect signifies that a function may block
 type blocking :: X
 
 // The `:io` effect is used for funs that perform arbitrary I/O operations.
@@ -110,29 +110,29 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // Injection
 // ----------------------------------------------------------------------------
 
-// Add the divergent effect to a fun effect.
+// Add the divergent effect to a function effect.
 extern inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
 
-// Add the exception effect to a fun effect.
+// Add the exception effect to a function effect.
 extern inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b)  { inline "#1" }
 
-// Add the state effect to a fun effect.
+// Add the state effect to a function effect.
 extern inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
 
-// Add the state effect to a fun effect.
+// Add the state effect to a function effect.
 extern inline injectSt : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
 
-// Add the `read` effect to a fun effect.
+// Add the `read` effect to a function effect.
 extern inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  { inline "#1" }
 
-// Add the `write` effect to a fun effect.
+// Add the `write` effect to a function effect.
 extern inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)  { inline "#1" }
 
-// Add the `ndet` effect to a fun effect.
+// Add the `ndet` effect to a function effect.
 extern inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  { inline "#1" }
  
-// Add the `io` effect to a fun effect.
+// Add the `io` effect to a function effect.
 extern inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  { inline "#1" }
 
 
@@ -175,7 +175,7 @@ extern throw : forall<a> exception -> exn a {
   js "error(#1)"
 }
 
-// Raise a pattern match exception. This is fun is used internally by the
+// Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 extern patternMatchError : forall<a> (range : string, def : string) -> exn a { 
     cs "Primitive.PatternMatchError"
@@ -247,7 +247,7 @@ extern unlist( list : list<a> ) : total primarray<a> {
 // Standard funs
 // ----------------------------------------------------------------------------
 
-// The identify fun returns its argument unchanged.
+// The identity function returns its argument unchanged.
 fun id(x) {
   x;
 }
@@ -257,7 +257,7 @@ fun const(x,y) {
   x;
 }
 
-// Apply a fun `f` to a specified argument `x`.
+// Apply a function `f` to a specified argument `x`.
 fun apply(f,x) {
   f(x);
 }
@@ -326,7 +326,7 @@ type maybe<a> {
   con Just( unJust : a )
 }
 
-// Match a `:maybe` value and either return a default value on `Nothing` or apply a fun to the value on `Just`
+// Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
 fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 {
   match(m) {
@@ -430,7 +430,7 @@ fun length(xs)
 
 // Returns an integer list of increasing elements from `lo`  to `hi` 
 // (including both `lo`  and `hi` ).
-// If `lo > hi`  the fun returns the empty list.
+// If `lo > hi`  the function returns the empty list.
 fun list( lo: int, hi: int ) : total list<int>
 {
   fun enumerate( low:int, high:int, acc: list<int> ) : list<int>
@@ -443,9 +443,9 @@ fun list( lo: int, hi: int ) : total list<int>
   enumerate(lo,hi,[]) 
 }
 
-// Applies a fun `f` to list of increasing elements from `lo`  to `hi` 
+// Applies a function `f` to list of increasing elements from `lo`  to `hi` 
 // (including both `lo`  and `hi` ).
-// If `lo > hi`  the fun returns the empty list.
+// If `lo > hi`  the function returns the empty list.
 fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
   fun enumerate( low:int, high:int, acc ) 
   {
@@ -500,14 +500,14 @@ fun zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
   zipWithIndexed( xs, ys, fun(i,x,y) { (x,y) } )
 }
 
-// Zip two lists together by apply a fun `f` to all corresponding elements.
+// Zip two lists together by apply a function `f` to all corresponding elements.
 // The returned list is only as long as the smallest input list.
 fun zipWith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
 {
   zipWithIndexed(xs,ys,fun(i,x,y) { f(x,y) })
 }
 
-// Zip two lists together by apply a fun `f` to all corresponding elements
+// Zip two lists together by apply a function `f` to all corresponding elements
 // and their index in the list.
 // The returned list is only as long as the smallest input list.
 fun zipWithIndexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
@@ -551,27 +551,27 @@ fun drop( xs : list<a>, n : int ) : list<a>
 
 
 
-// Apply a fun `f`  to each element of the input list in sequence.
+// Apply a function `f`  to each element of the input list in sequence.
 fun map(xs : list<a>, f : a -> e b) : e list<b>
 {
   xs.mapIndexedPeek( fun(i,x,xx) { f(x) } )
 }
 
-// Apply a fun `f`  to each element of the input list in sequence where takes
+// Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element and the element itself as arguments.
 fun mapIndexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
 {
   xs.mapIndexedPeek( fun(i,x,xx) { f(i,x) })
 }
 
-// Apply a fun `f`  to each element of the input list in sequence where `f` takes
+// Apply a function `f`  to each element of the input list in sequence where `f` takes
 // both the current element and the tail list as arguments.
 fun mapPeek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
 {
   xs.mapIndexedPeek( fun(i,x,xx) { f(x,xx) })
 }
 
-// Apply a fun `f`  to each element of the input list in sequence where takes
+// Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element, the element itself, and the tail list as arguments.
 fun mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
 {
@@ -652,7 +652,7 @@ fun foldr(xs,z,f)
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
-// Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative fun `f` 
+// Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f` 
 fun foldl(xs,z,f)
 {
   match(xs) {
@@ -909,7 +909,7 @@ fun concat( xs : list<list<a>> ) : list<a>
   concatRev(xs.reverse,[])
 }
 
-// Concatenate the result lists from applying a fun to all elements
+// Concatenate the result lists from applying a function to all elements
 fun concat( xs: list<a>, f : a -> e list<b> ) : e list<b>
 {
   xs.map(f).concat()
@@ -1268,14 +1268,14 @@ val bitsInt = 32
 // 1. `D == d*(D/d) + (D%d)` 
 // 2. `D%d`  is always positive where `0 <= D%d < abs(d)` 
 //
-// Moreover, Euclidean-0 is a total fun, for the case where `d==0`  we have
+// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
 // that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
 // 
 // Useful laws that hold for Euclidean-0 division:
 //
 // * `D/(-d) == -(D/d)` 
 // * `D%(-d) == D%d` 
-// * ``D/(2^n) == D `sar` n        ``  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
+// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 // * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 //
 // Note that an interesting edge case is `minInt / -1` which equals `minInt` since in modulo 32-bit 
@@ -1696,7 +1696,7 @@ fun list( a : array<h,a> ) : read<h> list<a>
   }
 }
 
-// Invoke a fun `f` for each element in a an array `a`.   
+// Invoke a function `f` for each element in a an array `a`.   
 // Note: this can diverge by storing self referential funs in the array
 fun foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 {
@@ -1705,7 +1705,7 @@ fun foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
   }
 }
 
-// Destructively apply fun `f`  to each element in an array `a`.   
+// Destructively apply function `f`  to each element in an array `a`.   
 // Note: this can diverge by storing self referential funs in the array
 fun map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
 {
@@ -1750,7 +1750,7 @@ extern inline vector : forall<a> () -> vector<a> {
 
 private extern inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a> { inline "(#1)" }
 
-// Invoke a fun `f` for each element in a vector `v`
+// Invoke a function `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : a -> e () ) : e ()
 {
   for( 0, v.length - 1 ) fun(i) {
@@ -1758,7 +1758,7 @@ fun foreach( v : vector<a>, f : a -> e () ) : e ()
   }
 }
 
-// Invoke a fun `f` for each element in a vector `v`.
+// Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
 fun foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
 {
@@ -1767,7 +1767,7 @@ fun foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
   }
 }
 
-// Apply fun `f` to each element in a vector `v`Ju
+// Apply function `f` to each element in a vector `v`Ju
 fun map( v : vector<a>, f : a -> e b ) : e vector<b>
 {
   val n = v.length
@@ -2060,13 +2060,13 @@ fun string( cs : list<char> ) : total string
   cs.map( fun(c){ c.string } ).join()
 }
 
-// Apply a fun `f` to each character in a string
+// Apply a function `f` to each character in a string
 fun map( s : string, f : char -> e char ) : e string
 {
   s.list().map(f).string()
 }
 
-// Invoke a fun for each character in a string
+// Invoke a function for each character in a string
 fun foreach( s : string, f : char -> e () ) : e ()
 {
   for( 0, s.length - 1 ) fun(i) {
@@ -2229,7 +2229,7 @@ fun show( s : string ) : string
 
 private val redirect : ref<global,maybe<(string) -> console ()>> = unsafeTotal { ref(Nothing) }
 
-// redirect `print` and `println` calls to a specified fun.
+// redirect `print` and `println` calls to a specified function.
 public fun printRedirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
@@ -2467,26 +2467,26 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e 
 
 private extern inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a) { inline "#1" }
 
-// _Unsafe_. This fun calls a fun and pretends it did not have any effect at all.
+// _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 fun unsafeTotal( action : () -> e a ) : total a
 {
   unsafeTotalCast( action )()
 }
 
 
-// _Unsafe_. This fun removes the exception effect (`:exn`) from the effect of an action
+// _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
 fun unsafeNoExn( action : () -> <exn|e> a ) : e a
 {
   unsafeTotal( action )
 }
 
-// _Unsafe_. This fun removes the non-termination effect (`:div`) from the effect of an action
+// _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
 fun unsafeNoDiv( action : () -> <div|e> a ) : e a
 {
   unsafeTotal( action )
 }
 
-// _Unsafe_. Mark a fun parameter as decreasing to suppress the non-termination effect (`:div`).
+// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
 extern inline unsafeDecreasing( x : a ) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
@@ -2542,7 +2542,7 @@ fun repeat( n : int, action : () -> e () ) : e ()
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
-// If `start > end`  the fun returns without any call to `action` .
+// If `start > end`  the function returns without any call to `action` .
 fun for( start: int, end : int, action : (int) -> e () ) : e ()
 {
   fun rep( i : int ) {
@@ -2555,7 +2555,7 @@ fun for( start: int, end : int, action : (int) -> e () ) : e ()
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
-// If `start > end`  the fun returns without any call to `action` .
+// If `start > end`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
 fun forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
 {

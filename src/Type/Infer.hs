@@ -750,7 +750,8 @@ inferHandler propagated expect shallow mbeff pars ret ops hrng rng
            argPars  = reverse rargPars
            parTypes = map snd argPars
            parBinders = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propParBinders parTypes]
-
+       addRangeInfo (getRange retExpr) (RM.Id (newName "return") (RM.NIValue retTp) True)
+    
        heff <- freshEffect
        inferUnify (checkEffectSubsume hrng) hrng 
           (if shallow then heff else (effectExtend typeCps heff)) retEff
@@ -793,6 +794,8 @@ inferHandler propagated expect shallow mbeff pars ret ops hrng rng
        --(ihandlerTp,icore) <- maybeInstantiate hrng expect ghandlerTp
        sicore      <- subst gcore
        sihandlerTp <- subst ghandlerTp
+
+       addRangeInfo hrng (RM.Id (newName "handler") (RM.NIValue sihandlerTp) True)
 
        geff <- freshEffect
        -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
@@ -969,6 +972,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
          inferUnify (checkOp rng) nameRng ixrho rho 
 
          srho <- subst rho
+
          let (parTps,effTp,resTp) = splitOpTp srho
          if (length parTps > length pars)
           then typeError rng nameRng (text "operator has not enough parameters") rho []
@@ -986,26 +990,27 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
          inferUnify (checkEffectSubsume rng) rng effTp (effectFixed [opsEffTp])
 
          -- create resume definition with the type specialized to this operation
-         let (xresumeTp,xresumeArgs)
+         let rngx = makeRange (rangeEnd nameRng) (rangeEnd nameRng)
+             (xresumeTp,xresumeArgs)
                       = case splitFunType (binderType resumeBinder) of 
                           Just (targs0,teff,tres)
                             -> case reverse (drop (length extraBinders) targs0) of
                                  ((xname,_):rtargs) -> 
                                    let newargs = reverse ((xname,resTp):rtargs)
                                    in (TFun newargs teff tres,
-                                        [ValueBinder (postpend "." name) (Just tp) Nothing nameRng nameRng | (name,tp) <- newargs])
+                                        [ValueBinder (makeHiddenName "x" name) (Just tp) Nothing rngx rngx | (name,tp) <- newargs])
                                  _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
                           _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
              
              -- xresumeBinder = ValueBinder (newName "resume") xresumeTp () nameRng rng
              -- xresumeTailBinder = ValueBinder (newHiddenName "tailresume") xresumeTp () nameRng rng
 
-             xresumeAppArgs   =   [(Nothing,Var (binderName b) False rng) | b <- extraBinders]
-                               ++ [(Nothing,Var (binderName b) False rng) | b <- init xresumeArgs]
-                               ++ [(Nothing, App (Var nameToAny False rng) [(Nothing, Var (binderName (last xresumeArgs)) False rng)] rng)] 
+             xresumeAppArgs   =   [(Nothing,Var (binderName b) False rngx) | b <- extraBinders]
+                               ++ [(Nothing,Var (binderName b) False rngx) | b <- init xresumeArgs]
+                               ++ [(Nothing, App (Var nameToAny False rngx) [(Nothing, Var (binderName (last xresumeArgs)) False rng)] rng)] 
                                 
-             xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rng) xresumeAppArgs rng) rng) xresumeTp rng
-             xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr nameRng rng) rng Private DefFun "" 
+             xresumeExpr    = Ann (Lam xresumeArgs (App (Var (binderName resumeBinder) False rngx) xresumeAppArgs rngx) rngx) xresumeTp rng
+             xresumeDef     = Def (ValueBinder (newName "resume") () xresumeExpr rngx rngx) rngx Private DefFun "" 
 
              parBinders    = [par{ binderType=parTp } | (parTp,par) <- zip sparTps pars]
              parGamma     = inferBinders [] parBinders                        
@@ -1022,6 +1027,9 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
 
          sexprTp <- subst exprTp
          sexprEff <- subst exprEff
+
+         addRangeInfo nameRng (RM.Id qname (RM.NIValue (TFun [(nameNil,parTp) | parTp <- parTps] sexprEff sexprTp)) True)
+
          -- traceDoc $ \env -> text "types:" <+> tupled (niceTypes env [sexprTp,sexprEff])
          return ((sexprTp,sexprEff,(conname,branchCore)),ftv [sexprTp,sexprEff])
   where
