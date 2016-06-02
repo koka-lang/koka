@@ -1,14 +1,22 @@
-﻿.koka .plaincode, 
+.koka .plaincode, 
 .xkoka a.pp .pc 		{ display: none; } 
 .koka a.pp 			{ color: inherit; text-decoration: none; }
 
+code, .madoko code,
 pre, .madoko pre,
 .koka.source,
 .koka.source.unchecked {
-  background-color: #F4F4F4;
-  xborder: none;
+  background-color: #EEE;
+}
+pre, .madoko pre,
+.koka.source,
+.koka.source.unchecked {
   border: 1px dotted #DDD; 
   padding: 0.5ex 1ex 0.5ex 1ex;
+}
+
+code, .madoko code {
+  padding-right: 0.2ex;
 }
 
 
