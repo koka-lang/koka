@@ -23,6 +23,7 @@ import Data.List    (sortBy, groupBy)
 import Lib.PPrint
 import Common.Range
 import Common.Name
+import Common.NamePrim (nameUnit, nameNull, isNameTuple)
 import Type.Type
 import Kind.Kind
 import Type.TypeVar
@@ -103,8 +104,17 @@ cut r
 
 rangeMapInsert :: Range -> RangeInfo -> RangeMap -> RangeMap
 rangeMapInsert r info (RM rm)
-  = -- trace ("insert: " ++ showFullRange (r)) $
-    if isHidden info then RM rm else RM ((r,info):rm)
+  = -- trace ("insert: " ++ showFullRange (r) ++ ": " ++ show info) $
+    if isHidden info 
+     then RM rm 
+    else if beginEndToken info 
+     then RM ((r,info):(makeRange (rangeEnd r) (rangeEnd r),info):rm)
+     else RM ((r,info):rm)
+  where 
+    beginEndToken info
+      = case info of
+          Id name _ _ -> (name == nameUnit || name == nameNull || isNameTuple name)
+          _ -> False
 
 rangeMapAppend :: RangeMap -> RangeMap -> RangeMap
 rangeMapAppend (RM rm1) (RM rm2)
