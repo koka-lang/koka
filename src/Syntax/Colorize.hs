@@ -180,7 +180,7 @@ transform isLiterate rng rangeMap env lexeme content
     plainText acc (c:cs)   = plainText (c:acc) cs
 
 showType env tp
-  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (niceType env tp)))
+  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (ppType env tp)))
   
 showKind env k
   = concat $ highlight fmtHtml id (CtxType [] "::") "" 1 (compress [] (show (prettyKind (colors env) k)))
