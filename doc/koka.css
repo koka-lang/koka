@@ -90,7 +90,7 @@ code.koka, code {
 .koka.codeblock,
 .koka.preblock,
 .koka.source  { 
-  border: 1px solid #AAA;   /* dark grey */
+  /* border: 1px solid #AAA; */   /* dark grey */
   padding: 0.5ex 1ex 0.5ex 1ex;
   /*
   margin: 1ex 5% 1ex 0ex;

@@ -19,6 +19,16 @@ xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
 
+@if preview {
+  .code1 {
+    border-bottom: 1px solid green;
+  }
+
+  .pre-fenced3 {
+    border-left: 0.5ex solid green; 
+  }
+}
+
 h4 {
   @h1-h2-h3-h4: upper-alpha;
 }
@@ -31,10 +41,6 @@ body {
   font-family: 'Noto Sans', 'Segoe UI', sans-serif;
 }
 
-Css Header:
-  .madoko pre {
-    border: 1px dotted #CCC;
-  }
 
 Html Header   : 
   <!-- NO_CLICK_TRACKING -->
@@ -96,7 +102,7 @@ if you are running version 3 of SublimeText.
 
 ## Running the interpreter
 
-After running a plain `jake` command, the Koka interpreter will start:
+After running a plain ``jake`` command, the Koka interpreter will start:
 ````
 __          _
 | |        | |
@@ -146,7 +152,7 @@ And quit the interpreter:
 ## Algebra&iuml;c effect handlers
 
 When in the interpreter, you can load various demo files with algebra&iuml;c 
-effects which are located in the `test/algeff` directory. This is by default
+effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly:
     
     > :l scoped
@@ -164,35 +170,31 @@ included in the search path, so we can load them directly:
 
 Some interesting demos are:
 
-* `scoped.kk`: Various examples from the paper "Effect handlers in Scope"
+* ``scoped.kk``: Various examples from the paper "Effect handlers in Scope"
   by Nicolas Wu, Tom Schrijvers, and Ralf Hinze.
 
-* `nim.kk`: Various examples from the paper "Liberating effects with rows and handlers"
+* ``nim.kk``: Various examples from the paper "Liberating effects with rows and handlers"
   by Daniel Hillerstr&ouml;m and Sam Lindley.
 
-* `async*.kk`: Various asynchronous effect examples.
+* ``async*.kk``: Various asynchronous effect examples.
 
 ## A primer on effect handlers
 
-Another small demo is `effs1` that demonstrates the ambiguity effect:
+Another small demo is ``effs2`` that demonstrates the ambiguity
+and state effect:
 
-    > :l effs1
-    compile: test/algeff/effs1.kk
-    check  : effs1
+    > :l effs2
+    compile: test/algeff/effs2.kk
+    check  : effs2
     modules:
       effs1
     
-    > :t
-    amb         : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
-    flip        : () -> amb bool
-    main        : () -> console ()
-    xor         : () -> amb bool
+    > main()
+    [False,True,True,False]
+    [False,False,True,True,False]
+    [False,False]
 
 It is defined as:
-
-```unchecked
-public module effs1
-```
 
 ```
 effect amb {
@@ -229,10 +231,72 @@ remove the `amb` effect and return a list of results:
 We can now run the `xor` function using the `amb` handler:
 
 ```
-fun main() {
-  amb(xor).showList(show).println
+fun test1() {
+  amb(xor).show.println
 }
 ```
+
+If run from the interpreter, we see all possible results:
+
+    > test1()
+    [False,True,True,False]
+
+\
+** Adding state**\
+Let's combine the ambiguity effect with state. The definition
+of the state effect is polymorphic in its value:
+```
+effect state<s> {
+  get()    : s;
+  set(i:s) : ()
+}
+```
+Next we define a function that uses both ambiguity and the state
+effect:
+```
+fun foo() : <amb,state<int>> bool {
+  val p = flip() 
+  val i = get()
+  set(i+1)
+  if (i>0 && p) then xor() else False
+}
+```
+The handler for the `:state` effect takes a local parameter that
+is propagated through the `resume` function. 
+```
+val state = handler(i) {
+  return x -> x
+  get()    -> resume(i,i)
+  set(j)   -> resume(j,()) 
+}
+```
+Type of the `state` handler takes an initial state as an extra argument:
+
+    > :t state
+    forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)
+
+We can now combine the ambiguity handler with the state handler in
+two ways:
+```
+fun test2()  {
+  state(0){ amb(foo) }
+}
+
+fun test3()  {
+  amb{ state(0,foo) }
+}
+```
+In `test2` the state handler is outside and every ambiguity execution
+modifies the same global state. In `test3` the state handler is inside
+and every ambiguity execution has its own local state instead. Can you
+predict the outcomes of running the tests?
+
+    > test2()
+    [False,False,True,True,False]
+    
+    > test3()
+    [False,False]
+
 
 
 # Koka language specification
@@ -369,15 +433,14 @@ visit-left
 Cons
 True  
 ```
-Dashes are also allowed in identifiers, but they must be surrounded
-on both sides with a letter, and followed by at least 2 characters.
-This is mostly to avoid confusion with the subtraction operator:
+Dashes are also allowed in identifiers, but they must be surrounded on
+both sides with a letter. This is mostly to avoid confusion with the
+subtraction operator:
 
 ````koka
 fold-right
-fold-x    // illegal, just one character after a dash
-n-1       // illegal, a digit cannot follow a dash
-n - 1     // n minus 1
+n-1        // illegal, a digit cannot follow a dash
+n - 1      // n minus 1
 ````
 
 Qualified identifiers are prefixed with a module path. Module
@@ -556,7 +619,7 @@ starts with `then`, `else`, `elif`, or one of `{`, `)`, or `]`.
 {.grammar}
 
 ```
-function foo()
+function bar()
 {  
   val xs = [ 
     "list",
@@ -699,33 +762,34 @@ ignored.
 
 ### Type declarations
 
-| ~~~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ | ~~~ |
-| _aliasdecl_     | ::=      | `alias` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} `=` _type_              |     |
-| _typedecl_      | ::=      | _typesort_ _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_typebody_]{.opt}   |     |
-|                 | &bar;    | `struct` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_conparams_]{.opt}    |     |
-|                 | &bar;    | `effect` [`linear`]{.opt} _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}    |     |
-| _typesort_      | ::=      | `type` []{.bar} `cotype` []{.bar} `rectype`                                    |     |
-| &nbsp;          |          |                                                                                |     |
-| _typeid_        | ::=      | _varid_                                                                        |     |
-|                 | &bar;    | ``[]``                                                                           |     |
-|                 | &bar;    | `(` [`,`]{.many} `)`                                                           |     |
-|                 | &bar;    | `<` `>`                                                                        |     |
-|                 | &bar;    | `<` [&bar; ]{.koka .code} `>`                                                  |     |
-| &nbsp;          |          |                                                                                |     |
-| _typeparams_    | ::=      | `<` [_tbinders_]{.opt} `>`                                                     |     |
-| _tbinders_      | ::=      | _tbinder_ [`,` _tbinder_]{.many}                                               |     |
-| _tbinder_       | ::=      | _varid_ [_kannot_]{.opt}                                                       |     |
-| _typebody_      | ::=      | `{` _semis_ [_constructor_ _semis_]{.many} `}`                                 |     |
-| &nbsp;          |          |                                                                                |     |
-| _constructor_   | ::=      | [`con`]{.opt} _conid_ [_typeparams_]{.opt} [_conparams_]{.opt}                |     |
-| _conparams_     | ::=      | _lparen_ [_conparam_ [`,` _conparam_]{.many}]{.opt} `)`                        |     |
-| _conparam_      | ::=      | [_paramid_]{.opt} ``:`` _paramtype_ [`=` _expr_]{.opt}                           |     |
-| _lparen_        | ::=      | _lapp_ []{.bar} `(`                                                                               |     |
-| &nbsp;          |          |                                                                                |     |
-| _opdecls_       | ::=      | `{` _semis_ [_opdecl_ _semis_]{.many} `}`                                 |     |
-| _opdecl_        | ::=      | [_visibility_]{.opt} _identifier_ [_typeparams_]{.opt} _opparams_ [ ``:`` _tatom_]{.opt}  |     |
-| _opparams_      | ::=      | _lparen_ [_opparam_ [`,` _opparam_]{.many}]{.opt} `)`                           |     |
-| _opparam_       | ::=      | [_paramid_]{.opt} ``:`` _paramtype_                           |     |
+| ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
+| _aliasdecl_   | ::=   | `alias` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} `=` _type_                              |    |
+| _typedecl_    | ::=   | _typesort_ [_typemod_]{.opt} _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_typebody_]{.opt} |    |
+|               | &bar; | `struct` _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_conparams_]{.opt}                    |    |
+|               | &bar; | `effect` [`linear`]{.opt} _typeid_ [_typeparams_]{.opt} [_kannot_]{.opt} [_opdecls_]{.opt}     |    |
+| _typesort_    | ::=   | `type` []{.bar} `cotype` []{.bar} `rectype`                                                    |    |
+| _typemod_     | ::=   | `open` []{.bar} `extend`                                                                       |    |
+| &nbsp;        |       |                                                                                                |    |
+| _typeid_      | ::=   | _varid_                                                                                        |    |
+|               | &bar; | ``[]``                                                                                         |    |
+|               | &bar; | `(` [`,`]{.many} `)`                                                                           |    |
+|               | &bar; | `<` `>`                                                                                        |    |
+|               | &bar; | `<` [&bar; ]{.koka .code} `>`                                                                  |    |
+| &nbsp;        |       |                                                                                                |    |
+| _typeparams_  | ::=   | `<` [_tbinders_]{.opt} `>`                                                                     |    |
+| _tbinders_    | ::=   | _tbinder_ [`,` _tbinder_]{.many}                                                               |    |
+| _tbinder_     | ::=   | _varid_ [_kannot_]{.opt}                                                                       |    |
+| _typebody_    | ::=   | `{` _semis_ [_constructor_ _semis_]{.many} `}`                                                 |    |
+| &nbsp;        |       |                                                                                                |    |
+| _constructor_ | ::=   | [`con`]{.opt} _conid_ [_typeparams_]{.opt} [_conparams_]{.opt}                                 |    |
+| _conparams_   | ::=   | _lparen_ [_conparam_ [`,` _conparam_]{.many}]{.opt} `)`                                        |    |
+| _conparam_    | ::=   | [_paramid_]{.opt} ``:`` _paramtype_ [`=` _expr_]{.opt}                                         |    |
+| _lparen_      | ::=   | _lapp_ []{.bar} `(`                                                                            |    |
+| &nbsp;        |       |                                                                                                |    |
+| _opdecls_     | ::=   | `{` _semis_ [_opdecl_ _semis_]{.many} `}`                                                      |    |
+| _opdecl_      | ::=   | [_visibility_]{.opt} _identifier_ [_typeparams_]{.opt} _opparams_ [ ``:`` _tatom_]{.opt}       |    |
+| _opparams_    | ::=   | _lparen_ [_opparam_ [`,` _opparam_]{.many}]{.opt} `)`                                          |    |
+| _opparam_     | ::=   | [_paramid_]{.opt} ``:`` _paramtype_                                                            |    |
 {.grammar .parse}
 
 ### Value and function declarations
@@ -737,7 +801,7 @@ ignored.
 | _valdecl_        | ::=      | _binder_ `=` _expr_                                                                           |                       |
 | _binder_         | ::=      | _identifier_ [``:`` _type_]{.opt}                                                               |                       |
 | &nbsp;           |          |                                                                                               |                       |
-| _fundecl_        | ::=      | _somes_ _funid_ _fundef_ (_block_ []{.bar} `=` _blockexpr_)                     |                       |
+| _fundecl_        | ::=      | _somes_ _funid_ _fundef_ _bodyexpr_                     |                       |
 | _fundef_         | ::=      | [_typeparams_]{.opt} _parameters_ [``:`` _tresult_]{.opt} [_qualifier_]{.opt}                                        |                       |
 | _funid_          | ::=      | _identifier_                                                                                  |                       |
 |                  | &bar;    | ``[`` [`,`]{.many} ``]``                                                                          | (indexing operator)   |
@@ -765,34 +829,37 @@ ignored.
 |             | &bar; | _decl_                                           |                                          |
 | &nbsp;      |       |                                                  |                                          |
 | _decl_      | ::=   | (`fun`[]{.bar}`function`) _fundecl_              |                                          |
-|             | &bar; | `val` _pattern_ `=` _valexpr_                    | (local values can use a pattern binding) |
+|             | &bar; | `val` _apattern_ `=` _valexpr_                   | (local values can use a pattern binding) |
 |             | &bar; | `var` _binder_ ``:=`` _valexpr_                  |                                          |
 {.grammar .parse}
 
 ### Expressions
 
 
-| ~~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~       | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
-| _blockexpr_    | ::=      | _expr_                                                                      | (implicitly wrapped in a block)      |
-| &nbsp;         |          |                                                                             |                                      |
-| _expr_         | ::=      | _returnexpr_                                                                |                                      |
-|                | &bar;    | _matchexpr_                                                                 |                                      |
-|                | &bar;    | _handlerexpr_                                                                 |                                      |
-|                | &bar;    | _funexpr_                                                                   |                                      |
-|                | &bar;    | _ifexpr_                                                                    |                                      |
-|                | &bar;    | _opexpr_                                                                    |                                      |
-| &nbsp;         |          |                                                                             |                                      |
-| _ifexpr_       | ::=      | `if` _atom_ _then_ [_elif_]{.many} [`else` _expr_~&lt;!_ifexpr_&gt;~]{.opt} |                                      |
-| _then_         | ::=      | [`then`]{.opt} _expr_~&lt;!_ifexpr_&gt;~                                    |                                      |
-| _elif_         | ::=      | `elif` _atom_ _then_                                                        |                                      |
-| &nbsp;         |          |                                                                             |                                      |
-| _matchexpr_    | ::=      | `match` _atom_ `{` _semis_ [_matchrule_ _semis_]{.many} `}`                 |                                      |
-| _returnexpr_   | ::=      | `return` _opexpr_                                                           |                                      |
-| _funexpr_      | ::=      | _funanon_ _fundef_ _block_                                |                                      |
-|                | &bar;    | _block_                                                                     | (zero-argument anonymous function)   |
-| _handlerexpr_  | ::=      | `handler` _handlereff_ _handlerpars_ `{` _handlerrules_ `}`                    |                                      |
-|                | &bar;    | `handle` _handlereff_ _haction_ _handlerpars_ `{` _handlerrules_ `}`      |                                      |
-| _haction_      | ::=      | lparen _expr `)`                                                            |                                      |
+| ~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+| _bodyexpr_    | ::=   | `->` _blockexpr_                                                            |                                    |
+|               | &bar; | _block_                                                                     |                                    |
+| &nbsp;        |       |                                                                             |                                    |
+| _blockexpr_   | ::=   | _expr_                                                                      | (implicitly wrapped in a block)    |
+| &nbsp;        |       |                                                                             |                                    |
+| _expr_        | ::=   | _returnexpr_                                                                |                                    |
+|               | &bar; | _matchexpr_                                                                 |                                    |
+|               | &bar; | _handlerexpr_                                                               |                                    |
+|               | &bar; | _funexpr_                                                                   |                                    |
+|               | &bar; | _ifexpr_                                                                    |                                    |
+|               | &bar; | _opexpr_                                                                    |                                    |
+| &nbsp;        |       |                                                                             |                                    |
+| _ifexpr_      | ::=   | `if` _atom_ _then_ [_elif_]{.many} [`else` _expr_~&lt;!_ifexpr_&gt;~]{.opt} |                                    |
+| _then_        | ::=   | [`then`]{.opt} _expr_~&lt;!_ifexpr_&gt;~                                    |                                    |
+| _elif_        | ::=   | `elif` _atom_ _then_                                                        |                                    |
+| &nbsp;        |       |                                                                             |                                    |
+| _matchexpr_   | ::=   | `match` _atom_ `{` _semis_ [_matchrule_ _semis_]{.many} `}`                 |                                    |
+| _returnexpr_  | ::=   | `return` _opexpr_                                                           |                                    |
+| _funexpr_     | ::=   | _funanon_ _fundef_ _block_                                                  |                                    |
+|               | &bar; | _block_                                                                     | (zero-argument anonymous function) |
+| _handlerexpr_ | ::=   | `handler` _handlereff_ _handlerpars_ `{` _handlerrules_ `}`                 |                                    |
+|               | &bar; | `handle` _handlereff_ _haction_ _handlerpars_ `{` _handlerrules_ `}`        |                                    |
+| _haction_     | ::=   | lparen _expr `)`                                                            |                                    |
 {.grammar .parse}
 
 ### Operator expressions
@@ -836,32 +903,34 @@ in an expressions.
 
 ### Matching
 
-| ~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ |
-| _matchrule_   | ::=      | _patterns_ [_guard_]{.opt} `->` _blockexpr_     |                                                |
-| _guard_       | ::=      | [&bar; ]{.koka .code} _opexpr_                  |                                                |
-| &nbsp;        |          |                                                 |                                                |
-| _pattern_     | ::=      | _identifier_                                    |                                                |
-|               | &bar;    | _wildcard_                                      |                                                |
-|               | &bar;    | _qconstructor_ [_lparen_ [_patargs_]{.opt} `)`] |                                                |
-|               | &bar;    | `(` [_patterns_]{.opt} `)`                      | (unit, parenthesized pattern, tuple pattern)   |
-|               | &bar;    | `[` [_patterns_]{.opt} `]`                      | (list pattern)                                 |
-|               | &bar;    | _pattern_ `as` _identifier_                     | (named pattern)                                |
-|               | &bar;    | _literal_                                       |                                                |
-| &nbsp;        |          |                                                 |                                                |
-| _patterns_    | ::=      | _pattern_ [`,` _pattern_]{.many}                |                                                |
-| _patargs_     | ::=      | _patarg_ [`,` _patarg_]{.many}                  |                                                |
-| _patarg_      | ::=      | [_identifier_ `=`]{.opt} _pattern_              | (possibly named parameter)                     |
+| ~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+| _matchrule_ | ::=   | _patterns_ [&bar; ]{.koka .code} _expr_ `->` _blockexpr_ |                                              |
+|             | &bar; | _patterns_ _bodyexpr_                                    |                                              |
+| &nbsp;      |       |                                                          |                                              |
+| _apattern_  | ::=   | _pattern_ [`:` _typescheme_]{.opt}                       |                                              |
+| _pattern_   | ::=   | _identifier_                                             |                                              |
+|             | &bar; | _wildcard_                                               |                                              |
+|             | &bar; | _qconstructor_ [_lparen_ [_patargs_]{.opt} `)`]          |                                              |
+|             | &bar; | `(` [_apatterns_]{.opt} `)`                              | (unit, parenthesized pattern, tuple pattern) |
+|             | &bar; | `[` [_apatterns_]{.opt} `]`                              | (list pattern)                               |
+|             | &bar; | _apattern_ `as` _identifier_                             | (named pattern)                              |
+|             | &bar; | _literal_                                                |                                              |
+| &nbsp;      |       |                                                          |                                              |
+| _patterns_  | ::=   | _pattern_ [`,` _pattern_]{.many}                         |                                              |
+| _apatterns_ | ::=   | _apattern_ [`,` _apattern_]{.many}                       |                                              |
+| _patargs_   | ::=   | _patarg_ [`,` _patarg_]{.many}                           |                                              |
+| _patarg_    | ::=   | [_identifier_ `=`]{.opt} _apattern_                      | (possibly named parameter)                   |
 {.grammar .parse}
 
 ### Handlers
 
-| ~~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~|
-| _handlerrules_ | ::=   | _semis_ _handlerrule_ [_semis_ _handlerrule_]{.many} semis             |     |
-| _handlerrule_  | ::=   | _qidentifier_ _opargs_ `->` _blockexpr_                              |     |
-|                | &bar; | `return`  (_lparen_ _oparg_ `)` []{.bar} _paramid_) `->` _blockexpr_ |     |
-| &nbsp;         |       |                                                                      |     |
-| _opargs_       | &bar; | _lparen_ [_oparg_ [`,` _oparg_]{.many}]{.opt} `)`                    |     |
-| _oparg_        | &bar; | _paramid_ [``:`` _type_]{.opt}                                       |     |
+| ~~~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
+| _handlerrules_ | ::=   | _semis_ _handlerrule_ [_semis_ _handlerrule_]{.many} semis     |    |
+| _handlerrule_  | ::=   | _qidentifier_ _opargs_ _bodyexpr_                              |    |
+|                | &bar; | `return`  (_lparen_ _oparg_ `)` []{.bar} _paramid_) _bodyexpr_ |    |
+| &nbsp;         |       |                                                                |    |
+| _opargs_       | &bar; | _lparen_ [_oparg_ [`,` _oparg_]{.many}]{.opt} `)`              |    |
+| _oparg_        | &bar; | _paramid_ [``:`` _type_]{.opt}                                 |    |
 {.grammar .parse}
 
 ### Type schemes

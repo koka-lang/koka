@@ -145,7 +145,6 @@ digitsToNum base digits
 isMalformed :: String -> Bool
 isMalformed s
   = case s of
-      '-':c:[]   -> True
       '-':c:cs   | not (isLetter c) -> True
       c:'-':cs   | not (isLetter c) -> True
       c:cs       -> isMalformed cs

@@ -2,17 +2,26 @@
 .xkoka a.pp .pc 		{ display: none; } 
 .koka a.pp 			{ color: inherit; text-decoration: none; }
 
+.koka.source, .madoko .koka.source, 
+code.koka, .madoko code.koka {
+  xbackground-color: #F5FFF2;
+  xborder-color: #BEE6B3;
+}
+.koka.source, .madoko .koka.source {
+  border-left: 0.5ex solid green;
+} 
+
+
 code, .madoko code,
 pre, .madoko pre,
-.koka.source,
 .koka.source.unchecked {
-  background-color: #EEE;
+  background-color: #F8F8F8;
 }
 pre, .madoko pre,
 .koka.source,
 .koka.source.unchecked {
-  border: 1px dotted #DDD; 
-  padding: 0.5ex 1ex 0.5ex 1ex;
+  border-left: 0.5ex solid #BBB; 
+  padding: 0.5ex 1ex 0.5ex 2ex;
 }
 
 code, .madoko code {
