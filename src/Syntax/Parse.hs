@@ -729,7 +729,7 @@ operation singleShot vis foralls effTp opsTp extendConName
        (pars,prng)  <- conPars
        keyword ":"
        tres         <- tatomic 
-       let teff     = makeEffectExtend (getRange tres) effTp (makeEffectEmpty (getRange tres))
+       let teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng   

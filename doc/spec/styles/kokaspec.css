@@ -1,3 +1,7 @@
+.tocitem {
+  font-weight: normal !importan;
+}
+
 .koka.source, .madoko .koka.source {
   border-left: 0.5ex solid green;
 } 

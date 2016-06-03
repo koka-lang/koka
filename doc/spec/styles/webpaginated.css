@@ -32,13 +32,13 @@ body.madoko {
   .sidepanel {
     width   : 14rem; 
     position: fixed;
-    top     : 2rem;
+    top     : 3rem;
     max-height: 90%;
     overflow-y: auto;
   }
   
   .mainpanel, .footnotes, .titleblock {
-    margin-left: calc(14rem + 3rem + 2px + 1rem);
+    margin-left: calc(14rem + 4rem + 2px + 1rem);
   }
   
   .tocblock2, .tocblock3 {

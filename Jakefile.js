@@ -191,9 +191,11 @@ task("spec", ["compiler"], function(mode) {
   var specdir   = path.join("doc","spec");
   var docflags  = (mode === "publish") ? "--htmlbases=" + docsite + " " : "";  
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
-  command(cmd + "kokaspec.kk.md", function() {
+  command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
-      // copy style file
+      // fix up includes
+      patchFile(path.join(outspec,"kokaspec.md"),/^\[INCLUDE=(\w+)\.kk\.md\]/mg, "[INCLUDE=$1.md]");
+      // copy style files
       jake.mkdirP(outstyles);
       jake.mkdirP(outscripts);
       jake.cpR(path.join("doc","koka.css"),outstyles);
@@ -202,6 +204,9 @@ task("spec", ["compiler"], function(mode) {
                                      .toArray();
       copyFiles(specdir,files,outspec);
       files = new jake.FileList().include(path.join(specdir,"scripts/*.js"))
+                                 .toArray();
+      copyFiles(specdir,files,outspec);
+      files = new jake.FileList().include(path.join(specdir,"*.bib"))
                                  .toArray();
       copyFiles(specdir,files,outspec);
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
@@ -916,6 +921,12 @@ function runTestFile(n,testFile,testMode,flags,callback) {
       });
     });    
   });
+}
+
+function patchFile( fname, regex, replacer ) {
+  var contents1 = fs.readFileSync( fname, {encoding:"utf8"});
+  var contents2 = contents1.replace(regex,replacer);
+  fs.writeFileSync(fname,contents2,{encoding:"utf8"});
 }
 
 function testSanitize(s) {
