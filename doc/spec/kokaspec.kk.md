@@ -463,7 +463,7 @@ std/core/(&)
 | _symbol_       | ::=    | `$` []{.bar} `%` []{.bar} ``&`` []{.bar} `*` []{.bar} `+`                                                                        |     |
 |                | &bar;  | ``~`` []{.bar} ``!`` []{.bar} `\\` []{.bar} `^` []{.bar} ``#``                                                                       |     |
 |                | &bar;  | ``=`` []{.bar} ``.`` []{.bar} ``:`` []{.bar} `-` []{.bar} `?`                                                                        |     |
-|                | &bar;  | [&bar;]{.koka .code} []{.bar} `<` []{.bar} `>`                                                                                 |     |
+|                | &bar;  | ``\(&bar;\)`` []{.bar} `<` []{.bar} `>`                                                                                 |     |
 | &nbsp;         |        |                                                                                                                                |     |
 | _special_      | ::=    | `{` []{.bar} `}` []{.bar} `(` []{.bar} `)` []{.bar} `[` []{.bar} `]` []{.bar} `;` []{.bar} `,` []{.bar} &lapp; []{.bar} &lidx; |     |
 | &lapp;         | ::=    | ~&lt;_apply_&gt;~`(`                                                                                                           |     |
@@ -473,11 +473,11 @@ std/core/(&)
 | _reservedop_   | ::=    | `=` []{.bar} `.` []{.bar} [:]{.koka .code .keyword} []{.bar} `->`                                                              |     |
 | _typeop_       | ::=    | `>` _anglebar_ [_anglebar_]{.many}                                                                                             |     |
 |                | &bar;  | `<` _anglebar_ [_anglebar_]{.many}                                                                                             |     |
-|                | &bar;  | [&bar;]{.koka .code} _angle_ [_symbol_]{.many}                                                                                 |     |
+|                | &bar;  | ``\(&bar;\)`` _angle_ [_symbol_]{.many}                                                                                 |     |
 |                | &bar;  | `-><` [_symbol_]{.many}                                                                                                        |     |
 |                | &bar;  | ``:?`` [_symbol_]{.many}                                                                                                         |     |
 | &nbsp;         |        |                                                                                                                                |     |
-| _anglebar_     | ::=    | [&bar; ]{.koka .code} []{.bar} _angle_                                                                                         |     |
+| _anglebar_     | ::=    | ``\(&bar;\)`` []{.bar} _angle_                                                                                         |     |
 | _angle_        | ::=    | `<` []{.bar} `>`                                                                                                               |     |
 {.grammar .lex}
 
@@ -904,7 +904,7 @@ in an expressions.
 ### Matching
 
 | ~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _matchrule_ | ::=   | _patterns_ [&bar; ]{.koka .code} _expr_ `->` _blockexpr_ |                                              |
+| _matchrule_ | ::=   | _patterns_ ``\(&bar;\)`` _expr_ `->` _blockexpr_ |                                              |
 |             | &bar; | _patterns_ _bodyexpr_                                    |                                              |
 | &nbsp;      |       |                                                          |                                              |
 | _apattern_  | ::=   | _pattern_ [`:` _typescheme_]{.opt}                       |                                              |
@@ -955,7 +955,7 @@ in an expressions.
 | _tresult_ | ::=    | _tatom_ [_tbasic_]{.opt}                                                       |                                        |
 | &nbsp;    |        |                                                                                |                                        |
 | _tatom_   | ::=    | _tbasic_                                                                       |                                        |
-|           | &bar;  | `<` _anntype_ [`,` _anntype_]{.many} [[&bar; ]{.koka .code} _tatom_]{.opt} `>` |                                        |
+|           | &bar;  | `<` _anntype_ [`,` _anntype_]{.many} [``\(&bar;\)`` _tatom_]{.opt} `>` |                                        |
 |           | &bar;  | `<` `>`                                                                        |                                        |
 | &nbsp;    |        |                                                                                |                                        |
 | _tbasic_  | ::=    | _typeapp_                                                                      |                                        |

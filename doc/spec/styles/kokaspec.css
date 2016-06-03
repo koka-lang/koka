@@ -1,21 +1,11 @@
-.koka .plaincode, 
-.xkoka a.pp .pc 		{ display: none; } 
-.koka a.pp 			{ color: inherit; text-decoration: none; }
-
-.koka.source, .madoko .koka.source, 
-code.koka, .madoko code.koka {
-  xbackground-color: #F5FFF2;
-  xborder-color: #BEE6B3;
-}
 .koka.source, .madoko .koka.source {
   border-left: 0.5ex solid green;
 } 
 
-
 code, .madoko code,
 pre, .madoko pre,
 .koka.source.unchecked {
-  background-color: #F8F8F8;
+  background-color: #F0F0F0;
 }
 pre, .madoko pre,
 .koka.source,
@@ -28,19 +18,10 @@ code, .madoko code {
   padding-right: 0.2ex;
 }
 
-
-.koka.source.unchecked {
-  /* border-left: 1px dashed #DDD ; */
-}
-
 .grammar table,
 table.grammar  {   
   margin: 0.5ex 0.5ex 0.5ex 2ex;
   padding: 0.5ex 1ex 0.5ex 1ex;
-  /*
-  background-color: #FAFAFA;
-  border: solid 1px #DDD;
-  */
 }
 
 .grammar .code,
@@ -56,11 +37,6 @@ table.grammar  {
   font-style: normal; 
   padding: 0em 1ex;
   text-align: center;
-}
-
-.grammar .bar
-.grammar td:nth-child(2) {
-  font-family: Georgia, sans-serif;  /* a thinner font, widely available */
 }
 
 .grammar td:nth-child(4) {

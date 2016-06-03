@@ -1,31 +1,3 @@
-﻿
-function initTOC() {
-  var toc = document.getElementById('toc');    
-  if (toc == null) return;
-  var tocToggle = document.getElementById('toc-toggle');
-  
-  function showToc() {
-    toc.style.display = 'block';
-    if (tocToggle){
-      tocToggle.innerHTML = '&#x25BC;'
-      tocToggle.style.fontSize = '12pt'
-    }
-  }
-  function hideToc() {
-    toc.style.display = 'none';
-    if (tocToggle) {
-      tocToggle.innerHTML = '&#x25B6;';    
-      tocToggle.style.fontSize = '16pt';
-    }
-  }
-  function switchToc() {
-    (toc.style.display != 'none' ? hideToc() : showToc());
-  }
-
-  if (tocToggle) tocToggle.onclick = switchToc;
-  hideToc()
-}
-
 function genFullGrammar() {
   var fullLex = "";
   var fullParse = "";
@@ -44,4 +16,4 @@ function genFullGrammar() {
   divGrammar.innerHTML="<table class='grammar'>\n" + fullParse + "</table>";
 }
 
-window.onload = function() { initTOC(); genFullGrammar() };
+window.onload = function() { genFullGrammar() };

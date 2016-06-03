@@ -62,44 +62,24 @@ h1 {
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
 body.koka.doc,
-.koka .mo, .koka .module,
 .koka.source,
-code, code.koka, .madoko code,
 .koka.codeblock,
-pre, pre.koka, .madoko pre,
 .koka.preblock, 
+code, code.koka, .madoko code,
+pre, pre.koka, .madoko pre,
 .monospace { 
   font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
-  font-size: 0.9em;
-}
-/*
-code.koka, code {
-  font-size: 0.9em;
-} 
-*/
-
-.koka pre code,
-.koka.pre, 
-.koka.preblock,
-.koka.codeblock {
   font-size: 0.95em;
 }
-
 
 /* source code blocks */
 .koka.codeblock,
 .koka.preblock,
 .koka.source  { 
-  /* border: 1px solid #AAA; */   /* dark grey */
   padding: 0.5ex 1ex 0.5ex 1ex;
-  /*
-  margin: 1ex 5% 1ex 0ex;
-  background: #F0F0F0;  
-  */
 }
 
 .koka.source.unchecked {
-  border: 1px dotted #AAA;
 }
 
 .koka.source-body .source {
@@ -248,6 +228,11 @@ a.pp a.pp:hover .pc
 
 
 /* Documentation */
+.koka.doc>pre.source {
+  background-color: #F0F0F0;
+  border: 1px solid #AAA;
+}
+
 h1.koka.module
       { font-weight: normal
       }
