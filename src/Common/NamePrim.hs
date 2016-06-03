@@ -109,7 +109,7 @@ nameOpExpr      = newName ".opexpr"
 --------------------------------------------------------------------------}
 nameIf          = newName "if"
 nameCase        = newName "case"
-nameUnit        = newName "()"
+nameUnit        = preludeName "()"
 
 namePredHeapDiv :: Name
 namePredHeapDiv = preludeName "hdiv"
