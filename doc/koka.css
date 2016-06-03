@@ -72,6 +72,10 @@ pre, pre.koka, .madoko pre,
   font-size: 0.95em;
 }
 
+pre code code, .madoko pre code code {
+  font-size: 1em;
+}
+
 /* source code blocks */
 .koka.codeblock,
 .koka.preblock,

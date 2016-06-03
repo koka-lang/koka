@@ -19,6 +19,10 @@ xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
 
+.pre-indented, .console {
+  replace: "/^( *>)/\(**``\1``**\)/mg";
+}
+
 @if preview {
   .code1 {
     border-bottom: 1px solid green;
@@ -93,11 +97,11 @@ to edit Koka programs. You can install support for Koka programs using
 
     > jake sublime
 
-Or 
+After this `.kk` files will be properly highlighted, especially
+with the newly installed `snow` color scheme which is designed to
+work well with Koka files.
 
-    > jake sublime[3]
-
-if you are running version 3 of SublimeText.
+You can type `jake help` to see an overview of all make targets.
 
 
 ## Running the interpreter
@@ -119,10 +123,10 @@ Now you can test some expressions:
     hi koka
 
     > :t "hi"
-    string
+    \(`:string`\)
 
     > :t println("hi")
-    console ()
+    \(`:console ()`\)
 
 Or load a demo:
 
@@ -190,9 +194,9 @@ and state effect:
       effs1
     
     > main()
-    [False,True,True,False]
-    [False,False,True,True,False]
-    [False,False]
+    \(`[False,True,True,False]`\)
+    \(`[False,False,True,True,False]`\)
+    \(`[False,False]`\)
 
 It is defined as:
 
@@ -226,7 +230,7 @@ as a list which are concatenated by `flip`. The type of the `handler` will
 remove the `amb` effect and return a list of results:
 
     > :t amb
-    forall<a,e> (action : () -> <amb|e> a) -> e list<a>
+    \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
 
 We can now run the `xor` function using the `amb` handler:
 
@@ -239,7 +243,7 @@ fun test1() {
 If run from the interpreter, we see all possible results:
 
     > test1()
-    [False,True,True,False]
+    \(`[False,True,True,False]`\)
 
 \
 ** Adding state**\
@@ -247,7 +251,7 @@ Let's combine the ambiguity effect with state. The definition
 of the state effect is polymorphic in its value:
 ```
 effect state<s> {
-  get()    : s;
+  get()    : s
   set(i:s) : ()
 }
 ```
@@ -267,13 +271,13 @@ is propagated through the `resume` function.
 val state = handler(i) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume(j,()) 
+  set(j)   -> resume(j,())
 }
 ```
 Type of the `state` handler takes an initial state as an extra argument:
 
     > :t state
-    forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)
+    \(|`:forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)`\)
 
 We can now combine the ambiguity handler with the state handler in
 two ways:
@@ -292,10 +296,10 @@ and every ambiguity execution has its own local state instead. Can you
 predict the outcomes of running the tests?
 
     > test2()
-    [False,False,True,True,False]
+    \(`[False,False,True,True,False]`\)
     
     > test3()
-    [False,False]
+    \(`[False,False]`\)
 
 
 
