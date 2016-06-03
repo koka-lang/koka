@@ -276,6 +276,7 @@ adjustContext ctx lex lexs
              LexKeyword "cotype" _  -> CtxType [] "cotype"
              LexKeyword "rectype" _ -> CtxType [] "rectype"
              LexKeyword "alias" _   -> CtxType [] "alias"
+             LexKeyword "effect" _  -> CtxType [] "effect"
              LexKeyword "struct" _  -> case dropWhile lexemeIsWhite lexs of
                                          (Lexeme _ (LexSpecial "("):_) -> CtxType [] "struct-tuple"
                                          _ -> CtxType [] "struct"
