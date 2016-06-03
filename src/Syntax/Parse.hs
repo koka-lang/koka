@@ -30,7 +30,7 @@ module Syntax.Parse( parseProgramFromFile
                    , parseOpenExtend
                    ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.List (intersperse)
 import Data.Maybe( isJust )
 import Data.Either (partitionEithers)
@@ -727,11 +727,10 @@ operation singleShot vis foralls effTp opsTp extendConName
        (id,idrng)   <- identifier
        exists0      <- typeparams
        (pars,prng)  <- conPars
-       (teff0,tres) <- annotResult
-       teff <- case teff0 of
-                  TpCon tpName _ | tpName == nameEffectEmpty -> return (makeEffectExtend (getRange tres) effTp teff0)
-                  _ -> fail "The effect type of operations must be empty"
-       let rng      = combineRanges [idrng,prng,getRange tres]
+       keyword ":"
+       tres         <- tatomic 
+       let teff     = makeEffectExtend (getRange tres) effTp (makeEffectEmpty (getRange tres))
+           rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng   
            tpConRes = TpApp opsTp [tpVarA] rng             
@@ -1517,7 +1516,10 @@ tresult
     merge :: [([(Name,UserType)],Range)] -> [(Name,UserType)]
     merge ts  = concat (map fst ts)
 
-
+tatomic :: LexParser UserType
+tatomic 
+  = do (ts,rng) <- tatom
+       return (tuple (ts,rng))
 
 tuple :: ([(Name,UserType)],Range) -> UserType
 tuple ([tp],rng) = snd tp
