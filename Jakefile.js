@@ -210,8 +210,9 @@ task("spec", ["compiler"], function(mode) {
                                  .toArray();
       copyFiles(specdir,files,outspec);
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
-                                        .include(path.join(outspec,"*.md"));
-      command(cmdMarkdown + " --odir=" + outspec + " -v -mline-no:false -mlogo:false " + xmpFiles.toArray().join(" "), function () {
+                                        .include(path.join(outspec,"kokaspec.md"))
+                                        .toArray();
+      command(cmdMarkdown + " --odir=" + outspec + " -v -mline-no:false -mlogo:false " + xmpFiles.join(" "), function () {
         if (mode === "publish") {
           // copy to website
           files = new jake.FileList().include(path.join(outspec,"*.html"))
