@@ -70,14 +70,19 @@ void printDecl( const char* sort, const char* name );
 
 %token YIELD REC TRY IFACE INST
 
-%token INLINE INCLUDE ID_CS ID_JS ID_FILE LINEAR OPEN
+%token ID_INLINE ID_INCLUDE 
+%token ID_CS ID_JS ID_FILE 
+%token ID_LINEAR ID_OPEN
 
 %type <Id>  varid conid qvarid qconid op  
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder 
 %type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
 
-
+/* these are non-reserved words but have special meaning after
+   an extern or type declaration. If seen, we should 'shift' instead of reduce.
+   The following declaration make Bison prefer a shift in those situations */
+%nonassoc "inline" "include" "open" "linear"
 %%
 
 
@@ -167,9 +172,13 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERN externinline funid ':' typescheme externbody   { $$ = $3; }
-            | EXTERN externinline funid lparen parameters ')' annotres externbody { $$ = $3; } 
-            | EXTERN INCLUDE externincbody                          { $$ = "<extern include>"; }
+externdecl  : EXTERN identifier externtype externbody               { $$ = $2; }                    
+            | EXTERN ID_INLINE identifier externtype externbody     { $$ = $3; }                    %prec "inline"
+            | EXTERN ID_INCLUDE externincbody                       { $$ = "<extern include>"; }    %prec "include"
+            ;
+
+externtype  : ':' typescheme 
+            | lparen parameters ')' annotres 
             ;
 
 externbody  : '{' semis externstats1 '}'
@@ -203,10 +212,9 @@ externfile  : ID_FILE
             | /* empty */
             ;
 
-externinline: INLINE
+externinline: ID_INLINE
             | /* empty */
             ;
-
 
 
 /* ---------------------------------------------------------
@@ -215,18 +223,18 @@ externinline: INLINE
 aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
-typedecl    : typesort typeopen typeid typeparams kannot  '{' semis constructors '}'     { $$ = $3; }
-            | typesort typeopen typeid typeparams kannot                                 { $$ = $3; }
-            | STRUCT typeid typeparams kannot  conparams                        { $$ = $2; }
-            | EFFECT effectmod typeid typeparams kannot opdecls                 { $$ = $3; }
+typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
+            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } %prec "open"
+            | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
+            | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; } 
+            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } %prec "linear"
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
             ;
 
-typeopen    : OPEN 
-            | /* empty */
-            ;            
+typebody    : '{' semis constructors '}'
+            ;
 
 typeid      : '(' commas ')'      { $$ = "(,)"; }       /* tuples */
             | '[' ']'             { $$ = "[]"; }        /* lists */
@@ -277,9 +285,6 @@ conpar      : paramid ':' paramtype
 -- Effect declarations
 ----------------------------------------------------------*/
 
-effectmod   : LINEAR
-            | /* empty */
-            ;
 
 opdecls     : '{' semis operations '}'            
 
@@ -517,7 +522,7 @@ qidentifier : qvarid
             | identifier           
             ;
 
-identifier  : varid 
+identifier  : varid  
             | IDOP
             ;
 
@@ -528,6 +533,10 @@ varid       : ID
             | ID_CS           { $$ = "cs"; }
             | ID_JS           { $$ = "js"; }      
             | ID_FILE         { $$ = "file"; }
+            | ID_INLINE       { $$ = "inline"; }
+            | ID_INCLUDE      { $$ = "include"; }
+            | ID_OPEN         { $$ = "open"; }     
+            | ID_LINEAR       { $$ = "linear"; }   
             ; 
 
 qconstructor: conid 

@@ -158,15 +158,15 @@ public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
 
-inline                    { return INLINE;  }
-include                   { return INCLUDE; }
+inline                    { return ID_INLINE;  }
+include                   { return ID_INCLUDE; }
 
-open                      { return OPEN; }
+open                      { return ID_OPEN; }
+linear                    { return ID_LINEAR;  }
 
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
 effect                    { return EFFECT; } 
-linear                    { return LINEAR;  }
 
   /* unused reserved identifiers */
 yield                     { return YIELD;}
