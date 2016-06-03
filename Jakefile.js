@@ -239,13 +239,13 @@ task("guide", ["compiler"], function(publish) {
   });
 });
 
-desc(["install Sublime Text 2 support files for Koka",
+desc(["install Sublime Text 3 support files for Koka",
      "     sublime[<version>]  # install for <version> instead (2 or 3)"].join("\n")
     );
 task("sublime", function(sversion) {
   jake.logger.log("install Sublime Text support");
   var sublime =　"";
-  var sversion = sversion || "2"
+  var sversion = sversion || "3"
   if (process.env.APPDATA) {
     sublime = path.join(process.env.APPDATA,"Sublime Text " + sversion);
   } 
