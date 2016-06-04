@@ -1,4 +1,4 @@
-test/type/wrong/hr1.kk(5,10): error: type is not polymorph enough
+test/type/wrong/hr1.kk(7,10): error: type is not polymorph enough
  context : runST( fun() { !r } )
  term : fun() { !r }
  inferred type : () -> <st<$h>,exn> int
