@@ -1,2 +1,2 @@
-main : () -> <exn,asyn,console> ()
-test : () -> <exn,asyn,console> ()
+main : () -> <exn,async,console> ()
+test : () -> <exn,async,console> ()

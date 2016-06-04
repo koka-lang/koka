@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -25,6 +25,14 @@ infixr 20  (||)
 extern include {
   cs file "core-inline.cs"
   js file "core-inline.js"
+}
+
+extern include {
+  js file "core-console-inline.js"
+}
+
+extern include {
+  js file "core-handlers-inline.js"
 }
 
 // ----------------------------------------------------------------------------
@@ -153,20 +161,20 @@ extern show( exn : exception ) : string {
 // Use `onExn` or `onFail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "$primcatch(action,hndl,_k)"
+  js inline "_primcatch(action,hndl,_k)"
 }
   
 // Execute a `hndler` no matter what exception was raised in `action`.
 // Use of `onExit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
-  js inline "$primfinally(action,hndl,_k)"
+  js inline "_primfinally(action,hndl,_k)"
 }
 
 // Raise an exception with a specified message.
 extern error : forall<a> string -> exn a { 
     cs "Primitive.Error";
-    js "$error"
+    js "_error"
 }
 
 // Throw an exception
@@ -179,7 +187,7 @@ extern throw : forall<a> exception -> exn a {
 // compiler to generate error messages on pattern match failures.
 extern patternMatchError : forall<a> (range : string, def : string) -> exn a { 
     cs "Primitive.PatternMatchError"
-    js "$pattern_match_error"
+    js "_error_pattern_match"
 }
 
 // Set a `hndler` that is called when an exception is raised in the `action` block.
@@ -195,7 +203,7 @@ fun onExn( value : a , action : () -> <exn|e> a ) : e a {
 
 private extern catchOnFail : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
-  js "$catch"
+  js "_catch"
 }
 
 
@@ -236,11 +244,11 @@ type optional<a> {
 type primarray<a>
 
 extern conslist( elems: primarray<a>, tail : list<a> ) : total list<a> {
-  js "$list"
+  js "_list"
 }
 
 extern unlist( list : list<a> ) : total primarray<a> {
-  js "$unlist"
+  js "_unlist"
 }
 
 // ----------------------------------------------------------------------------
@@ -1073,7 +1081,7 @@ extern inline (-) : (int,int) -> int { cs inline "(#1 - #2)"; js inline "((#1 - 
 // Do not use. Used by the compiler for platforms that do not support 32 bit multiplication natively.
 extern intMultiply : (int,int) -> int {
   cs inline "(#1 * #2)"
-  js "$int32_multiply"
+  js "_int32_multiply"
 }
 
 extern inline (*) : (int,int) -> int { 
@@ -1207,13 +1215,13 @@ fun maximum( xs : list<int> ) : int
 // Do not use. Used by the compiler for platforms that do not support 32 bit truncated division natively.
 extern intCdiv : (int,int) -> exn int {
   cs inline "(#1 / #2)"
-  js "$int32_cdiv"
+  js "_int32_cdiv"
 }
 
 // Do not use. Used by the compiler for platforms that do not support 32 bit truncated modulus natively.
 extern intCmod : (int,int) -> exn int {
   cs inline "(#1 % #2)"
-  js "$int32_cmod"
+  js "_int32_cmod"
 }
 
 // Truncated division (as in C). See also `(/):(x : int, y : int) -> int`.
@@ -2150,7 +2158,7 @@ private extern gshow : forall<a> a -> string {
 // Generic formatting
 private extern inline gformat : forall<a> (value:a,format:string) -> string { 
   cs inline "#1.ToString(#2)";
-  js inline "$gformat(#1, #2)";
+  js inline "_gformat(#1, #2)";
 }
 
 // Convert an `:int` to a string
@@ -2238,13 +2246,13 @@ public fun printRedirect( print : (msg : string) -> console () ) : io ()
 // Print a string to the console, including a final newline character.
 private extern xprintsln : string -> console ()  { 
   cs "Console.WriteLine";
-  js "$println"
+  js "_println"
 }
 
 // Print a string to the console
 private extern xprints : string -> console ()  { 
   cs "Console.Write";
-  js "$print"
+  js "_print"
 }
 
 private fun prints( s : string ) : console () {
@@ -2305,7 +2313,7 @@ fun println( u : () )  { printsln(show(())) }
 
 private extern xtrace : ( message : string ) -> ()  {
   cs "Primitive.Trace"
-  js "$trace"
+  js "_trace"
 }
 
 private val traceEnabled : ref<global,bool> = unsafeTotal { ref(True) }
@@ -2366,55 +2374,6 @@ fun fill( s : string, width : int, char : char = ' ') : string
    then s
    else s + string(width - n, char)
 }
-
-// ----------------------------------------------------------------------------
-// Input
-// ----------------------------------------------------------------------------
-
-// Represents values that are computed asynchronously
-type async<a>
-
-// When an asynchronous value is computed, call the specified `hndler` (at most once).
-extern inline on : forall<a,b,e> ( async : async<a>, hndler : (value : a) -> e b ) -> e async<b> {
-  js "async_on"
-  cs inline "#1.On<##2>(#2)"
-}
-
-// When an asynchronous value computation fails, call the specified `hndler` (at most once).
-extern onExn : forall<a,e> ( async : async<a>, hndler : (exn : exception) -> e a) -> e async<a> {
-  js "async_on_exn"
-  cs inline "#1.OnExn<##1>(#2)"
-}
-
-// Has an asynchronous value been computed?
-extern isDone : forall<a> ( async : async<a> ) -> bool {
-  js "async_is_done"
-  cs inline "#1.IsDone"
-}
-
-// Read a line from the console.
-extern readln : () -> console async<string>  { 
-  js "$read_line"
-  cs inline "Primitive.ReadLine()"
-}
-
-// Read a line from the console and immediately supply a hndler 
-// For convenience, returns a unit value. Use an explicit `on` if
-// the returned `:async` is needed.
-fun readln( hndler : (string) -> <console|e> a ) : <console|e> () 
-{
-  readln().on(hndler)
-  return ()
-}
-
-// Displays `query` to the user (with a space attached) and invokes `hndler` with 
-// the user's response. 
-fun question( query : string, hndler : (input : string) -> <console|e> a ) : <console|e> ()
-{
-  print(query + " ")
-  readln( hndler )
-}
-
  
 // Used by the compiler to wrap main console applications
 extern mainConsole : forall<a,e> ( main : () -> e a ) -> e a {
@@ -2571,10 +2530,10 @@ fun forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
   unsafeNoDiv { rep(start) }
 }
 
-// Return the host environment: `dotnet`, `browser`, (web)`worker`, or `nodejs`. 
-extern getHost() : ndet string {
+// Return the host environment: `dotnet`, `browser`, `webworker`, or `node`. 
+extern host() : ndet string {
   cs inline "\"dotnet\""
-  js inline "($inBrowser ? 'browser' : ($inWebWorker ? 'worker' : 'nodejs'))"
+  js inline "_host"
 }
 
 
@@ -2586,7 +2545,8 @@ extern getHost() : ndet string {
 
 // Handled effects are lifted to an atomic effect using the `:handled` type constructor
 type handled    :: HX -> X;
-// Single-shot handled effects are lifted to an atomic effect using the `:handled1` type constructor
+
+// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
 type handled1   :: HX1 -> X;
 
 // Effect operations with result type `:a`
@@ -2640,40 +2600,55 @@ private fun hfinally( action, fhandler ) {
   }
 }
 
-effect asyn {
-  ayield() : ()
+// ----------------------------------------------------------------------------
+// Asynchronous operations are supported through the `:async` effect.
+// ----------------------------------------------------------------------------
+
+// Asynchronous operations have the `:async` effect.
+abstract effect async {
+  async-yield() : ()
 }
 
-fun ".handleasync"(action) {
+fun ".async-handle"(action) {
   handle(action) {
     return x -> x
-    ayield() -> () // todo: do a zero timeout?
+    async-yield() -> () // todo: do a zero timeout?
   }
 }
 
-extern asyncOn( async : async<a> ) : asyn a {
-  js inline "$asyncOn(#1,_k)"
+// Wait (asynchronously) for `ms` milliseconds. Use `wait(0)` to yield to other asynchronous operations.
+extern wait( ms : int ) : async () {
+  js inline "(function(){ setTimeout( _async_callback0(_k), #1 ); return async_yield(); })()"
 }
 
-fun readline() : <asyn,console> string {
-  asyncOn(readln())
+fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
+  async-all-prim( actions.vector ).list;
 }
 
-fun asyncAll( actions : list<() -> <asyn|e> a> ) : <asyn|e> list<a> {
-  asyncAllPrim( actions.vector ).list;
-}
-
-private extern asyncAllPrim( actions : vector<() -> <asyn|e> a> ) : <asyn|e> vector<a>  {
+private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
   js inline "$asyncAll(actions,_k)"
 }
 
-extern readTextFile( fname : string ) : <asyn,exn> string {
-  js inline "(function(){ require('fs').readFile(fname,'utf8', $asyncCallbackErr1(_k)); return ayield(); })()"
+extern ".async-callback0"( action: () -> b ) : (() -> b) {
+  js inline "$asyncCallback0(#1)"
 }
 
-extern wait( ms : int ) : asyn () {
-  js inline "(function(){ setTimeout( $asyncCallback0(_k), #1 ); return ayield(); })()"
+extern ".async-callback1"( action: a -> b ) : (a -> b) {
+  js inline "$asyncCallback1(#1)"
 }
+
+extern ".async-callback-err0"( action: () -> b ) : (() -> b) {
+  js inline "$asyncCallbackErr0(#1)"
+}
+
+extern ".async-callback-err1"( action: a -> b ) : (a -> b) {
+  js inline "$asyncCallbackErr1(#1)"
+}
+
+extern ".async-callback-err2"( action: (a1,a2) -> b ) : ((a1,a2) -> b) {
+  js inline "$asyncCallbackErr2(#1)"
+}
+
 // ----------------------------------------------------------------------------
 // Handler primitives. 
 // These are hidden from normal usage but generated by the compiler since

@@ -86,7 +86,7 @@ testPrint1 : () -> io player
 testPrint2 : () -> io player
 updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
-.../out/test/std_core.js:782
+.../out/test/std_core.js:476
  throw exn;
  ^
 bob cheated!

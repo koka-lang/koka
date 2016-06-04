@@ -3,7 +3,7 @@
 .Op-flip : forall<a> .ops-amb<a>
 .copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
 .tag-Eff-amb: string
-amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
+amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 flip : () -> amb bool
 main : () -> console ()
 xor : () -> amb bool

@@ -1,14 +1,15 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
+import std/readline
 
 function test() {
-  println("what is your name?")
-  val xs = asyncAll( [
-    { print("what is your name?")
+  println("let's start")
+  val xs = async-all( [
+    { println("what is your name?")
       readline()
     },
-    { print("what is your age?")
+    { println("what is your age?")
       readline()
     }
   ])

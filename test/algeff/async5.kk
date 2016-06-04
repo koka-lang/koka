@@ -1,6 +1,8 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
+import std/readline
+
 effect amb {
   flip() : bool
 }
@@ -28,7 +30,7 @@ function test() {
     wait(1000)
     if (flip()) then dowait(2) else dowait(3)
   }
-  val xs = asyncAll( [f,g] )
+  val xs = async-all( [f,g] )
   println("hi " + xs.join(","))  
 }
 

@@ -77,7 +77,7 @@ genModule mbMain core
                           Just (name,isAsync) 
                             -> text " " <-> text "// main entry:" <-> 
                                (if isAsync
-                                 then text "$std_core._handleasync" <> parens (ppName (unqualify name)) <> semi
+                                 then text "$std_core._async_handle" <> parens (ppName (unqualify name)) <> semi
                                  else ppName (unqualify name) <> text "($std_core.id);")  -- pass id for possible cps translated main
         return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"

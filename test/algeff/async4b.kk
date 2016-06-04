@@ -1,6 +1,8 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
+import std/readline
+import std/file
 
 function test() {
   println("starting")
@@ -10,11 +12,11 @@ function test() {
   }
   function g() {
     println("and reading a file")
-    val content = readTextFile("package.json")    
+    val content = read-text-file("package.json")    
     println("(done reading file)")
     content
   }
-  val xs = asyncAll( [f,g] )
+  val xs = async-all( [f,g] )
   println("hi " + xs.join(","))  
 }
 

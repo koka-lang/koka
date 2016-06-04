@@ -1,6 +1,8 @@
 // --------------------------------------------------------
 // Async demo: combine with ambiguity
 // --------------------------------------------------------
+import std/readline
+
 effect amb {
   flip() : bool
 }
