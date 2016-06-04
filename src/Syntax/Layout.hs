@@ -105,7 +105,7 @@ associateComments lexs
              -> l : scan ls
           [] -> []
       where
-        docKeyword = ["fun","function","val","type","cotype","rectype","struct","con","alias","external","module"]
+        docKeyword = ["fun","function","val","type","cotype","rectype","effect","struct","con","alias","extern","external","module"]
 
         adjacent comment r1 r2
           = case (reverse comment) of
