@@ -359,7 +359,7 @@ effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
 be seen by hovering over the `looptest` identifier)
 
 
-## Imperative updates
+## Isolated state {#sec-runst}
 
 The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
@@ -403,7 +403,7 @@ The `var` declaration declares a variable that can be assigned too using the
 introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y` 
 for such declaration too but we usually leave out the `val` keyword.
 
-## References {#sec-refs}
+### Heap references {#sec-refs}
 
 Local variables declared using `var` are actually syntactic sugar for
 allocating explicit references to mutable cells. A reference to a mutable
@@ -451,7 +451,7 @@ Haskell) to discard the `:st<h> ` effect.
 
 The Garsia-Wachs algorithm is nice example where side-effects are used
 internally but where the algorithm itself behaves like a pure function, see
-the ``lib/demo/garsiaWachs.kk` example in the distribution. sample online.
+the ``lib/demo/garsiaWachs.kk`` example in the distribution.
 
   [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
 

@@ -80,9 +80,9 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
-## Algebra&iuml;c effect handlers
+## Algebraic effect handlers
 
-When in the interpreter, you can load various demo files with algebra&iuml;c 
+When in the interpreter, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly:
     
@@ -151,24 +151,26 @@ val amb = handler {
   flip()   -> resume(False) + resume(True)
 }
 ```
-The `flip` operation will execute the following code twice, once with
-a `False` value, and once with a `True` value. The final result is wrapped
-as a list which are concatenated by `flip`. The type of the `handler` will
-remove the `amb` effect and return a list of results:
+When a `flip` operation is issued, this handler will catch it
+dynamically. In the above handler, we resume twice: once with a `False`
+value as the result for `flip`, and once with a `True` value. The
+`return` clause wraps the final result in a list which are concatenated
+by the `flip` handler. The type of the `amb` handler is a function that
+removes the `amb` effect from its argument, and return a list of results:
 
     > :t amb
     \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
 
-We can now run the `xor` function using the `amb` handler:
+We can now run the `xor` function using the `amb` handler to 
+handle the `flip` operations:
 
 ```
 fun test1() {
   amb(xor).show.println
 }
 ```
-Here we used _dot_ syntax, you can read more about that in
-Section [#sec-dot]. If we run this in the interpreter, we see 
-all possible results:
+Here we used _dot_ syntax introduced in Section [#sec-dot]. If we run
+`test1` in the interpreter, we see all possible results:
 
     > test1()
     \(`[False,True,True,False]`\)
