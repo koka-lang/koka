@@ -151,7 +151,7 @@ genDoc env kgamma gamma core p
       = null defs && null typeDefs && null externals
 
     defs 
-      = filter (\def -> defVis def == Public && not (head (nameId (defName def)) == '.')) $
+      = filter (\def -> defVis def == Public && not (isHiddenName (defName def))) $
         concatMap getDef (coreProgDefs core) ++ externals
       where
         getDef (DefRec ds) = ds
@@ -160,7 +160,7 @@ genDoc env kgamma gamma core p
     typeDefs
       = sortOn (show . typeDefName) $
         map filterCon $
-        filter (\tdef -> typeDefVis tdef == Public) $
+        filter (\tdef -> typeDefVis tdef == Public && not (isHiddenName (typeDefName tdef))) $
         concatMap getTDef (coreProgTypeDefs core) 
       where
         getTDef (TypeDefGroup ts) = ts
