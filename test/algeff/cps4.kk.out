@@ -2,6 +2,7 @@
 >>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr
+div? : (expr : expr) -> bool
 e1 : (expr : expr) -> exn expr
 e2 : (expr : expr) -> exn expr
 eval : (e : expr) -> stexn<int>
@@ -11,8 +12,7 @@ expr2 : expr
 exprX : expr
 fail : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
 i : (expr : expr) -> exn int
-isDiv : (expr : expr) -> bool
-isInt : (expr : expr) -> bool
+int? : (expr : expr) -> bool
 main : () -> console ()
 run : forall<a,b,e> (s : a, m : (a) -> e b) -> e b
 show : (r : either<string,(int, int)>) -> total string

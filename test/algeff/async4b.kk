@@ -4,13 +4,13 @@
 import std/readline
 import std/file
 
-function test() {
+fun test() {
   println("starting")
-  function f() {
+  fun f() {
     println("what is your name?")
     readline()
   }
-  function g() {
+  fun g() {
     println("and reading a file")
     val content = read-text-file("package.json")    
     println("(done reading file)")
@@ -20,6 +20,6 @@ function test() {
   println("hi " + xs.join(","))  
 }
 
-function main() {
+fun main() {
   test()
 }

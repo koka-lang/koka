@@ -2,24 +2,24 @@
 // Program
 // ----------------------------------------------------------------------------
  
-function xor() : amb bool {
+fun xor() : amb bool {
   val p = flip() 
   val q = flip()
   (p||q) && not(p&&q)
 }
 
-function xors() : amb string {
+fun xors() : amb string {
   show(xor())
 }
 
-function foo() : <amb,state> bool {
+fun foo() : <amb,state> bool {
   val p = flip() 
   val i = get()
   set(i+1)
   if (i>=0 && p) then xor() else False
 }         
 
-function foos() : <amb,state> string {
+fun foos() : <amb,state> string {
   show(foo())
 }    
  
@@ -33,14 +33,14 @@ effect state {
 }
 
 
-function amb_handle() {
+fun amb_handle() {
   handler {
     return x -> [x]
     flip()   -> resume(False) + resume(True)
   }
 }
 
-function state_handle() {
+fun state_handle() {
   handler(i:int) {
     return x -> x
     get()    -> resume(i,i)

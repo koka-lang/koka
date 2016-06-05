@@ -1,5 +1,5 @@
 // test lifting of cps functions
-function myid() : ((x:a) -> e a) {
+fun myid() : ((x:a) -> e a) {
   return fun(x){ x }
 }
 
@@ -9,12 +9,12 @@ type func<e::E> {
 
 val myfunc = Func(myid())
 
-function bar() {
+fun bar() {
   match(myfunc) {
     Func(f) -> f(42)
   }
 }
 
-function main() {
+fun main() {
   bar().show.println
 }

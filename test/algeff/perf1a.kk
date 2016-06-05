@@ -1,6 +1,6 @@
 import std/date
 
-function timer(f) {
+fun timer(f) {
   val t0 = now().time
   val adjust = now().time - t0
   println("start")
@@ -12,12 +12,12 @@ function timer(f) {
 }
 
 
-function fib(n) {
+fun fib(n) {
   if (n<=1) then 1 else fib(n - 1) + fib(n - 2);
 }
 
-function comp() { 
-  fib(5)
+fun comp() { 
+  fib(4)
 }
 
 effect state<s> {
@@ -25,7 +25,7 @@ effect state<s> {
   put(i : s) : ()
 }
  
-function count() {
+fun count() {
   comp()
   val i = get()
   if (i == 0) then i else {
@@ -34,7 +34,7 @@ function count() {
   }
 }
 
-function testH(i0) {
+fun testH(i0) {
   handle(count)(i=i0) {
     return x -> x
     get()    -> resume(i,i)
@@ -47,7 +47,7 @@ effect linear state1<s> {
   put1(i:s) : ()
 }
 
-function count1() {
+fun count1() {
   comp();
   val i = get1()
   if (i == 0) then i else {
@@ -56,7 +56,7 @@ function count1() {
   }
 }
 
-function testH1(i0) {
+fun testH1(i0) {
   handle(count1)(i=i0) {
     return x -> x
     get1()   -> resume(i,i)
@@ -64,14 +64,28 @@ function testH1(i0) {
   }
 }
 
-function testD(i) {
+fun testD(i) {
   comp();
   if (i==0) then i else testD(i - 1)
 }
 
+fun testR(n) {
+  var i := n;
+  fun countR() {
+    comp()
+    if (i == 0) then i else {
+      i := i - 1
+      countR()
+    }
+  }
+  countR()
+}
+
+
 val n = 5000000
-function main() {
+fun main() {
   timer({testD(n)}).show
+  timer({testR(n)}).show
   timer({testH1(n)}).show
   timer({testH(n)}).show
 }

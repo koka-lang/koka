@@ -4,7 +4,7 @@ effect amb {
 }
 
 
-function amb_handle() {
+fun amb_handle() {
   handler {
     return x -> [x]
     flip()   -> [resume(False)]

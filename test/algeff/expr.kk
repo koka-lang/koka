@@ -12,7 +12,7 @@ val expr1 = Int(1)
 val expr2 = Div(Div(Int(16),Int(2)),Int(3))
 val exprX = Div(Div(Int(16),Int(2)),Int(0))
 
-function eval0( e : expr ) : int {
+fun eval0( e : expr ) : int {
   match(e) {
     Int(i) -> i
     Div(e1,e2) -> {
@@ -23,7 +23,7 @@ function eval0( e : expr ) : int {
   }
 }
 
-function show( e : expr ) : total string {
+fun show( e : expr ) : total string {
   match(e) {
     Int(i) -> core/show(i)
     Div(e1,e2) -> "(" + e1.show + "/" + e2.show + ")"
@@ -37,15 +37,15 @@ function show( e : expr ) : total string {
 
 alias stexn<a> = int -> either<string,(a,int)>
 
-function run(s,m) {
+fun run(s,m) {
   m(s)
 }
 
-function unit(x : a) : stexn<a> {
+fun unit(x : a) : stexn<a> {
   return fun(s) { Right((x,s))}
 }
 
-function (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
+fun (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
   return fun(s0) { 
     match(m(s0)) {
       Right((x,s1)) -> f(x)(s1)
@@ -54,15 +54,15 @@ function (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
   }
 }
 
-function mtick() {
+fun mtick() {
   return fun(s) { Right(((),s+1))}
 }
 
-function mfail(err) {
+fun mfail(err) {
   return fun(s) { Left(err) }
 }
 
-function eval( e : expr ) : stexn<int> {
+fun eval( e : expr ) : stexn<int> {
   match(e) {
     Int(i)   -> unit(i)
     Div(x,y) ->
@@ -75,7 +75,7 @@ function eval( e : expr ) : stexn<int> {
   }
 }
 
-function show( r : either<string,(int,int)> ) : total string {
+fun show( r : either<string,(int,int)> ) : total string {
   match(r) {
     Right((x,s)) -> x.core/show + " (state=" + s.core/show + ")"
     Left(str)    -> "error: " + str
@@ -97,7 +97,7 @@ val exc = handler {
   fail(s)  -> Left(s)
 }
 
-function eval1( e : expr ) : exc int {
+fun eval1( e : expr ) : exc int {
   match(e) {
     Int(i) -> i
     Div(e1,e2) -> {
@@ -108,20 +108,20 @@ function eval1( e : expr ) : exc int {
   }
 }
 
-function test1(e) {
+fun test1(e) {
   val r = exc{ eval1(e) }
   println(show1(r))
 }
 
 
-function showErr( s : a -> string, x : either<string,a> ) : string {
+fun showErr( s : a -> string, x : either<string,a> ) : string {
   match(x) {
     Left(l)  -> "exception: " + l
     Right(r) -> s(r)
   }
 }
 
-function show1( x : either<string,int> ) {
+fun show1( x : either<string,int> ) {
   showErr(show,x)
 }
 
@@ -138,7 +138,7 @@ val state = handler(i) {
   tick()   -> resume(i+1,())
 }
 
-function eval2( e : expr ) : <state,exc> int {
+fun eval2( e : expr ) : <state,exc> int {
   match(e) {
     Int(i) -> i
     Div(e1,e2) -> {
@@ -150,12 +150,12 @@ function eval2( e : expr ) : <state,exc> int {
   }
 }
 
-function test2(e) {
+fun test2(e) {
   val res = state(0){ exc{ eval2(e) }}
   res.show2.println
 }
 
-function show2( x : (either<string,int>,int) ) : string {
+fun show2( x : (either<string,int>,int) ) : string {
   "ticks: " + x.snd.show + "\n" + show1(x.fst)
 }
 
@@ -176,7 +176,7 @@ val out = handler {
   }
 }
 
-function eval3( e : expr ) : <out,state,exc> int {
+fun eval3( e : expr ) : <out,state,exc> int {
   line(e)
   match(e) {
     Int(i) -> i
@@ -189,12 +189,12 @@ function eval3( e : expr ) : <out,state,exc> int {
   }
 }
 
-function test3(e) {
+fun test3(e) {
   val res = state(0){ out{ exc{ eval3(e) }}}
   res.show2.println
 }
 
-function main() {
+fun main() {
   test1(expr2)
   test2(expr2)
   test3(expr2)

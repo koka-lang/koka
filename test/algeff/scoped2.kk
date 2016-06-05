@@ -8,11 +8,11 @@ effect nondet {
   choice(xs : list<a>) : a;
 }
 
-function fail() {
+fun fail() {
   choice([])
 }
 
-function knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
+fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
   if (w < 0)    then fail()
   elif (w == 0) then []
   else {
@@ -26,11 +26,11 @@ val solutions = handler {
   choice(xs) -> xs.concat(resume)
 }
 
-function show( xss : list<list<int>> ) : string {
+fun show( xss : list<list<int>> ) : string {
   xss.showList(fun(xs) { xs.showList(core/show) } )
 }
 
-function test1() {
+fun test1() {
   solutions{ knapsack(3,[3,2,1]) }
 }
 
@@ -49,15 +49,15 @@ val state = handler(i) {
   put(j)   -> resume(j,()) 
 }
 
-function incr(i = 1) : state<int> () {
+fun incr(i = 1) : state<int> () {
   put(get()+i)
 }
 
-function local(s,action) {
+fun local(s,action) {
   solutions{ state(s,action) }
 }
 
-function global(s,action) {
+fun global(s,action) {
   state(s){ solutions(action) }
 }
 
@@ -70,21 +70,21 @@ val choices = handler {
   }
 }
 
-function show(x : (int,list<list<int>>)) : string {
+fun show(x : (int,list<list<int>>)) : string {
   "(state=" + x.fst.show + ", " + x.snd.show + ")"
 }
 
-function show(xs : list<(int,list<int>)>) : string {
+fun show(xs : list<(int,list<int>)>) : string {
   xs.showList fun(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
 
-function test2() {
+fun test2() {
   global(0){ choices{ knapsack(3,[3,2,1]) }}
 }
 
-function test3() {
+fun test3() {
   local(0){ choices{ knapsack(3,[3,2,1]) }}
 }
 
@@ -94,7 +94,7 @@ function test3() {
 // --------------------------------------------------------------
 
 // todo: should be the standard library
-function untilJust( xs : list<a>, f : a -> e maybe<b> ) : e maybe<b> {
+fun untilJust( xs : list<a>, f : a -> e maybe<b> ) : e maybe<b> {
   match(xs) {
     Nil -> Nothing
     Cons(x,xx) -> {
@@ -111,18 +111,18 @@ val solution = handler {
   choice(xs) -> xs.untilJust( fun(x) { resume(x) })
 }
 
-function show(m : maybe<list<int>> ) : string {
+fun show(m : maybe<list<int>> ) : string {
   match(m) {
     Nothing -> "none"
     Just(xs)-> "one: " + xs.show
   }
 }
 
-function test4() {
+fun test4() {
   solution{ knapsack(3,[3,2,1])}
 }
 
-function main() {
+fun main() {
   [test1().show
   ,test2().show
   ,test3().show

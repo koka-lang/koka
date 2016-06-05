@@ -3,13 +3,13 @@
 // --------------------------------------------------------
 import std/readline
 
-function test() {
+fun test() {
   println("starting")
-  function f() {
+  fun f() {
     println("what is your name?")
     readline()
   }
-  function g() {
+  fun g() {
     println("and waiting at least 3 secs")
     wait(3000)
     println("(done waiting)")
@@ -19,6 +19,6 @@ function test() {
   println("hi " + xs.join(","))  
 }
 
-function main() {
+fun main() {
   test()
 }

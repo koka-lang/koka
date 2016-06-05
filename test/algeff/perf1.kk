@@ -4,7 +4,7 @@ external include {
   js file "perf1-inline1.js"
 } 
 
-function timer(f) {
+fun timer(f) {
   val t0 = now().time
   val adjust = now().time - t0
   println("start")
@@ -20,15 +20,15 @@ effect state<s> {
   put(i : s) : ()
 }
 
-function fib(n) {
+fun fib(n) {
   if (n<=1) then 1 else fib(n - 1) + fib(n - 2);
 }
 
-function comp() { 
+fun comp() { 
   fib(5)
 }
  
-function count() {
+fun count() {
   comp();
   val i = get()
   if (i == 0) then i else {
@@ -41,7 +41,7 @@ external direct_count() : state<int> int {
   js inline "_direct_count(_k)"
 }
 
-function testH(i0,action) {
+fun testH(i0,action) {
   handle(action)(i=i0) {
     return x -> x
     get()    -> resume(i,i)
@@ -50,12 +50,12 @@ function testH(i0,action) {
 }
 
 
-function testD(i) {
+fun testD(i) {
   comp();
   if (i==0) then i else testD(i - 1)
 }
 
-function main() {
+fun main() {
   timer({testD(10000000)}).show
   timer({testH(10000000,direct_count)}).show
   timer({testH(10000000,count)}).show

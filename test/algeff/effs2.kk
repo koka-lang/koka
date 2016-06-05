@@ -7,14 +7,14 @@ effect state<s> {
   set(i:s) : ()
 }
 
-function xor() : amb bool {
+fun xor() : amb bool {
   val p = flip() 
   val q = flip()
   (p||q) && not(p&&q)
 }
 
 
-function foo() : <amb,state<int>> bool {
+fun foo() : <amb,state<int>> bool {
   val p = flip() 
   val i = get()
   set(i+1)
@@ -24,14 +24,14 @@ function foo() : <amb,state<int>> bool {
  
 // handlers
 
-function amb_handle() {
+fun amb_handle() {
   handler {
     return x -> [x]
     flip()   -> resume(False) + resume(True)
   }
 }
 
-function state_handle() {
+fun state_handle() {
   handler(i) {
     return x -> x
     get()    -> resume(i,i)
@@ -39,20 +39,20 @@ function state_handle() {
   }
 }
 
-function test1() {
+fun test1() {
   amb_handle()(xor)
 }
 
 
-function test2()  {
+fun test2()  {
   state_handle()(0){amb_handle()(foo)}
 }
 
-function test3()  {
+fun test3()  {
   amb_handle()({state_handle()(0,foo)})
 }
 
-function main() {
+fun main() {
   test1().show.println
   test2().show.println
   test3().show.println

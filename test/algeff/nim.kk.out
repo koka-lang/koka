@@ -41,8 +41,10 @@ Alice : player
 Bob : player
 Take : (player : player, moves : list<(int, gtree)>) -> gtree
 Winner : (player : player) -> gtree
+alice? : (player : player) -> bool
 aliceTurn : (int) -> <nim,div> player
 allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
+bob? : (player : player) -> bool
 bobChooses : forall<a,e> (m : () -> <nim,choose|e> a) -> <choose|e> a
 bobTurn : (int) -> <nim,div> player
 cheat : forall<a> (player : player) -> cheating a
@@ -53,10 +55,6 @@ coin : forall<a,e> (action : () -> <choose,ndet|e> a) -> <ndet|e> a
 game : (n : int) -> <nim,div> player
 gametree : forall<e> (action : () -> <nim|e> player) -> e gtree
 get : forall<a> () -> (state<a>) a
-isAlice : (player : player) -> bool
-isBob : (player : player) -> bool
-isTake : (gtree : gtree) -> bool
-isWinner : (gtree : gtree) -> bool
 main : () -> <pure,console> ()
 move : (player : player, sticks : int) -> nim int
 moves : (gtree : gtree) -> exn list<(int, gtree)>
@@ -74,6 +72,7 @@ show : (ps : list<player>) -> string
 show : (p : player) -> string
 showGt : (gt : gtree, indent : int) -> div string
 state : forall<a,b,e> (s : a, action : () -> <state<a>|e> b) -> e b
+take? : (gtree : gtree) -> bool
 testCheck : () -> pure player
 testChoose : () -> div list<player>
 testCoin : () -> <div,ndet> player
@@ -86,6 +85,7 @@ testPrint1 : () -> io player
 testPrint2 : () -> io player
 updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
+winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:476
  throw exn;
  ^

@@ -3,6 +3,6 @@
 
 val test = if (True || True) (fun(x){x}) else (fun(x) { !(ref(x)) })
 
-function main() {
+fun main() {
   test(42).show.println
 }

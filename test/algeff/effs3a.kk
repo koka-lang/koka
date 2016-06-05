@@ -11,7 +11,7 @@ val state = handler(s=0) {
   set(t)   -> resume(t,())
 }
 
-function fstate(action) {
+fun fstate(action) {
   handle(action)(s=0) {
     return x -> x
     get()    -> resume(s,s)
@@ -19,11 +19,11 @@ function fstate(action) {
   }
 }
 
-function test() {
+fun test() {
   if (get() > 0) then "positive" else "negative or zero"
 }
 
 
-function main() {
+fun main() {
   state(test).println
 }

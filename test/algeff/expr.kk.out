@@ -23,6 +23,7 @@ ticks: 2
 >>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr
+div? : (expr : expr) -> bool
 e1 : (expr : expr) -> exn expr
 e2 : (expr : expr) -> exn expr
 eval : (e : expr) -> stexn<int>
@@ -36,8 +37,7 @@ expr2 : expr
 exprX : expr
 fail : forall<a> (s : string) -> exc a
 i : (expr : expr) -> exn int
-isDiv : (expr : expr) -> bool
-isInt : (expr : expr) -> bool
+int? : (expr : expr) -> bool
 line : (e : expr) -> out ()
 main : () -> console ()
 mfail : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)

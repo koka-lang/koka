@@ -12,7 +12,7 @@ val amb = handler {
   flip()   -> resume(False) + resume(True)
 }
 
-function dowait(s : int) {
+fun dowait(s : int) {
   val secs = s.show + " seconds"
   println("and waiting at least " + secs)
   wait(s * 1000)
@@ -20,14 +20,14 @@ function dowait(s : int) {
   "waited " + secs
 }
 
-function test() {
+fun test() {
   println("starting")
-  function f() {
+  fun f() {
     println("what is your name?")
     readline()
     error("ouch")
   }
-  function g() {
+  fun g() {
     wait(1000)
     if (flip()) then dowait(2) else dowait(3)
   }
@@ -35,6 +35,6 @@ function test() {
   println("hi " + xs.join(","))  
 }
 
-function main() {
+fun main() {
   amb(test); ()
 }

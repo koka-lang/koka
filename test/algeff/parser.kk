@@ -5,14 +5,14 @@ effect parse {
 
 alias xparse = <parse,div>
 
-function showP( xs : list<(a,string)>, f : a -> string ) : string {
+fun showP( xs : list<(a,string)>, f : a -> string ) : string {
   xs.showList(fun(r) {
     val (x,rest) = r
     "(" + x.f + "," + rest.show + ")"
   })
 }
 
-function showP1( xs : list<(list<int>,string)> ) : string {
+fun showP1( xs : list<(list<int>,string)> ) : string {
   xs.showP( fun(is) { is.showList(show) })
 }
 
@@ -34,11 +34,11 @@ val parse = handler(input) {
   }
 }
 
-function fail() {
+fun fail() {
   satisfy(fun(input) { Nothing })
 }
 
-function char(p : char -> bool) : parse char {
+fun char(p : char -> bool) : parse char {
   satisfy( fun(input) {
     val sc = input.substr(0,1)
     match (sc.list) {
@@ -48,26 +48,26 @@ function char(p : char -> bool) : parse char {
   })
 }
 
-function digit() : parse int {
+fun digit() : parse int {
   int(char(isDigit) - '0')
 }
 
-function alpha() : parse int {
+fun alpha() : parse int {
   int(char(isAlpha) - 'a')
 }
 
-function many(p) {
+fun many(p) {
   manyx([],p)
 }
 
-function manyx(acc,p) {
+fun manyx(acc,p) {
   choice {
     val x = p()
     manyx(Cons(x,acc),p)
   } { acc.reverse } 
 }
 
-function manyy(p) {
+fun manyy(p) {
   choice {
     val x = p()
     val xs = manyy(p)
@@ -75,10 +75,10 @@ function manyy(p) {
   } { [] } 
 }
 
-function test1() {
+fun test1() {
   parse("12",{many(digit)}).showP1.println 
 }
 
-function main() {
+fun main() {
   test1()
 }

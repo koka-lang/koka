@@ -307,7 +307,6 @@ to detect such errors, but the Koka type system rejects this program:
       hint: did you forget an operator? or is there a space between an application?
 
 
-
   [LHaskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
   [LPython]: http://docs.python.org/2/reference/lexical_analysis.html
   [LJavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
