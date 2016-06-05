@@ -278,9 +278,10 @@ fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
-    ++ map fmtConTOC (dataInfoConstrs info) 
+    ++ map fmtConTOC constructors 
     ++ map (fmtDefTOC True) defs
-
+  where
+    constructors = filter (not . isHiddenName . conInfoName) (dataInfoConstrs info)
 
 
 subTOC [] = ""
@@ -374,7 +375,8 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
 
     constructors
-      = dataInfoConstrs info
+      = filter (\con -> not (isHiddenName (conInfoName con))) $
+        dataInfoConstrs info
 
 
 fmtDefs env kgamma gamma defs

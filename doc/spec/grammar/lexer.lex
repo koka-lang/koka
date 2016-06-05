@@ -69,17 +69,17 @@ char escapeToChar( char esc, yyscan_t scanner )
 
   /* Character classes */
 Op              {Symbol}+
-Symbol          [\$\%\&\*\+\@!/\\\^\~=\.\-\?\:\|\<\>]
+Symbol          [\$\%\&\*\+\@!/\\\^\~=\.\-\:\?\|\<\>]
 AngleBar        [\<\>\|]
 Angle           [\<\>]
 
-ConId           {Upper}{IdChar}*
-Id              {Lower}{IdChar}*
+ConId           {Upper}{IdChar}*{Final}*
+Id              {Lower}{IdChar}*{Final}*
 IdChar          {Letter}|{Digit}|[_\-]
 
 HexEsc          x{Hex}{Hex}|u{Hex}{Hex}{Hex}{Hex}|U{Hex}{Hex}{Hex}{Hex}{Hex}{Hex}  
 CharEsc         [nrt\\\"\']                         
-/* " for editor highlighting */
+/* for editor highlighting " */
 
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
@@ -91,6 +91,8 @@ Digit           [0-9]
 Hex             [0-9a-fA-F]
 Space           [ \t]
 Newline         [\r]?[\n]
+Final           [\'\?]              
+/* for editor highlighting ' */
 
 GraphicChar     [ \x21-\x26\x28-\[\]-\x7E]
 GraphicStr      [ \x21\x23-\[\]-\x7E]

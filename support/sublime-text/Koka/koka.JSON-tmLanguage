@@ -264,12 +264,12 @@
       },
 
     "identifier" :
-      { "match": "[a-z][\\w\\-]*"
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
       , "name": "variable.koka"
       },
 
     "qidentifier" :
-      { "match": "([a-z][\\w\\-]*/)+([a-z][\\w\\-]*)"
+      { "match": "([a-z][\\w\\-]*/)+([a-z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "variable.koka" }
@@ -277,12 +277,12 @@
       },
 
     "constructor":
-      { "match": "[A-Z][\\w\\-]*|\\(,+\\)"
+      { "match": "[A-Z][\\w\\-]*[\\'\\?]*|\\(,+\\)"
       , "name": "constant.other.constructor.koka"
       },
 
     "qconstructor" :
-      { "match": "([a-z][\\w\\-]*/)([A-Z][\\w\\-]*)"
+      { "match": "([a-z][\\w\\-]*/)([A-Z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "constant.other.constructor.koka" }
@@ -300,27 +300,27 @@
       },
 
     "wildcard" :
-      { "match": "_\\w*"
+      { "match": "_[\\w\\-]*[\\'\\?]*"
       , "name": "variable.wildcard.koka"
       },
 
     "type_variable" :
-      { "match": "([a-z][0-9]*|_[\\w\\-]*|self)(?!\\w)"
+      { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
       , "name": "storage.type.typevar.koka"
       },
 
     "type_identifier" :
-      { "match": "[a-z][\\w\\-]*"
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
       , "name": "storage.type.constant.koka"
       },
 
     "type_qidentifier" :
-      { "match": "([a-z][\\w\\-]*/)+"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*/)+"
       , "name": "entity.name.class.module.koka"
       },
 
     "type_parameter" :
-      { "match": "([a-zA-Z][\\w\\-]*)\\s*:(?!:)"
+      { "match": "([a-zA-Z][\\w\\-]*[\\'\\?]*)\\s*:(?!:)"
       , "captures": {
            "1": { "name" : "variable.typeparam.koka" }
          }
@@ -332,7 +332,7 @@
       },
 
     "type_interface" :
-      { "match": "[A-Z][\\w\\-]+"  
+      { "match": "[A-Z][\\w\\-]+[\\'\\?]*"  
       , "name": "storage.type.interface.koka"
       },
 
@@ -345,7 +345,7 @@
       },
 
     "param_identifier" :
-      { "match": "([a-z][\\w\\-]*)\\s*(?=[:,\\)])"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=[:,\\)])"
       , "name" : "entity.name.function.koka"
       },   
 
@@ -375,7 +375,7 @@
       },
 
     "decl_val": 
-      { "match": "(((val)\\s+)?)(([a-z][\\w\\-]*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
+      { "match": "(((val)\\s+)?)(([a-z][\\w\\-]*[\\'\\?]*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
       , "captures": {
           "3": { "name": "keyword.declaration.val.koka" },
           "5": { "name": "entity.name.val.koka" },
@@ -384,7 +384,7 @@
       },
 
     "decl_var": 
-      { "match": "(var)\\s+([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
+      { "match": "(var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.var.koka" },
           "2": { "name": "entity.name.var.koka" }
@@ -392,7 +392,7 @@
       },
 
     "decl_param" :
-      { "match": "([a-z][\\w\\-]*)\\s*(?=:)"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=:)"
       , "name" : "entity.name.param.koka"
       },   
 

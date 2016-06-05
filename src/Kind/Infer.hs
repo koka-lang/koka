@@ -241,7 +241,7 @@ synTester :: DataInfo -> (Visibility,ConInfo) -> [DefGroup Type]
 synTester info (vis,con) | isHiddenName (conInfoName con) 
   = []
 synTester info (vis,con)
-  = let name = (prepend "is" (unqualify (conInfoName con)))
+  = let name = (postpend "?" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
 

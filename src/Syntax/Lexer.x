@@ -46,6 +46,7 @@ $symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
 $special  = [\(\)\[\]\{\}\;\,]
 $anglebar = [\<\>\|]
 $angle    = [\<\>]
+$finalid  = [\'\?]
 $charesc  = [nrt\\\'\"]    -- "
 
 -----------------------------------------------------------
@@ -71,8 +72,8 @@ $charesc  = [nrt\\\'\"]    -- "
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
 @idchar       = $letter|$digit|_|\-
-@lowerid      = $lower @idchar*
-@upperid      = $upper @idchar*
+@lowerid      = $lower @idchar* $finalid*
+@upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
 @qvarid       = @modulepath @lowerid

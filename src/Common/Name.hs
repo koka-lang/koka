@@ -25,7 +25,7 @@ module Common.Name
           , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName, toOperationsName, fromOperationsName, toEffectConName, toOpConName
-          , toConstructorName, isConstructorName
+          , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , splitModuleName, unsplitModuleName
           
@@ -192,6 +192,13 @@ toConstructorName name
     case nameId name of
       ('.':c:cs) -> '.':toUpper c : cs  -- keep hidden names hidden
       (c:cs)     -> toUpper c : cs
+      ""         -> ""
+
+toVarName name
+  = newQualified (nameModule name) $
+    case nameId name of
+      ('.':c:cs) -> '.':toLower c : cs  -- keep hidden names hidden
+      (c:cs)     -> toLower c : cs
       ""         -> ""
 
 ----------------------------------------------------------------
