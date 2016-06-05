@@ -48,8 +48,7 @@ when considering a longest match.
 Source code consists of a sequence of 8-bit characters. Valid characters in
 actual program code consists strictly of ASCII characters which range from 0
 to 127 and can be encoded in 7-bits. Only comments, string literals, and
-character literals are allowed to contain extended 8-bit characters. This
-means that one cannot write identifiers or operators that use unicode symbols.
+character literals are allowed to contain extended 8-bit characters.
 
 ### Encoding
 
@@ -99,14 +98,16 @@ grammar will draw it's lexemes from the _lex_ production.
 | _conid_      | ::=   | _upperid_                                                                               |                                                         |
 | _varid_      | ::=   | _lowerid_~&lt;!_reserved_&gt;~                                                          |                                                         |
 | &nbsp;       |       |                                                                                         |                                                         |
-| _lowerid_    | ::=   | _lower_ [_idchar_]{.many}                                                               |                                                         |
-| _upperid_    | ::=   | _upper_ [_idchar_]{.many}                                                               |                                                         |
-| _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-``                                 |                                                         |
-| &nbsp;       |       |                                                                                         |                                                         |
-| _wildcard_   | ::=   | ``_`` [_idchar_]{.many}                                                                 |                                                         |
+| _lowerid_    | ::=   | _lower_ _idrest_                                                                        |                                                         |
+| _upperid_    | ::=   | _upper_ _idrest_                                                                        |                                                         |
+| _wildcard_   | ::=   | ``_`` _idrest_                                                                          |                                                         |
 | _typevarid_  | ::=   | _letter_ [_digit_]{.many}                                                               |                                                         |
 | &nbsp;       |       |                                                                                         |                                                         |
-| _funanon_    | ::=   | (`fun` []{.bar} `function`)~&lt;\ ``<``[]{.bar}``(``&gt;~                           | (anonymous functions must be followed by a `(` or `<`)) |
+| _idrest_     | ::=   | [_idchar_]{.many} [_idfinal_]{.many}                                                    |                                                         |
+| _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} _letter_ ``-`` _letter_               |                                                         |
+| _idfinal_    | ::=   | ``?`` []{.bar} ``'``                                                                    |                                                         |
+| &nbsp;       |       |                                                                                         |                                                         |
+| _funanon_    | ::=   | (`fun` []{.bar} `function`)~&lt;\ ``<``[]{.bar}``(``&gt;~                               | (anonymous functions must be followed by a `(` or `<`)) |
 | _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                           |                                                         |
 |              | &bar; | `type` []{.bar} `cotype` []{.bar} `rectype` []{.bar} `alias`                            |                                                         |
 |              | &bar; | `forall` []{.bar} `exists` []{.bar} `some`                                              |                                                         |
@@ -121,7 +122,8 @@ grammar will draw it's lexemes from the _lex_ production.
 {.grammar .lex}
 
 Identifiers always start with a letter and may contain underscores and
-dashes. Like in Haskell, constructors always begin with an uppercase
+dashes. Identifiers are allowed to end with a question mark or prime. 
+Like in Haskell, constructors always begin with an uppercase
 letter while regular identifiers are lowercase. The rationale is to 
 quickly distinguish constants from variables in pattern matches. 
 Here are some example of valid identifiers:
@@ -129,10 +131,12 @@ Here are some example of valid identifiers:
 x
 concat1
 visit-left
+nil?
+x'
 Cons
 True  
 ```
-Dashes are also allowed in identifiers, but they must be surrounded on
+Dashes are allowed in identifiers, but they must be surrounded on
 both sides with a letter. This is mostly to avoid confusion with the
 subtraction operator:
 
@@ -247,6 +251,70 @@ std/core/(&)
 | _cont_     | ::=    | ``x80``..``xBF``                            |                                     |
 {.grammar .lex}
 
+### Semicolons?
+
+Many languages have rules to avoid writing semicolons to separate
+statements. Even though most of the time these rules are quite intuitive
+to use, their actual definition can be quite subtle. For example,
+both [Scala][lscala] and [Go][lgo] require remembering specific tokens to
+know precisely when semicolon insertion takes place. In the case
+of [JavaScript][ljavascript] and [Haskell][lhaskell] (I am sad to admit)
+the precise behavior is bizarrely complex where semicolon insertion
+depends on the interaction between the lexer and parser.
+
+In Koka, the grammar is carefully constructed to not need any statement
+separator at all and semicolons are never required by the grammar.
+They are still allowed in the grammar but strictly to help new programmers
+that are used to putting semicolons at the end of statements.
+
+The construction of a grammar that does not need statement separators is
+also good from a human perspective. The reason semicolons are required is
+to resolve ambiguities in the syntax. When such ambiguities do not occur
+in the first place, that also removes a cognitive burden from the
+programmer. In particular, Koka statements often start with a keyword,
+like `val` or `match`, signifying intention to both programmer and parser.
+
+In other cases, we restrict the expression grammar. For example, one
+reason why C requires semicolons is due to prefix- and postfix operators.
+If we write ``p ++ q`` the C parser needs a semicolon in order to know if
+we meant ``p++; q`` or ``p; q++``. Such ambiguity is resolved in Koka by
+not having postfix operators and restricting prefix operators to ``!``
+and ``~``. 
+
+One other reason that Koka can do without a statement separator is the
+effect inference system: without such effect inference subtle bugs may
+occur if we leave out semicolons. For example, consider the following
+function:
+```
+fun square( x : int ) {
+  x * x
+}
+```
+which returns the square of `x`. Suppose now that we forgot to put
+in the multiplication operation, giving:
+```unchecked
+fun square-wrong( x : int ) {
+  x x
+}
+```
+The Koka grammar sees this as 2 separate statements now, &ie; as ``x; x`` 
+returning ``x`` instead. In a language without effect inference it is hard
+to detect such errors, but the Koka type system rejects this program: 
+
+    > fun square-wrong(x:int) { x x }
+                                ^
+    ((1),27): error: expression has no effect and is unused
+      hint: did you forget an operator? or is there a space between an application?
+
+
+
+  [LHaskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
+  [LPython]: http://docs.python.org/2/reference/lexical_analysis.html
+  [LJavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
+  [LScala]: http://www.scala-lang.org/old/sites/default/files/linuxsoft_archives/docu/files/ScalaReference.pdf#page=13
+  [LGo]: http://golang.org/ref/spec#Semicolons
+
+
 <!--
 ### Semicolon insertion  {#sec:layout}
 
@@ -255,11 +323,6 @@ Just like programming languages like
 which automatically adds semicolons at appropriate places. This enables the
 programmer to leave out most semicolons.
 
-  [Haskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
-  [Python]: http://docs.python.org/2/reference/lexical_analysis.html
-  [JavaScript]: http://bclary.com/2004/11/07/index.html#a%2D7%2E9
-  [Scala]: http://books.google.com/books?id=MFjNhTjeQKkC&amp;pg=PA65
-  [Go]: http://golang.org/ref/spec#Semicolons
 
 Koka will insert semicolons automatically for any statements
 and declarations that are _aligned between curly braces_ (`{` and `}`).
@@ -313,7 +376,7 @@ the visual representation and how a compiler interprets the tokens. With
 Koka's layout rule, there is no such mismatch.
 
 To still allow for "block-style" layout, the
-layout rule does not insert a  semi-colon for an aligned statement if it
+layout rule does not insert a  semicolon for an aligned statement if it
 starts with `then`, `else`, `elif`, or one of `{`, `)`, or `]`.
 {.grammar}
 
@@ -694,7 +757,7 @@ in an expressions.
 ### Implementation
 
 As a companion to the Flex lexical implementation, there is a full 
-[Bison(Yacc) LALR(1) implementation][BisonGrammar] 
+Bison(Yacc) LALR(1) [implementation][BisonGrammar] 
 available. Again, the Bison parser functions
 as _the_ specification of the grammar and this document should always
 be in agreement with that implementation.

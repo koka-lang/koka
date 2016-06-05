@@ -13,29 +13,37 @@ The following programs are required to build Koka:
 
 Next, get the compiler and libraries from codeplex, and build them: 
 
-* ``> hg clone https://hg.codeplex.com/koka -b algeff``\
-  (clone the Koka sources with algebraic effects support)
+1. First clone the Koka sources with algebraic effects support:
 
-* ``> cd koka``\
-  (go to the new Koka directory) 
+       > hg clone https://hg.codeplex.com/koka -b algeff
 
-* ``> npm install``\
-  (install needed Node libraries) 
+   You can also use ``-b algeff-dev`` to get the latest development version.
 
-* ``> jake``\
-  (build the compiler and run the Koka interactive environment)
+2. Go to the newly created Koka directory:
 
+       > cd koka
+
+3. Install any needed Node libraries using the Node package manager: 
+
+       > npm install
+
+   If you are running on MacOSX or Unix, you may have to run this as
+   ``sudo npm install`` so that the ``npm`` package manager has enough
+  permissions to install the ``jake`` and ``madoko`` tools.
+
+4. Finally, build the compiler and run the Koka interactive environment:
+       > jake
+
+   You can type ``jake help`` to see an overview of all make targets.
 
 The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
     > jake sublime
 
-After this ``.kk`` files will be properly highlighted, especially
-with the newly installed ``snow`` color scheme which is designed to
-work well with Koka files.
-
-You can type ``jake help`` to see an overview of all make targets.
+After this ``.kk`` files will be properly highlighted. It is also
+recommended to use the newly installed ``snow`` color theme which is
+designed to work well with Koka files.
 
 
 ## Running the interpreter
@@ -84,7 +92,13 @@ And quit the interpreter:
 
 When in the interpreter, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
-included in the search path, so we can load them directly:
+included in the search path, so we can load them directly using
+the _load_ (``:l``) command:
+
+    > :l scoped
+
+Use the ``:?`` command to get an overview of all commands. After
+loading the ``scoped`` demo, we can run it directly from the interpreter:
     
     > :l scoped
     compile: test/algeff/scoped.kk
@@ -125,14 +139,13 @@ and state effect:
     \(`[False,False,True,True,False]`\)
     \(`[False,False]`\)
 
-It is defined as:
-
+The `effs2.kk` module starts by defining the `:amb` effect:
 ```
 effect amb {
   flip() : bool
 }
 ```
-This declares a new effect `amb` with a single operation `flip`.
+This declares `amb` as a new effect with a single operation `flip`.
 We can use this as:
 ```
 fun xor() : amb bool {
@@ -141,8 +154,8 @@ fun xor() : amb bool {
   (p||q) && not(p&&q)
 }
 ```
-where the type of `xor` reflects that it is a `amb` effect with
-a boolean result.
+where the type of `xor` reflects that it has a `amb` effect and
+returns a boolean.
 
 Next, let's write a handler for this effect:
 ```
