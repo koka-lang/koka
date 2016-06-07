@@ -42,9 +42,6 @@ extern include {
 // A 32-bit signed integer (using two's complement to represent negative numbers).
 type int
 
-// A unicode character
-type char
-
 // A unicode string
 type string
 
@@ -227,7 +224,7 @@ type optional<a> {
 
 type primarray<a>
 
-extern conslist( elems: primarray<a>, tail : list<a> ) : total list<a> {
+extern list( elems: primarray<a>, tail : list<a> = [] ) : total list<a> {
   js "_list"
 }
 
@@ -494,11 +491,6 @@ fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
   enumerate(lo,hi,[]) 
 }
 
-// Create a list of characters from `lo`  to `hi`  (inclusive).
-fun list( lo : char, hi : char ) : total list<char>
-{
-  list(lo.int, hi.int).map( fun(c){ char(c) } )
-}
 
 private val maxListStack = 200
 
@@ -1013,6 +1005,9 @@ fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 // ----------------------------------------------------------------------------
 // Characters
 // ----------------------------------------------------------------------------
+/*
+// A unicode character
+type char
 
 extern inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 extern inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
@@ -1057,7 +1052,7 @@ fun ascii?( c : char )     : bool  -> (c <= '\x7F')
 fun control?( c : char )   : bool  -> (c < ' ')
 // Tests if a character is an element of `" \t\n\r"` 
 fun white?( c : char )     : bool  -> (c == ' ' || c == '\t' || c == '\n' || c == '\r')
-
+*/
 
 
 // ----------------------------------------------------------------------------
@@ -1379,19 +1374,19 @@ fun parse-int( s : string, hex : bool = False) : maybe<int> {
   val base = if (hex) then 16 else 10
   match(s.trim.list) {
     Nil -> Just(0)
-    Cons(c,cc) | c=='-' -> {
+    Cons(c,cc) | c == "-".code -> {
       match(parse-pos-int(cc,base)) {
         Nothing -> Nothing
-        Just(i) -> Just(0-i)
+        Just(i) -> Just(0 - i)
       }
     }
     cs -> parse-pos-int(cs,base)     
   }
 }
 
-private fun parse-pos-int( s : list<char>, base : int = 10 ) : maybe<int> {
+private fun parse-pos-int( s : list<unicode>, base : int = 10 ) : maybe<int> {
   match(s) {
-    Cons(c1,Cons(c2,cs)) | c1=='0' && (c2=='x' || c2=='X')
+    Cons(c1,Cons(c2,cs)) | c1== "0".code && (c2 == "x".code || c2== "X".code )
       -> parse-digits(cs,16)
     _ -> parse-digits(s,base)
   }
@@ -1399,18 +1394,18 @@ private fun parse-pos-int( s : list<char>, base : int = 10 ) : maybe<int> {
 
 // Parse digits in a `base` between 2 and 36 (default 10) given an initial value `acc` (default 0)
 // Returns `acc` on the empty string, and `Nothing` if an invalid digit is encountered.
-private fun parse-digits( cs : list<char>, base : int = 10, acc : int = 0 ) : maybe<int> {
+private fun parse-digits( cs : list<unicode>, base : int = 10, acc : int = 0 ) : maybe<int> {  
   match(cs) {
     Nil -> Just(acc)
     Cons(c,cc) -> {
-      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base - 1).char))) then {
-                (c - '0').int
+      val d = if (c >= base0 && c <= (if (base >= 10) then (base0 + 9) else (base0 + base - 1))) then {
+                c - base0;
               }
-              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base - 11).char)) then { 
-                (c - 'a').int + 10
+              elif (base > 10 && base <= 36 && c >= baseA && c <= (baseA + (base - 11))) then { 
+                (c - baseA) + 10
               }
-              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base - 11).char)) then { 
-                (c - 'A').int + 10
+              elif (base > 10 && base <= 36 && c >= baseAX && c <= (baseAX + (base - 11))) then { 
+                (c - baseAX) + 10
               }
               else return Nothing   
       parse-digits(cc, base, base*acc + d)
@@ -1418,9 +1413,12 @@ private fun parse-digits( cs : list<char>, base : int = 10, acc : int = 0 ) : ma
   }
 }
 
+private val base0 = "0".code
+private val baseA = "a".code
+private val baseAX = "A".code
 
 public fun parse-fixed( s : string ) : maybe<double> {
-  match(s.split(".",2).list) {
+  match(s.split(".",2)) {
     Cons(pre,Cons(post,Nil)) -> {
       match(pre.parse-int) {
         Nothing -> Nothing
@@ -1634,6 +1632,7 @@ fun maximum( xs : list<double> ) : double
   }
 }
 
+/*
 // ----------------------------------------------------------------------------
 // Arrays
 // ----------------------------------------------------------------------------
@@ -1835,13 +1834,11 @@ extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> {
   js inline "#1"
 }
 
+*/
 
 // ----------------------------------------------------------------------------
 // Strings
 // ----------------------------------------------------------------------------
-
-// Return the `n` th character in a string `s` .
-private extern inline unsafe-idx : ( s : string, n : int ) -> char  { inline "(#1)[#2]" }
 
 // Are two strings equal?
 extern inline (==) : (string,string) -> bool {
@@ -1880,44 +1877,32 @@ fun (||)( x : string, y : string ) : string {
   if (x.empty?) then y else x 
 }
 
-// Return the `n` th character in a string `s` . 
-// Raise an out-of-bounds exception if `n < 0` or `n >= s.length`.
-extern inline [] : ( s : string, n : int ) -> exn char  { inline "(#1)[#2]" }
+alias unicode = int
 
-// Return the length of a string.
+// Return the `n` th codepoint in a string `s` . 
+// Returns the replacement codepoint (`0xFFFD`) if the index is out-of-bounds,
+// or if the string contains a malformed code at that point.
+extern [] : ( s : string, n : int ) -> unicode  { 
+  cs inline "(#1)[#2]"
+  js inline "_cp_at(#1,#2)" 
+}
+
+// Return the number of codepoints in a string.
 extern inline length : ( s : string ) -> int  { 
   cs inline "(#1).Length";
-  js inline "(#1).length";
-}
-
-// Does string `s`  contain the character `c`  ?
-extern inline index-of : (s : string, c : char ) -> int { 
-  cs inline "(#1.IndexOf(#2))";
-  js inline "((#1).indexOf(#2))";
-}
-
-// Does string `s`  contain the character `c`  ?
-extern inline last-index-of : (s : string, c : char ) -> int { 
-  cs inline "(#1.LastIndexOf(#2))";
-  js inline "((#1).lastIndexOf(#2))";
+  js inline "_cp_length(#1)";
 }
 
 // Does string `s`  contain the string `sub`  ?
 extern inline index-of : (s : string, sub : string ) -> int { 
   cs inline "(#1.IndexOf(#2))";
-  js inline "((#1).indexOf(#2))";
+  js inline "_cp_index((#1).indexOf(#2))";
 }
 
 // Does string `s`  contain the string `sub`  ?
 extern inline last-index-of : (s : string, sub : string ) -> int { 
   cs inline "(#1.LastIndexOf(#2))";
-  js inline "((#1).lastIndexOf(#2))";
-}
-
-// Does string `s`  contain the character `c`  ?
-extern inline contains : (s : string, c : char ) -> bool { 
-  cs inline "(#1.IndexOf(#2) >= 0)";
-  js inline "((#1).indexOf(#2) >= 0)";
+  js inline "_cp_index((#1).lastIndexOf(#2))";
 }
 
 // Is `pre`  a prefix of `s`  ?
@@ -1938,6 +1923,13 @@ extern inline contains: (s : string, sub : string ) -> bool {
   js inline "((#1).indexOf(#2) >= 0)"
 }
 
+// Return the `n`th unicode point in string `s`. If `n` is not given it is assume `0`.
+// Returns the replacement character (`0xFFFD`) if the string is empty or the index out-of-bounds.
+fun code( s : string, n : int = 0) : unicode {
+  s[n]
+}
+
+/*
 // Concatenate a vector of strings
 extern inline join: (v : vector<string> ) -> string { 
   cs "String.Concat";
@@ -1961,27 +1953,28 @@ extern join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string {
   cs inline "Primitive.Concat(#1,#2)";
   js inline "(#1).join(#2)"
 }
+*/
 
-public extern inline substr : (s : string, start : int ) -> string { 
+public extern substr : (s : string, start : int ) -> string { 
   cs inline "((#1).Substring(#2))";
-  js inline "((#1).substr(#2))";
+  js inline "((#1).substr(_ucs2_index(#1,#2)))";
 }
 
 
 private extern inline substr2 : (s : string, start : int, len : int ) -> string { 
   cs inline "#1.Substring(#2,#3)";
-  js inline "#1.substr(#2, #3)"
+  js inline "#1.substr(_ucs2_index(#1,#2), #3)"
 }
 
-private extern inline make-string : (n : int, c : char ) -> string { 
-  cs inline "new String(#2,#1)";
-  js inline "Array(#1 + 1).join(#2)";
+
+// Construct a string from a unicode point `u`
+fun string( u : unicode ) : string {
+  [u].string
 }
 
-// Construct a string of `n`  characters `c`  (or the empty string if `n <= 0` )
-fun string( n : int, c : char ) : string 
-{
-  if (n <= 0) then "" else make-string(n,c)
+// Repeat a string `n` times 
+extern repeat( s : string, n : int ) : string {
+  js inline "(#2 <= 0 ? '' : new Array(#2 +1).join(#1))"
 }
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
@@ -2002,17 +1995,9 @@ fun notempty?( s : string ) : bool {
   s != ""
 }
 
-/*
-fun substr1( s : string, start : int, len : int = maxInt   )
-{
-  if (len <= 0) then ""
-   else substr2(s, if (start <= 0) then 1 else start, len)
-}
-*/
-
-public extern inline substr1 : (s : string, start : int ) -> string { 
+public extern substr1 : (s : string, start : int ) -> string { 
   cs inline "((#1).Substring(#2))";
-  js inline "((#1).substr(#2 >=1 ? #2 : 1))";
+  js inline "((#1).substr(#2 >= 1 ? _ucs2_index(#2) : 1))";
 }
 
 
@@ -2024,12 +2009,12 @@ fun substr( s : string, start : int, len : int   )
    else substr2(s,start,len)
 }
 
-private extern inline splitv : ( s : string,  sep : string ) -> vector<string> { 
+private extern inline splitv : ( s : string,  sep : string ) -> primarray<string> { 
   cs inline "#1.Split(new String[]{#2}, StringSplitOptions.None)";
   js inline "(#1).split(#2)"
 }
 
-private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<string> { 
+private extern inline splitv : ( s : string,  sep : string, n : int ) -> primarray<string> { 
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
 }
@@ -2037,16 +2022,16 @@ private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
 
-fun split( s : string, sep : string ) : vector<string>
+fun split( s : string, sep : string ) : list<string>
 {
-  splitv(s,sep)
+  splitv(s,sep).list
 }
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-fun split( s : string, sep: string, n : int) : vector<string>
+fun split( s : string, sep: string, n : int) : list<string>
 {
-  splitv(s,sep,n)
+  splitv(s,sep,n).list
 }
 
 // Replace every occurrence of `pattern` to `repl` in a string.
@@ -2061,6 +2046,7 @@ public extern inline count( s : string, pattern : string ) : int {
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";  
 }
 
+/*
 // Convert a string to a vector of characters.
 extern inline vector : ( s : string ) -> vector<char> { 
   cs inline "#1.ToCharArray()";
@@ -2084,45 +2070,32 @@ extern inline string : (vector<char>) -> string {
   cs inline "new String(#1)";
   js inline "#1"
 }
+*/
 
-// Convert a string to a list of characters
-fun list( s : string ) : total list<char>
-{
-  list(s.vector())
+// Convert a string to a list of unicode points
+extern list( s : string ) : total list<unicode> {
+  js inline "_cp_list(#1)"
 }
 
-// Convert a list of characters to a string
-fun string( cs : list<char> ) : total string
-{
-  cs.map( fun(c){ c.string } ).join()
+// Convert a list of unicode points to a string
+extern string( cs : list<unicode> ) : total string {
+  js inline "_cp_unlist(#1)"
 }
 
-// Apply a function `f` to each character in a string
-fun map( s : string, f : char -> e char ) : e string
+// Apply a function `f` to each code point in a string
+fun map( s : string, f : unicode -> e unicode ) : e string
 {
-  s.list().map(f).string()
+  s.list.map(f).string // todo: optimize
 }
 
 // Invoke a function for each character in a string
-fun foreach( s : string, f : char -> e () ) : e ()
+fun foreach( s : string, f : unicode -> e () ) : e ()
 {
-  for( 0, s.length - 1 ) fun(i) {
-    f(s.unsafe-idx(i))
-  }
+  s.list.foreach(f)  // optimize
 }
 
-// Count the number of occurrences of a character in a string
-fun count( s : string, c : char ) : int
-{
-  var cnt := 0
-  s.foreach fun(d) {
-    if (c == d) then cnt := cnt+1
-  }
-  cnt
-}
-
-// Count the number of times a predicate is true for each character in a string
-fun count( s : string, pred : (char) -> bool ) : int
+// Count the number of times a predicate is true for each codepoint in a string
+fun count( s : string, pred : (unicode) -> bool ) : int
 {
   var cnt := 0
   s.foreach fun(c) {
@@ -2132,12 +2105,12 @@ fun count( s : string, pred : (char) -> bool ) : int
 }
 
 
-fun lines( s : string ) : vector<string>
+fun lines( s : string ) : list<string>
 {
   s.split("\n")
 }
 
-fun unlines( xs : vector<string> ) : string
+fun unlines( xs : list<string> ) : string
 {
   xs.join("\n") 
 }
@@ -2229,40 +2202,29 @@ fun show-exp( d : double, precision : int = 6 )
   gformat(d,"e" + show(p))
 }
 
-// Convert a character to a oneElement string
-extern inline string : ( c : char ) -> string  { 
-  cs inline "(new String(#1,1))";
-  js inline "(#1)"
-}
-
-private fun show-char( c : char ) : string
+// Show a unicode codepoint as a string
+fun show-unicode( c : unicode ) : string
 {
-  if (c < ' ' || c > '~') {
-    if (c == '\n') then "\\n"
-    elif (c == '\r') then "\\r"
-    elif (c == '\t') then "\\t"
-    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2)
-    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4)
-    else "\\U" + c.int.show-hex(6)
+  if (c < 0x20 || c > 0x7E) {
+    if (c == 0x0A) then "\\n"
+    elif (c == 0x0D) then "\\r"
+    elif (c == 0x09) then "\\t"
+    elif (c <= 0xFF) then "\\x" + c.show-hex(2)
+    elif (c <= 0xFFFF) then "\\u" + c.show-hex(4)
+    else "\\U" + c.show-hex(6)
   }
   else {
-    if (c == '\'') then "\\'"
-    elif (c == '\"') then "\\\""
-    elif (c == '\\') then "\\\\"
+    if (c == 0x27) then "\\'"
+    elif (c == 0x22) then "\\\""
+    elif (c == 0x5C) then "\\\\"
     else c.string
   }
-}
-
-// Show a `:char` as a char literal
-fun show( c : char ) : string
-{
-  "'" + c.show-char + "'"
 }
 
 // Show a string as a string literal
 fun show( s : string ) : string
 {
-  "\"" + s.list.map(show-char).join + "\""
+  "\"" + s.list.map(string).join + "\""
 }
 
 private val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
@@ -2309,9 +2271,6 @@ fun print(s : string)  { prints(s) }
 // Print an integer to the console.
 fun print(i : int)     { prints(show(i)) }
 
-// Print a character to the console.
-fun print(c : char)    { prints(string(c)) }
-
 // Print a double to the console.
 fun print(d : double)  { prints(show(d)) }
 
@@ -2327,9 +2286,6 @@ fun println(s : string)  { printsln(s) }
 
 // Print an integer to the console, including a final newline character.
 fun println(i : int)     { printsln(show(i)) }
-
-// Print a character to the console, including a final newline character.
-fun println(c : char)    { printsln(string(c)) }
 
 // Print a double to the console, including a final newline character.
 fun println(d : double)  { printsln(show(d)) }
@@ -2387,22 +2343,22 @@ fun show( xs : list<bool> ) : string {
   show-list(xs,show)
 }
 
-// Right-align a string to width `width`  using `char`  (default is a space) to fill from the left.
-fun pad-left( s : string, width : int, char : char = ' ') : string
+// Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
+fun pad-left( s : string, width : int, fill : string = " ") : string
 {
   val n = s.length
   if (n >= width)
    then s
-   else string(width - n, char) + s
+   else fill.repeat(width - n / fill.length) + s
 }
 
-// Left-align a string to width `width`  using `char`  (default is a space) to fill on the right.
-fun pad-right( s : string, width : int, char : char = ' ') : string
+// Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
+fun pad-right( s : string, width : int, fill : string = " ") : string
 {
   val n = s.length
   if (n >= width)
    then s
-   else s + string(width - n, char)
+   else s + fill.repeat(width - n / fill.length)
 }
 
 // Trim whitespace on the left and right side of a string
@@ -2669,10 +2625,10 @@ extern wait( ms : int ) : async () {
 }
 
 fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
-  async-all-prim( actions.vector ).list;
+  async-all-prim( actions.unlist ).list;
 }
 
-private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
+private extern async-all-prim( actions : primarray<() -> <async|e> a> ) : <async|e> primarray<a>  {
   js inline "$asyncAll(actions,_k)"
 }
 
