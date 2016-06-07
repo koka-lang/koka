@@ -13,7 +13,9 @@ The draft language specification can be found <a href="kokaspec.html">here</a>.
 */
 module toc
   
+import std/vector
 import std/atom
+import std/date
 import std/env
 import std/file
 import std/flags

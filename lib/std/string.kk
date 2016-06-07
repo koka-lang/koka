@@ -12,9 +12,9 @@ module std/string
 
 
 
-public fun indent( s : string, n : int = 2, c : char = ' ' ) {
+public fun indent( s : string, n : int = 2, fill : string = " " ) {
   if (n<=0) return s
-  val pre = string(n,c)
+  val pre = fill.repeat(n)
   s.lines.map( fun(line) { pre + line } ).unlines
 }
 

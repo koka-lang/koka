@@ -49,14 +49,14 @@ fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
 {
-  fun encode-char(c) {
-    if (c < 'a' || c > 'z') return c
-    val base = (c - 'a').int
+  fun encode-uni(u) {
+    val base = u - "a".code
+    if (base < 0 || base > 25) return u
     val rot  = (base + shift) % 26
-    (rot.char + 'a')
+    (rot + "a".code)
   }
 
-  s.map(encode-char)
+  s.map(encode-uni)
 }
 
 fun caesar( s : string ) : string
@@ -65,9 +65,9 @@ fun caesar( s : string ) : string
 }
 ```
 
-In this example, we declare a local function `encode-char` which encodes a
-single character `c`. The final statement `s.map(encode-char)` applies the
-`encode-char` function to each character in the in the string `s`, returning a
+In this example, we declare a local function `encode-uni` which encodes a
+single unicode character `u`. The final statement `s.map(encode-uni)` applies the
+`encode-uni` function to each codepoint in the in the string `s`, returning a
 new string where each character is Caesar encoded. The result of the final
 statement in a function is also the return value of that function, and you can
 generally leave out an explicit `return` keyword.
@@ -117,17 +117,17 @@ what error Koka produces.
 ## Anonymous functions {#sec-anon}
 
 Koka also allows for anonymous function expressions. For example, instead of
-declaring the `encodeChar` function, we could just have passed it directly to
+declaring the `encode-uni` function, we could just have passed it directly to
 the `map` function as a function expression:
 
 ```
 fun encode2( s : string, shift : int )
 {
-  s.map( fun(c) {
-    if (c < 'a' || c > 'z') return c
-    val base = (c - 'a').int 
+  s.map( fun(u) {
+    val base = u - "a".code
+    if (base < 0 || base > 25) return u
     val rot  = (base + shift) % 26
-    return (rot.char + 'a')
+    (rot + "a".code)
   });
 }
 ```
@@ -461,18 +461,18 @@ Enough about effects and imperative updates. Let's look at some more functional 
 For example, cracking Caesar encoded strings:
 
 ```
-fun main() { testCrack() }
+fun main() { test-uncaesar() }
 
 fun encode( s : string, shift : int )
 {
-  function encode-char(c) {
-    if (!(c.lower?)) return c
-    val base = (c - 'a').int 
+  function encode-uni(u) {
+    val base = u - "a".code
+    if (base < 0 || base > 25) return u
     val rot  = (base + shift) % 26
-    return (rot.char + 'a')
+    (rot + "a".code)
   }
 
-  s.map(encode-char)
+  s.map(encode-uni)
 }
 ////
 // The letter frequency table for English
@@ -493,16 +493,17 @@ fun rotate( xs, n ) {
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
 {
-  val n      = s.count( lower? )     // count of lowercase letters in `s`
-  val lowers = list('a','z')         // list of the lower-case letters 
-  lowers.map( fun(c) { percent( s.count(c), n )  } )
+  val lowers = list(0,25)
+  val occurs = lowers.map( fun(c){ s.count( (c + "a".code).string ) })
+  val total  = occurs.sum
+  occurs.map( fun(i){ percent(i,total) } )
 }
 
 // Calculate how well two frequency tables match according 
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  return zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
+  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
 }
 
 // Crack a Caesar encoded string
@@ -511,7 +512,7 @@ fun crack( s : string ) : string
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english ) 
-               })   
+               })
   val min    = chitab.minimum()           // find the mininal element
   val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )

@@ -85,7 +85,7 @@ testPrint2 : () -> io player
 updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
-.../out/test/std_core.js:476
+.../out/test/std_core.js:598
  throw exn;
  ^
 bob cheated!

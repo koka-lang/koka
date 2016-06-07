@@ -103,15 +103,10 @@ public fun test( cmdargs )
 // consisting of a "header" followed by the descriptions of the "flags".
 public fun usageInfo( flags : list<option<a>>, header : string ) : string
 {
-  fun flushLeft(s : string, width : int ) {
-    if (s.length >= width) return s
-    return (s + string(width - s.length,' '))
-  }
-
   fun alignLeft( xs : list<string> )
   {
     val n = xs.map(fun(s){ s.length }).maximum
-    xs.map( fun(s){ s.flushLeft(n) } )
+    xs.map( fun(s){ s.pad-right(n) } )
   }
 
   fun paste(x,y,z) {
@@ -120,14 +115,14 @@ public fun usageInfo( flags : list<option<a>>, header : string ) : string
 
   val (shorts,longs,helps) = flags.map(showFlag).concat.unzip3
   val table = zipWith3( paste, shorts.alignLeft, longs.alignLeft, helps )
-  return (header + "\n" + table.vector.unlines)
+  return (header + "\n" + table.unlines)
 }
 
 fun showFlag( flag : option<a> ) : list<(string,string,string)>
 {
   val short = flag.shortNames.list.map(fun(c){ "-" + c.string + showShortArg(flag.arg) }).join(" ")
   val long  = flag.longNames.map(fun(name){ "--" + name + showLongArg(flag.arg) }).join(" ")
-  match (lines(flag.help).list) {
+  match (lines(flag.help)) {
     Cons(hd,tl) -> [(short,long,hd)] + tl.map( fun(s){ ("","",s)}) 
     Nil         -> [(short,long,"")]
   }
@@ -207,9 +202,9 @@ fun processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>>
 }
 
 
-fun break( s : string, c : char ) : (string,string)
+fun break( s : string, c : string ) : (string,string)
 {
-  val parts = s.split(c.string,2).list
+  val parts = s.split(c,2)
   match (parts) {
     Cons(x,Cons(y,_)) -> (x,y)
     _                 -> (s,"")
@@ -218,7 +213,7 @@ fun break( s : string, c : char ) : (string,string)
 
 fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 {
-  val (cflagname,flagarg) = s.break('=')
+  val (cflagname,flagarg) = s.break("=")
   val opt = "--" + s
   val flagname     = cflagname.to-lower
   val baseflagname = if (flagname.starts-with("no-") && flagname.length > 3) then flagname.substr(3) else ""
@@ -265,7 +260,7 @@ fun parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
   val fs = s.list.map-indexed fun(i,c) {
     if (done) then return Nothing
     val opt = "-" + c.string
-    val applicable = flags.filter( fun(flag){ flag.shortNames.contains(c) } )
+    val applicable = flags.filter( fun(flag){ flag.shortNames.contains(c.string) } )
     match(applicable) {
       Nil -> Just(errorUnknown(opt))
       Cons(_,Cons(_,_))   

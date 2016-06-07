@@ -12,11 +12,11 @@ public type tree<a> {
   con Node(left :tree<a>, right :tree<a>)
 }
 
-fun show( t : tree<char> ) : string
+fun show( t : tree<string> ) : string
 {
   match(t) {
-    Leaf(c) -> core/show(c)
-    Node(l,r) -> "Node(" + show(l) + "," + show(r) + ")"
+    Leaf(s)   -> s.show
+    Node(l,r) -> "Node(" + l.show + "," + r.show + ")"
   }
 }
 
@@ -104,7 +104,7 @@ fun build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list
 }
 
 public fun test() {
-  val wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
+  val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garciawachs()
   tree.show()
 }

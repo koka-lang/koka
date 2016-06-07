@@ -10,7 +10,7 @@
 // However, koka does infer that no other effect (i.e. an exception due to a partial match) can occur.
 
 public fun main() {
-  val wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
+  val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garsiaWachs()
   tree.show.println()
 }
@@ -23,9 +23,9 @@ public type tree<a> {
   con Node(left :tree<a>, right :tree<a>)
 }
 
-fun show( t : tree<char> ) : string {
+fun show( t : tree<string> ) : string {
   match(t) {
-    Leaf(c) -> core/show(c)  
+    Leaf(s)   -> show(s)  
     Node(l,r) -> "Node(" + show(l) + "," + show(r) + ")"
   }
 }

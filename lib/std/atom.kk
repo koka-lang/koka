@@ -14,37 +14,39 @@
 */
 module std/atom
 
+import std/vector
+
 external include {
   cs file "atom-inline.cs"
   js file "atom-inline.js"
 }
 
 // An `atom` corresponding to the empty string
-public val atomNull = atom("")
+public val atom-null = atom("")
 
 // An atom is an abstract representation of a string that can be compared quickly
 abstract struct atom( value: int )  
 
 // Create an `:atom`
-extern atomCreate : ( s : string ) -> int {
+extern atom-create : ( s : string ) -> int {
   cs "Atom.Create"
   js "$atomCreate"
 }
 
 // Convert an `:atom` back to a `:string`
-extern atomToString : ( x : int ) -> string {
+extern atom-to-string : ( x : int ) -> string {
   cs "Atom.ToString"
   js "$atomToString"
 }
 
 // Create an `:atom`
 public fun atom( s : string ) : atom {
-  atomCreate(s).Atom
+  atom-create(s).Atom
 }
 
 // Convert an `:atom` back to a `:string`
-public fun toString( a : atom ) : string {
-  atomToString(a.value)
+public fun string( a : atom ) : string {
+  atom-to-string(a.value)
 }
 
 // Compare two atoms for equality
@@ -54,13 +56,13 @@ public fun (==)(x : atom, y : atom) : bool  -> (x.value == y.value)
 public fun (!=)(x : atom, y : atom) : bool  -> (x.value != y.value)
 
 
-extern atomMatcher : ( xs : vector<string>, ignoreCase: int ) -> any
+extern atom-matcher : ( xs : vector<string>, ignoreCase: int ) -> any
 {
   cs "Atom.CreateMatcher"
   js "$atomCreateMatcher"
 }
 
-extern atomMatch : ( m : any, s : string, ignoreCase: int ) -> int
+extern atom-match : ( m : any, s : string, ignoreCase: int ) -> int
 {
   cs "Atom.Match"
   js "$atomMatch"
@@ -75,6 +77,6 @@ public fun matcher( xs : list<string>, ignoreCase: bool = False ) : (( s : strin
 // Create an efficient string matcher which given a vector of strings returns a matching function.
 public fun matcher( xs : vector<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
-  val m = atomMatcher( xs, ignoreCase.int );
-  return fun(s) { return bool(atomMatch(m,s,int(ignoreCase))); }
+  val m = atom-matcher( xs, ignoreCase.int );
+  return fun(s) { return bool(atom-match(m,s,int(ignoreCase))); }
 }

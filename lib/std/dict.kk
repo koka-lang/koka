@@ -10,6 +10,8 @@
 */  
 public module std/dict
 
+import std/vector
+
 extern include {
   js file "dict-inline.js"
 }
