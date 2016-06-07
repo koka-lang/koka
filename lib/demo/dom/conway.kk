@@ -21,13 +21,13 @@ import demo/dom/tile
 struct cell( row : int, col : int, alive : bool )
 alias  world = list<list<cell>>
  
-public function main() { 
+public fun main() { 
   withWindow fun(w) { 
     gameOfLife(w) 
   } 
 }
 
-function gameOfLife( window:   window,
+fun gameOfLife( window:   window,
                        gridSize: int                  = 50,
                        lineColor: string              = "#cdcdcd",
                        liveColor: string              = "green",
@@ -44,11 +44,11 @@ function gameOfLife( window:   window,
   canvas.height := 400
   canvas.width := 400
 
-  function isAlive(world : world, row : int, col : int) : exn bool {  
-    ((world[row % gridSize].unJust)[col % gridSize]).unJust.alive
+  fun isAlive(world : world, row : int, col : int) : exn bool {  
+    ((world[row % gridSize].unjust)[col % gridSize]).unjust.alive
   }
 
-  function countNeighbors( w : world, c : cell ) : exn int {
+  fun countNeighbors( w : world, c : cell ) : exn int {
     [ w.isAlive(c.row - 1, c.col - 1),
       w.isAlive(c.row - 1, c.col), 
       w.isAlive(c.row - 1, c.col + 1), 
@@ -59,7 +59,7 @@ function gameOfLife( window:   window,
       w.isAlive(c.row + 1, c.col + 1) ].filter(id).length
   }
  
-  function createWorld() : ndet world { 
+  fun createWorld() : ndet world { 
     list(0, gridSize - 1).map fun(r) {
       list(0, gridSize - 1).map fun(c) { 
         Cell(r,c, random() < initialLifeProbability)
@@ -67,11 +67,11 @@ function gameOfLife( window:   window,
     } 
   }
 
-  function mapWorld( w : world, f : cell -> e a ) : e list<list<a>> {
+  fun mapWorld( w : world, f : cell -> e a ) : e list<list<a>> {
     w.map(fun(xs) { xs.map(f) }) 
   } 
 
-  function evolve( w : world ) : exn world {
+  fun evolve( w : world ) : exn world {
     w.mapWorld fun(c) {
       val count = countNeighbors(w,c)
       if(w.isAlive(c.row, c.col)) {
@@ -82,7 +82,7 @@ function gameOfLife( window:   window,
     } 
   }
 
-  function draw(ctx : canvasRenderingContext2d, c : cell) : dom () { 
+  fun draw(ctx : canvasRenderingContext2d, c : cell) : dom () { 
     ctx.strokeStyle := lineColor
     ctx.strokeRect(c.row.double * cellSize, c.col.double * cellSize, cellSize, cellSize)
     if(c.alive) {
@@ -93,7 +93,7 @@ function gameOfLife( window:   window,
     ctx.fillRect(c.row.double * cellSize, c.col.double * cellSize, cellSize, cellSize)
   }   
 
-  function loop(ctx : canvasRenderingContext2d, world : world) : <dom,div> () 
+  fun loop(ctx : canvasRenderingContext2d, world : world) : <dom,div> () 
   { 
     framecounter := framecounter + 1
     world.mapWorld fun(c) { draw(ctx, c) } 
@@ -101,7 +101,7 @@ function gameOfLife( window:   window,
   }
 
 
-  function measurePerformance() 
+  fun measurePerformance() 
   { 
     println( framecounter.show + "fps" )
     framecounter := 0 

@@ -1,6 +1,6 @@
 // This module implements the GarsiaWachs algorithm.
 // It is an adaptation of the algorithm in ML as described by JeanChristophe Filli�tre:
-// in ''A functional implementation of the GarsiaWachs algorithm. (functional pearl). ML workshop 2008, pages 91--96''.
+// in ''A funal implementation of the GarsiaWachs algorithm. (funal pearl). ML workshop 2008, pages 91--96''.
 // See: http://www.lri.fr/~filliatr/publis/gwWml08.pdf
 //
 // The algorithm is interesting since it uses mutable references shared between a list and tree but the
@@ -9,7 +9,7 @@
 // definitions in "insert" and "extract" are terminating and the final algorithm still has a divergence effect.
 // However, koka does infer that no other effect (i.e. an exception due to a partial match) can occur.
 
-public function main() {
+public fun main() {
   val wlist = Cons1(('a',3), [('b',2),('c',1),('d',4),('e',5)])
   val tree  = wlist.garsiaWachs()
   tree.show.println()
@@ -23,7 +23,7 @@ public type tree<a> {
   con Node(left :tree<a>, right :tree<a>)
 }
 
-function show( t : tree<char> ) : string {
+fun show( t : tree<char> ) : string {
   match(t) {
     Leaf(c) -> core/show(c)  
     Node(l,r) -> "Node(" + show(l) + "," + show(r) + ")"
@@ -38,12 +38,12 @@ public type list1<a> {
   Cons1( head : a, tail : list<a> )
 }
 
-function map( xs, f ) {
+fun map( xs, f ) {
   val Cons1(y,ys) = xs
-  return Cons1(f(y), core/map(ys,f))
+  Cons1(f(y), core/map(ys,f))
 }
 
-function zip( xs :list1<a>, ys :list1<b> ) : list1<(a,b)> {
+fun zip( xs :list1<a>, ys :list1<b> ) : list1<(a,b)> {
   Cons1( (xs.head, ys.head), zip(xs.tail, ys.tail))
 }
 
@@ -52,7 +52,7 @@ function zip( xs :list1<a>, ys :list1<b> ) : list1<(a,b)> {
 // Phase 1
 //----------------------------------------------------
 
-function insert( after : list<(tree<a>,int)>, t : (tree<a>,int), before : list<(tree<a>,int)> ) : div tree<a>
+fun insert( after : list<(tree<a>,int)>, t : (tree<a>,int), before : list<(tree<a>,int)> ) : div tree<a>
 {
   match(before) {
     Nil -> extract( [], Cons1(t,after) )
@@ -66,7 +66,7 @@ function insert( after : list<(tree<a>,int)>, t : (tree<a>,int), before : list<(
   }
 }
 
-function extract( before : list<(tree<a>,int)>, after : list1<(tree<a>,int)> ) : div tree<a>
+fun extract( before : list<(tree<a>,int)>, after : list1<(tree<a>,int)> ) : div tree<a>
 {
   val Cons1((t1,w1) as x, xs ) = after
   match(xs) {
@@ -81,7 +81,7 @@ function extract( before : list<(tree<a>,int)>, after : list1<(tree<a>,int)> ) :
   }
 }
 
-function balance( xs : list1<(tree<a>,int)> ) : div tree<a> {
+fun balance( xs : list1<(tree<a>,int)> ) : div tree<a> {
   extract( [], xs )
 }
 
@@ -89,14 +89,14 @@ function balance( xs : list1<(tree<a>,int)> ) : div tree<a> {
 // Phase 2
 //----------------------------------------------------
 
-function mark( depth :int, t :tree<(a,ref<h,int>)> ) : <write<h>> () {
+fun mark( depth :int, t :tree<(a,ref<h,int>)> ) : <write<h>> () {
   match(t) {
     Leaf((_,d)) -> d := depth
     Node(l,r)   -> { mark(depth+1,l); mark(depth+1,r) }
   }
 }
 
-function build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list<(a,ref<h,int>)>)
+fun build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list<(a,ref<h,int>)>)
 {
   if (!(xs.head.snd) == depth) return (Leaf(xs.head.fst), xs.tail)
 
@@ -114,7 +114,7 @@ function build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>
 // Main
 //----------------------------------------------------
 
-public function garsiaWachs( xs : list1<(a,int)> ) : div tree<a>
+public fun garsiaWachs( xs : list1<(a,int)> ) : div tree<a>
 {
   val refs   = xs.map(fst).map( fun(x) { (x, ref(0)) } )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
