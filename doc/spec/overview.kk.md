@@ -49,14 +49,14 @@ fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
 {
-  fun encodeChar(c) {
+  fun encode-char(c) {
     if (c < 'a' || c > 'z') return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
     (rot.char + 'a')
   }
 
-  s.map(encodeChar)
+  s.map(encode-char)
 }
 
 fun caesar( s : string ) : string
@@ -65,9 +65,9 @@ fun caesar( s : string ) : string
 }
 ```
 
-In this example, we declare a local function `encodeChar` which encodes a
-single character `c`. The final statement `s.map(encodeChar)` applies the
-`encodeChar` function to each character in the in the string `s`, returning a
+In this example, we declare a local function `encode-char` which encodes a
+single character `c`. The final statement `s.map(encode-char)` applies the
+`encode-char` function to each character in the in the string `s`, returning a
 new string where each character is Caesar encoded. The result of the final
 statement in a function is also the return value of that function, and you can
 generally leave out an explicit `return` keyword.
@@ -289,15 +289,15 @@ etc.
 Often, a function contains multiple effects, for example:
 
 ```
-fun combineEffects() 
+fun combine-effects() 
 {
-  val i = randomInt() // non-deterministic
-  error("hi")         // exception raising
-  combineEffects()    // and non-terminating
+  val i = random-int() // non-deterministic
+  error("hi")          // exception raising
+  combine-effects()    // and non-terminating
 }
 ```
 
-The effect assigned to `combineEffects` are `:ndet`, `:div`, and `:exn`. We
+The effect assigned to `combine-effects` are `:ndet`, `:div`, and `:exn`. We
 can write such combination as a _row_ of effects as `: <div,exn,ndet> `. When
 you hover over the `combine-effects` identifiers, you will see that the type
 inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as
@@ -345,7 +345,7 @@ fun main() { looptest() }
 ////
 fun looptest() 
 {
-  while { odd(randomInt()) } 
+  while { odd(random-int()) } 
   {
     error("<b>")
   }
@@ -465,14 +465,14 @@ fun main() { testCrack() }
 
 fun encode( s : string, shift : int )
 {
-  function encodeChar(c) {
-    if (!(c.isLower)) return c
+  function encode-char(c) {
+    if (!(c.lower?)) return c
     val base = (c - 'a').int 
     val rot  = (base + shift) % 26
     return (rot.char + 'a')
   }
 
-  s.map(encodeChar)
+  s.map(encode-char)
 }
 ////
 // The letter frequency table for English
@@ -493,7 +493,7 @@ fun rotate( xs, n ) {
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
 {
-  val n      = s.count( isLower )   // count of lowercase letters in `s`
+  val n      = s.count( lower? )     // count of lowercase letters in `s`
   val lowers = list('a','z')         // list of the lower-case letters 
   lowers.map( fun(c) { percent( s.count(c), n )  } )
 }
@@ -502,7 +502,7 @@ fun freqs( s : string ) : list<double>
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  return zipWith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
+  return zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
 }
 
 // Crack a Caesar encoded string
@@ -513,7 +513,7 @@ fun crack( s : string ) : string
                   chisqr( table.rotate(n), english ) 
                })   
   val min    = chitab.minimum()           // find the mininal element
-  val shift  = chitab.indexOf( fun(f){ f == min } ).negate  // and use its position as our shift
+  val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )
 }
   

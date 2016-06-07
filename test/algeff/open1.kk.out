@@ -1,5 +1,5 @@
 10
-bar : () -> exn int
+bar : () -> int
 hs : forall<e> list<(int) -> e int>
-main : () -> <exn,console> ()
+main : () -> console ()
 myid : forall<a,e> () -> ((x : a) -> e a)

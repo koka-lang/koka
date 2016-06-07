@@ -39,7 +39,7 @@ module Common.NamePrim
           , nameOptional, nameOptionalNone
           , nameTpDelay
           -- * Lists
-          , nameNull, nameCons, nameEnumFromTo, nameEnumFromThenTo, nameTpList
+          , nameNull, nameCons, nameTpList
           -- * Type constructors
           , nameEffectEmpty, nameEffectExtend
           , nameEffectAppend
@@ -134,8 +134,8 @@ nameTpOptional       = preludeName "optional"
 
 nameTpDelay          = preludeName "delay"
 
-namePatternMatchError = preludeName "patternMatchError"
-nameMainConsole      = preludeName "mainConsole"
+namePatternMatchError = preludeName "error-pattern-match"
+nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
 
 nameAssign      = preludeName ":="
@@ -150,16 +150,14 @@ nameTpArray     = preludeName "array"
 nameTpVector    = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
-nameDecreasing  = preludeName "unsafeDecreasing"
-nameUnsafeTotal = preludeName "unsafeTotal"
+nameDecreasing  = preludeName "unsafe-decreasing"
+nameUnsafeTotal = preludeName "unsafe-total"
 
 {--------------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------------}
 nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
-nameEnumFromTo  = preludeName "enumFromTo"
-nameEnumFromThenTo = preludeName "enumFromThenTo"
 nameTpList      = preludeName "list"
 
 

@@ -32,7 +32,7 @@ public struct option<a>(
   longNames  : list<string>,
   arg        : optionArg<a>,
   help       : string,
-  llongNames : list<string> = longNames.map(toLower)
+  llongNames : list<string> = longNames.map(to-lower)
 )
 
 // Specifies the argument of an option
@@ -199,9 +199,9 @@ fun processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>>
 {
   if ("--" == arg)
    then [End]
-  elif (arg.startsWith("--"))
+  elif (arg.starts-with("--"))
    then [parseLong( arg.substr(2), flags )]
-  elif (arg.startsWith("-") && arg.length >= 2)
+  elif (arg.starts-with("-") && arg.length >= 2)
    then parseShorts( arg.substr(1), flags )
    else [Arg(arg)]
 }
@@ -220,12 +220,12 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 {
   val (cflagname,flagarg) = s.break('=')
   val opt = "--" + s
-  val flagname     = cflagname.toLower
-  val baseflagname = if (flagname.startsWith("no-") && flagname.length > 3) then flagname.substr(3) else ""
+  val flagname     = cflagname.to-lower
+  val baseflagname = if (flagname.starts-with("no-") && flagname.length > 3) then flagname.substr(3) else ""
   
-  val lnames   = flags.concat(fun(flag) { flag.llongNames } )
+  val lnames   = flags.flatmap(fun(flag) { flag.llongNames } )
   val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
-  val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.startsWith(flagname) || (baseflagname != "" && name.startsWith(baseflagname)) } ) } )
+  val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.starts-with(flagname) || (baseflagname != "" && name.starts-with(baseflagname)) } ) } )
   val applicable = if (exacts.nil?) then prefixes else exacts
   
   match(applicable) {
@@ -236,9 +236,9 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
           Flag(set)
             -> if (flagarg == "")
                 then Flg(fun(o){ set(o, baseflagname=="") })
-               elif (flagarg.toLower == "true")
+               elif (flagarg.to-lower == "true")
                 then Flg(fun(o) { set(o,True) })
-               elif (flagarg.toLower == "false")
+               elif (flagarg.to-lower == "false")
                 then Flg(fun(o) { set(o,False) })
                 else errorNoarg(opt)
           Req(parse,help)
@@ -262,7 +262,7 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
 fun parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
 {
   var done := False
-  val fs = s.list.mapIndexed fun(i,c) {
+  val fs = s.list.map-indexed fun(i,c) {
     if (done) then return Nothing
     val opt = "-" + c.string
     val applicable = flags.filter( fun(flag){ flag.shortNames.contains(c) } )

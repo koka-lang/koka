@@ -31,7 +31,7 @@ val solutions = handler {
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.showList(fun(xs) { xs.showList(core/show) } )
+  xss.show-list(fun(xs) { xs.show-list(core/show) } )
 }
 
 fun test1() {
@@ -76,7 +76,7 @@ fun show(x : (int,list<list<int>>)) : string {
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
-  xs.showList fun(x) {
+  xs.show-list fun(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
@@ -161,7 +161,7 @@ fun many1(p) {
 
 fun number() {
   val ds = many1(digit)
-  parseIntDefault(ds.string,0)
+  parse-int(ds.string).maybe(0)
 }
 
 fun expr() : <div,nondet,symbol> int {

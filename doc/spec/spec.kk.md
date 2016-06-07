@@ -386,7 +386,7 @@ function bar()
     "list",
     "elements",
   ]
-  if (odd(randomInt())) 
+  if (odd(random-int())) 
   {
     print("odd")
   }

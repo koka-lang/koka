@@ -24,8 +24,6 @@ ticks: 2
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr
 div? : (expr : expr) -> bool
-e1 : (expr : expr) -> exn expr
-e2 : (expr : expr) -> exn expr
 eval : (e : expr) -> stexn<int>
 eval0 : (e : expr) -> int
 eval1 : (e : expr) -> exc int
@@ -36,7 +34,6 @@ expr1 : expr
 expr2 : expr
 exprX : expr
 fail : forall<a> (s : string) -> exc a
-i : (expr : expr) -> exn int
 int? : (expr : expr) -> bool
 line : (e : expr) -> out ()
 main : () -> console ()

@@ -11,22 +11,6 @@
 module std/string
 
 
-// Trim whitespace on the left and right side of a string
-public fun trim( s : string ) : string {
-  s.trimLeft.trimRight
-}
-
-// Trim the starting white space of a string 
-public extern inline trimLeft( s : string ) : string {
-  cs inline "(#1).TrimStart()"
-  js inline "((#1).replace(/^\\s\\s*/,''))"
-}
-
-// Trim the ending white space of a string.
-public extern inline trimRight( s : string ) : string {
-  cs inline "(#1).TrimEnd()"
-  js inline "((#1).replace(/\\s+$/,''))"
-}
 
 public fun indent( s : string, n : int = 2, c : char = ' ' ) {
   if (n<=0) return s

@@ -17,13 +17,13 @@ extern include {
 }
 
 // Change the extension of a path
-fun changeExt( path : string, ext : string ) : string {
-  path.noext + (if (ext.startsWith(".")) then "" else ".") + ext
+fun change-ext( path : string, ext : string ) : string {
+  path.noext + (if (ext.starts-with(".")) then "" else ".") + ext
 }
 
 // If a path has no extension, set it to the provided one.
-fun defaultExt( fname, ext ) {
-  if (fname.extname=="") then fname.changeExt(ext) else fname
+fun default-ext( fname, ext ) {
+  if (fname.extname=="") then fname.change-ext(ext) else fname
 }
 
 
@@ -37,8 +37,8 @@ fun noext( path : string ) : string {
 // Join arguments using the platform specific directory separator  
 // Note: unlike NodeJS the resulting path is not yet normalized
 fun combine( path1 : string, path2 : string ) : string {
-  val p2 = if (path2.startsWith(sep)) then path2.substr(1) else path2
-  val p1 = if (path1.endsWith(sep)) then path1.substr(0,path1.length - 1) else path1
+  val p2 = if (path2.starts-with(sep)) then path2.substr(1) else path2
+  val p1 = if (path1.ends-with(sep)) then path1.substr(0,path1.length - 1) else path1
   if (p1=="") then p2 else p1 + sep + p2
 }
 
@@ -61,7 +61,7 @@ extern normalize( p : string ) : io string {
 // `dirname("foo/bar.ext") == "foo")`
 fun dirname( p : string ) : string {
   val d = p.xdirname
-  if (d=="." && !(p.startsWith("."))) then "" else d
+  if (d=="." && !(p.starts-with("."))) then "" else d
 }
 
 private extern xdirname( p : string ) : string {
@@ -90,7 +90,7 @@ public fun stemname( p : string ) : string {
 }
 
 // Append to the stem name of a path
-public fun appendStem( path : string, extra : string ) : string {
+public fun append-stem( path : string, extra : string ) : string {
   combine(path.dirname, path.stemname + extra + path.extname)
 }
 
@@ -111,7 +111,7 @@ private extern pathdelim() : string {
 val delimiter : string = pathdelim()
 
 
-extern programPath() : io string {
+extern program-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
   js inline "((fun(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
 }

@@ -9,15 +9,12 @@ extract : forall<a> (before : list<(tree<a>, int)>, after : list1<(tree<a>, int)
 garciawachs : forall<a> (xs : list1<(a, int)>) -> div tree<a>
 head : forall<a> (list1 : list1<a>) -> a
 insert : forall<a> (after : list<(tree<a>, int)>, t : (tree<a>, int), before : list<(tree<a>, int)>) -> div tree<a>
-isLeaf : forall<a> (tree : tree<a>) -> bool
-isNode : forall<a> (tree : tree<a>) -> bool
-left : forall<a> (tree : tree<a>) -> exn tree<a>
+leaf? : forall<a> (tree : tree<a>) -> bool
 main : () -> <div,console> ()
 map : forall<a,b,e> (xs : list1<a>, f : (a) -> e b) -> e list1<b>
 mark : forall<a,h> (depth : int, t : tree<(a, ref<h,int>)>) -> (write<h>) ()
-right : forall<a> (tree : tree<a>) -> exn tree<a>
+node? : forall<a> (tree : tree<a>) -> bool
 show : (t : tree<char>) -> string
 tail : forall<a> (list1 : list1<a>) -> list<a>
 test : () -> div string
-value : forall<a> (tree : tree<a>) -> exn a
 zip : forall<a,b> (xs : list1<a>, ys : list1<b>) -> list1<(a, b)>
