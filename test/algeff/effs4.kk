@@ -1,4 +1,4 @@
-// test state as function result from a handler (where resume is captured)
+// test state as fun result from a handler (where resume is captured)
 
 effect state<s> {
   get()    : s;
@@ -11,11 +11,11 @@ val state = handler {
   set(t)   -> fun(s) { resume(())(t) }
 }
 
-function test() {
+fun test() {
   set(2)
   if (get() > 0) then "positive" else "negative or zero"
 }
 
-function main() {
+fun main() {
   uncps{ state(test)(0).println }
 }

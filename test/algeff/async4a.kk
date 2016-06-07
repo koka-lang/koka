@@ -1,10 +1,11 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
+import std/readline
 
-function test() {
+fun test() {
   println("starting")
-  val xs = asyncAll( [
+  val xs = async-all( [
     { println("what is your name?")
       readline()
     },
@@ -17,6 +18,6 @@ function test() {
   println("hi " + xs.join(","))  
 }
 
-function main() {
+fun main() {
   test()
 }

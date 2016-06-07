@@ -1245,8 +1245,8 @@ ppTypeCon ctx c kind
          then text "Ref"
         else if (name == nameTpAny)
          then text "object"
-        else if (name == nameTpAsyncEvent)
-         then text "Async"
+        -- else if (name == nameTpAsyncEvent)
+        --  then text "Async"
         else if (name == nameTpException)
          then text "Exception"
         else if (name == nameTpDict)

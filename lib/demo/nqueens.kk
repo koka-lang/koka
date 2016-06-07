@@ -16,8 +16,8 @@ function appendSafe( queen : int, xs : solution, xss : solutions ) : div solutio
   if (queen <= 0) xss
   else {
    if (safe(queen,1,xs))
-    then appendSafe( queen-1, xs, Cons(Cons(queen,xs),xss) )
-    else appendSafe( queen-1, xs, xss )
+    then appendSafe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
+    else appendSafe( queen - 1, xs, xss )
   }
 }
 
@@ -32,7 +32,7 @@ function extend(queen : int, acc : solutions, xss : solutions ) : div solutions
 function findSolutions( n : int, queen : int ) : div solutions
 {
   if (queen==0) [[]]
-           else extend(n,[], findSolutions(n,queen-1))
+           else extend(n,[], findSolutions(n,queen - 1))
 }
 
 public function queens( n : int ) : div int

@@ -20,13 +20,13 @@ val state = handler(s) {
   put(t)   -> if (flip()) then resume(t,()) else resume(s,()) 
 }
 
-function foo() {
+fun foo() {
   val i = get()
   put(i+1)
   put(i+2)
   get()
 }
 
-public function main() {
+public fun main() {
   amb({state(0,foo)}).showList(show).print  // 42
 }

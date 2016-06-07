@@ -1,9 +1,9 @@
 // --------------------------------------------------------
 // Async demo
 // --------------------------------------------------------
+import std/readline
 
-
-function main() {
+fun main() {
   println("what is your name?")
   val name = readline()
   println("and your age?")

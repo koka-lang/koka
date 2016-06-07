@@ -8,7 +8,7 @@ effect nondet {
   fail() : a
 }
 
-function knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
+fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
   if (w < 0)    then fail()
   elif (w == 0) then []
   else {
@@ -17,7 +17,7 @@ function knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
   }
 }
 
-function select(xs) {
+fun select(xs) {
   match(xs) {
     Nil        -> fail()
     Cons(x,xx) -> if (flip()) then x else select(xx) 
@@ -30,11 +30,11 @@ val solutions = handler {
   flip()   -> resume(True) + resume(False)
 }
 
-function show( xss : list<list<int>> ) : string {
+fun show( xss : list<list<int>> ) : string {
   xss.showList(fun(xs) { xs.showList(core/show) } )
 }
 
-function test1() {
+fun test1() {
   solutions{ knapsack(3,[3,2,1]) }
 }
 
@@ -53,15 +53,15 @@ val state = handler(i) {
   put(j)   -> resume(j,())
 }
 
-function incr(i = 1) : state<int> () {
+fun incr(i = 1) : state<int> () {
   put(get()+i)
 }
 
-function local(s,action) {
+fun local(s,action) {
   solutions{ state(s,action) }
 }
 
-function global(s,action) {
+fun global(s,action) {
   state(s){ solutions(action) }
 }
 
@@ -71,21 +71,21 @@ val choices = handler {
   flip()   -> { incr(); resume(flip()) }
 }
 
-function show(x : (int,list<list<int>>)) : string {
+fun show(x : (int,list<list<int>>)) : string {
   "(state=" + x.fst.show + ", " + x.snd.show + ")"
 }
 
-function show(xs : list<(int,list<int>)>) : string {
+fun show(xs : list<(int,list<int>)>) : string {
   xs.showList fun(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
 
-function test2() {
+fun test2() {
   global(0){ choices{ knapsack(3,[3,2,1]) }}
 }
 
-function test3() {
+fun test3() {
   local(0){ choices{ knapsack(3,[3,2,1]) }}
 }
 
@@ -97,7 +97,7 @@ effect cutfail {
   cutfail() : a
 }
 
-function cut() {
+fun cut() {
   if (flip()) then () else cutfail()
 }
 
@@ -114,15 +114,15 @@ val collect = handler(q=fail) {
   flip()   -> resume({resume(q,False)}, True)  
 }
 
-function call(p) { 
+fun call(p) { 
   hcutfail{ collect(p) }
 }
 
-function once(p) {
+fun once(p) {
   call{ val x = p(); cut() x }
 }
 
-function test4() {
+fun test4() {
   solutions{ once{ knapsack(3,[3,2,1]) }}
 }
 
@@ -135,7 +135,7 @@ effect symbol {
 }
 
 val parse = handler(cs) {
-  return x -> if (cs.isNil) then x else fail()
+  return x -> if (cs.nil?) then x else fail()
   symbol(s)-> match(cs) {
                 Cons(c,cc) | c == s -> resume(cc,s)
                 _ -> fail()
@@ -143,28 +143,28 @@ val parse = handler(cs) {
 }
 
 
-function digit() : <nondet,symbol> char {
+fun digit() : <nondet,symbol> char {
   symbol(select(list('0','9')))
 }
 
-function choice(p1,p2) {
+fun choice(p1,p2) {
   if (flip()) then p1() else p2()
 }
 
-function many(p) {
+fun many(p) {
   choice{ many1(p) }{ [] }
 }
 
-function many1(p) {
+fun many1(p) {
   Cons(p(),many(p))
 }
 
-function number() {
+fun number() {
   val ds = many1(digit)
   parseIntDefault(ds.string,0)
 }
 
-function expr() : <div,nondet,symbol> int {
+fun expr() : <div,nondet,symbol> int {
   choice { 
     val i :int = term()
     symbol('+')
@@ -174,7 +174,7 @@ function expr() : <div,nondet,symbol> int {
   { term() }
 }
 
-function term() {
+fun term() {
   choice {
     val i : int = factor()
     symbol('*')
@@ -184,7 +184,7 @@ function term() {
   { factor() }
 }
 
-function factor() {
+fun factor() {
   choice(number) {
     symbol('(')
     val i = expr()
@@ -193,7 +193,7 @@ function factor() {
   }
 }
 
-function test5() {
+fun test5() {
   solutions{ parse("2+8*5".list){ expr() } }
 }
 
@@ -207,14 +207,14 @@ effect call {
   ecall() : ()
 }
 
-function call2(p) {
+fun call2(p) {
   bcall()
   val x = p()
   ecall()
   x
 }
 
-function hbcall(action : () -> <exn,div,cutfail,nondet> _) {
+fun hbcall(action : () -> <exn,div,cutfail,nondet> _) {
   handle(action) {
     return x -> x
     bcall()  -> hbcall{ call{ hecall{ uncps{ resume(()) } } }}
@@ -222,7 +222,7 @@ function hbcall(action : () -> <exn,div,cutfail,nondet> _) {
   } 
 }
 
-function hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
+fun hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
   handle(action) {
     return x -> fun(_){ x }
     ecall()  -> resume
@@ -230,11 +230,11 @@ function hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nond
   }
 }
 
-function runCut(p) {
+fun runCut(p) {
   call{ hbcall(p) }
 }
 
-function expr3() {
+fun expr3() {
   val i = term()
   call2{ 
     choice {
@@ -244,7 +244,7 @@ function expr3() {
     }{ i }
   }
 }
-function test6() {
+fun test6() {
   ()//solutions{ runCut{ parse("1".list,expr3) } }
 }
 */
@@ -253,7 +253,7 @@ function test6() {
 // Main
 // --------------------------------------------------------------
 
-function main() {
+fun main() {
   [test1().show
   ,test2().show
   ,test3().show

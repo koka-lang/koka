@@ -792,7 +792,7 @@ var testMessage = "total time ";
 
 function runTests(test,testMode,flags,callback) {
   testMode = testMode||"";
-  flags = flags || ("-i" + testDir + " --outdir=" + path.join(outputDir,"test"));
+  flags = flags || ("-i" + libraryDir + " -i" + testDir + " --outdir=" + path.join(outputDir,"test"));
   flags = "--checkcore " + flags 
   fs.stat(test,function(err,stats) {
     if (err) {
@@ -900,7 +900,7 @@ function runTestFile(n,testFile,testMode,flags,callback) {
     if (!err) flags += " " + content.trim().replace("\n"," ");
     fs.readFile(testFile + ".flags", { encoding: "utf8" }, function(err,content) {
       if (!err) flags += " " + content.trim().replace("\n"," ");      
-      var cmd = [mainExe,hsRunFlags,kokaFlags," -c --console=raw",flags,testFile].join(" ");
+      var cmd = [mainExe,hsRunFlags," -c --console=raw",flags,testFile].join(" ");
       jake.logger.log(n + ": " + testFile);
       if (testMode==="verbose") jake.logger.log("> " + cmd);
       child.exec(cmd, function (error, stdout, stderr) {

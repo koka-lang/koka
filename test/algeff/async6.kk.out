@@ -3,7 +3,7 @@
 .copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
 .tag-Eff-amb: string
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
-dowait : (s : int) -> <asyn,console> string
+dowait : (s : int) -> <async,console> string
 flip : () -> amb bool
-main : () -> <exn,asyn,console> ()
-test : () -> <amb,exn,asyn,console> ()
+main : () -> <exn,async,console> ()
+test : () -> <amb,exn,async,console> ()

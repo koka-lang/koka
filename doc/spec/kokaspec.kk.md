@@ -9,7 +9,8 @@ Css           : http://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
 Script        : scripts/kokaspec.js
-Colorizer     : unchecked
+Colorizer     : unchecked.json
+Colorizer     : koka.json
 Bibliography  : koka.bib
 [INCLUDE=styles/webpaginated.mdk]
 
@@ -40,6 +41,10 @@ toc.toc-contents {
 
   .pre-fenced3 {
     border-left: 0.5ex solid green; 
+  }
+  
+  .token.predefined {
+    color: navy;
   }
 }
 

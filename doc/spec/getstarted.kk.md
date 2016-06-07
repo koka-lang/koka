@@ -13,29 +13,37 @@ The following programs are required to build Koka:
 
 Next, get the compiler and libraries from codeplex, and build them: 
 
-* ``> hg clone https://hg.codeplex.com/koka -b algeff``\
-  (clone the Koka sources with algebraic effects support)
+1. First clone the Koka sources with algebraic effects support:
 
-* ``> cd koka``\
-  (go to the new Koka directory) 
+       > hg clone https://hg.codeplex.com/koka -b algeff
 
-* ``> npm install``\
-  (install needed Node libraries) 
+   You can also use ``-b algeff-dev`` to get the latest development version.
 
-* ``> jake``\
-  (build the compiler and run the Koka interactive environment)
+2. Go to the newly created Koka directory:
 
+       > cd koka
+
+3. Install any needed Node libraries using the Node package manager: 
+
+       > npm install
+
+   If you are running on MacOSX or Unix, you may have to run this as
+   ``sudo npm install`` so that the ``npm`` package manager has enough
+  permissions to install the ``jake`` and ``madoko`` tools.
+
+4. Finally, build the compiler and run the Koka interactive environment:
+       > jake
+
+   You can type ``jake help`` to see an overview of all make targets.
 
 The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
     > jake sublime
 
-After this ``.kk`` files will be properly highlighted, especially
-with the newly installed ``snow`` color scheme which is designed to
-work well with Koka files.
-
-You can type ``jake help`` to see an overview of all make targets.
+After this ``.kk`` files will be properly highlighted. It is also
+recommended to use the newly installed ``snow`` color theme which is
+designed to work well with Koka files.
 
 
 ## Running the interpreter
@@ -80,11 +88,17 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
-## Algebra&iuml;c effect handlers
+## Algebraic effect handlers
 
-When in the interpreter, you can load various demo files with algebra&iuml;c 
+When in the interpreter, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
-included in the search path, so we can load them directly:
+included in the search path, so we can load them directly using
+the _load_ (``:l``) command:
+
+    > :l scoped
+
+Use the ``:?`` command to get an overview of all commands. After
+loading the ``scoped`` demo, we can run it directly from the interpreter:
     
     > :l scoped
     compile: test/algeff/scoped.kk
@@ -125,14 +139,13 @@ and state effect:
     \(`[False,False,True,True,False]`\)
     \(`[False,False]`\)
 
-It is defined as:
-
+The `effs2.kk` module starts by defining the `:amb` effect:
 ```
 effect amb {
   flip() : bool
 }
 ```
-This declares a new effect `amb` with a single operation `flip`.
+This declares `amb` as a new effect with a single operation `flip`.
 We can use this as:
 ```
 fun xor() : amb bool {
@@ -141,8 +154,8 @@ fun xor() : amb bool {
   (p||q) && not(p&&q)
 }
 ```
-where the type of `xor` reflects that it is a `amb` effect with
-a boolean result.
+where the type of `xor` reflects that it has a `amb` effect and
+returns a boolean.
 
 Next, let's write a handler for this effect:
 ```
@@ -151,24 +164,26 @@ val amb = handler {
   flip()   -> resume(False) + resume(True)
 }
 ```
-The `flip` operation will execute the following code twice, once with
-a `False` value, and once with a `True` value. The final result is wrapped
-as a list which are concatenated by `flip`. The type of the `handler` will
-remove the `amb` effect and return a list of results:
+When a `flip` operation is issued, this handler will catch it
+dynamically. In the above handler, we resume twice: once with a `False`
+value as the result for `flip`, and once with a `True` value. The
+`return` clause wraps the final result in a list which are concatenated
+by the `flip` handler. The type of the `amb` handler is a function that
+removes the `amb` effect from its argument, and return a list of results:
 
     > :t amb
     \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
 
-We can now run the `xor` function using the `amb` handler:
+We can now run the `xor` function using the `amb` handler to 
+handle the `flip` operations:
 
 ```
 fun test1() {
   amb(xor).show.println
 }
 ```
-Here we used _dot_ syntax, you can read more about that in
-Section [#sec-dot]. If we run this in the interpreter, we see 
-all possible results:
+Here we used _dot_ syntax introduced in Section [#sec-dot]. If we run
+`test1` in the interpreter, we see all possible results:
 
     > test1()
     \(`[False,True,True,False]`\)

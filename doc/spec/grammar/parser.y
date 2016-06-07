@@ -172,9 +172,9 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERN identifier externtype externbody               { $$ = $2; }                    
-            | EXTERN ID_INLINE identifier externtype externbody     { $$ = $3; }                    %prec "inline"
-            | EXTERN ID_INCLUDE externincbody                       { $$ = "<extern include>"; }    %prec "include"
+externdecl  : EXTERN funid externtype externbody               { $$ = $2; }                    
+            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec "inline"
+            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec "include"
             ;
 
 externtype  : ':' typescheme 
@@ -234,6 +234,7 @@ typesort    : TYPE | COTYPE | RECTYPE
             ;
 
 typebody    : '{' semis constructors '}'
+            | /* empty */
             ;
 
 typeid      : '(' commas ')'      { $$ = "(,)"; }       /* tuples */

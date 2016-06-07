@@ -11,10 +11,10 @@ val state = handler(s) {
   set(t)   -> resume(t,())
 }
 
-function test() {
+fun test() {
   if (get() > 0) then "positive" else "negative or zero"
 }
 
-function main() {
+fun main() {
   state(0,test).println
 }

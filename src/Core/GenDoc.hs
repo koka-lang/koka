@@ -151,7 +151,7 @@ genDoc env kgamma gamma core p
       = null defs && null typeDefs && null externals
 
     defs 
-      = filter (\def -> defVis def == Public && not (head (nameId (defName def)) == '.')) $
+      = filter (\def -> defVis def == Public && not (isHiddenName (defName def))) $
         concatMap getDef (coreProgDefs core) ++ externals
       where
         getDef (DefRec ds) = ds
@@ -160,7 +160,7 @@ genDoc env kgamma gamma core p
     typeDefs
       = sortOn (show . typeDefName) $
         map filterCon $
-        filter (\tdef -> typeDefVis tdef == Public) $
+        filter (\tdef -> typeDefVis tdef == Public && not (isHiddenName (typeDefName tdef))) $
         concatMap getTDef (coreProgTypeDefs core) 
       where
         getTDef (TypeDefGroup ts) = ts
@@ -278,9 +278,10 @@ fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
-    ++ map fmtConTOC (dataInfoConstrs info) 
+    ++ map fmtConTOC constructors 
     ++ map (fmtDefTOC True) defs
-
+  where
+    constructors = filter (not . isHiddenName . conInfoName) (dataInfoConstrs info)
 
 
 subTOC [] = ""
@@ -374,7 +375,8 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
 
     constructors
-      = dataInfoConstrs info
+      = filter (\con -> not (isHiddenName (conInfoName con))) $
+        dataInfoConstrs info
 
 
 fmtDefs env kgamma gamma defs

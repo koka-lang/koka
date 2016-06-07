@@ -6,14 +6,14 @@
 //
 var stateOpTag = "perf1/(.Eff-state)";
 
-function _direct_resume1(hstack,top,cont,loc1,x,k) {
+fun _direct_resume1(hstack,top,cont,loc1,x,k) {
 	var h = hstack[top];
   h.loc1 = loc1;
   h.k    = k;
   return x;
 }
 
-function _direct_op(eff) {
+fun _direct_op(eff) {
   var top = $std_core._htop();
   var bottom  = top;
   var hstack = $std_core._hstack();
@@ -41,7 +41,7 @@ function _direct_op(eff) {
   return res;
 }
 
-function _direct_count(k) {
+fun _direct_count(k) {
   while(1) {
     var i = _direct_op(_Eff_state(_Op_get));
     if (i===0) {

@@ -6,4 +6,4 @@ function foo( x:a,y:b ) : list<b> {
   [y]
 }
 
-function main() = bar(foo)
+function main() -> bar(foo)

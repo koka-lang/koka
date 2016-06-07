@@ -15,22 +15,22 @@ type free<e,a> {
   Unit( result : a )
 }
 
-function bind( m : free<e,a>, f : a -> e free<e,b> ) : e free<e,b> {
+fun bind( m : free<e,a>, f : a -> e free<e,b> ) : e free<e,b> {
   match(m) {
     Unit(x)     -> f(x)
     Op(op,cop)  -> Op(op, compose(cop,f))
   }
 }
 
-function unit(x) {
+fun unit(x) {
   Unit(x)
 }
 
-function lift( op : op<a> ) : e free<e,a> {
+fun lift( op : op<a> ) : e free<e,a> {
   Op(op,compid)
 }
 
-function pure( f : free<e,a> ) : exn a {
+fun pure( f : free<e,a> ) : exn a {
   match(f) {
     Unit(x) -> x
   }
@@ -47,7 +47,7 @@ type comp<a,e :: E,b> {
 
 val compid : forall<e,a> comp<a,e,a> = Fun(Unit)
 
-function apply( comp : comp<a,e,b>, x : a ) : e free<e,b> {
+fun apply( comp : comp<a,e,b>, x : a ) : e free<e,b> {
   match(comp) {
     Comp(c1,c2) -> {
       val (f,c) = rebalance(c1,c2)
@@ -60,14 +60,14 @@ function apply( comp : comp<a,e,b>, x : a ) : e free<e,b> {
   }
 }
 
-function rebalance( c : comp<a,e,c>, d : comp<c,e,b> ) : (a -> e free<e,c>, comp<c,e,b>) {
+fun rebalance( c : comp<a,e,c>, d : comp<c,e,b> ) : (a -> e free<e,c>, comp<c,e,b>) {
   match(c) {
     Comp(c1,c2) -> rebalance(c1,Comp(c2,d))
     Fun(f) -> (f,d)
   }
 }
 
-function compose( c : comp<a,e,c>, f : c -> e free<e,b> ) : comp<a,e,b> {
+fun compose( c : comp<a,e,c>, f : c -> e free<e,b> ) : comp<a,e,b> {
   Comp(c,Fun(f))
 }
 
@@ -76,7 +76,7 @@ function compose( c : comp<a,e,c>, f : c -> e free<e,b> ) : comp<a,e,b> {
 // Program
 // ----------------------------------------------------------------------------
 
-function xor() : e free<e,bool> {
+fun xor() : e free<e,bool> {
   bind( flip(), fun(p) {
     bind( flip(), fun(q) {
       unit( p||q && not(p&&q))
@@ -86,7 +86,7 @@ function xor() : e free<e,bool> {
 
 
                    
-function foo() : e free<e,bool> {
+fun foo() : e free<e,bool> {
   bind( flip(), fun(p) {
     bind( get(), fun(i) {
       bind( set(i+1), fun(_) {
@@ -100,7 +100,7 @@ function foo() : e free<e,bool> {
 // Ambiguity primitives
 // ----------------------------------------------------------------------------
 
-function flip() : e free<e,bool> {
+fun flip() : e free<e,bool> {
   lift(Flip)
 }
 
@@ -110,11 +110,11 @@ function flip() : e free<e,bool> {
 // Ambiguity handler
 // ----------------------------------------------------------------------------
 
-function amb_result(x : a ) : e free<e,list<a>> {
+fun amb_result(x : a ) : e free<e,list<a>> {
   unit([x])
 }
 
-function amb_flip( cont : bool -> e free<e,list<a>> ) : e free<e,list<a>> {
+fun amb_flip( cont : bool -> e free<e,list<a>> ) : e free<e,list<a>> {
   bind( cont(False), fun(i) { 
     bind( cont(True), fun(j) {
       unit(i+j)
@@ -123,15 +123,15 @@ function amb_flip( cont : bool -> e free<e,list<a>> ) : e free<e,list<a>> {
 }
 
 
-function amb_handler( free : free<e,a> ) : e free<e,list<a>> {
+fun amb_handler( free : free<e,a> ) : e free<e,list<a>> {
   unsafe_nodiv(amb_handlerx)( free )
 }
 
-function amb_handlerx( free ) {
+fun amb_handlerx( free ) {
   match(free) {
     Unit(x) -> amb_result(x)
     Op(op,cop) -> {
-      function cont(x) { amb_handlerx(apply(cop,x)) }  
+      fun cont(x) { amb_handlerx(apply(cop,x)) }  
       match(op) {
         Flip  -> amb_flip(cont)
         _     -> Op(op, Fun(cont))
@@ -153,29 +153,29 @@ extend type op<a> {
   Set(i:int)
 }
 
-function get() : e free<e,int> {
+fun get() : e free<e,int> {
   lift(Get)
 }
 
-function set(i : int) : e free<e,()> {
+fun set(i : int) : e free<e,()> {
   lift(Set(i))
 }
 
 
-function state_handler( free : free<e,a>, i : int ) : e free<e,(a,int)> {
-  function state_handlerx( free, i ) {
+fun state_handler( free : free<e,a>, i : int ) : e free<e,(a,int)> {
+  fun state_handlerx( free, i ) {
     match(free) {
       Unit(x) -> unit( (x,i) )
       Op(Get,cop) -> {        
-        function cont(i,x) { state_handlerx(apply(cop,x),i) }  
+        fun cont(i,x) { state_handlerx(apply(cop,x),i) }  
         cont(i,i)
       }
       Op(Set(j),cop) -> {
-        function cont(i,x) { state_handlerx(apply(cop,x),i) }  
+        fun cont(i,x) { state_handlerx(apply(cop,x),i) }  
         cont(j,())
       }
       Op(op,cop) -> {
-        function cont(x) { state_handlerx(apply(cop,x),i) }  
+        fun cont(x) { state_handlerx(apply(cop,x),i) }  
         Op(op, Fun(cont))
       }
     }
@@ -190,19 +190,19 @@ function state_handler( free : free<e,a>, i : int ) : e free<e,(a,int)> {
 // Testing
 // ----------------------------------------------------------------------------
 
-function test0() {
+fun test0() {
   amb_handler(xor()).pure.map(show).join(",")
 }
 
 
                    
-function show1( x : (list<bool>,int) ) {
+fun show1( x : (list<bool>,int) ) {
   "([" + x.fst.map(show).join(",") + "], " + x.snd.show + ")"
 }
                    
-function show2( xs : list<(bool,int)> ) {
+fun show2( xs : list<(bool,int)> ) {
   "[" + xs.map(fun(x){ "(" + x.fst.show + "," + x.snd.show + ")"}).join(",") + "]"
 }
                    
-function test1() = state_handler(amb_handler(foo()),1).pure.show1
-function test2() = amb_handler(state_handler(foo(),1)).pure.show2
+fun test1() = state_handler(amb_handler(foo()),1).pure.show1
+fun test2() = amb_handler(state_handler(foo(),1)).pure.show2

@@ -15,13 +15,13 @@ module toc
   
 import std/atom
 import std/env
+import std/file
 import std/flags
 import std/regex
 import std/path
-import std/file
+import std/readline
 import std/string
 
 import sys/dom
 import sys/dom/types
-import sys/node/tiersplit
 

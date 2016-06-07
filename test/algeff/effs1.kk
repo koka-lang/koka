@@ -4,7 +4,7 @@ effect amb {
   flip() : bool
 }
  
-function xor() : amb bool {
+fun xor() : amb bool {
   val p = flip() 
   val q = flip()
   (p||q) && not(p&&q)
@@ -15,7 +15,7 @@ val amb = handler {
   flip()   -> resume(False) + resume(True)
 }
 
-function main() {
+fun main() {
   amb(xor).showList(show).println
 }
 

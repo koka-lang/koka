@@ -7,7 +7,7 @@ effect state<s> {
   set(i:s) : ()
 }
 
-function xor() : <amb,exn> bool {
+fun xor() : <amb,exn> bool {
   val p = flip()
   if (p) error("oops")
   val q = flip()
@@ -15,7 +15,7 @@ function xor() : <amb,exn> bool {
 }
 
 
-function foo() : <amb,state<int>,io> bool {
+fun foo() : <amb,state<int>,io> bool {
   val p = flip() 
   catch{
     finally {
@@ -43,20 +43,20 @@ val state_handle = handler(i) {
 }
 
 
-function test1() {
+fun test1() {
   amb_handle(xor)
 }
 
 
-function test2()  {
+fun test2()  {
   state_handle(0){ amb_handle(foo) }
 }
 
-function test3()  {
+fun test3()  {
   amb_handle{ state_handle(0,foo) }
 }
 
-function main() {
+fun main() {
   test1().show.println
   test2().show.println
   test3().show.println

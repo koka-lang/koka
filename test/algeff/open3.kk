@@ -1,20 +1,20 @@
 // test lifting of cps functions
 
-function mymap( f, xs ) {
+fun mymap( f, xs ) {
   match(xs) {
     Nil -> Nil
     Cons(x,xx) -> Cons(f(x),mymap(f,xx))
   }
 }
 
-function myid(x) {
+fun myid(x) {
   x
 }
 
-function test() {
+fun test() {
   mymap(id,[42])
 }
 
-function main() {
+fun main() {
   test().head.show.println
 }

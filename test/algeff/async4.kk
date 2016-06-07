@@ -1,23 +1,24 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
+import std/readline
 
-function test() {
+fun test() {
   println("starting")
-  function f() {
+  fun f() {
     println("what is your name?")
     readline()
   }
-  function g() {
+  fun g() {
     println("and waiting at least 3 secs")
     wait(3000)
     println("(done waiting)")
     "timing"
   }
-  val xs = asyncAll( [f,g] )
+  val xs = async-all( [f,g] )
   println("hi " + xs.join(","))  
 }
 
-function main() {
+fun main() {
   test()
 }

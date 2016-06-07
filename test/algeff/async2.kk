@@ -1,6 +1,8 @@
 // --------------------------------------------------------
 // Async demo: combine with ambiguity
 // --------------------------------------------------------
+import std/readline
+
 effect amb {
   flip() : bool
 }
@@ -11,7 +13,7 @@ val amb = handler {
 }
 
 
-function test() {
+fun test() {
   println("what is your name?")
   val name = readline()
   if (flip()) then println("and your age?") else println("and your gender?")
@@ -19,7 +21,7 @@ function test() {
   println("hi " + name + ", you are " + rest)  
 }
 
-function main() {
+fun main() {
   amb(test)
   () 
 }

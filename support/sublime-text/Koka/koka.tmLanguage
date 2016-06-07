@@ -308,7 +308,7 @@
 		<key>constructor</key>
 		<dict>
 			<key>match</key>
-			<string>[A-Z]\w*|\(,+\)</string>
+			<string>[A-Z][\w\-]*[\'\?]*|\(,+\)</string>
 			<key>name</key>
 			<string>constant.other.constructor.koka</string>
 		</dict>
@@ -333,7 +333,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(external)\s+(include|inline)?\s*([a-z]\w*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])?</string>
+			<string>(extern|external)\s+(include|inline)?\s*([a-z][\w\-]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])?</string>
 		</dict>
 		<key>decl_function</key>
 		<dict>
@@ -351,12 +351,12 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(fun|function)\s+([a-z]\w*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
+			<string>(fun|function)\s+([a-z][\w\-]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
 		</dict>
 		<key>decl_function0</key>
 		<dict>
 			<key>begin</key>
-			<string>(fun|function)\s*(([a-z]\w*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\]))?\s*(\()</string>
+			<string>(fun|function)\s*(([a-z][\w\-]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\]))?\s*(\()</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
@@ -396,7 +396,7 @@
 		<key>decl_param</key>
 		<dict>
 			<key>match</key>
-			<string>([a-z]\w*)\s*(?=:)</string>
+			<string>([a-z][\w\-]*[\'\?]*)\s*(?=:)</string>
 			<key>name</key>
 			<string>entity.name.param.koka</string>
 		</dict>
@@ -421,7 +421,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(((val)\s+)?)(([a-z]\w*)|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))\s*(=)(?![$%&amp;\*\+@!/\\\^~=\.:\-\|&lt;&gt;])</string>
+			<string>(((val)\s+)?)(([a-z][\w\-]*[\'\?]*)|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))\s*(=)(?![$%&amp;\*\+@!/\\\^~=\.:\-\|&lt;&gt;])</string>
 		</dict>
 		<key>decl_var</key>
 		<dict>
@@ -439,7 +439,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(var)\s+([a-z]\w*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))</string>
+			<string>(var)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))</string>
 		</dict>
 		<key>dot</key>
 		<dict>
@@ -471,7 +471,7 @@
 		<key>identifier</key>
 		<dict>
 			<key>match</key>
-			<string>[a-z]\w*</string>
+			<string>[a-z][\w\-]*[\'\?]*</string>
 			<key>name</key>
 			<string>variable.koka</string>
 		</dict>
@@ -692,7 +692,7 @@
 		<key>param_identifier</key>
 		<dict>
 			<key>match</key>
-			<string>([a-z]\w*)\s*(?=[:,\)])</string>
+			<string>([a-z][\w\-]*[\'\?]*)\s*(?=[:,\)])</string>
 			<key>name</key>
 			<string>entity.name.function.koka</string>
 		</dict>
@@ -712,7 +712,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>([a-z]\w*/)([A-Z]\w*)</string>
+			<string>([a-z][\w\-]*/)([A-Z][\w\-]*[\'\?]*)</string>
 		</dict>
 		<key>qidentifier</key>
 		<dict>
@@ -730,7 +730,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>([a-z]\w*/)+([a-z]\w*)</string>
+			<string>([a-z][\w\-]*/)+([a-z][\w\-]*[\'\?]*)</string>
 		</dict>
 		<key>reservedid</key>
 		<dict>
@@ -1216,21 +1216,21 @@
 		<key>type_identifier</key>
 		<dict>
 			<key>match</key>
-			<string>[a-z]\w*</string>
+			<string>[a-z][\w\-]*[\'\?]*</string>
 			<key>name</key>
 			<string>storage.type.constant.koka</string>
 		</dict>
 		<key>type_interface</key>
 		<dict>
 			<key>match</key>
-			<string>[A-Z]\w+</string>
+			<string>[A-Z][\w\-]+[\'\?]*</string>
 			<key>name</key>
 			<string>storage.type.interface.koka</string>
 		</dict>
 		<key>type_kind</key>
 		<dict>
 			<key>match</key>
-			<string>[A-Z](?!\w)</string>
+			<string>[A-Z](?![\w\-])</string>
 			<key>name</key>
 			<string>storage.type.kind.koka</string>
 		</dict>
@@ -1245,26 +1245,26 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>([a-zA-Z]\w*)\s*:(?!:)</string>
+			<string>([a-zA-Z][\w\-]*[\'\?]*)\s*:(?!:)</string>
 		</dict>
 		<key>type_qidentifier</key>
 		<dict>
 			<key>match</key>
-			<string>([a-z]\w*/)+</string>
+			<string>([a-z][\w\-]*[\'\?]*/)+</string>
 			<key>name</key>
 			<string>entity.name.class.module.koka</string>
 		</dict>
 		<key>type_variable</key>
 		<dict>
 			<key>match</key>
-			<string>([a-z][0-9]*|_\w*|self)(?!\w)</string>
+			<string>([a-z][0-9]*|_[\w\-]*[\'\?]*|self)(?!\w)</string>
 			<key>name</key>
 			<string>storage.type.typevar.koka</string>
 		</dict>
 		<key>wildcard</key>
 		<dict>
 			<key>match</key>
-			<string>_\w*</string>
+			<string>_[\w\-]*[\'\?]*</string>
 			<key>name</key>
 			<string>variable.wildcard.koka</string>
 		</dict>

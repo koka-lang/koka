@@ -12,21 +12,21 @@ type player {
   Alice
 }
 
-function (==)(p1, p2) {
+fun (==)(p1, p2) {
   match(p1) {
-    Bob   -> p2.isBob
-    Alice -> p2.isAlice
+    Bob   -> p2.bob?
+    Alice -> p2.alice?
   }
 }
 
-function show(p:player) : string {
+fun show(p:player) : string {
   match(p) {
     Bob   -> "bob"
     Alice -> "alice"
   }
 }
 
-function show(ps : list<player> ) : string {
+fun show(ps : list<player> ) : string {
   ps.showList(show)
 }
 
@@ -40,15 +40,15 @@ effect nim {
 }
 
 
-function aliceTurn(n) {
+fun aliceTurn(n) {
   if (n <= 0) then Bob else bobTurn( n - move(Alice,n) )
 }
 
-function bobTurn(n) {
+fun bobTurn(n) {
   if (n <= 0) then Alice else aliceTurn( n - move(Bob,n) )
 }
 
-function game(n) {
+fun game(n) {
   aliceTurn(n)
 }
 
@@ -61,10 +61,10 @@ val perfect = handler {
   move(p,n) -> resume(max(1,n%4))
 }
 
-function testPerfect1() {
+fun testPerfect1() {
   perfect{ game(7) }  // alice
 }
-function testPerfect2() {
+fun testPerfect2() {
   perfect{ game(12) } // bob
 }
 
@@ -78,7 +78,7 @@ type gtree {
   Winner( player: player )
 }
 
-function validMoves(n) {
+fun validMoves(n) {
   [1,2,3].filter( fun(m) { m <= n })
 }
 
@@ -92,11 +92,11 @@ val gametree = handler {
   }
 }
 
-function show(gt :gtree) : div string {
+fun show(gt :gtree) : div string {
   showGt(gt,2)
 }
 
-function showGt(gt :gtree, indent:int) : _ string {
+fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
     Take(p,moves) -> p.show + moves.showList(fun(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
@@ -104,7 +104,7 @@ function showGt(gt :gtree, indent:int) : _ string {
   }
 }
 
-function testGt() {
+fun testGt() {
   gametree{ game(3) }  // figure 1 in the paper
 }
 
@@ -132,7 +132,7 @@ val check = handler {
   }
 }
 
-function testCheck() { 
+fun testCheck() { 
   perfect{ cheatReport { check{ game(7) }  } } // alice
 }
 
@@ -149,11 +149,11 @@ val pc = handler {
   }
 }
 
-function testPc1() { 
+fun testPc1() { 
   pc { cheatReport { check{ game(12) } } }  // exn: bob cheats
 }
 
-function testPc2() { 
+fun testPc2() { 
   perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
@@ -168,7 +168,7 @@ effect choose {
   choose() : bool
 }
 
-function bobChooses(m) {
+fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
@@ -177,7 +177,7 @@ val allResults = handler {
   choose() -> resume(True) + resume(False)
 }
 
-function testChoose() {
+fun testChoose() {
   allResults{ bobChooses { game(7) } }  // [bob,alice]
 }
 
@@ -186,7 +186,7 @@ val coin = handler {
   choose() -> resume(random() > 0.5)
 }
 
-function testCoin() {
+fun testCoin() {
   coin{ bobChooses { game(7) } }
 }
 
@@ -216,7 +216,7 @@ val scoreUpdater = handler {
     p
   }
 }
-function updateScore( p : player, gs : gstate ) : gstate {
+fun updateScore( p : player, gs : gstate ) : gstate {
   gs.map fun(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
@@ -230,36 +230,36 @@ val printer = handler {
   }
 }
 
-function printBoard( gs : gstate ) : io () {
+fun printBoard( gs : gstate ) : io () {
   gs.map( fun(ps) {
     ps.fst.show + " -> " + ps.snd.show 
   }).join("\n").println
 }
 
-function testPrint1() {
+fun testPrint1() {
   state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
 }
 
-function replay(n : int,action : () -> <div|e> a) : <div|e> a {
+fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
     return x -> if (n <= 1) then x else replay(n - 1, incps(action))
   }
 }
 
-function testPrint2() {
+fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
 
 // the following fails to type check due to the recursive 'cps' effect occurring in 'action'
 /* 
-function replay(n : int,action : () -> <div,cps|e> a) : <div,cps|e> a {
+fun replay(n : int,action : () -> <div,cps|e> a) : <div,cps|e> a {
   handle(action) {
     return x -> if (n <= 1) then x else replay(n-1,action)
   }
 }
 */
 
-function main() {
+fun main() {
   [""
   ,testPerfect1().show 
   ,testPerfect2().show

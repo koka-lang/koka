@@ -1,4 +1,4 @@
-function id(x) = x
+function id(x) -> x
 
 function id2(x) { x }
 

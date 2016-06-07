@@ -4,11 +4,11 @@
 
 val hs : forall<e> list<int -> e int> = [id]
 
-function bar(x:int) : <exn> int {
+fun bar(x:int) : <exn> int {
   head(hs)(x)
 }
 
 
-function main() {
+fun main() {
   bar(42).show.println
 }

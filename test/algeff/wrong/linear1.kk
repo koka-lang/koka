@@ -11,13 +11,13 @@ val state = handler(s) {
   put(t)   -> 20 + resume(t,()) + resume(t,()) 
 }
 
-function foo() {
+fun foo() {
   val i = get()
   put(i+1)
   put(i+2)
   get()
 }
 
-public function main() {
+public fun main() {
   state(0,foo).print  // 42
 }

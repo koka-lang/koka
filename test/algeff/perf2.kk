@@ -1,6 +1,6 @@
 import std/date
 
-function timer(f) {
+fun timer(f) {
   val t0 = now().time
   val adjust = now().time - t0
   println("start")
@@ -14,7 +14,7 @@ function timer(f) {
 alias solution = list<int>
 alias solutions = list<list<int>>
 
-function safe( queen : int, diag : int, xs : solution ) : bool
+fun safe( queen : int, diag : int, xs : solution ) : bool
 {
   match(xs) {
     Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && safe(queen,diag+1,qs))
@@ -22,7 +22,7 @@ function safe( queen : int, diag : int, xs : solution ) : bool
   }
 }
 
-function appendSafe( queen : int, xs : solution, xss : solutions ) : div solutions
+fun appendSafe( queen : int, xs : solution, xss : solutions ) : div solutions
 {
   if (queen <= 0) xss
   else {
@@ -32,7 +32,7 @@ function appendSafe( queen : int, xs : solution, xss : solutions ) : div solutio
   }
 }
 
-function extend(queen : int, acc : solutions, xss : solutions ) : div solutions
+fun extend(queen : int, acc : solutions, xss : solutions ) : div solutions
 {
   match(xss) {
     Cons(xs,rest) -> extend(queen, appendSafe(queen,xs,acc), rest)
@@ -40,14 +40,14 @@ function extend(queen : int, acc : solutions, xss : solutions ) : div solutions
   }
 }
 
-function findSolutions( n : int, queen : int ) : div solutions
+fun findSolutions( n : int, queen : int ) : div solutions
 {
   if (queen == 0) 
    then [[]]
    else extend(n,[], findSolutions(n,queen - 1))  
 }
 
-public function queens( n : int ) : div solutions
+public fun queens( n : int ) : div solutions
 {
   findSolutions(n,n)
 }
@@ -60,7 +60,7 @@ effect choose {
 
 
 
-function chooseAll( action ) {
+fun chooseAll( action ) {
   handle(action){
     return x  -> [x]
     pick(n)   -> list(1,n,resume).concat
@@ -68,7 +68,7 @@ function chooseAll( action ) {
   }
 }
 
-function findSolution( n : int, queen : int ) : <choose,div> solution {
+fun findSolution( n : int, queen : int ) : <choose,div> solution {
   /*
   if (queen==0) then [] else {
     val xs = findSolution(n,queen-1)
@@ -85,23 +85,23 @@ function findSolution( n : int, queen : int ) : <choose,div> solution {
   
 }
 
-function showSolutions( xss : solutions ) : io () {
+fun showSolutions( xss : solutions ) : io () {
   println(xss.length.show)
   xss.foreach fun(xs) {
     println(" " + xs.show)
   }  
 }
 
-function queensChoose(n : int ) : div solutions {
+fun queensChoose(n : int ) : div solutions {
   chooseAll({findSolution(n,n)} )
 }
 
-function test(n) {
+fun test(n) {
   timer({ queens(n) }).length.show.println
   timer({ queensChoose(n) }).length.show.println
 }
 
-function main() {
+fun main() {
   test(11)
 }
 

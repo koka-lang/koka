@@ -88,7 +88,7 @@ public fun test( cmdargs )
   val header = "usage:\n program [options] files\n\noptions:"
   // testOptions.usageInfo( header ).println
   val (options,args,errs) = parse( TestOptions(), testOptions, cmdargs )
-  if (errs.isNil) {
+  if (errs.nil?) {
     println( "\nsuccess!" );
     println( "options: " + options.showOptions)
     println( "arguments: " + args.join(" ") );
@@ -175,7 +175,7 @@ public fun parse( initial : a, flags : list<option<a>>, args : list<string>, ord
     opts.foreach fun(opt) {
       match(opt) {
         End -> done := True
-        Arg(_) | ordering.isPreorder -> done := True
+        Arg(_) | ordering.preorder? -> done := True
         _   -> ()
       }      
     }
@@ -226,7 +226,7 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
   val lnames   = flags.concat(fun(flag) { flag.llongNames } )
   val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
   val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.startsWith(flagname) || (baseflagname != "" && name.startsWith(baseflagname)) } ) } )
-  val applicable = if (exacts.isNil) then prefixes else exacts
+  val applicable = if (exacts.nil?) then prefixes else exacts
   
   match(applicable) {
     Nil -> errorUnknown(opt) 

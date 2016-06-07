@@ -49,7 +49,7 @@ public function main() : io ()
       }
 
       // handle messages
-      function handler(c) {
+      function handlr(c) {
         match(c) { 
           Utter(message) -> { 
             broadcast.emit( username + ": " + message )
@@ -62,7 +62,7 @@ public function main() : io ()
         }
       }
 
-      return handler;
+      return handlr;
     }
 
     return serverSession
