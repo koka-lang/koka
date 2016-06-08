@@ -1,27 +1,13 @@
 module caesar
 
-extern glyph( s : string, ofs : int = 0 ) : int {
-  js inline "#1.charCodeAt(#2 <= 0 ? 0 : (#2 >= (#1.length) ? 0 : #2))"
-}
-
-fun map( s : string, f : int -> e int ) : e string {
-  s.map( fun(c : char) {
-    f(c.int).char
-  })
-}
-
-fun count( s : string, i : int ) : int {
-  s.count(i.char)
-}
-
 public fun encode(s : string, shift : int = 3) {
-  fun encode-glyph( c : int ) {
-    val base = c - "a".glyph
-    if (base < 0 || base > 25) return c
+  fun encode-uni( u : unicode ) {
+    val base = u - "a".code
+    if (base < 0 || base > 25) return u
     val rot  = (base + shift) % 26
-    rot + "a".glyph
+    rot + "a".code
   }
-  s.map(encode-glyph)
+  s.map(encode-uni)
 }
 
 public fun caesar( s : string ) {
@@ -46,8 +32,8 @@ fun rotate( xs, n ) {
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
 {
-  val lowers = list("a".glyph,"z".glyph)           // list of lower case codes
-  val counts = lowers.map( fun(i) { s.count(i) } ) // occurrence counts
+  val lowers = list("a".code,"z".code)             // list of lower case codes
+  val counts = lowers.map( fun(i) { s.count(i.string) } ) // occurrence counts
   val n      = counts.sum                          // total lower case letters
   counts.map( fun(c) { percent(c,n) } )            // occurrences in percentages
 }
@@ -56,7 +42,7 @@ fun freqs( s : string ) : list<double>
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  zipWith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum
+  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum
 }
 
 // Crack a Caesar encoded string
@@ -67,10 +53,17 @@ fun uncaesar( s : string ) : string
                   chisqr( table.rotate(n), english ) 
                })   
   val min    = chitab.minimum()           // find the mininal element
-  val shift  = chitab.indexOf( fun(f){ f == min } ).negate  // and use its position as our shift
+  val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )
 }
   
 public fun test-uncaesar() {
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
+}
+
+public fun main() {
+  val s = "Koka is a well-typed language"
+  println( "plain  : " + s)
+  println( "encoded: " + s.caesar)
+  println( "cracked: " + uncaesar( s.caesar ))
 }
