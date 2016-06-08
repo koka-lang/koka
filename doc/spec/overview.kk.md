@@ -49,14 +49,14 @@ fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
 {
-  fun encode-uni(u) {
-    val base = u - "a".code
-    if (base < 0 || base > 25) return u
+  fun encode-char(c) {
+    if (c < 'a' || c > 'z') return c
+    val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    (rot + "a".code)
+    (rot.char + 'a')
   }
 
-  s.map(encode-uni)
+  s.map(encode-char)
 }
 
 fun caesar( s : string ) : string
@@ -117,17 +117,17 @@ what error Koka produces.
 ## Anonymous functions {#sec-anon}
 
 Koka also allows for anonymous function expressions. For example, instead of
-declaring the `encode-uni` function, we could just have passed it directly to
+declaring the `encode-char` function, we could just have passed it directly to
 the `map` function as a function expression:
 
 ```
 fun encode2( s : string, shift : int )
 {
-  s.map( fun(u) {
-    val base = u - "a".code
-    if (base < 0 || base > 25) return u
+  s.map( fun(c) {
+    if (c < 'a' || c > 'z') return c
+    val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    (rot + "a".code)
+    (rot.char + 'a')
   });
 }
 ```
@@ -466,14 +466,14 @@ fun main() { test-uncaesar() }
 
 fun encode( s : string, shift : int )
 {
-  function encode-uni(u) {
-    val base = u - "a".code
-    if (base < 0 || base > 25) return u
+  function encode-char(c) {
+    if (c < 'a' || c > 'z') return c
+    val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    (rot + "a".code)
+    (rot.char + 'a')
   }
 
-  s.map(encode-uni)
+  s.map(encode-char)
 }
 ////
 // The letter frequency table for English
@@ -494,8 +494,8 @@ fun rotate( xs, n ) {
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
 {
-  val lowers = list(0,25)
-  val occurs = lowers.map( fun(c){ s.count( (c + "a".code).string ) })
+  val lowers = list('a','z')
+  val occurs = lowers.map( fun(c){ s.count(c.string) })
   val total  = occurs.sum
   occurs.map( fun(i){ percent(i,total) } )
 }
@@ -508,7 +508,7 @@ fun chisqr( xs : list<double>, ys : list<double> ) : double
 }
 
 // Crack a Caesar encoded string
-fun crack( s : string ) : string
+fun uncaesar( s : string ) : string
 {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
@@ -519,7 +519,7 @@ fun crack( s : string ) : string
   s.encode( shift )
 }
   
-fun testCrack() {
+fun test-uncaesar() {
   println( crack( "nrnd lv d ixq odqjxdjh" ) )
 }
 ```

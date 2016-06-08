@@ -998,7 +998,7 @@ ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> (pretty i)
-      LitChar c   -> squotes (escape c)
+      LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> (pretty d)
       LitString s -> dquotes (hcat (map escape s))
     where

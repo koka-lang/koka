@@ -706,19 +706,25 @@ ppExternal currentDef formats resTp targs args
 
 
 ppExternalF :: String -> [Doc] -> [Doc] -> Doc
-ppExternalF [] targs args
-   = empty
-ppExternalF ('#':'#':y:xs) targs args
-   = if y `elem` ['1'..'9']
-      then (targs!!((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-      else char y <> ppExternalF  xs targs args   
-ppExternalF ('#':y:xs) targs args
-   = if y `elem` ['1'..'9']
-      then (args!!((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-      else char y <> ppExternalF  xs targs args
-ppExternalF (x:xs) targs args
-   = char x <> ppExternalF  xs targs args
-
+ppExternalF fmt targs args
+  = case fmt of
+      [] -> empty
+      ('#':'#':y:xs) ->
+        if y `elem` ['1'..'9']
+         then (index targs ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+         else char y <> ppExternalF  xs targs args   
+      ('#':y:xs) ->
+        if y `elem` ['1'..'9']
+         then (index args ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+         else char y <> ppExternalF  xs targs args
+      (x:xs) ->
+        char x <> ppExternalF  xs targs args
+  where
+    index :: [Doc] -> Int -> Doc
+    index xs i
+      = if (i >= 0 && i < length xs)
+         then xs !! i
+         else failure $ "Backend.CSharp.FromCore.ppExternalF: external index out of range: " ++ fmt
 
 genExprBasic :: Expr -> Asm ()
 genExprBasic expr
@@ -1180,7 +1186,7 @@ ppLit :: Lit -> Doc
 ppLit lit
   = case lit of
       LitInt i  -> pretty i
-      LitChar c -> squotes (escape c)
+      LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d -> pretty d
       LitString s -> dquotes (hcat (map escape s))
   where
@@ -1234,7 +1240,7 @@ ppTypeCon ctx c kind
         else if (name == nameTpString)
          then text "string"
         else if (name == nameTpChar)
-         then text "char"
+         then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
         else if (name == nameTpFloat)
          then text "double"
         else if (name == nameTpBool)

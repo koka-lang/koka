@@ -7,7 +7,7 @@ fun test1(s : string,ofs = 1) {
           ", sub3: " + s.substr(ofs,3) + 
           ", rev3: " + s.substr(~5,3) +
           ",\n  s: " + s +
-          ", " + s.list.show-list(fun(i){show-hex(i)}) )
+          ", " + s.list.show-list(fun(i){show-hex(i.int)}) )
 }
 
 fun main() {

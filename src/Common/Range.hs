@@ -35,8 +35,9 @@ import Common.Failure( assertion )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T (Text, pack, unpack)
-import qualified Data.Text.Encoding as T (decodeUtf8, decodeUtf8With)
+import qualified Data.Text.Encoding as T (decodeUtf8) --, decodeUtf8With)
 -- import qualified Data.Text.Encoding.Error as E(lenientDecode)
+-- import Common.Name(showHex)
 
 {--------------------------------------------------------------------------
   BStrings 
@@ -46,6 +47,7 @@ type BString = B.ByteString
 bstringEmpty = B.empty
 
 bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr  
+
 bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
 
 stringToBString str = BC.pack str
