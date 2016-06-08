@@ -935,5 +935,6 @@ function testSanitize(s) {
           .replace(/\\/g,"/")        // unix style slashes
           .replace(/[ \t]+/g, " ")   // compress whitespace
           .replace(/[\r\n]+/g, "\n") // compress newlines sequences
+          .replace(/(std_core\.js\:)\d+/, "$1" )  // hide line number of an exception
           .trim();                   // and trim
 }

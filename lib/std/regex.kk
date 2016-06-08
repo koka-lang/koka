@@ -1,12 +1,12 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* This module supports JavaScriptStyle regular expressions.
+/* Regular expressions.
 
    The regular expressions conform to the regular expressions of JavaScript
    as described at <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions>

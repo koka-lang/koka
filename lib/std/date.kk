@@ -6,6 +6,8 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
+/* Date and time functions
+*/
 public module std/date
 
 type date
@@ -77,6 +79,6 @@ fun iso-local-time( d : date ) : string {
   d.hours.show2 + ":" + d.minutes.show2 + ":" + d.seconds.show2
 }
 
-fun show2( i : int ) : string {
+private fun show2( i : int ) : string {
   i.show.pad-left(2,"0")
 } 

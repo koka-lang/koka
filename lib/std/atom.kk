@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* This module provides a perfect hash for strings.
+/* Perfect hashing for strings.
 
    These `:atom`s can be compared very efficiently. If you compare only
    seldomly, a straight string compare will probably be faster since 

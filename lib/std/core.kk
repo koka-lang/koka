@@ -42,7 +42,8 @@ extern include {
 // A 32-bit signed integer (using two's complement to represent negative numbers).
 type int
 
-// A unicode string
+// A unicode string. The encoding is abstract (and depends on the host platform) 
+// but strings can be viewed as a sequence of `:unicode` code points.
 type string
 
 // A 64-bit IEEE 754 floating point value
@@ -50,6 +51,10 @@ type double
 
 // An any type. Used for extern calls
 type any
+
+// Unicode code points are an alias for integers.
+alias unicode = int
+
 
 // ----------------------------------------------------------------------------
 // Core effects
@@ -1663,8 +1668,6 @@ extern inline (+) : (string,string) -> string { inline "(#1 + #2)" }
 fun (||)( x : string, y : string ) : string {
   if (x.empty?) then y else x 
 }
-
-alias unicode = int
 
 // Return the `n` th codepoint in a string `s` . 
 // Returns the replacement codepoint (`0xFFFD`) if the index is out-of-bounds,

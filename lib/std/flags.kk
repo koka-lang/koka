@@ -7,8 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 
-/*
-Parsing of command line flags.
+/* Parsing of command line flags.
 */
 module std/flags
 

@@ -65,7 +65,7 @@ body.koka.doc,
 .koka.source,
 .koka.codeblock,
 .koka.preblock, 
-code, code.koka, .madoko code,
+code, code.koka, .koka .code, .madoko code,
 pre, pre.koka, .madoko pre,
 .monospace { 
   font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;

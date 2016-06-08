@@ -6,8 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/*
-Basic cryptography. 
+/* Basic cryptography. 
 */
 public module std/crypto
 
