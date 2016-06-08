@@ -54,11 +54,15 @@ $charesc  = [nrt\\\'\"]    -- "
 -----------------------------------------------------------
 @newline      = $return?$linefeed
 
-@utf8         = \xC0\x80 | [\xC2-\xDF] $cont 
+@utf8         = \xC0\x80 
+              | [\xC2-\xDF] $cont 
               | \xE0 [\xA0-\xBF] $cont
-              | [\xE1-\xEC] $cont $cont | \xED [\x80-\x9F] $cont
-              | [\xEE-\xEF] $cont $cont | \xF0 [\x90-\xBF] $cont
-              | [\xF1-\xF3] $cont $cont $cont | \xF4 [\x80-\x8F] $cont $cont 
+              | [\xE1-\xEC] $cont $cont 
+              | \xED [\x80-\x9F] $cont
+              | [\xEE-\xEF] $cont $cont 
+              | \xF0 [\x90-\xBF] $cont
+              | [\xF1-\xF3] $cont $cont $cont 
+              | \xF4 [\x80-\x8F] $cont $cont 
   
 @linechar     = [$graphic$space$tab]|@utf8  
 @commentchar  = ([$graphic$space$tab] # [\/\*])|@newline|@utf8
@@ -67,7 +71,7 @@ $charesc  = [nrt\\\'\"]    -- "
 @hexdigit4    = @hexdigit2 @hexdigit2
 @hexesc       = x@hexdigit2|u@hexdigit4|U@hexdigit4@hexdigit2
 @escape       = \\($charesc|@hexesc)
-@stringchar   = ([$graphic$space] # [\\\"])|@utf8               -- " fix highlight
+@stringchar   = ([$graphic$space] # [\\\"])|@utf8             -- " fix highlight
 @charchar     = ([$graphic$space] # [\\\'])|@utf8    
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
@@ -157,13 +161,13 @@ program :-
 <stringlit> @stringchar+  { more id }
 <stringlit> \\$charesc    { more fromCharEscB }
 <stringlit> \\@hexesc     { more fromHexEscB }
-<stringlit> \"            { pop $ \_ -> withmore (string $ LexString . init) } -- "
+<stringlit> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
 <stringlit> @newline      { pop $ \_ -> constant (LexError "string literal ended by a new line") }
 <stringlit> .             { string $ \s -> LexError ("illegal character in string: " ++ show s) } 
 
 <stringraw> @stringraw+   { more id }
 <stringraw> \"\"          { more B.tail } -- " 
-<stringraw> \"            { pop $ \_ -> withmore (string $ LexString . init) } -- "
+<stringraw> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
 <stringraw> .             { string $ \s -> LexError ("illegal character in raw string: " ++ show s) }
 
 --------------------------
@@ -370,8 +374,8 @@ alexGetByte st@State{ current = cs }
 -- compatibility
 alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
 alexGetChar st@State{ current = cs } 
-  = if B.null cs then Nothing
-    else Just (BC.head cs, st{ current = B.tail cs })
+  = if BC.null cs then Nothing
+    else Just (BC.head cs, st{ current = BC.tail cs })
 
 
 -- alexScanTokens :: ByteString -> [token]
@@ -386,6 +390,7 @@ lexing source lineNo input
     in go initSt
   where go st =
           -- trace ("scan: " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
+          let idx0 = B.length (current st) in
           case alexScan st (head (states st)) of
             AlexEOF -> []
             AlexSkip  st1 len 
@@ -396,8 +401,9 @@ lexing source lineNo input
                   then [Lexeme range $ LexError "unexpected end of input"]                                   
                   else Lexeme range (LexError ("unexpected character " ++ show (BC.head (current st))))
                         : go (st1{ current = B.tail (current st1) }) 
-            AlexToken st1 len act 
-              -> let bs = B.take (fromIntegral len) (current st)
+            AlexToken st1 len act  -- len is wrong with utf8!
+              -> let idx1 = B.length (current st1)
+                     bs = B.take (idx0 - idx1) (current st)
                      p  = posMoves8 (pos st) bs
                      (mbtoken,st2) = seq p $ act bs st st1{ pos = p }
                  in case mbtoken of
@@ -425,4 +431,5 @@ lexing source lineNo input
 
 before p
   = p{ posColumn = max 1 (posColumn p - 1 ) }
+
 }
