@@ -1015,7 +1015,12 @@ ppLit lit
                  else char c)
           else if (fromEnum c <= 0xFFFF)
            then text "\\u" <> text (showHex 4 (fromEnum c))
-           else text "\\U" <> text (showHex 8 (fromEnum c))
+          else if (fromEnum c > 0x10FFFF)
+           then text "\\uFFFD"  -- error instead?
+           else let code = fromEnum c - 0x10000
+                    hi = (code `div` 0x0400) + 0xD800
+                    lo = (code `mod` 0x0400) + 0xDC00
+                in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
 
 ppName :: Name -> Doc
 ppName name
