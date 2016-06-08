@@ -1739,7 +1739,7 @@ public extern substr : (s : string, start : int ) -> string {
 
 private extern inline substr2 : (s : string, start : int, len : int ) -> string { 
   cs inline "#1.Substring(#2,#3)";
-  js inline "#1.substr(_ucs2_index(#1,#2), #3)"
+  js inline "_cp_substr(#1,#2,#3)"
 }
 
 

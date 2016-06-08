@@ -1,11 +1,11 @@
-val s0 = "x\u2603x (snowman)"
-val s1 = "x\U01F4AAx (astral )"
-val s2 = "x\U01D400x (math A )"
+val s0 = "ma\xF1ana"     // single character
+val s1 = "man\u0303ana"  // combining character
+val s2 = "x\u0307\u0323xyz" // combining mark
 
-fun test1(s : string,ofs = 0) {
+fun test1(s : string,ofs = 1) {
   println( "len: " + s.length.show + 
           ", sub3: " + s.substr(ofs,3) + 
-          ", rev3: " + s.substr(~13,3) +
+          ", rev3: " + s.substr(~5,3) +
           ",\n  s: " + s +
           ", " + s.list.show-list(fun(i){show-hex(i)}) )
 }
