@@ -13,8 +13,6 @@
 */  
 module std/regex
 
-import std/vector
-
 extern include {
   cs file "regex-inline.cs"
   js file "regex-inline.js"

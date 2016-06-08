@@ -18,7 +18,6 @@ environment and command line is supplied.
 */
 module std/env
 
-import std/vector
 import std/path
 import std/dict
 

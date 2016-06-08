@@ -222,16 +222,6 @@ type optional<a> {
 }
 
 
-type primarray<a>
-
-extern list( elems: primarray<a>, tail : list<a> = [] ) : total list<a> {
-  js "_list"
-}
-
-extern unlist( list : list<a> ) : total primarray<a> {
-  js "_unlist"
-}
-
 // ----------------------------------------------------------------------------
 // Standard funs
 // ----------------------------------------------------------------------------
@@ -1681,7 +1671,7 @@ alias unicode = int
 // or if the string contains a malformed code at that point.
 extern [] : ( s : string, n : int ) -> unicode  { 
   cs inline "(#1)[#2]"
-  js inline "_cp_at(#1,#2)" 
+  js inline "_cp_iter(#1,#2)" 
 }
 
 // Return the number of codepoints in a string.
@@ -1726,7 +1716,6 @@ fun code( s : string, n : int = 0) : unicode {
   s[n]
 }
 
-/*
 // Concatenate a vector of strings
 extern inline join: (v : vector<string> ) -> string { 
   cs "String.Concat";
@@ -1738,19 +1727,6 @@ extern inline join: (v : vector<string>, sep : string ) -> total string {
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
 }
-
-// Concatenate an array of strings
-extern inline join: forall<h> (a : array<h,string> ) -> read<h> string { 
-  cs inline "String.Concat(#1)";
-  js inline "((#1).join(''))";
-}
-
-// Concatenate an array of strings with a separator `sep`
-extern join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string { 
-  cs inline "Primitive.Concat(#1,#2)";
-  js inline "(#1).join(#2)"
-}
-*/
 
 public extern substr : (s : string, start : int ) -> string { 
   cs inline "((#1).Substring(#2))";
@@ -1806,12 +1782,12 @@ fun substr( s : string, start : int, len : int   )
    else substr2(s,start,len)
 }
 
-private extern inline splitv : ( s : string,  sep : string ) -> primarray<string> { 
+private extern inline splitv : ( s : string,  sep : string ) -> vector<string> { 
   cs inline "#1.Split(new String[]{#2}, StringSplitOptions.None)";
   js inline "(#1).split(#2)"
 }
 
-private extern inline splitv : ( s : string,  sep : string, n : int ) -> primarray<string> { 
+private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<string> { 
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
 }
@@ -1843,40 +1819,26 @@ public extern inline count( s : string, pattern : string ) : int {
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";  
 }
 
-/*
-// Convert a string to a vector of characters.
-extern inline vector : ( s : string ) -> vector<char> { 
+// Convert a string to a vector of code points.
+extern inline vector : ( s : string ) -> vector<unicode> { 
   cs inline "#1.ToCharArray()";
-  js inline "#1"
+  js inline "_cp_vector(#1)"
 }
 
-// Convert a string to an array of characters.
-extern inline array : forall<h> ( s : string ) -> array<h,char> { 
-  cs inline "#1.ToCharArray()";
-  js inline "#1"
-}
-
-// Convert an array of characters to a string.
-extern inline string : forall<h> (array<h,char>) -> read<h> string { 
+// Convert a vector of code points to a string.
+extern inline string : (vector<unicode>) -> string { 
   cs inline "new String(#1)";
-  js inline "#1"
+  js inline "_cp_unvector(#1)"
 }
-
-// Convert a vector of characters to a string.
-extern inline string : (vector<char>) -> string { 
-  cs inline "new String(#1)";
-  js inline "#1"
-}
-*/
 
 // Convert a string to a list of unicode points
-extern list( s : string ) : total list<unicode> {
-  js inline "_cp_list(#1)"
+fun list( s : string ) : total list<unicode> {
+  s.vector.list
 }
 
 // Convert a list of unicode points to a string
-extern string( cs : list<unicode> ) : total string {
-  js inline "_cp_unlist(#1)"
+fun string( cs : list<unicode> ) : total string {
+  cs.vector.string
 }
 
 // Apply a function `f` to each code point in a string
@@ -1927,7 +1889,136 @@ fun capitalize( s : string ) : string {
   s.substr(0,1).to-upper + s.substr(1)
 }
 
+// Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
+fun pad-left( s : string, width : int, fill : string = " ") : string
+{
+  val n = s.length
+  if (n >= width)
+   then s
+   else fill.repeat(width - n / fill.length) + s
+}
 
+// Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
+fun pad-right( s : string, width : int, fill : string = " ") : string
+{
+  val n = s.length
+  if (n >= width)
+   then s
+   else s + fill.repeat(width - n / fill.length)
+}
+
+// Trim whitespace on the left and right side of a string
+fun trim( s : string ) : string {
+  s.trim-left.trim-right
+}
+
+// Trim the starting white space of a string 
+extern inline trim-left( s : string ) : string {
+  cs inline "(#1).TrimStart()"
+  js inline "((#1).replace(/^\\s\\s*/,''))"
+}
+
+// Trim the ending white space of a string.
+extern inline trim-right( s : string ) : string {
+  cs inline "(#1).TrimEnd()"
+  js inline "((#1).replace(/\\s+$/,''))"
+}
+ 
+
+
+// ----------------------------------------------------------------------------
+//  Vectors
+// ----------------------------------------------------------------------------
+
+// The type of immutable arrays is called `:vector`.
+type vector<a>
+
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
+private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int ) -> total a { 
+  cs inline "(#1)[#2]";
+  js inline "(#1)[#2]";
+}
+
+private extern inline unsafe-assign : forall<a> ( v : vector<a>, i : int, x : a ) -> total () {
+  cs inline "(#1)[#2] = #3";
+  js inline "(#1)[#2] = #3";
+}
+
+private extern inline unsafe-vector : forall<a> ( n : int ) -> total vector<a> {
+  cs inline "Primitive.NewArray<##2>(#1)"
+  js inline "Array(#1)"
+}
+
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
+extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { 
+  inline "(#1)[#2]" 
+}
+
+// Return the length of a vector.
+extern inline length : forall<a> (v : vector<a> ) -> int  { 
+  cs inline "(#1 == null ? 0 : (#1).Length)";
+  js inline "(#1).length";
+}
+
+// Create a new vector of length `n`  with initial elements `default` .
+public fun vector(n : int, default : a) : vector<a> {
+  vector-init(n, fun(_i){ default } )
+} 
+
+// Create a new vector of length `n`  with initial elements given by function `f` .
+public extern vector-init(n : int, f : int -> a) : vector<a> {
+  js inline "_vector(#1,#2)"
+} 
+
+// Create an empty vector.
+extern inline vector : forall<a> () -> vector<a> {
+  cs inline "new ##1[0]"
+  js inline "[]"
+}
+
+// Invoke a function `f` for each element in a vector `v`
+fun foreach( v : vector<a>, f : (a) -> e () ) : e () {
+  v.foreach-indexed( fun(x,i) { f(x) })
+}
+
+// Invoke a function `f` for each element in a vector `v`
+fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
+  for( 0, v.length - 1 ) fun(i) {
+    f(v.unsafe-idx(i),i)
+  }
+}
+
+// Invoke a function `f` for each element in a vector `v`.
+// If `f` returns `Just`, the iteration is stopped early and the result is returned.
+fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
+  for-while( 0, v.length - 1 ) fun(i) {
+    f(v.unsafe-idx(i))
+  }
+}
+
+// Apply a total function `f` to each element in a vector `v`
+fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
+  val w = unsafe-vector(v.length)
+  v.foreach-indexed fun(x,i) {
+    unsafe-assign(w,i,f(x))
+  }
+  w
+}
+
+// Convert a vector to a list.
+fun list( v : vector<a> ) : list<a> {
+  v.vlist
+}
+
+// Convert a vector to a list with an optional tail.
+extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
+  js inline "_vlist(#1,#2)"
+}
+
+// Convert a list to a vector.
+extern vector( xs : list<a> ) : vector<a> {
+  js inline "_unvlist(#1)"
+}
 
 
 // ----------------------------------------------------------------------------
@@ -2140,41 +2231,6 @@ fun show( xs : list<bool> ) : string {
   show-list(xs,show)
 }
 
-// Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
-fun pad-left( s : string, width : int, fill : string = " ") : string
-{
-  val n = s.length
-  if (n >= width)
-   then s
-   else fill.repeat(width - n / fill.length) + s
-}
-
-// Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
-fun pad-right( s : string, width : int, fill : string = " ") : string
-{
-  val n = s.length
-  if (n >= width)
-   then s
-   else s + fill.repeat(width - n / fill.length)
-}
-
-// Trim whitespace on the left and right side of a string
-fun trim( s : string ) : string {
-  s.trim-left.trim-right
-}
-
-// Trim the starting white space of a string 
-extern inline trim-left( s : string ) : string {
-  cs inline "(#1).TrimStart()"
-  js inline "((#1).replace(/^\\s\\s*/,''))"
-}
-
-// Trim the ending white space of a string.
-extern inline trim-right( s : string ) : string {
-  cs inline "(#1).TrimEnd()"
-  js inline "((#1).replace(/\\s+$/,''))"
-}
- 
 // Used by the compiler to wrap main console applications
 extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
   cs inline "Primitive.MainConsole<##1>(#1)"
@@ -2422,10 +2478,10 @@ extern wait( ms : int ) : async () {
 }
 
 fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
-  async-all-prim( actions.unlist ).list;
+  async-all-prim( actions.vector ).list;
 }
 
-private extern async-all-prim( actions : primarray<() -> <async|e> a> ) : <async|e> primarray<a>  {
+private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
   js inline "$asyncAll(actions,_k)"
 }
 

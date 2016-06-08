@@ -14,8 +14,6 @@
 */
 module std/atom
 
-import std/vector
-
 external include {
   cs file "atom-inline.cs"
   js file "atom-inline.js"

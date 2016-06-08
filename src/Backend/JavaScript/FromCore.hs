@@ -653,7 +653,7 @@ genList :: [Expr] -> Expr -> Asm (Doc,Doc)
 genList elems tl
   = do (decls,docs) <- genExprs elems
        (tdecl,tdoc) <- genExpr tl
-       return (vcat (decls ++ [tdecl]), text "$std_core.conslist" <> tupled [list docs, tdoc])
+       return (vcat (decls ++ [tdecl]), text "$std_core.vlist" <> tupled [list docs, tdoc])
 
 {-
 genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)

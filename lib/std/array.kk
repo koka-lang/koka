@@ -6,10 +6,10 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Immutable vectors and mutable arrays.
+/* Mutable arrays.
 
 */
-public module std/vector
+public module std/array
 
 // ----------------------------------------------------------------------------
 // Arrays
@@ -46,7 +46,7 @@ extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <wri
 // Create a new array of length `n`  with initial elements `a` .
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
   cs inline "Primitive.NewArray<##2>(#1,#2)"
-  js inline "Array(#2)"
+  js inline "Array(#1)"
 }
  
 // Create a zero length array
@@ -83,6 +83,13 @@ fun vector( self : array<h,a> ) : read<h> vector<a>
 }
 
 
+// Convert a vector to an array (by making a copy)
+extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> { 
+  cs inline "(##2[])Array.Clone(#1)";
+  js inline "#1"
+}
+
+
 // Convert a list to an array.
 fun array( xs : list<a> ) : array<h,a>
 {
@@ -111,7 +118,7 @@ fun list( a : array<h,a> ) : read<h> list<a>
 }
 
 // Invoke a function `f` for each element in a an array `a`.   
-// Note: this can diverge by storing self referential funs in the array
+// Note: this can diverge by storing self referential functions in the array
 fun foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 {
   for( 0, a.length - 1 ) fun(i) {
@@ -120,7 +127,7 @@ fun foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
 }
 
 // Destructively apply function `f`  to each element in an array `a`.   
-// Note: this can diverge by storing self referential funs in the array
+// Note: this can diverge by storing self referential functions in the array
 fun map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
 {
   for( 0, a.length - 1 ) fun(i) {
@@ -129,85 +136,14 @@ fun map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
   a
 }
 
-// ----------------------------------------------------------------------------
-//  Vectors
-// ----------------------------------------------------------------------------
-
-// The type of immutable arrays is called `:vector`.
-type vector<a>
-
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int ) -> total a { 
-  cs inline "(#1)[#2]";
-  js inline "(#1)[#2]";
+// Concatenate an array of strings
+extern inline join: forall<h> (a : array<h,string> ) -> read<h> string { 
+  cs inline "String.Concat(#1)";
+  js inline "((#1).join(''))";
 }
 
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { inline "(#1)[#2]" }
-
-// Return the length of a vector.
-extern inline length : forall<a> (v : vector<a> ) -> int  { 
-  cs inline "(#1 == null ? 0 : (#1).Length)";
-  js inline "(#1).length";
-}
-
-// Create a new vector of length `n`  with initial elements `default` .
-public fun vector(n : int, default : a) : vector<a> {
-  list(1,n).map( fun(i){ default }).vector
-} 
-
-// Create an empty vector.
-extern inline vector : forall<a> () -> vector<a> {
-  cs inline "new ##1[0]"
-  js inline "[]"
-}
-
-private extern inline unsafe-unfreeze : forall<h,a> (v : vector<a>) -> array<h,a> { inline "(#1)" }
-
-// Invoke a function `f` for each element in a vector `v`
-fun foreach( v : vector<a>, f : a -> e () ) : e ()
-{
-  for( 0, v.length - 1 ) fun(i) {
-    f(v.unsafe-idx(i))
-  }
-}
-
-// Invoke a function `f` for each element in a vector `v`.
-// If `f` returns `Just`, the iteration is stopped early and the result is returned.
-fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
-{
-  for-while( 0, v.length - 1 ) fun(i) {
-    f(v.unsafe-idx(i))
-  }
-}
-
-// Apply function `f` to each element in a vector `v`Ju
-fun map( v : vector<a>, f : a -> e b ) : e vector<b>
-{
-  val n = v.length
-  val a = unsafe-array(n)
-  for( 0, v.length - 1 ) fun(i) {
-    a.unsafe-assign( i, inject-st(f)(v.unsafe-idx(i)) )
-  }
-  a.unsafe-freeze
-}
-
-// Convert a vector to a list.
-fun list( v : vector<a> ) : list<a>
-{
-  unsafe-total{
-    v.unsafe-unfreeze.list
-  }
-}
-
-// Convert a list to a vector.
-fun vector( xs : list<a> ) : vector<a>
-{
-  xs.array.unsafe-freeze
-}
-
-// Convert a vector to an array (by making a copy)
-extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> { 
-  cs inline "(##2[])Array.Clone(#1)";
-  js inline "#1"
+// Concatenate an array of strings with a separator `sep`
+extern join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string { 
+  cs inline "Primitive.Concat(#1,#2)";
+  js inline "(#1).join(#2)"
 }
