@@ -450,8 +450,9 @@ heap type `:h` and applies the `run` function (corresponding to ``runST`` in
 Haskell) to discard the `:st<h> ` effect.
 
 The Garsia-Wachs algorithm is nice example where side-effects are used
-internally but where the algorithm itself behaves like a pure function, see
-the ``lib/demo/garsiaWachs.kk`` example in the distribution.
+internally across function definitions and data structures, but where the
+final algorithm itself behaves like a pure function, see the
+``lib/demo/garsiaWachs.kk`` example in the distribution.
 
   [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
 
