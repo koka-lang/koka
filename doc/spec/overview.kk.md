@@ -520,7 +520,7 @@ fun uncaesar( s : string ) : string
 }
   
 fun test-uncaesar() {
-  println( crack( "nrnd lv d ixq odqjxdjh" ) )
+  println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
 ```
 
