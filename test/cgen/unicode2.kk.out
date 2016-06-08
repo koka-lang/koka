@@ -1,0 +1,6 @@
+len: 6, sub3: aña, rev3: aña,
+ s: mañana, [6D,61,F1,61,6E,61]
+len: 7, sub3: añ, rev3: ña,
+ s: mañana, [6D,61,6E,303,61,6E,61]
+len: 6, sub3: ̣̇x, rev3: ̣̇x,
+ s: ẋ̣xyz, [78,307,323,78,79,7A]
