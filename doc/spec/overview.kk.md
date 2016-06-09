@@ -378,9 +378,12 @@ fun fib(n : int) : div int
 
 Note that the type inference engine is currently not powerful enough to
 prove that this recursive function always terminates, which leads to
-inclusion of the divergence effect `:div` in the result type. We can
-avoid this by using the `repeat` function and some imperative updates,
-and increase the efficiency too:
+inclusion of the divergence effect `:div` in the result type. 
+
+
+Here is another version of the Fibonacci function but this time
+implemented using local state. We use the `repeat` function to 
+iterate `n` times:
 
 ```
 fun main() { println(fib2(10)) }
@@ -402,8 +405,6 @@ The `var` declaration declares a variable that can be assigned too using the
 `(:=)` operator. In contrast, a regular equality sign, as in `y0 = y`
 introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y` 
 for such declaration too but we usually leave out the `val` keyword.
-
-### Heap references {#sec-refs}
 
 Local variables declared using `var` are actually syntactic sugar for
 allocating explicit references to mutable cells. A reference to a mutable
@@ -432,7 +433,7 @@ As we can see, using `var` declarations is quite convenient since such
 declaration automatically adds a dereferencing operator to all occurrences
 except on the left-hand side of an assignment.
 
-When we look at the types inferred for references, we see that `x` and `y`
+When we look at the types inferred for the references, we see that `x` and `y`
 have type `:ref<h,int> ` which stands for a reference to a mutable value of
 type `:int` in some heap `:h`. The effects on heaps are allocation as
 `:heap<h>`, reading from a heap as `:read<h>` and writing to a heap as
@@ -668,8 +669,6 @@ type colors {
 }
 ```
 
-Note that the layout rule separates each _constructor_ with a semi-colon, and
-we can also write this on one line as `type colors { Red; Green; Blue }`.
 Special cases of these enumerated types are the `:void` type which has no
 alternatives (and therefore there exists no value with this type), the unit
 type `:()` which has just one constructor, also written as `()` (and
