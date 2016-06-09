@@ -215,7 +215,7 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
   val (cflagname,flagarg) = s.break("=")
   val opt = "--" + s
   val flagname     = cflagname.to-lower
-  val baseflagname = if (flagname.starts-with("no-") && flagname.length > 3) then flagname.substr(3) else ""
+  val baseflagname = if (flagname.starts-with("no-") && flagname.length > 3) then flagname.substr("no-".length) else ""
   
   val lnames   = flags.flatmap(fun(flag) { flag.llongNames } )
   val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
@@ -238,13 +238,13 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
           Req(parse,help)
             -> if (baseflagname!="")
                 then errorNegate(baseflagname)
-               elif (flagarg.length>0)
+               elif (flagarg.notempty?)
                 then Flg(fun(o) { parse(o,flagarg) })
                 else errorRequired(help,opt)
           Opt(parse)
             -> if (baseflagname!="")
                 then errorNegate(baseflagname)
-               elif (flagarg.length>0)
+               elif (flagarg.notempty?)
                 then Flg(fun(o) { parse(o,Just(flagarg)) })
                 else Flg(fun(o) { parse(o,Nothing) } )
       }

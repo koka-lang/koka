@@ -29,15 +29,15 @@ fun default-ext( fname, ext ) {
 // Remove the extension from a path
 fun noext( path : string ) : string {
   val ext = path.extname
-  if (ext=="") then path else path.substr(0,path.length - ext.length)
+  path.trim-right(ext)
 }
 
 
 // Join arguments using the platform specific directory separator  
 // Note: unlike NodeJS the resulting path is not yet normalized
 fun combine( path1 : string, path2 : string ) : string {
-  val p2 = if (path2.starts-with(sep)) then path2.substr(1) else path2
-  val p1 = if (path1.ends-with(sep)) then path1.substr(0,path1.length - 1) else path1
+  val p2 = path2.trim-left(sep)
+  val p1 = path1.trim-right(sep)
   if (p1=="") then p2 else p1 + sep + p2
 }
 

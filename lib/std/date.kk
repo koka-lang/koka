@@ -43,15 +43,19 @@ extern iso-datetime : (date) -> string {
 // Return the date portion of an ISO date/time string.
 fun iso-date(d : date) : string {
   val s = d.iso-datetime
-  val i = s.index-of("T")
-  if (i >= 0) then s.substr(0,i) else s
+  match (s.index-of("T")) {
+    Just(i) -> s.substr(0,i) 
+    Nothing -> s
+  }
 }
 
 // Return the time portion of an ISO date/time string.
 fun iso-time(d : date) : string {
   val s = d.iso-datetime
-  val i = s.index-of("T")
-  if (i >= 0) then s.substr(i) else s
+  match (s.index-of("T")) {
+    Just(i) -> s.substr(i+1) 
+    Nothing -> s
+  }
 }
 
 // Get the year

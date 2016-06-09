@@ -1710,23 +1710,36 @@ extern inline [] : ( s : string, n : int ) -> char  {
   inline "(#1)[#2]" 
 }
 
-// Return the number of characters in a string.
+// Return the character length of a string.
 extern inline length : ( s : string ) -> int  { 
   cs inline "(#1).Length";
   js inline "(#1).length";
 }
 
 // Does string `s`  contain the string `sub`  ?
-extern inline index-of : (s : string, sub : string ) -> int { 
+private extern inline xindex-of(s : string, sub : string ) : int { 
   cs inline "((#1).IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
 }
 
+// Return the first index of substring `sub` in `s` if it occurs.
+fun index-of( s : string, sub : string ) : maybe<int> {
+  val i = s.xindex-of(sub)
+  if (i>=0) then Just(i) else Nothing
+}
+
 // Does string `s`  contain the string `sub`  ?
-extern inline last-index-of : (s : string, sub : string ) -> int { 
+extern inline xlast-index-of(s : string, sub : string ) : int { 
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
+
+// Return the last index of substring `sub` in `s` if it occurs.
+fun last-index-of( s : string, sub : string ) : maybe<int> {
+  val i = s.xlast-index-of(sub)
+  if (i>=0) then Just(i) else Nothing
+}
+
 
 // Is `pre`  a prefix of `s`  ?
 extern starts-with: (s : string, pre : string ) -> bool { 
@@ -1758,34 +1771,47 @@ extern inline join: (v : vector<string>, sep : string ) -> total string {
   js inline "((#1).join(#2))"
 }
 
-// Return a sub string of `s` from (codepoint) `start` position.
+// Return a substring from start position `start` up to the end of the string.
 // If the `start` is negative, the start index is calculated from 
-// the end of the string as: `s.length + start`.
-public extern inline substr : (s : string, start : int ) -> string { 
-  cs inline "(Primitive.Substr(#1,#2))";
-  js inline "((#1).substr(#2))";
+// the end of the string as: ``s.length + start``.
+extern inline substr : (s : string, start : int ) -> string { 
+  cs inline "Primitive.Substr(#1,#2)";
+  js inline "#1.substr(#2)"
 }
 
-
-private extern substr2 : (s : string, start : int, len : int ) -> string { 
+// Return a substring from start position `start` up to the end of the string
+// or at most `len` characters.
+// If the `start` is negative, the start index is calculated from 
+// the end of the string as: ``s.length + start``.
+extern inline substr(s : string, start : int, len : int ) : string { 
   cs inline "Primitive.Substr(#1,#2,#3)";
   js inline "#1.substr(#2,#3)"
 }
 
-// Return a substring from start position `start` up to either the end of the string, 
-// or at most length `len`.
-// If the `start` is negative, the start index is calculated from 
-// the end of the string as: `s.length + start`.
-fun substr( s : string, start : int, len : int ) {
-  if (len <= 0) then ""
-   else substr2(s,start,len)
-}
 
-public extern inline substr1 : (s : string, start : int ) -> string { 
+extern inline substr1 : (s : string, start : int ) -> string { 
   cs inline "(Primitive.Substr(#1,#2 >= 1 ? #2 : 1))";
   js inline "((#1).substr(#2 >= 1 ? #2 : 1))";
 }
 
+// Truncate a string to `len` characters.
+fun truncate( s : string, len : int ) : string  {
+  s.substr(0,len)
+}
+
+// Trim off a substring `sub` if `s` starts with that string.
+fun trim-left( s : string, sub : string ) : string {
+  if (s.starts-with(sub))
+   then s.substr(sub.length)
+   else s
+}
+
+// Trim off a substring `sub` if `s` ends with that string.
+fun trim-right( s : string, sub : string ) : string {
+  if (s.ends-with(sub))
+   then s.truncate(s.length - sub.length)
+   else s
+}
 
 // Repeat a string `n` times 
 extern repeat( s : string, n : int ) : string {
@@ -1892,7 +1918,7 @@ extern to-lower : (s : string) -> string {
   js inline "(#1).toLowerCase()" 
 }
 
-// Convert the first character of a string to uppercase.
+// If the first character of a string is ASCII `lower?` convert it to uppercase.
 fun capitalize( s : string ) : string {
   s.substr(0,1).to-upper + s.substr(1)
 }
