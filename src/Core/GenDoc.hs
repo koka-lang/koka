@@ -16,7 +16,7 @@ import Lib.Trace
 
 import Prelude hiding (span)
 import Data.List( sortBy, intersperse, partition )
-import Data.Char( isSpace )
+import Data.Char( isSpace, toUpper)
 import Common.File( dirname, extname, basename )
 import Lib.Printer
 import Common.Name
@@ -53,7 +53,7 @@ genDoc env kgamma gamma core p
     do writeLn p $ ptag "h1" "" ( (atag (linkFromModName env (coreProgName core) "-source") $ span "module" $ fmtName (coreProgName core))
                                  ++ (atag "toc.html" (span "toc-link" "&#x25b2;toc")))
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
-       writeLn p $ doctag "div" "toc" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
+       writeLn p $ doctag "div" "toc code" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
        mapM_ (writeLn p) (map (fmtDef env kgamma gamma) otherDefs)
   where
@@ -240,7 +240,11 @@ fmtImport env kgamma gamma root name (imp)
       
 
 synopsis env kgamma gamma doc
-  = showDoc env kgamma gamma (extract "" (dropWhile isSpace (removeComment doc)))
+  = showDoc env kgamma gamma $
+    endWithDot $ capitalize $ 
+    extract "" $ 
+    dropWhile isSpace $ 
+    removeComment doc
   where
     extract acc s
       = case s of
@@ -249,6 +253,7 @@ synopsis env kgamma gamma doc
                          _        -> extract ('\n':acc) cs
           (c:cs)    -> extract (c:acc) cs
           []        -> reverse acc
+
 
 indent n s
   = span ("nested" ++ show n) s
@@ -314,7 +319,7 @@ fmtTypeDef env kgamma gamma (Synonym info _, defs)
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
     concat 
-      [doctag "div" "header"$ 
+      [doctag "div" "header code"$ 
         concat
         [ doctag "span" "def" $
             cspan "keyword" "alias" ++ "&nbsp;"
@@ -335,7 +340,7 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
     concat 
-      [ doctag "div" "header"$ 
+      [ doctag "div" "header code"$ 
         concat
         [ doctag "span" "def" $
             cspan "keyword" "struct" ++ "&nbsp;"
@@ -357,7 +362,7 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
     concat 
-      [doctag "div" "header"$ 
+      [doctag "div" "header code"$ 
         concat
         [ doctag "span" "def" $
             cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" 
@@ -389,7 +394,7 @@ nestedDecl xs
 fmtConstructor env kgamma gamma info
   = doctag "div" ("con-decl\" id=\"" ++ linkEncode (nameId (mangleConName (conInfoName info)))) $
     concat 
-      [doctag "div" "header"$ 
+      [doctag "div" "header code"$ 
         concat
         [ doctag "span" "def" $
            cspan "keyword" "con" ++ "&nbsp;" ++
@@ -411,7 +416,7 @@ fmtDef :: Env -> KGamma -> Gamma -> Def -> String
 fmtDef env kgamma gamma def
   = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId mname)) $
     concat 
-      [doctag "div" "header" $
+      [doctag "div" "header code" $
         concat 
          [ doctag "span" "def" $
             cspan "keyword" (show (defSort def)) ++ "&nbsp;"

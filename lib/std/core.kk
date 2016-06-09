@@ -42,8 +42,24 @@ extern include {
 // A 32-bit signed integer (using two's complement to represent negative numbers).
 type int
 
-// A unicode string. The encoding is abstract (and depends on the host platform) 
-// but strings can be accessed as a sequence of characters (which are unicode codepoints)
+// A unicode string. 
+//
+// The functions `vector:string -> vector<char>` and `string:vector<char> -> string`
+// convert between strings and a vector unicode characters. 
+//
+// Various functions allow indexing into a string, for example `([]) : (string,int) -> char`
+// and `substr`. With respect to indexing, strings are viewed as a [utf-16]
+// encoded array; this means that unicode characters with a value larger than ``0xFFFF`` 
+// are represented by two characters in a [utf-16] encoding; in other words, 
+// we view characters between ``\uD800`` and ``\uDFFF`` as another kind
+// of unicode combining characters. When converting to a `vector` or `list`
+// of characters though, such surrogate pairs are automatically combined. 
+//
+// The reason for defining strings this way is to allow more effient compilation
+// to Javascript and C\#. When compiling natively and using utf-8 encoding,
+// it is still possible to efficiently support this string interface.
+//
+// [utf-16]: https://en.wikipedia.org/wiki/UTF-16
 type string
 
 // A 64-bit IEEE 754 floating point value
@@ -53,11 +69,9 @@ type double
 type any
 
 // A unicode character. 
-// Characters are equivalent to a unicode _codepoint_.
+// Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
-// Moreover, codepoints between `0xD800` and `0xDFFF` are considered valid and 
-// surrogate pairs are treated just as combining characters.
 type char
 
 
@@ -1729,7 +1743,7 @@ fun index-of( s : string, sub : string ) : maybe<int> {
 }
 
 // Does string `s`  contain the string `sub`  ?
-extern inline xlast-index-of(s : string, sub : string ) : int { 
+private extern inline xlast-index-of(s : string, sub : string ) : int { 
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
@@ -2132,7 +2146,7 @@ private fun show-char( c : char ) : string
   }
 }
 
-// Show a ":char" as a char literal
+// Show a `:char` as a character literal
 function show( c : char ) : string
 {
   "'" + c.show-char + "'"

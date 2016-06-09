@@ -25,6 +25,7 @@ import std/path
 import std/readline
 import std/regex
 import std/string
+import std/unicode
 
 import sys/dom
 import sys/dom/types

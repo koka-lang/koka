@@ -48,7 +48,7 @@ bstringEmpty = B.empty
 
 bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr  
 
-bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
+bstringToString bstr = T.unpack (utfDecode bstr) -- (bstringToText bstr)
 
 stringToBString str = BC.pack str
 
