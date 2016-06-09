@@ -208,7 +208,7 @@ fmtImportEntry env kgamma gamma root imp
         -> (rootCommon ++ [name],fmtImport env kgamma gamma rootCommon name imp) -- span "module" $ atag (linkFromModName env (importName imp)) $ span "id" (show name)
       Left (rootCommon,pre) 
         -> let (root',entry) = fmtImportEntry env kgamma gamma (rootCommon ++ [pre]) imp
-           in (root',doctag "tr" "" (doctag "td" "" (indent (length rootCommon) pre)) ++ "\n" ++ entry)
+           in (root',doctag "tr" "" (doctag "td" "code" (indent (length rootCommon) pre)) ++ "\n" ++ entry)
            
   where
     splitImport name
@@ -232,7 +232,7 @@ fmtImportEntry env kgamma gamma root imp
 fmtImport :: Env -> KGamma -> Gamma -> [String] -> String -> (Import) -> String
 fmtImport env kgamma gamma root name (imp)
   = doctag "tr" "" $
-    (doctag "td" "" (indent (length root) $ fmtModuleName env name (importName imp)) ++ 
+    (doctag "td" "code" (indent (length root) $ fmtModuleName env name (importName imp)) ++ 
      doctag "td" "" (synopsis env kgamma gamma (importModDoc imp)))
   where
     fmtModuleName env name qname

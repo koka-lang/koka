@@ -578,5 +578,5 @@ capitalize s
 
 endWithDot s
   = case dropWhile isSpace (reverse s) of
-      (c:cs) -> reverse ('.':if (c=='.') then cs else c:cs)
+      (c:cs) | not (c `elem` ".?!") -> reverse ('.':c:cs)
       _      -> s
