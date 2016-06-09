@@ -8,7 +8,7 @@
 using System.Text;
 using System.Globalization;
 
-static class Graphemes {
+static class Unicode {
   public static string Normalize( string s, string norm ) {
     NormalizationForm nf;
     if (norm=="NFD") nf = NormalizationForm.FormD;
@@ -17,7 +17,7 @@ static class Graphemes {
     else nf = NormalizationForm.FormC;
     return s.Normalize(nf);
   }
-  public static string[] Create( string s ) {
+  public static string[] Graphemes( string s ) {
     if (String.IsNullOrEmpty(s)) return new string[0];
     string[] v = new string[s.Length];
     TextElementEnumerator e = StringInfo.GetTextElementEnumerator(s);

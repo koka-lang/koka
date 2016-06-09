@@ -22,10 +22,43 @@ extern include {
   js file "unicode-inline.js"
 }
 
-extern vgraphemes( s : string ) : vector<string> {
-  cs inline "Graphemes.Create(#1)"
-  js inline "_graphemes(#1)"
+//--------------------------------------------------------------
+// Calculation of graphemes
+//--------------------------------------------------------------
+
+// Is this a combining character? 
+public fun combining?( c : char ) : bool {
+  val i = c.int
+  ((i >= 0x0300 && i <= 0x036F) ||
+   (i >= 0x1AB0 && i <= 0x1AFF) ||
+   (i >= 0x1DC0 && i <= 0x1DFF) ||
+   (i >= 0x20D0 && i <= 0x20FF) ||
+   (i >= 0xFE20 && i <= 0xFE2F))
 }
+
+// Join combining characters with their base into a grapheme.
+fun join-combining( cs : list<char>, comb : list<char> = [], acc : list<grapheme> = []) : list<grapheme> {
+  match(cs) {
+    Cons(c,cc) -> if (c.combining?) 
+                   then cc.join-combining( Cons(c,comb), acc )
+                   else cc.join-combining( [c], consrev(comb,acc) )
+    Nil        -> consrev(comb,acc).reverse
+  }
+}
+fun consrev(xs,xss) {
+  if (xs.nil?) then xss else Cons(xs.reverse.string,xss)
+}
+
+// Convert a string to a list of graphemes.
+// Each grapheme will be in `NFC` normalized form.
+public fun graphemes( s  : string ) : list<grapheme> {
+  //s.vgraphemes.list
+  s.normalize(NFC).list.join-combining
+}
+
+//--------------------------------------------------------------
+// Normalization
+//--------------------------------------------------------------
 
 // Type of unicode [normalization](http://www.unicode.org/reports/tr15)
 public type normalization {
@@ -41,7 +74,7 @@ public type normalization {
 
 
 extern normalizex( s  : string, norm : string ) : string {
-  cs inline "Graphemes.Normalize(#1,#2)"
+  cs inline "Unicode.Normalize(#1,#2)"
   js inline "_normalize(#1,#2)"
 }
 
@@ -56,10 +89,10 @@ public fun normalize( s  : string, norm : normalization = NFC ) : string {
   s.normalizex(norms)
 }
 
-// Convert a string to a list of graphemes.
-public fun graphemes( s  : string ) : list<grapheme> {
-  s.vgraphemes.list
-}
+
+//--------------------------------------------------------------
+// Column widths 
+//--------------------------------------------------------------
 
 // Return the column-width of a unicode character.
 // Equivalent to ``wcwidth``
@@ -78,6 +111,11 @@ public fun width( s : string ) : int {
   total
 }
 
+//--------------------------------------------------------------
+// Families: asian-wide, zero-widths
+//--------------------------------------------------------------
+
+// These characters are considered wide, i.e. 2 columns wide.
 val asian-wide : rtree = build-rtree([
   single(0x1100,0x115F),
   single(0x2329,0x2329), 
@@ -94,6 +132,7 @@ val asian-wide : rtree = build-rtree([
   single(0x30000,0x3FFFD),
 ])
 
+// These characters have zero width
 val zero-widths : rtree = build-rtree([
   single(0x0000, 0x001F), single(0x007F, 0x00A0),                                      
   single(0x0300, 0x036F), single(0x0483, 0x0486), single(0x0488, 0x0489),
@@ -146,6 +185,10 @@ val zero-widths : rtree = build-rtree([
   single(0xE0100, 0xE01EF)
 ])
 
+
+//--------------------------------------------------------------
+// Range trees
+//--------------------------------------------------------------
 
 // Type of range trees
 type rtree {
