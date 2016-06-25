@@ -288,7 +288,7 @@ like `val` or `match`, signifying intention to both programmer and parser.
 In other cases, we restrict the expression grammar. For example, one
 reason why C requires semicolons is due to prefix- and postfix operators.
 If we write ``p ++ q`` the C parser needs a semicolon in order to know if
-we meant ``p++; q`` or ``p; q++``. Such ambiguity is resolved in Koka by
+we meant ``p++; q`` or ``p; ++q``. Such ambiguity is resolved in Koka by
 not having postfix operators and restricting prefix operators to ``!``
 and ``~``. 
 
@@ -318,11 +318,11 @@ to detect such errors, but the Koka type system rejects this program:
       hint: did you forget an operator? or is there a space between an application?
 
 
-  [LHaskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
-  [LPython]: http://docs.python.org/2/reference/lexical_analysis.html
-  [LJavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
-  [LScala]: http://www.scala-lang.org/old/sites/default/files/linuxsoft_archives/docu/files/ScalaReference.pdf#page=13
-  [LGo]: http://golang.org/ref/spec#Semicolons
+[LHaskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
+[LPython]: http://docs.python.org/2/reference/lexical_analysis.html
+[LJavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
+[LScala]: http://www.scala-lang.org/old/sites/default/files/linuxsoft_archives/docu/files/ScalaReference.pdf#page=13
+[LGo]: http://golang.org/ref/spec#Semicolons
 
 
 <!--

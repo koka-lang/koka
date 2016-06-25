@@ -31,7 +31,7 @@ toc.toc-contents {
 }
 
 .pre-indented, .console {
-  replace: "/^( *>)/\(**``\1``**\)/mg";
+  replace: "/^( *>.*)/\(**``\1``**\)/mg";
 }
 
 @if preview {

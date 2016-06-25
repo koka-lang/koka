@@ -9,9 +9,10 @@ The following programs are required to build Koka:
 
 * The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
 * The [NodeJS](http://nodejs.org) runtime (version 4.2 or later).
-* Some version of Mercurial, like the excellent [TortoiseHg](http://tortoisehg.bitbucket.org/download).
+* Some version of Mercurial (`hg`), like the excellent [TortoiseHg](http://tortoisehg.bitbucket.org/download).
 
-Next, get the compiler and libraries from codeplex, and build them: 
+All these programs are very easy to install on most platforms.
+Now we can build Koka itself: 
 
 1. First clone the Koka sources with algebraic effects support:
 

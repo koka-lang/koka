@@ -55,19 +55,17 @@ fun encode( s : string, shift : int )
     val rot  = (base + shift) % 26
     (rot.char + 'a')
   }
-
   s.map(encode-char)
 }
 
-fun caesar( s : string ) : string
-{
+fun caesar( s : string ) : string {
   s.encode( 3 )
 }
 ```
 
-In this example, we declare a local function `encode-uni` which encodes a
-single unicode character `u`. The final statement `s.map(encode-uni)` applies the
-`encode-uni` function to each codepoint in the in the string `s`, returning a
+In this example, we declare a local function `encode-char` which encodes a
+single character `c`. The final statement `s.map(encode-char)` applies the
+`encode-char` function to each character in the string `s`, returning a
 new string where each character is Caesar encoded. The result of the final
 statement in a function is also the return value of that function, and you can
 generally leave out an explicit `return` keyword.
