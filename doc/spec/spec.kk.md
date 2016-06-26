@@ -81,7 +81,7 @@ comments and directives.
 |                      | &bar; | _varid_ []{.bar} _qvarid_                                    |     |
 |                      | &bar; | _op_ []{.bar} _opid_ []{.bar} _qopid_ []{.bar} _wildcard_    |     |
 |                      | &bar; | _natural_ []{.bar} _float_ []{.bar} _string_ []{.bar} _char_ |     |
-|                      | &bar; | _reserved_ []{.bar} _reservedop_                             |     |
+|                      | &bar; | _reserved_ []{.bar} _opreserved_                             |     |
 |                      | &bar; | _special_ []{.bar} _funanon_                                 |     |
 {.grammar .lex}
 
@@ -100,12 +100,14 @@ grammar will draw it's lexemes from the _lex_ production.
 | _conid_      | ::=   | _upperid_                                                                                     |                                                         |
 | _varid_      | ::=   | _lowerid_~&lt;!_reserved_&gt;~                                                                |                                                         |
 | &nbsp;       |       |                                                                                               |                                                         |
-| _lowerid_    | ::=   | _lower_ [_idchar_]{.many}                                                                     |                                                         |
-| _upperid_    | ::=   | _upper_ [_idchar_]{.many}                                                                     |                                                         |
-| _wildcard_   | ::=   | ``_`` _idrest_                                                                                |                                                         |
+| _lowerid_    | ::=   | _lower_ _idtail_                                                                              |                                                         |
+| _upperid_    | ::=   | _upper_ _idtail_                                                                              |                                                         |
+| _wildcard_   | ::=   | ``_`` _idtail_                                                                                |                                                         |
 | _typevarid_  | ::=   | _letter_ [_digit_]{.many}                                                                     |                                                         |
 | &nbsp;       |       |                                                                                               |                                                         |
-| _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-`` []{.bar} ``?`` []{.bar} ``'``         |                                                         |
+| _idtail_     | ::=   | [_idchar_]{.many} [_idfinal_]{.opt}                                                           |                                                         |
+| _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-``                                       |                                                         |
+| _idfinal_    | ::=   | ``?`` []{.bar} [``'``]{.many}                                                                 |                                                         |
 | &nbsp;       |       |                                                                                               |                                                         |
 | _funanon_    | ::=   | (`fun` []{.bar} `function`)~&lt;\ ``<``[]{.bar}``(``&gt;~                                     | (anonymous functions must be followed by a `(` or `<`)) |
 | _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                                 |                                                         |
@@ -121,11 +123,11 @@ grammar will draw it's lexemes from the _lex_ production.
 |              | &bar; | `yield` []{.bar} `qualified` []{.bar} `hiding`                                                | (future reserved words)                                 |
 {.grammar .lex}
 
-Identifiers always start with a letter and may contain underscores,
-dashes, question marks and primes. 
+Identifiers always start with a letter, may contain underscores and
+dashes, and can end with a question mark or primes. 
 Like in Haskell, constructors always begin with an uppercase
 letter while regular identifiers are lowercase. The rationale is to 
-quickly distinguish constants from variables in pattern matches. 
+visibly distinguish constants from variables in pattern matches. 
 Here are some example of valid identifiers:
 ```unchecked
 x
@@ -136,25 +138,17 @@ x'
 Cons
 True  
 ```
-To avoid confusion with operators like substration, dashes, question
-marks, and primes are not allowed arbitrarily in identifiers. After
-lexical analysis, identifiers (_lowerid_ and _upperid_) are only accepted 
-if they adhere to the _idvalid_ grammar:
-
-|~~~~~~~~~~|~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~|
-|_idvalid_ | ::= | _letter_ [_idtoken_]{.many} [_idfinal_]{.many}                                     |   |
-|_idtoken_ | ::= | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} []{.bar} _letter_ ``-`` _letter_ |   |
-|_idfinal_ | ::= | ``?`` []{.bar} ``'``                                                               |   |
-
-Question marks and primes must always be at the end of an identifier,
-while dashes must be surrounded on both sides with a letter.
+To avoid confusion with the subtraction operator, the occurrences of
+dashes are restricted in identifiers. After lexical analysis, only
+identifiers where each dash is surrounded on both sides with a _letter_
+are accepted:
 
 ````koka
 fold-right
 n-1        // illegal, a digit cannot follow a dash
 n - 1      // n minus 1
 n-x-1      // illegal, a digit cannot follow a dash
-n-x - 1    // "n-x" minus 1
+n-x - 1    // identifier "n-x" minus 1
 n - x - 1  // n minus x minus 1
 ````
 Qualified identifiers are prefixed with a module path. Module
@@ -167,32 +161,27 @@ std/core/(&)
 
 ### Operators and symbols
 
-| ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~|
-| _qopid_      | ::=   | _modulepath_ _opid_                                                                                                            |     |
-| _opid_       | ::=   | `(` _symbols_ `)`                                                                                                              |     |
-| &nbsp;       |       |                                                                                                                                |     |
-| _op_         | ::=   | _symbols_~&lt;!\ _reservedop_\ []{.bar}\ _typeop_&gt;~                                                                         |     |
-| &nbsp;       |       |                                                                                                                                |     |
-| _symbols_    | ::=   | _symbol_ []{.bar} ``/``                                                                                                        |     |
-| _symbol_     | ::=   | `$` []{.bar} `%` []{.bar} ``&`` []{.bar} `*` []{.bar} `+`                                                                      |     |
-|              | &bar; | ``~`` []{.bar} ``!`` []{.bar} ``\`` []{.bar} `^` []{.bar} ``#``                                                                 |     |
-|              | &bar; | ``=`` []{.bar} ``.`` []{.bar} ``:`` []{.bar} `-` []{.bar} `?`                                                                  |     |
-|              | &bar; | ``\(&bar;\)`` []{.bar} `<` []{.bar} `>`                                                                                        |     |
-| &nbsp;       |       |                                                                                                                                |     |
-| _special_    | ::=   | `{` []{.bar} `}` []{.bar} `(` []{.bar} `)` []{.bar} `[` []{.bar} `]` []{.bar} `;` []{.bar} `,` []{.bar} &lapp; []{.bar} &lidx; |     |
-| &lapp;       | ::=   | ~&lt;_apply_&gt;~`(`                                                                                                           |     |
-| &lidx;       | ::=   | ~&lt;_apply_&gt;~`[`                                                                                                           |     |
-| _apply_      | ::=   | `)` []{.bar} `]` []{.bar} _anyid_                                                                                              |     |
-| &nbsp;       |       |                                                                                                                                |     |
-| _reservedop_ | ::=   | `=` []{.bar} `.` []{.bar} [:]{.koka .code .keyword} []{.bar} `->`                                                              |     |
-| _typeop_     | ::=   | `>` _anglebar_ [_anglebar_]{.many}                                                                                             |     |
-|              | &bar; | `<` _anglebar_ [_anglebar_]{.many}                                                                                             |     |
-|              | &bar; | ``\(&bar;\)`` _angle_ [_symbol_]{.many}                                                                                        |     |
-|              | &bar; | `-><` [_symbol_]{.many}                                                                                                        |     |
-|              | &bar; | ``:?`` [_symbol_]{.many}                                                                                                       |     |
-| &nbsp;       |       |                                                                                                                                |     |
-| _anglebar_   | ::=   | ``\(&bar;\)`` []{.bar} _angle_                                                                                                 |     |
-| _angle_      | ::=   | `<` []{.bar} `>`                                                                                                               |     |
+| ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
+| _qopid_      | ::=   | _modulepath_ _opid_                                                                                                                                   |    |
+| _opid_       | ::=   | `(` _op_ `)`                                                                                                                                          |    |
+| &nbsp;       |       |                                                                                                                                                       |    |
+| _op_         | ::=   | _symbols_~&lt;!\ _opreserved_[]{.bar}_optype_&gt;~  []{.bar} ``/`` []{.bar} ``\(&bar;&bar;\)``                                                        |    |
+| &nbsp;       |       |                                                                                                                                                       |    |
+| _symbols_    | ::=   | _symbol_ [_symbol_]{.many}                                                                                                                            |    |
+| _symbol_     | ::=   | `$` []{.bar} `%` []{.bar} ``&`` []{.bar} `*` []{.bar} `+`                                                                                             |    |
+|              | &bar; | ``~`` []{.bar} ``!`` []{.bar} ``\`` []{.bar} `^` []{.bar} ``#``                                                                                       |    |
+|              | &bar; | ``=`` []{.bar} ``.`` []{.bar} ``:`` []{.bar} `-` []{.bar} `?`                                                                                         |    |
+|              | &bar; | _anglebar_                                                                                                                                            |    |
+| _anglebar_   | ::=   | ``<`` []{.bar} ``>`` []{.bar} ``\(&bar;\)``                                                                                                           |    |
+| &nbsp;       |       |                                                                                                                                                       |    |
+| _opreserved_ | ::=   | `=` []{.bar} `.` []{.bar} ``:`` []{.bar} `->`                                                                                     |    |
+| _optype_     | ::=   | _anglebar_ _anglebar_ [_anglebar_]{.many}                                                                                                             |    |
+| &nbsp;       |       |                                                                                                                                                       |    |
+| _special_    | ::=   | `{` []{.bar} `}` []{.bar} `(` []{.bar} `)` []{.bar} `[` []{.bar} `]` []{.bar} ``\(&bar;\)`` []{.bar} `;` []{.bar} `,` []{.bar} &lapp; []{.bar} &lidx; |    |
+| &lapp;       | ::=   | ~&lt;_apply_&gt;~`(`                                                                                                                                  |    |
+| &lidx;       | ::=   | ~&lt;_apply_&gt;~`[`                                                                                                                                  |    |
+| _apply_      | ::=   | `)` []{.bar} `]` []{.bar} _anyid_                                                                                                                     |    |
+| &nbsp;       |       |                                                                                                                                                       |    |
 {.grammar .lex}
 
 ### Literals
@@ -218,13 +207,13 @@ std/core/(&)
 ### White space
 
 |~~~~~~~~~~~~~~~~~|~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|~~~~~~~~~~~~~~~~~~~~~~~~~~|
-| _whitespace_    | ::=    | _white_ [_white_]{.many}                                                                           |                          |
-| _white_         | ::=    | _newline_ []{.bar} _space_                                                                         |                          |
+| _whitespace_    | ::=    | _white_ [_white_]{.many} []{.bar} _newline_                                                                           |                          |
+| _white_         | ::=    | _space_                                                                         |                          |
 |                 | &bar;  | _linecomment_ []{.bar} _blockcomment_                                                              |                          |
 |                 | &bar;  | _linedirective_                                                                                    |                          |
 | &nbsp;          |        |                                                                                                    |                          |
-| _linecomment_   | ::=    | ``//`` [_linechar_]{.many} _newline_                                                                 |                          |
-| _linedirective_ | ::=    | ~&lt;_newline_&gt;~ ``#`` [_linechar_]{.many} _newline_                                            |                          |
+| _linecomment_   | ::=    | ``//`` [_linechar_]{.many}                                                                  |                          |
+| _linedirective_ | ::=    | _newline_ ``#`` [_linechar_]{.many}                                            |                          |
 | _linechar_      | ::=    | _graphic_ []{.bar} _utf8_ []{.bar} _space_ []{.bar} _tab_                                          |                          |
 | &nbsp;          |        |                                                                                                    |                          |
 | _blockcomment_  | ::=    | <code>/&#42;</code> _blockpart_ [_blockcomment_ _blockpart_]{.many} <code>&#42;/</code>            | (allows nested comments) |
