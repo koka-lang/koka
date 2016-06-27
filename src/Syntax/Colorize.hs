@@ -24,6 +24,7 @@ module Syntax.Colorize( colorize
                       , linkFromModName
                       , linkEncode
                       , fmtLiterate, showDoc
+                      , capitalize, endWithDot
                       , removeComment
                       , kindSignature
                       ) where
@@ -31,7 +32,7 @@ module Syntax.Colorize( colorize
 -- import Lib.Trace
 import Prelude hiding (span)
 import qualified Prelude
-import Data.Char( isAlphaNum, isSpace )
+import Data.Char( isAlphaNum, isSpace, toUpper )
 import Lib.Printer
 import Common.File  
 import Common.Name
@@ -242,6 +243,8 @@ showDoc env kgamma gamma doc
   = -- concat $ showLexemes env kgamma gamma [Lexeme rangeNull (LexComment (removeComment doc))]
     doctag "div" (prefix ++ "comment") $
     doctag "xmp" "" $
+    capitalize $ 
+    endWithDot $
     concatMap (fmtComment Nothing env kgamma gamma) $
     (lexComment "" 1 (removeComment doc))
 
@@ -565,3 +568,15 @@ shorthands = [
   ("special","sp"),
   ("delimiter","dl")
  ]                  
+
+
+
+capitalize s
+  = case s of
+      c:cs -> toUpper c : cs
+      _    -> s
+
+endWithDot s
+  = case dropWhile isSpace (reverse s) of
+      (c:cs) | not (c `elem` ".?!") -> reverse ('.':c:cs)
+      _      -> s

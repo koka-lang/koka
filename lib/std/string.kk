@@ -1,36 +1,20 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* This module implements extended string operations and a string builder.
+/* Extended string operations and a string builder.
 */  
 module std/string
 
 
-// Trim whitespace on the left and right side of a string
-public fun trim( s : string ) : string {
-  s.trimLeft.trimRight
-}
 
-// Trim the starting white space of a string 
-public extern inline trimLeft( s : string ) : string {
-  cs inline "(#1).TrimStart()"
-  js inline "((#1).replace(/^\\s\\s*/,''))"
-}
-
-// Trim the ending white space of a string.
-public extern inline trimRight( s : string ) : string {
-  cs inline "(#1).TrimEnd()"
-  js inline "((#1).replace(/\\s+$/,''))"
-}
-
-public fun indent( s : string, n : int = 2, c : char = ' ' ) {
+public fun indent( s : string, n : int = 2, fill : string = " " ) {
   if (n<=0) return s
-  val pre = string(n,c)
+  val pre = fill.repeat(n)
   s.lines.map( fun(line) { pre + line } ).unlines
 }
 

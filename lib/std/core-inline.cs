@@ -75,6 +75,40 @@ public static class Primitive
     return a;
   }
 
+  public static A[] NewArray<A>( int len, Fun1<int,A> init )
+  {
+    A[] a = new A[len];
+    for( int i = 0; i < len; i++) { 
+      a[i] = (A)init.Apply(i); 
+    }
+    return a;
+  }
+
+  public static std_core._list<A> VList<A>( A[] v, std_core._list<A> tail ) {
+    std_core._list<A> xs = tail;
+    for(int i = v.Length-1; i >= 0; i--) {
+      xs = new std_core._list<A>( v[i], xs );
+    }
+    return xs;
+  }
+
+  public static A[] UnVList<A>( std_core._list<A> xs ) {
+    int len = 0;
+    std_core._list<A> acc = xs;
+    while(acc != std_core._list<A>.Nil_) { 
+      len++;
+      acc = acc.tail;
+    }
+    A[] v = new A[len];
+    acc = xs;
+    for(int i = 0; i < len; i++) { 
+      v[i] = acc.head;
+      acc = acc.tail;
+    }
+    return v;
+  }
+
+
   //---------------------------------------
   // Dictionary
   //---------------------------------------
@@ -150,6 +184,47 @@ public static class Primitive
     }
     return count;
   }
+
+  public static string Repeat( string s, int n ) {
+    if (n <= 0 || String.IsNullOrEmpty(s)) return "";
+    StringBuilder sb = new StringBuilder("");
+    for(int i = 0; i < n; i++) {
+      sb.Append(s);
+    }
+    return sb.ToString();
+  }
+
+  public static int[] StringToChars( string s ) {
+    int[] v = new int[s.Length]; 
+    for(int i = 0 ; i < s.Length; i++) {
+      v[i] = (int)(s[i]);
+    }
+    return v;
+  }
+
+  public static string CharToString( int c ) {
+    return (c <= 0xFFFF ? new String( (char)(c), 1) : Char.ConvertFromUtf32(c));
+  }
+
+  public static string CharsToString( int[] v ) {
+    StringBuilder sb = new StringBuilder();
+    foreach( int c in v) {
+      sb.Append( CharToString(c) );
+    }
+    return sb.ToString();
+  }
+
+  public static string Substr( string s, int start ) {
+    return Substr(s,start,s.Length);
+  }
+
+  public static string Substr( string s, int start, int len ) {
+    var idx = (start >= 0 ? start : s.Length + start);
+    if (idx < 0) idx = 0;
+    if (idx >= s.Length || len <= 0) return "";
+    return (idx + len >= s.Length ? s.Substring(idx) : s.Substring(idx,len));
+  }
+
 
   //---------------------------------------
   // Trace

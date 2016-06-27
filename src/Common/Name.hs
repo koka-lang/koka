@@ -197,9 +197,14 @@ toConstructorName name
 toVarName name
   = newQualified (nameModule name) $
     case nameId name of
-      ('.':c:cs) -> '.':toLower c : cs  -- keep hidden names hidden
-      (c:cs)     -> toLower c : cs
-      ""         -> ""
+      ('.':cs)   -> '.':toLowers cs  -- keep hidden names hidden
+      cs         -> toLowers cs
+  where
+    toLowers s  -- while uppercase, map toLower
+      = case s of
+          (c:cs) | isUpper c -> toLower c : toLowers cs
+          _      -> s
+
 
 ----------------------------------------------------------------
 -- various special names

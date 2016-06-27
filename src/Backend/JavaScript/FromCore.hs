@@ -653,7 +653,7 @@ genList :: [Expr] -> Expr -> Asm (Doc,Doc)
 genList elems tl
   = do (decls,docs) <- genExprs elems
        (tdecl,tdoc) <- genExpr tl
-       return (vcat (decls ++ [tdecl]), text "$std_core.conslist" <> tupled [list docs, tdoc])
+       return (vcat (decls ++ [tdecl]), text "$std_core.vlist" <> tupled [list docs, tdoc])
 
 {-
 genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
@@ -998,7 +998,7 @@ ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> (pretty i)
-      LitChar c   -> squotes (escape c)
+      LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> (pretty d)
       LitString s -> dquotes (hcat (map escape s))
     where
@@ -1015,7 +1015,12 @@ ppLit lit
                  else char c)
           else if (fromEnum c <= 0xFFFF)
            then text "\\u" <> text (showHex 4 (fromEnum c))
-           else text "\\U" <> text (showHex 8 (fromEnum c))
+          else if (fromEnum c > 0x10FFFF)
+           then text "\\uFFFD"  -- error instead?
+           else let code = fromEnum c - 0x10000
+                    hi = (code `div` 0x0400) + 0xD800
+                    lo = (code `mod` 0x0400) + 0xDC00
+                in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
 
 ppName :: Name -> Doc
 ppName name

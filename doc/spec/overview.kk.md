@@ -49,25 +49,23 @@ fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
 {
-  fun encodeChar(c) {
+  fun encode-char(c) {
     if (c < 'a' || c > 'z') return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
     (rot.char + 'a')
   }
-
-  s.map(encodeChar)
+  s.map(encode-char)
 }
 
-fun caesar( s : string ) : string
-{
+fun caesar( s : string ) : string {
   s.encode( 3 )
 }
 ```
 
-In this example, we declare a local function `encodeChar` which encodes a
-single character `c`. The final statement `s.map(encodeChar)` applies the
-`encodeChar` function to each character in the in the string `s`, returning a
+In this example, we declare a local function `encode-char` which encodes a
+single character `c`. The final statement `s.map(encode-char)` applies the
+`encode-char` function to each character in the string `s`, returning a
 new string where each character is Caesar encoded. The result of the final
 statement in a function is also the return value of that function, and you can
 generally leave out an explicit `return` keyword.
@@ -117,7 +115,7 @@ what error Koka produces.
 ## Anonymous functions {#sec-anon}
 
 Koka also allows for anonymous function expressions. For example, instead of
-declaring the `encodeChar` function, we could just have passed it directly to
+declaring the `encode-char` function, we could just have passed it directly to
 the `map` function as a function expression:
 
 ```
@@ -125,9 +123,9 @@ fun encode2( s : string, shift : int )
 {
   s.map( fun(c) {
     if (c < 'a' || c > 'z') return c
-    val base = (c - 'a').int 
+    val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    return (rot.char + 'a')
+    (rot.char + 'a')
   });
 }
 ```
@@ -289,15 +287,15 @@ etc.
 Often, a function contains multiple effects, for example:
 
 ```
-fun combineEffects() 
+fun combine-effects() 
 {
-  val i = randomInt() // non-deterministic
-  error("hi")         // exception raising
-  combineEffects()    // and non-terminating
+  val i = random-int() // non-deterministic
+  error("hi")          // exception raising
+  combine-effects()    // and non-terminating
 }
 ```
 
-The effect assigned to `combineEffects` are `:ndet`, `:div`, and `:exn`. We
+The effect assigned to `combine-effects` are `:ndet`, `:div`, and `:exn`. We
 can write such combination as a _row_ of effects as `: <div,exn,ndet> `. When
 you hover over the `combine-effects` identifiers, you will see that the type
 inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as
@@ -345,7 +343,7 @@ fun main() { looptest() }
 ////
 fun looptest() 
 {
-  while { odd(randomInt()) } 
+  while { odd(random-int()) } 
   {
     error("<b>")
   }
@@ -378,9 +376,12 @@ fun fib(n : int) : div int
 
 Note that the type inference engine is currently not powerful enough to
 prove that this recursive function always terminates, which leads to
-inclusion of the divergence effect `:div` in the result type. We can
-avoid this by using the `repeat` function and some imperative updates,
-and increase the efficiency too:
+inclusion of the divergence effect `:div` in the result type. 
+
+
+Here is another version of the Fibonacci function but this time
+implemented using local state. We use the `repeat` function to 
+iterate `n` times:
 
 ```
 fun main() { println(fib2(10)) }
@@ -402,8 +403,6 @@ The `var` declaration declares a variable that can be assigned too using the
 `(:=)` operator. In contrast, a regular equality sign, as in `y0 = y`
 introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y` 
 for such declaration too but we usually leave out the `val` keyword.
-
-### Heap references {#sec-refs}
 
 Local variables declared using `var` are actually syntactic sugar for
 allocating explicit references to mutable cells. A reference to a mutable
@@ -432,7 +431,7 @@ As we can see, using `var` declarations is quite convenient since such
 declaration automatically adds a dereferencing operator to all occurrences
 except on the left-hand side of an assignment.
 
-When we look at the types inferred for references, we see that `x` and `y`
+When we look at the types inferred for the references, we see that `x` and `y`
 have type `:ref<h,int> ` which stands for a reference to a mutable value of
 type `:int` in some heap `:h`. The effects on heaps are allocation as
 `:heap<h>`, reading from a heap as `:read<h>` and writing to a heap as
@@ -450,8 +449,9 @@ heap type `:h` and applies the `run` function (corresponding to ``runST`` in
 Haskell) to discard the `:st<h> ` effect.
 
 The Garsia-Wachs algorithm is nice example where side-effects are used
-internally but where the algorithm itself behaves like a pure function, see
-the ``lib/demo/garsiaWachs.kk`` example in the distribution.
+internally across function definitions and data structures, but where the
+final algorithm itself behaves like a pure function, see the
+``lib/demo/garsiaWachs.kk`` example in the distribution.
 
   [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
 
@@ -461,18 +461,18 @@ Enough about effects and imperative updates. Let's look at some more functional 
 For example, cracking Caesar encoded strings:
 
 ```
-fun main() { testCrack() }
+fun main() { test-uncaesar() }
 
 fun encode( s : string, shift : int )
 {
-  function encodeChar(c) {
-    if (!(c.isLower)) return c
-    val base = (c - 'a').int 
+  function encode-char(c) {
+    if (c < 'a' || c > 'z') return c
+    val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    return (rot.char + 'a')
+    (rot.char + 'a')
   }
 
-  s.map(encodeChar)
+  s.map(encode-char)
 }
 ////
 // The letter frequency table for English
@@ -493,32 +493,33 @@ fun rotate( xs, n ) {
 // Calculate a frequency table for a string
 fun freqs( s : string ) : list<double>
 {
-  val n      = s.count( isLower )   // count of lowercase letters in `s`
-  val lowers = list('a','z')         // list of the lower-case letters 
-  lowers.map( fun(c) { percent( s.count(c), n )  } )
+  val lowers = list('a','z')
+  val occurs = lowers.map( fun(c){ s.count(c.string) })
+  val total  = occurs.sum
+  occurs.map( fun(i){ percent(i,total) } )
 }
 
 // Calculate how well two frequency tables match according 
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  return zipWith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
+  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
 }
 
 // Crack a Caesar encoded string
-fun crack( s : string ) : string
+fun uncaesar( s : string ) : string
 {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english ) 
-               })   
+               })
   val min    = chitab.minimum()           // find the mininal element
-  val shift  = chitab.indexOf( fun(f){ f == min } ).negate  // and use its position as our shift
+  val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )
 }
   
-fun testCrack() {
-  println( crack( "nrnd lv d ixq odqjxdjh" ) )
+fun test-uncaesar() {
+  println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
 ```
 
@@ -666,8 +667,6 @@ type colors {
 }
 ```
 
-Note that the layout rule separates each _constructor_ with a semi-colon, and
-we can also write this on one line as `type colors { Red; Green; Blue }`.
 Special cases of these enumerated types are the `:void` type which has no
 alternatives (and therefore there exists no value with this type), the unit
 type `:()` which has just one constructor, also written as `()` (and

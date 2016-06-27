@@ -25,14 +25,14 @@ type   direction
          Backward
        }
 
-public function main() : _ ()
+public fun main() : _ ()
 { 
   val count   = 200
   val timeout = 15
   var starColor       := "white"
   var flightDirection := Forward
 
-  function moveStars(ctx: canvasRenderingContext2d, stars: list<star>) : dom list<star>
+  fun moveStars(ctx: canvasRenderingContext2d, stars: list<star>) : dom list<star>
   { 
     ctx.fillStyle := "black"
     val w = ctx.canvas.width.double
@@ -46,10 +46,10 @@ public function main() : _ ()
                                     Star(star.x * 1.015, star.y * 1.015, star.size, star.color)
                                   }
                       Backward -> if(random() < 0.01) {
-                                    if(randomInt().even) {
-                                      Star(random() * w - w / 2.0, if(randomInt().even) { h / 2.0 } else { (0.0-h) / 2.0 } , random() * 4.0, starColor)
+                                    if(random-int().even) {
+                                      Star(random() * w - w / 2.0, if(random-int().even) { h / 2.0 } else { (0.0-h) / 2.0 } , random() * 4.0, starColor)
                                     } else {
-                                      Star(if(randomInt().even) { w / 2.0 } else { (0.0-w) / 2.0 }, random() * h - h / 2.0, random() * 4.0, starColor)
+                                      Star(if(random-int().even) { w / 2.0 } else { (0.0-w) / 2.0 }, random() * h - h / 2.0, random() * 4.0, starColor)
                                     }
                                   } else {
                                     Star(star.x * 0.985, star.y * 0.985, star.size, star.color)
@@ -70,7 +70,7 @@ public function main() : _ ()
       window.document.body.appendChild(canvas.node)
 
       val ctx    = canvas.getContext("2d").toCanvasRenderingContext2d
-      function loop(stars: list<star>) : _ ()
+      fun loop(stars: list<star>) : _ ()
       { val newStars = moveStars(ctx, stars)
         window.setTimeout( fun(){ loop(newStars) }, timeout )
         return ()
@@ -84,7 +84,7 @@ public function main() : _ ()
        canvas.width  := window.innerWidth 
       })
       window.onclick := (fun(event) {
-        starColor := "rgb(" + (randomInt() % 255).show + "," + (randomInt() % 255).show + "," + (randomInt() % 255).show + ")"
+        starColor := "rgb(" + (random-int() % 255).show + "," + (random-int() % 255).show + "," + (random-int() % 255).show + ")"
       })
       window.ondblclick := (fun(event) {
         match(flightDirection)

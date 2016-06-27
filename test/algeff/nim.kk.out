@@ -57,7 +57,6 @@ gametree : forall<e> (action : () -> <nim|e> player) -> e gtree
 get : forall<a> () -> (state<a>) a
 main : () -> <pure,console> ()
 move : (player : player, sticks : int) -> nim int
-moves : (gtree : gtree) -> exn list<(int, gtree)>
 pc : forall<a,e> (action : () -> <nim|e> a) -> e a
 perfect : forall<a,e> (action : () -> <nim|e> a) -> e a
 player : (gtree : gtree) -> player
@@ -86,7 +85,7 @@ testPrint2 : () -> io player
 updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
-.../out/test/std_core.js:476
+.../out/test/std_core.js:598
  throw exn;
  ^
 bob cheated!

@@ -12,8 +12,8 @@
 .Op-flip : forall<a> .ops-nondet<a>
 .Op-get : forall<a,b> .ops-state<a,b>
 .Op-put : forall<a,b> (a) -> .ops-state<a,b>
-.Op-symbol : forall<a> (char) -> .ops-symbol<a>
-.copy : forall<a> (.ops-symbol<a>, char) -> .ops-symbol<a>
+.Op-symbol : forall<a> (string) -> .ops-symbol<a>
+.copy : forall<a> (.ops-symbol<a>, string) -> .ops-symbol<a>
 .copy : forall<a,b> (.ops-cutfail<a>) -> .ops-cutfail<a>
 .tag-Eff-cutfail: string
 .tag-Eff-nondet: string
@@ -25,7 +25,7 @@ choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<
 collect : forall<a,e> (() -> <nondet|e> a) -> <nondet|e> a
 cut : () -> <cutfail,nondet> ()
 cutfail : forall<a> () -> cutfail a
-digit : () -> <nondet,symbol> char
+digit : () -> <nondet,symbol> string
 expr : () -> <nondet,symbol,div> int
 factor : () -> <nondet,symbol,div> int
 fail : forall<a> () -> nondet a
@@ -41,7 +41,7 @@ many : forall<a,e> (() -> <nondet,div|e> a) -> <nondet,div|e> list<a>
 many1 : forall<a,e> (() -> <nondet,div|e> a) -> <nondet,div|e> list<a>
 number : () -> <nondet,symbol,div> int
 once : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
-parse : forall<a,e> (cs : list<char>, action : () -> <nondet,symbol|e> a) -> <nondet|e> a
+parse : forall<a,e> (cs : string, action : () -> <nondet,symbol|e> a) -> <nondet|e> a
 put : forall<a> (i : a) -> (state<a>) ()
 select : forall<a> (list<a>) -> nondet a
 show : (xs : list<(int, list<int>)>) -> string
@@ -49,7 +49,7 @@ show : (x : (int, list<list<int>>)) -> string
 show : (xss : list<list<int>>) -> string
 solutions : forall<a,e> (action : () -> <nondet|e> a) -> e list<a>
 state : forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e (a, b)
-symbol : (c : char) -> symbol char
+symbol : (s : string) -> symbol string
 term : () -> <nondet,symbol,div> int
 test1 : () -> div list<list<int>>
 test2 : () -> div (int, list<list<int>>)

@@ -7,8 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 
-/*
-File operations. 
+/* File operations. 
 */
 public module std/file
 

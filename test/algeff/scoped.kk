@@ -31,7 +31,7 @@ val solutions = handler {
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.showList(fun(xs) { xs.showList(core/show) } )
+  xss.show-list(fun(xs) { xs.show-list(core/show) } )
 }
 
 fun test1() {
@@ -76,7 +76,7 @@ fun show(x : (int,list<list<int>>)) : string {
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
-  xs.showList fun(x) {
+  xs.show-list fun(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
@@ -131,20 +131,19 @@ fun test4() {
 // --------------------------------------------------------------
 
 effect symbol {
-  symbol(c : char) : char
+  symbol(s : string) : string
 }
 
 val parse = handler(cs) {
-  return x -> if (cs.nil?) then x else fail()
-  symbol(s)-> match(cs) {
-                Cons(c,cc) | c == s -> resume(cc,s)
-                _ -> fail()
-              }              
+  return x -> if (cs.empty?) then x else fail()
+  symbol(s)-> if (cs.starts-with(s)) 
+               then resume(cs.substr(s.length),s)
+               else fail()
 }
 
 
-fun digit() : <nondet,symbol> char {
-  symbol(select(list('0','9')))
+fun digit() : <nondet,symbol> string {
+  symbol(select(list(0,9).map(show)))
 }
 
 fun choice(p1,p2) {
@@ -161,13 +160,13 @@ fun many1(p) {
 
 fun number() {
   val ds = many1(digit)
-  parseIntDefault(ds.string,0)
+  parse-int(ds.join).maybe(0)
 }
 
 fun expr() : <div,nondet,symbol> int {
   choice { 
     val i :int = term()
-    symbol('+')
+    symbol("+")
     val j = term()
     i+j
   }
@@ -177,7 +176,7 @@ fun expr() : <div,nondet,symbol> int {
 fun term() {
   choice {
     val i : int = factor()
-    symbol('*')
+    symbol("*")
     val j = factor()
     i*j
   }
@@ -186,15 +185,15 @@ fun term() {
 
 fun factor() {
   choice(number) {
-    symbol('(')
+    symbol("(")
     val i = expr()
-    symbol(')')
+    symbol(")")
     i
   }
 }
 
 fun test5() {
-  solutions{ parse("2+8*5".list){ expr() } }
+  solutions{ parse("2+8*5"){ expr() } }
 }
 
 

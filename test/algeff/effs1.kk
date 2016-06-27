@@ -16,6 +16,6 @@ val amb = handler {
 }
 
 fun main() {
-  amb(xor).showList(show).println
+  amb(xor).show.println
 }
 

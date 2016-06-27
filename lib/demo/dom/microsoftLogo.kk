@@ -18,11 +18,11 @@ import sys/dom/html/htmlTableRowElement
 import sys/dom/html/htmlTableDataCellElement
 import sys/dom/css/cssStyleDeclaration
 
-public function main() {
+public fun main() {
   includeLogo()
 }
 
-public function includeLogo(): dom ()
+public fun includeLogo(): dom ()
 { 
   withWindow fun(window)
   { 
@@ -35,9 +35,9 @@ public function includeLogo(): dom ()
   }
 }
 
-public function createMicrosoftLogo(document: document, scaling: double = 1.0) : dom htmlElement
+public fun createMicrosoftLogo(document: document, scaling: double = 1.0) : dom htmlElement
 { 
-  function pixel(i: int) : string
+  fun pixel(i: int) : string
   { 
     (i.double * scaling).show + "px"
   } 

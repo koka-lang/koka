@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-    Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -7,8 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 
-/*
-Handle and transform file paths 
+/* File system paths
 */
 public module std/path
 
@@ -17,28 +16,28 @@ extern include {
 }
 
 // Change the extension of a path
-fun changeExt( path : string, ext : string ) : string {
-  path.noext + (if (ext.startsWith(".")) then "" else ".") + ext
+fun change-ext( path : string, ext : string ) : string {
+  path.noext + (if (ext.starts-with(".")) then "" else ".") + ext
 }
 
 // If a path has no extension, set it to the provided one.
-fun defaultExt( fname, ext ) {
-  if (fname.extname=="") then fname.changeExt(ext) else fname
+fun default-ext( fname, ext ) {
+  if (fname.extname=="") then fname.change-ext(ext) else fname
 }
 
 
 // Remove the extension from a path
 fun noext( path : string ) : string {
   val ext = path.extname
-  if (ext=="") then path else path.substr(0,path.length - ext.length)
+  path.trim-right(ext)
 }
 
 
 // Join arguments using the platform specific directory separator  
 // Note: unlike NodeJS the resulting path is not yet normalized
 fun combine( path1 : string, path2 : string ) : string {
-  val p2 = if (path2.startsWith(sep)) then path2.substr(1) else path2
-  val p1 = if (path1.endsWith(sep)) then path1.substr(0,path1.length - 1) else path1
+  val p2 = path2.trim-left(sep)
+  val p1 = path1.trim-right(sep)
   if (p1=="") then p2 else p1 + sep + p2
 }
 
@@ -61,7 +60,7 @@ extern normalize( p : string ) : io string {
 // `dirname("foo/bar.ext") == "foo")`
 fun dirname( p : string ) : string {
   val d = p.xdirname
-  if (d=="." && !(p.startsWith("."))) then "" else d
+  if (d=="." && !(p.starts-with("."))) then "" else d
 }
 
 private extern xdirname( p : string ) : string {
@@ -90,7 +89,7 @@ public fun stemname( p : string ) : string {
 }
 
 // Append to the stem name of a path
-public fun appendStem( path : string, extra : string ) : string {
+public fun append-stem( path : string, extra : string ) : string {
   combine(path.dirname, path.stemname + extra + path.extname)
 }
 
@@ -111,7 +110,7 @@ private extern pathdelim() : string {
 val delimiter : string = pathdelim()
 
 
-extern programPath() : io string {
+extern program-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
   js inline "((fun(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
 }

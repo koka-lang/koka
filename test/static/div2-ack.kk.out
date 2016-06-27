@@ -2,6 +2,5 @@ static/div2-ack/nat: V
 Succ : (succ : nat) -> nat
 Zero : nat
 ack : (nat, nat) -> nat
-isSucc : (nat : nat) -> bool
-isZero : (nat : nat) -> bool
-succ : (nat : nat) -> exn nat
+succ? : (nat : nat) -> bool
+zero? : (nat : nat) -> bool

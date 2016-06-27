@@ -16,5 +16,5 @@ fun test() {
 }
 
 fun main() {
-  test().head.show.println
+  test().head.maybe(0).show.println
 }

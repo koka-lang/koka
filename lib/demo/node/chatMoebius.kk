@@ -18,13 +18,13 @@ type serverCommand {
   SetUsername( uname :string ) 
 }
 
-function xlog( s : string ) {
+fun xlog( s : string ) {
   trace( "[log] " + s );
 }
 
-public function main() : io ()
+public fun main() : io ()
 {    
-  function serverCode()         
+  fun serverCode()         
   { 
     xlog("moebius server listening on localhost:8080")
 
@@ -36,7 +36,7 @@ public function main() : io ()
     
     val broadcast = createBroadcast()
     
-    function serverSession(client)
+    fun serverSession(client)
     { 
       xlog("`serverCode.serverSession` is executed") 
 
@@ -49,7 +49,7 @@ public function main() : io ()
       }
 
       // handle messages
-      function handlr(c) {
+      fun handlr(c) {
         match(c) { 
           Utter(message) -> { 
             broadcast.emit( username + ": " + message )
@@ -69,13 +69,13 @@ public function main() : io ()
   }
 
   
-  function clientCode() { 
+  fun clientCode() { 
     xlog("`clientCode` is executed")
 
-    function clientSession(server) { 
+    fun clientSession(server) { 
       xlog("`clientCode.clientSession` is executed")
       
-      function loop() { 
+      fun loop() { 
         readln() fun(input) {
           if( input.startsWith("/") ) {
             if( input.startsWith("/nick ") ) {

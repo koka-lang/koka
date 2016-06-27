@@ -911,6 +911,7 @@ effectToOperation eff tres
   = let (ename, optp) = case expandSyn eff of
                           TCon tc -> (typeConName tc, TApp (TCon (tcToOp tc)) [tres])
                           TApp (TCon tc) targs -> (typeConName tc, TApp (TCon (tcToOp tc)) (targs ++ [tres]))
+                          _ -> failure ("Type.Infer.effectToOperation: invalid effect: " ++ show eff)
     in do dataInfo <- findDataInfo (toOperationsName ename)                          
           return (optp,ename,dataInfo)
   where
@@ -940,7 +941,8 @@ inferHandledEffect rng mbeff ops
                                         TApp (TCon tc) [hx] 
                                           | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 
                                           -> return (Just hx)
-
+                                        _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
+                  Nothing -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho 
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 

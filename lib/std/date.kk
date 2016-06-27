@@ -6,6 +6,8 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
+/* Date and time functions
+*/
 public module std/date
 
 type date
@@ -34,22 +36,26 @@ extern time : (date) -> int {
 
 // Return an ISO 8601 date-time string.
 // See <http://en.wikipedia.org/wiki/ISO_8601>
-extern isoDateTime : (date) -> string {
+extern iso-datetime : (date) -> string {
   js inline "#1.toISOString()"
 }
 
 // Return the date portion of an ISO date/time string.
-fun isoDate(d : date) : string {
-  val s = d.isoDateTime
-  val i = s.indexOf("T")
-  if (i >= 0) then s.substr(0,i) else s
+fun iso-date(d : date) : string {
+  val s = d.iso-datetime
+  match (s.index-of("T")) {
+    Just(i) -> s.substr(0,i) 
+    Nothing -> s
+  }
 }
 
 // Return the time portion of an ISO date/time string.
-fun isoTime(d : date) : string {
-  val s = d.isoDateTime
-  val i = s.indexOf("T")
-  if (i >= 0) then s.substr(i) else s
+fun iso-time(d : date) : string {
+  val s = d.iso-datetime
+  match (s.index-of("T")) {
+    Just(i) -> s.substr(i+1) 
+    Nothing -> s
+  }
 }
 
 // Get the year
@@ -68,15 +74,15 @@ extern day( d : date ) : int {
 }
 
 // return the ISO date in local time
-fun isoLocalDate( d : date ) : string {
+fun iso-local-date( d : date ) : string {
   d.year.show + "-" + d.month.show2 + "-" + d.day.show2
 }
 
 // return the ISO time in local time
-fun isoLocalTime( d : date ) : string {
+fun iso-local-time( d : date ) : string {
   d.hours.show2 + ":" + d.minutes.show2 + ":" + d.seconds.show2
 }
 
-fun show2( i : int ) : string {
-  i.show.align(2,'0')
+private fun show2( i : int ) : string {
+  i.show.pad-left(2,"0")
 } 

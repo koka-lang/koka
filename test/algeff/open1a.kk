@@ -4,8 +4,8 @@
 
 val hs : forall<e> list<int -> e int> = [id]
 
-fun bar(x:int) : <exn> int {
-  head(hs)(x)
+fun bar(x:int) : int {
+  head(hs).maybe(id)(x)
 }
 
 

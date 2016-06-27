@@ -27,7 +27,7 @@ fun show(p:player) : string {
 }
 
 fun show(ps : list<player> ) : string {
-  ps.showList(show)
+  ps.show-list(show)
 }
 
 
@@ -99,7 +99,7 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.showList(fun(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show + moves.show-list(fun(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }

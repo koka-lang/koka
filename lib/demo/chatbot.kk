@@ -22,12 +22,12 @@ val answers = [
   "Does it please you to believe I am afraid of you?",
 ]
 
-public function main() : <console,exn,ndet,div,async> () 
+public fun main() : <console,exn,ndet,div,async> () 
 { 
-  function reacton(input: string) : <console,exn,ndet,div,async> ()
+  fun reacton(input: string) : <console,exn,ndet,div,async> ()
   {
     if (input != "exit" && input != "quit") {
-      val answer = answers[randomInt() % answers.length()].maybe("?",id)
+      val answer = answers[random-int() % answers.length()].maybe("?",id)
       question(answer).reacton
     }
   }

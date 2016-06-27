@@ -26,7 +26,7 @@ import Lib.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
-import Data.List(groupBy,intersperse)
+import Data.List(groupBy,intersperse,nubBy)
 import Data.Maybe(catMaybes)
 
 import Lib.PPrint
@@ -185,21 +185,19 @@ synCopyCon modName info vis con
 
 synAccessors :: Name -> DataInfo -> Visibility -> [Visibility] -> [DefGroup Type]
 synAccessors modName info vis conviss
-  = let params = concatMap (\conInfo -> zipWith (\(name,tp) rng -> (name,(tp,rng))) (conInfoParams conInfo) (conInfoParamRanges conInfo)) (dataInfoConstrs info)
+  = let paramss = map (\conInfo -> zipWith (\(name,tp) rng -> (name,(tp,rng))) 
+                                   (conInfoParams conInfo) (conInfoParamRanges conInfo)) 
+                      (dataInfoConstrs info)
         
         fields :: [(Name,(Type,Range))]
-        fields = filter (\(nm,(tp,rng)) -> not (isFieldName nm) && tvsIsEmpty (ftv (TForall (dataInfoParams info) [] tp))) $ -- no existentials
-                 select [] params
-          
-        select acc [] = reverse acc
-        select acc ((name,(tp,rng)):params)
-          = case lookup name acc of
-              Nothing -> select ((name,(tp,rng)):acc) params
-              Just (t,r) -> if (t == tp)
-                              then select acc params
-                              else -- todo: give an error if duplicate names with different types exist?
-                                   select (filter (\(n,_) -> n /= name) acc) params
-
+        fields  = filter occursOnAll $
+                  nubBy (\x y -> fst x == fst y) $ 
+                  filter (not . isFieldName . fst) $
+                  concat paramss
+        
+        occursOnAll (name,(tp,rng))
+          = all (\ps -> any (\(n,(t,_)) -> n == name && t == tp) ps) paramss
+                              
         synAccessor :: (Name,(Type,Range)) -> DefGroup Type
         synAccessor (name,(tp,rng))
           = let dataName = unqualify $ dataInfoName info 

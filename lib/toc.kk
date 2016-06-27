@@ -13,14 +13,19 @@ The draft language specification can be found <a href="kokaspec.html">here</a>.
 */
 module toc
   
+import std/array
 import std/atom
+import std/date
+import std/dict
 import std/env
 import std/file
 import std/flags
-import std/regex
+import std/log
 import std/path
 import std/readline
+import std/regex
 import std/string
+import std/unicode
 
 import sys/dom
 import sys/dom/types
