@@ -2502,7 +2502,7 @@ val uncps = handler {
 }
 
 // inject the `:cps` effect
-extern incps( action: a -> e b ) : total (a -> <cps|e> b) { inline "#1" }
+extern incps( action: () -> e a ) : total (() -> <cps|e> a) { inline "#1" }
 
 // inject the `:cps` effect from a non-cps function
 extern incpsx( action: a -> e b ) : total (a -> <cps|e> b) { inline "(function(_x,_k){ return _k(#1(_x)); })" }

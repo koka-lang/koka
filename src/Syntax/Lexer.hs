@@ -360,6 +360,31 @@ alex_action_51 =  string $ \s -> LexError ("illegal character in line directive:
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
+
+
+
+
+
+
+{-# LINE 1 "G:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 6 "<command-line>" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -370,19 +395,19 @@ alex_action_51 =  string $ \s -> LexError ("illegal character in line directive:
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 35 "templates\\GenericTemplate.hs" #-}
+{-# LINE 21 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 45 "templates\\GenericTemplate.hs" #-}
+{-# LINE 51 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 66 "templates\\GenericTemplate.hs" #-}
+{-# LINE 72 "templates\\GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-{-# LINE 87 "templates\\GenericTemplate.hs" #-}
+{-# LINE 93 "templates\\GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-{-# LINE 98 "templates\\GenericTemplate.hs" #-}
+{-# LINE 105 "templates\\GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 
