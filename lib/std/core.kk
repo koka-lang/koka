@@ -2185,6 +2185,9 @@ fun show( xs : list<bool> ) : string {
   show-list(xs,show)
 }
 
+fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string {
+  "(" + x.fst.showfst + "," + x.snd.showsnd + ")"
+}
 
 // ----------------------------------------------------------------------------
 // Print to the console
@@ -2394,7 +2397,7 @@ fun unique() : ndet int
 
 // Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
 fun choose( x: a, y: a) : ndet a {
-  if (odd(random-int())) then x else y
+  if (random-bool()) then x else y
 }
 
 // Return a random number equal or larger than 0.0 and smaller than 1.0
@@ -2408,6 +2411,12 @@ extern random-int: () -> ndet int  {
   cs "Primitive.RandomInt"
   js inline "Math.floor(Math.random()*2147483647)"
 }
+
+// Return a random boolean
+fun random-bool() : ndet bool {
+  odd(random-int())
+}
+
 
 // ----------------------------------------------------------------------------
 // Control
@@ -2493,7 +2502,10 @@ val uncps = handler {
 }
 
 // inject the `:cps` effect
-extern  incps( action: () -> e a ) : total (() -> <cps|e> a) { inline "#1" }
+extern incps( action: a -> e b ) : total (a -> <cps|e> b) { inline "#1" }
+
+// inject the `:cps` effect from a non-cps function
+extern incpsx( action: a -> e b ) : total (a -> <cps|e> b) { inline "(function(_x,_k){ return _k(#1(_x)); })" }
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.

@@ -1044,10 +1044,12 @@ handlerExprX lp rng shallow mbEff
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        (retops,rng2)  <- semiBracesRanged1 handlerOp
        let (rets,ops) = partitionEithers retops
-       case rets of
-         [ret] -> return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
-         _     -> fail "There must be (at most) one 'return' clause in a handler body"
-
+       ret <- case rets of
+                [r] -> return r
+                []  -> return (handlerReturnDefault rng)
+                _   -> fail "There can be be at most one 'return' clause in a handler body"
+       return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+       
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
 handlerParams 
   = do (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
@@ -1099,6 +1101,14 @@ handlerPar
   = do (name,rng) <- identifier     
        tp <- optionMaybe typeAnnot
        return (ValueBinder name tp () rng (combineRanged rng tp))  
+
+-- default return clause: return x -> x
+handlerReturnDefault :: Range -> UserExpr
+handlerReturnDefault rng
+  = let xname = newHiddenName "x"
+        xbind = ValueBinder xname Nothing Nothing rng rng
+        xvar  = Var xname False rng
+    in Lam [xbind] xvar rng
 
 
 {--------------------------------------------------------------------------

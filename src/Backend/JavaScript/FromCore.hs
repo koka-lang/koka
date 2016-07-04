@@ -1091,6 +1091,7 @@ reserved
     , "void"
     , "while"
     , "with"
+    , "yield"
     ]
     ++ -- reserved for future use
     [ "class"

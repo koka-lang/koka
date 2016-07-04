@@ -266,7 +266,7 @@ reservedNames
     -- for core interfaces
     , "rec"
     -- future reserved
-    , "try", "yield"
+    -- , "try", "yield"
     , "interface", "instance"
     ]
 
