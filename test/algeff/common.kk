@@ -1,3 +1,7 @@
+// --------------------------------------------------------
+//  Examples of common effects. All from the paper.
+//  Exceptions, state, iterators, ambiguity, and asynchronous effects.
+// --------------------------------------------------------
 public module common
 
 import std/readline
@@ -158,12 +162,21 @@ fun test7() {
   (amb{state(0,surprising)}).show.println
 } 
 
+
+// --------------------------------------------------------
+//  An asynchronous effect
+// --------------------------------------------------------
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
   println("hello " + name)
 }
 
+
+
+// --------------------------------------------------------
+//  Testing
+// --------------------------------------------------------
 fun main() {
   test1()
   test2()
