@@ -45,7 +45,7 @@ body.madoko {
     display:none;
   }
   
-  .tocblock.expands {
+  .tocblock.auto-expands, .tocblock.click-expands {
     display:block;
   }
   
