@@ -620,7 +620,7 @@ ignored.
 |               | &bar; | _block_                                                                     | (zero-argument anonymous function) |
 | _handlerexpr_ | ::=   | `handler` _handlereff_ _handlerpars_ `{` _handlerrules_ `}`                 |                                    |
 |               | &bar; | `handle` _handlereff_ _haction_ _handlerpars_ `{` _handlerrules_ `}`        |                                    |
-| _haction_     | ::=   | lparen _expr `)`                                                            |                                    |
+| _haction_     | ::=   | lparen _expr_ `)`                                                            |                                    |
 {.grammar .parse}
 
 ### Operator expressions

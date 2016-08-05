@@ -49,6 +49,10 @@ body.madoko {
     display:block;
   }
   
+  .tocitem.current::after {
+    content: "\00A0\25CF";
+  }
+  
   span.unexpanded, span.expanded {
     display: inline-block;
     width: 1.25em;

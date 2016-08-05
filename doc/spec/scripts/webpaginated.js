@@ -12,6 +12,10 @@ function removeClassName(elem,cname) {
   elem.className = elem.className.replace( regex, "" );
 }
 
+function addClassName(elem,cname) {
+  if (!hasClassName(elem,cname)) elem.className = elem.className + " " + cname;
+}
+
 function toggleClassName(elem,cname) {
   var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
   var classes = elem.className;
@@ -46,12 +50,15 @@ function getWindowOffset(elem) {
   return box;
 }
 
-function isInViewport (elem) {
+function viewportPosition(elem) {
   var pos = getWindowOffset(elem)
-  return (pos.top >= 0 && pos.left >= 0 &&
-      pos.top <= (window.innerHeight || document.documentElement.clientHeight) &&
-      pos.right <= (window.innerWidth || document.documentElement.clientWidth)
-  );
+  if (pos.top < 0 || pos.left < 0) 
+    return -1;
+  else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+           pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
+    return 1;
+  else 
+    return 0;
 }
 
 // ---------------------------------------------
@@ -98,8 +105,10 @@ function itemExpand(item,cls,expand) {
 function itemExpandOne(item) {
   // unexpand anything that was expanded
   [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+    removeClassName(item,"current");
     itemExpand(item,"auto-expands",false);      
   });
+  addClassName(item,"current");
   // expand the chain of parent blocks
   var tocblock = null;
   var toc = item.nextElementSibling;
@@ -118,23 +127,29 @@ function itemExpandOne(item) {
   }
 }
 
+function expandToc() {
+  var current = null;
+  [].every.call( document.querySelectorAll(".tocitem"), function(item) {
+    var target = document.getElementById( item.getAttribute("data-toc-target") );
+    var pos = viewportPosition(target);
+    if (pos <= 0) current = item;
+    return (pos < 0);
+  });
+  if (current != null) itemExpandOne(current);
+}
+
 document.addEventListener("scroll", function(ev) {
   if (afterScroll) {
     afterScroll();
     afterScroll = null;
   }
-  else {   
-    [].every.call( document.querySelectorAll(".tocitem"), function(item) {
-      var target = document.getElementById( item.getAttribute("data-toc-target") );
-      if (target != null && isInViewport(target)) {
-        itemExpandOne(item,true);
-        return false;
-      }
-      else return true;
-    });
+  else {
+    expandToc();
   }
 });
 
+document.addEventListener("load", function(ev) { expandToc(); });
+document.addEventListener("resize", function(ev) { expandToc(); });
 
 // ---------------------------------------------
 // Install event handlers for all items in the TOC
