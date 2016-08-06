@@ -49,8 +49,14 @@ body.madoko {
     display:block;
   }
   
+  /*
   .tocitem.current::after {
     content: "\00A0\25CF";
+  }
+  */
+  
+  .tocitem.current .heading-label {
+    font-weight: bold;
   }
   
   span.unexpanded, span.expanded {
@@ -127,4 +133,22 @@ section,.sidepanel {
 
 .madoko .toc > .tocblock .tocblock .tocblock {
   margin-left: 1.5em;
+}
+
+.madoko .toc a {
+  color: #444; 
+}
+
+h1:hover .entity-anchor,
+h2:hover .entity-anchor,
+h3:hover .entity-anchor {
+  display: inline-block;
+}
+
+.entity-anchor {
+  display: none;
+  width: 1.25em;
+  margin-left: -1.25em;
+  font-family: "Segoe UI Symbol", Symbola, serif;
+  font-size: 80%;
 }

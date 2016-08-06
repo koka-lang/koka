@@ -1,5 +1,5 @@
 // ---------------------------------------------
-// Helpers
+// Classname helpers
 // ---------------------------------------------
 function hasClassName(elem,cname) {
   if (elem==null) return false;
@@ -50,6 +50,7 @@ function getWindowOffset(elem) {
   return box;
 }
 
+// Return the viewport position: -1 (before), 0 (visible), 1 (after)
 function viewportPosition(elem) {
   var pos = getWindowOffset(elem)
   if (pos.top < 0 || pos.left < 0) 
@@ -68,7 +69,7 @@ function viewportPosition(elem) {
 var side = document.getElementsByClassName("sidepanel")[0];
 var afterScroll = null;
 
-
+// Align a heading at the top of the page with the toc
 function alignHeading( elem ) {
   var ofs     = getWindowOffset(elem).top;
   var sideofs = getWindowOffset(side).top;
@@ -77,10 +78,14 @@ function alignHeading( elem ) {
   } 
 }
 
+// Expand, or unexpand, one toc item
+// The class is 'auto-expands' or 'click-expands'; the latter is sticky
+// as it is user induced and will not be automatically unexpanded.
 function itemExpand(item,cls,expand) {
-  // get toc block
+  // get possible toc block (that follows the item)
   var tocblock = item.nextElementSibling;
   if (tocblock==null || !hasClassName(tocblock,"tocblock")) return;
+  
   // set expand class
   if (expand===undefined) expand = !hasClassName(tocblock,"expands");
   if (cls===undefined) cls = "auto-expands" 
@@ -92,7 +97,8 @@ function itemExpand(item,cls,expand) {
     toggleClassName(tocblock,cls);
     item.firstElementChild.className = "unexpanded";
   }
-  // set triangle
+  
+  // set expansion icon
   if (hasClassName(tocblock,"auto-expands") || hasClassName(tocblock,"click-expands")) {
     item.firstElementChild.className = "expanded";   
   }
@@ -102,6 +108,7 @@ function itemExpand(item,cls,expand) {
 }
 
 
+// Expand a single item in the toc (and unexpand others).
 function itemExpandOne(item) {
   // unexpand anything that was expanded
   [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
@@ -127,7 +134,9 @@ function itemExpandOne(item) {
   }
 }
 
+// Auto expand the toc at current  position in the document 
 function expandToc() {
+  // find the first section heading that is visible in the viewport 
   var current = null;
   [].every.call( document.querySelectorAll(".tocitem"), function(item) {
     var target = document.getElementById( item.getAttribute("data-toc-target") );
@@ -135,9 +144,13 @@ function expandToc() {
     if (pos <= 0) current = item;
     return (pos < 0);
   });
+  // if found, expand the corresponding item
   if (current != null) itemExpandOne(current);
 }
 
+
+document.addEventListener("load", function(ev) { expandToc(); });
+document.addEventListener("resize", function(ev) { expandToc(); });
 document.addEventListener("scroll", function(ev) {
   if (afterScroll) {
     afterScroll();
@@ -148,39 +161,28 @@ document.addEventListener("scroll", function(ev) {
   }
 });
 
-document.addEventListener("load", function(ev) { expandToc(); });
-document.addEventListener("resize", function(ev) { expandToc(); });
-
 // ---------------------------------------------
 // Install event handlers for all items in the TOC
 // ---------------------------------------------
 
 [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+  // only for toc items with a target
   var target = document.getElementById( item.getAttribute("data-toc-target") );
   if (!target) return;
-  var itemContent = item.innerHTML;
+  
+  // ensure every tocblock has a expansion icon in front
+  // (the optional nested tocblock follows the item)
   var tocblock = null;
-  var toc = item.nextElementSibling;
+  var toc = item.nextElementSibling;  
   if (toc && hasClassName(toc,"tocblock")) { 
     tocblock = toc;
-    item.innerHTML = "<span class='unexpanded'></span>" + itemContent;   
+    item.innerHTML = "<span class='unexpanded'></span>" + item.innerHTML;   
   } 
   
   // on a click
   item.addEventListener( "click", function() {
-    // toggle expands class, and set expansion icon
+    // expand this toc item and set expansion icon
     itemExpand(item,"click-expands");
-    /*
-    if (tocblock) {
-      if (toggleClassName(tocblock,"expands")) {
-        item.innerHTML = "<span class='expanded'></span>" + itemContent;  
-      }
-      else {
-        item.innerHTML = "<span class='unexpanded'></span>" + itemContent;
-      }
-      tocBlockExpand(item,tocblock);
-    }
-    */
     // after navigation, align the heading with the toc
     afterScroll = (function() {
       alignHeading(target);
