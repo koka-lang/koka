@@ -124,3 +124,29 @@ section,.sidepanel {
 .madoko .toc > .tocblock .tocblock .tocblock {
   margin-left: 1.5em;
 }
+
+.madoko .toc a {
+  color: #444; 
+}
+
+h1:hover .entity-anchor,
+h2:hover .entity-anchor,
+h3:hover .entity-anchor {
+  display: inline-block;
+}
+
+a.entity-anchor {
+  color: black;
+}
+
+a.localref.entity-anchor:hover {
+  text-decoration: none;
+}
+
+.entity-anchor {
+  display: none;
+  width: 1.25em;
+  margin-left: -1.25em;
+  font-family: "Segoe UI Symbol", Symbola, serif;
+  font-size: 80%;
+}

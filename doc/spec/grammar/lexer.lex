@@ -68,8 +68,9 @@ char escapeToChar( char esc, yyscan_t scanner )
 %}
 
   /* Character classes */
-Op              {Symbol}+
-Symbol          [\$\%\&\*\+\@!/\\\^\~=\.\-\:\?\|\<\>]
+
+Symbols         {Symbol}+|[/]
+Symbol          [\$\%\&\*\+\@!\\\^\~=\.\-\:\?\|\<\>]
 AngleBar        [\<\>\|]
 Angle           [\<\>]
 
@@ -208,18 +209,21 @@ js                        { return ID_JS;      }
 `                         { return '`'; }
 
   /* Comments */
-\/\/{Symbol}*             { BEGIN(linecomment); yymore(); }
-\/\*{Symbol}*             { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); } 
+\/\/                      { BEGIN(linecomment); yymore(); }
+\/\*                      { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); } 
 
   /* Type operators: these are all illegal operators and should be parsed as single characters
      For example, in types, we can have sequences like "<<exn>|<div|e>>" where "<<", ">|<", and ">>"
      should not be parsed as operator tokens. */
-\<{AngleBar}+            { yyless(1); return '<'; }
-\>{AngleBar}+            { yyless(1); return '>'; }
-\|{Angle}{Symbol}*       { yyless(1); return '|'; }
-\-\>\<{Symbol}*          { yyless(2); return RARROW; }
-\:\?{Symbol}*            { yyless(1); return ':'; }
-
+\|\|                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
+{AngleBar}{AngleBar}+     { yyless(1); return yytext[0]; }
+  /*     
+  \<{AngleBar}+            { yyless(1); return '<'; }
+  \>{AngleBar}+            { yyless(1); return '>'; }
+  \|{Angle}{Symbol}*       { yyless(1); return '|'; }
+  \-\>\<{Symbol}*          { yyless(2); return RARROW; }
+  \:\?{Symbol}*            { yyless(1); return ':'; }
+  */
 
   /* Non escaped string literal start */
 @\"                      { BEGIN(litstring);          /* " for editor highlighting */
@@ -230,12 +234,12 @@ js                        { return ID_JS;      }
   /* Identifiers and operators */
 ({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner,true); return QCONID; }
 ({Id}\/)+{Id}             { yylval->Id = identifier(yytext,yyscanner,true); return QID; }
-({Id}\/)+\({Op}\)         { yylval->Id = identifier(yytext,yyscanner,true); return QIDOP; }
+({Id}\/)+\({Symbols}\)    { yylval->Id = identifier(yytext,yyscanner,true); return QIDOP; }
 
 {ConId}                   { yylval->Id = identifier(yytext,yyscanner,true); return CONID; }
 {Id}                      { yylval->Id = identifier(yytext,yyscanner,true); return ID; }
-\({Op}\)                  { yylval->Id = identifier(yytext,yyscanner,false); return IDOP; }
-{Op}                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
+\({Symbols}\)             { yylval->Id = identifier(yytext,yyscanner,false); return IDOP; }
+{Symbols}                 { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
 _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); return WILDCARD; }
 
   /* Numbers */

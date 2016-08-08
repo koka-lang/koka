@@ -55,11 +55,94 @@ function alignHeading( elem ) {
   } 
 }
 
-document.addEventListener("scroll", function(ev) {
-  if (afterScroll) {
-    afterScroll();
-    afterScroll = null;
+// Expand, or unexpand, one toc item
+// The class is 'auto-expands' or 'click-expands'; the latter is sticky
+// as it is user induced and will not be automatically unexpanded.
+function itemExpand(item,cls,expand) {
+  // get possible toc block (that follows the item)
+  var tocblock = item.nextElementSibling;
+  if (tocblock==null || !hasClassName(tocblock,"tocblock")) return;
+  
+  // set expand class
+  if (expand===undefined) expand = !hasClassName(tocblock,"expands");
+  if (cls===undefined) cls = "auto-expands" 
+  if (cls==="click-expands") removeClassName(tocblock,"auto-expands");
+  if (expand && !hasClassName(tocblock,cls)) {
+    toggleClassName(tocblock,cls); 
   }
+  else if (!expand && hasClassName(tocblock,cls)) {
+    toggleClassName(tocblock,cls);
+    item.firstElementChild.className = "unexpanded";
+  }
+  
+  // set expansion icon
+  if (hasClassName(tocblock,"auto-expands") || hasClassName(tocblock,"click-expands")) {
+    item.firstElementChild.className = "expanded";   
+  }
+  else {
+    item.firstElementChild.className = "unexpanded";
+  }
+}
+
+
+// Expand a single item in the toc (and unexpand others).
+function itemExpandOne(item) {
+  // unexpand anything that was expanded
+  [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+    removeClassName(item,"current");
+    itemExpand(item,"auto-expands",false);      
+  });
+  addClassName(item,"current");
+  // expand the chain of parent blocks
+  var tocblock = null;
+  var toc = item.nextElementSibling;
+  if (toc && hasClassName(toc,"tocblock")) { 
+    tocblock = toc;
+  }
+  else {
+    tocblock = item.parentElement;
+  }
+  while(tocblock != null && !hasClassName(tocblock,"toc")) {
+    if (hasClassName(tocblock,"tocblock")) {
+      item = tocblock.previousElementSibling;
+      if (item != null) itemExpand(item,"auto-expands",true);
+    }
+    tocblock = tocblock.parentElement;
+  }
+}
+
+// Auto expand the toc at current  position in the document 
+function expandToc() {
+  // find the first section heading that is visible in the viewport 
+  var current = null;
+  [].every.call( document.querySelectorAll(".tocitem"), function(item) {
+    var target = document.getElementById( item.getAttribute("data-toc-target") );
+    var pos = viewportPosition(target);
+    if (pos <= 0) current = item;
+    return (pos < 0);
+  });
+  // if found, expand the corresponding item
+  if (current != null) itemExpandOne(current);
+}
+
+
+document.addEventListener("load", function(ev) { expandToc(); });
+document.addEventListener("resize", function(ev) { expandToc(); });
+
+// fire at end of scrolling
+var scrollHandler = null;
+document.addEventListener("scroll", function(ev) {
+  if (scrollHandler) clearTimeout(scrollHandler);
+  scrollHandler = setTimeout( function() {
+    scrollHandler = null;
+    if (afterScroll) {
+      afterScroll();
+      afterScroll = null;
+    }
+    else {
+      expandToc();
+    }
+  }, 50 );
 });
 
 

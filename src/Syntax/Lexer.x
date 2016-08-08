@@ -124,18 +124,15 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- type operators
-<0> "<" $anglebar+        { less 1 $ string $ LexOp . newName }
-<0> ">" $anglebar+        { less 1 $ string $ LexOp . newName }
-<0> "|" $angle $symbol*   { less 1 $ string $ LexOp . newName }
-<0> "-><" $symbol*        { less 2 $ constant $ LexKeyword "->" "" }
-<0> ":?" $symbol*         { less 1 $ constant $ LexKeyword ":" "" }
+<0> "||"                  { string $ LexOp . newName }
+<0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
 
 -- operators 
 <0> @qidop                { string $ LexIdOp . newQName . stripParens }
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
 <0> @symbols              { string $ \s -> if isReserved s
                                              then LexKeyword s "" 
-                                           else if isPrefix s 
+                                           else if isPrefixOp s 
                                              then LexPrefix (newName s)
                                              else LexOp (newName s) }
 
@@ -278,8 +275,8 @@ isReserved :: String -> Bool
 isReserved name
   = Set.member name reservedNames
 
-isPrefix :: String -> Bool
-isPrefix name
+isPrefixOp :: String -> Bool
+isPrefixOp name
   = (name == "!" || name == "~")
 
 digitsToNum :: Num a => a -> String -> a

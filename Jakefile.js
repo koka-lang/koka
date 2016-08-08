@@ -154,6 +154,8 @@ task("test", ["compiler"], function(testdir,testmode) {
 //-----------------------------------------------------
 // Tasks: c-grammar specification
 //-----------------------------------------------------
+desc(["compile flex/bison grammar",
+      "     grammar[<file>]    # run parser on <file>"].join("\n"));
 task("grammar",[],function(testfile)
 {
   var outdir = path.join(outputDir,"grammar");

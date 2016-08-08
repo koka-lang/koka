@@ -163,18 +163,18 @@ std/core/(&)
 
 | ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
 | _qopid_      | ::=   | _modulepath_ _opid_                                                                                                                                   |    |
-| _opid_       | ::=   | `(` _op_ `)`                                                                                                                                          |    |
+| _opid_       | ::=   | `(` _symbols_ `)`                                                                                                                                     |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _op_         | ::=   | _symbols_~&lt;!\ _opreserved_[]{.bar}_optype_&gt;~  []{.bar} ``/`` []{.bar} ``\(&bar;&bar;\)``                                                        |    |
+| _op_         | ::=   | _symbols_~&lt;!\ _opreserved_[]{.bar}_optype_&gt;~  []{.bar}  ``\(&bar;&bar;\)``                                                                      |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _symbols_    | ::=   | _symbol_ [_symbol_]{.many}                                                                                                                            |    |
+| _symbols_    | ::=   | _symbol_ [_symbol_]{.many}[]{.bar} ``/``                                                                                                             |    |
 | _symbol_     | ::=   | `$` []{.bar} `%` []{.bar} ``&`` []{.bar} `*` []{.bar} `+`                                                                                             |    |
 |              | &bar; | ``~`` []{.bar} ``!`` []{.bar} ``\`` []{.bar} `^` []{.bar} ``#``                                                                                       |    |
 |              | &bar; | ``=`` []{.bar} ``.`` []{.bar} ``:`` []{.bar} `-` []{.bar} `?`                                                                                         |    |
 |              | &bar; | _anglebar_                                                                                                                                            |    |
 | _anglebar_   | ::=   | ``<`` []{.bar} ``>`` []{.bar} ``\(&bar;\)``                                                                                                           |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _opreserved_ | ::=   | `=` []{.bar} `.` []{.bar} ``:`` []{.bar} `->`                                                                                     |    |
+| _opreserved_ | ::=   | `=` []{.bar} `.` []{.bar} ``:`` []{.bar} `->`                                                                                                         |    |
 | _optype_     | ::=   | _anglebar_ _anglebar_ [_anglebar_]{.many}                                                                                                             |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
 | _special_    | ::=   | `{` []{.bar} `}` []{.bar} `(` []{.bar} `)` []{.bar} `[` []{.bar} `]` []{.bar} ``\(&bar;\)`` []{.bar} `;` []{.bar} `,` []{.bar} &lapp; []{.bar} &lidx; |    |
