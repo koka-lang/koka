@@ -22,6 +22,10 @@ xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
 
+h1, h2, h3 {
+  before: "[&#x1F517;](#&id;){.entity-anchor}"
+}
+
 toc.toc-contents {
   before:clear;
 }

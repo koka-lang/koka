@@ -1,9 +1,19 @@
 // ---------------------------------------------
-// Helpers
+// Classname helpers
 // ---------------------------------------------
 function hasClassName(elem,cname) {
+  if (elem==null) return false;
   var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
   return regex.test(elem.className);
+}
+
+function removeClassName(elem,cname) {
+  var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+  elem.className = elem.className.replace( regex, "" );
+}
+
+function addClassName(elem,cname) {
+  if (!hasClassName(elem,cname)) elem.className = elem.className + " " + cname;
 }
 
 function toggleClassName(elem,cname) {
@@ -40,6 +50,18 @@ function getWindowOffset(elem) {
   return box;
 }
 
+// Return the viewport position: -1 (before), 0 (visible), 1 (after)
+function viewportPosition(elem) {
+  var pos = getWindowOffset(elem)
+  if (pos.top < 0 || pos.left < 0) 
+    return -1;
+  else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+           pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
+    return 1;
+  else 
+    return 0;
+}
+
 // ---------------------------------------------
 // Expand the toc sections and align headers with the toc.
 // ---------------------------------------------
@@ -47,6 +69,7 @@ function getWindowOffset(elem) {
 var side = document.getElementsByClassName("sidepanel")[0];
 var afterScroll = null;
 
+// Align a heading at the top of the page with the toc
 function alignHeading( elem ) {
   var ofs     = getWindowOffset(elem).top;
   var sideofs = getWindowOffset(side).top;
@@ -145,32 +168,32 @@ document.addEventListener("scroll", function(ev) {
   }, 50 );
 });
 
+// ---------------------------------------------
+// Install event handlers for all items in the TOC
+// ---------------------------------------------
 
 [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+  // only for toc items with a target
   var target = document.getElementById( item.getAttribute("data-toc-target") );
   if (!target) return;
-  var itemContent = item.innerHTML;
+  
+  // ensure every tocblock has a expansion icon in front
+  // (the optional nested tocblock follows the item)
   var tocblock = null;
-  var toc = item.nextElementSibling;
+  var toc = item.nextElementSibling;  
   if (toc && hasClassName(toc,"tocblock")) { 
     tocblock = toc;
-    item.innerHTML = "<span class='unexpanded'></span>" + itemContent;   
+    item.innerHTML = "<span class='unexpanded'></span>" + item.innerHTML;   
   } 
+  
   // on a click
   item.addEventListener( "click", function() {
-    // toggle expands class, and set expansion icon
-    if (tocblock) {
-      if (toggleClassName(tocblock,"expands")) {
-        item.innerHTML = "<span class='expanded'></span>" + itemContent;  
-      }
-      else {
-        item.innerHTML = "<span class='unexpanded'></span>" + itemContent;
-      }
-    }
+    // expand this toc item and set expansion icon
+    itemExpand(item,"click-expands");
     // after navigation, align the heading with the toc
     afterScroll = (function() {
       alignHeading(target);
     });    
-  });
+  }); 
 });
  

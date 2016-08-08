@@ -21,18 +21,20 @@ fun dowait(s : int) {
 }
 
 fun test() {
-  println("starting")
-  fun f() {
-    println("what is your name?")
-    readline()
-    error("ouch")
-  }
-  fun g() {
-    wait(1000)
-    if (flip()) then dowait(2) else dowait(3)
-  }
-  val xs = async-all( [f,g] )
-  println("hi " + xs.join(","))  
+  catch {
+    println("starting")
+    fun f() {
+      println("what is your name?")
+      readline()
+      //error("ouch")
+    }
+    fun g() {
+      wait(1000)
+      if (flip()) then dowait(2) else dowait(3)
+    }
+    val xs = async-all( [f,g] )
+    println("hi " + xs.join(","))  
+  } fun(exn) { println("exception thrown: " + exn.show) } 
 }
 
 fun main() {

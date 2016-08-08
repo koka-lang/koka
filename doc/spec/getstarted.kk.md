@@ -8,7 +8,7 @@ Unix.
 The following programs are required to build Koka:
 
 * The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
-* The [NodeJS](http://nodejs.org) runtime (version 4.2 or later).
+* The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
 * Some version of Mercurial (`hg`), like the excellent [TortoiseHg](http://tortoisehg.bitbucket.org/download).
 
 All these programs are very easy to install on most platforms.
@@ -89,6 +89,13 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
+You can also run examples in the browser by setting the host:
+
+    > :set --host=browser
+    > 1+2
+
+Some browser specific demo to try is for example ``demo/dom/conway.kk``.
+
 ## Algebraic effect handlers
 
 When in the interpreter, you can load various demo files with algebraic 
@@ -115,6 +122,9 @@ loading the ``scoped`` demo, we can run it directly from the interpreter:
     [42]
 
 Some interesting demos are:
+
+* ``common.kk``: Various examples of common control-flow abstractions
+  like exceptions, state, iterators, ambiguity, and asynchronous programming.
 
 * ``scoped.kk``: Various examples from the paper "_Effect handlers in Scope_"
   [@Wu:hscope].

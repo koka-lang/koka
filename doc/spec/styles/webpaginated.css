@@ -45,8 +45,18 @@ body.madoko {
     display:none;
   }
   
-  .tocblock.expands {
+  .tocblock.auto-expands, .tocblock.click-expands {
     display:block;
+  }
+  
+  /*
+  .tocitem.current::after {
+    content: "\00A0\25CF";
+  }
+  */
+  
+  .tocitem.current .heading-label {
+    font-weight: bold;
   }
   
   span.unexpanded, span.expanded {
