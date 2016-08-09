@@ -5,5 +5,5 @@
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 dowait : (s : int) -> <async,console> string
 flip : () -> amb bool
-main : () -> <exn,async,console> ()
-test : () -> <amb,exn,async,console> ()
+main : () -> <async,console> ()
+test : () -> <amb,async,console> ()
