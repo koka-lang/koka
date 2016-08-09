@@ -1153,31 +1153,16 @@ operatorVar
 prefixexpr :: LexParser UserExpr
 prefixexpr
   = do ops  <- many prefixOp
-       aexp <- fappexpr
+       aexp <- appexpr
        return (foldr (\op e -> App op [(Nothing,e)] (combineRanged op e)) aexp ops)
-
-fappexpr :: LexParser UserExpr
-fappexpr
-  = do e <- appexpr
-       fargs <- many bfunexpr
-       return (injectApply e fargs)       
-  where
-    injectApply expr []
-      = expr
-    injectApply expr fargs
-      = case expr of
-          App fun args rng -> App fun (args ++ nfargs) rng
-          _                -> App expr nfargs (combineRanged expr fargs)
-      where
-        nfargs = [(Nothing,f) | f <- fargs]
 
 appexpr :: LexParser UserExpr
 appexpr 
   = do e0 <- atom
-       fs <- many (dotexpr <|> applier <|> indexer)
+       fs <- many (dotexpr <|> applier <|> indexer <|> funapps)
        return (foldl (\e f -> f e) e0 fs)
   where      
-    dotexpr, indexer, applier :: LexParser (UserExpr -> UserExpr)
+    dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
            e <- atom
@@ -1200,6 +1185,18 @@ appexpr
            rng1 <- rparen
            return (\exp -> App exp (args) (combineRanged exp rng1))
 
+    funapps
+      = do fs <- many1 bfunexpr 
+           return (\arg0 -> injectApply arg0 fs)
+      where        
+        injectApply expr []
+          = expr
+        injectApply expr fargs
+          = case expr of
+              App fun args rng -> App fun (args ++ nfargs) rng
+              _                -> App expr nfargs (combineRanged expr fargs)
+          where
+            nfargs = [(Nothing,f) | f <- fargs]
 
 argument :: LexParser (Maybe (Name,Range),UserExpr)
 argument
