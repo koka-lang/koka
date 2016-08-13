@@ -5,34 +5,34 @@ effect parse {
 
 alias xparse = <parse,div>
 
-fun showP( xs : list<(a,string)>, f : a -> string ) : string {
-  xs.showList(fun(r) {
-    val (x,rest) = r
-    "(" + x.f + "," + rest.show + ")"
-  })
+fun show-parse( xs : list<(a,string)>, f : a -> string ) : string {
+  xs.show-list fun(r) {
+    r.show-tuple(f,show)
+  }
 }
 
-fun showP1( xs : list<(list<int>,string)> ) : string {
-  xs.showP( fun(is) { is.showList(show) })
+fun show-parse-ints( xs : list<(list<int>,string)> ) : string {
+  xs.show-parse( fun(is) { is.show-list(show) } )
 }
 
-
-val parse = handler(input) {
-  return x   -> [(x,input)]
-  satisfy(p) -> {
-    match(p(input)) {
-      Nothing          -> []
-      Just((res,rest)) -> resume(rest,res)
+val parse : forall<a,e> (string, () -> <parse,div,cps|e> a) -> <div,cps|e> list<(a,string)>
+  = handler(input:string) {
+      return x   -> [(x,input)]
+      satisfy(pred) -> {
+        match(pred(input)) {
+          Nothing          -> []
+          Just((res,rest)) -> resume(rest,res)
+        }
+      }
+      choice(p1,p2) -> {
+        val xs = parse(input,p1) + parse(input,p2)
+        xs.flatmap( fun(xr) {
+          val (x,rest) = xr
+          resume(rest,x)
+        })
+      }
     }
-  }
-  choice(p1,p2) -> {
-    val xs = parse(input,p1) + (parse(input,p2) : list<_>)
-    xs.concat( fun(xr) {
-      val (x,rest) = xr
-      resume(rest,x)
-    })
-  }
-}
+
 
 fun fail() {
   satisfy(fun(input) { Nothing })
@@ -49,11 +49,11 @@ fun char(p : char -> bool) : parse char {
 }
 
 fun digit() : parse int {
-  int(char(isDigit) - '0')
+  int(char(digit?) - '0')
 }
 
 fun alpha() : parse int {
-  int(char(isAlpha) - 'a')
+  int(char(alpha?) - 'a')
 }
 
 fun many(p) {
@@ -76,7 +76,7 @@ fun manyy(p) {
 }
 
 fun test1() {
-  parse("12",{many(digit)}).showP1.println 
+  parse("12",{ many(digit) }).show-parse-ints.println 
 }
 
 fun main() {
