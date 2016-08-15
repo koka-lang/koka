@@ -1680,7 +1680,7 @@ fun string( cs : list<char> ) : total string {
 
 
 // Are two strings equal? 
-// Uses exact equality between characters.
+// Uses exact equality between character codes.
 extern inline (==) : (string,string) -> bool {
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
