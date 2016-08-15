@@ -112,5 +112,5 @@ val delimiter : string = pathdelim()
 
 extern program-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
-  js inline "((fun(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
+  js inline "((function(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
 }
