@@ -242,7 +242,7 @@ fun testPrint1() {
 
 fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
-    return x -> if (n <= 1) then x else replay(n - 1, incps(action))
+    return x -> if (n <= 1) then x else replay(n - 1, { action.incps } )
   }
 }
 
@@ -250,14 +250,6 @@ fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
 
-// the following fails to type check due to the recursive 'cps' effect occurring in 'action'
-/* 
-fun replay(n : int,action : () -> <div,cps|e> a) : <div,cps|e> a {
-  handle(action) {
-    return x -> if (n <= 1) then x else replay(n-1,action)
-  }
-}
-*/
 
 fun main() {
   [""

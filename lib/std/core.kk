@@ -2501,11 +2501,20 @@ val uncps = handler {
   cps()    -> resume(())
 }
 
-// inject the `:cps` effect
-extern incps( action: () -> e a ) : total (() -> <cps|e> a) { inline "#1" }
+// inject the `:cps` effect into a non-cps function
+extern incps( action: () -> e a ) : <cps|e> a { 
+  js inline "(action.length === 1 ? action(_k) : _k(action()))" 
+}
 
-// inject the `:cps` effect from a non-cps function
-extern incpsx( action: a -> e b ) : total (a -> <cps|e> b) { js inline "(function(_x,_k){ return _k(#1(_x)); })" }
+// inject the `:cps` effect into a non-cps function with one argument
+extern incps1( action: a -> e b, x : a ) : <cps|e> b { 
+  js inline "(action.length === 2 ? action(x,_k) : _k(action(x)))" 
+}
+
+// inject the `:cps` effect into a non-cps function with two arguments
+extern incps2( action: (a,b) -> e c, x : a, y : b ) : <cps|e> c { 
+  js inline "(action.length === 3 ? action(x,y,_k) : _k(action(x,y)))" 
+}
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.
