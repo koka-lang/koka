@@ -1,41 +1,76 @@
-effect parse {
-  satisfy<b>( pred: string -> maybe<(b,string)> ) : b;
-  choice<b>( p1 :  () -> xparse b, p2 : () -> xparse b ) : b
+// --------------------------------------------------------------
+// Parser example
+// --------------------------------------------------------------
+
+// First defined the `many` effect to describe multiple of results and failure
+effect many {
+  flip() : bool;
+  fail() : a
 }
 
-alias xparse = <parse,div>
-
-fun show-parse( xs : list<(a,string)>, f : a -> string ) : string {
-  xs.show-list fun(r) {
-    r.show-tuple(f,show)
+fun select(xs) {
+  match(xs) {
+    Nil        -> fail()
+    Cons(x,xx) -> if (flip()) then x else select(xx) 
   }
 }
 
-fun show-parse-ints( xs : list<(list<int>,string)> ) : string {
-  xs.show-parse( fun(is) { is.show-list(show) } )
+// Return all solutions
+val solutions = handler {
+  return x -> [x]
+  fail()   -> []
+  flip()   -> resume(True) + resume(False)
 }
 
-val parse : forall<a,e> (string, () -> <parse,div,cps|e> a) -> <div,cps|e> list<(a,string)>
+
+// Return the first solution
+val eager = handler {
+  return x -> [x]
+  fail()   -> []
+  flip()   -> match(resume(True)) {
+    Nil -> resume(False)
+    xs  -> xs
+  }
+}
+
+
+//---------------------------------------------------------------
+// Now define the parse effect
+
+effect parse {
+  fun satisfy<b>( pred: string -> maybe<(b,string)> ) : b
+}
+
+alias mparse = <parse,many>
+
+// The parse handler uses the `many` effect to return results
+val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
   = handler(input:string) {
-      return x   -> [(x,input)]
+      return x -> (x,input)
       satisfy(pred) -> {
         match(pred(input)) {
-          Nothing          -> []
+          Nothing          -> fail()
           Just((res,rest)) -> resume(rest,res)
         }
-      }
-      choice(p1,p2) -> {
-        val xs = parse(input,p1) + parse(input,p2)
-        xs.flatmap( fun(xr) {
-          val (x,rest) = xr
-          resume(rest,x)
-        })
-      }
+      }      
     }
 
+// Choice is now defined over `flip` to possibly return multiple results
+fun choice(p1,p2) {
+  if (flip()) then p1() else p2()
+}
 
-fun fail() {
-  satisfy(fun(input) { Nothing })
+// Basic combinators
+fun many(p : () -> <parse,many,div|e> a ) : <parse,div,many|e> list<a> {
+  choice {
+    val x = p()
+    val xs = many(p)
+    Cons(x,xs)
+  } { [] } 
+}
+
+fun many1( p ) {
+  Cons(p(),many(p))
 }
 
 fun char(p : char -> bool) : parse char {
@@ -48,6 +83,12 @@ fun char(p : char -> bool) : parse char {
   })
 }
 
+// Expression parsers
+fun symbol(c : char) : parse () {
+  char( fun(d) { c == d })
+  ()
+}
+
 fun digit() : parse int {
   int(char(digit?) - '0')
 }
@@ -56,29 +97,70 @@ fun alpha() : parse int {
   int(char(alpha?) - 'a')
 }
 
-fun many(p) {
-  manyx([],p)
+fun number() {
+  many1(digit).foldl(0, fun(n,d) { 10*n + d })
 }
 
-fun manyx(acc,p) {
-  choice {
-    val x = p()
-    manyx(Cons(x,acc),p)
-  } { acc.reverse } 
+fun expr() : <div,mparse> int {
+  choice { 
+    val i :int = term()
+    symbol('+')
+    val j = term()
+    i+j
+  }
+  { term() }
 }
 
-fun manyy(p) {
+fun term() {
   choice {
-    val x = p()
-    val xs = manyy(p)
-    Cons(x,xs)
-  } { [] } 
+    val i : int = factor()
+    symbol('*')
+    val j = factor()
+    i*j
+  }
+  { factor() }
+}
+
+fun factor() {
+  choice(number) {
+    symbol('(')
+    val i = expr()
+    symbol(')')
+    i
+  }
+}
+
+
+// Testing
+// Parse for all solutions
+fun mparse(p,input) {
+  solutions{ parse(input,p) }
+}
+
+// Parse eagerly
+fun eparse(p,input) {
+  eager{ parse(input,p) }
 }
 
 fun test1() {
-  parse("12",{ many(digit) }).show-parse-ints.println 
+  mparse( expr, "1+2*3").show-parse-int.println 
 }
 
 fun main() {
   test1()
+}
+
+// Some show functions
+fun show-parse( xs : list<(a,string)>, f : a -> string ) : string {
+  xs.show-list fun(r) {
+    r.show-tuple(f,show)
+  }
+}
+
+fun show-parse-int( xs : list<(int,string)> ) : string {
+  xs.show-parse(show)
+}
+
+fun show-parse-ints( xs : list<(list<int>,string)> ) : string {
+  xs.show-parse( fun(is) { is.show-list(show) } )
 }

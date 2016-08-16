@@ -293,7 +293,7 @@ operations  : operations operation semis
             | /* empty */
             ;
 
-operation   : visibility identifier typeparams lparen parameters ')' ':' tatomic
+operation   : visibility FUN identifier typeparams lparen parameters ')' ':' tatomic
             ;
 
 /* ---------------------------------------------------------

@@ -11,7 +11,7 @@ import std/readline
 // --------------------------------------------------------
 
 effect exc {
-  raise(s : string ) : a
+  fun raise(s : string ) : a
 }
 
 fun safe-div(x,y) {
@@ -63,8 +63,8 @@ fun test2() {
 // --------------------------------------------------------
 
 effect state<s> {
-  get() : s
-  put( x : s ) : ()
+  fun get() : s
+  fun put( x : s ) : ()
 }
 
 fun counter() {
@@ -92,7 +92,7 @@ fun test3() {
 // --------------------------------------------------------
 
 effect yield<a> {
-  yield( item : a ) : ()
+  fun yield( item : a ) : ()
 }
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -120,7 +120,7 @@ fun test4() {
 // --------------------------------------------------------
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 fun xor() : amb bool {

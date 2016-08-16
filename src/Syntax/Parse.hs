@@ -728,8 +728,13 @@ operation singleShot vis foralls effTp opsTp extendConName
        exists0      <- typeparams
        (pars,prng)  <- conPars
        keyword ":"
-       tres         <- tatomic 
-       let teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+       (mbteff,tres) <- tresult
+       teff <- case mbteff of 
+                 Nothing  -> return $ makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+                 Just etp -> -- TODO: check if declared effect is part of the effect type
+                             -- return etp    
+                             fail "an explicit effect in result type of an operation is not allowed (yet)"
+       let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng   
@@ -833,13 +838,7 @@ annotRes
 annotResult :: LexParser (UserType,UserType)
 annotResult
   = do keyword ":"
-       (tpars,mbteff,tres) <- tresult
-       let teff = case mbteff of Nothing -> makeTpTotal (before (getRange tres))
-                                 Just tp -> tp
-       if (null tpars)
-        then return (teff, tres)
-        else return (teff, makeTpFun tpars teff tres (combineRanged (map snd tpars) tres))
-
+       tresultTotal
 
 typeparams
   = do tbinds <- angles tbinders
@@ -1402,7 +1401,7 @@ typeAnnotPar
            return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng tp))
         <|>
         do rng <- specialOp "$"
-           ([],eff,res) <- tresultTotal -- todo: use proper result
+           (eff,res) <- tresultTotal -- todo: use proper result
            return (TpApp (TpCon nameTpDelay rng) [eff,res] (combineRanged rng res))
         <|>
         ptype)
@@ -1470,8 +1469,8 @@ tarrow :: LexParser UserType
 tarrow
   = do (tps,rng1) <- tatom
        (do keyword "->"
-           (targs,teff,tres) <- tresultTotal
-           return (makeTpFun (tps ++ targs) teff tres (combineRanged rng1 tres))
+           (teff,tres) <- tresultTotal
+           return (makeTpFun tps teff tres (combineRanged rng1 tres))
         <|>
         return (tuple (tps,rng1)))
 
@@ -1499,26 +1498,21 @@ tlabel
        return tp2
 
 
-tresultTotal :: LexParser ([(Name,UserType)],UserType,UserType)
+tresultTotal :: LexParser (UserType,UserType)
 tresultTotal
-  = do (targs,mbeff,tres) <- tresult
+  = do (mbeff,tres) <- tresult
        let teff = case mbeff of Just tp -> tp
                                 Nothing -> makeTpTotal (before (getRange tres))
-       return (targs,teff,tres)
+       return (teff,tres)
 
-tresult :: LexParser ([(Name,UserType)],Maybe UserType,UserType)
+tresult :: LexParser (Maybe UserType,UserType)
 tresult
   = do (tps1,rng1)  <- tatom
-
-       (targs,tps2) <- return ([],tps1) {- do ts <- many (do{ keyword "->"; tatom})
-                           if null ts
-                            then return ([],tps1)
-                            else return (merge ((tps1,rng1):init ts), fst (last ts)) -}
        (teff,tres) <- do (tps,rng) <- tatom
-                         return (Just (tuple (tps2,rng)), tuple (tps,rng))
+                         return (Just (tuple (tps1,rng)), tuple (tps,rng))
                       <|>
-                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple(tps2,rng1)) -- TODO: range
-       return (targs,teff,tres)
+                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple(tps1,rng1)) -- TODO: range
+       return (teff,tres)
   where
     merge :: [([(Name,UserType)],Range)] -> [(Name,UserType)]
     merge ts  = concat (map fst ts)
