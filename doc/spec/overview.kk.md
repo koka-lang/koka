@@ -84,7 +84,7 @@ are equivalent). The dot notation is intu&iuml;tive and quite convenient to
 chain multiple calls together, as in:
 
 ```
-fun showit( s : string ) -> s.encode(3).length.println
+fun showit( s : string ) -> s.encode(3).count.println
 ``` 
 
 for example (where the body desugars as `println(length(encode(s,3)))`). An
@@ -536,15 +536,15 @@ it out in the editor!
 
 Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function `substr` takes a string, a ``start`` position, and the length ``len`` of the
-desired substring:
+function `replace-all` takes a string, a ``pattern`` pattern, and 
+a replacement string ``repl``:
 
 ```
 fun main() { println(world()) }
 ////
 fun world() 
 {
-  substr("hi world", 3, 5)  // returns "world"
+  replace-all("hi there", "there", "world")  // returns "hi world"
 }
 ```
 
@@ -555,7 +555,7 @@ fun main() { println(world2()) }
 ////
 fun world2() 
 {
-  return "hi world".substr( len=5, start=3 )
+  return "hi there".replace-all( repl="world", pattern="there" )
 }
 ```
 

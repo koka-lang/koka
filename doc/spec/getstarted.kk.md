@@ -153,7 +153,7 @@ and state effect:
 The `effs2.kk` module starts by defining the `:amb` effect:
 ```
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 ```
 This declares `amb` as a new effect with a single operation `flip`.
@@ -205,8 +205,8 @@ Let's combine the ambiguity effect with state. The definition
 of the state effect is polymorphic in its value:
 ```
 effect state<s> {
-  get()    : s
-  set(i:s) : ()
+  fun get()    : s
+  fun set(i:s) : ()
 }
 ```
 Next we define a function that uses both ambiguity and the state
