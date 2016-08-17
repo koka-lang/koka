@@ -1000,9 +1000,10 @@ ifexpr
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs) 
                      where
                        match (tst,texpr) eexpr
-                        = Case tst [Branch (PatCon nameTrue [] rangeNull (getRange texpr)) guardTrue texpr
-                                   ,Branch (PatCon nameFalse [] rangeNull (getRange eexpr)) guardTrue eexpr]
-                                   (combineRanged tst eexpr)
+                        = let trng = getRange tst
+                          in  Case tst [Branch (PatCon nameTrue [] trng trng) guardTrue texpr
+                                       ,Branch (PatCon nameFalse [] trng trng) guardTrue eexpr]
+                                       (combineRanged tst eexpr)
        
        return fullMatch
   where

@@ -1294,7 +1294,7 @@ inferPattern matchType matchRange (PatCon name patterns0 nameRange range)
 
        (conTp,tvars,_) <- instantiate range gconTp 
        let (conParTps,conResTp) = splitConTp conTp
-       inferUnify (checkConMatch range) nameRange matchType conResTp
+       inferUnify (checkConMatch range) nameRange conResTp matchType
        patterns <- matchPatterns range nameRange conTp conParTps patterns0
                    {-
                    if (length conParTps < length patterns0)
