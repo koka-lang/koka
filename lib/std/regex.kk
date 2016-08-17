@@ -96,7 +96,7 @@ public fun source( r : regex ) : string {
 // How many groups are captured by this regex?
 public fun groups-count( r : regex ) : int 
 {
-  r.source.replace-all(rxNonGroup,"").length;
+  r.source.replace-all(rxNonGroup,"").count;
 }
 val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
@@ -149,12 +149,24 @@ public fun regex-alt( regexs :list<string>, ignorecase :bool = False, multiline 
   Regex(regex-create-alt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
 }
 
+private extern inline length( s : string ) : int {
+  cs inline "#1.Length"
+  js inline "#1.length"
+}
+
+private extern inline substr( s : string, start : int ) : string {
+  js inline "(#1).substr(#2)"
+}
+private extern inline substr( s : string, start : int, len : int ) : string {
+  js inline "(#1).substr(#2,#3)"
+}
+
 // Find a match for a regular expression starting at start position `start` (by default `0`).
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
 public fun find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
 {  
-  //if (start >= s.length) return Nothing
+  if (start >= s.length) return Nothing
   regex-exec(regex.obj,s,max(start,0))
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
@@ -231,13 +243,13 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
 {
   if (s=="") return [acc]
   match( s.find(splitr) ) {
-    Nothing -> s.substr1(1).split-excludex( splitr, acc + s.substr(0,1)) // todo: improve efficiency?
+    Nothing -> split-excludex( unsafe-decreasing(s.substr(1)), splitr, acc + s.substr(0,1)) // todo: improve efficiency?
     Just(cap) -> {
       if (cap.groups.matched?(1)) {
-        s.substr1(cap.next).split-excludex( splitr, acc + s.substr(0,cap.next)) 
+        split-excludex( unsafe-decreasing(s.substr(cap.next)), splitr, acc + s.substr(0,cap.next)) 
       }
       else {
-        Cons(acc, s.substr1(cap.next).split-excludex( splitr, "")) // todo: make tail recursive
+        Cons(acc, split-excludex( unsafe-decreasing(s.substr(cap.next)), splitr, "")) // todo: make tail recursive
       }
     }
   }

@@ -104,7 +104,7 @@ public fun usageInfo( flags : list<option<a>>, header : string ) : string
 {
   fun alignLeft( xs : list<string> )
   {
-    val n = xs.map(fun(s){ s.length }).maximum
+    val n = xs.map(fun(s){ s.count }).maximum
     xs.map( fun(s){ s.pad-right(n) } )
   }
 
@@ -191,13 +191,13 @@ public fun parse( initial : a, flags : list<option<a>>, args : list<string>, ord
 
 fun processNext( arg : string, flags : list<option<a>> ) : list<flagKind<a>>
 {
-  if ("--" == arg)
-   then [End]
-  elif (arg.starts-with("--"))
-   then [parseLong( arg.substr(2), flags )]
-  elif (arg.starts-with("-") && arg.length >= 2)
-   then parseShorts( arg.substr(1), flags )
-   else [Arg(arg)]
+  match(arg.starts-with("--")) {
+    Just(slice) -> if (slice.empty?) then [End] else [parseLong(slice.string,flags)]      
+    _ -> match(arg.starts-with("-")) {
+      Just(slice) | slice.notempty? -> parseShorts(slice.string,flags)
+      _ -> [Arg(arg)]
+    }
+  }  
 }
 
 
@@ -215,11 +215,14 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
   val (cflagname,flagarg) = s.break("=")
   val opt = "--" + s
   val flagname     = cflagname.to-lower
-  val baseflagname = if (flagname.starts-with("no-") && flagname.length > 3) then flagname.substr("no-".length) else ""
+  val (baseflagname,negated) = match (flagname.starts-with("no-")) {
+                                 Just(slice) -> (slice.string,True)
+                                 _           -> (flagname,False)
+                               }
   
   val lnames   = flags.flatmap(fun(flag) { flag.llongNames } )
   val exacts   = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name==flagname || name==baseflagname } ) } )
-  val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.starts-with(flagname) || (baseflagname != "" && name.starts-with(baseflagname)) } ) } )
+  val prefixes = flags.filter( fun(flag){ flag.llongNames.any( fun(name){ name.starts-with(flagname).bool || name.starts-with(baseflagname).bool } ) } )
   val applicable = if (exacts.nil?) then prefixes else exacts
   
   match(applicable) {
@@ -229,20 +232,20 @@ fun parseLong( s : string, flags : list<option<a>> ) : total flagKind<a>
       match(desc.arg) {
           Flag(set)
             -> if (flagarg == "")
-                then Flg(fun(o){ set(o, baseflagname=="") })
+                then Flg(fun(o){ set(o, !negated) })
                elif (flagarg.to-lower == "true")
                 then Flg(fun(o) { set(o,True) })
                elif (flagarg.to-lower == "false")
                 then Flg(fun(o) { set(o,False) })
                 else errorNoarg(opt)
           Req(parse,help)
-            -> if (baseflagname!="")
+            -> if (negated)
                 then errorNegate(baseflagname)
                elif (flagarg.notempty?)
                 then Flg(fun(o) { parse(o,flagarg) })
                 else errorRequired(help,opt)
           Opt(parse)
-            -> if (baseflagname!="")
+            -> if (negated)
                 then errorNegate(baseflagname)
                elif (flagarg.notempty?)
                 then Flg(fun(o) { parse(o,Just(flagarg)) })
@@ -269,14 +272,14 @@ fun parseShorts( s : string,  flags : list<option<a>> ) : list<flagKind<a>>
               Flag(set)
                 -> Just(Flg(fun(o){ set(o,True) }))
               Req(parse,help) -> {
-                val arg = s.substr(i+1)
-                if (arg.length > 0)
+                val arg = s.first.advance(i).after.string
+                if (arg.notempty?)
                  then { done := True; Just(Flg(fun(o){ parse(o,arg) })) }
                  else Just(errorRequired(help,opt))
               }
               Opt(parse) -> {
-                val arg = s.substr(i+1)
-                if (arg.length > 0)
+                val arg = s.first.advance(i).after.string
+                if (arg.notempty? )
                  then { done := True; Just(Flg(fun(o){ parse(o,Just(arg)) })) }
                  else Just(Flg(fun(o){parse(o,Nothing)}))
               }
