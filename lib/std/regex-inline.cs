@@ -50,43 +50,44 @@ static class RegEx
       return 1;
   }
 
-  public static koka_dot_std_regex._matched Matches( Match match ) 
+  public static std_regex._matched Matches( string s, Match match ) 
   {
-    if (!match.Success) return new koka_dot_std_regex._matched( -1, 0, "", new koka_dot_std_regex._groups(null) );    
+    if (!match.Success) return new std_regex._matched( std_core._new_sslice(s,0,1), "", new std_regex._groups(null) );    
     int next = match.Index + match.Length;
     if (next<=match.Index) next = match.Index+1;
-    return new koka_dot_std_regex._matched( match.Index, next, match.Value, new koka_dot_std_regex._groups(match.Groups) );
+    var slice = std_core._new_sslice( s, match.Index, next - match.Index );
+    return new std_regex._matched( slice, match.Value, new std_regex._groups(match.Groups) );
   }
 
-  public static koka_dot_std_core._maybe<koka_dot_std_regex._matched> MaybeMatches( Match match ) {
+  public static std_core._maybe<std_regex._matched> MaybeMatches( string s, Match match ) {
     if (!match.Success)
-      return new koka_dot_std_core._maybe<koka_dot_std_regex._matched>(koka_dot_std_core._maybe_Tag.Nothing);
+      return std_core._maybe<std_regex._matched>.Nothing_;
     else 
-      return new koka_dot_std_core._maybe<koka_dot_std_regex._matched>(koka_dot_std_core._maybe_Tag.Just, Matches(match) );
+      return new std_core._maybe<std_regex._matched>( Matches(s, match) );
   }
   
-  public static koka_dot_std_core._maybe<koka_dot_std_regex._matched> Exec( object r, string s, int start ) {
+  public static std_core._maybe<std_regex._matched> Exec( object r, string s, int start ) {
     Regex regex = (Regex)(r);
-    return MaybeMatches(regex.Match(s,start));
+    return MaybeMatches(s, regex.Match(s,start));
   }  
 
-  public static koka_dot_std_regex._matched[] ExecAll( object r, string s, int start ) {
+  public static std_regex._matched[] ExecAll( object r, string s, int start ) {
     Regex regex = (Regex)(r);
     MatchCollection matches = regex.Matches(s,start);
-    koka_dot_std_regex._matched[] result = new koka_dot_std_regex._matched[matches.Count];
+    std_regex._matched[] result = new std_regex._matched[matches.Count];
     for (int i = 0; i < matches.Count; i++) {
-      result[i] = Matches(matches[i]);
+      result[i] = Matches(s, matches[i]);
     }
     return result;
   }  
 
-  public static string ReplaceFun<E>( object r, string s, Fun1<koka_dot_std_regex._matched,string> repl, int all, int start) 
+  public static string ReplaceFun<E>( object r, string s, Fun1<std_regex._matched,string> repl, int all, int start) 
   {
     Regex regex = (Regex)(r);
     int count = (all != 0 ? int.MaxValue : 1);
     return regex.Replace( s, delegate( Match match ) {
         if (!match.Success) return "";
-                       else return (string)repl.Apply( Matches(match) );
+                       else return (string)repl.Apply( Matches(s, match) );
       }, count, start);
   }
 
