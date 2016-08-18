@@ -61,12 +61,8 @@ fun choice(p1,p2) {
 }
 
 // Basic combinators
-fun many(p : () -> <parse,many,div|e> a ) : <parse,div,many|e> list<a> {
-  choice {
-    val x = p()
-    val xs = many(p)
-    Cons(x,xs)
-  } { [] } 
+fun many(p) { // : () -> <parse,many,div|e> a ) : <parse,div,many|e> list<a> {
+  choice { many1(p) } { [] } 
 }
 
 fun many1( p ) {
