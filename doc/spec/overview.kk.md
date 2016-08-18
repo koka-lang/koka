@@ -11,20 +11,6 @@ change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 JavaScript like syntax.
 
-For more background information, see:
-
-* Browse the [library documentation][libraries].
-* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The [source code][codeplex] of the Koka compiler.
-* An article about the type system and semantics of Koka [@Leijen:msfp].
-
-[langspec]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html  {target='_top'}
-[libraries]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html {target='_top'}
-[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[codeplex]: http://koka.codeplex.com {target='_top'} 
-[kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
-[rise4fun]: http://rise4fun.com/koka/tutorial
-
 ## Hello world
 
 As usual, we start with the familiar _Hello world_ program:<span id=`examplemain`></span>

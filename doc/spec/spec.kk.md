@@ -632,7 +632,7 @@ in an expressions.
 
 | ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
 | _opexpr_     | ::=   | _prefix_ [_qoperator_ _prefixexpr_]{.many} |                              |
-| _prefixexpr_ | ::=   | [`!` []{.bar} `~`]{.many} _appexpr_        |                              |
+| _prefixexpr_ | ::=   | [``!`` []{.bar} ``~``]{.many} _appexpr_    |                              |
 | &nbsp;       |       |                                            |                              |
 | _appexpr_    | ::=   | _appexpr_ _lapp_ [_arguments_]{.opt} `)`   | (regular application)        |
 |              | &bar; | _appexpr_ _lidx_ [_arguments_]{.opt} `]`   | (index operation)            |
