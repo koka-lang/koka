@@ -1647,6 +1647,11 @@ fun maximum( xs : list<double> ) : double
 
 abstract struct sslice( str : string, start : int, len : int )
 
+// Internal export for the regex module
+fun ".new-sslice"( str :string, start: int, len : int ) {
+  Sslice(str,start,len)
+}
+
 // Convert a character to a string
 external string : ( c : char ) -> string  { 
   cs inline "Primitive.CharToString(#1)";
@@ -1741,6 +1746,15 @@ fun empty?( slice : sslice ) : bool  -> (slice.len <= 0)
 // Is a slice not empty?
 fun notempty?( slice : sslice ) : bool  -> (slice.len > 0)
 
+// Return the first character of a string (or the empty string)
+fun head( s : string ) : string {
+  s.first.string
+}
+
+// Return the tail of a string (or the empty string)
+fun tail( s : string ) : string {
+  s.first.after.string
+}
 
 private extern xadvance( slice : sslice, count : int ) : sslice {
   js inline "_sslice_advance(#1,#2)"

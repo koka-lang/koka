@@ -21,12 +21,13 @@ extern include {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
-// The result of a regular expression match, where `index` is the index in the
-// original source string where the match begins, `next` is the index just after
-// this match (`next == index + min(1,matched.length)`), `matched` is the content that
+// The result of a regular expression match, where `matched` is the content that
 // was matched, and `groups` is a vector that contains the content for each 
 // capture group (where `groups[0] == matched`).
-public struct matched( index :int, next :int, matched :string, groups : groups )
+// The `slice` field contains the `:sslice` of the string that was matched
+// and it has at least a length of 1 (even when the regular expression was
+// an empty match).
+public struct matched( slice : sslice, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
 
@@ -85,6 +86,16 @@ extern regex-replace : (any, string, string, int, int ) -> string {
 extern regex-split : (any, string, int, int ) -> vector<string> {
   cs "RegEx.Split"
   js "$regexSplit"
+}
+
+// Return the string following match 
+public fun after( cap : matched ) : string {
+  cap.slice.after.string
+}
+
+// Return the string before a match 
+public fun before( cap : matched ) : string {
+  cap.slice.before.string
 }
 
 
@@ -230,7 +241,7 @@ public fun contains( s :string, r :regex, start :int = 0 ) : bool
 
 // Split a string `s` over separator `sep` where `sep` does not occur in 
 // _tokens_ matching `exclude`.
-// For example: ``splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``
+// For example: ``split-exclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``
 public fun split-exclude( s : string, sep : regex, exclude : regex ) : list<string>
 {
   if (s=="") then [] else {
@@ -243,13 +254,13 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
 {
   if (s=="") return [acc]
   match( s.find(splitr) ) {
-    Nothing -> split-excludex( unsafe-decreasing(s.substr(1)), splitr, acc + s.substr(0,1)) // todo: improve efficiency?
+    Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc + s.head) // todo: improve efficiency?
     Just(cap) -> {
       if (cap.groups.matched?(1)) {
-        split-excludex( unsafe-decreasing(s.substr(cap.next)), splitr, acc + s.substr(0,cap.next)) 
+        split-excludex( unsafe-decreasing(cap.after), splitr, acc + cap.matched) 
       }
       else {
-        Cons(acc, split-excludex( unsafe-decreasing(s.substr(cap.next)), splitr, "")) // todo: make tail recursive
+        Cons(acc, split-excludex( unsafe-decreasing(cap.after), splitr, "")) // todo: make tail recursive
       }
     }
   }
