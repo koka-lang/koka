@@ -6,6 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 using System.Text;
+using System.Collections.Generic;
 
 public static class Primitive
 {
@@ -195,15 +196,25 @@ public static class Primitive
   }
 
   public static int[] StringToChars( string s ) {
-    int[] v = new int[s.Length]; 
-    for(int i = 0 ; i < s.Length; i++) {
-      v[i] = (int)(s[i]);
+    List<int> v = new List<int>(s.Length);
+    for(int i = 0; i < s.Length; i++) {
+      v.Add( Char.ConvertToUtf32(s,i) );
+      if (Char.IsHighSurrogate(s[i])) i += 1;
     }
-    return v;
+    return v.ToArray();
+  }
+
+  public static int StringCount( string s ) {
+    int n = 0;
+    for(int i = 0; i < s.Length; i++) {
+      n++;
+      if (Char.IsHighSurrogate(s[i])) i+=1;
+    }
+    return n;
   }
 
   public static string CharToString( int c ) {
-    return (c <= 0xFFFF ? new String( (char)(c), 1) : Char.ConvertFromUtf32(c));
+    return Char.ConvertFromUtf32(c);
   }
 
   public static string CharsToString( int[] v ) {
@@ -225,6 +236,48 @@ public static class Primitive
     return (idx + len >= s.Length ? s.Substring(idx) : s.Substring(idx,len));
   }
 
+  public static std_core._sslice SliceExtend( std_core._sslice slice, int count ) {
+    if (count==0) return slice;
+    int i = slice.start + slice.len;
+    if (count > 0) {
+      while(i < slice.str.Length && count > 0) {
+        count--;
+        i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length-1 ? 2 : 1);
+      }
+    }
+    else {  
+      while(i > slice.start && i > 0 && count < 0) {
+        count++;
+        i -= (Char.IsLowSurrogate(slice.str[i-1]) && i > slice.start+1 ? 2 : 1);
+      }
+    }
+    return new std_core._sslice(slice.str, slice.start, (i > slice.start ? i - slice.start : 0));
+  }
+
+  public static std_core._sslice SliceAdvance( std_core._sslice slice, int count ) {
+    if (count==0) return slice;
+    int i   = slice.start;
+    int end = slice.start + slice.len;
+    if (count > 0) {
+      while(i < slice.str.Length && count > 0) {
+        count--;
+        i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length-1 ? 2 : 1);
+      }
+    }
+    else {  
+      while(i > 0 && count < 0) {
+        count++;
+        i -= (Char.IsLowSurrogate(slice.str[i-1]) && i > 1 ? 2 : 1);
+      }
+    }
+    return new std_core._sslice(slice.str, i, (end > i ? end - i : 0));
+  }
+
+
+
+  public static string SliceToString( std_core._sslice slice ) {
+    return slice.str.Substring(slice.start,slice.len);
+  }
 
   //---------------------------------------
   // Trace

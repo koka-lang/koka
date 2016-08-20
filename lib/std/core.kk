@@ -1721,6 +1721,7 @@ fun (||)( x : string, y : string ) : string {
   if (x.empty?) then y else x 
 }
 
+// Length returns the length in the platform specific encoding (and should not be exported)
 private extern inline length( s : string ) : int {
   cs inline "#1.Length"
   js inline "#1.length"
@@ -1728,6 +1729,7 @@ private extern inline length( s : string ) : int {
 
 // O(n). Return the number of characters in a string.
 extern count( s : string ) : int {
+  cs inline "Primitive.StringCount(#1)"
   js inline "_string_char_count(#1)"
 }
 
@@ -1757,6 +1759,7 @@ fun tail( s : string ) : string {
 }
 
 private extern xadvance( slice : sslice, count : int ) : sslice {
+  cs inline "Primitive.SliceAdvance(#1,#2)"
   js inline "_sslice_advance(#1,#2)"
 }
 
@@ -1777,6 +1780,7 @@ fun advance( slice : sslice, count : int ) : sslice {
 // For example `"abc".first.extend(1).string == "ab"`,
 // and `"abc".last.extend(~1).string == ""`.
 extern extend( slice : sslice, count : int ) : sslice {
+  cs inline "Primitive.SliceExtend(#1,#2)"
   js inline "_sslice_extend(#1,#2)"
 }
 
@@ -1797,6 +1801,7 @@ fun after(slice : sslice) : sslice {
 
 // O(n). Copy the `slice` argument into a fresh string.
 extern inline string( slice : sslice ) : string {
+  cs inline "Primitive.SliceToString(#1)"
   js inline "(function(_s){ return _s.str.substr(_s.start,_s.len) })(#1)"
 }
 
