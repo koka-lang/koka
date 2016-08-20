@@ -700,7 +700,7 @@ ppExternal currentDef formats resTp targs args
       Nothing -> 
         trace( "warning: backend does not support external in " ++ show currentDef ) $
         (text "Primitive.UnsupportedExternal<" <>
-          resTp <> text ">(\"" <+> text (show currentDef) <+> text "\")")
+          resTp <> text ">(\"" <> text (show currentDef) <> text "\")")
       Just s  -> ppExternalF s targs args
      Just s -> ppExternalF s targs args
 
