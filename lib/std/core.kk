@@ -1733,11 +1733,23 @@ extern count( s : string ) : int {
   js inline "_string_char_count(#1)"
 }
 
+// O(n). Return the number of characters in a string slice
+extern count( slice : sslice ) : int {
+  cs inline "Primitive.SliceCount(#1)"
+  js inline "_sslice_count(#1)"
+}
+
 // The first position in a string
-fun first(s : string) : sslice { extend(Sslice(s,0,0),1) }
+public extern first(s : string) : sslice { 
+  cs inline "Primitive.SliceFirst(#1)"
+  js inline "_sslice_first(#1)"
+}
 
 // The last position in a string
-fun last(s : string) : sslice { advance(Sslice(s,s.length,0),~1) }
+public extern last(s : string) : sslice { 
+  cs inline "Primitive.SliceLast(#1)"
+  js inline "_sslice_last(#1)"
+}
 
 // An empty slice
 val empty = Sslice("",0,0)
@@ -1758,27 +1770,26 @@ fun tail( s : string ) : string {
   s.first.after.string
 }
 
-private extern xadvance( slice : sslice, count : int ) : sslice {
+
+// O(`count`). Advance the start position of a string slice by `count` characters
+// up to the end of the string.
+// A negative `count` advances the start position backwards upto the first position
+// in a string.
+// Maintains the character count of the original slice upto the end of the string.
+// For example:
+// * `"abc".first.advance(1).string == "b"`,
+// * `"abc".first.advance(3).string == ""`,
+// * `"abc".last.advance(~1).string == "bc"`.
+public extern advance( slice : sslice, count : int ) : sslice {
   cs inline "Primitive.SliceAdvance(#1,#2)"
   js inline "_sslice_advance(#1,#2)"
 }
 
-// O(`count`). Advance the start position of a string slice by `count` characters.
-// If advanced past the end position of the slice, the length of the slice
-// is truncated to a single character. If advanced past the end of the string
-// the slice becomes empty. 
-// A negative `count` advances the start position backwards upto the first position
-// in a string.
-// For example `"abc".first.advance(1).string == "b"`,
-// and `"abc".last.advance(~1).string == "bc"`.
-fun advance( slice : sslice, count : int ) : sslice {
-  val slice1 = xadvance(slice,count)
-  if (slice1.len <= 0) then slice1.extend(1) else slice1
-}
-// O(`count`). Extend a string slice by `count` characters.
-// A negative `count` extends the start of a slice backwards.
-// For example `"abc".first.extend(1).string == "ab"`,
-// and `"abc".last.extend(~1).string == ""`.
+// O(`count`). Extend a string slice by `count` characters up to the end of the string.
+// A negative `count` shrinks the slice up to the empty slice.
+// For example:
+// * `"abc".first.extend(1).string == "ab"`
+// * `"abc".last.extend(~1).string == ""`
 extern extend( slice : sslice, count : int ) : sslice {
   cs inline "Primitive.SliceExtend(#1,#2)"
   js inline "_sslice_extend(#1,#2)"
@@ -1935,7 +1946,6 @@ private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
-
 fun split( s : string, sep : string ) : list<string>
 {
   splitv(s,sep).list

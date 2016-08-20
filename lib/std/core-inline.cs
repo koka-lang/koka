@@ -236,6 +236,31 @@ public static class Primitive
     return (idx + len >= s.Length ? s.Substring(idx) : s.Substring(idx,len));
   }
 
+  public static std_core._sslice SliceFirst( string s ) {
+    if (String.IsNullOrEmpty(s)) 
+      return new std_core._sslice("",0,0);
+    else 
+      return new std_core._sslice(s,0,Char.IsHighSurrogate(s[0]) ? 2 : 1);
+  }
+
+  public static std_core._sslice SliceLast( string s ) {
+    if (String.IsNullOrEmpty(s)) 
+      return new std_core._sslice("",0,0);
+    else if (Char.IsLowSurrogate(s[s.Length-1])) 
+      return new std_core._sslice(s,s.Length-2,2);
+    else
+      return new std_core._sslice(s,s.Length-1,1);
+  }
+
+  public static int SliceCount( std_core._sslice slice ) {
+    int n = 0;
+    for(int i = slice.start; i < slice.start + slice.len; i++) {
+      n++;
+      if (Char.IsHighSurrogate(slice.str[i])) i+=1;
+    }
+    return n;
+  }
+
   public static std_core._sslice SliceExtend( std_core._sslice slice, int count ) {
     if (count==0) return slice;
     int i = slice.start + slice.len;
@@ -258,21 +283,28 @@ public static class Primitive
     if (count==0) return slice;
     int i   = slice.start;
     int end = slice.start + slice.len;
+    int sliceCount = SliceCount(slice);
+    int extra = 0;
     if (count > 0) {
-      while(i < slice.str.Length && count > 0) {
-        count--;
+      while(i < slice.str.Length && extra < count) {
+        extra++;
         i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length-1 ? 2 : 1);
+      }
+      if (end > i && sliceCount > extra) {
+        return SliceExtend( new std_core._sslice(slice.str, i, end - i), extra );
       }
     }
     else {  
-      while(i > 0 && count < 0) {
-        count++;
+      while(i > 0 && extra < -count) {
+        extra++;
         i -= (Char.IsLowSurrogate(slice.str[i-1]) && i > 1 ? 2 : 1);
       }
+      if (sliceCount > extra) {
+        return SliceExtend( new std_core._sslice(slice.str, i, slice.start-i), sliceCount - extra );
+      }
     }
-    return new std_core._sslice(slice.str, i, (end > i ? end - i : 0));
+    return SliceExtend( new std_core._sslice(slice.str, i, 0), sliceCount );
   }
-
 
 
   public static string SliceToString( std_core._sslice slice ) {
