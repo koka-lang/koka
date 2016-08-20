@@ -71,9 +71,9 @@ fun many1( p ) {
 
 fun char(p : char -> bool) : parse char {
   satisfy( fun(input) {
-    val sc = input.substr(0,1)
+    val sc = input.head
     match (sc.list) {
-      [c] | p(c) -> Just((c,input.substr(1)))
+      [c] | p(c) -> Just((c,input.tail))
       _   -> Nothing 
     }
   })
