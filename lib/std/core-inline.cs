@@ -234,15 +234,13 @@ public static class Primitive
     return sb.ToString();
   }
 
-  public static string Substr( string s, int start ) {
-    return Substr(s,start,s.Length);
-  }
-
-  public static string Substr( string s, int start, int len ) {
-    var idx = (start >= 0 ? start : s.Length + start);
-    if (idx < 0) idx = 0;
-    if (idx >= s.Length || len <= 0) return "";
-    return (idx + len >= s.Length ? s.Substring(idx) : s.Substring(idx,len));
+  public static string ListToString( std_core._list<int> xs ) {
+    StringBuilder sb = new StringBuilder();
+    while(xs != std_core._list<int>.Nil_) {
+      sb.Append( CharToString(xs.head) );
+      xs = xs.tail;
+    }
+    return sb.ToString();
   }
 
   public static std_core._sslice SliceFirst( string s ) {

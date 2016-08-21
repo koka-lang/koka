@@ -1678,8 +1678,9 @@ extern list( s : string ) : total list<char> {
 }
 
 // Convert a list of characters to a string
-fun string( cs : list<char> ) : total string {
-  cs.vector.string
+extern string( cs : list<char> ) : total string {
+  cs inline "Primitive.ListToString(#1)"
+  js inline "_list_to_string(#1)"
 }
 
 
