@@ -195,6 +195,15 @@ public static class Primitive
     return sb.ToString();
   }
 
+  public static std_core._list<int> StringToList( string s ) {
+    std_core._list<int> xs = std_core._list<int>.Nil_;
+    for(int i = s.Length-1; i >= 0; i--) {
+      if (Char.IsLowSurrogate(s[i]) && i > 0) i--;
+      xs = new std_core._list<int>( Char.ConvertToUtf32(s,i), xs );
+    }
+    return xs;
+  }
+
   public static int[] StringToChars( string s ) {
     List<int> v = new List<int>(s.Length);
     for(int i = 0; i < s.Length; i++) {
@@ -246,7 +255,7 @@ public static class Primitive
   public static std_core._sslice SliceLast( string s ) {
     if (String.IsNullOrEmpty(s)) 
       return new std_core._sslice("",0,0);
-    else if (Char.IsLowSurrogate(s[s.Length-1])) 
+    else if (Char.IsLowSurrogate(s[s.Length-1]) && s.Length > 1) 
       return new std_core._sslice(s,s.Length-2,2);
     else
       return new std_core._sslice(s,s.Length-1,1);

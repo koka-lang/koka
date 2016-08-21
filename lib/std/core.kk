@@ -1672,8 +1672,9 @@ extern vector : ( s : string ) -> vector<char> {
 
 
 // Convert a string to a list of characters
-fun list( s : string ) : total list<char> {
-  s.vector.list
+extern list( s : string ) : total list<char> {
+  cs inline "Primitive.StringToList(#1)"
+  js inline "_string_to_list(#1)"
 }
 
 // Convert a list of characters to a string
@@ -1730,7 +1731,7 @@ private extern inline length( s : string ) : int {
 // O(n). Return the number of characters in a string.
 extern count( s : string ) : int {
   cs inline "Primitive.StringCount(#1)"
-  js inline "_string_char_count(#1)"
+  js inline "_string_count(#1)"
 }
 
 // O(n). Return the number of characters in a string slice
