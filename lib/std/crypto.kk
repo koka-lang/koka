@@ -11,10 +11,12 @@
 public module std/crypto
 
 extern include {
+  cs file "crypto-inline.cs"
   js file "crypto-inline.js"
 }
 
 // Compute an md5 hash of a string.
 extern md5( s : string ) : string {
-  js "$md5"
+  cs "Crypto.HashMD5"
+  js "_hash_md5"
 }
