@@ -1645,6 +1645,14 @@ fun maximum( xs : list<double> ) : double
 // Strings
 // ----------------------------------------------------------------------------
 
+
+// A `:sslice` represents a view on sub-string of string and
+// has a specific start position and character count. It is used
+// instead of string indices to make the actual internal representation
+// of strings abstract (like UTF-8 or UTF-16). String slices are 
+// returned by functions that find sub strings or patterns in
+// in strings. Use `string:(sslice) -> total string` to 
+// create a fresh substring from a slice. 
 abstract struct sslice( str : string, start : int, len : int )
 
 // Internal export for the regex module
@@ -1741,13 +1749,13 @@ extern count( slice : sslice ) : int {
   js inline "_sslice_count(#1)"
 }
 
-// The first position in a string
+// O(1). The first position in a string
 public extern first(s : string) : sslice { 
   cs inline "Primitive.SliceFirst(#1)"
   js inline "_sslice_first(#1)"
 }
 
-// The last position in a string
+// O(1). The last position in a string
 public extern last(s : string) : sslice { 
   cs inline "Primitive.SliceLast(#1)"
   js inline "_sslice_last(#1)"
@@ -1779,9 +1787,11 @@ fun tail( s : string ) : string {
 // in a string.
 // Maintains the character count of the original slice upto the end of the string.
 // For example:
+//
 // * `"abc".first.advance(1).string == "b"`,
 // * `"abc".first.advance(3).string == ""`,
 // * `"abc".last.advance(~1).string == "bc"`.
+// 
 public extern advance( slice : sslice, count : int ) : sslice {
   cs inline "Primitive.SliceAdvance(#1,#2)"
   js inline "_sslice_advance(#1,#2)"
@@ -1790,8 +1800,10 @@ public extern advance( slice : sslice, count : int ) : sslice {
 // O(`count`). Extend a string slice by `count` characters up to the end of the string.
 // A negative `count` shrinks the slice up to the empty slice.
 // For example:
+//
 // * `"abc".first.extend(1).string == "ab"`
 // * `"abc".last.extend(~1).string == ""`
+// 
 extern extend( slice : sslice, count : int ) : sslice {
   cs inline "Primitive.SliceExtend(#1,#2)"
   js inline "_sslice_extend(#1,#2)"
