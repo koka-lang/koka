@@ -20,6 +20,7 @@ module Syntax.Highlight( Context(..), Nesting(..), Token(..), TokenComment(..)
                        , isKeywordOp
                        ) where
 
+-- import Lib.Trace
 import Data.Char( isAlpha, isSpace, isAlphaNum, toLower )
 import Lib.Printer
 import Common.ColorScheme
@@ -227,7 +228,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
             
             LexModule id mid  -> fmt (TokModule mid) (show id)
             LexCons id        -> fmt (if (isCtxType ctx) then TokTypeId id else TokCons id) (showId (unqualify id))
-            LexTypedId id tp  -> fmt (TokId id tp) (showId (unqualify id))
+            LexTypedId id tp  -> -- trace ("**fmt type id: " ++ show id ++ ": " ++ show tp) $
+                                 fmt (TokId id tp) (showId (unqualify id))
 
             LexKeyword ":" _ -> fmt TokTypeKeyword ":"
             LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) (normalize k)

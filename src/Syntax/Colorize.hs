@@ -316,11 +316,11 @@ linkFromId env name tp gamma
       [(qname,info@InfoCon{})]-> signature env True True "type" qname (mangleConName qname) (showType env (infoType info)) $ cspan "constructor" $ fmtName (unqualify qname) -- atag (linkFromConName env qname) $ span "con" $ span "id" $ fmtName (unqualify qname)
       [(qname,info)]         -> signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ fmtName (unqualify qname)
       results -> let filtered = if null tp then results
-                                           else -- trace ("linkFromId: " ++ show (name,tp) ++ ": " ++ show (map (infoType . snd) results)) $
-                                                filter (\(qname,info) -> canonical (infoType info) == tp) results
+                                           else -- trace ("\n***linkFromId: " ++ show (name,tp) ++ ": " ++ show (map (show . ppType defaultEnv . infoType . snd) results)) $
+                                                filter (\(qname,info) -> show (ppType defaultEnv (infoType info)) == tp) results
                  in case filtered of
                       [(qname,info)] -> -- atag (linkFromName env qname (infoType info)) $ span "id" $ fmtName (unqualify qname)
-                                        signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ cspan "type" $ fmtName (unqualify qname) 
+                                        signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ fmtName (unqualify qname) 
                       _ -> (if (isConstructorName name) then cspan "constructor" else id) (fmtName (unqualify name))
 
 fmtTypeName :: Name -> String
