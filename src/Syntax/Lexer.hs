@@ -321,8 +321,8 @@ alex_action_17 =  string $ \s -> if isReserved s
                                            else if isPrefixOp s 
                                              then LexPrefix (newName s)
                                              else LexOp (newName s) 
-alex_action_18 =  string $ LexInt . digitsToNum 10 
-alex_action_19 =  string $ LexInt . digitsToNum 16 . drop 2 
+alex_action_18 =  string $ \s -> LexInt (digitsToNum 10 s) s 
+alex_action_19 =  string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s 
 alex_action_20 =  string $ LexFloat . read 
 alex_action_21 =  next stringlit $ more (const B.empty) 
 alex_action_22 =  next stringraw $ more (const B.empty) 
@@ -357,6 +357,26 @@ alex_action_48 =  string $ \s -> LexError ("illegal character in line directive:
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
+{-# LINE 9 "<command-line>" #-}
+{-# LINE 1 "G:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 9 "<command-line>" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -367,19 +387,19 @@ alex_action_48 =  string $ \s -> LexError ("illegal character in line directive:
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 35 "templates\\GenericTemplate.hs" #-}
+{-# LINE 21 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 45 "templates\\GenericTemplate.hs" #-}
+{-# LINE 51 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 66 "templates\\GenericTemplate.hs" #-}
+{-# LINE 72 "templates\\GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-{-# LINE 87 "templates\\GenericTemplate.hs" #-}
+{-# LINE 93 "templates\\GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-{-# LINE 98 "templates\\GenericTemplate.hs" #-}
+{-# LINE 105 "templates\\GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 

@@ -1974,7 +1974,7 @@ wildcard
 
 integer :: LexParser (Integer,Range)
 integer
-  = do (Lexeme rng (LexInt i)) <- parseLex (LexInt 0)
+  = do (Lexeme rng (LexInt i _)) <- parseLex (LexInt 0 "0")
        return (i,rng)
   <?> "integer"
 

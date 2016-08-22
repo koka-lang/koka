@@ -1646,12 +1646,12 @@ fun maximum( xs : list<double> ) : double
 // ----------------------------------------------------------------------------
 
 
-// A `:sslice` represents a view on sub-string of string and
+// A `:sslice` represents a sub-slice of string and
 // has a specific start position and character count. It is used
 // instead of string indices to make the actual internal representation
 // of strings abstract (like UTF-8 or UTF-16). String slices are 
 // returned by functions that find sub strings or patterns in
-// in strings. Use `string:(sslice) -> total string` to 
+// in strings. Use `string:(slice : sslice) -> string` to 
 // create a fresh substring from a slice. 
 abstract struct sslice( str : string, start : int, len : int )
 

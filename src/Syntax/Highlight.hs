@@ -84,7 +84,7 @@ fmtPrint cscheme p token
 showLexeme :: Lexeme -> String
 showLexeme (Lexeme _ lex)
   = case lex of
-      LexInt i      -> show i
+      LexInt _ _    -> show lex
       LexFloat d    -> show d
       LexString s   -> show s
       LexChar c     -> show c
@@ -220,7 +220,7 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
-            LexInt i      -> fmt TokNumber (show i)
+            LexInt i isHex-> fmt TokNumber (show lex)
             LexFloat d    -> fmt TokNumber (show d)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
@@ -241,9 +241,10 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
 
     showId :: Name -> String
     showId name
-      = case nameId name of
-          (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
-          _       -> show name
+      = if (nameId name == "!" || nameId name == "~") then show name
+        else case nameId name of
+              (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
+              _       -> show name
 
     showOp :: Name -> String
     showOp name
