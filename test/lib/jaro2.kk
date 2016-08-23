@@ -1,47 +1,12 @@
 // --------------------------------------------------------
-// Jaro distance
+// Jaro distance using direct string slices
 // --------------------------------------------------------
 import std/array
-
-val jaro-tests : list<(string,string,double,double)> = 
-[("abc","abc",1.0,1.0),
- ("","",1.0,1.0),
- ("","abc",0.0,0.0),
- ("abc","",0.0,0.0),
- ("a","a",1.0,1.0),
- ("a","bc",0.0,0.0),
- ("martha","marhta",0.944,0.961),
- ("dixon","dicksonx",0.767,0.814),
- ("jones","johnson",0.790,0.832),
- ("abcvwxyz","cabvwxyz",0.958,0.96),
- ("abcawxyz","bcawxyz",0.91,0.91),
- ("dunningham","cunnigham",0.90,0.90),
- ("abroms","abrams",0.89,0.92),
- ("lampley","campley",0.9,0.9),
- ("jonathon","jonathan",0.92,0.95),
- ("jeraldine","geraldine",0.93,0.93),
-]
+import jaro
 
 fun main() {
-  jaro-tests.foreach fun(test) {
-    val (s,t,_,_) = test
-    println(s.show + " - " + t.show)
-    //test.print-test(jaro-proximity, jaro-winkler-proximity, "1") 
-    test.print-test(jaro-distance, jaro-winkler-distance, "2")
-    println("") 
-  }
+  jaro/run-tests( jaro-distance, fun(s,t) { jaro-winkler-distance(s,t) } ) 
 }
-
-fun print-test(test : (string,string,double,double),f,g : (string,string,?double) -> exn double,msg) {
-  val (s,t,d1,d2) = test
-  val score1  = f(s,t).show-fixed(2)
-  val score2  = g(s,t).show-fixed(2)
-  val expect1 = d1.show-fixed(2) 
-  val expect2 = d2.show-fixed(2)
-  println(msg + ": jaro: " + score1 + " - " + expect1 + ": " + (if (d1 > 1.0 || score1==expect1) then "success" else "FAILED"))
-  println(msg + ": jw  : " + score2 + " - " + expect2 + ": " + (if (d2 > 1.0 || score2==expect2) then "success" else "FAILED"))
-}
-
 
 fun jaro-winkler-distance( s : string, t : string, boost-threshold : double = 0.7 ) : double {
   val d = jaro-distance(s,t)
