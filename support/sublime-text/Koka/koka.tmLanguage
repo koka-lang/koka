@@ -351,7 +351,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(fun|function|val)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
+			<string>(fun|function|val|var)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
 		</dict>
 		<key>decl_function0</key>
 		<dict>

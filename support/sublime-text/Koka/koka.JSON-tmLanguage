@@ -337,7 +337,7 @@
       },
 
     "decl_function": 
-      { "match": "(fun|function|val)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
+      { "match": "(fun|function|val|var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "entity.name.function.koka" }
