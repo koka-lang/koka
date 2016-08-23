@@ -154,14 +154,14 @@ extern show( exn : exception ) : string {
 // Use `on-exn` or `on-fail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(action,hndl,_k)"
+  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
   
 // Execute a `hndler` no matter what exception was raised in `action`.
 // Use of `on-exit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
-  js inline "_primfinally(action,hndl,_k)"
+  js inline "_primfinally(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
 // Raise an exception with a specified message.
@@ -1750,15 +1750,20 @@ extern count( slice : sslice ) : int {
 }
 
 // O(1). The first position in a string
-public extern first(s : string) : sslice { 
+extern first(s : string) : sslice { 
   cs inline "Primitive.SliceFirst(#1)"
   js inline "_sslice_first(#1)"
 }
 
 // O(1). The last position in a string
-public extern last(s : string) : sslice { 
+extern last(s : string) : sslice { 
   cs inline "Primitive.SliceLast(#1)"
   js inline "_sslice_last(#1)"
+}
+
+// O(1). The entire string as a slice
+fun slice( s : string ) : sslice {
+  Sslice(s,0,s.length)
 }
 
 // An empty slice
@@ -1830,6 +1835,41 @@ extern inline string( slice : sslice ) : string {
   js inline "(function(_s){ return _s.str.substr(_s.start,_s.len) })(#1)"
 }
 
+extern next( slice : sslice ) : maybe<(char,sslice)> {
+  js "_sslice_next"
+}
+
+
+private fun foreach-while-indexed-acc( slice : sslice, action : (c : char, i : int) -> e maybe<a>, i : int ) : e maybe<a> {
+  match(slice.next) {
+    Nothing -> Nothing
+    Just((c,rest)) -> {
+      match(action(c,i)) {
+        Nothing -> foreach-while-indexed-acc(unsafe-decreasing(rest),action,i+1)
+        res     -> res
+      }
+    }
+  }
+}
+
+fun foreach-while-indexed( slice : sslice, action : (c : char, i : int) -> e maybe<a> ) : e maybe<a> {
+  foreach-while-indexed-acc( slice, action, 0 ) 
+}
+
+fun foreach-while( slice : sslice, action : (c:char) -> e maybe<a>) : e maybe<a> {
+  foreach-while-indexed(slice, fun(c,i) { action(c) })
+}
+
+
+fun foreach-indexed( slice : sslice, action : (c:char, i : int) -> e ()) : e () {
+  foreach-while-indexed(slice, fun(c,i) { action(c,i); Nothing })
+  ()
+}
+
+fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
+  foreach-while-indexed(slice, fun(c,i) { action(c); Nothing })
+  ()
+}
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xindex-of(s : string, sub : string ) : int { 
@@ -1991,11 +2031,29 @@ fun map( s : string, f : char -> e char ) : e string
   s.list.map(f).string // todo: optimize
 }
 
-// Invoke a function for each character in a string
-fun foreach( s : string, f : char -> e () ) : e ()
-{
-  s.list.foreach(f)  // todo: optimize
+fun foreach-while-indexed( s : string, action : (c:char,i:int) -> e maybe<a> ) : e maybe<a> {
+  s.slice.foreach-while-indexed(action)
 }
+
+fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a> {
+  s.slice.foreach-while(action)
+}
+
+fun foreach-indexed( s : string, action : (c:char,i:int) -> e () ) : e () {
+  s.slice.foreach-indexed(action)
+}
+
+// Invoke a function for each character in a string
+fun foreach( s : string, action : (c:char) -> e () ) : e () {
+  s.slice.foreach(action)
+}
+
+
+
+// Invoke a function for each character in a string
+//fun foreach( s : string, f : char -> e () ) : e () {
+//  s.list.foreach(f)  // todo: optimize
+//}
 
 // Count the number of times a predicate is true for each character in a string
 fun count( s : string, pred : (char) -> bool ) : int
