@@ -11,7 +11,7 @@
 module std/string
 
 
-
+// Indent all lines a string `s` by `n`. `fill` is used for indentation, by default `" "`.
 public fun indent( s : string, n : int = 2, fill : string = " " ) {
   if (n<=0) return s
   val pre = fill.repeat(n)
@@ -58,4 +58,11 @@ extern inline unitPrepend( b : builder<h>, s : string ) : write<h> () {
 public extern inline build( b : builder<h> ) : read<h> string {
   cs inline "(#1).ToString()"
   js inline "(#1).value"
+}
+
+// Do `action` with a given `:builder` and return the `:string` that was build.
+public fun with-builder( action : forall<h> (b : builder<h>) -> <st<h>|e> () ) : e string {
+  val b = builder()
+  action(b)
+  b.build
 }
