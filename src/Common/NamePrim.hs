@@ -146,7 +146,7 @@ nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
 nameIndex       = newName "[]"
 
-nameTpArray     = preludeName "array"
+nameTpArray     = qualify (newName "std/array") (newName "array") 
 nameTpVector    = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
