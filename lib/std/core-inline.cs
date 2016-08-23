@@ -318,6 +318,32 @@ public static class Primitive
     return slice.str.Substring(slice.start,slice.len);
   }
 
+  public static std_core._sslice SliceCommonPrefix( string s, string t, int upto ) {
+    int max = Math.Max(s.Length,t.Length);
+    int i;
+    for(i = 0; i < max && upto > 0; i++) {
+      if (s[i] != t[i]) break;
+      if (!Char.IsLowSurrogate(s[i])) upto--;
+    }
+    return new std_core._sslice(s,0,i);
+  }
+
+  public static std_core._maybe<std_core._Tuple2_<int,std_core._sslice>> SliceNext( std_core._sslice slice ) {
+    if (slice.len <= 0) return std_core._maybe<std_core._Tuple2_<int,std_core._sslice>>.Nothing_;
+    char c = slice.str[slice.start];
+    int n = 1;
+    if (Char.IsHighSurrogate(c) && slice.len > 1) {
+      char lo = slice.str[slice.start+1];
+      if (Char.IsLowSurrogate(lo)) {
+        c = (char)Char.ConvertToUtf32(slice.str,slice.start);
+        n = 2;
+      }
+    }
+    return new std_core._maybe<std_core._Tuple2_<int,std_core._sslice>>(
+                  new std_core._Tuple2_<int,std_core._sslice>(
+                    (int)c, new std_core._sslice(slice.str, slice.start+n, slice.len-n ) ) );
+  }
+
   //---------------------------------------
   // Trace
   //---------------------------------------

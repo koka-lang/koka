@@ -1739,26 +1739,37 @@ private extern inline length( s : string ) : int {
 
 // O(n). Return the number of characters in a string.
 extern count( s : string ) : int {
-  cs inline "Primitive.StringCount(#1)"
-  js inline "_string_count(#1)"
+  cs "Primitive.StringCount"
+  js "_string_count"
 }
 
 // O(n). Return the number of characters in a string slice
 extern count( slice : sslice ) : int {
-  cs inline "Primitive.SliceCount(#1)"
-  js inline "_sslice_count(#1)"
+  cs "Primitive.SliceCount"
+  js "_sslice_count"
 }
 
-// O(1). The first position in a string
-extern first(s : string) : sslice { 
-  cs inline "Primitive.SliceFirst(#1)"
-  js inline "_sslice_first(#1)"
+private extern inline first1(s : string ) : sslice { 
+  cs "Primitive.SliceFirst"
+  js "_sslice_first"
 }
 
-// O(1). The last position in a string
-extern last(s : string) : sslice { 
-  cs inline "Primitive.SliceLast(#1)"
-  js inline "_sslice_last(#1)"
+private extern inline last1(s : string ) : sslice { 
+  cs "Primitive.SliceLast"
+  js "_sslice_last"
+}
+
+// O(`n`). The first `n` (default = `1`) characters in a string.
+fun first(s : string, n : int = 1) : sslice {
+  val slice = s.first1
+  if (n==1) then slice else slice.extend( n - 1 )
+}
+
+// O(`n`). The last `n` (default = `1`) characters in a string
+fun last(s : string, n : int = 1) : sslice {
+  val slice = s.last1
+  if (n==1) then slice 
+            else slice.advance(1 - n).extend(n - 1)
 }
 
 // O(1). The entire string as a slice
@@ -1784,6 +1795,13 @@ fun head( s : string ) : string {
 fun tail( s : string ) : string {
   s.first.after.string
 }
+
+// Return the common prefix of two strings (upto `upto` characters (default `max-int`))
+extern common-prefix(s : string, t : string, upto : int = max-int ) : sslice {
+  cs "Primitive.SliceCommonPrefix"
+  js "_sslice_common_prefix"
+}
+
 
 
 // O(`count`). Advance the start position of a string slice by `count` characters
@@ -1836,38 +1854,27 @@ extern inline string( slice : sslice ) : string {
 }
 
 extern next( slice : sslice ) : maybe<(char,sslice)> {
+  cs "Primitive.SliceNext"
   js "_sslice_next"
 }
 
-
-private fun foreach-while-indexed-acc( slice : sslice, action : (c : char, i : int) -> e maybe<a>, i : int ) : e maybe<a> {
+// Apply a function for each character in a string slice.
+// If `action` returns `Just`, the function returns immediately with that result.
+fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a> {
   match(slice.next) {
     Nothing -> Nothing
     Just((c,rest)) -> {
-      match(action(c,i)) {
-        Nothing -> foreach-while-indexed-acc(unsafe-decreasing(rest),action,i+1)
+      match(action(c)) {
+        Nothing -> foreach-while(unsafe-decreasing(rest),action)
         res     -> res
       }
     }
   }
 }
 
-fun foreach-while-indexed( slice : sslice, action : (c : char, i : int) -> e maybe<a> ) : e maybe<a> {
-  foreach-while-indexed-acc( slice, action, 0 ) 
-}
-
-fun foreach-while( slice : sslice, action : (c:char) -> e maybe<a>) : e maybe<a> {
-  foreach-while-indexed(slice, fun(c,i) { action(c) })
-}
-
-
-fun foreach-indexed( slice : sslice, action : (c:char, i : int) -> e ()) : e () {
-  foreach-while-indexed(slice, fun(c,i) { action(c,i); Nothing })
-  ()
-}
-
+// Apply a function for each character in a string slice.
 fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
-  foreach-while-indexed(slice, fun(c,i) { action(c); Nothing })
+  foreach-while(slice, fun(c) { action(c); Nothing })
   ()
 }
 
@@ -2000,15 +2007,13 @@ private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
-fun split( s : string, sep : string ) : list<string>
-{
+fun split( s : string, sep : string ) : list<string> {
   splitv(s,sep).list
 }
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-fun split( s : string, sep: string, n : int) : list<string>
-{
+fun split( s : string, sep: string, n : int) : list<string> {
   splitv(s,sep,n).list
 }
 
@@ -2026,21 +2031,14 @@ public extern inline count( s : string, pattern : string ) : int {
 
 
 // Apply a function `f` to each character in a string
-fun map( s : string, f : char -> e char ) : e string
-{
+fun map( s : string, f : char -> e char ) : e string {
   s.list.map(f).string // todo: optimize
 }
 
-fun foreach-while-indexed( s : string, action : (c:char,i:int) -> e maybe<a> ) : e maybe<a> {
-  s.slice.foreach-while-indexed(action)
-}
-
+// Invoke a function for each character in a string. 
+// If `action` returns `Just`, the function returns immediately with that result.
 fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a> {
   s.slice.foreach-while(action)
-}
-
-fun foreach-indexed( s : string, action : (c:char,i:int) -> e () ) : e () {
-  s.slice.foreach-indexed(action)
 }
 
 // Invoke a function for each character in a string
@@ -2065,27 +2063,29 @@ fun count( s : string, pred : (char) -> bool ) : int
   cnt
 }
 
-fun lines( s : string ) : list<string>
-{
+// Split a string into a list of lines
+fun lines( s : string ) : list<string> {
   s.split("\n")
 }
 
-fun unlines( xs : list<string> ) : string
-{
+// Join a list of strings with newlines
+fun unlines( xs : list<string> ) : string {
   xs.join("\n") 
 }
 
+// Convert a string to upper-case 
 extern to-upper : (s : string) -> string { 
   cs inline "(#1).ToUpper()"
   js inline "(#1).toUpperCase()" 
 }
 
+// Convert a string to lower-case
 extern to-lower : (s : string) -> string { 
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()" 
 }
 
-// If the first character of a string is ASCII `lower?` convert it to uppercase.
+// Convert the first character of a string to uppercase.
 fun capitalize( s : string ) : string {
   s.first.string.to-upper + s.first.after.string
 }
