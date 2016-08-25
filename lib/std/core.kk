@@ -46,7 +46,8 @@ type int
 // The encoding of a string is internal and not exposed and there
 // is no direct indexing of characters in string. 
 // Use the `:sslice` type for efficient matching and retrieving
-// sub-strings from string.
+// sub-strings from string.\
+// See also the [``std/string``](std_string.html) module.
 type string
 
 // A 64-bit IEEE 754 floating point value
@@ -59,7 +60,7 @@ type any
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
-// (see also `std/unicode/grapheme`)
+// (see also the [``std/unicode``](std_unicode.html) module.)
 type char
 
 

@@ -131,7 +131,7 @@ public extern inline build( b : builder<h> ) : read<h> string {
   js inline "(#1).value"
 }
 
-// Do `action` with a given `:builder` and return the `:string` that was build.
+// Do `action` with a given `:builder` and return the `:string` that was built.
 public fun with-builder( action : forall<h> (b : builder<h>) -> <st<h>|e> () ) : e string {
   val b = builder()
   action(b)

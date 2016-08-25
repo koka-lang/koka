@@ -1,6 +1,6 @@
-len: 13, sub3: x☃x, rev3: x☃x,
+count: 13, sub3: x☃x, rev3: x☃x,
  s: x☃x (snowman), [78,2603,78,20,28,73,6E,6F,77,6D,61,6E,29]
-len: 14, sub3: x💪, rev3: 💪x,
+count: 13, sub3: x💪x, rev3: x💪x,
  s: x💪x (astral ), [78,1F4AA,78,20,28,61,73,74,72,61,6C,20,29]
-len: 14, sub3: x𝐀, rev3: 𝐀x,
+count: 13, sub3: x𝐀x, rev3: x𝐀x,
  s: x𝐀x (math A ), [78,1D400,78,20,28,6D,61,74,68,20,41,20,29]
