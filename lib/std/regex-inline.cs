@@ -52,9 +52,9 @@ static class RegEx
 
   public static std_regex._matched Matches( string s, Match match ) 
   {
-    if (!match.Success) return new std_regex._matched( std_core._new_sslice(s,0,1), "", new std_regex._groups(null) );    
+    if (!match.Success) return new std_regex._matched( std_core._new_sslice(s,0,0), "", new std_regex._groups(null) );    
     int next = match.Index + match.Length;
-    if (next<=match.Index) next = match.Index+1;
+    //if (next<=match.Index) next = match.Index+1;
     var slice = std_core._new_sslice( s, match.Index, next - match.Index );
     return new std_regex._matched( slice, match.Value, new std_regex._groups(match.Groups) );
   }

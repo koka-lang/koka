@@ -24,9 +24,7 @@ abstract struct regex( obj: any )
 // The result of a regular expression match, where `matched` is the content that
 // was matched, and `groups` is a vector that contains the content for each 
 // capture group (where `groups[0] == matched`).
-// The `slice` field contains the `:sslice` of the string that was matched
-// and it has at least a length of 1 (even when the regular expression was
-// an empty match).
+// The `slice` field contains the `:sslice` of the string that was matched.
 public struct matched( slice : sslice, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
@@ -91,6 +89,13 @@ extern regex-split : (any, string, int, int ) -> vector<string> {
 // Return the string following match 
 public fun after( cap : matched ) : string {
   cap.slice.after.string
+}
+
+// Return the string following match but ensure we
+// advance by at least 1 character (to ensure termination with empty matches). 
+public fun after1( cap : matched ) : string {
+  val s = cap.slice
+  if (s.empty?) then s.advance(1).after.string else s.after.string
 }
 
 // Return the string before a match 
@@ -257,11 +262,12 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
     Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc + s.head) // todo: improve efficiency?
     Just(cap) -> {
       if (cap.groups.matched?(1)) {
-        split-excludex( unsafe-decreasing(cap.after), splitr, acc + cap.matched) 
+        split-excludex( unsafe-decreasing(cap.after1), splitr, acc + cap.matched) 
       }
       else {
-        Cons(acc, split-excludex( unsafe-decreasing(cap.after), splitr, "")) // todo: make tail recursive
+        Cons(acc, split-excludex( unsafe-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
       }
     }
   }
 }
+
