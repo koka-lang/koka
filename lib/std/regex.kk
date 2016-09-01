@@ -177,70 +177,65 @@ private extern inline substr( s : string, start : int, len : int ) : string {
   js inline "(#1).substr(#2,#3)"
 }
 
-// Find a match for a regular expression starting at start position `start` (by default `0`).
+// Find a match for a regular expression.
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
-public fun find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
+public fun find( s :string,  regex :regex ) : maybe<matched>
 {  
-  if (start >= s.length) return Nothing
-  regex-exec(regex.obj,s,max(start,0))
+  regex-exec(regex.obj,s,0)
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
 
 // Find all matches for a regular expression in a string.
-public fun find-all( s :string,  regex :regex, start :int = 0 ) : vector<matched>
+public fun find-all( s :string,  regex :regex ) : vector<matched>
 {
-  if (start > s.length) return vector()  
-  return regex-exec-all(regex.obj,s,max(start,0))
+  return regex-exec-all(regex.obj,s,0)
 }
 
-fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False, start :int = 0) : e string
+fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
 {
-  if (start > s.length) return s
-  return regex-replace-fun(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
+  return regex-replace-fun(regex.obj, s, repl, if (all) then 1 else 0, 0);
 }
 
-fun replace-ex( s :string, regex :regex, repl :string, all :bool = False, start :int = 0) : string
+fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string
 {
-  if (start > s.length) return s
-  return regex-replace(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
+  return regex-replace(regex.obj, s, repl, if (all) then 1 else 0, 0);
 }
 
 // Split a string `s` in at most `n` parts using a regular expression `r` as separator.
-public fun split( s :string, r :regex, n :int = max-int, start : int = 0 ) : vector<string>
+public fun split( s :string, r :regex, n :int = max-int ) : vector<string>
 {
   if (n<=0) return vector();
-  if (start>s.length) return vector(1,s);
-  return regex-split( r.obj, s, if (n==max-int) then 0 else n, max(start,0) );
+  return regex-split( r.obj, s, if (n==max-int) then 0 else n, 0 );
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
-  replace-ex( s, regex, repl, all = False, start = start )
+public fun replace( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
+  replace-ex( s, regex, repl, all = False )
 }
 
 // Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
-  replace-ex( s, regex, repl, all = True, start = start )
+public fun replace-all( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
+  replace-ex( s, regex, repl, all = True)
 }
 
 // Replace the first occurrence of `regex` by the result a replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
-public fun replace( s : string, regex: regex, repl :string, start : int = 0) : string {
-  replace-ex( s, regex, repl, all = False, start = start )
+public fun replace( s : string, regex: regex, repl :string) : string {
+  replace-ex( s, regex, repl, all = False)
 }
 
 // Replace all ocurrences of `regex` by the result of a replacement string `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl :string, start : int = 0) : string {
-  replace-ex( s, regex, repl, all = True, start = start )
+public fun replace-all( s : string, regex: regex, repl :string) : string {
+  replace-ex( s, regex, repl, all = True)
 }
 
 // Does a regular expression pattern occur in a string `s`?
 // (note: called `test` in javascript)
-public fun contains( s :string, r :regex, start :int = 0 ) : bool 
+public fun contains( s :string, r :regex ) : bool 
 {
-  return s.find(r,start).bool
+  return s.find(r).bool
 }
 
 
