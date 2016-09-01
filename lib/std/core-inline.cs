@@ -315,6 +315,7 @@ public static class Primitive
 
 
   public static string SliceToString( std_core._sslice slice ) {
+    if (slice.start==0 && slice.len==slice.str.Length) return slice.str;
     return slice.str.Substring(slice.start,slice.len);
   }
 

@@ -1849,9 +1849,10 @@ fun after(slice : sslice) : sslice {
 }
 
 // O(n). Copy the `slice` argument into a fresh string.
-extern inline string( slice : sslice ) : string {
-  cs inline "Primitive.SliceToString(#1)"
-  js inline "(function(_s){ return _s.str.substr(_s.start,_s.len) })(#1)"
+// Takes O(1) time if the slice covers the entire string.
+extern string( slice : sslice ) : string {
+  cs "Primitive.SliceToString"
+  js "_slice_to_string"
 }
 
 extern next( slice : sslice ) : maybe<(char,sslice)> {
