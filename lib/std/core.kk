@@ -2230,6 +2230,42 @@ extern vector( xs : list<a> ) : vector<a> {
 }
 
 
+
+
+// ----------------------------------------------------------------------------
+// Delayed values
+// ----------------------------------------------------------------------------
+
+// Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
+// `force` is called and cached afterwards.
+abstract type delayed<e,a> {
+  con Delay( dref : ref<global,either<() -> e a,a>> )
+}
+
+// Create a new `:delayed` value.
+public fun delay( action : () -> e a ) : delayed<e,a> {
+  unsafe-total{ 
+    Delay(ref(Left(action)))
+  }
+}
+
+// Force a delayed value; the value is computed only on the first
+// call to `force` and cached afterwards.
+fun force( delayed : delayed<e,a> ) : e a {
+  unsafe-total {
+    val r = delayed.dref
+    match(!r) {
+      Right(x) -> x
+      Left(action) -> {
+        val x = inject-st(inject-div(action))()
+        r := Right(x)
+        x
+      }
+    }
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Show
 // ----------------------------------------------------------------------------

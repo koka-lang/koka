@@ -30,7 +30,7 @@ extern seconds : (date) -> int {
 
 // Number of milliseconds since 1 January 1970 00:00:00 UTC.
 extern time : (date) -> int { 
-  js inline "#1.getTime()" 
+  js inline "(#1.getTime() | 0)" 
 }
 
 

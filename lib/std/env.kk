@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -10,43 +10,19 @@
 /*
 Access to the program environment and commmand line arguments.
 
-Print the environment: `env.list.map(fun(p) { p.fst + "=" + p.snd }).join("\n").print`
+Print the environment: `get-env().list.map(fun(p) { p.fst + "=" + p.snd }).join("\n").print`
 */
 module std/env
 
 import std/path
 import std/dict
 
-abstract type delayed<e,a> {
-  con Delay( dref : ref<global,either<() -> e a,a>> )
-}
-
-public fun delay( action : () -> e a ) : delayed<e,a> {
-  unsafe-total{ 
-    Delay(ref(Left(action)))
-  }
-}
-
-fun force( delayed : delayed<e,a> ) : e a {
-  unsafe-total {
-    val r = delayed.dref
-    match(!r) {
-      Right(x) -> x
-      Left(action) -> {
-        val x = inject-st(inject-div(action))()
-        r := Right(x)
-        x
-      }
-    }
-  }
-}
-
-extern get-environment() : ndet dict<string>  {
+extern xget-env() : ndet dict<string>  {
   cs inline "Primitive.DictFromStringCollection(System.Environment.GetEnvironmentVariables())"
   js inline "(typeof process !== 'undefined' ? process.env : {})"
 }
 
-private val env : delayed<<ndet>,dict<string>> = delay(get-environment)
+private val env : delayed<<ndet>,dict<string>> = delay(xget-env)
 
 // Get the environment variables for this program
 public fun get-env() : ndet dict<string>  {
@@ -54,7 +30,7 @@ public fun get-env() : ndet dict<string>  {
 }
 
 // Get the environment variables for this program
-public fun get-env-list() : ndet list<(string,string)>  {
+fun get-env-list() : ndet list<(string,string)>  {
   get-env().list
 }
 
