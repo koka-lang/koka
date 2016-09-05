@@ -129,6 +129,9 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // ----------------------------------------------------------------------------
 
 // Add the divergent effect to a function effect.
+extern inline inject-div : forall<a,e> (() -> e a) -> (() -> <div|e> a) { inline "#1" }
+
+// Add the divergent effect to a function effect.
 extern inline inject-div : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
 
 // Add the state effect to a function effect.
