@@ -1,72 +1,67 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-  
+    
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-// note: this module assumes that the local timezone does not change 
-// while the program runs. This allows us to only use `:ndet` when
-// creating a `:date` effectively implicitly setting the timezone too.
-// The string conversion fun
-
-/* Date and time functions.
+/* Date and time functions
 */
-public module std/date
+public module std/datetime
 
-type date
+abstract datetime( tzofs : int, date : any )
 
 // Return the current local time.
-extern now : () -> ndet date { 
-  js inline "new Date()" 
+extern now : () -> ndet datetime { 
+  js inline "(function(){ var d = new Date(); return datetime(d.getTimezoneOffset(),d); })()" 
 }
 
 // Get the time-zone offset in minutes. This 
 // is the difference in minutes between UTC and local time.
 // For example, if the time zone is UTC+10, the time zone offset is -600.
-extern timezone-offset(d : date) : int {
-  js inline "#1.getTimezoneOffset()"
+fun timezone-offset(d : datetime) : int {
+  d.tzofs
 }
 
 // Get the full year
-extern year( d : date ) : int {
-  js inline "#1.getFullYear()"
+extern year( d : datetime ) : int {
+  js inline "(d.tzofs===0 ? d.date.getUTCFullYear() : d.date.getFullYear())"
 }
 
 // Get the month, between 1 and 12
-extern month( d : date ) : int {
-  js inline "#1.getMonth()+1"
+extern month( d : datetime ) : int {
+  js inline "#1.date.getMonth()+1"
 }
 
 // Get the day of the month, between 1 and 31
-extern day( d : date ) : int {
-  js inline "#1.getDate()"
+extern day( d : datetime ) : int {
+  js inline "#1.date.getDate()"
 }
 
 // Get the hours of the day between 0 and 23
-extern hours : (date) -> int { 
-  js inline "#1.getHours()" 
+extern hours : (datetime) -> int { 
+  js inline "#1.date.getHours()" 
 }
 
 // Get the minutes between 0 and 59
-extern minutes : (date) -> int { 
-  js inline "#1.getMinutes()" 
+extern minutes : (datetime) -> int { 
+  js inline "#1.date.getMinutes()" 
 }
 
 // Get the seconds between 0 and 59
-extern seconds : (date) -> int { 
-  js inline "#1.getSeconds()" 
+extern seconds : (datetime) -> int { 
+  js inline "#1.date.getSeconds()" 
 }
 
 // Return the milliseconds between 0 and 999
-extern milliseconds : (date) -> int { 
-  js inline "#1.getMilliseconds()" 
+extern milliseconds : (datetime) -> int { 
+  js inline "#1.date.getMilliseconds()" 
 }
 
 // Number of milliseconds since 1 January 1970 00\:00\:00 UTC.
-extern inline epoch-msecs : (date) -> int { 
-  js inline "(#1.getTime() | 0)" 
+extern inline epoch-msecs : (datetime) -> int { 
+  js inline "(#1.date.getTime() | 0)" 
 }
 
 // Return an ISO 8601 date-time string with a zero UTC offset (`Z`).
