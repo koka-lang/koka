@@ -2299,8 +2299,9 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True )
   gformat(i, x + w.show)
 }
 
-// Show a `:double` as a string with a default `precision`  of `0` .
-// Pass a precision of `0`  (or less) to display numbers precisely.
+// Show a `:double` as a string with a default `precision` of `6` .
+// The option `precision` should a number be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits.
 // Uses either `showFixed` or `showExp` depending on what is the most compact representation
 fun show( d : double, precision : int = 6 ) : string
 {
@@ -2308,13 +2309,18 @@ fun show( d : double, precision : int = 6 ) : string
   gformat(d,"g" + show(p))
 }
 
+// Show a `:double` as in decimal notation.
+// The `precision` is `6` by default and should be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits.
 fun show-fixed( d : double, precision : int = 6 )
 {
   val p = if (precision < 0) then 0 else precision
   gformat(d,"F" + show(p))
 }
 
-// Show a `:double` in exponential (scientific) notation 
+// Show a `:double` in exponential (scientific) notation.
+// The `precision` is `6` by default and should be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits.
 fun show-exp( d : double, precision : int = 6 )
 {
   val p = if (precision < 0) then 0 else precision
