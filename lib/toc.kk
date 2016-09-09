@@ -15,7 +15,7 @@ module toc
   
 import std/array
 import std/atom
-import std/date
+import std/datetime
 import std/dict
 import std/env
 import std/file

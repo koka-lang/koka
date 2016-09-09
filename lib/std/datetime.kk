@@ -45,14 +45,6 @@ fun local( d : datetime ) : ndet datetime {
   d(tzofs = now().tzofs)
 }
 
-// Convert a date to use a specified timezone offset in minutes.
-// A timezone offset is the difference in minutes between UTC and local time.
-// For example, if the timezone is UTC+10, the timezone offset is -600.
-fun with-timezone-offset( d : datetime, timezone-offset : int ) : datetime {
-  val ofs = if (timezone-offset>=0) then timezone-offset%(24*60) else ~(~timezone-offset%(24*60))
-  d(tzofs = ofs)
-}
-
 // Return the current time in the UTC timezone.
 fun utc-now() : ndet datetime { 
   now().utc
@@ -61,6 +53,11 @@ fun utc-now() : ndet datetime {
 // Create a new UTC timezone `:datetime` with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC)
 fun utc-datetime( epochmsecs : double ) : datetime {
   datetime(epochmsecs).utc
+}
+
+// Is this datetime in the UTC timezone?
+fun utc?( d : datetime ) : bool {
+  (d.tzofs == 0)
 }
 
 // Get the timezone offset in minutes. This 
@@ -115,6 +112,42 @@ extern inline epoch-msecs(d:datetime) : double {
   js inline "(#1.date.getTime())" 
 }
 
+private fun copy( d : datetime, year :int, month : int, day : int, hours : int, minutes : int, seconds : int, milliseconds : int ) : datetime {
+  if (d.utc?) 
+   then utc-datetime(year,month,day,hours,minutes,seconds,milliseconds)
+   else datetime(year,month,day,hours,minutes,seconds,milliseconds)
+}
+
+// Add `n` years to a datetime.
+fun add-years( d : datetime, n : int ) : datetime {
+  d.copy(d.year + n,d.month,d.day, d.hours, d.minutes, d.seconds, d.milliseconds)
+}
+
+// Add `n` months to a date.
+fun add-months( d : datetime, n : int ) : datetime {
+  d.copy(d.year,d.month + n,d.day, d.hours, d.minutes, d.seconds, d.milliseconds)
+}
+
+// Add `n` days to a date. Takes leap years etc. into account.
+fun add-days( d : datetime, n : int ) : datetime {
+  d.copy(d.year,d.month,d.day + n, d.hours, d.minutes, d.seconds, d.milliseconds)
+}
+
+// Add `n` hours to a date. 
+fun add-hours( d : datetime, n : int ) : datetime {
+  d.copy(d.year,d.month,d.day, d.hours + n, d.minutes, d.seconds, d.milliseconds)
+}
+
+// Add `n` minutes to a date. 
+fun add-minutes( d : datetime, n : int ) : datetime {
+  d.copy(d.year,d.month,d.day, d.hours, d.minutes + n, d.seconds, d.milliseconds)
+}
+
+// Add `n` seconds to a date. Takes leap seconds into account.
+fun add-seconds( d : datetime, n : int ) : datetime {
+  d.copy(d.year,d.month,d.day, d.hours, d.minutes, d.seconds + n, d.milliseconds)
+}
+
 // Show a `:datetime` as an ISO 8601 string. 
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
 // For example `now().show` -> `"2016-09-08T19:55:11.910-07:00"`.
@@ -158,7 +191,8 @@ private fun showl( i : int, width : int = 2 ) : string {
   i.show.pad-left(width,"0")
 }
 
-// Show as standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>)
+// Show as standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>).\
+// For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
 fun show-imf( d : datetime ) : string {
   [ d.show-en-day.first(3).string + ",",
     d.day.show,
