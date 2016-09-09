@@ -6,20 +6,66 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Date and time functions
+/* Basic date and time functions.
 */
 public module std/datetime
 
-abstract datetime( tzofs : int, date : any )
+// A `:datetime` represents a certain date and time in a gregorian calendar.
+// It is displayed with regard to either the local or UTC timezone.
+abstract struct datetime( tzofs : int, date : any )
 
-// Return the current local time.
+// Return the current time in the local timezone.
 extern now : () -> ndet datetime { 
-  js inline "(function(){ var d = new Date(); return datetime(d.getTimezoneOffset(),d); })()" 
+  js inline "(function(){ var d = new Date(); return Datetime(d.getTimezoneOffset(),d); })()" 
 }
 
-// Get the time-zone offset in minutes. This 
+// Create a new local `:datetime`
+extern datetime(year:int, month : int, day:int = 1,hours:int = 0,minutes:int = 0,seconds:int = 0,milliseconds:int = 0) : datetime {
+  js inline "(function(){ var d = new Date(#1,#2 - 1,#3,#4,#5,#6,#7); return Datetime(d.getTimezoneOffset(),d); })()" 
+}
+
+// Create a new UTC `:datetime`
+extern utc-datetime(year:int, month : int, day:int, hours:int = 0,minutes:int = 0,seconds:int = 0,milliseconds:int = 0) : datetime {
+  js inline "(function(){ var d = new Date(Date.UTC(#1,#2 - 1,#3,#4,#5,#6,#7)); return Datetime(0,d); })()" 
+}
+
+// Create a new local timezone `:datetime` with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC)
+extern datetime( epochmsecs : double ) : datetime {
+  js inline "(function(){ var d = new Date(epochmsecs); return Datetime(d.getTimezoneOffset(),d); })()" 
+}
+
+// Convert a date to the UTC timezone.
+// i.e. `utc-now() === now().utc`
+fun utc( d : datetime ) : datetime {
+  d(tzofs = 0)
+}
+
+// Convert a date to the local timezone.
+fun local( d : datetime ) : ndet datetime {
+  d(tzofs = now().tzofs)
+}
+
+// Convert a date to use a specified timezone offset in minutes.
+// A timezone offset is the difference in minutes between UTC and local time.
+// For example, if the timezone is UTC+10, the timezone offset is -600.
+fun with-timezone-offset( d : datetime, timezone-offset : int ) : datetime {
+  val ofs = if (timezone-offset>=0) then timezone-offset%(24*60) else ~(~timezone-offset%(24*60))
+  d(tzofs = ofs)
+}
+
+// Return the current time in the UTC timezone.
+fun utc-now() : ndet datetime { 
+  now().utc
+}
+
+// Create a new UTC timezone `:datetime` with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC)
+fun utc-datetime( epochmsecs : double ) : datetime {
+  datetime(epochmsecs).utc
+}
+
+// Get the timezone offset in minutes. This 
 // is the difference in minutes between UTC and local time.
-// For example, if the time zone is UTC+10, the time zone offset is -600.
+// For example, if the timezone is UTC+10, the timezone offset is -600.
 fun timezone-offset(d : datetime) : int {
   d.tzofs
 }
@@ -31,85 +77,133 @@ extern year( d : datetime ) : int {
 
 // Get the month, between 1 and 12
 extern month( d : datetime ) : int {
-  js inline "#1.date.getMonth()+1"
+  js inline "(d.tzofs===0 ? d.date.getUTCMonth() : d.date.getMonth())+1"
 }
 
 // Get the day of the month, between 1 and 31
 extern day( d : datetime ) : int {
-  js inline "#1.date.getDate()"
+  js inline "(d.tzofs===0 ? d.date.getUTCDate() : d.date.getDate())"
+}
+
+// Return the day of the week, between 0 (Sunday) and 6 (Saturday)
+extern day-of-week( d : datetime ) : int {
+  js inline "(d.tzofs===0 ? d.date.getUTCDay() : d.date.getDay())"
 }
 
 // Get the hours of the day between 0 and 23
-extern hours : (datetime) -> int { 
-  js inline "#1.date.getHours()" 
+extern hours : (d:datetime) -> int { 
+  js inline "(d.tzofs===0 ? d.date.getUTCHours() : d.date.getHours())"
 }
 
 // Get the minutes between 0 and 59
-extern minutes : (datetime) -> int { 
-  js inline "#1.date.getMinutes()" 
+extern minutes : (d:datetime) -> int { 
+  js inline "(d.tzofs===0 ? d.date.getUTCMinutes() : d.date.getMinutes())" 
 }
 
 // Get the seconds between 0 and 59
-extern seconds : (datetime) -> int { 
-  js inline "#1.date.getSeconds()" 
+extern seconds : (d:datetime) -> int { 
+  js inline "(d.tzofs===0 ? d.date.getUTCSeconds() : d.date.getSeconds())"
 }
 
 // Return the milliseconds between 0 and 999
-extern milliseconds : (datetime) -> int { 
-  js inline "#1.date.getMilliseconds()" 
+extern milliseconds(d:datetime) : int { 
+  js inline "(d.tzofs===0 ? d.date.getUTCMilliseconds() : d.date.getMilliseconds())" 
 }
 
 // Number of milliseconds since 1 January 1970 00\:00\:00 UTC.
-extern inline epoch-msecs : (datetime) -> int { 
-  js inline "(#1.date.getTime() | 0)" 
+extern inline epoch-msecs(d:datetime) : double { 
+  js inline "(#1.date.getTime())" 
 }
 
-// Return an ISO 8601 date-time string with a zero UTC offset (`Z`).
+// Show a `:datetime` as an ISO 8601 string. 
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
-extern iso-datetime : (date) -> string {
-  js inline "#1.toISOString()"
+// For example `now().show` -> `"2016-09-08T19:55:11.910-07:00"`.
+fun show( d : datetime ) : string {
+  d.show-iso
 }
 
-// Return the date portion of an ISO date/time string (`iso-datetime`).
-fun iso-date(d : date) : string {
-  val s = d.iso-datetime
-  match(s.find("T")) {
-    Just(slice) -> slice.before.string
-    Nothing     -> s
-  }
-}
-
-// Return the time portion of an ISO date/time string (`iso-datetime`).
-fun iso-time(d : date) : string {
-  val s = d.iso-datetime
-  match (s.find("T")) {
-    Just(slice) -> slice.after.string
-    Nothing -> s
-  }
-}
-
-// Return an ISO 8601 date-time string in the current time zone.
+// Show as an ISO 8601 date-time string.
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
-fun iso-local-datetime(d : date ) : string {
-  val ofs = d.timezone-offset
-  val xofs = if (ofs >= 0) then ofs else ~ofs
-  d.iso-local-date + "T" + d.iso-local-time + 
-   "." + d.milliseconds.show.pad-left(3,"0") +
-   (if (ofs >= 0) then "-" else "+") + // flip sign
-   ((xofs / 60).show2) + ":" + ((xofs % 60).show2)
+// For example `now().show-iso` -> `"2016-09-08T19:55:11.910-07:00"`.
+fun show-iso(d : datetime ) : string {
+  d.show-iso-date + "T" + d.show-iso-time + 
+   "." + d.milliseconds.showl(3) +
+   d.show-iso-timezone
+}
+
+// Show the date in ISO format, i.e. `YYYY-MM-DD` format.
+fun show-iso-date( d : datetime ) : string {
+  d.year.showl(4) + "-" + d.month.showl + "-" + d.day.showl
+}
+
+// Show the time in ISO format, i.e. `hh:mm:ss` format.
+fun show-iso-time( d : datetime ) : string {
+  d.hours.showl + ":" + d.minutes.showl + ":" + d.seconds.showl
+}
+
+// Show the timezone offset in ISO format.
+// `now().show-iso-timezone` -> `-07:00`.
+// The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
+// while the `sep` (`":"`) gives the separator used between the hours and minutes of
+// other timezone offsets.
+fun show-iso-timezone( d : datetime, utc : string = "Z", sep : string = ":" ) : string {
+  val ofs    = d.tzofs
+  if (ofs==0) return utc
+  val absofs = if (ofs >= 0) then ofs else ~ofs
+  (if (ofs >= 0) then "-" else "+") + // flip sign
+   ((absofs / 60).showl) + sep + ((absofs % 60).showl)
+}
+
+private fun showl( i : int, width : int = 2 ) : string {
+  i.show.pad-left(width,"0")
+}
+
+// Show as standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>)
+fun show-imf( d : datetime ) : string {
+  [ d.show-en-day.first(3).string + ",",
+    d.day.show,
+    d.show-en-month.first(3).string,
+    d.year.showl(4),
+    d.show-iso-time,
+    d.show-iso-timezone(utc="+0000",sep="")
+  ].join(" ")
 }
 
 
-// return the local date in ISO format, i.e. `YYYY-MM-DD` format.
-fun iso-local-date( d : date ) : string {
-  d.year.show + "-" + d.month.show2 + "-" + d.day.show2
+// Show a human readable English date/time string.
+// For example `now().en-datetime` -> `"Thu Oct 8 2016, 19:48:11 GMT-07:00"`.
+fun show-en( d : datetime ) : string {
+  d.show-en-date + ", " + d.show-en-time
 }
 
-// return the local time in ISO format, i.e. `hh:mm:ss` format.
-fun iso-local-time( d : date ) : string {
-  d.hours.show2 + ":" + d.minutes.show2 + ":" + d.seconds.show2
+// Show the time portion in human readable English.
+// For example `now().en-time` -> `"19:48:11 GMT-07:00"`.
+fun show-en-time( d : datetime ) : string {
+  [ d.hours.showl + ":" + d.minutes.showl + ":" + d.seconds.showl,
+    "GMT" + d.show-iso-timezone(utc="")
+  ].join(" ")
 }
 
-private fun show2( i : int ) : string {
-  i.show.pad-left(2,"0")
-} 
+// Show the date portion in human readable English.
+// For example `now().en-date` -> `"Thu Oct 8 2016"`.
+fun show-en-date( d : datetime ) : string {
+  [ d.show-en-day.first(3).string,
+    d.show-en-month.first(3).string,
+    d.day.show,
+    d.year.showl(4) 
+  ].join(" ")
+}
+
+// Return the full day of the week in English
+fun show-en-day( d : datetime ) : string {
+  days[d.day-of-week].maybe("?")
+}
+
+// Return the full month in English
+fun show-en-month( d : datetime ) : string {
+  months[d.month].maybe("?")
+}
+
+private val days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+private val months = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"]
