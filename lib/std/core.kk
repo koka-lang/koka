@@ -1817,7 +1817,7 @@ extern common-prefix(s : string, t : string, upto : int = max-int ) : sslice {
 //
 // * `"abc".first.advance(1).string == "b"`,
 // * `"abc".first.advance(3).string == ""`,
-// * `"abc".last.advance(~1).string == "bc"`.
+// * `"abc".last.advance(~1).string == "b"`.
 // 
 public extern advance( slice : sslice, count : int ) : sslice {
   cs inline "Primitive.SliceAdvance(#1,#2)"
@@ -1858,6 +1858,8 @@ extern string( slice : sslice ) : string {
   js "_slice_to_string"
 }
 
+// If the slice is not empty, 
+// return the first character, and a new slice that is advanced by 1.
 extern next( slice : sslice ) : maybe<(char,sslice)> {
   cs "Primitive.SliceNext"
   js "_sslice_next"
