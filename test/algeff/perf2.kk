@@ -1,14 +1,7 @@
-import std/date
+import std/time
 
 fun timer(f) {
-  val t0 = now().time
-  val adjust = now().time - t0
-  println("start")
-  val start = now().time
-  val x = f()
-  val end = now().time
-  println("ended in " + (end - start).show + "ms")
-  x
+  print-elapsed(f)
 }
 
 alias solution = list<int>

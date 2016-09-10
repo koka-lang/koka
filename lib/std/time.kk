@@ -274,12 +274,12 @@ fun elapsed( action : () -> <ndet|e> () ) : <ndet|e> double {
 }
 
 // Measure the number of milliseconds that it takes to evaluate `action`, and print `msg` postfixed with the
-// measured time.
+// measured time in millisecond resoltion.
 fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
   val t0 = ticks()
   val x  = action()
   val t1 = ticks()
   val t  = (t1 - t0)
-  println( msg + " " + t.show-fixed + "ms" )
+  println( msg + " " + t.show-fixed(0) + "ms" )
   x
 } 

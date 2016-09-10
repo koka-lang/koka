@@ -1,18 +1,11 @@
-import std/date
+import std/time
 
 external include {
   js file "perf1-inline1.js"
 } 
 
 fun timer(f) {
-  val t0 = now().time
-  val adjust = now().time - t0
-  println("start")
-  val start = now().time
-  val x = f()
-  val end = now().time
-  println("ended in " + (end - start - adjust).show + "ms")
-  x
+  print-elapsed(f)
 }
 
 effect state<s> {
