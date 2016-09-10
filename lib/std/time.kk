@@ -11,6 +11,7 @@
 public module std/time
 
 extern include {
+  cs file "time-inline.cs"
   js file "time-inline.js"
 }
 
@@ -20,7 +21,21 @@ abstract struct time( tzofs : int, xtime : any )
 
 // Return the current time in the local timezone.
 extern now : () -> ndet time { 
+  cs "_Time.Now"
   js "_time_now"
+}
+
+// Return the current time in the UTC timezone.
+extern utc-now() : ndet time { 
+  cs "_Time.UtcNow"
+  js "_time_utcnow"
+}
+
+
+// Convert a time to the UTC timezone.
+// i.e. `utc-now() === now().utc`
+extern utc( d : time ) : time {
+  d(tzofs = 0)
 }
 
 private extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int,milliseconds:int, is-utc:bool ) : time {
@@ -34,11 +49,13 @@ private extern new-time( epochmsecs : double, is-utc:bool ) : time {
 // Return the date of a time in the associated time zone. 
 // Returns the year, month (starting at 1), and day of the month (starting at 1).
 extern date( t : time ) : (int,int,int) {
+  cs "_Time.Date"
   js "_time_date"
 }
 
 // Return the clock time in the associated time zone. Returns the hours, minutes, seconds, and milliseconds.
 extern clock( t : time ) : (int,int,int,int) {
+  cs "_Time.Clock"
   js "_time_clock"
 }
 
@@ -49,6 +66,7 @@ extern day-of-week(t:time) : int {
 
 // Number of milliseconds since 1 January 1970 00\:00\:00 UTC.
 extern epoch-msecs(t:time) : double { 
+  cs inline "_Time.EpochMsecs(#1.xtime)"
   js inline "(#1.xtime.getTime())" 
 }
 
@@ -101,20 +119,9 @@ fun utc-time( epochmsecs : double ) : time {
   new-time(epochmsecs,True)
 }
 
-// Convert a time to the UTC timezone.
-// i.e. `utc-now() === now().utc`
-fun utc( d : time ) : time {
-  d(tzofs = 0)
-}
-
 // Convert a date to the local timezone.
 fun local( d : time ) : ndet time {
   d(tzofs = now().tzofs)
-}
-
-// Return the current time in the UTC timezone.
-fun utc-now() : ndet time { 
-  now().utc
 }
 
 
