@@ -373,7 +373,7 @@ genDefGroup (DefRec defs)
 
 genDef :: Bool -> Def -> Asm ()
 genDef isRec (Def name tp expr vis isVal nameRng doc)
-  = -- trace ("genDef: " ++ show name) $
+  = trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
     do ctx <- getModule
@@ -1091,8 +1091,8 @@ genNextPatterns exprDoc tp patterns
          TFun args eff res 
           -> case patterns of
                [PatWild]  | length args > 1 -> []
-               [pat]      | length args > 1 -> [(Nothing, exprDoc, pat)]
-               _          -> assertion ("CSharp.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
+               [pat]      | length args == 0 || length args > 1 -> [(Nothing, exprDoc, pat)]
+               _          -> assertion ("CSharp.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ show (args,patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
                              concatMap genNextPattern (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]] 
                                                        patterns)
          _ -> case patterns of
