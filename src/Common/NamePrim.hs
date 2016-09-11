@@ -58,7 +58,7 @@ module Common.NamePrim
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
-          , nameTpMDict, nameTpDict, nameTpBuilder
+          , nameTpMDict, nameTpDict, nameTpBuilder, nameTpTime
 
           , nameTpUnit, nameTpVoid
           , nameTpRef, nameRef
@@ -224,6 +224,7 @@ nameTpException  = preludeName "exception"
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/string") (newName "builder")
+nameTpTime      = qualify (newName "std/time") (newName "time")
 
 nameTuple :: Int -> Name
 nameTuple n     = preludeName ("(" ++ (replicate (n-1) ',') ++ ")")
