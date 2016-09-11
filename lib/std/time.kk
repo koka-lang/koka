@@ -270,6 +270,20 @@ private val months = ["January","February","March","April","May","June",
                       "July","August","September","October","November","December"]
 
 
+// Is this time in a leap year?
+fun leap-year?( t : time ) : bool {
+  val (year,_,_) = t.date();
+  return ((year%4)==0 && (year%100)!=0) || (year%400)==0;
+}
+
+// Return the day of the year (starting at 1)
+fun day-of-year( t : time ) : int {
+  val (_,month,day) = t.date()
+  val n = day-counts[month - 1].maybe(0) + day
+  if (month > 2 && t.leap-year?) then n+1 else n
+}
+private val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
 // Return a high-resolution timestamp in milliseconds. The timestamp is guaranteed to be monotonically increasing
 // and have at least millisecond resolution. 
 extern ticks() : ndet double {
