@@ -6,35 +6,43 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+using System.Diagnostics;
 static class _Time
 {
-  static DateTime epoch       = new DateTime(1970,1,1,0,0,0,0,DateTimeKind.Utc);
-  static int      localOffset = -Convert.ToInt32(DateTimeOffset.Now.Offset.TotalMinutes);
+  // Time
+  static DateTime  epoch  = new DateTime(1970,1,1,0,0,0,0,DateTimeKind.Utc);
+  static TimeZone  local  = TimeZone.CurrentTimeZone; // ensure it stays the same
 
-  private static int Offset( DateTime d ) {
-    return (d.Kind == DateTimeKind.Utc ? 0 : localOffset);
+  public static int TimezoneOffset( DateTime d ) {
+    return (d.Kind == DateTimeKind.Utc ? 0 : Convert.ToInt32(local.GetUtcOffset(d).TotalMinutes));
   }
 
-  private static std_time._time ToTime( DateTime d ) {
-    return new std_time._time(Offset(d),d);
-  }
-
-  public static std_time._time Now() {
-    return ToTime( DateTime.Now );
-  }
-
-  public static double EpochMsecs( object _d ) {
-    DateTime d = (DateTime)_d;    
+  public static double EpochMsecs( DateTime d ) {
     return (d.ToUniversalTime() - epoch).TotalMilliseconds;
   }
 
-  public static std_core._Tuple3_<int,int,int> Date( std_time._time _t ) {
-    DateTime d = (DateTime)_t.xtime;
+  public static DateTime NewFromEpoch( double msecs, bool isUtc ) {
+    long eticks = Convert.ToInt64(msecs * 10000.0); // to 100-nanoseconds
+    return new DateTime( epoch.Ticks + eticks, isUtc ? DateTimeKind.Utc : DateTimeKind.Local ); 
+  }
+
+  public static std_core._Tuple3_<int,int,int> Date( DateTime d ) {
     return new std_core._Tuple3_<int,int,int>(d.Year, d.Month, d.Day);
   }
 
-  public static std_core._Tuple4_<int,int,int,int> Clock( std_time._time _t ) {
-    DateTime d = (DateTime)_t.xtime;
+  public static std_core._Tuple4_<int,int,int,int> Clock( DateTime d ) {
     return new std_core._Tuple4_<int,int,int,int>(d.Hour,d.Minute,d.Second,d.Millisecond);
   }
+
+  // Ticks
+  static Stopwatch sw = Stopwatch.StartNew();
+  
+  public static double Ticks() {
+    long   fticks = sw.ElapsedTicks;
+    double secs = Convert.ToDouble(fticks/Stopwatch.Frequency) +
+                  Convert.ToDouble(fticks%Stopwatch.Frequency)*TicksResolution;
+    return (secs * 1000.0);                  
+  }
+
+  public static double TicksResolution = 1.0 / Convert.ToDouble(Stopwatch.Frequency); 
 }

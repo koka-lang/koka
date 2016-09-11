@@ -17,32 +17,54 @@ extern include {
 
 // A `:time` represents a certain time in a gregorian calendar.
 // It is displayed with regard to either the local or UTC timezone.
-abstract struct time( tzofs : int, xtime : any )
+type time
 
 // Return the current time in the local timezone.
 extern now : () -> ndet time { 
-  cs "_Time.Now"
+  cs inline "DateTime.Now"
   js "_time_now"
 }
 
 // Return the current time in the UTC timezone.
 extern utc-now() : ndet time { 
-  cs "_Time.UtcNow"
+  cs inline "DateTime.UtcNow"
   js "_time_utcnow"
 }
 
-
 // Convert a time to the UTC timezone.
 // i.e. `utc-now() === now().utc`
-extern utc( d : time ) : time {
-  d(tzofs = 0)
+extern utc( t : time ) : time {
+  cs inline "t.ToUniversalTime()"
+  js "_time_to_utc"
+}
+
+// Convert a time to the local timezone.
+extern local( t : time ) : ndet time {
+  cs inline "t.ToLocalTime()"
+  js "_time_to_local"
+}
+
+// Is this time in the UTC timezone?
+extern utc?( t : time ) : bool {
+  cs inline "(t.Kind == DateTimeKind.Utc)"
+  js inline "(t.isutc)"
+}
+
+// Get the timezone offset in minutes. This 
+// is the difference in minutes between the local time and UTC.
+// For example, if the timezone is UTC+10, the timezone offset is +600.
+extern timezone-offset(t : time) : int {
+  cs "_Time.TimezoneOffset"
+  js "_time_timezone_offset"
 }
 
 private extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int,milliseconds:int, is-utc:bool ) : time {
+  cs inline "new DateTime(#1,#2,#3,#4,#5,#6,#7,(#8 ? DateTimeKind.Utc : DateTimeKind.Local))"  
   js "_time_new"
 }
 
-private extern new-time( epochmsecs : double, is-utc:bool ) : time {
+private extern new-time( epoch-msecs : double, is-utc:bool ) : time {
+  cs "_Time.NewFromEpoch"  
   js "_time_epoch"
 }
 
@@ -61,33 +83,35 @@ extern clock( t : time ) : (int,int,int,int) {
 
 // The day of the week in the associated time zone. Starts at 0 for Sunday.
 extern day-of-week(t:time) : int { 
-  js inline "(#1.xtime.getDay())" 
+  cs inline "(int)(t.DayOfWeek)"
+  js inline "(#1.time.getDay())" 
 }
 
 // Number of milliseconds since 1 January 1970 00\:00\:00 UTC.
 extern epoch-msecs(t:time) : double { 
-  cs inline "_Time.EpochMsecs(#1.xtime)"
-  js inline "(#1.xtime.getTime())" 
+  cs "_Time.EpochMsecs"
+  js inline "(#1.time.getTime())" 
 }
 
 // Do two times occur at the same time? (regardless of timezone)
-extern (==)( t1: time, t2:time ) : bool {
-  js inline "(#1.xtime.getTime() === #2.xtime.getTime())"
+fun (==)( t1: time, t2:time ) : bool {
+  t1.epoch-msecs == t2.epoch-msecs
 }
 
 // Does time `t1` come before time `t2`?
-extern (<)( t1: time, t2:time ) : bool {
-  js inline "(#1.xtime.getTime() < #2.xtime.getTime())"
+fun (<)( t1: time, t2:time ) : bool {
+  t1.epoch-msecs < t2.epoch-msecs
 }
 
+
 // Does time `t1` come after time `t2`?
-extern (>)( t1 : time, t2: time ) : bool {
-  js inline "(#1.xtime.getTime() > #2.xtime.getTime())"
+fun (>)( t1 : time, t2: time ) : bool {
+  t1.epoch-msecs > t2.epoch-msecs
 }
 
 // Return the millisecond difference between two times
-extern (-)( t1 : time, t2 : time ) : double {
-  js inline "(#1.xtime.getTime() - #2.xtime.getTime())"
+fun (-)( t1 : time, t2 : time ) : double {
+  t1.epoch-msecs - t2.epoch-msecs
 }
 
 // Compare two times.
@@ -96,7 +120,6 @@ fun compare( t1 : time, t2 :time ) : order {
   elif (t1<t2) then Lt
   else Gt
 }
-
 
 
 // Create a new `:time`. Uses the local time zone by default. Use `utc-time` for a new time in the UTC timezone.
@@ -119,24 +142,10 @@ fun utc-time( epochmsecs : double ) : time {
   new-time(epochmsecs,True)
 }
 
-// Convert a date to the local timezone.
-fun local( d : time ) : ndet time {
-  d(tzofs = now().tzofs)
+// Is this time in the local timezone?
+fun local?( t : time ) : bool {
+  !t.utc?
 }
-
-
-// Is this time in the UTC timezone?
-fun utc?( d : time ) : bool {
-  (d.tzofs == 0)
-}
-
-// Get the timezone offset in minutes. This 
-// is the difference in minutes between UTC and local time.
-// For example, if the timezone is UTC+10, the timezone offset is -600.
-fun timezone-offset(d : time) : int {
-  d.tzofs
-}
-
 
 
 // Add a specified number of years, months, and days to a time. 
@@ -194,10 +203,10 @@ fun show-iso-clock( t : time ) : string {
 // while the `sep` (`":"`) gives the separator used between the hours and minutes of
 // other timezone offsets.
 fun show-iso-timezone( t : time, utc : string = "Z", sep : string = ":" ) : string {
-  val ofs    = t.tzofs
+  val ofs    = t.timezone-offset
   if (ofs==0) return utc
   val absofs = if (ofs >= 0) then ofs else ~ofs
-  (if (ofs >= 0) then "-" else "+") + // flip sign
+  (if (ofs >= 0) then "+" else "-") + 
    ((absofs / 60).showl) + sep + ((absofs % 60).showl)
 }
 
@@ -264,11 +273,13 @@ private val months = ["January","February","March","April","May","June",
 // Return a high-resolution timestamp in milliseconds. The timestamp is guaranteed to be monotonically increasing
 // and have at least millisecond resolution. 
 extern ticks() : ndet double {
+  cs "_Time.Ticks"
   js "_ticks"
 }
 
-// Return the smallest time difference the `ticks` can measure.
+// Return the smallest time difference in milliseconds that `ticks` can measure.
 extern ticks-resolution() : ndet double {
+  cs inline "_Time.TicksResolution"
   js inline "_ticks_resolution"
 }
 
