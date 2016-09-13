@@ -2,10 +2,6 @@ import std/time
 
 external include {
   js file "perf1-inline1.js"
-} 
-
-fun timer(f) {
-  print-elapsed(f)
 }
 
 effect state<s> {
@@ -49,7 +45,7 @@ fun testD(i) {
 }
 
 fun main() {
-  timer({testD(10000000)}).show
-  timer({testH(10000000,direct_count)}).show
-  timer({testH(10000000,count)}).show
+  print-elapsed({testD(10000000)})
+  print-elapsed({testH(10000000,direct_count)})
+  print-elapsed({testH(10000000,count)})
 }

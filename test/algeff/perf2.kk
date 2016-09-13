@@ -1,8 +1,5 @@
 import std/time
 
-fun timer(f) {
-  print-elapsed(f)
-}
 
 alias solution = list<int>
 alias solutions = list<list<int>>
@@ -90,8 +87,8 @@ fun queensChoose(n : int ) : div solutions {
 }
 
 fun test(n) {
-  timer({ queens(n) }).length.show.println
-  timer({ queensChoose(n) }).length.show.println
+  print-elapsed({ queens(n) }).length.show.println
+  print-elapsed({ queensChoose(n) }).length.show.println
 }
 
 fun main() {
