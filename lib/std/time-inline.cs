@@ -21,6 +21,10 @@ static class _Time
     return (d.ToUniversalTime() - epoch).TotalMilliseconds;
   }
 
+  public static DateTime New( int year, int month, int day, int hours, int minutes, int seconds, int milliseconds, bool isUtc ) {
+    return new DateTime(year,month,day,hours,minutes,seconds,milliseconds, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );
+  }
+
   public static DateTime NewFromEpoch( double msecs, bool isUtc ) {
     long eticks = Convert.ToInt64(msecs * 10000.0); // to 100-nanoseconds
     return new DateTime( epoch.Ticks + eticks, isUtc ? DateTimeKind.Utc : DateTimeKind.Local ); 

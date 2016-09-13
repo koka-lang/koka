@@ -59,7 +59,7 @@ extern timezone-offset(t : time) : int {
 }
 
 private extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int,milliseconds:int, is-utc:bool ) : time {
-  cs inline "new DateTime(#1,#2,#3,#4,#5,#6,#7,(#8 ? DateTimeKind.Utc : DateTimeKind.Local))"  
+  cs "_Time.New"  
   js "_time_new"
 }
 
