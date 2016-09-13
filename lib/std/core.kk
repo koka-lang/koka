@@ -2301,32 +2301,36 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True )
   gformat(i, x + w.show)
 }
 
-// Show a `:double` as a string with a default `precision` of `6` .
-// The option `precision` should a number be between 0 and 21. 
-// Use `0` to display the number precisely using the least digits.
-// Uses either `showFixed` or `showExp` depending on what is the most compact representation
-fun show( d : double, precision : int = 6 ) : string
+private fun show-double( d : double, precision : int, format : string )
 {
   val p = if (precision < 0) then 0 else precision
-  gformat(d,"g" + show(p))
+  val s = gformat(d,format + show(p))
+  if (s.contains(".") || s.contains("e")) then s else s + ".0"
+}
+
+// Show a `:double` as a string.
+// The option `precision` (= `0`) should a number be between 0 and 21. 
+// use `0` to display the number precisely using the least digits necessary.
+// Uses either `showFixed` or `showExp` depending on what is the most compact representation
+fun show( d : double, precision : int = 0 ) : string
+{
+  show-double(d,precision,"g")
 }
 
 // Show a `:double` as in decimal notation.
-// The `precision` is `6` by default and should be between 0 and 21. 
-// Use `0` to display the number precisely using the least digits.
-fun show-fixed( d : double, precision : int = 6 )
+// The optional `precision` (= `0`) and should be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-fixed( d : double, precision : int = 0 )
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"F" + show(p))
+  show-double(d,precision,"F")
 }
 
 // Show a `:double` in exponential (scientific) notation.
-// The `precision` is `6` by default and should be between 0 and 21. 
-// Use `0` to display the number precisely using the least digits.
-fun show-exp( d : double, precision : int = 6 )
+// The optional `precision` (= `0`) should be between 0 and 21.
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-exp( d : double, precision : int = 0 )
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"e" + show(p))
+  show-double(d,precision,"e")
 }
 
 // Show a character as a string
