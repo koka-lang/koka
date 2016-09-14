@@ -14,7 +14,7 @@ static class _Time
   static TimeZone  local  = TimeZone.CurrentTimeZone; // ensure it stays the same
 
   public static int TimezoneOffset( DateTime d ) {
-    return (d.Kind == DateTimeKind.Utc ? 0 : Convert.ToInt32(local.GetUtcOffset(d).TotalMinutes));
+    return (d.Kind == DateTimeKind.Utc ? 0 : Convert.ToInt32(local.GetUtcOffset(d).TotalMilliseconds));
   }
 
   public static double EpochMsecs( DateTime d ) {

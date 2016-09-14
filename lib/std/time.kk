@@ -7,6 +7,9 @@
 ----------------------------------------------------------------------------*/
 
 /* Basic date and time functions.
+
+   Years, months, days etc. are always 1-based, while durations
+   are always in milliseconds.
 */
 public module std/time
 
@@ -16,7 +19,8 @@ extern include {
 }
 
 // A `:time` represents a certain time in a gregorian calendar.
-// It is displayed with regard to either the local or UTC timezone.
+// When a time is captured, it is associated with either the local 
+// or UTC timezone which is used for displaying the time.
 type time
 
 // Return the current time in the local timezone.
@@ -50,9 +54,9 @@ extern utc?( t : time ) : bool {
   js inline "(t.isutc)"
 }
 
-// Get the timezone offset in minutes. This 
-// is the difference in minutes between the local time and UTC.
-// For example, if the timezone is UTC+10, the timezone offset is +600.
+// Get the timezone offset in milliseconds. This 
+// is the difference between the local time and UTC.
+// For example, if the timezone is ``UTC+10``, the timezone offset is ``+10 * 60 * 60 * 1000``.
 extern timezone-offset(t : time) : int {
   cs "_Time.TimezoneOffset"
   js "_time_timezone_offset"
@@ -81,13 +85,13 @@ extern clock( t : time ) : (int,int,int,int) {
   js "_time_clock"
 }
 
-// The day of the week in the associated time zone. Starts at 0 for Sunday.
+// The day of the week in the associated time zone. Starts at 1 for Sunday.
 extern day-of-week(t:time) : int { 
-  cs inline "(int)(t.DayOfWeek)"
-  js inline "(#1.time.getDay())" 
+  cs inline "(int)(t.DayOfWeek + 1)"
+  js inline "(#1.time.getDay() + 1)" 
 }
 
-// Number of milliseconds since 1 January 1970 00\:00\:00 UTC.
+// Number of milliseconds since  the `epoch` (1 January 1970 00\:00\:00 UTC).
 extern epoch-msecs(t:time) : double { 
   cs "_Time.EpochMsecs"
   js inline "(#1.time.getTime())" 
@@ -114,6 +118,10 @@ fun (-)( t1 : time, t2 : time ) : double {
   t1.epoch-msecs - t2.epoch-msecs
 }
 
+// The _epoch_ date (1 January 1970 00\:00\:00 UTC)
+val epoch : time = utc-time(1970,1,1)
+
+
 // Compare two times.
 fun compare( t1 : time, t2 :time ) : order {
   if (t1==t2) then Eq
@@ -137,7 +145,7 @@ fun utc-time(year:int, month : int, day:int, hours:int = 0,minutes:int = 0,secon
   new-time(year,month,day,hours,minutes,seconds,milliseconds,True)
 }
 
-// Create a new UTC `:time` with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC).
+// Create a new UTC `:time` with a given number milliseconds since the `epoch` (1 January 1970 00\:00\:00 UTC).
 fun utc-time( epochmsecs : double ) : time {
   new-time(epochmsecs,True)
 }
@@ -171,43 +179,43 @@ fun add-days( t : time, days : int ) : time {
 
 // Show the time as an ISO 8601 string. 
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
-// For example `now().show` -> `"2016-09-08T19:55:11.910-07:00"`.
+// For example `now().show` becomes `"2016-09-08T19:55:11.910-07:00"`.
 fun show( t : time ) : string {
   t.show-iso
 }
 
 // Show the time as an ISO 8601 string.
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
-// For example `now().show-iso` -> `"2016-09-08T19:55:11.910-07:00"`.
+// For example `now().show-iso` becomes `"2016-09-08T19:55:11.910-07:00"`.
 fun show-iso(t : time ) : string {
   t.show-iso-date + "T" + t.show-iso-clock + 
    "." + t.clock.field4.showl(3) +
    t.show-iso-timezone
 }
 
-// Show the date in ISO format, i.e. `YYYY-MM-DD` format.
+// Show the date in ISO format, i.e. ``YYYY-MM-DD`` format.
 fun show-iso-date( t : time ) : string {
   val (year,month,day) = t.date
   year.showl(4) + "-" + month.showl + "-" + day.showl
 }
 
-// Show the clock time in ISO format, i.e. `HH:mm:ss` format.
+// Show the clock time in ISO format, i.e. ``HH:mm:ss`` format.
 fun show-iso-clock( t : time ) : string {
   val (hours,minutes,seconds,_) = t.clock
   hours.showl + ":" + minutes.showl + ":" + seconds.showl
 }
 
 // Show the timezone offset in ISO format.
-// `now().show-iso-timezone` -> `-07:00`.
+// `now().show-iso-timezone` -> `"-07:00"`.
 // The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
-// while the `sep` (`":"`) gives the separator used between the hours and minutes of
+// while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
 // other timezone offsets.
-fun show-iso-timezone( t : time, utc : string = "Z", sep : string = ":" ) : string {
-  val ofs    = t.timezone-offset
+fun show-iso-timezone( t : time, utc : string = "Z", hmsep : string = ":" ) : string {
+  val ofs    = t.timezone-offset / 60000  // convert to minutes
   if (ofs==0) return utc
   val absofs = if (ofs >= 0) then ofs else ~ofs
   (if (ofs >= 0) then "+" else "-") + 
-   ((absofs / 60).showl) + sep + ((absofs % 60).showl)
+   ((absofs / 60).showl) + hmsep + ((absofs % 60).showl)
 }
 
 private fun showl( i : int, width : int = 2 ) : string {
@@ -223,7 +231,7 @@ fun show-imf( t : time ) : string {
     t.show-en-month.first(3).string,
     year.showl(4),
     t.show-iso-clock,
-    t.show-iso-timezone(utc="+0000",sep="")
+    t.show-iso-timezone(utc="+0000",hmsep="")
   ].join(" ")
 }
 
@@ -256,7 +264,7 @@ fun show-en-date( t : time ) : string {
 
 // Return the full day of the week in English
 fun show-en-day( t : time ) : string {
-  days[t.day-of-week].maybe("?")
+  days[t.day-of-week - 1].maybe("?")
 }
 
 // Return the full month in English
@@ -284,7 +292,8 @@ fun day-of-year( t : time ) : int {
 }
 private val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
 
-// Return a high-resolution timestamp in milliseconds. The timestamp is guaranteed to be monotonically increasing
+// Return a high-resolution timestamp in milliseconds. 
+// The timestamp is guaranteed to be monotonically increasing
 // and have at least millisecond resolution. 
 extern ticks() : ndet double {
   cs "_Time.Ticks"
