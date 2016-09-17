@@ -334,7 +334,13 @@ fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 }
 
 // Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+// This is an alias for `default`.
 fun maybe( m : maybe<a>, nothing : a ) : a {
+  default(m,nothing)
+}
+
+// Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+fun default( m : maybe<a>, nothing : a ) : a {
   match(m) {
     Nothing -> nothing
     Just(x) -> x
