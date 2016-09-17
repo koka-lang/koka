@@ -2,16 +2,16 @@
 .Op-fail : forall<a,b> .ops-choose<a>
 .Op-pick : forall<a> (int) -> .ops-choose<a>
 .tag-Eff-choose: string
-appendSafe : (queen : int, xs : solution, xss : solutions) -> div solutions
-chooseAll : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
+append-safe : (queen : int, xs : solution, xss : solutions) -> div solutions
+choose-all : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 extend : (queen : int, acc : solutions, xss : solutions) -> div solutions
 fail : forall<a> () -> choose a
-findSolution: (n : int, queen : int) -> <choose,div> solution
-findSolutions: (n : int, queen : int) -> div solutions
+find-solution: (n : int, col : int) -> <choose,div> solution
+find-solutions: (n : int, i : int) -> div solutions
 main : () -> <div,console,ndet> ()
 pick : (n : int) -> choose int
 queens : (n : int) -> div solutions
-queensChoose: (n : int) -> div solutions
-safe : (queen : int, diag : int, xs : solution) -> bool
-showSolutions: (xss : solutions) -> io ()
+queens-choose: (n : int) -> div solutions
+safe? : (queen : int, xs : solution, diag : ?int) -> bool
+show-solutions: (xss : solutions) -> io ()
 test : (n : int) -> <div,console,ndet> ()
