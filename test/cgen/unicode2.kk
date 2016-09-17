@@ -3,9 +3,9 @@ val s1 = "man\u0303ana"  // combining character
 val s2 = "x\u0307\u0323xyz" // combining mark
 
 fun test1(s : string,ofs = 1) {
-  println( "len: " + s.length.show + 
-          ", sub3: " + s.substr(ofs,3) + 
-          ", rev3: " + s.substr(~5,3) +
+  println( "count: " + s.count.show + 
+          ", sub3: " + s.first.advance(ofs).extend(2).string + 
+          ", rev3: " + s.last.advance(~4).extend(2).string +
           ",\n  s: " + s +
           ", " + s.list.show-list(fun(i){show-hex(i.int)}) )
 }

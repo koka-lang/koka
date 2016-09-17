@@ -20,6 +20,7 @@ module Syntax.Highlight( Context(..), Nesting(..), Token(..), TokenComment(..)
                        , isKeywordOp
                        ) where
 
+-- import Lib.Trace
 import Data.Char( isAlpha, isSpace, isAlphaNum, toLower )
 import Lib.Printer
 import Common.ColorScheme
@@ -84,7 +85,7 @@ fmtPrint cscheme p token
 showLexeme :: Lexeme -> String
 showLexeme (Lexeme _ lex)
   = case lex of
-      LexInt i      -> show i
+      LexInt _ _    -> show lex
       LexFloat d    -> show d
       LexString s   -> show s
       LexChar c     -> show c
@@ -220,14 +221,15 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
-            LexInt i      -> fmt TokNumber (show i)
+            LexInt i isHex-> fmt TokNumber (show lex)
             LexFloat d    -> fmt TokNumber (show d)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
             
             LexModule id mid  -> fmt (TokModule mid) (show id)
             LexCons id        -> fmt (if (isCtxType ctx) then TokTypeId id else TokCons id) (showId (unqualify id))
-            LexTypedId id tp  -> fmt (TokId id tp) (showId (unqualify id))
+            LexTypedId id tp  -> -- trace ("**fmt type id: " ++ show id ++ ": " ++ show tp) $
+                                 fmt (TokId id tp) (showId (unqualify id))
 
             LexKeyword ":" _ -> fmt TokTypeKeyword ":"
             LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) (normalize k)
@@ -241,9 +243,10 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
 
     showId :: Name -> String
     showId name
-      = case nameId name of
-          (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
-          _       -> show name
+      = if (nameId name == "!" || nameId name == "~") then show name
+        else case nameId name of
+              (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
+              _       -> show name
 
     showOp :: Name -> String
     showOp name

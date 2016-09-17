@@ -11,20 +11,6 @@ change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 JavaScript like syntax.
 
-For more background information, see:
-
-* Browse the [library documentation][libraries].
-* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The [source code][codeplex] of the Koka compiler.
-* An article about the type system and semantics of Koka [@Leijen:msfp].
-
-[langspec]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html  {target='_top'}
-[libraries]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html {target='_top'}
-[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[codeplex]: http://koka.codeplex.com {target='_top'} 
-[kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
-[rise4fun]: http://rise4fun.com/koka/tutorial
-
 ## Hello world
 
 As usual, we start with the familiar _Hello world_ program:<span id=`examplemain`></span>
@@ -84,7 +70,7 @@ are equivalent). The dot notation is intu&iuml;tive and quite convenient to
 chain multiple calls together, as in:
 
 ```
-fun showit( s : string ) -> s.encode(3).length.println
+fun showit( s : string ) -> s.encode(3).count.println
 ``` 
 
 for example (where the body desugars as `println(length(encode(s,3)))`). An
@@ -536,15 +522,15 @@ it out in the editor!
 
 Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function `substr` takes a string, a ``start`` position, and the length ``len`` of the
-desired substring:
+function `replace-all` takes a string, a ``pattern`` pattern, and 
+a replacement string ``repl``:
 
 ```
 fun main() { println(world()) }
 ////
 fun world() 
 {
-  substr("hi world", 3, 5)  // returns "world"
+  replace-all("hi there", "there", "world")  // returns "hi world"
 }
 ```
 
@@ -555,7 +541,7 @@ fun main() { println(world2()) }
 ////
 fun world2() 
 {
-  return "hi world".substr( len=5, start=3 )
+  return "hi there".replace-all( repl="world", pattern="there" )
 }
 ```
 

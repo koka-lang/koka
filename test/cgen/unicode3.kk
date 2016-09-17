@@ -6,7 +6,7 @@ val s2 = "x\u0307\u0323x"
 val s3 = "깍"
 
 fun test1(s : string,ofs = 1) {
-  println( "len: " + s.length.show + 
+  println( "count: " + s.count.show + 
           ", width: " + s.width.show +
           ", glen: " + s.graphemes.length.show + 
           ", gs: " + s.graphemes.show-list(fun(g){g.list.show-list(fun(c){c.show})})

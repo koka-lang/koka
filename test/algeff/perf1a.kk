@@ -1,23 +1,11 @@
-import std/date
-
-fun timer(f) {
-  val t0 = now().time
-  val adjust = now().time - t0
-  println("start")
-  val start = now().time
-  val x = f()
-  val end = now().time
-  println("ended in " + (end - start - adjust).show + "ms")
-  x
-}
-
+import std/time
 
 fun fib(n) {
   if (n<=1) then 1 else fib(n - 1) + fib(n - 2);
 }
 
 fun comp() { 
-  fib(4)
+  fib(5)
 }
 
 effect state<s> {
@@ -84,8 +72,8 @@ fun testR(n) {
 
 val n = 5000000
 fun main() {
-  timer({testD(n)}).show
-  timer({testR(n)}).show
-  timer({testH1(n)}).show
-  timer({testH(n)}).show
+  print-elapsed({testD(n)})
+  print-elapsed({testR(n)})
+  print-elapsed({testH1(n)})
+  print-elapsed({testH(n)})
 }

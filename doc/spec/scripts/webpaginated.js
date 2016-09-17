@@ -151,14 +151,21 @@ function expandToc() {
 
 document.addEventListener("load", function(ev) { expandToc(); });
 document.addEventListener("resize", function(ev) { expandToc(); });
+
+// fire at end of scrolling
+var scrollHandler = null;
 document.addEventListener("scroll", function(ev) {
-  if (afterScroll) {
-    afterScroll();
-    afterScroll = null;
-  }
-  else {
-    expandToc();
-  }
+  if (scrollHandler) clearTimeout(scrollHandler);
+  scrollHandler = setTimeout( function() {
+    scrollHandler = null;
+    if (afterScroll) {
+      afterScroll();
+      afterScroll = null;
+    }
+    else {
+      expandToc();
+    }
+  }, 50 );
 });
 
 // ---------------------------------------------

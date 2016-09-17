@@ -8,8 +8,7 @@ count : () -> <state<int>,div> int
 direct_count: () -> (state<int>) int
 fib : (int) -> div int
 get : forall<a> () -> (state<a>) a
-main : () -> <div,console,ndet> string
+main : () -> <div,console,ndet> int
 put : forall<a> (i : a) -> (state<a>) ()
 testD : (int) -> div int
 testH : forall<a,b,e> (i0 : a, action : () -> <state<a>|e> b) -> e b
-timer : forall<a,e> (f : () -> <console,ndet|e> a) -> <console,ndet|e> a

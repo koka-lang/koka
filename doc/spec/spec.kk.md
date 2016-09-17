@@ -163,18 +163,18 @@ std/core/(&)
 
 | ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~|
 | _qopid_      | ::=   | _modulepath_ _opid_                                                                                                                                   |    |
-| _opid_       | ::=   | `(` _op_ `)`                                                                                                                                          |    |
+| _opid_       | ::=   | `(` _symbols_ `)`                                                                                                                                     |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _op_         | ::=   | _symbols_~&lt;!\ _opreserved_[]{.bar}_optype_&gt;~  []{.bar} ``/`` []{.bar} ``\(&bar;&bar;\)``                                                        |    |
+| _op_         | ::=   | _symbols_~&lt;!\ _opreserved_[]{.bar}_optype_&gt;~  []{.bar}  ``\(&bar;&bar;\)``                                                                      |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _symbols_    | ::=   | _symbol_ [_symbol_]{.many}                                                                                                                            |    |
+| _symbols_    | ::=   | _symbol_ [_symbol_]{.many}[]{.bar} ``/``                                                                                                             |    |
 | _symbol_     | ::=   | `$` []{.bar} `%` []{.bar} ``&`` []{.bar} `*` []{.bar} `+`                                                                                             |    |
 |              | &bar; | ``~`` []{.bar} ``!`` []{.bar} ``\`` []{.bar} `^` []{.bar} ``#``                                                                                       |    |
 |              | &bar; | ``=`` []{.bar} ``.`` []{.bar} ``:`` []{.bar} `-` []{.bar} `?`                                                                                         |    |
 |              | &bar; | _anglebar_                                                                                                                                            |    |
 | _anglebar_   | ::=   | ``<`` []{.bar} ``>`` []{.bar} ``\(&bar;\)``                                                                                                           |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
-| _opreserved_ | ::=   | `=` []{.bar} `.` []{.bar} ``:`` []{.bar} `->`                                                                                     |    |
+| _opreserved_ | ::=   | `=` []{.bar} `.` []{.bar} ``:`` []{.bar} `->`                                                                                                         |    |
 | _optype_     | ::=   | _anglebar_ _anglebar_ [_anglebar_]{.many}                                                                                                             |    |
 | &nbsp;       |       |                                                                                                                                                       |    |
 | _special_    | ::=   | `{` []{.bar} `}` []{.bar} `(` []{.bar} `)` []{.bar} `[` []{.bar} `]` []{.bar} ``\(&bar;\)`` []{.bar} `;` []{.bar} `,` []{.bar} &lapp; []{.bar} &lidx; |    |
@@ -630,18 +630,18 @@ the same precedence. We assume that a separate pass in the compiler will use
 the fixity declarations that are in scope to properly associate all operators
 in an expressions.
 
-| ~~~~~~~~~~~~~ | ~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ | ~~~~~~~~~~~~~~~~~~~~~~~      |
-| _opexpr_      | ::=      | _prefix_ [_qoperator_ _prefixexpr_]{.many}   |                              |
-| _prefixexpr_  | ::=      | [`!` []{.bar} `~`]{.many} _fappexpr_         |                              |
-| &nbsp;        |          |                                              |                              |
-| _fappexpr_    | ::=      | _appexpr_ [_funexpr_]{.many}                 | (apply function expressions) |
-| _appexpr_     | ::=      | _appexpr_ _lapp_ [_arguments_]{.opt} `)`     | (regular application)        |
-|               | &bar;    | _appexpr_ _lidx_ [_arguments_]{.opt} `]`     | (index operation)            |
-|               | &bar;    | _appexpr_ `.` _atom_                         |                              |
-|               | &bar;    | _atom_                                       |                              |
-| &nbsp;        |          |                                              |                              |
-| _arguments_   | ::=      | _argument_ [`,` _argument_]{.many}           |                              |
-| _argument_    | ::=      | [_identifier_ `=`]{.opt} _expr_              |                              |
+| ~~~~~~~~~~~~~| ~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+| _opexpr_     | ::=   | _prefix_ [_qoperator_ _prefixexpr_]{.many} |                              |
+| _prefixexpr_ | ::=   | [``!`` []{.bar} ``~``]{.many} _appexpr_    |                              |
+| &nbsp;       |       |                                            |                              |
+| _appexpr_    | ::=   | _appexpr_ _lapp_ [_arguments_]{.opt} `)`   | (regular application)        |
+|              | &bar; | _appexpr_ _lidx_ [_arguments_]{.opt} `]`   | (index operation)            |
+|              | &bar; | _appexpr_ [_funexpr_]{.many}               | (apply function expressions) |
+|              | &bar; | _appexpr_ `.` _atom_                       |                              |
+|              | &bar; | _atom_                                     |                              |
+| &nbsp;       |       |                                            |                              |
+| _arguments_  | ::=   | _argument_ [`,` _argument_]{.many}         |                              |
+| _argument_   | ::=   | [_identifier_ `=`]{.opt} _expr_            |                              |
 {.grammar .parse}
 
 

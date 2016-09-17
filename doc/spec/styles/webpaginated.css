@@ -145,6 +145,14 @@ h3:hover .entity-anchor {
   display: inline-block;
 }
 
+a.entity-anchor {
+  color: black;
+}
+
+a.localref.entity-anchor:hover {
+  text-decoration: none;
+}
+
 .entity-anchor {
   display: none;
   width: 1.25em;

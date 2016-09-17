@@ -1,0 +1,326 @@
+/*----------------------------------------------------------------------------
+   Copyright (C) 2012-2016 Microsoft Corporation
+    
+   Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
+   use this file except in compliance with the License. A copy of the License
+   can be found in the file "license.txt" at the root of this distribution.
+----------------------------------------------------------------------------*/
+
+/* Basic date and time functions.
+
+   Years, months, days etc. are always 1-based, while durations
+   are always in milliseconds.
+*/
+public module std/time
+
+extern include {
+  cs file "time-inline.cs"
+  js file "time-inline.js"
+}
+
+// A `:time` represents a certain time in a gregorian calendar.
+// When a time is captured, it is associated with either the local 
+// or UTC timezone which is used for displaying the time.
+type time
+
+// Return the current time in the local timezone.
+extern now : () -> ndet time { 
+  cs inline "DateTime.Now"
+  js "_time_now"
+}
+
+// Return the current time in the UTC timezone.
+extern utc-now() : ndet time { 
+  cs inline "DateTime.UtcNow"
+  js "_time_utcnow"
+}
+
+// Convert a time to the UTC timezone.
+// i.e. `utc-now() === now().utc`
+extern utc( t : time ) : time {
+  cs inline "t.ToUniversalTime()"
+  js "_time_to_utc"
+}
+
+// Convert a time to the local timezone.
+extern local( t : time ) : ndet time {
+  cs inline "t.ToLocalTime()"
+  js "_time_to_local"
+}
+
+// Is this time in the UTC timezone?
+extern utc?( t : time ) : bool {
+  cs inline "(t.Kind == DateTimeKind.Utc)"
+  js inline "(t.isutc)"
+}
+
+// Get the timezone offset in milliseconds. This 
+// is the difference between the local time and UTC.
+// For example, if the timezone is ``UTC+10``, the timezone offset is ``+10 * 60 * 60 * 1000``.
+extern timezone-offset(t : time) : int {
+  cs "_Time.TimezoneOffset"
+  js "_time_timezone_offset"
+}
+
+private extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int,milliseconds:int, is-utc:bool ) : time {
+  cs "_Time.New"  
+  js "_time_new"
+}
+
+private extern new-time( epoch-msecs : double, is-utc:bool ) : time {
+  cs "_Time.NewFromEpoch"  
+  js "_time_epoch"
+}
+
+// Return the date of a time in the associated time zone. 
+// Returns the year, month (starting at 1), and day of the month (starting at 1).
+extern date( t : time ) : (int,int,int) {
+  cs "_Time.Date"
+  js "_time_date"
+}
+
+// Return the clock time in the associated time zone. Returns the hours, minutes, seconds, and milliseconds.
+extern clock( t : time ) : (int,int,int,int) {
+  cs "_Time.Clock"
+  js "_time_clock"
+}
+
+// The day of the week in the associated time zone. Starts at 1 for Sunday.
+extern day-of-week(t:time) : int { 
+  cs inline "(int)(t.DayOfWeek + 1)"
+  js inline "(#1.time.getDay() + 1)" 
+}
+
+// Number of milliseconds since  the `epoch` (1 January 1970 00\:00\:00 UTC).
+extern epoch-msecs(t:time) : double { 
+  cs "_Time.EpochMsecs"
+  js inline "(#1.time.getTime())" 
+}
+
+// Do two times occur at the same time? (regardless of timezone)
+fun (==)( t1: time, t2:time ) : bool {
+  t1.epoch-msecs == t2.epoch-msecs
+}
+
+// Does time `t1` come before time `t2`?
+fun (<)( t1: time, t2:time ) : bool {
+  t1.epoch-msecs < t2.epoch-msecs
+}
+
+
+// Does time `t1` come after time `t2`?
+fun (>)( t1 : time, t2: time ) : bool {
+  t1.epoch-msecs > t2.epoch-msecs
+}
+
+// Return the millisecond difference between two times
+fun (-)( t1 : time, t2 : time ) : double {
+  t1.epoch-msecs - t2.epoch-msecs
+}
+
+// The _epoch_ date (1 January 1970 00\:00\:00 UTC)
+val epoch : time = utc-time(1970,1,1)
+
+
+// Compare two times.
+fun compare( t1 : time, t2 :time ) : order {
+  if (t1==t2) then Eq
+  elif (t1<t2) then Lt
+  else Gt
+}
+
+
+// Create a new `:time`. Uses the local time zone by default. Use `utc-time` for a new time in the UTC timezone.
+fun time( year:int, month : int, day:int, hours:int = 0,minutes:int = 0,seconds:int = 0,milliseconds:int = 0) : ndet time {
+  new-time(year,month,day,hours,minutes,seconds,milliseconds,False)
+}
+
+// Create a new `:time` in the local time zone with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC).
+fun time( epochmsecs : double ) : ndet time {
+  new-time(epochmsecs,False)
+}
+
+// Create a new UTC `:time`
+fun utc-time(year:int, month : int, day:int, hours:int = 0,minutes:int = 0,seconds:int = 0,milliseconds:int = 0) : time {
+  new-time(year,month,day,hours,minutes,seconds,milliseconds,True)
+}
+
+// Create a new UTC `:time` with a given number milliseconds since the `epoch` (1 January 1970 00\:00\:00 UTC).
+fun utc-time( epochmsecs : double ) : time {
+  new-time(epochmsecs,True)
+}
+
+// Is this time in the local timezone?
+fun local?( t : time ) : bool {
+  !t.utc?
+}
+
+
+// Add a specified number of years, months, and days to a time. 
+// Takes leap-years into account.
+fun add-date( t : time, years : int, months : int, days : int ) : time {
+  val (y,m,d) = t.date
+  val (h,min,s,ms) = t.clock
+  new-time(y + years, m + months, d + days, h, min, s, ms, t.utc?)
+}
+
+// Add a specified number of hours, minutes, seconds, and optional milliseconds to a time.
+fun add-clock( t : time, hours : int, minutes : int, seconds : int, milliseconds : int = 0 ) : time {
+  val (y,m,d) = t.date
+  val (h,min,s,ms) = t.clock
+  new-time(y, m, d, h + hours, min + minutes, s + seconds, ms + milliseconds, t.utc?)
+}
+
+// Add `n` days to a time. Takes leap years into account.
+fun add-days( t : time, days : int ) : time {
+  t.add-date( 0, 0, days )
+}
+
+
+// Show the time as an ISO 8601 string. 
+// See <http://en.wikipedia.org/wiki/ISO_8601>.
+// For example `now().show` becomes `"2016-09-08T19:55:11.910-07:00"`.
+fun show( t : time ) : string {
+  t.show-iso
+}
+
+// Show the time as an ISO 8601 string.
+// See <http://en.wikipedia.org/wiki/ISO_8601>.
+// For example `now().show-iso` becomes `"2016-09-08T19:55:11.910-07:00"`.
+fun show-iso(t : time ) : string {
+  t.show-iso-date + "T" + t.show-iso-clock + 
+   "." + t.clock.field4.showl(3) +
+   t.show-iso-timezone
+}
+
+// Show the date in ISO format, i.e. ``YYYY-MM-DD`` format.
+fun show-iso-date( t : time ) : string {
+  val (year,month,day) = t.date
+  year.showl(4) + "-" + month.showl + "-" + day.showl
+}
+
+// Show the clock time in ISO format, i.e. ``HH:mm:ss`` format.
+fun show-iso-clock( t : time ) : string {
+  val (hours,minutes,seconds,_) = t.clock
+  hours.showl + ":" + minutes.showl + ":" + seconds.showl
+}
+
+// Show the timezone offset in ISO format.
+// `now().show-iso-timezone` -> `"-07:00"`.
+// The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
+// while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
+// other timezone offsets.
+fun show-iso-timezone( t : time, utc : string = "Z", hmsep : string = ":" ) : string {
+  val ofs    = t.timezone-offset / 60000  // convert to minutes
+  if (ofs==0) return utc
+  val absofs = if (ofs >= 0) then ofs else ~ofs
+  (if (ofs >= 0) then "+" else "-") + 
+   ((absofs / 60).showl) + hmsep + ((absofs % 60).showl)
+}
+
+private fun showl( i : int, width : int = 2 ) : string {
+  i.show.pad-left(width,"0")
+}
+
+// Show time as a standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>).\
+// For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
+fun show-imf( t : time ) : string {
+  val (year,_,day) = t.date
+  [ t.show-en-day.first(3).string + ",",
+    day.show,
+    t.show-en-month.first(3).string,
+    year.showl(4),
+    t.show-iso-clock,
+    t.show-iso-timezone(utc="+0000",hmsep="")
+  ].join(" ")
+}
+
+
+// Show the time as a human readable English string.
+// For example `now().en-time` -> `"Thu Oct 8 2016, 19:48:11 GMT-07:00"`.
+fun show-en( t : time ) : string {
+  t.show-en-date + ", " + t.show-en-clock
+}
+
+// Show the clock time  in human readable English.
+// For example `now().en-time` -> `"19:48:11 GMT-07:00"`.
+fun show-en-clock( t : time ) : string {
+  val (hours,minutes,seconds,_) = t.clock
+  [ hours.showl + ":" + minutes.showl + ":" + seconds.showl,
+    "GMT" + t.show-iso-timezone(utc="")
+  ].join(" ")
+}
+
+// Show the date in human readable English.
+// For example `now().en-date` -> `"Thu Oct 8 2016"`.
+fun show-en-date( t : time ) : string {
+  val (year,_,day) = t.date
+  [ t.show-en-day.first(3).string,
+    t.show-en-month.first(3).string,
+    day.show,
+    year.showl(4) 
+  ].join(" ")
+}
+
+// Return the full day of the week in English
+fun show-en-day( t : time ) : string {
+  days[t.day-of-week - 1].maybe("?")
+}
+
+// Return the full month in English
+fun show-en-month( t : time ) : string {
+  val (_,month,_) = t.date
+  months[month - 1].maybe("?")
+}
+
+private val days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+private val months = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"]
+
+
+// Is this time in a leap year?
+fun leap-year?( t : time ) : bool {
+  val (year,_,_) = t.date();
+  return ((year%4)==0 && (year%100)!=0) || (year%400)==0;
+}
+
+// Return the day of the year (starting at 1)
+fun day-of-year( t : time ) : int {
+  val (_,month,day) = t.date()
+  val n = day-counts[month - 1].maybe(0) + day
+  if (month > 2 && t.leap-year?) then n+1 else n
+}
+private val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+// Return a high-resolution timestamp in milliseconds. 
+// The timestamp is guaranteed to be monotonically increasing
+// and have at least millisecond resolution. 
+extern ticks() : ndet double {
+  cs "_Time.Ticks"
+  js "_ticks"
+}
+
+// Return the smallest time difference in milliseconds that `ticks` can measure.
+extern ticks-resolution() : ndet double {
+  cs inline "_Time.TicksResolution"
+  js inline "_ticks_resolution"
+}
+
+// Return the number of milliseconds that it takes to evaluate `action`.
+fun elapsed( action : () -> <ndet|e> () ) : <ndet|e> double {
+  val t0 = ticks()
+  action()
+  val t1 = ticks()
+  (t1 - t0)
+}
+
+// Measure the number of milliseconds that it takes to evaluate `action`, and print `msg` postfixed with the
+// measured time in millisecond resoltion.
+fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
+  val t0 = ticks()
+  val x  = action()
+  val t1 = ticks()
+  val t  = (t1 - t0)
+  println( msg + " " + t.show-fixed(0) + "ms" )
+  x
+} 

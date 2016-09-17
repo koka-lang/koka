@@ -373,7 +373,7 @@ genDefGroup (DefRec defs)
 
 genDef :: Bool -> Def -> Asm ()
 genDef isRec (Def name tp expr vis isVal nameRng doc)
-  = -- trace ("genDef: " ++ show name) $
+  = trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
     do ctx <- getModule
@@ -700,7 +700,7 @@ ppExternal currentDef formats resTp targs args
       Nothing -> 
         trace( "warning: backend does not support external in " ++ show currentDef ) $
         (text "Primitive.UnsupportedExternal<" <>
-          resTp <> text ">(\"" <+> text (show currentDef) <+> text "\")")
+          resTp <> text ">(\"" <> text (show currentDef) <> text "\")")
       Just s  -> ppExternalF s targs args
      Just s -> ppExternalF s targs args
 
@@ -1091,8 +1091,8 @@ genNextPatterns exprDoc tp patterns
          TFun args eff res 
           -> case patterns of
                [PatWild]  | length args > 1 -> []
-               [pat]      | length args > 1 -> [(Nothing, exprDoc, pat)]
-               _          -> assertion ("CSharp.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
+               [pat]      | length args == 0 || length args > 1 -> [(Nothing, exprDoc, pat)]
+               _          -> assertion ("CSharp.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ show (args,patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
                              concatMap genNextPattern (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]] 
                                                        patterns)
          _ -> case patterns of
@@ -1259,7 +1259,9 @@ ppTypeCon ctx c kind
          then text "Primitive.Dict"
         else if (name == nameTpMDict)
          then text "Primitive.MDict"
-        else if (name == nameTpException)
+        else if (name == nameTpTime)
+         then text "DateTime"
+        else if (name == nameTpException)        
          then text "Exception"
         else if (isKindFun kind)
          then ppQName ctx (typeConClassName name)

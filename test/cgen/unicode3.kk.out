@@ -1,4 +1,4 @@
-len: 1, width: 2, glen: 1, gs: [['/uD55C']]
-len: 2, width: 4, glen: 2, gs: [['/uD55C'],['/uAE00']]
-len: 4, width: 2, glen: 2, gs: [['/u1E8B','/u0323'],['x']]
-len: 3, width: 2, glen: 1, gs: [['/uAE4D']]
+count: 1, width: 2, glen: 1, gs: [['/uD55C']]
+count: 2, width: 4, glen: 2, gs: [['/uD55C'],['/uAE00']]
+count: 4, width: 2, glen: 2, gs: [['/u1E8B','/u0323'],['x']]
+count: 3, width: 2, glen: 1, gs: [['/uAE4D']]

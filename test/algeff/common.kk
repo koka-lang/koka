@@ -11,7 +11,7 @@ import std/readline
 // --------------------------------------------------------
 
 effect exc {
-  raise(s : string ) : a
+  fun raise(s : string ) : a
 }
 
 fun safe-div(x,y) {
@@ -63,8 +63,8 @@ fun test2() {
 // --------------------------------------------------------
 
 effect state<s> {
-  get() : s
-  put( x : s ) : ()
+  fun get() : s
+  fun put( x : s ) : ()
 }
 
 fun counter() {
@@ -92,7 +92,7 @@ fun test3() {
 // --------------------------------------------------------
 
 effect yield<a> {
-  yield( item : a ) : ()
+  fun yield( item : a ) : ()
 }
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -106,21 +106,28 @@ fun iterate(xs : list<a> ) : yield<a> () {
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   handle(action) {
     return x -> ()
-    yield(x) -> if (incpsx(f)(x)) then resume(()) else ()
+    yield(x) -> if (incps1(f,x)) then resume(()) else ()
   }
 }
 
 fun test4() {
-  foreach( fun(x:int) { println(x); (x<=1) }, { [1,2,3].iterate } )
+  foreach fun(x:int) { 
+    println(x)
+    (x<=1) 
+  }
+  { [1,2,3].iterate } 
 }
 
+fun test4b() {
+  amb{ foreach( fun(x:int) { if (flip()) then println(x) else println("false"); (x<=1) }, { [1,2,3].iterate } ) }
+}
 
 // --------------------------------------------------------
 //  Resume more than once
 // --------------------------------------------------------
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 fun xor() : amb bool {

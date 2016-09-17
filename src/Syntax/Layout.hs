@@ -252,7 +252,7 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexId _     -> True
           LexIdOp _   -> True
           LexCons _   -> True
-          LexInt _    -> True
+          LexInt _ _  -> True
           LexFloat _  -> True
           LexChar _   -> True
           LexString _ -> True

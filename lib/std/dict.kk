@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -169,7 +169,17 @@ fun (+)( d1 : dict<a>, d2 : dict<a> ) : dict<a> {
 
 // Execute action for each key/value pair in a dictionary.
 fun foreach( d : dict<a>, action : (string,a) -> e () ) : e () {
-  d.keys.foreach fun(k) {
+  d.foreach-while fun(k,x) { 
+    action(k,x)
+    Nothing
+  }
+  ()
+}
+
+// Execute action for each key/value pair in a dictionary until
+// the action returns `Just`.
+fun foreach-while( d : dict<a>, action : (string,a) -> e maybe<b> ) : e maybe<b> {
+  d.keys.foreach-while fun(k) {
     action(k,unsafe-dict-get(d,k))
   }
 }

@@ -42,24 +42,12 @@ extern include {
 // A 32-bit signed integer (using two's complement to represent negative numbers).
 type int
 
-// A unicode string. 
-//
-// The functions `vector:string -> vector<char>` and `string:vector<char> -> string`
-// convert between strings and a vector unicode characters. 
-//
-// Various functions allow indexing into a string, for example `([]) : (string,int) -> char`
-// and `substr`. With respect to indexing, strings are viewed as a [utf-16]
-// encoded array; this means that unicode characters with a value larger than ``0xFFFF`` 
-// are represented by two characters in a [utf-16] encoding; in other words, 
-// we view characters between ``\uD800`` and ``\uDFFF`` as another kind
-// of unicode combining characters. When converting to a `vector` or `list`
-// of characters though, such surrogate pairs are automatically combined. 
-//
-// The reason for defining strings this way is to allow more effient compilation
-// to Javascript and C\#. When compiling natively and using utf-8 encoding,
-// it is still possible to efficiently support this string interface.
-//
-// [utf-16]: https://en.wikipedia.org/wiki/UTF-16
+// A unicode string is a sequence of unicode characters (`char`).
+// The encoding of a string is internal and not exposed and there
+// is no direct indexing of characters in string. 
+// Use the `:sslice` type for efficient matching and retrieving
+// sub-strings from string.\
+// See also the [``std/string``](std_string.html) module.
 type string
 
 // A 64-bit IEEE 754 floating point value
@@ -72,6 +60,7 @@ type any
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
+// (see also the [``std/unicode``](std_unicode.html) module.)
 type char
 
 
@@ -140,6 +129,9 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // ----------------------------------------------------------------------------
 
 // Add the divergent effect to a function effect.
+extern inline inject-div : forall<a,e> (() -> e a) -> (() -> <div|e> a) { inline "#1" }
+
+// Add the divergent effect to a function effect.
 extern inline inject-div : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
 
 // Add the state effect to a function effect.
@@ -166,14 +158,14 @@ extern show( exn : exception ) : string {
 // Use `on-exn` or `on-fail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(action,hndl,_k)"
+  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
   
 // Execute a `hndler` no matter what exception was raised in `action`.
 // Use of `on-exit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
-  js inline "_primfinally(action,hndl,_k)"
+  js inline "_primfinally(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
 // Raise an exception with a specified message.
@@ -298,6 +290,7 @@ fun mbint( m : maybe<int> ) : int {
 // Convert an int to a boolean, using `False` for 0 and `True` otherwise.
 fun bool( i : int ) : bool  -> (i!=0)
 
+// Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
 fun bool( m : maybe<a> ) : bool {
   match(m) {
     Nothing -> False
@@ -341,7 +334,13 @@ fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 }
 
 // Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+// This is an alias for `default`.
 fun maybe( m : maybe<a>, nothing : a ) : a {
+  default(m,nothing)
+}
+
+// Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+fun default( m : maybe<a>, nothing : a ) : a {
   match(m) {
     Nothing -> nothing
     Just(x) -> x
@@ -352,6 +351,13 @@ fun maybe( m : maybe<a>, nothing : a ) : a {
 fun unjust( m : maybe<a> ) : exn a {
   match(m) {
     Just(x) -> x
+  }
+}
+
+fun map( m : maybe<a>, f : a -> e b ) : e maybe<b> {
+  match(m) {
+    Nothing -> Nothing
+    Just(x) -> Just(f(x))
   }
 }
 
@@ -1649,6 +1655,21 @@ fun maximum( xs : list<double> ) : double
 // Strings
 // ----------------------------------------------------------------------------
 
+
+// A `:sslice` represents a sub-slice of string and
+// has a specific start position and character count. It is used
+// instead of string indices to make the actual internal representation
+// of strings abstract (like UTF-8 or UTF-16). String slices are 
+// returned by functions that find sub strings or patterns in
+// in strings. Use `string:(slice : sslice) -> string` to 
+// create a fresh substring from a slice. 
+abstract struct sslice( str : string, start : int, len : int )
+
+// Internal export for the regex module
+fun ".new-sslice"( str :string, start: int, len : int ) {
+  Sslice(str,start,len)
+}
+
 // Convert a character to a string
 external string : ( c : char ) -> string  { 
   cs inline "Primitive.CharToString(#1)";
@@ -1669,18 +1690,20 @@ extern vector : ( s : string ) -> vector<char> {
 
 
 // Convert a string to a list of characters
-fun list( s : string ) : total list<char> {
-  s.vector.list
+extern list( s : string ) : total list<char> {
+  cs inline "Primitive.StringToList(#1)"
+  js inline "_string_to_list(#1)"
 }
 
 // Convert a list of characters to a string
-fun string( cs : list<char> ) : total string {
-  cs.vector.string
+extern string( cs : list<char> ) : total string {
+  cs inline "Primitive.ListToString(#1)"
+  js inline "_list_to_string(#1)"
 }
 
 
 // Are two strings equal? 
-// Uses exact equality between characters.
+// Uses exact equality between character codes.
 extern inline (==) : (string,string) -> bool {
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
@@ -1699,7 +1722,7 @@ private extern string-compare : ( x : string, y : string ) -> int
 }
 
 // Compare two strings.
-// Uses the character values for comparison
+// Uses the character codes directly for comparison
 fun compare( x : string, y : string) : order
 {
   string-compare(x,y).order;
@@ -1718,16 +1741,154 @@ fun (||)( x : string, y : string ) : string {
   if (x.empty?) then y else x 
 }
 
-// Return the `n` th character in a string `s` . 
-// Returns the replacement character (`0xFFFD`) if the index is out-of-bounds.
-extern inline [] : ( s : string, n : int ) -> char  { 
-  inline "(#1)[#2]" 
+// Length returns the length in the platform specific encoding (and should not be exported)
+private extern inline length( s : string ) : int {
+  cs inline "#1.Length"
+  js inline "#1.length"
 }
 
-// Return the character length of a string.
-extern inline length : ( s : string ) -> int  { 
-  cs inline "(#1).Length";
-  js inline "(#1).length";
+// O(n). Return the number of characters in a string.
+extern count( s : string ) : int {
+  cs "Primitive.StringCount"
+  js "_string_count"
+}
+
+// O(n). Return the number of characters in a string slice
+extern count( slice : sslice ) : int {
+  cs "Primitive.SliceCount"
+  js "_sslice_count"
+}
+
+private extern inline first1(s : string ) : sslice { 
+  cs "Primitive.SliceFirst"
+  js "_sslice_first"
+}
+
+private extern inline last1(s : string ) : sslice { 
+  cs "Primitive.SliceLast"
+  js "_sslice_last"
+}
+
+// O(`n`). The first `n` (default = `1`) characters in a string.
+fun first(s : string, n : int = 1) : sslice {
+  val slice = s.first1
+  if (n==1) then slice else slice.extend( n - 1 )
+}
+
+// O(`n`). The last `n` (default = `1`) characters in a string
+fun last(s : string, n : int = 1) : sslice {
+  val slice = s.last1
+  if (n==1) then slice 
+            else slice.advance(1 - n).extend(n - 1)
+}
+
+// O(1). The entire string as a slice
+fun slice( s : string ) : sslice {
+  Sslice(s,0,s.length)
+}
+
+// An empty slice
+val empty = Sslice("",0,0)
+
+// Is a slice empty?
+fun empty?( slice : sslice ) : bool  -> (slice.len <= 0)
+
+// Is a slice not empty?
+fun notempty?( slice : sslice ) : bool  -> (slice.len > 0)
+
+// Return the first character of a string (or the empty string)
+fun head( s : string ) : string {
+  s.first.string
+}
+
+// Return the tail of a string (or the empty string)
+fun tail( s : string ) : string {
+  s.first.after.string
+}
+
+// Return the common prefix of two strings (upto `upto` characters (default `max-int`))
+extern common-prefix(s : string, t : string, upto : int = max-int ) : sslice {
+  cs "Primitive.SliceCommonPrefix"
+  js "_sslice_common_prefix"
+}
+
+
+
+// O(`count`). Advance the start position of a string slice by `count` characters
+// up to the end of the string.
+// A negative `count` advances the start position backwards upto the first position
+// in a string.
+// Maintains the character count of the original slice upto the end of the string.
+// For example:
+//
+// * `"abc".first.advance(1).string == "b"`,
+// * `"abc".first.advance(3).string == ""`,
+// * `"abc".last.advance(~1).string == "b"`.
+// 
+public extern advance( slice : sslice, count : int ) : sslice {
+  cs inline "Primitive.SliceAdvance(#1,#2)"
+  js inline "_sslice_advance(#1,#2)"
+}
+
+// O(`count`). Extend a string slice by `count` characters up to the end of the string.
+// A negative `count` shrinks the slice up to the empty slice.
+// For example:
+//
+// * `"abc".first.extend(1).string == "ab"`
+// * `"abc".last.extend(~1).string == ""`
+// 
+extern extend( slice : sslice, count : int ) : sslice {
+  cs inline "Primitive.SliceExtend(#1,#2)"
+  js inline "_sslice_extend(#1,#2)"
+}
+
+
+// O(1). Return the string slice from the start of a string up to the
+// start of `slice` argument.
+fun before(slice : sslice) : sslice {
+  val Sslice(s,start,_len) = slice
+  Sslice(s,0,start)
+}
+
+// O(1). Return the string slice from the end of `slice` argument
+// to the end of the string.
+fun after(slice : sslice) : sslice {
+  val Sslice(s,start,len) = slice
+  Sslice(s,start+len,s.length - (start+len))
+}
+
+// O(n). Copy the `slice` argument into a fresh string.
+// Takes O(1) time if the slice covers the entire string.
+extern string( slice : sslice ) : string {
+  cs "Primitive.SliceToString"
+  js "_slice_to_string"
+}
+
+// If the slice is not empty, 
+// return the first character, and a new slice that is advanced by 1.
+extern next( slice : sslice ) : maybe<(char,sslice)> {
+  cs "Primitive.SliceNext"
+  js "_sslice_next"
+}
+
+// Apply a function for each character in a string slice.
+// If `action` returns `Just`, the function returns immediately with that result.
+fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a> {
+  match(slice.next) {
+    Nothing -> Nothing
+    Just((c,rest)) -> {
+      match(action(c)) {
+        Nothing -> foreach-while(unsafe-decreasing(rest),action)
+        res     -> res
+      }
+    }
+  }
+}
+
+// Apply a function for each character in a string slice.
+fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
+  foreach-while(slice, fun(c) { action(c); Nothing })
+  ()
 }
 
 // Does string `s`  contain the string `sub`  ?
@@ -1736,10 +1897,11 @@ private extern inline xindex-of(s : string, sub : string ) : int {
   js inline "((#1).indexOf(#2))";
 }
 
-// Return the first index of substring `sub` in `s` if it occurs.
-fun index-of( s : string, sub : string ) : maybe<int> {
+// O(n). If it occurs, return the position of substring `sub` in `s`, tupled with 
+// the position just following the substring `sub`. 
+fun find( s : string, sub : string ) : maybe<sslice> {
   val i = s.xindex-of(sub)
-  if (i>=0) then Just(i) else Nothing
+  if (i>=0) then Just(Sslice(s,i,sub.length)) else Nothing
 }
 
 // Does string `s`  contain the string `sub`  ?
@@ -1749,22 +1911,37 @@ private extern inline xlast-index-of(s : string, sub : string ) : int {
 }
 
 // Return the last index of substring `sub` in `s` if it occurs.
-fun last-index-of( s : string, sub : string ) : maybe<int> {
+fun find-last( s : string, sub : string ) : maybe<sslice> {
   val i = s.xlast-index-of(sub)
-  if (i>=0) then Just(i) else Nothing
+  if (i>=0) then Just(Sslice(s,i,sub.length)) else Nothing
 }
 
-
-// Is `pre`  a prefix of `s`  ?
-extern starts-with: (s : string, pre : string ) -> bool { 
+private extern inline xstarts-with: (s : string, pre : string ) -> bool { 
   cs inline "#1.StartsWith(#2)";
   js inline "(#1.substr(0,#2.length) === #2)"
 }
 
-// Does string `s`  end with `post`  ?
-extern ends-with: (s : string, post : string ) -> bool { 
+
+// Is `pre`  a prefix of `s`? If so, returns a slice
+// of `s` following `pre` up to the end of `s`.
+fun starts-with( s : string, pre : string ) : maybe<sslice> {
+  if (xstarts-with(s,pre))
+   then Just(Sslice(s,pre.length,s.length - pre.length))
+   else Nothing
+}
+
+
+private extern xends-with: (s : string, post : string ) -> bool { 
   cs inline "#1.EndsWith(#2)";
   js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
+}
+
+// Does string `s`  end with `post`?
+// If so, returns a slice of `s` from the start up to the `post` string at the end.
+fun ends-with( s : string, post : string ) : maybe<sslice> {
+  if (xends-with(s,post))
+   then Just(Sslice(s,0,s.length - post.length))
+   else Nothing
 }
 
 // Does string `s`  contain the string `sub`  ?
@@ -1785,46 +1962,25 @@ extern inline join: (v : vector<string>, sep : string ) -> total string {
   js inline "((#1).join(#2))"
 }
 
-// Return a substring from start position `start` up to the end of the string.
-// If the `start` is negative, the start index is calculated from 
-// the end of the string as: ``s.length + start``.
-extern inline substr : (s : string, start : int ) -> string { 
-  cs inline "Primitive.Substr(#1,#2)";
-  js inline "#1.substr(#2)"
-}
-
-// Return a substring from start position `start` up to the end of the string
-// or at most `len` characters.
-// If the `start` is negative, the start index is calculated from 
-// the end of the string as: ``s.length + start``.
-extern inline substr(s : string, start : int, len : int ) : string { 
-  cs inline "Primitive.Substr(#1,#2,#3)";
-  js inline "#1.substr(#2,#3)"
-}
-
-
-extern inline substr1 : (s : string, start : int ) -> string { 
-  cs inline "(Primitive.Substr(#1,#2 >= 1 ? #2 : 1))";
-  js inline "((#1).substr(#2 >= 1 ? #2 : 1))";
-}
-
-// Truncate a string to `len` characters.
-fun truncate( s : string, len : int ) : string  {
-  s.substr(0,len)
+// Truncate a string to `count` characters.
+fun truncate( s : string, count : int ) : string  {
+  s.first.extend(count - 1).string
 }
 
 // Trim off a substring `sub` if `s` starts with that string.
 fun trim-left( s : string, sub : string ) : string {
-  if (s.starts-with(sub))
-   then s.substr(sub.length)
-   else s
+  match(s.starts-with(sub)) {
+    Just(slice) -> slice.string
+    Nothing -> s
+  }
 }
 
 // Trim off a substring `sub` if `s` ends with that string.
 fun trim-right( s : string, sub : string ) : string {
-  if (s.ends-with(sub))
-   then s.truncate(s.length - sub.length)
-   else s
+  match(s.ends-with(sub)) {
+    Just(slice) -> slice.string
+    Nothing -> s
+  }
 }
 
 // Repeat a string `n` times 
@@ -1834,7 +1990,7 @@ extern repeat( s : string, n : int ) : string {
 }
 
 // Convert a `:maybe` string to a string using the empty sting for `Nothing`
-fun mbstring( ms : maybe<string> ) : string {
+fun string( ms : maybe<string> ) : string {
   match(ms) {
     Nothing -> ""
     Just(s) -> s
@@ -1864,16 +2020,13 @@ private extern inline splitv : ( s : string,  sep : string, n : int ) -> vector<
 
 // Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
 // For example: `split("1,,2",",") == ["1","","2]`
-
-fun split( s : string, sep : string ) : list<string>
-{
+fun split( s : string, sep : string ) : list<string> {
   splitv(s,sep).list
 }
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-fun split( s : string, sep: string, n : int) : list<string>
-{
+fun split( s : string, sep: string, n : int) : list<string> {
   splitv(s,sep,n).list
 }
 
@@ -1891,16 +2044,27 @@ public extern inline count( s : string, pattern : string ) : int {
 
 
 // Apply a function `f` to each character in a string
-fun map( s : string, f : char -> e char ) : e string
-{
+fun map( s : string, f : char -> e char ) : e string {
   s.list.map(f).string // todo: optimize
 }
 
-// Invoke a function for each character in a string
-fun foreach( s : string, f : char -> e () ) : e ()
-{
-  s.list.foreach(f)  // todo: optimize
+// Invoke a function for each character in a string. 
+// If `action` returns `Just`, the function returns immediately with that result.
+fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a> {
+  s.slice.foreach-while(action)
 }
+
+// Invoke a function for each character in a string
+fun foreach( s : string, action : (c:char) -> e () ) : e () {
+  s.slice.foreach(action)
+}
+
+
+
+// Invoke a function for each character in a string
+//fun foreach( s : string, f : char -> e () ) : e () {
+//  s.list.foreach(f)  // todo: optimize
+//}
 
 // Count the number of times a predicate is true for each character in a string
 fun count( s : string, pred : (char) -> bool ) : int
@@ -1912,29 +2076,31 @@ fun count( s : string, pred : (char) -> bool ) : int
   cnt
 }
 
-fun lines( s : string ) : list<string>
-{
+// Split a string into a list of lines
+fun lines( s : string ) : list<string> {
   s.split("\n")
 }
 
-fun unlines( xs : list<string> ) : string
-{
+// Join a list of strings with newlines
+fun unlines( xs : list<string> ) : string {
   xs.join("\n") 
 }
 
+// Convert a string to upper-case 
 extern to-upper : (s : string) -> string { 
   cs inline "(#1).ToUpper()"
   js inline "(#1).toUpperCase()" 
 }
 
+// Convert a string to lower-case
 extern to-lower : (s : string) -> string { 
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()" 
 }
 
-// If the first character of a string is ASCII `lower?` convert it to uppercase.
+// Convert the first character of a string to uppercase.
 fun capitalize( s : string ) : string {
-  s.substr(0,1).to-upper + s.substr(1)
+  s.first.string.to-upper + s.first.after.string
 }
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
@@ -2072,6 +2238,42 @@ extern vector( xs : list<a> ) : vector<a> {
 }
 
 
+
+
+// ----------------------------------------------------------------------------
+// Delayed values
+// ----------------------------------------------------------------------------
+
+// Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
+// `force` is called and cached afterwards.
+abstract type delayed<e,a> {
+  con Delay( dref : ref<global,either<() -> e a,a>> )
+}
+
+// Create a new `:delayed` value.
+public fun delay( action : () -> e a ) : delayed<e,a> {
+  unsafe-total{ 
+    Delay(ref(Left(action)))
+  }
+}
+
+// Force a delayed value; the value is computed only on the first
+// call to `force` and cached afterwards.
+fun force( delayed : delayed<e,a> ) : e a {
+  unsafe-total {
+    val r = delayed.dref
+    match(!r) {
+      Right(x) -> x
+      Left(action) -> {
+        val x = inject-st(inject-div(action))()
+        r := Right(x)
+        x
+      }
+    }
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Show
 // ----------------------------------------------------------------------------
@@ -2105,26 +2307,36 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True )
   gformat(i, x + w.show)
 }
 
-// Show a `:double` as a string with a default `precision`  of `0` .
-// Pass a precision of `0`  (or less) to display numbers precisely.
+private fun show-double( d : double, precision : int, format : string )
+{
+  val p = if (precision < 0) then 0 else precision
+  val s = gformat(d,format + show(p))
+  if (s.contains(".") || s.contains("e")) then s else s + ".0"
+}
+
+// Show a `:double` as a string.
+// The option `precision` (= `0`) should a number be between 0 and 21. 
+// use `0` to display the number precisely using the least digits necessary.
 // Uses either `showFixed` or `showExp` depending on what is the most compact representation
-fun show( d : double, precision : int = 6 ) : string
+fun show( d : double, precision : int = 0 ) : string
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"g" + show(p))
+  show-double(d,precision,"g")
 }
 
-fun show-fixed( d : double, precision : int = 6 )
+// Show a `:double` as in decimal notation.
+// The optional `precision` (= `0`) and should be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-fixed( d : double, precision : int = 0 )
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"F" + show(p))
+  show-double(d,precision,"F")
 }
 
-// Show a `:double` in exponential (scientific) notation 
-fun show-exp( d : double, precision : int = 6 )
+// Show a `:double` in exponential (scientific) notation.
+// The optional `precision` (= `0`) should be between 0 and 21.
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-exp( d : double, precision : int = 0 )
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"e" + show(p))
+  show-double(d,precision,"e")
 }
 
 // Show a character as a string
@@ -2159,19 +2371,21 @@ fun show( s : string ) : string
   "\"" + s.list.map(show-char).join + "\""
 }
 
-
-
 // Convert a `:bool` to a string
 fun show( b : bool ) : string  -> if (b) then "True" else "False"
 
 // Convert a unit value `()` to a string
 fun show( u : () ) : string  -> "()"
 
+// Show an `:sslice` as a string literal
+fun show( s : sslice ) : string  -> s.string.show
+
 // Convert a list to a string
 fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
 {
   "[" + xs.map(show-elem).join(",") + "]"
 }
+
 
 fun show( xs : list<string> ) : string {
   show-list(xs,show)
@@ -2501,11 +2715,20 @@ val uncps = handler {
   cps()    -> resume(())
 }
 
-// inject the `:cps` effect
-extern incps( action: () -> e a ) : total (() -> <cps|e> a) { inline "#1" }
+// inject the `:cps` effect into a non-cps function
+extern incps( action: () -> e a ) : <cps|e> a { 
+  js inline "(action.length === 1 ? action(_k) : _k(action()))" 
+}
 
-// inject the `:cps` effect from a non-cps function
-extern incpsx( action: a -> e b ) : total (a -> <cps|e> b) { inline "(function(_x,_k){ return _k(#1(_x)); })" }
+// inject the `:cps` effect into a non-cps function with one argument
+extern incps1( action: a -> e b, x : a ) : <cps|e> b { 
+  js inline "(action.length === 2 ? action(x,_k) : _k(action(x)))" 
+}
+
+// inject the `:cps` effect into a non-cps function with two arguments
+extern incps2( action: (a,b) -> e c, x : a, y : b ) : <cps|e> c { 
+  js inline "(action.length === 3 ? action(x,y,_k) : _k(action(x,y)))" 
+}
 
 
 // Continuation alias. Used internally to do special checks on cps converted code.

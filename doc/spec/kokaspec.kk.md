@@ -1,4 +1,5 @@
-Title         : Koka language specification
+Title         : The Koka Book
+Sub Title     : An Introduction and Specification of the Koka language.
 Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
@@ -68,13 +69,14 @@ body {
 Html Header   : 
   <!-- NO_CLICK_TRACKING -->
   <!--
-    Copyright 2012 Microsoft Corporation.
+    Copyright 2012-2016 Microsoft Corporation.
    
     This is free software; you can redistribute it and/or modify it under the
     terms of the Apache License, Version 2.0. A copy of the License can be
     found in the file "license.txt" at the root of this distribution.
   -->
 
+[TITLE]
 
 ~ Begin SidePanel
 

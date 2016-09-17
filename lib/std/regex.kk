@@ -21,12 +21,11 @@ extern include {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
-// The result of a regular expression match, where `index` is the index in the
-// original source string where the match begins, `next` is the index just after
-// this match (`next == index + min(1,matched.length)`), `matched` is the content that
+// The result of a regular expression match, where `matched` is the content that
 // was matched, and `groups` is a vector that contains the content for each 
 // capture group (where `groups[0] == matched`).
-public struct matched( index :int, next :int, matched :string, groups : groups )
+// The `slice` field contains the `:sslice` of the string that was matched.
+public struct matched( slice : sslice, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
 
@@ -87,6 +86,23 @@ extern regex-split : (any, string, int, int ) -> vector<string> {
   js "$regexSplit"
 }
 
+// Return the string following match 
+public fun after( cap : matched ) : string {
+  cap.slice.after.string
+}
+
+// Return the string following match but ensure we
+// advance by at least 1 character (to ensure termination with empty matches). 
+public fun after1( cap : matched ) : string {
+  val s = cap.slice
+  if (s.empty?) then s.advance(1).after.string else s.after.string
+}
+
+// Return the string before a match 
+public fun before( cap : matched ) : string {
+  cap.slice.before.string
+}
+
 
 // Return the pattern as a string
 public fun source( r : regex ) : string {
@@ -96,7 +112,7 @@ public fun source( r : regex ) : string {
 // How many groups are captured by this regex?
 public fun groups-count( r : regex ) : int 
 {
-  r.source.replace-all(rxNonGroup,"").length;
+  r.source.replace-all(rxNonGroup,"").count;
 }
 val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
@@ -149,76 +165,83 @@ public fun regex-alt( regexs :list<string>, ignorecase :bool = False, multiline 
   Regex(regex-create-alt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
 }
 
-// Find a match for a regular expression starting at start position `start` (by default `0`).
+private extern inline length( s : string ) : int {
+  cs inline "#1.Length"
+  js inline "#1.length"
+}
+
+private extern inline substr( s : string, start : int ) : string {
+  js inline "(#1).substr(#2)"
+}
+private extern inline substr( s : string, start : int, len : int ) : string {
+  js inline "(#1).substr(#2,#3)"
+}
+
+// Find a match for a regular expression.
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
-public fun find( s :string,  regex :regex, start :int = 0 ) : maybe<matched>
+public fun find( s :string,  regex :regex ) : maybe<matched>
 {  
-  //if (start >= s.length) return Nothing
-  regex-exec(regex.obj,s,max(start,0))
+  regex-exec(regex.obj,s,0)
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
 
 // Find all matches for a regular expression in a string.
-public fun find-all( s :string,  regex :regex, start :int = 0 ) : vector<matched>
+public fun find-all( s :string,  regex :regex ) : vector<matched>
 {
-  if (start > s.length) return vector()  
-  return regex-exec-all(regex.obj,s,max(start,0))
+  return regex-exec-all(regex.obj,s,0)
 }
 
-fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False, start :int = 0) : e string
+fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
 {
-  if (start > s.length) return s
-  return regex-replace-fun(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
+  return regex-replace-fun(regex.obj, s, repl, if (all) then 1 else 0, 0);
 }
 
-fun replace-ex( s :string, regex :regex, repl :string, all :bool = False, start :int = 0) : string
+fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string
 {
-  if (start > s.length) return s
-  return regex-replace(regex.obj, s, repl, if (all) then 1 else 0, max(start,0));
+  return regex-replace(regex.obj, s, repl, if (all) then 1 else 0, 0);
 }
 
 // Split a string `s` in at most `n` parts using a regular expression `r` as separator.
-public fun split( s :string, r :regex, n :int = max-int, start : int = 0 ) : vector<string>
+public fun split( s :string, r :regex, n :int = max-int ) : vector<string>
 {
   if (n<=0) return vector();
-  if (start>s.length) return vector(1,s);
-  return regex-split( r.obj, s, if (n==max-int) then 0 else n, max(start,0) );
+  return regex-split( r.obj, s, if (n==max-int) then 0 else n, 0 );
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
-  replace-ex( s, regex, repl, all = False, start = start )
+public fun replace( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
+  replace-ex( s, regex, repl, all = False )
 }
 
 // Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl : (matched :matched) -> e string, start : int = 0) : e string {
-  replace-ex( s, regex, repl, all = True, start = start )
+public fun replace-all( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
+  replace-ex( s, regex, repl, all = True)
 }
 
 // Replace the first occurrence of `regex` by the result a replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
-public fun replace( s : string, regex: regex, repl :string, start : int = 0) : string {
-  replace-ex( s, regex, repl, all = False, start = start )
+public fun replace( s : string, regex: regex, repl :string) : string {
+  replace-ex( s, regex, repl, all = False)
 }
 
 // Replace all ocurrences of `regex` by the result of a replacement string `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl :string, start : int = 0) : string {
-  replace-ex( s, regex, repl, all = True, start = start )
+public fun replace-all( s : string, regex: regex, repl :string) : string {
+  replace-ex( s, regex, repl, all = True)
 }
 
 // Does a regular expression pattern occur in a string `s`?
 // (note: called `test` in javascript)
-public fun contains( s :string, r :regex, start :int = 0 ) : bool 
+public fun contains( s :string, r :regex ) : bool 
 {
-  return s.find(r,start).bool
+  return s.find(r).bool
 }
 
 
 // Split a string `s` over separator `sep` where `sep` does not occur in 
 // _tokens_ matching `exclude`.
-// For example: ``splitExclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``
+// For example: ``split-exclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``
 public fun split-exclude( s : string, sep : regex, exclude : regex ) : list<string>
 {
   if (s=="") then [] else {
@@ -231,14 +254,15 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
 {
   if (s=="") return [acc]
   match( s.find(splitr) ) {
-    Nothing -> s.substr1(1).split-excludex( splitr, acc + s.substr(0,1)) // todo: improve efficiency?
+    Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc + s.head) // todo: improve efficiency?
     Just(cap) -> {
       if (cap.groups.matched?(1)) {
-        s.substr1(cap.next).split-excludex( splitr, acc + s.substr(0,cap.next)) 
+        split-excludex( unsafe-decreasing(cap.after1), splitr, acc + cap.matched) 
       }
       else {
-        Cons(acc, s.substr1(cap.next).split-excludex( splitr, "")) // todo: make tail recursive
+        Cons(acc, split-excludex( unsafe-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
       }
     }
   }
 }
+

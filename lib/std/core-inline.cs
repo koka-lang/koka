@@ -6,6 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 using System.Text;
+using System.Collections.Generic;
 
 public static class Primitive
 {
@@ -194,16 +195,35 @@ public static class Primitive
     return sb.ToString();
   }
 
-  public static int[] StringToChars( string s ) {
-    int[] v = new int[s.Length]; 
-    for(int i = 0 ; i < s.Length; i++) {
-      v[i] = (int)(s[i]);
+  public static std_core._list<int> StringToList( string s ) {
+    std_core._list<int> xs = std_core._list<int>.Nil_;
+    for(int i = s.Length-1; i >= 0; i--) {
+      if (Char.IsLowSurrogate(s[i]) && i > 0) i--;
+      xs = new std_core._list<int>( Char.ConvertToUtf32(s,i), xs );
     }
-    return v;
+    return xs;
+  }
+
+  public static int[] StringToChars( string s ) {
+    List<int> v = new List<int>(s.Length);
+    for(int i = 0; i < s.Length; i++) {
+      v.Add( Char.ConvertToUtf32(s,i) );
+      if (Char.IsHighSurrogate(s[i])) i += 1;
+    }
+    return v.ToArray();
+  }
+
+  public static int StringCount( string s ) {
+    int n = 0;
+    for(int i = 0; i < s.Length; i++) {
+      n++;
+      if (Char.IsHighSurrogate(s[i])) i+=1;
+    }
+    return n;
   }
 
   public static string CharToString( int c ) {
-    return (c <= 0xFFFF ? new String( (char)(c), 1) : Char.ConvertFromUtf32(c));
+    return Char.ConvertFromUtf32(c);
   }
 
   public static string CharsToString( int[] v ) {
@@ -214,17 +234,116 @@ public static class Primitive
     return sb.ToString();
   }
 
-  public static string Substr( string s, int start ) {
-    return Substr(s,start,s.Length);
+  public static string ListToString( std_core._list<int> xs ) {
+    StringBuilder sb = new StringBuilder();
+    while(xs != std_core._list<int>.Nil_) {
+      sb.Append( CharToString(xs.head) );
+      xs = xs.tail;
+    }
+    return sb.ToString();
   }
 
-  public static string Substr( string s, int start, int len ) {
-    var idx = (start >= 0 ? start : s.Length + start);
-    if (idx < 0) idx = 0;
-    if (idx >= s.Length || len <= 0) return "";
-    return (idx + len >= s.Length ? s.Substring(idx) : s.Substring(idx,len));
+  public static std_core._sslice SliceFirst( string s ) {
+    if (String.IsNullOrEmpty(s)) 
+      return new std_core._sslice("",0,0);
+    else 
+      return new std_core._sslice(s,0,Char.IsHighSurrogate(s[0]) ? 2 : 1);
   }
 
+  public static std_core._sslice SliceLast( string s ) {
+    if (String.IsNullOrEmpty(s)) 
+      return new std_core._sslice("",0,0);
+    else if (Char.IsLowSurrogate(s[s.Length-1]) && s.Length > 1) 
+      return new std_core._sslice(s,s.Length-2,2);
+    else
+      return new std_core._sslice(s,s.Length-1,1);
+  }
+
+  public static int SliceCount( std_core._sslice slice ) {
+    int n = 0;
+    for(int i = slice.start; i < slice.start + slice.len; i++) {
+      n++;
+      if (Char.IsHighSurrogate(slice.str[i])) i+=1;
+    }
+    return n;
+  }
+
+  public static std_core._sslice SliceExtend( std_core._sslice slice, int count ) {
+    if (count==0) return slice;
+    int i = slice.start + slice.len;
+    if (count > 0) {
+      while(i < slice.str.Length && count > 0) {
+        count--;
+        i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length-1 ? 2 : 1);
+      }
+    }
+    else {  
+      while(i > slice.start && i > 0 && count < 0) {
+        count++;
+        i -= (Char.IsLowSurrogate(slice.str[i-1]) && i > slice.start+1 ? 2 : 1);
+      }
+    }
+    return new std_core._sslice(slice.str, slice.start, (i > slice.start ? i - slice.start : 0));
+  }
+
+  public static std_core._sslice SliceAdvance( std_core._sslice slice, int count ) {
+    if (count==0) return slice;
+    int i   = slice.start;
+    int end = slice.start + slice.len;
+    int sliceCount = SliceCount(slice);
+    int extra = 0;
+    if (count > 0) {
+      while(i < slice.str.Length && extra < count) {
+        extra++;
+        i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length-1 ? 2 : 1);
+      }
+      if (end > i && sliceCount > extra) {
+        return SliceExtend( new std_core._sslice(slice.str, i, end - i), extra );
+      }
+    }
+    else {  
+      while(i > 0 && extra < -count) {
+        extra++;
+        i -= (Char.IsLowSurrogate(slice.str[i-1]) && i > 1 ? 2 : 1);
+      }
+      if (sliceCount > extra) {
+        return SliceExtend( new std_core._sslice(slice.str, i, slice.start-i), sliceCount - extra );
+      }
+    }
+    return SliceExtend( new std_core._sslice(slice.str, i, 0), sliceCount );
+  }
+
+
+  public static string SliceToString( std_core._sslice slice ) {
+    if (slice.start==0 && slice.len==slice.str.Length) return slice.str;
+    return slice.str.Substring(slice.start,slice.len);
+  }
+
+  public static std_core._sslice SliceCommonPrefix( string s, string t, int upto ) {
+    int max = Math.Max(s.Length,t.Length);
+    int i;
+    for(i = 0; i < max && upto > 0; i++) {
+      if (s[i] != t[i]) break;
+      if (!Char.IsLowSurrogate(s[i])) upto--;
+    }
+    return new std_core._sslice(s,0,i);
+  }
+
+  public static std_core._maybe<std_core._Tuple2_<int,std_core._sslice>> SliceNext( std_core._sslice slice ) {
+    if (slice.len <= 0) return std_core._maybe<std_core._Tuple2_<int,std_core._sslice>>.Nothing_;
+    char c = slice.str[slice.start];
+    int n = 1;
+    if (Char.IsHighSurrogate(c) && slice.len > 1) {
+      char lo = slice.str[slice.start+1];
+      if (Char.IsLowSurrogate(lo)) {
+        c = (char)Char.ConvertToUtf32(slice.str,slice.start);
+        n = 2;
+      }
+    }
+    return new std_core._maybe<std_core._Tuple2_<int,std_core._sslice>>(
+                  new std_core._Tuple2_<int,std_core._sslice>(
+                    (int)c, new std_core._sslice(slice.str, slice.start+n, slice.len-n ) ) );
+  }
 
   //---------------------------------------
   // Trace

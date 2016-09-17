@@ -17,7 +17,7 @@ module Syntax.Lexeme
              , isTypeVar
              ) where
 
-import Data.Char(isLower,isDigit)
+import Data.Char(isLower,isDigit,toUpper)
 import Common.Name  ( Name, nameId )
 import Common.Range
 
@@ -36,7 +36,7 @@ data Lexeme = Lexeme !Range !Lex
             deriving Eq
 
 -- | A lexical token.
-data Lex    = LexInt     !Integer
+data Lex    = LexInt     !Integer !String {- orginal number, used for documentation -}
             | LexFloat   !Double
             | LexChar    !Char
             | LexString   !String
@@ -92,7 +92,7 @@ sameLex lex1 lex2
 instance Enum Lex where
   fromEnum lex
     = case lex of
-        LexInt _        -> 0
+        LexInt _ _      -> 0
         LexFloat _      -> 1
         LexChar _       -> 2
         LexString _     -> 3
@@ -134,7 +134,7 @@ showLex :: Lex -> String
 showLex lex
   = -- showSpaces $
     case lex of
-      LexInt i      -> show i
+      LexInt i s    -> s -- if isHex then ("0x" ++ map toUpper (showHex i "")) else show i
       LexFloat f    -> show f
       LexChar c     -> show c
       LexString s   -> show s

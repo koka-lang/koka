@@ -1,5 +1,26 @@
 # Getting started
 
+Welcome to the Koka book. This provides an overview and
+formal specification of the language. 
+For more background information, see:
+
+* The [library documentation][libraries].
+* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
+* The [source code][codeplex] of the Koka compiler.
+* The article _Algebraic Effects for Functional Programming_ [@Leijen:algeff] about the algebraic effects in Koka.
+* An article about the type system and semantics of Koka [@Leijen:msfp].
+
+
+[langspec]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/kokaspec.html  {target='_top'}
+[libraries]: http://research.microsoft.com/en-us/um/people/daan/koka/doc/toc.html {target='_top'}
+[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
+[codeplex]: http://koka.codeplex.com {target='_top'} 
+[kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
+[rise4fun]: http://rise4fun.com/koka/tutorial
+
+
+## Installing the compiler
+
 At this point there are no binary releases of Koka and you need to build
 the compiler yourself. Fortunately, Koka has few dependencies and builds
 without problems on most common platforms, &eg; Windows, MacOSX, and
@@ -47,9 +68,9 @@ recommended to use the newly installed ``snow`` color theme which is
 designed to work well with Koka files.
 
 
-## Running the interpreter
+## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interpreter will start:
+After running a plain ``jake`` command, the Koka interactive environment will start:
 ````
 __          _
 | |        | |
@@ -98,7 +119,9 @@ Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 
 ## Algebraic effect handlers
 
-When in the interpreter, you can load various demo files with algebraic 
+A novel feature of Koka is a compiled and typed implementation of algebraic 
+effect handlers (described in detail in [@Leijen:algeff]).
+In the interactive environment, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly using
 the _load_ (``:l``) command:
@@ -123,16 +146,20 @@ loading the ``scoped`` demo, we can run it directly from the interpreter:
 
 Some interesting demos are:
 
-* ``common.kk``: Various examples of common control-flow abstractions
-  like exceptions, state, iterators, ambiguity, and asynchronous programming.
+* ``common.kk``: Various examples from the paper "_Algebraic Effects for
+  Functional Programming_" [@Leijen:algeff]. Shows how to implement
+  common control-flow abstractions like exceptions, state, iterators,
+  ambiguity, and asynchronous programming.
 
-* ``scoped.kk``: Various examples from the paper "_Effect handlers in Scope_"
-  [@Wu:hscope].
+* ``scoped.kk``: Various examples from the paper "_Effect handlers in
+  Scope_" [@Wu:hscope].
 
-* ``nim.kk``: Various examples from the paper "_Liberating effects with rows and handlers_"
-  by Daniel Hillerstr&ouml;m and Sam Lindley [@Lindley:liberate].
+* ``nim.kk``: Various examples from the paper "_Liberating effects with
+  rows and handlers_" [@Lindley:liberate].
 
 * ``async*.kk``: Various asynchronous effect examples.
+
+* ``parser.kk``: Implements parser combinators as an effect.
 
 ## A primer on effect handlers
 
@@ -153,7 +180,7 @@ and state effect:
 The `effs2.kk` module starts by defining the `:amb` effect:
 ```
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 ```
 This declares `amb` as a new effect with a single operation `flip`.
@@ -205,8 +232,8 @@ Let's combine the ambiguity effect with state. The definition
 of the state effect is polymorphic in its value:
 ```
 effect state<s> {
-  get()    : s
-  set(i:s) : ()
+  fun get()    : s
+  fun set(i:s) : ()
 }
 ```
 Next we define a function that uses both ambiguity and the state

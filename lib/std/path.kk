@@ -17,7 +17,7 @@ extern include {
 
 // Change the extension of a path
 fun change-ext( path : string, ext : string ) : string {
-  path.noext + (if (ext.starts-with(".")) then "" else ".") + ext
+  path.noext + (if (ext.starts-with(".").bool) then "" else ".") + ext
 }
 
 // If a path has no extension, set it to the provided one.
@@ -60,7 +60,7 @@ extern normalize( p : string ) : io string {
 // `dirname("foo/bar.ext") == "foo")`
 fun dirname( p : string ) : string {
   val d = p.xdirname
-  if (d=="." && !(p.starts-with("."))) then "" else d
+  if (d=="." && !(p.starts-with(".").bool)) then "" else d
 }
 
 private extern xdirname( p : string ) : string {
@@ -112,5 +112,5 @@ val delimiter : string = pathdelim()
 
 extern program-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
-  js inline "((fun(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
+  js inline "((function(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
 }

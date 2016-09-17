@@ -15,7 +15,6 @@ module toc
   
 import std/array
 import std/atom
-import std/date
 import std/dict
 import std/env
 import std/file
@@ -25,6 +24,7 @@ import std/path
 import std/readline
 import std/regex
 import std/string
+import std/time
 import std/unicode
 
 import sys/dom

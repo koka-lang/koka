@@ -134,11 +134,12 @@ effect symbol {
   symbol(s : string) : string
 }
 
-val parse = handler(cs) {
+val parse = handler(cs:string) {
   return x -> if (cs.empty?) then x else fail()
-  symbol(s)-> if (cs.starts-with(s)) 
-               then resume(cs.substr(s.length),s)
-               else fail()
+  symbol(s)-> match(cs.starts-with(s)) {
+                Nothing     -> fail()
+                Just(rest)  -> resume(rest.string,s)
+              }
 }
 
 

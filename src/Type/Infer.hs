@@ -860,6 +860,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
            rngs = map (getRange . hbranchExpr) ops
            brngs = map (getRange) ops
 
+       -- traceDoc $ \env -> text "unify branches"    
        resTp  <- inferUnifyTypes checkMatch (zip (branchTp:opTps) (zip (exprRng:brngs) (exprRng:rngs)))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
 
@@ -957,7 +958,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
            cname = toOpConName qname
            constrs = dataInfoConstrs opsInfo
 
-       -- trace ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs)) $
+       -- traceDoc $ \env -> text ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs))
        (conname,gconTp,conrepr,coninfo)
            <- case filter (\ci -> cname == conInfoName ci) constrs of
                     [ci] -> resolveConName (conInfoName ci) Nothing nameRng
@@ -989,8 +990,10 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
          sparTps <- subst parTps
 
          -- subsume effect type
-         inferUnify (checkEffectSubsume rng) rng effTp (effectFixed [opsEffTp])
-
+         -- traceDoc $ \env -> text "subsume effect type: " <+> ppType env effTp
+         eTp <- Op.freshTVar kindEffect Meta       
+         inferUnify (checkEffectSubsume rng) rng effTp (effectExtend opsEffTp eTp)
+         
          -- create resume definition with the type specialized to this operation
          let rngx = makeRange (rangeEnd nameRng) (rangeEnd nameRng)
              (xresumeTp,xresumeArgs)
@@ -1291,7 +1294,7 @@ inferPattern matchType matchRange (PatCon name patterns0 nameRange range)
 
        (conTp,tvars,_) <- instantiate range gconTp 
        let (conParTps,conResTp) = splitConTp conTp
-       inferUnify (checkConMatch range) nameRange matchType conResTp
+       inferUnify (checkConMatch range) nameRange conResTp matchType
        patterns <- matchPatterns range nameRange conTp conParTps patterns0
                    {-
                    if (length conParTps < length patterns0)
