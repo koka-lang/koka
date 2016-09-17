@@ -15,4 +15,3 @@ queensChoose: (n : int) -> div solutions
 safe : (queen : int, diag : int, xs : solution) -> bool
 showSolutions: (xss : solutions) -> io ()
 test : (n : int) -> <div,console,ndet> ()
-timer : forall<a,e> (f : () -> <console,ndet|e> a) -> <console,ndet|e> a

@@ -5,7 +5,7 @@ fun fib(n) {
 }
 
 fun comp() { 
-  fib(4)
+  fib(5)
 }
 
 effect state<s> {

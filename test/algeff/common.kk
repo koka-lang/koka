@@ -111,7 +111,11 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
 }
 
 fun test4() {
-  foreach( fun(x:int) { println(x); (x<=1) }, { [1,2,3].iterate } )
+  foreach fun(x:int) { 
+    println(x)
+    (x<=1) 
+  }
+  { [1,2,3].iterate } 
 }
 
 fun test4b() {
