@@ -281,7 +281,7 @@ private val months = ["January","February","March","April","May","June",
 // Is this time in a leap year?
 fun leap-year?( t : time ) : bool {
   val (year,_,_) = t.date();
-  return ((year%4)==0 && (year%100)!=0) || (year%400)==0;
+  return (year%4)==0 && ((year%100)!=0 || (year%400)==0);
 }
 
 // Return the day of the year (starting at 1)
