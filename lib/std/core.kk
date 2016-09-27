@@ -872,13 +872,13 @@ fun foreach( xs : list<a>, action : (a) -> e () ) : e ()
 }
 
 // Invoke `action` for each element of a list while `action` return `Nothing`
-fun foreach-until( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
+fun foreach-while( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
 {
   match(xs) {
     Nil        -> Nothing
     Cons(x,xx) -> { 
       match(action(x)) {
-        Nothing -> xx.foreach-until(action) 
+        Nothing -> xx.foreach-while(action) 
         just    -> just
       }
     }
@@ -1796,7 +1796,7 @@ fun empty?( slice : sslice ) : bool  -> (slice.len <= 0)
 // Is a slice not empty?
 fun notempty?( slice : sslice ) : bool  -> (slice.len > 0)
 
-// Return the first character of a string (or the empty string)
+// Return the first character of a string as a string (or the empty string)
 fun head( s : string ) : string {
   s.first.string
 }
@@ -2059,7 +2059,10 @@ fun foreach( s : string, action : (c:char) -> e () ) : e () {
   s.slice.foreach(action)
 }
 
-
+// Return the first character of a string (or `Nothing` for the empty string).
+fun head-char( s : string ) : maybe<char> {
+  s.foreach-while( Just )
+}
 
 // Invoke a function for each character in a string
 //fun foreach( s : string, f : char -> e () ) : e () {
