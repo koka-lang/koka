@@ -177,6 +177,26 @@ fun add-days( t : time, days : int ) : time {
 }
 
 
+// Is this time in a leap year?
+fun leap-year?( t : time ) : bool {
+  val (year,_,_) = t.date();
+  return (year%4)==0 && ((year%100)!=0 || (year%400)==0);
+}
+
+// Return the day of the year (starting at 1)
+fun day-of-year( t : time ) : int {
+  val (_,month,day) = t.date()
+  val n = day-counts[month - 1].maybe(0) + day
+  if (month > 2 && t.leap-year?) then n+1 else n
+}
+private val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+
+// -----------------------------------------------------------
+// Formatting
+// -----------------------------------------------------------
+
+
 // Show the time as an ISO 8601 string. 
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
 // For example `now().show` becomes `"2016-09-08T19:55:11.910-07:00"`.
@@ -239,7 +259,8 @@ fun show-imf( t : time ) : string {
 // Show the time as a human readable English string.
 // For example `now().en-time` -> `"Thu Oct 8 2016, 19:48:11 GMT-07:00"`.
 fun show-en( t : time ) : string {
-  t.show-en-date + ", " + t.show-en-clock
+  (t.show-en-date + ", " + t.show-en-clock + "  ----  " +
+   t.format("ddd MMM d yyyy, HH:mm:ss \"GMT\"zzzz"))
 }
 
 // Show the clock time  in human readable English.
@@ -278,19 +299,113 @@ private val months = ["January","February","March","April","May","June",
                       "July","August","September","October","November","December"]
 
 
-// Is this time in a leap year?
-fun leap-year?( t : time ) : bool {
-  val (year,_,_) = t.date();
-  return (year%4)==0 && ((year%100)!=0 || (year%400)==0);
+// -----------------------------------------------------------
+// Generic Formatting
+// -----------------------------------------------------------
+
+fun format-day( t : time, n : int ) : string {
+  if (n==3) then t.show-en-day.first(3).string
+  elif (n==4) then t.show-en-day
+  else t.date.thd.showl(n)
 }
 
-// Return the day of the year (starting at 1)
-fun day-of-year( t : time ) : int {
-  val (_,month,day) = t.date()
-  val n = day-counts[month - 1].maybe(0) + day
-  if (month > 2 && t.leap-year?) then n+1 else n
+fun format-month( t : time, n : int ) : string {
+  if (n==3) then t.show-en-month.first(3).string
+  elif (n==4) then t.show-en-month
+  else t.date.snd.showl(n)
 }
-private val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+fun format-year( t : time, n : int ) : string {
+  t.date.fst.showl(n).last(n).string
+}
+
+fun format-seconds( t : time, n : int ) : string {
+  t.clock.thd.showl(n)
+}
+
+fun format-minutes( t : time, n : int ) : string {
+  t.clock.snd.showl(n)
+}
+
+fun format-hours( t : time, n : int ) : string {
+  t.clock.fst.showl(n)
+}
+
+fun format-hours12( t : time, n : int ) : string {
+  val h = t.clock.fst
+  if (h <= 12) then h.showl(n) else (h - 12).showl(n)
+}
+
+fun format-ampm( t : time, n : int ) : string {
+  val h = t.clock.fst
+  (if (h <= 12) then "am" else "pm").first(n).string
+}
+
+fun format-frac( t : time, n : int ) : string {
+  val ms = t.clock.field4
+  ms.showl(3).first(n).string.pad-right(n,"0")
+}
+
+fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
+  val s = show-iso-timezone(t,hmsep=hmsep,utc=utc)
+  if (n>2) then s else s.first(3).string.last(n).string
+}
+
+fun format-timezone( t : time, n : int ) : string {
+  format-tz-offset(t,n,if (n>=4) then ":" else "",if (n>=4) then "00:00" else "0000")
+}
+
+fun format-iso-timezone( t : time, n : int ) : string {
+  format-tz-offset(t,4,":","Z")
+}
+
+val formats = [
+  ("d", 4, format-day),
+  ("M", 4, format-month),
+  ("y", 5, format-year),
+  ("s", 2, format-seconds),
+  ("m", 2, format-minutes),
+  ("h", 2, format-hours12),
+  ("H", 2, format-hours),
+  ("t", 2, format-ampm),
+  ("f", 6, format-frac),
+  ("z", 4, format-timezone),
+  ("K", 1, format-iso-timezone)
+]
+
+
+fun format( t : time, fmt : string ) : string {
+  if (fmt.empty?) return ""
+  val part = formats.foreach-until fun(pat) {
+    if (fmt.head=="\"") {
+      // extract escaped part
+      match(fmt.tail.find("\"")) {
+        Nothing     -> Just( ("\"", fmt.tail) )
+        Just(slice) -> Just( (slice.before.string, slice.after.string) )
+      }
+    }
+    else {
+      // Try to match on a pattern
+      val (s,n,f) = pat
+      for-while(0,n - 1) fun(i) {
+        val sn = list(1, n - i).map( fun(_) { s }).join
+        match(fmt.starts-with(sn)) {
+          Just(slice) -> Just((f(t,sn.count), slice.string))
+          Nothing     -> Nothing
+        }
+      }
+    }
+  }
+  match(part) {
+    Nothing                -> fmt.head + format(t, unsafe-decreasing(fmt.tail))
+    Just((formatted,rest)) -> formatted + format(t, unsafe-decreasing(rest))
+  }
+}
+
+
+// -----------------------------------------------------------
+// Ticks
+// -----------------------------------------------------------
 
 // Return a high-resolution timestamp in milliseconds. 
 // The timestamp is guaranteed to be monotonically increasing
