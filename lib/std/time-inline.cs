@@ -21,6 +21,10 @@ static class _Time
     return (d.ToUniversalTime() - epoch).TotalSeconds;
   }
 
+  public static double TotalSecs( DateTime d ) {
+    return (d.ToUniversalTime() - DateTime.MinValue).TotalSeconds;
+  }
+
   public static int DayOfWeek( DateTime d ) {
     int w = (int)d.DayOfWeek;
     return (w==0 ? 7 : w);

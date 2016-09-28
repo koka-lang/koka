@@ -8,7 +8,7 @@
 
 /* Basic date and time functions.
 
-   Years, months, days etc. are always 1-based, while durations are always in seconds.
+   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */
 module std/time
 
@@ -22,8 +22,9 @@ extern include {
 // A `:time` represents a certain time in a gregorian calendar.
 // When a time value is created, it is associated with either the local 
 // or UTC timezone which is used for displaying the time.\
-// Valid times must be between ``0001-01-01`` and the end of the day ``9999-12-31``.
-// If a time is created outside this range, the ``0001-01-01`` time is returned.
+// Valid times must be between `min-time` (= ``0001-01-01Z`` UTC) and 
+// `max-time` (= ``9999-12-31T23:59:59.999Z`` UTC).
+// If a time is created outside this range, the ``0001-01-01Z`` time is returned.
 public type time
 
 // Return the current time in the local timezone.
@@ -59,7 +60,7 @@ public extern utc?( t : time ) : bool {
 
 // Get the timezone offset in seconds. This 
 // is the difference between the local time and UTC.
-// For example, if the timezone is ``UTC+10``, the timezone offset is ``+10 * 60 * 60``.
+// For example, if the timezone is ``UTC+10:00``, the timezone offset is +10\*60\*60.
 public extern timezone-offset(t : time) : int {
   cs "_Time.TimezoneOffset"
   js "_time_timezone_offset"
@@ -70,7 +71,7 @@ extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int
   js "_time_new"
 }
 
-extern new-time( epoch-secs : double, is-utc:bool ) : time {
+extern new-time( epoch-seconds : double, is-utc:bool ) : time {
   cs "_Time.NewFromEpoch"  
   js "_time_epoch"
 }
@@ -124,17 +125,17 @@ public extern day-of-week(t:time) : int {
   js "_time_dayofweek" 
 }
 
-// Number of fractional seconds since  the `epoch` (1 January 1970 00\:00\:00 UTC).
-public extern epoch-secs(t:time) : double { 
+// Number of fractional seconds since  the _epoch_ (``1970-01-01Z``).
+public extern epoch-seconds(t:time) : double { 
   cs "_Time.EpochSecs"
   js "_time_epochsecs" 
 }
 
-// The minimal time value (``0001-01-01Z``).
-public val min-time = utc-time(1,1,1)
-
-// The maximal time value (``9999-12-31T23:59:59.999Z``).
-public val max-time = utc-time(9999,12,31,23,59,59,999)
+// Number of fractional seconds since  `min-time` (``0001-01-01Z``).
+public extern total-seconds(t:time) : double { 
+  cs "_Time.TotalSecs"
+  js "_time_totalsecs" 
+}
 
 // Return the date of a time in the associated time zone. 
 // Returns the year, month (starting at 1), and day of the month (starting at 1).
@@ -147,32 +148,37 @@ public fun clock( t : time ) : (int,int,int,int) {
   (t.hours,t.minutes,t.seconds,t.milliseconds)
 }
 
-// Do two times occur at the same time? (regardless of timezone)
+// Are two times equal? (regardless of timezone)
 public fun (==)( t1: time, t2:time ) : bool {
-  t1.epoch-secs == t2.epoch-secs
+  t1.total-seconds == t2.total-seconds
 }
 
-// Does time `t1` come before time `t2`?
+// Does time `t1` come before time `t2`? (regardless of timezone)
 public fun (<)( t1: time, t2:time ) : bool {
-  t1.epoch-secs < t2.epoch-secs
+  t1.total-seconds < t2.total-seconds
 }
 
-
-// Does time `t1` come after time `t2`?
+// Does time `t1` come after time `t2`? (regardless of timezone)
 public fun (>)( t1 : time, t2: time ) : bool {
-  t1.epoch-secs > t2.epoch-secs
+  t1.total-seconds > t2.total-seconds
 }
 
-// Return the fractional seconds difference between two times
+// Return the fractional seconds difference between two times. (regardless of timezone)
 public fun (-)( t1 : time, t2 : time ) : double {
-  t1.epoch-secs - t2.epoch-secs
+  t1.total-seconds - t2.total-seconds
 }
 
-// The _epoch_ date (1 January 1970 00\:00\:00 UTC)
-public val epoch : time = utc-time(1970,1,1)
+// The _epoch_ time (``1970-01-01Z``)
+public val epoch = utc-time(1970,1,1)
+
+// The minimal time value (``0001-01-01Z``).
+public val min-time = utc-time(1,1,1)
+
+// The maximal time value (``9999-12-31T23:59:59.999Z``).
+public val max-time = utc-time(9999,12,31,23,59,59,999)
 
 
-// Compare two times.
+// Compare two times. (regardless of timezone)
 public fun compare( t1 : time, t2 :time ) : order {
   if (t1==t2) then Eq
   elif (t1<t2) then Lt
@@ -246,7 +252,7 @@ public fun day-of-year( t : time ) : int {
 val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
 
 
-// Return the ISO week number of the year between 1 and 53.
+// Return the ISO week number of the year (between 1 and 53).
 public fun week-of-year( t : time ) : int {
   val week = ((t.day-of-year - t.day-of-week) + 10) / 7
   if (week<1) then (t.copy(t.year - 1, 1, 1)).last-week
@@ -262,7 +268,7 @@ fun last-week( t : time ) : int {
 // Returns true if the year contains 53 weeks (instead of 52)
 fun long-year?( t : time ) : bool {
   val firstday = t.copy(t.year,1,1).day-of-week
-  (firstday == 4 || (t.leap-year? && firstday==3))
+  (firstday==4 || (t.leap-year? && firstday==3))
 }
 
 // -----------------------------------------------------------
@@ -279,7 +285,7 @@ public fun show( t : time ) : string {
 // Show the time as an [ISO 8601](http://en.wikipedia.org/wiki/ISO_8601) string.
 // For example `now().show-iso` becomes `"2016-09-08T19:55:11.910-07:00"`.
 public fun show-iso(t : time ) : string {
-  t.format("YYYY-MM-DD'T'HH:mm:ssFFFZ")
+  t.format("YYYY-MM-DD'T'HH:mm:ssfffZ")
 }
 
 // Show the date in ISO format, i.e. ``YYYY-MM-DD`` format.
@@ -508,7 +514,7 @@ display as 2 digits. Allowed patterns:
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
-you can use `now().format("ddd, d MMM yyyy HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
+you can use `now().format("ddd, D MMM YYYY HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
 public fun format( t : time, fmt : string ) : string {
   format-list( t, fmt.list )
@@ -555,7 +561,7 @@ public fun parse-iso( s : string ) : maybe<time> {
   match(s.find(rx-iso)) {
     Nothing -> Nothing
     Just(cap) -> {
-      val xyear = parse-int-default(cap.groups[1])
+      val year  = parse-int-default(cap.groups[1])
       val month = parse-int-default(cap.groups[2])
       val day   = parse-int-default(cap.groups[3])
       val hours = parse-int-default(cap.groups[4])
@@ -565,16 +571,12 @@ public fun parse-iso( s : string ) : maybe<time> {
       val tzsign= if (cap.groups[8]=="+") then 1 else ~1
       val tzhours= parse-int-default(cap.groups[9]) 
       val tzmins = parse-int-default(cap.groups[10])
-      // adjust 2 digit year
-      val year  = if (cap.groups[1].count <= 2) 
-                   then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
-                   else xyear
       val tzofs = tzsign * ((tzhours * 60) + tzmins)
       Just(utc-time(year,month,day,hours,mins - tzofs,secs,msecs))
     }
   }
 }
-val rx-iso = regex(@"^(\d\d(?:\d\d)?)\-?(\d\d?)\-?(\d\d?)(?:T(\d\d?):?(\d\d?)(?:[:]?(\d\d?)(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:[:]?(\d\d))?)?)?$");
+val rx-iso = regex(@"^(\d\d\d\d)\-?(\d\d?)\-?(\d\d?)(?:T(\d\d?):?(\d\d?)(?:[:]?(\d\d?))?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:[:]?(\d\d))?)?$");
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
 // Always returns a UTC time. Use `local` to convert to the local time.
@@ -622,20 +624,17 @@ public extern ticks-resolution() : ndet double {
 }
 
 // Return the number of fractional seconds that it takes to evaluate `action`.
-public fun elapsed( action : () -> <ndet|e> () ) : <ndet|e> double {
+public fun elapsed( action : () -> <ndet|e> a ) : <ndet|e> (double,a) {
   val t0 = ticks()
-  action()
+  val x = action()
   val t1 = ticks()
-  (t1 - t0)
+  (t1 - t0,x)
 }
 
 // Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the
 // measured time in millisecond resolution.
 public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
-  val t0 = ticks()
-  val x  = action()
-  val t1 = ticks()
-  val t  = (t1 - t0)
+  val (t,x) = elapsed(action)
   println( msg + " " + t.show-fixed(3) + "s" )
   x
 } 
