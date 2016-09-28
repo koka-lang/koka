@@ -236,18 +236,25 @@ public fun add-days( t : time, days : int ) : time {
   t.add-date( 0, 0, days )
 }
 
+// -----------------------------------------------------------
+// Advanced calendar functions
+// -----------------------------------------------------------
 
 // Is this time in a leap year?
-public fun leap-year?( t : time ) : bool {
-  val year = t.year;
-  return (year%4)==0 && ((year%100)!=0 || (year%400)==0);
+public fun leap-year?( year : int ) : bool {
+  ((year%4)==0 && ((year%100)!=0 || (year%400)==0))
+}
+
+// The number of days in the given year
+public fun days-in-year( year : int ) : int {
+  if (year.leap-year?) then 366 else 365
 }
 
 // Return the day of the year (starting at 1)
 public fun day-of-year( t : time ) : int {
-  val (_,month,day) = t.date
+  val (year,month,day) = t.date
   val n = day-counts[month - 1].maybe(0) + day
-  if (month > 2 && t.leap-year?) then n+1 else n
+  if (month > 2 && year.leap-year?) then n+1 else n
 }
 val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
 
@@ -268,7 +275,17 @@ fun last-week( t : time ) : int {
 // Returns true if the year contains 53 weeks (instead of 52)
 fun long-year?( t : time ) : bool {
   val firstday = t.copy(t.year,1,1).day-of-week
-  (firstday==4 || (t.leap-year? && firstday==3))
+  (firstday==4 || (t.year.leap-year? && firstday==3))
+}
+
+// Return the day of the year given an ISO week number and an ISO week day.
+// The returned day maybe smaller than one (belonging to the previous year),
+// or larger than the days of the year (belonging to the next year).
+// The returned day number can always be passed directly to the `add-days` or
+// the `time` / `utc-time` constructors.
+public fun week-to-day-of-year( year : int, week : int, weekday : int ) : int {
+  val adjust = utc-time(year,1,4).day-of-week + 3
+  (((7*week) + weekday) - adjust)
 }
 
 // -----------------------------------------------------------
