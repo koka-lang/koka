@@ -1146,14 +1146,25 @@ fun compare( x : int, y : int) : order
 
 
 // Return the absolute value of an integer.
-// Raises an exception if the `:int` is `minInt`
-// (since the negation of `minInt` equals itself and is still negative)
+// Raises an exception if the `:int` is `min-int`
+// (since the negation of `min-int` equals itself and is still negative)
 fun abs( i : int ) : exn int
 {
-  if (i >= 0) return i
-  if (i > min-int) return negate(i)
-  error( "system.core.abs: cannot make minInt into a positive int without overflow" )
+  if (i >= 0) then i
+  elif (i > min-int) then negate(i)
+  else error( "system.core.abs: cannot make min-int into a positive int without overflow" )
 }
+
+// Return the absolute value of an integer.
+// Returns 0 if the `:int` is `min-int`
+// (since the negation of `min-int` equals itself and is still negative)
+fun abs0( i : int ) : int
+{
+  if (i >= 0) then i
+  elif (i > min-int) then negate(i)
+  else 0
+}
+
 
 // Take the bitwise _and_ of two `:int`s
 extern inline (&) : (int,int) -> int { 
