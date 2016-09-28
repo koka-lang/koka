@@ -247,12 +247,12 @@ public fun week-of-year( t : time ) : int {
 }
 
 // Last ISO week number of the year.
-public fun last-week( t : time ) : int {
+fun last-week( t : time ) : int {
   if (t.long-year?) then 53 else 52
 }
 
 // Returns true if the year contains 53 weeks (instead of 52)
-public fun long-year?( t : time ) : bool {
+fun long-year?( t : time ) : bool {
   val firstday = t.copy(t.year,1,1).day-of-week
   (firstday == 4 || (t.leap-year? && firstday==3))
 }
