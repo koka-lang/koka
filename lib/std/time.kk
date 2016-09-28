@@ -8,10 +8,11 @@
 
 /* Basic date and time functions.
 
-   Years, months, days etc. are always 1-based, while durations
-   are always in milliseconds.
+   Years, months, days etc. are always 1-based, while durations are always in seconds.
 */
 module std/time
+
+import std/regex
 
 extern include {
   cs file "time-inline.cs"
@@ -19,7 +20,7 @@ extern include {
 }
 
 // A `:time` represents a certain time in a gregorian calendar.
-// When a time is captured, it is associated with either the local 
+// When a time value is created, it is associated with either the local 
 // or UTC timezone which is used for displaying the time.
 public type time
 
@@ -54,9 +55,9 @@ public extern utc?( t : time ) : bool {
   js inline "(t.isutc)"
 }
 
-// Get the timezone offset in milliseconds. This 
+// Get the timezone offset in seconds. This 
 // is the difference between the local time and UTC.
-// For example, if the timezone is ``UTC+10``, the timezone offset is ``+10 * 60 * 60 * 1000``.
+// For example, if the timezone is ``UTC+10``, the timezone offset is ``+10 * 60 * 60``.
 public extern timezone-offset(t : time) : int {
   cs "_Time.TimezoneOffset"
   js "_time_timezone_offset"
@@ -67,55 +68,96 @@ extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int
   js "_time_new"
 }
 
-extern new-time( epoch-msecs : double, is-utc:bool ) : time {
+extern new-time( epoch-secs : double, is-utc:bool ) : time {
   cs "_Time.NewFromEpoch"  
   js "_time_epoch"
 }
 
+// The year in the associated timezone.
+public extern year( t : time ) : int {
+  cs "_Time.Year"
+  js "_time_year"
+}
+
+// The month in the associated timezone.
+public extern month( t : time ) : int {
+  cs "_Time.Month"
+  js "_time_month"
+}
+
+// The day in the associated timezone.
+public extern day( t : time ) : int {
+  cs "_Time.Day"
+  js "_time_day"
+}
+
+// The hours in the associated timezone.
+public extern hours( t : time ) : int {
+  cs "_Time.Hours"
+  js "_time_hours"
+}
+
+// The minutes in the associated timezone.
+public extern minutes( t : time ) : int {
+  cs "_Time.Minutes"
+  js "_time_minutes"
+}
+
+// The seconds in the associated timezone.
+public extern seconds( t : time ) : int {
+  cs "_Time.Seconds"
+  js "_time_seconds"
+}
+
+// The milliseconds in the associated timezone.
+public extern milliseconds( t : time ) : int {
+  cs "_Time.Milliseconds"
+  js "_time_milliseconds"
+}
+
+// The day of the week in the associated time zone. 
+// This is the ISO day of the week, starting at 1 for Monday and ending at 7 for Sunday.
+public extern day-of-week(t:time) : int { 
+  cs "_Time.DayOfWeek"
+  js "_time_dayofweek" 
+}
+
+// Number of fractional seconds since  the `epoch` (1 January 1970 00\:00\:00 UTC).
+public extern epoch-secs(t:time) : double { 
+  cs "_Time.EpochSecs"
+  js "_time_epochsecs" 
+}
+
 // Return the date of a time in the associated time zone. 
 // Returns the year, month (starting at 1), and day of the month (starting at 1).
-public extern date( t : time ) : (int,int,int) {
-  cs "_Time.Date"
-  js "_time_date"
+public fun date( t : time ) : (int,int,int) {
+  (t.year,t.month,t.day)
 }
 
 // Return the clock time in the associated time zone. Returns the hours, minutes, seconds, and milliseconds.
-public extern clock( t : time ) : (int,int,int,int) {
-  cs "_Time.Clock"
-  js "_time_clock"
-}
-
-// The day of the week in the associated time zone. Starts at 1 for Sunday.
-public extern day-of-week(t:time) : int { 
-  cs inline "(int)(t.DayOfWeek + 1)"
-  js inline "(#1.time.getDay() + 1)" 
-}
-
-// Number of milliseconds since  the `epoch` (1 January 1970 00\:00\:00 UTC).
-public extern epoch-msecs(t:time) : double { 
-  cs "_Time.EpochMsecs"
-  js inline "(#1.time.getTime())" 
+public fun clock( t : time ) : (int,int,int,int) {
+  (t.hours,t.minutes,t.seconds,t.milliseconds)
 }
 
 // Do two times occur at the same time? (regardless of timezone)
 public fun (==)( t1: time, t2:time ) : bool {
-  t1.epoch-msecs == t2.epoch-msecs
+  t1.epoch-secs == t2.epoch-secs
 }
 
 // Does time `t1` come before time `t2`?
 public fun (<)( t1: time, t2:time ) : bool {
-  t1.epoch-msecs < t2.epoch-msecs
+  t1.epoch-secs < t2.epoch-secs
 }
 
 
 // Does time `t1` come after time `t2`?
 public fun (>)( t1 : time, t2: time ) : bool {
-  t1.epoch-msecs > t2.epoch-msecs
+  t1.epoch-secs > t2.epoch-secs
 }
 
-// Return the millisecond difference between two times
+// Return the fractional seconds difference between two times
 public fun (-)( t1 : time, t2 : time ) : double {
-  t1.epoch-msecs - t2.epoch-msecs
+  t1.epoch-secs - t2.epoch-secs
 }
 
 // The _epoch_ date (1 January 1970 00\:00\:00 UTC)
@@ -135,9 +177,9 @@ public fun time( year:int, month : int, day:int, hours:int = 0,minutes:int = 0,s
   new-time(year,month,day,hours,minutes,seconds,milliseconds,False)
 }
 
-// Create a new `:time` in the local time zone with a given number milliseconds since the epoch (1 January 1970 00\:00\:00 UTC).
-public fun time( epochmsecs : double ) : ndet time {
-  new-time(epochmsecs,False)
+// Create a new `:time` in the local time zone with a given number of fractional seconds since the epoch (1 January 1970 00\:00\:00 UTC).
+public fun time( epochsecs : double ) : ndet time {
+  new-time(epochsecs,False)
 }
 
 // Create a new UTC `:time`
@@ -145,16 +187,20 @@ public fun utc-time(year:int, month : int, day:int, hours:int = 0,minutes:int = 
   new-time(year,month,day,hours,minutes,seconds,milliseconds,True)
 }
 
-// Create a new UTC `:time` with a given number milliseconds since the `epoch` (1 January 1970 00\:00\:00 UTC).
-public fun utc-time( epochmsecs : double ) : time {
-  new-time(epochmsecs,True)
+// Create a new UTC `:time` with a given number of fractional seconds since the `epoch` (1 January 1970 00\:00\:00 UTC).
+public fun utc-time( epochsecs : double ) : time {
+  new-time(epochsecs,True)
+}
+
+// Copy a `:time` value keeping it in the same timezone (local or UTC).
+public fun copy(t : time, year:int = t.year, month : int = t.month, day:int = t.day, hours:int = t.hours,minutes:int = t.minutes,seconds:int = t.seconds,milliseconds:int = t.milliseconds) : time {
+  new-time(year,month,day,hours,minutes,seconds,milliseconds,t.utc?)
 }
 
 // Is this time in the local timezone?
 public fun local?( t : time ) : bool {
   !t.utc?
 }
-
 
 // Add a specified number of years, months, and days to a time. 
 // Takes leap-years into account.
@@ -179,18 +225,37 @@ public fun add-days( t : time, days : int ) : time {
 
 // Is this time in a leap year?
 public fun leap-year?( t : time ) : bool {
-  val (year,_,_) = t.date();
+  val year = t.year;
   return (year%4)==0 && ((year%100)!=0 || (year%400)==0);
 }
 
 // Return the day of the year (starting at 1)
 public fun day-of-year( t : time ) : int {
-  val (_,month,day) = t.date()
+  val (_,month,day) = t.date
   val n = day-counts[month - 1].maybe(0) + day
   if (month > 2 && t.leap-year?) then n+1 else n
 }
 val day-counts = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
 
+
+// Return the ISO week number of the year between 1 and 53.
+public fun week-of-year( t : time ) : int {
+  val week = ((t.day-of-year - t.day-of-week) + 10) / 7
+  if (week<1) then (t.copy(t.year - 1, 1, 1)).last-week
+  elif (week>t.last-week) then 1
+  else week
+}
+
+// Last ISO week number of the year.
+public fun last-week( t : time ) : int {
+  if (t.long-year?) then 53 else 52
+}
+
+// Returns true if the year contains 53 weeks (instead of 52)
+public fun long-year?( t : time ) : bool {
+  val firstday = t.copy(t.year,1,1).day-of-week
+  (firstday == 4 || (t.leap-year? && firstday==3))
+}
 
 // -----------------------------------------------------------
 // Formatting
@@ -208,12 +273,12 @@ public fun show( t : time ) : string {
 // See <http://en.wikipedia.org/wiki/ISO_8601>.
 // For example `now().show-iso` becomes `"2016-09-08T19:55:11.910-07:00"`.
 public fun show-iso(t : time ) : string {
-  t.format("yyyy-MM-dd'T'HH:mm:ssFFFK")
+  t.format("yyyy-MM-DD'T'HH:mm:ssFFFK")
 }
 
 // Show the date in ISO format, i.e. ``YYYY-MM-DD`` format.
 public fun show-iso-date( t : time ) : string {
-  t.format("yyyy-MM-dd")
+  t.format("yyyy-MM-DD")
 }
 
 // Show the clock time in ISO format, i.e. ``HH:mm:ss`` format.
@@ -224,13 +289,13 @@ public fun show-iso-clock( t : time ) : string {
 // Show time as a standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>).\
 // For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
 public fun show-imf( t : time ) : string {
-  t.format("ddd, d MMM yyyy HH:mm:ss ZZZ")
+  t.format("ddd, D MMM yyyy HH:mm:ss ZZZ")
 }
 
 // Show the time as a human readable English string.
 // For example `now().en-time` -> `"Thu, 8 Oct 2016, 19:48:11"`.
 public fun show-en( t : time ) : string {
-  t.format("ddd, d MMM yyyy, HH:mm:ss")
+  t.format("ddd, D MMM yyyy, HH:mm:ss")
 }
 
 // Show the 24-hour clock time in human readable English.
@@ -242,7 +307,7 @@ public fun show-en-clock( t : time ) : string {
 // Show the date in human readable English.
 // For example `now().en-date` -> `"Thu, 8 Oct 2016"`.
 public fun show-en-date( t : time ) : string {
-  t.format("ddd, d MMM yyyy")
+  t.format("ddd, D MMM yyyy")
 }
 
 
@@ -256,7 +321,7 @@ public fun show-en-date( t : time ) : string {
 // while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
 // other timezone offsets. The `hrwidth` (=`2`) parameter gives the minimal width of the hours part.
 fun show-timezone( t : time, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2 ) : string {
-  val ofs    = t.timezone-offset / 60000  // convert to minutes
+  val ofs    = t.timezone-offset / 60  // convert to minutes
   if (ofs==0) return utc
   val absofs = if (ofs >= 0) then ofs else ~ofs
   (if (ofs >= 0) then "+" else "-") + 
@@ -278,19 +343,44 @@ fun show-en-month( t : time ) : string {
   months[month - 1].maybe("?")
 }
 
-val days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+val days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 val months = ["January","February","March","April","May","June",
               "July","August","September","October","November","December"]
 
+
+fun month-from-name( mname : string ) : maybe<int> {
+  val lname = mname.to-lower
+  fun search( names : list<string>, month : int ) : maybe<int> {
+    match(names) {
+      Nil -> Nothing
+      Cons(name,rest) -> {
+        if (name.to-lower.starts-with(lname).bool) 
+         then Just(month) 
+         else search(rest,month+1)
+      }
+    }
+  }
+  search(months,1)
+}
 
 // -----------------------------------------------------------
 // Generic Formatting
 // -----------------------------------------------------------
 
-fun format-day( t : time, n : int ) : string {
-  if (n==3) then t.show-en-day.first(3).string
+fun format-weekday( t : time, n : int ) : string {
+  if (n==2 || n==3) then t.show-en-day.first(n).string
   elif (n==4) then t.show-en-day
-  else t.date.thd.showl(n)
+  else t.day-of-week.show
+}
+
+fun format-day( t : time, n : int ) : string {
+  if (n==3) then t.day-of-year.show
+  elif (n==4) then t.day-of-year.showl(3)
+  else t.day.showl(n)
+}
+
+fun format-week( t : time, n : int ) : string {
+  t.week-of-year.showl(n)
 }
 
 fun format-month( t : time, n : int ) : string {
@@ -369,7 +459,7 @@ fun format-iso-timezone( t : time, n : int ) : string {
 val formats : list<(char,int,(time,int) -> string)> = [
   ('y', 5, format-year),
   ('M', 4, format-month),
-  ('d', 4, format-day),
+  ('D', 4, format-day),
   ('H', 2, format-hours),
   ('m', 2, format-minutes),
   ('s', 2, format-seconds),
@@ -378,6 +468,8 @@ val formats : list<(char,int,(time,int) -> string)> = [
   ('Z', 4, format-imf-timezone),
   ('f', 8, format-frac0),
   ('F', 8, format-frac),
+  ('d', 4, format-weekday),
+  ('w', 2, format-week),
   ('h', 2, format-hours12),
   ('t', 2, format-ampm),
   ('T', 2, format-upper-ampm),
@@ -396,8 +488,11 @@ display as 2 digits. Allowed patterns:
 * ``y``,``yy``,``yyy``,``yyyy``,``yyyyy``: the year in upto 5 digits (``yyyy`` becomes ``2016``)
 * ``M``, ``MM``: the month. (``1``,``03``)
 * ``MMM``, ``MMMM``: name of the month in English. (``Jan``, ``January``)
-* ``d``,``dd``: the day of the month. (``1``,``08``)
-* ``ddd``,``dddd``: the day of the week in English. (``Wed``,``Wednesday``)
+* ``D``,``DD``: the day of the month. (``1``,``08``)
+* ``DDD``,``DDDD``: the day of the year. (``87``,``087``)
+* ``d``: the day of the week, 1 for Monday ending in 7 for Sunday.
+* ``dd``,``ddd``,``dddd``: the day of the week in English. (``We``,``Wed``,``Wednesday``)
+* ``w``,``ww``, the ISO week number of the year between 1 and 53. (``8``,``08``)
 * ``h``,``hh``: the hours using a 12-hour clock (with am/pm). (``9``,``09``)
 * ``H``,``HH``: the hours using a 24-hour clock. (``21``,``09``)
 * ``t``,``tt``: AM/PM designation. (``a``,``am``)
@@ -453,12 +548,69 @@ fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
   else (h.string,fmt) // return as-is
 }
 
+// -----------------------------------------------------------
+// Parsing 
+// -----------------------------------------------------------
+
+// Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
+// Always returns a UTC time. Use `local` to convert to the local time.
+public fun parse-iso( s : string ) : maybe<time> {
+  match(s.find(rx-iso)) {
+    Nothing -> Nothing
+    Just(cap) -> {
+      val xyear = parse-int-default(cap.groups[1])
+      val month = parse-int-default(cap.groups[2])
+      val day   = parse-int-default(cap.groups[3])
+      val hours = parse-int-default(cap.groups[4])
+      val mins  = parse-int-default(cap.groups[5])
+      val secs  = parse-int-default(cap.groups[6])
+      val msecs = parse-int-default((cap.groups[7] + "000").first(3).string)
+      val tzsign= if (cap.groups[8]=="+") then 1 else ~1
+      val tzhours= parse-int-default(cap.groups[9]) 
+      val tzmins = parse-int-default(cap.groups[10])
+      // adjust 2 digit year
+      val year  = if (cap.groups[1].count <= 2) 
+                   then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
+                   else xyear
+      val tzofs = tzsign * ((tzhours * 60) + tzmins)
+      Just(utc-time(year,month,day,hours,mins - tzofs,secs,msecs))
+    }
+  }
+}
+val rx-iso = regex(@"^(\d\d(?:\d\d)?)\-?(\d\d?)\-?(\d\d?)(?:T(\d\d?):?(\d\d?)(?:[:]?(\d\d?)(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:[:]?(\d\d))?)?)?$");
+
+// Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
+// Always returns a UTC time. Use `local` to convert to the local time.
+public fun parse-imf( s : string ) : maybe<time> {
+  match(s.find(rx-imf)) {
+    Nothing -> Nothing
+    Just(cap) -> {
+      val day = parse-int-default(cap.groups[2])
+      val month = month-from-name(cap.groups[3]).default(1)
+      val xyear = parse-int-default(cap.groups[4])
+      val hours = parse-int-default(cap.groups[5])
+      val mins  = parse-int-default(cap.groups[6])
+      val secs  = parse-int-default(cap.groups[7])
+      val tzsign= if (cap.groups[8]=="+") then 1 else ~1
+      val tzhours= parse-int-default(cap.groups[9]) 
+      val tzmins = parse-int-default(cap.groups[10])
+      // adjust 2 digit year
+      val year  = if (cap.groups[4].count <= 2) 
+                   then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
+                   else xyear
+      val tzofs = tzsign * ((tzhours * 60) + tzmins)
+      Just(utc-time(year,month,day,hours,mins - tzofs,secs,0))
+    }
+  }
+}
+val rx-imf = regex(@"^ *(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) *, *)? (\d\d?) *(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? *(?:([\+\-])(\d\d)(\d\d) *)?$")
+
 
 // -----------------------------------------------------------
 // Ticks
 // -----------------------------------------------------------
 
-// Return a high-resolution timestamp in milliseconds. 
+// Return a high-resolution timestamp in fractional seconds. 
 // The timestamp is guaranteed to be monotonically increasing
 // and have at least millisecond resolution. 
 public extern ticks() : ndet double {
@@ -466,13 +618,13 @@ public extern ticks() : ndet double {
   js "_ticks"
 }
 
-// Return the smallest time difference in milliseconds that `ticks` can measure.
+// Return the smallest time difference in seconds that `ticks` can measure.
 public extern ticks-resolution() : ndet double {
   cs inline "_Time.TicksResolution"
   js inline "_ticks_resolution"
 }
 
-// Return the number of milliseconds that it takes to evaluate `action`.
+// Return the number of fractional seconds that it takes to evaluate `action`.
 public fun elapsed( action : () -> <ndet|e> () ) : <ndet|e> double {
   val t0 = ticks()
   action()
@@ -480,13 +632,13 @@ public fun elapsed( action : () -> <ndet|e> () ) : <ndet|e> double {
   (t1 - t0)
 }
 
-// Measure the number of milliseconds that it takes to evaluate `action`, and print `msg` postfixed with the
-// measured time in millisecond resoltion.
+// Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the
+// measured time in millisecond resolution.
 public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
   val t0 = ticks()
   val x  = action()
   val t1 = ticks()
   val t  = (t1 - t0)
-  println( msg + " " + t.show-fixed(0) + "ms" )
+  println( msg + " " + t.show-fixed(3) + "s" )
   x
 } 
