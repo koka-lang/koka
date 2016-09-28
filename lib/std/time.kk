@@ -228,9 +228,9 @@ public fun show-imf( t : time ) : string {
 }
 
 // Show the time as a human readable English string.
-// For example `now().en-time` -> `"Thu Oct 8 2016, 19:48:11"`.
+// For example `now().en-time` -> `"Thu, 8 Oct 2016, 19:48:11"`.
 public fun show-en( t : time ) : string {
-  t.format("ddd MMM d yyyy, HH:mm:ss")
+  t.format("ddd, d MMM yyyy, HH:mm:ss")
 }
 
 // Show the 24-hour clock time in human readable English.
@@ -240,9 +240,9 @@ public fun show-en-clock( t : time ) : string {
 }
 
 // Show the date in human readable English.
-// For example `now().en-date` -> `"Thu Oct 8 2016"`.
+// For example `now().en-date` -> `"Thu, 8 Oct 2016"`.
 public fun show-en-date( t : time ) : string {
-  t.format("ddd MMM d yyyy")
+  t.format("ddd, d MMM yyyy")
 }
 
 
@@ -366,21 +366,21 @@ fun format-iso-timezone( t : time, n : int ) : string {
   format-tz-offset(t,4,":","Z")
 }
 
-val formats : list<(string,int,(time,int) -> string)> = [
-  ("d", 4, format-day),
-  ("M", 4, format-month),
-  ("y", 5, format-year),
-  ("s", 2, format-seconds),
-  ("m", 2, format-minutes),
-  ("h", 2, format-hours12),
-  ("H", 2, format-hours),
-  ("t", 2, format-ampm),
-  ("T", 2, format-upper-ampm),
-  ("f", 8, format-frac0),
-  ("F", 8, format-frac),
-  ("z", 4, format-timezone),
-  ("Z", 4, format-imf-timezone),
-  ("K", 1, format-iso-timezone)
+val formats : list<(char,int,(time,int) -> string)> = [
+  ('y', 5, format-year),
+  ('M', 4, format-month),
+  ('d', 4, format-day),
+  ('H', 2, format-hours),
+  ('m', 2, format-minutes),
+  ('s', 2, format-seconds),
+  ('K', 1, format-iso-timezone),
+  ('z', 4, format-timezone),
+  ('Z', 4, format-imf-timezone),
+  ('f', 8, format-frac0),
+  ('F', 8, format-frac),
+  ('h', 2, format-hours12),
+  ('t', 2, format-ampm),
+  ('T', 2, format-upper-ampm),
 ]
 
 /* Format a time according to format string `fmt`.
@@ -419,37 +419,40 @@ For example, to display a time in the standard [Internet Message Format](https:/
 you can use `now().format("ddd, d MMM yyyy HH:mm:ss ZZZ")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
 public fun format( t : time, fmt : string ) : string {
-  if (fmt.empty?) then "" else {
-    val (formatted,rest) = format-pat(t,fmt)
-    formatted + format(t, unsafe-decreasing(rest))
+  format-list( t, fmt.list )
+}
+
+fun format-list( t : time, fmt : list<char> ) : string {  
+  match(fmt) {
+    Nil -> ""
+    Cons(c,cs) -> {
+      val (formatted,rest) = format-pat(t,c,cs)
+      formatted + format-list(t, unsafe-decreasing(rest))
+    }
   }
 }
 
-fun format-pat( t : time, fmt : string ) : (string,string) {
-  val h = fmt.head
-  if (h=="\"" || h=="'") {
+fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
+  if (h=='"' || h=='\'') {
     // extract escaped part
-    match(fmt.tail.find(h)) {
-      Nothing     -> (h, fmt.tail)
-      Just(slice) -> (slice.before.string, slice.after.string)
+    val (quoted,end) = fmt.span( fun(c) { c!=h } )
+    match(end) {
+      Nil          -> (h.string, fmt)
+      Cons(_,rest) -> (quoted.string, rest)    
     }
   }
-  else {
-    // Try to match on a pattern
-    formats.foreach-while fun(pat) {
-      val (start,n,f) = pat
-      if (h!=start) then Nothing else {
-        for-while(0,n - 1) fun(i) {
-          val starts = list(1, n - i).map( fun(_) { start }).join
-          match(fmt.starts-with(starts)) {
-            Just(slice) -> Just((f(t,starts.count), slice.string))
-            Nothing     -> Nothing
-          }
-        }
-      }
-    }.default((if (h.head-char.default(' ').alpha?) then "" else h,fmt.tail))
-  }  
+  elif(h.alpha?) {
+    // match pattern
+    val (hs,rest) = fmt.span(fun(c){c==h})
+    val n = hs.length + 1
+    formats.foreach-while fun(pattern) {
+      val (c,m,f) = pattern
+      if (c!=h) then Nothing else Just((f(t,min(n,m)), rest))
+    }.default( ("",rest) ) // ignore if no match
+  }
+  else (h.string,fmt) // return as-is
 }
+
 
 // -----------------------------------------------------------
 // Ticks
