@@ -27,13 +27,36 @@ static class _Time
   }
 
   public static DateTime New( int year, int month, int day, int hours, int minutes, int seconds, int milliseconds, bool isUtc ) {
-    return new DateTime(year,month,day,hours,minutes,seconds,milliseconds, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );
+    if (year>=1 && year<=9999 && month>=1 && month<=12 && day>=1 && day<=28 &&
+        hours>=0 && hours<=23 && minutes>=0 && minutes<=59 && seconds>=0 && seconds<=59 && 
+        milliseconds>=0 && milliseconds<=999) 
+    {
+      return new DateTime(year,month,day,hours,minutes,seconds,milliseconds, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );
+    }
+    try {
+      // normalize to prevent exceptions
+      int xyear  = (year - 1970);
+      int xmonth = (month - 1);
+      int xday   = (day - 1);    
+      DateTime d = new DateTime(1970,1,1,0,0,0,0, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );    
+      // add from small to large
+      d = d.AddMilliseconds(milliseconds).AddSeconds(seconds).AddMinutes(minutes).AddHours(hours);    
+      return d.AddYears(xyear).AddMonths(xmonth).AddDays(xday);
+    }
+    catch {
+      return DateTime.MinValue;
+    }
   }
 
   public static DateTime NewFromEpoch( double secs, bool isUtc ) {
-    long eticks = Convert.ToInt64(secs * 1.0e7); // to 100-nanoseconds
-    DateTime d = new DateTime( epoch.Ticks + eticks, DateTimeKind.Utc); 
-    return (isUtc ? d : d.ToLocalTime());
+    try {
+      long eticks = Convert.ToInt64(secs * 1.0e7); // to 100-nanoseconds
+      DateTime d = new DateTime( epoch.Ticks + eticks, DateTimeKind.Utc); 
+      return (isUtc ? d : d.ToLocalTime());
+    }
+    catch {
+      return DateTime.MinValue;
+    }
   }
 
   public static int Year( DateTime d )    { return d.Year; }

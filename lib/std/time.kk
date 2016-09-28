@@ -21,11 +21,13 @@ extern include {
 
 // A `:time` represents a certain time in a gregorian calendar.
 // When a time value is created, it is associated with either the local 
-// or UTC timezone which is used for displaying the time.
+// or UTC timezone which is used for displaying the time.\
+// Valid times must be between ``0001-01-01`` and the end of the day ``9999-12-31``.
+// If a time is created outside this range, the ``0001-01-01`` time is returned.
 public type time
 
 // Return the current time in the local timezone.
-public extern now : () -> ndet time { 
+public extern now() : ndet time { 
   cs inline "DateTime.Now"
   js "_time_now"
 }
@@ -127,6 +129,12 @@ public extern epoch-secs(t:time) : double {
   cs "_Time.EpochSecs"
   js "_time_epochsecs" 
 }
+
+// The minimal time value (``0001-01-01Z``).
+public val min-time = utc-time(1,1,1)
+
+// The maximal time value (``9999-12-31T23:59:59.999Z``).
+public val max-time = utc-time(9999,12,31,23,59,59,999)
 
 // Return the date of a time in the associated time zone. 
 // Returns the year, month (starting at 1), and day of the month (starting at 1).
@@ -262,23 +270,21 @@ fun long-year?( t : time ) : bool {
 // -----------------------------------------------------------
 
 
-// Show the time as an ISO 8601 string. 
-// See <http://en.wikipedia.org/wiki/ISO_8601>.
+// Show the time as an [ISO 8601](http://en.wikipedia.org/wiki/ISO_8601) string. 
 // For example `now().show` becomes `"2016-09-08T19:55:11.910-07:00"`.
 public fun show( t : time ) : string {
   t.show-iso
 }
 
-// Show the time as an ISO 8601 string.
-// See <http://en.wikipedia.org/wiki/ISO_8601>.
+// Show the time as an [ISO 8601](http://en.wikipedia.org/wiki/ISO_8601) string.
 // For example `now().show-iso` becomes `"2016-09-08T19:55:11.910-07:00"`.
 public fun show-iso(t : time ) : string {
-  t.format("yyyy-MM-DD'T'HH:mm:ssFFFK")
+  t.format("YYYY-MM-DD'T'HH:mm:ssFFFZ")
 }
 
 // Show the date in ISO format, i.e. ``YYYY-MM-DD`` format.
 public fun show-iso-date( t : time ) : string {
-  t.format("yyyy-MM-DD")
+  t.format("YYYY-MM-DD")
 }
 
 // Show the clock time in ISO format, i.e. ``HH:mm:ss`` format.
@@ -286,16 +292,16 @@ public fun show-iso-clock( t : time ) : string {
   t.format("HH:mm:ss")
 }
 
-// Show time as a standard Internet Message Format date (See <https://tools.ietf.org/html/rfc2822#section-3.3>).\
+// Show time as a standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) date.\
 // For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
 public fun show-imf( t : time ) : string {
-  t.format("ddd, D MMM yyyy HH:mm:ss ZZZ")
+  t.format("ddd, D MMM YYYY HH:mm:ss zz")
 }
 
 // Show the time as a human readable English string.
 // For example `now().en-time` -> `"Thu, 8 Oct 2016, 19:48:11"`.
 public fun show-en( t : time ) : string {
-  t.format("ddd, D MMM yyyy, HH:mm:ss")
+  t.format("ddd, D MMM YYYY, HH:mm:ss")
 }
 
 // Show the 24-hour clock time in human readable English.
@@ -307,7 +313,7 @@ public fun show-en-clock( t : time ) : string {
 // Show the date in human readable English.
 // For example `now().en-date` -> `"Thu, 8 Oct 2016"`.
 public fun show-en-date( t : time ) : string {
-  t.format("ddd, D MMM yyyy")
+  t.format("ddd, D MMM YYYY")
 }
 
 
@@ -315,8 +321,8 @@ public fun show-en-date( t : time ) : string {
 // Format helpers
 // -----------------------------------------------------------
 
-// Show the timezone offset in ISO format.
-// `now().show-timezone` -> `"-07:00"`.
+// Show the timezone offset (by default in the ISO 8601 format).
+// `now().show-timezone` becomes `"-07:00"`.
 // The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
 // while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
 // other timezone offsets. The `hrwidth` (=`2`) parameter gives the minimal width of the hours part.
@@ -390,7 +396,13 @@ fun format-month( t : time, n : int ) : string {
 }
 
 fun format-year( t : time, n : int ) : string {
-  t.date.fst.showl(n).last(n).string
+  if (n<5) then {
+    t.year.abs0.showl(n).last(n).string
+  }
+  else {
+    val y = t.year.abs0.showl(n)
+    if (t.year<0) then "-" + y else "+" + y
+  }
 }
 
 fun format-seconds( t : time, n : int ) : string {
@@ -432,86 +444,71 @@ fun format-frac0( t : time, n : int ) : string {
 }
 
 fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
-  if (n<=2) then {
-    val s = show-timezone(t,hmsep=":",hrwidth=n)
-    match(s.find(":")) {
-      Just(slice) -> slice.before.string
-      Nothing     -> s.first(3).string  // should never happen
-    }
-  }
-  else {
-    show-timezone(t,hmsep=hmsep,utc=utc)
-  } 
+  show-timezone(t,hmsep=hmsep,utc=utc)
 }
 
 fun format-timezone( t : time, n : int ) : string {
-  format-tz-offset(t,n,":",if (n<4) then "+00:00" else "")
+  format-tz-offset(t,n,if (n==2) then "" else ":",if (n==2) then "+0000" else "+00:00")
 }
 
-fun format-imf-timezone( t : time, n : int ) : string {
-  format-tz-offset(t,n,"",if (n<4) then "+0000" else "")
+fun format-utc-timezone( t : time, n : int ) : string {
+  format-tz-offset(t,n,":",if (n==2) then "" else "Z")
 }
 
-fun format-iso-timezone( t : time, n : int ) : string {
-  format-tz-offset(t,4,":","Z")
-}
 
 val formats : list<(char,int,(time,int) -> string)> = [
-  ('y', 5, format-year),
+  ('Y', 6, format-year),
   ('M', 4, format-month),
   ('D', 4, format-day),
   ('H', 2, format-hours),
   ('m', 2, format-minutes),
   ('s', 2, format-seconds),
-  ('K', 1, format-iso-timezone),
-  ('z', 4, format-timezone),
-  ('Z', 4, format-imf-timezone),
+  ('z', 2, format-timezone),
+  ('Z', 2, format-utc-timezone),
   ('f', 8, format-frac0),
   ('F', 8, format-frac),
   ('d', 4, format-weekday),
   ('w', 2, format-week),
   ('h', 2, format-hours12),
-  ('t', 2, format-ampm),
-  ('T', 2, format-upper-ampm),
+  ('a', 2, format-ampm),
+  ('A', 2, format-upper-ampm),
 ]
 
 /* Format a time according to format string `fmt`.
 
 Letters (``a`` to ``z``) are always interpreted as a pattern where unknown letter
-patterns are ignored. Any literal text should be quote-escaped i.e. use `"'GMT'zzzz"` 
+patterns are ignored. Any literal text should be quote-escaped i.e. use `"'GMT'ZZ"` 
 to display as `"GMT-07:00"` (in the PST time zone). Any characters other then
 an ascii letter are displayed as is.
 
 Patterns of 2 letters are zero-padded on the left to always
 display as 2 digits. Allowed patterns:
 
-* ``y``,``yy``,``yyy``,``yyyy``,``yyyyy``: the year in upto 5 digits (``yyyy`` becomes ``2016``)
+* ``YY``, ```YYYY``: the year in upto 4 digits (``70``,``1970``).
 * ``M``, ``MM``: the month. (``1``,``03``)
 * ``MMM``, ``MMMM``: name of the month in English. (``Jan``, ``January``)
 * ``D``,``DD``: the day of the month. (``1``,``08``)
 * ``DDD``,``DDDD``: the day of the year. (``87``,``087``)
-* ``d``: the day of the week, 1 for Monday ending in 7 for Sunday.
+* ``d``: the ISO day of the week, 1 for Monday ending in 7 for Sunday.
 * ``dd``,``ddd``,``dddd``: the day of the week in English. (``We``,``Wed``,``Wednesday``)
 * ``w``,``ww``, the ISO week number of the year between 1 and 53. (``8``,``08``)
 * ``h``,``hh``: the hours using a 12-hour clock (with am/pm). (``9``,``09``)
 * ``H``,``HH``: the hours using a 24-hour clock. (``21``,``09``)
-* ``t``,``tt``: AM/PM designation. (``a``,``am``)
-* ``T``,``TT``: AM/PM designation in upper-case. (``A``,``AM``)
-* ``f``,...,``ffffffff``: upto 8 digits of afraction of a second. Starts with a ``.``. (``.320``,``.000``)
+* ``a``,``aa``: AM/PM designation. (``a``,``am``)
+* ``A``,``AA``: AM/PM designation in upper-case. (``A``,``AM``)
+* ``f``,...,``ffffffff``: upto 8 digits of a fraction of a second. Starts with a ``.``. (``.320``,``.000``)
 * ``F``,...,``FFFFFFFF``: upto 8 digits of a fraction of a second. If not zero, starts with a ``.``.
     In contrast to the ``f`` patterns displays the minimal number of required digits 
     (and is not right-padded with zeros). (``.32``)
-* ``z``,``zz``: timezone offset in hours. (``-7``,``-07``)
-* ``zzz``,``zzzz``: timezone offset in hours and minutes separated by a colon. UTC time for ``zzz`` is displayed as ``+00:00`` while
-   with ``zzzz`` UTC is an empty string. (``-07:00``)
-* ``Z``,``ZZ``: timezone offset in hours. (``-7``,``-07``)
-* ``ZZZ``,``ZZZZ``: timezone offset in hours and minutes. UTC time for ``ZZZ`` is displayed as ``+0000`` while
-   with ``ZZZZ`` UTC is an empty string. (``-0700``,``+0800``)
-* ``K``: timezone in the ISO8601 standard using ``Z`` for UTC. (``Z``,``+08:00``) 
+* ``z``: timezone offset in hours and minutes separated by a colon. Use ``+00:00`` for UTC time. (``+01:00``)
+* ``zz``: timezone offset in hours and minutes without a separator. Use ``+0000`` for UTC time. (``-0700``)
+* ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.   
+* ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
+* ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
-you can use `now().format("ddd, d MMM yyyy HH:mm:ss ZZZ")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
+you can use `now().format("ddd, d MMM yyyy HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
 public fun format( t : time, fmt : string ) : string {
   format-list( t, fmt.list )
