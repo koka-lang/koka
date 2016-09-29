@@ -288,11 +288,9 @@ public fun week-to-day-of-year( year : int, week : int, weekday : int ) : int {
   (((7*week) + weekday) - adjust)
 }
 
-
 // -----------------------------------------------------------
 // Formatting
 // -----------------------------------------------------------
-
 
 // Show the time as an [ISO 8601](http://en.wikipedia.org/wiki/ISO_8601) string. 
 // For example `now().show` becomes `"2016-09-08T19:55:11.910-07:00"`.
@@ -341,85 +339,74 @@ public fun show-en-date( t : time ) : string {
 }
 
 
+
 // -----------------------------------------------------------
-// Format helpers
+// Ticks
 // -----------------------------------------------------------
 
-// Show the timezone offset (by default in the ISO 8601 format).
-// `now().show-timezone` becomes `"-07:00"`.
-// The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
-// while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
-// other timezone offsets. The `hrwidth` (=`2`) parameter gives the minimal width of the hours part.
-fun show-timezone( t : time, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2 ) : string {
-  val ofs    = t.timezone-offset / 60  // convert to minutes
-  if (ofs==0) return utc
-  val absofs = if (ofs >= 0) then ofs else ~ofs
-  (if (ofs >= 0) then "+" else "-") + 
-   ((absofs / 60).showl(hrwidth)) + hmsep + ((absofs % 60).showl)
+// Return a high-resolution timestamp in fractional seconds. 
+// The timestamp is guaranteed to be monotonically increasing
+// and have at least millisecond resolution. 
+public extern ticks() : ndet double {
+  cs "_Time.Ticks"
+  js "_ticks"
 }
 
-fun showl( i : int, width : int = 2 ) : string {
-  i.show.pad-left(width,"0")
+// Return the smallest time difference in seconds that `ticks` can measure.
+public extern ticks-resolution() : ndet double {
+  cs inline "_Time.TicksResolution"
+  js inline "_ticks_resolution"
 }
 
-// Return the full day of the week in English
-fun show-en-day( t : time ) : string {
-  days[t.day-of-week - 1].maybe("?")
+// Return the number of fractional seconds that it takes to evaluate `action`.
+public fun elapsed( action : () -> <ndet|e> a ) : <ndet|e> (double,a) {
+  val t0 = ticks()
+  val x = action()
+  val t1 = ticks()
+  (t1 - t0,x)
 }
 
-// Return the full month in English
-fun show-en-month( t : time ) : string {
-  val (_,month,_) = t.date
-  months[month - 1].maybe("?")
-}
-
-val days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-val months = ["January","February","March","April","May","June",
-              "July","August","September","October","November","December"]
+// Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the
+// measured time in millisecond resolution.
+public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
+  val (t,x) = elapsed(action)
+  println( msg + " " + t.show-fixed(3) + "s" )
+  x
+} 
 
 
-fun month-from-name( mname : string ) : maybe<int> {
-  val lname = mname.to-lower
-  fun search( names : list<string>, month : int ) : maybe<int> {
-    match(names) {
-      Nil -> Nothing
-      Cons(name,rest) -> {
-        if (name.to-lower.starts-with(lname).bool) 
-         then Just(month) 
-         else search(rest,month+1)
-      }
-    }
-  }
-  search(months,1)
-}
 
 // -----------------------------------------------------------
 // Generic Formatting
 // -----------------------------------------------------------
 
-fun format-weekday( t : time, n : int ) : string {
-  if (n==2 || n==3) then t.show-en-day.first(n).string
-  elif (n==4) then t.show-en-day
-  else t.day-of-week.show
+fun format-weekday( t : time, n : int, locale : time-locale ) : string {
+  if (n==1) then t.day-of-week.show else {
+    val days = if (n==2) then locale.day-names-min
+               elif (n==3) then locale.day-names-short
+               else locale.day-names
+    days[t.day-of-week - 1].default("?")               
+  }
 }
 
-fun format-day( t : time, n : int ) : string {
+fun format-day( t : time, n : int, locale : time-locale ) : string {
   if (n==3) then t.day-of-year.show
   elif (n==4) then t.day-of-year.showl(3)
   else t.day.showl(n)
 }
 
-fun format-week( t : time, n : int ) : string {
+fun format-week( t : time, n : int, locale : time-locale ) : string {
   t.week-of-year.showl(n)
 }
 
-fun format-month( t : time, n : int ) : string {
-  if (n==3) then t.show-en-month.first(3).string
-  elif (n==4) then t.show-en-month
-  else t.date.snd.showl(n)
+fun format-month( t : time, n : int, locale : time-locale ) : string {
+  if (n<=2) then t.month.showl(n) else {
+    val months = if (n==3) then locale.month-names-short else locale.month-names
+    months[t.month - 1].default("?")
+  }
 }
 
-fun format-year( t : time, n : int ) : string {
+fun format-year( t : time, n : int, locale : time-locale ) : string {
   if (n<5) then {
     t.year.abs0.showl(n).last(n).string
   }
@@ -429,40 +416,42 @@ fun format-year( t : time, n : int ) : string {
   }
 }
 
-fun format-seconds( t : time, n : int ) : string {
-  t.clock.thd.showl(n)
+fun format-seconds( t : time, n : int, locale : time-locale ) : string {
+  t.seconds.showl(n)
 }
 
-fun format-minutes( t : time, n : int ) : string {
-  t.clock.snd.showl(n)
+fun format-minutes( t : time, n : int, locale : time-locale ) : string {
+  t.minutes.showl(n)
 }
 
-fun format-hours( t : time, n : int ) : string {
-  t.clock.fst.showl(n)
+fun format-hours( t : time, n : int, locale : time-locale ) : string {
+  t.hours.showl(n)
 }
 
-fun format-hours12( t : time, n : int ) : string {
-  val h = t.clock.fst
-  if (h <= 12) then h.showl(n) else (h - 12).showl(n)
+fun format-hours12( t : time, n : int, locale : time-locale ) : string {
+  val h = t.hours
+  if (h==0 || h==12) then "12"
+  elif (h<=11) then h.showl(n) 
+  else (h - 12).showl(n)
 }
 
-fun format-ampm( t : time, n : int ) : string {
-  val h = t.clock.fst
-  (if (h <= 12) then "am" else "pm").first(n).string
+fun format-ampm( t : time, n : int, locale : time-locale ) : string {
+  val h = t.hours
+  (if (h<=11) then "am" else "pm").first(n).string
 }
 
-fun format-upper-ampm( t : time, n : int ) : string {
-  format-ampm(t,n).to-upper
+fun format-upper-ampm( t : time, n : int, locale : time-locale ) : string {
+  format-ampm(t,n,locale).to-upper
 }
 
-fun format-frac( t : time, n : int ) : string {
+fun format-frac( t : time, n : int, locale : time-locale ) : string {
   val ms   = t.clock.field4
   if (ms==0) return ""
   val frac = ms.double / 1000.0
   frac.show-fixed(n).tail
 }
 
-fun format-frac0( t : time, n : int ) : string {
+fun format-frac0( t : time, n : int, locale : time-locale ) : string {
   val ms = t.clock.field4
   "." + ms.showl(3).first(n).string.pad-right(n,"0")
 }
@@ -471,20 +460,20 @@ fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string
   show-timezone(t,hmsep=hmsep,utc=utc)
 }
 
-fun format-timezone( t : time, n : int ) : string {
+fun format-timezone( t : time, n : int, locale : time-locale ) : string {
   format-tz-offset(t,n,if (n==2) then "" else ":",if (n==2) then "+0000" else "+00:00")
 }
 
-fun format-utc-timezone( t : time, n : int ) : string {
+fun format-utc-timezone( t : time, n : int, locale : time-locale ) : string {
   format-tz-offset(t,n,":",if (n==2) then "" else "Z")
 }
 
-fun format-timestamp( t : time, n : int ) : string {
+fun format-timestamp( t : time, n : int, locale : time-locale ) : string {
   t.total-seconds.show-fixed(3)
 }
 
 
-val formats : list<(char,int,(time,int) -> string)> = [
+val formats : list<(char,int,(time,int,time-locale) -> string)> = [
   ('Y', 6, format-year),
   ('M', 4, format-month),
   ('D', 4, format-day),
@@ -540,21 +529,21 @@ display as 2 digits. Allowed patterns:
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
 you can use `now().format("ddd, D MMM YYYY HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
-public fun format( t : time, fmt : string ) : string {
-  format-list( t, fmt.list )
+public fun format( t : time, fmt : string, locale : time-locale = time-locale-en ) : string {
+  format-list( t, fmt.expand-locales(locale).expand-locales(locale).list, locale )
 }
 
-fun format-list( t : time, fmt : list<char> ) : string {  
+fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {  
   match(fmt) {
     Nil -> ""
     Cons(c,cs) -> {
-      val (formatted,rest) = format-pat(t,c,cs)
-      formatted + format-list(t, unsafe-decreasing(rest))
+      val (formatted,rest) = format-pat(t,c,cs,locale)
+      formatted + format-list(t, unsafe-decreasing(rest), locale)
     }
   }
 }
 
-fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
+fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) {
   if (h=='"' || h=='\'') {
     // extract escaped part
     val (quoted,end) = fmt.span( fun(c) { c!=h } )
@@ -569,11 +558,58 @@ fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
     val n = hs.length + 1
     formats.foreach-while fun(pattern) {
       val (c,m,f) = pattern
-      if (c!=h) then Nothing else Just((f(t,min(n,m)), rest))
+      if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
     }.default( ("",rest) ) // ignore if no match
   }
   else (h.string,fmt) // return as-is
 }
+
+fun expand-locales( fmt : string, locale : time-locale ) : string {
+  fmt.replace-all(rx-locale) fun(cap) {
+    val n = cap.matched.count
+    if (cap.groups[1] != "") then {
+      cap.matched
+    }
+    elif (cap.groups[2] != "") then {
+      if (n>=2) then locale.format-tt else locale.format-t
+    }
+    else {
+      val nfmt = if (n>=4) then locale.format-llll elif (n==3) then locale.format-lll
+                 elif (n==2) then locale.format-ll else locale.format-l
+      if (cap.groups[3] != "") then {
+        nfmt
+      }
+      else {
+        nfmt.replace-all(rx-long, fun(capl) { capl.matched.tail })
+      }
+    }
+  }
+}
+val rx-locale = regex(@"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
+val rx-long   = regex(@"dddd+|MMMM+|DD(?!D)")
+
+// -----------------------------------------------------------
+// Format helpers
+// -----------------------------------------------------------
+
+// Show the timezone offset (by default in the ISO 8601 format).
+// `now().show-timezone` becomes `"-07:00"`.
+// The `utc` (`"Z"`) parameter gives the form used for the UTC timezone,
+// while the `hmsep` (`":"`) gives the separator used between the hours and minutes of
+// other timezone offsets. The `hrwidth` (=`2`) parameter gives the minimal width of the hours part.
+fun show-timezone( t : time, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2 ) : string {
+  val ofs    = t.timezone-offset / 60  // convert to minutes
+  if (ofs==0) return utc
+  val absofs = if (ofs >= 0) then ofs else ~ofs
+  (if (ofs >= 0) then "+" else "-") + 
+   ((absofs / 60).showl(hrwidth)) + hmsep + ((absofs % 60).showl)
+}
+
+fun showl( i : int, width : int = 2 ) : string {
+  i.show.pad-left(width,"0")
+}
+
+
 
 // -----------------------------------------------------------
 // Parsing 
@@ -666,37 +702,86 @@ public fun parse-imf( s : string ) : maybe<time> {
 }
 val rx-imf = regex(@"^ *(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun) *, *)? (\d\d?) *(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) *(\d\d(?:\d\d)?) +(\d\d?):(\d\d?)(?::(\d\d))? *(?:([\+\-])(\d\d)(\d\d) *)?$")
 
+fun month-from-name( mname : string ) : maybe<int> {
+  val lname = mname.to-lower
+  fun search( names : list<string>, month : int ) : maybe<int> {
+    match(names) {
+      Nil -> Nothing
+      Cons(name,rest) -> {
+        if (name.to-lower.starts-with(lname).bool) 
+         then Just(month) 
+         else search(rest,month+1)
+      }
+    }
+  }
+  search(time-locale-en.month-names,1)
+}
+
 
 // -----------------------------------------------------------
-// Ticks
+// Time locale
 // -----------------------------------------------------------
 
-// Return a high-resolution timestamp in fractional seconds. 
-// The timestamp is guaranteed to be monotonically increasing
-// and have at least millisecond resolution. 
-public extern ticks() : ndet double {
-  cs "_Time.Ticks"
-  js "_ticks"
-}
+public struct time-locale(
+  day-names       : list<string>,
+  month-names     : list<string>,
+  month-names-short: list<string> = month-names.map(fun(m) { m.first(3).string }),
+  day-names-short : list<string>  = day-names.map(fun(m) { m.first(3).string }),
+  day-names-min   : list<string>  = day-names.map(fun(m) { m.first(2).string }),
+  format-t        : string = "HH:mm",
+  format-tt       : string = "HH:mm:ss",
+  format-l        : string = "YYYY-MM-DD",
+  format-ll       : string = "D MMMM YYYY",
+  format-lll      : string = "D MMMM YYYY t",
+  format-llll     : string = "dddd D MMMM YYYY t"
+)
 
-// Return the smallest time difference in seconds that `ticks` can measure.
-public extern ticks-resolution() : ndet double {
-  cs inline "_Time.TicksResolution"
-  js inline "_ticks_resolution"
-}
+public val time-locale-en : time-locale = Time-locale( 
+  ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+  ["January","February","March","April","May","June","July","August","September","October","November","December"],
+  format-t    = "h:mm aa",
+  format-tt   = "h:mm:ss aa",
+  format-l    = "MM/DD/YYYY",
+  format-llll = "dddd, D MMMM YYYY t"
+)
 
-// Return the number of fractional seconds that it takes to evaluate `action`.
-public fun elapsed( action : () -> <ndet|e> a ) : <ndet|e> (double,a) {
-  val t0 = ticks()
-  val x = action()
-  val t1 = ticks()
-  (t1 - t0,x)
-}
+public val time-locale-fr : time-locale = Time-locale( 
+  ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],
+  ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
+  ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."],
+  ["lun.","mar.","mer.","jeu.","ven.","sam.","dim."],
+  ["Lu","Ma","Me","Je","Ve","Sa","Di"],
+  format-l    = "DD/MM/YYYY"
+)
 
-// Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the
-// measured time in millisecond resolution.
-public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
-  val (t,x) = elapsed(action)
-  println( msg + " " + t.show-fixed(3) + "s" )
-  x
-} 
+public val time-locale-de : time-locale = Time-locale( 
+  ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],
+  ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
+  ["Jan.","Febr.","Mrz.","Apr.","Mai","Jun.","Jul.","Aug.","Sept.","Okt.","Nov.","Dez."],
+  ["Mo.","Di.","Mi.","Do.","Fr.","Sa.","So."],
+  ["Mo","Di","Mi","Do","Fr","Sa","So"],
+  format-l    = "DD.MM.YYYY",
+  format-ll   = "D. MMMM YYYY",
+  format-lll  = "D. MMMM YYYY t",
+  format-llll = "dddd, D. MMMM YYYY t"
+)
+
+public val time-locale-es : time-locale = Time-locale(
+  ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"],
+  ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
+  format-t    = "H:mm",
+  format-tt   = "H:mm:ss",
+  format-l    = "DD/MM/YYYY",
+  format-ll   = "D 'de' MMMM 'de' YYYY",
+  format-lll  = "D 'de' MMMM 'de' YYYY H:mm",
+  format-llll = "dddd, D 'de' MMMM 'de' YYYY H:mm"
+)
+
+public val time-locale-nl : time-locale = Time-locale(
+  ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"],
+  ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"],
+  ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
+  ["ma.","di.","wo.","do.","vr.","za.","zo."],
+  ["Ma","Di","Wo","Do","Vr","Za","Zo"],
+  format-l    = "DD-MM-YYYY"
+)
