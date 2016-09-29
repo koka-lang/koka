@@ -826,7 +826,17 @@ fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 // Find the first element satisfying some predicate
 fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
 {
-  xs.filter(pred).maybe
+  xs.foreach-while fun(x) {
+    if (pred(x)) then Just(x) else Nothing
+  }
+}
+
+// Lookup the first element satisfying some predicate
+fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+{
+  xs.foreach-while fun(kv) {
+    if (pred(kv.fst)) then Just(kv.snd) else Nothing
+  }  
 }
 
 // Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
