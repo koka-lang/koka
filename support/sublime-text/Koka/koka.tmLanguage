@@ -735,7 +735,7 @@
 		<key>reservedid</key>
 		<dict>
 			<key>match</key>
-			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?!\w)</string>
+			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\w\-?'])</string>
 			<key>name</key>
 			<string>keyword.other.koka</string>
 		</dict>
@@ -972,12 +972,12 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(struct)\s+([a-z]\w*|\(,*\))</string>
+			<string>(struct)\s+([a-z][\w\-]*|\(,*\))</string>
 		</dict>
 		<key>top_type_struct_args</key>
 		<dict>
 			<key>begin</key>
-			<string>(struct)\s+([a-z]\w*|\(,*\))\s*(&lt;)</string>
+			<string>(struct)\s+([a-z][\w\-]*|\(,*\))\s*(&lt;)</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
