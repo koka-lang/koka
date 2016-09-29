@@ -575,25 +575,42 @@ fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
 // Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
 // Always returns a UTC time. Use `local` to convert to the local time.
 public fun parse-iso( s : string ) : maybe<time> {
-  match(s.find(rx-iso)) {
+  match(s.find(rx-iso-date)) {
     Nothing -> Nothing
-    Just(cap) -> {
-      val year  = parse-int-default(cap.groups[1])
-      val month = parse-int-default(cap.groups[2])
-      val day   = parse-int-default(cap.groups[3])
-      val hours = parse-int-default(cap.groups[4])
-      val mins  = parse-int-default(cap.groups[5])
-      val secs  = parse-int-default(cap.groups[6])
-      val msecs = parse-int-default((cap.groups[7] + "000").first(3).string)
-      val tzsign= if (cap.groups[8]=="+") then 1 else ~1
-      val tzhours= parse-int-default(cap.groups[9]) 
-      val tzmins = parse-int-default(cap.groups[10])
-      val tzofs = tzsign * ((tzhours * 60) + tzmins)
-      Just(utc-time(year,month,day,hours,mins - tzofs,secs,msecs))
+    Just(capd) -> {
+      val xyear = capd.num(1)
+      val (year,month,day) =
+        if (capd.groups[2] != "") 
+          then (xyear,capd.num(2),capd.num(3)) 
+          else {
+            val day = if (capd.groups[4] != "") 
+                       then week-to-day-of-year(xyear,capd.num(4),capd.num(5))
+                       else capd.num(6)
+            utc-time(xyear,1,day).date
+          }
+      match(capd.slice.after.string.find(rx-iso-time)) {
+        Nothing    -> Nothing
+        Just(capt) -> {
+          val hours = capt.num(1)
+          val mins  = capt.num(2)
+          val secs  = capt.num(3)
+          val msecs = parse-int-default((capt.groups[4] + "000").first(3).string)
+          val tzsign= if (capt.groups[5]=="+") then 1 else ~1
+          val tzhours= capt.num(6) 
+          val tzmins = capt.num(7)
+          val tzofs = tzsign * ((tzhours * 60) + tzmins)
+          Just(utc-time(year,month,day,hours,mins - tzofs,secs,msecs))
+        }
+      }
     }
   }
 }
-val rx-iso = regex(@"^(\d\d\d\d)\-?(\d\d?)\-?(\d\d?)(?:T(\d\d?):?(\d\d?)(?:[:]?(\d\d?))?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:[:]?(\d\d))?)?$");
+val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)|(\d\d\d))(?=$|[T\+\- ]\d|Z)");
+val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
+
+fun num( cap : matched, group : int ) : int {
+  parse-int-default(cap.groups[group])
+}
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
 // Always returns a UTC time. Use `local` to convert to the local time.
@@ -601,15 +618,15 @@ public fun parse-imf( s : string ) : maybe<time> {
   match(s.find(rx-imf)) {
     Nothing -> Nothing
     Just(cap) -> {
-      val day = parse-int-default(cap.groups[2])
+      val day   = cap.num(2)
       val month = month-from-name(cap.groups[3]).default(1)
-      val xyear = parse-int-default(cap.groups[4])
-      val hours = parse-int-default(cap.groups[5])
-      val mins  = parse-int-default(cap.groups[6])
-      val secs  = parse-int-default(cap.groups[7])
+      val xyear = cap.num(4)
+      val hours = cap.num(5)
+      val mins  = cap.num(6)
+      val secs  = cap.num(7)
       val tzsign= if (cap.groups[8]=="+") then 1 else ~1
-      val tzhours= parse-int-default(cap.groups[9]) 
-      val tzmins = parse-int-default(cap.groups[10])
+      val tzhours= cap.num(9) 
+      val tzmins = cap.num(10)
       // adjust 2 digit year
       val year  = if (cap.groups[4].count <= 2) 
                    then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
