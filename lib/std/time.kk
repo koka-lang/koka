@@ -492,7 +492,8 @@ val formats : list<(char,int,(time,int,time-locale) -> string)> = [
   ('x', 1, format-timestamp), 
 ]
 
-/* Format a time according to format string `fmt`.
+/* Format a time according to format string `fmt` and using a optional
+   time locale (= `time-locale-en-iso`).
 
 Letters (``a`` to ``z``) are always interpreted as a pattern where unknown letter
 patterns are ignored. Any literal text should be quote-escaped i.e. use `"'GMT'ZZ"` 
@@ -526,10 +527,21 @@ display as 2 digits. Allowed patterns:
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
+There are also various forms to display dates and times in a locale specific way.
+We give examples in English and Dutch. The lower-case ``l`` variants use short
+names for month- and day names.
+
+* ``t``: hours and minutes (``3:21pm, 15:21``)
+* ``tt``: hours, minutes, and seconds (``3:21:01pm, 15:21:01``)
+* ``L``,``l``: a date (``09/29/2016, 29.09.2016``) and (``9/29/2016, 29.9.2016``)
+* ``LL``,``ll``: date with month name (``29 September 2016, 29 september 2016``) and (``29 Sep 2016, 29 sep 2016``)
+* ``LLL``,``lll``: date with month name and time (``29 September 2016 1:15pm, 29 september 2016 13:15``)
+* ``LLLL``,``llll``: date with day name, month name, and time (``Thursday, 29 September 2016 1:15pm``) and (``Thu, 29 Sep 2016 1:15pm``)
+
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
 you can use `now().format("ddd, D MMM YYYY HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
-public fun format( t : time, fmt : string, locale : time-locale = time-locale-en ) : string {
+public fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string {
   format-list( t, fmt.expand-locales(locale).expand-locales(locale).list, locale )
 }
 
@@ -714,7 +726,7 @@ fun month-from-name( mname : string ) : maybe<int> {
       }
     }
   }
-  search(time-locale-en.month-names,1)
+  search(time-locale-en-iso.month-names,1)
 }
 
 
@@ -722,7 +734,10 @@ fun month-from-name( mname : string ) : maybe<int> {
 // Time locale
 // -----------------------------------------------------------
 
+// The `:time-locale` describes time and date formats for a specific locale.
 public struct time-locale(
+  // Language name, for example `en` or `fr-ca`.                          
+  lang-name       : string,                            
   day-names       : list<string>,
   month-names     : list<string>,
   month-names-short: list<string> = month-names.map(fun(m) { m.first(3).string }),
@@ -736,16 +751,25 @@ public struct time-locale(
   format-llll     : string = "dddd D MMMM YYYY t"
 )
 
-public val time-locale-en : time-locale = Time-locale( 
+// English time locale (`en`)
+public val time-locale-en : time-locale = Time-locale( "en",
   ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
   ["January","February","March","April","May","June","July","August","September","October","November","December"],
-  format-t    = "h:mm aa",
-  format-tt   = "h:mm:ss aa",
+  format-t    = "h:mmaa",
+  format-tt   = "h:mm:ssaa",
   format-l    = "MM/DD/YYYY",
   format-llll = "dddd, D MMMM YYYY t"
 )
 
-public val time-locale-fr : time-locale = Time-locale( 
+// ISO English time locale (`en-iso`). Uses English names for
+// months and days but displays numeric dates and times using unambigious ISO format. 
+public val time-locale-en-iso : time-locale = Time-locale( "en-iso",
+  day-names   = time-locale-en.day-names,
+  month-names = time-locale-en.month-names
+)
+
+// French time locale (`fr`)
+public val time-locale-fr : time-locale = Time-locale( "fr",                                                      
   ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"],
   ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"],
   ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."],
@@ -754,7 +778,8 @@ public val time-locale-fr : time-locale = Time-locale(
   format-l    = "DD/MM/YYYY"
 )
 
-public val time-locale-de : time-locale = Time-locale( 
+// German time locale (`de`)
+public val time-locale-de : time-locale = Time-locale( "de",
   ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],
   ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
   ["Jan.","Febr.","Mrz.","Apr.","Mai","Jun.","Jul.","Aug.","Sept.","Okt.","Nov.","Dez."],
@@ -766,7 +791,8 @@ public val time-locale-de : time-locale = Time-locale(
   format-llll = "dddd, D. MMMM YYYY t"
 )
 
-public val time-locale-es : time-locale = Time-locale(
+// Spanish time locale (`es`)
+public val time-locale-es : time-locale = Time-locale( "es",
   ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"],
   ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"],
   format-t    = "H:mm",
@@ -777,7 +803,8 @@ public val time-locale-es : time-locale = Time-locale(
   format-llll = "dddd, D 'de' MMMM 'de' YYYY H:mm"
 )
 
-public val time-locale-nl : time-locale = Time-locale(
+// Dutch time locale (`nl`)
+public val time-locale-nl : time-locale = Time-locale( "nl",
   ["maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag","zondag"],
   ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"],
   ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
@@ -785,3 +812,16 @@ public val time-locale-nl : time-locale = Time-locale(
   ["Ma","Di","Wo","Do","Vr","Za","Zo"],
   format-l    = "DD-MM-YYYY"
 )
+
+val locales = [
+  time-locale-de,time-locale-en,
+  time-locale-es,time-locale-fr,
+  time-locale-nl,time-locale-en-iso
+]
+
+// Return a builtin locale given a locale string (e.g. `en-GB`, `es`); 
+// Use `time-locale-iso` if no particular match is found.
+// Supports `de`,`en`,`es`,`fr`,`nl` and `en-iso`.
+public fun get-time-locale( locale : string ) : time-locale {
+  locales.find(fun(l) { locale.starts-with(l.lang-name).bool }).default(time-locale-en-iso)
+}
