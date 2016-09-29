@@ -320,22 +320,16 @@ public fun show-imf( t : time ) : string {
   t.format("ddd, D MMM YYYY HH:mm:ss zz")
 }
 
-// Show the time as a human readable English string.
-// For example `now().en-time` -> `"Thu, 8 Oct 2016, 19:48:11"`.
+// Show the time as a human readable English string (using ISO clock time)
+// For example `now().show-en` -> `"Thu, 8 Oct 2016, 19:48:11"`.
 public fun show-en( t : time ) : string {
-  t.format("ddd, D MMM YYYY, HH:mm:ss")
-}
-
-// Show the 24-hour clock time in human readable English.
-// For example `now().en-time` -> `"09:48:11"`.
-public fun show-en-clock( t : time ) : string {
-  t.format("HH:mm:ss")
+  t.format("llll")
 }
 
 // Show the date in human readable English.
-// For example `now().en-date` -> `"Thu, 8 Oct 2016"`.
+// For example `now().show-en-date` -> `"Thu, 8 Oct 2016"`.
 public fun show-en-date( t : time ) : string {
-  t.format("ddd, D MMM YYYY")
+  t.format("ll")
 }
 
 
@@ -765,7 +759,9 @@ public val time-locale-en : time-locale = Time-locale( "en",
 // months and days but displays numeric dates and times using unambigious ISO format. 
 public val time-locale-en-iso : time-locale = Time-locale( "en-iso",
   day-names   = time-locale-en.day-names,
-  month-names = time-locale-en.month-names
+  month-names = time-locale-en.month-names,
+  format-lll  = "D MMMM YYYY, tt",
+  format-llll = "dddd, D MMMM YYYY, tt"
 )
 
 // French time locale (`fr`)
@@ -814,14 +810,16 @@ public val time-locale-nl : time-locale = Time-locale( "nl",
 )
 
 val locales = [
+  // from most specific (``en-GB`` to least specific ``en``)
+  time-locale-en-iso,
   time-locale-de,time-locale-en,
   time-locale-es,time-locale-fr,
-  time-locale-nl,time-locale-en-iso
+  time-locale-nl
 ]
 
-// Return a builtin locale given a locale string (e.g. `en-GB`, `es`); 
+// Return a builtin locale given a locale string (e.g. ``en-GB``, ``es``); 
 // Use `time-locale-iso` if no particular match is found.
-// Supports `de`,`en`,`es`,`fr`,`nl` and `en-iso`.
+// Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
 public fun get-time-locale( locale : string ) : time-locale {
   locales.find(fun(l) { locale.starts-with(l.lang-name).bool }).default(time-locale-en-iso)
 }
