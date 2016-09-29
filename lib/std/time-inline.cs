@@ -35,27 +35,30 @@ static class _Time
         hours>=0 && hours<=23 && minutes>=0 && minutes<=59 && seconds>=0 && seconds<=59 && 
         milliseconds>=0 && milliseconds<=999) 
     {
+      // only call constructor when all arguments are in-range (or an exception is thrown)
       return new DateTime(year,month,day,hours,minutes,seconds,milliseconds, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );
     }
     try {
-      // normalize to prevent exceptions
+      // otherwise normalize to prevent exceptions
       int xyear  = (year - 1970);
       int xmonth = (month - 1);
       int xday   = (day - 1);    
       DateTime d = new DateTime(1970,1,1,0,0,0,0, isUtc ? DateTimeKind.Utc : DateTimeKind.Local );    
-      // add from small to large
-      d = d.AddMilliseconds(milliseconds).AddSeconds(seconds).AddMinutes(minutes).AddHours(hours);    
-      return d.AddYears(xyear).AddMonths(xmonth).AddDays(xday);
+      // add from large to small
+      d = d.AddYears(xyear).AddMonths(xmonth).AddDays(xday);
+      d = d.AddHours(hours).AddMinutes(minutes).AddSeconds(seconds).AddMilliseconds(milliseconds);    
+      return d;
     }
     catch {
+      // if we get out of range return the minimal date
       return DateTime.MinValue;
     }
   }
 
-  public static DateTime NewFromEpoch( double secs, bool isUtc ) {
+  public static DateTime NewFromSeconds( double secs, bool isUtc ) {
     try {
       long eticks = Convert.ToInt64(secs * 1.0e7); // to 100-nanoseconds
-      DateTime d = new DateTime( epoch.Ticks + eticks, DateTimeKind.Utc); 
+      DateTime d = new DateTime( eticks, DateTimeKind.Utc); 
       return (isUtc ? d : d.ToLocalTime());
     }
     catch {

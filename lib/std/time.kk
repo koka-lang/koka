@@ -71,9 +71,9 @@ extern new-time(year:int, month : int, day:int,hours:int,minutes:int,seconds:int
   js "_time_new"
 }
 
-extern new-time( epoch-seconds : double, is-utc:bool ) : time {
-  cs "_Time.NewFromEpoch"  
-  js "_time_epoch"
+extern new-time( seconds : double, is-utc:bool ) : time {
+  cs "_Time.NewFromSeconds"  
+  js "_time_new_from_seconds"
 }
 
 // The year in the associated timezone.
@@ -191,9 +191,9 @@ public fun time( year:int, month : int, day:int, hours:int = 0,minutes:int = 0,s
   new-time(year,month,day,hours,minutes,seconds,milliseconds,False)
 }
 
-// Create a new `:time` in the local time zone with a given number of fractional seconds since the epoch (1 January 1970 00\:00\:00 UTC).
-public fun time( epochsecs : double ) : ndet time {
-  new-time(epochsecs,False)
+// Create a new `:time` in the local time zone with a given number of fractional seconds since `min-time` (0001-01-01Z).
+public fun time( seconds : double ) : ndet time {
+  new-time(seconds,False)
 }
 
 // Create a new UTC `:time`
@@ -201,9 +201,9 @@ public fun utc-time(year:int, month : int, day:int, hours:int = 0,minutes:int = 
   new-time(year,month,day,hours,minutes,seconds,milliseconds,True)
 }
 
-// Create a new UTC `:time` with a given number of fractional seconds since the `epoch` (1 January 1970 00\:00\:00 UTC).
-public fun utc-time( epochsecs : double ) : time {
-  new-time(epochsecs,True)
+// Create a new UTC `:time` with a given number of fractional seconds since `min-time` (0001-01-01Z).
+public fun utc-time( seconds : double ) : time {
+  new-time(seconds,True)
 }
 
 // Copy a `:time` value keeping it in the same timezone (local or UTC).
@@ -287,6 +287,7 @@ public fun week-to-day-of-year( year : int, week : int, weekday : int ) : int {
   val adjust = utc-time(year,1,4).day-of-week + 3
   (((7*week) + weekday) - adjust)
 }
+
 
 // -----------------------------------------------------------
 // Formatting
@@ -478,6 +479,10 @@ fun format-utc-timezone( t : time, n : int ) : string {
   format-tz-offset(t,n,":",if (n==2) then "" else "Z")
 }
 
+fun format-timestamp( t : time, n : int ) : string {
+  t.total-seconds.show-fixed(3)
+}
+
 
 val formats : list<(char,int,(time,int) -> string)> = [
   ('Y', 6, format-year),
@@ -495,6 +500,7 @@ val formats : list<(char,int,(time,int) -> string)> = [
   ('h', 2, format-hours12),
   ('a', 2, format-ampm),
   ('A', 2, format-upper-ampm),
+  ('x', 1, format-timestamp), 
 ]
 
 /* Format a time according to format string `fmt`.
@@ -527,6 +533,7 @@ display as 2 digits. Allowed patterns:
 * ``zz``: timezone offset in hours and minutes without a separator. Use ``+0000`` for UTC time. (``-0700``)
 * ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.   
 * ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
+* ``x``: fractional seconds since `min-time`. (``63610768799.429``)
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
@@ -572,8 +579,29 @@ fun format-pat( t : time, h : char, fmt : list<char> ) : (string,list<char>) {
 // Parsing 
 // -----------------------------------------------------------
 
-// Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
-// Always returns a UTC time. Use `local` to convert to the local time.
+/* Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
+   Always returns a UTC time. Use `local` to convert to the local time.
+
+````plain
+2008-12-31               // just date
+2009-W01-3               // week number and day
+2008-366                 // day of the year
+
+20081231, 2009W013, 2008366  // without dashes
+
+2008-12-31T09            // with time part, use T or space
+2008-12-31 09
+2008-12-31T09:20:16
+2008-12-31T09:20:16.345  // with milliseconds (can be any fraction)
+2008-12-30T24:00:00      // next day at midnight
+20081231T092016.345      // without separators
+
+2008-12-31T09Z           // UTC time zone (Z)
+2008-12-31 09-07:00      // UTC-07:00 time zone
+2008-12-31T09:20:16+0830 // UTC+08:30 time zone (without colon)
+````
+. 
+*/
 public fun parse-iso( s : string ) : maybe<time> {
   match(s.find(rx-iso-date)) {
     Nothing -> Nothing
@@ -584,7 +612,7 @@ public fun parse-iso( s : string ) : maybe<time> {
           then (xyear,capd.num(2),capd.num(3)) 
           else {
             val day = if (capd.groups[4] != "") 
-                       then week-to-day-of-year(xyear,capd.num(4),capd.num(5))
+                       then week-to-day-of-year(xyear,capd.num(4),capd.num(5,1))
                        else capd.num(6)
             utc-time(xyear,1,day).date
           }
@@ -605,11 +633,11 @@ public fun parse-iso( s : string ) : maybe<time> {
     }
   }
 }
-val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)|(\d\d\d))(?=$|[T\+\- ]\d|Z)");
+val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d))(?=$|[T\+\- ]\d|Z)");
 val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
 
-fun num( cap : matched, group : int ) : int {
-  parse-int-default(cap.groups[group])
+fun num( cap : matched, group : int, default : int = 0 ) : int {
+  parse-int-default(cap.groups[group], default = default)
 }
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
