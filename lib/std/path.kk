@@ -7,17 +7,38 @@
 ---------------------------------------------------------------------------*/
 
 
-/* File system paths
+/* File system paths.
+
+The path functions are system independent: backward slashes (`'\\'`)
+are treated as a forward slash to separate directories. Windows style
+root names like ``c:\`` or ``//server`` are also recognised. 
+
+A list of paths can be separated with either a colon (``:``) or
+semi-colon (``;``). 
+
+A `:path` is created using the `path` functions. Use `string` to convert
+back to a normalized path string. A path consists of a _root_ name
+(``/``, ``c:\``), the directory (``foo/bar``) and finally the _base_ name.
+The base name itself consists of the _stem_ and the _extension_. The
+extension is always the part that follows the last occurence of a dot (`'.'`)
+in the base name. 
+
+A `:path` is always normalized. For a sequence of directories, any
+empty directory or ``.`` directory is ignored. 
+A directory followed by ``..`` is also ignored -- this is the Plan 9
+interpretation of paths where ``..`` is considered lexically. 
+If parent directories should be resolved through symbolic links, 
+the `realpath` function should be used (which has the `:io` effect though).  
 */
 module std/path
 
 import std/regex
 
-extern import {
-  js "fs"
+extern include {
+  js file "path-inline.js"
 }
 
-// A `:path` represents a file system path.
+// A `:path` represents a file system path.\
 abstract struct path(
   root : string = "",
   dirs : list<string> = [],
@@ -33,12 +54,12 @@ public fun join-end( xs : list<string>, end : string) : string {
 }
 
 
-// Return the base name of a path (stemname + extension)
+// Return the base name of a path (stem name + extension)
 public fun basename( p : path ) : string {
   p.stem + (if (p.ext.empty?) then "" else "." + p.ext)
 }
 
-// Return the directory part of a path (including the root)
+// Return the directory part of a path (including the rootname)
 public fun dirname( p : path ) : string {
   p.root + p.dirs.join("/")
 }
@@ -85,7 +106,10 @@ public fun absolute?( p : path ) : bool {
   !p.relative?
 }
 
-// Create a normalized path from a string.
+// Create a normalized path from a path string.\
+// `"c:/foo/test.txt" -> "c:/foo/test.txt"`\
+// `"c:\\foo\\test.txt" -> "c:/foo/test.txt"`\
+// `"/foo//./bar/../test.txt" -> "/foo/test.txt"`
 public fun path( s : string ) : path {
   match(s.find(rx-root)) {
     Nothing    -> path-dirs("",s)
@@ -118,6 +142,10 @@ val rx-dirsep = regex(@"[/\\]")
 val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 
 // Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
+//
+// Colon separated paths can be ambiguous with Windows style root names (`c:\\`) 
+// In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
+// parsed as ``c:/foo`` and ``/bar``. 
 public fun paths( s : string ) : list<path> {
   s.split(rx-pathsep).list.paths-split
 }
@@ -200,29 +228,29 @@ public fun realpath( s : string ) : io path {
 }
 
 extern xrealpath( p : string ) : io string {
-  cs inline "System.IO.Path.GetFullPath(#1)"
-  js inline "fs.realpathSync(#1)"
+  cs "System.IO.Path.GetFullPath"
+  js "_get_realpath"
 }
 
 
 // Return the OS specific directory separator (`"/"` or `"\\"`)
-public extern get-dirsep() : ndet string {
-  cs inline "System.IO.Path.DirectorySeparatorChar.ToString()"
-  js inline "path.sep"
+public extern dirsep() : ndet string {
+  cs "System.IO.Path.DirectorySeparatorChar.ToString"
+  js "_get_dirsep"
 }
 
 // Return the OS specific path separator (`';'` or `':'`)
-public extern get-pathsep() : ndet string {
-  cs inline "System.IO.Path.PathSeparator.ToString()"
-  js inline "path.delimiter"
+public extern pathsep() : ndet string {
+  cs "System.IO.Path.PathSeparator.ToString"
+  js "_get_pathsep"
 }
 
 // Return the path to the currently executing program.
-public fun program-path() : io path {
+public fun programpath() : io path {
   xprogram-path().path
 }
 
 extern xprogram-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
-  js inline "((function(){ var m = module; if (m==null) return ''; while(m.parent) { m = m.parent; }; return (m.filename ? m.filename : ''); })())"
+  js "_get_programpath"
 }
