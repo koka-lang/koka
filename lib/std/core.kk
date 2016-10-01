@@ -28,6 +28,10 @@ extern include {
 }
 
 extern include {
+  js file "core-string-inline.js"
+}
+
+extern include {
   js file "core-console-inline.js"
 }
 
