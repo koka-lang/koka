@@ -317,7 +317,7 @@ public fun show-iso-clock( t : time ) : string {
 // Show time as a standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) date.\
 // For example `now().show-imf` returns `"Fri, 9 Oct 2016 11:57:45 -0700"`
 public fun show-imf( t : time ) : string {
-  t.format("ddd, D MMM YYYY HH:mm:ss zz")
+  t.format("ddd, D MMM Y HH:mm:ss zz")
 }
 
 // Show the time as a human readable English string (using ISO clock time)
@@ -401,7 +401,10 @@ fun format-month( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-year( t : time, n : int, locale : time-locale ) : string {
-  if (n<5) then {
+  if (n==1) then {
+    t.year.show
+  }
+  elif (n<5) then {
     t.year.abs0.showl(n).last(n).string
   }
   else {
@@ -497,7 +500,8 @@ an ascii letter are displayed as is.
 Patterns of 2 letters are zero-padded on the left to always
 display as 2 digits. Allowed patterns:
 
-* ``YY``, ```YYYY``: the year in upto 4 digits (``70``,``1970``).
+* ``Y``: the year as a number (without zero padding) (``1970``,``203``)
+* ``YY``, ```YYYY``: the year in upto 4 digits (``70``,``1970``,``0203``).
 * ``M``, ``MM``: the month. (``1``,``03``)
 * ``MMM``, ``MMMM``: name of the month in English. (``Jan``, ``January``)
 * ``D``,``DD``: the day of the month. (``1``,``08``)
@@ -533,7 +537,7 @@ names for month- and day names.
 * ``LLLL``,``llll``: date with day name, month name, and time (``Thursday, 29 September 2016 1:15pm``) and (``Thu, 29 Sep 2016 1:15pm``)
 
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
-you can use `now().format("ddd, D MMM YYYY HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
+you can use `now().format("ddd, D MMM Y HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
 */
 public fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string {
   format-list( t, fmt.expand-locales(locale).expand-locales(locale).list, locale )
