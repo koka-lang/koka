@@ -35,6 +35,7 @@ module std/path
 import std/regex
 
 extern include {
+  cs file "path-inline.cs"
   js file "path-inline.js"
 }
 
@@ -79,9 +80,11 @@ public fun rootname( p : path ) : string {
   p.root
 }
 
-// Convert a `:path` to a normalized `:string` path.
+// Convert a `:path` to a normalized `:string` path.\
+// If this results in an empty string, the current directory path `"."` is returned.
 public fun string( p : path ) : string {
-  p.root + p.dirs.join-end("/") + p.basename
+  val s = p.root + p.dirs.join-end("/") + p.basename
+  if (s.empty?) then "." else s
 }
 
 // Show a path
@@ -217,12 +220,41 @@ public fun change-base( p : path, basename : string ) : path {
 }
 
 
-// Convert a path to the absolute path on the file system
+// Return a list of all directory components (excluding the root) 
+public function dir-names(p : path) : list<string> {
+  p.dirs
+}
+
+// Return the last directory component (or the empty string)
+public function last-dirname( p : path ) : string {
+  p.dirs.reverse.head.default("")
+}
+
+// Drop the last directory component (if it exists) 
+public function drop-lastdir( p : path ) : path {
+  p(dirs = p.dirs.init)
+}
+
+// Convert a path to the absolute path on the file system.
+// The path is not required to exist on disk. However, if it
+// exists any permissions and symbolic links are resolved fully.\
+// `".".realpath` (to get the current working directory)\
+// `"/foo".realpath` (to resolve the full root, like `"c:/foo"` on windows)
 public fun realpath( p : path ) : io path {
   realpath(p.string)
 }
 
-// Convert a path to the absolute path on the file system
+// Returns the current working directory.\
+// Equal to `".".realpath`.
+public fun cwd() {
+  ".".realpath
+}
+
+// Convert a path to the absolute path on the file system.\
+// The overload on a plain string is necessary as it allows 
+// for unnormalized paths with `".."` parts. For example
+// `"/foo/symlink/../test.txt"` may resolve to `"/bar/test.txt"` if
+// ``symlink`` is a symbolic link to a sub directory of `"/bar"`.
 public fun realpath( s : string ) : io path {
   xrealpath(s).path
 }
@@ -245,12 +277,41 @@ public extern pathsep() : ndet string {
   js "_get_pathsep"
 }
 
-// Return the path to the currently executing program.
-public fun programpath() : io path {
-  xprogram-path().path
+// Return the path to the currently executing application.
+public fun app-path() : io path {
+  xapp-path().path
 }
 
-extern xprogram-path() : io string {
+extern xapp-path() : io string {
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
-  js "_get_programpath"
+  js "_get_apppath"
+}
+
+// Return the base directory that contains the currently running application.
+// First tries `app-path().nobase`; if that ends in the ``bin`` or ``exe`` directory it
+// returns the parent of that directory.
+public fun appdir() : io path {
+  val p = app-path().nobase
+  if (p.last-dirname=="bin" || p.last-dirname=="exe") then p.drop-lastdir else p
+}
+
+
+// Return the home directory of the current user.
+public fun homedir() : io path {
+  xhomedir().path
+}
+
+extern xhomedir() : io string {
+  cs "_Path.GetHomeDir"
+  js "_get_homedir"
+}
+
+// Return the temporary directory for the current user.
+public fun tempdir() : io path {
+  xtempdir().path
+}
+
+extern xtempdir() : io string {
+  cs "System.IO.Path.GetTempPath"
+  js "_get_tempdir"
 }
