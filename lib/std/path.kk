@@ -47,14 +47,6 @@ abstract struct path(
   ext  : string = ""                 
 )
 
-// Append `end` to each element of the list `xs` and join them all together.\
-// `join-end([],end) === ""`\
-// `join-end(["a","b"],"/") === "a/b/"`
-public fun join-end( xs : list<string>, end : string) : string {
-  xs.join(end) + (if (xs.nil?) then "" else end)
-}
-
-
 // Return the base name of a path (stem name + extension)
 public fun basename( p : path ) : string {
   p.stem + (if (p.ext.empty?) then "" else "." + p.ext)
@@ -221,7 +213,7 @@ public fun change-base( p : path, basename : string ) : path {
 
 
 // Return a list of all directory components (excluding the root) 
-public function dir-names(p : path) : list<string> {
+public function dirnames(p : path) : list<string> {
   p.dirs
 }
 
