@@ -943,30 +943,41 @@ fun intersperse( xs : list<a>, sep : a ) : list<a>
 }
 
 // Concatenate all strings in a list
-fun join( xs : list<string> ) : string
+private fun joinsep( xs : list<string>, sep : string ) : string
 {
   fun join-acc( ys : list<string>, acc : string ) {
     match(ys) {
-      Cons(y,yy) -> join-acc(yy, acc+y)
+      Cons(y,yy) -> join-acc(yy, acc + sep + y)  // todo: use string builder
       Nil -> acc
     }
-  }
-  
+  }  
   match(xs) {
     Nil -> ""
-    Cons(x,xx) -> match(xx) {
-      Nil -> x
-      _   -> join-acc(xx,x)
-    }
+    Cons(x,xx) -> join-acc(xx,x)
   }
-  //xs.foldl( "", fun(x,y){ x + y } )  // TODO: should use a string builder
+}
+
+// Concatenate all strings in a list
+fun join( xs : list<string> ) : string {
+  return xs.joinsep("")
 }
 
 // Concatenate all strings in a list using a specific separator
-fun join( xs : list<string>, sep : string ) : string
-{
-  return xs.intersperse(sep).join()
+fun join( xs : list<string>, sep : string ) : string {
+  return xs.joinsep(sep)
 }
+
+
+// Append `end` to each string in the list `xs` and join them all together.\
+// `join-end([],end) === ""`\
+// `join-end(["a","b"],"/") === "a/b/"`
+public fun join-end( xs : list<string>, end : string) : string {
+  match(xs) {
+    Nil -> ""
+    _   -> xs.joinsep(end) + end
+  }
+}
+
 
 // Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
 fun concat( xs : list<list<a>> ) : list<a>
