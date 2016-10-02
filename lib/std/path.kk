@@ -25,7 +25,7 @@ in the base name.
 
 A `:path` is always normalized. For a sequence of directories, any
 empty directory or ``.`` directory is ignored. 
-A directory followed by ``..`` is also ignored -- this is the Plan 9
+A directory followed by ``..`` is also ignored -- this is the [Plan 9](https://9p.io/sys/doc/lexnames.html)
 interpretation of paths where ``..`` is considered lexically. 
 If parent directories should be resolved through symbolic links, 
 the `realpath` function should be used (which has the `:io` effect though).  
@@ -42,29 +42,27 @@ extern include {
 // A `:path` represents a file system path.\
 abstract struct path(
   root : string = "",
-  dirs : list<string> = [],
-  stem : string = "",
-  ext  : string = ""                 
+  parts: list<string> = [] 
 )
 
 // Return the base name of a path (stem name + extension)
 public fun basename( p : path ) : string {
-  p.stem + (if (p.ext.empty?) then "" else "." + p.ext)
+  p.parts.head("")
 }
 
 // Return the directory part of a path (including the rootname)
 public fun dirname( p : path ) : string {
-  p.root + p.dirs.join("/")
+  p.root + p.parts.tail.reverse.join("/")
 }
 
-// Return the extension of path.
+// Return the extension of path (without the preceding dot (`'.'`))
 public fun extname( p : path ) : string {
-  p.ext
+  p.basename.split-base.snd
 }
 
 // Return the stem name of path.
 public fun stemname( p : path ) : string {
-  p.stem
+  p.basename.split-base.fst
 }
 
 // Return the root name of path.
@@ -72,10 +70,21 @@ public fun rootname( p : path ) : string {
   p.root
 }
 
+fun split-base( basename : string ) : (string,string) {
+  match(basename.find-last(".")) {
+    Just(slice) -> (slice.before.string,slice.after.string)
+    Nothing     -> (basename,"")
+  }
+}
+
+fun split-parts( parts : list<string> ) : (string,list<string>) {
+  (parts.head(""), parts.tail)
+}
+
 // Convert a `:path` to a normalized `:string` path.\
 // If this results in an empty string, the current directory path `"."` is returned.
 public fun string( p : path ) : string {
-  val s = p.root + p.dirs.join-end("/") + p.basename
+  val s = p.root + p.parts.reverse.join("/")
   if (s.empty?) then "." else s
 }
 
@@ -88,7 +97,7 @@ public fun show( p : path ) : string {
 
 // Is a path empty?
 public fun empty?( p : path ) : bool {
-  p.root.empty? && p.dirs.nil? && p.stem.empty? && p.ext.empty?
+  p.root.empty? && p.parts.nil?
 }
 
 // Is a path relative?
@@ -106,34 +115,29 @@ public fun absolute?( p : path ) : bool {
 // `"c:\\foo\\test.txt" -> "c:/foo/test.txt"`\
 // `"/foo//./bar/../test.txt" -> "/foo/test.txt"`
 public fun path( s : string ) : path {
+  if (s.empty?) return Path("",[])
   match(s.find(rx-root)) {
-    Nothing    -> path-dirs("",s)
-    Just(capr) -> path-dirs(capr.groups[1] + "/",capr.slice.after.string)
+    Nothing    -> path-parts("",s)
+    Just(capr) -> path-parts(capr.groups[1] + "/",capr.slice.after.string)
   }
 }
-fun path-dirs( root : string, s : string ) : path {  
-  val (dirs,base) = s.split(rx-dirsep).list.path-split([])
-  path-base(root,dirs,base)
+fun path-parts( root : string, s : string ) : path {  
+  val parts = s.split(rx-partsep).list.path-split([])
+  Path(root,parts)
 }
-fun path-split( parts : list<string>, dirs : list<string> ) : (list<string>,string)  {
+fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
   match(parts) {
-    Nil -> (dirs.reverse,"")
-    Cons(part,rest) -> {
-      if (part=="." || part=="")      then path-split(rest,dirs)
-      elif (part==".." && dirs.cons?) then path-split(rest,dirs.drop(1))
-      elif (rest.cons?)               then path-split(rest, Cons(part,dirs))
-      else (dirs.reverse,part)
-    }
+    Cons(part,rest) -> path-split(rest, push-dir(part,dirs))
+    Nil -> dirs
   }
 }
-fun path-base( root: string, dirs : list<string>, base : string ) : path {
-  match(base.find-last(".")) {
-    Nothing     -> Path(root,dirs,base,"")
-    Just(slice) -> Path(root,dirs,slice.before.string,slice.after.string)
-  }
+fun push-dir( dir : string, dirs : list<string> ) : list<string> {  
+  if (dir=="." || dir=="")       then dirs
+  elif (dir==".." && dirs.cons?) then dirs.tail
+  else Cons(dir,dirs)
 }
 
-val rx-dirsep = regex(@"[/\\]")
+val rx-partsep = regex(@"[/\\]")
 val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 
 // Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
@@ -160,30 +164,32 @@ fun paths-split( ps : list<string> ) : list<path> {
 val rx-pathsep = regex(@"([;:])")
 
 // Add two paths together. \
-// Keeps the root of `p1` and the basename of `p2` but discards the root of `p2`.\
+// Keeps the root of `p1` and discards the root name of `p2`.\
 // `"/a/" + "b/foo.txt"          === "/a/b/foo.txt"`\
 // `"/a/foo.txt" + "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
 // `"c:/foo" + "d:/bar"          === "c:/foo/bar"`
 public fun (+)(p1 : path, p2: path) : path {
-  val dirs = p1.dirs + [p1.basename] + p2.dirs
-  Path(p1.root,dirs,p2.stem,p2.ext)
+  Path(p1.root,p2.parts + p1.parts)
 }
 
 // Combine multiple paths using `(+)`.
 public fun combine( ps : list<path> ) : path {
-  ps.foldl(Path(),(+))
+  match(ps) {
+    Nil -> Path()
+    Cons(p,pp) -> pp.foldl(p,(+))
+  }
 }
 
 // Remove the directory and root and only keep the base name (file name) portion of the path.\
 // `nodir("foo/bar.ext".path) === "bar.ext"`
 public fun nodir( p : path ) : path {
-  p(root="",dirs=[])
+  p(root="",parts=p.parts.take(1))
 }
 
 // Remove the basename and only keep the root and directory name portion of the path.\
 // `nobase("foo/bar.ext".path) == "foo")`
 public fun nobase( p : path ) : path {
-  p(stem="",ext="")
+  p( parts = p.parts.tail)
 }
 
 // Remove the extension from a path.
@@ -193,38 +199,39 @@ public fun noext( p : path ) : path {
 
 // Change the extension of a path.
 public fun change-ext( p : path, extname : string ) : path {
-  path-base(p.root,p.dirs,p.stem + (if (extname.starts-with(".").bool) then extname else "." + extname))
+  val (basename,dirs) = p.parts.split-parts
+  val (stemname,_)    = basename.split-base
+  val newext = if (extname.empty? || extname.starts-with(".").bool) then extname else "." + extname
+  Path(p.root, push-dir(stemname + newext,dirs))
 }
 
 // If a path has no extension, set it to the provided one.
-public fun default-ext( p : path, extname : string ) : path {
-  if (p.ext.empty?) then p.change-ext(extname) else p
+public fun default-ext( p : path, newext : string ) : path {
+  if (p.extname.empty?) then p.change-ext(newext) else p
 }
 
 // Change the stem name of a path
 public fun change-stem( p : path, stemname : string ) : path {
-  p.change-base( stemname + (if (p.ext.empty?) then "" else "." + p.ext) )
+  val ext = p.extname
+  p.change-base( stemname + (if (ext.empty?) then "" else "." + ext) )
 }
 
 // Change the base name of a path
 public fun change-base( p : path, basename : string ) : path {
-  path-base(p.root,p.dirs,basename)
+  val q = p.nobase
+  Path(q.root, push-dir(basename,q.parts))
 }
 
 
-// Return a list of all directory components (excluding the root) 
-public function dirnames(p : path) : list<string> {
-  p.dirs
+// Return a list of all directory components (excluding the root but including the basename) 
+public function dirparts(p : path) : list<string> {
+  p.parts.reverse
 }
 
-// Return the last directory component (or the empty string)
-public function last-dirname( p : path ) : string {
-  p.dirs.reverse.head.default("")
-}
-
-// Drop the last directory component (if it exists) 
-public function drop-lastdir( p : path ) : path {
-  p(dirs = p.dirs.init)
+// Return the last directory component name (or the empty string).\
+// `"c:/foo/bar/tst.txt".path.parentname === "bar"
+public function parentname( p : path ) : string {
+  p.parts.tail.head("")
 }
 
 // Convert a path to the absolute path on the file system.
@@ -258,9 +265,9 @@ extern xrealpath( p : string ) : io string {
 
 
 // Return the OS specific directory separator (`"/"` or `"\\"`)
-public extern dirsep() : ndet string {
+public extern partsep() : ndet string {
   cs "System.IO.Path.DirectorySeparatorChar.ToString"
-  js "_get_dirsep"
+  js "_get_partsep"
 }
 
 // Return the OS specific path separator (`';'` or `':'`)
@@ -284,7 +291,7 @@ extern xapp-path() : io string {
 // returns the parent of that directory.
 public fun appdir() : io path {
   val p = app-path().nobase
-  if (p.last-dirname=="bin" || p.last-dirname=="exe") then p.drop-lastdir else p
+  if (p.basename=="bin" || p.basename=="exe") then p.nobase else p
 }
 
 
