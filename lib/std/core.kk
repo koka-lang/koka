@@ -406,13 +406,11 @@ fun head( xs : list<a>, default : a ) : a {
   }
 }
 
-// Return the tail of list if the list is not empty
-// Note: if a `:maybe` type is inconvenient,
-// you can use `drop(1)` to return an empty list if the input list was empty.
-fun tail( xs : list<a> ) : maybe<list<a>> {
+// Return the tail of list. Returns the empty list if `xs` is empty.
+fun tail( xs : list<a> ) : list<a> {
   match(xs) {
-    Cons(_,xx) -> Just(xx)
-    _          -> Nothing
+    Cons(_,xx) -> xx
+    _          -> []
   }
 }
 
@@ -1003,12 +1001,23 @@ fun concat-maybe( xs : list<maybe<a>> ) : list<a>
   xs.map(list).concat()
 }
 
-// Return the last element of a list. Raise an exception if the empty list is passed.
-fun last( xs : list<a> ) : exn a
+// Return the last element of a list (or `Nothing` for the empty list) 
+fun last( xs : list<a> ) : maybe<a>
+{
+  match(xs) {
+    Cons(x,Nil) -> Just(x)
+    Cons(_,xx)  -> last(xx)
+    Nil         -> Nothing
+  }
+}
+
+// Return the last element of a list (or `default` for the empty list) 
+fun last( xs : list<a>, default : a ) : a
 {
   match(xs) {
     Cons(x,Nil) -> x
-    Cons(_,xx)  -> last(xx)
+    Cons(_,xx)  -> last(xx,default)
+    Nil         -> default
   }
 }
 
