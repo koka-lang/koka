@@ -292,7 +292,7 @@ getResultX result (puredoc,retdoc)
      ResultReturn _ _  -> text "return" <+> retdoc <> semi
      ResultAssign n ml -> ( if isWildcard n
                               then (if (isEmptyDoc puredoc) then puredoc else puredoc <> semi)
-                              else constdecl <+> ppName (unqualify n) <+> text "=" <+> retdoc <> semi
+                              else text "var" <+> ppName (unqualify n) <+> text "=" <+> retdoc <> semi
                           ) <-> case ml of
                                   Nothing -> empty 
                                   Just l  -> text "break" <+> ppName l <> semi 
