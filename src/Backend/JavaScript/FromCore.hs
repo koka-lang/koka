@@ -157,13 +157,13 @@ importExternal _
 
 genGroups :: [DefGroup] -> Asm Doc
 genGroups groups
-  = do docs <- mapM genGroup groups
+  = localUnique $
+    do docs <- mapM genGroup groups
        return (vcat docs)
 
 genGroup :: DefGroup -> Asm Doc
 genGroup group
-  = localUnique $
-    case group of
+  = case group of
       DefRec defs   -> do docs <- mapM genDef defs
                           return (vcat docs)
       DefNonRec def -> genDef def
@@ -237,14 +237,14 @@ genTypeDef (Data info _ _ isExtend)
              name <- genName (conInfoName c)
              penv <- getPrettyEnv
              if (conInfoName c == nameTrue)
-              then return (text "var" <+> name <+> text "=" <+> text "true" <> semi)
+              then return (constdecl <+> name <+> text "=" <+> text "true" <> semi)
               else if (conInfoName c == nameFalse)
-              then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
+              then return (constdecl <+> name <+> text "=" <+> text "false" <> semi)
               else return $ case repr of
                 ConEnum{}   
-                   -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+                   -> constdecl <+> name <+> text "=" <+> int (conTag repr) <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 ConSingleton{}                                             
-                   -> text "var" <+> name <+> text "=" <+> 
+                   -> constdecl <+> name <+> text "=" <+> 
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
                          <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 -- tagless
@@ -259,7 +259,7 @@ genTypeDef (Data info _ _ isExtend)
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> linecomment (Pretty.ppType penv (conInfoType c)) 
+            $ constdecl <+> name <+> text "=" <+> object tagFields <> semi <+> linecomment (Pretty.ppType penv (conInfoType c)) 
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
           <+> block ( text "return" <+> 
@@ -292,7 +292,7 @@ getResultX result (puredoc,retdoc)
      ResultReturn _ _  -> text "return" <+> retdoc <> semi
      ResultAssign n ml -> ( if isWildcard n
                               then (if (isEmptyDoc puredoc) then puredoc else puredoc <> semi)
-                              else text "var" <+> ppName (unqualify n) <+> text "=" <+> retdoc <> semi
+                              else constdecl <+> ppName (unqualify n) <+> text "=" <+> retdoc <> semi
                           ) <-> case ml of
                                   Nothing -> empty 
                                   Just l  -> text "break" <+> ppName l <> semi 
@@ -1065,10 +1065,13 @@ reserved
     , "NaN" 
     ]
     ++ -- JavaScript keywords
-    [ "break"
+    [ "async"
+    , "await"
+    , "break"
     , "case"
     , "catch"
     , "continue"
+    , "const"
     , "debugger"
     , "default"
     , "delete"
@@ -1100,7 +1103,6 @@ reserved
     , "extends"
     , "import"
     , "super"
-    , "const"
     ]
     ++ -- special globals
     [ "window"
@@ -1158,3 +1160,5 @@ debugWrap s d
 tagField :: Doc
 tagField  = text "_tag"
 
+constdecl :: Doc
+constdecl = text "const"
