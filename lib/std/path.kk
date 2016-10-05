@@ -42,30 +42,38 @@ extern include {
 // A `:path` represents a file system path.\
 abstract struct path(
   root : string = "",
-  parts: list<string> = [] 
+  parts: list<string> = [] // directory parts in reverse order
 )
 
-// Return the base name of a path (stem name + extension)
+// Return the base name of a path (stem name + extension)\
+// `"/foo/bar.txt".path.basename === "bar.txt"` \
+// `"/foo".path.basename === "foo"`
 public fun basename( p : path ) : string {
   p.parts.head("")
 }
 
 // Return the directory part of a path (including the rootname)
+// `"/foo/bar.txt".path.dirname === "/foo"` \
+// `"/foo".path.dirname === "/"`
 public fun dirname( p : path ) : string {
   p.root + p.parts.tail.reverse.join("/")
 }
 
-// Return the extension of path (without the preceding dot (`'.'`))
+// Return the extension of path (without the preceding dot (`'.'`))\
+// `"/foo/bar.svg.txt".path.extname === "txt"`
 public fun extname( p : path ) : string {
   p.basename.split-base.snd
 }
 
-// Return the stem name of path.
+// Return the stem name of path.\
+// `"/foo/bar.svg.txt".path.extname === "foo.svg"`
 public fun stemname( p : path ) : string {
   p.basename.split-base.fst
 }
 
 // Return the root name of path.
+// `"c:\\foo".path.rootname === "c:/"`\
+// `"/foo".path.rootname === "/"`
 public fun rootname( p : path ) : string {
   p.root
 }
@@ -83,16 +91,18 @@ fun split-parts( parts : list<string> ) : (string,list<string>) {
 
 // Convert a `:path` to a normalized `:string` path.\
 // If this results in an empty string, the current directory path `"."` is returned.
+// `"c:/foo/test.txt".path.string -> "c:/foo/test.txt"`\
+// `"c:\\foo\\test.txt".path.string -> "c:/foo/test.txt"`\
+// `"/foo//./bar/../test.txt".path.string -> "/foo/test.txt"`
 public fun string( p : path ) : string {
   val s = p.root + p.parts.reverse.join("/")
   if (s.empty?) then "." else s
 }
 
-// Show a path
+// Show a path as a string.
 public fun show( p : path ) : string {
   p.string.show
 }
-
 
 
 // Is a path empty?
@@ -110,10 +120,7 @@ public fun absolute?( p : path ) : bool {
   !p.relative?
 }
 
-// Create a normalized path from a path string.\
-// `"c:/foo/test.txt" -> "c:/foo/test.txt"`\
-// `"c:\\foo\\test.txt" -> "c:/foo/test.txt"`\
-// `"/foo//./bar/../test.txt" -> "/foo/test.txt"`
+// Create a normalized `:path` from a path string.
 public fun path( s : string ) : path {
   if (s.empty?) return Path("",[])
   match(s.find(rx-root)) {
@@ -121,8 +128,8 @@ public fun path( s : string ) : path {
     Just(capr) -> path-parts(capr.groups[1] + "/",capr.slice.after.string)
   }
 }
-fun path-parts( root : string, s : string ) : path {  
-  val parts = s.split(rx-partsep).list.path-split([])
+fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {  
+  val parts = s.split(rx-partsep).list.path-split(dirs)
   Path(root,parts)
 }
 fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
@@ -201,9 +208,10 @@ public fun noext( p : path ) : path {
 public fun change-ext( p : path, extname : string ) : path {
   val (basename,dirs) = p.parts.split-parts
   val (stemname,_)    = basename.split-base
-  val newext = if (extname.empty? || extname.starts-with(".").bool) then extname else "." + extname
-  Path(p.root, push-dir(stemname + newext,dirs))
+  val newext = if (extname.contains(rx-nodot)) then extname else "." + extname
+  path-parts(p.root, stemname+newext, dirs)
 }
+val rx-nodot = regex(@"^(?:$|[\./\\])")
 
 // If a path has no extension, set it to the provided one.
 public fun default-ext( p : path, newext : string ) : path {
@@ -219,11 +227,12 @@ public fun change-stem( p : path, stemname : string ) : path {
 // Change the base name of a path
 public fun change-base( p : path, basename : string ) : path {
   val q = p.nobase
-  Path(q.root, push-dir(basename,q.parts))
+  path-parts(q.root, basename, q.parts)
 }
 
 
-// Return a list of all directory components (excluding the root but including the basename) 
+// Return a list of all directory components (excluding the root but including the basename).\
+// `"/foo/bar/test.txt".path.dirparts === ["foo","bar","test.txt"]`
 public function dirparts(p : path) : list<string> {
   p.parts.reverse
 }
