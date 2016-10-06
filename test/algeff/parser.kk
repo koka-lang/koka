@@ -33,6 +33,20 @@ val eager = handler {
   }
 }
 
+// Choice is now defined over `flip` to possibly return multiple results
+fun choice(p1,p2) {
+  if (flip()) then p1() else p2()
+}
+
+// Basic combinators
+fun many(p) { // : () -> <many,div|e> a ) : <div,many|e> list<a> {
+  choice { many1(p) } { [] } 
+}
+
+fun many1( p ) {
+  Cons(p(),many(p))
+}
+
 
 //---------------------------------------------------------------
 // Now define the parse effect
@@ -55,19 +69,6 @@ val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
       }      
     }
 
-// Choice is now defined over `flip` to possibly return multiple results
-fun choice(p1,p2) {
-  if (flip()) then p1() else p2()
-}
-
-// Basic combinators
-fun many(p) { // : () -> <parse,many,div|e> a ) : <parse,div,many|e> list<a> {
-  choice { many1(p) } { [] } 
-}
-
-fun many1( p ) {
-  Cons(p(),many(p))
-}
 
 fun char(p : char -> bool) : parse char {
   satisfy( fun(input) {
