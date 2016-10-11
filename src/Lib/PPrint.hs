@@ -18,7 +18,7 @@ module Lib.PPrint
         ( Doc, Docs
         , Pretty(pretty,prettyList), putPretty
 
-        , show, putDoc, hPutDoc
+        , show, putDoc, hPutDoc, asString
 
         , (<>)
         , (<+>)
@@ -464,6 +464,11 @@ renderCompact x
                         Nesting f   -> scan k (f 0:ds)
                         Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))  
                         ColoredEnd   -> SColorClose (scan k ds)
+
+
+asString :: Doc -> String
+asString doc
+  = displayS (renderCompact doc) ""
 
 -----------------------------------------------------------
 -- Displayers:  displayS and displayIO

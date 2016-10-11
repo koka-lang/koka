@@ -15,7 +15,7 @@ import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List ( intersperse, partition )
-import Data.Char
+import Data.Char  
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
 import qualified Data.Set as S
@@ -86,6 +86,7 @@ genModule mbMain core
                    text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
+                    , text "var" <+> modName <+> text " = {};"
                     , text " "
                     , text "// externals"
                     , externs 
@@ -99,15 +100,18 @@ genModule mbMain core
                     , mainEntry
                     , text " "
                     , text "// exports"
-                    , hang 2 (text "return {" <--> 
+                    , hang 2 (modName <+> text "=" <+> ppModName nameSystemCore <> dot <> text "_export(" <>
+                                modName <> text ", {" <--> 
                         (vcat $ punctuate comma $ 
                            map (\n-> fill 12 (ppName n) <> text ":" <+> ppName n) 
                               ( exportedConstrs ++ exportedValues ))
-                      ) <--> text "};" 
+                      ) <--> text "});"
+                    , text "return" <+> modName <> semi 
                     ])
                  ) 
               <-> text "});"
   where
+    modName         = ppModName (coreProgName core)
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
                       in map unqualify $ concatMap f (coreProgDefs core) 
@@ -616,10 +620,10 @@ genExpr expr
             Nothing -> case extractExtern f of
              Just (tname,formats)
               -> do (decls,argDocs) <- genExprs args
-                    doc <- genInlineExternal tname formats argDocs
+                    (edecls,doc) <- genExprExternal tname formats argDocs
                     if (getName tname == nameReturn)
-                     then return (vcat (decls ++ [doc <> semi]), text "") 
-                     else return (vcat decls, doc)
+                     then return (vcat (decls ++ edecls ++ [doc <> semi]), text "") 
+                     else return (vcat (decls ++ edecls), doc)
              Nothing
               -> do (decls,fdoc:docs) <- genExprs (f:trimOptionalArgs args) 
                     return (vcat decls, fdoc <> tupled docs)
@@ -745,18 +749,31 @@ extractExtern expr
       Var tname (InfoExternal formats) -> Just (tname,formats)
       _ -> Nothing
 
+-- not fully applied external gets wrapped in a function
 genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
 genWrapExternal tname formats
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
-       doc <- genInlineExternal tname formats vs
-       return $ parens (text "function" <> tupled vs <+> block ( text "return" <+> doc <> semi))
+       (decls,doc) <- genExprExternal tname formats vs
+       return $ parens (text "function" <> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <> semi])))
 
+-- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
 genInlineExternal tname formats argDocs
-  = do let name = getName tname
-           format = getFormat tname formats
-       return $ ppExternalF name format argDocs
+  = do (decls,doc) <- genExprExternal tname formats argDocs
+       if (null decls)
+        then return doc
+        else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <> semi]))) <> text "()"
+
+-- generate external
+genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal tname formats argDocs0
+  = let name = getName tname
+        format = getFormat tname formats
+        argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
+    in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of 
+         [] -> ([],empty)
+         ds -> (init ds, last ds)
   where           
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
@@ -770,7 +787,7 @@ genInlineExternal tname formats argDocs
         then (let n = length args
                   i = fromEnum y - fromEnum '1'
               in assertion ("illegal index in external: " ++ show tname ++ "("++k++"): index: " ++ show i) (i < n) $
-                 args!!i <> ppExternalF name xs args)
+                 (args!!i) <> ppExternalF name xs args)
         else char y <> ppExternalF name xs args
     ppExternalF name (x:xs)  args
      = char x <> ppExternalF name xs args
@@ -1045,7 +1062,7 @@ isSmallLitInt expr
 isSmallInt i = (i > minSmallInt && i < maxSmallInt)
 
 maxSmallInt, minSmallInt :: Integer
-maxSmallInt = 67108864  -- 2^26
+maxSmallInt = 9007199254740991  -- 2^53 - 1
 minSmallInt = -maxSmallInt
 
 ppName :: Name -> Doc

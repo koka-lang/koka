@@ -161,7 +161,7 @@ nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-nameIntConst    = preludeName ".intconst"
+nameIntConst    = preludeName ".int-const"
 nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------

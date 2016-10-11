@@ -18,7 +18,7 @@ import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Data.Char( isDigit )
+import Data.Char( isDigit, isAlphaNum )
 import Data.List( transpose )
 import Lib.PPrint
 
@@ -694,8 +694,9 @@ ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <> ppTypeArgs ctx targs <> text "." <> ppDefName (conClassName (getName tname))
 
 ppExternal :: Name -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
-ppExternal currentDef formats resTp targs args
-  = case lookup CS formats of
+ppExternal currentDef formats resTp targs args0
+  = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
+    in case lookup CS formats of
      Nothing -> case lookup Default formats of
       Nothing -> 
         trace( "warning: backend does not support external in " ++ show currentDef ) $

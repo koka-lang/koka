@@ -1152,47 +1152,100 @@ fun compare( x : bool, y : bool) : order
 // Integers
 // ----------------------------------------------------------------------------
 
-extern ".intconst" : string -> int { js inline "_unbig(_bigInt(#1))" }
+// Are two integers equal?
+extern inline (==) : (int,int) -> bool  { js "$std_core._int_eq" }
 
-extern (==) : (int,int) -> bool  { inline "(#1 == #2)"; js inline "_int_compare(#1,#2)===0" }
-extern (!=) : (int,int) -> bool  { inline "(#1 != #2)"; js inline "_int_compare(#1,#2)!==0" }
-extern (<=) : (int,int) -> bool  { inline "(#1 <= #2)"; js inline "_int_compare(#1,#2)<=0" }
-extern (>=) : (int,int) -> bool  { inline "(#1 >= #2)"; js inline "_int_compare(#1,#2)>=0" }
-extern (<)  : (int,int) -> bool  { inline "(#1 < #2)"; js inline "_int_compare(#1,#2)<0"  }
-extern (>)  : (int,int) -> bool  { inline "(#1 > #2)"; js inline "_int_compare(#1,#2)>0"  }
+// Are two integers not equal?
+extern inline (!=) : (int,int) -> bool  { js "$std_core._int_ne" }
 
-extern (+) : (int,int) -> int { js "_int_add" }
-extern (-) : (int,int) -> int { js "_int_sub" }
-extern (*) : (int,int) -> int { js "_int_mul" }
-extern (/) : (int,int) -> int { js "_int_cdiv" }
-extern (%) : (int,int) -> int { js "_int_cmod" }
-extern divmod : (int,int) -> (int,int) { js "_int_cdivmod" }
+// Is the first integer smaller or equal to the second?
+extern inline (<=) : (int,int) -> bool  { js "$std_core._int_le" }
 
-extern double : (int) -> double { js "_int_double" }
-extern int32 : (int) -> int32  { js "_int_clamp32" }
-extern odd : ( int ) -> bool { js "_int_odd" }
+// Is the first integer greater or equal to the second?
+extern inline (>=) : (int,int) -> bool  { js "$std_core._int_ge" }
 
-fun even(i:int) : bool { !odd(i) }
+// Is the first integer smaller than the second?
+extern inline (<)  : (int,int) -> bool  { js "$std_core._int_lt"  }
+
+// Is the first integer greater than the second?
+extern inline (>)  : (int,int) -> bool  { js "$std_core._int_gt"  }
+
+// Add two integers.
+extern inline (+) : (int,int) -> int { js "$std_core._int_add" }
+
+// Substract two integers.
+extern inline (-) : (int,int) -> int { js "$std_core._int_sub" }
+
+// Multiply two integers.
+extern inline (*) : (int,int) -> int { js "$std_core._int_mul" }
+
+// Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
+extern inline (/)(x:int,y:int) : int { js "$std_core._int_div" }
+// Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
+extern inline (%)  : (int,int) -> int { js "$std_core._int_mod" }
+
+// Euclidean-0 division & modulus.
+// Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
+//
+// 1. `D == d*(D/d) + (D%d)` 
+// 2. `D%d`  is always positive where `0 <= D%d < abs(d)` 
+//
+// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+// that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
+// 
+// Useful laws that hold for Euclidean-0 division:
+//
+// * `D/(-d) == -(D/d)` 
+// * `D%(-d) == D%d` 
+// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
+// * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
+//
+// See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
+// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
+extern inline divmod(x:int,y:int) : (int,int) { js "$std_core._int_divmod" }
+
+// Negate an integer.
+extern inline (~)    : (int) -> int     { js "$std_core._int_negate" }
+
+// Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
+extern inline double : (int) -> double  { js "$std_core._int_double" }
+
+// Is this an odd integer?
+extern inline odd?   : ( int ) -> bool  { js "$std_core._int_isodd" }
+
+// Is this equal to zero?
+extern inline zero?  : ( int ) -> bool  { js "$std_core._int_iszero" }
+
+// Convert an integer to an `:int32`. The number is _clamped_ to `max-int32` or `min-int32` 
+// if it is outside the range of an `:int32`.
+extern inline int32  : (int) -> int32   { js "$std_core._int_clamp32" }
+
+// Is this an even integer?
+fun even?(i:int) : bool { !odd?(i) }
+
+// Return the absolute value of an integer.
+extern inline abs(i : int) : int { js "$std_core._int_abs" }
 
 // Return the minimum of two integers
 fun min( i : int, j : int ) : int  -> if (i <= j) then i else j
+
 // Return the maximum of two integers
 fun max( i : int, j : int ) : int  -> if (i >= j) then i else j
 
-// Returns the smallest element of a list of integers (or `0` for the empty list)
-fun minimum( xs : list<int> ) : int
+// Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
+fun minimum( xs : list<int>, default : int = 0 ) : int
 {
   match(xs) {
-    Nil -> 0 
+    Nil -> default
     Cons(x,xx) -> xx.foldl( x, min )
   }
 }
 
-// Returns the largest element of a list of integers (or `0` for the empty list)
-fun maximum( xs : list<int> ) : int
+// Returns the largest element of a list of integers (or `default` (=`0`) for the empty list)
+fun maximum( xs : list<int>, default : int = 0 ) : int
 {
   match(xs) {
-    Nil -> 0 
+    Nil -> default
     Cons(x,xx) -> xx.foldl( x, max )
   }
 }
@@ -1209,26 +1262,33 @@ fun sum( xs : list<int> ) : int
 
 type int32
 
-extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "#1 === #2" }
-extern inline (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "#1 !== #2" }
-extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "#1 <= #2" }
-extern inline (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "#1 >= #2"}
-extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "#1 < #2" }
-extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "#1 > #2" }
+// The maximal integer value before overflow happens
+val max-int32 : int32 = 0x7FFFFFFF.int32
+
+// The minimal integer value before underflow happens
+val min-int32 : int32 = (~0x80000000).int32
+
+// The number of bits in an `:int32` (always 32)
+val bits-int32 : int = 32
+
+// Convert an `:int32` to an `:int`.
+extern inline int( i : int32 ) : int { js "$std_core._int_small" }
+
+/*
+extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+extern inline (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+extern inline (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
+extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
+extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
 
 extern inline (+) : (int32,int32) -> int32 { cs inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 extern inline (-) : (int32,int32) -> int32 { cs inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 
 
-// Do not use. Used by the compiler for platforms that do not support 32 bit multiplication natively.
-extern int-multiply32 : (int32,int32) -> int32 {
-  cs inline "(#1 * #2)"
-  js "_int32_multiply"
-}
-
 extern inline (*) : (int32,int32) -> int32 { 
-  cs inline "(#1 * #2)"; 
-  js "$std_core.int_multiply32"
+  cs inline "#1*#2"; 
+  js "$std_core._int32_multiply"
 }
 
 fun compare( x : int32, y : int32) : order
@@ -1262,41 +1322,41 @@ fun abs0( i : int32 ) : int32
 
 // Take the bitwise _and_ of two `:int32`s
 extern inline (&) : (int32,int32) -> int32 { 
-  cs inline "((#1)&(#2))";
-  js inline "((#1)&(#2))"
+  cs inline "(#1 & #2)";
+  js inline "(#1 & #2)"
 }
   
 // Take the bitwise _or_ of two `:int32`s
 extern inline (|) : (int32,int32) -> int32 { 
-  cs inline "((#1)|(#2))";
-  js inline "((#1)|(#2))";
+  cs inline "(#1 | #2)";
+  js inline "(#1 | #2)";
 }
 
 // Take the bitwise _xor_ of two `:int32`s
 extern inline (^) : (int32,int32) -> int32 { 
-  cs inline "((#1)^(#2))";
-  js inline "((#1)^(#2))"
+  cs inline "(#1 ^ #2)";
+  js inline "(#1 ^ #2)"
 }
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
 extern inline not : ( i : int32 ) -> int32  { 
-  cs inline "(~(#1))";
-  js inline "(~(#1))"
+  cs inline "(~#1)";
+  js inline "(~#1)"
 }
 
 private extern inline prim-shl : (int32,int32) -> int32 { 
-  cs inline "((#1)<<(#2))";
-  js inline "((#1)<<(#2))";
+  cs inline "(#1 << #2)";
+  js inline "(#1 << #2)";
 }
 
 private extern inline prim-shr : (int32,int32) -> int32 { 
-  cs inline "(int32)((uint32)(#1)>>(#2))";
-  js inline "((#1)>>>(#2))";
+  cs inline "(int32)(((uint32)#1)>>#2)";
+  js inline "(#1>>>#2)";
 }
 
 private extern inline prim-sar : (int32,int32) -> int32 { 
-  cs inline "((#1)>>(#2))";
-  js inline "((#1)>>(#2))";
+  cs inline "(#1>>#2)";
+  js inline "(#1>>#2)";
 }
 
 // Bitwise rotate an `:int32` `n` bits to the left.
@@ -1347,33 +1407,21 @@ fun min( i : int32, j : int32 ) : int32  -> if (i <= j) then i else j
 fun max( i : int32, j : int32 ) : int32  -> if (i >= j) then i else j
 
 
-// Do not use. Used by the compiler for platforms that do not support 32 bit truncated division natively.
-extern int-cdiv32 : (int32,int32) -> exn int32 {
-  cs inline "(#1 / #2)"
-  js "_int32_cdiv"
-}
-
-// Do not use. Used by the compiler for platforms that do not support 32 bit truncated modulus natively.
-extern int-cmod32 : (int32,int32) -> exn int32 {
-  cs inline "(#1 % #2)"
-  js "_int32_cmod"
-}
-
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
 extern inline cdiv : (int32,int32) -> exn int32 { 
-  cs inline "(#1/#2)";
-  js "$std_core.int_cdiv32"
+  cs inline "(#1 / #2)";
+  js "$std_core._int32_cdiv"
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 extern inline cmod : (int32,int32) -> exn int32 { 
   cs inline "(#1 % #2)";
-  js "$std_core.int_cmod32"
+  js "$std_core._int32_cmod"
 }
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
 private extern inline unsafe-cdiv : (int32,int32) -> int32 {
-  cs inline "(#1/#2)";
+  cs inline "(#1 / #2)";
   js inline "((#1/#2)|0)"
 }
 
@@ -1395,15 +1443,6 @@ fun negate( i : int32 ) : int32 {
 fun (~)(i : int32) : total int32 {
   return (0.int32 - i)
 }
-
-// The maximal integer value before overflow happens
-val max-int32 : int32 = 0x7FFFFFFF.int32
-
-// The minimal integer value before underflow happens
-val min-int32 : int32 = max-int32.negate - 1.int32
-
-// The number of bits in an `:int32` (always 32)
-val bits-int32 : int = 32
 
 // Euclidean-0 division.
 // Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
@@ -1448,15 +1487,15 @@ fun (%)( x : int32, y : int32 ) : int32
 }
 
 // Returns `true` if the integer `i`  is an odd number.
-fun odd( i : int32 ) : bool {
+fun odd?( i : int32 ) : bool {
   return (i&1.int32==1.int32);
 }
 
 // Returns `true` if the integer `i`  is an even number.
-fun even( i : int32 ) : bool {
+fun even?( i : int32 ) : bool {
   return (i&1.int32==0.int32);
 }
-
+*/
 
 // ----------------------------------------------------------------------------
 // Parse numbers
@@ -1608,12 +1647,7 @@ private extern inline getEpsilon : () -> double {
 }
 
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
-// If the double is larger than `maxInt` or smaller than `minInt` this returns `default` (=0)
-public fun int(d : double, default : int = 0 ) : int {
-  if (d > max-int32.double || d < min-int32.double)
-   then default
-   else d.unsafe-int
-}
+extern inline int(d : double ) : int { js "$std_core._int_small" }
 
 // Represents a value that is _not a number_ (NaN)
 val nan : double = getNan()
@@ -2381,19 +2415,25 @@ private extern inline gformat : forall<a> (value:a,format:string) -> string {
 }
 
 // Convert an `:int` to a string
-fun show( i : int ) : string 
-{ 
+fun show( i : int ) : string { 
   i.gshow()  
 }
 
-// Show an `:int` as a hexadecimal value.
-// The `width`  parameter specifies how wide the hex value is where `0`  is used to align
-// Uses capital letters for hexadecimal digits by default.
-fun show-hex( i : int, width : int = 1, use-capitals : bool = True )
-{
-  val w = if (width < 0) then 0 else width
-  val x = if (use-capitals) then "X" else "x"
-  gformat(i, x + w.show)
+// Convert an `:int32` to a string
+fun show( i : int32 ) : string { 
+  show(i.int)
+}
+
+private extern int-show-hex(i:int,use-capitals:bool) : string { 
+  js "_int_showhex"
+}
+
+// Show an `:int` as a hexadecimal value.\
+// The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) {
+  (if (i<0) then "-" else "") + pre + int-show-hex(i.abs,use-capitals).pad-left(width,"0")
 }
 
 private fun show-double( d : double, precision : int, format : string )
@@ -2712,12 +2752,12 @@ extern random : () -> ndet double   {
 // Return a positive random integer (including 0)
 extern random-int: () -> ndet int  { 
   cs "Primitive.RandomInt"
-  js inline "Math.floor(Math.random()*2147483647)"
+  js inline "Math.floor(Math.random()*_max_precise)"
 }
 
 // Return a random boolean
 fun random-bool() : ndet bool {
-  odd(random-int())
+  odd?(random-int())
 }
 
 
