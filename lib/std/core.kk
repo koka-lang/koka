@@ -1504,12 +1504,7 @@ fun even?( i : int32 ) : bool {
 // Parse an integer using `parseInt`. If an illegal digit character is encountered the 
 // `default` value is returned. An empty string will also result in `default`.
 fun parse-int-default( s : string, default : int = 0, hex : bool = False ) : int {
-  if (s.empty?) then default else {
-    match( s.parse-int(hex) ) {
-      Nothing -> default
-      Just(i) -> i
-    }
-  }
+  if (s.empty?) then default else s.parse-int(hex).maybe(default)
 }
 
 // Parse an integer after trimming whitespace. 
@@ -1518,72 +1513,23 @@ fun parse-int-default( s : string, default : int = 0, hex : bool = False ) : int
 // A string can start with a `-` sign for negative numbers, 
 // and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
 fun parse-int( s : string, hex : bool = False) : maybe<int> {
-  val base = if (hex) then 16 else 10
-  match(s.trim.list) {
-    Nil -> Just(0)
-    Cons(c,cc) | c == '-' -> {
-      match(parse-pos-int(cc,base)) {
-        Nothing -> Nothing
-        Just(i) -> Just(0 - i)
-      }
-    }
-    cs -> parse-pos-int(cs,base)     
-  }
+  s.trim.xparse-int(hex)
 }
 
-private fun parse-pos-int( s : list<char>, base : int = 10 ) : maybe<int> {
-  match(s) {
-    Cons(c1,Cons(c2,cs)) | c1 == '0' && (c2 == 'x' || c2== 'X' )
-      -> parse-digits(cs,16)
-    _ -> parse-digits(s,base)
-  }
+private extern xparse-int( s : string, hex : bool ) : maybe<int> {
+  js "_int_parse"
 }
 
-// Parse digits in a `base` between 2 and 36 (default 10) given an initial value `acc` (default 0)
-// Returns `acc` on the empty string, and `Nothing` if an invalid digit is encountered.
-private fun parse-digits( cs : list<char>, base : int = 10, acc : int = 0 ) : maybe<int> {  
-  match(cs) {
-    Nil -> Just(acc)
-    Cons(c,cc) -> {
-      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base - 1).char))) then {
-                (c - '0').int
-              }
-              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base - 11).char)) then { 
-                (c - 'a').int + 10
-              }
-              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base - 11).char)) then { 
-                (c - 'A').int + 10
-              }
-              else return Nothing   
-      parse-digits(cc, base, base*acc + d)
-    }
-  }
+public fun parse-double( s : string ) : maybe<double> {
+  s.trim.xparse-double
 }
 
-public fun parse-fixed( s : string ) : maybe<double> {
-  match(s.split(".",2)) {
-    Cons(pre,Cons(post,Nil)) -> {
-      match(pre.parse-int) {
-        Nothing -> Nothing
-        Just(d) -> match(post.parse-int) {
-          Nothing -> Nothing
-          Just(f) -> {
-            if (f < 0) then Nothing
-            elif (f == 0) then Just(d.double)
-            else Just( d.double + (10.0^(post.length.double) / f.double) )
-          }
-        }
-      }
-    }
-    _ -> match(s.parse-int) {
-      Nothing -> Nothing
-      Just(i) -> Just(i.double)
-    }
-  }
+private extern xparse-double( s : string ) : maybe<double> {
+  js "_double_parse"
 }
 
-public fun parse-fixed-default( s : string, default : double = 0.0 ) : double {
-  s.parse-fixed.maybe(default)
+public fun parse-double-default( s : string, default : double = 0.0 ) : double {
+   if (s.empty?) then default else s.parse-double.maybe(default)
 }
 
 
