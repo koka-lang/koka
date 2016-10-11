@@ -621,7 +621,7 @@ genExpr expr
                      then return (vcat (decls ++ [doc <> semi]), text "") 
                      else return (vcat decls, doc)
              Nothing
-              -> do (decls,fdoc:docs) <- genExprs (f:args) 
+              -> do (decls,fdoc:docs) <- genExprs (f:trimOptionalArgs args) 
                     return (vcat decls, fdoc <> tupled docs)
 
      Let groups body 
@@ -726,7 +726,7 @@ genInline expr
       App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
         -> genInline arg
       App f args     
-        -> do argDocs <- mapM genInline args
+        -> do argDocs <- mapM genInline (trimOptionalArgs args)
               case extractExtern f of
                 Just (tname,formats) 
                   -> case args of
@@ -818,6 +818,14 @@ genCommentTName (TName n t)
   = do env <- getPrettyEnv
        return $ ppName n <+> comment (Pretty.ppType env t ) 
 
+trimOptionalArgs args
+  = reverse (dropWhile isOptionalNone (reverse args))
+  where
+    isOptionalNone arg
+      = case arg of
+          TypeApp (Con tname _) _ -> getName tname == nameOptionalNone
+          _ -> False
+
 ---------------------------------------------------------------------------------
 -- Classification
 ---------------------------------------------------------------------------------
@@ -851,7 +859,9 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App f args       -> isPureExpr f && all isPureExpr args && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
+      App f args       -> isPureExpr f && all isPureExpr args 
+                          -- all isInlineableExpr (f:args)
+                          && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
       _                -> isPureExpr expr
 
 isPureExpr :: Expr -> Bool
