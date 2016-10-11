@@ -729,7 +729,10 @@ genInline expr
         -> do argDocs <- mapM genInline args
               case extractExtern f of
                 Just (tname,formats) 
-                  -> genInlineExternal tname formats argDocs
+                  -> case args of
+                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+                         -> return (pretty i)
+                       _ -> genInlineExternal tname formats argDocs
                 Nothing 
                   -> do fdoc <- genInline f
                         return (fdoc <> tupled argDocs)
@@ -997,7 +1000,9 @@ getInStatement
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
-      LitInt i    -> (pretty i)
+      LitInt i    -> if (isSmallInt(i)) 
+                      then (pretty i) 
+                      else ppName nameIntConst <> parens (dquotes (pretty i))
       LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> (pretty d)
       LitString s -> dquotes (hcat (map escape s))
@@ -1021,6 +1026,17 @@ ppLit lit
                     hi = (code `div` 0x0400) + 0xD800
                     lo = (code `mod` 0x0400) + 0xDC00
                 in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
+
+isSmallLitInt expr
+  = case expr of
+      Lit (LitInt i)  -> isSmallInt i
+      _ -> False
+
+isSmallInt i = (i > minSmallInt && i < maxSmallInt)
+
+maxSmallInt, minSmallInt :: Integer
+maxSmallInt = 67108864  -- 2^26
+minSmallInt = -maxSmallInt
 
 ppName :: Name -> Doc
 ppName name

@@ -32,6 +32,7 @@ module Common.NamePrim
           , nameEnsureK
           , nameIsValidK
           , nameUnsafeTotal
+          , nameIntConst, nameInt32
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -160,7 +161,8 @@ nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-
+nameIntConst    = preludeName ".intconst"
+nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
