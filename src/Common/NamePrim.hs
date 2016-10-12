@@ -48,6 +48,7 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat
           , nameTpString
+          , nameTpInt32
           , nameTpAny
           , nameTpException
           , nameTpHandled, nameTpHandled1
@@ -199,6 +200,7 @@ nameOpNoMatch   = preludeName ".conOpNoMatch"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
+nameTpInt32     = preludeName "int32"
 nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"

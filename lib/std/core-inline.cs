@@ -7,6 +7,8 @@
 ---------------------------------------------------------------------------*/
 using System.Text;
 using System.Collections.Generic;
+using System.Globalization;             // CultureInfo.InvariantCulture
+using System.Text.RegularExpressions;   // Parsing BigInteger's
 
 public static class Primitive
 {
@@ -213,13 +215,13 @@ public static class Primitive
     return v.ToArray();
   }
 
-  public static int StringCount( string s ) {
+  public static BigInteger StringCount( string s ) {
     int n = 0;
     for(int i = 0; i < s.Length; i++) {
       n++;
       if (Char.IsHighSurrogate(s[i])) i+=1;
     }
-    return n;
+    return new BigInteger(n);
   }
 
   public static string CharToString( int c ) {
@@ -259,16 +261,17 @@ public static class Primitive
       return new std_core._sslice(s,s.Length-1,1);
   }
 
-  public static int SliceCount( std_core._sslice slice ) {
+  public static BigInteger SliceCount( std_core._sslice slice ) {
     int n = 0;
     for(int i = slice.start; i < slice.start + slice.len; i++) {
       n++;
       if (Char.IsHighSurrogate(slice.str[i])) i+=1;
     }
-    return n;
+    return new BigInteger(n);
   }
 
-  public static std_core._sslice SliceExtend( std_core._sslice slice, int count ) {
+  public static std_core._sslice SliceExtend( std_core._sslice slice, BigInteger bcount ) {
+    int count = IntClamp32(bcount);
     if (count==0) return slice;
     int i = slice.start + slice.len;
     if (count > 0) {
@@ -286,11 +289,12 @@ public static class Primitive
     return new std_core._sslice(slice.str, slice.start, (i > slice.start ? i - slice.start : 0));
   }
 
-  public static std_core._sslice SliceAdvance( std_core._sslice slice, int count ) {
+  public static std_core._sslice SliceAdvance( std_core._sslice slice, BigInteger bcount ) {
+    int count = IntClamp32(bcount);    
     if (count==0) return slice;
     int i   = slice.start;
     int end = slice.start + slice.len;
-    int sliceCount = SliceCount(slice);
+    int sliceCount = IntClamp32(SliceCount(slice));
     int extra = 0;
     if (count > 0) {
       while(i < slice.str.Length && extra < count) {
@@ -319,10 +323,12 @@ public static class Primitive
     return slice.str.Substring(slice.start,slice.len);
   }
 
-  public static std_core._sslice SliceCommonPrefix( string s, string t, int upto ) {
-    int max = Math.Max(s.Length,t.Length);
+  public static std_core._sslice SliceCommonPrefix( string s, string t, BigInteger bupto ) {
+    int upto = IntClamp32(bupto);
+    int min  = Math.Min(s.Length,t.Length);
     int i;
-    for(i = 0; i < max && upto > 0; i++) {
+    if (upto<0) upto = min;
+    for(i = 0; i<min && upto>0; i++) {
       if (s[i] != t[i]) break;
       if (!Char.IsLowSurrogate(s[i])) upto--;
     }
@@ -385,6 +391,73 @@ public static class Primitive
       }
     }
     return x;
+  }
+
+  //---------------------------------------
+  // Integers
+  //---------------------------------------
+  public static BigInteger IntConst(string s) {
+    BigInteger i;
+    bool ok = BigInteger.TryParse(s,out i);
+    return (ok ? i : BigInteger.Zero);
+  }
+
+  public static BigInteger IntSmall(int i) {
+    return new BigInteger(i);
+  }  
+
+  public static double IntToDouble(BigInteger i) {
+    return (double)(i);
+  }
+
+  public static int IntClamp32(BigInteger i) {
+    if (i<Int32.MinValue) return Int32.MinValue;
+    if (i>Int32.MaxValue) return Int32.MaxValue;
+    return (int)(i);
+  }
+
+  public static std_core._order IntSign( BigInteger i ) {
+    int s = i.Sign;
+    return (s<0 ? std_core._order.Lt : (s>0 ? std_core._order.Gt : std_core._order.Eq));
+  }
+
+  public static std_core._Tuple2_<BigInteger,BigInteger> DivMod(BigInteger i, BigInteger j) {
+    if (j.IsZero) return new std_core._Tuple2_<BigInteger,BigInteger>(BigInteger.Zero,BigInteger.Zero);
+    BigInteger r;
+    BigInteger q = BigInteger.DivRem(i,j,out r);
+    if (r.Sign<0) {
+      if (j.Sign>0) { q = q-1; r = r + j; }
+              else  { q = q+1; r = r - j; }
+    }
+    return new std_core._Tuple2_<BigInteger,BigInteger>(q,r);
+  }
+
+  public static BigInteger Div(BigInteger i, BigInteger j) {
+    if (j.IsZero) return BigInteger.Zero;
+    BigInteger r;
+    BigInteger q = BigInteger.DivRem(i,j,out r);
+    return (r.Sign<0 ? (j.Sign>0 ? q-1 : q+1) : q);
+  }
+
+  public static BigInteger Mod(BigInteger i, BigInteger j) {
+    if (j.IsZero) return BigInteger.Zero;
+    BigInteger r = BigInteger.Remainder(i,j);
+    return (r.Sign<0 ? (j.Sign>0 ? r+j : r-j) : r);
+  }
+
+  public static String IntShowHex(BigInteger i, bool useCapitals) {
+    return i.ToString( (useCapitals ? "X" : "x" ));
+  }
+
+  public static std_core._maybe<BigInteger> IntParse( string s, bool hex ) {
+    Regex rxpre = new Regex(@"^([\-\+])?(0[xX])?(.*)$");
+    Match mpre  = rxpre.Match(s);
+    string sign = (mpre.Groups[1].Value=="-" ? "-" : "");
+    if (!String.IsNullOrEmpty(mpre.Groups[2].Value)) hex = true;
+    string sdigits = mpre.Groups[3].Value;
+    BigInteger res;
+    bool ok = BigInteger.TryParse( sign + sdigits, out res);
+    return (ok ? new std_core._maybe<BigInteger>(res) : std_core._maybe<BigInteger>.Nothing_ );
   }
 };
   

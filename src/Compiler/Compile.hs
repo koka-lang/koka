@@ -848,6 +848,7 @@ codeGenCS term flags modules compileTarget outBase core
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " " 
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
+                        ++ "-r:System.Numerics.dll "
            targetName = case compileTarget of
                           Executable _ _ -> dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                           _              -> dquote (outBase ++ dllExtension)

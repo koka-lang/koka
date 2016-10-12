@@ -54,6 +54,7 @@ csharpFromCore maxStructFields mbMain core
        text "#pragma warning disable 162 // unreachable code" <->
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
+       text "using System.Numerics;" <->
        vcat (concatMap includeExternal (coreProgExternals core)) <->
        text "// module" <+> pretty (coreProgName core) <->
        text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <> body)  <->
@@ -388,7 +389,11 @@ genDef isRec (Def name tp expr vis isVal nameRng doc)
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppParams ctx (unzipTNames pars))
                   genBody isRec True e                       
          Lit lit
-            -> do putLn (ppVis vis <+> text "const" <+> ppType ctx tp <+> ppDefName name <+> text "=" <+> ppLit lit <> semi)
+            -> do putLn (ppVis vis <+> text constdecl <+> ppType ctx tp <+> ppDefName name <+> text "=" <+> ppLit lit <> semi)
+            where 
+               constdecl = case lit of
+                             LitInt _ -> "static readonly"
+                             _        -> "const"
          _  -> do putLn (text "private static " <+> ppType ctx tp <+> ppEvalName name <> text "()")
                   genBody False True expr
                   putLn (hang 2 $ ppVis vis <+> text "static readonly" <+> ppType ctx tp <+> ppDefName name </> text "=" <+> ppEvalName name <> text "()" <> semi)
@@ -1186,7 +1191,7 @@ ppField ctx (name,tp)
 ppLit :: Lit -> Doc
 ppLit lit
   = case lit of
-      LitInt i  -> pretty i
+      LitInt i  -> if (isSmallInt i) then pretty i else text ("Primitive.IntConst(\"" ++ show i ++ "\")")
       LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d -> pretty d
       LitString s -> dquotes (hcat (map escape s))
@@ -1198,6 +1203,8 @@ ppLit lit
          then text ("\\u" ++ showHex 4 (fromEnum c))
          else text ("\\U" ++ showHex 8 (fromEnum c))
 
+    isSmallInt :: Integer -> Bool
+    isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
 
 ---------------------------------------------------------------------------------
 -- Types
@@ -1237,11 +1244,13 @@ ppType ctx tp
 ppTypeCon ctx c kind
    = let name = typeConName c
      in if (name == nameTpInt)
-         then text "int"
+         then text "BigInteger"
         else if (name == nameTpString)
          then text "string"
         else if (name == nameTpChar)
          then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
+        else if (name == nameTpInt32)
+         then text "int"
         else if (name == nameTpFloat)
          then text "double"
         else if (name == nameTpBool)
