@@ -13,6 +13,8 @@
 */  
 module std/regex
 
+import std/int32
+
 extern include {
   cs file "regex-inline.cs"
   js file "regex-inline.js"
@@ -34,54 +36,58 @@ extern regex-source( r : any ) : string {
   js inline "#1.regex.source"
 }
 
-extern groups-index( groups : any, index : int ) : string {
+extern groups-index( groups : any, index : int32 ) : string {
   cs "RegEx.GroupsIndex"
   js inline "((#1)[#2] != null ? (#1)[#2] : '')"
 } 
 
-extern inline groups-matched-on( groups : any, index : int ) : int {
+extern inline groups-matched-on( groups : any, index : int32 ) : int32 {
   cs "RegEx.GroupsMatchedOn"
   js inline "(#1[#2] ? 1 : 0)"  // mmm, doesn't catch empty group match.. but FireFox does not distinguish those :-(
 } 
 
 // For alternative regular expressions, return the alternative that was matched.
 // If this was not an alternative regex, returns `-1`
-public extern alternative( groups : groups ) : int {
+public fun alternative( groups : groups ) : int {
+  xalternative(groups).int
+}
+
+extern xalternative( groups : groups ) : int32 {
   cs inline "-1"
   js inline "(#1.alternative!=null ? #1.alternative : -1)"
 }
 
-extern regex-create : (string,int,int) -> any {
+extern regex-create : (string,int32,int32) -> any {
   cs "RegEx.Create"
   js "$regexCreate"
 }
 
-extern regex-create-alt : (vector<string>,int,int) -> any {
+extern regex-create-alt : (vector<string>,int32,int32) -> any {
   cs "RegEx.CreateAlt"
   js "$regexCreateAlt"
 }
 
-extern regex-exec : (any,string,int) -> maybe<matched> {
+extern regex-exec : (any,string,int32) -> maybe<matched> {
   cs "RegEx.Exec"
   js "$regexExec"
 }
 
-extern regex-exec-all : (any,string,int) -> vector<matched> {
+extern regex-exec-all : (any,string,int32) -> vector<matched> {
   cs "RegEx.ExecAll"
   js "$regexExecAll"
 }
 
-extern regex-replace-fun : forall<e> (any, string, (matched) -> e string, int, int ) -> e string {
+extern regex-replace-fun : forall<e> (any, string, (matched) -> e string, int32, int32 ) -> e string {
   cs "RegEx.ReplaceFun"
   js "$regexReplaceFun"
 }
 
-extern regex-replace : (any, string, string, int, int ) -> string {
+extern regex-replace : (any, string, string, int32, int32 ) -> string {
   cs "RegEx.Replace"
   js "$regexReplace"
 }
 
-extern regex-split : (any, string, int, int ) -> vector<string> {
+extern regex-split : (any, string, int32, int32 ) -> vector<string> {
   cs "RegEx.Split"
   js "$regexSplit"
 }
@@ -135,13 +141,13 @@ public fun first-matched(groups : groups, start : int = 1, end : int = 10 ) : st
 
 // Return the string captured by a particular group or the empty string.
 public fun []( groups : groups, index : int ) : string {
-  groups-index(groups.grp, index)
+  groups-index(groups.grp, index.int32)
 }
 
 // Returns `True` if a particular capture group actually matched.
 // This is used if the group can match, but may capture the empty string.
 public fun matched?( groups : groups, index : int ) : bool {
-  groups-matched-on(groups.grp, index).bool
+  groups-matched-on(groups.grp, index.int32).bool
 }
 
 // Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
@@ -149,7 +155,7 @@ public fun matched?( groups : groups, index : int ) : bool {
 // match also the beginning and end of every line (instead of the entire input).
 public fun regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex
 {
-  Regex(regex-create(regex,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
+  Regex(regex-create(regex,if (ignorecase) then one else zero, if (multiline) then one else zero));
 }
 
 // Create a new _alternative_ regular expression. 
@@ -162,18 +168,18 @@ public fun regex( regex :string, ignorecase :bool = False, multiline : bool = Fa
 // Note: currently only supported in the javascript backend.
 public fun regex-alt( regexs :list<string>, ignorecase :bool = False, multiline : bool = False ) : regex
 {
-  Regex(regex-create-alt(regexs.vector,if (ignorecase) then 1 else 0, if (multiline) then 1 else 0));
+  Regex(regex-create-alt(regexs.vector,if (ignorecase) then one else zero, if (multiline) then one else zero));
 }
 
-private extern inline length( s : string ) : int {
+private extern inline length( s : string ) : int32 {
   cs inline "#1.Length"
   js inline "#1.length"
 }
 
-private extern inline substr( s : string, start : int ) : string {
+private extern inline substr( s : string, start : int32 ) : string {
   js inline "(#1).substr(#2)"
 }
-private extern inline substr( s : string, start : int, len : int ) : string {
+private extern inline substr( s : string, start : int32, len : int32 ) : string {
   js inline "(#1).substr(#2,#3)"
 }
 
@@ -182,31 +188,31 @@ private extern inline substr( s : string, start : int, len : int ) : string {
 // (note: this fun is called |exec| in JavaScript).
 public fun find( s :string,  regex :regex ) : maybe<matched>
 {  
-  regex-exec(regex.obj,s,0)
+  regex-exec(regex.obj,s,0.int32)
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
 
 // Find all matches for a regular expression in a string.
 public fun find-all( s :string,  regex :regex ) : vector<matched>
 {
-  return regex-exec-all(regex.obj,s,0)
+  return regex-exec-all(regex.obj,s,zero)
 }
 
 fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
 {
-  return regex-replace-fun(regex.obj, s, repl, if (all) then 1 else 0, 0);
+  return regex-replace-fun(regex.obj, s, repl, if (all) then one else zero, zero);
 }
 
 fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string
 {
-  return regex-replace(regex.obj, s, repl, if (all) then 1 else 0, 0);
+  return regex-replace(regex.obj, s, repl, if (all) then one else zero, zero);
 }
 
 // Split a string `s` in at most `n` parts using a regular expression `r` as separator.
-public fun split( s :string, r :regex, n :int = max-int ) : vector<string>
+public fun split( s :string, r :regex, n :int = 0 ) : vector<string>
 {
   if (n<=0) return vector();
-  return regex-split( r.obj, s, if (n==max-int) then 0 else n, 0 );
+  return regex-split( r.obj, s, if (n.pos?) then n.int32 else zero, zero );
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.

@@ -781,7 +781,7 @@ fun drop-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
 }
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
-// For example: `filter([1,2,3],odd) == [1,3]`
+// For example: `filter([1,2,3],odd?) == [1,3]`
 fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 {
   match(xs) {
@@ -792,14 +792,14 @@ fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 
 
 // Remove those elements of a list that satisfy the given predicate `pred`.
-// For example: `remove([1,2,3],odd) == [2]`
+// For example: `remove([1,2,3],odd?) == [2]`
 fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
   xs.filter( fun(x) { !pred(x) } )
 }
 
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
-// For example: `partition([1,2,3],odd) == ([1,3],[2])`
+// For example: `partition([1,2,3],odd?) == ([1,3],[2])`
 fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
 {
   partition-acc( xs, pred, Nil, Nil)
@@ -817,7 +817,7 @@ private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 
 
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
-// For example: `filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]`
+// For example: `filterMap([1,2,3],fun(i) { if (i.odd?) then Nothing else Just(i*i) }) == [4]`
 fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 {
   match(xs) {
@@ -1240,6 +1240,10 @@ extern inline divmod(x:int,y:int) : (int,int) {
   js "$std_core._int_divmod" 
 }
 
+fun negate(i : int) : int {
+  ~i
+}
+
 // Negate an integer.
 extern inline (~)(i:int) : int { 
   cs inline "(-#1)"
@@ -1264,8 +1268,8 @@ extern inline zero?  : ( int ) -> bool  {
   js "$std_core._int_iszero" 
 }
 
-// Convert an integer to an `:int32`. The number is _clamped_ to `max-int32` or `min-int32` 
-// if it is outside the range of an `:int32`.
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
 extern inline int32  : (int) -> int32   { 
   cs "Primitive.IntClamp32"
   js "$std_core._int_clamp32" 
@@ -1330,19 +1334,12 @@ fun sum( xs : list<int> ) : int
 }
 
 // ----------------------------------------------------------------------------
-// Integers
+// 32-bit integers
 // ----------------------------------------------------------------------------
 
+// Type of a 32-bit signed integer. 
+// See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
 type int32
-
-// The maximal integer value before overflow happens
-val max-int32 : int32 = 0x7FFFFFFF.int32
-
-// The minimal integer value before underflow happens
-val min-int32 : int32 = (~0x80000000).int32
-
-// The number of bits in an `:int32` (always 32)
-val bits-int32 : int = 32
 
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int { 
@@ -1350,243 +1347,21 @@ extern inline int( i : int32 ) : int {
   js "$std_core._int_small" 
 }
 
-extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-extern inline (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
-extern inline (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
-extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
-extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
+// Minimal set of operations that we need in `std/core`.
+private extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+private extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+private extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+private extern inline pos?( i : int32 ) : bool { inline "(#1>0)" }
+private extern inline neg?( i : int32 ) : bool { inline "(#1<0)" }
 
-extern inline (+) : (int32,int32) -> int32 { cs inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-extern inline (-) : (int32,int32) -> int32 { cs inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-
-fun inc( i : int32 ) : int32 {
+private fun inc( i : int32 ) : int32 {
   i + 1.int32
 }
 
-fun dec( i : int32 ) : int32 {
+private fun dec( i : int32 ) : int32 {
   i - 1.int32
 }
 
-fun pos?( i : int32 ) : bool {
-  i>0.int32
-}
-
-fun neg?( i : int32 ) : bool {
-  i<0.int32
-}
-
-/*
-extern inline (*) : (int32,int32) -> int32 { 
-  cs inline "#1*#2"; 
-  js "$std_core._int32_multiply"
-}
-
-fun compare( x : int32, y : int32) : order
-{
-  if (x < y) then Lt
-  elif (x > y) then Gt
-  else Eq
-}
-
-
-// Return the absolute value of an integer.
-// Raises an exception if the `:int32` is `min-int32`
-// (since the negation of `min-int32` equals itself and is still negative)
-fun abs( i : int32 ) : exn int32
-{
-  if (i >= 0.int32) then i
-  elif (i > min-int32) then negate(i)
-  else error( "system.core.abs: cannot make min-int32 int32o a positive int32 without overflow" )
-}
-
-// Return the absolute value of an integer.
-// Returns 0 if the `:int32` is `min-int32`
-// (since the negation of `min-int32` equals itself and is still negative)
-fun abs0( i : int32 ) : int32
-{
-  if (i >= 0.int32) then i
-  elif (i > min-int32) then negate(i)
-  else 0.int32
-}
-
-
-// Take the bitwise _and_ of two `:int32`s
-extern inline (&) : (int32,int32) -> int32 { 
-  cs inline "(#1 & #2)";
-  js inline "(#1 & #2)"
-}
-  
-// Take the bitwise _or_ of two `:int32`s
-extern inline (|) : (int32,int32) -> int32 { 
-  cs inline "(#1 | #2)";
-  js inline "(#1 | #2)";
-}
-
-// Take the bitwise _xor_ of two `:int32`s
-extern inline (^) : (int32,int32) -> int32 { 
-  cs inline "(#1 ^ #2)";
-  js inline "(#1 ^ #2)"
-}
-
-// Bitwise _not_ of an `:int32`, i.e. flips all bits.
-extern inline not : ( i : int32 ) -> int32  { 
-  cs inline "(~#1)";
-  js inline "(~#1)"
-}
-
-private extern inline prim-shl : (int32,int32) -> int32 { 
-  cs inline "(#1 << #2)";
-  js inline "(#1 << #2)";
-}
-
-private extern inline prim-shr : (int32,int32) -> int32 { 
-  cs inline "(int32)(((uint32)#1)>>#2)";
-  js inline "(#1>>>#2)";
-}
-
-private extern inline prim-sar : (int32,int32) -> int32 { 
-  cs inline "(#1>>#2)";
-  js inline "(#1>>#2)";
-}
-
-// Bitwise rotate an `:int32` `n` bits to the left.
-// Does not rotate when `n` is negative.
-fun rotl( i : int32, n : int ) : int32 {
-  if (n < 0) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shl(i,r) | prim-shr(i,bits-int32.int32 - r))
-}
-
-// Bitwise rotate an `:int32` `n` bits to the right.
-// Does not rotate when `n` is negative.
-fun rotr( i : int32, n : int ) : int32 {
-  if (n < 0) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shr(i,r) | prim-shl(i,bits-int32.int32 - r))
-}
-
-// Shift an `:int32` `i` to the left by `n` bits.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shl( i : int32, n : int ) {
-  if (n < 0) return i
-  if (n >= 32) return 0.int32
-  prim-shl(i,n.int32)
-}
-
-// Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shr( i : int32, n : int ) {
-  if (n < 0) return i;
-  if (n >= 32) return 0.int32;
-  prim-shr(i,n.int32);
-}
-
-// Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
-// Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
-fun sar( i : int32, n : int ) {
-  if (n < 0) return i;
-  if (n >= 32) return (if (i < 0.int32) then ~1.int32 else 0.int32);
-  prim-sar(i,n.int32);
-}
-
-
-
-// Return the minimum of two integers
-fun min( i : int32, j : int32 ) : int32  -> if (i <= j) then i else j
-// Return the maximum of two integers
-fun max( i : int32, j : int32 ) : int32  -> if (i >= j) then i else j
-
-
-// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-extern inline cdiv : (int32,int32) -> exn int32 { 
-  cs inline "(#1 / #2)";
-  js "$std_core._int32_cdiv"
-}
-
-// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-extern inline cmod : (int32,int32) -> exn int32 { 
-  cs inline "(#1 % #2)";
-  js "$std_core._int32_cmod"
-}
-
-// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cdiv : (int32,int32) -> int32 {
-  cs inline "(#1 / #2)";
-  js inline "((#1/#2)|0)"
-}
-
-// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cmod : (int32,int32) -> int32 { 
-  cs inline "(#1 % #2)";
-  js inline "((#1 % #2)|0)"
-}
-
-// Convert an integer to a double.
-extern inline double : (int32) -> double { cs inline "(double)(#1)"; js inline "(#1)" }
-
-// Negate an integer
-fun negate( i : int32 ) : int32 {
-  return (0.int32 - i)
-}
-
-// Negate an integer
-fun (~)(i : int32) : total int32 {
-  return (0.int32 - i)
-}
-
-// Euclidean-0 division.
-// Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
-//
-// 1. `D == d*(D/d) + (D%d)` 
-// 2. `D%d`  is always positive where `0 <= D%d < abs(d)` 
-//
-// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
-// that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
-// 
-// Useful laws that hold for Euclidean-0 division:
-//
-// * `D/(-d) == -(D/d)` 
-// * `D%(-d) == D%d` 
-// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-// * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-//
-// Note that an int32eresting edge case is `minInt / -1` which equals `minInt` since in modulo 32-bit 
-// arithmetic `minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)` satisfying property (1).
-// Of course `(minInt + 1) / -1` is again positive (namely `maxInt`).  
-// 
-// See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
-// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-fun (/)( x : int32, y : int32 ) : int32
-{
-  if (y == 0.int32) then return 0.int32
-  val q = unsafe-cdiv(x,y)
-  val r = unsafe-cmod(x,y)
-  if (r >= 0.int32) then q
-  elif (y > 0.int32) then q - 1.int32
-  else q+1.int32
-}
-
-// Euclidean-0 modulus. See `(/):(x : int32, y : int32) -> int32` division for more information.
-fun (%)( x : int32, y : int32 ) : int32
-{
-  if (y == 0.int32) then return x
-  val r = unsafe-cmod(x,y)
-  if (r >= 0.int32) then r
-  elif (y > 0.int32) then (r+y)
-  else (r - y)
-}
-
-// Returns `true` if the integer `i`  is an odd number.
-fun odd?( i : int32 ) : bool {
-  return (i&1.int32==1.int32);
-}
-
-// Returns `true` if the integer `i`  is an even number.
-fun even?( i : int32 ) : bool {
-  return (i&1.int32==0.int32);
-}
-*/
 
 // ----------------------------------------------------------------------------
 // Parse numbers
@@ -2277,7 +2052,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
 {
   val w = width.int32
   val n = s.length
-  if (n >= w)
+  if (w <= n)
    then s
    else fill.string.repeat32( w - n ) + s
 }
@@ -2287,7 +2062,7 @@ fun pad-right( s : string, width : int, fill : char = ' ') : string
 {
   val w = width.int32
   val n = s.length
-  if (n >= w)
+  if (w <= n)
    then s
    else s + fill.string.repeat32(w - n)
 }
@@ -2481,10 +2256,6 @@ fun show( i : int ) : string {
   i.gshow()  
 }
 
-// Convert an `:int32` to a string
-fun show( i : int32 ) : string { 
-  show(i.int)
-}
 
 private extern int-show-hex(i:int,use-capitals:bool) : string { 
   cs "Primitive.IntShowHex"

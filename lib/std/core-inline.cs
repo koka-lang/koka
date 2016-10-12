@@ -421,7 +421,7 @@ public static class Primitive
     return (s<0 ? std_core._order.Lt : (s>0 ? std_core._order.Gt : std_core._order.Eq));
   }
 
-  public static std_core._Tuple2_<BigInteger,BigInteger> DivMod(BigInteger i, BigInteger j) {
+  public static std_core._Tuple2_<BigInteger,BigInteger> IntDivMod(BigInteger i, BigInteger j) {
     if (j.IsZero) return new std_core._Tuple2_<BigInteger,BigInteger>(BigInteger.Zero,BigInteger.Zero);
     BigInteger r;
     BigInteger q = BigInteger.DivRem(i,j,out r);
@@ -432,14 +432,14 @@ public static class Primitive
     return new std_core._Tuple2_<BigInteger,BigInteger>(q,r);
   }
 
-  public static BigInteger Div(BigInteger i, BigInteger j) {
+  public static BigInteger IntDiv(BigInteger i, BigInteger j) {
     if (j.IsZero) return BigInteger.Zero;
     BigInteger r;
     BigInteger q = BigInteger.DivRem(i,j,out r);
     return (r.Sign<0 ? (j.Sign>0 ? q-1 : q+1) : q);
   }
 
-  public static BigInteger Mod(BigInteger i, BigInteger j) {
+  public static BigInteger IntMod(BigInteger i, BigInteger j) {
     if (j.IsZero) return BigInteger.Zero;
     BigInteger r = BigInteger.Remainder(i,j);
     return (r.Sign<0 ? (j.Sign>0 ? r+j : r-j) : r);

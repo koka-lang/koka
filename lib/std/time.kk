@@ -405,11 +405,11 @@ fun format-year( t : time, n : int, locale : time-locale ) : string {
     t.year.show
   }
   elif (n<5) then {
-    t.year.abs0.showl(n).last(n).string
+    t.year.abs.showl(n).last(n).string
   }
   else {
-    val y = t.year.abs0.showl(n)
-    if (t.year<0) then "-" + y else "+" + y
+    val y = t.year.abs.showl(n)
+    if (t.year.neg?) then "-" + y else "+" + y
   }
 }
 
@@ -450,7 +450,7 @@ fun format-frac( t : time, n : int, locale : time-locale ) : string {
 
 fun format-frac0( t : time, n : int, locale : time-locale ) : string {
   val ms = t.clock.field4
-  "." + ms.showl(3).first(n).string.pad-right(n,"0")
+  "." + ms.showl(3).first(n).string.pad-right(n,'0')
 }
 
 fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
@@ -616,7 +616,7 @@ fun show-timezone( t : time, utc : string = "Z", hmsep : string = ":", hrwidth :
 }
 
 fun showl( i : int, width : int = 2 ) : string {
-  i.show.pad-left(width,"0")
+  i.show.pad-left(width,'0')
 }
 
 
