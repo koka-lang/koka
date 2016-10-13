@@ -14,6 +14,8 @@
 */
 module std/atom
 
+import std/int32
+
 external include {
   cs file "atom-inline.cs"
   js file "atom-inline.js"
@@ -23,16 +25,16 @@ external include {
 public val atom-null = atom("")
 
 // An atom is an abstract representation of a string that can be compared quickly
-abstract struct atom( value: int )  
+abstract struct atom( value: int32 )  
 
 // Create an `:atom`
-extern atom-create : ( s : string ) -> int {
+extern atom-create : ( s : string ) -> int32 {
   cs "Atom.Create"
   js "$atomCreate"
 }
 
 // Convert an `:atom` back to a `:string`
-extern atom-to-string : ( x : int ) -> string {
+extern atom-to-string : ( x : int32 ) -> string {
   cs "Atom.ToString"
   js "$atomToString"
 }
@@ -54,13 +56,13 @@ public fun (==)(x : atom, y : atom) : bool  -> (x.value == y.value)
 public fun (!=)(x : atom, y : atom) : bool  -> (x.value != y.value)
 
 
-extern atom-matcher : ( xs : vector<string>, ignoreCase: int ) -> any
+extern atom-matcher : ( xs : vector<string>, ignoreCase: int32 ) -> any
 {
   cs "Atom.CreateMatcher"
   js "$atomCreateMatcher"
 }
 
-extern atom-match : ( m : any, s : string, ignoreCase: int ) -> int
+extern atom-match : ( m : any, s : string, ignoreCase: int32 ) -> int32
 {
   cs "Atom.Match"
   js "$atomMatch"
@@ -75,6 +77,6 @@ public fun matcher( xs : list<string>, ignoreCase: bool = False ) : (( s : strin
 // Create an efficient string matcher which given a vector of strings returns a matching function.
 public fun matcher( xs : vector<string>, ignoreCase: bool = False ) : (( s : string ) -> bool)
 {
-  val m = atom-matcher( xs, ignoreCase.int );
-  return fun(s) { return bool(atom-match(m,s,int(ignoreCase))); }
+  val m = atom-matcher( xs, ignoreCase.int32 );
+  return fun(s) { return bool(atom-match(m,s,ignoreCase.int32)); }
 }

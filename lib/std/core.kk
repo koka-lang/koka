@@ -1268,12 +1268,6 @@ extern inline zero?  : ( int ) -> bool  {
   js "$std_core._int_iszero" 
 }
 
-// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
-// value if it is outside the range of an `:int32`.
-extern inline int32  : (int) -> int32   { 
-  cs "Primitive.IntClamp32"
-  js "$std_core._int_clamp32" 
-}
 
 // Return the absolute value of an integer.
 extern inline abs(i : int) : int { 
@@ -1335,17 +1329,27 @@ fun sum( xs : list<int> ) : int
 
 // ----------------------------------------------------------------------------
 // 32-bit integers
+// Just define the operations needed for defining the std/core interface but
+// don't export any definitions here. Full operations are defined in `std/int32`.
 // ----------------------------------------------------------------------------
 
 // Type of a 32-bit signed integer. 
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-type int32
+private type int32
 
 // Convert an `:int32` to an `:int`.
-extern inline int( i : int32 ) : int { 
+private extern inline int( i : int32 ) : int { 
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_small" 
+  js "$std_core._int_double" 
 }
+
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+private extern inline int32  : (int) -> int32   { 
+  cs "Primitive.IntTo32"
+  js "$std_core._int_to_int32" 
+}
+
 
 // Minimal set of operations that we need in `std/core`.
 private extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
@@ -1427,7 +1431,7 @@ fun compare( x : double, y : double) : order
 
 // Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
 // if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
-extern inline unsafe-int : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
+// extern inline unsafe-int : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
 
 private extern inline getNan : () -> double { 
   cs inline "double.NaN";
@@ -1460,7 +1464,10 @@ private extern inline getEpsilon : () -> double {
 }
 
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
-extern inline int(d : double ) : int { js "$std_core._int_small" }
+extern inline int(d : double ) : int { 
+  cs "Primitive.IntDouble"
+  js "$std_core._int_double" 
+}
 
 // Represents a value that is _not a number_ (NaN)
 val nan : double = getNan()
@@ -2111,8 +2118,8 @@ private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a>
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { 
-  cs inline "(#1)[Primitive.IntClamp32(#2)]" 
-  js inline "(#1)[$std_core._int_clamp32(#2)]" 
+  cs inline "(#1)[Primitive.IntToInt32(#2)]" 
+  js inline "(#1)[$std_core._int_to_int32(#2)]" 
 }
 
 // Return the length of a vector.

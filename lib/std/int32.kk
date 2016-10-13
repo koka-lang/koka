@@ -9,6 +9,9 @@
 // Operations on 32-bit signed integers. 
 public module std/int32
 
+// Type of a 32-bit signed integer. 
+type int32
+
 // The maximal integer value before overflow happens
 val max-int32 : int = 0x7FFFFFFF
 
@@ -22,6 +25,30 @@ val bits-int32 : int = 32
 fun show( i : int32 ) : string { 
   show(i.int)
 }
+
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+extern inline int32  : (int) -> int32   { 
+  cs "Primitive.IntToInt32"
+  js "$std_core._int_to_int32" 
+}
+
+// Convert an `:int32` to an `:int`.
+extern inline int( i : int32 ) : int { 
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_double" 
+}
+
+// Convert an `:int32` to a boolean.
+function bool( i : int32 ) : bool {
+  (i!=zero)
+}
+
+// Convert a boolean to an `:int32`.
+function int32( b : bool ) : int32 {
+  if (b) then one else zero
+}
+
 
 // Show an `:int32` in hexadecimal notation
 // The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
@@ -51,7 +78,7 @@ fun neg?( i : int32 ) : bool {
 }
 
 fun zero?( i : int32 ) : bool { 
-  i==0.int32
+  i==zero
 }
 
 val zero = 0.int32
@@ -92,10 +119,6 @@ fun compare( x : int32, y : int32) : order
   if (x < y) then Lt
   elif (x > y) then Gt
   else Eq
-}
-
-fun bool( i: int32 ) : bool {
-  (i!=zero)
 }
 
 // Return the absolute value of an integer.

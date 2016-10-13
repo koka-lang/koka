@@ -396,26 +396,27 @@ public static class Primitive
   //---------------------------------------
   // Integers
   //---------------------------------------
-  public static BigInteger IntConst(string s) {
+  public static BigInteger IntString(string s) {
     BigInteger i;
     bool ok = BigInteger.TryParse(s,out i);
     return (ok ? i : BigInteger.Zero);
   }
 
-  public static BigInteger IntSmall(int i) {
-    return new BigInteger(i);
-  }  
+  public static BigInteger IntDouble(double d) {
+    return new BigInteger(d);
+  }
 
   public static double IntToDouble(BigInteger i) {
     return (double)(i);
   }
 
-  public static int IntClamp32(BigInteger i) {
+  public static int IntToInt32(BigInteger i) {
     if (i<Int32.MinValue) return Int32.MinValue;
     if (i>Int32.MaxValue) return Int32.MaxValue;
     return (int)(i);
   }
 
+  
   public static std_core._order IntSign( BigInteger i ) {
     int s = i.Sign;
     return (s<0 ? std_core._order.Lt : (s>0 ? std_core._order.Gt : std_core._order.Eq));
