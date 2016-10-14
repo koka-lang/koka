@@ -283,7 +283,7 @@ public fun time( year : int, month : int = 1, day : int = 1,
   time(instant(year,month,day,hours,minutes,secs,frac,tz),tz)
 }
 
-public fun tai( leaps : string = iana-leap-seconds-y2016 ) : timezone {
+public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone {
   val leap-table = parse-leap-seconds(leaps)
   (fun(i) {
     var adjust := 0.int32
@@ -305,7 +305,7 @@ public fun tai( leaps : string = iana-leap-seconds-y2016 ) : timezone {
 val ntp-epoch-shift  = 2208988800
 public val ntp-epoch = instant-at(ntp-epoch-shift)
 
-public fun parse-leap-seconds( leaps : string = iana-leap-seconds-y2016 ) : list<(instant,int32)> {
+public fun parse-leap-seconds( leaps : string ) : list<(instant,int32)> {
   leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
     val adjust  = cap.groups[2].parse-int-default(0)
@@ -316,7 +316,8 @@ public fun parse-leap-seconds( leaps : string = iana-leap-seconds-y2016 ) : list
 }
 val rxleap = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 
-val iana-leap-seconds-y2016 = @"
+// from: ftp://time.nist.gov/pub/leap-seconds.list
+val nist-leap-seconds-y2016 = @"
   # Leap seconds as of 2016-10-14Z
   2272060800  10  # 1 Jan 1972
   2287785600  11  # 1 Jul 1972
