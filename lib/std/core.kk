@@ -1418,8 +1418,8 @@ extern inline (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
 extern inline (+) : (double,double) -> double { inline "(#1 + #2)" }
 extern inline (-) : (double,double) -> double { inline "(#1 - #2)" }
 extern inline (*) : (double,double) -> double { inline "(#1 * #2)" }
-extern inline (/) : (double,double) -> double { inline "(#1 / #2)" }
-extern inline (%) : (double,double) -> double { inline "(#1 % #2)" }
+extern inline cdiv : (double,double) -> double { inline "(#1 / #2)" }
+extern inline cmod : (double,double) -> double { inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {
@@ -1428,6 +1428,30 @@ fun compare( x : double, y : double) : order
   else Eq
 }
 
+fun zero?(d : double ) : bool {
+  d==0.0
+}
+
+fun (~)(d : double ) : double {
+  0.0 - d
+}
+
+fun (/)(x : double, y : double ) : double {
+  if (y.zero?) then return y
+  val q = cdiv(x,y)
+  val r = cmod(x,y)
+  if (r>=0.0) then q
+  elif (y>0.0) then q - 1.0
+  else q + 1.0
+}
+
+fun (%)(x : double, y : double ) : double {
+  if (y.zero?) then return y
+  val r = cmod(x,y)
+  if (r>=0.0) then r
+  elif (y>0.0) then r + y
+  else r - y
+}
 
 // Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
 // if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
