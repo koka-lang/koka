@@ -21,7 +21,14 @@ extern include {
 }
 
 abstract struct instant (
-  secs : int,
+  udays: int,  // 'unix' days of 60*60*24 seconds
+  secs : int32,
+  nsecs: int32
+)
+
+abstract struct duration (
+  udays: int,
+  secs : int32,
   nsecs: int32
 )
 
@@ -38,28 +45,141 @@ extern xnow-resolution() : ndet int32 {
 }
 
 public function show( i : instant ) : string {
-  i.secs.show + "." + i.nsecs.show.pad-left(9,'0') + "s"
+  i.udays.show + "d" + i.secs.show + "." + i.nsecs.show.pad-left(9,'0') + "s"
+}
+
+public function show( i : duration ) : string {
+  i.udays.show + "d" + i.secs.show + "." + i.nsecs.show.pad-left(9,'0') + "s"
 }
 
 abstract struct time (
   year   : int,
   month  : int32,
   day    : int32, 
+  secs   : int32,
   nsecs  : int32,
-  instant: instant,
+  tzofs  : int32,
   tz     : timezone
 )
 
-alias timezone = (instant) -> int
+val secs-per-uday  = 86400.int32
+val secs-per-hour  = 3600.int32
+val nsecs-per-sec  = 1000000000.int32
 
-
-fun time( i : instant, tz : timezone ) : time {
-  val tzofs   = tz(i)
-  val tzi     = i + tzofs
-  val (y,m,d,ns) = date(tzi)
-  time(y,m,d,ns,i,tz)
+function show0( i : int32, width : int = 2) {
+  i.show.pad-left(width,'0')
 }
 
+public function show(t : time ) : string {
+  val (hours,secsm)  = divmod(t.secs,3600.int32)
+  val (mins,secs)    = divmod(secsm,60.int32)
+  t.year.show + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
+  hours.show0 + ":" + mins.show0 + ":" + secs.show0 + "." +
+  t.nsecs.show0(9) + show-tzofs(t.tzofs)
+}
+
+function show-tzofs(ofs : int32) : string {
+  if (ofs.zero?) return "Z"
+  val mins = ofs.abs0 / 60.int32
+  (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0 + ":" + (mins%60.int32).show0
+}
+
+alias timezone = (instant) -> duration
+
+public function utc-timezone( i : instant ) : duration {
+  Duration(0,zero,zero)
+}
+
+public function pst(i : instant ) : duration {
+  Duration(0,~25200.int32,zero)
+}
+
+function (+)( i : instant, d : duration ) : instant {
+  val tnsecs = i.nsecs + d.nsecs
+  val xsecs  = tnsecs / nsecs-per-sec
+  val nsecs  = tnsecs - (xsecs * nsecs-per-sec)
+  val tsecs  = i.secs + d.secs + xsecs
+  val xdays  = tsecs / secs-per-uday
+  val secs   = tsecs - (xdays * secs-per-uday)
+  val udays  = i.udays + d.udays + xdays.int
+  Instant(udays, secs, nsecs)
+}
+
+function (-)( i : instant, d : duration ) : instant {
+  i + Duration(~d.udays,~d.secs,~d.nsecs)
+}
+
+function (+) ( d : duration, e : duration ) : duration {
+  val i = Instant(d.udays,d.secs,d.nsecs) + e
+  Duration(i.udays,i.secs,i.nsecs)
+}
+
+function (-)( d : duration, e : duration ) : duration {
+  d + Duration(~e.udays,~e.secs,~e.nsecs)
+}
+
+function total-seconds( d : duration ) : int {
+  (d.udays * secs-per-uday.int) + d.secs.int + d.nsecs.int
+}
+
+val epoch-shift = 719468  // shift epoch from 1970-01-01 to 0000-03-01
+val days-in-era = 146097  // 365 * 400 + 100 - 3
+
+fun date-from-udays( udays : int ) : (int,int32,int32) {
+  val z   = udays + epoch-shift           // shift epoch from 1970-01-01 to 0000-03-01
+  val (era,idoe) = divmod(z,days-in-era)  // day of era: 0 <= doe < days-in-era
+  val doe = idoe.int32
+  val yoe = (((doe - (doe/1460.int32)) + (doe/36524.int32)) - (doe/146096.int32)) / 365.int32;  // year of era: 0 <= yoe < years-in-era 
+  val year= yoe.int + (400*era)
+  val doy = doe - ((yoe*365.int32) + (yoe/4.int32) - (yoe/100.int32))   // day-of-year: 0 <= doy <= 365
+  val mp  = ((doy*5.int32) + 2.int32)/153.int32                         // 0 <= mp <= 0,11
+  val day = (doy - (((mp*153.int32) + 2.int32) / 5.int32)) + 1.int32    // 1 <= day <= 31
+  val month= mp + (if (mp < 10.int32) then 3.int32 else ~9.int32)       // 1 <= month <= 12
+  (year,month,day)
+}
+
+public fun time( i : instant, tz : timezone ) : time {
+  val tzofs = tz(i)
+  val tzi = i + tzofs
+  val (year,month,day) = date-from-udays(tzi.udays)
+  Time(year,month,day,tzi.secs,tzi.nsecs,tzofs.total-seconds.int32,tz)
+}
+
+// Calculate unix days from a year/month/day triple. 
+// `month` must be between 1 and 12. `day` must be between 1 and `days-in-era`.
+fun udays-from-datex( year : int, month : int32, day : int32 ) : int {
+  val y = if (month <= 2.int32) then year.dec else year   // to internal year starting in Feb
+  val (era,iyoe) = divmod(y,400)                    // year of era: 0<= yoe < 400
+  val yoe  = iyoe.int32
+  val mdoy = (((153.int32 * (month + (if (month > 2.int32) then ~3.int32 else 9.int32))) + 2.int32)/5.int32) 
+  val doe  = (((yoe*365.int32) + (yoe/4.int32)) - (yoe/100.int32)) + mdoy + day.dec
+  ((days-in-era * era) + doe.int) - epoch-shift
+}
+
+fun udays-from-date( year : int, month : int, day : int ) : int {
+  val (xera,doe)  = divmod(day.dec,days-in-era)
+  val (xyear,moy) = divmod(month.dec,12)
+  udays-from-datex( year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
+}
+
+fun time-secs( year : int, month : int, day : int, secs : int = 0, nsecs : int = 0, tz : timezone = utc-timezone ) : time {
+  val (xsecs,nsecs1) = divmod(nsecs, nsecs-per-sec.int)
+  val (xdays,secs1)  = divmod(secs + xsecs, secs-per-uday.int)
+  val udays = udays-from-date(year, month, day + xdays)
+  val i     = Instant(udays, secs1.int32, nsecs1.int32)
+  // the year/month/day is interpreted as utc first.
+  // we need to adjust according to timezone but that expects a utc-instant.
+  // do a double pass to accommodate jumping over a DST boundary.
+  val tzofs1 = tz(i)
+  val tzi1   = i - tzofs1
+  val tzofs2 = tz(tzi1)
+  val tzi2   = i - tzofs2
+  time(tzi2,tz)
+}
+
+public fun time( year : int, month : int = 1, day : int = 1, hours : int = 0, minutes : int = 0, secs : int = 0, nsecs : int = 0, tz : timezone = utc-timezone ) : time {
+  time-secs( year, month, day, ((hours*60) + minutes)*60 + secs, nsecs, tz )
+}
 /*
 extern include {
   cs file "time-inline.cs"

@@ -99,12 +99,12 @@ fun even?( i : int32 ) : bool {
 }
 
 // Increment a 32-bit integer.
-private fun inc( i : int32 ) : int32 {
+fun inc( i : int32 ) : int32 {
   i + 1.int32
 }
 
 // Decrement a 32-bit integer.
-private fun dec( i : int32 ) : int32 {
+fun dec( i : int32 ) : int32 {
   i - 1.int32
 }
 
@@ -306,4 +306,13 @@ fun (%)( x : int32, y : int32 ) : int32
   if (r >= 0.int32) then r
   elif (y > 0.int32) then (r+y)
   else (r - y)
+}
+
+fun divmod(x:int32,y:int32) : (int32,int32) {
+  if (y.zero?) then return (zero,zero)
+  val q = unsafe-cdiv(x,y)
+  val r = unsafe-cmod(x,y)
+  if (!r.neg?) then (q,r)
+  elif (y.pos?) then (q.dec, r+y)
+  else (q.inc,r - y)
 }
