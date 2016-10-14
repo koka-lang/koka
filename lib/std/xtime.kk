@@ -42,7 +42,7 @@ abstract struct time (
   secs   : int32,
   frac   : double,
   tzofs  : double,
-  instant: instant,
+  tinstant: instant,
   tz     : timezone
 )
 
@@ -73,6 +73,10 @@ public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
 
 public fun instant-at( secs : int, frac : double = 0.0 ) : instant{
   Instant(secs,frac)
+}
+
+public fun instant( t : time ) : instant {
+  t.tinstant
 }
 
 
@@ -153,15 +157,22 @@ fun show-tzofs(ofs : double) : string {
   tz + tzs
 }
 
-public alias timezone = (instant) -> duration
+public struct timezone(
+  utc-offset : (instant) -> duration,
+  utc-inverse: maybe<(instant) -> instant>
+)
 
-public fun utc( i : instant ) : duration {
-  Duration(0,0.0)
+
+public fun timezone-fixed( secs : int ) : timezone {
+  Timezone( 
+    fun(i) { Duration(secs,0.0) }, 
+    if (secs.zero?) then Just(id) else Nothing
+  )
 }
 
-public fun pst(i : instant ) : duration {
-  Duration(~25200,0.0)
-}
+public val utc : timezone = timezone-fixed(0)
+public val pst : timezone = timezone-fixed(~25200)
+
 
 fun leap?(d : double ) {
   d.abs >= 1.0
@@ -222,7 +233,7 @@ fun instant-udays( i : instant ) : (int,int32) {
 }
 
 public fun time( i : instant, tz : timezone = utc ) : time {
-  val tzofs = tz(i)
+  val tzofs = (tz.utc-offset)(i)
   val tzi   = i + tzofs
   val (udays,daysecs) = tzi.instant-udays
   val (year,month,day)= date-from-udays(udays)
@@ -264,13 +275,19 @@ public fun instant( year : int, month : int = 1, day : int = 1,
 {
   // the year/month/day is interpreted as utc first.
   val i = utc-instant(year,month,day,hours,minutes,secs,frac)
-  // we need to adjust according to timezone but that expects a utc-instant.
-  // do a double pass to accommodate jumping over a DST boundary.
-  val tzofs1 = tz(i)
-  val tzi1   = i - tzofs1
-  val tzofs2 = tz(tzi1)
-  val tzi2   = i - tzofs2
-  tzi2 
+  // we need to adjust according to timezone 
+  match(tz.utc-inverse) {
+    Just(inv) -> inv(i)
+    Nothing -> {
+      // no explicit inverse,
+      // do a double pass to accommodate jumping over a DST boundary.
+      val tzofs1 = (tz.utc-offset)(i)
+      val tzi1   = i - tzofs1
+      val tzofs2 = (tz.utc-offset)(tzi1)
+      val tzi2   = i - tzofs2
+      tzi2     
+    }
+  }
 }
 
 public fun time( year : int, month : int = 1, day : int = 1, 
@@ -280,28 +297,42 @@ public fun time( year : int, month : int = 1, day : int = 1,
   time(instant(year,month,day,hours,minutes,secs,frac,tz),tz)
 }
 
-public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone {
-  val leap-table = parse-leap-seconds(leaps)
-  (fun(i) {
-    var adjust := 0.int32
-    var leap   := False
-    leap-table.foreach-while fun(entry) {
-      val (j,adj) = entry
-      if (i>=j) then {
-        adjust := adj
-        Nothing
-      }
-      elif (i<j) then {
-        if (i.secs.inc == j.secs) {
-          trace("leap")
-          leap := True
-        }
-        Just(adjust)
-      }
-      else Nothing
+public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone 
+{
+  val leap-table = parse-leap-seconds(leaps).reverse // + [(ntp-epoch,0.int32)]
+  fun utc-offset(i) {
+    val mbadj = leap-table.foreach-while fun(entry) {
+      val (utc-start,adj) = entry
+      if (i>=utc-start) then Just(adj.int) else Nothing
     }
-    if (leap) then duration(adjust.inc.int,~1.0) else duration(adjust.int,0.0)
-  })
+    duration(mbadj.maybe(0),0.0)
+  }
+  fun utc-inverse(i : instant ) {
+    var prev-utc-i := i
+    var prev-start := i
+    leap-table.foreach-while fun(entry) {
+      val (utc-start,adj) = entry
+      val utc-i = i - duration(adj.int,0.0)
+      if (utc-i >= utc-start) then {
+        if (utc-i >= prev-start) {
+          // leap second
+          prev-utc-i := (utc-i - duration(1,0.0)) + duration(0,1.0) 
+        }
+        else {
+          prev-utc-i := utc-i
+        }
+        Just(()) 
+      }
+      else {
+        // regular
+        prev-utc-i := utc-i
+        prev-start := utc-start
+        Nothing
+      }      
+    }
+    prev-utc-i
+  }
+  Timezone(utc-offset,Just(utc-inverse))
 }
 
 val ntp-epoch-shift  = 2208988800
@@ -349,6 +380,51 @@ val nist-leap-seconds-y2016 = @"
   3550089600  35  # 1 Jul 2012
   3644697600  36  # 1 Jul 2015
   3692217600  37  # 1 Jan 2017"
+
+/*
+ # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
+ 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
+ 1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
+ 1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S
+ 1963 NOV  1 =JD 2438334.5  TAI-UTC=   1.9458580 S + (MJD - 37665.) X 0.0011232S
+ 1964 JAN  1 =JD 2438395.5  TAI-UTC=   3.2401300 S + (MJD - 38761.) X 0.001296 S
+ 1964 APR  1 =JD 2438486.5  TAI-UTC=   3.3401300 S + (MJD - 38761.) X 0.001296 S
+ 1964 SEP  1 =JD 2438639.5  TAI-UTC=   3.4401300 S + (MJD - 38761.) X 0.001296 S
+ 1965 JAN  1 =JD 2438761.5  TAI-UTC=   3.5401300 S + (MJD - 38761.) X 0.001296 S
+ 1965 MAR  1 =JD 2438820.5  TAI-UTC=   3.6401300 S + (MJD - 38761.) X 0.001296 S
+ 1965 JUL  1 =JD 2438942.5  TAI-UTC=   3.7401300 S + (MJD - 38761.) X 0.001296 S
+ 1965 SEP  1 =JD 2439004.5  TAI-UTC=   3.8401300 S + (MJD - 38761.) X 0.001296 S
+ 1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S
+ 1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S
+ 1972 JAN  1 =JD 2441317.5  TAI-UTC=  10.0       S + (MJD - 41317.) X 0.0      S
+ 1972 JUL  1 =JD 2441499.5  TAI-UTC=  11.0       S + (MJD - 41317.) X 0.0      S
+ 1973 JAN  1 =JD 2441683.5  TAI-UTC=  12.0       S + (MJD - 41317.) X 0.0      S
+ 1974 JAN  1 =JD 2442048.5  TAI-UTC=  13.0       S + (MJD - 41317.) X 0.0      S
+ 1975 JAN  1 =JD 2442413.5  TAI-UTC=  14.0       S + (MJD - 41317.) X 0.0      S
+ 1976 JAN  1 =JD 2442778.5  TAI-UTC=  15.0       S + (MJD - 41317.) X 0.0      S
+ 1977 JAN  1 =JD 2443144.5  TAI-UTC=  16.0       S + (MJD - 41317.) X 0.0      S
+ 1978 JAN  1 =JD 2443509.5  TAI-UTC=  17.0       S + (MJD - 41317.) X 0.0      S
+ 1979 JAN  1 =JD 2443874.5  TAI-UTC=  18.0       S + (MJD - 41317.) X 0.0      S
+ 1980 JAN  1 =JD 2444239.5  TAI-UTC=  19.0       S + (MJD - 41317.) X 0.0      S
+ 1981 JUL  1 =JD 2444786.5  TAI-UTC=  20.0       S + (MJD - 41317.) X 0.0      S
+ 1982 JUL  1 =JD 2445151.5  TAI-UTC=  21.0       S + (MJD - 41317.) X 0.0      S
+ 1983 JUL  1 =JD 2445516.5  TAI-UTC=  22.0       S + (MJD - 41317.) X 0.0      S
+ 1985 JUL  1 =JD 2446247.5  TAI-UTC=  23.0       S + (MJD - 41317.) X 0.0      S
+ 1988 JAN  1 =JD 2447161.5  TAI-UTC=  24.0       S + (MJD - 41317.) X 0.0      S
+ 1990 JAN  1 =JD 2447892.5  TAI-UTC=  25.0       S + (MJD - 41317.) X 0.0      S
+ 1991 JAN  1 =JD 2448257.5  TAI-UTC=  26.0       S + (MJD - 41317.) X 0.0      S
+ 1992 JUL  1 =JD 2448804.5  TAI-UTC=  27.0       S + (MJD - 41317.) X 0.0      S
+ 1993 JUL  1 =JD 2449169.5  TAI-UTC=  28.0       S + (MJD - 41317.) X 0.0      S
+ 1994 JUL  1 =JD 2449534.5  TAI-UTC=  29.0       S + (MJD - 41317.) X 0.0      S
+ 1996 JAN  1 =JD 2450083.5  TAI-UTC=  30.0       S + (MJD - 41317.) X 0.0      S
+ 1997 JUL  1 =JD 2450630.5  TAI-UTC=  31.0       S + (MJD - 41317.) X 0.0      S
+ 1999 JAN  1 =JD 2451179.5  TAI-UTC=  32.0       S + (MJD - 41317.) X 0.0      S
+ 2006 JAN  1 =JD 2453736.5  TAI-UTC=  33.0       S + (MJD - 41317.) X 0.0      S
+ 2009 JAN  1 =JD 2454832.5  TAI-UTC=  34.0       S + (MJD - 41317.) X 0.0      S
+ 2012 JUL  1 =JD 2456109.5  TAI-UTC=  35.0       S + (MJD - 41317.) X 0.0      S
+ 2015 JUL  1 =JD 2457204.5  TAI-UTC=  36.0       S + (MJD - 41317.) X 0.0      S
+ 2017 JAN  1 =JD 2457754.5  TAI-UTC=  37.0       S + (MJD - 41317.) X 0.0      S
+ */
 
 /*
 extern include {
