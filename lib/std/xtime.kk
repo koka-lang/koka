@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time functions.
+/* Basic date and time funs.
 
    Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */
@@ -24,18 +24,69 @@ val secs-per-uday  = 86400
 val nsecs-per-sec  = 1.0e9
 
 abstract struct instant (
-  udays: int,     // 'unix' days of 60*60*24 seconds
-  secs : double   // 0 <= secs <= 60*60*24  (equal on leap second)
+  secs : int,         // UTC seconds since epoch.
+  frac : double       // fraction of seconds.
 )
 
 abstract struct duration (
-  udays: int,
-  secs : double
+  secs : int,
+  frac : double
 )
 
-function duration( i : instant ) : duration {
-  Duration(i.udays,i.secs)
+abstract struct time (
+  year   : int,
+  month  : int32,
+  day    : int32, 
+  hours  : int32,
+  mins   : int32,
+  secs   : int32,
+  frac   : double,
+  tzofs  : double,
+  instant: instant,
+  tz     : timezone
+)
+
+public fun compare( i : duration, j : duration ) : order {
+  val si = if (i.frac.floor.zero?) then i.secs else i.secs + i.frac.floor.int
+  val sj = if (j.frac.floor.zero?) then j.secs else j.secs + j.frac.floor.int
+  match(compare(si,sj)) {
+    Eq  -> compare(i.frac.fraction,j.frac.fraction) 
+    ord -> ord
+  }
 }
+
+public fun (<)( i : duration, j : duration )  : bool { compare(i,j) == Lt }
+public fun (<=)( i : duration, j : duration ) : bool { compare(i,j) != Gt }
+public fun (>)( i : duration, j : duration )  : bool { compare(i,j) == Gt }
+public fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
+public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
+public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
+
+public fun compare( i : instant, j : instant ) : order {
+  compare(i.duration,j.duration)
+}
+
+public fun (<)( i : instant, j : instant )  : bool { compare(i,j) == Lt }
+public fun (<=)( i : instant, j : instant ) : bool { compare(i,j) != Gt }
+public fun (>)( i : instant, j : instant )  : bool { compare(i,j) == Gt }
+public fun (>=)( i : instant, j : instant ) : bool { compare(i,j) != Lt }
+public fun (==)( i : instant, j : instant ) : bool { compare(i,j) == Eq }
+public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
+
+public fun instant-at( secs : int, frac : double = 0.0 ) : instant{
+  Instant(secs,frac)
+}
+
+
+public fun duration( secs : int, frac : double ) : duration {
+  Duration(secs,frac)
+}
+
+public fun duration( i : instant ) : duration {
+  Duration(i.secs,i.frac)
+}
+
+public val epoch = Instant(0,0.0)
 
 public extern now() : ndet instant {
   js "_now"
@@ -49,115 +100,134 @@ extern xnow-resolution() : ndet double {
   js "_now_resolution"
 }
 
-public function show( i : instant ) : string {
+// Show an instant in nano-second resolution.
+public fun show( i : instant ) : string {
   i.duration.show  
 }
 
-public function show( i : duration ) : string {   
-  (i.udays*secs-per-uday + i.secs.floor.int).show + "." +    
-  (i.secs - i.secs.floor).show-fixed(9).first(2).after.string + "s" 
+// Show a duration in nano-second resolution.
+public fun show( i : duration ) : string {   
+  (i.secs + i.frac.floor.int).show + "." +    
+  i.frac.show-frac + "s" 
 }
 
-abstract struct time (
-  year   : int,
-  month  : int32,
-  day    : int32, 
-  secs   : double,
-  tzofs  : int32,
-  tz     : timezone
-)
+fun show-frac( frac : double, prec : int = 9 ) : string {
+  frac.fraction.show-fixed(prec).first(2).after.string
+}
 
 
-function show0( i : int, width : int = 2) : string {
+fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
-function show0( i : int32, width : int = 2) : string {
+fun show0( i : int32, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
-function clock( t : time ) : (int,int,int,int) {
-  val hours   = floor( t.secs / 3600.0 )
-  val mins    = floor( (t.secs % 3600.0) / 60.0 )
-  val seconds = floor( (t.secs % 60.0) )
-  val nsecs   = ((t.secs - t.secs.floor) * nsecs-per-sec).round
-  (hours.int,mins.int,seconds.int,nsecs.int)
+fun clock( t : time ) : (int,int,int,double) {
+  (t.hours.int,t.mins.int,t.secs.int,t.frac)
 }
+/*
+  val (hours,minsecs) = divmod(t.secs,3600.int32)
+  val (mins,xsecs)    = divmod(minsecs,60.int32)
+  val secs            = xsecs.int + t.frac.floor.int  // adjust for leap seconds
+  val frac            = t.frac.fraction
+  (hours.int,mins.int,secs,frac)
+}
+*/
 
-function date( t : time ) : (int,int,int) {
+fun date( t : time ) : (int,int,int) {
   (t.year,t.month.int,t.day.int)
 }
 
-public function show(t : time ) : string {
-  val (hours,mins,secs,nsecs) = t.clock
-  val (year,month,day) = t.date
-  year.show + "-" + month.show0 + "-" + day.show0 + "T" +
-  hours.show0 + ":" + mins.show0 + ":" + secs.show0 + "." +
-  nsecs.show0(9) + show-tzofs(t.tzofs)
+public fun show(t : time ) : string {
+  t.year.show + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
+  t.hours.show0 + ":" + t.mins.show0 + ":" + t.secs.show0 + "." +
+  t.frac.show-frac(9) + show-tzofs(t.tzofs)
 }
 
-function show-tzofs(ofs : int32) : string {
+fun show-tzofs(ofs : double) : string {
   if (ofs.zero?) return "Z"
-  val mins = ofs.abs0 / 60.int32
-  (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0 + ":" + (mins%60.int32).show0
+  val mins = (ofs.abs / 60.0).int32
+  val tz = (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0 + ":" + (mins%60.int32).show0
+  val secs = (ofs.abs % 60.0)
+  val tzs = if (secs.zero?) then "" else ":" + secs.floor.int32.show0 + "." + secs.fraction.show-frac(3)
+  tz + tzs
 }
 
-alias timezone = (instant) -> duration
+public alias timezone = (instant) -> duration
 
-public function utc-timezone( i : instant ) : duration {
+public fun utc( i : instant ) : duration {
   Duration(0,0.0)
 }
 
-public function pst(i : instant ) : duration {
-  Duration(0,~25200.0)
+public fun pst(i : instant ) : duration {
+  Duration(~25200,0.0)
 }
 
-function (+)( i : instant, d : duration ) : instant {
-  val tsecs = i.secs + d.secs
-  val secs  = tsecs %  secs-per-uday.double
-  val xdays = floor(tsecs / secs-per-uday.double).int
-  val udays = i.udays + d.udays + xdays
-  Instant(udays, secs)
+public fun (+)( i : instant, d : duration ) : instant {
+  if (d.frac.zero? && (d.secs % 60).zero?) {
+    // maintain leap second info of the instant if duration has no fraction & minute resolution
+    Instant( i.secs + d.secs, i.frac )  
+  }
+  else {
+    val f     = i.frac + d.frac
+    val secs  = i.secs + d.secs + f.floor.int
+    Instant(secs,f.fraction)  
+  }
 }
 
-function (-)( i : instant, d : duration ) : instant {
-  i + Duration(~d.udays,~d.secs)
+public fun (~)( d : duration ) : duration {
+  Duration(~d.secs,~d.frac)
 }
 
-function (+) ( d : duration, e : duration ) : duration {
-  val i = Instant(d.udays,d.secs) + e
-  Duration(i.udays,i.secs)
+public fun (-)( i : instant, d : duration ) : instant {
+  i + ~d
 }
 
-function (-)( d : duration, e : duration ) : duration {
-  d + Duration(~e.udays,~e.secs)
+public fun (+) ( d : duration, e : duration ) : duration {
+  (Instant(d.secs,d.frac) + e).duration
 }
 
-function total-seconds( d : duration ) : int {
-  (d.udays * secs-per-uday) + d.secs.int
+public fun (-)( d : duration, e : duration ) : duration {
+  d + ~e
+}
+
+public fun seconds( d : duration ) : double {
+  d.secs.double + d.frac
 }
 
 val epoch-shift = 719468  // shift epoch from 1970-01-01 to 0000-03-01
 val days-in-era = 146097  // 365 * 400 + 100 - 3
 
 fun date-from-udays( udays : int ) : (int,int32,int32) {
-  val z   = udays + epoch-shift           // shift epoch from 1970-01-01 to 0000-03-01
+  val z    = udays + epoch-shift           // shift epoch from 1970-01-01 to 0000-03-01
   val (era,idoe) = divmod(z,days-in-era)  // day of era: 0 <= doe < days-in-era
-  val doe = idoe.int32
-  val yoe = (((doe - (doe/1460.int32)) + (doe/36524.int32)) - (doe/146096.int32)) / 365.int32;  // year of era: 0 <= yoe < years-in-era 
-  val year= yoe.int + (400*era)
-  val doy = doe - ((yoe*365.int32) + (yoe/4.int32) - (yoe/100.int32))   // day-of-year: 0 <= doy <= 365
-  val mp  = ((doy*5.int32) + 2.int32)/153.int32                         // 0 <= mp <= 0,11
-  val day = (doy - (((mp*153.int32) + 2.int32) / 5.int32)) + 1.int32    // 1 <= day <= 31
-  val month= mp + (if (mp < 10.int32) then 3.int32 else ~9.int32)       // 1 <= month <= 12
+  val doe  = idoe.int32
+  val yoe  = (((doe - (doe/1460.int32)) + (doe/36524.int32)) - (doe/146096.int32)) / 365.int32;  // year of era: 0 <= yoe < years-in-era 
+  val doy  = doe - ((yoe*365.int32) + (yoe/4.int32) - (yoe/100.int32))   // day-of-year: 0 <= doy <= 365
+  val mp   = ((doy*5.int32) + 2.int32)/153.int32                         // 0 <= mp <= 0,11
+  val day  = (doy - (((mp*153.int32) + 2.int32) / 5.int32)) + 1.int32    // 1 <= day <= 31
+  val month= mp + (if (mp < 10.int32) then 3.int32 else ~9.int32)        // 1 <= month <= 12
+  val year = yoe.int + (400*era) + (if (month <= 2.int32) then 1 else 0)
   (year,month,day)
 }
 
-public fun time( i : instant, tz : timezone ) : time {
+fun instant-udays( i : instant ) : (int,int32) {
+  val (udays,secs) = divmod(i.secs,secs-per-uday)
+  (udays,secs.int32)
+}
+
+public fun time( i : instant, tz : timezone = utc ) : time {
   val tzofs = tz(i)
-  val tzi = i + tzofs
-  val (year,month,day) = date-from-udays(tzi.udays)
-  Time(year,month,day,tzi.secs,tzofs.total-seconds.int32,tz)
+  val tzi   = i + tzofs
+  val (udays,daysecs) = tzi.instant-udays
+  val (year,month,day)= date-from-udays(udays)
+  val (hours,minsecs) = divmod(daysecs,3600.int32)
+  val (mins,xsecs)    = divmod(minsecs,60.int32)
+  val secs            = xsecs + tzi.frac.floor.int32  // adjust for leap seconds
+  val frac            = tzi.frac.fraction
+  Time(year,month,day,hours,mins,secs,frac,tzofs.seconds,i,tz)
 }
 
 // Calculate unix days from a year/month/day triple. 
@@ -177,25 +247,106 @@ fun udays-from-date( year : int, month : int, day : int ) : int {
   udays-from-datex( year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
 }
 
-fun time-secs( year : int, month : int, day : int, secs : double = 0.0, tz : timezone = utc-timezone ) : time {
-  val xdays = floor(secs / secs-per-uday.double).int
-  val xsecs = secs % secs-per-uday.double
-  val udays = udays-from-date(year, month, day + xdays)
-  val i     = Instant(udays, xsecs)
+public fun utc-instant( year : int, month : int = 1, day : int = 1, 
+                 hours : int = 0, minutes : int = 0, secs : int = 0, frac : double = 0.0) : instant 
+{
+  val (xdays,xsecs) = divmod( (((hours*60) + minutes)*60) + secs, secs-per-uday )
+  val udays = udays-from-date(year, month, day + xdays )
+  Instant(udays*secs-per-uday + xsecs, frac)
+}
+
+public fun instant( year : int, month : int = 1, day : int = 1, 
+                    hours : int = 0, minutes : int = 0, secs : int = 0, 
+                    frac : double = 0.0, tz : timezone = utc ) : instant 
+{
   // the year/month/day is interpreted as utc first.
+  val i = utc-instant(year,month,day,hours,minutes,secs,frac)
   // we need to adjust according to timezone but that expects a utc-instant.
   // do a double pass to accommodate jumping over a DST boundary.
   val tzofs1 = tz(i)
   val tzi1   = i - tzofs1
   val tzofs2 = tz(tzi1)
   val tzi2   = i - tzofs2
-  time(tzi2,tz)
+  tzi2
+  /*
+  if (tzofs1 == tzofs2) then tzi2 else {
+    val tzofs3 = tz(tzi2)
+    if (tzofs3 == tzofs1) then tzi1 else tzi2
+  }
+  */
 }
 
-public fun time( year : int, month : int = 1, day : int = 1, hours : int = 0, minutes : int = 0, secs : double = 0.0, tz : timezone = utc-timezone ) : time {
-  val xsecs = (((hours*60) + minutes)*60).double + secs
-  time-secs( year, month, day, xsecs, tz )
+public fun time( year : int, month : int = 1, day : int = 1, 
+                 hours : int = 0, minutes : int = 0, secs : int = 0, 
+                 frac : double = 0.0, tz : timezone = utc ) : time 
+{
+  time(instant(year,month,day,hours,minutes,secs,frac,tz),tz)
 }
+
+public fun tai( leaps : string = iana-leap-seconds-y2016 ) : timezone {
+  val leap-table = parse-leap-seconds(leaps)
+  (fun(i) {
+    var adjust := 0.int32
+    leap-table.foreach-while fun(entry) {
+      val (j,adj) = entry
+      if (i>=j) then {
+        adjust := adj
+        Nothing
+      }
+      elif (i<j) then {
+        Just(adjust)
+      }
+      else Nothing
+    }
+    duration(adjust.int,0.0)
+  })
+}
+
+val ntp-epoch-shift  = 2208988800
+public val ntp-epoch = instant-at(ntp-epoch-shift)
+
+public fun parse-leap-seconds( leaps : string = iana-leap-seconds-y2016 ) : list<(instant,int32)> {
+  leaps.find-all(rxleap).map fun(cap) {
+    val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
+    val adjust  = cap.groups[2].parse-int-default(0)
+    val ntpi    = instant-at(ntpsecs - ntp-epoch-shift)
+    trace("leap entry: " + adjust.show + " " + ntpi.time.show + " " + (ntpsecs - ntp-epoch-shift).show )
+    (instant-at(ntpsecs - ntp-epoch-shift), adjust.int32)
+  }
+}
+val rxleap = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
+
+val iana-leap-seconds-y2016 = @"
+  # Leap seconds as of 2016-10-14Z
+  2272060800  10  # 1 Jan 1972
+  2287785600  11  # 1 Jul 1972
+  2303683200  12  # 1 Jan 1973
+  2335219200  13  # 1 Jan 1974
+  2366755200  14  # 1 Jan 1975
+  2398291200  15  # 1 Jan 1976
+  2429913600  16  # 1 Jan 1977
+  2461449600  17  # 1 Jan 1978
+  2492985600  18  # 1 Jan 1979
+  2524521600  19  # 1 Jan 1980
+  2571782400  20  # 1 Jul 1981
+  2603318400  21  # 1 Jul 1982
+  2634854400  22  # 1 Jul 1983
+  2698012800  23  # 1 Jul 1985
+  2776982400  24  # 1 Jan 1988
+  2840140800  25  # 1 Jan 1990
+  2871676800  26  # 1 Jan 1991
+  2918937600  27  # 1 Jul 1992
+  2950473600  28  # 1 Jul 1993
+  2982009600  29  # 1 Jul 1994
+  3029443200  30  # 1 Jan 1996
+  3076704000  31  # 1 Jul 1997
+  3124137600  32  # 1 Jan 1999
+  3345062400  33  # 1 Jan 2006
+  3439756800  34  # 1 Jan 2009
+  3550089600  35  # 1 Jul 2012
+  3644697600  36  # 1 Jul 2015
+  3692217600  37  # 1 Jan 2017"
+
 /*
 extern include {
   cs file "time-inline.cs"
@@ -420,7 +571,7 @@ public fun add-days( t : time, days : int ) : time {
 }
 
 // -----------------------------------------------------------
-// Advanced calendar functions
+// Advanced calendar funs
 // -----------------------------------------------------------
 
 // Is this time in a leap year?

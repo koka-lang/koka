@@ -410,12 +410,23 @@ public static class Primitive
     return (double)(i);
   }
 
+  public static int DoubleToInt32( double d ) {
+    if (d > Int.MaxValue) return Int.MaxValue;
+    if (d < Int.MinValue) return Int.MinValue;
+    if (Double.IsNaN(d))  return 0;
+    return Convert.ToInt32(d);
+  }
+
   public static int IntToInt32(BigInteger i) {
     if (i<Int32.MinValue) return Int32.MinValue;
     if (i>Int32.MaxValue) return Int32.MaxValue;
     return (int)(i);
   }
 
+  public static std_core._order IntCompare( BigInteger i, BigInteger j ) {
+    int s = BigInteger.Compare(i,j);
+    return (s<0 ? std_core._order.Lt : (s>0 ? std_core._order.Gt : std_core._order.Eq));
+  }
   
   public static std_core._order IntSign( BigInteger i ) {
     int s = i.Sign;

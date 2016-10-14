@@ -193,9 +193,9 @@ public fun find( s :string,  regex :regex ) : maybe<matched>
 }
 
 // Find all matches for a regular expression in a string.
-public fun find-all( s :string,  regex :regex ) : vector<matched>
+public fun find-all( s :string,  regex :regex ) : list<matched>
 {
-  return regex-exec-all(regex.obj,s,zero)
+  return regex-exec-all(regex.obj,s,zero).list
 }
 
 fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
@@ -209,10 +209,10 @@ fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : stri
 }
 
 // Split a string `s` in at most `n` parts using a regular expression `r` as separator.
-public fun split( s :string, r :regex, n :int = 0 ) : vector<string>
+public fun split( s :string, r :regex, n :int = 0 ) : list<string>
 {
-  if (n<=0) return vector();
-  return regex-split( r.obj, s, if (n.pos?) then n.int32 else zero, zero );
+  if (n<=0) return [];
+  return regex-split( r.obj, s, if (n.pos?) then n.int32 else zero, zero ).list;
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.

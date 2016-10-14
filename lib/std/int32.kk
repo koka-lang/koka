@@ -33,6 +33,11 @@ extern inline int32  : (int) -> int32   {
   js "$std_core._int_to_int32" 
 }
 
+extern inline int32 : (double) -> int32 {
+  cs "Primitive.DoubleToInt32"
+  js inline "(#1|0)"
+}
+
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int { 
   cs inline "(new BigInteger(#1))"

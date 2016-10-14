@@ -1152,6 +1152,13 @@ fun compare( x : bool, y : bool) : order
 // Integers
 // ----------------------------------------------------------------------------
 
+// Compare two integers
+extern inline compare : (int,int) -> order  { 
+  cs "Primitive.IntCompare"
+  js "$std_core._int_compare" 
+}
+
+
 // Are two integers equal?
 extern inline (==) : (int,int) -> bool  { 
   cs inline "(#1 == #2)"
@@ -1428,8 +1435,24 @@ fun compare( x : double, y : double) : order
   else Eq
 }
 
-fun zero?(d : double ) : bool {
-  d==0.0
+
+// Is the value negative?
+fun neg?( d : double ) : bool {
+  d < 0.0
+}
+
+// Is the value positive?
+fun pos?( d : double ) : bool {
+  d > 0.0
+}
+
+// Is the value zero?
+fun zero?( d : double ) : bool {
+  d == 0.0
+}
+
+fun sign( d : double ) : order {
+  if (d<0.0) then Lt elif (d>0.0) then Gt else Eq
 }
 
 fun (~)(d : double ) : double {
@@ -1575,6 +1598,12 @@ extern inline ceiling : (d:double) -> double {
 extern inline trunc : (d:double) -> double {
   cs "Math.Truncate"
   js "Math.trunc"
+}
+
+// Return the (positive) fractional part of a `:double` `d`.\
+// `(~2.5).fraction === 0.5`
+fun fraction(d : double) : double {
+  d - d.floor
 }
 
 // Round a double to its nearest integral value.
