@@ -47,10 +47,8 @@ abstract struct time (
 )
 
 public fun compare( i : duration, j : duration ) : order {
-  val si = if (i.frac.floor.zero?) then i.secs else i.secs + i.frac.floor.int
-  val sj = if (j.frac.floor.zero?) then j.secs else j.secs + j.frac.floor.int
-  match(compare(si,sj)) {
-    Eq  -> compare(i.frac.fraction,j.frac.fraction) 
+  match(compare(i.secs,j.secs)) {
+    Eq  -> compare(i.frac,j.frac) 
     ord -> ord
   }
 }
@@ -107,8 +105,8 @@ public fun show( i : instant ) : string {
 
 // Show a duration in nano-second resolution.
 public fun show( i : duration ) : string {   
-  (i.secs + i.frac.floor.int).show + "." +    
-  i.frac.show-frac + "s" 
+  (i.secs).show + "." +    
+  i.frac.show-frac + "s +" + i.frac.floor.int.show 
 }
 
 fun show-frac( frac : double, prec : int = 9 ) : string {
@@ -165,12 +163,17 @@ public fun pst(i : instant ) : duration {
   Duration(~25200,0.0)
 }
 
+fun leap?(d : double ) {
+  d.abs >= 1.0
+}
+
 public fun (+)( i : instant, d : duration ) : instant {
-  if (d.frac.zero? && (d.secs % 60).zero?) {
-    // maintain leap second info of the instant if duration has no fraction & minute resolution
-    Instant( i.secs + d.secs, i.frac )  
+  if ((d.frac.leap? && !i.frac.leap?) || (!d.frac.leap? && i.frac.leap?)) {
+    // maintain leap second info if either instant or duration have a zero fraction
+    Instant( i.secs + d.secs, i.frac + d.frac )  
   }
   else {
+    // otherwise we normalize the fraction between <-1.0,1.0>
     val f     = i.frac + d.frac
     val secs  = i.secs + d.secs + f.floor.int
     Instant(secs,f.fraction)  
@@ -267,13 +270,7 @@ public fun instant( year : int, month : int = 1, day : int = 1,
   val tzi1   = i - tzofs1
   val tzofs2 = tz(tzi1)
   val tzi2   = i - tzofs2
-  tzi2
-  /*
-  if (tzofs1 == tzofs2) then tzi2 else {
-    val tzofs3 = tz(tzi2)
-    if (tzofs3 == tzofs1) then tzi1 else tzi2
-  }
-  */
+  tzi2 
 }
 
 public fun time( year : int, month : int = 1, day : int = 1, 
@@ -287,6 +284,7 @@ public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone {
   val leap-table = parse-leap-seconds(leaps)
   (fun(i) {
     var adjust := 0.int32
+    var leap   := False
     leap-table.foreach-while fun(entry) {
       val (j,adj) = entry
       if (i>=j) then {
@@ -294,11 +292,15 @@ public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone {
         Nothing
       }
       elif (i<j) then {
+        if (i.secs.inc == j.secs) {
+          trace("leap")
+          leap := True
+        }
         Just(adjust)
       }
       else Nothing
     }
-    duration(adjust.int,0.0)
+    if (leap) then duration(adjust.inc.int,~1.0) else duration(adjust.int,0.0)
   })
 }
 
