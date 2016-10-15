@@ -156,14 +156,14 @@ fun show-tzofs(ofs : double) : string {
 
 public struct timezone(
   utc-offset : (instant) -> duration,
-  utc-inverse: maybe<(instant) -> instant>
+  utc-inverse: (instant) -> maybe<instant>
 )
 
 
 public fun timezone-fixed( secs : int ) : timezone {
   Timezone( 
     fun(i) { Duration(secs) }, 
-    if (secs.zero?) then Just(id) else Nothing
+    fun(i) { if (secs.zero?) then Just(i) else Nothing }
   )
 }
 
@@ -277,8 +277,8 @@ public fun instant( year : int, month : int = 1, day : int = 1,
   // the year/month/day is interpreted as utc first.
   val i = utc-instant(year,month,day,hours,minutes,secs,frac)
   // we need to adjust according to timezone 
-  match(tz.utc-inverse) {
-    Just(inv) -> inv(i)
+  match((tz.utc-inverse)(i)) {
+    Just(inv) -> inv
     Nothing -> {
       // no explicit inverse,
       // do a double pass to accommodate jumping over a DST boundary.
@@ -298,55 +298,98 @@ public fun time( year : int, month : int = 1, day : int = 1,
   time(instant(year,month,day,hours,minutes,secs,frac,tz),tz)
 }
 
-public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone 
-{
-  val leap-table = parse-leap-seconds(leaps).reverse // + [(ntp-epoch,0.int32)]
-  fun utc-offset(i) {
-    val mbadj = leap-table.foreach-while fun(entry) {
-      val (utc-start,adj) = entry
-      if (i>=utc-start) then Just(adj.int) else Nothing
+val utc1972    = instant(1972,1,1)
+val utc1972x10 = utc1972 + Duration(10)
+val utc1972x9  = utc1972 + Duration(9,0.892)
+val utc1961    = instant(1961,1,1)
+val utc1961x1  = utc1961 + Duration(1,0.422818)
+
+alias leaps-table = list<(instant,int)>
+
+fun tai-offset( i : instant, leaps : leaps-table ) : duration {
+  val adj = leaps.lookup( fun(utc-start) { utc-start <= i } ).default(0)
+  Duration(adj)
+}
+
+fun tai-offset-pre72( i : instant ) : duration {
+  val leaps = tai-leaps-pre72() // cached, on-demand
+  match( leaps.find( fun(ta){ ta.utc-start <= i } ) ) {
+    Nothing -> Duration(0)
+    Just(ta)-> {
+      val days = (i - ta.delta-start).seconds / secs-per-uday.double
+      val secs = ta.offset + (ta.delta * days)      
+      Duration( secs.floor.int, secs.fraction )
     }
-    Duration(mbadj.maybe(0))
+  }
+}
+
+fun tai-inv-offset-pre72( i : instant ) : maybe<instant> {
+  if (i > utc1972x9) {
+    val frac = (i - utc1972x9).seconds.fraction
+    // assert(0.0 <= frac && frac < (1.0 - 0.892))
+    Just(instant(1971,12,31,23,59,59,1.0 + frac))
+  }
+  elif (i>=utc1961 && i<utc1961x1) {
+    val frac = (i - utc1961).seconds
+    // assert(0.0 <= frac && frac <= 1.422818)
+    Just(instant(1960,12,31,23,59,59,1.0 + frac))
+  }
+  else Nothing
+}
+
+public val tai : (() -> timezone) = once{ tai-from(nist-leap-seconds-y2016) }
+
+public fun tai-from( leaps-text : string ) : timezone 
+{
+  val leaps = parse-leap-seconds(leaps-text) // + [(ntp-epoch,0.int32)]
+  
+  fun utc-offset(i) {
+    if (i >= utc1972) 
+      then tai-offset(i,leaps) 
+      else tai-offset-pre72(i)
   }
   fun utc-inverse(i : instant ) {
-    var prev-utc-i := i
-    var prev-start := i
-    leap-table.foreach-while fun(entry) {
-      val (utc-start,adj) = entry
-      val utc-i = i - Duration(adj.int)
-      if (utc-i >= utc-start) then {
-        if (utc-i >= prev-start) {
-          // leap second
-          prev-utc-i := (utc-i - Duration(1)) + Duration(0,1.0) 
+    if (i >= utc1972x10) {
+      var prev-utc-i := i
+      var prev-start := i
+      leaps.foreach-while fun(entry) {
+        val (utc-start,adj) = entry
+        val utc-i = i - Duration(adj)
+        if (utc-i >= utc-start) then {
+          if (utc-i >= prev-start) {
+            // leap second
+            prev-utc-i := (utc-i - Duration(1)) + Duration(0,1.0) 
+          }
+          else {
+            prev-utc-i := utc-i
+          }
+          Just(()) 
         }
         else {
+          // regular
           prev-utc-i := utc-i
-        }
-        Just(()) 
+          prev-start := utc-start
+          Nothing
+        }      
       }
-      else {
-        // regular
-        prev-utc-i := utc-i
-        prev-start := utc-start
-        Nothing
-      }      
+      Just(prev-utc-i)
     }
-    prev-utc-i
+    else tai-inv-offset-pre72(i)
   }
-  Timezone(utc-offset,Just(utc-inverse))
+  Timezone(utc-offset,utc-inverse)
 }
 
 val ntp-epoch-shift  = 2208988800
 public val ntp-epoch = instant-at(~ntp-epoch-shift)
 
-fun parse-leap-seconds( leaps : string ) : list<(instant,int32)> {
+fun parse-leap-seconds( leaps : string ) : leaps-table {
   leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
     val adjust  = cap.groups[2].parse-int-default(0)
     val ntpi    = instant-at(ntpsecs - ntp-epoch-shift)
-    trace("leap entry: " + adjust.show + " " + ntpi.time.show + " " + (ntpsecs - ntp-epoch-shift).show )
-    (instant-at(ntpsecs - ntp-epoch-shift), adjust.int32)
-  }
+    //trace("leap entry: " + adjust.show + " " + ntpi.time.show + " " + (ntpsecs - ntp-epoch-shift).show )
+    (instant-at(ntpsecs - ntp-epoch-shift), adjust)
+  }.reverse
 }
 val rxleap = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 
@@ -392,7 +435,7 @@ struct taiadjust(
 
 val tai-adjust0 = Taiadjust(epoch,0.0,epoch,0.0)
 
-val tai-adjusts : (() -> list<taiadjust>) = once{ parse-tai-utc-dat() }
+val tai-leaps-pre72 : (() -> list<taiadjust>) = once{ parse-tai-utc-dat() }
 
 fun tai-leaps( i : instant, adj : taiadjust ) : double {
   if (i < adj.utc-start) return 0.0
@@ -410,7 +453,7 @@ fun parse-tai-utc-dat( s : string = tai-utc-dat-y1968 ) : list<taiadjust> {
     val start  = instant(1858,11,17 + mjd.int)
     val dstart = instant(1858,11,17 + dmjd.int)
     Taiadjust( start, ofs, dstart, delta )
-  })
+  }).reverse
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 val mjd-epoch-shift = 2400000.5
