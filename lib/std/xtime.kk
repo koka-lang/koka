@@ -10,7 +10,7 @@
 
    Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */
-module std/xtime
+public module std/xtime
 
 import std/regex
 import std/int32
@@ -30,7 +30,7 @@ abstract struct instant (
 
 abstract struct duration (
   secs : int,
-  frac : double
+  frac : double = 0.0
 )
 
 abstract struct time (
@@ -61,7 +61,11 @@ public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
 
 public fun compare( i : instant, j : instant ) : order {
-  compare(i.duration,j.duration)
+  compare(i.since-epoch,j.since-epoch)
+}
+
+public fun since-epoch( i : instant ) : duration {
+  Duration(i.secs,i.frac)
 }
 
 public fun (<)( i : instant, j : instant )  : bool { compare(i,j) == Lt }
@@ -80,13 +84,6 @@ public fun instant( t : time ) : instant {
 }
 
 
-public fun duration( secs : int, frac : double ) : duration {
-  Duration(secs,frac)
-}
-
-public fun duration( i : instant ) : duration {
-  Duration(i.secs,i.frac)
-}
 
 public val epoch = Instant(0,0.0)
 
@@ -104,7 +101,7 @@ extern xnow-resolution() : ndet double {
 
 // Show an instant in nano-second resolution.
 public fun show( i : instant ) : string {
-  i.duration.show  
+  i.since-epoch.show  
 }
 
 // Show a duration in nano-second resolution.
@@ -165,7 +162,7 @@ public struct timezone(
 
 public fun timezone-fixed( secs : int ) : timezone {
   Timezone( 
-    fun(i) { Duration(secs,0.0) }, 
+    fun(i) { Duration(secs) }, 
     if (secs.zero?) then Just(id) else Nothing
   )
 }
@@ -199,8 +196,12 @@ public fun (-)( i : instant, d : duration ) : instant {
   i + ~d
 }
 
+public fun (-)( i : instant, j : instant ) : duration {
+  i.since-epoch - j.since-epoch
+}
+
 public fun (+) ( d : duration, e : duration ) : duration {
-  (Instant(d.secs,d.frac) + e).duration
+  (Instant(d.secs,d.frac) + e).since-epoch
 }
 
 public fun (-)( d : duration, e : duration ) : duration {
@@ -305,18 +306,18 @@ public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone
       val (utc-start,adj) = entry
       if (i>=utc-start) then Just(adj.int) else Nothing
     }
-    duration(mbadj.maybe(0),0.0)
+    Duration(mbadj.maybe(0))
   }
   fun utc-inverse(i : instant ) {
     var prev-utc-i := i
     var prev-start := i
     leap-table.foreach-while fun(entry) {
       val (utc-start,adj) = entry
-      val utc-i = i - duration(adj.int,0.0)
+      val utc-i = i - Duration(adj.int)
       if (utc-i >= utc-start) then {
         if (utc-i >= prev-start) {
           // leap second
-          prev-utc-i := (utc-i - duration(1,0.0)) + duration(0,1.0) 
+          prev-utc-i := (utc-i - Duration(1)) + Duration(0,1.0) 
         }
         else {
           prev-utc-i := utc-i
@@ -336,9 +337,9 @@ public fun tai( leaps : string = nist-leap-seconds-y2016 ) : timezone
 }
 
 val ntp-epoch-shift  = 2208988800
-public val ntp-epoch = instant-at(ntp-epoch-shift)
+public val ntp-epoch = instant-at(~ntp-epoch-shift)
 
-public fun parse-leap-seconds( leaps : string ) : list<(instant,int32)> {
+fun parse-leap-seconds( leaps : string ) : list<(instant,int32)> {
   leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
     val adjust  = cap.groups[2].parse-int-default(0)
@@ -349,7 +350,8 @@ public fun parse-leap-seconds( leaps : string ) : list<(instant,int32)> {
 }
 val rxleap = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 
-// from: ftp://time.nist.gov/pub/leap-seconds.list
+// NIST leap second data as 2016-10-01Z
+// From: https://www.ietf.org/timezones/data/leap-seconds.list
 val nist-leap-seconds-y2016 = @"
   # Leap seconds as of 2016-10-14Z
   2272060800  10  # 1 Jan 1972
@@ -381,6 +383,56 @@ val nist-leap-seconds-y2016 = @"
   3644697600  36  # 1 Jul 2015
   3692217600  37  # 1 Jan 2017"
 
+struct taiadjust(
+  utc-start  : instant,
+  offset     : double,
+  delta-start: instant,
+  delta      : double
+)
+
+val tai-adjust0 = Taiadjust(epoch,0.0,epoch,0.0)
+
+val tai-adjusts : (() -> list<taiadjust>) = once{ parse-tai-utc-dat() }
+
+fun tai-leaps( i : instant, adj : taiadjust ) : double {
+  if (i < adj.utc-start) return 0.0
+  val days  = (i - adj.delta-start).seconds / secs-per-uday.double
+  adj.offset + (adj.delta * days)
+}
+
+fun parse-tai-utc-dat( s : string = tai-utc-dat-y1968 ) : list<taiadjust> {
+  s.find-all(rxtaiadjust).map( fun(cap) {
+    val mjd    = cap.groups[1].parse-double-default(mjd-epoch-shift) - mjd-epoch-shift
+    val ofs    = cap.groups[2].parse-double-default(0.0)
+    val dmjd   = cap.groups[3].parse-double-default(0.0)
+    val delta  = cap.groups[4].parse-double-default(0.0)
+    // note: we can convert from modified julian day this way since the date is before the (non-leap) year 2000
+    val start  = instant(1858,11,17 + mjd.int)
+    val dstart = instant(1858,11,17 + dmjd.int)
+    Taiadjust( start, ofs, dstart, delta )
+  })
+}
+val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val mjd-epoch-shift = 2400000.5
+
+// TAI leap second adjustments for dates before 1972-01-01Z
+val tai-utc-dat-y1968 = @"
+  # from: http://maia.usno.navy.mil/ser7/tai-utc.date
+  1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
+  1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
+  1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S
+  1963 NOV  1 =JD 2438334.5  TAI-UTC=   1.9458580 S + (MJD - 37665.) X 0.0011232S
+  1964 JAN  1 =JD 2438395.5  TAI-UTC=   3.2401300 S + (MJD - 38761.) X 0.001296 S
+  1964 APR  1 =JD 2438486.5  TAI-UTC=   3.3401300 S + (MJD - 38761.) X 0.001296 S
+  1964 SEP  1 =JD 2438639.5  TAI-UTC=   3.4401300 S + (MJD - 38761.) X 0.001296 S
+  1965 JAN  1 =JD 2438761.5  TAI-UTC=   3.5401300 S + (MJD - 38761.) X 0.001296 S
+  1965 MAR  1 =JD 2438820.5  TAI-UTC=   3.6401300 S + (MJD - 38761.) X 0.001296 S
+  1965 JUL  1 =JD 2438942.5  TAI-UTC=   3.7401300 S + (MJD - 38761.) X 0.001296 S
+  1965 SEP  1 =JD 2439004.5  TAI-UTC=   3.8401300 S + (MJD - 38761.) X 0.001296 S
+  1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S
+  1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S"
+
+
 /*
  # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
  1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
@@ -396,6 +448,8 @@ val nist-leap-seconds-y2016 = @"
  1965 SEP  1 =JD 2439004.5  TAI-UTC=   3.8401300 S + (MJD - 38761.) X 0.001296 S
  1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S
  1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S
+*/
+/* 
  1972 JAN  1 =JD 2441317.5  TAI-UTC=  10.0       S + (MJD - 41317.) X 0.0      S
  1972 JUL  1 =JD 2441499.5  TAI-UTC=  11.0       S + (MJD - 41317.) X 0.0      S
  1973 JAN  1 =JD 2441683.5  TAI-UTC=  12.0       S + (MJD - 41317.) X 0.0      S

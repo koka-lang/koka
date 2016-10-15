@@ -2587,6 +2587,27 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e 
   js inline "((#1)())";
 }
 
+// Given a total function to calculate a value `:a`, return
+// a total function that only calculates the value once and then 
+// returns the cached result.
+fun once( calc : () -> a ) : (() -> a) {
+  unsafe-total {
+    var value := Nothing
+    return fun() {
+      unsafe-total {
+        match(value) {
+          Just(x) -> x
+          Nothing -> {
+            val x = calc()
+            value := Just(x)
+            x
+          }
+        }
+      }
+    }
+  }
+}
+
 
 // ----------------------------------------------------------------------------
 // Unsafe
