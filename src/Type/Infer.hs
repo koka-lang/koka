@@ -1051,6 +1051,7 @@ inferApp propagated expect fun nargs rng
        amb <- case rootExpr fun of
                 (Var name isOp nameRange)
                   -> do matches <- lookupNameN name (length fixed) (map (fst . fst) named) nameRange
+                        -- traceDoc $ \env -> text "matched for " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           []         -> do -- emit an error
                                            resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named)) rng nameRange
@@ -1116,7 +1117,8 @@ inferApp propagated expect fun nargs rng
            let acc' = (acc ++ [(tpArg,(getRange fix, effArg),coreArg)])
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
-                      -> do matches <- lookupNameEx (const True) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                      -> do matches <- lookupNameEx (isInfoValFunExt {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                            -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", arg: " <+> ppType env tpArg                        
                             case matches of
                               []         -> do -- emit an error
                                                resolveFunName name (CtxFunTypes True (map fst3 acc') []) rng nameRange 
@@ -1196,19 +1198,21 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
        let info1 = InfoCon tp1 conRepr conInfo rng
        (qname,tp,info) <- do defName <- currentDefName
                              let creatorName = newCreatorName qname1
-                             -- trace ("inferCon: " ++ show (defName,creatorName,qname1)) $ return ()
+                             -- trace ("inferCon: " ++ show (defName,creatorName,qname1,nameCopy)) $ return ()
                              if (defName /= unqualify creatorName && defName /= nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
                                then do mbRes <- lookupFunName creatorName propagated rng 
                                        case mbRes of
                                           Just (qname',tp',info') -> 
+                                            --trace "creator found" $
                                             do return (qname',tp',info')
                                           Nothing  -> 
+                                            --trace "no creator found" $
                                             do return (qname1,tp1,info1)
                                else return (qname1,tp1,info1)
        let coreVar = coreExprFromNameInfo qname info
        addRangeInfo rng (RM.Id (infoCanonicalName qname1 info1) (RM.NICon tp) False)                                  
        (itp,coref) <- maybeInstantiate rng expect tp 
-       -- trace ("Type.Infer.Con: " ++ show (name,itp)) $ return ()
+       -- traceDoc $ \env -> text "Type.Infer.Con: " <+> ppName env qname <+> text ":" <+> ppType env itp
        eff <- freshEffect
        return (itp,eff,coref coreVar)                              
 
