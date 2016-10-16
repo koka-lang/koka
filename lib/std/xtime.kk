@@ -262,7 +262,7 @@ fun udays-from-date( year : int, month : int, day : int ) : int {
   udays-from-datex( year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
 }
 
-public fun utc-instant( year : int, month : int = 1, day : int = 1, 
+fun utc-instant( year : int, month : int = 1, day : int = 1, 
                  hours : int = 0, minutes : int = 0, secs : int = 0, frac : double = 0.0) : instant 
 {
   val (xdays,xsecs) = divmod( (((hours*60) + minutes)*60) + secs, secs-per-uday )
@@ -311,6 +311,29 @@ fun tai-offset( i : instant, leaps : leaps-table ) : duration {
   Duration(adj)
 }
 
+fun tai-inv-offset( i : instant, leaps : leaps-table ) : maybe<instant> 
+{
+  fun iter( lps ) {
+    match(lps) {
+      Nil -> Just(i) 
+      Cons((start,adj),rest) {
+        if (i >= start) then {
+          val utc-i = i - Duration(adj)
+          if (utc-i >= start) 
+           then Just(utc-i) 
+           else {
+            // leap-second cross-over
+            val adjdiff = adj - rest.head.map(snd).default(adj - 1)
+            Just( utc-i(frac = adjdiff.double) ) 
+           }
+        }
+        else iter(rest)
+      }
+    }
+  }
+  iter(leaps)
+}
+
 fun tai-offset-pre72( i : instant ) : duration {
   val leaps = tai-leaps-pre72() // cached, on-demand
   match( leaps.find( fun(ta){ ta.utc-start <= i } ) ) {
@@ -349,32 +372,9 @@ public fun tai-from( leaps-text : string ) : timezone
       else tai-offset-pre72(i)
   }
   fun utc-inverse(i : instant ) {
-    if (i >= utc1972x10) {
-      var prev-utc-i := i
-      var prev-start := i
-      leaps.foreach-while fun(entry) {
-        val (utc-start,adj) = entry
-        val utc-i = i - Duration(adj)
-        if (utc-i >= utc-start) then {
-          if (utc-i >= prev-start) {
-            // leap second
-            prev-utc-i := (utc-i - Duration(1)) + Duration(0,1.0) 
-          }
-          else {
-            prev-utc-i := utc-i
-          }
-          Just(()) 
-        }
-        else {
-          // regular
-          prev-utc-i := utc-i
-          prev-start := utc-start
-          Nothing
-        }      
-      }
-      Just(prev-utc-i)
-    }
-    else tai-inv-offset-pre72(i)
+    if (i >= utc1972x10) 
+     then tai-inv-offset(i,leaps)
+     else tai-inv-offset-pre72(i)
   }
   Timezone(utc-offset,utc-inverse)
 }
