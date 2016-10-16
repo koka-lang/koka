@@ -10,7 +10,7 @@
 
    Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */
-module std/xtime
+public module std/xtime
 
 import std/regex
 import std/int32
@@ -90,10 +90,51 @@ public fun instant-at( secs : int, frac : double = 0.0 ) : instant{
   Instant(secs,frac)
 }
 
+// Create an instant given a number of seconds since the `epoch`
+// given as a `:double`.
+public fun instant-at( secs : double ) : instant {
+  instant-at( secs.floor.int, secs.fraction )
+}
+
+// Create an instant given a [julian date](https://en.wikipedia.org/wiki/Julian_day).
+public fun instant-at-jd( julian-date: double ) : instant {
+  instant-at-mjd( julian-date - mjd-epoch-shift )
+}
+
+// Create an instant given a [modified julian date](https://en.wikipedia.org/wiki/Julian_day).\
+// modified-julian-date = julian-date - 2400000.5
+public fun instant-at-mjd( modified-julian-date : double ) : instant {
+  val delta = duration( modified-julian-date * secs-per-uday.double )
+  mjd-epoch + delta
+}
+
+// Return the [julian date](https://en.wikipedia.org/wiki/Julian_day) of an instant.
+public fun jd( i : instant ) : double {
+  i.mjd + mjd-epoch-shift
+}
+
+// Return the [modified julian date](https://en.wikipedia.org/wiki/Julian_day) of an instant.
+public fun mjd( i : instant ) : double {
+  val delta = i - mjd-epoch
+  (delta.seconds / secs-per-uday.double)
+}
+
 // Get the instant in time of a given `:time` value.
 public fun instant( t : time ) : instant {
   t.tinstant
 }
+
+// Create a duration given a number of seconds and fraction of seconds.
+public fun duration( secs : int, frac : double = 0.0 ) : duration {
+  Duration( secs + frac.floor.int, frac.fraction )
+}
+
+// Create a duration given a number of seconds as a `:double`.
+public fun duration( secs : double ) : duration {
+  Duration( secs.floor.int, secs.fraction )
+}
+
+
 
 
 // The _epoch_ is the unix epoch on 1970-01-01Z.
@@ -113,26 +154,36 @@ extern xnow-resolution() : ndet double {
   js "_now_resolution"
 }
 
-// Show an instant in nano-second resolution.
-public fun show( i : instant ) : string {
-  i.since-epoch.show  
+// Show an instant with an optional precision (=`9`, nano-second resolution).
+public fun show( i : instant, prec : int = 9 ) : string {
+  val leap = i.frac.floor.int  
+  i.secs.show + i.frac.show-frac(9) + "s" +
+   (if (leap.zero?) then "" else " " + (if (leap.pos?) then "+" else "-") + leap.abs.show)
 }
 
-// Show a duration in nano-second resolution.
-public fun show( i : duration ) : string {   
-  (i.secs).show + "." +    
-  i.frac.show-frac + "s +" + i.frac.floor.int.show 
+// Show a duration with an optional precision (=`9`, nano-second resolution).
+public fun show( i : duration, prec : int = 9 ) : string {   
+  i.secs.show + i.frac.show-frac(9) + "s"
 }
 
+// Show a fraction of a second up to an optional precision (=`9`)
 fun show-frac( frac : double, prec : int = 9 ) : string {
-  frac.fraction.show-fixed(prec).first(2).after.string
+  if (frac.fraction.zero?) return ""
+  val xdigits = frac.fraction.show-fixed(prec).list.drop(2)
+  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).reverse
+  if (digits.nil?) return ""
+  // always use a multiple of 3 to display a fraction
+  val len3 = min(prec, ((digits.length + 2) / 3) * 3)
+  "." + digits.string.pad-right( len3, '0') 
 }
+val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
 
-
+// pad with zeros
 fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
+// pad with zeros
 fun show0( i : int32, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
@@ -148,18 +199,23 @@ fun date( t : time ) : (int,int,int) {
 }
 
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
-public fun show(t : time ) : string {
-  t.year.show + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
-  t.hours.show0 + ":" + t.mins.show0 + ":" + t.secs.show0 + "." +
-  t.frac.show-frac(9) + show-tzofs(t.tzofs)
+public fun show(t : time, prec : int = 9 ) : string {
+  val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
+  yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
+   t.hours.show0 + ":" + t.mins.show0 + ":" + t.secs.show0 + 
+   t.frac.show-frac(prec) + show-tzofs(t.tzofs)
 }
 
-fun show-tzofs(ofs : double) : string {
-  if (ofs.zero?) return "Z"
+// Show a time zone offset. 
+// Optional `utc` for displaying a zero timezone offset (=`"Z"`).
+// Optional `hmsep` for the hour-minute separator (=`":"`).
+// Optional `hrwidth` to give the minimal width of the hour field (=`2`).
+fun show-tzofs(ofs : double, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
+  if (ofs.zero?) return utc
   val mins = (ofs.abs / 60.0).int32
-  val tz = (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0 + ":" + (mins%60.int32).show0
+  val tz = (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0(hrwidth) + hmsep + (mins%60.int32).show0
   val secs = (ofs.abs % 60.0)
-  val tzs = if (secs.zero?) then "" else ":" + secs.floor.int32.show0 + "." + secs.fraction.show-frac(3)
+  val tzs = if (secs.zero?) then "" else ":" + secs.floor.int32.show0 + secs.fraction.show-frac(3)
   tz + tzs
 }
 
@@ -175,7 +231,7 @@ public struct timezone(
 // Create a time zone with a fixed offset in seconds from UTC.
 public fun timezone-fixed( secs : int ) : timezone {
   Timezone( 
-    fun(i) { Duration(secs) }, 
+    fun(i) { duration(secs) }, 
     fun(i) { if (secs.zero?) then Just(i) else Nothing }
   )
 }
@@ -493,7 +549,7 @@ fun tai-inv-offset( i : instant, leaps : leaps-table ) : maybe<instant>
   fun iter( lps ) {
     match(lps) {
       Nil -> Just(i) 
-      Cons((start,adj),rest) {
+      Cons((start,adj:int),rest) {
         if (i < start) then iter(rest) else {
           val utc-i = i - Duration(adj)
           if (utc-i >= start) 
