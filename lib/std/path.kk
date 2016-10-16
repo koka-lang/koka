@@ -129,7 +129,7 @@ public fun path( s : string ) : path {
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {  
-  val parts = s.split(rx-partsep).list.path-split(dirs)
+  val parts = s.split(rx-partsep).path-split(dirs)
   Path(root,parts)
 }
 fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
@@ -153,7 +153,7 @@ val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 // In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
 // parsed as ``c:/foo`` and ``/bar``. 
 public fun paths( s : string ) : list<path> {
-  s.split(rx-pathsep).list.paths-split
+  s.split(rx-pathsep).paths-split
 }
 fun paths-split( ps : list<string> ) : list<path> {
   match(ps) {

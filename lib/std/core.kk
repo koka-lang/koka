@@ -1260,7 +1260,7 @@ extern inline (~)(i:int) : int {
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
 extern inline double : (int) -> double  { 
   cs "Primitive.IntToDouble"
-  js "$std_core._int_double" 
+  js "$std_core._int_to_double" 
 }
 
 // Is this an odd integer?

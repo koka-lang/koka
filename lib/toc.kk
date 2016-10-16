@@ -27,6 +27,7 @@ import std/regex
 import std/string
 import std/time
 import std/unicode
+import std/xtime
 
 import sys/dom
 import sys/dom/types
