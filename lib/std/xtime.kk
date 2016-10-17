@@ -14,6 +14,7 @@ public module std/xtime
 
 import std/regex
 import std/int32
+import std/dict
 
 extern include {
   // cs file "time-inline.cs"
@@ -723,42 +724,61 @@ struct timezone-info(
 )
 
 struct timezone-period(
-  end   : maybe<instant>, // Nothing = end of time
+  start : maybe<instant>, // Nothing = beginning of time
   abbrv : string,
   offset: double
 )
 
 fun show( tzp : timezone-period ) : string {
-  tzp.abbrv + " " + tzp.offset.show-tzofs + " until " + tzp.end.map(fun(i){ i.time.show }).default("<infinity>")
+  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzofs(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
 }
 
 fun show (tzi : timezone-info ) : string {
   tzi.name + ":\n  " + tzi.periods.map(show).join("\n  ")
 }
 
-fun parse-packed-zone( s : string ) : timezone-info {
+fun parse-packed-zones( s : string = iana-timezones-x20160101 ) : exn list<timezone-info> {// dict<timezone-info> {
+  val zonesfld = match(s.find(rxzones)) {
+    Nothing   -> error("invalid timezone data; cannot find zones array.")
+    Just(cap) -> cap.groups[1].trim
+  }
+  val zonesarr = zonesfld.lines.map( fun(line) {
+    match(line.find(rxzone)) {
+      Nothing   -> error("invalid timezone info:\n  " + line)
+      Just(cap) -> cap.groups[1]
+    }
+  })
+  val zones = zonesarr.map(parse-packed-zone)
+  zones
+  //zones.map(fun(tzi){ (tzi.name, tzi) }).dict.list.map
+}
+val rxzones = regex(@"""zones""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
+val rxzone  = regex(@"^[ \t]*""([^""]+)"",?[ \t]*$")
+
+fun parse-packed-zone( s : string ) : exn timezone-info {
+  trace("parseing: " + s)
   val parts   = s.split("|")
   val name    = parts[0].default("")
-  val abbrs   = parts[1].default("").split(" ")
-  val offsets = parts[2].default("0").split(" ").map(parse-fixed-base60)
+  val abbrs   = parts[1].default("").split(" ").filter(notempty?)
+  val offsets = parts[2].default("0").split(" ").filter(notempty?).map(parse-fixed-base60)
   val indices = parts[3].default("0").list.map(digit60)
-  val xdiffs  = parts[4].default("").split(" ").map(parse-fixed-base60)
+  val xdiffs  = parts[4].default("").split(" ").filter(notempty?).map(parse-fixed-base60)
   fun from-indices( xs : list<a>, def : a ) : list<a> {
     indices.map( fun(idx) {xs[idx].default(def) }).reverse
   }
-  val (start,diffs) = match(xdiffs) {
+  val (start0,diffs) = match(xdiffs) {
     Nil -> (epoch,[])
     Cons(start,rest) -> (instant-at(start * 60.0), Cons(0.0,rest))
   }
-  val population = parts[5].default("").parse-base60
-  // assert( diffs.length + 1 == indices.length.show )
-  val endings = diffs.foldl((start,[]), fun(acc:(instant,list<maybe<instant>>),diff) {
+  val population = parts[5].default("0").parse-base60
+  if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  " + s )
+  val endings = diffs.foldl((start0,[]), fun(acc:(instant,list<maybe<instant>>),diff) {
                   val i = acc.fst + duration(diff * 60.0) 
                   (i,Cons(Just(i),acc.snd))
                 }).snd
   val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
-  val periods  = zipwith( Cons(Nothing,endings), ofsabrs, fun(end,ofsabbr) {
-                   Timezone-period(end,ofsabbr.snd,ofsabbr.fst * ~60.0)
+  val periods  = zipwith( endings + [Nothing], ofsabrs, fun(start,ofsabbr) {
+                   Timezone-period(start,ofsabbr.snd,ofsabbr.fst * ~60.0)
                  })
   Timezone-info(name,population,periods)
 }
@@ -766,9 +786,9 @@ fun parse-packed-zone( s : string ) : timezone-info {
 val pzone-la = "America/Los_Angeles|PST PDT PWT PPT|80 70 70 70|010102301010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010|-261q0 1nX0 11B0 1nX0 SgN0 8x10 iy0 5Wp1 1VaX 3dA0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1a00 1fA0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1cN0 1cL0 1cN0 1cL0 s10 1Vz0 LB0 1BX0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0|15e6"
 val pzone-ams = "Europe/Amsterdam|AMT NST NEST NET CEST CET|-j.w -1j.w -1k -k -20 -10|010101010101010101010101010101010101010101012323234545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545|-2aFcj.w 11b0 1iP0 11A0 1io0 1cM0 1fA0 1a00 1fA0 1a00 1fA0 1a00 1co0 1io0 1yo0 Pc0 1a00 1fA0 1Bc0 Mo0 1tc0 Uo0 1tA0 U00 1uo0 W00 1s00 VA0 1so0 Vc0 1sM0 UM0 1wo0 Rc0 1u00 Wo0 1rA0 W00 1s00 VA0 1sM0 UM0 1w00 fV0 BCX.w 1tA0 U00 1u00 Wo0 1sm0 601k WM0 1fA0 1cM0 1cM0 1cM0 16M0 1gMM0 1a00 1fA0 1cM0 1cM0 1cM0 1fA0 1a00 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00|16e5"
 
-fun parse-fixed-base60( s : string ) : double {
+fun parse-fixed-base60( s : string ) : exn double {
   match(s.find(rxfixbase60)) {
-    Nothing -> 0.0
+    Nothing -> error("invalid fixed base60 number: " + s)
     Just(cap) -> {
       val sign = if (cap.groups[1]=="-") then ~1 else 1
       val num  = parse-base60(cap.groups[2])
@@ -781,9 +801,9 @@ fun parse-fixed-base60( s : string ) : double {
 }
 val rxfixbase60 = regex(@"^([\-\+])?([\da-zA-X]+)(?:\.([\da-zA-X]+))?$")
 
-fun parse-base60( s : string ) : int {
+fun parse-base60( s : string ) : exn int {
   match(s.find(rxbase60)) {
-    Nothing -> 0
+    Nothing -> error("invalid base60 number: " + s)
     Just(cap) -> {
       val sign = if (cap.groups[1]=="-") then ~1 else 1
       val num  = cap.groups[2].list.foldl(0, fun(n,d) {
@@ -795,11 +815,11 @@ fun parse-base60( s : string ) : int {
 }
 val rxbase60 = regex(@"^([\-\+])?([\da-zA-X]+)$")
 
-fun digit60( d : char ) : int {
-  val c = if (d.digit?) then (d - '0') 
-          elif (d.lower?) then (d - 'a') 
-          else (d - 'A')
-  c.int          
+fun digit60( d : char ) : exn int {
+  if (d.digit?) then (d - '0').int 
+  elif (d.lower?) then (d - 'a').int + 10 
+  elif (d.upper?) then (d - 'A').int + 36
+  else error("invalid digit in base 60: " + d.show)
 }
 
 //fun parse-iana-timezones( packed-text: string = iana-timezones-x20160101 ) : dict<string>

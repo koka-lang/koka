@@ -524,7 +524,7 @@ function list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 }
 
-private val maxListStack = 200
+private val maxListStack = 100
 
 
 private fun zipwith-acc( f, i, acc, xs, ys )
@@ -633,19 +633,19 @@ fun map-peek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
   xs.map-indexed-peek( fun(i,x,xx) { f(x,xx) })
 }
 
+
+// recurse using an accumulator using constant heap space
+private fun map-acc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
+  match(ys) {
+    Cons(x,xx) -> map-acc(g,n+1,Cons(g(n,x,xx),acc),xx)
+    Nil -> reverse(acc)
+  }
+}
+
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element, the element itself, and the tail list as arguments.
 fun map-indexed-peek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
 {
-  // recurse using an accumulator using constant heap space
-  fun map-acc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
-
-    match(ys) {
-      Cons(x,xx) -> map-acc(g,n+1,Cons(g(n,x,xx),acc),xx)
-      Nil -> reverse(acc)
-    }
-  }
-
   // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
   fun map-iter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
     if (n > maxListStack) {
