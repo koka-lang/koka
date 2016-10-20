@@ -837,6 +837,12 @@ fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
   }
 }
 
+// Find the first element satisfying some predicate and return it.
+fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
+{
+  xs.foreach-while(pred)
+}
+
 // Lookup the first element satisfying some predicate
 fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
 {
@@ -1301,7 +1307,7 @@ fun neg?(i : int ) : bool { i.sign == Lt }
 
 extern inline sign(i : int ) : order {
   cs "Primitive.IntSign"
-  js "_int_sign"
+  js "$std_core._int_sign"
 }
 
 // Return the minimum of two integers
@@ -1589,7 +1595,7 @@ extern inline floor : (d:double) -> double {
 // Return the smallest integer equal or larger than `d` 
 extern inline ceiling : (d:double) -> double {
   cs "Math.Ceiling"
-  js "Math.ceiling"
+  js "Math.ceil"
 }
 
 // Return the integral part of a `:double` `d` .
@@ -1600,10 +1606,11 @@ extern inline trunc : (d:double) -> double {
   js "Math.trunc"
 }
 
-// Return the (positive) fractional part of a `:double` `d`.\
-// `(~2.5).fraction === 0.5`
+// Return the fractional part of a `:double` `d`.\
+// `d.trunc + d.fraction === d`\
+// `(~2.4).fraction === ~0.4`
 fun fraction(d : double) : double {
-  d - d.floor
+  d - d.trunc
 }
 
 // Round a double to its nearest integral value.
