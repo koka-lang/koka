@@ -1613,6 +1613,22 @@ fun fraction(d : double) : double {
   d - d.trunc
 }
 
+// Return the absolute value of a `:double` `d` 
+extern inline pow : (d:double, p:double) -> double  { 
+  cs "Math.Pow"
+  js "Math.pow" 
+}
+
+// Round a double to a specified precision
+fun round-to-prec( d : double, prec : int  ) : double {
+  if (prec <= 0) then d.round else {
+    val p  = pow(10.0,prec.double)
+    (d * p).round / p
+  }
+}
+
+
+
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
 extern inline round : (d:double) -> double {
