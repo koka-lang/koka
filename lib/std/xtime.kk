@@ -22,8 +22,9 @@ extern include {
 }
 
 
-// The _epoch_ is 1972-01-01 UTC which equals 1972-01-01T00:00:10 TAI.
+// The _epoch_ is 1972-01-01 UTC which equals 1972-01-01T00\:00\:10 TAI.
 // Nice properties:
+//
 // - for any date <  1960-01-01Z, we have UTC == TAI
 // - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
 public val epoch = instant-at(0)
@@ -431,36 +432,41 @@ public struct calendar(
 )
 
 
-// The standard UTC calendar
-val utc-cal = solar-calendar(
+// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// using UTC time. This is a proleptic Gregorian 
+// calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
+public val iso = solar-calendar(
   "", 
-  pgregorian-date-from-days,
-  pgregorian-days-from-date,
+  iso-date-from-days,
+  iso-days-from-date,
   fun(i)  { utc-from-tai( i )  },
   fun(si) { tai-from-utc( si )  }
 )
 
-// The TAI Calendar.
-val tai   = calendar-fixed-from-tai("TAI",0.0)
+// The TAI Calendar. This is a standard ISO 8601 calender using
+// TAI time where every day is exactly 86400 SI seconds (unlike
+// standard UTC time which can insert leap seconds).
+public val tai   = calendar-fixed-from-tai("TAI",0.0)
 
 // The TAI10 calendar is always `TAI - 10`
-val tai10 = calendar-fixed-from-tai( "TAI10", ~10.0 )
+public val tai10 = calendar-fixed-from-tai( "TAI10", ~10.0 )
 
 // The GPS calendar is always `TAI - 19`
-val gps   = calendar-fixed-from-tai( "GPS", ~19.0 )
+public val gps   = calendar-fixed-from-tai( "GPS", ~19.0 )
 
 // The Terrestrial calendar is always `TAI - 32.184`
-val tt    = calendar-fixed-from-tai( "TT", ~32.184 )
+public val tt    = calendar-fixed-from-tai( "TT", ~32.184 )
 
 // Create a calendar that has a fixed `ofs` seconds difference from TAI.
 public fun calendar-fixed-from-tai( name : string, ofs : double ) : calendar {
   solar-calendar( name,
-    pgregorian-date-from-days,
-    pgregorian-days-from-date,
+    iso-date-from-days,
+    iso-days-from-date,
     fun(i)  { i + duration(ofs + 10.0) },
     fun(si) { si - duration(ofs + 10.0) }       
   )
 }
+
 
 /*----------------------------------------------------------------------------
   Solar calendars
@@ -468,7 +474,7 @@ public fun calendar-fixed-from-tai( name : string, ofs : double ) : calendar {
 
 // A Calendar instant is an instant in time relative to the epoch
 // used by the calendar. For example, for the Proleptic Gregorian
-// calendar functions (`pgregorian-days-from-date`) the calendar
+// calendar functions (`iso-days-from-date`) the calendar
 // instant gives the number of solar seconds (86400/day) since
 // 1972-01-01.
 public alias cal-instant = instant
@@ -519,16 +525,16 @@ fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : ca
 // Return the instant in time for a given date.
 fun instantz( year : int, month : int = 1, day : int = 1, 
               hours : int = 0, minutes : int = 0, secs : int = 0, frac : double = 0.0,
-              cal : calendar = utc-cal ) : instant 
+              cal : calendar = iso ) : instant 
 {
   (cal.instant-from-dc)( Date(year,month,day), Clock(hours,minutes,secs,frac) )   
 }
 
 // Return the instant in time for a given date and clock interpreted by 
-// calendar `cal` (=`utc-cal`) in a timezone `tz` (=`utc` by default).
+// calendar `cal` (=`iso`) in a timezone `tz` (=`utc` by default).
 public fun instant( year : int, month : int = 1, day : int = 1, 
                     hours : int = 0, minutes : int = 0, secs : int = 0, 
-                    frac : double = 0.0, tz : timezone = utc, cal : calendar = utc-cal ) : instant 
+                    frac : double = 0.0, tz : timezone = utc, cal : calendar = iso ) : instant 
 {
   // the year/month/day is interpreted as if in UTC first.
   val i = instantz(year,month,day,hours,minutes,secs,frac,cal)
@@ -549,7 +555,7 @@ public fun instant( year : int, month : int = 1, day : int = 1,
 
 
 // Return a `:time` for a given instant.
-fun timez( tzi : instant, tzofs : duration = duration0, tz : timezone = utc, cal : calendar = utc-cal, i : instant = tzi) : time {
+fun timez( tzi : instant, tzofs : duration = duration0, tz : timezone = utc, cal : calendar = iso, i : instant = tzi) : time {
   val (d,c) = (cal.dc-from-instant)( tzi )
   Time(d.year,d.month,d.day,c.hours,c.mins,c.secs,c.frac,
        i, cal, tzofs.seconds, tz )
@@ -557,8 +563,8 @@ fun timez( tzi : instant, tzofs : duration = duration0, tz : timezone = utc, cal
 
 
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`utc` by default)
-// and calendar (=`utc-cal` by default).
-public fun time( i : instant, tz : timezone = utc, cal : calendar = utc-cal ) : time {
+// and calendar (=`iso` by default).
+public fun time( i : instant, tz : timezone = utc, cal : calendar = iso ) : time {
   val tzofs : duration = (tz.utc-offset)(i)
   val tzi   = i + tzofs
   timez( tzi, tzofs, tz, cal, i )
@@ -566,10 +572,10 @@ public fun time( i : instant, tz : timezone = utc, cal : calendar = utc-cal ) : 
 
 
 // Return the `:time` value for a given date and clock in a timezone `tz` (=`utc` by default) 
-// interpreted by calendar `cal` (=`utc-cal`)
+// interpreted by calendar `cal` (=`iso`)
 public fun time( year : int, month : int = 1, day : int = 1, 
                  hours : int = 0, minutes : int = 0, secs : int = 0, 
-                 frac : double = 0.0, tz : timezone = utc, cal : calendar = utc-cal ) : time 
+                 frac : double = 0.0, tz : timezone = utc, cal : calendar = iso ) : time 
 {
   time(instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
 }
@@ -582,8 +588,11 @@ public fun time( year : int, month : int = 1, day : int = 1,
 val epoch-shift = 720198   // shift internal epoch from 0000-03-01 TAI to 1972-01-01T00:00:10 TAI
 val days-in-era = 146097   // 365*400 + 100 - 3
 
-// Convert days since `epoch` to a date in the proleptic Gregorian calendar.
-fun pgregorian-date-from-days( days : int ) : date {
+// Convert days since `epoch` to a date in the [ISO8601] calendar,
+// a proleptic Gregorian calendar where year 0 is 1BC.
+//
+// [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
+fun iso-date-from-days( days : int ) : date {
   val z    = days + epoch-shift           // shift epoch from 1970-01-01 to 0000-03-01
   val (era,idoe) = divmod(z,days-in-era)  // day of era: 0 <= doe < days-in-era
   val doe  = idoe.int32
@@ -599,7 +608,7 @@ fun pgregorian-date-from-days( days : int ) : date {
 
 // Calculate days from a year/month/day triple in the proleptic Gregorian calendar
 // `month` must be between 1 and 12. `day` must be between 1 and `days-in-era`.
-fun pgregorian-days-from-datex( year : int, month : int32, day : int32 ) : int {
+fun iso-days-from-datex( year : int, month : int32, day : int32 ) : int {
   val y = if (month <= 2.int32) then year.dec else year   // to internal year starting in Feb
   val (era,iyoe) = divmod(y,400)                    // year of era: 0<= yoe < 400
   val yoe  = iyoe.int32
@@ -608,12 +617,12 @@ fun pgregorian-days-from-datex( year : int, month : int32, day : int32 ) : int {
   ((days-in-era * era) + doe.int) - epoch-shift
 }
 
-// Return days from a year, month, and day in the proleptic Gregorian calendar.
+// Return days from a year, month, and day in the [ISO8601] calendar.
 // Months and days can be any value.
-fun pgregorian-days-from-date( d : date ) : int {
+fun iso-days-from-date( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
-  pgregorian-days-from-datex( d.year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
+  iso-days-from-datex( d.year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
 }
 
 
@@ -933,7 +942,7 @@ val leap-seconds-dat = @"
   1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S
   1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S"
 
-/*
+
 struct timezone-info(
   name      : string,
   population: int,
@@ -984,14 +993,15 @@ fun parse-packed-zone( s : string ) : exn timezone-info {
     indices.map( fun(idx) {xs[idx].default(def) }).reverse
   }
   val (start0,diffs) = match(xdiffs) {
-    Nil -> (epoch,[])
-    Cons(start,rest) -> (instant-at(start * 60.0), Cons(0.0,rest))
+    Nil -> (0.0,[])
+    Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
   }
   val population = parts[5].default("0").parse-base60
   if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  " + s )
-  val endings = diffs.foldl((start0,[]), fun(acc:(instant,list<maybe<instant>>),diff) {
-                  val i = acc.fst + duration(diff * 60.0) 
-                  (i,Cons(Just(i),acc.snd))
+  val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
+                  val iu = acc.fst + (diff * 60.0)
+                  val i = instant-at-unix(iu)
+                  (iu,Cons(Just(i),acc.snd))
                 }).snd
   val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
   val periods  = zipwith( endings + [Nothing], ofsabrs, fun(start,ofsabbr) {
@@ -1063,4 +1073,3 @@ val iana-timezones-x20160101 = @"
   ]
 }"
 
-*/
