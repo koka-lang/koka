@@ -710,10 +710,40 @@ fun utc-from-leap( i : instant, leaps : leaps-table ) : instant {
 }
 val leap1961    = Instant(~347068800,0.0)  // 1961-01-01Z
 
-fun find-utc-from-leap( i : leap-instant, leaps : list<leap-adjust> ) : instant {
+fun find-utc-from-leap( i : leap-instant, leaps : list<leap-adjust> ) : utc-instant {
   match(leaps) {
     Nil -> i // should never happen
     Cons(la,earlier) -> {
+      val ofs   = la.tai-offset(i)
+      val utc-i = i - ofs
+      val max   = if (ofs.secs.neg?) then utc-i else i
+      //trace("check: utc-i: " + utc-i.show + ", start: " + la.utc-start.show)
+      if (la.utc-start > max) then find-utc-from-leap(i,earlier) else {
+        if (la.utc-start <= utc-i) then {
+          // in the time frame
+          trace("utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
+          utc-i
+        }
+        else {
+          // leap-second crosses-over into other time frame            
+          // get adjustment using the earlier frame too
+          trace("found crossover: " + utc-i.show)
+          val la-before = earlier.head.default(zero)
+          val ofs-before= la-before.tai-offset(i)
+          val utc-prev  = i - ofs-before
+          if (la.utc-start > utc-prev) then {
+            // use previous leap-second offset            
+            utc-prev
+          }
+          else {
+            // this is inside an added leap-second, encode as a fraction `> 1.0`.
+            val diff = (ofs - ofs-before).seconds
+            utc-i(frac = utc-i.frac + diff)                            
+          }
+        }
+      }  
+
+      /*
       if (la.utc-start > i) then find-utc-from-leap( i, earlier ) else {
         val ofs   = la.tai-offset(i)
         val utc-i = i - ofs
@@ -739,6 +769,7 @@ fun find-utc-from-leap( i : leap-instant, leaps : list<leap-adjust> ) : instant 
           }
         }
       }
+      */
     }
   }
 }
