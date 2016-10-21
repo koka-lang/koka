@@ -24,8 +24,8 @@ extern include {
 
 // The _epoch_ is 1972-01-01 UTC which equals 1972-01-01T00:00:10 TAI.
 // Nice properties:
-// - for any date < 1960-01-01Z, we have UTC == TAI
-// - for any date > 1972-01-01Z, we have UTC == TAI + whole SI second offset
+// - for any date <  1960-01-01Z, we have UTC == TAI
+// - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
 public val epoch = instant-at(0)
 
 
@@ -34,7 +34,7 @@ public val epoch = instant-at(0)
 // to a tenth of a femto-second (10^-16s).
 abstract struct instant (
   secs : int,         // SI seconds since epoch.
-  frac : double       // fraction of seconds, always > 0.0 (i.e. into the time)
+  frac : double       // fraction of seconds, always >= 0.0 (i.e. into the time)
 )
 
 // Represents duration between `:instant`s in time. 
@@ -197,24 +197,27 @@ public fun show( i : duration, prec : int = 9 ) : string {
 // showing precision up to 9 digits in increments of 3 digits
 fun show-frac( secs : int, frac : double, prec : int  = 9, width : int = 2 ) : string {
   if (prec==0) return secs.show0(width) 
-  val sign = if (secs.neg? || secs.zero? && frac.neg?) then "-" else "" 
-  val (s,d) = secs.abs.divmod(10)
-  val f     = frac.abs + d.double
-  trace("show secs: " + s.show + ", " + f.show)
-  sign + (if (s.zero? && width <= 1) then "" else s.show0(width - 1)) + f.show-frac(prec) 
+  val fr   = frac.round-to-prec(prec)
+  val s    = secs + fr.trunc.int
+  val f    = fr.fraction
+  val sign = if (s.neg? || s.zero? && fr.neg?) then "-" else "" 
+  //trace("show secs: " + s.show + ", " + f.show)
+  sign + (if (s.zero? && width <= 1) then "" else s.abs.show0(width - 1)) + f.show-frac(prec) 
 }
 
-// Show a fraction of a second up to an optional precision (=`9`)
-fun show-frac( frac : double, prec : int = 9 ) : string {
+// Show a fraction of a second up to an optional maximum precision (=`9`)
+fun show-frac( frac : double, prec : int = 9 ) : string {  
   //trace("show frac: " + frac.show)
-  val xdigits = frac.abs.show-fixed(prec).list
-  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).drop-while(fun(d){d=='.'}).reverse
-  if (digits.length==1) return digits.string // zero fraction
+  val xdigits = frac.abs.fraction.show-fixed(prec).list.drop(2)
+  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).reverse
+  if (digits.nil?) return "" // zero fraction
   // always use a multiple of 3 to display a fraction
-  val len3 = min(prec+2, ((digits.length / 3) * 3) + 2)
-  digits.string.pad-right( len3, '0') 
+  val len3 = min(prec, ((digits.length + 2) / 3) * 3)
+  "." + digits.string.pad-right( len3, '0') 
 }
 val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
+
+ 
 
 
 /*----------------------------------------------------------------------------
@@ -224,24 +227,24 @@ val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
 val mjd-epoch-shift     = 2400000.5
 val mjd-epoch : instant = instant-at(~3569788810)  // 1858-11-17Z modified julian date epoch.
 
-// Create an instant given a [julian date](https://en.wikipedia.org/wiki/Julian_day).
+// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
 public fun instant-at-jd( julian-date: double ) : instant {
   instant-at-mjd( julian-date - mjd-epoch-shift )
 }
 
-// Create an instant given a [modified julian date](https://en.wikipedia.org/wiki/Julian_day).\
+// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).\
 // modified-julian-date = julian-date - 2400000.5
 public fun instant-at-mjd( modified-julian-date : double ) : instant {
   val delta = duration( modified-julian-date * solar-secs-per-day.double )
   mjd-epoch + delta
 }
 
-// Return the [julian date](https://en.wikipedia.org/wiki/Julian_day) of an instant.
+// Return the [julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
 public fun jd( i : instant ) : double {
   i.mjd + mjd-epoch-shift
 }
 
-// Return the [modified julian date](https://en.wikipedia.org/wiki/Julian_day) of an instant.
+// Return the [modified julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
 public fun mjd( i : instant ) : double {
   val delta = i - mjd-epoch
   (delta.seconds / solar-secs-per-day.double)
@@ -843,7 +846,7 @@ fun parse-leap-seconds( leaps : string ) : leaps-table {
     instant-at(ntpex - ntp-epoch-shift)
   }.default(la-final.utc-start + duration(365*solar-secs-per-day))
   val expire = utc-expire + la-final.tai-offset(utc-expire) - duration(10) // convert expire to TAI
-  trace("expire: " + expire.show)
+  //trace("expire: " + expire.show)
   
   Leaps-table(expire,las)
 }
