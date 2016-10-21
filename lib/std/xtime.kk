@@ -438,9 +438,19 @@ public struct calendar(
 public val iso = solar-calendar(
   "", 
   iso-date-from-days,
-  iso-days-from-date,
-  fun(i)  { utc-from-tai( i )  },
-  fun(si) { tai-from-utc( si )  }
+  iso-days-from-date
+)
+
+public val julian = solar-calendar(
+  "JC",
+  julian-date-from-days,
+  julian-days-from-date
+)
+
+public val gregorian = solar-calendar(
+  "GC",
+  pgregorian-date-from-days,
+  pgregorian-days-from-date
 )
 
 // The TAI Calendar. This is a standard ISO 8601 calender using
@@ -462,8 +472,8 @@ public fun calendar-fixed-from-tai( name : string, ofs : double ) : calendar {
   solar-calendar( name,
     iso-date-from-days,
     iso-days-from-date,
-    fun(i)  { i + duration(ofs + 10.0) },
-    fun(si) { si - duration(ofs + 10.0) }       
+    fun(i:instant)      { i + duration(ofs + 10.0) },
+    fun(si:cal-instant) { si - duration(ofs + 10.0) }       
   )
 }
 
@@ -485,8 +495,8 @@ public fun solar-calendar(
               cal-name        : string,
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
-              cal-from-tai    : (instant) -> cal-instant, 
-              tai-from-cal    : (cal-instant) -> instant
+              cal-from-tai    : (instant) -> cal-instant = utc-from-tai, 
+              tai-from-cal    : (cal-instant) -> instant = tai-from-utc
             ) : calendar
 {
   Calendar(cal-name,
@@ -582,49 +592,91 @@ public fun time( year : int, month : int = 1, day : int = 1,
 
 
 /*----------------------------------------------------------------------------
-  Proleptic Gregorian calendar
+  ISO calendar, Proleptic Gregorian calendar, and Julian calendar.
 ----------------------------------------------------------------------------*/
 
-val epoch-shift = 720198   // shift internal epoch from 0000-03-01 TAI to 1972-01-01T00:00:10 TAI
-val days-in-era = 146097   // 365*400 + 100 - 3
+val iso-epoch-shift = 720198   // shift internal epoch from 0000-03-01 TAI to 1972-01-01T00:00:10 TAI
+val iso-days-in-era = 146097   // 365*400 + 100 - 3
+val iso-years-in-era= 400
 
 // Convert days since `epoch` to a date in the [ISO8601] calendar,
 // a proleptic Gregorian calendar where year 0 is 1BC.
 //
 // [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
 fun iso-date-from-days( days : int ) : date {
-  val z    = days + epoch-shift           // shift epoch from 1970-01-01 to 0000-03-01
-  val (era,idoe) = divmod(z,days-in-era)  // day of era: 0 <= doe < days-in-era
-  val doe  = idoe.int32
-  val yoe  = (((doe - (doe/1460.int32)) + (doe/36524.int32)) - (doe/146096.int32)) / 365.int32;  // year of era: 0 <= yoe < years-in-era 
-  val doy  = doe - ((yoe*365.int32) + (yoe/4.int32) - (yoe/100.int32))   // day-of-year: 0 <= doy <= 365
-  val mp   = ((doy*5.int32) + 2.int32)/153.int32                         // 0 <= mp <= 0,11
-  val day  = (doy - (((mp*153.int32) + 2.int32) / 5.int32)) + 1.int32    // 1 <= day <= 31
-  val month= mp + (if (mp < 10.int32) then 3.int32 else ~9.int32)        // 1 <= month <= 12
-  val year = yoe.int + (400*era) + (if (month <= 2.int32) then 1 else 0)
-  Date(year,month.int,day.int)
+  val z    = days + iso-epoch-shift          // shift epoch from 1970-01-01 to 0000-03-01
+  val (era,doe) = divmod(z,iso-days-in-era)  // day of era: 0 <= doe < days-in-era
+  val yoe  = (((doe - (doe/1460)) + (doe/36524)) - (doe/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
+  val doy  = doe - ((yoe*365) + (yoe/4) - (yoe/100))   // day-of-year: 0 <= doy <= 365
+  val mp   = ((doy*5) + 2)/153                         // 0 <= mp <= 0,11
+  val day  = (doy - (((mp*153) + 2) / 5)) + 1          // 1 <= day <= 31
+  val month= mp + (if (mp < 10) then 3 else ~9)        // 1 <= month <= 12
+  val year = yoe + (iso-years-in-era * era) + (if (month <= 2) then 1 else 0)
+  Date(year,month,day)
 }
 
 
 // Calculate days from a year/month/day triple in the proleptic Gregorian calendar
 // `month` must be between 1 and 12. `day` must be between 1 and `days-in-era`.
-fun iso-days-from-datex( year : int, month : int32, day : int32 ) : int {
-  val y = if (month <= 2.int32) then year.dec else year   // to internal year starting in Feb
-  val (era,iyoe) = divmod(y,400)                    // year of era: 0<= yoe < 400
-  val yoe  = iyoe.int32
-  val mdoy = (((153.int32 * (month + (if (month > 2.int32) then ~3.int32 else 9.int32))) + 2.int32)/5.int32) 
-  val doe  = (((yoe*365.int32) + (yoe/4.int32)) - (yoe/100.int32)) + mdoy + day.dec
-  ((days-in-era * era) + doe.int) - epoch-shift
+fun iso-days-from-datex( year : int, month : int, day : int ) : int {
+  val y = if (month <= 2) then year.dec else year   // to internal year starting in Feb
+  val (era,yoe) = divmod(y,iso-years-in-era)             // year of era: 0<= yoe < 400
+  val mdoy = (((153 * (month + (if (month > 2) then ~3 else 9))) + 2)/5) 
+  val doe  = (((yoe*365) + (yoe/4)) - (yoe/100)) + mdoy + day.dec
+  ((iso-days-in-era * era) + doe) - iso-epoch-shift
 }
 
 // Return days from a year, month, and day in the [ISO8601] calendar.
 // Months and days can be any value.
 fun iso-days-from-date( d : date ) : int {
-  val (xera,doe)  = divmod(d.day.dec, days-in-era)
+  val (xera,doe)  = divmod(d.day.dec, iso-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
-  iso-days-from-datex( d.year + (xera * 400) + xyear, moy.int32.inc, doe.int32.inc )
+  iso-days-from-datex( d.year + (xera * iso-years-in-era) + xyear, moy.inc, doe.inc )
 }
 
+// Return days from a date in the proleptic Gregorian calendar.
+public fun pgregorian-days-from-date( d : date ) : int {
+  if (d.year <= 0) 
+    then iso-days-from-date(d(year = d.year + 1)) 
+    else iso-days-from-date(d)
+}
+
+// Return a date from a number of days in the proleptic Gregorian calendar.
+public fun pgregorian-date-from-days( days : int ) : date {
+  val d = iso-date-from-days(days)
+  if (d.year<=0) then d(year = d.year - 1) else d
+}
+
+val julian-days-in-era  = 1461
+val julian-years-in-era = 4
+val julian-epoch-shift  = 720200
+
+public fun julian-date-from-days( days : int ) : date {  
+  val z = days + julian-epoch-shift
+  val (era,doe) = divmod(z,julian-days-in-era)
+  val (yoe,doy) = divmod(doe,365)
+  val mp    = (doy*5 + 2) / 153
+  val day   = (doy - ((153*mp + 2)/5)) + 1
+  val month = mp + (if (mp < 10) then 3 else ~9)
+  val year  = yoe + (julian-years-in-era * era) + (if (month <= 2) then 1 else 0)
+  val yyear = if (year<=0) then year.dec else year
+  Date(yyear,month,day)
+}
+
+fun julian-days-from-datex( year : int, month : int, day : int ) : int {
+  val y = if (month <= 2) then year.dec else year
+  val (era,yoe) = divmod(y,julian-years-in-era)
+  val doy = ((153*(month + (if (month>2) then ~3 else 9)) + 2)/5 + day) - 1
+  val doe = yoe*365 + doy
+  ((era * julian-days-in-era) + doe) - julian-epoch-shift
+}  
+
+public fun julian-days-from-date( d : date ) : int {
+  val (xera,doe)  = divmod(d.day.dec, julian-days-in-era)
+  val (xyear,moy) = divmod(d.month.dec, 12)
+  val yyear = if (d.year<=0) then d.year.inc else d.year
+  julian-days-from-datex( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
+}
 
 
 // -----------------------------------------------------------
