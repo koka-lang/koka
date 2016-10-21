@@ -1153,6 +1153,7 @@ reserved
     , "process"
     , "exports"
     , "module"
+    , "Date"
     ]
 
 block :: Doc -> Doc
