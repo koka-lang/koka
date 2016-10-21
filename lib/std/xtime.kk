@@ -22,6 +22,12 @@ extern include {
 }
 
 
+// The _epoch_ is 1972-01-01 UTC which equals 1972-01-01T00:00:10 TAI.
+// Nice properties:
+// - for any date < 1960-01-01Z, we have UTC == TAI
+// - for any date > 1972-01-01Z, we have UTC == TAI + whole SI second offset
+public val epoch = instant-at(0)
+
 
 // Represents an instant in time. 
 // Can be arbitrarily far into the future or past and is accurate up 
@@ -60,9 +66,6 @@ abstract struct time (
 
 // A zero second duration.
 public val duration0 : duration = duration(0)
-
-// The _epoch_ is 1972-01-01 UTC which equals 1972-01-01T00:00:10 TAI.
-public val epoch = instant-at(0)
 
 // Create a duration given a number of seconds and fraction of seconds.
 public fun duration( secs : int, frac : double = 0.0 ) : duration {
@@ -179,27 +182,37 @@ public fun (-)( i : instant, j : instant ) : duration {
 // Show an instant with an optional precision (=`9`, nano-second resolution).
 public fun show( i : instant, prec : int = 9 ) : string {
   val leap = i.frac.trunc.int  
-  // trace("show instant: " + i.secs.show + "s, " + i.frac.show)
+  //trace("show instant: " + i.secs.show + "s, " + i.frac.show)
   i.since-epoch.show +
-    (if (leap.zero?) then "" else " " + (if (leap.pos?) then "+" else "-") + leap.abs.show)
+    (if (leap.zero?) then "" else " " + (if (leap.pos?) then "+" else "-") + leap.abs.show + "leap")
 }
 
 // Show a duration with an optional precision (=`9`, nano-second resolution).
 public fun show( i : duration, prec : int = 9 ) : string {   
   //trace("show duration: " + i.secs.show + "s, " + i.frac.show)
-  (if (i.secs.zero? && i.frac.neg?) then "-" else "") + 
-   i.secs.show + i.frac.show-frac(9) + "s"
+  show-frac( i.secs, i.frac, prec ) + "s"
+}
+
+// Showing fractions is a bit involved due to rounding and 
+// showing precision up to 9 digits in increments of 3 digits
+fun show-frac( secs : int, frac : double, prec : int  = 9, width : int = 2 ) : string {
+  if (prec==0) return secs.show0(width) 
+  val sign = if (secs.neg? || secs.zero? && frac.neg?) then "-" else "" 
+  val (s,d) = secs.abs.divmod(10)
+  val f     = frac.abs + d.double
+  trace("show secs: " + s.show + ", " + f.show)
+  sign + (if (s.zero? && width <= 1) then "" else s.show0(width - 1)) + f.show-frac(prec) 
 }
 
 // Show a fraction of a second up to an optional precision (=`9`)
 fun show-frac( frac : double, prec : int = 9 ) : string {
-  if (frac.fraction.zero?) return ""
-  val xdigits = frac.abs.fraction.show-fixed(prec).list.drop(2)
-  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).reverse
-  if (digits.nil?) return ""
+  //trace("show frac: " + frac.show)
+  val xdigits = frac.abs.show-fixed(prec).list
+  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).drop-while(fun(d){d=='.'}).reverse
+  if (digits.length==1) return digits.string // zero fraction
   // always use a multiple of 3 to display a fraction
-  val len3 = min(prec, ((digits.length + 2) / 3) * 3)
-  "." + digits.string.pad-right( len3, '0') 
+  val len3 = min(prec+2, ((digits.length / 3) * 3) + 2)
+  digits.string.pad-right( len3, '0') 
 }
 val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
 
@@ -240,18 +253,43 @@ public fun mjd( i : instant ) : double {
   Now
 ----------------------------------------------------------------------------*/
 
-// The current `:instant` in time.
-public fun now() : ndet instant {
-  unix-now() // TODO
+val unix-epoch-shift = 63072000.0   // 1972-01-01 TAI - 1970-01-01 TAI
+
+// Convert a unix time stamp to an instant in time.
+// A unix time stamp measure seconds since the Unix epoch (1970-01-01)
+// and ignores any leap seconds.
+public fun instant-at-unix( timestamp : double ) : instant {
+  tai-from-utc( instant-at( timestamp - unix-epoch-shift ) )
 }
 
-// Keep track of invalid instants
-private alias unix-instant = instant
+// Convert an instant to a unix time stamp in seconds since the
+// unix epoch (1970-01-01) ignoring any leap seconds.
+public fun unix( i : instant ) : double {
+  val d = utc-from-tai( i ).since-epoch.seconds
+  d + unix-epoch-shift
+}
 
-// Returns an instant in terms of unix time; this still needs
+//val ntp-epoch-shift = 2272060800.0 // 1900-01-01 TAI - 1972-01-01 TAI
+
+public fun instant-at-ntp( timestamp : double ) : instant {
+  tai-from-utc( instant-at( timestamp - ntp-epoch-shift.double ) )
+}
+
+public fun ntp( i : instant ) : double {
+  val d = utc-from-tai( i ).since-epoch.seconds
+  d + ntp-epoch-shift.double
+}
+
+// The current `:instant` in time.
+public fun now() : ndet instant {
+  instant-at-unix( unix-now() ) 
+}
+
+
+// Returns a unix time stamp; this still needs
 // to be adjusted to our epoch and taking account of leap seconds.
-private extern unix-now() : ndet unix-instant {
-  js "_now"
+private extern unix-now() : ndet double {
+  js "_unix_now"
 }
 
 // The resolution in seconds of the system clock.
@@ -287,8 +325,8 @@ fun date( t : time ) : date {
 public fun show(t : time, prec : int = 9 ) : string {
   val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
-   t.hours.show0 + ":" + t.mins.show0 + ":" + t.secs.show0 + 
-   t.frac.show-frac(prec) + show-tzofs(t.tzofs ) +
+   t.hours.show0 + ":" + t.mins.show0 + ":" + 
+   show-frac(t.secs,t.frac,prec,2) + show-tzofs(t.tzofs ) +
    (if (t.cal.cal-name.empty?) then "" else " " + t.cal.cal-name)
 }
 
@@ -653,7 +691,7 @@ val leap1972 : leap-instant = instant-at(10)
 // 2017-01-01T00:00:37Z TAI
 // ````
 fun tai-from-utc(i : utc-instant ) : instant {
-  leap-from-utc(i, unsafe-total(get-leapsecs)) - duration(10)
+  leap-from-utc(i) - duration(10)
 }
 
 // Convert a TAI time (since 1972-01-01Z) to a correct time with 
@@ -692,7 +730,8 @@ fun utc-from-tai(i : instant ) : utc-instant {
 }
 
 // Return a `:leap-instant` for a UTC instant
-fun leap-from-utc( i : utc-instant, leaps : leaps-table ) : leap-instant {
+fun leap-from-utc( i : utc-instant ) : leap-instant {
+  val leaps = unsafe-total(get-leapsecs)
   //val leaps : list<leap-adjust> = tai-leaps-pre72() // cached, on-demand
   leaps.adjusts.find-maybe(fun(la) {
     if (la.utc-start > i) then Nothing else {
@@ -721,13 +760,13 @@ fun find-utc-from-leap( i : leap-instant, leaps : list<leap-adjust> ) : utc-inst
       if (la.utc-start > max) then find-utc-from-leap(i,earlier) else {
         if (la.utc-start <= utc-i) then {
           // in the time frame
-          trace("utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
+          // trace("utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
           utc-i
         }
         else {
           // leap-second crosses-over into other time frame            
           // get adjustment using the earlier frame too
-          trace("found crossover: " + utc-i.show)
+          // trace("found crossover: " + utc-i.show)
           val la-before = earlier.head.default(zero)
           val ofs-before= la-before.tai-offset(i)
           val utc-prev  = i - ofs-before
@@ -847,7 +886,7 @@ val default-ietf-leap-seconds = @"
   3550089600  35  # 1 Jul 2012
   3644697600  36  # 1 Jul 2015
   3692217600  37  # 1 Jan 2017"
-
+// 3723753600  35  # 1 Jan 2018 # testing
 
 // -----------------------------------------------------------
 // Parsing TAI 'fractional' leap second tables from before 1972
