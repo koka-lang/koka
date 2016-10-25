@@ -29,12 +29,14 @@ extern include {
 // - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
 public val epoch = instant-since(0.0,utc)
 
-alias scale-duration = duration
+alias ts-duration = duration
 
 public struct time-scale(
   name      : string,
-  from-tai  : duration -> scale-duration,
-  to-tai    : scale-duration -> duration,
+  from-tai  : duration -> ts-duration,
+  to-tai    : ts-duration -> duration,
+  //from-utc  : ts-duration -> ts-duration,
+  //to-utc    : ts-duration -> ts-duration
   allow-leap: bool = False
 )
 
@@ -49,8 +51,7 @@ public val utc : time-scale = Time-scale(
 public val tai : time-scale = Time-scale(
   "TAI",
   id,
-  id,
-  True
+  id
 )
 
 val gps-shift = 252892819
@@ -71,7 +72,7 @@ public val unix : time-scale = Time-scale(
 // Can be arbitrarily far into the future or past and is accurate up 
 // to a tenth of a femto-second (10^-16s).
 abstract struct instant (
-  since: scale-duration,                       
+  since: ts-duration,                       
   ts   : time-scale
 )
 
@@ -119,7 +120,8 @@ public fun duration( secs : int, frac : double = 0.0 ) : duration {
 
 // Create a duration given a number of seconds as a `:double`.
 public fun duration( secs : double ) : duration {
-  Duration( secs.trunc.int, secs.fraction )
+  val fl = secs.floor
+  Duration( fl.int, secs - fl )
 }
 
 // Create an instant in time given a number of seconds since the `epoch`
@@ -129,7 +131,7 @@ public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = utc
 }
 
 private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : instant {
-  if (frac > 1.0 && !ts.allow-leap) {
+  if (frac.neg? || (frac > 1.0 && !ts.allow-leap)) {
     val fl = frac.floor
     Instant(duration(secs + fl.int, frac - fl), ts)
   }
@@ -139,12 +141,12 @@ private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : insta
 // Create an instant given a number of seconds since the `epoch`
 // given as a `:double`.
 public fun instant-since( secs : double, ts : time-scale = utc ) : instant {
-  instant-since( secs.trunc.int, secs.fraction, ts )
+  Instant( duration(secs), ts )
 }
 
 // Return the duration since the `epoch`.
 public fun since-epoch( i : instant ) : duration {
-  val j = i.use-timescale(tai)
+  val j = i.ts-use(tai)
   j.since
 }
 
@@ -163,7 +165,7 @@ public fun compare( i : duration, j : duration ) : order {
 
 // Compare two `:instant`s in time.
 public fun compare( i : instant, j : instant ) : order {
-  val h = j.use-timescale(i.ts)
+  val h = j.ts-use(i.ts)
   compare(i.since,h.since)
 }
 
@@ -220,26 +222,46 @@ public fun (-)( i : instant, j : instant ) : duration {
   i.since-epoch - j.since-epoch
 }
 
+/*----------------------------------------------------------------------------
+  Durations in a another time scale
+----------------------------------------------------------------------------*/
 
-
-
-public fun use-timescale( i : instant, tscale : time-scale ) {
+fun ts-use( i : instant, tscale : time-scale ) : instant {
   if (i.ts.name == tscale.name) then i else {
-    Instant( (tscale.from-tai)( (i.ts.to-tai)(i.since-scale-epoch) ), tscale)
+    Instant( (tscale.from-tai)( (i.ts.to-tai)(i.since) ), tscale)
   }
 }
 
-public fun since-scale-epoch( i : instant ) : scale-duration {
+public fun ts-since-epoch( i : instant ) : ts-duration {
   i.since
 }
 
-public fun since-scale-epoch( d : scale-duration, ts : time-scale ) : instant {
+public fun ts-since-epoch( d : ts-duration, ts : time-scale ) : instant {
   Instant(d,ts)
 }
 
-public fun add-scaled( i : instant, d : scale-duration ) : instant {
-  Instant(duration(i.since.secs + d.secs, i.since.frac + d.frac), i.ts)
+public fun ts-add( i : instant, d : ts-duration ) : instant {
+  Instant(ts-duration(i.since.secs + d.secs, i.since.frac + d.frac), i.ts)
 }
+
+public fun ts-diff( i : instant, j : instant ) : ts-duration {
+  val d = i.since 
+  val e = j.ts-use(i.ts).since
+  ts-duration( d.secs + e.secs, d.frac + e.frac )
+}
+
+public fun ts-duration( secs : int, frac : double ) : ts-duration {
+  duration(secs,frac)
+}
+
+public fun ts-duration( secs : double ) : ts-duration {
+  duration(secs)
+}
+
+
+/*----------------------------------------------------------------------------
+  Show durations and instants
+----------------------------------------------------------------------------*/
 
 
 // Show an instant with an optional precision (=`9`, nano-second resolution).
@@ -253,10 +275,10 @@ public fun show( d : duration, prec : int = 9 ) : string {
   show-scale( d, prec ) + "s"
 }
 
-private fun show-scale( d : scale-duration, prec : int = 9 ) : string {
+private fun show-scale( d : ts-duration, prec : int = 9 ) : string {
   val leap = d.frac.trunc.int  
   // trace("show duration: " + d.secs.show + "s + " + d.frac.show)
-  show-frac(d.secs,d.frac,prec) 
+  show-frac(d.secs,d.frac,prec,1) 
     + (if (leap.zero?) then "" else " (" + (if (leap.pos?) then "+" else "-") + leap.abs.show + "leap)")
 }
 
@@ -305,8 +327,9 @@ public fun instant-at-jd( julian-date: double ) : instant {
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).\
 // modified-julian-date = julian-date - 2400000.5
 public fun instant-at-mjd( modified-julian-date : double ) : instant {
-  val delta = duration( modified-julian-date * solar-secs-per-day.double )
-  mjd-epoch + delta
+  ts-since-epoch(
+    ts-duration( modified-julian-date * solar-secs-per-day.double  - mjd-epoch-shift.double),
+    utc )
 }
 
 // Return the [julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
@@ -316,7 +339,7 @@ public fun jd( i : instant ) : double {
 
 // Return the [modified julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
 public fun mjd( i : instant ) : double {
-  val delta = i - mjd-epoch
+  val delta = ts-diff( i.ts-use(utc), mjd-epoch )
   (delta.seconds / solar-secs-per-day.double)
 }
 
@@ -531,7 +554,7 @@ public val cal-gps   = iso-calendar( "GPS", gps, (gps.to-tai)(duration(~19)) )
 public val cal-tt    = iso-calendar( "TT", tai, duration(~32.184) )
 
 
-public fun iso-calendar( name : string, ts : time-scale, shift : scale-duration = duration0 ) : calendar {
+public fun iso-calendar( name : string, ts : time-scale, shift : ts-duration = duration0 ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
@@ -559,12 +582,12 @@ public fun solar-calendar(
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : time-scale     = utc,
-              shift: scale-duration = duration0
+              shift: ts-duration = duration0
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i)    { solar-dc-from-cal( i.use-timescale(ts).add-scaled(shift), date-from-days ) },
-    fun(d,c)  { solar-cal-from-dc( d, c, days-from-date ).since-scale-epoch(ts).add-scaled(~shift) }
+    fun(i)    { solar-dc-from-cal( i.ts-use(ts).ts-add(shift), date-from-days ) },
+    fun(d,c)  { solar-cal-from-dc( d, c, days-from-date ).ts-since-epoch(ts).ts-add(~shift) }
   )
 }
 
@@ -586,7 +609,7 @@ fun solar-dc-from-cal( i : instant, date-from-days: (int) -> date ) : (date,cloc
   (date, Clock(hours,mins,tsecs,tfrac))
 }
 
-fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : scale-duration {
+fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : ts-duration {
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.mins)*60) + c.secs), solar-secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
   duration((sdays*solar-secs-per-day + xsecs), c.frac)   
@@ -763,16 +786,16 @@ struct leaps-table(
 // Leap second adjustments. For an instant `i` after `start`:\
 // ``TAI-offset = offset + (delta * days(i - delta-start))``
 struct leap-adjust(
-  utc-start  : scale-duration,  // start time in UTC seconds since 1972-01-01Z
+  utc-start  : ts-duration,  // start time in UTC seconds since 1972-01-01Z
   offset     : double,    // base offset
-  delta-start: scale-duration = duration0,   // start of delta adjustment
+  delta-start: ts-duration = duration0,   // start of delta adjustment
   delta      : double  = 0.0   
 )
 
 val zero : leap-adjust = Leap-adjust(duration0,0.0,duration0,0.0)
 
 // Get the leap-second adjustment
-fun tai-offset( la : leap-adjust, utc-i : scale-duration ) : duration {
+fun tai-offset( la : leap-adjust, utc-i : ts-duration ) : duration {
   val secs = if (la.delta.zero?) then la.offset else {
                // pre 1972 is a rubber leap second
                val days = floor((utc-i - la.delta-start).seconds / solar-secs-per-day.double)
@@ -800,7 +823,7 @@ fun get-leapsecs() : st<global> leaps-table {
 
 
 // Return a `:leap-instant` for a UTC instant
-fun tai-from-utc( d : scale-duration ) : duration {
+fun tai-from-utc( d : ts-duration ) : duration {
   val leaps = unsafe-total(get-leapsecs)
   //val leaps : list<leap-adjust> = tai-leaps-pre72() // cached, on-demand
   leaps.adjusts.find-maybe(fun(la) {
@@ -812,7 +835,7 @@ fun tai-from-utc( d : scale-duration ) : duration {
   }).default(d)  
 }
 
-fun utc-from-tai( i : duration ) : scale-duration {
+fun utc-from-tai( i : duration ) : ts-duration {
   trace("utc-from--tai: " + i.show)
   val leaps = unsafe-total(get-leapsecs)
   if (i < tai1961) then i else {
@@ -821,7 +844,7 @@ fun utc-from-tai( i : duration ) : scale-duration {
 }
 val tai1961    = duration(~347068800 - 2)  // 1961-01-01Z minus 2 seconds for the initial leap
 
-fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : scale-duration {
+fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : ts-duration {
   match(leaps) {
     Nil -> i // should never happen
     Cons(la,earlier) -> {
