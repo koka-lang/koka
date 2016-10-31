@@ -12,93 +12,9 @@
 */
 public module std/xtime
 
-import std/regex
-import std/int32
-import std/dict
-
-extern include {
-  // cs file "time-inline.cs"
-  js file "xtime-inline.js"
-}
-
-
-// The _epoch_ is 1958-01-01Z TAI which equals 1958-01-01Z UTC.\
-// Nice properties:
-//
-// - for any date <  1960-01-01Z, we have UTC == TAI
-// - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
-public val epoch = instant-since(0.0,utc)
-
-alias ts-duration = duration
-
-public struct time-scale(
-  name      : string,
-  from-tai  : duration -> ts-duration,
-  to-tai    : ts-duration -> duration,
-  from-utc  : ts-duration -> ts-duration,
-  to-utc    : ts-duration -> ts-duration,
-  allow-leap: bool = False,
-  epoch-shift: ts-duration = duration0
-)
-
-
-fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 ) : time-scale {
-  fun from-utc(d:ts-duration) { ts-add( d, ~epoch-shift ) }
-  fun to-utc(d:ts-duration)   { ts-add( d, epoch-shift) } 
-  Time-scale(
-    name,
-    fun(d) { d.utc-from-tai.from-utc },         
-    fun(d) { d.to-utc.tai-from-utc   },
-    from-utc,
-    to-utc,
-    True,
-    epoch-shift
-  )
-}
-
-fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-scale {
-  fun from-tai(d:duration) { d - epoch-shift }
-  fun to-tai(d:duration)   { d + epoch-shift }
-  Time-scale(
-    name,
-    from-tai,
-    to-tai,
-    fun(d) { d.tai-from-utc.from-tai },
-    fun(d) { d.to-tai.utc-from-tai   },
-    False,
-    epoch-shift
-  )
-}
-
-public val utc    : time-scale = utc-timescale( "" )
-
-public val unix   : time-scale = utc-timescale( "UNIX", duration(378691200) )
-
-public val tai    : time-scale = tai-timescale( "TAI" )
- 
-public val gps    : time-scale = tai-timescale( "GPS", duration(694224019) )
-
-public val ts-mjd : time-scale = utc-timescale( "MJD", duration(~3128025600) )
-
-public val ts-jd  : time-scale = utc-timescale( "JD", duration(~207360043200) )
-
-//public val jd  : time-scale = utc-timescale( "JD", duration() )
-
-// Represents an instant in time. 
-// Can be arbitrarily far into the future or past and is accurate up 
-// to a tenth of a femto-second (10^-16s).
-abstract struct instant (
-  since: ts-duration,                       
-  ts   : time-scale
-)
-
-// Represents duration between `:instant`s in time. 
-// Can be arbitrarily long and is accurate up 
-// to a tenth of a femto-second (10^-16s).
-abstract struct duration (
-  secs : int,          // SI seconds
-  frac : double = 0.0  // fraction of seconds, always in range <-1.0, 1.0>
-)
+import std/time/duration
+import std/time/leaps
+import std/time/instant
 
 
 // Represents an instant in time for a certain calendar and timezone.
@@ -113,323 +29,10 @@ abstract struct time (
   tinstant: instant,
   cal    : calendar,
   tzofs  : double   = 0.0,
+  tzabbrv: string   = "",
   tz     : timezone = tz-utc
 )
 
-/*----------------------------------------------------------------------------
-  Durations and instants
-----------------------------------------------------------------------------*/
-
-// A zero second duration.
-public val duration0 : duration = Duration(0,0.0)
-
-// Create a duration given a number of seconds and fraction of seconds.
-public fun duration( secs : int, frac : double = 0.0 ) : duration {
-  // maintain 0 <= frac 
-  if (!frac.neg?) then
-    Duration(secs,frac)
-  else {
-    val fl = frac.floor
-    Duration(secs + fl.int, frac - fl)
-  }
-}
-
-// Create a duration given a number of seconds as a `:double`.
-public fun duration( secs : double ) : duration {
-  val fl = secs.floor
-  Duration( fl.int, secs - fl )
-}
-
-// Create an instant in time given a number of seconds since the `epoch`
-// and fraction of seconds (=``0.0``).
-public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = utc ) : instant {
-  instant-sincex(secs,frac,ts)
-}
-
-private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : instant {
-  if (frac.neg? || (frac > 1.0 && !ts.allow-leap)) {
-    val fl = frac.floor
-    Instant(duration(secs + fl.int, frac - fl), ts)
-  }
-  else Instant(duration(secs,frac),ts)
-}
-
-// Create an instant given a number of seconds since the `epoch`
-// given as a `:double`.
-public fun instant-since( secs : double, ts : time-scale = utc ) : instant {
-  Instant( duration(secs), ts )
-}
-
-// Return the duration since the `epoch`.
-public fun since-epoch( i : instant ) : duration {
-  val j = i.ts-use(tai)
-  j.since
-}
-
-// Return the instant in time that is `d` duration after the `epoch`.
-public fun since-epoch( d : duration ) : instant {
-  Instant(d,tai)
-}
-
-// Compare two `:duration`s.
-public fun compare( i : duration, j : duration ) : order {
-  match(compare(i.secs,j.secs)) {
-    Eq  -> compare(i.frac,j.frac) 
-    ord -> ord
-  }
-}
-
-// Compare two `:instant`s in time.
-public fun compare( i : instant, j : instant ) : order {
-  val h = j.ts-use(i.ts)
-  compare(i.since,h.since)
-}
-
-public fun (<)( i : duration, j : duration )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : duration, j : duration ) : bool { compare(i,j) != Gt }
-public fun (>)( i : duration, j : duration )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
-public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
-
-
-public fun (<)( i : instant, j : instant )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : instant, j : instant ) : bool { compare(i,j) != Gt }
-public fun (>)( i : instant, j : instant )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : instant, j : instant ) : bool { compare(i,j) != Lt }
-public fun (==)( i : instant, j : instant ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
-
-// Add two durations
-public fun (+)( d : duration, e : duration ) : duration {
-  val f = d.frac + e.frac
-  duration(d.secs + e.secs + f.trunc.int, f.fraction)
-}
-
-// Negate a duration.
-public fun (~)( d : duration ) : duration {
-  duration(~d.secs,~d.frac)
-}
-
-// Subtract a duration from a duration.
-public fun (-)( d : duration, e : duration ) : duration {
-  d + ~e
-}
-
-
-// Return a duration in seconds. This may lose precision for large durations
-// as the result is returned as a `:double`.
-public fun seconds( d : duration ) : double {
-  d.secs.double + d.frac
-}
-
-public fun value( d : duration ) : (int,double) {
-  (d.secs,d.frac)
-}
-
-// Add a duration to an instant in time.
-public fun (+)( i : instant, d : duration ) : instant {
-  (i.since-epoch + d).since-epoch
-}
-
-// Subtract a duration from an instant in time.
-public fun (-)( i : instant, d : duration ) : instant {
-  i + ~d
-}
-
-// Return the difference between to instants in time.
-public fun (-)( i : instant, j : instant ) : duration {
-  i.since-epoch - j.since-epoch
-}
-
-/*----------------------------------------------------------------------------
-  Durations in a another time scale
-----------------------------------------------------------------------------*/
-
-fun ts-use( i : instant, tscale : time-scale ) : instant {
-  //trace("ts-use: " + tscale.name + ", i.ts=" + i.ts.name)
-  if (i.ts.name == tscale.name) then {
-    i 
-  }
-  elif (tscale.allow-leap) {
-    Instant( (tscale.from-utc)( (i.ts.to-utc)(i.since)), tscale )
-  }
-  else {
-    Instant( (tscale.from-tai)( (i.ts.to-tai)(i.since) ), tscale)
-  }
-}
-
-public fun ts-since-epoch( i : instant, ts : time-scale = i.ts ) : ts-duration {
-  i.ts-use(ts).since
-}
-
-public fun ts-since-epoch( d : ts-duration, ts : time-scale ) : instant {
-  Instant(d,ts)
-}
-
-public fun ts-add( d : duration, e : ts-duration ) : duration {
-  ts-duration(d.secs + e.secs, d.frac + e.frac)
-}
-
-public fun ts-add( i : instant, d : ts-duration ) : instant {
-  Instant(ts-add(i.since,d), i.ts)
-}
-
-public fun ts-diff( i : instant, j : instant ) : ts-duration {
-  val d = i.since 
-  val e = j.ts-use(i.ts).since
-  ts-duration( d.secs + e.secs, d.frac + e.frac )
-}
-
-public fun ts-duration( secs : int, frac : double = 0.0 ) : ts-duration {
-  duration(secs,frac)
-}
-
-public fun ts-duration( secs : double ) : ts-duration {
-  duration(secs)
-}
-
-
-/*----------------------------------------------------------------------------
-  Show durations and instants
-----------------------------------------------------------------------------*/
-
-
-// Show an instant with an optional precision (=`9`, nano-second resolution).
-public fun show( i : instant, prec : int = 9 ) : string {
-  show-scale(i.since) + "s " + (if (i.ts.name.empty?) then "" else " " + i.ts.name)
-}
-
-// Show a duration with an optional precision (=`9`, nano-second resolution).
-public fun show( d : duration, prec : int = 9 ) : string {   
-  //trace("show duration: " + i.secs.show + "s, " + i.frac.show)
-  show-scale( d, prec ) + "s"
-}
-
-private fun show-scale( d : ts-duration, prec : int = 9 ) : string {
-  val leap = d.frac.trunc.int  
-  // trace("show duration: " + d.secs.show + "s + " + d.frac.show)
-  show-frac(d.secs,d.frac,prec,1) 
-    + (if (leap.zero?) then "" else " (" + (if (leap.pos?) then "+" else "-") + leap.abs.show + "leap)")
-}
-
-
-// Showing fractions is a bit involved due to rounding and 
-// showing precision up to 9 digits in increments of 3 digits
-fun show-frac( secs : int, frac : double, prec : int  = 9, width : int = 2 ) : string {
-  if (prec==0) return secs.show0(width) 
-  val fr   = frac.round-to-prec(prec)
-  val fl   = fr.floor
-  val (s,f) = if (secs.neg? && !fr.zero?) 
-                then (secs + fl.int + 1, (fr - fl) - 1.0)
-                else (secs + fl.int, fr - fl)
-  val sign = if (s.neg? || s.zero? && fr.neg?) then "-" else "" 
-  //trace("show secs: " + s.show + ", " + f.show)
-  sign + s.abs.show0(width) + f.show-frac(prec) 
-}
-
-// Show a fraction of a second up to an optional maximum precision (=`9`)
-fun show-frac( frac : double, prec : int = 9 ) : string {  
-  //trace("show frac: " + frac.show)
-  val xdigits = frac.abs.fraction.show-fixed(prec).list.drop(2)
-  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).reverse
-  if (digits.nil?) return "" // zero fraction
-  // always use a multiple of 3 to display a fraction
-  val len3 = min(prec, ((digits.length + 2) / 3) * 3)
-  "." + digits.string.pad-right( len3, '0') 
-}
-val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
-
-
-
-/*----------------------------------------------------------------------------
-  Julian Date
-----------------------------------------------------------------------------*/
-
-val jd-epoch-shift     = 2400000.5
-val mjd-epoch : instant = instant-since(~mjd-epoch-shift,0.0,utc)  // 1858-11-17Z modified julian date epoch.
-val mjd-epoch-shift    = 3128025600
-
-// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
-public fun instant-at-jd( julian-date: double ) : instant {
-  instant-at-mjd( julian-date - jd-epoch-shift )
-}
-
-// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).\
-// modified-julian-date = julian-date - 2400000.5
-public fun instant-at-mjd( modified-julian-date : double ) : instant {
-  val frac = modified-julian-date.fraction * solar-secs-per-day.double
-  val secs = modified-julian-date.trunc.int * solar-secs-per-day + frac.trunc.int 
-  ts-since-epoch( duration(secs,frac.fraction), ts-mjd )
-}
-
-// Return the [julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
-public fun jd( i : instant ) : double {
-  i.mjd + jd-epoch-shift
-}
-
-// Return the [modified julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
-public fun mjd( i : instant ) : double {
-  val d = i.ts-since-epoch(ts-mjd)
-  val (days,secs) = divmod(d.secs,solar-secs-per-day)
-  days.double + ((secs.double + d.frac) / solar-secs-per-day.double)
-}
-
-
-/*
-/*----------------------------------------------------------------------------
-  Now
-----------------------------------------------------------------------------*/
-
-val unix-epoch-shift = 63072000.0   // 1972-01-01 TAI - 1970-01-01 TAI
-
-// Convert a unix time stamp to an instant in time.
-// A unix time stamp measure seconds since the Unix epoch (1970-01-01)
-// and ignores any leap seconds.
-public fun instant-at-unix( timestamp : double ) : instant {
-  tai-from-utc( instant-at( timestamp - unix-epoch-shift ) )
-}
-
-// Convert an instant to a unix time stamp in seconds since the
-// unix epoch (1970-01-01) ignoring any leap seconds.
-public fun unix( i : instant ) : double {
-  val d = utc-from-tai( i ).since-epoch.seconds
-  d + unix-epoch-shift
-}
-
-//val ntp-epoch-shift = 2272060800.0 // 1900-01-01 TAI - 1972-01-01 TAI
-
-public fun instant-at-ntp( timestamp : double ) : instant {
-  tai-from-utc( instant-at( timestamp - ntp-epoch-shift.double ) )
-}
-
-public fun ntp( i : instant ) : double {
-  val d = utc-from-tai( i ).since-epoch.seconds
-  d + ntp-epoch-shift.double
-}
-
-// The current `:instant` in time.
-public fun now() : ndet instant {
-  instant-at-unix( unix-now() ) 
-}
-
-
-// Returns a unix time stamp; this still needs
-// to be adjusted to our epoch and taking account of leap seconds.
-private extern unix-now() : ndet double {
-  js "_unix_now"
-}
-
-// The resolution in seconds of the system clock.
-public fun now-resolution() : ndet double {
-  xnow-resolution()
-} 
-
-extern xnow-resolution() : ndet double {
-  js "_now_resolution"
-}
-
-*/
 
 /*----------------------------------------------------------------------------
   Time
@@ -455,7 +58,8 @@ public fun show(t : time, prec : int = 9 ) : string {
   val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
    t.hours.show0 + ":" + t.mins.show0 + ":" + 
-   show-frac(t.secs,t.frac,prec,2) + show-tzofs(t.tzofs ) +
+   ts-show( ts-duration(t.secs,t.frac),prec,2) + show-tzofs(t.tzofs ) +
+   (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
    (if (t.cal.cal-name.empty?) then "" else " " + t.cal.cal-name)
 }
 
@@ -465,24 +69,12 @@ public fun show(t : time, prec : int = 9 ) : string {
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
 fun show-tzofs(ofs : double, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
   if (ofs.zero?) return utc
-  val mins = (ofs.abs / 60.0).int32
-  val tz = (if (ofs.neg?) then "-" else "+") + (mins/60.int32).show0(hrwidth) + hmsep + (mins%60.int32).show0
+  val mins = (ofs.abs / 60.0).int
+  val tz = (if (ofs.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
   val secs = (ofs.abs % 60.0)
-  val tzs = if (secs.zero?) then "" else ":" + secs.trunc.int32.show0 + secs.fraction.show-frac(3)
+  val tzs = if (secs.zero?) then "" else ":" + ts-show( ts-duration(secs), 3 )
   tz + tzs
 }
-
-
-// pad with zeros
-fun show0( i : int, width : int = 2) : string {
-  i.show.pad-left(width,'0')
-}
-
-// pad with zeros
-fun show0( i : int32, width : int = 2) : string {
-  i.show.pad-left(width,'0')
-}
-
 
 
 /*----------------------------------------------------------------------------
@@ -493,7 +85,7 @@ fun show0( i : int32, width : int = 2) : string {
 // The `utc` and `local` time zones are used for UTC/GMT time and the local system time.\
 public struct timezone(
   tz-name    : string,                      
-  utc-offset : (instant) -> ts-duration,
+  utc-offset : (instant) -> (utc-duration,string),
   utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
 
@@ -505,7 +97,7 @@ public fun tz-utc?( tz : timezone ) : bool {
 public fun timezone-fixed( name : string, secs : int, utc-name : string = "" ) : timezone {
   Timezone( 
     name,            
-    fun(i) { ts-duration(secs) }, 
+    fun(i) { (ts-duration(secs),"") }, 
     fun(i) { if (secs.zero?) then Just(i) else Nothing }
   )
 }
@@ -520,7 +112,7 @@ public fun tz-local() : ndet timezone {
     "",
     fun(i) { 
       val ofs = local-utc-offset(tz, i.ts-since-epoch(utc).seconds) 
-      ts-duration(ofs)
+      (utc-duration(ofs),"")
     }
   )
 }
@@ -634,12 +226,13 @@ public fun solar-calendar(
 
 
 fun solar-dc-from-cal( i : instant, date-from-days: (int) -> date ) : (date,clock) {
-  val (days,daysecs)   = divmod(i.since.secs, solar-secs-per-day)
+  val (isecs,ifrac)    = i.ts-since-epoch.value   
+  val (days,daysecs)   = divmod(isecs, solar-secs-per-day)
   val date             = date-from-days(days)
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = xsecs + i.since.frac.trunc.int  // adjust for leap seconds
-  val tfrac            = i.since.frac.fraction
+  val tsecs            = xsecs + ifrac.trunc.int  // adjust for leap seconds
+  val tfrac            = ifrac.fraction
   (date, Clock(hours,mins,tsecs,tfrac))
 }
 
@@ -681,9 +274,9 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
     Nothing -> {
       // no explicit inverse,
       // do a double pass to accommodate jumping over a DST boundary.
-      val tzofs1 = (tz.utc-offset)(utc-i)
+      val tzofs1 = (tz.utc-offset)(utc-i).fst
       val tzi1   = utc-i - tzofs1
-      val tzofs2 = (tz.utc-offset)(tzi1)
+      val tzofs2 = (tz.utc-offset)(tzi1).fst
       val tzi2   = utc-i - tzofs2
       tzi2     
     }
@@ -692,22 +285,22 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
 
 
 // Return a `:time` for a given instant.
-fun timez( tzi : instant, tzofs : duration = duration0, tz : timezone = tz-utc, cal : calendar = cal-iso, i : instant = tzi) : time {
+fun timez( tzi : instant, tzofs : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso, i : instant = tzi) : time {
   val (d,c) = (cal.dc-from-instant)( tzi )
   Time(d.year,d.month,d.day,c.hours,c.mins,c.secs,c.frac,
-       i, cal, tzofs.seconds, tz )
+       i, cal, tzofs.seconds, tzabbrv, tz )
 }
 
 
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`utc` by default)
 // and calendar (=`iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  if (tz.tz-utc?) then timez(i,duration0,tz,cal,i) else {
+  if (tz.tz-utc?) then timez(i,duration0,"",tz,cal,i) else {
     // use UTC timescale
     val utc-i = i.ts-use(utc)
-    val tzofs : ts-duration = (tz.utc-offset)(utc-i)
-    val tzi   = utc-i + tzofs
-    timez( tzi, tzofs, tz, cal, utc-i )
+    val (tzofs,tzabbrv) = (tz.utc-offset)(utc-i)
+    val tzi   = ts-add(utc-i,tzofs)
+    timez( tzi, tzofs, tzabbrv, tz, cal, utc-i )
   }
 }
 
@@ -810,368 +403,10 @@ public fun julian-days-from-date( d : date ) : int {
 }
 
 
-// -----------------------------------------------------------
-// UTC calendar leap second calculation
-//
-// Since the timescales `tai` and `utc` refer to `utc-from-tai`
-// and `tai-from-utc` these routines strictly work in durations
-// and cannot refer to instants or otherwise the definitions become
-// mutually recursive.
-// -----------------------------------------------------------
-
-// A leap second table is a list of tuples. 
-// Each entry gives the start instant and integer leap second adjustment.
-struct leaps-table(
-  expire : ts-duration,       // since epoch                   
-  adjusts: list<leap-adjust>
-)
-
-// Leap second adjustments. For an instant `i` after `start`:\
-// ``TAI-offset = offset + (delta * days(i - delta-start))``
-struct leap-adjust(
-  utc-start  : ts-duration,  // start time in UTC seconds since 1972-01-01Z
-  offset     : double,    // base offset
-  delta-start: ts-duration = duration0,   // start of delta adjustment
-  delta      : double  = 0.0   
-)
-
-val zero : leap-adjust = Leap-adjust(duration0,0.0,duration0,0.0)
-
-// Get the leap-second adjustment
-fun tai-offset( la : leap-adjust, utc-i : ts-duration ) : duration {
-  val secs = if (la.delta.zero?) then la.offset else {
-               // pre 1972 is a rubber leap second
-               val days = floor((utc-i - la.delta-start).seconds / solar-secs-per-day.double)
-               la.offset + (la.delta * days)          
-             }
-  duration(secs)  
+// pad with zeros
+fun show0( i : int, width : int = 2) : string {
+  i.show.pad-left(width,'0')
 }
-
-// Set up a global leap second table.
-// We are going to pretend that this is total even though for future
-// dates utc-tai conversion might be off by some future leap seconds.
-val global-leaps-table : () -> ref<global,leaps-table> = once{
-  unsafe-total{ 
-    val pre72  = leap-seconds-pre72()
-    val post72 = parse-leap-seconds( default-ietf-leap-seconds )
-    trace("parse leap tables: " + pre72.length.show)
-    ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
-  }
-}
-
-// Get the global leap second table
-fun get-leapsecs() : st<global> leaps-table {
-  !(global-leaps-table())
-}
-
-
-// Return a `:leap-instant` for a UTC instant
-fun tai-from-utc( d : ts-duration ) : duration {
-  val leaps = unsafe-total(get-leapsecs)
-  leaps.adjusts.find-maybe(fun(la) {
-    if (la.utc-start > d) then Nothing else {
-      val ofs = la.tai-offset(d)
-      // trace("found: " + i.show + " >= " + la.utc-start.show + ", ofs:" + ofs.show)
-      Just( d + ofs )
-    }
-  }).default(d)  
-}
-
-fun utc-from-tai( i : duration ) : ts-duration {
-  trace("utc-from--tai: " + i.show)
-  val leaps = unsafe-total(get-leapsecs)
-  if (i < duration0) then i else {
-    find-utc-from-tai( i, leaps.adjusts )
-  }
-}
-//val tai1961    = duration(~347068800 - 2)  // 1961-01-01Z minus 2 seconds for the initial leap
-
-fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : ts-duration {
-  match(leaps) {
-    Nil -> i // should never happen
-    Cons(la,earlier) -> {
-      val ofs   = la.tai-offset(i)
-      val utc-i = i - ofs
-      val max   = if (ofs.secs.neg?) then utc-i else i
-      // trace("check: utc-i: " + utc-i.show + ", start: " + la.utc-start.show + ", ofs: " + ofs.show + ", i: " + i.show)
-      if (la.utc-start > max) then find-utc-from-tai(i,earlier) else {
-        if (la.utc-start <= utc-i) then {
-          // in the time frame
-          trace(" utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
-          utc-i
-        }
-        else {
-          // leap-second crosses-over into other time frame            
-          // get adjustment using the earlier frame too
-          trace("found crossover: " + utc-i.show + ", ofs: " + ofs.show + ", i: " + i.show )
-          val la-before = earlier.head.default(zero)
-          val ofs-before= la-before.tai-offset(i)
-          val utc-prev  = i - ofs-before
-          if (la.utc-start > utc-prev) then {
-            // use previous leap-second offset            
-            // trace(" use previous: " + utc-prev.show)
-            utc-prev
-          }
-          else {
-            // this is inside an added leap-second, encode as a fraction `> 1.0`.
-            val diff = (ofs - ofs-before).seconds
-            val utc-leap = utc-i( frac = utc-i.frac + diff)                            
-            // trace(" use leap seconds: " + utc-leap.show + ", diff: " + diff.show)
-            utc-leap
-          }
-        }
-      }  
-    }
-  }
-}
-
-
-
-// -----------------------------------------------------------
-// Parsing UTC leap second tables
-// -----------------------------------------------------------
-
-// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) epoch (1900-01-01Z)
-public val ntp-epoch = instant-at(~ntp-epoch-shift)
-val ntp-epoch-shift  = 1830297600 // (72*365 + 17)*86400 
-
-// Parse a NIST (IETF) leap second table.
-// See: <https://www.ietf.org/timezones/data/leap-seconds.list>
-fun parse-leap-seconds( leaps : string ) : leaps-table {
-  // get leap second adjustments
-  val las = leaps.find-all(rxleap).map fun(cap) {
-    val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
-    val adjust  = cap.groups[2].parse-double-default(0.0)
-    //val ntpi    = instant-at(ntpsecs - ntp-epoch-shift)
-    //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + (ntpsecs - ntp-epoch-shift).show )
-    val utc-i = duration(ntpsecs - ntp-epoch-shift)
-    Leap-adjust(utc-i, adjust, duration0, 0.0)
-  }.reverse
-
-  // get expiration date
-  val la-final   = las.head.default(zero)
-  val utc-expire = leaps.find(rxexpire).map fun(cap) {
-    val ntpex = cap.groups[1].parse-int-default(ntp-epoch-shift)
-    duration(ntpex - ntp-epoch-shift)
-  }.default(la-final.utc-start + duration(365*solar-secs-per-day))
-  trace("expire: " + utc-expire.show)
-
-  Leaps-table(utc-expire,las)
-}
-val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
-val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*$", multiLine=True)
-
-// IETF leap second data valid until 2017-06-28
-val default-ietf-leap-seconds = @"
-  # From: https://www.ietf.org/timezones/data/leap-seconds.list
-  # Updated through IERS Bulletin C52
-  # File expires on:  28 June 2017
-  #
-  #@  3707596800
-  #
-  2272060800  10  # 1 Jan 1972
-  2287785600  11  # 1 Jul 1972
-  2303683200  12  # 1 Jan 1973
-  2335219200  13  # 1 Jan 1974
-  2366755200  14  # 1 Jan 1975
-  2398291200  15  # 1 Jan 1976
-  2429913600  16  # 1 Jan 1977
-  2461449600  17  # 1 Jan 1978
-  2492985600  18  # 1 Jan 1979
-  2524521600  19  # 1 Jan 1980
-  2571782400  20  # 1 Jul 1981
-  2603318400  21  # 1 Jul 1982
-  2634854400  22  # 1 Jul 1983
-  2698012800  23  # 1 Jul 1985
-  2776982400  24  # 1 Jan 1988
-  2840140800  25  # 1 Jan 1990
-  2871676800  26  # 1 Jan 1991
-  2918937600  27  # 1 Jul 1992
-  2950473600  28  # 1 Jul 1993
-  2982009600  29  # 1 Jul 1994
-  3029443200  30  # 1 Jan 1996
-  3076704000  31  # 1 Jul 1997
-  3124137600  32  # 1 Jan 1999
-  3345062400  33  # 1 Jan 2006
-  3439756800  34  # 1 Jan 2009
-  3550089600  35  # 1 Jul 2012
-  3644697600  36  # 1 Jul 2015
-  3692217600  37  # 1 Jan 2017"
-// 3723753600  35  # 1 Jan 2018 # testing
-
-// -----------------------------------------------------------
-// Parsing TAI 'fractional' leap second tables from before 1972
-// -----------------------------------------------------------
-
-// Cached leap second table for dates before 1972.
-val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
-
-
-// Parse the standard UTC leap second adjustment file.\
-// See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
-fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
-  s.find-all(rxtaiadjust).map( fun(cap) {
-    val mjd    = cap.groups[1].parse-double-default(jd-epoch-shift) - (jd-epoch-shift )
-    val ofs    = cap.groups[2].parse-double-default(0.0)
-    val dmjd   = cap.groups[3].parse-double-default(0.0)
-    val delta  = cap.groups[4].parse-double-default(0.0)
-    val start  = duration(mjd.int*solar-secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
-    val dstart = duration(dmjd.int*solar-secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
-    // trace("pre72 start=" + start.show )
-    Leap-adjust( start, ofs, dstart, delta )
-  }).reverse
-}
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
-
-// TAI leap second adjustments for dates before 1972-01-01Z
-val leap-seconds-dat = @"
-  # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
-  1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
-  1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
-  1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S
-  1963 NOV  1 =JD 2438334.5  TAI-UTC=   1.9458580 S + (MJD - 37665.) X 0.0011232S
-  1964 JAN  1 =JD 2438395.5  TAI-UTC=   3.2401300 S + (MJD - 38761.) X 0.001296 S
-  1964 APR  1 =JD 2438486.5  TAI-UTC=   3.3401300 S + (MJD - 38761.) X 0.001296 S
-  1964 SEP  1 =JD 2438639.5  TAI-UTC=   3.4401300 S + (MJD - 38761.) X 0.001296 S
-  1965 JAN  1 =JD 2438761.5  TAI-UTC=   3.5401300 S + (MJD - 38761.) X 0.001296 S
-  1965 MAR  1 =JD 2438820.5  TAI-UTC=   3.6401300 S + (MJD - 38761.) X 0.001296 S
-  1965 JUL  1 =JD 2438942.5  TAI-UTC=   3.7401300 S + (MJD - 38761.) X 0.001296 S
-  1965 SEP  1 =JD 2439004.5  TAI-UTC=   3.8401300 S + (MJD - 38761.) X 0.001296 S
-  1966 JAN  1 =JD 2439126.5  TAI-UTC=   4.3131700 S + (MJD - 39126.) X 0.002592 S
-  1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S"
-
-/*
-struct timezone-info(
-  name      : string,
-  population: int,
-  periods   : list<timezone-period>
-)
-
-struct timezone-period(
-  start : maybe<instant>, // Nothing = beginning of time
-  abbrv : string,
-  offset: double
-)
-
-fun show( tzp : timezone-period ) : string {
-  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzofs(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
-}
-
-fun show (tzi : timezone-info ) : string {
-  tzi.name + ":\n  " + tzi.periods.map(show).join("\n  ")
-}
-
-fun parse-packed-zones( s : string = iana-timezones-x20160101 ) : exn list<timezone-info> {// dict<timezone-info> {
-  val zonesfld = match(s.find(rxzones)) {
-    Nothing   -> error("invalid timezone data; cannot find zones array.")
-    Just(cap) -> cap.groups[1].trim
-  }
-  val zonesarr = zonesfld.lines.map( fun(line) {
-    match(line.find(rxzone)) {
-      Nothing   -> error("invalid timezone info:\n  " + line)
-      Just(cap) -> cap.groups[1]
-    }
-  })
-  val zones = zonesarr.map(parse-packed-zone)
-  zones
-  //zones.map(fun(tzi){ (tzi.name, tzi) }).dict.list.map
-}
-val rxzones = regex(@"""zones""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
-val rxzone  = regex(@"^[ \t]*""([^""]+)"",?[ \t]*$")
-
-fun parse-packed-zone( s : string ) : exn timezone-info {
-  trace("parseing: " + s)
-  val parts   = s.split("|")
-  val name    = parts[0].default("")
-  val abbrs   = parts[1].default("").split(" ").filter(notempty?)
-  val offsets = parts[2].default("0").split(" ").filter(notempty?).map(parse-fixed-base60)
-  val indices = parts[3].default("0").list.map(digit60)
-  val xdiffs  = parts[4].default("").split(" ").filter(notempty?).map(parse-fixed-base60)
-  fun from-indices( xs : list<a>, def : a ) : list<a> {
-    indices.map( fun(idx) {xs[idx].default(def) }).reverse
-  }
-  val (start0,diffs) = match(xdiffs) {
-    Nil -> (0.0,[])
-    Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
-  }
-  val population = parts[5].default("0").parse-base60
-  if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  " + s )
-  val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
-                  val iu = acc.fst + (diff * 60.0)
-                  val i = instant-at-unix(iu)
-                  (iu,Cons(Just(i),acc.snd))
-                }).snd
-  val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
-  val periods  = zipwith( endings + [Nothing], ofsabrs, fun(start,ofsabbr) {
-                   Timezone-period(start,ofsabbr.snd,ofsabbr.fst * ~60.0)
-                 })
-  Timezone-info(name,population,periods)
-}
-
-val pzone-la = "America/Los_Angeles|PST PDT PWT PPT|80 70 70 70|010102301010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010|-261q0 1nX0 11B0 1nX0 SgN0 8x10 iy0 5Wp1 1VaX 3dA0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1a00 1fA0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1cN0 1cL0 1cN0 1cL0 s10 1Vz0 LB0 1BX0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0|15e6"
-val pzone-ams = "Europe/Amsterdam|AMT NST NEST NET CEST CET|-j.w -1j.w -1k -k -20 -10|010101010101010101010101010101010101010101012323234545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545|-2aFcj.w 11b0 1iP0 11A0 1io0 1cM0 1fA0 1a00 1fA0 1a00 1fA0 1a00 1co0 1io0 1yo0 Pc0 1a00 1fA0 1Bc0 Mo0 1tc0 Uo0 1tA0 U00 1uo0 W00 1s00 VA0 1so0 Vc0 1sM0 UM0 1wo0 Rc0 1u00 Wo0 1rA0 W00 1s00 VA0 1sM0 UM0 1w00 fV0 BCX.w 1tA0 U00 1u00 Wo0 1sm0 601k WM0 1fA0 1cM0 1cM0 1cM0 16M0 1gMM0 1a00 1fA0 1cM0 1cM0 1cM0 1fA0 1a00 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00|16e5"
-
-fun parse-fixed-base60( s : string ) : exn double {
-  match(s.find(rxfixbase60)) {
-    Nothing -> error("invalid fixed base60 number: " + s)
-    Just(cap) -> {
-      val sign = if (cap.groups[1]=="-") then ~1 else 1
-      val num  = parse-base60(cap.groups[2])
-      val frac = cap.groups[3].list.foldr(0.0, fun(d,n) {
-                    (n + d.digit60.double) / 60.0
-                 })
-      (sign.double * num.double) + frac
-    }
-  }
-}
-val rxfixbase60 = regex(@"^([\-\+])?([\da-zA-X]+)(?:\.([\da-zA-X]+))?$")
-
-fun parse-base60( s : string ) : exn int {
-  match(s.find(rxbase60)) {
-    Nothing -> error("invalid base60 number: " + s)
-    Just(cap) -> {
-      val sign = if (cap.groups[1]=="-") then ~1 else 1
-      val num  = cap.groups[2].list.foldl(0, fun(n,d) {
-                    n*60 + d.digit60
-                  })
-      sign*num
-    }
-  }
-}
-val rxbase60 = regex(@"^([\-\+])?([\da-zA-X]+)$")
-
-fun digit60( d : char ) : exn int {
-  if (d.digit?) then (d - '0').int 
-  elif (d.lower?) then (d - 'a').int + 10 
-  elif (d.upper?) then (d - 'A').int + 36
-  else error("invalid digit in base 60: " + d.show)
-}
-
-//fun parse-iana-timezones( packed-text: string = iana-timezones-x20160101 ) : dict<string>
-
-val iana-timezones-x20160101 = @"
-{
-  ""version"": ""2016g"",
-  ""zones"": [
-    ""America/Los_Angeles|PST PDT PWT PPT|80 70 70 70|010102301010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010|-261q0 1nX0 11B0 1nX0 SgN0 8x10 iy0 5Wp1 1VaX 3dA0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1a00 1fA0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1cN0 1cL0 1cN0 1cL0 s10 1Vz0 LB0 1BX0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0|15e6"",
-    ""America/New_York|EST EDT EWT EPT|50 40 40 40|01010101010101010101010101010101010101010101010102301010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010|-261t0 1nX0 11B0 1nX0 11B0 1qL0 1a10 11z0 1qN0 WL0 1qN0 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1qN0 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1qN0 WL0 1qN0 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1qN0 WL0 1qN0 11z0 1o10 11z0 RB0 8x40 iv0 1o10 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1qN0 WL0 1qN0 11z0 1o10 11z0 1o10 11z0 1o10 11z0 1o10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1cN0 1cL0 1cN0 1cL0 s10 1Vz0 LB0 1BX0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 1cN0 1fz0 1a10 1fz0 1cN0 1cL0 1cN0 1cL0 1cN0 1cL0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 14p0 1lb0 14p0 1lb0 14p0 1nX0 11B0 1nX0 11B0 1nX0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Rd0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0 Op0 1zb0|21e6"",
-    ""Etc/GMT-8|+08|-80|0|"",
-    ""Etc/GMT-9|+09|-90|0|"",
-    ""Etc/UCT|UCT|0|0|"",
-    ""Etc/UTC|UTC|0|0|"",
-    ""Europe/Amsterdam|AMT NST NEST NET CEST CET|-j.w -1j.w -1k -k -20 -10|010101010101010101010101010101010101010101012323234545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545454545|-2aFcj.w 11b0 1iP0 11A0 1io0 1cM0 1fA0 1a00 1fA0 1a00 1fA0 1a00 1co0 1io0 1yo0 Pc0 1a00 1fA0 1Bc0 Mo0 1tc0 Uo0 1tA0 U00 1uo0 W00 1s00 VA0 1so0 Vc0 1sM0 UM0 1wo0 Rc0 1u00 Wo0 1rA0 W00 1s00 VA0 1sM0 UM0 1w00 fV0 BCX.w 1tA0 U00 1u00 Wo0 1sm0 601k WM0 1fA0 1cM0 1cM0 1cM0 16M0 1gMM0 1a00 1fA0 1cM0 1cM0 1cM0 1fA0 1a00 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00|16e5"",
-    ""WET|WET WEST|0 -10|010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010|hDB0 1a00 1fA0 1cM0 1cM0 1cM0 1fA0 1a00 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1cM0 1fA0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00 11A0 1qM0 WM0 1qM0 WM0 1qM0 WM0 1qM0 11A0 1o00 11A0 1o00""
-  ],
-  ""links"": [
-    ""Africa/Abidjan|Africa/Bamako"",
-    ""Africa/Abidjan|Africa/Banjul"",
-    ""America/Los_Angeles|US/Pacific"",
-    ""America/Los_Angeles|US/Pacific-New"",
-    ""Pacific/Pohnpei|Pacific/Ponape""
-  ]
-}"
-
-*/
 
 fun check(name,tst) {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
@@ -1184,6 +419,29 @@ fun test-jd() {
   check("jd3"){ instant-at-jd(0.0).time(cal=cal-julian).show == "-4713-01-01T12:00:00Z JC" }
 }
 
+fun test-leap() {
+  check("leap1"){ instant-at(2017,1,1,0,0,35,cal=cal-tai).time.show == "2016-12-31T23:59:59Z" }
+  check("leap2"){ instant-at(2017,1,1,0,0,36,cal=cal-tai).time.show == "2016-12-31T23:59:60Z" }
+  check("leap3"){ instant-at(2017,1,1,0,0,37,cal=cal-tai).time.show == "2017-01-01T00:00:00Z" }
+  // 'leap second' around 1972-01-01 of 0.1s
+  check("leap4"){ instant-at(1972,1,1,0,0,9,cal=cal-tai).time.show == "1971-12-31T23:59:59.107758Z" }
+  check("leap5"){ instant-at(1972,1,1,0,0,9,0.8,cal=cal-tai).time.show == "1971-12-31T23:59:59.907758Z" }
+  check("leap6"){ instant-at(1972,1,1,0,0,9,0.9,cal=cal-tai).time.show == "1971-12-31T23:59:60.007758Z" }
+  check("leap7"){ instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" }
+  // discontinuity 1961-08-01 of 0.05s
+  check("leap8"){ instant-at(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show == "1961-07-31T23:59:59.902430Z" }
+  check("leap9"){ instant-at(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show == "1961-08-01T00:00:00.052430Z" }
+  // initial 1.422818 leap second in 1961-01-01
+  check("leap10"){ instant-at(1961,1,1,0,0,1,0.4,cal=cal-tai).time.show == "1960-12-31T23:59:61.400Z"}
+  check("leap11"){ instant-at(1961,1,1,0,0,1,0.5,cal=cal-tai).time.show == "1961-01-01T00:00:00.077182Z"}  
+  // GPS
+  check("gps1"){ instant-at(1980,1,6,cal=cal-gps).time.show == "1980-01-06T00:00:00Z" }
+  check("gps2"){ instant-at(1980,1,6,cal=cal-gps).time(cal=cal-tai).show == "1980-01-06T00:00:19Z TAI" }
+  check("gps3"){ instant-at(2017,1,1,0,0,18,cal=cal-gps).time.show == "2017-01-01T00:00:00Z" }
+}
+
+
 fun test() {
   test-jd()
+  test-leap()
 }
