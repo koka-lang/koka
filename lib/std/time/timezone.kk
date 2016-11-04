@@ -67,6 +67,7 @@ fun show (tzi : timezone-info ) : string {
 }
 
 public fun parse-packed-zones( s : string = iana-timezones-x20160101 ) : exn dict<timezone-info> {
+  // zones
   val zonesfld = match(s.find(rxzones)) {
     Nothing   -> error("invalid timezone data; cannot find zones array.")
     Just(cap) -> cap.groups[1].trim
@@ -78,11 +79,36 @@ public fun parse-packed-zones( s : string = iana-timezones-x20160101 ) : exn dic
     }
   })
   val zones = zonesarr.map(parse-packed-zone)
-  //zones
-  zones.map(fun(tzi){ (tzi.name, tzi) }).dict
+  val zdict = zones.map(fun(tzi){ (tzi.name, tzi) }).dict
+
+  // links
+  val linksfld = match(s.find(rxlinks)) {
+    Nothing   -> error("invalid timezone data; cannot find links array.")
+    Just(cap) -> cap.groups[1].trim
+  }
+  val links = linksfld.lines.map( fun(line) {
+    match(line.find(rxlink)) {
+      Nothing   -> error("invalid timezone link:\n  " + line)
+      Just(cap) -> (cap.groups[1],cap.groups[2])
+    }
+  })
+
+  val ldict = links.map( fun(link) {
+    val (key,other) = link
+    match(zdict[key]) {
+      Nothing  -> error("invalid timezone link: unknown time zone: " + key)
+      Just(tz) -> (other,tz)
+    }
+  }).dict
+
+  // return zones + links
+  zdict + ldict
 }
 val rxzones = regex(@"""zones""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
 val rxzone  = regex(@"^\s*""([^""]+)"",?\s*$")
+val rxlinks = regex(@"""links""\s*:\s*\[([\s\S]*?)^[ \t]*\]", multiLine=True)
+val rxlink  = regex(@"^\s*""([^""\|]+)\|([^""\|]+)"",?\s*$")
+
 
 fun parse-packed-zone( s : string ) : exn timezone-info {
   //trace("parseing: " + s)
@@ -189,7 +215,7 @@ fun tcheck(name,tst) {
 public fun test-tz() {
   val s = read-text-file("timezones-2016h.json")
   val tzs = parse-packed-zones(s)
-  val tzi = tzs["America/Los_Angeles"].default(tzi-utc)
+  val tzi = tzs["US/Pacific"].default(tzi-utc)
   println( now().time(tz=tzi.timezone).show )
 
   val z1  = tzs["America/New_York"].default(tzi-utc).timezone
@@ -198,6 +224,14 @@ public fun test-tz() {
   tcheck("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
   val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60)
   tcheck("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
+
+  tcheck("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
+  tcheck("tz3b"){ time(2011,3,13,2,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
+  tcheck("tz3c"){ time(2011,3,13,3,15,tz=z1).show == "2011-03-13T03:15:00-04:00 (EDT)" }
+  
+  tcheck("tz4a"){ time(2011,11,6,0,15,tz=z1).show == "2011-11-06T00:15:00-04:00 (EDT)" }
+  tcheck("tz4b"){ time(2011,11,6,1,15,tz=z1).show == "2011-11-06T01:15:00-04:00 (EDT)" }
+  tcheck("tz4c"){ time(2011,11,6,2,15,tz=z1).show == "2011-11-06T02:15:00-05:00 (EST)" }
 }
 
 fun test() {
