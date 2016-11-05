@@ -211,7 +211,7 @@ fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : stri
 // Split a string `s` in at most `n` parts using a regular expression `r` as separator.
 public fun split( s :string, r :regex, n :int = 0 ) : list<string>
 {
-  if (n<=0) return [];
+  if (n<0) return [];
   return regex-split( r.obj, s, if (n.pos?) then n.int32 else zero, zero ).list;
 }
 
