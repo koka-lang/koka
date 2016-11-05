@@ -35,7 +35,7 @@ fun try-read-text-file-sync( fileName : string ) : io either<exception,string>
 }
 
 // Read a text file synchronously (using UTF8 encoding)
-extern read-text-file-sync( fileName : string ) : io string
+public extern read-text-file-sync( fileName : string ) : io string
 {
   cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
   js inline "fs.readFileSync(#1,{encoding: 'utf8'})"
