@@ -29,14 +29,16 @@ public struct timezone-info(
   periods   : list<timezone-period>
 )
 
+// The time zone info for the UTC time zone.
 val tzi-utc : timezone-info = Timezone-info( "UTC", 0, [] ) 
+
 
 fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-period {
   match(periods) {
     Nil -> timezone-period0
     Cons(tzp,earlier) -> 
       if (i >= tzp.start.default(i)) then {
-        trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
+        //trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
         tzp 
       } else find-offset(i,earlier)
   }
@@ -71,7 +73,7 @@ public fun show( tzp : timezone-period ) : string {
 
 // Show time zone information.
 public fun show (tzi : timezone-info ) : string {
-  tzi.name + ":\n  " + tzi.periods.map(show).join("\n  ")
+  tzi.name + ", population: " + tzi.population.show // + ":\n  " + tzi.periods.map(show).join("\n  ")
 }
 
 // Parse time zone information from a [packed json format](http://momentjs.com/timezone/docs/#/data-formats/packed-format).\
@@ -205,16 +207,61 @@ fun get-timezones() : st<global> timezones {
   !(global-timezones())
 }
 
-// Return a `:timezone` given a IANA time zone identifier, for example "US/Pacific" or "Asia/Tehran". 
-// Return `default` (= `tz-utc`) if the time zone is not found. 
-public fun timezone( tz-name : string, default : timezone = tz-utc ) : timezone {
+// Return a `:timezone-info` for a IANA time zone identifier (if it exists)
+public fun timezone-info( tz-name : string  ) : maybe<timezone-info> {
   val tzs = unsafe-total(get-timezones)
-  match(tzs[tz-name]) {
-    Nothing   -> default
-    Just(tzi) -> tzi.timezone
-  }
+  tzs[tz-name]
 }
 
+// Return a `:timezone` given a IANA time zone identifier, for example "US/Pacific" or "Asia/Tehran". 
+// Return `default` (= `tz-utc`) if the time zone is not found. 
+public fun timezone( tz-name : string, def : timezone = tz-utc ) : timezone {
+  timezone-info(tz-name).map(timezone).default(def)
+}
+
+
+fun sample-dates( year : int ) : list<instant> {
+  list(1,12).flatmap( fun(month) {
+    [instant-at(year,month,1),instant-at(year,month,15)]
+  })
+}
+
+fun sample-offsets( dates : list<instant>, tz : timezone ) : list<double> {
+  dates.map( fun(i) {
+    i.time(tz=tz).tzofs
+  })
+}
+
+fun match-offsets( dates : list<instant>, offsets : list<double>, tz : timezone ) : bool {
+  val offsets2 = dates.sample-offsets(tz)
+  zipwith(offsets,offsets2,fun(x,y) { x == y }).all(id)
+}
+
+// Guess the local timezone. Not as reliable as `tz-local` but will contain
+// more information on certain platforms (i.e. the timezone abbreviation)
+public fun guess-timezone( default : timezone = tz-utc) : ndet timezone {
+  val year    = now().time.year
+  val dates   = sample-dates(year)
+  val offsets = dates.sample-offsets(tz-local())
+  val matches = unsafe-total(get-timezones).list.map(snd).filter( fun(tzi){ dates.match-offsets(offsets,tzi.timezone) } )
+  match(matches) {
+    Nil -> default
+    Cons(tz1,rest) -> {
+      var pick := tz1
+      rest.foreach fun(tz) {
+        if (tz.population==0 || (tz.population > pick.population && pick.population > 0)) {
+          pick := tz
+        }
+      }
+      pick.timezone
+    }
+  }
+
+}
+
+public fun timezones() : list<string> {
+  unsafe-total(get-timezones).list.map(fst)
+}
 
 fun tcheck(name,tst) {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
@@ -224,12 +271,13 @@ public fun test-tz() {
   val tzs = get-timezones()
   println( now().time(tz=timezone("US/Pacific")).show )
   println( now().time(tz=tz-local()).show )
+  println( "local timezone guess: " + guess-timezone().tz-name )
 
-  val z1  = tzs["America/New_York"].default(tzi-utc).timezone
-  val z2  = tzs["Asia/Tehran"].default(tzi-utc).timezone
-  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60)
+  val z1  = timezone("America/New_York")
+  val z2  = timezone("Asia/Tehran")
+  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60) 
   tcheck("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
-  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60)
+  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
   tcheck("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
 
   tcheck("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
@@ -239,6 +287,9 @@ public fun test-tz() {
   tcheck("tz4a"){ time(2011,11,6,0,15,tz=z1).show == "2011-11-06T00:15:00-04:00 (EDT)" }
   tcheck("tz4b"){ time(2011,11,6,1,15,tz=z1).show == "2011-11-06T01:15:00-04:00 (EDT)" }
   tcheck("tz4c"){ time(2011,11,6,2,15,tz=z1).show == "2011-11-06T02:15:00-05:00 (EST)" }
+
+  // leap second in other time zone
+  tcheck("tz5"){ instant-at(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=timezone("US/Pacific")).show == "2016-12-31T15:59:60.500-08:00 (PST)" }
 }
 
 fun test() {

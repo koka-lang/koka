@@ -22,7 +22,7 @@ extern include {
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
-  year   : int,
+  year_  : int,
   month  : int,
   day    : int, 
   hours  : int,
@@ -31,11 +31,18 @@ abstract struct time (
   frac   : double,
   tinstant: instant,
   cal    : calendar,
-  tzofs  : double   = 0.0,
+  tzofs_  : double   = 0.0,
   tzabbrv: string   = "",
   tz     : timezone = tz-utc
 )
 
+public fun tzofs( t : time ) : double {
+  t.tzofs_
+}
+
+public fun year( t : time ) : int {
+  t.year_
+}
 
 /*----------------------------------------------------------------------------
   Time
