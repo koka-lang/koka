@@ -85,7 +85,7 @@ public fun tai-from-utc( d : ts-duration ) : duration {
 }
 
 public fun utc-from-tai( i : duration ) : ts-duration {
-  trace("utc-from--tai: " + i.show)
+  //trace("utc-from-tai: " + i.show)
   val leaps = unsafe-total(get-leapsecs)
   if (i < duration0) then i else {
     find-utc-from-tai( i, leaps.adjusts )
@@ -104,13 +104,13 @@ fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : ts-duration {
       if (la.utc-start > max) then find-utc-from-tai(i,earlier) else {
         if (la.utc-start <= utc-i) then {
           // in the time frame
-          trace(" utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
+          // trace(" utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.show )
           utc-i
         }
         else {
           // leap-second crosses-over into other time frame            
           // get adjustment using the earlier frame too
-          trace("found crossover: " + utc-i.show + ", ofs: " + ofs.show + ", i: " + i.show )
+          // trace("found crossover: " + utc-i.show + ", ofs: " + ofs.show + ", i: " + i.show )
           val la-before = earlier.head.default(zero)
           val ofs-before= la-before.tai-offset(i)
           val utc-prev  = i - ofs-before

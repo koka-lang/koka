@@ -27,7 +27,13 @@ import std/regex
 import std/string
 import std/time
 import std/unicode
+
+import std/time/duration
+import std/time/leaps
+import std/time/instant
+import std/time/timezone
 import std/xtime
+
 
 import sys/dom
 import sys/dom/types

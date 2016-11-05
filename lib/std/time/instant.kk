@@ -8,7 +8,7 @@
 
 /* Basic date and time funs.
 
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
+   Years, months, days etc. are always 1-based, while durations are always in (fractional) SI seconds.
 */
 module std/time/instant
 
@@ -26,7 +26,7 @@ extern include {
 //
 // - for any date <  1960-01-01Z, we have UTC == TAI
 // - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
-public val epoch = instant-since(0.0,utc)
+public val epoch = instant-since(0.0,ts-utc)
 
 
 public struct time-scale(
@@ -69,11 +69,11 @@ fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-sc
 }
 
 
-public val tai    : time-scale = tai-timescale( "TAI" )
+public val ts-tai : time-scale = tai-timescale( "TAI" )
  
-public val gps    : time-scale = tai-timescale( "GPS", duration(694224019) )
+public val ts-gps : time-scale = tai-timescale( "GPS", duration(694224019) )
 
-public val utc    : time-scale = utc-timescale( "" )
+public val ts-utc : time-scale = utc-timescale( "" )
 
 public val ts-unix: time-scale = utc-timescale( "UNIX", duration(378691200) )
 
@@ -98,7 +98,7 @@ abstract struct instant (
 
 // Create an instant in time given a number of seconds since the `epoch`
 // and fraction of seconds (=``0.0``).
-public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = utc ) : instant {
+public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = ts-utc ) : instant {
   instant-sincex(secs,frac,ts)
 }
 
@@ -112,19 +112,19 @@ private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : insta
 
 // Create an instant given a number of seconds since the `epoch`
 // given as a `:double`.
-public fun instant-since( secs : double, ts : time-scale = utc ) : instant {
+public fun instant-since( secs : double, ts : time-scale = ts-utc ) : instant {
   Instant( duration(secs), ts )
 }
 
 // Return the duration since the `epoch`.
 public fun since-epoch( i : instant ) : duration {
-  val j = i.ts-use(tai)
+  val j = i.ts-use(ts-tai)
   j.since
 }
 
 // Return the instant in time that is `d` duration after the `epoch`.
 public fun since-epoch( d : duration ) : instant {
-  Instant(d,tai)
+  Instant(d,ts-tai)
 }
 
 // Compare two `:instant`s in time.
@@ -210,7 +210,7 @@ public fun show( i : instant, prec : int = 9 ) : string {
 ----------------------------------------------------------------------------*/
 
 val jd-epoch-shift     = 2400000.5
-val mjd-epoch : instant = instant-since(~mjd-epoch-shift,0.0,utc)  // 1858-11-17Z modified julian date epoch.
+val mjd-epoch : instant = instant-since(~mjd-epoch-shift,0.0,ts-utc)  // 1858-11-17Z modified julian date epoch.
 val mjd-epoch-shift    = 3128025600
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
@@ -243,8 +243,6 @@ public fun mjd( i : instant ) : double {
   Now
 ----------------------------------------------------------------------------*/
 
-val unix-epoch-shift = 63072000.0   // 1972-01-01 TAI - 1970-01-01 TAI
-
 // Convert a unix time stamp to an instant in time.
 // A unix time stamp measure seconds since the Unix epoch (1970-01-01)
 // and ignores any leap seconds.
@@ -257,8 +255,6 @@ public fun instant-at-unix( timestamp : double ) : instant {
 public fun unix( i : instant ) : double {
   i.ts-since-epoch(ts-unix).seconds
 }
-
-//val ntp-epoch-shift = 2272060800.0 // 1900-01-01 TAI - 1972-01-01 TAI
 
 public fun instant-at-ntp( timestamp : double ) : instant {
   ts-since-epoch( duration(timestamp), ts-ntp )
