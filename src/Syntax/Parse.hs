@@ -522,7 +522,7 @@ structDecl dvis =
       let name = tbind KindNone
           resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
 
-      (pars,prng)  <- conPars
+      (pars,prng)  <- conPars defvis
       let (tid,rng) = getRName name
           conId     = toConstructorName tid
           (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
@@ -579,22 +579,22 @@ constructor defvis foralls resTp
                                                      c <- constructorId
                                                      return (v,k,c)
        exists    <- typeparams
-       (pars,prng) <- conPars
+       (pars,prng) <- conPars vis
        return (makeUserCon con foralls resTp exists pars rng (combineRanges [vrng,rng0,rng,getRange exists,prng]) vis doc)
 
-makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [ValueBinder UserType (Maybe UserExpr)] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
+makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [(Visibility,ValueBinder UserType (Maybe UserExpr))] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
 makeUserCon con foralls resTp exists pars nameRng rng vis doc
   = (UserCon con exists conParams nameRng rng vis doc
-    ,if (any (isJust . binderExpr) pars) then [creator] else [])  
+    ,if (any (isJust . binderExpr . snd) pars) then [creator] else [])  
   where
     conParams
-      = [par{ binderExpr = Nothing } | par <- pars]
+      = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator 
       = let name = newCreatorName con
             def  = Def binder rng vis DefFun doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
-            params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars]
+            params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
             lparams   = [par{ binderType = Nothing} | par <- params]
             arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
             tpParams  = [(binderName par, binderType par) | par <- params] 
@@ -605,15 +605,16 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
     isJust (Just{}) = True
     isJust _        = False
 
-conPars
-  = parensCommasRng (lparen <|> lapp) conBinder
+conPars defVis
+  = parensCommasRng (lparen <|> lapp) (conBinder defVis)
   <|>
     return ([],rangeNull)
 
-conBinder
-  = do (name,rng,tp) <- paramType
+conBinder defVis
+  = do (vis,vrng)    <- visibility defVis
+       (name,rng,tp) <- paramType
        (opt,drng)    <- defaultExpr
-       return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+       return (vis, ValueBinder name tp opt rng (combineRanges [vrng,rng,getRange tp,drng]))
 {-
     do (name,rng) <- try (do{ (Var name _ rng) <- variable; keyword ":"; return (name,rng) })
        tp <- ptype <?> "field type"
@@ -686,7 +687,7 @@ effectDecl dvis
            -- extend the core operations type
            opsTpFull    = TpApp opsTp (map tpVar tpars ++ [tpVarA]) irng
            extendResTp  = TpApp (TpCon nameTpOperation irng) [tpVarA] rng
-           extendPars   = [ValueBinder nameNil opsTpFull Nothing rng rng]
+           extendPars   = [(defvis,ValueBinder nameNil opsTpFull Nothing rng rng)]
            (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp tpars extendPars irng rng vis ""
            extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) 
                           [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
@@ -726,7 +727,7 @@ operation singleShot vis foralls effTp opsTp extendConName
   = do optional (keyword "function" <|> keyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
-       (pars,prng)  <- conPars
+       (pars,prng)  <- conPars vis
        keyword ":"
        (mbteff,tres) <- tresult
        teff <- case mbteff of 
@@ -742,11 +743,11 @@ operation singleShot vis foralls effTp opsTp extendConName
            -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
 
            exists   = if (not (null exists0)) then exists0
-                       else promoteFree foralls (map binderType pars ++ [teff,tres])
+                       else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
 
            conName  = toOpConName id
            conDef   = UserCon conName exists conParams idrng rng vis ""
-           conParams= [par{ binderName = nameNil, binderExpr = Nothing } | par <- pars]
+           conParams= [(pvis,par{ binderName = nameNil, binderExpr = Nothing }) | (pvis,par) <- pars]
            opDef  = let def  = Def binder rng vis DefFun ""
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
@@ -761,7 +762,7 @@ operation singleShot vis foralls effTp opsTp extendConName
                                             [(Nothing, App (Var extendConName False nameRng) 
                                                           [(Nothing,opCon)] rng)] rng
                         conNameVar = Var conName False nameRng                                      
-                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars]
+                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
                         lparams   = [par{ binderType = Nothing} | par <- params]
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
                         tpParams  = [(binderName par, binderType par) | par <- params] 

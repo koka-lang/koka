@@ -67,7 +67,7 @@ instance HasFreeTypes a => HasFreeTypes (Maybe a) where
 
 instance (HasFreeTypes t) => HasFreeTypes (UserCon t u k) where
   freeTypes (UserCon name exist params nameRng rng vis doc)
-    = freeTypes params
+    = freeTypes (map snd params)
 
 instance (HasFreeTypes t) => HasFreeTypes (ValueBinder t e) where
   freeTypes vb 

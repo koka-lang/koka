@@ -135,7 +135,7 @@ data TypeBinder k
 data UserCon t u k
   = UserCon { userconName :: Name 
             , userconExists :: [TypeBinder k] -- ^ existentials 
-            , userconParams :: [ValueBinder t (Maybe (Expr u))]            -- ^ parameters 
+            , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters 
             , userconNameRange :: Range       --  ^ name range 
             , userconRange :: Range           --  ^ total range 
             , userconVis :: Visibility     -- ^  visibility
@@ -166,6 +166,7 @@ data ValueBinder t e
                , binderNameRange :: Range  -- ^ name range
                , binderRange :: Range      -- ^ full range
                }
+
 
 --  | A value or function definition
 data Def t

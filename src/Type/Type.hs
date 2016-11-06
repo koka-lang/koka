@@ -72,7 +72,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -189,6 +189,7 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoTypeSort :: DataKind  -- ^ inductive, coinductive, retractive
                       , conInfoRange :: Range
                       , conInfoParamRanges :: [Range]
+                      , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
                       , conInfoDoc :: String
                       }

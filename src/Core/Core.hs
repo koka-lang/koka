@@ -88,7 +88,7 @@ isExprFalse _              = False
 patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool tag
-        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] False ""
+        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False ""
         pat = PatCon tname [] conEnum [] typeBool conInfo
         expr = Con tname conEnum
     in (pat,expr)

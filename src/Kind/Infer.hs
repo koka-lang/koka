@@ -185,21 +185,21 @@ synCopyCon modName info vis con
 
 synAccessors :: Name -> DataInfo -> Visibility -> [Visibility] -> [DefGroup Type]
 synAccessors modName info vis conviss
-  = let paramss = map (\conInfo -> zipWith (\(name,tp) rng -> (name,(tp,rng))) 
-                                   (conInfoParams conInfo) (conInfoParamRanges conInfo)) 
+  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis))) 
+                                   (conInfoParams conInfo) (zip (conInfoParamVis conInfo) (conInfoParamRanges conInfo))) 
                       (dataInfoConstrs info)
         
-        fields :: [(Name,(Type,Range))]
+        fields :: [(Name,(Type,Range,Visibility))]
         fields  = filter occursOnAll $
                   nubBy (\x y -> fst x == fst y) $ 
                   filter (not . isFieldName . fst) $
                   concat paramss
         
-        occursOnAll (name,(tp,rng))
-          = all (\ps -> any (\(n,(t,_)) -> n == name && t == tp) ps) paramss
+        occursOnAll (name,(tp,rng,pvis))
+          = all (\ps -> any (\(n,(t,_,_)) -> n == name && t == tp) ps) paramss
                               
-        synAccessor :: (Name,(Type,Range)) -> DefGroup Type
-        synAccessor (name,(tp,rng))
+        synAccessor :: (Name,(Type,Range,Visibility)) -> DefGroup Type
+        synAccessor (name,(tp,rng,visibility))
           = let dataName = unqualify $ dataInfoName info 
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName ".this"
@@ -211,7 +211,7 @@ synAccessors modName info vis conviss
                           
                 expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp rng
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) rng
-                visibility = if (all (==Public) (map fst branches)) then Public else Private
+                -- visibility = if (all (==Public) (map fst branches)) then Public else Private
 
                 isPartial = (length branches < length (dataInfoConstrs info)) || dataInfoIsOpen info
 
@@ -587,10 +587,10 @@ infConstructor (UserCon name exist params rngName rng vis doc)
        params'  <- extendInfGamma infgamma (mapM infConValueBinder params)
        return (UserCon name infgamma params' rngName rng vis doc)
 
-infConValueBinder :: ValueBinder UserType (Maybe (Expr UserType)) -> KInfer (ValueBinder (KUserType InfKind) (Maybe (Expr UserType)))
-infConValueBinder (ValueBinder name tp mbExpr nameRng rng)
+infConValueBinder :: (Visibility,ValueBinder UserType (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType)))
+infConValueBinder (vis,ValueBinder name tp mbExpr nameRng rng)
   = do tp' <- infUserType infKindStar (Check "Constructor parameters must be values" rng) tp
-       return (ValueBinder name tp' mbExpr nameRng rng)
+       return (vis,ValueBinder name tp' mbExpr nameRng rng)
 
 
 infUserType :: InfKind -> Context -> UserType -> KInfer (KUserType InfKind)
@@ -795,20 +795,21 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        params' <- mapM (resolveConParam idmap') params -- mapM (resolveType idmap' False) params
        let result = typeApp typeResult (map TVar typeParams)
            scheme = quantifyType (typeParams ++ existVars) $
-                    if (null params') then result else typeFun [(binderName p, binderType p) | p <- params'] typeTotal result
+                    if (null params') then result else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result
        addRangeInfo rngName (Id qname (NICon scheme) True)
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        return (UserCon qname exist' params' rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars 
-                  (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] params')) 
+                  (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))) 
                   scheme 
                   typeSort rngName
-                  (map binderNameRange params')
+                  (map (binderNameRange . snd) params')
+                  (map fst params')
                   isSingleton
                   doc)
 
-resolveConParam :: M.NameMap TypeVar -> ValueBinder (KUserType InfKind) (Maybe (Expr UserType)) -> KInfer (ValueBinder Type (Maybe (Expr Type)))
-resolveConParam idmap vb
+resolveConParam :: M.NameMap TypeVar -> (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder Type (Maybe (Expr Type)))
+resolveConParam idmap (vis,vb)
   = do tp <- resolveType idmap False (binderType vb)
        expr <- case (binderExpr vb) of
                  Nothing -> return Nothing
@@ -816,7 +817,7 @@ resolveConParam idmap vb
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
        addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp) True)
-       return (vb{ binderType = tp, binderExpr = expr })
+       return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,
 -- a boolean that is 'True' if partially applied type synonyms are allowed (i.e. when
