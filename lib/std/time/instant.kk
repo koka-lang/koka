@@ -24,6 +24,7 @@ extern include {
 // The _epoch_ is 1958-01-01Z TAI which equals 1958-01-01Z UTC.\
 // Nice properties:
 //
+// - Time that TAI was established
 // - for any date <  1960-01-01Z, we have UTC == TAI
 // - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
 public val epoch = instant-since(0.0,ts-utc)
@@ -40,7 +41,9 @@ public struct time-scale(
 )
 
 
-fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 ) : time-scale {
+// Create a new time scale based on UTC 'seconds' with a given `name` and `epoch-shift`
+// duration away from the `epoch`.
+public fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 ) : time-scale {
   fun from-utc(d:ts-duration) { ts-add( d, ~epoch-shift ) }
   fun to-utc(d:ts-duration)   { ts-add( d, epoch-shift) } 
   Time-scale(
@@ -54,7 +57,9 @@ fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 ) : time
   )
 }
 
-fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-scale {
+// Create a new time scale based on SI seconds with a given `name` and `epoch-shift`
+// duration away from the `epoch`.
+public fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-scale {
   fun from-tai(d:duration) { d - epoch-shift }
   fun to-tai(d:duration)   { d + epoch-shift }
   Time-scale(
@@ -68,19 +73,27 @@ fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-sc
   )
 }
 
-
+// The TAI time scale based on SI seconds with 1958-01-01 epoch.
 public val ts-tai : time-scale = tai-timescale( "TAI" )
  
+// The GPS time scale based on SI seconds with 1980-01-06 epoch. GPS = TAI - 19.
 public val ts-gps : time-scale = tai-timescale( "GPS", duration(694224019) )
 
+// The UTC time scale with a 1958-01-01 epoch. This uses 'UTC seconds' where
+// one day consists of 86400 seconds. Leap seconds are encoded by using a
+// fraction `>= 1.0`. 
 public val ts-utc : time-scale = utc-timescale( "" )
 
+// Unix time scale based on UTC seconds but with 1970-01-01 epoch.
 public val ts-unix: time-scale = utc-timescale( "UNIX", duration(378691200) )
 
+// NTP time scale based on UTC seconds with 1900-01-01 epoch.
 public val ts-ntp : time-scale = utc-timescale( "NTP", duration(~2272060800) )
 
+// Modified Julian day time scale based on UTC seconds with 1858-11-17 epoch.
 public val ts-mjd : time-scale = utc-timescale( "MJD", duration(~3128025600) )
 
+// Julian day time scale based on UTC seconds with ``-4713-11-24Z`` as epoch.
 public val ts-jd  : time-scale = utc-timescale( "JD", duration(~207360043200) )
 
 
@@ -160,6 +173,7 @@ public fun (-)( i : instant, j : instant ) : duration {
   Durations in a another time scale
 ----------------------------------------------------------------------------*/
 
+// Internal. use timescale `tscale` to represent this instant.
 public fun ts-use( i : instant, tscale : time-scale ) : instant {
   if (i.ts.name == tscale.name) then {
     i 
@@ -174,18 +188,22 @@ public fun ts-use( i : instant, tscale : time-scale ) : instant {
   }
 }
 
+// Internal. return a duration in time scale `ts` (=`i`'s timescale) for instant `i` since the time scale epoch.
 public fun ts-since-epoch( i : instant, ts : time-scale = i.ts ) : ts-duration {
   i.ts-use(ts).since
 }
 
+// Internal. create an instant with a given duration in time scale `ts`.
 public fun ts-since-epoch( d : ts-duration, ts : time-scale ) : instant {
   Instant(d,ts)
 }
 
+// Internal. add a non SI-seconds duration directly to an instant with normalizing to its time scale.
 public fun ts-add( i : instant, d : ts-duration ) : instant {
   Instant(ts-add(i.since,d), i.ts)
 }
 
+// Internal. return te difference between to instants using the timescale of `i`.
 public fun ts-diff( i : instant, j : instant ) : ts-duration {
   val d = i.since 
   val e = j.ts-use(i.ts).since
@@ -194,7 +212,7 @@ public fun ts-diff( i : instant, j : instant ) : ts-duration {
 
 
 
-/*----------------------------------------------------------------------------
+/*--------------------------------------------------------------------------
   Show durations and instants
 ----------------------------------------------------------------------------*/
 
@@ -212,7 +230,7 @@ public fun show( i : instant, prec : int = 9 ) : string {
 val jd-epoch-shift     = 2400000.5
 val mjd-epoch : instant = instant-since(~mjd-epoch-shift,0.0,ts-utc)  // 1858-11-17Z modified julian date epoch.
 val mjd-epoch-shift    = 3128025600
-
+ 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
 public fun instant-at-jd( julian-date: double ) : instant {
   instant-at-mjd( julian-date - jd-epoch-shift )
@@ -233,9 +251,9 @@ public fun jd( i : instant ) : double {
 
 // Return the [modified julian day](https://en.wikipedia.org/wiki/Julian_day) of an instant.
 public fun mjd( i : instant ) : double {
-  val (dsecs,dfrac) = i.ts-since-epoch(ts-mjd).value
-  val (days,secs) = divmod(dsecs,secs-per-day)
-  days.double + ((secs.double + dfrac) / secs-per-day.double)
+  val d = i.ts-since-epoch(ts-mjd)
+  val (days,secs) = divmod(d.secs,secs-per-day)
+  days.double + ((secs.double + d.frac) / secs-per-day.double)
 }
 
 
@@ -247,7 +265,7 @@ public fun mjd( i : instant ) : double {
 // A unix time stamp measure seconds since the Unix epoch (1970-01-01)
 // and ignores any leap seconds.
 public fun instant-at-unix( timestamp : double ) : instant {
-  ts-since-epoch( duration(timestamp), ts-unix )
+  utc-duration(timestamp).ts-since-epoch(ts-unix )
 }
 
 // Convert an instant to a unix time stamp in seconds since the
@@ -256,10 +274,15 @@ public fun unix( i : instant ) : double {
   i.ts-since-epoch(ts-unix).seconds
 }
 
+// Convert an NTP time stamp to an instant in time.\
+// An NTP time stamp measures seconds since the NTP epoch (1900-01-01)
+// and ignores any leap seconds.
 public fun instant-at-ntp( timestamp : double ) : instant {
-  ts-since-epoch( duration(timestamp), ts-ntp )
+  utc-duration(timestamp).ts-since-epoch( ts-ntp )
 }
 
+// Convert an instant to a NTP time stamp in seconds since the
+// NTP epoch (1900-01-01)
 public fun ntp( i : instant ) : double {
   i.ts-since-epoch(ts-ntp).seconds
 }

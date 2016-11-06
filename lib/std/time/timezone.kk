@@ -22,17 +22,32 @@ import std/dict
 import std/regex
 import std/file
 
+/*----------------------------------------------------------------------------
+  Time zone info
+----------------------------------------------------------------------------*/
+
 // Describes time zone information with a name, population count, and a list of periods.
 public struct timezone-info(
   name      : string,
   population: int,
-  periods   : list<timezone-period>
+  periods   : list<timezone-period>  // time decreasing list of time periods
 )
+
+
+// A period in a timezone where a specific time zone offset holds.
+public struct timezone-period(
+  start : maybe<instant>, // Nothing = beginning of time
+  abbrv : string,         
+  offset: double
+)
+
+// Zero time period
+val timezone-period0 = Timezone-period( Nothing, "UTC", 0.0 )
 
 // The time zone info for the UTC time zone.
 val tzi-utc : timezone-info = Timezone-info( "UTC", 0, [] ) 
 
-
+// Find the DST offset for a particular instant `i` given a list of time zone periods
 fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-period {
   match(periods) {
     Nil -> timezone-period0
@@ -44,7 +59,7 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
   }
 }
 
-// Convert time zone information into a `:timezone` structure.
+// Convert time zone information `:timezone-info` into a `:timezone` structure.
 public fun timezone( tzi : timezone-info ) : timezone {
   fun utc-offset(i : instant) : (ts-duration,string) {
     val tzp = find-offset(i.ts-use(ts-utc),tzi.periods)
@@ -57,15 +72,6 @@ public fun timezone( tzi : timezone-info ) : timezone {
   )
 }
 
-// A period in a timezone where a specific time zone offset holds.
-public struct timezone-period(
-  start : maybe<instant>, // Nothing = beginning of time
-  abbrv : string,         
-  offset: double
-)
-
-val timezone-period0 = Timezone-period( Nothing, "UTC", 0.0 )
-
 // Show a time zone period.
 public fun show( tzp : timezone-period ) : string {
   tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzofs(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
@@ -73,11 +79,17 @@ public fun show( tzp : timezone-period ) : string {
 
 // Show time zone information.
 public fun show (tzi : timezone-info ) : string {
-  tzi.name + ", population: " + tzi.population.show // + ":\n  " + tzi.periods.map(show).join("\n  ")
+  tzi.name + ", population: " + tzi.population.show + ":\n  " + tzi.periods.map(show).join("\n  ")
 }
 
+
+/*----------------------------------------------------------------------------
+  Parse timezone info from packed JSON format as used by momentjs.
+  Latest files can be found at:\
+  <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>
+----------------------------------------------------------------------------*/
+
 // Parse time zone information from a [packed json format](http://momentjs.com/timezone/docs/#/data-formats/packed-format).\
-// Latest files can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
 public fun parse-packed-zones( s : string ) : exn dict<timezone-info> {
   // zones
   val zonesfld = match(s.find(rxzones)) {
@@ -188,6 +200,11 @@ fun digit60( d : char ) : exn int {
   else error("invalid digit in base 60: " + d.show)
 }
 
+
+/*----------------------------------------------------------------------------
+  Global timezone info
+----------------------------------------------------------------------------*/
+
 alias timezones = dict<timezone-info>
 
 val global-timezones : () -> ref<global,timezones> = once{
@@ -207,18 +224,28 @@ fun get-timezones() : st<global> timezones {
   !(global-timezones())
 }
 
+// Return all available IANA time zone identifiers.
+public fun timezones() : list<string> {
+  unsafe-total(get-timezones).list.map(fst)
+}
+
+
 // Return a `:timezone-info` for a IANA time zone identifier (if it exists)
 public fun timezone-info( tz-name : string  ) : maybe<timezone-info> {
   val tzs = unsafe-total(get-timezones)
   tzs[tz-name]
 }
 
-// Return a `:timezone` given a IANA time zone identifier, for example "US/Pacific" or "Asia/Tehran". 
+// Return a `:timezone` given a IANA time zone identifier, for example "US/Pacific" or "Asia/Singapore". 
 // Return `default` (= `tz-utc`) if the time zone is not found. 
 public fun timezone( tz-name : string, def : timezone = tz-utc ) : timezone {
   timezone-info(tz-name).map(timezone).default(def)
 }
 
+
+/*----------------------------------------------------------------------------
+   Guess the local time zone
+----------------------------------------------------------------------------*/
 
 fun sample-dates( year : int ) : list<instant> {
   list(1,12).flatmap( fun(month) {
@@ -239,7 +266,7 @@ fun match-offsets( dates : list<instant>, offsets : list<double>, tz : timezone 
 
 // Guess the local timezone. Not as reliable as `tz-local` but will contain
 // more information on certain platforms (i.e. the timezone abbreviation)
-public fun guess-timezone( default : timezone = tz-utc) : ndet timezone {
+public fun guess-local-timezone( default : timezone = tz-utc) : ndet timezone {
   val year    = now().time.year
   val dates   = sample-dates(year)
   val offsets = dates.sample-offsets(tz-local())
@@ -259,9 +286,10 @@ public fun guess-timezone( default : timezone = tz-utc) : ndet timezone {
 
 }
 
-public fun timezones() : list<string> {
-  unsafe-total(get-timezones).list.map(fst)
-}
+
+/*----------------------------------------------------------------------------
+  Testing
+----------------------------------------------------------------------------*/
 
 fun tcheck(name,tst) {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
@@ -271,7 +299,7 @@ public fun test-tz() {
   val tzs = get-timezones()
   println( now().time(tz=timezone("US/Pacific")).show )
   println( now().time(tz=tz-local()).show )
-  println( "local timezone guess: " + guess-timezone().tz-name )
+  println( "local timezone guess: " + guess-local-timezone().tz-name )
 
   val z1  = timezone("America/New_York")
   val z2  = timezone("Asia/Tehran")

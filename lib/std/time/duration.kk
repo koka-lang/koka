@@ -21,8 +21,8 @@ public alias utc-duration = ts-duration
 // Can be arbitrarily long and is accurate up 
 // to a tenth of a femto-second (10^-16s).
 abstract struct duration (
-  secs : int,          // SI seconds
-  frac : double = 0.0  // fraction of seconds, always in range <-1.0, 1.0>
+  public secs : int,          // SI seconds
+  public frac : double = 0.0  // fraction of seconds, always in range <-1.0, 1.0>
 )
 
 
@@ -51,6 +51,7 @@ public fun duration( secs : double ) : duration {
   Duration( fl.int, secs - fl )
 }
 
+// Is this a negative duration?
 public fun neg?( d : duration ) : bool {
   d.secs.neg?
 }
@@ -95,31 +96,32 @@ public fun seconds( d : duration ) : double {
   d.secs.double + d.frac
 }
 
-public fun value( d : duration ) : (int,double) {
-  (d.secs,d.frac)
-}
-
 
 /*----------------------------------------------------------------------------
   Durations in a another time scale
 ----------------------------------------------------------------------------*/
 
-public fun ts-add( d : duration, e : ts-duration ) : duration {
+// Internal: Add `:ts-duration`'s without normalizing to SI seconds
+public fun ts-add( d : ts-duration, e : ts-duration ) : ts-duration {
   ts-duration(d.secs + e.secs, d.frac + e.frac)
 }
 
+// Internal: create a duration with non SI seconds values.
 public fun ts-duration( secs : int, frac : double = 0.0 ) : ts-duration {
   duration(secs,frac)
 }
 
+// Internal: create a duration with non SI seconds.
 public fun ts-duration( secs : double ) : ts-duration {
   duration(secs)
 }
 
+// Internal: create a duration in UTC 'seconds'
 public fun utc-duration( secs : int, frac : double = 0.0 ) : ts-duration {
   ts-duration(secs,frac)
 }
 
+// Internal: create a duration in UTC 'seconds'
 public fun utc-duration( secs : double ) : ts-duration {
   ts-duration(secs)
 }
@@ -129,12 +131,13 @@ public fun utc-duration( secs : double ) : ts-duration {
   Show durations and instants
 ----------------------------------------------------------------------------*/
 
-// Show a duration with an optional precision (=`9`, nano-second resolution).
+// Show a duration with an optional maximum precision (=`9`, nano-second resolution).
 public fun show( d : duration, prec : int = 9 ) : string {   
   //trace("show duration: " + i.secs.show + "s, " + i.frac.show)
   ts-show( d, prec ) + "s"
 }
 
+// Show a duration without the `s` (SI seconds) postfix.
 public fun ts-show( d : ts-duration, prec : int = 9, secs-width : int = 1 ) : string {
   val leap = d.frac.trunc.int  
   // trace("show duration: " + d.secs.show + "s + " + d.frac.show)

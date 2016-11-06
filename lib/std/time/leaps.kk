@@ -15,6 +15,7 @@ module std/time/leaps
 import std/regex
 import std/time/duration
 
+// Standard seconds per day (=`86400`). Note that a UTC day can contain extra leap seconds.
 public val secs-per-day = 86400
 
 // -----------------------------------------------------------
@@ -29,23 +30,23 @@ public val secs-per-day = 86400
 // A leap second table is a list of tuples. 
 // Each entry gives the start instant and integer leap second adjustment.
 struct leaps-table(
-  expire : ts-duration,       // since epoch                   
+  expire : utc-duration,       // since epoch                   
   adjusts: list<leap-adjust>
 )
 
 // Leap second adjustments. For an instant `i` after `start`:\
 // ``TAI-offset = offset + (delta * days(i - delta-start))``
 struct leap-adjust(
-  utc-start  : ts-duration,  // start time in UTC seconds since 1972-01-01Z
+  utc-start  : utc-duration,  // start time in UTC seconds since 1972-01-01Z
   offset     : double,    // base offset
-  delta-start: ts-duration = duration0,   // start of delta adjustment
+  delta-start: utc-duration = duration0,   // start of delta adjustment
   delta      : double  = 0.0   
 )
 
 val zero : leap-adjust = Leap-adjust(duration0,0.0,duration0,0.0)
 
 // Get the leap-second adjustment
-fun tai-offset( la : leap-adjust, utc-i : ts-duration ) : duration {
+fun tai-offset( la : leap-adjust, utc-i : utc-duration ) : duration {
   val secs = if (la.delta.zero?) then la.offset else {
                // pre 1972 is a rubber leap second
                val days = floor((utc-i - la.delta-start).seconds /secs-per-day.double)
@@ -73,7 +74,7 @@ fun get-leapsecs() : st<global> leaps-table {
 
 
 // Return a `:leap-instant` for a UTC instant
-public fun tai-from-utc( d : ts-duration ) : duration {
+public fun tai-from-utc( d : utc-duration ) : duration {
   val leaps = unsafe-total(get-leapsecs)
   leaps.adjusts.find-maybe(fun(la) {
     if (la.utc-start > d) then Nothing else {
@@ -84,7 +85,7 @@ public fun tai-from-utc( d : ts-duration ) : duration {
   }).default(d)  
 }
 
-public fun utc-from-tai( i : duration ) : ts-duration {
+public fun utc-from-tai( i : duration ) : utc-duration {
   //trace("utc-from-tai: " + i.show)
   val leaps = unsafe-total(get-leapsecs)
   if (i < duration0) then i else {
@@ -93,7 +94,7 @@ public fun utc-from-tai( i : duration ) : ts-duration {
 }
 //val tai1961    = duration(~347068800 - 2)  // 1961-01-01Z minus 2 seconds for the initial leap
 
-fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : ts-duration {
+fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : utc-duration {
   match(leaps) {
     Nil -> i // should never happen
     Cons(la,earlier) -> {
@@ -122,8 +123,7 @@ fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : ts-duration {
           else {
             // this is inside an added leap-second, encode as a fraction `> 1.0`.
             val diff = (ofs - ofs-before).seconds
-            val (secs,frac) = utc-i.value
-            val utc-leap = ts-duration( secs, frac + diff )                            
+            val utc-leap = utc-duration( utc-i.secs, utc-i.frac + diff )                            
             // trace(" use leap seconds: " + utc-leap.show + ", diff: " + diff.show)
             utc-leap
           }
@@ -151,7 +151,7 @@ fun parse-leap-seconds( leaps : string ) : leaps-table {
     val adjust  = cap.groups[2].parse-double-default(0.0)
     //val ntpi    = instant-at(ntpsecs - ntp-epoch-shift)
     //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + (ntpsecs - ntp-epoch-shift).show )
-    val utc-i = duration(ntpsecs - ntp-epoch-shift)
+    val utc-i = utc-duration(ntpsecs - ntp-epoch-shift)
     Leap-adjust(utc-i, adjust, duration0, 0.0)
   }.reverse
 
@@ -159,8 +159,8 @@ fun parse-leap-seconds( leaps : string ) : leaps-table {
   val la-final   = las.head.default(zero)
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
     val ntpex = cap.groups[1].parse-int-default(ntp-epoch-shift)
-    duration(ntpex - ntp-epoch-shift)
-  }.default(la-final.utc-start + duration(365*secs-per-day))
+    utc-duration(ntpex - ntp-epoch-shift)
+  }.default(la-final.utc-start + utc-duration(365*secs-per-day))
   trace("expire: " + utc-expire.show)
 
   Leaps-table(utc-expire,las)
@@ -225,8 +225,8 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     val ofs    = cap.groups[2].parse-double-default(0.0)
     val dmjd   = cap.groups[3].parse-double-default(0.0)
     val delta  = cap.groups[4].parse-double-default(0.0)
-    val start  = duration(mjd.int*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
-    val dstart = duration(dmjd.int*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
+    val start  = utc-duration(mjd.int*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
+    val dstart = utc-duration(dmjd.int*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
     // trace("pre72 start=" + start.show )
     Leap-adjust( start, ofs, dstart, delta )
   }).reverse

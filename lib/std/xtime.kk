@@ -22,27 +22,21 @@ extern include {
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
-  year_  : int,
-  month  : int,
-  day    : int, 
-  hours  : int,
-  mins   : int,
-  secs   : int,
-  frac   : double,
-  tinstant: instant,
-  cal    : calendar,
-  tzofs_  : double   = 0.0,
-  tzabbrv: string   = "",
-  tz     : timezone = tz-utc
+  // The year.
+  public  year   : int,
+  public  month  : int,
+  public  day    : int, 
+  public  hours  : int,
+  public  mins   : int,
+  public  secs   : int,
+  public  frac   : double,
+  private tinstant: instant,
+  public  cal    : calendar,
+  public  tzofs  : double   = 0.0,
+  private tzabbrv: string   = "",
+  public  tz     : timezone = tz-utc
 )
 
-public fun tzofs( t : time ) : double {
-  t.tzofs_
-}
-
-public fun year( t : time ) : int {
-  t.year_
-}
 
 /*----------------------------------------------------------------------------
   Time
@@ -213,13 +207,13 @@ public val cal-jg = julian-gregorian()
 // The TAI Calendar. This is a standard ISO 8601 calender using
 // TAI time where every day is exactly 86400 SI seconds (unlike
 // standard UTC time which can insert leap seconds).
-public val cal-tai   = iso-calendar( "TAI", ts-tai )
+public val cal-tai = iso-calendar( "TAI", ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps   = iso-calendar( "GPS", ts-gps, (ts-gps.to-tai)(duration(~19)) )
+public val cal-gps = iso-calendar( "GPS", ts-gps, (ts-gps.to-tai)(duration(~19)) )
 
 // The Terrestrial calendar is always `TAI - 32.184`
-public val cal-tt    = iso-calendar( "TT", ts-tai, duration(~32.184) )
+public val cal-tt  = iso-calendar( "TT", ts-tai, duration(~32.184) )
 
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
@@ -259,13 +253,13 @@ public fun solar-calendar(
 
 
 fun solar-dc-from-cal( i : instant, date-from-days: (int) -> date ) : (date,clock) {
-  val (isecs,ifrac)    = i.ts-since-epoch.value   
-  val (days,daysecs)   = divmod(isecs, secs-per-day)
+  val d                = i.ts-since-epoch
+  val (days,daysecs)   = divmod(d.secs, secs-per-day)
   val date             = date-from-days(days)
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = xsecs + ifrac.trunc.int  // adjust for leap seconds
-  val tfrac            = ifrac.fraction
+  val tsecs            = xsecs + d.frac.trunc.int  // adjust for leap seconds
+  val tfrac            = d.frac.fraction
   (date, Clock(hours,mins,tsecs,tfrac))
 }
 
@@ -474,8 +468,8 @@ fun check(name,tst) {
 
 fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0"){ instant-at(2038,1,19,3,14,8).ts-since-epoch(ts=ts-unix).value.fst.show-hex == "0x80000000" }
-  check("misc1"){ instant-at(292277026596,12,4,15,30,8).ts-since-epoch(ts=ts-unix).value.fst.show-hex == "0x8000000000000000" }
+  check("misc0"){ instant-at(2038,1,19,3,14,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x80000000" }
+  check("misc1"){ instant-at(292277026596,12,4,15,30,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x8000000000000000" }
 }
 
 fun test-jd() {
