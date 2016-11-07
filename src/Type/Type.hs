@@ -41,7 +41,7 @@ module Type.Type (-- * Types
 
                   , typeDivergent, typeTotal, typePartial 
                   , typeList, typeApp, typeRef, typeOptional
-                  , isOptional, makeOptional
+                  , isOptional, makeOptional, unOptional
 
                   --, handledToLabel
                   , tconHandled, tconHandled1
@@ -745,6 +745,12 @@ isOptional tp
 makeOptional :: Type -> Type
 makeOptional tp
   = TApp typeOptional [tp]
+
+unOptional :: Type -> Type
+unOptional tp
+  = case expandSyn tp of
+      TApp (TCon tc) [t] | tc == tconOptional -> t
+      _ -> tp
 
 
 

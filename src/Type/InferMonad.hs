@@ -1316,7 +1316,7 @@ lookupNameEx infoFilter name ctx range
                                                                        return (concat mss)
                                                  CtxFunArgs n named -> do mss <- mapM (matchNamedArgs n named) candidates
                                                                           return (concat mss)
-                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates
+                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates                                                                                       
                                                                                        return (concat mss)
                                     case matches of
                                       [(qname,info)] -> return matches
@@ -1353,7 +1353,8 @@ lookupNameEx infoFilter name ctx range
 
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchArgs matchSome fixed named (name,info)
-      = do free <- freeInGamma
+      = -- trace ("match args: " ++ show matchSome ++ ", " ++ show fixed ++ ", " ++ show (length named) ++ " on " ++ show (infoType info)) $
+        do free <- freeInGamma
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named) 
            case res of
              (Right _,_)  -> return [(name,info)]

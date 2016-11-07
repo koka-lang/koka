@@ -1118,7 +1118,7 @@ inferApp propagated expect fun nargs rng
            amb <- case rootExpr fun of
                     (Var name _ nameRange)
                       -> do matches <- lookupNameEx (isInfoValFunExt {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
-                            -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", arg: " <+> ppType env tpArg                        
+                            -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 acc') )
                             case matches of
                               []         -> do -- emit an error
                                                resolveFunName name (CtxFunTypes True (map fst3 acc') []) rng nameRange 
