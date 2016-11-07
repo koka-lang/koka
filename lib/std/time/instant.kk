@@ -116,7 +116,7 @@ public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = ts-
 }
 
 private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : instant {
-  if (frac.neg? || (frac > 1.0 && !ts.allow-leap)) {
+  if (frac.neg? || (frac >= 1.0 && !ts.allow-leap)) {
     val fl = frac.floor
     Instant(duration(secs + fl.int, frac - fl), ts)
   }

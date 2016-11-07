@@ -17,7 +17,7 @@ import std/regex
 public alias ts-duration  = duration
 public alias utc-duration = ts-duration
 
-// Represents duration between `:instant`s in time. 
+// Represents duration in time. 
 // Can be arbitrarily long and is accurate up 
 // to a tenth of a femto-second (10^-16s).
 abstract struct duration (
@@ -54,6 +54,11 @@ public fun duration( secs : double ) : duration {
 // Is this a negative duration?
 public fun neg?( d : duration ) : bool {
   d.secs.neg?
+}
+
+// Is this a zero duration?
+public fun zero?( d : duration ) : bool {
+  d.secs.zero? && d.frac.zero?
 }
 
 

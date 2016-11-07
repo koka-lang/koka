@@ -14,13 +14,13 @@
 */
 module std/time/timezone
 
-import std/time/duration
-import std/time/instant
-import std/path
-import std/xtime
 import std/dict
 import std/regex
+import std/path
 import std/file
+import std/time/duration
+import std/time/instant
+import std/time/calendar
 
 /*----------------------------------------------------------------------------
   Time zone info
