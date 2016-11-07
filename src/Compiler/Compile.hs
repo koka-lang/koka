@@ -458,7 +458,7 @@ resolvePubImports flags loaded0 mod
 
     loadPubImport :: (Loaded,[Module],[ErrorMessage]) -> (FilePath,Core.Import) -> (Loaded,[Module],[ErrorMessage])            
     loadPubImport (loaded,imps,errs0) (iface,imp)
-      = trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
+      = -- trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
         case lookupImport iface modules of
           Just impMod | True -- modName impMod /= Core.importName imp
                       -> let (loadedImp,errs1) = loadedImportModule (maxStructFields flags) loaded impMod rangeNull (Core.importName imp)
@@ -509,7 +509,7 @@ resolveModule term flags currentDir modules mimp
       ImpCore cimp | (null (Core.importPackage cimp)) && (currentDir == outDir flags) -> 
         do mbSource <- liftIO $ searchSource flags "" name
            mbIface  <- liftIO $ searchOutputIface flags name
-           trace ("source core: found: " ++ show (mbIface,mbSource)) $ return ()
+           -- trace ("source core: found: " ++ show (mbIface,mbSource)) $ return ()
            case (mbIface,mbSource) of
              (Nothing,Nothing) 
                 -> liftError $ errorMsg $ errorModuleNotFound flags rangeNull name
@@ -526,7 +526,7 @@ resolveModule term flags currentDir modules mimp
       -- core import of package
       ImpCore cimp ->          
         do mbIface <- liftIO $ searchPackageIface flags currentDir (Just (Core.importPackage cimp)) name
-           trace ("core import pkg: " ++ Core.importPackage cimp ++ "/" ++ show name ++ ": found: " ++ show (mbIface)) $ return ()
+           -- trace ("core import pkg: " ++ Core.importPackage cimp ++ "/" ++ show name ++ ": found: " ++ show (mbIface)) $ return ()
            case mbIface of
              Nothing    -> liftError $ errorMsg $ errorModuleNotFound flags rangeNull name  
              Just iface -> loadFromIface iface "" ""
