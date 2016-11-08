@@ -90,7 +90,7 @@ public fun show-tzofs(ofs : double, utc : string = "Z", hmsep : string = ":", hr
 // inverse.  
 public struct timezone(
   tz-name    : string,                      
-  utc-offset : (instant) -> (utc-duration,string),
+  utc-offset : (instant) -> (duration,string),
   utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
 
@@ -121,7 +121,7 @@ public fun tz-local() : ndet timezone {
     "",
     fun(i) { 
       val ofs = local-utc-offset(tz, i.unix) 
-      (utc-duration(ofs),"")
+      (duration(ofs),"")
     }
   )
 }
@@ -219,7 +219,7 @@ public val cal-tt  = iso-calendar( "TT", ts-tai, duration(32.184) )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
-public fun iso-calendar( name : string, ts : time-scale, shift : ts-duration = duration0 ) : calendar {
+public fun iso-calendar( name : string, ts : time-scale, shift : timestamp = duration0 ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
@@ -243,18 +243,17 @@ public fun solar-calendar(
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : time-scale  = ts-utc,
-              shift: ts-duration = duration0
+              shift: timestamp   = duration0
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i)   { solar-dc-from-cal( i.ts-use(ts).ts-add(shift), date-from-days ) },
-    fun(d,c) { solar-cal-from-dc( d, c, days-from-date ).ts-since-epoch(ts).ts-add(~shift) }
+    fun(i)   { solar-dc-from-cal( i.timestamp(ts) + shift, date-from-days ) },
+    fun(d,c) { instant-at-timestamp( solar-cal-from-dc( d, c, days-from-date ) - shift, ts) }
   )
 }
 
 
-fun solar-dc-from-cal( i : instant, date-from-days: (int) -> date ) : (date,clock) {
-  val d                = i.ts-since-epoch
+fun solar-dc-from-cal( d : timestamp, date-from-days: (int) -> date ) : (date,clock) {
   val (days,daysecs)   = divmod(d.secs, secs-per-day)
   val date             = date-from-days(days)
   val (hours,minsecs)  = divmod(daysecs,3600)
@@ -264,7 +263,7 @@ fun solar-dc-from-cal( i : instant, date-from-days: (int) -> date ) : (date,cloc
   (date, Clock(hours,mins,tsecs,tfrac))
 }
 
-fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : ts-duration {
+fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.mins)*60) + c.secs), secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
   duration((sdays*secs-per-day + xsecs), c.frac)   
@@ -305,16 +304,15 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
   val i = instantz(year,month,day,hours,minutes,secs,frac,cal)
   if (tz.tz-utc?) return i
   // we need to adjust according to timezone 
-  val utc-i = i.ts-use(ts-utc)  // switch to UTC timescale
-  match((tz.utc-inverse)(utc-i)) {
+  match((tz.utc-inverse)(i)) {
     Just(inv) -> inv
     Nothing -> {
       // no explicit inverse,
       // do a double pass to accommodate jumping over a DST boundary.
-      val tzofs1 = (tz.utc-offset)(utc-i).fst
-      val tzi1   = utc-i - tzofs1
+      val tzofs1 = (tz.utc-offset)(i).fst
+      val tzi1   = i - tzofs1
       val tzofs2 = (tz.utc-offset)(tzi1).fst
-      val tzi2   = utc-i - tzofs2
+      val tzi2   = i - tzofs2
       tzi2     
     }
   }
@@ -333,11 +331,9 @@ fun timez( tzi : instant, tzofs : duration = duration0, tzabbrv : string = "", t
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
   if (tz.tz-utc?) then timez(i,duration0,"",tz,cal,i) else {
-    // use UTC timescale
-    val utc-i = i.ts-use(ts-utc)
-    val (tzofs,tzabbrv) = (tz.utc-offset)(utc-i)
-    val tzi   = ts-add(utc-i,tzofs)
-    timez( tzi, tzofs, tzabbrv, tz, cal, utc-i )
+    val (tzofs,tzabbrv) = (tz.utc-offset)(i)
+    val tzi = instant-at-timestamp( i.timestamp(ts-utc) + tzofs, ts-utc )
+    timez( tzi, tzofs, tzabbrv, tz, cal, i )
   }
 }
 

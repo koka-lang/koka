@@ -21,8 +21,8 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 
 fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0"){ instant-at(2038,1,19,3,14,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x80000000" }
-  check("misc1"){ instant-at(292277026596,12,4,15,30,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x8000000000000000" }
+  check("misc0"){ instant-at(2038,1,19,3,14,8).timestamp(ts-unix).secs.show-hex == "0x80000000" }
+  check("misc1"){ instant-at(292277026596,12,4,15,30,8).timestamp(ts-unix).secs.show-hex == "0x8000000000000000" }
 }
 
 fun test-jd() {

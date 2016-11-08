@@ -12,11 +12,12 @@ module std/time/duration
 
 import std/regex
 
-// `:ts-duration` is an alias used for durations that are not in SI seconds.
-public alias ts-duration  = duration
+// `:timestamp` is an alias used for durations that may not be in SI seconds
+// and are generally durations after a certain epoch.
+public alias timestamp  = duration
 
-// `:utc-duration` is an alias used for durations in UTC seconds.
-public alias utc-duration = ts-duration
+// `:utc-timestamp` is an alias used for timestamp's in UTC seconds.
+public alias utc-timestamp = timestamp
 
 // Represents duration in time. 
 // Can be arbitrarily long and is accurate up to a tenth of a femto-second (10^-16s).
@@ -116,12 +117,22 @@ public fun seconds( d : duration ) : double {
 ----------------------------------------------------------------------------*/
 
 // Internal: create a duration in UTC 'seconds'
-public fun utc-duration( secs : int, frac : double = 0.0 ) : utc-duration {
+public fun timestamp( secs : int, frac : double = 0.0 ) : timestamp {
   duration(secs,frac)
 }
 
 // Internal: create a duration in UTC 'seconds'
-public fun utc-duration( secs : double ) : utc-duration {
+public fun timestamp( secs : double ) : timestamp {
+  duration(secs)
+}
+
+// Internal: create a duration in UTC 'seconds'
+public fun utc-timestamp( secs : int, frac : double = 0.0 ) : utc-timestamp {
+  duration(secs,frac)
+}
+
+// Internal: create a duration in UTC 'seconds'
+public fun utc-timestamp( secs : double ) : utc-timestamp {
   duration(secs)
 }
 
@@ -137,7 +148,7 @@ public fun show( d : duration, prec : int = 9 ) : string {
 }
 
 // Show a duration without the `s` (SI seconds) postfix.
-public fun ts-show( d : ts-duration, prec : int = 9, secs-width : int = 1 ) : string {
+public fun ts-show( d : timestamp, prec : int = 9, secs-width : int = 1 ) : string {
   val leap = d.frac.trunc.int  
   // trace("show duration: " + d.secs.show + "s + " + d.frac.show)
   show-frac(d.secs,d.frac,prec,secs-width) 
