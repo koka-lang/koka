@@ -57,7 +57,7 @@ public fun show(t : time, prec : int = 9 ) : string {
   val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
    t.hours.show0 + ":" + t.mins.show0 + ":" + 
-   ts-show( ts-duration(t.secs,t.frac),prec,2) + show-tzofs(t.tzofs ) +
+   ts-show(duration(t.secs,t.frac),prec,2) + show-tzofs(t.tzofs ) +
    (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
    (if (t.cal.cal-name.empty?) then "" else " " + t.cal.cal-name)
 }
@@ -71,7 +71,7 @@ public fun show-tzofs(ofs : double, utc : string = "Z", hmsep : string = ":", hr
   val mins = (ofs.abs / 60.0).int
   val tz = (if (ofs.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
   val secs = (ofs.abs % 60.0)
-  val tzs = if (secs.zero?) then "" else ":" + ts-show( ts-duration(secs), 3 )
+  val tzs = if (secs.zero?) then "" else ":" + ts-show( duration(secs), 3 )
   tz + tzs
 }
 
@@ -213,8 +213,8 @@ public val cal-tai = iso-calendar( "TAI", ts-tai )
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
 public val cal-gps = iso-calendar( "GPS", ts-gps, (ts-gps.to-tai)(duration(~19)) )
 
-// The Terrestrial calendar is always `TAI - 32.184`
-public val cal-tt  = iso-calendar( "TT", ts-tai, duration(~32.184) )
+// The Terrestrial calendar is always `TAI + 32.184`
+public val cal-tt  = iso-calendar( "TT", ts-tai, duration(32.184) )
 
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
@@ -460,52 +460,3 @@ fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
-/*----------------------------------------------------------------------------
-  Testing
-----------------------------------------------------------------------------*/
-
-
-fun check(name,tst) {
-  println(name + ": " + (if (tst()) then "ok" else "failed!"))
-}
-
-fun test-misc() {
-  // unix 32/64-bit overflow
-  check("misc0"){ instant-at(2038,1,19,3,14,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x80000000" }
-  check("misc1"){ instant-at(292277026596,12,4,15,30,8).ts-since-epoch(ts=ts-unix).secs.show-hex == "0x8000000000000000" }
-}
-
-fun test-jd() {
-  check("jd0"){ time(2000,1,1,12,0,0).instant.jd == 2451545.0 }
-  check("jd1"){ time(2013,1,1,0,30,0).instant.jd == (2456293.5208333335) }
-  check("jd2"){ instant-at-jd(0.0).time.show == "-4713-11-24T12:00:00Z" }
-  check("jd3"){ instant-at-jd(0.0).time(cal=cal-julian).show == "-4713-01-01T12:00:00Z JC" }
-}
-
-fun test-leap() {
-  check("leap1"){ instant-at(2017,1,1,0,0,35,cal=cal-tai).time.show == "2016-12-31T23:59:59Z" }
-  check("leap2"){ instant-at(2017,1,1,0,0,36,cal=cal-tai).time.show == "2016-12-31T23:59:60Z" }
-  check("leap3"){ instant-at(2017,1,1,0,0,37,cal=cal-tai).time.show == "2017-01-01T00:00:00Z" }
-  // 'leap second' around 1972-01-01 of 0.1s
-  check("leap4"){ instant-at(1972,1,1,0,0,9,cal=cal-tai).time.show == "1971-12-31T23:59:59.107758Z" }
-  check("leap5"){ instant-at(1972,1,1,0,0,9,0.8,cal=cal-tai).time.show == "1971-12-31T23:59:59.907758Z" }
-  check("leap6"){ instant-at(1972,1,1,0,0,9,0.9,cal=cal-tai).time.show == "1971-12-31T23:59:60.007758Z" }
-  check("leap7"){ instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" }
-  // discontinuity 1961-08-01 of 0.05s
-  check("leap8"){ instant-at(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show == "1961-07-31T23:59:59.902430Z" }
-  check("leap9"){ instant-at(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show == "1961-08-01T00:00:00.052430Z" }
-  // initial 1.422818 leap second in 1961-01-01
-  check("leap10"){ instant-at(1961,1,1,0,0,1,0.4,cal=cal-tai).time.show == "1960-12-31T23:59:61.400Z"}
-  check("leap11"){ instant-at(1961,1,1,0,0,1,0.5,cal=cal-tai).time.show == "1961-01-01T00:00:00.077182Z"}  
-  // GPS
-  check("gps1"){ instant-at(1980,1,6,cal=cal-gps).time.show == "1980-01-06T00:00:00Z" }
-  check("gps2"){ instant-at(1980,1,6,cal=cal-gps).time(cal=cal-tai).show == "1980-01-06T00:00:19Z TAI" }
-  check("gps3"){ instant-at(2017,1,1,0,0,18,cal=cal-gps).time.show == "2017-01-01T00:00:00Z" }
-}
-
-
-fun test() {
-  test-misc()
-  test-jd()
-  test-leap()
-}

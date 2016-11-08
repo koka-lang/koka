@@ -28,10 +28,7 @@ import std/string
 import std/time
 import std/unicode
 
-import std/time/duration
 import std/time/leaps
-import std/time/instant
-import std/time/timezone
 import std/xtime
 
 

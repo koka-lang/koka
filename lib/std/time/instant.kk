@@ -6,9 +6,9 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time funs.
+/* Instants in time.
 
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) SI seconds.
+
 */
 module std/time/instant
 
@@ -21,31 +21,35 @@ extern include {
 }
 
 
-// The _epoch_ is 1958-01-01Z TAI which equals 1958-01-01Z UTC.\
+// The _epoch_ is 1958-01-01Z TAI (which equals 1958-01-01Z UTC)\
 // Nice properties:
 //
 // - Time that TAI was established
-// - for any date <  1960-01-01Z, we have UTC == TAI
-// - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset
-public val epoch = instant-since(0.0,ts-utc)
+// - for any date <  1960-01-01Z, we have UTC == TAI.
+// - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset.
+// - Any leap second calculations always deal with positive offsets.
+public val epoch = instant-at(0.0,ts-utc)
 
 
+// A `:time-scale` represents a duration relative to a certain epoch,
+// and can convert to- and from TAI and UTC seconds. Time scales are
+// mostly used internally to minimize conversions for efficiency.
 public struct time-scale(
-  name      : string,
-  from-tai  : duration -> ts-duration,
-  to-tai    : ts-duration -> duration,
-  from-utc  : ts-duration -> ts-duration,
-  to-utc    : ts-duration -> ts-duration,
-  allow-leap: bool = False,
+  ts-name    : string,
+  from-tai   : duration -> ts-duration,
+  to-tai     : ts-duration -> duration,
+  from-utc   : utc-duration -> ts-duration,
+  to-utc     : ts-duration -> utc-duration,
+  allow-leap : bool = False,
   epoch-shift: ts-duration = duration0
 )
 
 
 // Create a new time scale based on UTC 'seconds' with a given `name` and `epoch-shift`
-// duration away from the `epoch`.
+// duration away from the standard `epoch`.
 public fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 ) : time-scale {
-  fun from-utc(d:ts-duration) { ts-add( d, ~epoch-shift ) }
-  fun to-utc(d:ts-duration)   { ts-add( d, epoch-shift) } 
+  fun from-utc(d:ts-duration) { d - epoch-shift }
+  fun to-utc(d:ts-duration)   { d + epoch-shift } 
   Time-scale(
     name,
     fun(d) { d.utc-from-tai.from-utc },         
@@ -58,7 +62,7 @@ public fun utc-timescale( name : string, epoch-shift : ts-duration = duration0 )
 }
 
 // Create a new time scale based on SI seconds with a given `name` and `epoch-shift`
-// duration away from the `epoch`.
+// duration away from the standard `epoch`.
 public fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : time-scale {
   fun from-tai(d:duration) { d - epoch-shift }
   fun to-tai(d:duration)   { d + epoch-shift }
@@ -80,7 +84,7 @@ public val ts-tai : time-scale = tai-timescale( "TAI" )
 public val ts-gps : time-scale = tai-timescale( "GPS", duration(694224019) )
 
 // The UTC time scale with a 1958-01-01 epoch. This uses 'UTC seconds' where
-// one day consists of 86400 seconds. Leap seconds are encoded by using a
+// one day consists of 86400 'solar' seconds. Leap seconds are encoded by using a
 // fraction `>= 1.0`. 
 public val ts-utc : time-scale = utc-timescale( "" )
 
@@ -91,13 +95,15 @@ public val ts-unix: time-scale = utc-timescale( "UNIX", duration(378691200) )
 public val ts-ntp : time-scale = utc-timescale( "NTP", duration(~2272060800) )
 
 // Modified Julian day time scale based on UTC seconds with 1858-11-17 epoch.
-public val ts-mjd : time-scale = utc-timescale( "MJD", duration(~3128025600) )
+// This is a TAI time scale.
+public val ts-mjd : time-scale = tai-timescale( "MJD", duration(~3128025600) )
 
 // Julian day time scale based on UTC seconds with ``-4713-11-24Z`` as epoch.
-public val ts-jd  : time-scale = utc-timescale( "JD", duration(~207360043200) )
+// This is a TAI time scale.
+public val ts-jd  : time-scale = tai-timescale( "JD", duration(~207360043200) )
 
 
-// Represents an instant in time. 
+// Represents an instant in time.\
 // Can be arbitrarily far into the future or past and is accurate up 
 // to a tenth of a femto-second (10^-16s).
 abstract struct instant (
@@ -111,7 +117,7 @@ abstract struct instant (
 
 // Create an instant in time given a number of seconds since the `epoch`
 // and fraction of seconds (=``0.0``).
-public fun instant-since( secs : int, frac : double = 0.0, ts : time-scale = ts-utc ) : instant {
+public fun instant-at( secs : int, frac : double = 0.0, ts : time-scale = ts-utc ) : instant {
   instant-sincex(secs,frac,ts)
 }
 
@@ -119,25 +125,24 @@ private fun instant-sincex( secs : int, frac : double, ts : time-scale ) : insta
   if (frac.neg? || (frac >= 1.0 && !ts.allow-leap)) {
     val fl = frac.floor
     Instant(duration(secs + fl.int, frac - fl), ts)
-  }
+  } 
   else Instant(duration(secs,frac),ts)
 }
 
 // Create an instant given a number of seconds since the `epoch`
 // given as a `:double`.
-public fun instant-since( secs : double, ts : time-scale = ts-utc ) : instant {
+public fun instant-at( secs : double, ts : time-scale = ts-utc ) : instant {
   Instant( duration(secs), ts )
 }
 
 // Return the duration since the `epoch`.
 public fun since-epoch( i : instant ) : duration {
-  val j = i.ts-use(ts-tai)
-  j.since
+  i.ts-since-epoch(ts-tai)
 }
 
 // Return the instant in time that is `d` duration after the `epoch`.
 public fun since-epoch( d : duration ) : instant {
-  Instant(d,ts-tai)
+  d.ts-since-epoch(ts-tai)
 }
 
 // Compare two `:instant`s in time.
@@ -173,41 +178,41 @@ public fun (-)( i : instant, j : instant ) : duration {
   Durations in a another time scale
 ----------------------------------------------------------------------------*/
 
-// Internal. use timescale `tscale` to represent this instant.
+// Internal. Convert to timescale `tscale` to represent this instant.
 public fun ts-use( i : instant, tscale : time-scale ) : instant {
-  if (i.ts.name == tscale.name) then {
+  if (i.ts.ts-name == tscale.ts-name) then {
     i 
   }
   elif (tscale.allow-leap) {
-    //trace("utc convert: " + i.show)
+    // trace("utc convert: " + i.show)
     Instant( (tscale.from-utc)( (i.ts.to-utc)(i.since)), tscale )
   }
   else {
-    //trace("tai convert: " + i.show)
+    // trace("tai convert: " + i.show)
     Instant( (tscale.from-tai)( (i.ts.to-tai)(i.since) ), tscale)
   }
 }
 
-// Internal. return a duration in time scale `ts` (=`i`'s timescale) for instant `i` since the time scale epoch.
+// Internal. Return a duration in time scale `ts` (=`i`'s timescale) for instant `i` since the time scale epoch.
 public fun ts-since-epoch( i : instant, ts : time-scale = i.ts ) : ts-duration {
   i.ts-use(ts).since
 }
 
-// Internal. create an instant with a given duration in time scale `ts`.
+// Internal. Create an instant with a given duration in time scale `ts`.
 public fun ts-since-epoch( d : ts-duration, ts : time-scale ) : instant {
   Instant(d,ts)
 }
 
-// Internal. add a non SI-seconds duration directly to an instant with normalizing to its time scale.
+// Internal. Add a non SI-seconds duration directly to an instant with normalizing to a TAI time scale.
 public fun ts-add( i : instant, d : ts-duration ) : instant {
-  Instant(ts-add(i.since,d), i.ts)
+  Instant(i.since + d, i.ts)
 }
 
-// Internal. return te difference between to instants using the timescale of `i`.
+// Internal. Return the difference between two instants using the timescale of `i`.
 public fun ts-diff( i : instant, j : instant ) : ts-duration {
   val d = i.since 
   val e = j.ts-use(i.ts).since
-  ts-add(d,e)
+  d - e
 }
 
 
@@ -219,7 +224,7 @@ public fun ts-diff( i : instant, j : instant ) : ts-duration {
 
 // Show an instant with an optional precision (=`9`, nano-second resolution).
 public fun show( i : instant, prec : int = 9 ) : string {
-  ts-show(i.since) + "s " + (if (i.ts.name.empty?) then "" else " " + i.ts.name)
+  ts-show(i.since) + "s " + (if (i.ts.ts-name.empty?) then "" else " " + i.ts.ts-name)
 }
 
 
@@ -228,8 +233,6 @@ public fun show( i : instant, prec : int = 9 ) : string {
 ----------------------------------------------------------------------------*/
 
 val jd-epoch-shift     = 2400000.5
-val mjd-epoch : instant = instant-since(~mjd-epoch-shift,0.0,ts-utc)  // 1858-11-17Z modified julian date epoch.
-val mjd-epoch-shift    = 3128025600
  
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
 public fun instant-at-jd( julian-date: double ) : instant {

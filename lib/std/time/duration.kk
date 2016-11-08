@@ -6,23 +6,25 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time funs.
-
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
+/* Time durations.
 */
 module std/time/duration
 
 import std/regex
 
+// `:ts-duration` is an alias used for durations that are not in SI seconds.
 public alias ts-duration  = duration
+
+// `:utc-duration` is an alias used for durations in UTC seconds.
 public alias utc-duration = ts-duration
 
 // Represents duration in time. 
-// Can be arbitrarily long and is accurate up 
-// to a tenth of a femto-second (10^-16s).
+// Can be arbitrarily long and is accurate up to a tenth of a femto-second (10^-16s).
+// The `secs` field contains the number of SI seconds, while `frac` holds the
+// positive fraction of a second. The total duration `d` is always `d.secs + d.frac`.
 abstract struct duration (
   public secs : int,          // SI seconds
-  public frac : double = 0.0  // fraction of seconds, always in range <-1.0, 1.0>
+  public frac : double = 0.0  // fraction of seconds, always in range [0, 1.0>
 )
 
 
@@ -78,10 +80,17 @@ public fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
 public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
 
-// Add two durations
+// Add two durations.
 public fun (+)( d : duration, e : duration ) : duration {
-  val f = d.frac + e.frac
-  duration(d.secs + e.secs + f.trunc.int, f.fraction)
+  // for duration with a leap second encoding (i.e. `frac >= 1.0`), we maintain
+  // the leap second if the other duration has a zero fraction. This allows for
+  // epoch shifts.
+  if (d.frac.zero? || e.frac.zero?) then duration(d.secs + e.secs, d.frac + e.frac)
+  else {
+    // in all other cases, we normalize the fraction to be in the range ``[0,1.0>``.
+    val f = d.frac + e.frac
+    duration(d.secs + e.secs + f.trunc.int, f.fraction)
+  }
 }
 
 // Negate a duration.
@@ -106,29 +115,14 @@ public fun seconds( d : duration ) : double {
   Durations in a another time scale
 ----------------------------------------------------------------------------*/
 
-// Internal: Add `:ts-duration`'s without normalizing to SI seconds
-public fun ts-add( d : ts-duration, e : ts-duration ) : ts-duration {
-  ts-duration(d.secs + e.secs, d.frac + e.frac)
-}
-
-// Internal: create a duration with non SI seconds values.
-public fun ts-duration( secs : int, frac : double = 0.0 ) : ts-duration {
+// Internal: create a duration in UTC 'seconds'
+public fun utc-duration( secs : int, frac : double = 0.0 ) : utc-duration {
   duration(secs,frac)
 }
 
-// Internal: create a duration with non SI seconds.
-public fun ts-duration( secs : double ) : ts-duration {
+// Internal: create a duration in UTC 'seconds'
+public fun utc-duration( secs : double ) : utc-duration {
   duration(secs)
-}
-
-// Internal: create a duration in UTC 'seconds'
-public fun utc-duration( secs : int, frac : double = 0.0 ) : ts-duration {
-  ts-duration(secs,frac)
-}
-
-// Internal: create a duration in UTC 'seconds'
-public fun utc-duration( secs : double ) : ts-duration {
-  ts-duration(secs)
 }
 
 

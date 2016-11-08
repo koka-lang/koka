@@ -63,7 +63,7 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
 public fun timezone( tzi : timezone-info ) : timezone {
   fun utc-offset(i : instant) : (ts-duration,string) {
     val tzp = find-offset(i.ts-use(ts-utc),tzi.periods)
-    (ts-duration(tzp.offset),tzp.abbrv)
+    (duration(tzp.offset),tzp.abbrv)
   }
   Timezone( 
     tzi.name, 
@@ -286,40 +286,3 @@ public fun guess-local-timezone( default : timezone = tz-utc) : ndet timezone {
 
 }
 
-
-/*----------------------------------------------------------------------------
-  Testing
-----------------------------------------------------------------------------*/
-
-fun tcheck(name,tst) {
-  println(name + ": " + (if (tst()) then "ok" else "failed!"))
-}
-
-public fun test-tz() {
-  val tzs = get-timezones()
-  println( now().time(tz=timezone("US/Pacific")).show )
-  println( now().time(tz=tz-local()).show )
-  println( "local timezone guess: " + guess-local-timezone().tz-name )
-
-  val z1  = timezone("America/New_York")
-  val z2  = timezone("Asia/Tehran")
-  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60) 
-  tcheck("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
-  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
-  tcheck("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
-
-  tcheck("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
-  tcheck("tz3b"){ time(2011,3,13,2,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
-  tcheck("tz3c"){ time(2011,3,13,3,15,tz=z1).show == "2011-03-13T03:15:00-04:00 (EDT)" }
-  
-  tcheck("tz4a"){ time(2011,11,6,0,15,tz=z1).show == "2011-11-06T00:15:00-04:00 (EDT)" }
-  tcheck("tz4b"){ time(2011,11,6,1,15,tz=z1).show == "2011-11-06T01:15:00-04:00 (EDT)" }
-  tcheck("tz4c"){ time(2011,11,6,2,15,tz=z1).show == "2011-11-06T02:15:00-05:00 (EST)" }
-
-  // leap second in other time zone
-  tcheck("tz5"){ instant-at(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=timezone("US/Pacific")).show == "2016-12-31T15:59:60.500-08:00 (PST)" }
-}
-
-fun test() {
-  test-tz()
-}

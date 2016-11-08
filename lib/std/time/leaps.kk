@@ -73,7 +73,7 @@ fun get-leapsecs() : st<global> leaps-table {
 }
 
 
-// Return a `:leap-instant` for a UTC instant
+// Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
 public fun tai-from-utc( d : utc-duration ) : duration {
   val leaps = unsafe-total(get-leapsecs)
   leaps.adjusts.find-maybe(fun(la) {
@@ -85,6 +85,7 @@ public fun tai-from-utc( d : utc-duration ) : duration {
   }).default(d)  
 }
 
+// Convert a TAI duration since `epoch` to a UTC duration since `epoch`.
 public fun utc-from-tai( i : duration ) : utc-duration {
   //trace("utc-from-tai: " + i.show)
   val leaps = unsafe-total(get-leapsecs)
@@ -221,7 +222,7 @@ val mjd-epoch-shift    = 3128025600 // 1958-01-01 - 1858-11-17Z modified julian 
 // See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
 fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
   s.find-all(rxtaiadjust).map( fun(cap) {
-    val mjd    = cap.groups[1].parse-double-default(jd-epoch-shift) - (jd-epoch-shift )
+    val mjd    = cap.groups[1].parse-double-default(jd-epoch-shift) - jd-epoch-shift 
     val ofs    = cap.groups[2].parse-double-default(0.0)
     val dmjd   = cap.groups[3].parse-double-default(0.0)
     val delta  = cap.groups[4].parse-double-default(0.0)
