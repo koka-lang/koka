@@ -246,7 +246,7 @@ prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields 
       <+> text ":" <+> ppType env scheme <> semi)
   where
     ppField env (fvis,(name,tp)) 
-      = (if (fvis /= vis) then ppVis env fvis else empty) <> 
+      = -- (if (fvis /= vis) then ppVis env fvis else empty) <> 
         (if isFieldName name then empty else (ppName env name <> text ": ")) <> 
         ppType env tp
     env = env0{ nice = niceTypeExtend exists (nice env0) } 
