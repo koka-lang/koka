@@ -21,13 +21,13 @@ extern include {
 }
 
 
-// The _epoch_ is 1958-01-01Z TAI (which equals 1958-01-01Z UTC)\
+// The _epoch_ is the NTP epoch, 1900-01-01Z UTC (which equals 1900-01-01Z TAI)\
 // Nice properties:
 //
-// - Time that TAI was established
+// - Epoch for the NTP protocol
 // - for any date <  1960-01-01Z, we have UTC == TAI.
 // - for any date >= 1972-01-01Z, we have UTC == TAI - whole SI second offset.
-// - Any leap second calculations always deal with positive offsets.
+// - Any leap second and DST calculations always deal with positive times.
 public val epoch = instant-at(0.0,ts-utc)
 
 
@@ -77,30 +77,29 @@ public fun tai-timescale( name : string, epoch-shift : duration = duration0 ) : 
   )
 }
 
-// The TAI time scale based on SI seconds with 1958-01-01 epoch.
+// The TAI time scale based on SI seconds with 1900-01-01 epoch.
 public val ts-tai : time-scale = tai-timescale( "TAI" )
  
-// The GPS time scale based on SI seconds with 1980-01-06 epoch. GPS = TAI - 19.
-public val ts-gps : time-scale = tai-timescale( "GPS", duration(694224019) )
+// The GPS time scale based on SI seconds with 1980-01-06 epoch.\
+// GPS = TAI - 19.
+public val ts-gps : time-scale = tai-timescale( "GPS", duration(2524953619) )
 
-// The UTC time scale with a 1958-01-01 epoch. This uses 'UTC seconds' where
+// The UTC time scale with a 1900-01-01 epoch. This uses 'UTC seconds' where
 // one day consists of 86400 'solar' seconds. Leap seconds are encoded by using a
 // fraction `>= 1.0`. 
 public val ts-utc : time-scale = utc-timescale( "" )
 
 // Unix time scale based on UTC seconds but with 1970-01-01 epoch.
-public val ts-unix: time-scale = utc-timescale( "UNIX", duration(378691200) )
+public val ts-unix: time-scale = utc-timescale( "UNIX", duration(2208988800) )
 
-// NTP time scale based on UTC seconds with 1900-01-01 epoch.
-public val ts-ntp : time-scale = utc-timescale( "NTP", duration(~2272060800) )
+// NTP time scale is equal to the UTC time scale (`ts-utc`) but named `"NTP"`.
+public val ts-ntp : time-scale = utc-timescale( "NTP" )
 
-// Modified Julian day time scale based on UTC seconds with 1858-11-17 epoch.
-// This is a TAI time scale.
-public val ts-mjd : time-scale = tai-timescale( "MJD", duration(~3128025600) )
+// Modified Julian day time scale based on TAI seconds with a 1858-11-17 epoch.
+public val ts-mjd : time-scale = tai-timescale( "MJD", duration(~1297728000) )
 
-// Julian day time scale based on UTC seconds with ``-4713-11-24Z`` as epoch.
-// This is a TAI time scale.
-public val ts-jd  : time-scale = tai-timescale( "JD", duration(~207360043200) )
+// Julian day time scale based on TAI seconds with ``-4713-11-24Z`` as epoch.
+public val ts-jd  : time-scale = tai-timescale( "JD", duration(~208657814400) )
 
 
 // Represents an instant in time.\
@@ -268,7 +267,8 @@ public fun mjd( i : instant ) : double {
 // A unix time stamp measure seconds since the Unix epoch (1970-01-01)
 // and ignores any leap seconds.
 public fun instant-at-unix( timestamp : double ) : instant {
-  utc-duration(timestamp).ts-since-epoch(ts-unix )
+  instant-at(timestamp,ts-unix)
+  // utc-duration(timestamp).ts-since-epoch(ts-unix )
 }
 
 // Convert an instant to a unix time stamp in seconds since the
@@ -281,8 +281,8 @@ public fun unix( i : instant ) : double {
 // An NTP time stamp measures seconds since the NTP epoch (1900-01-01)
 // and ignores any leap seconds.
 public fun instant-at-ntp( timestamp : double ) : instant {
-  utc-duration(timestamp).ts-since-epoch( ts-ntp )
-}
+  instant-at( timestamp, ts-ntp )
+  }
 
 // Convert an instant to a NTP time stamp in seconds since the
 // NTP epoch (1900-01-01)

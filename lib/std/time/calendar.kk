@@ -356,7 +356,7 @@ public fun time( year : int, month : int = 1, day : int = 1,
   ISO calendar, Proleptic Gregorian calendar, and Julian calendar.
 ----------------------------------------------------------------------------*/
 
-val iso-epoch-shift = 715085   // shift internal epoch from 0000-03-01 TAI to 1972-01-01T00:00:10 TAI
+val iso-epoch-shift = 693901   // shift internal epoch from 0000-03-01 to 1900-01-01
 val iso-days-in-era = 146097   // 365*400 + 100 - 3
 val iso-years-in-era= 400
 
@@ -365,7 +365,7 @@ val iso-years-in-era= 400
 //
 // [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
 fun iso-date-from-days( days : int ) : date {
-  val z    = days + iso-epoch-shift          // shift epoch from 1970-01-01 to 0000-03-01
+  val z    = days + iso-epoch-shift          // shift epoch from 1900-01-01 to 0000-03-01
   val (era,doe) = divmod(z,iso-days-in-era)  // day of era: 0 <= doe < days-in-era
   val yoe  = (((doe - (doe/1460)) + (doe/36524)) - (doe/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
   val doy  = doe - ((yoe*365) + (yoe/4) - (yoe/100))   // day-of-year: 0 <= doy <= 365
@@ -410,7 +410,7 @@ public fun gregorian-date-from-days( days : int ) : date {
 
 val julian-days-in-era  = 1461
 val julian-years-in-era = 4
-val julian-epoch-shift  = 715087  
+val julian-epoch-shift  = 693903 // Shift from 1900-01-01 to 0000-03-01
 
 // Return a date from a number of days in the Julian calendar.
 public fun julian-date-from-days( days : int ) : date {  

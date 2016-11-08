@@ -140,27 +140,22 @@ fun find-utc-from-tai( i : duration, leaps : list<leap-adjust> ) : utc-duration 
 // Parsing UTC leap second tables
 // -----------------------------------------------------------
 
-// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) epoch (1900-01-01Z)
-val ntp-epoch-shift  = 1830297600 // (58*365 + 14)*86400 
-
 // Parse a NIST (IETF) leap second table.
 // See: <https://www.ietf.org/timezones/data/leap-seconds.list>
 fun parse-leap-seconds( leaps : string ) : leaps-table {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
-    val ntpsecs = cap.groups[1].parse-int-default(ntp-epoch-shift)  
+    val ntpsecs = cap.groups[1].parse-int-default(0)  
     val adjust  = cap.groups[2].parse-double-default(0.0)
-    //val ntpi    = instant-at(ntpsecs - ntp-epoch-shift)
-    //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + (ntpsecs - ntp-epoch-shift).show )
-    val utc-i = utc-duration(ntpsecs - ntp-epoch-shift)
-    Leap-adjust(utc-i, adjust, duration0, 0.0)
+    //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + ntpsecs.show )
+    Leap-adjust(utc-duration(ntpsecs), adjust, duration0, 0.0)
   }.reverse
 
   // get expiration date
   val la-final   = las.head.default(zero)
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
-    val ntpex = cap.groups[1].parse-int-default(ntp-epoch-shift)
-    utc-duration(ntpex - ntp-epoch-shift)
+    val ntpex = cap.groups[1].parse-int-default(0)
+    utc-duration(ntpex)
   }.default(la-final.utc-start + utc-duration(365*secs-per-day))
   trace("expire: " + utc-expire.show)
 
@@ -215,7 +210,7 @@ val default-ietf-leap-seconds = @"
 val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
 
 val jd-epoch-shift     = 2400000.5
-val mjd-epoch-shift    = 3128025600 // 1958-01-01 - 1858-11-17Z modified julian date epoch
+val mjd-epoch-shift    = 1297728000 // 1900-01-01Z - 1858-11-17Z modified julian date epoch
 
 
 // Parse the standard UTC leap second adjustment file.\
