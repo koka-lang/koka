@@ -50,8 +50,10 @@ public fun duration( secs : int, frac : double = 0.0 ) : duration {
 
 // Create a duration given a number of seconds as a `:double`.
 public fun duration( secs : double ) : duration {
-  val fl = secs.floor
-  Duration( fl.int, secs - fl )
+  if (!secs.neg?) then Duration( secs.trunc.int, secs.fraction ) else {
+    val fl = secs.floor
+    Duration( fl.int, secs - fl)
+  }
 }
 
 // Is this a negative duration?
@@ -115,6 +117,8 @@ public fun seconds( d : duration ) : double {
 /*----------------------------------------------------------------------------
   Durations in a another time scale
 ----------------------------------------------------------------------------*/
+
+public val timestamp0 : timestamp = duration0
 
 // Internal: create a duration in UTC 'seconds'
 public fun timestamp( secs : int, frac : double = 0.0 ) : timestamp {
