@@ -1296,6 +1296,10 @@ fun dec( i : int ) : int {
   i - 1
 }
 
+extern pow10( exp : int ) : int {
+  js "_int_pow10"
+}
+
 // Is this an even integer?
 fun even?(i:int) : bool { !odd?(i) }
 
