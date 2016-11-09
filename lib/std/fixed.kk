@@ -6,37 +6,53 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Operations on arbitrary precision fixed numbers 
+// Operations on arbitrary precision fixed-point numbers.
 public module std/fixed
 
 import std/regex
 
 // Type of a fixed number 
-abstract struct fixed (
+public struct fixed (
   fix  : int,
   prec : int                        
 )
 
 // Convert a `:fixed` to a string
 fun show( f0 : fixed, max-prec : int = ~1 ) : string { 
-  val f = f0.reduce
+  val f1 = f0.reduce
+  val f  = if (max-prec >= 0) then f1.round-to-prec(max-prec) else f1
   if (f.prec <= 0) then return f.fix.show
 
-  val s    = f.fix.abs.show.pad-left(f.prec,'0')
-  val frac = s.last(f.prec)
-  val p    = if (max-prec >= 0) then min(max-prec,f.prec) else f.prec
+  val s     = f.fix.abs.show.pad-left(f.prec,'0')
+  val frac  = s.last(f.prec)
   val whole = frac.before.string
   (if (f.fix.neg?) then "-" else "") +
    (if (whole.empty?) then "0" else whole) + 
-     "." + frac.extend(p - f.prec).string + " (prec=" + f.prec.show + ", fix=" + f0.fix.show + ")"
+     "." + frac.string // + " (prec=" + f.prec.show + ", fix=" + f1.fix.show + ")"
 }
 
-fun fixed( whole : int, prec : int = 0) : fixed {
-  if (prec <= 0) then Fixed(whole,0) else {
-    Fixed(whole,prec).reduce
+// Parse a fixed-point number.
+fun parse-fixed( s : string ) : maybe<fixed> {
+  match(s.find(rx-fixed)) {
+    Nothing -> Nothing
+    Just(cap) -> {
+      val whole = cap.groups[1]
+      val frac  = cap.groups[2]
+      val i = (whole + frac).parse-int-default(0)
+      Just(fixed(i,frac.count))
+    }
+  }
+}
+val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
+
+// Create a new fixed-point number from an integer `i` putting the decimal point at `prec` (=`0`) digits from the right.
+fun fixed( i : int, prec : int = 0) : fixed {
+  if (prec <= 0) then Fixed(i,0) else {
+    Fixed(i,prec).reduce
   }
 }
 
+// Create a new fixed-point number from a double `d` with a maximum precision of `max-prec` (=`20`) digits.
 fun fixed( d : double, max-prec : int = 20 ) : fixed {
   if (d.fraction==0.0) then return Fixed(d.int,0)
   val s = d.show-fixed(max-prec)
@@ -49,26 +65,27 @@ fun fixed( d : double, max-prec : int = 20 ) : fixed {
     }
   }
 }
-val rx-fraction = regex(@"\.(\d+[1-9])0*$")
+val rx-fraction = regex(@"\.(\d*[1-9])0*$")
 
+// Possibly reduce a fixed-point number to use less space while maintaining precision.
 fun reduce( x : fixed ) : fixed {
   if (!x.prec.pos?) return x
   val z = x.fix.pow10?
-  if (z.pos? && z < x.prec) then {
+  if (z.pos? && z <= x.prec) then {
     Fixed( x.fix / pow10(z), x.prec - z)
   }
   else x
 }
 
-
+// Expand the precision of a fixed-point number `x` to at least `p`.
 private fun expand( x : fixed, p : int ) : fixed {
   if (x.prec >= p) then x else {
     Fixed( x.fix * pow10(p - x.prec), p )
   }
 }
 
-
-private fun pow10?( i : int ) : int {
+// Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
+fun pow10?( i : int ) : int {
   if (i.zero?) then return 0
   match(i.show.find(rx-endzeros)) {
     Nothing   -> 0
@@ -77,32 +94,32 @@ private fun pow10?( i : int ) : int {
 }
 val rx-endzeros = regex(@"[1-9](0+)$")
 
-
+// Count the number of decimal digits in `i`.
 private fun count-digits( i : int ) : int {
   if (i.zero?) then 0 else i.abs.show.count
 }
 
 
-
-fun (+)( x : fixed, y : fixed ) : fixed {
-  match-prec(x,y,(+))
-}
-
-fun (-)( x : fixed, y : fixed ) : fixed {
-  match-prec(x,y,(-))
-}
-
+// Negate a fixed-point number.
 fun (~)(x : fixed ) : fixed {
   Fixed( ~x.fix, x.prec )
 }
 
-private fun match-prec( x : fixed, y : fixed, f : (int,int) -> int ) : fixed {
+// Subtract two fixed-point numbers.
+fun (-)( x : fixed, y : fixed ) : fixed {
+  x + ~y
+}
+
+// Add two fixed-point numbers.
+fun (+)( x : fixed, y : fixed ) : fixed {
   val p  = max(x.prec,y.prec)
   val xp = x.expand(p)
   val yp = y.expand(p)
-  Fixed(f(xp.fix,yp.fix),p)
+  Fixed(xp.fix + yp.fix, p)
 }
 
+// Multiply two fixed-point numbers with an optional maximum precision `max-prec` (=`~1`). 
+// If the maximum precision is negative, the multiplication will be precise.
 fun (*)( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
   val p  = max(x.prec,y.prec)
   val xp = x.expand(p)
@@ -111,6 +128,7 @@ fun (*)( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
   if (max-prec>=0) then z.round-to-prec(max-prec) else z
 }
 
+// Euclidean division and modulus up to a specified maximum precision (=`20` digits).
 fun divmod( x : fixed, y : fixed, max-prec : int = 20) : (fixed,fixed) {
   val p  = max(x.prec,y.prec)
   val xp = x.expand(p)
@@ -128,6 +146,7 @@ fun (%)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
   divmod(x,y,max-prec).snd
 }
 
+// Round the fixed-point number `x` to a specified precision `p`.
 fun round-to-prec( x : fixed, p : int ) : fixed {
   if (p < 0 || x.prec <= p) then x else {
     val d = x.prec - p 
@@ -142,304 +161,44 @@ fun round-to-prec( x : fixed, p : int ) : fixed {
   }
 }
 
+// The zero fixed-point number.
+val zero = Fixed(0,0)
 
-/* 
+fun zero?( x : fixed ): bool  {x.fix.zero?}
+fun pos?( x : fixed ) : bool  {x.fix.pos?}
+fun neg?( x : fixed ) : bool  {x.fix.neg?}
 
-
-// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
-// value if it is outside the range of an `:int32`.
-extern inline int32  : (int) -> int32   { 
-  cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32" 
+// Compare two fixed-point numbers.
+fun compare( x : fixed, y : fixed ) : order {
+  val p = max(x.prec,y.prec)
+  compare(x.expand(p).fix, y.expand(p).fix)
 }
 
-extern inline int32 : (double) -> int32 {
-  cs "Primitive.DoubleToInt32"
-  js inline "(#1|0)"
+fun (>) (x : fixed, y : fixed) : bool { compare(x,y) == Gt }
+fun (>=)(x : fixed, y : fixed) : bool { compare(x,y) != Lt }
+fun (==)(x : fixed, y : fixed) : bool { compare(x,y) == Eq }
+fun (!=)(x : fixed, y : fixed) : bool { compare(x,y) != Eq }
+fun (<) (x : fixed, y : fixed) : bool { compare(x,y) == Lt }
+fun (<=)(x : fixed, y : fixed) : bool { compare(x,y) != Gt }
+
+// The sign of a fixed point number.
+fun sign( x : fixed ) : order  -> x.fix.sign
+
+// Increment a fixed point number.
+fun inc( x : fixed ) : fixed  -> x + fixed(1)
+
+// Decrement a fixed point number
+fun dec( x : fixed ) : fixed  -> x - fixed(1)
+
+// The absolute value of a fixed-point number
+fun abs( x : fixed ) : fixed  -> Fixed(x.fix.abs,x.prec)
+
+// The minimum of `x` and `y`.
+fun min( x : fixed, y : fixed ) : fixed {
+  if (x <= y) then x else y
 }
 
-// Convert an `:int32` to an `:int`.
-extern inline int( i : int32 ) : int { 
-  cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double" 
+// The maximum of `x` and `y`
+fun max( x : fixed, y : fixed ) : fixed {
+  if (x >= y) then x else y
 }
-
-// Convert an `:int32` to a boolean.
-function bool( i : int32 ) : bool {
-  (i!=zero)
-}
-
-// Convert a boolean to an `:int32`.
-function int32( b : bool ) : int32 {
-  if (b) then one else zero
-}
-
-
-// Show an `:int32` in hexadecimal notation
-// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
-// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
-// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
-fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-  std/core/show-hex(i.int,width,use-capitals,pre)
-}
-
-
-extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
-extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-extern inline (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
-extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
-extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
-
-extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-
-fun pos?( i : int32 ) : bool { 
-  i>0.int32
-}
-
-fun neg?( i : int32 ) : bool { 
-  i<0.int32
-}
-
-fun zero?( i : int32 ) : bool { 
-  i==zero
-}
-
-val zero = 0.int32
-val one  = 1.int32
-
-fun sign( i : int32 ) : order {
-  if (i.pos?) then Gt elif (i.neg?) then Lt else Eq
-}
-
-// Returns `true` if the integer `i`  is an odd number.
-fun odd?( i : int32 ) : bool {
-  return (i&1.int32==1.int32);
-}
-
-// Returns `true` if the integer `i`  is an even number.
-fun even?( i : int32 ) : bool {
-  return (i&1.int32==0.int32);
-}
-
-// Increment a 32-bit integer.
-fun inc( i : int32 ) : int32 {
-  i + 1.int32
-}
-
-// Decrement a 32-bit integer.
-fun dec( i : int32 ) : int32 {
-  i - 1.int32
-}
-
-// Multiply two 32-bit integers.
-extern inline (*) : (int32,int32) -> int32 { 
-  cs inline "#1*#2"; 
-  js "$std_core._int32_multiply"
-}
-
-fun compare( x : int32, y : int32) : order
-{
-  if (x < y) then Lt
-  elif (x > y) then Gt
-  else Eq
-}
-
-// Return the absolute value of an integer.
-// Raises an exception if the `:int32` is `min-int32`
-// (since the negation of `min-int32` equals itself and is still negative)
-fun abs( i : int32 ) : exn int32
-{
-  if (!i.neg?) then i
-  elif (i > min-int32.int32) then negate(i)
-  else error( "system.core.abs: cannot make min-int32 int32o a positive int32 without overflow" )
-}
-
-// Return the absolute value of an integer.
-// Returns 0 if the `:int32` is `min-int32`
-// (since the negation of `min-int32` equals itself and is still negative)
-fun abs0( i : int32 ) : int32
-{
-  if (!i.neg?) then i
-  elif (i > min-int32.int32) then negate(i)
-  else 0.int32
-}
-
-
-// Take the bitwise _and_ of two `:int32`s
-extern inline (&) : (int32,int32) -> int32 { 
-  cs inline "(#1 & #2)";
-  js inline "(#1 & #2)"
-}
-  
-// Take the bitwise _or_ of two `:int32`s
-extern inline (|) : (int32,int32) -> int32 { 
-  cs inline "(#1 | #2)";
-  js inline "(#1 | #2)";
-}
-
-// Take the bitwise _xor_ of two `:int32`s
-extern inline (^) : (int32,int32) -> int32 { 
-  cs inline "(#1 ^ #2)";
-  js inline "(#1 ^ #2)"
-}
-
-// Bitwise _not_ of an `:int32`, i.e. flips all bits.
-extern inline not : ( i : int32 ) -> int32  { 
-  cs inline "(~#1)";
-  js inline "(~#1)"
-}
-
-private extern inline prim-shl : (int32,int32) -> int32 { 
-  cs inline "(#1 << #2)";
-  js inline "(#1 << #2)";
-}
-
-private extern inline prim-shr : (int32,int32) -> int32 { 
-  cs inline "(Int32)(((UInt32)#1)>>#2)";
-  js inline "(#1>>>#2)";
-}
-
-private extern inline prim-sar : (int32,int32) -> int32 { 
-  cs inline "(#1>>#2)";
-  js inline "(#1>>#2)";
-}
-
-// Bitwise rotate an `:int32` `n` bits to the left.
-// Does not rotate when `n` is negative.
-fun rotl( i : int32, n : int ) : int32 {
-  if (n.neg?) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shl(i,r) | prim-shr(i,bits-int32.int32 - r))
-}
-
-// Bitwise rotate an `:int32` `n` bits to the right.
-// Does not rotate when `n` is negative.
-fun rotr( i : int32, n : int ) : int32 {
-  if (n.neg?) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shr(i,r) | prim-shl(i,bits-int32.int32 - r))
-}
-
-// Shift an `:int32` `i` to the left by `n` bits.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shl( i : int32, n : int ) : int32 {
-  if (n.neg?) return i
-  if (n >= bits-int32) return 0.int32
-  prim-shl(i,n.int32)
-}
-
-// Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shr( i : int32, n : int ) : int32 {
-  if (n.neg?) return i;
-  if (n >= bits-int32) return 0.int32;
-  prim-shr(i,n.int32);
-}
-
-// Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
-// Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
-fun sar( i : int32, n : int ) {
-  if (n.neg?) return i;
-  if (n >= bits-int32) return (if (i.neg?) then ~1.int32 else 0.int32);
-  prim-sar(i,n.int32);
-}
-
-
-
-// Return the minimum of two integers
-fun min( i : int32, j : int32 ) : int32  -> if (i <= j) then i else j
-// Return the maximum of two integers
-fun max( i : int32, j : int32 ) : int32  -> if (i >= j) then i else j
-
-
-// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-extern inline cdiv : (int32,int32) -> exn int32 { 
-  cs inline "(#1 / #2)";
-  js "$std_core._int32_cdiv"
-}
-
-// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-extern inline cmod : (int32,int32) -> exn int32 { 
-  cs inline "(#1 % #2)";
-  js "$std_core._int32_cmod"
-}
-
-// Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cdiv : (int32,int32) -> int32 {
-  cs inline "(#1 / #2)";
-  js inline "((#1/#2)|0)"
-}
-
-// Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cmod : (int32,int32) -> int32 { 
-  cs inline "(#1 % #2)";
-  js inline "((#1 % #2)|0)"
-}
-
-// Convert an 32-bit integer to a double.
-extern inline double : (int32) -> double { cs inline "(double)(#1)"; js inline "(#1)" }
-
-// Negate a 32-bit integer
-fun negate( i : int32 ) : int32 {
-  return (0.int32 - i)
-}
-
-// Negate an 32-bit integer
-fun (~)(i : int32) : total int32 {
-  return (0.int32 - i)
-}
-
-// Euclidean-0 division.
-// Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
-//
-// 1. `D == d*(D/d) + (D%d)` 
-// 2. `D%d`  is always positive where `0 <= D%d < abs(d)` 
-//
-// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
-// that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
-// 
-// Useful laws that hold for Euclidean-0 division:
-//
-// * `D/(-d) == -(D/d)` 
-// * `D%(-d) == D%d` 
-// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-// * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-//
-// Note that an int32eresting edge case is `minInt / -1` which equals `minInt` since in modulo 32-bit 
-// arithmetic `minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)` satisfying property (1).
-// Of course `(minInt + 1) / -1` is again positive (namely `maxInt`).  
-// 
-// See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
-// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-fun (/)( x : int32, y : int32 ) : int32
-{
-  if (y == 0.int32) then return 0.int32
-  val q = unsafe-cdiv(x,y)
-  val r = unsafe-cmod(x,y)
-  if (r >= 0.int32) then q
-  elif (y > 0.int32) then q - 1.int32
-  else q+1.int32
-}
-
-// Euclidean-0 modulus. See `(/):(x : int32, y : int32) -> int32` division for more information.
-fun (%)( x : int32, y : int32 ) : int32
-{
-  if (y == 0.int32) then return x
-  val r = unsafe-cmod(x,y)
-  if (r >= 0.int32) then r
-  elif (y > 0.int32) then (r+y)
-  else (r - y)
-}
-
-fun divmod(x:int32,y:int32) : (int32,int32) {
-  if (y.zero?) then return (zero,zero)
-  val q = unsafe-cdiv(x,y)
-  val r = unsafe-cmod(x,y)
-  if (!r.neg?) then (q,r)
-  elif (y.pos?) then (q.dec, r+y)
-  else (q.inc,r - y)
-}
-
-*/
