@@ -45,6 +45,14 @@ fun parse-fixed( s : string ) : maybe<fixed> {
 }
 val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
 
+// Create a new fixed-point number a whole part `whole` and fraction `frac` with `prec` digits precision.\
+// For example, `fixed(1.002) == fixed-frac(1,2,3)`.
+fun fixed-frac( whole : int, frac : int, prec : int ) : fixed {
+  if (prec <= 0 || frac.zero?) then Fixed(whole,0) else {
+    Fixed(whole * pow10(prec) + frac, prec).reduce
+  }
+}
+
 // Create a new fixed-point number from an integer `i` putting the decimal point at `prec` (=`0`) digits from the right.
 fun fixed( i : int, prec : int = 0) : fixed {
   if (prec <= 0) then Fixed(i,0) else {
@@ -66,6 +74,11 @@ fun fixed( d : double, max-prec : int = 20 ) : fixed {
   }
 }
 val rx-fraction = regex(@"\.(\d*[1-9])0*$")
+
+// Convert to a double. Returns `nan` for out-of-bounds numbers.
+public fun double( x : fixed ) : double {
+  x.show.parse-double.default(nan)
+}
 
 // Possibly reduce a fixed-point number to use less space while maintaining precision.
 fun reduce( x : fixed ) : fixed {
