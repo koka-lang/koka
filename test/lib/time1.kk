@@ -9,10 +9,7 @@
 module time1
 
 public import std/fixed
-public import std/time/xinstant
-public import std/time/xcalendar
-public import std/time/timescale
-public import std/time/timezone
+public import std/xtime
 
 /*----------------------------------------------------------------------------
   Testing

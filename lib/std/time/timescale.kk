@@ -13,8 +13,8 @@
 module std/time/timescale
 
 import std/fixed
-import std/time/xinstant
-import std/time/xleaps
+import std/time/instant
+import std/time/leaps
 
 extern include {
   // cs file "time-inline.cs"

@@ -19,9 +19,9 @@ import std/regex
 import std/path
 import std/file
 import std/fixed
-import std/time/xinstant
+import std/time/instant
 import std/time/timescale
-import std/time/xcalendar
+import std/time/calendar
 
 /*----------------------------------------------------------------------------
   Time zone info

@@ -12,8 +12,8 @@
 */
 module std/xtime
 
-import std/time/leaps
-public import std/time/duration
-public import std/time/instant
-public import std/time/calendar
-public import std/time/timezone
+public  import std/time/instant
+private import std/time/leaps
+public  import std/time/timescale
+public  import std/time/calendar
+public  import std/time/timezone

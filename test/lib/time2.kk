@@ -8,7 +8,7 @@
 
 module time2
 
-public import std/time/xcalendar
+public import std/time/calendar
 
 /*----------------------------------------------------------------------------
   Testing
