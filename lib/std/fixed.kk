@@ -83,6 +83,7 @@ public fun double( x : fixed ) : double {
 
 // Possibly reduce a fixed-point number to use less space while maintaining precision.
 fun reduce( x : fixed ) : fixed {
+  if (x.zero?) return zero
   if (!x.prec.pos?) return x
   val z = x.fix.pow10?
   if (z.pos? && z <= x.prec) then {
