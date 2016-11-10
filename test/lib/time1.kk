@@ -12,7 +12,7 @@ public import std/fixed
 public import std/time/xinstant
 public import std/time/xcalendar
 public import std/time/timescale
-
+public import std/time/timezone
 
 /*----------------------------------------------------------------------------
   Testing
@@ -30,9 +30,9 @@ fun test-tz() {
 
   val z1  = timezone("America/New_York")
   val z2  = timezone("Asia/Tehran")
-  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60) 
+  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(fixed(14*3600 + 44*60))
   check("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
-  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
+  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(fixed(14*3600 + 44*60)) // across DST & leap second
   check("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
 
   check("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
@@ -49,6 +49,6 @@ fun test-tz() {
 
 
 
-public fun test() {
+public fun main() {
   test-tz()
 }

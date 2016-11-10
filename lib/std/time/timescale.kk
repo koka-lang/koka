@@ -16,6 +16,11 @@ import std/fixed
 import std/time/xinstant
 import std/time/xleaps
 
+extern include {
+  // cs file "time-inline.cs"
+  js file "instant-inline.js"
+}
+
 
 // A `:time-scale` represents a duration relative to a certain epoch,
 // and can convert to- and from TAI seconds.
@@ -241,3 +246,21 @@ fun tcb-to-tai( tcb : timestamp ) : instant {
 // Derived from the TDB (`ts-tdb`) using the formula of _Denis et al_ ([2004](https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote32/tn32_104.pdf?__blob=publicationFile&v=1), Section 10.1):\
 // (TCB - TDB) = Lb * (MJD - 413144.0)*86400 + P0
 public val ts-tcb : timescale = Timescale( "TCB", tai-to-tcb, tcb-to-tai )
+
+
+
+// The current `:instant` in time.
+public fun now() : ndet instant {
+  instant-at( timestamp(fixed(unix-now())), ts-unix ) 
+}
+
+// Returns a unix time stamp; this still needs
+// to be adjusted to our epoch and taking account of leap seconds.
+private extern unix-now() : ndet double {
+  js "_unix_now"
+}
+
+// The resolution in seconds of the system clock.
+extern now-precision() : ndet int {
+  js "_now_precision"
+}

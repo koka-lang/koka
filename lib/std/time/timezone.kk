@@ -18,9 +18,10 @@ import std/dict
 import std/regex
 import std/path
 import std/file
-import std/time/duration
-import std/time/instant
-import std/time/calendar
+import std/fixed
+import std/time/xinstant
+import std/time/timescale
+import std/time/xcalendar
 
 /*----------------------------------------------------------------------------
   Time zone info
@@ -38,11 +39,11 @@ public struct timezone-info(
 public struct timezone-period(
   start : maybe<instant>, // Nothing = beginning of time
   abbrv : string,         
-  offset: double
+  offset: duration
 )
 
 // Zero time period
-val timezone-period0 = Timezone-period( Nothing, "UTC", 0.0 )
+val timezone-period0 = Timezone-period( Nothing, "UTC", duration0 )
 
 // The time zone info for the UTC time zone.
 val tzi-utc : timezone-info = Timezone-info( "UTC", 0, [] ) 
@@ -62,8 +63,8 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
 // Convert time zone information `:timezone-info` into a `:timezone` structure.
 public fun timezone( tzi : timezone-info ) : timezone {
   fun utc-offset(i : instant) : (duration,string) {
-    val tzp = find-offset(i.ts-use(ts-utc),tzi.periods)
-    (duration(tzp.offset),tzp.abbrv)
+    val tzp = find-offset(i,tzi.periods)
+    (tzp.offset,tzp.abbrv)
   }
   Timezone( 
     tzi.name, 
@@ -146,19 +147,19 @@ fun parse-packed-zone( s : string ) : exn timezone-info {
     indices.map( fun(idx) {xs[idx].default(def) }).reverse
   }
   val (start0,diffs) = match(xdiffs) {
-    Nil -> (0.0,[])
-    Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
+    Nil -> (zero,[])
+    Cons(start,rest) -> (fixed(start) * fixed(60), Cons(0.0,rest))
   }
   val population = parts[5].default("0").parse-base60
   if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  " + s )
-  val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
-                  val iu = acc.fst + (diff * 60.0)
-                  val i = instant-at-unix(iu)
-                  (iu,Cons(Just(i.ts-use(ts-utc)),acc.snd))
+  val endings = diffs.foldl((start0,[]), fun(acc:(fixed,list<maybe<instant>>),diff) {
+                  val iu = acc.fst + fixed(diff * 60.0)
+                  val i = instant-at(timestamp(iu),ts-unix)
+                  (iu,Cons(Just(i),acc.snd))
                 }).snd
   val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
   val periods  = zipwith( endings + [Nothing], ofsabrs, fun(start,ofsabbr) {
-                   Timezone-period(start,ofsabbr.snd,ofsabbr.fst * ~60.0)
+                   Timezone-period(start,ofsabbr.snd, duration(ofsabbr.fst * ~60.0))
                  })
   Timezone-info(name,population,periods)
 }
@@ -253,13 +254,13 @@ fun sample-dates( year : int ) : list<instant> {
   })
 }
 
-fun sample-offsets( dates : list<instant>, tz : timezone ) : list<double> {
+fun sample-offsets( dates : list<instant>, tz : timezone ) : list<duration> {
   dates.map( fun(i) {
     i.time(tz=tz).tzofs
   })
 }
 
-fun match-offsets( dates : list<instant>, offsets : list<double>, tz : timezone ) : bool {
+fun match-offsets( dates : list<instant>, offsets : list<duration>, tz : timezone ) : bool {
   val offsets2 = dates.sample-offsets(tz)
   zipwith(offsets,offsets2,fun(x,y) { x == y }).all(id)
 }

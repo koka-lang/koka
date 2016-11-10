@@ -122,7 +122,7 @@ public fun tz-local() : ndet timezone {
   Timezone( 
     "",
     fun(i) { 
-      val ofs = local-utc-offset(tz, i.unix.seconds.double) 
+      val ofs = local-utc-offset(tz, i.timestamp(ts-unix).seconds.double) 
       (duration(ofs),"")
     }
   )
@@ -175,7 +175,7 @@ public struct clock(
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
   cal-name        : string,                 
-  dc-from-instant : instant -> (date,clock),
+  dc-from-instant : (i:instant,tzofs:duration) -> (date,clock),
   instant-from-dc : (date,clock) -> instant
 )
 
@@ -256,8 +256,8 @@ public fun solar-calendar(
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i)   { solar-dc-from-cal( (ts.from-tai)(i) + shift, date-from-days ) },
-    fun(d,c) { (ts.to-tai)( solar-cal-from-dc( d, c, days-from-date ) - shift ) }
+    fun(i,tzofs) { solar-dc-from-cal( (ts.from-tai)(i) + shift + tzofs.seconds, date-from-days ) },
+    fun(d,c)     { (ts.to-tai)( solar-cal-from-dc( d, c, days-from-date ) - shift ) }
   )
 }
 
@@ -331,8 +331,8 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
 
 
 // Return a `:time` for a given instant.
-fun timez( tzi : instant, tzofs : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso, i : instant = tzi) : time {
-  val (d,c) = (cal.dc-from-instant)( tzi )
+fun timez( i : instant, tzofs : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
+  val (d,c) = (cal.dc-from-instant)( i, tzofs )
   Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,
        cal, tzofs, tzabbrv, tz, i )
 }
@@ -341,10 +341,9 @@ fun timez( tzi : instant, tzofs : duration = duration0, tzabbrv : string = "", t
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  if (tz.tz-utc?) then timez(i,duration0,"",tz,cal,i) else {
+  if (tz.tz-utc?) then timez(i,duration0,"",tz,cal) else {
     val (tzofs,tzabbrv) = (tz.utc-offset)(i)
-    val tzi = i + tzofs 
-    timez( tzi, tzofs, tzabbrv, tz, cal, i )
+    timez( i, tzofs, tzabbrv, tz, cal )
   }
 }
 
@@ -467,6 +466,3 @@ fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
-public fun unix( i : instant ) : timestamp {
-  (ts-unix.from-tai)(i)
-}
