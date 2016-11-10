@@ -57,20 +57,21 @@ public fun utc-timescale( name : string, offset : fixed = zero, epoch-shift : fi
   )
 }
 
-// The TAI time scale based on SI seconds with 1900-01-01 epoch.
+// The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (international atomic time) 
+// time scale is based on SI seconds with a 1900-01-01 epoch.
 public val ts-tai : timescale = tai-timescale( "TAI" )
  
-// The GPS time scale based on SI seconds with 1980-01-06 epoch.\
-// GPS = TAI - 19.
+// The GPS time scale based on SI seconds with a 1980-01-06 epoch.\
+// GPS = TAI - 19s.
 public val ts-gps : timescale = tai-timescale( "GPS", fixed(19), fixed(2524953600) )
 
-// The Terrestrial time scale based on SI seconds with 1900-01-01 epoch.\
-// TT = TAI + 32.182
+// The Terrestrial (Terrestrial dynamic time) time scale is based on SI seconds with a 1900-01-01 epoch.\
+// TT = TAI + 32.184s
 public val ts-tt : timescale = tai-timescale( "TT", fixed(~32184,3), zero )
 
 // The UTC time scale with a 1900-01-01 epoch. This uses 'UTC seconds' where
-// one day consists of 86400 'solar' seconds. Leap seconds are encoded by using a
-// fraction `>= 1.0`. 
+// one day consists of 86400 'seconds' where leap seconds are ignored (as in unix timestamps)
+// (but internally the `:timestamp`s will maintain any leap seconds).
 public val ts-utc : timescale = utc-timescale( "" )
 
 // Unix time scale based on UTC seconds but with 1970-01-01 epoch.
@@ -80,10 +81,12 @@ public val ts-unix : timescale = utc-timescale( "UNIX", zero, fixed(2208988800) 
 public val ts-ntp : timescale = utc-timescale( "NTP" )
 
 
+// Convert an instant to a timestamp in a specific timescale.
 public fun timestamp( i : instant, ts : timescale ) : timestamp {
   (ts.from-tai)(i)
 }
 
+// Create an instant from a timestamp in a specific timescale.
 public fun instant-at( t : timestamp, ts : timescale ) : instant {
   (ts.to-tai)(t)
 }
@@ -170,7 +173,9 @@ fun tcg-to-tai( t : timestamp ) : instant {
   instant-at( timestamp(t.seconds - lg*(t.seconds - tcg-epoch)), ts-tt )
 }
 
-// The [Geocentric coordinate time](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)(TCG).\
+// The [Geocentric coordinate time](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)(TCG).
+// This is the coordinate counter part to Terrestrial time (TT, `ts-tt`). TT and TCG where
+// equal on 1977-01-01Z and differ in rate by about 0.7 parts per billion.\
 // Computed using the formulas in USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 public val ts-tcg : timescale = Timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
@@ -204,8 +209,11 @@ fun tdb-to-tai( tdb : timestamp ) : instant {
   instant-at( tdb - tdb-shift(tdb.seconds), ts-tt )
 }
 
-// The [Barycentric dynamical time](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time)(TDB).\
-// Approximates TDB using the expansion given in USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
+// The [Barycentric dynamical time](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time)(TDB).
+// This is the same as Terrestrial time (TT, `ts-tt`) but with relativistic corrections to move the
+// origin to the solar system barycenter. These corrections are less then 2 milli-seconds and are
+// periodic with an average of zero.\
+// Computes TDB using the expansion given in USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // (which is within 10 micro-seconds precision in the time span 1600 to 2200). 
 public val ts-tdb : timescale = Timescale( "TDB", tai-to-tdb, tdb-to-tai )
 
@@ -228,6 +236,8 @@ fun tcb-to-tai( tcb : timestamp ) : instant {
 }
 
 // The [Barycentric coordinate time](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)(TCB).\
+// This is the coordinate counterpart to TDB (`tt-tbd`) which differs in rate by about 15 parts per billion.
+// On 1977-01-01 they differed by P0 (=`6.55e-7`).
 // Derived from the TDB (`ts-tdb`) using the formula of _Denis et al_ ([2004](https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote32/tn32_104.pdf?__blob=publicationFile&v=1), Section 10.1):\
 // (TCB - TDB) = Lb * (MJD - 413144.0)*86400 + P0
 public val ts-tcb : timescale = Timescale( "TCB", tai-to-tcb, tcb-to-tai )
