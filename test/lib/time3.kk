@@ -36,7 +36,13 @@ fun test-jd() {
   check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show == "2456658.500405092" }
 }
 
+fun test-astro() {
+  check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
+  check("astro2"){ instant-at-jd(fixed(24431445003725,7),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
+}
+
 public fun main() {
   test-misc()
   test-jd()
+  test-astro()
 }

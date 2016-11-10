@@ -137,7 +137,7 @@ public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fix
 ----------------------------------------------------------------------------*/
 
 public val lg = fixed(6969291,16)
-public val tcg-epoch = fixed(2429913600)
+public val tcg-epoch = fixed(2429913632184,3)
 
 // USNO circular 179, Section 2.6
 // dTT/dTCG = (1-Lg)
@@ -214,16 +214,16 @@ public val ts-tdb : timescale = Timescale( "TDB", tai-to-tdb, tdb-to-tai )
   TCB: Barycentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lb = fixed(155051976772,19)
-val p0 = fixed(655,7)
+val lb : fixed = fixed(155051976772,19)
+val p0 : fixed = fixed(655,7)
 
 fun tai-to-tcb( i : instant ) : timestamp {
   val tdb = i.timestamp(ts-tdb)
-  tdb + lb*(tdb.seconds - tcg-epoch) + p0   // tcg-epoch + 32.184 ??
+  tdb + lb*(tdb.seconds - tcg-epoch) + p0   
 }
 
 fun tcb-to-tai( tcb : timestamp ) : instant {
-  val tdb = tcb - lb*(tcb.seconds - tcg-epoch) - p0  // tcg-epoch + 32.184 ??
+  val tdb = tcb - lb*(tcb.seconds - tcg-epoch) - p0  
   instant-at(tdb,ts-tdb)
 }
 
