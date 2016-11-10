@@ -345,6 +345,8 @@ lexComment sourceName lineNo content
     -- skip inside tags (so html renders correctly)
     scan n lacc acc ('<':c:rest)  | not (isSpace c)  = scanTag n (ComText (reverse acc) : lacc) ('<':c:rest)
 
+    -- skip inside $ (so math renders correctly)
+    scan n lacc acc ('$':c:rest)  = scanMath n (ComText (reverse acc) : lacc) (c:rest)
 
     -- code
     scan n lacc acc ('`':c:rest)    
@@ -392,6 +394,10 @@ lexComment sourceName lineNo content
                                           (end,rest)  = if null close then ([],[]) else ([head close], tail close)
                                       in scan (if ('\n' `elem` end) then (n+1) else n) (ComText (tag ++ end) : lacc) [] rest
 
+
+    scanMath n lacc content         = let (math,close) = span (\c -> not (c `elem` "$\n")) content
+                                          (end,rest)   = if null close then ([],[]) else ([head close], tail close)
+                                      in scan (if ('\n' `elem` end) then (n+1) else n) (ComText ("$" ++ math ++ end) : lacc) [] rest
     
     -- scanPre formatted ``pre``
     scanPre m n lacc acc ('`':rest)  
