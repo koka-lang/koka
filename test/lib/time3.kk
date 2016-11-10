@@ -29,11 +29,11 @@ fun test-misc() {
 }
 
 fun test-jd() {
-  check("jd0"){ time(2000,1,1,12,0,0,cal=cal-tai).instant.jd == fixed(2451545) }
-  check("jd1"){ time(2013,1,1,0,30,0,cal=cal-tai).instant.jd == fixed(24562935208333335,10) }
+  check("jd0"){ instant-at(2000,1,1,12,0,0).jd.show == "2451545" }
+  check("jd1"){ instant-at(2013,1,1,0,30,0).jd.show == "2456293.520833333" }
   check("jd2"){ instant-at-jd(0.0).time.show == "-4713-11-24T12:00:00Z" }
   check("jd3"){ instant-at-jd(0.0).time(cal=cal-julian).show == "-4713-01-01T12:00:00Z JC" }
-  check("jd4"){ instant-at(2014,1,1).jd.show == "2456658.5004050927" }
+  check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show == "2456658.500405092" }
 }
 
 public fun main() {
