@@ -113,6 +113,7 @@ public fun show( d : duration, prec : int = 9 ) : string {
 // Show a duration without the `s` (SI seconds) postfix.
 public fun ts-show( d : duration, prec : int = 9, secs-width : int = 1 ) : string {
   val s = d.seconds.show(prec)
+  trace("ts-show: " + d.seconds.show + ", prec=" + prec.show + ", s=" + s)
   match(s.find(".")) {
     Nothing   -> s
     Just(dot) -> {
@@ -130,7 +131,7 @@ public fun ts-show( d : duration, prec : int = 9, secs-width : int = 1 ) : strin
 ----------------------------------------------------------------------------*/
 
 abstract struct instant(
-  seconds : fixed
+  public seconds : fixed
 )
 
 public val epoch : instant = Instant(zero)
@@ -179,12 +180,16 @@ abstract struct timestamp(
   public leap-seconds: fixed = zero
 )
 
+public fun non-leap-seconds( t : timestamp ) : fixed {
+  t.seconds - t.leap-seconds
+}
+
 public fun timestamp( i : instant ) : timestamp {
   timestamp(i.seconds)
 }
 
 public fun timestamp( seconds : fixed, leap-seconds : fixed = zero ) : timestamp {
-  Timestamp(seconds,leap-seconds)
+  Timestamp(seconds + leap-seconds, leap-seconds)
 }
 
 public fun (+)( t : timestamp, secs : fixed ) : timestamp {

@@ -44,11 +44,10 @@ public fun tai-timescale( name : string, offset : fixed = zero, epoch-shift : fi
 
 // Create a new time scale based on SI seconds with a given `name` and `epoch-shift`
 // duration away from the standard `epoch`.
-public fun utc-timescale( name : string, offset : fixed = zero, epoch-shift : fixed = zero ) : ndet timescale {
-  val leaps = get-leaps-table()
+public fun utc-timescale( name : string, offset : fixed = zero, epoch-shift : fixed = zero ) : timescale {
   val total-offset  = epoch-shift + offset
-  fun from-tai(i:instant) { tai-to-utc(leaps,i) - total-offset }
-  fun to-tai(t:timestamp) { utc-to-tai(leaps, t + total-offset) }
+  fun from-tai(i:instant) { tai-to-utc(i) - total-offset }
+  fun to-tai(t:timestamp) { utc-to-tai(t + total-offset) }
   Timescale(
     name,
     from-tai,
@@ -72,10 +71,10 @@ public val ts-tt : timescale = tai-timescale( "TT", fixed(32184,3), zero )
 // The UTC time scale with a 1900-01-01 epoch. This uses 'UTC seconds' where
 // one day consists of 86400 'solar' seconds. Leap seconds are encoded by using a
 // fraction `>= 1.0`. 
-public fun ts-utc() : ndet timescale   -> utc-timescale( "" )
+public val ts-utc : timescale = utc-timescale( "" )
 
 // Unix time scale based on UTC seconds but with 1970-01-01 epoch.
-public fun ts-unix() : ndet timescale  -> utc-timescale( "UNIX", zero, fixed(2208988800) )
+public val ts-unix : timescale = utc-timescale( "UNIX", zero, fixed(2208988800) )
 
 // NTP time scale is equal to the UTC time scale (`ts-utc`) but named `"NTP"`.
-public fun ts-ntp() : ndet timescale   -> utc-timescale( "NTP" )
+public val ts-ntp : timescale = utc-timescale( "NTP" )

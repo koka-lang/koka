@@ -69,7 +69,8 @@ fun fixed( d : double, max-prec : int = 20 ) : fixed {
     Just(cap) -> {
       val frac = cap.groups[1]
       val p    = frac.count
-      Fixed( d.trunc.int * pow10(p) + frac.parse-int-default(0), p)
+      val f    = frac.parse-int-default(0)
+      Fixed( d.trunc.int * pow10(p) + (if (d.neg?) then ~f else f), p)
     }
   }
 }
@@ -170,7 +171,33 @@ fun round-to-prec( x : fixed, p : int ) : fixed {
                 Lt -> q
                 Gt -> q.inc
             }
-    Fixed(q1, p)
+    Fixed(q1, p).reduce
+  }
+}
+
+// Convert a fixed-point number to an integer by rounding.
+fun int( f : fixed ) : int {
+  f.round.fix
+}
+
+// Round a fixed-point number to the nearest integer.
+fun round( f : fixed ) : fixed {
+  f.round-to-prec(0)
+}
+
+// Truncate a fixed-point number.
+fun trunc( f : fixed ) : fixed {
+  if (!f.prec.pos?) then f else {
+    val sgn = if (f.fix.neg?) then negate else id
+    Fixed( sgn(f.fix.abs / pow10(f.prec)), 0 )
+  }
+}
+
+// Return the fraction of a fixed-point number.
+fun fraction( f : fixed ) : fixed {
+  if (!f.prec.pos?) then zero else {
+    val sgn = if (f.fix.neg?) then negate else id
+    Fixed( sgn(f.fix.abs % pow10(f.prec)), f.prec )
   }
 }
 

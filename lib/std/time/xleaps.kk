@@ -74,27 +74,29 @@ val global-leaps-table : () -> ref<global,leaps-table> = once{
 }
 
 // Get the global leap second table
-public fun get-leaps-table() : ndet leaps-table {
-  unsafe-total{ !(global-leaps-table()) }
+fun get-leaps-table() : st<global> leaps-table {
+  !(global-leaps-table()) 
 }
 
 
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
-public fun utc-to-tai( leaps : leaps-table, t : timestamp ) : instant {
-  val secs = t.seconds
+public fun utc-to-tai( t : timestamp ) : instant {
+  val nlsecs = t.non-leap-seconds
+  val leaps = unsafe-total(get-leaps-table)
   leaps.adjusts.find-maybe(fun(la) {
-    if (la.utc-start > secs) then Nothing else {
-      val ofs = la.tai-offset(secs)
+    if (la.utc-start > nlsecs) then Nothing else {
+      val ofs = la.tai-offset(nlsecs)
       // trace("found: " + i.show + " >= " + la.utc-start.show + ", ofs:" + ofs.show)
-      Just( instant-at(duration(secs + ofs)))
+      Just( instant-at(duration(t.seconds + ofs)))
     }
-  }).default(instant-at(duration(secs)))  
+  }).default(instant-at(t.duration))  
 }
 
 // Convert a TAI duration since `epoch` to a UTC duration since `epoch`.
-public fun tai-to-utc( leaps: leaps-table, i : instant ) : timestamp {
+public fun tai-to-utc( i : instant ) : timestamp {
   //trace("utc-from-tai: " + i.show)
   if (i < epoch) then timestamp(i.since-epoch.seconds) else {
+    val leaps = unsafe-total(get-leaps-table)
     find-utc-from-tai( i.since-epoch.seconds, leaps.adjusts )
   }
 }
