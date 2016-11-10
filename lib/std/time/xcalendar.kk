@@ -212,11 +212,19 @@ public val cal-jg = julian-gregorian()
 public val cal-tai = iso-calendar( "TAI", ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( "GPS", ts-gps, (ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
+public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.epoch-shift ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
 
-// The Terrestrial calendar is always `TAI + 32.184`
-public val cal-tt  = iso-calendar( "TT", ts-tai, fixed(32184,3) )
+// The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
+public val cal-tt  = iso-calendar( "TT", ts-tt)//, fixed(32184,3) )
 
+// The TCG (Geometric coordinate time) calendar. See also `ts-tcg`
+public val cal-tcg  = iso-calendar( "TCG", ts-tcg)//, fixed(32184,3) )
+
+// The TDB (Barycentric dynamical time) calendar. See also `ts-tdb`. Always within 2ms of TT (`cal-tt`).
+public val cal-tdb  = iso-calendar( "TDB", ts-tdb)//, fixed(32184,3) )
+
+// The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
+public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
@@ -273,7 +281,7 @@ fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : ti
 
 
 // Create a Julian-Gregorian calendar which uses Julian dates before the optional `switch`
-// (Gregorian) date (=`Date(1582,10,15`)) and Gregorian dates otherwise.
+// (Gregorian) date (=`Date(1582,10,15`)) and Gr egorian dates otherwise.
 public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
   val switch-days = iso-days-from-date(switch) //+ skip
   solar-calendar( "JG", 

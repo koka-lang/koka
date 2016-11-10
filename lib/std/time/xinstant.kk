@@ -113,9 +113,9 @@ public fun show( d : duration, prec : int = 9 ) : string {
 // Show a duration without the `s` (SI seconds) postfix.
 public fun ts-show( d : duration, prec : int = 9, secs-width : int = 1 ) : string {
   val s = d.seconds.show(prec)
-  trace("ts-show: " + d.seconds.show + ", prec=" + prec.show + ", s=" + s)
+  //trace("ts-show: " + d.seconds.show + ", prec=" + prec.show + ", s=" + s)
   match(s.find(".")) {
-    Nothing   -> s
+    Nothing   -> s.pad-left(secs-width,'0')
     Just(dot) -> {
       val frac = dot.after.string
       val len3 = ((frac.count + 2)/3)*3

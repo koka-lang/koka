@@ -1631,7 +1631,9 @@ fun round-to-prec( d : double, prec : int  ) : double {
   }
 }
 
-
+extern inline sin( d : double ) : double {
+  js "Math.sin"
+}
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
