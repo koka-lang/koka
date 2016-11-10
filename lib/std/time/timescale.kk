@@ -62,27 +62,29 @@ public fun utc-timescale( name : string, offset : fixed = zero, epoch-shift : fi
   )
 }
 
-// The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (international atomic time) 
+// The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (International atomic time) 
 // time scale is based on SI seconds with a 1900-01-01 epoch.
 public val ts-tai : timescale = tai-timescale( "TAI" )
  
-// The GPS time scale based on SI seconds with a 1980-01-06 epoch.\
+// The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based 
+// on SI seconds with a 1980-01-06 epoch.\
 // GPS = TAI - 19s.
 public val ts-gps : timescale = tai-timescale( "GPS", fixed(19), fixed(2524953600) )
 
-// The Terrestrial (Terrestrial dynamic time) time scale is based on SI seconds with a 1900-01-01 epoch.\
-// TT = TAI + 32.184s
+// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 1900-01-01 epoch.
+// It is the continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time).
+// TT is defined as: TT = TAI + 32.184s, as by IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
 public val ts-tt : timescale = tai-timescale( "TT", fixed(~32184,3), zero )
 
-// The UTC time scale with a 1900-01-01 epoch. This uses 'UTC seconds' where
-// one day consists of 86400 'seconds' where leap seconds are ignored (as in unix timestamps)
-// (but internally the `:timestamp`s will maintain any leap seconds).
+// The UTC time scale with a 1900-01-01 epoch. This uses ['UTC seconds'](https://en.wikipedia.org/wiki/Unix_time) where
+// one day consists of 86400 'seconds' but where leap seconds are ignored (as in unix timestamps)
+// Note that internally to the library the `:timestamp`s will maintain any leap second information.
 public val ts-utc : timescale = utc-timescale( "" )
 
-// Unix time scale based on UTC seconds but with 1970-01-01 epoch.
+// [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on UTC seconds but with 1970-01-01 epoch.
 public val ts-unix : timescale = utc-timescale( "UNIX", zero, fixed(2208988800) )
 
-// NTP time scale is equal to the UTC time scale (`ts-utc`) but named `"NTP"`.
+// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but named `"NTP"`.
 public val ts-ntp : timescale = utc-timescale( "NTP" )
 
 
@@ -178,10 +180,11 @@ fun tcg-to-tai( t : timestamp ) : instant {
   instant-at( timestamp(t.seconds - lg*(t.seconds - tcg-epoch)), ts-tt )
 }
 
-// The [Geocentric coordinate time](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)(TCG).
-// This is the coordinate counter part to Terrestrial time (TT, `ts-tt`). TT and TCG where
-// equal on 1977-01-01Z and differ in rate by about 0.7 parts per billion.\
-// Computed using the formulas in USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
+// The [TCG](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Geocentric coordinate time) time scale.
+// The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth. It is in a linear
+// relationship with TT (`ts-tt`) where TCG runs faster than TT at a constant rate. TCG and TT were equal on 1977-01-01Z.
+// Computed from TT using IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
+// TCG - TT = L~g~&times;(JD~TT~ - 2443144.5)&times;86400, with L~g~ = 6.969291&times;10^-10^.
 public val ts-tcg : timescale = Timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
 
@@ -191,17 +194,25 @@ public val ts-tcg : timescale = Timescale( "TCG", tcg-from-tai, tcg-to-tai )
 val j2k-epoch = fixed(3155716800)
 val secs-per-julian-year = 31557600.0
 
-// USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
+// Fairhead & Bretagnon (1990) initial coefficents.
+// See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 fun tdb-shift( tt : fixed ) : fixed {
   val t = (tt - j2k-epoch).double / secs-per-julian-year  
-  fixed(  0.001657*sin( 628.3076*t + 6.2401)
-        + 0.000022*sin( 575.3385*t + 4.2970)
-        + 0.000014*sin(1256.6152*t + 6.1969)
-        + 0.000005*sin( 606.9777*t + 4.0212)
-        + 0.000005*sin(  52.9691*t + 0.4444)
-        + 0.000002*sin(  21.3299*t + 5.5431)
-        + 0.000010*sin( 628.3076*t + 4.2490) * t
+  fixed( 1.0e-6 * (   1656.6746*sin( 628.3076*t + 6.2401)
+                    +   22.4175*sin( 575.3385*t + 4.2970)
+                    +   13.8398*sin(1256.6152*t + 6.1969)
+                    +    4.7701*sin( 606.9777*t + 4.0212)
+                    +    4.6767*sin(  52.9691*t + 0.4444)
+                    +    2.2567*sin(  21.3299*t + 5.5431)
+                    +    1.6942*sin(  ~0.3523*t + 5.0251)
+                    +    1.5549*sin(7771.3773*t + 5.1985)
+                    +    1.2768*sin( 768.0419*t + 5.9889)
+                    +    1.1934*sin( 522.3694*t + 2.6498)
+                    + ( (  10.2157*sin( 628.3076*t + 4.2490)
+                         +  0.1707*sin(1256.1517*t + 4.2059)
+                        ) * t)
+                  )
        ,9 /* nano-second precision */)  
 }
 
@@ -214,12 +225,16 @@ fun tdb-to-tai( tdb : timestamp ) : instant {
   instant-at( tdb - tdb-shift(tdb.seconds), ts-tt )
 }
 
-// The [Barycentric dynamical time](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time)(TDB).
-// This is the same as Terrestrial time (TT, `ts-tt`) but with relativistic corrections to move the
-// origin to the solar system barycenter. These corrections are less then 2 milli-seconds and are
+// The [TDB](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time) (Barycentric dynamical time) time scale
+// (which can be considered equivalent T~eph~).
+// Runs slower than TCB (`ts-tcb`) at a constant rate in order to remain approximately equal to TT (`ts-tt`).
+// These relativistic corrections ensure a difference to TT of less then 2 milli-seconds and are
 // periodic with an average of zero.\
-// Computes TDB using the expansion given in USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
-// (which is within 10 micro-seconds precision in the time span 1600 to 2200). 
+// TDB is approximated from TT using an initial set of coefficients by
+// Fairhead &amp; Bretagnon (1990) assuming the geo center (longitude and latitude of 0 degrees).
+// See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), equation 2.6).
+// The approximation is within 10&mu;s precision in the time span 1600 to 2200.
+// For other locations than the geo-center, the approximation is within 200&mu;s.
 public val ts-tdb : timescale = Timescale( "TDB", tai-to-tdb, tdb-to-tai )
 
 
@@ -228,23 +243,25 @@ public val ts-tdb : timescale = Timescale( "TDB", tai-to-tdb, tdb-to-tai )
 ----------------------------------------------------------------------------*/
 
 val lb : fixed = fixed(155051976772,19)
-val p0 : fixed = fixed(655,7)
+val tdb0 : fixed = fixed(~655,7)
 
 fun tai-to-tcb( i : instant ) : timestamp {
   val tdb = i.timestamp(ts-tdb)
-  tdb + lb*(tdb.seconds - tcg-epoch) + p0   
+  tdb + lb*(tdb.seconds - tcg-epoch) - tdb0   
 }
 
 fun tcb-to-tai( tcb : timestamp ) : instant {
-  val tdb = tcb - lb*(tcb.seconds - tcg-epoch) - p0  
+  val tdb = tcb - lb*(tcb.seconds - tcg-epoch) + tdb0  
   instant-at(tdb,ts-tdb)
 }
 
-// The [Barycentric coordinate time](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)(TCB).\
-// This is the coordinate counterpart to TDB (`tt-tbd`) which differs in rate by about 15 parts per billion.
-// On 1977-01-01 they differed by P0 (=`6.55e-7`).
-// Derived from the TDB (`ts-tdb`) using the formula of _Denis et al_ ([2004](https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote32/tn32_104.pdf?__blob=publicationFile&v=1), Section 10.1):\
-// (TCB - TDB) = Lb * (MJD - 413144.0)*86400 + P0
+// The [TCB](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Barycentric coordinate time) time scale.\
+// The unit of TCB is the SI second, but in a coordinate reference frame at the barycenter of the solar system.
+// TCB and TCG (`tt-tcg`) are related by a coordinate transformation taking into account relativistic effects (see 
+// IAU 2000 [Resolution B1.5](http://syrte.obspm.fr/IAU_resolutions/Resol-UAIEng.ps)).
+// Instead of transforming TCG, we compute TCB from (the approximated) TDB (`ts-tdb`) using the IAU 2006 [Resolution B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\
+// TDB = TCB - L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~,
+// with T~0~ = 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ = -6.55&times;10^-5^. 
 public val ts-tcb : timescale = Timescale( "TCB", tai-to-tcb, tcb-to-tai )
 
 

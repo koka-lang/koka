@@ -37,6 +37,14 @@ fun test-jd() {
 fun test-astro() {
   check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
   check("astro2"){ instant-at-jd(fixed(24431445003725,7),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
+  // http://www.iausofa.org/sofa_ts_c.pdf, page 29
+  val i = instant-at(2006,1,15,21,24,37,0.5)
+  check("astro3a"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
+  check("astro3b"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
+  check("astro3c"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690576Z TCG" }
+  check("astro3d"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684546690Z TDB" }  // should be: .684373  at lon:-155.933222, lat: 19.48125
+  check("astro3e"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.894125939Z TCB" }  // should be: .893952 (because derived from tdb)
+  // check("astro3f"){ i.time(cal=cal-ut1).show == "2006-01-15T21:24:37.834078 UT1" }   // .834100 ?
 }
 
 public fun main() {
