@@ -15,6 +15,11 @@ import std/regex
 import std/time/instant
 import std/time/timescale
 
+// -----------------------------------------------------------
+// UT1 timescale; UT1 = TT - DeltaT
+// -----------------------------------------------------------
+
+
 fun tai-to-ut( i : instant ) : timestamp {
   val tt = i.timestamp(ts-tt)
   tt - deltat(tt)
@@ -27,56 +32,82 @@ fun ut-to-tai( t : timestamp ) : instant {
 
 public val ts-ut1 : timescale = Timescale("UT1",tai-to-ut,ut-to-tai)
 
+
+// -----------------------------------------------------------
+// Calculate delta-t using:
+// - parabolic approximations for dates > 2025
+// - prediction tables for dates > 2016 (as of now)
+// - determined tables for dates > 1973
+// - historic tables for dates > 1750
+// - parabolic approximations for dates < 1750
+// -----------------------------------------------------------
 public fun deltat( tt : timestamp ) : fixed {
   val y = 1900.0 + (tt.seconds.double / secs-per-julian-year)
   fixed(deltat(y))
 }
 
-public fun deltat( y : double ) : double {
-  if (y >= 1974.0) {
-    // Observed builtin delta-t
-    if (y < 2016.0) {
-      deltat-before2016(y)
+public fun deltat( y : double, 
+                   determined : deltat-table = deltat-table-determined() ) : double {
+  catch {
+    // A date after (about) 1973 ?
+    if (y >= determined.start) {
+      // observed Delta-T is best
+      match(determined.interpolate(y)) {
+        Just(dt) -> dt
+        Nothing -> {
+          // otherwise use predicted values
+          match(deltat-table-predict().interpolate(y)) {
+            Just(dt) -> dt
+            Nothing  -> deltat-future-approx(y)
+          }
+        }
+      }
     }
-    // Future parabolic estimates. from Espenak & Meeus 2006
-    // See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html>
-    elif (y <= 2050.0) {
-      val t = y - 2000.0
-      62.92 + t*(0.32217 + t*0.005589)
+    // Use historic data
+    else {
+      match(deltat-table-historic().interpolate(y)) {
+        Just(dt) -> dt
+        Nothing  -> deltat-historic-approx(y)
+      }
     }
-    elif (y <= 2150.0) {
-      val u = (y - 1820.0)/100.0
-      ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
-    }
-    else deltat-generic(y)
-  }
-  else {
-    // Historical builtin delta-t
-    if (y >= 1750.0) {
-      deltat-before1974(y)
-    }
-    // Historical parabolic curves from Espenak & Meeus 2006.
-    // See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html>
-    elif (y >= 1700.0) {
-      val t = y - 1700.0
-      8.83 + t*(0.1603 + t*(~0.0059285 + t*(0.00013336 - (t/1174000.0))))
-    }
-    elif (y >= 1600.0) {
-      val t = y - 1600.0
-      120.0 + t*(~0.9808 + t*(~0.01532 + (t/7129.0)))
-    }
-    elif (y >= 500.0) {
-      val u = (y - 1000.0)/100.0
-      1574.2 + u*(~556.01 + u*(71.23472 + u*(0.319781 + u*(~0.8503463 + u*(~0.005050998 + u*0.0083572073)))))
-    }
-    elif (y >= ~500.0) {
-      val u = y/100.0
-      10583.6 + u*(~1014.41 + u*(33.78311 + u*(~5.952053 + u*(~0.1798452 + u*(0.022174192 + u*0.0090316521)))))
-    }
-    else deltat-generic(y)
-  }
+  } fun(exn) { deltat-generic(y) }
 }
 
+// Approximate delta-t after 2005 using parabolic estimates (from Espenak & Meeus 2006).
+// See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html> 
+fun deltat-future-approx( y : double) : double {
+  if (y <= 2050.0) {
+    val t = y - 2000.0
+    62.92 + t*(0.32217 + t*0.005589)
+  }
+  elif (y <= 2150.0) {
+    val u = (y - 1820.0)/100.0
+    ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
+  }
+  else deltat-generic(y)
+}
+
+// Approximate delta-t before 1750 using parabolic fitted curves (Espenak & Meeus 2006).
+// See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html>
+fun deltat-historic-approx( y : double ) : double {
+  if (y >= 1700.0) {
+    val t = y - 1700.0
+    8.83 + t*(0.1603 + t*(~0.0059285 + t*(0.00013336 - (t/1174000.0))))
+  }
+  elif (y >= 1600.0) {
+    val t = y - 1600.0
+    120.0 + t*(~0.9808 + t*(~0.01532 + (t/7129.0)))
+  }
+  elif (y >= 500.0) {
+    val u = (y - 1000.0)/100.0
+    1574.2 + u*(~556.01 + u*(71.23472 + u*(0.319781 + u*(~0.8503463 + u*(~0.005050998 + u*0.0083572073)))))
+  }
+  elif (y >= ~500.0) {
+    val u = y/100.0
+    10583.6 + u*(~1014.41 + u*(33.78311 + u*(~5.952053 + u*(~0.1798452 + u*(0.022174192 + u*0.0090316521)))))
+  }
+  else deltat-generic(y)
+}
 
 // Generic delta-t from Morrison and Stephenson, 2004.
 fun deltat-generic( y : double ) : double {
@@ -84,48 +115,35 @@ fun deltat-generic( y : double ) : double {
    ~20.0 + 32.0*u*u
 }
 
-// Determined delta-t from 1974 until 2016 (excluded)
-fun deltat-before2016( y : double ) : double {
-  if (y < 1974.0 || y >= 2016.0) then deltat-generic(y) else {
-    val i = ((y - 1974.0) * 12.0)
-    deltat-table-determined().entries.interpolate(i)
-  }
-}
-
-// Historic delta-t from 1750 to 1974 (excluded)
-fun deltat-before1974( y : double ) : double {
-  if (y < 1750.0 || y >= 1974.0) then deltat-generic(y) else {
-    val i = ((y - 1750.0) * 2.0)
-    deltat-table-historic().entries.interpolate(i)
-  }
-}
-
-fun interpolate( v : vector<double>, i : double )  : double {
-  val idx = i.trunc.int  
-  val (d0,d1) = catch{ (v[idx],v[idx+1]) } fun(_){ (0.0,0.0) }
-  d0 + ((d1 - d0)*i.fraction)  
-}
-
-
-
+// A deltat-table has a `start` date (fractional year) and a number of evenly
+// spaced entries per year. Usually 2 for historic data (every half year),
+// 12 for determined data (monthly), and 4 for predicted data (quarterly).
+// The entries contain the delta-t at the start of that period.
 struct deltat-table(
   start: double,            // fractional year
   entries-per-year: double,
   entries: vector<double>
 )
 
+// Given a `deltat-table` and a fractional year, return the delta-t by 
+// linear interpolation between two known delta-t instants. If the
+// year `y` is outside the bounds of the table, return `Nothing`.
+fun interpolate( dtable : deltat-table, y : double )  : exn maybe<double> {
+  if (dtable.start > y || dtable.end <= y) then Nothing else {
+    val i   = (y - dtable.start)*dtable.entries-per-year
+    val idx = i.trunc.int  
+    val d0  = dtable.entries[idx]
+    val d1  = dtable.entries[idx+1]
+    Just(d0 + ((d1 - d0)*i.fraction))
+  }
+}
+
+// The end fractional year until which this table contains valid data.
 fun end( tb : deltat-table ) : double {
   tb.start + (tb.entries.length.double / tb.entries-per-year)
 }
 
-public fun deltat-parse-predict( s : string ) : deltat-table {
-  val caps = s.find-all(rx-predict)
-  val start = caps.head.map(fun(cap){ cap.groups[1] }).default("").parse-double-default(2000.0)
-  val entries = caps.map(fun(cap){ cap.groups[2].parse-double-default(0.0) }).vector
-  Deltat-table(start,4.0,entries)
-}
-val rx-predict = regex(@"^\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
-
+// Predicted delta-t values, from <http://maia.usno.navy.mil/ser7/deltat.preds>.
 val deltat-table-predict = once{ deltat-parse-predict(@"
   YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
 
@@ -171,16 +189,17 @@ val deltat-table-predict = once{ deltat-parse-predict(@"
  2026.50      73.                               5.
 ")}
 
-
-public fun deltat-parse-determined( s : string ) : deltat-table {
-  val caps  = s.find-all(rx-determined)
-  val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
-  val start = y.parse-double-default(2000.0) + ((m.parse-double-default(1.0) - 1.0)/12.0)
-  val entries = caps.map(fun(cap){ cap.groups[4].parse-double-default(0.0) }).vector
-  Deltat-table(start,12.0,entries)
+public fun deltat-parse-predict( s : string ) : deltat-table {
+  val caps = s.find-all(rx-predict)
+  val start = caps.head.map(fun(cap){ cap.groups[1] }).default("").parse-double-default(2000.0)
+  val entries = caps.map(fun(cap){ cap.groups[2].parse-double-default(0.0) }).vector
+  Deltat-table(start,4.0,entries)
 }
-val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
+val rx-predict = regex(@"^\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
+
+// Observed delta-t data from 1973.
+// See: <http://maia.usno.navy.mil/ser7/deltat.data>
 val deltat-table-determined = once{ deltat-parse-determined( @"
  1973  2  1  43.4724
  1973  3  1  43.5648
@@ -706,9 +725,19 @@ val deltat-table-determined = once{ deltat-parse-determined( @"
  2016  7  1  68.3964
 ")}
 
+public fun deltat-parse-determined( s : string ) : deltat-table {
+  val caps  = s.find-all(rx-determined)
+  val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
+  val start = y.parse-double-default(2000.0) + ((m.parse-double-default(1.0) - 1.0)/12.0)
+  val entries = caps.map(fun(cap){ cap.groups[4].parse-double-default(0.0) }).vector
+  Deltat-table(start,12.0,entries)
+}
+val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
+
 
 // From: http://maia.usno.navy.mil/ser7/historic_deltat.data
-// Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are better.
+// Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
+// precise. The values in the table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1974 (excluded) for each half year.
 val deltat-table-historic : () -> deltat-table = once{ deltat-parse-historic(1750.0,@"
   [13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
