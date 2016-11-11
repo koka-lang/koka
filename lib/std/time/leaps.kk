@@ -236,9 +236,13 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
-// TAI leap second adjustments for dates before 1972-01-01Z
+// TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
+// Note: we added a first line starting at 1958-01-01Z such that the UTC offset
+// increases linearly up to the first official 1.422818s offset in 1961-01-01Z.
+// Historically, there were 29 20ms jumps during that initial time frame.
 val leap-seconds-dat = @"
   # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
+  1958 JAN  1 =JD 2436204.5  TAI-UTC=   0.0000000 S + (MJD - 36204.) X 0.001298191606 S
   1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
   1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
   1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S

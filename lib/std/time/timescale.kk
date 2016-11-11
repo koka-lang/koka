@@ -102,8 +102,6 @@ public fun instant-at( t : timestamp, ts : timescale ) : instant {
 /*----------------------------------------------------------------------------
   Julian Date
 ----------------------------------------------------------------------------*/
-public val secs-per-day = fixed(86400)
-
 val jd-epoch-shift  = fixed(24000005,1)  // relative to the MJD epoch 
 val mjd-epoch-shift = fixed(15020)       // relative to our epoch (1900-01-01)
 
@@ -127,7 +125,7 @@ public fun instant-at-mjd( mjd : double, ts : timescale = ts-utc ) : instant {
 // modified-julian-date = julian-date - 2400000.5
 public fun instant-at-mjd( mjd : fixed, ts : timescale = ts-utc ) : instant {
   val d    = mjd - mjd-epoch-shift // since 1900-01-01
-  val t    = d*secs-per-day - ts.epoch-shift // since the time scale epoch
+  val t    = d*secs-per-day.fixed - ts.epoch-shift // since the time scale epoch
   instant-at(timestamp(t),ts) 
 }
 
@@ -138,7 +136,7 @@ public fun jd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixe
 
 public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
   val t = i.timestamp(ts).seconds + ts.epoch-shift
-  (/)(t,secs-per-day,max-prec) + mjd-epoch-shift
+  (/)(t,secs-per-day.fixed,max-prec) + mjd-epoch-shift
 }
 
 

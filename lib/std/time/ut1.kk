@@ -14,83 +14,98 @@ import std/fixed
 import std/regex
 import std/time/instant
 import std/time/timescale
+import std/time/calendar
+
+// The UT1 (Universal time 1) calendar. See also `ts-ut1`.
+public fun cal-ut1( ts : timescale = ts-ut1() ) {
+  iso-calendar( "UT1", ts )
+}
 
 // -----------------------------------------------------------
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-
-fun tai-to-ut( i : instant ) : timestamp {
+fun tai-to-ut( i : instant, override : (year : double) -> maybe<fixed> ) : timestamp {
   val tt = i.timestamp(ts-tt)
-  tt - deltat(tt)
+  val dt = deltat(i,override)
+  trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
+  tt - dt
 }
 
-fun ut-to-tai( t : timestamp ) : instant {
-  val tt = t + deltat(t) // use `t` (in UT1) as approximately TT)
-  instant-at(tt,ts-tt)
+fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<fixed> ) : instant {
+  val i0  = instant-at(t,ts-tt)   // approximately tt
+  val tt0 = t + deltat(i0,override)    
+  val i1  = instant-at(tt0,ts-tt) // again with a better approximation (in case of a cross-over)
+  val tt1 = t + deltat(i1,override)    
+  trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
+  instant-at(tt1,ts-tt)
 }
 
-public val ts-ut1 : timescale = Timescale("UT1",tai-to-ut,ut-to-tai)
+public fun ts-ut1( override : (year : double) -> maybe<fixed> = deltat-none ) : timescale {
+  Timescale("UT1", 
+    fun(i) { tai-to-ut(i,override) },
+    fun(t) { ut-to-tai(t,override) }
+  )
+}
 
 
 // -----------------------------------------------------------
 // Calculate delta-t using:
-// - parabolic approximations for dates > 2025
-// - prediction tables for dates > 2016 (as of now)
-// - determined tables for dates > 1973
-// - historic tables for dates > 1750
-// - parabolic approximations for dates < 1750
+// - determined tables for any observed date (usually > 1973 up to now (2016))
+// - prediction tables for dates > now (2016) up to about 10 years (2025)
+// - historic tables for dates >= 1750 
+// - parabolic approximations for dates outside that range; (Espenak & Meeus 2006)
+// - generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
 // -----------------------------------------------------------
-public fun deltat( tt : timestamp ) : fixed {
-  val y = 1900.0 + (tt.seconds.double / secs-per-julian-year)
-  fixed(deltat(y))
+
+fun deltat-none(year : double) : maybe<fixed> {
+  Nothing
 }
 
-public fun deltat( y : double, 
-                   determined : deltat-table = deltat-table-determined() ) : double {
-  catch {
-    // A date after (about) 1973 ?
-    if (y >= determined.start) {
-      // observed Delta-T is best
-      match(determined.interpolate(y)) {
-        Just(dt) -> dt
-        Nothing -> {
-          // otherwise use predicted values
-          match(deltat-table-predict().interpolate(y)) {
-            Just(dt) -> dt
-            Nothing  -> deltat-future-approx(y)
-          }
+public fun deltat( i : instant, override : (year : double) -> maybe<fixed> = deltat-none ) : fixed {
+  val y = i.time(cal=cal-tt).year-frac.double
+  val dt = match(override(y)) {
+             Just(dt) -> dt
+             Nothing  -> deltat-builtin(y)
+           }
+  trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
+  dt
+}
+
+fun deltat-builtin( y : double, 
+                   determined : deltat-table = deltat-table-determined(),
+                   predicted  : deltat-table = deltat-table-predicted() ) : fixed
+{
+  // A date after (about) 1986 ?  (determined starts usually at 1973.0833333)
+  if (y >= determined.start || y >= 1986.0) {
+    // observed Delta-T is best
+    match(determined.interpolate(y)) {
+      Just(dt) -> dt
+      Nothing -> {
+        // otherwise use predicted values
+        match(predicted.interpolate(y)) {
+          Just(dt) -> dt
+          Nothing  -> deltat-future-approx(y).fixed
         }
       }
     }
-    // Use historic data
-    else {
-      match(deltat-table-historic().interpolate(y)) {
-        Just(dt) -> dt
-        Nothing  -> deltat-historic-approx(y)
-      }
+  }
+  // Use historic data; goes up to 1987 (excluded)
+  else {
+    match(deltat-table-historic().interpolate(y)) {
+      Just(dt) -> dt
+      Nothing  -> deltat-historic-approx(y).fixed
     }
-  } fun(exn) { deltat-generic(y) }
+  }
 }
 
-// Approximate delta-t after 2005 using parabolic estimates (from Espenak & Meeus 2006).
-// See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html> 
-fun deltat-future-approx( y : double) : double {
-  if (y <= 2050.0) {
-    val t = y - 2000.0
-    62.92 + t*(0.32217 + t*0.005589)
-  }
-  elif (y <= 2150.0) {
-    val u = (y - 1820.0)/100.0
-    ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
-  }
-  else deltat-generic(y)
-}
-
-// Approximate delta-t before 1750 using parabolic fitted curves (Espenak & Meeus 2006).
-// See <http://eclipse.gsfc.nasa.gov/SEhelp/deltatpoly2004.html>
+// Approximate delta-t before 1800 using parabolic fitted curves (Espenak & Meeus 2006).
+// See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html>
 fun deltat-historic-approx( y : double ) : double {
-  if (y >= 1700.0) {
+  if (y > 1800.0) then {
+    deltat-future-approx(y) 
+  }
+  elif (y >= 1700.0) {
     val t = y - 1700.0
     8.83 + t*(0.1603 + t*(~0.0059285 + t*(0.00013336 - (t/1174000.0))))
   }
@@ -109,6 +124,28 @@ fun deltat-historic-approx( y : double ) : double {
   else deltat-generic(y)
 }
 
+// Approximate delta-t after 1986 using parabolic estimates (from Espenak & Meeus 2006).
+// See <https://eclipse.gsfc.nasa.gov/SEcat5/deltatpoly.html> 
+fun deltat-future-approx( y : double) : double {
+  if (y < 1986.0) then {
+    deltat-generic(y) 
+  }
+  elif (y <= 2005.0) {
+    val t = y - 2000.0
+    63.86 + t*(0.3345 + t*(~0.060374 + t*(0.0017275 + t*(0.000651814 + t*0.00002373599))))
+  }
+  elif (y <= 2050.0) {
+    val t = y - 2000.0
+    62.92 + t*(0.32217 + t*0.005589)
+  }
+  elif (y <= 2150.0) {
+    val u = (y - 1820.0)/100.0
+    ~20.0 + 32.0*u*u - 0.5628*(2150.0 - y)
+  }
+  else deltat-generic(y)
+}
+
+
 // Generic delta-t from Morrison and Stephenson, 2004.
 fun deltat-generic( y : double ) : double {
   val u = (y - 1820.0)/100.0
@@ -125,16 +162,20 @@ struct deltat-table(
   entries: vector<double>
 )
 
+val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
+
 // Given a `deltat-table` and a fractional year, return the delta-t by 
 // linear interpolation between two known delta-t instants. If the
 // year `y` is outside the bounds of the table, return `Nothing`.
-fun interpolate( dtable : deltat-table, y : double )  : exn maybe<double> {
-  if (dtable.start > y || dtable.end <= y) then Nothing else {
-    val i   = (y - dtable.start)*dtable.entries-per-year
-    val idx = i.trunc.int  
-    val d0  = dtable.entries[idx]
-    val d1  = dtable.entries[idx+1]
-    Just(d0 + ((d1 - d0)*i.fraction))
+fun interpolate( dtable : deltat-table, y : double )  : maybe<fixed> {
+  if (y < dtable.start || dtable.end <= y) then Nothing else {
+    on-exn(Nothing) {
+      val i   = (y - dtable.start)*dtable.entries-per-year
+      val idx = i.trunc.int  
+      val d0  = dtable.entries[idx]
+      val d1  = dtable.entries[idx+1]
+      Just( fixed(d0 + ((d1 - d0)*i.fraction)) )
+    }
   }
 }
 
@@ -143,8 +184,21 @@ fun end( tb : deltat-table ) : double {
   tb.start + (tb.entries.length.double / tb.entries-per-year)
 }
 
+
+public fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<fixed>) {
+  val det  = deltat-parse-determined(determined)
+  val pred = deltat-parse-predicted(predicted)
+  (fun(year:double) {
+    match(det.interpolate(year)) {
+      Nothing -> pred.interpolate(year)
+      jdt     -> jdt
+    }
+  })
+}
+
+
 // Predicted delta-t values, from <http://maia.usno.navy.mil/ser7/deltat.preds>.
-val deltat-table-predict = once{ deltat-parse-predict(@"
+val deltat-table-predicted = once{ deltat-parse-predicted(@"
   YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
 
  2016.75      68.51              -0.330         0.02
@@ -189,8 +243,9 @@ val deltat-table-predict = once{ deltat-parse-predict(@"
  2026.50      73.                               5.
 ")}
 
-public fun deltat-parse-predict( s : string ) : deltat-table {
+public fun deltat-parse-predicted( s : string ) : deltat-table {
   val caps = s.find-all(rx-predict)
+  if (caps.nil?) return deltat-table-empty
   val start = caps.head.map(fun(cap){ cap.groups[1] }).default("").parse-double-default(2000.0)
   val entries = caps.map(fun(cap){ cap.groups[2].parse-double-default(0.0) }).vector
   Deltat-table(start,4.0,entries)
@@ -727,6 +782,7 @@ val deltat-table-determined = once{ deltat-parse-determined( @"
 
 public fun deltat-parse-determined( s : string ) : deltat-table {
   val caps  = s.find-all(rx-determined)
+  if (caps.nil?) then return deltat-table-empty
   val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
   val start = y.parse-double-default(2000.0) + ((m.parse-double-default(1.0) - 1.0)/12.0)
   val entries = caps.map(fun(cap){ cap.groups[4].parse-double-default(0.0) }).vector
@@ -737,42 +793,52 @@ val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multil
 
 // From: http://maia.usno.navy.mil/ser7/historic_deltat.data
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
-// precise. The values in the table are from McCarthy and Babcock (1986).
-// Table runs from 1750 to 1974 (excluded) for each half year.
+// precise. The values in the original table are from McCarthy and Babcock (1986).
+// Table runs from 1750 to 1987 (excluded) for each half year.
 val deltat-table-historic : () -> deltat-table = once{ deltat-parse-historic(1750.0,@"
-  [13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
-   14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
-   15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
-   15.6,15.6,15.6,15.6,15.6,15.5,15.5,15.4,15.3,15.2,15.1,14.9,14.8,14.6,14.4,14.3,14.2,14.1,14.2,
-   14.2,13.9,13.7,13.5,13.3,13.1,13.0,13.2,13.2,13.1,13.1,13.2,13.3,13.5,13.5,13.4,13.2,13.2,13.1,
-   13.1,13.0,12.8,12.6,12.7,12.6,12.3,12.0,11.9,11.8,11.6,11.4,11.2,11.1,11.1,11.1,11.1,11.1,11.2,
-   11.1,11.1,11.2,11.4,11.5,11.3,11.2,11.4,11.7,11.9,11.9,11.9,11.8,11.7,11.8,11.8,11.8,11.7,11.6,
-   11.6,11.5,11.5,11.4,11.4,11.3,11.3,11.13,11.16,10.94,10.72,10.29,10.04,9.94,9.91,9.88,9.86,9.72,
-   9.67,9.66,9.64,9.51,9.40,9.21,9.00,8.60,8.29,7.95,7.73,7.59,7.49,7.36,7.26,7.10,7.00,6.89,6.82,
-   6.73,6.64,6.39,6.28,6.25,6.27,6.25,6.27,6.22,6.24,6.22,6.27,6.30,6.36,6.35,6.37,6.32,6.33,6.33,
-   6.37,6.37,6.41,6.40,6.44,6.46,6.51,6.48,6.51,6.53,6.58,6.55,6.61,6.69,6.80,6.84,6.94,7.03,7.13,
-   7.15,7.22,7.26,7.30,7.23,7.22,7.21,7.20,6.99,6.98,7.19,7.36,7.35,7.39,7.41,7.45,7.36,7.18,6.95,
-   6.72,6.45,6.24,5.92,5.59,5.15,4.67,4.11,3.52,2.94,2.47,1.97,1.52,1.04,0.60,0.11,~0.34,~0.82,~1.25,
-   ~1.70,~2.08,~2.48,~2.82,~3.19,~3.50,~3.84,~4.14,~4.43,~4.59,~4.79,~4.92,~5.09,~5.24,~5.36,~5.34,
-   ~5.37,~5.32,~5.34,~5.33,~5.40,~5.47,~5.58,~5.66,~5.74,~5.68,~5.69,~5.65,~5.67,~5.68,~5.73,~5.72,
-   ~5.78,~5.79,~5.86,~5.89,~6.01,~6.13,~6.28,~6.41,~6.53,~6.49,~6.50,~6.45,~6.41,~6.26,~6.11,~5.90,
-   ~5.63,~5.13,~4.68,~4.19,~3.72,~3.21,~2.70,~2.09,~1.48,~0.75,~0.08,0.62,1.26,1.95,2.59,3.28,3.92,
-   4.61,5.20,5.73,6.29,7.00,7.68,8.45,9.13,9.78,10.38,10.99,11.64,12.47,13.23,14.00,14.69,15.38,16.00,
-   16.64,17.19,17.72,18.19,18.67,19.13,19.69,20.14,20.54,20.86,21.14,21.41,21.78,22.06,22.30,22.51,
-   22.79,23.01,23.29,23.46,23.55,23.63,23.80,23.95,24.25,24.39,24.42,24.34,24.22,24.10,24.08,24.02,
-   24.04,23.98,23.91,23.89,23.95,23.93,23.92,23.88,23.94,23.91,23.82,23.76,23.87,23.91,23.95,23.96,
-   24.00,24.04,24.20,24.35,24.61,24.82,25.09,25.30,25.56,25.77,26.05,26.27,26.54,26.76,27.04,27.27,
-   27.55,27.77,28.03,28.25,28.50,28.70,28.95,29.15,29.38,29.57,29.80,29.97,30.19,30.36,30.57,30.72,
-   30.93,31.07,31.24,31.349,31.516,31.677,31.923,32.166,32.449,32.671,32.919,33.150,33.397,33.584,
-   33.804,33.992,34.240,34.466,34.731,35.030,35.400,35.738,36.147,36.546,36.995,37.429,37.879,38.291,
-   38.753,39.204,39.707,40.182,40.706,41.170,41.686,42.227,42.825,43.373,43.959,
-   44.486, // 1974
-   //
-   // 44.997,45.477,
-   // 45.983,46.458,46.997,47.521,48.034,48.535,49.099,49.589,50.102,50.540,50.975,51.382,51.810,52.168,
-   // 52.572,52.957,53.434,53.789,54.087
-   ]"
-   )}
+[13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
+14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
+15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
+15.6,15.6,15.6,15.6,15.6,15.5,15.5,15.4,15.3,15.2,15.1,14.9,14.8,14.6,14.4,14.3,14.2,14.1,14.2,
+14.2,13.9,13.7,13.5,13.3,13.1,13.0,13.2,13.2,13.1,13.1,13.2,13.3,13.5,13.5,13.4,13.2,13.2,13.1,
+13.1,13.0,12.8,12.6,12.7,12.6,12.3,12.0,11.9,11.8,11.6,11.4,11.2,11.1,11.1,11.1,11.1,11.1,11.2,
+11.1,11.1,11.2,11.4,11.5,11.3,11.2,11.4,11.7,11.9,11.9,11.9,11.8,11.7,11.8,11.8,11.8,11.7,11.6,
+11.6,11.5,11.5,11.4,11.4,11.3,11.3,11.13,11.16,10.94,10.72,10.29,10.04,9.94,9.91,9.88,9.86,9.72,
+9.67,9.66,9.64,9.51,9.40,9.21,9.00,8.60,8.29,7.95,7.73,7.59,7.49,7.36,7.26,7.10,7.00,6.89,6.82,
+6.73,6.64,6.39,6.28,6.25,6.27,6.25,6.27,6.22,6.24,6.22,6.27,6.30,6.36,6.35,6.37,6.32,6.33,6.33,
+6.37,6.37,6.41,6.40,6.44,6.46,6.51,6.48,6.51,6.53,6.58,6.55,6.61,6.69,6.80,6.84,6.94,7.03,7.13,
+7.15,7.22,7.26,7.30,7.23,7.22,7.21,7.20,6.99,6.98,7.19,7.36,7.35,7.39,7.41,7.45,7.36,7.18,6.95,
+6.72,6.45,6.24,5.92,5.59,5.15,4.67,4.11,3.52,2.94,2.47,1.97,1.52,1.04,0.60,0.11,~0.34,~0.82,~1.25,
+~1.70,~2.08,~2.48,~2.82,~3.19,~3.50,~3.84,~4.14,~4.43,~4.59,~4.79,~4.92,~5.09,~5.24,~5.36,~5.34,
+~5.37,~5.32,~5.34,~5.33,~5.40,~5.47,~5.58,~5.66,~5.74,~5.68,~5.69,~5.65,~5.67,~5.68,~5.73,~5.72,
+~5.78,~5.79,~5.86,~5.89,~6.01,~6.13,~6.28,~6.41,~6.53,~6.49,~6.50,~6.45,~6.41,~6.26,~6.11,~5.90,
+~5.63,~5.13,~4.68,~4.19,~3.72,~3.21,~2.70,~2.09,~1.48,~0.75,~0.08,0.62,1.26,1.95,2.59,3.28,3.92,
+4.61,5.20,5.73,6.29,7.00,7.68,8.45,9.13,9.78,10.38,10.99,11.64,12.47,13.23,14.00,14.69,15.38,16.00,
+16.64,17.19,17.72,18.19,18.67,19.13,19.69,20.14,20.54,20.86,21.14,21.41,21.78,22.06,22.30,22.51,
+22.79,23.01,23.29,23.46,23.55,23.63,23.80,23.95,24.25,24.39,24.42,24.34,24.22,24.10,24.08,24.02,
+24.04,23.98,23.91,23.89,23.95,23.93,23.92,23.88,23.94,23.91,23.82,23.76,23.87,23.91,23.95,23.96,
+24.00,24.04,24.20,24.35,24.61,24.82,25.09,25.30,25.56,25.77,26.05,26.27,26.54,26.76,27.04,27.27,
+27.55,27.77,28.03,28.25,28.50,28.70,28.95,29.15,29.38,29.57,29.80,29.97,30.19,30.36,30.57,30.72,
+30.93,31.07,31.24,31.349,31.516,31.677,31.923,32.166,32.449,32.671,32.919,33.150,33.397,33.584,
+33.804,33.992,34.240,34.466,34.731,35.030,35.400,35.738,36.147,36.546,36.995,37.429,37.879,38.291,
+38.753,39.204,39.707,40.182,40.706,41.170,41.686,42.227,42.825,43.373,43.959,
+// 1974
+44.486,44.997,
+45.477,45.983,
+46.458,46.997,
+47.521,48.034,
+48.535,49.099,
+49.589,50.102,
+// 1980
+50.540,50.975,
+51.382,51.810,
+52.168,52.572,
+52.957,53.434,
+53.789,54.087  //1984: end of historic data file
+54.343,54.636  //1985: from determined
+54.872,55.113  //1986: from determined
+]"
+)}
 
 
 fun deltat-parse-historic( start: double, s : string ) : deltat-table {
@@ -782,3 +848,5 @@ fun deltat-parse-historic( start: double, s : string ) : deltat-table {
 }   
 val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
+
+

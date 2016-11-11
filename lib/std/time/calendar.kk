@@ -14,14 +14,14 @@ module std/time/calendar
 
 import std/fixed
 import std/time/instant
+import std/time/leaps
 import std/time/timescale
-import std/time/ut1
 
 extern include {
   js file "calendar-inline.js"
 }
 
-public val secs-per-day = 86400
+//public val secs-per-day = 86400
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
@@ -180,6 +180,32 @@ public struct calendar(
   instant-from-dc : (date,clock) -> instant
 )
 
+public fun total-seconds( c : clock ) : fixed {
+  fixed((c.hours*60 + c.minutes)*60) + c.seconds
+}
+
+// Is this a Gregorian leap year?
+public fun leap-year?( year : int ) : bool {
+  ((year%4)==0 && ((year%100)!=0 || (year%400)==0))
+}
+
+// The number of days in the given year (in a Gregorian calendar).
+public fun days-in-year( year : int ) : int {
+  if (year.leap-year?) then 366 else 365
+}
+
+// Return the day of the year (starting at 1) (in a Gregorian calendar).
+public fun day-of-year( d : date ) : int {
+  val n = day-counts[(d.month - 1)%12].maybe(0) + d.day
+  if (d.month > 2 && d.year.leap-year?) then n+1 else n
+}
+val day-counts : list<int> = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+public fun year-frac( t : time ) : fixed {
+  val dfrac = t.clock.total-seconds.double / secs-per-day.double
+  val yfrac = ((t.date.day-of-year.double - 1.0) + dfrac) / t.year.days-in-year.double
+  fixed(t.year) + fixed(yfrac)
+}
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
@@ -226,9 +252,6 @@ public val cal-tdb  = iso-calendar( "TDB", ts-tdb)//, fixed(32184,3) )
 
 // The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
 public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
-
-// The UT1 (Universal time 1) calendar. See also `ts-ut1`.
-public val cal-ut1  = iso-calendar( "UT1", ts-ut1 )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
