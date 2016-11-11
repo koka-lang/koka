@@ -153,12 +153,21 @@ fun divmod( x : fixed, y : fixed, max-prec : int = 20) : (fixed,fixed) {
   (Fixed(q,dp).reduce, Fixed(r,dp + p).reduce)
 }
 
-fun (/)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
+fun div( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
   divmod(x,y,max-prec).fst
 }
 
-fun (%)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
+fun (/)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
+  div(x,y,max-prec)
+}
+
+
+fun mod( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
   divmod(x,y,max-prec).snd
+}
+
+fun (%)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
+  mod(x,y,max-prec)
 }
 
 // Round the fixed-point number `x` to a specified precision `p`.
