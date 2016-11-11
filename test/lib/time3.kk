@@ -44,7 +44,7 @@ fun test-astro() {
   check("astro3c"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690576Z TCG" }
   check("astro3d"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684546690Z TDB" }  // should be: .684373  at lon:-155.933222, lat: 19.48125
   check("astro3e"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.894125939Z TCB" }  // should be: .893952 (because derived from tdb)
-  // check("astro3f"){ i.time(cal=cal-ut1).show == "2006-01-15T21:24:37.834078 UT1" }   // .834100 ?
+  check("astro3f"){ i.time(cal=cal-ut1).show == "2006-01-15T21:24:37.831943445Z UT1" } // should be: .834078 or .834100 ?
 }
 
 public fun main() {

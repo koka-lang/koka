@@ -192,7 +192,7 @@ public val ts-tcg : timescale = Timescale( "TCG", tcg-from-tai, tcg-to-tai )
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
 val j2k-epoch = fixed(3155716800)
-val secs-per-julian-year = 31557600.0
+public val secs-per-julian-year = 31557600.0
 
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).

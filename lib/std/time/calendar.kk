@@ -15,6 +15,7 @@ module std/time/calendar
 import std/fixed
 import std/time/instant
 import std/time/timescale
+import std/time/ut1
 
 extern include {
   js file "calendar-inline.js"
@@ -225,6 +226,9 @@ public val cal-tdb  = iso-calendar( "TDB", ts-tdb)//, fixed(32184,3) )
 
 // The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
 public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
+
+// The UT1 (Universal time 1) calendar. See also `ts-ut1`.
+public val cal-ut1  = iso-calendar( "UT1", ts-ut1 )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
