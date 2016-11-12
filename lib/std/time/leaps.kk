@@ -87,9 +87,9 @@ public fun update-leap-seconds( ietf-leap-table : string ) : io () {
   }
 }
 
-// Return the time when the current leap second table expires.
-public fun leap-seconds-expire() : io instant {
-  utc-to-tai( timestamp( get-leaps-table().expire ) )
+// Return the UTC timestamp since the epoch when the current leap second table expires.
+public fun leap-seconds-expire() : io timestamp {
+  get-leaps-table().expire
 }
 
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
