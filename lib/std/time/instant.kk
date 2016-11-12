@@ -134,6 +134,7 @@ abstract struct instant(
   public seconds : fixed
 )
 
+// Our epoch is set at 2000-01-01 TAI (= 1999-12-31T23:59:28Z)
 public val epoch : instant = Instant(zero)
 
 public fun instant-at( t : timestamp ) : instant {

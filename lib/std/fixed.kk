@@ -136,11 +136,17 @@ fun (+)( x : fixed, y : fixed ) : fixed {
 // Multiply two fixed-point numbers with an optional maximum precision `max-prec` (=`~1`). 
 // If the maximum precision is negative, the multiplication will be precise.
 fun (*)( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
+  mul(x,y,max-prec)
+}
+
+// Multiply two fixed-point numbers with an optional maximum precision `max-prec` (=`~1`). 
+// If the maximum precision is negative, the multiplication will be precise.
+fun mul( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
   val p  = max(x.prec,y.prec)
   val xp = x.expand(p)
   val yp = y.expand(p)
   val z  = Fixed(xp.fix * yp.fix, 2*p).reduce
-  if (max-prec>=0) then z.round-to-prec(max-prec) else z
+  if (max-prec>=0) then z.round-to-prec(max-prec) else z.round-to-prec(p)
 }
 
 // Euclidean division and modulus up to a specified maximum precision (=`20` digits).

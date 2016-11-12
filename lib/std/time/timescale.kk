@@ -21,6 +21,7 @@ extern include {
   js file "instant-inline.js"
 }
 
+public val secs-per-day = 86400
 
 // A `:time-scale` represents a duration relative to a certain epoch,
 // and can convert to- and from TAI seconds.
@@ -63,29 +64,30 @@ public fun utc-timescale( name : string, offset : fixed = zero, epoch-shift : fi
 }
 
 // The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (International atomic time) 
-// time scale is based on SI seconds with a 1900-01-01 epoch.
+// time scale is based on SI seconds with a 2000-01-01 TAI `epoch`.
 public val ts-tai : timescale = tai-timescale( "TAI" )
  
 // The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based 
-// on SI seconds with a 1980-01-06 epoch.\
+// on SI seconds with a 1980-01-06 GPS epoch.\
 // GPS = TAI - 19s.
-public val ts-gps : timescale = tai-timescale( "GPS", fixed(19), fixed(2524953600) )
+public val ts-gps : timescale = tai-timescale( "GPS", fixed(19), fixed(~630720000) )
 
-// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 1900-01-01 epoch.
+// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 2000-01-01 TAI `epoch`.
 // It is the continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time).
 // TT is defined as: TT = TAI + 32.184s, as by IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
 public val ts-tt : timescale = tai-timescale( "TT", fixed(~32184,3), zero )
 
-// The UTC time scale with a 1900-01-01 epoch. This uses ['UTC seconds'](https://en.wikipedia.org/wiki/Unix_time) where
+// The UTC time scale with a 2000-01-01Z UTC epoch. This uses ['UTC seconds'](https://en.wikipedia.org/wiki/Unix_time) where
 // one day consists of 86400 'seconds' but where leap seconds are ignored (as in unix timestamps)
 // Note that internally to the library the `:timestamp`s will maintain any leap second information.
 public val ts-utc : timescale = utc-timescale( "" )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on UTC seconds but with 1970-01-01 epoch.
-public val ts-unix : timescale = utc-timescale( "UNIX", zero, fixed(2208988800) )
+public val ts-unix : timescale = utc-timescale( "UNIX", zero, fixed(~946684800) )
 
-// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but named `"NTP"`.
-public val ts-ntp : timescale = utc-timescale( "NTP" )
+// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but 
+// with a 1900-01-01Z epoch.
+public val ts-ntp : timescale = utc-timescale( "NTP", zero, fixed(~3155673600) )
 
 
 // Convert an instant to a timestamp in a specific timescale.
@@ -103,7 +105,7 @@ public fun instant-at( t : timestamp, ts : timescale ) : instant {
   Julian Date
 ----------------------------------------------------------------------------*/
 val jd-epoch-shift  = fixed(24000005,1)  // relative to the MJD epoch 
-val mjd-epoch-shift = fixed(15020)       // relative to our epoch (1900-01-01)
+val mjd-epoch-shift = fixed(51544)       // relative to our epoch (2000-01-01)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
 public fun instant-at-jd( jd: double, ts : timescale = ts-utc ) : instant {
@@ -144,8 +146,8 @@ public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fix
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
 
-public val lg = fixed(6969291,16)
-public val tcg-epoch = fixed(2429913632184,3)
+val lg = fixed(6969291,16)
+val tcg-epoch = fixed(~725759967186,3) // 1977-01-01T00:00:32.184 TAI
 
 // USNO circular 179, Section 2.6
 // dTT/dTCG = (1-Lg)
@@ -161,7 +163,7 @@ public val tcg-epoch = fixed(2429913632184,3)
 //     = TT + Lg*(TT - t0)
 fun tcg-from-tai( i : instant ) : timestamp {
   val tt = i.timestamp(ts-tt).seconds
-  timestamp(tt + lg * (tt - tcg-epoch))
+  timestamp( tt + (lg * (tt - tcg-epoch)).round-to-prec(9) )
 }
 
 // USNO circular 179, Section 2.6
@@ -175,7 +177,7 @@ fun tcg-from-tai( i : instant ) : timestamp {
 //    = TCG - TCG*Lg - t0 + t0*Lg + t0
 //    = TCG - Lg*(TCG - t0)
 fun tcg-to-tai( t : timestamp ) : instant {
-  instant-at( timestamp(t.seconds - lg*(t.seconds - tcg-epoch)), ts-tt )
+  instant-at( timestamp(t.seconds - (lg*(t.seconds - tcg-epoch)).round-to-prec(9)), ts-tt )
 }
 
 // The [TCG](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Geocentric coordinate time) time scale.
@@ -189,8 +191,8 @@ public val ts-tcg : timescale = Timescale( "TCG", tcg-from-tai, tcg-to-tai )
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = fixed(3155716800)
-public val secs-per-julian-year = 31557600.0
+val j2k-epoch = fixed(43200)  // 2000-01-01T12:00:00 TT
+val secs-per-julian-year = 31557600.0
 
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
@@ -245,11 +247,13 @@ val tdb0 : fixed = fixed(~655,7)
 
 fun tai-to-tcb( i : instant ) : timestamp {
   val tdb = i.timestamp(ts-tdb)
-  tdb + lb*(tdb.seconds - tcg-epoch) - tdb0   
+  val adj = (lb*(tdb.seconds - tcg-epoch)).round-to-prec(9)
+  tdb + (adj - tdb0)
 }
 
 fun tcb-to-tai( tcb : timestamp ) : instant {
-  val tdb = tcb - lb*(tcb.seconds - tcg-epoch) + tdb0  
+  val adj = (lb*(tcb.seconds - tcg-epoch)).round-to-prec(9)
+  val tdb = (tcb - adj) + tdb0  
   instant-at(tdb,ts-tdb)
 }
 

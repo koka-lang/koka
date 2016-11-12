@@ -20,8 +20,6 @@ extern include {
   js file "calendar-inline.js"
 }
 
-public val secs-per-day = 86400
-
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
   // The year.
@@ -289,12 +287,15 @@ public fun solar-calendar(
 
 
 fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
-  val nlsecs           = t.non-leap-seconds
-  val (days,daysecs)   = divmod( nlsecs.trunc.int, secs-per-day)
+  val nlsecs0          = t.non-leap-seconds
+  val nlfrac0          = nlsecs0.fraction
+  val (nlsecs,nlfrac)  = if (nlfrac0.neg?) then (nlsecs0.trunc.int - 1, nlfrac0 + fixed(1)) 
+                                           else (nlsecs0.trunc.int,nlfrac0)
+  val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = date-from-days(days)
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs) + nlsecs.fraction + t.leap-seconds  // adjust for leap seconds
+  val tsecs            = fixed(xsecs) + nlfrac + t.leap-seconds  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
@@ -388,7 +389,7 @@ public fun time( year : int, month : int = 1, day : int = 1,
   ISO calendar, Proleptic Gregorian calendar, and Julian calendar.
 ----------------------------------------------------------------------------*/
 
-val iso-epoch-shift = 693901   // shift internal epoch from 0000-03-01 to 1900-01-01
+val iso-epoch-shift = 730425   // shift internal epoch from 0000-03-01 to 2000-01-01
 val iso-days-in-era = 146097   // 365*400 + 100 - 3
 val iso-years-in-era= 400
 
@@ -397,7 +398,7 @@ val iso-years-in-era= 400
 //
 // [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
 fun iso-date-from-days( days : int ) : date {
-  val z    = days + iso-epoch-shift          // shift epoch from 1900-01-01 to 0000-03-01
+  val z    = days + iso-epoch-shift          // shift epoch from 2000-01-01 to 0000-03-01
   val (era,doe) = divmod(z,iso-days-in-era)  // day of era: 0 <= doe < days-in-era
   val yoe  = (((doe - (doe/1460)) + (doe/36524)) - (doe/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
   val doy  = doe - ((yoe*365) + (yoe/4) - (yoe/100))   // day-of-year: 0 <= doy <= 365
@@ -442,7 +443,7 @@ public fun gregorian-date-from-days( days : int ) : date {
 
 val julian-days-in-era  = 1461
 val julian-years-in-era = 4
-val julian-epoch-shift  = 693903 // Shift from 1900-01-01 to 0000-03-01
+val julian-epoch-shift  = 730427 // Shift from 2000-01-01 to 0000-03-01
 
 // Return a date from a number of days in the Julian calendar.
 public fun julian-date-from-days( days : int ) : date {  

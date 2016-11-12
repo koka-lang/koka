@@ -17,7 +17,7 @@ import std/fixed
 import std/time/instant
 
 // Standard seconds per day (=`86400`). Note that a UTC day can contain extra leap seconds.
-public val secs-per-day = 86400
+val secs-per-day = 86400
 
 // -----------------------------------------------------------
 // UTC calendar leap second calculation
@@ -30,7 +30,7 @@ public val secs-per-day = 86400
 
 
 // `:utc-timestamp` is an alias used for timestamp's in UTC seconds.
-public alias utc-timestamp = fixed
+alias utc-timestamp = fixed
 
 
 // A leap second table is a list of tuples. 
@@ -99,13 +99,13 @@ public fun utc-to-tai( t : timestamp ) : instant {
 public fun tai-to-utc( i : instant ) : timestamp {
   //trace("utc-from-tai: " + i.show)
   val secs = i.since-epoch.seconds
-  if (secs < utc1958) then timestamp(i.since-epoch.seconds) else {
+  if (secs < tai1958) then timestamp(i.since-epoch.seconds) else {
     val leaps = unsafe-total(get-leaps-table)
     find-utc-from-tai( secs, leaps.adjusts )
   }
 }
-val utc1958 = fixed(1830297600)  // 1958-01-01Z in seconds since 1900-01-01
-
+val utc1958 = fixed(~1325376000)  // 1958-01-01Z in seconds since epoch
+val tai1958 = utc1958
 
 fun find-utc-from-tai( i : fixed, leaps : list<leap-adjust> ) : timestamp {
   match(leaps) {
@@ -152,22 +152,24 @@ fun find-utc-from-tai( i : fixed, leaps : list<leap-adjust> ) : timestamp {
 // Parsing UTC leap second tables
 // -----------------------------------------------------------
 
+val ntp-shift = 3155673600  // 2000-01-01 TAI - 1900-01-01 TAI in seconds
+
 // Parse a NIST (IETF) leap second table.
 // See: <https://www.ietf.org/timezones/data/leap-seconds.list>
 fun parse-leap-seconds( leaps : string ) : leaps-table {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
-    val ntpsecs = cap.groups[1].parse-int-default(0)  
+    val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   
     val adjust  = cap.groups[2].parse-double-default(0.0)
     //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + ntpsecs.show )
-    Leap-adjust(fixed(ntpsecs), adjust, std/fixed/zero, 0.0)
+    Leap-adjust(fixed(ntpsecs - ntp-shift), adjust, std/fixed/zero, 0.0)
   }.reverse
 
   // get expiration date
   val la-final   = las.head.default(zero)
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
-    val ntpex = cap.groups[1].parse-int-default(0)
-    fixed(ntpex)
+    val ntpex = cap.groups[1].parse-int-default(ntp-shift)
+    fixed(ntpex - ntp-shift)
   }.default(la-final.utc-start + fixed(365*secs-per-day))
   trace("expire: " + utc-expire.show)
 
@@ -222,7 +224,7 @@ val default-ietf-leap-seconds = @"
 val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
 
 val jd-epoch-shift     = 2400000.5
-val mjd-epoch-shift    = 1297728000 // 1900-01-01Z - 1858-11-17Z modified julian date epoch
+val mjd-epoch-shift    = 4453401600 // 2000-01-01 TAI - 1858-11-17 TAI modified julian date epoch
 
 
 // Parse the standard UTC leap second adjustment file.\
