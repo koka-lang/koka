@@ -13,8 +13,8 @@
 module std/time/calendar
 
 import std/fixed
+import std/time/duration
 import std/time/instant
-import std/time/timescale
 
 extern include {
   js file "calendar-inline.js"
@@ -236,10 +236,11 @@ public val cal-jg = julian-gregorian()
 public val cal-tai = iso-calendar( "TAI", ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.epoch-shift ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
+public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.epoch-jd-delta ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
 
 // The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
 public val cal-tt  = iso-calendar( "TT", ts-tt)//, fixed(32184,3) )
+
 
 // The TCG (Geometric coordinate time) calendar. See also `ts-tcg`
 public val cal-tcg  = iso-calendar( "TCG", ts-tcg)//, fixed(32184,3) )
@@ -250,9 +251,10 @@ public val cal-tdb  = iso-calendar( "TDB", ts-tdb)//, fixed(32184,3) )
 // The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
 public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
 
+
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
-public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : fixed = zero ) : calendar {
+public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : duration = duration0 ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
@@ -276,34 +278,36 @@ public fun solar-calendar(
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : timescale = ts-utc,
-              shift: fixed = zero
+              shift: duration = duration0 
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i,tzofs) { solar-dc-from-cal( (ts.from-tai)(i) + shift + tzofs.seconds, date-from-days ) },
-    fun(d,c)     { (ts.to-tai)( solar-cal-from-dc( d, c, days-from-date ) - shift ) }
+    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs, date-from-days ) },
+    fun(d,c)     { instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
   )
 }
 
 
 fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
-  val nlsecs0          = t.non-leap-seconds
-  val nlfrac0          = nlsecs0.fraction
-  val (nlsecs,nlfrac)  = if (nlfrac0.neg?) then (nlsecs0.trunc.int - 1, nlfrac0 + fixed(1)) 
-                                           else (nlsecs0.trunc.int,nlfrac0)
+  // get whole seconds and fraction, such that fraction is always positive (into the day)
+  val (nlsecs,nlfrac,leap)  = t.clock-seconds
+  // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = date-from-days(days)
+  // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs) + nlfrac + t.leap-seconds  // adjust for leap seconds
+  val tsecs            = fixed(xsecs) + fixed(nlfrac + leap)  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
 fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
-  val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,zero) else ( fixed(59), c.seconds - fixed(59) )
+  // Get seconds and leap seconds (if the clock has seconds > 59)
+  val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,0.0) else ( fixed(59), c.seconds.double - 59.0 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs.trunc.int), secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
-  timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction, leaps )   
+  timestamp( sdays*secs-per-day + xsecs, fsecs.fraction.double + leaps)
+  // timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction, leaps )   
 }
 
 

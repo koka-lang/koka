@@ -1635,6 +1635,10 @@ extern inline sin( d : double ) : double {
   js "Math.sin"
 }
 
+extern inline cos( d : double ) : double {
+  js "Math.cos"
+}
+
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
 extern inline round : (d:double) -> double {

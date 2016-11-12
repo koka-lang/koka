@@ -35,20 +35,29 @@ fun test-jd() {
 }
 
 fun test-astro() {
-  check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
+  // check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
   check("astro2"){ instant-at-jd(fixed(24431445003725,7),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
-  // http://www.iausofa.org/sofa_ts_c.pdf, page 29
+}
+
+// from: <http://www.iausofa.org/sofa_ts_c.pdf>
+// and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
+fun test-sofa() {
+  check("sofa1"){ instant-at(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show == "2010-07-24T11:19:13.502Z TT" }
+  check("sofa2"){ instant-at(2008,2,29,23,59,59,0.9).jd == fixed(2454526499998842,9) }
+  check("sofa3"){ instant-at(2008,2,29,23,59,59,0.9).jd.round-to-prec(3).instant-at-jd.time.show == "2008-03-01T00:00:00Z" }
   val i = instant-at(2006,1,15,21,24,37,0.5)
-  check("astro3a"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
-  check("astro3b"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
-  check("astro3c"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690575Z TCG" }
-  check("astro3d"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684546690Z TDB" }  // should be: .684373  at lon:-155.933222, lat: 19.48125
-  check("astro3e"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.894125929Z TCB" }  // should be: .893952 (because derived from tdb)
-  check("astro3f"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // should be: .834078 or .834100 ?
+  check("sofa4utc"){ i.time(cal=cal-iso).show == "2006-01-15T21:24:37.500Z" }
+  check("sofa4ut1"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // sofa: .834100 ; should be between 0.8340874 and 0.8340738
+  check("sofa4tai"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
+  check("sofa4tt"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
+  check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690575Z TCG" }   // sofa: .322690
+  check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // sofa: .683799  @ lon:-155.933222, lat: 19.48125
+  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952294Z TCB" }   // sofa: .893378  (differs because derived from tdb)
 }
 
 public fun main() {
   test-misc()
   test-jd()
   test-astro()
+  test-sofa()
 }

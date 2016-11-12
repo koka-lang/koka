@@ -12,8 +12,8 @@ public module std/time/ut1
 
 import std/fixed
 import std/regex
+import std/time/duration
 import std/time/instant
-import std/time/timescale
 import std/time/calendar
 
 // The UT1 (Universal time 1) calendar. See also `ts-ut1`.
@@ -25,24 +25,24 @@ public fun cal-ut1( ts : timescale = ts-ut1() ) {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut( i : instant, override : (year : double) -> maybe<fixed> ) : timestamp {
-  val tt = i.timestamp(ts-tt)
-  val dt = deltat(i,override)
-  // trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
-  tt - dt
+fun tai-to-ut( tai : duration, override : (year : double) -> maybe<duration> ) : timestamp {
+  val tt = instant-at(tai,ts-tai).use(ts-tt) //.timestamp(ts-tt)
+  val dt = deltat(tt,override)
+  trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
+  tt.timestamp(ts-tt) - dt
 }
 
-fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<fixed> ) : instant {
+fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<duration> ) : duration {
   val i0  = instant-at(t,ts-tt)   // approximately tt
   val tt0 = t + deltat(i0,override)    
   val i1  = instant-at(tt0,ts-tt) // again with a better approximation (in case of a cross-over)
   val tt1 = t + deltat(i1,override)    
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
-  instant-at(tt1,ts-tt)
+  tt1 // instant-at(tt1,ts-tt)
 }
 
-public fun ts-ut1( override : (year : double) -> maybe<fixed> = deltat-none ) : timescale {
-  Timescale("UT1", 
+public fun ts-ut1( override : (year : double) -> maybe<duration> = deltat-none ) : timescale {
+  timescale("UT1", 
     fun(i) { tai-to-ut(i,override) },
     fun(t) { ut-to-tai(t,override) }
   )
@@ -58,15 +58,15 @@ public fun ts-ut1( override : (year : double) -> maybe<fixed> = deltat-none ) : 
 // - generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
 // -----------------------------------------------------------
 
-fun deltat-none(year : double) : maybe<fixed> {
+fun deltat-none(year : double) : maybe<duration> {
   Nothing
 }
 
-public fun deltat( i : instant, override : (year : double) -> maybe<fixed> = deltat-none ) : fixed {
+public fun deltat( i : instant, override : (year : double) -> maybe<duration> = deltat-none ) : duration {
   val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
   val dt = match(override(y)) {
              Just(dt) -> dt
-             Nothing  -> deltat-builtin(y)
+             Nothing  -> deltat-builtin(y).duration
            }
   // trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
   dt
@@ -74,7 +74,7 @@ public fun deltat( i : instant, override : (year : double) -> maybe<fixed> = del
 
 fun deltat-builtin( y : double, 
                    determined : deltat-table = deltat-table-determined(),
-                   predicted  : deltat-table = deltat-table-predicted() ) : fixed
+                   predicted  : deltat-table = deltat-table-predicted() ) : double
 {
   // A date after (about) 1986 ?  (determined starts usually at 1973.0833333)
   if (y >= determined.start || y >= 1986.0) {
@@ -85,7 +85,7 @@ fun deltat-builtin( y : double,
         // otherwise use predicted values
         match(predicted.interpolate(y)) {
           Just(dt) -> dt
-          Nothing  -> deltat-future-approx(y).fixed
+          Nothing  -> deltat-future-approx(y)
         }
       }
     }
@@ -94,7 +94,7 @@ fun deltat-builtin( y : double,
   else {
     match(deltat-table-historic().interpolate(y)) {
       Just(dt) -> dt
-      Nothing  -> deltat-historic-approx(y).fixed
+      Nothing  -> deltat-historic-approx(y)
     }
   }
 }
@@ -167,14 +167,14 @@ val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
 // Given a `deltat-table` and a fractional year, return the delta-t by 
 // linear interpolation between two known delta-t instants. If the
 // year `y` is outside the bounds of the table, return `Nothing`.
-fun interpolate( dtable : deltat-table, y : double )  : maybe<fixed> {
+fun interpolate( dtable : deltat-table, y : double )  : maybe<double> {
   if (y < dtable.start || dtable.end <= y) then Nothing else {
     on-exn(Nothing) {
       val i   = (y - dtable.start)*dtable.entries-per-year
       val idx = i.trunc.int  
       val d0  = dtable.entries[idx]
       val d1  = dtable.entries[idx+1]
-      Just( fixed(d0 + ((d1 - d0)*i.fraction)) )
+      Just( d0 + ((d1 - d0)*i.fraction) )
     }
   }
 }
@@ -185,7 +185,7 @@ fun end( tb : deltat-table ) : double {
 }
 
 
-public fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<fixed>) {
+public fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>) {
   val det  = deltat-parse-determined(determined)
   val pred = deltat-parse-predicted(predicted)
   (fun(year:double) {

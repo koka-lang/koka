@@ -11,21 +11,20 @@
 module std/time/duration
 
 import std/regex
+import std/fixed
 
 // `:timestamp` is an alias used for durations that may not be in SI seconds
 // and are generally durations after a certain epoch.
-public alias timestamp  = duration
+public alias timestamp = duration
 
-// `:utc-timestamp` is an alias used for timestamp's in UTC seconds.
-public alias utc-timestamp = timestamp
 
 // Represents duration in time. 
-// Can be arbitrarily long and is accurate up to a tenth of a femto-second (10^-16s).
+// Can be arbitrarily long and is accurate up to a tenth of a femto-second (1.0&times;10^-16^s).
 // The `secs` field contains the number of SI seconds, while `frac` holds the
 // positive fraction of a second. The total duration `d` is always `d.secs + d.frac`.
 abstract struct duration (
-  public secs : int,          // SI seconds
-  public frac : double = 0.0  // fraction of seconds, always in range [0, 1.0>
+  secs : int,
+  frac : double = 0.0  // fraction of a second always 0.0 <= frac; for non-leap seconds frac < 1.0
 )
 
 
@@ -56,6 +55,10 @@ public fun duration( secs : double ) : duration {
   }
 }
 
+public fun duration( secs : fixed ) : duration {
+  duration(secs.trunc.int, secs.fraction.double )
+}
+
 // Is this a negative duration?
 public fun neg?( d : duration ) : bool {
   d.secs.neg?
@@ -65,6 +68,12 @@ public fun neg?( d : duration ) : bool {
 public fun zero?( d : duration ) : bool {
   d.secs.zero? && d.frac.zero?
 }
+
+// Is this a positive duration?
+public fun pos?( d : duration ) : bool {
+  d.secs.pos?
+}
+
 
 
 // Compare two `:duration`s.
@@ -109,10 +118,14 @@ public fun (-)( d : duration, e : duration ) : duration {
 
 // Return a duration in seconds. This may lose precision for large durations
 // as the result is returned as a `:double`.
-public fun seconds( d : duration ) : double {
+public fun double( d : duration ) : double {
   d.secs.double + d.frac
 }
 
+
+public fun seconds( d : duration ) : fixed {
+  fixed(d.secs) + fixed(d.frac)
+}
 
 /*----------------------------------------------------------------------------
   Durations in a another time scale
@@ -120,30 +133,40 @@ public fun seconds( d : duration ) : double {
 
 public val timestamp0 : timestamp = duration0
 
-// Internal: create a duration in UTC 'seconds'
-public fun timestamp( secs : int, frac : double = 0.0 ) : timestamp {
-  duration(secs,frac)
+public fun timestamp( seconds : double ) : timestamp {
+  duration(seconds)
 }
 
-// Internal: create a duration in UTC 'seconds'
-public fun timestamp( secs : double ) : timestamp {
-  duration(secs)
+
+public fun timestamp( seconds : fixed ) : timestamp {
+  duration(seconds)
 }
 
-// Internal: create a duration in UTC 'seconds'
-public fun utc-timestamp( secs : int, frac : double = 0.0 ) : utc-timestamp {
-  duration(secs,frac)
+public fun timestamp( seconds : int, frac : double = 0.0 ) : timestamp {
+  duration(seconds,frac)
 }
 
-// Internal: create a duration in UTC 'seconds'
-public fun utc-timestamp( secs : double ) : utc-timestamp {
-  duration(secs)
+public fun non-leap-seconds( t : timestamp ) : (timestamp) {
+  if (t.frac < 1.0) then t else {
+    Duration( t.secs, t.frac.fraction )
+  }
 }
 
+
+public fun clock-seconds( t : timestamp ) : (int,double,double) {
+  if (t.frac < 1.0) then (t.secs,t.frac,0.0) else {
+    (t.secs, t.frac.fraction, t.frac.trunc)
+  }
+}
+
+public fun timestamp-leap( t : timestamp, leaps : double ) : timestamp {
+  Duration( t.secs, t.frac + leaps )
+}
 
 /*----------------------------------------------------------------------------
   Show durations and instants
 ----------------------------------------------------------------------------*/
+
 
 // Show a duration with an optional maximum precision (=`9`, nano-second resolution).
 public fun show( d : duration, prec : int = 9 ) : string {   
@@ -153,41 +176,23 @@ public fun show( d : duration, prec : int = 9 ) : string {
 
 // Show a duration without the `s` (SI seconds) postfix.
 public fun ts-show( d : timestamp, prec : int = 9, secs-width : int = 1 ) : string {
-  val leap = d.frac.trunc.int  
-  // trace("show duration: " + d.secs.show + "s + " + d.frac.show)
-  show-frac(d.secs,d.frac,prec,secs-width) 
-    + (if (leap.zero?) then "" else " (" + (if (leap.pos?) then "+" else "-") + leap.abs.show + "leap)")
+  val (secs,frac,leap) = if (d.frac < 1.0) then (d.secs,d.frac,0) else {
+                           val leap = d.frac.trunc.int 
+                           (d.secs + leap, d.frac.fraction, leap)
+                         }
+  show-frac(secs, frac, prec, secs-width ) 
+    + (if (leap.zero?) then "" else " (+" + leap.show + " leap)")
 }
 
 
 // Showing fractions is a bit involved due to rounding and 
 // showing precision up to 9 digits in increments of 3 digits
-fun show-frac( secs : int, frac : double, prec : int  = 9, width : int = 2 ) : string {
-  if (prec==0) return secs.show0(width) 
-  val fr   = frac.round-to-prec(prec)
-  val fl   = fr.floor
-  val (s,f) = if (secs.neg? && !fr.zero?) 
-                then (secs + fl.int + 1, (fr - fl) - 1.0)
-                else (secs + fl.int, fr - fl)
-  val sign = if (s.neg? || s.zero? && fr.neg?) then "-" else "" 
-  //trace("show secs: " + s.show + ", " + f.show)
-  sign + s.abs.show0(width) + f.show-frac(prec) 
+fun show-frac( secs : int, frac : double, prec : int  = 9, secs-width : int = 2 ) : string {
+  val s  = secs.show.pad-left(secs-width,'0')
+  val f  = frac.show-fixed(prec).first(2).after.string.replace(rxzeros,"")
+  if (f.empty?) then s else {
+    val len3 = ((f.count + 2)/3)*3
+    s + "." + f.pad-right(len3,'0')
+  }
 }
-
-// Show a fraction of a second up to an optional maximum precision (=`9`)
-fun show-frac( frac : double, prec : int = 9 ) : string {  
-  //trace("show frac: " + frac.show)
-  val xdigits = frac.abs.fraction.show-fixed(prec).list.drop(2)
-  val digits  = xdigits.reverse.drop-while(fun(d){d=='0'}).reverse
-  if (digits.nil?) return "" // zero fraction
-  // always use a multiple of 3 to display a fraction
-  val len3 = min(prec, ((digits.length + 2) / 3) * 3)
-  "." + digits.string.pad-right( len3, '0') 
-}
-val rxdigits = regex(@"^\d+\.\(\d+[1-9]\)0*$")
-
-// pad with zeros
-fun show0( i : int, width : int = 2) : string {
-  i.show.pad-left(width,'0')
-}
-
+val rxzeros = regex("0+$")
