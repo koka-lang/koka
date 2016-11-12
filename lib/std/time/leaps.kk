@@ -78,7 +78,21 @@ fun get-leaps-table() : st<global> leaps-table {
   !(global-leaps-table()) 
 }
 
+// Update the leap second table from a fresh IETF leap second file.
+// Only performs the update if the provided table has a later expiry date.
+// Latest files available at: <https://www.ietf.org/timezones/data/leap-seconds.list>
+public fun update-leap-seconds( ietf-leap-table : string ) : io () {
+  val post72 = parse-leap-seconds( ietf-leap-table )
+  if (post72.expire > get-leaps-table().expire) then {
+    val r = global-leaps-table()
+    r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
+  }
+}
 
+// Return the time when the current leap second table expires.
+public fun leap-seconds-expire() : io instant {
+  utc-to-tai( timestamp( get-leaps-table().expire ) )
+}
 
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
 public fun utc-to-tai( t : timestamp ) : instant {
