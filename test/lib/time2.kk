@@ -14,7 +14,6 @@ public import std/xtime
   Testing
 ----------------------------------------------------------------------------*/
 
-
 fun check(name : string, tst : () -> ndet bool ) : io () {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
 }

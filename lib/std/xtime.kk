@@ -13,7 +13,7 @@
 module std/xtime
 
 public  import std/time/instant
-private import std/time/leaps
+private import std/time/utc
 public  import std/time/timescale
 public  import std/time/calendar
 public  import std/time/timezone

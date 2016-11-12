@@ -136,6 +136,10 @@ abstract struct instant(
 
 public val epoch : instant = Instant(zero)
 
+public fun instant-at( t : timestamp ) : instant {
+  Instant(t.seconds)
+}
+
 public fun instant-at( d : duration ) : instant {
   Instant(d.seconds)
 }

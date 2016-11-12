@@ -14,14 +14,13 @@ module std/time/calendar
 
 import std/fixed
 import std/time/instant
-import std/time/leaps
 import std/time/timescale
 
 extern include {
   js file "calendar-inline.js"
 }
 
-//public val secs-per-day = 86400
+public val secs-per-day = 86400
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (

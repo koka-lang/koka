@@ -79,28 +79,33 @@ fun get-leaps-table() : st<global> leaps-table {
 }
 
 
+
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
 public fun utc-to-tai( t : timestamp ) : instant {
   val nlsecs = t.non-leap-seconds
+  if (nlsecs < utc1958) then return instant-at(t) 
+
   val leaps = unsafe-total(get-leaps-table)
   leaps.adjusts.find-maybe(fun(la) {
     if (la.utc-start > nlsecs) then Nothing else {
       val ofs = la.tai-offset(nlsecs)
       // trace("found: " + i.show + " >= " + la.utc-start.show + ", ofs:" + ofs.show)
-      Just( instant-at(duration(t.seconds + ofs)))
+      Just( instant-at(t + ofs))
     }
-  }).default(instant-at(t.duration))  
+  }).default(instant-at(t))  
 }
 
 // Convert a TAI duration since `epoch` to a UTC duration since `epoch`.
 public fun tai-to-utc( i : instant ) : timestamp {
   //trace("utc-from-tai: " + i.show)
-  if (i < epoch) then timestamp(i.since-epoch.seconds) else {
+  val secs = i.since-epoch.seconds
+  if (secs < utc1958) then timestamp(i.since-epoch.seconds) else {
     val leaps = unsafe-total(get-leaps-table)
-    find-utc-from-tai( i.since-epoch.seconds, leaps.adjusts )
+    find-utc-from-tai( secs, leaps.adjusts )
   }
 }
-//val tai1961    = duration(~347068800 - 2)  // 1961-01-01Z minus 2 seconds for the initial leap
+val utc1958 = fixed(1830297600)  // 1958-01-01Z in seconds since 1900-01-01
+
 
 fun find-utc-from-tai( i : fixed, leaps : list<leap-adjust> ) : timestamp {
   match(leaps) {
@@ -210,7 +215,7 @@ val default-ietf-leap-seconds = @"
 // 3723753600  35  # 1 Jan 2018 # testing
 
 // -----------------------------------------------------------
-// Parsing TAI 'fractional' leap second tables from before 1972
+// Parsing TAI 'continuous' leap second tables from before 1972
 // -----------------------------------------------------------
 
 // Cached leap second table for dates before 1972.
@@ -234,12 +239,14 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     Leap-adjust( start, ofs, dstart, delta )
   }).reverse
 }
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
-// Note: we added a first line starting at 1958-01-01Z such that the UTC offset
+// Note: (TAI - UT1) was approximately zero at 1958-01-01Z (most close at 1958-01-12T15:00:00)
+// We added an initial entry starting at that time such that the UTC offset
 // increases linearly up to the first official 1.422818s offset in 1961-01-01Z.
 // Historically, there were 29 20ms jumps during that initial time frame.
+// #1958 JAN  12=JD 2436216.125  TAI-UTC=   0.0000000 S + (MJD - 36215.625) X 0.0013121088 S
 val leap-seconds-dat = @"
   # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
   1958 JAN  1 =JD 2436204.5  TAI-UTC=   0.0000000 S + (MJD - 36204.) X 0.001298191606 S

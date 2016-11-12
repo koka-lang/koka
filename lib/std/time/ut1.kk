@@ -28,7 +28,7 @@ public fun cal-ut1( ts : timescale = ts-ut1() ) {
 fun tai-to-ut( i : instant, override : (year : double) -> maybe<fixed> ) : timestamp {
   val tt = i.timestamp(ts-tt)
   val dt = deltat(i,override)
-  trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
+  // trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
   tt - dt
 }
 
@@ -37,7 +37,7 @@ fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<fixed> ) : ins
   val tt0 = t + deltat(i0,override)    
   val i1  = instant-at(tt0,ts-tt) // again with a better approximation (in case of a cross-over)
   val tt1 = t + deltat(i1,override)    
-  trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
+  // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
   instant-at(tt1,ts-tt)
 }
 
@@ -63,12 +63,12 @@ fun deltat-none(year : double) : maybe<fixed> {
 }
 
 public fun deltat( i : instant, override : (year : double) -> maybe<fixed> = deltat-none ) : fixed {
-  val y = i.time(cal=cal-tt).year-frac.double
+  val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
   val dt = match(override(y)) {
              Just(dt) -> dt
              Nothing  -> deltat-builtin(y)
            }
-  trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
+  // trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
   dt
 }
 
