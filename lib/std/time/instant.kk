@@ -8,7 +8,6 @@
 
 /* Instants in time.
 
-
 */
 module std/time/instant
 
@@ -56,37 +55,51 @@ type time-unit {
   Instant operations
 ----------------------------------------------------------------------------*/
 
-public fun use( i : instant, t : timescale ) : instant {
-  if (i.ts.ts-name == t.ts-name) then {
+public fun use( i : instant, tscale : timescale ) : instant {
+  if (i.ts.ts-name == tscale.ts-name) then {
     // already using the right time scale
     i
   }
-  elif ((i.ts.ts-unit.utc? && t.ts-unit.utc?) || (i.ts.ts-unit.tai? && t.ts-unit.tai?)) then {
-    // just an epoch shift
-    // important optimization as it allows UNIX timestamp to UTC conversion without going through TAI
-    // trace( "instant use: shift: " + i.ts.ts-name + " -> " + t.ts-name + ", " + i.ts.epoch-delta.show + " vs. " + t.epoch-delta.show + ", i: " + i.since.show )
-    Instant( (i.since + i.ts.epoch-delta) - t.epoch-delta, t )  
-  }
   else {
-    // transform through TAI
-    Instant( (t.from-tai)( (i.ts.to-tai)(i.since) ), t )
+    Instant( i.timestamp(tscale), tscale )
   }
 }
 
-public fun timestamp( i : instant, ts : timescale = ts-tai ) : timestamp {
-  i.use(ts).since
+public fun convert( t : timestamp, from : timescale, to : timescale ) : timestamp {
+  if (from.ts-name == to.ts-name) then {
+    // already using the right time scale
+    t
+  }
+  elif ((from.ts-unit.utc? && to.ts-unit.utc?) || (from.ts-unit.tai? && to.ts-unit.tai?)) then {
+    // just an epoch shift
+    // important optimization as it allows UNIX timestamp to UTC conversion without going through TAI
+    // trace( "instant use: shift: " + i.ts.ts-name + " -> " + t.ts-name + ", " + i.ts.epoch-delta.show + " vs. " + t.epoch-delta.show + ", i: " + i.since.show )
+    (t + from.epoch-delta) - to.epoch-delta
+  }
+  else {
+    // transform through TAI
+    (to.from-tai)( (from.to-tai)(t) ) 
+  }
+}
+
+private fun to-tai(  ts : timescale, t : timestamp ) : duration {
+  t.convert(ts,ts-tai)
+}
+
+private fun from-tai(ts : timescale, d : duration ) : timestamp {
+  d.convert(ts-tai,ts)
+}
+
+public fun timescale( i : instant ) : timescale {
+  i.ts
+}
+
+public fun timestamp( i : instant, tscale : timescale = ts-tai ) : timestamp {
+  i.since.convert(i.ts,tscale)
 }
 
 public fun instant-at( t : timestamp, ts : timescale ) : instant {
   Instant(t,ts)
-}
-
-private fun to-tai(  ts : timescale, t : timestamp ) : duration {
-  instant-at(t,ts).timestamp(ts-tai)
-}
-
-private fun from-tai(ts : timescale, d : duration ) : timestamp {
-  instant-at(d,ts-tai).timestamp(ts)
 }
 
 
@@ -172,7 +185,10 @@ public fun utc-timescale( name : string, offset : duration = duration0, epoch-jd
 
 // Create a new time scale based on SI seconds with a given `name` and `epoch-jd-delta`:\
 // `time-scale-epoch == epoch + epoch-jd-delta`.
-public fun timescale( name : string, from-tai, to-tai, epoch-jd-delta : duration = duration0 ) : timescale {
+public fun timescale( name : string, 
+                      from-tai : duration -> timestamp, 
+                      to-tai   : timestamp -> duration, 
+                      epoch-jd-delta : duration = duration0 ) : timescale {
   Timescale(
     name,
     Other,
@@ -256,36 +272,22 @@ public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fix
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lg = 6.969291e-10
-val tcg-epoch = duration(fixed(~725759967186,3)) // 1977-01-01T00:00:32.184 TAI
+val lg = 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
+val tcg-epoch = duration(~725759967,~0.816) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
 
-// USNO circular 179, Section 2.6
-// dTT/dTCG = (1-Lg)
+// IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
+// TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
-// dTT = dTCG*(1 - Lg)
-// =>
-// dTCG = dTT / (1-Lg)
-// ==
-// TCG - t0 = (TT - t0) * (1 + Lg)
-// ==
-// TCG = (TT - t0)*(1 + Lg) + t0
-//     = TT + TT*Lg - t0 - t0*Lg + t0
-//     = TT + Lg*(TT - t0)
+// TCG = TT + Lg*(TT - TCG~epoch~)
 fun tcg-from-tai( tai : duration ) : timestamp {
   val tt = ts-tt.from-tai(tai)
   tt + duration(lg * (tt - tcg-epoch).double)
 }
 
-// USNO circular 179, Section 2.6
-// dTT/dTCG = (1-Lg)
+// IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
+// TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
-// dTT = dTCG*(1-Lg)
-// ==
-// TT - t0 = (TCG - t0)*(1-Lg)
-// ==
-// TT = (TCG - t0)*(1-Lg) + t0
-//    = TCG - TCG*Lg - t0 + t0*Lg + t0
-//    = TCG - Lg*(TCG - t0)
+// TT = TCG - Lg*(TCG - TCG~epoch~)
 fun tcg-to-tai( t : timestamp ) : duration {
   val tt = t - duration(lg*(t - tcg-epoch).double)
   ts-tt.to-tai(tt)
@@ -294,24 +296,24 @@ fun tcg-to-tai( t : timestamp ) : duration {
 // The [TCG](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Geocentric coordinate time) time scale.
 // The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth. It is in a linear
 // relationship with TT (`ts-tt`) where TCG runs faster than TT at a constant rate. TCG and TT were equal on 1977-01-01Z.
-// Computed from TT using IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
-// TCG - TT = L~g~&times;(JD~TT~ - 2443144.5)&times;86400, with L~g~ = 6.969291&times;10^-10^.
+// Computed from TT using IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
+// (and updated to currently known [precision](https://en.wikipedia.org/wiki/Terrestrial_Time)):\
+// TCG - TT = L~g~&times;(JD~TCG~ - 2443144.5003725)&times;86400, with L~g~ = 6.969290134&times;10^-10^.
 public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
 
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = timestamp(43200)  // 2000-01-01T12:00:00 TT
-val secs-per-julian-year = 31557600.0  // 31536000.0 //
-val secs-per-julian-mil  = 365250.0 * 86400.0
+val j2k-epoch = timestamp(43200)       // 2000-01-01T12:00:00 TT
+val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
 // Compute tdb-delta(TT) = TDB - TT
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 fun tdb-delta( tt : timestamp ) : duration {
-  val t = (tt - j2k-epoch).double / secs-per-julian-mil 
+  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) 
   // First terms of Fairhead et al. model 
   val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
           +   22.4175e-6*sin( 5753.3859*t + 4.2970)
@@ -326,16 +328,18 @@ fun tdb-delta( tt : timestamp ) : duration {
           + t*(102.1567e-6*sin( 6283.0758*t + 4.2490))
            
   // Adjustments to use JPL planetary masses instead of IAU.
-  val wj =  0.00065e-6 * sin(6069.776754 * t + 4.021194) +
-            0.00033e-6 * sin( 213.299095 * t + 5.543132) +
-          (~0.00196e-6 * sin(6208.294251 * t + 5.696701)) +
-          (~0.00173e-6 * sin(  74.781599 * t + 2.435900)) +
-            0.03638e-6 * t * t;
+  val wj =  0.00065e-6*sin(6069.776754*t + 4.021194) +
+            0.00033e-6*sin( 213.299095*t + 5.543132) +
+          (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
+          (~0.00173e-6*sin(  74.781599*t + 2.435900)) +
+            0.03638e-6*t*t;
   duration(wf + wj) // + tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0))            
 }
 
-val pi2 = 6.283185307179586476925287
-val dd2r = 1.745329251994329576923691e-2
+val pi2   = 6.283185307179586476925287      // 2pi
+val dd2r  = 1.745329251994329576923691e-2   // degree to radians
+
+// From the ERFA routines
 fun tdb-topocentric(  t : double,        // fractional julian millennia
                       ut : double = 0.0, // UT1 (fraction of one day)
                       elong : double = 0.0, // east positive degrees 
@@ -403,7 +407,7 @@ public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
   TCB: Barycentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lb : double = 1.55051976772e-8
+val lb   : double = 1.55051976772e-8
 val tdb0 : double = ~6.55e-5
 
 fun tai-to-tcb( tai : duration ) : timestamp {

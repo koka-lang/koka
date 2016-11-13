@@ -197,7 +197,8 @@ public fun parse-deltat( determined : string = "", predicted : string = "") : ((
 }
 
 
-// Predicted delta-t values, from <http://maia.usno.navy.mil/ser7/deltat.preds>.
+// Quarterly Predicted delta-t values, from 2016.75 upto 2026.50
+// from <http://maia.usno.navy.mil/ser7/deltat.preds>.
 val deltat-table-predicted = once{ deltat-parse-predicted(@"
   YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
 
@@ -253,7 +254,7 @@ public fun deltat-parse-predicted( s : string ) : deltat-table {
 val rx-predict = regex(@"^\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
 
-// Observed delta-t data from 1973.
+// Monthly observed delta-t data from 1973 up to 2016
 // See: <http://maia.usno.navy.mil/ser7/deltat.data>
 val deltat-table-determined = once{ deltat-parse-determined( @"
  1973  2  1  43.4724
@@ -791,6 +792,7 @@ public fun deltat-parse-determined( s : string ) : deltat-table {
 val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
 
+// Half-yearly history delta-t values from 1750 up to 1987
 // From: http://maia.usno.navy.mil/ser7/historic_deltat.data
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
 // precise. The values in the original table are from McCarthy and Babcock (1986).

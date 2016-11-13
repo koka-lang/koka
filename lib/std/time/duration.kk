@@ -187,7 +187,11 @@ public fun ts-show( d : timestamp, prec : int = 9, secs-width : int = 1 ) : stri
 
 // Showing fractions is a bit involved due to rounding and 
 // showing precision up to 9 digits in increments of 3 digits
-fun show-frac( secs : int, frac : double, prec : int  = 9, secs-width : int = 2 ) : string {
+fun show-frac( secs0 : int, frac0 : double, prec : int  = 9, secs-width : int = 2 ) : string {
+  val (secs,frac) = if (secs0.neg?) then {
+                      val adj = frac0.trunc.int + 1
+                      (secs0 + adj, 1.0 - frac0.fraction)
+                    } else (secs0,frac0)
   val s  = secs.show.pad-left(secs-width,'0')
   val f  = frac.show-fixed(prec).first(2).after.string.replace(rxzeros,"")
   if (f.empty?) then s else {
