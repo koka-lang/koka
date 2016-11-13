@@ -1296,9 +1296,24 @@ fun dec( i : int ) : int {
   i - 1
 }
 
-extern pow10( exp : int ) : int {
-  js "_int_pow10"
+fun pow10( exp : int ) : int {
+  1.mul-pow10(exp)
 }
+
+// Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
+extern pow10?( i : int ) : int {
+  js "_int_count_pow10"
+}
+
+extern mul-pow10( i : int, n : int ) : int {
+  js "_int_mul_pow10"
+}
+
+extern cdiv-pow10( i : int, n : int ) : int {
+  js "_int_cdiv_pow10"
+}
+
+
 
 // Is this an even integer?
 fun even?(i:int) : bool { !odd?(i) }

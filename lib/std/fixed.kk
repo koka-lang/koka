@@ -49,7 +49,7 @@ val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
 // For example, `fixed(1.002) == fixed-frac(1,2,3)`.
 fun fixed-frac( whole : int, frac : int, prec : int ) : fixed {
   if (prec <= 0 || frac.zero?) then Fixed(whole,0) else {
-    Fixed(whole * pow10(prec) + frac, prec).reduce
+    Fixed(whole.mul-pow10(prec) + frac, prec).reduce
   }
 }
 
@@ -87,7 +87,7 @@ fun reduce( x : fixed ) : fixed {
   if (!x.prec.pos?) return x
   val z = x.fix.pow10?
   if (z.pos? && z <= x.prec) then {
-    Fixed( x.fix / pow10(z), x.prec - z)
+    Fixed( x.fix.cdiv-pow10(z), x.prec - z)
   }
   else x
 }
@@ -95,24 +95,11 @@ fun reduce( x : fixed ) : fixed {
 // Expand the precision of a fixed-point number `x` to at least `p`.
 private fun expand( x : fixed, p : int ) : fixed {
   if (x.prec >= p) then x else {
-    Fixed( x.fix * pow10(p - x.prec), p )
+    Fixed( x.fix.mul-pow10(p - x.prec), p )
   }
 }
 
-// Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
-fun pow10?( i : int ) : int {
-  if (i.zero?) then return 0
-  match(i.show.find(rx-endzeros)) {
-    Nothing   -> 0
-    Just(cap) -> cap.groups[1].count
-  }
-}
-val rx-endzeros = regex(@"[1-9](0+)$")
 
-// Count the number of decimal digits in `i`.
-private fun count-digits( i : int ) : int {
-  if (i.zero?) then 0 else i.abs.show.count
-}
 
 
 // Negate a fixed-point number.
@@ -154,9 +141,15 @@ fun divmod( x : fixed, y : fixed, max-prec : int = 20) : (fixed,fixed) {
   val p  = max(x.prec,y.prec)
   val xp = x.expand(p)
   val yp = y.expand(p)
-  val dp = if (max-prec >= 0) then max-prec else 2*(p+1)
-  val (q,r) = divmod(xp.fix * pow10(dp), yp.fix)
-  (Fixed(q,dp).reduce, Fixed(r,dp + p).reduce)
+  val dp = if (max-prec >= 0) then max-prec else 2*p
+  val q  = xp.fix.mul-pow10(dp) / yp.fix
+  val qq = Fixed(q,dp).reduce
+  val rr = xp - mul(qq,yp)
+  (qq,rr.reduce)
+}
+
+fun show( t : (fixed,fixed) ) : string {
+  t.fst.show + ", " + t.snd.show
 }
 
 fun div( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
@@ -179,15 +172,19 @@ fun (%)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
 // Round the fixed-point number `x` to a specified precision `p`.
 fun round-to-prec( x : fixed, p : int ) : fixed {
   if (p < 0 || x.prec <= p) then x else {
-    val d = x.prec - p 
-    val d10 = pow10(d)
-    val (q,r) = divmod(x.fix,d10)
-    val q1  = match(compare(r,d10/2)) {
+    val sign = if (x.neg?) then negate else id
+    val d   = x.prec - p 
+    val f   = x.fix.abs
+    val q   = f.cdiv-pow10(d)  
+    val r   = f - q.mul-pow10(d)
+    val half= d.pow10 / 2
+    // trace("round-to-prec: " + d.show + ", q: " + q.show + ", r:" + r.show + ", half:" + half.show)                  
+    val q1  = match(compare(r, half)) {
                 Eq -> if (q.even?) then q else q.inc
-                Lt -> q
                 Gt -> q.inc
+                Lt -> q
             }
-    Fixed(q1, p).reduce
+    Fixed(q1.sign, p).reduce
   }
 }
 
@@ -201,20 +198,30 @@ fun round( f : fixed ) : fixed {
   f.round-to-prec(0)
 }
 
+// Truncate a fixed-point number to a certain precision.
+fun trunc-to-prec( x : fixed, p : int ) : fixed {
+  if (x.zero?) return zero
+  if (!x.prec.pos?) return x
+  val z = x.prec - p
+  if (z.pos? && z <= x.prec) then {
+    Fixed( x.fix.cdiv-pow10(z), x.prec - z)
+  }
+  else x
+}
+
+// Return the fraction of a fixed-point number from a specified precision.
+fun fraction-to-prec( f : fixed, p : int ) : fixed {
+  if (!f.prec.pos?) then zero else f - f.trunc-to-prec(p)
+}
+
 // Truncate a fixed-point number.
 fun trunc( f : fixed ) : fixed {
-  if (!f.prec.pos?) then f else {
-    val sgn = if (f.fix.neg?) then negate else id
-    Fixed( sgn(f.fix.abs / pow10(f.prec)), 0 )
-  }
+  f.trunc-to-prec(0)
 }
 
 // Return the fraction of a fixed-point number.
 fun fraction( f : fixed ) : fixed {
-  if (!f.prec.pos?) then zero else {
-    val sgn = if (f.fix.neg?) then negate else id
-    Fixed( sgn(f.fix.abs % pow10(f.prec)), f.prec )
-  }
+  f.fraction-to-prec(0)
 }
 
 // The zero fixed-point number.
@@ -226,8 +233,18 @@ fun neg?( x : fixed ) : bool  {x.fix.neg?}
 
 // Compare two fixed-point numbers.
 fun compare( x : fixed, y : fixed ) : order {
-  val p = max(x.prec,y.prec)
-  compare(x.expand(p).fix, y.expand(p).fix)
+  // cheaper to first reduce the terms to the minimum precision
+  val p = min(x.prec,y.prec)
+  val rx = x.trunc-to-prec(p)
+  val ry = y.trunc-to-prec(p)
+  match(compare(rx.fix,ry.fix)) {
+    Eq -> {
+      // only if equal, we need to expand the other to do a full comparison
+      val q = max(x.prec,y.prec)
+      compare(x.expand(p).fix, y.expand(p).fix)
+    }
+    ord -> ord
+  }
 }
 
 fun (>) (x : fixed, y : fixed) : bool { compare(x,y) == Gt }
