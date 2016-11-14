@@ -117,7 +117,7 @@ public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
 
 // Add a duration to an instant in time.
 public fun (+)( i : instant, d : duration ) : instant {
-  if(i.ts.ts-unit=="TAI" || i.ts.ts-unit=="UTC")
+  if (i.ts.ts-unit=="TAI")
    then Instant( i.since + d.timestamp, i.ts ) // directly add
    else Instant( i.timestamp(ts-tai) + d.timestamp, ts-tai )
 }
