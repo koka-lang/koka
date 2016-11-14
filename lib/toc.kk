@@ -29,6 +29,7 @@ import std/time
 import std/unicode
 
 import std/xtime
+import std/time/timestamp
 import std/time/timezone
 import std/time/ut1
 

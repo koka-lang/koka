@@ -42,7 +42,16 @@ fun test-tz() {
   check("tz4c"){ time(2011,11,6,2,15,tz=z1).show == "2011-11-06T02:15:00-05:00 (EST)" }
 
   // leap second in other time zone
-  check("tz5"){ instant-at(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=timezone("US/Pacific")).show == "2016-12-31T15:59:60.500-08:00 (PST)" }
+  check("tzleap1"){ instant-at(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=timezone("US/Pacific")).show == "2016-12-31T15:59:60.500-08:00 (PST)" }
+  check("tzleap2"){ instant-at(1979,1,1,0,0,17,0.5,cal=cal-tai).time(tz=timezone("Asia/Tehran")).show == "1979-01-01T03:29:60.500+03:30 (IRST)" }
+  check("tzleap3"){ instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z" }
+  
+  // round into a time zone skip
+  check("tzround1"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show == "2011-03-13T01:59:59.999900-05:00 (EST)" }
+  check("tzround2"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) == "2011-03-13T03:00:00-04:00 (EDT)" }
+
+  // round into a timezone leap second
+  check("tzroundleap1") { instant-at(1979,1,1,3,29,59,0.9999,tz=timezone("Asia/Tehran")).time.show(3) == "1978-12-31T23:59:60Z" }
 }
 
 
