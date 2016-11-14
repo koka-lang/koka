@@ -432,7 +432,7 @@ removeComment s
 
 
     align ls
-      = let n = minimum (map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls))
+      = let n = minimum (0:(map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls)))
         in map (drop n) ls
 
 
