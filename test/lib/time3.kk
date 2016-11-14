@@ -10,6 +10,8 @@ module time3
 
 public import std/fixed
 public import std/xtime
+public import std/time/timestamp
+public import std/time/ut1
 
 /*----------------------------------------------------------------------------
   Testing
@@ -24,6 +26,12 @@ fun test-misc() {
   // unix 32/64-bit overflow
   check("misc0"){ instant-at(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex == "0x80000000" }
   check("misc1"){ instant-at(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex == "0x8000000000000000" }
+
+  // rounding of dates
+  check("round0"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(3) == "2000-01-01T00:00:00Z" }
+  check("round1"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(6) == "2016-12-31T23:59:59.999900Z" }
+  // round into a leap second
+  check("round2"){ instant-at(2016,12,31,23,59,59,0.9998).time.show(3) == "2016-12-31T23:59:60Z" }
 }
 
 fun test-jd() {

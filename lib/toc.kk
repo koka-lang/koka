@@ -28,9 +28,9 @@ import std/string
 import std/time
 import std/unicode
 
-import std/time/leaps
 import std/xtime
-
+import std/time/timezone
+import std/time/ut1
 
 import sys/dom
 import sys/dom/types

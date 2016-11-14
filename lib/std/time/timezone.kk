@@ -19,6 +19,7 @@ import std/regex
 import std/path
 import std/file
 import std/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/timescale
@@ -148,14 +149,14 @@ fun parse-packed-zone( s : string ) : exn timezone-info {
     indices.map( fun(idx) {xs[idx].default(def) }).reverse
   }
   val (start0,diffs) = match(xdiffs) {
-    Nil -> (zero,[])
-    Cons(start,rest) -> (fixed(start) * fixed(60), Cons(0.0,rest))
+    Nil -> (0.0,[])
+    Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
   }
   val population = parts[5].default("0").parse-base60
   if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  " + s )
-  val endings = diffs.foldl((start0,[]), fun(acc:(fixed,list<maybe<instant>>),diff) {
-                  val iu = acc.fst + fixed(diff * 60.0)
-                  val i = instant-at(timestamp(iu),ts-unix)
+  val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
+                  val iu = acc.fst + diff*60.0
+                  val i = unsafe-instant-at(timestamp(iu),ts-unix)
                   (iu,Cons(Just(i),acc.snd))
                 }).snd
   val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )

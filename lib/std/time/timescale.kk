@@ -13,6 +13,7 @@
 module std/time/timescale
 
 import std/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/leaps
@@ -28,7 +29,7 @@ extern include {
 
 // Create a new time scale based on SI seconds with a given `name` and `epoch-jd-delta`:\
 // `time-scale-epoch == epoch + epoch-jd-delta`.
-public fun utc-timescale( name : string, offset : timestamp = timestamp0, epoch-jd-delta : timestamp = timestamp0 ) : timescale {
+public fun utc-timescale( name : string, offset : timespan = timespan0, epoch-jd-delta : timespan = timespan0 ) : timescale {
   val epoch-delta = epoch-jd-delta - offset
   fun from-tai(tai:duration) { tai-to-utc(tai) - epoch-delta }
   fun to-tai(t:timestamp)    { utc-to-tai(t + epoch-delta) }
@@ -47,14 +48,14 @@ public fun utc-timescale( name : string, offset : timestamp = timestamp0, epoch-
 public fun timescale( name : string, 
                       from-tai : duration -> timestamp, 
                       to-tai   : timestamp -> duration, 
-                      epoch-jd-delta : timestamp = timestamp0,
+                      epoch-jd-delta : timespan = timespan0,
                       unit  : string = "" ) : timescale {
   Timescale(
     name,
     unit,
     from-tai,
     to-tai,
-    timestamp0,
+    timespan0,
     epoch-jd-delta
   )
 }
@@ -64,23 +65,23 @@ public fun timescale( name : string,
 // on SI seconds with a 1980-01-06 GPS epoch.\
 // GPS = TAI - 19s.
 // Note that internally to the library the `:timestamp`s will maintain any leap second information.
-public val ts-gps : timescale = tai-timescale( "GPS", timestamp(~19), timestamp(~630720000) )
+public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), duration(~630720000) )
 
 // The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 2000-01-01 TAI `epoch`.
 // It is the continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time).
 // TT is defined as: TT = TAI + 32.184s, as by IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
-public val ts-tt : timescale = tai-timescale( "TT", timestamp(fixed(32184,3)))
+public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 // The UTC time scale with a 2000-01-01Z UTC epoch. This uses ['UTC seconds'](https://en.wikipedia.org/wiki/Unix_time) where
 // one day consists of 86400 'seconds' but where leap seconds are ignored (as in unix timestamps)
-public val ts-utc : timescale = utc-timescale( "" )
+public val ts-utc : timescale = utc-timescale( "UTC" )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on UTC seconds but with 1970-01-01 epoch.
-public val ts-unix : timescale = utc-timescale( "UNIX", timestamp0, timestamp(~946684800) )
+public val ts-unix : timescale = utc-timescale( "UNIX", timespan0, timespan(~946684800) )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but 
 // with a 1900-01-01Z epoch.
-public val ts-ntp : timescale = utc-timescale( "NTP", timestamp0, timestamp(~3155673600) )
+public val ts-ntp : timescale = utc-timescale( "NTP", timespan0, timespan(~3155673600) )
 
 
 
@@ -111,7 +112,7 @@ public fun instant-at-mjd( mjd : double, ts : timescale = ts-utc ) : instant {
 public fun instant-at-mjd( mjd : fixed, ts : timescale = ts-utc ) : instant {
   val d    = mjd - mjd-epoch-delta // since our epoch
   val t    = timestamp(d*secs-per-day.fixed) - ts.epoch-jd-delta // since the time scale epoch
-  instant-at(t,ts) 
+  unsafe-instant-at(t,ts) 
 }
 
 
@@ -121,7 +122,7 @@ public fun jd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixe
 
 public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
   val t = i.timestamp(ts) + ts.epoch-jd-delta
-  (div)(t.seconds, secs-per-day.fixed, max-prec) + mjd-epoch-delta
+  (div)(t.timespan.seconds, secs-per-day.fixed, max-prec) + mjd-epoch-delta
 }
 
 /*----------------------------------------------------------------------------
@@ -137,7 +138,7 @@ val tcg-epoch-delta = timestamp(fixed(~725759967816,3)) // 1977-01-01T00:00:32.1
 // TCG = TT + Lg*(TT - TCG~epoch~)
 fun tcg-from-tai( tai : duration ) : timestamp {
   val tt = ts-tt.from-tai(tai)
-  tt + (lg*(tt - tcg-epoch-delta).seconds).timestamp
+  tt + (lg*(tt - tcg-epoch-delta).seconds).timespan
 }
 
 // IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
@@ -145,7 +146,7 @@ fun tcg-from-tai( tai : duration ) : timestamp {
 // =>
 // TT = TCG - Lg*(TCG - TCG~epoch~)
 fun tcg-to-tai( t : timestamp ) : duration {
-  val tt = t - (lg*(t - tcg-epoch-delta).seconds).timestamp
+  val tt = t - (lg*(t - tcg-epoch-delta).seconds).timespan
   ts-tt.to-tai(tt)
 }
 
@@ -168,7 +169,7 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
-fun tdb-delta( tt : timestamp ) : timestamp {
+fun tdb-delta( tt : timestamp ) : timespan {
   val t = (tt - j2k-epoch).seconds.double / (secs-per-julian-year * 1000.0) 
   // First terms of Fairhead et al. model 
   val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
@@ -189,7 +190,7 @@ fun tdb-delta( tt : timestamp ) : timestamp {
           (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
           (~0.00173e-6*sin(  74.781599*t + 2.435900)) +
             0.03638e-6*t*t;
-  timestamp( (wf + wj).fixed ) // + tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0))            
+  timespan( (wf + wj).fixed ) // + tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0))            
 }
 
 val pi2   = 6.283185307179586476925287      // 2pi
@@ -269,12 +270,12 @@ val tdb0 : fixed = fixed(655,7) // ~6.55e-5
 fun tai-to-tcb( tai : duration ) : timestamp {
   val tdb = ts-tdb.from-tai(tai)
   val adj = lb*(tdb - tcg-epoch-delta).seconds
-  tdb + (adj - tdb0).timestamp
+  tdb + (adj - tdb0).timespan
 }
 
 fun tcb-to-tai( tcb : timestamp ) : duration {
   val adj = lb*(tcb - tcg-epoch-delta).seconds
-  val tdb = tcb - (adj - tdb0).timestamp  
+  val tdb = tcb - (adj - tdb0).timespan 
   ts-tdb.to-tai(tdb)
 }
 
@@ -295,7 +296,7 @@ public val ts-tcb : timescale = timescale( "TCB", tai-to-tcb, tcb-to-tai )
 
 // The current `:instant` in time.
 public fun now() : ndet instant {
-  instant-at( timestamp(fixed(unix-now())), ts-unix ) 
+  unsafe-instant-at( timestamp(unix-now()), ts-unix ) 
 }
 
 // Returns a unix time stamp; this still needs

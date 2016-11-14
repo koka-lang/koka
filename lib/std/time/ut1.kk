@@ -12,6 +12,7 @@ public module std/time/ut1
 
 import std/fixed
 import std/regex
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/timescale
@@ -34,7 +35,7 @@ fun tai-to-ut( tai : duration, override : (year : double) -> maybe<duration> ) :
 }
 
 fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<duration> ) : duration {
-  val i   = instant-at(t,ts-tt)   // approximately tt
+  val i   = unsafe-instant-at(t,ts-tt)   // approximately tt
   val i1  = i + deltat(i,override)    
   val i2  = i + deltat(i1,override)    
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)

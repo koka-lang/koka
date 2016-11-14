@@ -12,6 +12,7 @@
 module std/time/instant
 
 import std/fixed
+import std/time/timestamp
 import std/time/duration
 
 /*----------------------------------------------------------------------------
@@ -30,12 +31,12 @@ abstract struct instant(
 ----------------------------------------------------------------------------*/
 
 public struct timescale(
-  ts-name     : string,
-  ts-unit     : string,
-  private from-tai    : duration -> timestamp,
-  private to-tai      : timestamp -> duration,
-  epoch-delta    : timestamp,         // ts-epoch = 2000-01-01TS + epoch-delta
-  epoch-jd-delta : timestamp   // epoch-delta minus the offset; used for julian date calculation
+  ts-name          : string,
+  ts-unit          : string,
+  private from-tai : duration -> timestamp,
+  private to-tai   : timestamp -> duration,
+  private epoch-delta : timespan,  // ts-epoch = 2000-01-01TS + epoch-delta
+  epoch-jd-delta      : timespan   // epoch-delta minus the offset; used for julian date calculation
 )
 
 
@@ -71,7 +72,7 @@ public fun convert( t : timestamp, from : timescale, to : timescale ) : timestam
 }
 
 public fun to-tai(  ts : timescale, t : timestamp ) : duration {
-  t.convert(ts,ts-tai).duration
+  t.convert(ts,ts-tai).unsafe-duration
 }
 
 public fun from-tai(ts : timescale, d : duration ) : timestamp {
@@ -86,20 +87,34 @@ public fun timestamp( i : instant, tscale : timescale = ts-tai ) : timestamp {
   i.since.convert(i.ts,tscale)
 }
 
-public fun instant-at( t : timestamp, ts : timescale ) : instant {
+public fun unsafe-instant-at( t : timestamp, ts : timescale ) : instant {
   Instant(t,ts)
 }
 
+// Round an instant to a certain precision (`prec` is number of digits of the fraction of the second).\
+// Takes special care for instants that use a UTC timescale to round into leap seconds if appropriate.
+public fun round-to-prec(i : instant, prec : int ) : instant {
+  if (i.ts.has-leap-seconds && i >= utc-epoch) 
+   then Instant( i.use(ts-tai).since.round-to-prec(prec), ts-tai )
+   else Instant( i.since.round-to-prec(prec), i.ts )
+}
+val utc-epoch = Instant(timestamp(~883612789),ts-tai)
+
+fun has-leap-seconds( ts : timescale ) : bool {
+  ts.ts-unit == "UTC"
+}
 
 // Our epoch is set at 2000-01-01 TAI (= 1999-12-31T23:59:28Z)
 public val epoch : instant = Instant(timestamp0,ts-tai)
 
+// Return the (TAI) SI second duration since the `epoch` at this instant.
 public fun since-epoch( i : instant ) : duration {
-  duration( i.timestamp(ts-tai) )
+  i.timestamp(ts-tai).unsafe-duration
 }
 
+// Return the instant at (TAI) SI second duration from the the `epoch`.
 public fun since-epoch( d : duration ) : instant {
-  instant-at(d.timestamp, ts-tai)
+  unsafe-instant-at(d.timestamp, ts-tai)
 }
 
 // Compare two `:instant`s in time.
@@ -118,8 +133,8 @@ public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
 // Add a duration to an instant in time.
 public fun (+)( i : instant, d : duration ) : instant {
   if (i.ts.ts-unit=="TAI")
-   then Instant( i.since + d.timestamp, i.ts ) // directly add
-   else Instant( i.timestamp(ts-tai) + d.timestamp, ts-tai )
+   then Instant( i.since + d.timespan, i.ts ) // directly add
+   else Instant( i.timestamp(ts-tai) + d.timespan, ts-tai )
 }
 
 // Subtract a duration from an instant in time.
@@ -127,32 +142,30 @@ public fun (-)( i : instant, d : duration ) : instant {
   i + (~d)
 }
 
-// Return the difference between to instants in time.
+// Return the duration between to instants in time.
 public fun (-)( i : instant, j : instant ) : duration {
   i.since-epoch - j.since-epoch
 }
 
-
+// Show an instant as a timestamp in a given precision
 public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
   i.since.show(max-prec,secs-width) + "s"
    + (if (i.ts.ts-name.empty?) then "" else " " + i.ts.ts-name)
 }
 
-
-
 // Create a new time scale based on SI seconds with a given `name`, `offset` and `epoch-jd-delta`:\
 // `time-scale-epoch == epoch + epoch-jd-delta`.
-public fun tai-timescale( name : string, offset : timestamp = timestamp0, epoch-jd-delta : timestamp = timestamp0 ) : timescale {
+public fun tai-timescale( name : string, offset : duration = duration0, epoch-jd-delta : duration = duration0 ) : timescale {
   val epoch-delta = epoch-jd-delta - offset
-  fun from-tai(tai:duration) { tai.timestamp - epoch-delta }
-  fun to-tai(ts:timestamp)   { (ts + epoch-delta).duration }
+  fun from-tai(tai:duration) { (tai - epoch-delta).timestamp }
+  fun to-tai(ts:timestamp)   { ts.unsafe-duration + epoch-delta }
   Timescale(
     name,
     "TAI",
     from-tai,
     to-tai,
-    epoch-delta,
-    epoch-jd-delta
+    epoch-delta.timespan,
+    epoch-jd-delta.timespan
   )
 }
 

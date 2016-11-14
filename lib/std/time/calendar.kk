@@ -13,6 +13,7 @@
 module std/time/calendar
 
 import std/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/timescale
@@ -30,7 +31,7 @@ abstract struct time (
   public  hours  : int,
   public  minutes: int,
   public  seconds: fixed,
-  public  cal    : calendar,
+  public  calendar: calendar,
   public  tzofs  : duration = duration0,
   public  tzabbrv: string   = "",
   public  tz     : timezone = tz-utc,
@@ -43,23 +44,35 @@ abstract struct time (
 ----------------------------------------------------------------------------*/
 
 // Return the hours, minutes, seconds, and fraction of the second.
-fun clock( t : time ) : clock {
+public fun clock( t : time ) : clock {
   Clock(t.hours,t.minutes,t.seconds)
 }
 
 // Return the year, month, and day.
-fun date( t : time ) : date {
+public fun date( t : time ) : date {
   Date(t.year,t.month,t.day)
 }
 
+// 
+public fun round-to-prec( t : time, prec : int ) : time {
+  val secs = t.seconds.round-to-prec(prec)
+  if (secs.trunc == t.seconds.trunc) then {
+    t(seconds = secs, instant = t.instant.round-to-prec(prec))
+  } 
+  else {
+    t.instant.round-to-prec(prec).time(t.tz,t.calendar)
+  } 
+}
+
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
-public fun show(t : time, prec : int = 9 ) : string {
+public fun show(t0 : time, prec : int = 9 ) : string {
+  val t = t0.round-to-prec(prec)
   val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
    t.hours.show0 + ":" + t.minutes.show0 + ":" + 
    show(timestamp(t.seconds),prec,2) + show-tzofs(t.tzofs ) +
    (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
-   (if (t.cal.cal-name.empty?) then "" else " " + t.cal.cal-name)
+   (if (t.calendar.cal-name.empty?) then "" else " " + t.calendar.cal-name)
 }
 
 // Show a time zone offset. 
@@ -255,7 +268,7 @@ public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
-public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : timestamp = timestamp0 ) : calendar {
+public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : timespan = timespan0 ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
@@ -279,26 +292,26 @@ public fun solar-calendar(
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : timescale = ts-utc,
-              shift: timestamp = timestamp0 
+              shift: timespan  = timespan0 
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs.timestamp, date-from-days ) },
-    fun(d,c)     { instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
+    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs.timespan, date-from-days ) },
+    fun(d,c)     { unsafe-instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
   )
 }
 
 
 fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
-  val (nlsecs,nlfrac,leap)  = t.clock-seconds
+  val (nlsecs,nlfrac,leap)  = t.calendar-seconds
   // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = date-from-days(days)
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs + leap) + nlfrac  // adjust for leap seconds
+  val tsecs            = fixed(xsecs + leap) + fixed(nlfrac)  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
@@ -307,7 +320,7 @@ fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : ti
   val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,0) else ( fixed(59) + c.seconds.fraction, c.seconds.trunc.int - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs.trunc.int), secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
-  timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction ).add-leap-seconds(leaps.fixed)
+  timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction ).add-leap-seconds(leaps.double)
   // timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction, leaps )   
 }
 
