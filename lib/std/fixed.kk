@@ -21,14 +21,14 @@ public struct fixed (
 fun show( f0 : fixed, max-prec : int = ~1 ) : string { 
   val f1 = f0.reduce
   val f  = if (max-prec >= 0) then f1.round-to-prec(max-prec) else f1
-  if (f.prec <= 0) then return f.fix.show
+  if (!f.prec.pos?) then return f.fix.show
 
-  val s     = f.fix.abs.show.pad-left(f.prec,'0')
+  val s     = f.fix.abs.show.pad-right(f.prec,'0')
   val frac  = s.last(f.prec)
   val whole = frac.before.string
   (if (f.fix.neg?) then "-" else "") +
    (if (whole.empty?) then "0" else whole) + 
-     "." + frac.string // + " (prec=" + f.prec.show + ", fix=" + f1.fix.show + ")"
+     "." + frac.string  // + " (prec=" + f.prec.show + ")"
 }
 
 // Parse a fixed-point number.
@@ -48,9 +48,9 @@ val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
 // Create a new fixed-point number a whole part `whole` and fraction `frac` with `prec` digits precision.\
 // For example, `fixed(1.002) == fixed-frac(1,2,3)`.
 fun fixed-frac( whole : int, frac : int, prec : int ) : fixed {
-  if (prec <= 0 || frac.zero?) then Fixed(whole,0) else {
-    Fixed(whole.mul-pow10(prec) + frac, prec).reduce
-  }
+  if (whole.zero?) then zero
+  elif (prec <= 0 || frac.zero?) then Fixed(whole,0) 
+  else Fixed(whole.mul-pow10(prec) + frac, prec).reduce
 }
 
 // Create a new fixed-point number from an integer `i` putting the decimal point at `prec` (=`0`) digits from the right.
@@ -62,7 +62,8 @@ fun fixed( i : int, prec : int = 0) : fixed {
 
 // Create a new fixed-point number from a double `d` with a maximum precision of `max-prec` (=`20`) digits.
 fun fixed( d : double, max-prec : int = 20 ) : fixed {
-  if (d.fraction==0.0) then return Fixed(d.int,0)
+  if (d.zero?) then return zero
+  if (d.fraction.zero?) then return Fixed(d.int,0)
   val s = d.show-fixed(max-prec)
   match(s.find(rx-fraction)) {
     Nothing   -> Fixed(d.int,0)
@@ -87,6 +88,7 @@ fun reduce( x : fixed ) : fixed {
   if (!x.prec.pos?) return x
   val z = x.fix.pow10?
   if (z.pos? && z <= x.prec) then {
+    //trace("reduce: " + x.fix.show + ", prec: " + x.prec.show + ", z:" + z.show + ", r: " + x.fix.cdiv-pow10(6).show)
     Fixed( x.fix.cdiv-pow10(z), x.prec - z)
   }
   else x
@@ -178,12 +180,12 @@ fun round-to-prec( x : fixed, p : int ) : fixed {
     val q   = f.cdiv-pow10(d)  
     val r   = f - q.mul-pow10(d)
     val half= d.pow10 / 2
-    // trace("round-to-prec: " + d.show + ", q: " + q.show + ", r:" + r.show + ", half:" + half.show)                  
     val q1  = match(compare(r, half)) {
                 Eq -> if (q.even?) then q else q.inc
                 Gt -> q.inc
                 Lt -> q
             }
+    // trace("round-to-prec: " + d.show +  ", q: " + q.show + ", q1: " + q1.show + ", r:" + r.show + ", half:" + half.show)                  
     Fixed(q1.sign, p).reduce
   }
 }
