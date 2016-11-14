@@ -29,7 +29,7 @@ fun test-misc() {
 
   // rounding of dates
   check("round0"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(3) == "2000-01-01T00:00:00Z" }
-  check("round1"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(6) == "2016-12-31T23:59:59.999900Z" }
+  check("round1"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(6) == "1999-12-31T23:59:59.999900Z" }
   // round into a leap second
   check("round2"){ instant-at(2016,12,31,23,59,59,0.9998).time.show(3) == "2016-12-31T23:59:60Z" }
 }

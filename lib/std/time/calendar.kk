@@ -67,6 +67,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t0 : time, prec : int = 9 ) : string {
   val t = t0.round-to-prec(prec)
+  val (ysign,ywidth) = if (t.year > 9999) then ("+",5) elif (t.year.neg?) then ("-",5) else ("",4)
   val yr = ysign + t.year.abs.show0(ywidth)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
    t.hours.show0 + ":" + t.minutes.show0 + ":" + 
