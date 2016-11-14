@@ -21,6 +21,7 @@ import std/file
 import std/fixed
 import std/time/duration
 import std/time/instant
+import std/time/timescale
 import std/time/calendar
 
 /*----------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import std/fixed
 import std/regex
 import std/time/duration
 import std/time/instant
+import std/time/timescale
 import std/time/calendar
 
 // The UT1 (Universal time 1) calendar. See also `ts-ut1`.
@@ -26,19 +27,18 @@ public fun cal-ut1( ts : timescale = ts-ut1() ) {
 // -----------------------------------------------------------
 
 fun tai-to-ut( tai : duration, override : (year : double) -> maybe<duration> ) : timestamp {
-  val tt = instant-at(tai,ts-tai).use(ts-tt) //.timestamp(ts-tt)
-  val dt = deltat(tt,override)
-  trace("tai-to-ut: dt: " + dt.show + ", tt=" + tt.show )
-  tt.timestamp(ts-tt) - dt
+  val i  = tai.since-epoch
+  val dt = deltat(i,override)
+  trace("tai-to-ut: dt: " + dt.show )
+  (i - dt).timestamp(ts-tt)
 }
 
 fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<duration> ) : duration {
-  val i0  = instant-at(t,ts-tt)   // approximately tt
-  val tt0 = t + deltat(i0,override)    
-  val i1  = instant-at(tt0,ts-tt) // again with a better approximation (in case of a cross-over)
-  val tt1 = t + deltat(i1,override)    
+  val i   = instant-at(t,ts-tt)   // approximately tt
+  val i1  = i + deltat(i,override)    
+  val i2  = i + deltat(i1,override)    
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
-  tt1 // instant-at(tt1,ts-tt)
+  i2.since-epoch
 }
 
 public fun ts-ut1( override : (year : double) -> maybe<duration> = deltat-none ) : timescale {

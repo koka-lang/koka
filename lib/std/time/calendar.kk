@@ -15,6 +15,7 @@ module std/time/calendar
 import std/fixed
 import std/time/duration
 import std/time/instant
+import std/time/timescale
 
 extern include {
   js file "calendar-inline.js"
@@ -56,7 +57,7 @@ public fun show(t : time, prec : int = 9 ) : string {
   val yr = (if (t.year>9999) then "+" elif (t.year.neg?) then "-" else "") + t.year.abs.show0(4)
   yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
    t.hours.show0 + ":" + t.minutes.show0 + ":" + 
-   ts-show(duration(t.seconds),prec,2) + show-tzofs(t.tzofs ) +
+   show(timestamp(t.seconds),prec,2) + show-tzofs(t.tzofs ) +
    (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
    (if (t.cal.cal-name.empty?) then "" else " " + t.cal.cal-name)
 }
@@ -71,7 +72,7 @@ public fun show-tzofs(offset : duration, utc : string = "Z", hmsep : string = ":
   val (fmins,secs) = divmod(ofs.abs,fixed(60),6) // millisecond precision
   val mins = fmins.trunc.int
   val tz   = (if (ofs.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
-  val tzs  = if (secs.zero?) then "" else ":" + ts-show( duration(secs), 3 )
+  val tzs  = if (secs.zero?) then "" else ":" + show( timestamp(secs), 3 )
   tz + tzs
 }
 
@@ -121,7 +122,7 @@ public fun tz-local() : ndet timezone {
     "",
     fun(i) { 
       val ofs = local-utc-offset(tz, i.timestamp(ts-unix).seconds.double) 
-      (duration(ofs),"")
+      (duration(ofs.fixed),"")
     }
   )
 }
@@ -254,7 +255,7 @@ public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
-public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : duration = duration0 ) : calendar {
+public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : timestamp = timestamp0 ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
@@ -278,11 +279,11 @@ public fun solar-calendar(
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : timescale = ts-utc,
-              shift: duration = duration0 
+              shift: timestamp = timestamp0 
             ) : calendar
 {
   Calendar(cal-name,
-    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs, date-from-days ) },
+    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs.timestamp, date-from-days ) },
     fun(d,c)     { instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
   )
 }
@@ -297,16 +298,16 @@ fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,cl
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs) + fixed(nlfrac + leap)  // adjust for leap seconds
+  val tsecs            = fixed(xsecs + leap) + nlfrac  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
 fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
-  val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,0.0) else ( fixed(59), c.seconds.double - 59.0 )
+  val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,0) else ( fixed(59) + c.seconds.fraction, c.seconds.trunc.int - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs.trunc.int), secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
-  timestamp( sdays*secs-per-day + xsecs, fsecs.fraction.double + leaps)
+  timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction ).add-leap-seconds(leaps.fixed)
   // timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction, leaps )   
 }
 

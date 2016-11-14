@@ -23,7 +23,7 @@ fun show( f0 : fixed, max-prec : int = ~1 ) : string {
   val f  = if (max-prec >= 0) then f1.round-to-prec(max-prec) else f1
   if (!f.prec.pos?) then return f.fix.show
 
-  val s     = f.fix.abs.show.pad-right(f.prec,'0')
+  val s     = f.fix.abs.show.pad-left(f.prec,'0')
   val frac  = s.last(f.prec)
   val whole = frac.before.string
   (if (f.fix.neg?) then "-" else "") +
