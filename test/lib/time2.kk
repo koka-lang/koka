@@ -22,7 +22,7 @@ fun test-leap() {
   check("leap1"){ instant-at(2017,1,1,0,0,35,cal=cal-tai).time.show == "2016-12-31T23:59:59Z" }
   check("leap2"){ instant-at(2017,1,1,0,0,36,cal=cal-tai).time.show == "2016-12-31T23:59:60Z" }
   check("leap3"){ instant-at(2017,1,1,0,0,37,cal=cal-tai).time.show == "2017-01-01T00:00:00Z" }
-  // 'leap second' around 1972-01-01 of 0.1s  (0.107758s)
+  // 'leap second' around 1972-01-01 of 0.11035s (0.107758s from TAI)
   check("leap4"){ instant-at(1972,1,1,0,0,9,cal=cal-tai).time.show == "1971-12-31T23:59:59.107758Z" }
   check("leap5"){ instant-at(1972,1,1,0,0,9,0.8,cal=cal-tai).time.show == "1971-12-31T23:59:59.907758Z" }
   check("leap6"){ instant-at(1972,1,1,0,0,9,0.9,cal=cal-tai).time.show == "1971-12-31T23:59:60.007758Z" }

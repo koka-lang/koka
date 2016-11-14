@@ -37,8 +37,8 @@ fun test-misc() {
 fun test-jd() {
   check("jd0"){ instant-at(2000,1,1,12,0,0).jd.show == "2451545" }
   check("jd1"){ instant-at(2013,1,1,0,30,0).jd.show == "2456293.520833333" }
-  check("jd2"){ instant-at-jd(0.0).time.show == "-4713-11-24T12:00:00Z" }
-  check("jd3"){ instant-at-jd(0.0).time(cal=cal-julian).show == "-4713-01-01T12:00:00Z JC" }
+  check("jd2"){ instant-at-jd(0.0).time.show == "-04713-11-24T12:00:00Z" }
+  check("jd3"){ instant-at-jd(0.0).time(cal=cal-julian).show == "-04713-01-01T12:00:00Z JC" }
   check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show == "2456658.500405092" }
 }
 
@@ -47,13 +47,15 @@ fun test-astro() {
   check("astro2"){ instant-at-jd(fixed(24431445003725,7),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
 }
 
+public val sofai = instant-at(2006,1,15,21,24,37,0.5)
+
 // from: <http://www.iausofa.org/sofa_ts_c.pdf>
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
 fun test-sofa() {
   check("sofa1"){ instant-at(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show == "2010-07-24T11:19:13.502Z TT" }
   check("sofa2"){ instant-at(2008,2,29,23,59,59,0.9).jd == fixed(2454526499998842,9) }
   check("sofa3"){ instant-at(2008,2,29,23,59,59,0.9).jd.round-to-prec(3).instant-at-jd.time.show == "2008-03-01T00:00:00Z" }
-  val i = instant-at(2006,1,15,21,24,37,0.5)
+  val i = sofai
   check("sofa4utc"){ i.time(cal=cal-iso).show == "2006-01-15T21:24:37.500Z" }
   check("sofa4ut1"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // sofa: .834100 ; should be between 0.8340874 and 0.8340738
   check("sofa4tai"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
