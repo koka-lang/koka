@@ -360,17 +360,20 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
   // the year/month/day is interpreted as if in UTC first.
   val i = instantz(year,month,day,hours,minutes,secs,frac,cal)
   if (tz.tz-utc?) return i
-  val tai = i.since-epoch
   // we need to adjust according to timezone 
   match((tz.utc-inverse)(i)) {
     Just(inv) -> inv
     Nothing -> {
       // no explicit inverse,
       // do a double pass to accommodate jumping over a DST boundary.
+      // we calculate directly on UTC timespan's as to ignore any possible
+      // leap seconds during the timezone offset change. 
+      // (for example: instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
+      val utci   = i.timestamp(ts-utc)
       val tzofs1 = (tz.utc-offset)(i).fst
-      val tzi1   = (tai - tzofs1).since-epoch
+      val tzi1   = unsafe-instant-at(utci - tzofs1.timespan, ts-utc)
       val tzofs2 = (tz.utc-offset)(tzi1).fst
-      val tzi2   = (tai - tzofs2).since-epoch
+      val tzi2   = unsafe-instant-at(utci - tzofs2.timespan, ts-utc)
       tzi2     
     }
   }

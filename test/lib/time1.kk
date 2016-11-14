@@ -28,9 +28,9 @@ fun test-tz() {
 
   val z1  = timezone("America/New_York")
   val z2  = timezone("Asia/Tehran")
-  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(fixed(14*3600 + 44*60))
+  val t1  = instant-at(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60)
   check("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
-  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(fixed(14*3600 + 44*60)) // across DST & leap second
+  val t2  = instant-at(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
   check("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
 
   check("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
@@ -50,8 +50,9 @@ fun test-tz() {
   check("tzround1"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show == "2011-03-13T01:59:59.999900-05:00 (EST)" }
   check("tzround2"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) == "2011-03-13T03:00:00-04:00 (EDT)" }
 
-  // round into a timezone leap second
+  // round into a timezone leap second (across a DST zone)
   check("tzroundleap1") { instant-at(1979,1,1,3,29,59,0.9999,tz=timezone("Asia/Tehran")).time.show(3) == "1978-12-31T23:59:60Z" }
+  check("tzroundleap2") { time(1979,1,1,3,29,59,0.9999,tz=timezone("Asia/Tehran")).show(3) == "1979-01-01T03:29:60+03:30 (IRST)" }
 }
 
 
