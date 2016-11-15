@@ -93,19 +93,9 @@ public fun (-)( t : timespan, u : timespan ) : timespan {
 }
 
 // Show a timespan with an optional maximum precision (=`9`, nano-second resolution).
-public fun show( t0 : timespan, max-prec : int = 9 ) : string {   
-  // trace("show timespan: " + t0.secs.show + "s, " + t0.frac.show + ", " + t0.frac.fraction.show)
-  val t = t0.round-to-prec(max-prec)
-  val fr = t.frac.fraction
-  val ft = t.frac.trunc
-  if (t.secs.neg? && !fr.zero?) then {
-    "-" + (t.secs + ft.int + 1).show + 
-      ((1.0 - fr).show-fixed(max-prec).tail)
-  }
-  else {
-    (t.secs + ft.int).show + 
-      (if (fr.zero?) then "" else fr.show-fixed(max-prec).tail)
-  }
+public fun show( t : timespan, max-prec : int = 9 ) : string {   
+  // trace("show timespan: " + t.secs.show + "s, " + t.frac.show + ", " + t.frac.fraction.show)
+  t.seconds.round-to-prec(max-prec).show
 }
 
 // Round a time span to a certain precision.
@@ -136,13 +126,6 @@ fun leap-seconds( t : timespan ) : int {
 // Return the total non-leap seconds, the positive fraction (in the range [0,1.0>) and the leap seconds
 fun calendar-seconds( t : timespan ) : (int,double,int) {
   (t.secs, t.frac.fraction, t.leap-seconds)
-}
-
-// Return the total seconds, a fraction with the same sign as the seconds (in the range <-1.0,1.0>), and the leap seconds.
-fun timestamp-seconds( t : timespan ) : (int,double,int) {
-  val (secs0,frac0,leaps) = t.calendar-seconds
-  val secs1 = secs0 + leaps
-  if (secs1.neg? && frac0.pos?) then (secs1 + 1, 1.0 - frac0, leaps) else (secs1,frac0,leaps)
 }
 
 
@@ -241,14 +224,17 @@ public fun (-)( ts1 : timestamp, ts2 : timestamp ) : timespan {
 }
 
 // Show a time span (without the `s` (SI seconds) postfix).
-public fun show( ts : timestamp, prec : int = 9, secs-width : int = 1 ) : string {
-  val (secs,frac,leaps) = ts.since.round-to-prec(prec).timestamp-seconds
-  val s    = secs.show.pad-left(secs-width,'0')
-  val l    = if (leaps.zero?) then "" else " (+" + leaps.show + " leap)"
-  if (frac.zero?) then s + l else {
-    val f    = frac.show.first(2).after.string
-    val len3 = ((f.count + 2)/3)*3
-    s + "." + f.pad-right(len3,'0')  + l
+public fun show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
+  val s = ts.since.show(max-prec)
+  val l = if (ts.since.leap-seconds.zero?) then "" else " (+" + ts.since.leap-seconds.show + " leap)"
+  //trace("show timestamp: " + s + ", " + ts.since.show + ", " + ts.since.show(max-prec))
+  match(s.find(".")) {
+    Nothing -> s.pad-left(secs-width,'0') + l
+    Just(dot) -> {
+      val f = dot.after.string
+      val len3 = ((f.count + 2)/3)*3
+      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0')  + l
+    }
   }
 }
 

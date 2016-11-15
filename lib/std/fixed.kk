@@ -45,19 +45,18 @@ fun parse-fixed( s : string ) : maybe<fixed> {
 }
 val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
 
-// Create a new fixed-point number a whole part `whole` and fraction `frac` with `prec` digits precision.\
-// For example, `fixed(1.002) == fixed-frac(1,2,3)`.
-fun fixed-frac( whole : int, frac : int, prec : int ) : fixed {
-  if (whole.zero?) then zero
-  elif (prec <= 0 || frac.zero?) then Fixed(whole,0) 
-  else Fixed(whole.mul-pow10(prec) + frac, prec).reduce
-}
 
 // Create a new fixed-point number from an integer `i` putting the decimal point at `prec` (=`0`) digits from the right.
 fun fixed( i : int, prec : int = 0) : fixed {
   if (prec <= 0) then Fixed(i,0) else {
     Fixed(i,prec).reduce
   }
+}
+
+// Create a new fixed-point number from an integer `i` and a fraction as a double, with
+// at most `max-prec` precision.
+fun fixed-frac( i : int, frac : double, max-prec : int = 20 ) : fixed {
+  if (frac.zero?) then Fixed(i,0) else Fixed(i,0) + fixed(frac,max-prec)
 }
 
 // Create a new fixed-point number from a double `d` with a maximum precision of `max-prec` (=`20`) digits.
@@ -174,7 +173,6 @@ fun (%)( x : fixed, y : fixed, max-prec : int = 20 ) : fixed {
 // Round the fixed-point number `x` to a specified precision `p`.
 fun round-to-prec( x : fixed, p : int ) : fixed {
   if (p < 0 || x.prec <= p) then x else {
-    val sign = if (x.neg?) then negate else id
     val d   = x.prec - p 
     val f   = x.fix.abs
     val q   = f.cdiv-pow10(d)  
@@ -185,8 +183,9 @@ fun round-to-prec( x : fixed, p : int ) : fixed {
                 Gt -> q.inc
                 Lt -> q
             }
-    // trace("round-to-prec: " + d.show +  ", q: " + q.show + ", q1: " + q1.show + ", r:" + r.show + ", half:" + half.show)                  
-    Fixed(q1.sign, p).reduce
+    val res = Fixed(q1, p)
+    // trace("round-to-prec: " + p.show + ", d: " + d.show +  ", q: " + q.show + ", x: " + x.fix.show + ", res: " + res.fix.show )// q1: " + q1.show + ", r:" + r.show + ", half:" + half.show)                  
+    if (x.neg?) then ~res else res
   }
 }
 

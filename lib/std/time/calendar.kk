@@ -312,17 +312,18 @@ fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,cl
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs + leap) + fixed(nlfrac)  // adjust for leap seconds
+  val tsecs            = fixed-frac(xsecs + leap, nlfrac)  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
 fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
-  val (fsecs,leaps)  = if (c.seconds < fixed(60)) then (c.seconds,0) else ( fixed(59) + c.seconds.fraction, c.seconds.trunc.int - 59 )
-  val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs.trunc.int), secs-per-day )
+  val secs = c.seconds.trunc.int
+  val frac = c.seconds.fraction.double
+  val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
+  val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = days-from-date( d(day = d.day + xdays) )
-  timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction ).add-leap-seconds(leaps.double)
-  // timestamp( fixed(sdays*secs-per-day + xsecs) + fsecs.fraction, leaps )   
+  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.double)  
 }
 
 

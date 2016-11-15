@@ -87,6 +87,10 @@ public fun timestamp( i : instant, tscale : timescale = ts-tai ) : timestamp {
   i.since.convert(i.ts,tscale)
 }
 
+public fun timespan( i : instant, tscale : timescale = ts-tai ) : timespan {
+  i.timestamp(tscale).timespan
+}
+
 public fun unsafe-instant-at( t : timestamp, ts : timescale ) : instant {
   Instant(t,ts)
 }
@@ -147,11 +151,18 @@ public fun (-)( i : instant, j : instant ) : duration {
   i.since-epoch - j.since-epoch
 }
 
-// Show an instant as a timestamp in a given precision
+// Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision
 public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
-  i.since.show(max-prec,secs-width) + "s"
-   + (if (i.ts.ts-name.empty?) then "" else " " + i.ts.ts-name)
+  i.use(ts-tai).show-raw(max-prec,secs-width)
 }
+
+// Show an instant as a raw timestamp in a given precision
+public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
+  i.since.show(max-prec,secs-width) 
+   + (if (i.ts.ts-unit == "TAI") then "s" else "")
+   + (if (i.ts.ts-name.empty? || i.ts.ts-name=="TAI") then "" else " " + i.ts.ts-name)
+}
+
 
 // Create a new time scale based on SI seconds with a given `name`, `offset` and `epoch-jd-delta`:\
 // `time-scale-epoch == epoch + epoch-jd-delta`.

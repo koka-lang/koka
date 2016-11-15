@@ -868,8 +868,8 @@ public fun deltat-parse-finals2000A( s : string ) : ((i : instant) -> maybe<dura
                   }
                 }
   val end     = start + entries.length.double 
-  trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
-  trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
+  // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
+  // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
   (fun(i : instant) { 
      on-exn(Nothing) {
        val utci = i.use(ts-utc)
