@@ -12,7 +12,7 @@
 */
 module std/xtime
 
-private import std/time/timestamp
+public  import std/time/timespan
 public  import std/time/duration
 private import std/time/leaps
 public  import std/time/instant

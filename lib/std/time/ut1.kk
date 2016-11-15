@@ -12,7 +12,7 @@ module std/time/ut1
 
 import std/fixed
 import std/regex
-import std/time/timestamp
+import std/time/timespan
 import std/time/duration
 import std/time/instant
 import std/time/timescale
@@ -877,7 +877,7 @@ public fun deltat-parse-finals2000A( s : string ) : ((i : instant) -> maybe<dura
        if (mjd < start || mjd >= end) then Nothing else {
           val idx = (mjd - start).trunc.int
           val dut = entries[idx]
-          val dt  = (i.timestamp(ts-tt) - dut.timespan) - utci.timestamp(ts-utc)
+          val dt  = (i.timestamp(ts-tt) - dut.timespan) - utci.timestamp(ts-utc).timespan
           // trace("found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
           Just( unsafe-duration(dt) )
        }

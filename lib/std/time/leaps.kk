@@ -13,8 +13,7 @@
 module std/time/leaps
 
 import std/regex
-import std/fixed
-import std/time/timestamp
+import std/time/timespan
 import std/time/duration
 
 // Standard seconds per day (=`86400`). Note that a UTC day can contain extra leap seconds.
@@ -56,7 +55,7 @@ val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,0.0)
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = floor((utc-i - la.delta-start).seconds.double / secs-per-day.double)
+    val days = floor((utc-i.timespan - la.delta-start.timespan).double / secs-per-day.double)
     la.offset + timespan(la.delta * days)
   }
 }
@@ -153,7 +152,7 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
           else {
             // this is inside an added leap-second, encode as a fraction `> 1.0`.
             val diff     = ofs - ofs-before
-            val utc-leap = utc-i.add-leap-seconds(diff.seconds.double)                            
+            val utc-leap = utc-i.add-leap-seconds(diff.double)                            
             // trace(" use leap seconds: " + utc-leap.show + ", diff: " + diff.show + ", ofs: " + ofs.show + ", ofs-before: " + ofs-before.show )
             utc-leap
           }

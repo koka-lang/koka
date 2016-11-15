@@ -6,17 +6,22 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time spans and Time stamps that are unit-less
+/* Low level time spans (and time stamps).
+
+These are unit-less and may not necessarily be in (TAI) SI seconds, and
+are used internally to do time scale conversions and calendar calculations.
+A `:timestamp` can represent leap seconds through a special encoding.
 */
-module std/time/timestamp
+module std/time/timespan
 
 import std/regex
 import std/fixed
 
-// Represents timespan in time in seconds in some time unit.
+// Represents timespan in time in seconds in some time unit.\
+// Timespans can be arbitrary long and are precise up to about 10^-15^s (a femto second).
 abstract struct timespan(
   secs : int,
-  frac : double  // 0 <= frac < 1.0  (for leap encoding used by time stamps, frac can be >= 1.0)
+  frac : double  // 0 <= frac < 1.0  (for leap second encoding used by time stamps, frac can be >= 1.0)
 )
 
 // A time span of zero duration

@@ -13,7 +13,7 @@
 module std/time/calendar
 
 import std/fixed
-import std/time/timestamp
+import std/time/timespan
 import std/time/duration
 import std/time/instant
 import std/time/timescale

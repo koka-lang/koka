@@ -6,14 +6,12 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time scales
-
-
+/* Time scales: TAI, UTC, UT1, etc.
 */
 module std/time/timescale
 
 import std/fixed
-import std/time/timestamp
+import std/time/timespan
 import std/time/duration
 import std/time/instant
 import std/time/leaps
@@ -96,30 +94,34 @@ public fun instant-at-jd( jd: double, ts : timescale = ts-utc ) : instant {
   instant-at-jd(fixed(jd),ts)
 }
 
-// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
+// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day)
+// and time scale `ts` (=`ts-utc`).
 public fun instant-at-jd( jd: fixed, ts : timescale = ts-utc ) : instant {
   instant-at-mjd( jd - jd-epoch-delta, ts )
 }
 
-// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).\
-// modified-julian-date = julian-date - 2400000.5
+// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
+// and time scale `ts` (=`ts-utc`).\
+// `modified-julian-day = julian-day - 2400000.5`
 public fun instant-at-mjd( mjd : double, ts : timescale = ts-utc ) : instant {
   instant-at-mjd(fixed(mjd),ts)
 }
 
-// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).\
-// modified-julian-date = julian-date - 2400000.5
+// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
+// and time scale `ts` (=`ts-utc`).\
+// `modified-julian-day = julian-day - 2400000.5`
 public fun instant-at-mjd( mjd : fixed, ts : timescale = ts-utc ) : instant {
   val d    = mjd - mjd-epoch-delta // since our epoch
   val t    = timestamp(d*secs-per-day.fixed) - ts.epoch-jd-delta // since the time scale epoch
   unsafe-instant-at(t,ts) 
 }
 
-
+// Return the julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
 public fun jd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
   i.mjd(ts,max-prec) + jd-epoch-delta
 }
 
+// Return the modified julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
 public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
   val t = i.timestamp(ts) + ts.epoch-jd-delta
   (div)(t.timespan.seconds, secs-per-day.fixed, max-prec) + mjd-epoch-delta
@@ -129,8 +131,8 @@ public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fix
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lg : fixed = fixed(6969290134,19)// 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
-val tcg-epoch-delta = timestamp(fixed(~725759967816,3)) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
+val lg : double = 6.969290134e-10 // 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
+val tcg-epoch-delta = timespan(~725759967, ~0.816) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
 
 // IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
@@ -138,7 +140,7 @@ val tcg-epoch-delta = timestamp(fixed(~725759967816,3)) // 1977-01-01T00:00:32.1
 // TCG = TT + Lg*(TT - TCG~epoch~)
 fun tcg-from-tai( tai : duration ) : timestamp {
   val tt = ts-tt.from-tai(tai)
-  tt + (lg*(tt - tcg-epoch-delta).seconds).timespan
+  tt + (lg*(tt - tcg-epoch-delta).double).timespan
 }
 
 // IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
@@ -146,7 +148,7 @@ fun tcg-from-tai( tai : duration ) : timestamp {
 // =>
 // TT = TCG - Lg*(TCG - TCG~epoch~)
 fun tcg-to-tai( t : timestamp ) : duration {
-  val tt = t - (lg*(t - tcg-epoch-delta).seconds).timespan
+  val tt = t - (lg*(t - tcg-epoch-delta).double).timespan
   ts-tt.to-tai(tt)
 }
 
@@ -162,7 +164,7 @@ public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = timestamp(43200)       // 2000-01-01T12:00:00 TT
+val j2k-epoch = timespan(43200)       // 2000-01-01T12:00:00 TT
 val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
 // Compute tdb-delta(TT) = TDB - TT
@@ -170,7 +172,7 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 fun tdb-delta( tt : timestamp ) : timespan {
-  val t = (tt - j2k-epoch).seconds.double / (secs-per-julian-year * 1000.0) 
+  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) 
   // First terms of Fairhead et al. model 
   val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
           +   22.4175e-6*sin( 5753.3859*t + 4.2970)
@@ -264,17 +266,17 @@ public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
   TCB: Barycentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lb   : fixed = fixed(155051976772,19) // 1.55051976772e-8
-val tdb0 : fixed = fixed(655,7) // ~6.55e-5
+val lb   : double = 1.55051976772e-8 // 1.55051976772e-8
+val tdb0 : double = 6.55e-5 // ~6.55e-5
 
 fun tai-to-tcb( tai : duration ) : timestamp {
   val tdb = ts-tdb.from-tai(tai)
-  val adj = lb*(tdb - tcg-epoch-delta).seconds
+  val adj = lb*(tdb - tcg-epoch-delta).double
   tdb + (adj - tdb0).timespan
 }
 
 fun tcb-to-tai( tcb : timestamp ) : duration {
-  val adj = lb*(tcb - tcg-epoch-delta).seconds
+  val adj = lb*(tcb - tcg-epoch-delta).double
   val tdb = tcb - (adj - tdb0).timespan 
   ts-tdb.to-tai(tdb)
 }

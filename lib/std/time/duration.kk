@@ -6,18 +6,19 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time durations in SI seconds.
+/* Time durations in (TAI) [SI seconds](https://en.wikipedia.org/wiki/Second).
 */
 module std/time/duration
 
 import std/fixed
-import std/time/timestamp
+import std/time/timespan
 
 /*----------------------------------------------------------------------------
   Durations
 ----------------------------------------------------------------------------*/
 
-// A duration in time in (TAI) SI seconds.
+// A duration in time in (TAI) SI seconds.\
+// A duration can be arbitrarly long and is precise up to 10^-15^s (1 femto-second).
 abstract struct duration(
   secs : timespan                     
 )
@@ -114,7 +115,7 @@ public fun (-)( d : duration, e : duration ) : duration {
   d + ~e
 }
 
-// Show a duration
+// Show a duration in SI seconds.
 public fun show( d : duration, max-prec : int = 9 ) : string {
   d.secs.show(max-prec) + "s"
 }
