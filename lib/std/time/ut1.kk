@@ -8,7 +8,7 @@
 
 /* UT1 time scale
 */
-public module std/time/ut1
+module std/time/ut1
 
 import std/fixed
 import std/regex
@@ -27,14 +27,14 @@ public fun cal-ut1( ts : timescale = ts-ut1() ) {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut( tai : duration, override : (year : double) -> maybe<duration> ) : timestamp {
+fun tai-to-ut( tai : duration, override : (i:instant) -> maybe<duration> ) : timestamp {
   val i  = tai.since-epoch
   val dt = deltat(i,override)
   trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp(ts-tt)
 }
 
-fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<duration> ) : duration {
+fun ut-to-tai( t : timestamp, override : (i : instant) -> maybe<duration> ) : duration {
   val i   = unsafe-instant-at(t,ts-tt)   // approximately tt
   val i1  = i + deltat(i,override)    
   val i2  = i + deltat(i1,override)    
@@ -42,7 +42,7 @@ fun ut-to-tai( t : timestamp, override : (year : double) -> maybe<duration> ) : 
   i2.since-epoch
 }
 
-public fun ts-ut1( override : (year : double) -> maybe<duration> = deltat-none ) : timescale {
+public fun ts-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1", 
     fun(i) { tai-to-ut(i,override) },
     fun(t) { ut-to-tai(t,override) }
@@ -59,16 +59,18 @@ public fun ts-ut1( override : (year : double) -> maybe<duration> = deltat-none )
 // - generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
 // -----------------------------------------------------------
 
-fun deltat-none(year : double) : maybe<duration> {
+fun deltat-none(i : instant) : maybe<duration> {
   Nothing
 }
 
-public fun deltat( i : instant, override : (year : double) -> maybe<duration> = deltat-none ) : duration {
-  val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
-  val dt = match(override(y)) {
-             Just(dt) -> dt
-             Nothing  -> deltat-builtin(y).duration
-           }
+public fun deltat( i : instant, override : (i : instant) -> maybe<duration> = deltat-none ) : duration {
+  val dt = match(override(i)) {
+            Just(dt) -> dt             
+            Nothing  -> {
+              val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
+              deltat-builtin(y).duration
+            }
+          }
   // trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
   dt
 }
@@ -853,3 +855,34 @@ val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
 
 
+// Parse a ``final2000A.all`` file into a override function for delta-t.
+// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
+public fun deltat-parse-finals2000A( s : string ) : ((i : instant) -> maybe<duration>) {
+  val caps = s.find-all(rx-finals-dut)
+  val entries = caps.map(fun(cap){ cap.groups[1].parse-double-default(0.0) }).vector
+  val start   = match( s.find(rx-finals-start) ) {
+                  Nothing   -> 41684.0
+                  Just(cap) -> {
+                    trace("found start: " + cap.groups[1])
+                    cap.groups[1].parse-double-default(41684.0)
+                  }
+                }
+  val end     = start + entries.length.double 
+  trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
+  trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
+  (fun(i : instant) { 
+     on-exn(Nothing) {
+       val utci = i.use(ts-utc)
+       val mjd = utci.mjd(ts-utc).double
+       if (mjd < start || mjd >= end) then Nothing else {
+          val idx = (mjd - start).trunc.int
+          val dut = entries[idx]
+          val dt  = (i.timestamp(ts-tt) - dut.timespan) - utci.timestamp(ts-utc)
+          // trace("found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+          Just( unsafe-duration(dt) )
+       }
+     }
+  })
+}
+val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
+val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)

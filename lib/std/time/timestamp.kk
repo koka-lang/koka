@@ -97,8 +97,15 @@ public fun show( t0 : timespan, max-prec : int = 9 ) : string {
   // trace("show timespan: " + t0.secs.show + "s, " + t0.frac.show + ", " + t0.frac.fraction.show)
   val t = t0.round-to-prec(max-prec)
   val fr = t.frac.fraction
-  (t.secs + t.frac.trunc.int).show + 
-    (if (fr.zero?) then "" else fr.show-fixed(max-prec).tail)
+  val ft = t.frac.trunc
+  if (t.secs.neg? && !fr.zero?) then {
+    "-" + (t.secs + ft.int + 1).show + 
+      ((1.0 - fr).show-fixed(max-prec).tail)
+  }
+  else {
+    (t.secs + ft.int).show + 
+      (if (fr.zero?) then "" else fr.show-fixed(max-prec).tail)
+  }
 }
 
 // Round a time span to a certain precision.

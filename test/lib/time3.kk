@@ -8,6 +8,8 @@
 
 module time3
 
+import std/path
+import std/file
 public import std/fixed
 public import std/xtime
 public import std/time/timestamp
@@ -63,6 +65,16 @@ fun test-sofa() {
   check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690496Z TCG" }   // sofa: .322690
   check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // sofa: .683799  @ lon:-155.933222, lat: 19.48125
   check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893821304Z TCB" }   // sofa: .893378  (differs because derived from tdb)
+}
+
+public fun test-ut1() {
+  val fname = appdir() + path("config/finals2000A.all")
+  val tsut1 = catch {
+                ts-ut1( deltat-parse-finals2000A( read-text-file-sync(fname.string) ) )
+              }
+              fun(exn) { trace("failed: " + exn.show ); ts-ut1() }
+  val calut1= cal-ut1(tsut1)
+  println( sofai.time(cal=calut1).show )              
 }
 
 public fun main() {
