@@ -210,12 +210,29 @@ public fun days-in-year( year : int ) : int {
   if (year.leap-year?) then 366 else 365
 }
 
+// Number of days in a certain month (in a Gregorian calendar).
+public fun days-in-month( year: int, month : int ) : int {
+  if (month==2 && year.leap-year?) then return 29
+  month-counts[(month - 1)%12].maybe(0)  
+}
+val month-counts : list<int> = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
 // Return the day of the year (starting at 1) (in a Gregorian calendar).
 public fun day-of-year( d : date ) : int {
   val n = day-counts[(d.month - 1)%12].maybe(0) + d.day
   if (d.month > 2 && d.year.leap-year?) then n+1 else n
 }
 val day-counts : list<int> = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+public fun day-of-week( d : date ) : int {
+  // Zeller's algorithm <https://en.wikipedia.org/wiki/Zeller%27s_congruence>
+  val yr= if (d.month < 3) then d.year - 1 else d.year
+  val m = if (d.month < 3) then d.month + 12 else d.month
+  val c = yr/100
+  val y = yr%100
+  val w = ((d.day + ((13*(m+1))/5) + y + (y/4) + (c/4)) - 2*c)%7  
+  (if (w > 1) then (w - 1) else (w + 6)) // adjust for ISO week number
+}
 
 public fun year-frac( t : time ) : fixed {
   val dfrac = t.clock.total-seconds.double / secs-per-day.double
