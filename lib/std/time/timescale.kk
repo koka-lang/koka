@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time scales: TAI, UTC, UT1, etc.
+/* Time scales (TAI, UTC, UT1, etc.).
 */
 module std/time/timescale
 

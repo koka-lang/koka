@@ -117,5 +117,5 @@ public fun (-)( d : duration, e : duration ) : duration {
 
 // Show a duration in SI seconds.
 public fun show( d : duration, max-prec : int = 9 ) : string {
-  d.secs.show(max-prec) + "s"
+  d.secs.ts-show(max-prec) + "s"
 }

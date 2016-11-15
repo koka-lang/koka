@@ -53,6 +53,12 @@ public fun date( t : time ) : date {
   Date(t.year,t.month,t.day)
 }
 
+public fun show( d : date ) : string {
+  val (ysign,ywidth) = if (d.year > 9999) then ("+",5) elif (d.year.neg?) then ("-",5) else ("",4)
+  val yr = ysign + d.year.abs.show0(ywidth)
+  yr + "-" + d.month.show0 + "-" + d.day.show0
+}
+
 // 
 public fun round-to-prec( t : time, prec : int ) : time {
   val secs = t.seconds.round-to-prec(prec)
@@ -67,9 +73,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t0 : time, prec : int = 9 ) : string {
   val t = t0.round-to-prec(prec)
-  val (ysign,ywidth) = if (t.year > 9999) then ("+",5) elif (t.year.neg?) then ("-",5) else ("",4)
-  val yr = ysign + t.year.abs.show0(ywidth)
-  yr + "-" + t.month.show0 + "-" + t.day.show0 + "T" +
+  t.date.show + "T" +
    t.hours.show0 + ":" + t.minutes.show0 + ":" + 
    show(timestamp(t.seconds),prec,2) + show-tzofs(t.tzofs ) +
    (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
@@ -105,8 +109,8 @@ public fun show-tzofs(offset : duration, utc : string = "Z", hmsep : string = ":
 // inverse.  
 public struct timezone(
   tz-name    : string,                      
-  utc-offset : (instant) -> (duration,string),
-  utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
+  private utc-offset : (instant) -> (duration,string),
+  private utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
 
 
@@ -188,8 +192,8 @@ public struct clock(
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
   cal-name        : string,                 
-  dc-from-instant : (i:instant,tzofs:duration) -> (date,clock),
-  instant-from-dc : (date,clock) -> instant
+  private dc-from-instant : (i:instant,tzofs:duration) -> (date,clock),
+  private instant-from-dc : (date,clock) -> instant
 )
 
 public fun total-seconds( c : clock ) : fixed {
@@ -453,14 +457,14 @@ fun iso-days-from-date( d : date ) : int {
 }
 
 // Return days from a date in the proleptic Gregorian calendar.
-public fun gregorian-days-from-date( d : date ) : int {
+fun gregorian-days-from-date( d : date ) : int {
   if (d.year <= 0) 
     then iso-days-from-date(d(year = d.year + 1)) 
     else iso-days-from-date(d)
 }
 
 // Return a date from a number of days in the proleptic Gregorian calendar.
-public fun gregorian-date-from-days( days : int ) : date {
+fun gregorian-date-from-days( days : int ) : date {
   val d = iso-date-from-days(days)
   if (d.year<=0) then d(year = d.year - 1) else d
 }
@@ -470,7 +474,7 @@ val julian-years-in-era = 4
 val julian-epoch-shift  = 730427 // Shift from 2000-01-01 to 0000-03-01
 
 // Return a date from a number of days in the Julian calendar.
-public fun julian-date-from-days( days : int ) : date {  
+fun julian-date-from-days( days : int ) : date {  
   val z = days + julian-epoch-shift
   val (era,doe) = divmod(z,julian-days-in-era)
   val (yoe,doy) = divmod(doe,365)
@@ -491,7 +495,7 @@ fun julian-days-from-datex( year : int, month : int, day : int ) : int {
 }  
 
 // Return the days from a date in the Julian calendar.
-public fun julian-days-from-date( d : date ) : int {
+fun julian-days-from-date( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, julian-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
   val yyear = if (d.year<=0) then d.year.inc else d.year
@@ -517,3 +521,18 @@ fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
+// Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](http://aa.usno.navy.mil/faq/docs/easter.php)).
+public fun easter( y : int ) : date {
+  val c  = y/100
+  val n  = y - 19*(y/19)
+  val k  = (c - 17)/25
+  val i0 = (((c - c/4) - (c - k)/3) + 19*n) + 15
+  val i1 = i0 - 30*(i0/30)
+  val i  = i1 - (i1/28)*(1 - (i1/28)*(29/(i1 + 1))*((21 - n)/11))
+  val j0 = ((y + y/4 + i + 2) - c) + c/4
+  val j  = j0 - 7*(j0/7)
+  val l  = i - j
+  val m  = 3 + (l + 40)/44
+  val d  = (l + 28) - 31*(m/4)
+  Date(y,m,d)
+}

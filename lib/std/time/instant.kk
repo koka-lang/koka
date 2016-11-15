@@ -217,3 +217,9 @@ public val ts-tai : timescale = tai-timescale( "TAI" )
 public fun ts-epoch( ts : timescale ) : instant {
   unsafe-instant-at(timestamp0,ts)
 }
+
+// Show a time stamp with an optional maximum precision (`max-prec` (=`9`)) and 
+// minimum width for the seconds (=`1`).
+public fun show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
+  ts.ts-show(max-prec,secs-width)
+}

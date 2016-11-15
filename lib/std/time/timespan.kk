@@ -107,7 +107,7 @@ public fun (-)( t : timespan, u : timespan ) : timespan {
 }
 
 // Show a timespan with an optional maximum precision (=`9`, nano-second resolution).
-public fun show( t : timespan, max-prec : int = 9 ) : string {   
+public fun ts-show( t : timespan, max-prec : int = 9 ) : string {   
   // trace("show timespan: " + t.secs.show + "s, " + t.frac.show + ", " + t.frac.fraction.show)
   t.seconds.round-to-prec(max-prec).show
 }
@@ -249,8 +249,8 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 //}
 
 // Show a time stamp (without the `s` postfix).
-public fun show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
-  val s = ts.since.show(max-prec)
+public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
+  val s = ts.since.ts-show(max-prec)
   val l = if (ts.since.leap-seconds.zero?) then "" else " (+" + ts.since.leap-seconds.show + " leap)"
   //trace("show timestamp: " + s + ", " + ts.since.show + ", " + ts.since.show(max-prec))
   match(s.find(".")) {
