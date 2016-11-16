@@ -65,11 +65,14 @@ public fun show( d : date ) : string {
 // 
 public fun round-to-prec( t : time, prec : int ) : time {
   val secs = t.seconds.round-to-prec(prec)
+  val ri   = t.instant.use(t.calendar.cal-ts).round-to-prec(prec)
   if (secs.trunc == t.seconds.trunc) then {
-    t(seconds = secs, instant = t.instant.round-to-prec(prec))
+    // whole seconds stay the same, just update with the rounded seconds and instant
+    t(seconds = secs, instant = ri)
   } 
   else {
-    t.instant.round-to-prec(prec).time(t.tz,t.calendar)
+    // otherwise recalculate the time from the rounded instant
+    ri.time(t.tz,t.calendar)
   } 
 }
 
@@ -414,7 +417,7 @@ public fun solar-calendar(
 
 fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
-  val (nlsecs,nlfrac,leap)  = t.calendar-seconds
+  val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
   // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = date-from-days(days)
