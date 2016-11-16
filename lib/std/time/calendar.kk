@@ -208,7 +208,8 @@ public fun total-seconds( c : clock ) : fixed {
 
 /*----------------------------------------------------------------------------
   Generic calendar algorithms
-  These work for any calendar.
+  Surprisingly all of these can be made to work for any calendar, regardless 
+  of leap years, months in a year, days in a month, etc.
 ----------------------------------------------------------------------------*/
 
 // An [ISO `:weekdate`](https://en.wikipedia.org/wiki/ISO_week_date) 
