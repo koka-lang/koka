@@ -196,11 +196,11 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
   Time scales
 ----------------------------------------------------------------------------*/
 
-// Create a new time scale based on SI seconds on the Earth's geoid with a given
+// Create a new time scale based on SI seconds (as measured on the Earth's geoid) with a given
 //  `name`, a fixed `offset` (=`duration0`) from TAI (e.g. GPS = TAI - 19), and 
 // a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2001-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
-// `y2k-epoch = instant-at(2000,1,1,cal=iso-calender(ts)).timestamp(ts)`
+// `y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoch : timestamp = timestamp0 ) : timescale {
   val epoch-shift = y2k-epoch.timespan + offset.timespan
   fun from-tai(tai:duration) { tai.timestamp + epoch-shift }
@@ -219,7 +219,7 @@ public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoc
 // and a `y2k-epoch` (=`timestamp0`). The time unit defaults to `name`. 
 // The `y2k-epoch` is the timestamp of the 2001-01-01 date in the new timescale
 // e.g. for a timescale `ts`:\
-// `y2k-epoch = instant-at(2000,1,1,cal=iso-calender(ts)).timestamp(ts)`
+// `y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun timescale( name : string, 
                       from-tai : duration -> timestamp, 
                       to-tai   : timestamp -> duration, 
@@ -238,7 +238,7 @@ public fun timescale( name : string,
 
 
 // The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (International atomic time) 
-// time scale is based on SI seconds as measured on the Earth's geoi, with a 2000-01-01 TAI `epoch`.
+// time scale is based on SI seconds measured on the Earth's geoid, with a 2000-01-01 TAI `epoch`.
 public val ts-tai : timescale = tai-timescale( "TAI" )
 
 // Return the epoch of a certain time scale.
@@ -246,7 +246,8 @@ public fun timescale-epoch( ts : timescale ) : instant {
   unsafe-instant-at(timestamp0,ts)
 }
 
-// Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar)
+// Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar).\
+// `timescale-y2k(ts) == instant-at(2000,1,1,cal=iso-calendar(ts))`
 public fun timescale-y2k( ts : timescale ) : instant {
   unsafe-instant-at(ts.y2k-epoch,ts)
 }

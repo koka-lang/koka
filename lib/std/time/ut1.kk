@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* UT1 time scale
+/* The UT1 time scale and calendar.
 */
 module std/time/ut1
 
@@ -18,7 +18,11 @@ import std/time/instant
 import std/time/timescale
 import std/time/calendar
 
-// The UT1 (Universal time 1) calendar. See also `ts-ut1`.
+// The UT1 (Universal time 1) calendar. 
+// Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely. The `override` functions should return `Nothing` for instants
+// outside its range so the builtin methods can be used in that case (see `deltat`).
+// (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
 public fun cal-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) {
   iso-calendar( ts-ut1(override) )
 }
@@ -42,7 +46,10 @@ fun ut-to-tai( t : timestamp, override : (i : instant) -> maybe<duration> ) : du
   i2.since-epoch
 }
 
-public fun ts-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+// Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely. The `override` functions should return `Nothing` for instants
+// outside its range so the builtin methods can be used in that case (see `deltat`)
+fun ts-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1", 
     fun(i) { tai-to-ut(i,override) },
     fun(t) { ut-to-tai(t,override) }
@@ -51,18 +58,23 @@ public fun ts-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) :
 
 
 // -----------------------------------------------------------
-// Calculate delta-t using:
-// - determined tables for any observed date (usually > 1973 up to now (2016))
-// - prediction tables for dates > now (2016) up to about 10 years (2025)
-// - historic tables for dates >= 1750 
-// - parabolic approximations for dates outside that range; (Espenak & Meeus 2006)
-// - generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
+// Calculate delta-t 
 // -----------------------------------------------------------
 
 fun deltat-none(i : instant) : maybe<duration> {
   Nothing
 }
 
+/* Calculate &Delta;T (= TT - UT1); 
+If the `override` function returns `Nothing`, it tries in order:
+
+* monthly determined tables for any observed date (usually > 1973 up to now (2016))
+* quarterly prediction tables for dates > now (2016) up to about 10 years (2025)
+* yearly historic tables for dates >= 1750 
+* fitted parabolic approximations for dates between -500 and 2150; (Espenak & Meeus 2006)
+* generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
+
+*/ 
 public fun deltat( i : instant, override : (i : instant) -> maybe<duration> = deltat-none ) : duration {
   val dt = match(override(i)) {
             Just(dt) -> dt             
@@ -188,9 +200,9 @@ fun end( tb : deltat-table ) : double {
 }
 
 
-public fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>) {
-  val det  = deltat-parse-determined(determined)
-  val pred = deltat-parse-predicted(predicted)
+fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>) {
+  val det  = parse-determined(determined)
+  val pred = parse-predicted(predicted)
   (fun(year:double) {
     match(det.interpolate(year)) {
       Nothing -> pred.interpolate(year)
@@ -202,7 +214,7 @@ public fun parse-deltat( determined : string = "", predicted : string = "") : ((
 
 // Quarterly Predicted delta-t values, from 2016.75 upto 2026.50
 // from <http://maia.usno.navy.mil/ser7/deltat.preds>.
-val deltat-table-predicted = once{ deltat-parse-predicted(@"
+val deltat-table-predicted = once{ parse-predicted(@"
   YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
 
  2016.75      68.51              -0.330         0.02
@@ -247,7 +259,7 @@ val deltat-table-predicted = once{ deltat-parse-predicted(@"
  2026.50      73.                               5.
 ")}
 
-public fun deltat-parse-predicted( s : string ) : deltat-table {
+fun parse-predicted( s : string ) : deltat-table {
   val caps = s.find-all(rx-predict)
   if (caps.nil?) return deltat-table-empty
   val start = caps.head.map(fun(cap){ cap.groups[1] }).default("").parse-double-default(2000.0)
@@ -259,7 +271,7 @@ val rx-predict = regex(@"^\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
 // Monthly observed delta-t data from 1973 up to 2016
 // See: <http://maia.usno.navy.mil/ser7/deltat.data>
-val deltat-table-determined = once{ deltat-parse-determined( @"
+val deltat-table-determined = once{ parse-determined( @"
  1973  2  1  43.4724
  1973  3  1  43.5648
  1973  4  1  43.6737
@@ -784,7 +796,7 @@ val deltat-table-determined = once{ deltat-parse-determined( @"
  2016  7  1  68.3964
 ")}
 
-public fun deltat-parse-determined( s : string ) : deltat-table {
+fun parse-determined( s : string ) : deltat-table {
   val caps  = s.find-all(rx-determined)
   if (caps.nil?) then return deltat-table-empty
   val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
@@ -800,7 +812,7 @@ val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multil
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
 // precise. The values in the original table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1987 (excluded) for each half year.
-val deltat-table-historic : () -> deltat-table = once{ deltat-parse-historic(1750.0,@"
+val deltat-table-historic : () -> deltat-table = once{ parse-historic(1750.0,@"
 [13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
 14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
 15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
@@ -846,7 +858,7 @@ val deltat-table-historic : () -> deltat-table = once{ deltat-parse-historic(175
 )}
 
 
-fun deltat-parse-historic( start: double, s : string ) : deltat-table {
+fun parse-historic( start: double, s : string ) : deltat-table {
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
   val entries = caps.map(fun(cap){ cap.matched.parse-double-default(0.0) }).vector
   Deltat-table(start,2.0,entries)
@@ -855,9 +867,10 @@ val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
 
 
-// Parse a ``final2000A.all`` file into a override function for delta-t.
+// Parse a ``finals2000A.all`` file into a override function for 
+// very precise &Delta;T calculation.
 // See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
-public fun deltat-parse-finals2000A( s : string ) : ((i : instant) -> maybe<duration>) {
+public fun parse-finals2000A( s : string ) : ((i : instant) -> maybe<duration>) {
   val caps = s.find-all(rx-finals-dut)
   val entries = caps.map(fun(cap){ cap.groups[1].parse-double-default(0.0) }).vector
   val start   = match( s.find(rx-finals-start) ) {

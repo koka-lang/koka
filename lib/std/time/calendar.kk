@@ -6,9 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time funs.
-
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
+/* Date and time calculations. 
 */
 module std/time/calendar
 
@@ -25,17 +23,17 @@ extern include {
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
   // The year.
-  public  year   : int,
-  public  month  : int,
-  public  day    : int, 
-  public  hours  : int,
-  public  minutes: int,
-  public  seconds: fixed,
+  public  year    : int,
+  public  month   : int,
+  public  day     : int, 
+  public  hours   : int,
+  public  minutes : int,
+  public  seconds : fixed,
   public  calendar: calendar,
-  public  tzofs  : duration = duration0,
-  public  tzabbrv: string   = "",
-  public  tz     : timezone = tz-utc,
-  public  instant: instant
+  public  tzdelta : duration = duration0,
+  public  tzabbrv : string   = "",
+  public  timezone: timezone = tz-utc,
+  public  instant : instant
 )
 
 
@@ -65,14 +63,14 @@ public fun show( d : date ) : string {
 // 
 public fun round-to-prec( t : time, prec : int ) : time {
   val secs = t.seconds.round-to-prec(prec)
-  val ri   = t.instant.use(t.calendar.cal-ts).round-to-prec(prec)
+  val ri   = t.instant.use(t.calendar.timescale).round-to-prec(prec)
   if (secs.trunc == t.seconds.trunc) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
     t(seconds = secs, instant = ri)
   } 
   else {
     // otherwise recalculate the time from the rounded instant
-    ri.time(t.tz,t.calendar)
+    ri.time(t.timezone,t.calendar)
   } 
 }
 
@@ -81,21 +79,21 @@ public fun show(t0 : time, prec : int = 9 ) : string {
   val t = t0.round-to-prec(prec)
   t.date.show + "T" +
    t.hours.show0 + ":" + t.minutes.show0 + ":" + 
-   show(timestamp(t.seconds),prec,2) + show-tzofs(t.tzofs ) +
+   show(timestamp(t.seconds),prec,2) + show-tzdelta(t.tzdelta ) +
    (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
-   (if (t.calendar.cal-name.empty?) then "" else " " + t.calendar.cal-name)
+   (if (t.calendar.name.empty?) then "" else " " + t.calendar.name)
 }
 
-// Show a time zone offset. 
+// Show a time zone delta. 
 // Optional `utc` for displaying a zero timezone offset (=`"Z"`).
 // Optional `hmsep` for the hour-minute separator (=`":"`).
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
-public fun show-tzofs(offset : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
-  val ofs = offset.seconds
-  if (ofs.zero?) return utc
-  val (fmins,secs) = divmod(ofs.abs,fixed(60),6) // millisecond precision
+public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
+  val dt = delta.seconds
+  if (dt.zero?) return utc
+  val (fmins,secs) = divmod(dt.abs,fixed(60),6) // millisecond precision
   val mins = fmins.trunc.int
-  val tz   = (if (ofs.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
+  val tz   = (if (dt.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
   val tzs  = if (secs.zero?) then "" else ":" + show( timestamp(secs), 3 )
   tz + tzs
 }
@@ -107,36 +105,37 @@ public fun show-tzofs(offset : duration, utc : string = "Z", hmsep : string = ":
 
 // A `:timezone` determines a time offset with respect to the UTC / GMT timezone.
 // The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
-// The `tz-name` field contains the time zone name.\The `utc-offset` field returns the time zone offset
+// The `name` field contains the time zone name as IANA timezone identifier.
+// The `utc-delta` field returns the time zone offset
 // relative to UTC (for GMT-08:00 it returns a duration of `~8*3600` seconds) and the abbreviated 
 // time zone name (``PDT`` for example).\
 // The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
 // By default it returns `Nothing` in which case a generic algorithm is used to determine the
 // inverse.  
 public struct timezone(
-  tz-name    : string,                      
-  private utc-offset : (instant) -> (duration,string),
+  name    : string,                      
+  private utc-delta  : (instant) -> (duration,string),
   private utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
 
 
 // Is this the UTC timezone?
 public fun tz-utc?( tz : timezone ) : bool {
-  (tz.tz-name == "UTC")
+  (tz.name == "UTC")
 }
 
-// Create a time zone with a fixed offset in seconds from UTC.\
-// Takes a `name`, an `offset` from UTC, and optional time zone abbreviation (=`name`).
+// Create a time zone with a fixed delta in seconds from UTC.\
+// Takes a `name`, as `delta` from UTC, and optional time zone abbreviation (=`name`).
 // For example, for a fixed time zone``+07:00``, use `tz-fixed( "GMT+7", duration(7 * 3600) )`
-public fun tz-fixed( name : string, offset : duration, abbrv : string = "" ) : timezone {
+public fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
   Timezone( 
     name,            
-    fun(i) { (offset,abbrv) }, 
-    fun(i) { if (offset.zero?) then Just(i) else Nothing }
+    fun(i) { (delta,abbrv) }, 
+    fun(i) { if (delta.zero?) then Just(i) else Nothing }
   )
 }
 
-// The standard UTC time zone with a 0 offset.
+// The standard UTC time zone with a 0 delta.
 public val tz-utc : timezone = tz-fixed("UTC",duration0,"")
 
 // Return the local timezone on the current system.
@@ -145,7 +144,7 @@ public fun tz-local() : ndet timezone {
   Timezone( 
     "",
     fun(i) { 
-      val (ofs,abbrv) = local-utc-offset(tz, i.timestamp(ts-unix).seconds.double) 
+      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double) 
       (duration(ofs.fixed),abbrv)
     }
   )
@@ -159,11 +158,11 @@ extern local-get-timezone() : ndet local-timezone {
   js "_local_get_timezone"
 }
 
-// Return the utc-offset in fractional seconds given a local timezone structure
+// Return the utc delta in fractional seconds given a local timezone structure
 // in fractional seconds since the UNIX epoch (1970-01-01) together with the
 // time zone abbreviation.
-extern local-utc-offset( tz : local-timezone, i : double ) : (double,string) {
-  js "_local_utc_offset"
+extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
+  js "_local_utc_delta"
 }
 
 
@@ -198,10 +197,10 @@ public struct clock(
 
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
-  cal-name: string,                 
-  cal-ts  : timescale,
-  private dc-from-instant : (i:instant,tzofs:duration) -> (date,clock),
-  private instant-from-dc : (date,clock) -> instant
+  name      : string,                 
+  timescale : timescale,
+  private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
+  private dc-to-instant : (date,clock) -> instant
 )
 
 // Return the total seconds of a `:clock` assuming 60 seconds per 
@@ -268,6 +267,12 @@ public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int =
     Weekdate(d.year, (wday+6)/7, dow)
 }
 
+public fun weekdate-date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : date {
+  val dow = Date(wd.year,1,1).day-of-week(cal)
+  val adj = if (dow <= weekday-in-year) then ~dow else (7 - dow)
+  time(wd.year, 1,  1 + (wd.week - 1)*7 + wd.day + adj ).date
+}
+
 // Return the difference between two weekdays.
 public fun weekday-diff( wd1 : int, wd2 : int ) : int {
   val d = wd1 - wd2
@@ -283,7 +288,7 @@ public fun weekday-add( wd : int, inc : int = 1 ) : int {
 // Uses the ISO definition where Monday is day 1, and Sunday day 7.
 public fun day-of-week( d : date, cal : calendar = cal-iso ) : int {
   // Generic algorithm for any calendar
-  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd(cal.cal-ts).floor.int
+  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd(cal.timescale).floor.int
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday
   if (dow==0) then 7 else dow  // to ISO week day number (monday=1, .. sunday=7)
 }
@@ -307,16 +312,16 @@ public fun days-in-year( year : int, cal : calendar = cal-iso) : int {
 fun day-diff( y1 : int, m1 : int, d1 : int, y2 : int, m2 : int, d2 : int, cal : calendar ) : int {
   val i1 = instant-at(y1,m1,d1,cal=cal)
   val i2 = instant-at(y2,m2,d2,cal=cal)
-  val ts = cal.cal-ts
+  val ts = cal.timescale
   (i1.mjd(ts) - i2.mjd(ts)).double.floor.int    
 }
 
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
 // number for a given `:time`.
 public fun mjd( t : time ) : fixed {
-  //trace("offset: " + t.tzofs.show)
+  //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone offset so we display the mjd on the date.
-  t.instant.mjd(t.calendar.cal-ts) + (t.tzofs.seconds / secs-per-day.fixed)
+  t.instant.mjd(t.calendar.timescale) + (t.tzdelta.seconds / secs-per-day.fixed)
 }
 
 // Return a `:time` as a fractional year.\
@@ -380,8 +385,8 @@ public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 
 
-// Create a standard ISO calendar using a particular time scale and epoch shift relative
-// to the `epoch`.
+// Create a standard ISO calendar using a particular time scale
+// and calendar `name` (=`ts.name`).
 public fun iso-calendar( ts : timescale, name : string = ts.name ) : calendar {
   solar-calendar(
     name,
@@ -398,30 +403,30 @@ public fun iso-calendar( ts : timescale, name : string = ts.name ) : calendar {
 // Used for solar calendars
 val secs-per-day = 86400
 
-// Create a solar calendar given a calendar name `cal-name`, 
+// Create a solar calendar given a calendar name `name`, 
 // a function to calculate a date given a number of days since the `epoch`,
 // a function to calculate days since the `epoch` for a given date,
 // and an optional time scale to be used (=`ts-utc`) and an optional offset from 
 // the standard `epoch` (=`duration0`).
 public fun solar-calendar(
-              cal-name        : string,
+              name        : string,
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
               ts   : timescale = ts-utc
             ) : calendar
 {
   val epoch-shift = ts.timescale-y2k.timespan(ts)  
-  fun instant-to-dc(i : instant, tzofs : duration) { 
-    solar-dc-from-cal( (i.timestamp(ts) - epoch-shift) + tzofs.timespan, date-from-days ) 
+  fun instant-to-dc(i : instant, tzdelta : duration) { 
+    solar-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, date-from-days ) 
   }
   fun dc-to-instant(d : date, c : clock) { 
-    unsafe-instant-at( solar-cal-from-dc( d, c, days-from-date ) + epoch-shift, ts ) 
+    unsafe-instant-at( solar-dc-to-timestamp( d, c, days-from-date ) + epoch-shift, ts ) 
   }
-  Calendar(cal-name,ts,instant-to-dc,dc-to-instant)
+  Calendar(name,ts,instant-to-dc,dc-to-instant)
 }
 
 
-fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
+fun solar-timestamp-to-dc( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
   val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
   // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
@@ -434,7 +439,7 @@ fun solar-dc-from-cal( t : timestamp, date-from-days: (int) -> date ) : (date,cl
   (date, Clock(hours,mins,tsecs))
 }
 
-fun solar-cal-from-dc( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
+fun solar-dc-to-timestamp( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
   val secs = c.seconds.trunc.int
   val frac = c.seconds.fraction.double
@@ -466,7 +471,7 @@ fun instantz( year : int, month : int = 1, day : int = 1,
               cal : calendar = cal-iso ) : instant 
 {
   val fsecs = if (frac.zero?) then fixed(secs) else fixed(secs) + fixed(frac)
-  (cal.instant-from-dc)( Date(year,month,day), Clock(hours,minutes,fsecs) )   
+  (cal.dc-to-instant)( Date(year,month,day), Clock(hours,minutes,fsecs) )   
 }
 
 
@@ -488,11 +493,11 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
       // we calculate directly on UTC timespan's as to ignore any possible
       // leap seconds during the timezone offset change. 
       // (for example: instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
-      val utci   = i.timestamp(ts-utc)
-      val tzofs1 = (tz.utc-offset)(i).fst
-      val tzi1   = unsafe-instant-at(utci - tzofs1.timespan, ts-utc)
-      val tzofs2 = (tz.utc-offset)(tzi1).fst
-      val tzi2   = unsafe-instant-at(utci - tzofs2.timespan, ts-utc)
+      val utci = i.timestamp(ts-utc)
+      val tzd1 = (tz.utc-delta)(i).fst
+      val tzi1 = unsafe-instant-at(utci - tzd1.timespan, ts-utc)
+      val tzd2 = (tz.utc-delta)(tzi1).fst
+      val tzi2 = unsafe-instant-at(utci - tzd2.timespan, ts-utc)
       tzi2     
     }
   }
@@ -500,10 +505,10 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
 
 
 // Return a `:time` for a given instant.
-fun timez( i : instant, tzofs : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val (d,c) = (cal.dc-from-instant)( i, tzofs )
+fun timez( i : instant, tzdelta : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
+  val (d,c) = (cal.instant-to-dc)( i, tzdelta )
   Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,
-       cal, tzofs, tzabbrv, tz, i )
+       cal, tzdelta, tzabbrv, tz, i )
 }
 
 
@@ -511,8 +516,8 @@ fun timez( i : instant, tzofs : duration = duration0, tzabbrv : string = "", tz 
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
   if (tz.tz-utc?) then timez(i,duration0,"",tz,cal) else {
-    val (tzofs,tzabbrv) = (tz.utc-offset)(i)
-    timez( i, tzofs, tzabbrv, tz, cal )
+    val (tzdelta,tzabbrv) = (tz.utc-delta)(i)
+    timez( i, tzdelta, tzabbrv, tz, cal )
   }
 }
 
@@ -636,19 +641,19 @@ fun show0( i : int, width : int = 2) : string {
 }
 
 // Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](http://aa.usno.navy.mil/faq/docs/easter.php)).
-public fun easter( y : int ) : date {
-  val c  = y/100
-  val n  = y - 19*(y/19)
+public fun easter( year : int ) : date {
+  val c  = year/100
+  val n  = year - 19*(year/19)
   val k  = (c - 17)/25
   val i0 = (((c - c/4) - (c - k)/3) + 19*n) + 15
   val i1 = i0 - 30*(i0/30)
   val i  = i1 - (i1/28)*(1 - (i1/28)*(29/(i1 + 1))*((21 - n)/11))
-  val j0 = ((y + y/4 + i + 2) - c) + c/4
+  val j0 = ((year + year/4 + i + 2) - c) + c/4
   val j  = j0 - 7*(j0/7)
   val l  = i - j
   val m  = 3 + (l + 40)/44
   val d  = (l + 28) - 31*(m/4)
-  Date(y,m,d)
+  Date(year,m,d)
 }
 
 /*

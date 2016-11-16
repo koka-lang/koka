@@ -14,10 +14,10 @@ The latest version can be found at: <https://github.com/moment/moment-timezone/b
 
 ```
 val tzs = load-timezones()
-println( now().time(tz=tzs.timezone("US/Pacific")).show )
+println( now().time(tzs.timezone("US/Pacific")).show )
 val zlocal = tzs.guess-local-timezone()
-println( now().time(tz=zlocal).show + " (" + zlocal.tz-name + ")")
-println( now().time(tz=tz-local()).show )
+println( now().time(zlocal).show + " (" + zlocal.tz-name + ")")
+println( now().time(tz-local()).show )
 ```
 */
 module std/time/timezone
@@ -90,7 +90,7 @@ public fun timezone( tzi : timezone-info ) : timezone {
 
 // Show a time zone period.
 public fun show( tzp : timezone-period) : string {
-  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzofs(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
+  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzdelta(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
 }
 
 // Show time zone information.
@@ -291,7 +291,7 @@ fun sample-dates( year : int ) : list<instant> {
 
 fun sample-offsets( dates : list<instant>, tz : timezone ) : list<duration> {
   dates.map( fun(i) {
-    i.time(tz=tz).tzofs
+    i.time(tz=tz).tzdelta
   })
 }
 

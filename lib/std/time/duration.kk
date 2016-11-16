@@ -6,7 +6,9 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time durations in (TAI) [SI seconds](https://en.wikipedia.org/wiki/Second).
+/* Time durations in SI seconds.
+
+   Durations use SI seconds as measured on the Earth's geoid (i.e. [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) SI seconds).
 */
 module std/time/duration
 
@@ -17,7 +19,7 @@ import std/time/timespan
   Durations
 ----------------------------------------------------------------------------*/
 
-// A duration in time in (TAI) SI seconds.\
+// A duration in time in SI seconds (as measured on the Earth's geoid).\
 // A duration can be arbitrarly long and is precise up to 10^-15^s (1 femto-second).
 abstract struct duration(
   secs : timespan                     

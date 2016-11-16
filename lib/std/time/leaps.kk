@@ -6,9 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time funs.
-
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
+/* Low-level leap seconds handling.
 */
 module std/time/leaps
 
@@ -98,7 +96,7 @@ public fun utc-to-tai( t : timestamp ) : duration {
   utc-to-tai-span( t ).unsafe-duration
 }
 
-public fun utc-to-tai-span( t : timestamp ) : timestamp {
+fun utc-to-tai-span( t : timestamp ) : timestamp {
   val nlsecs = t.without-leap-seconds
   if (nlsecs < utc1958) then return t
 
