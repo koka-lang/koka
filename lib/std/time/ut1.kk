@@ -19,8 +19,8 @@ import std/time/timescale
 import std/time/calendar
 
 // The UT1 (Universal time 1) calendar. See also `ts-ut1`.
-public fun cal-ut1( ts : timescale = ts-ut1() ) {
-  iso-calendar( "UT1", ts )
+public fun cal-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) {
+  iso-calendar( ts-ut1(override) )
 }
 
 // -----------------------------------------------------------

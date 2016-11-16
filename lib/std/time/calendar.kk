@@ -145,8 +145,8 @@ public fun tz-local() : ndet timezone {
   Timezone( 
     "",
     fun(i) { 
-      val ofs = local-utc-offset(tz, i.timestamp(ts-unix).seconds.double) 
-      (duration(ofs.fixed),"")
+      val (ofs,abbrv) = local-utc-offset(tz, i.timestamp(ts-unix).seconds.double) 
+      (duration(ofs.fixed),abbrv)
     }
   )
 }
@@ -160,8 +160,9 @@ extern local-get-timezone() : ndet local-timezone {
 }
 
 // Return the utc-offset in fractional seconds given a local timezone structure
-// and fractional seconds since the UNIX epoch (1970-01-01).
-extern local-utc-offset( tz : local-timezone, i : double ) : double {
+// in fractional seconds since the UNIX epoch (1970-01-01) together with the
+// time zone abbreviation.
+extern local-utc-offset( tz : local-timezone, i : double ) : (double,string) {
   js "_local_utc_offset"
 }
 
@@ -334,7 +335,7 @@ public fun year-frac( t : time ) : fixed {
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
 // calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
-public val cal-iso : calendar = iso-calendar( "" )
+public val cal-iso : calendar = iso-calendar( ts-utc, "" )
 
 // The [Julian calendar](https://en.wikipedia.org/wiki/Julian_calendar).
 public val cal-julian = solar-calendar(
@@ -360,40 +361,42 @@ public val cal-jg = julian-gregorian()
 // The TAI Calendar. This is a standard ISO 8601 calender using
 // TAI time where every day is exactly 86400 SI seconds (unlike
 // standard UTC time which can insert leap seconds).
-public val cal-tai = iso-calendar( "TAI", ts-tai )
+public val cal-tai = iso-calendar( ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.to-tai(timestamp(~19)).timespan ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
+public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
 
 // The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
-public val cal-tt  = iso-calendar( "TT", ts-tt)//, fixed(32184,3) )
+public val cal-tt  = iso-calendar( ts-tt )//, fixed(32184,3) )
 
 
 // The TCG (Geometric coordinate time) calendar. See also `ts-tcg`
-public val cal-tcg  = iso-calendar( "TCG", ts-tcg)//, fixed(32184,3) )
+public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
 
 // The TDB (Barycentric dynamical time) calendar. See also `ts-tdb`. Always within 2ms of TT (`cal-tt`).
-public val cal-tdb  = iso-calendar( "TDB", ts-tdb)//, fixed(32184,3) )
+public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 
 // The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
-public val cal-tcb  = iso-calendar( "TCB", ts-tcb)//, fixed(32184,3) )
+public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 
 
 // Create a standard ISO calendar using a particular time scale and epoch shift relative
 // to the `epoch`.
-public fun iso-calendar( name : string, ts : timescale = ts-utc, shift : timespan = timespan0 ) : calendar {
+public fun iso-calendar( ts : timescale, name : string = ts.name ) : calendar {
   solar-calendar(
     name,
     iso-date-from-days,
     iso-days-from-date,
-    ts,
-    shift                 
+    ts
   )
 }
 
 /*----------------------------------------------------------------------------
   Solar calendars
 ----------------------------------------------------------------------------*/
+
+// Used for solar calendars
+val secs-per-day = 86400
 
 // Create a solar calendar given a calendar name `cal-name`, 
 // a function to calculate a date given a number of days since the `epoch`,
@@ -404,14 +407,17 @@ public fun solar-calendar(
               cal-name        : string,
               date-from-days  : (days:int) -> date,
               days-from-date  : date -> int,
-              ts   : timescale = ts-utc,
-              shift: timespan  = timespan0 
+              ts   : timescale = ts-utc
             ) : calendar
 {
-  Calendar(cal-name,ts,
-    fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs.timespan, date-from-days ) },
-    fun(d,c)     { unsafe-instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
-  )
+  val epoch-shift = ts.timescale-y2k.timespan(ts)  
+  fun instant-to-dc(i : instant, tzofs : duration) { 
+    solar-dc-from-cal( (i.timestamp(ts) - epoch-shift) + tzofs.timespan, date-from-days ) 
+  }
+  fun dc-to-instant(d : date, c : clock) { 
+    unsafe-instant-at( solar-cal-from-dc( d, c, days-from-date ) + epoch-shift, ts ) 
+  }
+  Calendar(cal-name,ts,instant-to-dc,dc-to-instant)
 }
 
 

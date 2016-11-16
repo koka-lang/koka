@@ -71,11 +71,10 @@ fun test-sofa() {
 
 public fun test-ut1() {
   val fname = appdir() + path("config/finals2000A.all")
-  val tsut1 = catch {
-                ts-ut1( deltat-parse-finals2000A( read-text-file-sync(fname.string) ) )
+  val calut1= catch {
+                cal-ut1( deltat-parse-finals2000A( read-text-file-sync(fname.string) ) )
               }
-              fun(exn) { trace("failed: " + exn.show ); ts-ut1() }
-  val calut1= cal-ut1(tsut1)
+              fun(exn) { trace("failed: " + exn.show ); cal-ut1() }
   println( sofai.time(cal=calut1).show )              
 }
 

@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Time scales (TAI, UTC, UT1, etc.).
+/* Time scale definitions (TAI, UTC, UT1, etc.).
 */
 module std/time/timescale
 
@@ -25,19 +25,20 @@ extern include {
   Timescale creation
 ----------------------------------------------------------------------------*/
 
-// Create a new time scale based on SI seconds with a given `name` and `epoch-jd-delta`:\
-// `time-scale-epoch == epoch + epoch-jd-delta`.
-public fun utc-timescale( name : string, offset : timespan = timespan0, epoch-jd-delta : timespan = timespan0 ) : timescale {
-  val epoch-delta = epoch-jd-delta - offset
-  fun from-tai(tai:duration) { tai-to-utc(tai) - epoch-delta }
-  fun to-tai(t:timestamp)    { utc-to-tai(t + epoch-delta) }
-  Timescale(
+// Create a new time scale based on UTC seconds with a given `name` and a
+// `y2k-epoch` (=`timestamp0`) which is the timestamp of the 2001-01-01 date in that timescale
+// e.g. for a timescale `ts`:\
+// `y2k-epoch = instant-at(2000,1,1,cal=iso-calender(ts)).timestamp(ts)`
+public fun utc-timescale( name : string, y2k-epoch : timestamp = timestamp0 ) : timescale {
+  val epoch-shift = y2k-epoch.timespan
+  fun from-tai(tai:duration) { tai-to-utc(tai) + epoch-shift }
+  fun to-tai(t:timestamp)    { utc-to-tai(t - epoch-shift) }
+  timescale(
     name,
-    "UTC",
     from-tai,
     to-tai,
-    epoch-delta,
-    epoch-jd-delta
+    y2k-epoch,
+    "UTC"
   )
 }
 
@@ -45,8 +46,7 @@ public fun utc-timescale( name : string, offset : timespan = timespan0, epoch-jd
 // The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based 
 // on SI seconds with a 1980-01-06 GPS epoch.\
 // GPS = TAI - 19s.
-// Note that internally to the library the `:timestamp`s will maintain any leap second information.
-public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), duration(~630720000) )
+public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), timestamp(630720000) )
 
 // The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 2000-01-01 TAI `epoch`.
 // It is the continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time).
@@ -54,15 +54,16 @@ public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), duration(~6
 public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 // The UTC time scale with a 2000-01-01Z UTC epoch. This uses ['UTC seconds'](https://en.wikipedia.org/wiki/Unix_time) where
-// one day consists of 86400 'seconds' but where leap seconds are ignored (as in unix timestamps)
+// one day consists of 86400 'seconds' but where leap seconds are ignored (as in unix timestamps).
+// Note that internally to the library the `:timestamp`s will accurately maintain any leap second information.
 public val ts-utc : timescale = utc-timescale( "UTC" )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on UTC seconds but with 1970-01-01 epoch.
-public val ts-unix : timescale = utc-timescale( "UNIX", timespan0, timespan(~946684800) )
+public val ts-unix : timescale = utc-timescale( "UNIX", timestamp(946684800) )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but 
 // with a 1900-01-01Z epoch.
-public val ts-ntp : timescale = utc-timescale( "NTP", timespan0, timespan(~3155673600) )
+public val ts-ntp : timescale = utc-timescale( "NTP", timestamp(3155673600) )
 
 
 
@@ -238,12 +239,13 @@ public val ts-tcb : timescale = timescale( "TCB", tai-to-tcb, tcb-to-tai )
 
 // The current `:instant` in time.
 public fun now() : ndet instant {
-  unsafe-instant-at( timestamp(unix-now()), ts-unix ) 
-}
+  val (secs,frac) = unix-now()
+  unsafe-instant-at( timestamp(secs.int,frac), ts-unix ) 
+} 
 
 // Returns a unix time stamp; this still needs
 // to be adjusted to our epoch and taking account of leap seconds.
-private extern unix-now() : ndet double {
+private extern unix-now() : ndet (double,double) {
   js "_unix_now"
 }
 

@@ -34,7 +34,7 @@ import std/time/timescale
 import std/time/calendar
 
 extern include {
-  js file "instant-inline.js"
+  js file "timezone-inline.js"
 }
 
 /*----------------------------------------------------------------------------
