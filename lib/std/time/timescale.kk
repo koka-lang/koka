@@ -41,23 +41,6 @@ public fun utc-timescale( name : string, offset : timespan = timespan0, epoch-jd
   )
 }
 
-// Create a new time scale based on SI seconds with a given `name` and `epoch-jd-delta`:\
-// `time-scale-epoch == epoch + epoch-jd-delta`.
-public fun timescale( name : string, 
-                      from-tai : duration -> timestamp, 
-                      to-tai   : timestamp -> duration, 
-                      epoch-jd-delta : timespan = timespan0,
-                      unit  : string = "" ) : timescale {
-  Timescale(
-    name,
-    unit,
-    from-tai,
-    to-tai,
-    timespan0,
-    epoch-jd-delta
-  )
-}
-
 
 // The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based 
 // on SI seconds with a 1980-01-06 GPS epoch.\
@@ -83,49 +66,6 @@ public val ts-ntp : timescale = utc-timescale( "NTP", timespan0, timespan(~31556
 
 
 
-/*----------------------------------------------------------------------------
-  Julian Date
-----------------------------------------------------------------------------*/
-val jd-epoch-delta  = fixed(24000005,1)  // relative to the MJD epoch 
-val mjd-epoch-delta = fixed(51544)       // relative to our epoch (2000-01-01)
-
-// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
-public fun instant-at-jd( jd: double, ts : timescale = ts-utc ) : instant {
-  instant-at-jd(fixed(jd),ts)
-}
-
-// Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day)
-// and time scale `ts` (=`ts-utc`).
-public fun instant-at-jd( jd: fixed, ts : timescale = ts-utc ) : instant {
-  instant-at-mjd( jd - jd-epoch-delta, ts )
-}
-
-// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
-// and time scale `ts` (=`ts-utc`).\
-// `modified-julian-day = julian-day - 2400000.5`
-public fun instant-at-mjd( mjd : double, ts : timescale = ts-utc ) : instant {
-  instant-at-mjd(fixed(mjd),ts)
-}
-
-// Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
-// and time scale `ts` (=`ts-utc`).\
-// `modified-julian-day = julian-day - 2400000.5`
-public fun instant-at-mjd( mjd : fixed, ts : timescale = ts-utc ) : instant {
-  val d    = mjd - mjd-epoch-delta // since our epoch
-  val t    = timestamp(d*secs-per-day.fixed) - ts.epoch-jd-delta // since the time scale epoch
-  unsafe-instant-at(t,ts) 
-}
-
-// Return the julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
-public fun jd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
-  i.mjd(ts,max-prec) + jd-epoch-delta
-}
-
-// Return the modified julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
-public fun mjd( i : instant, ts : timescale = ts-utc, max-prec : int = 9 ) : fixed {
-  val t = i.timestamp(ts) + ts.epoch-jd-delta
-  (div)(t.timespan.seconds, secs-per-day.fixed, max-prec) + mjd-epoch-delta
-}
 
 /*----------------------------------------------------------------------------
   TCG: Geocentric coordinate time

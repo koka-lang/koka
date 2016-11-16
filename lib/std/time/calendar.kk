@@ -53,10 +53,13 @@ public fun date( t : time ) : date {
   Date(t.year,t.month,t.day)
 }
 
+public fun show-year( year : int ) : string {
+  val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.neg?) then ("-",5) else ("",4)
+  ysign + year.abs.show0(ywidth)
+}
+
 public fun show( d : date ) : string {
-  val (ysign,ywidth) = if (d.year > 9999) then ("+",5) elif (d.year.neg?) then ("-",5) else ("",4)
-  val yr = ysign + d.year.abs.show0(ywidth)
-  yr + "-" + d.month.show0 + "-" + d.day.show0
+  d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
 }
 
 // 
@@ -197,6 +200,8 @@ public struct calendar(
   private instant-from-dc : (date,clock) -> instant
 )
 
+// Return the total seconds of a `:clock` assuming 60 seconds per 
+// minute and 60 minutes per hour.
 public fun total-seconds( c : clock ) : fixed {
   fixed((c.hours*60 + c.minutes)*60) + c.seconds
 }
@@ -206,43 +211,90 @@ public fun total-seconds( c : clock ) : fixed {
   These work for any calendar.
 ----------------------------------------------------------------------------*/
 
-public fun week-of-year( d : date, cal : calendar = cal-iso ) : int {
-  val w = xweek-of-year(d,cal)
-  if (w==0) then xweek-of-year(Date(d.year - 1, 12, 31))
-  elif (days-in-year(d.year,cal) < 7*w) then xweek-of-year(Date(d.year+1,1,1))
-  else w
+// An [ISO `:weekdate`](https://en.wikipedia.org/wiki/ISO_week_date) 
+// represents a date as a year, the week of the year, and the day of the week.
+public struct weekdate(
+  year : int,
+  week : int,
+  day  : int                       
+)
+
+// Show a `:weekdate` in the ISO week date format: ``2000-W01-1`` (for 2000-01-03Z).
+public fun show( wd : weekdate ) : string {
+  wd.year.show-year + "-W" + wd.week.show0 + "-" + wd.day.show
 }
 
-fun xweek-of-year( d : date, cal : calendar = cal-iso ) : int {
-  val week = ((d.day-of-year(cal) - d.day-of-week(cal)) + 10) / 7
-  trace("week: " + week.show)
-  week
-}  
+// Return the date of the first `weekday` of the specified month and calendar (=`cal-iso`).
+public fun first-weekday-of-month( year : int, month : int, weekday : int, cal : calendar = cal-iso ) : date {
+  val dow = day-of-week(Date(year,month,1),cal)
+  val inc = weekday-diff(weekday,dow)
+  Date(year,month,1 + inc)
+}
 
+// Return the date of the last `weekday` of the specified month and calendar (=`cal-iso`).
+public fun last-weekday-of-month( year : int, month : int, weekday : int, cal : calendar = cal-iso ) : date {
+  val first = first-weekday-of-month(year,month + 1,weekday,cal).day
+  Date(year,month,days-in-month(year,month,cal) + first - 7)
+}
+
+// Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a date. 
+// Can pass a calendar `cal` (=`cal-iso`) to
+// interpret the date. It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not, which is Thursday for the ISO definition
+// (=`4`). 
+// Note that a week can fall in the year before or the year after. For example:\
+// `weekdate(Date(2005,1,1)).show   == "2004-W53-6"`\
+// `weekdate(Date(2005,12,31)).show == "2005-W52-6"`\
+// `weekdate(Date(2008,12,31)).show == "2009-W01-3"`
+public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : weekdate {
+  val dow  = d.day-of-week(cal)
+  val sun  = (d.day-of-year(cal) - dow) 
+  val wday = sun + weekday-in-year
+  if (wday <= 0) then {
+    // last week of previous year 
+    val wk = (Date(d.year - 1, 12, 31 + wday).day-of-year + 6)/7
+    Weekdate(d.year - 1, wk, dow)
+  }
+  elif (wday > days-in-year(d.year,cal)) then 
+    // first week in the next year
+    Weekdate(d.year + 1, 1, dow)
+  else 
+    // week in this year
+    Weekdate(d.year, (wday+6)/7, dow)
+}
+
+// Return the difference between two weekdays.
 public fun weekday-diff( wd1 : int, wd2 : int ) : int {
-  val d = wd2 - wd1
+  val d = wd1 - wd2
   d%7
 }
 
+// Find the weekday after `inc` days after weekday `wd`.
 public fun weekday-add( wd : int, inc : int = 1 ) : int {
   ((wd - 1) + inc)%7 + 1
 }
 
+// Return the day of the week for a calendar `cal` (=`cal-iso`).
+// Uses the ISO definition where Monday is day 1, and Sunday day 7.
 public fun day-of-week( d : date, cal : calendar = cal-iso ) : int {
   // Generic algorithm for any calendar
-  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd.floor.int
+  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd(cal.cal-ts).floor.int
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday
   if (dow==0) then 7 else dow  // to ISO week day number (monday=1, .. sunday=7)
 }
 
+// Return the day of the year for a given date in calendar `cal` (=`cal-iso`).
+// Starts at 1 for the first day of the year.
 public fun day-of-year( d : date, cal : calendar = cal-iso ) : int {
   day-diff(d.year,d.month,d.day,d.year,1,1,cal) + 1
 }
 
+// Return the days in a given month in calendar `cal` (=`cal-iso`).
 public fun days-in-month( year : int, month : int , cal : calendar = cal-iso ) : int {
   day-diff(year,month+1,1,year,month,1,cal)  
 }
 
+// Return the days in a given year and calendar (=`cal-iso`).
 public fun days-in-year( year : int, cal : calendar = cal-iso) : int {
   day-diff(year+1,1,1,year,1,1,cal)  
 }
@@ -254,16 +306,20 @@ fun day-diff( y1 : int, m1 : int, d1 : int, y2 : int, m2 : int, d2 : int, cal : 
   (i1.mjd(ts) - i2.mjd(ts)).double.floor.int    
 }
 
+// Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
+// number for a given `:time`.
 public fun mjd( t : time ) : fixed {
   //trace("offset: " + t.tzofs.show)
   // adjust with the timezone offset so we display the mjd on the date.
   t.instant.mjd(t.calendar.cal-ts) + (t.tzofs.seconds / secs-per-day.fixed)
 }
 
+// Return a `:time` as a fractional year.\
+// `year-frac(time(2000,7,2)) == fixed(2000.5)`
 public fun year-frac( t : time ) : fixed {
   val dfrac = t.clock.total-seconds.double / secs-per-day.double
-  val yfrac = ((t.date.day-of-year.double - 1.0) + dfrac) / t.year.days-in-year.double
-  fixed(t.year) + fixed(yfrac)
+  val yfrac = ((t.date.day-of-year(t.calendar).double - 1.0) + dfrac) / t.year.days-in-year(t.calendar).double
+  fixed-frac(t.year,yfrac)
 }
 
 
