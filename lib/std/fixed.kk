@@ -220,6 +220,13 @@ fun trunc( f : fixed ) : fixed {
   f.trunc-to-prec(0)
 }
 
+// Floor a fixed point number
+fun floor( f : fixed ) : fixed {
+  val ft = f.trunc
+  val fr = f - ft
+  if (f.neg? && !fr.zero?) then ft.dec else ft
+}
+
 // Return the fraction of a fixed-point number.
 fun fraction( f : fixed ) : fixed {
   f.fraction-to-prec(0)

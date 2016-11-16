@@ -191,7 +191,8 @@ public struct clock(
 
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
-  cal-name        : string,                 
+  cal-name: string,                 
+  cal-ts  : timescale,
   private dc-from-instant : (i:instant,tzofs:duration) -> (date,clock),
   private instant-from-dc : (date,clock) -> instant
 )
@@ -200,38 +201,63 @@ public fun total-seconds( c : clock ) : fixed {
   fixed((c.hours*60 + c.minutes)*60) + c.seconds
 }
 
-// Is this a Gregorian leap year?
-public fun leap-year?( year : int ) : bool {
-  ((year%4)==0 && ((year%100)!=0 || (year%400)==0))
+/*----------------------------------------------------------------------------
+  Generic calendar algorithms
+  These work for any calendar.
+----------------------------------------------------------------------------*/
+
+public fun week-of-year( d : date, cal : calendar = cal-iso ) : int {
+  val w = xweek-of-year(d,cal)
+  if (w==0) then xweek-of-year(Date(d.year - 1, 12, 31))
+  elif (days-in-year(d.year,cal) < 7*w) then xweek-of-year(Date(d.year+1,1,1))
+  else w
 }
 
-// The number of days in the given year (in a Gregorian calendar).
-public fun days-in-year( year : int ) : int {
-  if (year.leap-year?) then 366 else 365
+fun xweek-of-year( d : date, cal : calendar = cal-iso ) : int {
+  val week = ((d.day-of-year(cal) - d.day-of-week(cal)) + 10) / 7
+  trace("week: " + week.show)
+  week
+}  
+
+public fun weekday-diff( wd1 : int, wd2 : int ) : int {
+  val d = wd2 - wd1
+  d%7
 }
 
-// Number of days in a certain month (in a Gregorian calendar).
-public fun days-in-month( year: int, month : int ) : int {
-  if (month==2 && year.leap-year?) then return 29
-  month-counts[(month - 1)%12].maybe(0)  
+public fun weekday-add( wd : int, inc : int = 1 ) : int {
+  ((wd - 1) + inc)%7 + 1
 }
-val month-counts : list<int> = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-// Return the day of the year (starting at 1) (in a Gregorian calendar).
-public fun day-of-year( d : date ) : int {
-  val n = day-counts[(d.month - 1)%12].maybe(0) + d.day
-  if (d.month > 2 && d.year.leap-year?) then n+1 else n
+public fun day-of-week( d : date, cal : calendar = cal-iso ) : int {
+  // Generic algorithm for any calendar
+  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd.floor.int
+  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday
+  if (dow==0) then 7 else dow  // to ISO week day number (monday=1, .. sunday=7)
 }
-val day-counts : list<int> = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
 
-public fun day-of-week( d : date ) : int {
-  // Zeller's algorithm <https://en.wikipedia.org/wiki/Zeller%27s_congruence>
-  val yr= if (d.month < 3) then d.year - 1 else d.year
-  val m = if (d.month < 3) then d.month + 12 else d.month
-  val c = yr/100
-  val y = yr%100
-  val w = ((d.day + ((13*(m+1))/5) + y + (y/4) + (c/4)) - 2*c)%7  
-  (if (w > 1) then (w - 1) else (w + 6)) // adjust for ISO week number
+public fun day-of-year( d : date, cal : calendar = cal-iso ) : int {
+  day-diff(d.year,d.month,d.day,d.year,1,1,cal) + 1
+}
+
+public fun days-in-month( year : int, month : int , cal : calendar = cal-iso ) : int {
+  day-diff(year,month+1,1,year,month,1,cal)  
+}
+
+public fun days-in-year( year : int, cal : calendar = cal-iso) : int {
+  day-diff(year+1,1,1,year,1,1,cal)  
+}
+
+fun day-diff( y1 : int, m1 : int, d1 : int, y2 : int, m2 : int, d2 : int, cal : calendar ) : int {
+  val i1 = instant-at(y1,m1,d1,cal=cal)
+  val i2 = instant-at(y2,m2,d2,cal=cal)
+  val ts = cal.cal-ts
+  (i1.mjd(ts) - i2.mjd(ts)).double.floor.int    
+}
+
+public fun mjd( t : time ) : fixed {
+  //trace("offset: " + t.tzofs.show)
+  // adjust with the timezone offset so we display the mjd on the date.
+  t.instant.mjd(t.calendar.cal-ts) + (t.tzofs.seconds / secs-per-day.fixed)
 }
 
 public fun year-frac( t : time ) : fixed {
@@ -239,6 +265,11 @@ public fun year-frac( t : time ) : fixed {
   val yfrac = ((t.date.day-of-year.double - 1.0) + dfrac) / t.year.days-in-year.double
   fixed(t.year) + fixed(yfrac)
 }
+
+
+/*----------------------------------------------------------------------------
+  Standard calendars
+----------------------------------------------------------------------------*/
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
@@ -272,7 +303,7 @@ public val cal-jg = julian-gregorian()
 public val cal-tai = iso-calendar( "TAI", ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.epoch-jd-delta ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
+public val cal-gps = iso-calendar( "GPS", ts-gps, ts-gps.to-tai(timestamp(~19)).timespan ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
 
 // The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
 public val cal-tt  = iso-calendar( "TT", ts-tt)//, fixed(32184,3) )
@@ -317,7 +348,7 @@ public fun solar-calendar(
               shift: timespan  = timespan0 
             ) : calendar
 {
-  Calendar(cal-name,
+  Calendar(cal-name,ts,
     fun(i,tzofs) { solar-dc-from-cal( i.timestamp(ts) + shift + tzofs.timespan, date-from-days ) },
     fun(d,c)     { unsafe-instant-at( solar-cal-from-dc( d, c, days-from-date ) - shift, ts ) }
   )
@@ -553,3 +584,40 @@ public fun easter( y : int ) : date {
   val d  = (l + 28) - 31*(m/4)
   Date(y,m,d)
 }
+
+/*
+// Is this a Gregorian leap year?
+public fun gregorian-leap-year?( year : int ) : bool {
+  ((year%4)==0 && ((year%100)!=0 || (year%400)==0))
+}
+
+// The number of days in the given year (in a Gregorian calendar).
+fun gregorian-days-in-year( year : int ) : int {
+  if (year.gregorian-leap-year?) then 366 else 365
+}
+
+// Number of days in a certain month (in a Gregorian calendar).
+fun gregorian-days-in-month( year: int, month : int ) : int {
+  if (month==2 && year.gregorian-leap-year?) then return 29
+  month-counts[(month - 1)%12].maybe(0)  
+}
+val month-counts : list<int> = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+// Return the day of the year (starting at 1) (in a Gregorian calendar).
+fun gregorian-day-of-year( d : date ) : int {
+  val n = day-counts[(d.month - 1)%12].maybe(0) + d.day
+  if (d.month > 2 && d.year.leap-year?) then n+1 else n
+}
+val day-counts : list<int> = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+
+fun gregorian-day-of-week( d : date ) : int {
+  // Zeller's algorithm <https://en.wikipedia.org/wiki/Zeller%27s_congruence>
+  // Just for Gregorian calendar
+  val yr= if (d.month < 3) then d.year - 1 else d.year
+  val m = if (d.month < 3) then d.month + 12 else d.month
+  val c = yr/100
+  val y = yr%100
+  val w = ((d.day + ((13*(m+1))/5) + y + (y/4) + (c/4)) - 2*c)%7  
+  (if (w > 1) then (w - 1) else (w + 6)) // adjust for ISO week number
+}
+*/

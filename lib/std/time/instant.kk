@@ -52,7 +52,7 @@ public struct timescale(
   ts-unit          : string,
   private from-tai : duration -> timestamp,
   private to-tai   : timestamp -> duration,
-  private epoch-delta : timespan,  // epoch~TS~ = 2000-01-01TAI + epoch-delta
+  epoch-delta : timespan,  // epoch~TS~ = 2000-01-01TAI + epoch-delta
   epoch-jd-delta      : timespan   // epoch~TS~ = 2000-01-01~TS~ + epoch-jd-delta; used for julian date calculation
 )
 
