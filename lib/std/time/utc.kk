@@ -6,13 +6,41 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Low-level leap seconds handling.
+/* UTC time scales and leap second support.
 */
 module std/time/utc
 
 import std/regex
 import std/time/timespan
 import std/time/duration
+import std/time/instant
+
+extern include {
+  // cs file "time-inline.cs"
+  js file "utc-inline.js"
+}
+
+
+/*----------------------------------------------------------------------------
+  Unix
+----------------------------------------------------------------------------*/
+
+// The current `:instant` in time as returned by the system clock.
+public fun now() : ndet instant {
+  val (secs,frac) = unix-now()
+  unsafe-instant-at( timestamp(secs.int,frac), ts-unix ) 
+} 
+
+// Returns a unix time stamp; this still needs
+// to be adjusted to our epoch and taking account of leap seconds.
+private extern unix-now() : ndet (double,double) {
+  js "_unix_now"
+}
+
+// The resolution in seconds of the system clock.
+extern now-precision() : ndet int {
+  js "_now_precision"
+}
 
 
 /*----------------------------------------------------------------------------
@@ -123,7 +151,7 @@ public fun update-leap-seconds( ietf-leap-table : string ) : io () {
 }
 
 // Return the UTC timestamp since the epoch when the current leap second table expires.
-public fun leap-seconds-expire() : io timestamp {
+fun leap-seconds-expire() : io timestamp {
   get-leaps-table().expire
 }
 

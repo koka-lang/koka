@@ -241,6 +241,12 @@ public fun timescale( name : string,
 // time scale is based on SI seconds measured on the Earth's geoid, with a 2000-01-01 TAI `epoch`.
 public val ts-tai : timescale = tai-timescale( "TAI" )
 
+// The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based 
+// on SI seconds with a 1980-01-06 GPS epoch.\
+// GPS = TAI - 19s.
+public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), timestamp(630720000) )
+
+
 // Return the epoch of a certain time scale.
 public fun timescale-epoch( ts : timescale ) : instant {
   unsafe-instant-at(timestamp0,ts)

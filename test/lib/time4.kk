@@ -42,8 +42,8 @@ fun test-week-dates() {
     val (d,wd) = dwd
     val ds = d.show
     val wds = wd.show
-    check("date-" + ds, wds) { weekdate(d).show }
-    check("date-" + wds, ds) { date(wd).show }
+    check("date-" + ds, wds) { time(d).weekdate.show }
+    check("date-" + wds, ds) { time(wd).date.show }
   })    
 }
 

@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time functions.
+/* Date and time functions.
 
    Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */

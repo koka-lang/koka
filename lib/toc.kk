@@ -30,8 +30,8 @@ import std/unicode
 
 import std/xtime
 import std/time/timespan
-import std/time/leaps
 import std/time/timezone
+import std/time/astro
 import std/time/ut1
 
 import sys/dom

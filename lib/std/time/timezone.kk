@@ -30,7 +30,7 @@ import std/file
 import std/time/timespan
 import std/time/duration
 import std/time/instant
-import std/time/timescale
+import std/time/utc
 import std/time/calendar
 
 extern include {

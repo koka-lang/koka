@@ -10,6 +10,7 @@ module time5
 
 public import std/fixed
 public import std/xtime
+import std/time/astro
 
 /*----------------------------------------------------------------------------
   Testing

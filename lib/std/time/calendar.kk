@@ -6,7 +6,11 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Date and time calculations. 
+/* Calendars and time.
+
+  A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time
+  with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates. 
+  Years, months, days etc. are always 1-based.  
 */
 module std/time/calendar
 
@@ -14,11 +18,21 @@ import std/fixed
 import std/time/timespan
 import std/time/duration
 import std/time/instant
-import std/time/timescale
+import std/time/utc
+import std/time/date
 
 extern include {
   js file "calendar-inline.js"
 }
+
+// A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
+public struct calendar(
+  name      : string,                 
+  timescale : timescale,
+  private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
+  private dc-to-instant : (date,clock) -> instant
+)
+
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
@@ -36,38 +50,16 @@ abstract struct time (
   public  instant : instant
 )
 
-
-/*----------------------------------------------------------------------------
-  Time
-----------------------------------------------------------------------------*/
-
-// Return the hours, minutes, seconds, and fraction of the second.
-public fun clock( t : time ) : clock {
-  Clock(t.hours,t.minutes,t.seconds)
-}
-
-// Return the year, month, and day.
+// Return the year, month, and day of a `:time`.
 public fun date( t : time ) : date {
   Date(t.year,t.month,t.day)
 }
 
-// Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
-public fun show-year( year : int ) : string {
-  val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.neg?) then ("-",5) else ("",4)
-  ysign + year.abs.show0(ywidth)
+// Return the hours, minutes, seconds, and fraction of the second of a `:time`.
+public fun clock( t : time ) : clock {
+  Clock(t.hours,t.minutes,t.seconds)
 }
 
-// Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
-public fun show( d : date ) : string {
-  d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
-}
-
-// Show a clock in ISO format up to an optional maximum precision (=`9`).\
-// `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
-// `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
-public fun show( c : clock, prec : int = 9 ) : string {
-  c.hours.show0 + ":" + c.minutes.show0 + ":" + show(timestamp(c.seconds),prec,2)
-}
 
 // Round a time to a specified second precision.
 public fun round-to-prec( t : time, prec : int ) : time {
@@ -175,260 +167,6 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 }
 
 
-/*----------------------------------------------------------------------------
-  Calendar
-----------------------------------------------------------------------------*/
-
-// A date consists of a the year, month, and day.
-public struct date(
-  year : int,
-  month: int,
-  day  : int 
-)
-
-// Compare two dates
-public fun compare( d : date, e : date ) : order {
-  match(compare(d.year,e.year)) {
-    Eq -> match(compare(d.month,e.month)) {
-      Eq  -> compare(d.day,e.day)
-      ord -> ord
-    }
-    ord -> ord
-  }
-}
-
-// A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
-public struct clock(
-  hours   : int,
-  minutes : int,
-  seconds : fixed
-)
-
-// A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
-public struct calendar(
-  name      : string,                 
-  timescale : timescale,
-  private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
-  private dc-to-instant : (date,clock) -> instant
-)
-
-// Return the total seconds of a `:clock` assuming 60 seconds per 
-// minute and 60 minutes per hour.
-public fun total-seconds( c : clock ) : fixed {
-  fixed((c.hours*60 + c.minutes)*60) + c.seconds
-}
-
-/*----------------------------------------------------------------------------
-  Generic calendar algorithms
-  Surprisingly all of these can be made to work for any calendar, regardless 
-  of leap years, months in a year, days in a month, etc.
-----------------------------------------------------------------------------*/
-
-// An [ISO `:weekdate`](https://en.wikipedia.org/wiki/ISO_week_date) 
-// represents a date as a year, the week of the year, and the day of the week.
-public struct weekdate(
-  year : int,
-  week : int,
-  day  : weekday                       
-)
-
-// An ISO day of the week, starting at Monday (=1) up to Sunday (=7).
-public type weekday {
-  Mon 
-  Tue
-  Wed
-  Thu
-  Fri
-  Sat
-  Sun
-}
-
-// Convert a `:weekday` to an `:int` using the ISO definition which starts at Monday as 1,
-// up to Sunday as 7.
-public fun int( wd : weekday ) : int {
-  match(wd) {
-    Mon -> 1
-    Tue -> 2
-    Wed -> 3
-    Thu -> 4
-    Fri -> 5
-    Sat -> 6
-    Sun -> 7
-  }
-}
-
-// Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)). 
-// Takes the integer `i - 1` modulo 7, so `0` or `14` also become Sunday etc.
-public fun weekday( i : int ) : weekday {
-  val d = ((i - 1)%7) 
-  if (d==0) then Mon
-  elif (d==1) then Tue
-  elif (d==2) then Wed
-  elif (d==3) then Thu
-  elif (d==4) then Fri
-  elif (d==5) then Sat
-  else Sun 
-}
-
-// Show a `:weekday` as an English string (`Sun.show == "Sunday"`).
-public fun show( wd : weekday ) : string {
-  match(wd) {
-    Mon -> "Monday"
-    Tue -> "Tuesday"
-    Wed -> "Wednesday"
-    Thu -> "Thursday"
-    Fri -> "Friday"
-    Sat -> "Saturday"
-    Sun -> "Sunday"
-  }
-}
-
-// Show a `:weekday` as a 3 letter English string (`Sun.show-short == "Sun"`)
-public fun show-short( wd : weekday ) : string {
-  wd.show.first(3).string
-}
-
-// Return the `:weekday` that comes `n` days after week day `wd`.
-public fun (+)(wd : weekday, n : int ) : weekday {
-  (wd.int + n).weekday
-}
-
-// Return the difference between two week days:\
-// `wd2 == wd1 + (wd2 - wd1)`
-public fun (-)(wd1 : weekday, wd2 : weekday ) : int {
-  (wd1.int  - wd2.int)%7
-}
-
-// Show a `:weekdate` in the ISO week date format: ``2000-W01-1`` (for 2000-01-03Z).
-public fun show( wd : weekdate ) : string {
-  wd.year.show-year + "-W" + wd.week.show0 + "-" + wd.day.int.show
-}
-
-
-// Return the date of the `n`th week day `wd` starting from the specified year and optional month (=`1`),
-// in an optional calendar (=`cal-iso`).
-// Use `n = 1` for the first week day `wd` in the month; Use `0` for the last occurence of week day `wd` in the
-// previous month. See also `first-weekday` and `last-weekday`.
-public fun nth-weekday( n : int, wd : weekday,  year : int, month : int = 1, cal : calendar = cal-iso ) : date {
-  val dow = weekday(Date(year,month,1),cal)
-  val inc = wd - dow
-  val day = 1 + inc + 7*(n - 1)
-  if (1 <= day && day <= 28 && 1 <= month && month <= 12) then {
-    // test assumes that a month has at least 28 days, and a year at least 12 months...
-    Date(year,month,day) 
-  }
-  else {
-    // may roll over into subsequent or previous months
-    time(year,month,day,cal=cal).date
-  }
-}
-
-// Return the date of the first week day `wd` of the specified month and calendar (=`cal-iso`).
-public fun first-weekday( wd : weekday, year : int, month : int, cal : calendar = cal-iso ) : date {
-  nth-weekday(1,wd,year,month,cal)
-}
-
-// Return the date of the last week day `wd` of the specified month and calendar (=`cal-iso`).
-public fun last-weekday( wd : weekday, year : int, month : int, cal : calendar = cal-iso ) : date {
-  nth-weekday(0,wd,year,month+1)
-}
-
-// Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a date. 
-// Can pass a calendar `cal` (=`cal-iso`) to
-// interpret the date. It is also possible to pass the weekday that determines if 
-// a week falls in the current year or not (which is Thursday for the ISO definition). 
-// Note that a week can fall in the year before or the year after. For example:\
-// `weekdate(Date(2005,1,1)).show   == "2004-W53-6"`\
-// `weekdate(Date(2005,12,31)).show == "2005-W52-6"`\
-// `weekdate(Date(2008,12,31)).show == "2009-W01-3"`
-public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : weekdate {
-  val dow  = d.weekday(cal)
-  val sun  = (d.day-of-year(cal) - dow.int) 
-  val wday = sun + (weekday-in-year.int % 7)
-  if (wday <= 0) then {
-    // last week of previous year 
-    val wk = (time(d.year,1,wday).date.day-of-year(cal) + 6)/7
-    Weekdate(d.year - 1, wk, dow)
-  }
-  elif (wday > days-in-year(d.year,cal)) then 
-    // first week in the next year
-    Weekdate(d.year + 1, 1, dow)
-  else 
-    // week in this year
-    Weekdate(d.year, (wday+6)/7, dow)
-}
-
-
-// Return a `:date` for an ISO week date `wd` using calendar `cal` (=`cal-iso`).
-// It is also possible to pass the weekday that determines if 
-// a week falls in the current year or not (which is Thursday for the ISO definition).\
-// `date(Weekdate(2004,53,6)).show == "2005-01-01"`\
-// `date(Weekdate(2005,52,6)).show == "2005-12-31"`\
-// `date(Weekdate(2009,1,3)).show == "2008-12-31"`
-public fun date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : date {
-  val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
-  time(wd.year, 1, (7*wd.week + wd.day.int) - adj, cal=cal).date  
-}
-
-
-// Return the day of the week for a calendar `cal` (=`cal-iso`).
-public fun weekday( d : date, cal : calendar = cal-iso ) : weekday {
-  // Generic algorithm for any calendar
-  val i    = instant-at(d.year,d.month,d.day,cal=cal)
-  val days = i.mjd(cal.timescale).floor.int
-  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
-  dow.weekday                  // to ISO week day 
-}
-
-// Return the day of the week of an `:instant` interpreted in a
-// timezone `tz` (=`tz-utc`) and calendar `cal` (=`cal-iso`).
-public fun weekday( i :instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : weekday {
-  // Generic algorithm for any calendar
-  val t    = i.time(tz,cal)
-  val days = t.mjd.floor.int
-  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
-  dow.weekday                  // to ISO week day 
-}
-
-// Return the day of the year for a given date in calendar `cal` (=`cal-iso`).
-// Starts at 1 for the first day of the year.
-public fun day-of-year( d : date, cal : calendar = cal-iso ) : int {
-  day-diff(d.year,d.month,d.day,d.year,1,1,cal) + 1
-}
-
-// Return the days in a given month in calendar `cal` (=`cal-iso`).
-public fun days-in-month( year : int, month : int , cal : calendar = cal-iso ) : int {
-  day-diff(year,month+1,1,year,month,1,cal)  
-}
-
-// Return the days in a given year and calendar (=`cal-iso`).
-public fun days-in-year( year : int, cal : calendar = cal-iso) : int {
-  day-diff(year+1,1,1,year,1,1,cal)  
-}
-
-fun day-diff( y1 : int, m1 : int, d1 : int, y2 : int, m2 : int, d2 : int, cal : calendar ) : int {
-  val i1 = instant-at(y1,m1,d1,cal=cal)
-  val i2 = instant-at(y2,m2,d2,cal=cal)
-  val ts = cal.timescale
-  (i1.mjd(ts) - i2.mjd(ts)).double.floor.int    
-}
-
-// Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
-// number for a given `:time`.
-public fun mjd( t : time ) : fixed {
-  //trace("offset: " + t.tzdelta.show)
-  // adjust with the timezone offset so we display the mjd on the date.
-  t.instant.mjd(t.calendar.timescale) + (t.tzdelta.seconds / secs-per-day.fixed)
-}
-
-// Return a `:time` as a fractional year.\
-// `year-frac(time(2000,7,2)) == fixed(2000.5)`
-public fun year-frac( t : time ) : fixed {
-  val dfrac = t.clock.total-seconds.double / secs-per-day.double
-  val yfrac = ((t.date.day-of-year(t.calendar).double - 1.0) + dfrac) / t.year.days-in-year(t.calendar).double
-  fixed-frac(t.year,yfrac)
-}
-
 
 /*----------------------------------------------------------------------------
   Standard calendars
@@ -467,19 +205,6 @@ public val cal-tai = iso-calendar( ts-tai )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
 public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
-
-// The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
-public val cal-tt  = iso-calendar( ts-tt )//, fixed(32184,3) )
-
-
-// The TCG (Geometric coordinate time) calendar. See also `ts-tcg`
-public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
-
-// The TDB (Barycentric dynamical time) calendar. See also `ts-tdb`. Always within 2ms of TT (`cal-tt`).
-public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
-
-// The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
-public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 
 
 // Create a standard ISO calendar using a particular time scale
@@ -563,23 +288,17 @@ public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
 ----------------------------------------------------------------------------*/
 
 // Return the instant in time for a given date.
-fun instantz( year : int, month : int = 1, day : int = 1, 
-              hours : int = 0, minutes : int = 0, secs : int = 0, frac : double = 0.0,
-              cal : calendar = cal-iso ) : instant 
-{
-  val fsecs = if (frac.zero?) then fixed(secs) else fixed(secs) + fixed(frac)
-  (cal.dc-to-instant)( Date(year,month,day), Clock(hours,minutes,fsecs) )   
+fun instantz( d : date, c : clock, cal : calendar = cal-iso ) : instant {
+  (cal.dc-to-instant)( d, c )   
 }
 
 
-// Return the instant in time for a given date and clock interpreted by 
+// Return the instant in time for a given `:date` and `:clock` interpreted by 
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
-public fun instant-at( year : int, month : int = 1, day : int = 1, 
-                    hours : int = 0, minutes : int = 0, secs : int = 0, 
-                    frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
+public fun instant-at( d : date, c : clock, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
 {
   // the year/month/day is interpreted as if in UTC first.
-  val i = instantz(year,month,day,hours,minutes,secs,frac,cal)
+  val i = instantz(d,c,cal)
   if (tz.tz-utc?) return i
   // we need to adjust according to timezone 
   match((tz.utc-inverse)(i)) {
@@ -604,8 +323,7 @@ public fun instant-at( year : int, month : int = 1, day : int = 1,
 // Return a `:time` for a given instant.
 fun timez( i : instant, tzdelta : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
   val (d,c) = (cal.instant-to-dc)( i, tzdelta )
-  Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,
-       cal, tzdelta, tzabbrv, tz, i )
+  Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,cal,tzdelta,tzabbrv,tz,i)
 }
 
 
@@ -619,13 +337,311 @@ public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso )
 }
 
 
+/*----------------------------------------------------------------------------
+  Convenience functions over time
+----------------------------------------------------------------------------*/
+
+/* Return the instant in time for a given date and clock interpreted by 
+   calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
+
+  The `month`, `day`, `hour`, `minutes`, and `seconds` may be outside their usual ranges 
+  and will be normalized during the conversion. For example, January 33 converts to February 2.
+  This makes it very easy to add- or subtract days or months to an existing time.
+
+  Due to timezone transitions, or leap seconds, it is possible to specify dates that never
+  happend (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
+  In such cases, the functions returns always interpreted in the earlier timezone.
+*/
+public fun instant-at( year : int, month : int = 1, day : int = 1, 
+                    hours : int = 0, minutes : int = 0, seconds : int = 0, 
+                    frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
+{
+  val fsecs = if (frac.zero?) then fixed(seconds) else fixed(seconds) + fixed(frac)
+  instant-at( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
+}
+
+// Convert a `:time` `t` to a new `:time` value in a potentially different 
+// timezone `tz` (=`t.timezone` by default) and calendar (=`t.calendar` by default).
+public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar ) : time {
+  time(t.instant,tz,cal)
+}
+
+
 // Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default) 
-// interpreted by calendar `cal` (=`cal-iso`)
+// interpreted by calendar `cal` (=`cal-iso`). See `instant-at` for roll-over behaviour.
 public fun time( year : int, month : int = 1, day : int = 1, 
                  hours : int = 0, minutes : int = 0, secs : int = 0, 
                  frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time 
 {
   time(instant-at(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
+}
+
+
+// Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default) 
+// interpreted by calendar `cal` (=`cal-iso`)
+public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time 
+{
+  time(instant-at(d,c,tz,cal),tz,cal)
+}
+
+// Return the `:time` value for a given `:weekdate` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default) 
+// interpreted by calendar `cal` (=`cal-iso`).
+// It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition).\
+// `time(Weekdate(2004,53,Sat).date.show == "2005-01-01"`\
+// `time(Weekdate(2005,52,Sat).date.show == "2005-12-31"`\
+// `time(Weekdate(2009,1,Wed)).date.show == "2008-12-31"`
+public fun time( wd : weekdate, c : clock = clock0, 
+                  tz : timezone = tz-utc, cal : calendar = cal-iso, 
+                  weekday-in-year : weekday = Thu ) : time 
+{
+  time(instant-at(wd,c,tz,cal,weekday-in-year),tz,cal)
+}
+
+// Add a date (years, months, days) and optional clock to a time. Takes leap years etc. into account.
+public fun add-date( t : time, d : date, c : clock = clock0 ) : time {
+  time( Date(t.year + d.year, t.month + d.month, t.day + d.day), t.clock + c, t.timezone, t.calendar )
+}
+
+// Add a clock (hours, minutes, seconds) to a time. Takes leap years etc. into account.
+public fun add-clock( t : time, c : clock ) : time {
+  time( t.date, t.clock + c, t.timezone, t.calendar )
+}
+
+// Add  a specified number of days to a calendar time.
+public fun add-days( t : time, days : int, c : clock = clock0 ) : time {
+  t.add-date( Date(t.year, t.month, t.day + days), c )
+}
+
+// Add  a specified number of weeks to a calendar time.
+public fun add-weeks( t : time, weeks : int ) : time {
+  t.add-days( weeks*7 )
+}
+
+// Add  a specified number of months to a calendar time.
+public fun add-months( t : time, months : int ) : time {
+  t.add-date( Date(0,months,0) )
+}
+
+// Add  a specified number of years to a calendar time.
+public fun add-years( t : time, years : int ) : time {
+  t.add-date( Date(years,0,0) )
+}
+
+
+// Copy a `:time` with optionally changing any of its attributes.\
+// `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` (set to start of the year)\
+// `t.copy(month=t.month+2,day=t.day+3)`  (add 2 months and 3 days)\
+// `t.copy(tz=tz-local())` (change to a different time zone)
+public fun copy( t : time, 
+                 year : int = t.year, month : int = t.month, day : int = t.day, 
+                 hours : int = t.hours, minutes : int = t.minutes, seconds : fixed = t.seconds, 
+                 tz : timezone = t.timezone, cal : calendar = t.calendar ) : time 
+{
+  time( Date(year,month,day),Clock(hours,minutes,seconds),tz,cal )
+}
+
+// Return the time at the start of the day of time `t`.
+public fun start-of-day( t : time ) : time {
+  t.copy(hours=0,minutes=0,seconds=zero)
+}
+
+// Return the time at the start of the month of time `t`.
+public fun start-of-month( t : time ) : time {
+  t.copy(day=1,hours=0,minutes=0,seconds=zero)
+}
+
+// Return the time at the start of the week (Monday) of time `t`.
+public fun start-of-week( t : time ) : time {
+  val dow = t.weekday
+  if (dow==Mon) then t.start-of-day else t.copy( day=(t.day - dow.int)+1, hours=0,minutes=0,seconds=zero )
+}
+
+// Return the time at the start of the year of time `t`.
+public fun start-of-year( t : time ) : time {
+  t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)
+}
+
+// Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a time `t`. 
+// It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition). 
+// Note that a week can fall in the year before or the year after. For example:\
+// `time(2005,1,1).weekdate.show   == "2004-W53-6"`\
+// `time(2005,12,31).weekdate.show == "2005-W52-6"`\
+// `time(2008,12,31).weekdate.show == "2009-W01-3"`
+public fun weekdate( t : time, weekday-in-year : weekday = Thu ) : weekdate {
+  t.date.weekdate( t.calendar, weekday-in-year )
+}
+
+// Return the day of the year of time `t` (starting at 1).
+public fun day-of-year( t : time ) : int {
+  t.date.day-of-year( t.calendar )
+}
+
+// Return the `n`th week day following (and including) time `t`.
+// Use `n = 1` for the first week day `wd` following `t`; 
+// Use `0` for the last occurence of week day `wd` before `t`.\
+// `time(2016,11,16).start-of-month.nth-weekday(0,Wed)` (The last wednesday before 2016-11-01)
+public fun nth-weekday( t : time, n : int, wd : weekday ) : time {
+  nth-weekday( n, wd, t.date, t.calendar ).time( t.clock, t.timezone, t.calendar )
+}
+
+// Return the first week day following (and including) time `t`.
+fun first-weekday( t : time, wd : weekday ) : time {
+  t.nth-weekday(1,wd)
+}
+
+// Return the last week day before time `t`.\
+// `time(2016,11,1).last-weekday(Sun)` (2016-10-30, Last Sunday of October 2016)
+fun last-weekday( t : time, wd : weekday ) : time {
+  t.nth-weekday(0,wd)
+}
+
+// Return the `n`th week day since the beginning of the month of time `t`.\
+// `time(2016,10,10).nth-weekday-of-month(2,Sun).date` (2016-10-09, Second Sunday of October 2016)\
+// `time(2016,10,10).nth-weekday-of-month(60,Sun).date` (2017-11-19, 60th Sunday since Octorber 1, 2016)
+public fun nth-weekday-of-month( t : time, n : int, wd : weekday ) : time {
+  t.copy(day=1).nth-weekday(n,wd)
+}
+
+// Return the first week day of the month of time `t`.\
+// `time(2016,10,10).first-weekday-of-month(Sun)` (2016-10-02, First Sunday of October 2016)
+fun first-weekday-of-month( t : time, wd : weekday ) : time {
+  t.nth-weekday-of-month(1,wd)
+}
+
+// Return the last week day of the month of time `t`.\
+// `time(2016,10,10).last-weekday-of-month(Sun).date` (2016-10-30, Last Sunday of October 2016)
+public fun last-weekday-of-month( t : time, wd : weekday ) : time {
+  t.copy(month=t.month+1, day=1).last-weekday(wd)
+}
+
+// Return the total days in the month of time `t`.
+public fun days-in-month( t : time ) : int {
+  days-in-month(t.year,t.month,t.calendar)
+}
+
+// Return the total days in the year of time `t`.
+public fun days-in-year( t : time) : int {
+  days-in-year(t.year,t.calendar)  
+}
+
+
+
+/*----------------------------------------------------------------------------
+  Generic calendar calculations;
+  Surprisingly, all of these work for any calendar and do not make 
+  assumptions about the length of month, the number of months in a year etc.
+----------------------------------------------------------------------------*/
+
+// Return the date of the `n`th week day `wd` starting from (and including) the specified date,
+// in an optional calendar (=`cal-iso`).
+// Use `n = 1` for the first week day `wd` in the month; Use `0` for the last occurence of week day `wd` in the
+// previous month. See also `first-weekday` and `last-weekday`.
+fun nth-weekday( n : int, wd : weekday,  d : date, cal : calendar ) : date {
+  val dow = weekday(d,cal)
+  val inc = wd - dow
+  val day = d.day + inc + 7*(n - 1)
+  if (1 <= day && day <= 28 && 1 <= d.month && d.month <= 12) then {
+    // test assumes that a month has at least 28 days, and a year at least 12 months...
+    Date(d.year,d.month,day) 
+  }
+  else {
+    // may roll over into subsequent or previous months
+    time(d.year,d.month,day,cal=cal).date
+  }
+}
+
+// Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a date. 
+// Can pass a calendar `cal` (=`cal-iso`) to
+// interpret the date. It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition). 
+// Note that a week can fall in the year before or the year after. For example:\
+// `weekdate(Date(2005,1,1)).show   == "2004-W53-6"`\
+// `weekdate(Date(2005,12,31)).show == "2005-W52-6"`\
+// `weekdate(Date(2008,12,31)).show == "2009-W01-3"`
+fun weekdate( d : date, cal : calendar, weekday-in-year : weekday ) : weekdate {
+  val dow  = d.weekday(cal)
+  val sun  = (d.day-of-year(cal) - dow.int) 
+  val wday = sun + (weekday-in-year.int % 7)
+  if (wday <= 0) then {
+    // last week of previous year 
+    val wk = (time(d.year,1,wday).date.day-of-year(cal) + 6)/7
+    Weekdate(d.year - 1, wk, dow)
+  }
+  elif (wday > days-in-year(d.year,cal)) then 
+    // first week in the next year
+    Weekdate(d.year + 1, 1, dow)
+  else 
+    // week in this year
+    Weekdate(d.year, (wday+6)/7, dow)
+}
+
+// Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by 
+// calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
+// It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition)
+public fun instant-at( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant 
+{  
+  val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
+  val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)  
+  instant-at( d, c, tz, cal )
+}
+
+// Return the day of the week for a calendar `cal` (=`cal-iso`).
+fun weekday( d : date, cal : calendar ) : weekday {
+  // Generic algorithm for any calendar
+  val i    = instant-at(d.year,d.month,d.day,cal=cal)
+  val days = i.mjd(cal.timescale).floor.int
+  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
+  dow.weekday                  // to ISO week day 
+}
+
+// Return the weekday of a given time `t`.
+public fun weekday( t : time ) : weekday {
+  val days = t.mjd.floor.int
+  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
+  dow.weekday                  // to ISO week day 
+}
+
+
+// Return the day of the year for a given date in calendar `cal` (=`cal-iso`).
+// Starts at 1 for the first day of the year.
+fun day-of-year( d : date, cal : calendar ) : int {
+  day-diff(d.year,d.month,d.day,d.year,1,1,cal) + 1
+}
+
+// Return the days in a given month in calendar `cal` (=`cal-iso`).
+fun days-in-month( year : int, month : int , cal : calendar  ) : int {
+  day-diff(year,month+1,1,year,month,1,cal)  
+}
+
+// Return the days in a given year and calendar (=`cal-iso`).
+fun days-in-year( year : int, cal : calendar ) : int {
+  day-diff(year+1,1,1,year,1,1,cal)  
+}
+
+fun day-diff( y1 : int, m1 : int, d1 : int, y2 : int, m2 : int, d2 : int, cal : calendar ) : int {
+  val i1 = instant-at(y1,m1,d1,cal=cal)
+  val i2 = instant-at(y2,m2,d2,cal=cal)
+  val ts = cal.timescale
+  (i1.mjd(ts) - i2.mjd(ts)).double.floor.int    
+}
+
+// Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
+// number for a given `:time`.
+public fun mjd( t : time ) : fixed {
+  //trace("offset: " + t.tzdelta.show)
+  // adjust with the timezone offset so we display the mjd on the date.
+  (t.instant + t.tzdelta).mjd(t.calendar.timescale)
+}
+
+// Return a `:time` as a fractional year.\
+// `year-frac(time(2000,7,2)) == fixed(2000.5)`
+public fun year-frac( t : time ) : fixed {
+  val dfrac = t.clock.total-seconds.double / secs-per-day.double
+  val yfrac = ((t.date.day-of-year(t.calendar).double - 1.0) + dfrac) / t.year.days-in-year(t.calendar).double
+  fixed-frac(t.year,yfrac)
 }
 
 
@@ -737,21 +753,6 @@ fun show0( i : int, width : int = 2) : string {
   i.show.pad-left(width,'0')
 }
 
-// Return the ISO calendar date of Easter in a given year (Algorithm by [J.M. Oudin](http://aa.usno.navy.mil/faq/docs/easter.php)).
-public fun easter( year : int ) : date {
-  val c  = year/100
-  val n  = year - 19*(year/19)
-  val k  = (c - 17)/25
-  val i0 = (((c - c/4) - (c - k)/3) + 19*n) + 15
-  val i1 = i0 - 30*(i0/30)
-  val i  = i1 - (i1/28)*(1 - (i1/28)*(29/(i1 + 1))*((21 - n)/11))
-  val j0 = ((year + year/4 + i + 2) - c) + c/4
-  val j  = j0 - 7*(j0/7)
-  val l  = i - j
-  val m  = 3 + (l + 40)/44
-  val d  = (l + 28) - 31*(m/4)
-  Date(year,m,d)
-}
 
 /*
 // Is this a Gregorian leap year?

@@ -15,7 +15,8 @@ import std/regex
 import std/time/timespan
 import std/time/duration
 import std/time/instant
-import std/time/timescale
+import std/time/utc
+import std/time/astro
 import std/time/calendar
 
 // The UT1 (Universal time 1) calendar. 

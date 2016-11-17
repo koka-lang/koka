@@ -13,6 +13,7 @@ import std/file
 public import std/fixed
 public import std/xtime
 public import std/time/timespan
+public import std/time/astro
 public import std/time/ut1
 
 /*----------------------------------------------------------------------------
