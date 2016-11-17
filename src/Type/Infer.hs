@@ -1116,6 +1116,15 @@ inferApp propagated expect fun nargs rng
       = do (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
            let acc' = (acc ++ [(tpArg,(getRange fix, effArg),coreArg)])
            amb <- case rootExpr fun of
+                    (Var name _ nameRange) | isConstructorName name
+                      -> do matches <- lookupNameEx (isInfoCon {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                            -- traceDoc $ \env -> text "app args matched for constructor " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 acc') )
+                            case matches of
+                              []         -> do -- emit an error
+                                               resolveConName name Nothing nameRange 
+                                               return Nothing
+                              [(_,info)] -> return (Just (infoType info, rng))
+                              _          -> return Nothing
                     (Var name _ nameRange)
                       -> do matches <- lookupNameEx (isInfoValFunExt {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
                             -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 acc') )
@@ -1194,7 +1203,8 @@ inferApp propagated expect fun nargs rng
 
 inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
 inferVar propagated expect name rng isRhs  | isConstructorName name
-  = do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
+  = -- trace("inferVar: constructor: " ++ show name)$ 
+    do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
        let info1 = InfoCon tp1 conRepr conInfo rng
        (qname,tp,info) <- do defName <- currentDefName
                              let creatorName = newCreatorName qname1
@@ -1203,10 +1213,10 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
                                then do mbRes <- lookupFunName creatorName propagated rng 
                                        case mbRes of
                                           Just (qname',tp',info') -> 
-                                            --trace "creator found" $
+                                            -- trace "creator found" $
                                             do return (qname',tp',info')
                                           Nothing  -> 
-                                            --trace "no creator found" $
+                                            -- trace "no creator found" $
                                             do return (qname1,tp1,info1)
                                else return (qname1,tp1,info1)
        let coreVar = coreExprFromNameInfo qname info
@@ -1217,7 +1227,8 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
        return (itp,eff,coref coreVar)                              
 
 inferVar propagated expect name rng isRhs
-  = do (qname,tp,info) <- resolveName name propagated rng
+  = -- trace("inferVar; " ++ show name) $
+    do (qname,tp,info) <- resolveName name propagated rng
        case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
