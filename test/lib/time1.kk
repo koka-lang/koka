@@ -26,7 +26,7 @@ fun test-tz() {
   val tzs = load-timezones()
   println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
   val zlocal = tzs.guess-local-timezone()
-  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.tz-name + ")")
+  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
 
   val z1  = tzs.timezone("America/New_York")
   val z2  = tzs.timezone("Asia/Tehran")

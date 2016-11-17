@@ -51,16 +51,25 @@ public fun date( t : time ) : date {
   Date(t.year,t.month,t.day)
 }
 
+// Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
 public fun show-year( year : int ) : string {
   val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.neg?) then ("-",5) else ("",4)
   ysign + year.abs.show0(ywidth)
 }
 
+// Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
 public fun show( d : date ) : string {
   d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
 }
 
-// 
+// Show a clock in ISO format up to an optional maximum precision (=`9`).\
+// `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
+// `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
+public fun show( c : clock, prec : int = 9 ) : string {
+  c.hours.show0 + ":" + c.minutes.show0 + ":" + show(timestamp(c.seconds),prec,2)
+}
+
+// Round a time to a specified second precision.
 public fun round-to-prec( t : time, prec : int ) : time {
   val secs = t.seconds.round-to-prec(prec)
   val ri   = t.instant.use(t.calendar.timescale).round-to-prec(prec)
@@ -77,11 +86,11 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t0 : time, prec : int = 9 ) : string {
   val t = t0.round-to-prec(prec)
-  t.date.show + "T" +
-   t.hours.show0 + ":" + t.minutes.show0 + ":" + 
-   show(timestamp(t.seconds),prec,2) + show-tzdelta(t.tzdelta ) +
-   (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") +
-   (if (t.calendar.name.empty?) then "" else " " + t.calendar.name)
+  t.date.show 
+   + "T" + t.clock.show(prec)
+   + show-tzdelta(t.tzdelta ) 
+   + (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") 
+   + (if (t.calendar.name.empty?) then "" else " " + t.calendar.name)
 }
 
 // Show a time zone delta. 
@@ -220,43 +229,125 @@ public fun total-seconds( c : clock ) : fixed {
 public struct weekdate(
   year : int,
   week : int,
-  day  : int                       
+  day  : weekday                       
 )
+
+// An ISO day of the week, starting at Monday (=1) up to Sunday (=7).
+public type weekday {
+  Mon 
+  Tue
+  Wed
+  Thu
+  Fri
+  Sat
+  Sun
+}
+
+// Convert a `:weekday` to an `:int` using the ISO definition which starts at Monday as 1,
+// up to Sunday as 7.
+public fun int( wd : weekday ) : int {
+  match(wd) {
+    Mon -> 1
+    Tue -> 2
+    Wed -> 3
+    Thu -> 4
+    Fri -> 5
+    Sat -> 6
+    Sun -> 7
+  }
+}
+
+// Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)). 
+// Takes the integer `i - 1` modulo 7, so `0` or `14` also become Sunday etc.
+public fun weekday( i : int ) : weekday {
+  val d = ((i - 1)%7) 
+  if (d==0) then Mon
+  elif (d==1) then Tue
+  elif (d==2) then Wed
+  elif (d==3) then Thu
+  elif (d==4) then Fri
+  elif (d==5) then Sat
+  else Sun 
+}
+
+// Show a `:weekday` as an English string (`Sun.show == "Sunday"`).
+public fun show( wd : weekday ) : string {
+  match(wd) {
+    Mon -> "Monday"
+    Tue -> "Tuesday"
+    Wed -> "Wednesday"
+    Thu -> "Thursday"
+    Fri -> "Friday"
+    Sat -> "Saturday"
+    Sun -> "Sunday"
+  }
+}
+
+// Show a `:weekday` as a 3 letter English string (`Sun.show-short == "Sun"`)
+public fun show-short( wd : weekday ) : string {
+  wd.show.first(3).string
+}
+
+// Return the `:weekday` that comes `n` days after week day `wd`.
+public fun (+)(wd : weekday, n : int ) : weekday {
+  (wd.int + n).weekday
+}
+
+// Return the difference between two week days:\
+// `wd2 == wd1 + (wd2 - wd1)`
+public fun (-)(wd1 : weekday, wd2 : weekday ) : int {
+  (wd1.int  - wd2.int)%7
+}
 
 // Show a `:weekdate` in the ISO week date format: ``2000-W01-1`` (for 2000-01-03Z).
 public fun show( wd : weekdate ) : string {
-  wd.year.show-year + "-W" + wd.week.show0 + "-" + wd.day.show
+  wd.year.show-year + "-W" + wd.week.show0 + "-" + wd.day.int.show
 }
 
-// Return the date of the first `weekday` of the specified month and calendar (=`cal-iso`).
-public fun first-weekday-of-month( year : int, month : int, weekday : int, cal : calendar = cal-iso ) : date {
-  val dow = day-of-week(Date(year,month,1),cal)
-  val inc = weekday-diff(weekday,dow)
-  Date(year,month,1 + inc)
+
+// Return the date of the `n`th week day `wd` starting from the specified year and optional month (=`1`),
+// in an optional calendar (=`cal-iso`).
+// Use `n = 1` for the first week day `wd` in the month; Use `0` for the last occurence of week day `wd` in the
+// previous month. See also `first-weekday` and `last-weekday`.
+public fun nth-weekday( n : int, wd : weekday,  year : int, month : int = 1, cal : calendar = cal-iso ) : date {
+  val dow = weekday(Date(year,month,1),cal)
+  val inc = wd - dow
+  val day = 1 + inc + 7*(n - 1)
+  if (1 <= day && day <= 28 && 1 <= month && month <= 12) then {
+    // test assumes that a month has at least 28 days, and a year at least 12 months...
+    Date(year,month,day) 
+  }
+  else {
+    // may roll over into subsequent or previous months
+    time(year,month,day,cal=cal).date
+  }
 }
 
-// Return the date of the last `weekday` of the specified month and calendar (=`cal-iso`).
-public fun last-weekday-of-month( year : int, month : int, weekday : int, cal : calendar = cal-iso ) : date {
-  val first = first-weekday-of-month(year,month + 1,weekday,cal).day
-  Date(year,month,days-in-month(year,month,cal) + first - 7)
+// Return the date of the first week day `wd` of the specified month and calendar (=`cal-iso`).
+public fun first-weekday( wd : weekday, year : int, month : int, cal : calendar = cal-iso ) : date {
+  nth-weekday(1,wd,year,month,cal)
+}
+
+// Return the date of the last week day `wd` of the specified month and calendar (=`cal-iso`).
+public fun last-weekday( wd : weekday, year : int, month : int, cal : calendar = cal-iso ) : date {
+  nth-weekday(0,wd,year,month+1)
 }
 
 // Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a date. 
 // Can pass a calendar `cal` (=`cal-iso`) to
 // interpret the date. It is also possible to pass the weekday that determines if 
-// a week falls in the current year or not (which is Thursday for the ISO definition
-// (=`4`)). 
+// a week falls in the current year or not (which is Thursday for the ISO definition). 
 // Note that a week can fall in the year before or the year after. For example:\
 // `weekdate(Date(2005,1,1)).show   == "2004-W53-6"`\
 // `weekdate(Date(2005,12,31)).show == "2005-W52-6"`\
 // `weekdate(Date(2008,12,31)).show == "2009-W01-3"`
-public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : weekdate {
-  val dow  = d.day-of-week(cal)
-  val sun  = (d.day-of-year(cal) - dow) 
-  val wday = sun + (weekday-in-year%7)
+public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : weekdate {
+  val dow  = d.weekday(cal)
+  val sun  = (d.day-of-year(cal) - dow.int) 
+  val wday = sun + (weekday-in-year.int % 7)
   if (wday <= 0) then {
     // last week of previous year 
-    val wk = (Date(d.year - 1, 12, 31 + wday).day-of-year + 6)/7
+    val wk = (time(d.year,1,wday).date.day-of-year(cal) + 6)/7
     Weekdate(d.year - 1, wk, dow)
   }
   elif (wday > days-in-year(d.year,cal)) then 
@@ -270,36 +361,33 @@ public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int =
 
 // Return a `:date` for an ISO week date `wd` using calendar `cal` (=`cal-iso`).
 // It is also possible to pass the weekday that determines if 
-// a week falls in the current year or not (which is Thursday for the ISO definition
-// (=`4`)).\
+// a week falls in the current year or not (which is Thursday for the ISO definition).\
 // `date(Weekdate(2004,53,6)).show == "2005-01-01"`\
 // `date(Weekdate(2005,52,6)).show == "2005-12-31"`\
 // `date(Weekdate(2009,1,3)).show == "2008-12-31"`
-public fun date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : date {
-  val adj = Date(wd.year,1,weekday-in-year).day-of-week(cal=cal) + (7 - weekday-in-year)
-  time(wd.year, 1, (7*wd.week + wd.day) - adj, cal=cal).date  
+public fun date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : date {
+  val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
+  time(wd.year, 1, (7*wd.week + wd.day.int) - adj, cal=cal).date  
 }
 
-// Return the difference between two weekdays.\
-// `weekday-add( wd1, weekday-diff( wd2, wd1 ) ) == wd2`
-public fun weekday-diff( wd1 : int, wd2 : int ) : int {
-  val d = wd1 - wd2
-  d%7
-}
-
-// Find the weekday `inc` days after weekday `wd`.
-// `weekday-add( wd1, weekday-diff( wd2, wd1 ) ) == wd2`
-public fun weekday-add( wd : int, inc : int = 1 ) : int {
-  ((wd - 1) + inc)%7 + 1
-}
 
 // Return the day of the week for a calendar `cal` (=`cal-iso`).
-// Uses the ISO definition where Monday is day 1, and Sunday day 7.
-public fun day-of-week( d : date, cal : calendar = cal-iso ) : int {
+public fun weekday( d : date, cal : calendar = cal-iso ) : weekday {
   // Generic algorithm for any calendar
-  val days = instant-at(d.year,d.month,d.day,cal=cal).mjd(cal.timescale).floor.int
-  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday
-  if (dow==0) then 7 else dow  // to ISO week day number (monday=1, .. sunday=7)
+  val i    = instant-at(d.year,d.month,d.day,cal=cal)
+  val days = i.mjd(cal.timescale).floor.int
+  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
+  dow.weekday                  // to ISO week day 
+}
+
+// Return the day of the week of an `:instant` interpreted in a
+// timezone `tz` (=`tz-utc`) and calendar `cal` (=`cal-iso`).
+public fun weekday( i :instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : weekday {
+  // Generic algorithm for any calendar
+  val t    = i.time(tz,cal)
+  val days = t.mjd.floor.int
+  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
+  dow.weekday                  // to ISO week day 
 }
 
 // Return the day of the year for a given date in calendar `cal` (=`cal-iso`).

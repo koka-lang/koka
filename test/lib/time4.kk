@@ -22,28 +22,28 @@ fun check(name : string, res : string, tst : () -> string ) : io () {
 
 fun test-week-dates() {
   val dates = [
-      (Date(2005,01,01),Weekdate(2004,53,6)),
-      (Date(2005,01,02),Weekdate(2004,53,7)),
-      (Date(2005,12,31),Weekdate(2005,52,6)),
-      (Date(2007,01,01),Weekdate(2007,1,1)),
-      (Date(2007,12,30),Weekdate(2007,52,7)),
-      (Date(2007,12,31),Weekdate(2008,1,1)),
-      (Date(2008,01,01),Weekdate(2008,1,2)),
-      (Date(2008,12,28),Weekdate(2008,52,7)),
-      (Date(2008,12,29),Weekdate(2009,1,1)),
-      (Date(2008,12,30),Weekdate(2009,1,2)),
-      (Date(2008,12,31),Weekdate(2009,1,3)),
-      (Date(2009,01,01),Weekdate(2009,1,4)),
-      (Date(2009,12,31),Weekdate(2009,53,4)),
-      (Date(2010,01,01),Weekdate(2009,53,5)),
-      (Date(2010,01,02),Weekdate(2009,53,6)),
-      (Date(2010,01,03),Weekdate(2009,53,7))]
+      (Date(2005,01,01),Weekdate(2004,53,Sat)),
+      (Date(2005,01,02),Weekdate(2004,53,Sun)),
+      (Date(2005,12,31),Weekdate(2005,52,Sat)),
+      (Date(2007,01,01),Weekdate(2007,1,Mon)),
+      (Date(2007,12,30),Weekdate(2007,52,Sun)),
+      (Date(2007,12,31),Weekdate(2008,1,Mon)),
+      (Date(2008,01,01),Weekdate(2008,1,Tue)),
+      (Date(2008,12,28),Weekdate(2008,52,Sun)),
+      (Date(2008,12,29),Weekdate(2009,1,Mon)),
+      (Date(2008,12,30),Weekdate(2009,1,Tue)),
+      (Date(2008,12,31),Weekdate(2009,1,Wed)),
+      (Date(2009,01,01),Weekdate(2009,1,Thu)),
+      (Date(2009,12,31),Weekdate(2009,53,Thu)),
+      (Date(2010,01,01),Weekdate(2009,53,Fri)),
+      (Date(2010,01,02),Weekdate(2009,53,Sat)),
+      (Date(2010,01,03),Weekdate(2009,53,Sun))]
   dates.foreach( fun(dwd) {
     val (d,wd) = dwd
     val ds = d.show
     val wds = wd.show
     check("date-" + ds, wds) { weekdate(d).show }
-    check("date-" + wds, ds)   { date(wd).show }
+    check("date-" + wds, ds) { date(wd).show }
   })    
 }
 
