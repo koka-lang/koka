@@ -296,7 +296,6 @@ public fun year-frac( t : time ) : fixed {
   fixed-frac(t.year,yfrac)
 }
 
-
 // Return the day of the year of time `t` (starting at 1).
 public fun day-of-year( t : time ) : int {
   t.calendar.day-diff(t.date,Date(t.year,1,1)) + 1
@@ -306,7 +305,6 @@ public fun day-of-year( t : time ) : int {
 public fun days-in-month( t : time ) : int {
   val d = t.date
   t.calendar.day-diff(Date(d.year,d.month+1,1),Date(d.year,d.month,1))  
-
 }
 
 // Return the total days in the year of time `t`.
@@ -322,9 +320,7 @@ public fun months-in-year( t : time ) : int {
 
 // Return the total number of ISO weeks in the year of time `t` (= 52 or 53).
 public fun weeks-in-year( t : time, weekday-in-year : weekday = Thu ) : int {
-  val t1 = t.copy(year=t.year + 1, month=1, day=1)
-  val t2 = t1.nth-weekday(1,weekday-in-year)
-  t2.copy(day=t2.day - 7).weekdate.week
+  t.copy(year=t.year+1,month=1,day=1 - weekday-in-year.int).weekdate.week
 }
 
 // Return the `n`th week day following (and including) time `t`.
