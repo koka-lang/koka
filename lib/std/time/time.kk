@@ -25,12 +25,8 @@ import std/time/calendar
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
   // The year.
-  public  year    : int,
-  public  month   : int,
-  public  day     : int, 
-  public  hours   : int,
-  public  minutes : int,
-  public  seconds : fixed,
+  public  date    : date,
+  public  clock   : clock,
   public  calendar: calendar,
   public  tzdelta : duration = duration0,
   public  tzabbrv : string   = "",
@@ -38,24 +34,61 @@ abstract struct time (
   public  instant : instant
 )
 
-// Return the year, month, and day of a `:time`.
-public fun date( t : time ) : date {
-  Date(t.year,t.month,t.day)
+// Return the year of a `:time`.
+public fun year( t : time ) : int {
+  t.date.year
 }
 
-// Return the hours, minutes, seconds, and fraction of the second of a `:time`.
-public fun clock( t : time ) : clock {
-  Clock(t.hours,t.minutes,t.seconds)
+// Return the month of a `:time`. (starting at 1)
+public fun month( t : time ) : int {
+  t.date.month
 }
+
+// Return the day of the month of a `:time`. (starting at 1)
+public fun day( t : time ) : int {
+  t.date.day
+}
+
+// Return the whole hours of a `:time`. 
+public fun hours( t : time ) : int {
+  t.clock.hours
+}
+
+// Return the whole minutes of a `:time`. 
+public fun minutes( t : time ) : int {
+  t.clock.minutes
+}
+
+// Return the fractional seconds of a `:time`. 
+public fun seconds( t : time ) : fixed {
+  t.clock.seconds
+}
+
+// Compare two `:time`s. Compares the actual instants in time
+// and can thus compare across calendars and timezones.\
+// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))) > time(2001,7,1,23,30,0)` &quad; (False!)`
+public fun compare( t1 : time, t2 : time ) : order {
+  compare(t1.instant,t2.instant)
+}  
+
+public fun (<)( i : time, j : time )  : bool { compare(i,j) == Lt }
+public fun (<=)( i : time, j : time ) : bool { compare(i,j) != Gt }
+public fun (>)( i : time, j : time )  : bool { compare(i,j) == Gt }
+public fun (>=)( i : time, j : time ) : bool { compare(i,j) != Lt }
+public fun (==)( i : time, j : time ) : bool { compare(i,j) == Eq }
+public fun (!=)( i : time, j : time ) : bool { compare(i,j) != Eq }
+
 
 
 // Round a time to a specified second precision.
 public fun round-to-prec( t : time, prec : int ) : time {
-  val secs = t.seconds.round-to-prec(prec)
+  if (prec.neg?) then return t
+  val c    = t.clock
+  val secs = c.seconds.round-to-prec(prec)
   val ri   = t.instant.use(t.calendar.timescale).round-to-prec(prec)
   if (secs.trunc == t.seconds.trunc) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
-    t(seconds = secs, instant = ri)
+    t(clock=c(seconds=secs), instant = ri)
   } 
   else {
     // otherwise recalculate the time from the rounded instant
@@ -64,13 +97,13 @@ public fun round-to-prec( t : time, prec : int ) : time {
 }
 
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
-public fun show(t0 : time, prec : int = 9 ) : string {
-  val t = t0.round-to-prec(prec)
-  t.date.show 
-   + "T" + t.clock.show(prec)
-   + show-tzdelta(t.tzdelta ) 
-   + (if (t.tzabbrv.empty?) then "" else " (" + t.tzabbrv + ")") 
-   + (if (t.calendar.name.empty?) then "" else " " + t.calendar.name)
+public fun show(t : time, prec : int = 9 ) : string {
+  val tp = t.round-to-prec(prec)
+  tp.date.show 
+   + "T" + tp.clock.show(prec)
+   + show-tzdelta(tp.tzdelta ) 
+   + (if (tp.tzabbrv.empty?) then "" else " (" + tp.tzabbrv + ")") 
+   + (if (tp.calendar.name.empty?) then "" else " " + tp.calendar.name)
 }
 
 // Show a time zone delta. 
@@ -102,7 +135,7 @@ fun show0( i : int, width : int = 2) : string {
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
   val (d,c,tzdelta,tzabbrv) = instant-dc(i,tz,cal)
-  Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,cal,tzdelta,tzabbrv,tz,i)
+  Time(d,c,cal,tzdelta,tzabbrv,tz,i)
 }
 
 // Convert a `:time` `t` to a new `:time` value in a potentially different 
@@ -144,7 +177,7 @@ public fun time( wd : weekdate, c : clock = clock0,
 
 // Add a date (years, months, days) and optional clock to a time. Takes leap years etc. into account.
 public fun add-date( t : time, d : date, c : clock = clock0 ) : time {
-  time( Date(t.year + d.year, t.month + d.month, t.day + d.day), t.clock + c, t.timezone, t.calendar )
+  time( t.date + d, t.clock + c, t.timezone, t.calendar )
 }
 
 // Add a clock (hours, minutes, seconds) to a time. Takes leap years etc. into account.
@@ -174,15 +207,15 @@ public fun add-years( t : time, years : int ) : time {
 
 
 // Copy a `:time` with optionally changing any of its attributes.\
-// `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` (set to start of the year)\
-// `t.copy(month=t.month+2,day=t.day+3)`  (add 2 months and 3 days)\
-// `t.copy(tz=tz-local())` (change to a different time zone)
+// `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` &quad; (set to start of the year)\
+// `t.copy(month=t.month+2,day=t.day+3)                 ` &quad; (add 2 months and 3 days)\
+// `t.copy(tz=tz-local())                               ` &quad; (change to a different time zone)
 public fun copy( t : time, 
                  year : int = t.year, month : int = t.month, day : int = t.day, 
                  hours : int = t.hours, minutes : int = t.minutes, seconds : fixed = t.seconds, 
                  tz : timezone = t.timezone, cal : calendar = t.calendar ) : time 
 {
-  time( Date(year,month,day),Clock(hours,minutes,seconds),tz,cal )
+  time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal )
 }
 
 // Return the time at the start of the day of time `t`.
@@ -297,7 +330,8 @@ public fun weeks-in-year( t : time, weekday-in-year : weekday = Thu ) : int {
 // Return the `n`th week day following (and including) time `t`.
 // Use `n = 1` for the first week day `wd` following `t`; 
 // Use `0` for the last occurence of week day `wd` before `t`.\
-// `time(2016,11,16).start-of-month.nth-weekday(0,Wed)` (The last wednesday before 2016-11-01)
+// `time(2016,10,10).nth-weekday(1,Sun)` &quad; (2016-10-13, first Sunday following October 10, 2016)
+// `time(2016,11,16).start-of-month.nth-weekday(0,Wed)` &quad; (2016-10-26, the last Wednesday before 2016-11-01)
 public fun nth-weekday( t : time, n : int, wd : weekday ) : time {
   val dow = t.weekday
   val inc = wd - dow
@@ -311,26 +345,26 @@ fun first-weekday( t : time, wd : weekday ) : time {
 }
 
 // Return the last week day before time `t`.\
-// `time(2016,11,1).last-weekday(Sun)` (2016-10-30, Last Sunday of October 2016)
+// `time(2016,11,1).last-weekday(Sun)` &quad;  (2016-10-30, Last Sunday of October 2016)
 fun last-weekday( t : time, wd : weekday ) : time {
   t.nth-weekday(0,wd)
 }
 
 // Return the `n`th week day since the beginning of the month of time `t`.\
-// `time(2016,10,10).nth-weekday-of-month(2,Sun).date` (2016-10-09, Second Sunday of October 2016)\
-// `time(2016,10,10).nth-weekday-of-month(60,Sun).date` (2017-11-19, 60th Sunday since Octorber 1, 2016)
+// `time(2016,10,10).nth-weekday-of-month(2,Sun).date` &quad; (2016-10-09, Second Sunday of October 2016)\
+// `time(2016,10,10).nth-weekday-of-month(60,Sun).date` &quad; (2017-11-19, 60th Sunday since Octorber 1, 2016)\
 public fun nth-weekday-of-month( t : time, n : int, wd : weekday ) : time {
   t.copy(day=1).nth-weekday(n,wd)
 }
 
 // Return the first week day of the month of time `t`.\
-// `time(2016,10,10).first-weekday-of-month(Sun)` (2016-10-02, First Sunday of October 2016)
+// `time(2016,10,10).first-weekday-of-month(Sun)` &quad; (2016-10-02, First Sunday of October 2016)
 fun first-weekday-of-month( t : time, wd : weekday ) : time {
   t.nth-weekday-of-month(1,wd)
 }
 
 // Return the last week day of the month of time `t`.\
-// `time(2016,10,10).last-weekday-of-month(Sun).date` (2016-10-30, Last Sunday of October 2016)
+// `time(2016,10,10).last-weekday-of-month(Sun).date` &quad; (2016-10-30, Last Sunday of October 2016)
 public fun last-weekday-of-month( t : time, wd : weekday ) : time {
   t.copy(month=t.month+1, day=1).last-weekday(wd)
 }
@@ -374,3 +408,53 @@ fun gregorian-day-of-week( d : date ) : int {
   (if (w > 1) then (w - 1) else (w + 6)) // adjust for ISO week number
 }
 */
+
+
+
+// Return the current time in an optional timezone (=`tz-utc`) and optinional calendar (=`cal-iso`).
+public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso) : ndet time {
+  now().time(tz,cal)
+}
+
+// Return the current time in the local timezone and optinional calendar (=`cal-iso`).
+public fun local-time-now(cal : calendar = cal-iso) : ndet time {
+  time-now(tz-local(),cal)
+}
+
+// Convert a `:time` `t` to a new `:time` value in the local time zone
+// in an optional calendar (=`t.calendar` by default).
+public fun local-time( t : time, cal : calendar = t.calendar ) : ndet time {
+  t.time(tz-local(),cal)
+}
+
+// Convert an `:instant` to a `:time` value in the local timezone, in an optional calendar (=`cal-iso` by default).
+public fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time {
+  time(i,tz-local(),cal)
+}
+
+// Return the `:time` value for a given date and clock in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`). See `instant-at` for roll-over behaviour.
+public fun local-time( year : int, month : int = 1, day : int = 1, 
+                       hours : int = 0, minutes : int = 0, secs : int = 0, 
+                       frac : double = 0.0, cal : calendar = cal-iso ) : ndet time 
+{
+  time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
+}
+
+
+// Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`)
+public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time 
+{
+  time(d,c,tz-local(),cal)
+}
+
+// Return the `:time` value for a given `:weekdate` and `:clock` (=`clock0`) in the local timezone `tz`
+// interpreted by calendar `cal` (=`cal-iso`).
+// It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition).
+public fun local-time( wd : weekdate, c : clock = clock0, 
+                        cal : calendar = cal-iso, 
+                        weekday-in-year : weekday = Thu ) : ndet time {
+  time(wd,c,tz-local(),cal,weekday-in-year)
+}

@@ -112,19 +112,19 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 public val cal-iso : calendar = iso-calendar( ts-utc, "" )
 
 // The [Julian calendar](https://en.wikipedia.org/wiki/Julian_calendar).
-public val cal-julian = solar-calendar(
+public val cal-julian = earth-calendar(
   "JC",
-  julian-date-from-days,
-  julian-days-from-date
+  julian-days-to-date,
+  julian-date-to-days
 )
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
 // Just like the ISO calendar except that the year 0 does not exist, i.e. after 1BC (=`~1`)
 // we have 1AD (=`1`).
-public val cal-gregorian = solar-calendar(
+public val cal-gregorian = earth-calendar(
   "GC",
-  gregorian-date-from-days,
-  gregorian-days-from-date
+  gregorian-days-to-date,
+  gregorian-date-to-days
 )
 
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
@@ -144,50 +144,53 @@ public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~1
 // Create a standard ISO calendar using a particular time scale
 // and calendar `name` (=`ts.name`).
 public fun iso-calendar( ts : timescale, name : string = ts.name ) : calendar {
-  solar-calendar(
+  earth-calendar(
     name,
-    iso-date-from-days,
-    iso-days-from-date,
+    iso-days-to-date,
+    iso-date-to-days,
     ts
   )
 }
 
 /*----------------------------------------------------------------------------
-  Solar calendars
+  Earth calendars
 ----------------------------------------------------------------------------*/
 
-// Used for solar calendars
+// Used for earth calendars
 val secs-per-day = 86400
 
-// Create a solar calendar given a calendar name `name`, 
-// a function to calculate a date given a number of days since the `epoch`,
-// a function to calculate days since the `epoch` for a given date,
-// and an optional time scale to be used (=`ts-utc`) and an optional offset from 
-// the standard `epoch` (=`duration0`).
-public fun solar-calendar(
+// Create a calendar where we assume that each
+// day has 24 hours with 60 minutes, and where minutes are 60 seconds
+// (with possibly leap seconds). 
+//
+// This function constructs a calendar given a calendar `name`,
+// a function `days-to-date` to calculate a date given a number of days since the `epoch`,
+// a function `date-to-days` to calculate days since the `epoch` for a given date,
+// and an optional time scale to be used (=`ts-utc`).
+public fun earth-calendar(
               name        : string,
-              date-from-days  : (days:int) -> date,
-              days-from-date  : date -> int,
+              days-to-date  : (days:int) -> date,
+              date-to-days  : date -> int,
               ts   : timescale = ts-utc
             ) : calendar
 {
   val epoch-shift = ts.timescale-y2k.timespan(ts)  
   fun instant-to-dc(i : instant, tzdelta : duration) { 
-    solar-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, date-from-days ) 
+    earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date ) 
   }
   fun dc-to-instant(d : date, c : clock) { 
-    unsafe-instant-at( solar-dc-to-timestamp( d, c, days-from-date ) + epoch-shift, ts ) 
+    unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
   Calendar(name,ts,instant-to-dc,dc-to-instant)
 }
 
 
-fun solar-timestamp-to-dc( t : timestamp, date-from-days: (int) -> date ) : (date,clock) {
+fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
   val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
   // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
-  val date             = date-from-days(days)
+  val date             = days-to-date(days)
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
@@ -195,13 +198,13 @@ fun solar-timestamp-to-dc( t : timestamp, date-from-days: (int) -> date ) : (dat
   (date, Clock(hours,mins,tsecs))
 }
 
-fun solar-dc-to-timestamp( d : date, c : clock, days-from-date: (date) -> int ) : timestamp {
+fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
   val secs = c.seconds.trunc.int
   val frac = c.seconds.fraction.double
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
-  val sdays = days-from-date( d(day = d.day + xdays) )
+  val sdays = date-to-days( d(day = d.day + xdays) )
   timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.double)  
 }
 
@@ -209,10 +212,10 @@ fun solar-dc-to-timestamp( d : date, c : clock, days-from-date: (date) -> int ) 
 // Create a Julian-Gregorian calendar which uses Julian dates before the optional `switch`
 // (Gregorian) date (=`Date(1582,10,15`)) and Gr egorian dates otherwise.
 public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
-  val switch-days = iso-days-from-date(switch) //+ skip
-  solar-calendar( "JG", 
-    fun(days) { julgreg-date-from-days(days,switch-days) },
-    fun(d)    { julgreg-days-from-date(d,switch) }
+  val switch-days = iso-date-to-days(switch) //+ skip
+  earth-calendar( "JG", 
+    fun(days) { julgreg-days-to-date(days,switch-days) },
+    fun(d)    { julgreg-date-to-days(d,switch) }
   )
 }
 
@@ -294,7 +297,7 @@ fun weekday( d : date, cal : calendar ) : weekday {
   dow.weekday                  // to ISO week day 
 }
 
-// Return the differnce in days between two dates interpreted by calendar `cal`.
+// Return the difference in days between two dates interpreted by calendar `cal`.
 public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
   val i1 = instant-at(d1,cal=cal)
   val i2 = instant-at(d2,cal=cal)
@@ -332,7 +335,7 @@ val iso-years-in-era= 400
 // a proleptic Gregorian calendar where year 0 is 1BC.
 //
 // [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
-fun iso-date-from-days( days : int ) : date {
+fun iso-days-to-date( days : int ) : date {
   val z    = days + iso-epoch-shift          // shift epoch from 2000-01-01 to 0000-03-01
   val (era,doe) = divmod(z,iso-days-in-era)  // day of era: 0 <= doe < days-in-era
   val yoe  = (((doe - (doe/1460)) + (doe/36524)) - (doe/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
@@ -347,7 +350,7 @@ fun iso-date-from-days( days : int ) : date {
 
 // Calculate days from a year/month/day triple in the proleptic Gregorian calendar
 // `month` must be between 1 and 12. `day` must be between 1 and `days-in-era`.
-fun iso-days-from-datex( year : int, month : int, day : int ) : int {
+fun iso-datex-to-days( year : int, month : int, day : int ) : int {
   val y = if (month <= 2) then year.dec else year   // to internal year starting in Feb
   val (era,yoe) = divmod(y,iso-years-in-era)             // year of era: 0<= yoe < 400
   val mdoy = (((153 * (month + (if (month > 2) then ~3 else 9))) + 2)/5) 
@@ -357,22 +360,22 @@ fun iso-days-from-datex( year : int, month : int, day : int ) : int {
 
 // Return days from a year, month, and day in the [ISO8601] calendar.
 // Months and days can be any value.
-fun iso-days-from-date( d : date ) : int {
+fun iso-date-to-days( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, iso-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
-  iso-days-from-datex( d.year + (xera * iso-years-in-era) + xyear, moy.inc, doe.inc )
+  iso-datex-to-days( d.year + (xera * iso-years-in-era) + xyear, moy.inc, doe.inc )
 }
 
 // Return days from a date in the proleptic Gregorian calendar.
-fun gregorian-days-from-date( d : date ) : int {
+fun gregorian-date-to-days( d : date ) : int {
   if (d.year <= 0) 
-    then iso-days-from-date(d(year = d.year + 1)) 
-    else iso-days-from-date(d)
+    then iso-date-to-days(d(year = d.year + 1)) 
+    else iso-date-to-days(d)
 }
 
 // Return a date from a number of days in the proleptic Gregorian calendar.
-fun gregorian-date-from-days( days : int ) : date {
-  val d = iso-date-from-days(days)
+fun gregorian-days-to-date( days : int ) : date {
+  val d = iso-days-to-date(days)
   if (d.year<=0) then d(year = d.year - 1) else d
 }
 
@@ -381,7 +384,7 @@ val julian-years-in-era = 4
 val julian-epoch-shift  = 730427 // Shift from 2000-01-01 to 0000-03-01
 
 // Return a date from a number of days in the Julian calendar.
-fun julian-date-from-days( days : int ) : date {  
+fun julian-days-to-date( days : int ) : date {  
   val z = days + julian-epoch-shift
   val (era,doe) = divmod(z,julian-days-in-era)
   val (yoe,doy) = divmod(doe,365)
@@ -393,7 +396,7 @@ fun julian-date-from-days( days : int ) : date {
   Date(yyear,month,day)
 }
 
-fun julian-days-from-datex( year : int, month : int, day : int ) : int {
+fun julian-datex-to-days( year : int, month : int, day : int ) : int {
   val y = if (month <= 2) then year.dec else year
   val (era,yoe) = divmod(y,julian-years-in-era)
   val doy = ((153*(month + (if (month>2) then ~3 else 9)) + 2)/5 + day) - 1
@@ -402,24 +405,24 @@ fun julian-days-from-datex( year : int, month : int, day : int ) : int {
 }  
 
 // Return the days from a date in the Julian calendar.
-fun julian-days-from-date( d : date ) : int {
+fun julian-date-to-days( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, julian-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
   val yyear = if (d.year<=0) then d.year.inc else d.year
-  julian-days-from-datex( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
+  julian-datex-to-days( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
 }
 
 
-fun julgreg-days-from-date( d : date, switch : date  ) : int {
+fun julgreg-date-to-days( d : date, switch : date  ) : int {
   if (compare(d,switch).lt?) 
-    then julian-days-from-date(d)
-    else iso-days-from-date(d) 
+    then julian-date-to-days(d)
+    else iso-date-to-days(d) 
 }
 
-fun julgreg-date-from-days( days : int, switch : int ) : date {
+fun julgreg-days-to-date( days : int, switch : int ) : date {
   if (days < switch) 
-   then julian-date-from-days(days)
-   else iso-date-from-days(days)
+   then julian-days-to-date(days)
+   else iso-days-to-date(days)
 }
 
 

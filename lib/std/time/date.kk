@@ -32,18 +32,6 @@ public struct date(
   day  : int 
 )
 
-// Compare two dates
-public fun compare( d : date, e : date ) : order {
-  match(compare(d.year,e.year)) {
-    Eq -> match(compare(d.month,e.month)) {
-      Eq  -> compare(d.day,e.day)
-      ord -> ord
-    }
-    ord -> ord
-  }
-}
-
-
 // Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
 public fun show-year( year : int ) : string {
   val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.neg?) then ("-",5) else ("",4)
@@ -55,6 +43,17 @@ public fun show( d : date ) : string {
   d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
 }
 
+// Compare two dates
+public fun compare( d : date, e : date ) : order {
+  match(compare(d.year,e.year)) {
+    Eq -> match(compare(d.month,e.month)) {
+      Eq  -> compare(d.day,e.day)
+      ord -> ord
+    }
+    ord -> ord
+  }
+}
+
 public fun (<)( i : date, j : date )  : bool { compare(i,j) == Lt }
 public fun (<=)( i : date, j : date ) : bool { compare(i,j) != Gt }
 public fun (>)( i : date, j : date )  : bool { compare(i,j) == Gt }
@@ -62,6 +61,10 @@ public fun (>=)( i : date, j : date ) : bool { compare(i,j) != Lt }
 public fun (==)( i : date, j : date ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : date, j : date ) : bool { compare(i,j) != Eq }
 
+// Add two dates field-wise together.
+public fun (+)( d1 : date, d2 : date ) : date {
+  Date(d1.year + d2.year, d1.month + d2.month, d1.day + d2.day )
+}
 
 /*----------------------------------------------------------------------------
   

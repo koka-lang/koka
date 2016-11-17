@@ -60,7 +60,19 @@ fun test-week-in-years() {
     check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
   })
 }
+
+fun test-nth() {
+  check("nth1", "2016-10-30") { time(2016,10,10).last-weekday-of-month(Sun).date.show }
+  check("nth2", "2016-10-02") { time(2016,10,10).nth-weekday-of-month(1,Sun).date.show }
+  check("nth3", "2016-10-09") { time(2016,10,10).nth-weekday-of-month(2,Sun).date.show }
+  check("nth4", "2017-11-19") { time(2016,10,10).nth-weekday-of-month(60,Sun).date.show }
+  check("nth5", "2016-10-30") { time(2016,11,1).nth-weekday(0,Sun).date.show }
+  check("nth6", "2016-10-26") { time(2016,11,16).start-of-month.nth-weekday(0,Wed).date.show }
+  check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }  
+}
+
 public fun main() {
   test-week-in-years()
   test-week-dates()
+  test-nth()
 }

@@ -129,7 +129,7 @@ val global-leaps-table : () -> ref<global,leaps-table> = once{
   unsafe-total{ 
     val pre72  = leap-seconds-pre72()
     val post72 = parse-leap-seconds( default-ietf-leap-seconds )
-    trace("parse leap tables: " + pre72.length.show)
+    // trace("parse leap tables: " + pre72.length.show)
     ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
   }
 }
@@ -249,7 +249,7 @@ fun parse-leap-seconds( leaps : string ) : leaps-table {
     val ntpex = cap.groups[1].parse-int-default(ntp-shift)
     timestamp(ntpex - ntp-shift)
   }.default(la-final.utc-start + timespan(365*secs-per-day))
-  trace("expire: " + utc-expire.ts-show)
+  // trace("expire: " + utc-expire.ts-show)
 
   Leaps-table(utc-expire,las)
 }

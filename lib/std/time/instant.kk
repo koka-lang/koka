@@ -83,11 +83,12 @@ fun convert( t : timestamp, from : timescale, to : timescale ) : timestamp {
   elif (!from.unit.empty? && from.unit == to.unit) then {
     // just an epoch shift
     // important optimization as it allows UNIX timestamp to UTC conversion without going through TAI for example
-    // trace( "instant use: shift: " + i.ts.ts-name + " -> " + t.ts-name + ", " + i.ts.epoch-shift.show + " vs. " + t.epoch-shift.show + ", i: " + i.since.show )
+    // trace( "instant use: shift: " + from.name + " -> " + to.name + ", " + from.epoch-shift.ts-show + " vs. " + to.epoch-shift.ts-show + ", t: " + t.show )
     (t - from.epoch-shift) + to.epoch-shift
   }
   else {
     // transform through TAI
+    // trace( "convert: " + from.name + " -> " + to.name +  ", t: " + t.show )
     (to.from-tai)( (from.to-tai)(t) ) 
   }
 }
@@ -127,8 +128,9 @@ public fun unsafe-instant-at( t : timestamp, ts : timescale ) : instant {
 // Round an instant to a certain precision (`prec` is number of digits of the fraction of the second).\
 // Takes special care for instants that use a UTC timescale to round into leap seconds if appropriate.
 public fun round-to-prec(i : instant, prec : int ) : instant {
-  if (i.ts.has-leap-seconds && i >= utc-epoch) 
-   then Instant( i.use(ts-tai).since.round-to-prec(prec), ts-tai )
+  if (prec.neg?) then i
+  elif (i.ts.has-leap-seconds && i >= utc-epoch) 
+   then Instant( i.use(ts-tai).since.round-to-prec(prec), ts-tai ) // TODO: optimize to round first on UTC, and only when necessary convert to TAI
    else Instant( i.since.round-to-prec(prec), i.ts )
 }
 val utc-epoch = Instant(timestamp(~883612789),ts-tai)
