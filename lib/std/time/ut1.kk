@@ -18,6 +18,7 @@ import std/time/instant
 import std/time/utc
 import std/time/astro
 import std/time/calendar
+import std/time/time
 
 // The UT1 (Universal time 1) calendar. 
 // Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)

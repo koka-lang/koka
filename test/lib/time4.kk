@@ -8,6 +8,7 @@
 
 module time4
 
+public import std/fixed
 public import std/xtime
 
 /*----------------------------------------------------------------------------
@@ -47,6 +48,19 @@ fun test-week-dates() {
   })    
 }
 
+fun test-week-in-years() {
+  val long-years = [
+004, 009, 015, 020, 026, 032, 037, 043, 048, 054, 060, 065, 071, 076, 082, 088, 093, 099,
+105, 111, 116, 122, 128, 133, 139, 144, 150, 156, 161, 167, 172, 178, 184, 189, 195,
+201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
+303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
+  ]
+  list(2000,2399).foreach( fun(year) {
+    val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
+    check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
+  })
+}
 public fun main() {
+  test-week-in-years()
   test-week-dates()
 }
