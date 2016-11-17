@@ -107,7 +107,7 @@ public fun show(t : time, prec : int = 9 ) : string {
 }
 
 // Show a time zone delta. 
-// Optional `utc` for displaying a zero timezone offset (=`"Z"`).
+// Optional `utc` for displaying a zero timezone offcopy (=`"Z"`).
 // Optional `hmsep` for the hour-minute separator (=`":"`).
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
 public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
@@ -207,7 +207,7 @@ public fun add-years( t : time, years : int ) : time {
 
 
 // Copy a `:time` with optionally changing any of its attributes.\
-// `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` &quad; (set to start of the year)\
+// `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` &quad; (copy to start of the year)\
 // `t.copy(month=t.month+2,day=t.day+3)                 ` &quad; (add 2 months and 3 days)\
 // `t.copy(tz=tz-local())                               ` &quad; (change to a different time zone)
 public fun copy( t : time, 
@@ -218,25 +218,34 @@ public fun copy( t : time,
   time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal )
 }
 
+// Copy a `:time` with a new `:date` and optional `:clock` (=`t.clock`), and optionally a new
+// timezone (=`t.timezone`) and calendar (=`t.calendar`).
+public fun copy-dc( t : time, d : date = t.date, c : clock = t.clock,
+                    tz : timezone = t.timezone, cal : calendar = t.calendar ) : time 
+{
+  time( d, c, tz, cal )
+}
+
 // Return the time at the start of the day of time `t`.
 public fun start-of-day( t : time ) : time {
-  t.copy(hours=0,minutes=0,seconds=zero)
+  t.copy-dc(t.date,clock0)
 }
 
 // Return the time at the start of the month of time `t`.
 public fun start-of-month( t : time ) : time {
-  t.copy(day=1,hours=0,minutes=0,seconds=zero)
+  t.copy-dc((t.date)(day=1),clock0)
 }
 
 // Return the time at the start of the week (Monday) of time `t`.
 public fun start-of-week( t : time ) : time {
   val dow = t.weekday
-  if (dow==Mon) then t.start-of-day else t.copy( day=(t.day - dow.int)+1, hours=0,minutes=0,seconds=zero )
+  if (dow==Mon) then t.start-of-day 
+                else t.copy-dc( (t.date)(day=(t.day - dow.int)+1), clock0 )
 }
 
 // Return the time at the start of the year of time `t`.
 public fun start-of-year( t : time ) : time {
-  t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)
+  t.copy-dc(Date(t.year,1,1),clock0)
 }
 
 
@@ -277,16 +286,6 @@ public fun weekday( t : time ) : weekday {
   dow.weekday                  // to ISO week day 
 }
 
-// Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
-// number for a given `:time`. This interprets the Julian date in that calendar date with
-// the timezone applied.\
-// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).mjd.show == "52092"`\
-// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).instant.mjd(ts-utc).show == "52091.958333333"`
-public fun mjd( t : time ) : fixed {
-  //trace("offset: " + t.tzdelta.show)
-  // adjust with the timezone offset so we display the mjd on the date.
-  (t.instant + t.tzdelta).mjd(t.calendar.timescale)
-}
 
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
@@ -296,31 +295,15 @@ public fun year-frac( t : time ) : fixed {
   fixed-frac(t.year,yfrac)
 }
 
-// Return the day of the year of time `t` (starting at 1).
-public fun day-of-year( t : time ) : int {
-  t.calendar.day-diff(t.date,Date(t.year,1,1)) + 1
-}
-
-// Return the total days in the month of time `t`.
-public fun days-in-month( t : time ) : int {
-  val d = t.date
-  t.calendar.day-diff(Date(d.year,d.month+1,1),Date(d.year,d.month,1))  
-}
-
-// Return the total days in the year of time `t`.
-public fun days-in-year( t : time) : int {
-  t.calendar.day-diff(Date(t.year+1,1,1),Date(t.year,1,1))  
-}
-
 // Return the total months in the year of time `t`.
 // For Gregorian calendars this is always 12 but some calendars have a varying number of months per year.
 public fun months-in-year( t : time ) : int {
-  t.copy(year=t.year + 1, month=1, day=0).month
+  t.copy-dc( Date(t.year + 1,1,0) ).month
 }
 
 // Return the total number of ISO weeks in the year of time `t` (= 52 or 53).
 public fun weeks-in-year( t : time, weekday-in-year : weekday = Thu ) : int {
-  t.copy(year=t.year+1,month=1,day=1 - weekday-in-year.int).weekdate.week
+  t.copy-dc( Date(t.year+1,1,1 - weekday-in-year.int) ).weekdate.week
 }
 
 // Return the `n`th week day following (and including) time `t`.
@@ -332,7 +315,7 @@ public fun nth-weekday( t : time, n : int, wd : weekday ) : time {
   val dow = t.weekday
   val inc = wd - dow
   val wday= t.day + inc + 7*(n - 1)
-  t.copy( day=wday ) 
+  t.copy-dc( Date(t.year,t.month,wday) ) 
 }
 
 // Return the first week day following (and including) time `t`.
@@ -350,7 +333,7 @@ fun last-weekday( t : time, wd : weekday ) : time {
 // `time(2016,10,10).nth-weekday-of-month(2,Sun).date` &quad; (2016-10-09, Second Sunday of October 2016)\
 // `time(2016,10,10).nth-weekday-of-month(60,Sun).date` &quad; (2017-11-19, 60th Sunday since Octorber 1, 2016)\
 public fun nth-weekday-of-month( t : time, n : int, wd : weekday ) : time {
-  t.copy(day=1).nth-weekday(n,wd)
+  t.copy-dc(Date(t.year,t.month,1)).nth-weekday(n,wd)
 }
 
 // Return the first week day of the month of time `t`.\
@@ -362,11 +345,43 @@ fun first-weekday-of-month( t : time, wd : weekday ) : time {
 // Return the last week day of the month of time `t`.\
 // `time(2016,10,10).last-weekday-of-month(Sun).date` &quad; (2016-10-30, Last Sunday of October 2016)
 public fun last-weekday-of-month( t : time, wd : weekday ) : time {
-  t.copy(month=t.month+1, day=1).last-weekday(wd)
+  t.copy-dc(Date(t.year,t.month+1,1)).last-weekday(wd)
 }
 
 
+// ---------------------------------------------------
+// The following 4 functions are generic in the calendar
+// and are relied upon by other routines for efficiency.
+// We may want to optimize this by using specialized
+// implementations if the ISO calendar is in use.
+// ---------------------------------------------------
 
+// Return the day of the year of time `t` (starting at 1).
+public fun day-of-year( t : time ) : int {
+  t.calendar.day-diff(t.date,Date(t.year,1,1)) + 1
+}
+
+// Return the total days in the month of time `t`.
+public fun days-in-month( t : time ) : int {
+  val d = t.date
+  t.calendar.day-diff(Date(d.year,d.month+1,1),Date(d.year,d.month,1))  
+}
+
+// Return the total days in the year of time `t`.
+public fun days-in-year( t : time) : int {
+  t.calendar.day-diff(Date(t.year+1,1,1),Date(t.year,1,1))  
+}
+
+// Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
+// number for a given `:time`. This interprets the Julian date in that calendar date with
+// the timezone applied.\
+// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).mjd.show == "52092"`\
+// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).instant.mjd(ts-utc).show == "52091.958333333"`
+public fun mjd( t : time ) : fixed {
+  //trace("offcopy: " + t.tzdelta.show)
+  // adjust with the timezone offcopy so we display the mjd on the date.
+  (t.instant + t.tzdelta).mjd(t.calendar.timescale)
+}
 
 /*
 // Is this a Gregorian leap year?

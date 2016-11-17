@@ -61,6 +61,18 @@ fun test-week-in-years() {
   })
 }
 
+
+fun test-day-in-year() {
+  list(1999,2004).foreach(fun(year) {
+    list(1,365).foreach( fun(doy) {
+      val d = Date(year,1,doy)
+      check("doy-" + time(d).show, doy.show) { time(d).day-of-year.show }
+    })
+  })
+}
+
+
+
 fun test-nth() {
   check("nth1", "2016-10-30") { time(2016,10,10).last-weekday-of-month(Sun).date.show }
   check("nth2", "2016-10-02") { time(2016,10,10).nth-weekday-of-month(1,Sun).date.show }
@@ -72,6 +84,7 @@ fun test-nth() {
 }
 
 public fun main() {
+  test-day-in-year()
   test-week-in-years()
   test-week-dates()
   test-nth()
