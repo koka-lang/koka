@@ -174,7 +174,7 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 public struct date(
   year : int,
   month: int,
-  day  : int
+  day  : int 
 )
 
 // Compare two dates
@@ -244,8 +244,8 @@ public fun last-weekday-of-month( year : int, month : int, weekday : int, cal : 
 // Return the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date) for a date. 
 // Can pass a calendar `cal` (=`cal-iso`) to
 // interpret the date. It is also possible to pass the weekday that determines if 
-// a week falls in the current year or not, which is Thursday for the ISO definition
-// (=`4`). 
+// a week falls in the current year or not (which is Thursday for the ISO definition
+// (=`4`)). 
 // Note that a week can fall in the year before or the year after. For example:\
 // `weekdate(Date(2005,1,1)).show   == "2004-W53-6"`\
 // `weekdate(Date(2005,12,31)).show == "2005-W52-6"`\
@@ -253,7 +253,7 @@ public fun last-weekday-of-month( year : int, month : int, weekday : int, cal : 
 public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : weekdate {
   val dow  = d.day-of-week(cal)
   val sun  = (d.day-of-year(cal) - dow) 
-  val wday = sun + weekday-in-year
+  val wday = sun + (weekday-in-year%7)
   if (wday <= 0) then {
     // last week of previous year 
     val wk = (Date(d.year - 1, 12, 31 + wday).day-of-year + 6)/7
@@ -267,19 +267,28 @@ public fun weekdate( d : date, cal : calendar = cal-iso, weekday-in-year : int =
     Weekdate(d.year, (wday+6)/7, dow)
 }
 
-public fun weekdate-date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : date {
-  val dow = Date(wd.year,1,1).day-of-week(cal)
-  val adj = if (dow <= weekday-in-year) then ~dow else (7 - dow)
-  time(wd.year, 1,  1 + (wd.week - 1)*7 + wd.day + adj ).date
+
+// Return a `:date` for an ISO week date `wd` using calendar `cal` (=`cal-iso`).
+// It is also possible to pass the weekday that determines if 
+// a week falls in the current year or not (which is Thursday for the ISO definition
+// (=`4`)).\
+// `date(Weekdate(2004,53,6)).show == "2005-01-01"`\
+// `date(Weekdate(2005,52,6)).show == "2005-12-31"`\
+// `date(Weekdate(2009,1,3)).show == "2008-12-31"`
+public fun date( wd : weekdate, cal : calendar = cal-iso, weekday-in-year : int = 4 ) : date {
+  val adj = Date(wd.year,1,weekday-in-year).day-of-week(cal=cal) + (7 - weekday-in-year)
+  time(wd.year, 1, (7*wd.week + wd.day) - adj, cal=cal).date  
 }
 
-// Return the difference between two weekdays.
+// Return the difference between two weekdays.\
+// `weekday-add( wd1, weekday-diff( wd2, wd1 ) ) == wd2`
 public fun weekday-diff( wd1 : int, wd2 : int ) : int {
   val d = wd1 - wd2
   d%7
 }
 
-// Find the weekday after `inc` days after weekday `wd`.
+// Find the weekday `inc` days after weekday `wd`.
+// `weekday-add( wd1, weekday-diff( wd2, wd1 ) ) == wd2`
 public fun weekday-add( wd : int, inc : int = 1 ) : int {
   ((wd - 1) + inc)%7 + 1
 }
