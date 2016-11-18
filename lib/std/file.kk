@@ -12,6 +12,8 @@
 public module std/file
 
 import std/path
+import std/time/instant
+import std/time/utc
 
 extern import {
   js "fs"
@@ -60,16 +62,16 @@ extern write-text-file-sync( fileName : string, content : string )  : io () {
   js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
 }
 
-public fun utimes( fname : path, atime : double, mtime : double ) : <async,file,exn> () {
-  xfile-utimes( fname.string, atime*1000.0, mtime * 1000.0 )
+public fun utimes( fname : path, atime : instant, mtime : instant ) : <async,file,exn> () {
+  xfile-utimes( fname.string, atime.unix-timestamp*1000.0, mtime.unix-timestamp*1000.0 )
 }
 
 extern xfile-utimes( fname : string, atime : double, mtime : double ) : <async,file,exn> () {
   js inline "_file_utimes(fname, atime, mtime, _k)"  
 }
 
-public fun mod-time( fname : path ) : <async,file,exn> double {
-  xfile-mod-time( fname.string )
+public fun mod-time( fname : path ) : <async,file,exn> instant {
+  xfile-mod-time( fname.string ).unix-instant
 }
 
 extern xfile-mod-time( fname : string ) : <async,file,exn> double {

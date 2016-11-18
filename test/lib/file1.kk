@@ -8,36 +8,38 @@ public import std/path
 public import std/time/timespan
 public import std/xtime
 
-public fun main() {
+public fun test-readme() {
   val f = path("readme.md")
-  f.mod-time.unix-instant.local-time.show.println
+  f.mod-time.local-time.show.println
   // f.read-text.println
   val l = "https://www.ietf.org/timezones/data/leap-seconds.list"
   download-text(l,1.0).println
 }
 
-public fun update-leaps( ) : <io,async> maybe<leaps-table> {
-  fun parse(text) {
-    trace("leap table:\n" + text)
-    parse-leap-seconds(text)
+public fun main() {
+  match(update-leaps()) {
+    Nothing -> "no success"
+    Just    -> "ok"
   }
+}
+
+public fun update-leaps( ) : <io,async> maybe<leaps-table> {
   update-data( 
-    parse,
-    timestamp0,
+    parse-leap-seconds,
+    epoch,
     appdir() + path("config/leap-seconds.list"),
     Just("https://www.ietf.org/timezones/data/leap-seconds.list")
   )
 }
 
-fun update-data( parse  : string -> maybe<(timestamp,a)>, 
-                 builtin: timestamp,
+fun update-data( parse  : string -> maybe<(instant,a)>, 
+                 builtin: instant,
                  fname  : path, 
                  url    : maybe<string>, 
                  download-timeout: double = 5.0, 
-                 download-delay: double = 7.0) : <ndet,file,net,async> maybe<a> 
+                 download-delay: double = 7.0) : <ndet,file,net,async,console> maybe<a> 
 {
-  val (s,f) = unix-now()
-  val unow  = timestamp(s+f)
+  val unow  = now()
   if (unow < builtin) then return Nothing
     trace("read: " + fname.string)
     match(try-read-text(fname).map(parse)) {
@@ -52,15 +54,18 @@ fun update-data( parse  : string -> maybe<(timestamp,a)>,
             //fname.utimes(mtime,mtime) // touch so we don't download right away again
             //trace("and download from: " + urlname)
             val text = urlname.download-text(download-timeout)              
-            trace("downloaded: " + urlname + ": " + text)              
+            println("downloaded: " + urlname + ": " + text.first(10).string + "...")
             match(text.parse) {
-              Just((expire,info)) | expire > unow -> {  
-                trace("downloaded: " + text)              
-                try-write-text(fname,text)
-                Just(info)
+              Just((expire,info)) -> {  
+                println("download parsed: expire: " + expire.show + ", unow: " + unow.show)              
+                if (expire > unow) then {
+                  try-write-text(fname,text)
+                  Just(info)
+                }
+                else Nothing
               }
               _ -> {
-                trace("downloaded: " + text)              
+                println("downloaded: but no parse")              
                 Nothing
               }
             }

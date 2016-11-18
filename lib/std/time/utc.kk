@@ -28,7 +28,7 @@ extern include {
 // Given a unix time stamp in seconds and possibly a separate fraction of seconds
 // (for increased precision for nanosecond timestamps) return a `:instant`.
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  unsafe-instant-at( timestamp(secs.int, secs.fraction + frac), ts-unix ) 
+  unsafe-instant-at( timestamp(secs.trunc.int, secs.fraction + frac), ts-unix ) 
 }
 
 // The current `:instant` in time as returned by the system clock.
@@ -48,6 +48,9 @@ extern now-precision() : ndet int {
   js "_now_precision"
 }
 
+public fun unix-timestamp( i :instant ) : double {
+  i.timestamp(ts-unix).double
+}
 
 /*----------------------------------------------------------------------------
   Timescale creation
@@ -104,7 +107,7 @@ alias utc-timestamp = timestamp
 // A leap second table is a list of tuples. 
 // Each entry gives the start instant and integer leap second adjustment.
 abstract struct leaps-table(
-  expire : utc-timestamp,       // since epoch                   
+  expire : instant,       
   adjusts: list<leap-adjust>
 )
 
@@ -117,7 +120,7 @@ struct leap-adjust(
   delta      : double  = 0.0   
 )
 
-val leap-table0 = Leaps-table(timestamp0,[])
+val leap-table0 = Leaps-table(epoch,[])
 val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,0.0)
 
 // Get the leap-second adjustment
@@ -135,7 +138,7 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
 val global-leaps-table : () -> ref<global,leaps-table> = once{
   unsafe-total{ 
     val pre72  = leap-seconds-pre72()
-    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default((timestamp0,leap-table0)).snd
+    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default((epoch,leap-table0)).snd
     // trace("parse leap tables: " + pre72.length.show)
     ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
   }
@@ -150,7 +153,7 @@ fun get-leaps-table() : st<global> leaps-table {
 // Only performs the update if the provided table has a later expiry date.
 // Latest files available at: <https://www.ietf.org/timezones/data/leap-seconds.list>
 public fun update-leap-seconds( ietf-leap-table : string ) : io () {
-  val post72 = parse-leap-seconds( ietf-leap-table ).default((timestamp0,leap-table0)).snd
+  val post72 = parse-leap-seconds( ietf-leap-table ).default((epoch,leap-table0)).snd
   if (post72.expire > get-leaps-table().expire) then {
     val r = global-leaps-table()
     r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
@@ -158,7 +161,7 @@ public fun update-leap-seconds( ietf-leap-table : string ) : io () {
 }
 
 // Return the UTC timestamp since the epoch when the current leap second table expires.
-fun leap-seconds-expire() : io timestamp {
+fun leap-seconds-expire() : io instant {
   get-leaps-table().expire
 }
 
@@ -241,12 +244,12 @@ val ntp-shift = 3155673600  // 2000-01-01 TAI - 1900-01-01 TAI in seconds
 
 // Parse a NIST (IETF) leap second table.
 // See: <https://www.ietf.org/timezones/data/leap-seconds.list>
-public fun parse-leap-seconds( leaps : string ) : maybe<(timestamp,leaps-table)> {
+public fun parse-leap-seconds( leaps : string ) : maybe<(instant,leaps-table)> {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   
     val adjust  = cap.groups[2].parse-int-default(0)
-    //trace("leap entry: " + adjust.show + " " + ntpi.show + " " + ntpsecs.show )
+    // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
     Leap-adjust(timestamp(ntpsecs - ntp-shift), timespan(adjust), timestamp0, 0.0)
   }.reverse
 
@@ -257,12 +260,13 @@ public fun parse-leap-seconds( leaps : string ) : maybe<(timestamp,leaps-table)>
     timestamp(ntpex - ntp-shift)
   }.default(la-final.utc-start + timespan(365*secs-per-day))
   // trace("expire: " + utc-expire.ts-show)
+  val expire = unsafe-instant-at( utc-expire + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion..
 
-  val table = Leaps-table(utc-expire,las)
-  Just((utc-expire,table))
+  val table = Leaps-table(expire,las)
+  Just((expire, table))
 }
 val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
-val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*$", multiLine=True)
+val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 
 // IETF leap second data valid until 2017-06-28
 val default-ietf-leap-seconds = @"
