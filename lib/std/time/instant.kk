@@ -135,7 +135,7 @@ public fun round-to-prec(i : instant, prec : int ) : instant {
 }
 val utc-epoch = Instant(timestamp(~883612789),ts-tai)
 
-fun has-leap-seconds( ts : timescale ) : bool {
+public fun has-leap-seconds( ts : timescale ) : bool {
   ts.unit == "UTC"
 }
 

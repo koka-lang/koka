@@ -19,7 +19,7 @@ public import std/xtime
 fun check(name : string, t1 : time, t2: time, tst : () -> io bool ) : io () {
   if (tst()) then () else {
     println( name + ":failed!\n t1: " + t1.show + "\n t2: " + t2.show )
-    error("quit")
+    // error("quit")
   }
 }
 
@@ -34,9 +34,10 @@ fun test-dates(starty : int = 1900, endy : int = 2050, tz : timezone = tz-utc, c
       for(1,dm) fun(d) {
         val t = time(y,m,d,tz=tz,cal=cal)
         check("larger",t,prevt){ t > prevt }
-        check("plus1",t,prevt){ t.copy(day=t.day - 1) == prevt }
+        check("minday",t,prevt){ t.copy(day=t.day - 1) == prevt }
+        check("plusday",t,prevt){ prevt.copy(day=prevt.day + 1) == t }
         val t2 = t.instant.time(tz=tz,cal=cal)
-        check("same",t,t2){ t.date == t2.date }
+        check("sameday",t,t2){ t.date == t2.date }
         val wd = t.weekday
         check("nextday",t,t){ wd == prevwd + 1 }
         check("prevday",t,t){ wd - 1 == prevwd }
@@ -47,13 +48,11 @@ fun test-dates(starty : int = 1900, endy : int = 2050, tz : timezone = tz-utc, c
   }
 }
 
-public val gmt-plus1 = tz-fixed("GMT+1",duration(3600))
-public val gmt-min1 = tz-fixed("GMT-1",duration(~3600))
-
 public fun main() {
-  //test-dates()
-  //test-dates(1900,2150,tz-local())
-  //test-dates(1900,2150,tz=tz-fixed("GMT+1",duration(3600)),cal=cal-julian)
-  //test-dates(1900,2150,tz=tz-fixed("GMT-1",duration(~3600)),cal=cal-tai)
-  test-dates(1900,2150,tz=gmt-min1,cal=cal-tai)
+  test-dates()
+  test-dates(1900,2050,tz-local())
+  test-dates(1900,2050,tz-gmt(~1),cal-julian)
+  test-dates(1900,2050,tz-gmt(1) ,cal-jg)
+  test-dates(1900,2050,tz-gmt(~1),cal-tai)
+  test-dates(1900,2050,tz-gmt(1) ,cal-gps)
 }

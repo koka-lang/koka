@@ -70,6 +70,12 @@ public fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : ti
   )
 }
 
+// Create a time zone with a fixed number of hours difference from UTC/GMT.
+public fun tz-gmt( hours-delta: int ) : timezone {
+  tz-fixed("GMT" + (if (hours-delta.neg?) then "-" + hours-delta.abs.show else "+" + hours-delta.show),
+            duration(hours-delta * 3600) )
+}
+
 // The standard UTC time zone with a 0 delta.
 public val tz-utc : timezone = tz-fixed("UTC",duration0,"")
 
@@ -237,15 +243,28 @@ public fun instant-at( d : date, c : clock = clock0, tz : timezone = tz-utc, cal
     Nothing -> {
       // no explicit inverse,
       // do a double pass to accommodate jumping over a DST boundary.
-      // we calculate directly on UTC timespan's as to ignore any possible
-      // leap seconds during the timezone offset change. 
-      // (for example: instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
-      val utci = i.timestamp(ts-utc)
-      val tzd1 = (tz.utc-delta)(i).fst
-      val tzi1 = unsafe-instant-at(utci - tzd1.timespan, ts-utc)
-      val tzd2 = (tz.utc-delta)(tzi1).fst
-      val tzi2 = unsafe-instant-at(utci - tzd2.timespan, ts-utc)
-      tzi2     
+      if (i.timescale.has-leap-seconds) then {
+        // If in UTC, we calculate directly on UTC timespan's as to ignore any possible
+        // leap seconds during the timezone offset change. 
+        // (for example: instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
+        val utci = i.timestamp(ts-utc)
+        val tzd1 = (tz.utc-delta)(i).fst
+        val tzi1 = unsafe-instant-at(utci - tzd1.timespan, ts-utc)
+        val tzd2 = (tz.utc-delta)(tzi1).fst
+        val tzi2 = unsafe-instant-at(utci - tzd2.timespan, ts-utc)
+        tzi2
+      }
+      else {
+        // But in other cases, we interpret a timezone offset in seconds of that time scale,
+        // and we should *not* convert to UTC or otherwise we may lose/add a leap seconds
+        // in a time zone transition.
+        // (for example: time(1973,1,1,0,0,11,tz=tz-gmt(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI")
+        val tzd1 = (tz.utc-delta)(i).fst
+        val tzi1 = i - tzd1
+        val tzd2 = (tz.utc-delta)(tzi1).fst
+        val tzi2 = i - tzd2
+        tzi2
+      }
     }
   }
 }
@@ -386,14 +405,17 @@ val julian-epoch-shift  = 730427 // Shift from 2000-01-01 to 0000-03-01
 // Return a date from a number of days in the Julian calendar.
 fun julian-days-to-date( days : int ) : date {  
   val z = days + julian-epoch-shift
-  val (era,doe) = divmod(z,julian-days-in-era)
-  val (yoe,doy) = divmod(doe,365)
+  val (era,doe) = divmod(z,julian-days-in-era)  // 0 <= doe <= 1460
+  val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
+  val doy   = doe - 365*yoe                     // 0 <= doy <= 365
   val mp    = (doy*5 + 2) / 153
   val day   = (doy - ((153*mp + 2)/5)) + 1
   val month = mp + (if (mp < 10) then 3 else ~9)
   val year  = yoe + (julian-years-in-era * era) + (if (month <= 2) then 1 else 0)
   val yyear = if (year<=0) then year.dec else year
-  Date(yyear,month,day)
+  val d = Date(yyear,month,day)
+  // trace("julian days to date: " + days.show + " -> " + d.show)  
+  d
 }
 
 fun julian-datex-to-days( year : int, month : int, day : int ) : int {
@@ -409,7 +431,9 @@ fun julian-date-to-days( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, julian-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 12)
   val yyear = if (d.year<=0) then d.year.inc else d.year
-  julian-datex-to-days( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
+  val days = julian-datex-to-days( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
+  // trace("julian date to days: " + d.show + " -> " + days.show)  
+  days
 }
 
 
