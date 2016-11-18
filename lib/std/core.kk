@@ -231,6 +231,10 @@ fun ignore( action : () -> <exn|e> () ) : e () {
   catch( action, fun(_) { () })
 }
 
+// Transform an Exception to an `:either` type.
+fun try( action : () -> <exn|e> a ) : e either<exception,a> {
+  catch({ Right(action()) },Left)
+}
 
 // ----------------------------------------------------------------------------
 // Internal types
@@ -366,6 +370,13 @@ fun map( m : maybe<a>, f : a -> e b ) : e maybe<b> {
   match(m) {
     Nothing -> Nothing
     Just(x) -> Just(f(x))
+  }
+}
+
+fun (+)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a> {
+  match(m1) {
+    Nothing -> m2
+    _       -> m1
   }
 }
 
