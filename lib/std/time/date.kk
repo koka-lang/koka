@@ -228,6 +228,11 @@ public fun (+)(wd : weekday, n : int ) : weekday {
   (wd.int + n).weekday
 }
 
+// Return the `:weekday` that comes `n` days before week day `wd`.
+public fun (-)(wd : weekday, n : int ) : weekday {
+  (wd.int - n).weekday
+}
+
 // Return the difference between two week days:\
 // `wd2 == wd1 + (wd2 - wd1)`
 public fun (-)(wd1 : weekday, wd2 : weekday ) : int {
