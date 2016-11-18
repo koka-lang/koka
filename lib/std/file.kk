@@ -12,6 +12,8 @@
 public module std/file
 
 import std/path
+import std/fixed
+import std/time/duration
 import std/time/instant
 import std/time/utc
 
@@ -75,16 +77,9 @@ public fun mod-time( fname : path ) : <async,file,exn> instant {
 }
 
 extern xfile-mod-time( fname : string ) : <async,file,exn> double {
-  js inline "_file_stat(fname, function(stats){ return _k(stats.atime.getTime() * 1e-3); })"  
+  js inline "_file_stat(fname, function(stats){ return _k(stats.mtime.getTime() * 1e-3); })"  
 }
 
-fun try-either( action : () -> <exn|e> a ) : e either<exception,a> {
-  catch{ Right(action()) } fun(exn){ Left(exn) }
-}
-
-public fun try-write-text( fname : path, text : string ) : <async,file> either<exception,()> {
-  try-either{write-text(fname,text)}
-}
 
 public fun write-text( fname : path, text : string ) : <async,file,exn> () {
   xwrite-text(fname.string,text)
@@ -94,9 +89,6 @@ extern xwrite-text( fname : string, text : string ) : <async,file,exn> () {
   js inline "_file_write_text(fname, text, _k)"
 }
 
-public fun try-read-text( fname : path ) : <async,file> either<exception,string> {
-  catch{ Right(read-text(fname)) } fun(exn) { Left(exn) }
-}
 
 public fun read-text( fname : path ) : <async,file,exn> string {
   xread-text(fname.string)
@@ -107,12 +99,8 @@ extern xread-text( fname : string ) : <async,file,exn> string {
 }
 
 
-public fun try-download-text( url : string, timeout : double = 10.0 ) : <async,net> either<exception,string> {
-  try-either{ download-text(url,timeout) } 
-}
-
-public fun download-text( url : string, timeout : double = 10.0 ) : <async,net,exn> string {
-  xdownload-text(url,timeout*1000.0)
+public fun download-text( url : string, timeout : duration = duration(10) ) : <async,net,exn> string {
+  xdownload-text(url,timeout.seconds.double*1000.0)
 }
 
 extern xdownload-text( url : string, timeout : double ) : <async,net,exn> string {
