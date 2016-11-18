@@ -25,10 +25,16 @@ extern include {
   Unix
 ----------------------------------------------------------------------------*/
 
+// Given a unix time stamp in seconds and possibly a separate fraction of seconds
+// (for increased precision for nanosecond timestamps) return a `:instant`.
+public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
+  unsafe-instant-at( timestamp(secs.int, secs.fraction + frac), ts-unix ) 
+}
+
 // The current `:instant` in time as returned by the system clock.
 public fun now() : ndet instant {
   val (secs,frac) = unix-now()
-  unsafe-instant-at( timestamp(secs.int,frac), ts-unix ) 
+  unix-instant(secs,frac)
 } 
 
 // Returns a unix time stamp; this still needs
