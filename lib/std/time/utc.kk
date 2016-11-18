@@ -39,7 +39,7 @@ public fun now() : ndet instant {
 
 // Returns a unix time stamp; this still needs
 // to be adjusted to our epoch and taking account of leap seconds.
-private extern unix-now() : ndet (double,double) {
+public extern unix-now() : ndet (double,double) {
   js "_unix_now"
 }
 
@@ -103,7 +103,7 @@ alias utc-timestamp = timestamp
 
 // A leap second table is a list of tuples. 
 // Each entry gives the start instant and integer leap second adjustment.
-struct leaps-table(
+abstract struct leaps-table(
   expire : utc-timestamp,       // since epoch                   
   adjusts: list<leap-adjust>
 )
@@ -117,6 +117,7 @@ struct leap-adjust(
   delta      : double  = 0.0   
 )
 
+val leap-table0 = Leaps-table(timestamp0,[])
 val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,0.0)
 
 // Get the leap-second adjustment
@@ -134,7 +135,7 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
 val global-leaps-table : () -> ref<global,leaps-table> = once{
   unsafe-total{ 
     val pre72  = leap-seconds-pre72()
-    val post72 = parse-leap-seconds( default-ietf-leap-seconds )
+    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default((timestamp0,leap-table0)).snd
     // trace("parse leap tables: " + pre72.length.show)
     ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
   }
@@ -149,7 +150,7 @@ fun get-leaps-table() : st<global> leaps-table {
 // Only performs the update if the provided table has a later expiry date.
 // Latest files available at: <https://www.ietf.org/timezones/data/leap-seconds.list>
 public fun update-leap-seconds( ietf-leap-table : string ) : io () {
-  val post72 = parse-leap-seconds( ietf-leap-table )
+  val post72 = parse-leap-seconds( ietf-leap-table ).default((timestamp0,leap-table0)).snd
   if (post72.expire > get-leaps-table().expire) then {
     val r = global-leaps-table()
     r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
@@ -240,7 +241,7 @@ val ntp-shift = 3155673600  // 2000-01-01 TAI - 1900-01-01 TAI in seconds
 
 // Parse a NIST (IETF) leap second table.
 // See: <https://www.ietf.org/timezones/data/leap-seconds.list>
-fun parse-leap-seconds( leaps : string ) : leaps-table {
+public fun parse-leap-seconds( leaps : string ) : maybe<(timestamp,leaps-table)> {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   
@@ -257,7 +258,8 @@ fun parse-leap-seconds( leaps : string ) : leaps-table {
   }.default(la-final.utc-start + timespan(365*secs-per-day))
   // trace("expire: " + utc-expire.ts-show)
 
-  Leaps-table(utc-expire,las)
+  val table = Leaps-table(utc-expire,las)
+  Just((utc-expire,table))
 }
 val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*$", multiLine=True)

@@ -60,42 +60,59 @@ extern write-text-file-sync( fileName : string, content : string )  : io () {
   js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
 }
 
-public fun utimes( fname : path, atime : double, mtime : double ) : <async,file> () {
-  xfile-utimes( fname.string, atime, mtime )
+public fun utimes( fname : path, atime : double, mtime : double ) : <async,file,exn> () {
+  xfile-utimes( fname.string, atime*1000.0, mtime * 1000.0 )
 }
 
-extern xfile-utimes( fname : string, atime : double, mtime : double ) : <async,file> () {
+extern xfile-utimes( fname : string, atime : double, mtime : double ) : <async,file,exn> () {
   js inline "_file_utimes(fname, atime, mtime, _k)"  
 }
 
-public fun mod-time( fname : path ) : <async,file> double {
+public fun mod-time( fname : path ) : <async,file,exn> double {
   xfile-mod-time( fname.string )
 }
 
-extern xfile-mod-time( fname : string ) : <async,file> double {
+extern xfile-mod-time( fname : string ) : <async,file,exn> double {
   js inline "_file_stat(fname, function(stats){ return _k(stats.atime.getTime() * 1e-3); })"  
 }
 
-public fun write-text( fname : path, text : string ) : <async,file> () {
+fun try-either( action : () -> <exn|e> a ) : e either<exception,a> {
+  catch{ Right(action()) } fun(exn){ Left(exn) }
+}
+
+public fun try-write-text( fname : path, text : string ) : <async,file> either<exception,()> {
+  try-either{write-text(fname,text)}
+}
+
+public fun write-text( fname : path, text : string ) : <async,file,exn> () {
   xwrite-text(fname.string,text)
 }
 
-extern xwrite-text( fname : string, text : string ) : <async,file> () {
+extern xwrite-text( fname : string, text : string ) : <async,file,exn> () {
   js inline "_file_write_text(fname, text, _k)"
 }
 
-public fun read-text( fname : path ) : <async,file> string {
+public fun try-read-text( fname : path ) : <async,file> either<exception,string> {
+  catch{ Right(read-text(fname)) } fun(exn) { Left(exn) }
+}
+
+public fun read-text( fname : path ) : <async,file,exn> string {
   xread-text(fname.string)
 }
 
-extern xread-text( fname : string ) : <async,file> string {
+extern xread-text( fname : string ) : <async,file,exn> string {
   js inline "_file_read_text(fname, _k)"
 }
 
-public fun download-text( url : string, timeout : double = 10.0 ) : <async,net> string {
+
+public fun try-download-text( url : string, timeout : double = 10.0 ) : <async,net> either<exception,string> {
+  try-either{ download-text(url,timeout) } 
+}
+
+public fun download-text( url : string, timeout : double = 10.0 ) : <async,net,exn> string {
   xdownload-text(url,timeout*1000.0)
 }
 
-extern xdownload-text( url : string, timeout : double ) : <async,net> string {
+extern xdownload-text( url : string, timeout : double ) : <async,net,exn> string {
   js inline "_file_download_text(url, timeout, _k)"
 }

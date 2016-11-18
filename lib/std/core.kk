@@ -385,6 +385,14 @@ fun maybe( e : either<a,b> ) : maybe<b>
   }
 }
 
+// Map over the `Right` component of an `:either` type.
+fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c> {
+  match(e) {
+    Right(x) -> Right(f(x))
+    Left(x)  -> Left(x)
+  }
+}
+
 // The type of lists, which can be either empty (`Nil`) or an element followed
 // by a list (`Cons`).
 type list<a> {
