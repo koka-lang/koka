@@ -19,15 +19,15 @@ public import std/xtime
 fun check(name : string, t1 : time, t2: time, tst : () -> io bool ) : io () {
   if (tst()) then () else {
     println( name + ":failed!\n t1: " + t1.show + "\n t2: " + t2.show )
-    // error("quit")
+    error("quit")
   }
 }
 
-fun test-dates(starty : int = 1900, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso) {
+fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, print-every : int = 10) {
   var prevt  := time(starty,1,0,tz=tz,cal=cal)
   var prevwd := prevt.weekday
   for(starty,endy) fun(y:int){
-    println("tz: " + tz.name + ", cal: " + cal.name + ", year: " + y.show + "...")
+    if (y%print-every == 0)  println("tz: " + tz.name + ", cal: " + cal.name + ", year: " + y.show + "...")
     for(1,12) fun(m:int){
       val t1 = time(y,m,tz=tz,cal=cal)
       val dm : int = t1.days-in-month
@@ -39,8 +39,8 @@ fun test-dates(starty : int = 1900, endy : int = 2050, tz : timezone = tz-utc, c
         val t2 = t.instant.time(tz=tz,cal=cal)
         check("sameday",t,t2){ t.date == t2.date }
         val wd = t.weekday
-        check("nextday",t,t){ wd == prevwd + 1 }
-        check("prevday",t,t){ wd - 1 == prevwd }
+        check("nextday",t,prevt){ wd == prevwd + 1 }
+        check("prevday",t,prevt){ wd - 1 == prevwd }
         prevt := t
         prevwd := wd
       }
@@ -49,10 +49,12 @@ fun test-dates(starty : int = 1900, endy : int = 2050, tz : timezone = tz-utc, c
 }
 
 public fun main() {
+  // test-dates(~5000,5000,print-every=100)
+  // test-dates(1450,1650,tz-gmt(1) ,cal-jg)  // fails on the gap start for 'minday' and 'plusday'; and at 1582-10-22 because days-in-month gives 21 for that month!
   test-dates()
-  test-dates(1900,2050,tz-local())
-  test-dates(1900,2050,tz-gmt(~1),cal-julian)
-  test-dates(1900,2050,tz-gmt(1) ,cal-jg)
-  test-dates(1900,2050,tz-gmt(~1),cal-tai)
-  test-dates(1900,2050,tz-gmt(1) ,cal-gps)
+  test-dates(tz=tz-gmt(1))
+  test-dates(tz=tz-local())
+  test-dates(tz=tz-gmt(~1),cal=cal-julian)
+  test-dates(tz=tz-gmt(~1),cal=cal-tai)
+  test-dates(tz=tz-gmt(1) ,cal=cal-gps)
 }

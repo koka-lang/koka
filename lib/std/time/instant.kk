@@ -307,7 +307,10 @@ public fun jd( i : instant, ts : timescale, max-prec : int = 9 ) : fixed {
 }
 
 // Return the modified julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
-public fun mjd( i : instant, ts : timescale, max-prec : int = 9 ) : fixed {
-  val t = i.timespan(ts) - ts.y2k-epoch.timespan
+// Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
+// before conversion.
+public fun mjd( i : instant, ts : timescale, max-prec : int = 9, delta : timespan = timespan0 ) : fixed {
+  val t = (i.timespan(ts) + delta) - ts.y2k-epoch.timespan
   (div)(t.seconds, secs-per-day, max-prec) + mjd-epoch-delta
 }
+

@@ -324,26 +324,10 @@ public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
   (i1.mjd(ts) - i2.mjd(ts)).floor.int    
 }
 
-/*
-// Return a `:time` for a given instant.
-fun timez( i : instant, tzdelta : duration = duration0, tzabbrv : string = "", tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val (d,c) = (cal.instant-to-dc)( i, tzdelta )
-  Time(d.year,d.month,d.day,c.hours,c.minutes,c.seconds,cal,tzdelta,tzabbrv,tz,i)
-}
-
-
-// Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
-// and calendar (=`cal-iso` by default).
-public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  if (tz.tz-utc?) then timez(i,duration0,"",tz,cal) else {
-    val (tzdelta,tzabbrv) = (tz.utc-delta)(i)
-    timez( i, tzdelta, tzabbrv, tz, cal )
-  }
-}
-*/
 
 /*----------------------------------------------------------------------------
   ISO calendar, Proleptic Gregorian calendar, and Julian calendar.
+  Algorithms as described by Howard Hinnant <https://howardhinnant.github.io/date_algorithms.html>
 ----------------------------------------------------------------------------*/
 
 val iso-epoch-shift = 730425   // shift internal epoch from 0000-03-01 to 2000-01-01
@@ -437,7 +421,7 @@ fun julian-date-to-days( d : date ) : int {
 }
 
 
-fun julgreg-date-to-days( d : date, switch : date  ) : int {
+fun julgreg-date-to-days( d : date, switch : date ) : int {
   if (compare(d,switch).lt?) 
     then julian-date-to-days(d)
     else iso-date-to-days(d) 

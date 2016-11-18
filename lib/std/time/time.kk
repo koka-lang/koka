@@ -107,7 +107,7 @@ public fun show(t : time, prec : int = 9 ) : string {
 }
 
 // Show a time zone delta. 
-// Optional `utc` for displaying a zero timezone offcopy (=`"Z"`).
+// Optional `utc` for displaying a zero timezone delta (=`"Z"`).
 // Optional `hmsep` for the hour-minute separator (=`":"`).
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
 public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
@@ -375,12 +375,12 @@ public fun days-in-year( t : time) : int {
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
 // number for a given `:time`. This interprets the Julian date in that calendar date with
 // the timezone applied.\
-// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).mjd.show == "52092"`\
-// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))).instant.mjd(ts-utc).show == "52091.958333333"`
+// `time(1972,1,2,tz=tz-gmt(1)).mjd == "41318"`\
+// `time(1972,1,2,tz=tz-gmt(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
 public fun mjd( t : time ) : fixed {
-  //trace("offcopy: " + t.tzdelta.show)
-  // adjust with the timezone offcopy so we display the mjd on the date.
-  (t.instant + t.tzdelta).mjd(t.calendar.timescale)
+  //trace("offset: " + t.tzdelta.show)
+  // adjust with the timezone delta so we display the mjd on the date.
+  t.instant.mjd( t.calendar.timescale, delta=t.tzdelta.timespan )
 }
 
 /*
