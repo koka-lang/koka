@@ -11,8 +11,14 @@
 */
 public module std/file
 
+import std/path
+
 extern import {
   js "fs"
+}
+
+extern include {
+  js file "file-inline.js"
 }
 
 // Read a text file (using UTF8 encoding) asynchronously
@@ -52,4 +58,44 @@ fun try-write-text-file( fileName : string, content : string )  : io maybe<excep
 extern write-text-file-sync( fileName : string, content : string )  : io () {
   cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
   js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
+}
+
+public fun utimes( fname : path, atime : double, mtime : double ) : <async,file> () {
+  xfile-utimes( fname.string, atime, mtime )
+}
+
+extern xfile-utimes( fname : string, atime : double, mtime : double ) : <async,file> () {
+  js inline "_file_utimes(fname, atime, mtime, _k)"  
+}
+
+public fun mod-time( fname : path ) : <async,file> double {
+  xfile-mod-time( fname.string )
+}
+
+extern xfile-mod-time( fname : string ) : <async,file> double {
+  js inline "_file_stat(fname, function(stats){ return _k(stats.atime.getTime() * 1e-3); })"  
+}
+
+public fun write-text( fname : path, text : string ) : <async,file> () {
+  xwrite-text(fname.string,text)
+}
+
+extern xwrite-text( fname : string, text : string ) : <async,file> () {
+  js inline "_file_write_text(fname, text, _k)"
+}
+
+public fun read-text( fname : path ) : <async,file> string {
+  xread-text(fname.string)
+}
+
+extern xread-text( fname : string ) : <async,file> string {
+  js inline "_file_read_text(fname, _k)"
+}
+
+public fun download-text( url : string, timeout : double = 10.0 ) : <async,net> string {
+  xdownload-text(url,timeout*1000.0)
+}
+
+extern xdownload-text( url : string, timeout : double ) : <async,net> string {
+  js inline "_file_download_text(url, timeout, _k)"
 }
