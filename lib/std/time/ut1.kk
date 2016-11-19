@@ -72,7 +72,7 @@ public fun load-iers-ut1( fname : path = path(""),
 fun tai-to-ut( tai : duration, override : (i:instant) -> maybe<duration> ) : timestamp {
   val i  = tai.since-epoch
   val dt = deltat(i,override)
-  trace("tai-to-ut: dt: " + dt.show )
+  // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp(ts-tt)
 }
 

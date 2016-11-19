@@ -101,6 +101,18 @@ public fun (>=)( i : timespan, j : timespan ) : bool { compare(i,j) != Lt }
 public fun (==)( i : timespan, j : timespan ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : timespan, j : timespan ) : bool { compare(i,j) != Eq }
 
+
+// The minimum of two timespans.
+public fun min( i : timespan, j : timespan ) : timespan {
+  if (i <= j) then i else j
+}
+
+// The maximum of two timespans.
+public fun max( i : timespan, j : timespan ) : timespan {
+  if (i >= j) then i else j
+}
+
+
 // Add two timespans.
 public fun (+)( t : timespan, u : timespan ) : timespan {
   if (t.frac.zero? || u.frac.zero?) 
@@ -233,12 +245,20 @@ public fun without-leap-seconds( ts : timestamp ) : timestamp {
   Timestamp(ts.since.without-leap-seconds)
 }
 
+// Return the leap seconds of the time stamp.
+public fun leap-seconds( ts : timestamp ) : int {
+  ts.since.leap-seconds
+}
+
+
 // Add `leaps` leap seconds to the time stamp.
 public fun add-leap-seconds( ts : timestamp, leaps : double ) : timestamp {
   if (leaps.pos?) 
    then Timestamp( ts.since.add-leap-seconds(leaps) )
    else ts
 }
+
+
 
 // Return the total non-leap seconds, the positive fraction (in the range [0,1.0>), and the leap seconds
 public fun calendar-seconds( ts : timestamp ) : (int,double,int) {
@@ -256,6 +276,16 @@ public fun (>)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Gt }
 public fun (>=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Lt }
 public fun (==)( i : timestamp, j : timestamp ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : timestamp, j : timestamp ) : bool { compare(i,j) != Eq }
+
+// The minimum of two timestamps.
+public fun min( i : timestamp, j : timestamp ) : timestamp {
+  if (i <= j) then i else j
+}
+
+// The maximum of two timestamps.
+public fun max( i : timestamp, j : timestamp ) : timestamp {
+  if (i >= j) then i else j
+}
 
 // Add a time span to a time stamp.
 public fun (+)( ts : timestamp, t : timespan ) : timestamp {

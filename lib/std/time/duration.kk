@@ -112,6 +112,16 @@ public fun (>=)( i : duration, j : duration ) : bool { compare(i,j) != Lt }
 public fun (==)( i : duration, j : duration ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : duration, j : duration ) : bool { compare(i,j) != Eq }
 
+// The minimum of two durations.
+public fun min( i : duration, j : duration ) : duration {
+  if (i <= j) then i else j
+}
+
+// The maximum of two durations.
+public fun max( i : duration, j : duration ) : duration {
+  if (i >= j) then i else j
+}
+
 // Add two durations.
 public fun (+)( d : duration, e : duration ) : duration {
   duration(d.secs + e.secs)

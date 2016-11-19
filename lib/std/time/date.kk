@@ -43,7 +43,7 @@ public fun show( d : date ) : string {
   d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
 }
 
-// Compare two dates
+// Compare two dates by fields.
 public fun compare( d : date, e : date ) : order {
   match(compare(d.year,e.year)) {
     Eq -> match(compare(d.month,e.month)) {
@@ -137,7 +137,7 @@ public fun show( c : clock, prec : int = 9 ) : string {
   c.hours.show0 + ":" + c.minutes.show0 + ":" + show(timestamp(c.seconds),prec,2)
 }
 
-// Compare two clocks
+// Compare two clocks as by their total seconds.
 public fun compare( c : clock, d : clock ) : order {
   compare(c.total-seconds,d.total-seconds)
 }

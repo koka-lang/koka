@@ -78,6 +78,15 @@ public fun (>=)( i : time, j : time ) : bool { compare(i,j) != Lt }
 public fun (==)( i : time, j : time ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : time, j : time ) : bool { compare(i,j) != Eq }
 
+// The minimum of two times (as by their actual instant in time)
+public fun min( i : time, j : time ) : time {
+  if (i <= j) then i else j
+}
+
+// The maximum of two times (as by their actual instant in time)
+public fun max( i : time, j : time ) : time {
+  if (i >= j) then i else j
+}
 
 
 // Round a time to a specified second precision.
@@ -205,6 +214,28 @@ public fun add-years( t : time, years : int ) : time {
   t.add-date( Date(years,0,0) )
 }
 
+
+// Add an SI second `:duration` to a time.\
+// `(time(2015,12,31,23,59,59,0.5) + duration(1)).show == "2016-01-01T00:00:00.500Z"`\
+// `(time(2016,12,31,23,59,59,0.5) + duration(1)).show == "2016-12-31T23:59:60.500Z"` &quad; (into a leap second)
+public fun (+)( t : time, d : duration ) : time  {
+  (t.instant + d).time(t.timezone,t.calendar)
+}
+
+// Subtract an SI second `:duration` from a time.\
+// `(time(2016,1,1,0,0,0,0.5) - duration(1)).show == "2015-12-31T23:59:59.500Z"`\
+// `(time(2017,1,1,0,0,0,0.5) - duration(1)).show == "2016-12-31T23:59:60.500Z"` &quad; (into a leap second)
+public fun (-)( t : time, d : duration ) : time {
+  t + (~d)
+}
+
+// Return the exact SI second duration between to times.\
+// `time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59) == "1.5s"`\
+// `time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59) == "2.5s"`  &quad; (over a leap second)
+// `time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-gmt(3)) == 2.5s`  &quad; (GMT+3, and over a leap second)
+public fun (-)( t1 : time, t2 : time ) : duration {
+  (t1.instant - t2.instant)
+}
 
 // Copy a `:time` with optionally changing any of its attributes.\
 // `t.copy(month=1,day=1,hours=0,minutes=0,seconds=zero)` &quad; (copy to start of the year)\
@@ -377,11 +408,24 @@ public fun days-in-year( t : time) : int {
 // the timezone applied.\
 // `time(1972,1,2,tz=tz-gmt(1)).mjd == "41318"`\
 // `time(1972,1,2,tz=tz-gmt(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
-public fun mjd( t : time ) : fixed {
+public fun mjd( t : time, max-prec : int = 9 ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
-  t.instant.mjd( t.calendar.timescale, delta=t.tzdelta.timespan )
+  t.instant.mjd( t.calendar.timescale, max-prec, t.tzdelta.timespan )
 }
+
+// Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day)) 
+// number for a given `:time`. This interprets the Julian date in that calendar date with
+// the timezone applied.\
+// `time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
+// `time(1972,1,2,tz=tz-gmt(1)).jd == "2441318.5"`\
+// `time(1972,1,2,tz=tz-gmt(1)).instant.jd(ts-utc).show == "2441318.458333335"` 
+public fun jd( t : time, max-prec : int = 9 ) : fixed {
+  //trace("offset: " + t.tzdelta.show)
+  // adjust with the timezone delta so we display the mjd on the date.
+  t.mjd(max-prec) + jd-epoch-delta
+}
+val jd-epoch-delta  = fixed(24000005,1) 
 
 /*
 // Is this a Gregorian leap year?
