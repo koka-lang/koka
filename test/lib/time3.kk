@@ -58,14 +58,31 @@ fun test-sofa() {
   check("sofa4tai"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
   check("sofa4tt"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
   check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690496Z TCG" }   // sofa: .322690
+  // these differ slightly from SOFA resuls; perhaps due to different earth position (we always assume the geo-center)
   check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // sofa: .683799  @ lon:-155.933222, lat: 19.48125
-  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893821304Z TCB" }   // sofa: .893378  (differs because derived from tdb)
+  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952304Z TCB" }   // sofa: .893378  (differs because derived from tdb)
+  // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
+  check("skyfield-tt") { i.jd(ts-tt,12).show  == "2453751.392855138888" }  // skyfield: 2453751.392855139
+  check("skyfield-tdb"){ i.jd(ts-tdb,12).show == "2453751.392855143206" }  // skyfield: 2453751.3928551432
+  check("skyfield-tai1"){ instant-at(2014,1,1).jd(ts-tai,12).show == "2456658.500405092592" } // skyfield: 2456658.5004050927 
+  check("skyfield-tt1") { instant-at(2014,1,1).jd(ts-tt,12).show  == "2456658.500777592592" } // skyfield: 2456658.5007775929  
+  check("skyfield-tdb1"){ instant-at(2014,1,1).jd(ts-tdb,12).show == "2456658.500777591821" } // skyfield: 2456658.500777592  
 }
 
 public fun test-ut1() {
   println("load UT1 calendar")
   val calut1= cal-ut1(load-iers-ut1())
-  println( sofai.time(cal=calut1).show )              
+  val t = time(2012,6,30,23,59,58)
+  check("sofa-ut1"){ sofai.time(cal=calut1).show == "2006-01-15T21:24:37.834087400Z UT1" } // sofa: .834100 ; due to interpolation?
+  list(0,4).foreach fun(i) {
+    check("leap-ut" + i.show){ 
+      val s = (t + duration(i)).time(cal=calut1).show 
+      val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
+                           else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
+      // trace("s=" + s.show + ", r=" + r.show)
+      s == r
+    }
+  }
 }
 
 public fun main() {

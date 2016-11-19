@@ -86,8 +86,10 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
+// (and probably less as we expanded to more terms and do JPL planetary mass adjustment)
 fun tdb-delta( tt : timestamp ) : timespan {
-  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) 
+  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
+
   // First terms of Fairhead et al. model 
   val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
           +   22.4175e-6*sin( 5753.3859*t + 4.2970)
@@ -107,7 +109,11 @@ fun tdb-delta( tt : timestamp ) : timespan {
           (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
           (~0.00173e-6*sin(  74.781599*t + 2.435900)) +
             0.03638e-6*t*t;
-  timespan( (wf + wj).fixed ) // + tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0))            
+
+  // Topo centric adjustments
+  val wt = 0.0 // tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0)
+  
+  timespan( wf+wj+wt )
 }
 
 val pi2   = 6.283185307179586476925287      // 2pi
@@ -172,8 +178,7 @@ fun tdb-to-tai( tdb : timestamp ) : duration {
 // TDB is approximated from TT using an initial set of coefficients by
 // Fairhead &amp; Bretagnon (1990) assuming the geo center (longitude and latitude of 0 degrees).
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), equation 2.6).
-// The approximation is within 10&mu;s precision in the time span 1600 to 2200.
-// For other locations than the geo-center, the approximation is within 200&mu;s.
+// The approximation is within 10&mu;s precision in the time span 1600 to 2200 (and probably a bit less).
 public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
 
 
@@ -182,7 +187,7 @@ public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
 ----------------------------------------------------------------------------*/
 
 val lb   : double = 1.55051976772e-8 // 1.55051976772e-8
-val tdb0 : double = 6.55e-5 // ~6.55e-5
+val tdb0 : double = ~6.55e-5 // ~6.55e-5
 
 fun tai-to-tcb( tai : duration ) : timestamp {
   val tdb = ts-tdb.from-tai(tai)
