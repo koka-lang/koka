@@ -59,13 +59,15 @@ public fun round( f : fixed ) : fixed {
   f.round-to-prec(0)
 }
 
-public fun show( f : fixed, prec : int = ~1 ) : string {
-  trace("show: " + f.floor.show + " + " + f.ffraction.show-fixed)
-  if (prec==0) then return f.int.show
+public fun show( f : fixed, prec : int = ~1, max-prec : int = 15) : string {
+  // trace("show: " + f.floor.show + " + " + f.ffraction.show-fixed)
+  if (prec==0 || f.fraction.zero?) then return f.int.show
+  val fprec = if (prec.neg?) then max-prec else min(prec,max-prec)
+  val frac  = f.fraction.abs.round-to-prec(fprec)
+  if (frac.zero?) then return f.int.show
+  val fracs = frac.show-fixed(fprec).first(2).after.string
+  val frac0 = if (prec.neg?) then fracs else fracs.first(prec).string.pad-right(prec,'0') 
   val sign  = if (f.neg?) then "-" else ""
-  val fprec = if (prec.neg?) then 15 else min(prec,15)
-  val frac  = f.fraction.abs.show-fixed(fprec).first(2).after.string
-  val frac0 = if (prec.neg?) then frac else frac.first(prec).string.pad-right(prec,'0') 
   sign + f.trunc.abs.show + "." + frac0
 }
 

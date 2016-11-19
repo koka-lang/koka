@@ -27,7 +27,7 @@ import std/regex
 import std/path
 import std/file
 
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc

@@ -13,8 +13,8 @@
 */
 module std/time/time
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -120,12 +120,11 @@ public fun show(t : time, prec : int = 9 ) : string {
 // Optional `hmsep` for the hour-minute separator (=`":"`).
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
 public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
-  val dt = delta.seconds
+  val dt = delta.seconds.int
   if (dt.zero?) return utc
-  val (fmins,secs) = divmod(dt.abs,fixed(60),6) // millisecond precision
-  val mins = fmins.trunc.int
+  val (mins,secs) = divmod(dt.abs,60)
   val tz   = (if (dt.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
-  val tzs  = if (secs.zero?) then "" else ":" + show( timestamp(secs), 3 )
+  val tzs  = if (secs.zero?) then "" else ":" + secs.show0
   tz + tzs
 }
 
@@ -312,7 +311,7 @@ public fun weekdate( t : time, weekday-in-year : weekday = Thu ) : weekdate {
 
 // Return the weekday of a given time `t`.
 public fun weekday( t : time ) : weekday {
-  val days = t.mjd.floor.int
+  val days = t.mjd.floor
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
   dow.weekday                  // to ISO week day 
 }
@@ -323,7 +322,7 @@ public fun weekday( t : time ) : weekday {
 public fun year-frac( t : time ) : fixed {
   val dfrac = t.clock.total-seconds.double / 86400.0
   val yfrac = ((t.day-of-year.double - 1.0) + dfrac) / t.days-in-year.double
-  fixed-frac(t.year,yfrac)
+  fixed(t.year,yfrac)
 }
 
 // Return the total months in the year of time `t`.
@@ -408,10 +407,10 @@ public fun days-in-year( t : time) : int {
 // the timezone applied.\
 // `time(1972,1,2,tz=tz-gmt(1)).mjd == "41318"`\
 // `time(1972,1,2,tz=tz-gmt(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
-public fun mjd( t : time, max-prec : int = 9 ) : fixed {
+public fun mjd( t : time ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
-  t.instant.mjd( t.calendar.timescale, max-prec, t.tzdelta.timespan )
+  t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
 }
 
 // Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day)) 
@@ -420,12 +419,12 @@ public fun mjd( t : time, max-prec : int = 9 ) : fixed {
 // `time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
 // `time(1972,1,2,tz=tz-gmt(1)).jd == "2441318.5"`\
 // `time(1972,1,2,tz=tz-gmt(1)).instant.jd(ts-utc).show == "2441318.458333335"` 
-public fun jd( t : time, max-prec : int = 9 ) : fixed {
+public fun jd( t : time ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
-  t.mjd(max-prec) + jd-epoch-delta
+  t.mjd() + jd-epoch-delta
 }
-val jd-epoch-delta  = fixed(24000005,1) 
+val jd-epoch-delta  = fixed(2400000.5) 
 
 /*
 // Is this a Gregorian leap year?

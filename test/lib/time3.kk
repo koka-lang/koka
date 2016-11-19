@@ -10,9 +10,9 @@ module time3
 
 import std/path
 import std/file
-public import std/fixed
+public import std/num/fixed
 public import std/xtime
-public import std/time/timespan
+public import std/time/timestamp
 public import std/time/astro
 public import std/time/ut1
 
@@ -33,15 +33,15 @@ fun test-misc() {
 
 fun test-jd() {
   check("jd0"){ instant-at(2000,1,1,12,0,0).jd(ts-utc).show == "2451545" }
-  check("jd1"){ instant-at(2013,1,1,0,30,0).jd(ts-utc).show == "2456293.520833333" }
+  check("jd1"){ instant-at(2013,1,1,0,30,0).jd(ts-utc).show(9) == "2456293.520833333" }
   check("jd2"){ instant-at-jd(0.0,ts-utc).time.show == "-04713-11-24T12:00:00Z" }
   check("jd3"){ instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show == "-04713-01-01T12:00:00Z JC" }
-  check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show == "2456658.500405092" }
+  check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show(12) == "2456658.500405092593" }
 }
 
 fun test-astro() {
   // check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
-  check("astro2"){ instant-at-jd(fixed(24431445003725,7),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
+  check("astro2"){ instant-at-jd(fixed(2443144,0.5003725),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
 }
 
 public val sofai = instant-at(2006,1,15,21,24,37,0.5)
@@ -50,7 +50,7 @@ public val sofai = instant-at(2006,1,15,21,24,37,0.5)
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
 fun test-sofa() {
   check("sofa1"){ instant-at(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show == "2010-07-24T11:19:13.502Z TT" }
-  check("sofa2"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc) == fixed(2454526499998842,9) }
+  check("sofa2"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).show(12) == "2454526.499998842593" }
   check("sofa3"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show == "2008-03-01T00:00:00Z" }
   val i = sofai
   check("sofa4utc"){ i.time(cal=cal-iso).show == "2006-01-15T21:24:37.500Z" }
@@ -62,11 +62,11 @@ fun test-sofa() {
   check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // sofa: .683799  @ lon:-155.933222, lat: 19.48125
   check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952304Z TCB" }   // sofa: .893378  (differs because derived from tdb)
   // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
-  check("skyfield-tt") { i.jd(ts-tt,12).show  == "2453751.392855138888" }  // skyfield: 2453751.392855139
-  check("skyfield-tdb"){ i.jd(ts-tdb,12).show == "2453751.392855143206" }  // skyfield: 2453751.3928551432
-  check("skyfield-tai1"){ instant-at(2014,1,1).jd(ts-tai,12).show == "2456658.500405092592" } // skyfield: 2456658.5004050927 
-  check("skyfield-tt1") { instant-at(2014,1,1).jd(ts-tt,12).show  == "2456658.500777592592" } // skyfield: 2456658.5007775929  
-  check("skyfield-tdb1"){ instant-at(2014,1,1).jd(ts-tdb,12).show == "2456658.500777591821" } // skyfield: 2456658.500777592  
+  check("skyfield-tt") { i.jd(ts-tt).show(12)  == "2453751.392855138889" }  // skyfield: 2453751.392855139
+  check("skyfield-tdb"){ i.jd(ts-tdb).show(12) == "2453751.392855143207" }  // skyfield: 2453751.3928551432
+  check("skyfield-tai1"){ instant-at(2014,1,1).jd(ts-tai).show(12) == "2456658.500405092593" } // skyfield: 2456658.5004050927 
+  check("skyfield-tt1") { instant-at(2014,1,1).jd(ts-tt).show(12)  == "2456658.500777592593" } // skyfield: 2456658.5007775929  
+  check("skyfield-tdb1"){ instant-at(2014,1,1).jd(ts-tdb).show(12) == "2456658.500777591821" } // skyfield: 2456658.500777592  
 }
 
 public fun test-ut1() {
@@ -79,7 +79,7 @@ public fun test-ut1() {
       val s = (t + duration(i)).time(cal=calut1).show 
       val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
                            else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
-      // trace("s=" + s.show + ", r=" + r.show)
+      trace("s=" + s.show + ", r=" + r.show)
       s == r
     }
   }

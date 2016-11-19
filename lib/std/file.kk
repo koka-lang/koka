@@ -12,7 +12,7 @@
 public module std/file
 
 import std/path
-import std/fixed
+import std/num/fixed
 import std/time/duration
 import std/time/instant
 import std/time/utc

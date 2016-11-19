@@ -18,8 +18,8 @@
 */
 module std/time/instant
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 
 /*----------------------------------------------------------------------------
@@ -279,7 +279,7 @@ public fun show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : st
 /*----------------------------------------------------------------------------
   Julian Date
 ----------------------------------------------------------------------------*/
-val jd-epoch-delta  = fixed(24000005,1)  // relative to the MJD epoch 
+val jd-epoch-delta  = fixed(2400000.5)   // relative to the MJD epoch 
 val mjd-epoch-delta = fixed(51544)       // relative to our epoch (2000-01-01)
 val secs-per-day    = fixed(86400)
 
@@ -306,35 +306,34 @@ public fun instant-at-mjd( mjd : double, ts : timescale ) : instant {
 // `modified-julian-day = julian-day - 2400000.5`
 public fun instant-at-mjd( mjd : fixed, ts : timescale  ) : instant {
   val d    = mjd - mjd-epoch-delta // since our epoch
-  val t    = ts.y2k-epoch + timespan(d*secs-per-day) // since the time scale epoch
+  val t    = ts.y2k-epoch + (d*secs-per-day) // since the time scale epoch
   unsafe-instant-at(t,ts) 
 }
 
 // Return the julian day in a give time scale `ts` (=`ts-utc`) for an instant `i`.
-public fun jd( i : instant, ts : timescale, max-prec : int = 9 ) : fixed {
-  i.mjd(ts,max-prec) + jd-epoch-delta
+public fun jd( i : instant, ts : timescale ) : fixed {
+  i.mjd(ts) + jd-epoch-delta
 }
 
 // Return the modified julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion.
-public fun mjd( i : instant, ts : timescale, max-prec : int = 9, delta : timespan = timespan0 ) : fixed {
+public fun mjd( i : instant, ts : timescale, delta : timespan = timespan0 ) : fixed {
   val its = i.timestamp(ts)
   val leaps = its.leap-seconds
   if (leaps.zero?) then {
     // without leap seconds, just divide. 
     // TODO: we should really still check how many seconds are in this particular day;
     // if it contains a leap second, we need to divide the final day by the secs-per-day + the leap seconds.
-    val t = (its + delta) - ts.y2k-epoch.timespan
-    (div)(t.seconds, secs-per-day, max-prec) + mjd-epoch-delta
+    (((its.seconds + delta) - ts.y2k-epoch.timespan) / secs-per-day) + mjd-epoch-delta
   }
   else {
     // otherwise, divide the non-leap-seconds first, but for the seconds in the day
     // divide by the longer day so the day fraction is correct.
-    val secs = ((its.without-leap-seconds + delta) - ts.y2k-epoch.timespan).seconds
-    val w = div( secs, secs-per-day, 3 ).trunc
-    val r = secs - (w * secs-per-day)
-    val f = div(r + leaps.fixed, secs-per-day + leaps.fixed, max-prec)
+    val secs = ((its.non-leap-seconds + delta) - ts.y2k-epoch.timespan)
+    val w    = (secs / secs-per-day).floor.fixed
+    val r    = secs - (w * secs-per-day)
+    val f    = (r + leaps.fixed / secs-per-day + leaps.fixed)
     (w + f + mjd-epoch-delta)
   }
 }

@@ -14,8 +14,8 @@
 */
 module std/time/calendar
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -200,14 +200,14 @@ fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed-frac(xsecs + leap, nlfrac)  // adjust for leap seconds
+  val tsecs            = fixed(xsecs + leap, nlfrac)  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
 fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
-  val secs = c.seconds.trunc.int
-  val frac = c.seconds.fraction.double
+  val secs = c.seconds.trunc
+  val frac = c.seconds.fraction
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = date-to-days( d(day = d.day + xdays) )
@@ -311,7 +311,7 @@ public fun instant-at( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc
 fun weekday( d : date, cal : calendar ) : weekday {
   // Generic algorithm for any calendar
   val i    = instant-at(d.year,d.month,d.day,cal=cal)
-  val days = i.mjd(cal.timescale).floor.int
+  val days = i.mjd(cal.timescale).floor
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
   dow.weekday                  // to ISO week day 
 }
@@ -321,7 +321,7 @@ public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
   val i1 = instant-at(d1,cal=cal)
   val i2 = instant-at(d2,cal=cal)
   val ts = cal.timescale
-  (i1.mjd(ts) - i2.mjd(ts)).floor.int    
+  (i1.mjd(ts) - i2.mjd(ts)).floor
 }
 
 

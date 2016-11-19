@@ -51,6 +51,7 @@ fun test-tz() {
   check("tzleap3"){ instant-at(1979,1,1,3,29,59,tz=z2).time.show == "1978-12-31T23:59:59Z" }
   
   // round into a time zone skip
+  //println( time(2011,3,13,2,59,59,0.9999,tz=z1).show )
   check("tzround1"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show == "2011-03-13T01:59:59.999900-05:00 (EST)" }
   check("tzround2"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) == "2011-03-13T03:00:00-04:00 (EDT)" }
 

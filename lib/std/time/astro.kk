@@ -10,8 +10,8 @@
 */
 module std/time/astro
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/calendar
@@ -46,8 +46,8 @@ public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lg : double = 6.969290134e-10 // 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
-val tcg-epoch-delta = timespan(~725759967, ~0.816) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
+val lg : fixed = fixed(6.969290134e-10) // 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
+val tcg-epoch-delta = (~725759967.816).fixed // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
 
 // IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
@@ -55,7 +55,7 @@ val tcg-epoch-delta = timespan(~725759967, ~0.816) // 1977-01-01T00:00:32.184 TT
 // TCG = TT + Lg*(TT - TCG~epoch~)
 fun tcg-from-tai( tai : duration ) : timestamp {
   val tt = ts-tt.from-tai(tai)
-  tt + (lg*(tt - tcg-epoch-delta).double).timespan
+  tt + (lg*(tt - tcg-epoch-delta).timespan)
 }
 
 // IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932)):\
@@ -63,7 +63,7 @@ fun tcg-from-tai( tai : duration ) : timestamp {
 // =>
 // TT = TCG - Lg*(TCG - TCG~epoch~)
 fun tcg-to-tai( t : timestamp ) : duration {
-  val tt = t - (lg*(t - tcg-epoch-delta).double).timespan
+  val tt = t - (lg*(t - tcg-epoch-delta).timespan)
   ts-tt.to-tai(tt)
 }
 
@@ -79,7 +79,7 @@ public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = timespan(43200)       // 2000-01-01T12:00:00 TT
+val j2k-epoch = fixed(43200)       // 2000-01-01T12:00:00 TT
 val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
 // Compute tdb-delta(TT) = TDB - TT
@@ -88,7 +88,7 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 // (and probably less as we expanded to more terms and do JPL planetary mass adjustment)
 fun tdb-delta( tt : timestamp ) : timespan {
-  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
+  val t = (tt - j2k-epoch).seconds.double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
 
   // First terms of Fairhead et al. model 
   val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
@@ -113,7 +113,7 @@ fun tdb-delta( tt : timestamp ) : timespan {
   // Topo centric adjustments
   val wt = 0.0 // tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0)
   
-  timespan( wf+wj+wt )
+  fixed( wf+wj+wt )
 }
 
 val pi2   = 6.283185307179586476925287      // 2pi
@@ -186,18 +186,18 @@ public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
   TCB: Barycentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lb   : double = 1.55051976772e-8 // 1.55051976772e-8
-val tdb0 : double = ~6.55e-5 // ~6.55e-5
+val lb   : fixed = fixed(1.55051976772e-8) // 1.55051976772e-8
+val tdb0 : fixed = fixed(~6.55e-5) // ~6.55e-5
 
 fun tai-to-tcb( tai : duration ) : timestamp {
   val tdb = ts-tdb.from-tai(tai)
-  val adj = lb*(tdb - tcg-epoch-delta).double
-  tdb + (adj - tdb0).timespan
+  val adj = lb*(tdb - tcg-epoch-delta).timespan
+  tdb + (adj - tdb0)
 }
 
 fun tcb-to-tai( tcb : timestamp ) : duration {
-  val adj = lb*(tcb - tcg-epoch-delta).double
-  val tdb = tcb - (adj - tdb0).timespan 
+  val adj = lb*(tcb - tcg-epoch-delta).timespan
+  val tdb = tcb - (adj - tdb0)
   ts-tdb.to-tai(tdb)
 }
 

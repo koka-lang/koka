@@ -13,8 +13,8 @@
 */
 module std/time/date
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -84,15 +84,16 @@ public fun clock( d : duration ) : clock {
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60. 
 public fun clock( seconds : fixed ) : clock {
-  clock(seconds.trunc.int, seconds.fraction.double)
+  val hm     = (seconds / 60.fixed).floor
+  val s      = seconds - hm.fixed
+  val (h,m)  = divmod(hm,60)
+  Clock(h, m, s)
 }
 
 // Create a clock from a seconds as an `:int` with an optional fraction. 
 // Normalizes the clock with seconds and minutes under 60. 
 public fun clock( seconds : int, frac : double = 0.0 ) : clock {
-  val (hm,s) = divmod(seconds,60)
-  val (h,m)  = divmod(hm,60)
-  Clock(h, m, fixed(s.double + frac))
+  clock(fixed(seconds,frac))
 }
 
 
@@ -112,17 +113,17 @@ public fun total-seconds( c : clock ) : fixed {
 
 // Return the whole seconds part of a `:clock`.
 public fun whole-seconds( c : clock ) : int {
-  c.seconds.trunc.int
+  c.seconds.trunc
 }
 
 // Return the fraction of the seconds as milli-seconds (10^-3^).
 public fun milli-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e3).trunc.int
+  (c.seconds.fraction * 1.0e3).trunc.int
 }
 
 // Return the fraction of seconds as nano-seconds ((10^-9^).
 public fun nano-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e9).trunc.int
+  (c.seconds.fraction * 1.0e9).trunc.int
 }
 
 // Round a clock time to a certain number of digits precision (of the fraction of seconds) (default `9`, nano seconds).

@@ -60,7 +60,8 @@ More fun facts:
 module std/time/utc
 
 import std/regex
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 
@@ -99,7 +100,7 @@ extern now-precision() : ndet int {
 }
 
 public fun unix-timestamp( i :instant ) : double {
-  i.timestamp(ts-unix).double
+  i.timestamp(ts-unix).seconds.double
 }
 
 /*----------------------------------------------------------------------------
@@ -138,7 +139,7 @@ public val ts-ntp : timescale = utc-timescale( "NTP", timestamp(3155673600) )
 
 
 // Standard seconds per day (=`86400`). Note that a UTC day can contain extra leap seconds.
-val secs-per-day = 86400
+val secs-per-day = fixed(86400)
 
 // -----------------------------------------------------------
 // UTC calendar leap second calculation
@@ -166,18 +167,18 @@ struct leap-adjust(
   utc-start  : utc-timestamp,  // start time in UTC seconds since 1972-01-01Z
   offset     : timespan,       // base offset
   delta-start: utc-timestamp  = timestamp0,   // start of delta adjustment
-  delta      : double  = 0.0   
+  delta      : fixed = zero   
 )
 
 val leap-table0 = Leaps-table(epoch,[])
-val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,0.0)
+val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 
 // Get the leap-second adjustment
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = floor((utc-i.timespan - la.delta-start.timespan).double / secs-per-day.double)
-    la.offset + timespan(la.delta * days)
+    val days = ((utc-i.timespan - la.delta-start.timespan) / secs-per-day).floor.fixed
+    la.offset + (la.delta * days)
   }
 }
 
@@ -301,7 +302,7 @@ public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   
     val adjust  = cap.groups[2].parse-int-default(0)
     // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
-    Leap-adjust(timestamp(ntpsecs - ntp-shift), timespan(adjust), timestamp0, 0.0)
+    Leap-adjust(timestamp(ntpsecs - ntp-shift), adjust.fixed, timestamp0)
   }.reverse
 
   // get expiration date
@@ -309,7 +310,7 @@ public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
     val ntpex = cap.groups[1].parse-int-default(ntp-shift)
     timestamp(ntpex - ntp-shift)
-  }.default(la-final.utc-start + timespan(365*secs-per-day))
+  }.default(la-final.utc-start + (365.fixed*secs-per-day))
   // trace("expire: " + utc-expire.ts-show)
   val expire = unsafe-instant-at( utc-expire + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion..
 
@@ -365,7 +366,7 @@ val default-ietf-leap-seconds = @"
 val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
 
 val jd-epoch-shift     = 2400000.5
-val mjd-epoch-shift    = 4453401600 // 2000-01-01 TAI - 1858-11-17 TAI modified julian date epoch
+val mjd-epoch-shift    = 4453401600.fixed // 2000-01-01 TAI - 1858-11-17 TAI modified julian date epoch
 
 
 // Parse the standard UTC leap second adjustment file.\
@@ -376,10 +377,10 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     val ofs    = cap.groups[2].parse-double-default(0.0)
     val dmjd   = cap.groups[3].parse-double-default(0.0)
     val delta  = cap.groups[4].parse-double-default(0.0)
-    val start  = timestamp(mjd.int*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
-    val dstart = timestamp(dmjd.int*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
+    val start  = timestamp(mjd.fixed*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
+    val dstart = timestamp(dmjd.fixed*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
     // trace("pre72 start=" + start.show )
-    Leap-adjust( start, timespan(ofs), dstart, delta )
+    Leap-adjust( start, ofs.fixed, dstart, delta.fixed )
   }).reverse
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)

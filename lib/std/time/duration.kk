@@ -12,8 +12,8 @@
 */
 module std/time/duration
 
-import std/fixed
-import std/time/timespan
+import std/num/fixed
+import std/time/timestamp
 
 /*----------------------------------------------------------------------------
   Durations
@@ -26,7 +26,7 @@ abstract struct duration(
 )
 
 // A zero duration.
-public val duration0 : duration = Duration(timespan0)
+public val duration0 : duration = Duration(zero)
 
 // Convert a `:timespan` to a `:duration`. Be careful to only use
 // use this on timespan's that are in SI time units!
@@ -34,14 +34,14 @@ public fun unsafe-duration( t : timespan ) : duration {
   Duration(t)
 }
 
-fun duration( t : timespan ) : duration { 
+public fun duration( t : timespan ) : duration { 
   Duration(t) 
 }
 
 // Duration since the epoch of the time stamp. 
 // Be careful to only use this on time stamps in SI seconds!
 public fun unsafe-duration( ts : timestamp ) : duration {
-  Duration(ts.timespan)
+  Duration(ts.seconds)
 }
 
 // Convert a duration to a `:timespan`.
@@ -56,22 +56,17 @@ public fun timestamp( d : duration ) : timestamp {
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
 public fun duration( secs : int, frac : double = 0.0 ) : duration {
-  Duration(timespan(secs,frac))
-}
-
-// Create a duration from SI seconds as a `:fixed` point number.
-public fun duration( secs : fixed ) : duration {
-  Duration(timespan(secs))
+  Duration(fixed(secs,frac))
 }
 
 // Create a duration from seconds as a `:double`.
 public fun duration( secs : double ) : duration {
-  Duration(timespan(secs))
+  Duration(fixed(secs))
 }
 
 // Return the duration in SI seconds.
-public fun seconds( d : duration ) : fixed {
-  d.secs.seconds
+public fun seconds( d : duration ) : timespan {
+  d.secs
 }
 
 // The whole seconds (in some time unit) of the duration as `:int``.
@@ -139,7 +134,7 @@ public fun (-)( d : duration, e : duration ) : duration {
 
 // Show a duration in SI seconds.
 public fun show( d : duration, max-prec : int = 9 ) : string {
-  d.secs.ts-show(max-prec) + "s"
+  d.secs.show(max-prec) + "s"
 }
 
 // Create a `:duration` of `n` seconds.
