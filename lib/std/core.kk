@@ -1469,8 +1469,8 @@ extern inline (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
 extern inline (+) : (double,double) -> double { inline "(#1 + #2)" }
 extern inline (-) : (double,double) -> double { inline "(#1 - #2)" }
 extern inline (*) : (double,double) -> double { inline "(#1 * #2)" }
-extern inline cdiv : (double,double) -> double { inline "(#1 / #2)" }
-extern inline cmod : (double,double) -> double { inline "(#1 % #2)" }
+extern inline (/) : (double,double) -> double { inline "(#1 / #2)" }
+extern inline (%) : (double,double) -> double { inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {
@@ -1503,6 +1503,7 @@ fun (~)(d : double ) : double {
   0.0 - d
 }
 
+/*
 fun (/)(x : double, y : double ) : double {
   if (y.zero?) then return y
   val q = cdiv(x,y)
@@ -1519,6 +1520,7 @@ fun (%)(x : double, y : double ) : double {
   elif (y>0.0) then r + y
   else r - y
 }
+*/
 
 // Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
 // if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
@@ -1651,10 +1653,36 @@ fun fraction(d : double) : double {
   d - d.trunc
 }
 
-// Return the absolute value of a `:double` `d` 
+// Return the `d` raised to the power of `p`. 
 extern inline pow : (d:double, p:double) -> double  { 
   cs "Math.Pow"
   js "Math.pow" 
+}
+
+// Return the natural logarithm (in base _e_)  of a `:double` `d` 
+extern inline log : (d:double) -> double  { 
+  cs "Math.Log"
+  js "Math.log" 
+}
+
+// Return the logarithm in base 10 of a `:double` `d`.
+fun log10( d : double ) : double {
+  log(d) / log(10.0)
+}
+
+// Return the logarithm in base 2 of a `:double` `d`.
+fun log2( d : double ) : double {
+  log(d) / log(2.0)
+}
+
+// Return the 10 to the power of `p`.
+fun pow10( p : double ) : double {
+  pow(10.0,p)
+}
+
+// Return the 2 to the power of `p`.
+fun pow2( p : double ) : double {
+  pow(2.0,p)
 }
 
 // Round a double to a specified precision
