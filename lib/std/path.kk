@@ -179,6 +179,11 @@ public fun (+)(p1 : path, p2: path) : path {
   Path(p1.root,p2.parts + p1.parts)
 }
 
+// Return the first path if it is not empty, otherwise return the second one.
+public fun (||)(p1 : path, p2: path) : path {
+  if (p1.empty?) then p2 else p1
+}
+
 // Combine multiple paths using `(+)`.
 public fun combine( ps : list<path> ) : path {
   match(ps) {

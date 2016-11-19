@@ -7,15 +7,26 @@
 ----------------------------------------------------------------------------*/
 
 /* The UT1 time scale and calendar.
+
+```
+val calut1 = cal-ut1( load-iers-ut1() )
+val i = now()
+i.time().show.println             // in UTC
+i.time(cal=calut1).show.println   // in UT1
+```
 */
 module std/time/ut1
 
+import std/path
 import std/fixed
 import std/regex
+
 import std/time/timespan
 import std/time/duration
 import std/time/instant
 import std/time/utc
+import std/time/download
+
 import std/time/astro
 import std/time/calendar
 import std/time/time
@@ -27,6 +38,31 @@ import std/time/time
 // (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
 public fun cal-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) {
   iso-calendar( ts-ut1(override) )
+}
+
+
+
+
+// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
+// information for precise UT1 determination. 
+// Looks by default for the file `fname` (= `"config/finals2000A.all"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish.
+public fun load-iers-ut1( fname : path = path(""), 
+                          url   : string = "auto",
+                          download-delay : duration   = 4.weeks,
+                          download-timeout : duration = 20.seconds  // 3mb file!
+                         ) : <io,async> ((i:instant) -> maybe<duration>) {
+  val xfname = (fname || appdir() + path("config/finals2000A.all"))
+  val xurl   = (if (url=="auto") then "http://toshi.nofs.navy.mil/ser7/finals2000A.all" else url)
+  val dtt    = load-latest( xfname, xurl, parse-iers-ut1, fun(dtt:dut-table){ Just(dtt.expire) }, 
+                            download-timeout=download-timeout,download-delay=download-delay,
+                            error-prefix="load IERS-A table" 
+                          )
+  (fun(i:instant){ dut-deltat(dtt,i) })
 }
 
 // -----------------------------------------------------------
@@ -869,15 +905,15 @@ val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
 
 // A table of DUT (= UT1 - UTC) entries parsed from a IERS finals2000A file.
-abstract struct dut-table(
-  public expire: instant,
+struct dut-table(
+  expire: instant,
   start : double,   // start mjd
   end   : double,   // end mjd
   duts  : vector<double> // one entry per day                      
 )
 
 // Calculate &Delta;T from a DUT table.
-public fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
+fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
   on-exn(Nothing) {
     val utci = i.use(ts-utc)
     val mjd = utci.mjd(ts-utc).double
@@ -891,17 +927,10 @@ public fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
   }
 }
 
-// Parse a ``finals2000A.all`` file into a override function for 
-// very precise &Delta;T calculation.
-// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
-public fun parse-finals2000A( s : string ) : ((i : instant) -> maybe<duration>) {
-  match(parse-finals2000A-ex(s)) {
-    Just(dtt) -> (fun(i) { dtt.dut-deltat(i) })
-    Nothing   -> deltat-none
-  }
-}
 
-public fun parse-finals2000A-ex( s : string ) : maybe<dut-table> {
+// Parse a ``finals2000A.all`` file into DUT table very precise &Delta;T calculation (using `dut-deltat`)
+// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
+fun parse-iers-ut1( s : string ) : maybe<dut-table> {
   val start   = match( s.find(rx-finals-start) ) {
                   Nothing   -> 41684.0
                   Just(cap) -> cap.groups[1].parse-double-default(41684.0)

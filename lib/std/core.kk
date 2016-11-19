@@ -226,11 +226,6 @@ fun on-success( hndler : () -> e (), action : () -> e a ) : e a
   return x
 }
 
-// Ignore any Exceptions
-fun ignore( action : () -> <exn|e> () ) : e () {
-  catch( action, fun(_) { () })
-}
-
 // Transform an Exception to an `:either` type.
 fun try( action : () -> <exn|e> a ) : e either<exception,a> {
   catch({ Right(action()) },Left)
@@ -272,6 +267,11 @@ fun apply(f,x) {
 // Compose two funs `f` and `g`.
 fun o(f,g) {
   (fun(x){ f(g(x)) })
+}
+
+// The `ignore` function ignores its argument.
+fun ignore( x : a ) : () {
+  ()
 }
 
 
@@ -373,7 +373,7 @@ fun map( m : maybe<a>, f : a -> e b ) : e maybe<b> {
   }
 }
 
-fun (+)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a> {
+fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a> {
   match(m1) {
     Nothing -> m2
     _       -> m1

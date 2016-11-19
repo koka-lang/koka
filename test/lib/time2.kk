@@ -46,5 +46,6 @@ fun test-leap() {
 
 
 public fun main() {
+  update-leaps-table()
   test-leap()
 }

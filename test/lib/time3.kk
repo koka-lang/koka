@@ -63,11 +63,8 @@ fun test-sofa() {
 }
 
 public fun test-ut1() {
-  val fname = appdir() + path("config/finals2000A.all")
-  val calut1= catch {
-                cal-ut1( parse-finals2000A( read-text-file-sync(fname.string) ) )
-              }
-              fun(exn) { trace("failed: " + exn.show ); cal-ut1() }
+  println("load UT1 calendar")
+  val calut1= cal-ut1(load-iers-ut1())
   println( sofai.time(cal=calut1).show )              
 }
 

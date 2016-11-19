@@ -7,6 +7,55 @@
 ----------------------------------------------------------------------------*/
 
 /* UTC time scales and leap second support.
+
+For proper UTC to TAI conversion, we need to know where leap seconds occur.
+The occurrence of leap seconds cannot be reliably predicted though and 
+the [IERS announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html) 
+leap seconds at most a year in advance. 
+The [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list) 
+table contains a list of all currently announced leap seconds.
+
+As such, many functions operating on time would be non-deterministic for
+any future date as they may be off by a number of, as yet unannounced, leap seconds.
+To makes all these function non-deterministic, or to give them all a leap second table
+argument seems a bit too cumbersome. So, instead we choose to ignore this form
+of non-determinism and make the leap second table a hidden global variable. The 
+internal table is valid up to the release of the compiler. 
+
+It is recommended to call [`update-leaps-table`](std_time_download.html#update_leaps_table) at the 
+start of a program which will automatically ensure the leap second table is up-to-date
+(automatically downloading and caching the IETF leap second file as necessary).
+
+## UTC before 1972-01-01Z
+
+The IERS (and IETF table) defines leap seconds after 1972-01-01Z. Before that the 
+leap seconds were defined as a continuous linear interpolation (or 'drift')
+(see the [USNO](http://maia.usno.navy.mil/ser7/tai-utc.dat) table). For dates between
+1961-01-01Z this table is used for UTC time calculations.
+
+The difference (TAI - UT1) was approximately zero at the TAI epoch 1958-01-01Z (most close at 1958-01-12T15:00:00).
+Since 1958-01-01 up to 1961-01-01Z the relation between TAI and UTC was not 
+well defined (historically there seems to have been 29 20ms jumps in that time frame).
+Starting in 1961-01-01Z, the initial UTC offset was 1.422818s. To avoid having to insert
+such an odd initial leap second, we choose to extend the USNO table to linearly interpolate
+a 'drift' from 1958-01-01 to 1961-01-01 with one extra entry in the [USNO table](http://maia.usno.navy.mil/ser7/tai-utc.dat):\
+``#1958 JAN  12=JD 2436216.125  TAI-UTC=   0.0000000 S + (MJD - 36215.625) X 0.0013121088 S``\
+This makes the UTC coincide with TAI up to 1958-01-01, and continuously interpolated up to 1972-01-01,
+followed by modern integral leap-seconds.
+
+More fun facts:
+
+* There was a small 0.05s discontinuity in the 'drift' at 1961-08-01Z:
+  ```
+  instant-at(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show == "1961-07-31T23:59:59.902430Z" 
+  instant-at(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show == "1961-08-01T00:00:00.052430Z" 
+  ```
+* On the transition to modern UTC at 1972-01-01Z there is a mini leap second 0.107758s. 
+  ```
+  instant-at(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show == "1971-12-31T23:59:60.107757999Z" 
+  instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" 
+  ```
+
 */
 module std/time/utc
 
@@ -19,6 +68,7 @@ extern include {
   // cs file "time-inline.cs"
   js file "utc-inline.js"
 }
+
 
 
 /*----------------------------------------------------------------------------
@@ -104,11 +154,10 @@ val secs-per-day = 86400
 alias utc-timestamp = timestamp
 
 
-// A leap second table is a list of tuples. 
-// Each entry gives the start instant and integer leap second adjustment.
+// A leap second table describes when UTC leap seconds occur.
 abstract struct leaps-table(
   public expire : instant,       
-  adjusts: list<leap-adjust>
+  adjusts: list<leap-adjust> // Each entry gives the start instant and integer leap second adjustment.
 )
 
 // Leap second adjustments. For an instant `i` after `start`:\
@@ -138,32 +187,33 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
 val global-leaps-table : () -> ref<global,leaps-table> = once{
   unsafe-total{ 
     val pre72  = leap-seconds-pre72()
-    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default(leap-table0)
+    val post72 = parse-leaps-table( default-ietf-leap-seconds ).default(leap-table0)
     // trace("parse leap tables: " + pre72.length.show)
     ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
   }
 }
 
-// Get the global leap second table
-fun get-leaps-table() : st<global> leaps-table {
+// Get the global leap second table.
+public fun get-leaps-table() : st<global> leaps-table {
   !(global-leaps-table()) 
 }
 
-// Update the leap second table from a fresh IETF leap second file.
+
+// Update the leap second table from a leap seconds table.
 // Only performs the update if the provided table has a later expiry date.
-// Latest files available at: <https://www.ietf.org/timezones/data/leap-seconds.list>
-public fun update-leap-seconds( ietf-leap-table : string ) : io () {
-  val post72 = parse-leap-seconds( ietf-leap-table ).default(leap-table0)
+// The preferred way of updating the leap second table is through 
+// [`update-leaps-table`](std_time_download.html#update_leaps_table).
+public fun set-leaps-table( post72 : leaps-table ) : io () {
   if (post72.expire > get-leaps-table().expire) then {
     val r = global-leaps-table()
     r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
   }
 }
 
-// Return the UTC timestamp since the epoch when the current leap second table expires.
-fun leap-seconds-expire() : io instant {
-  get-leaps-table().expire
-}
+
+/*----------------------------------------------------------------------------
+  UTC to TAI conversion
+----------------------------------------------------------------------------*/
 
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
 fun utc-to-tai( t : timestamp ) : duration {
@@ -242,9 +292,10 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
 
 val ntp-shift = 3155673600  // 2000-01-01 TAI - 1900-01-01 TAI in seconds
 
-// Parse a NIST (IETF) leap second table.
-// See: <https://www.ietf.org/timezones/data/leap-seconds.list>
-public fun parse-leap-seconds( leaps : string ) : maybe<leaps-table> {
+
+// Parse a leap second table from text in the the [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list) 
+// file format.
+public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   

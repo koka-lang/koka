@@ -31,12 +31,38 @@ import std/time/timespan
 import std/time/duration
 import std/time/instant
 import std/time/utc
+import std/time/download
 import std/time/calendar
 import std/time/time
 
 extern include {
   js file "timezone-inline.js"
 }
+
+
+
+// Load a time zone information from a [packed json](http://momentjs.com/timezone/docs/#/data-formats/packed-format)
+// format. Looks by default for the file `fname` (= `"config/timezones.json"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`10.seconds`) gives the maximum time for downloading to finish.
+public fun load-timezones( fname : path = path(""), 
+                           url   : string = "auto",
+                           download-delay : duration   = 4.weeks,
+                           download-timeout : duration = 10.seconds 
+                         ) : <io,async> timezones 
+{
+  fun parse(s :string) : maybe<timezones> {
+    try{ parse-packed-zones(s) }.maybe
+  }
+  val xfname = (fname || appdir() + path("config/timezones.json"))
+  val xurl   = (if (url=="auto") then "https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json" else url)
+  load-latest( xfname, xurl, parse, download-delay=download-delay, download-timeout=download-timeout,
+               error-prefix="load timezone table")
+}
+
 
 /*----------------------------------------------------------------------------
   Time zone info
@@ -252,7 +278,7 @@ public fun timezones( zones : list<timezone-info> ) {
 // file. Looks by default for the file `"config/timezones.json"` in the application directory
 // but an optional file name can be supplied. 
 // The latest version can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
-public fun load-timezones( fname : string = "" ) : io timezones {
+public fun load-timezones-from( fname : string = "" ) : io timezones {
   val fpath = if (fname.empty?) then appdir() + path("config/timezones.json") else fname.path
   parse-packed-zones(read-text-file-sync(fpath.string))
 }
