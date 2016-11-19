@@ -54,13 +54,13 @@ fun test-sofa() {
   check("sofa3"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show == "2008-03-01T00:00:00Z" }
   val i = sofai
   check("sofa4utc"){ i.time(cal=cal-iso).show == "2006-01-15T21:24:37.500Z" }
-  check("sofa4ut1"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // sofa: .834100 ; should be between 0.8340874 and 0.8340738
+  check("sofa4ut1"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
   check("sofa4tai"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
   check("sofa4tt"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
-  check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690496Z TCG" }   // sofa: .322690
-  // these differ slightly from SOFA resuls; perhaps due to different earth position (we always assume the geo-center)
-  check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // sofa: .683799  @ lon:-155.933222, lat: 19.48125
-  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952304Z TCB" }   // sofa: .893378  (differs because derived from tdb)
+  check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690496Z TCG" }   // astropy: 43.322690497
+  // these differ slightly from astropy but up to 2micro-seconds
+  check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // astropy: 42.684371185
+  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952304Z TCB" }   // astropy: 56.893950657  (differs because derived from tdb)
   // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
   check("skyfield-tt") { i.jd(ts-tt).show(12)  == "2453751.392855138889" }  // skyfield: 2453751.392855139
   check("skyfield-tdb"){ i.jd(ts-tdb).show(12) == "2453751.392855143207" }  // skyfield: 2453751.3928551432
@@ -73,7 +73,7 @@ public fun test-ut1() {
   println("load UT1 calendar")
   val calut1= cal-ut1(load-iers-ut1())
   val t = time(2012,6,30,23,59,58)
-  check("sofa-ut1"){ sofai.time(cal=calut1).show == "2006-01-15T21:24:37.834087400Z UT1" } // sofa: .834100 ; due to interpolation?
+  check("sofa-ut1"){ sofai.time(cal=calut1).show == "2006-01-15T21:24:37.834087400Z UT1" } // astropy: 37.834077793, sofa: 37.834100 ; due to interpolation?
   list(0,4).foreach fun(i) {
     check("leap-ut" + i.show){ 
       val s = (t + duration(i)).time(cal=calut1).show 
