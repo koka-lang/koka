@@ -59,6 +59,18 @@ public fun seconds( t : timespan ) : fixed {
   if (t.frac.zero?) then fixed(t.secs) else fixed(t.secs) + fixed(t.frac)
 }
 
+// The whole seconds (in some time unit) since the epoch of the time span as `:int``.
+public fun trunc( t : timespan ) : int {
+  t.secs + t.frac.trunc.int
+}
+
+// The fractional seconds since the epoch of the time span as a `:double`.
+// `t.seconds == t.trunc.fixed + t.fraction.fixed
+public fun fraction( t : timespan ) : double {
+  t.frac.fraction
+}
+
+
 // Is this a negative timespan?
 public fun neg?( t : timespan ) : bool {
   t.secs.neg?
@@ -197,6 +209,18 @@ public fun double( ts : timestamp ) : double {
 public fun seconds( ts : timestamp ) : fixed {
   ts.since.seconds
 }
+
+// The whole seconds (in some time unit) since the epoch of the time stamp as `:int``.
+public fun trunc( t : timestamp ) : int {
+  t.since.trunc
+}
+
+// The fractional seconds since the epoch of the time stamp as a `:double`.
+// `t.seconds == t.trunc.fixed + t.fraction.fixed
+public fun fraction( t : timestamp ) : double {
+  t.since.fraction
+}
+
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
 public fun round-to-prec(t : timestamp, prec : int ) : timestamp {

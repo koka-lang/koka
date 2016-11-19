@@ -107,7 +107,7 @@ alias utc-timestamp = timestamp
 // A leap second table is a list of tuples. 
 // Each entry gives the start instant and integer leap second adjustment.
 abstract struct leaps-table(
-  expire : instant,       
+  public expire : instant,       
   adjusts: list<leap-adjust>
 )
 
@@ -138,7 +138,7 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
 val global-leaps-table : () -> ref<global,leaps-table> = once{
   unsafe-total{ 
     val pre72  = leap-seconds-pre72()
-    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default((epoch,leap-table0)).snd
+    val post72 = parse-leap-seconds( default-ietf-leap-seconds ).default(leap-table0)
     // trace("parse leap tables: " + pre72.length.show)
     ref(post72(adjusts = post72.adjusts + pre72))  // reverse order
   }
@@ -153,7 +153,7 @@ fun get-leaps-table() : st<global> leaps-table {
 // Only performs the update if the provided table has a later expiry date.
 // Latest files available at: <https://www.ietf.org/timezones/data/leap-seconds.list>
 public fun update-leap-seconds( ietf-leap-table : string ) : io () {
-  val post72 = parse-leap-seconds( ietf-leap-table ).default((epoch,leap-table0)).snd
+  val post72 = parse-leap-seconds( ietf-leap-table ).default(leap-table0)
   if (post72.expire > get-leaps-table().expire) then {
     val r = global-leaps-table()
     r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
@@ -244,7 +244,7 @@ val ntp-shift = 3155673600  // 2000-01-01 TAI - 1900-01-01 TAI in seconds
 
 // Parse a NIST (IETF) leap second table.
 // See: <https://www.ietf.org/timezones/data/leap-seconds.list>
-public fun parse-leap-seconds( leaps : string ) : maybe<(instant,leaps-table)> {
+public fun parse-leap-seconds( leaps : string ) : maybe<leaps-table> {
   // get leap second adjustments
   val las = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(ntp-shift)   
@@ -263,7 +263,7 @@ public fun parse-leap-seconds( leaps : string ) : maybe<(instant,leaps-table)> {
   val expire = unsafe-instant-at( utc-expire + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion..
 
   val table = Leaps-table(expire,las)
-  Just((expire, table))
+  Just(table)
 }
 val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)

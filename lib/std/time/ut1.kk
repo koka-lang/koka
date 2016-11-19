@@ -868,15 +868,40 @@ fun parse-historic( start: double, s : string ) : deltat-table {
 val rxdouble = regex(@"-?\d+(?:\.\d+)?")
 val rxcomment = regex(@"//.*")
 
+// A table of DUT (= UT1 - UTC) entries parsed from a IERS finals2000A file.
+abstract struct dut-table(
+  public expire: instant,
+  start : double,   // start mjd
+  end   : double,   // end mjd
+  duts  : vector<double> // one entry per day                      
+)
+
+// Calculate &Delta;T from a DUT table.
+public fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
+  on-exn(Nothing) {
+    val utci = i.use(ts-utc)
+    val mjd = utci.mjd(ts-utc).double
+    if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
+      val idx = (mjd - dtt.start).trunc.int
+      val dut = dtt.duts[idx]
+      val dt  = (i.timestamp(ts-tt) - dut.timespan) - utci.timestamp(ts-utc).timespan
+      // trace("found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      Just( unsafe-duration(dt) )
+    }
+  }
+}
 
 // Parse a ``finals2000A.all`` file into a override function for 
 // very precise &Delta;T calculation.
 // See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
 public fun parse-finals2000A( s : string ) : ((i : instant) -> maybe<duration>) {
-  parse-finals2000A-ex(s).map(snd).default(deltat-none)
+  match(parse-finals2000A-ex(s)) {
+    Just(dtt) -> (fun(i) { dtt.dut-deltat(i) })
+    Nothing   -> deltat-none
+  }
 }
 
-public fun parse-finals2000A-ex( s : string ) : maybe<(instant,(i : instant) -> maybe<duration>)> {
+public fun parse-finals2000A-ex( s : string ) : maybe<dut-table> {
   val start   = match( s.find(rx-finals-start) ) {
                   Nothing   -> 41684.0
                   Just(cap) -> cap.groups[1].parse-double-default(41684.0)
@@ -893,20 +918,7 @@ public fun parse-finals2000A-ex( s : string ) : maybe<(instant,(i : instant) -> 
   // trace("finals200A expire: " + expire.time.show)
   // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
   // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
-  fun override(i : instant) { 
-     on-exn(Nothing) {
-       val utci = i.use(ts-utc)
-       val mjd = utci.mjd(ts-utc).double
-       if (mjd < start || mjd >= end) then Nothing else {
-          val idx = (mjd - start).trunc.int
-          val dut = entries[idx]
-          val dt  = (i.timestamp(ts-tt) - dut.timespan) - utci.timestamp(ts-utc).timespan
-          // trace("found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
-          Just( unsafe-duration(dt) )
-       }
-     }
-  }
-  Just((expire,override))
+  Just(Dut-table(expire,start,end,entries))
 }
 val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
 val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)

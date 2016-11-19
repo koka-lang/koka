@@ -74,6 +74,16 @@ public fun seconds( d : duration ) : fixed {
   d.secs.seconds
 }
 
+// The whole seconds (in some time unit) of the duration as `:int``.
+public fun trunc( d : duration ) : int {
+  d.secs.trunc
+}
+
+// The fractional seconds of a duration as a `:double`.
+// `d.seconds == d.trunc.fixed + d.fraction.fixed
+public fun fraction( d : duration ) : double {
+  d.secs.fraction
+}
 
 // Is this a negative duration?
 public fun neg?( d : duration ) : bool {
@@ -121,3 +131,21 @@ public fun (-)( d : duration, e : duration ) : duration {
 public fun show( d : duration, max-prec : int = 9 ) : string {
   d.secs.ts-show(max-prec) + "s"
 }
+
+// Create a `:duration` of `n` seconds.
+public fun seconds( n : int ) : duration { duration(n) }
+
+// Create a `:duration` of `n` minutes.
+public fun minutes( n : int ) : duration { duration(n*60) }
+
+// Create a `:duration` of `n` hours.
+public fun hours( n : int )   : duration { duration(n*3600) }
+
+// Create a `:duration` of `n` days (assuming 86400s in a day).
+public fun days( n : int )    : duration { duration(n*86400) }
+
+// Create a `:duration` of `n` weeks (assuming 7 days of 86400s).
+public fun weeks( n : int )   : duration { duration(n*7*86400) }
+
+// Create a `:duration` of `n` years (assuming 365 days of 86400s).
+public fun years( n : int )   : duration { duration(n*365*86400) }

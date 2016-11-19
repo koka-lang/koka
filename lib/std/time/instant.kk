@@ -164,6 +164,15 @@ public fun (>=)( i : instant, j : instant ) : bool { compare(i,j) != Lt }
 public fun (==)( i : instant, j : instant ) : bool { compare(i,j) == Eq }
 public fun (!=)( i : instant, j : instant ) : bool { compare(i,j) != Eq }
 
+// The minimum of two instants.
+public fun min( i : instant, j : instant ) : instant {
+  if (i <= j) then i else j
+}
+
+// The maximum of two instants.
+public fun max( i : instant, j : instant ) : instant {
+  if (i >= j) then i else j
+}
 
 // Add a duration to an instant in time.
 public fun (+)( i : instant, d : duration ) : instant {

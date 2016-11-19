@@ -77,6 +77,25 @@ public struct clock(
   seconds : fixed
 )
 
+// Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60. 
+public fun clock( d : duration ) : clock {
+  clock(d.seconds)
+}
+
+// Create a clock from seconds; normalizes the clock with seconds and minutes under 60. 
+public fun clock( seconds : fixed ) : clock {
+  clock(seconds.trunc.int, seconds.fraction.double)
+}
+
+// Create a clock from a seconds as an `:int` with an optional fraction. 
+// Normalizes the clock with seconds and minutes under 60. 
+public fun clock( seconds : int, frac : double = 0.0 ) : clock {
+  val (hm,s) = divmod(seconds,60)
+  val (h,m)  = divmod(hm,60)
+  Clock(h, m, fixed(s.double + frac))
+}
+
+
 // The zero clock
 public val clock0 = Clock(0,0,zero)
 
