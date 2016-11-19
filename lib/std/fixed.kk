@@ -43,7 +43,7 @@ fun parse-fixed( s : string ) : maybe<fixed> {
     }
   }
 }
-val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
+private val rx-fixed = regex(@"^([\-\+]?\d+)(?:\.(\d+))?$")
 
 
 // Create a new fixed-point number from an integer `i` putting the decimal point at `prec` (=`0`) digits from the right.
@@ -115,10 +115,14 @@ fun (-)( x : fixed, y : fixed ) : fixed {
 
 // Add two fixed-point numbers.
 fun (+)( x : fixed, y : fixed ) : fixed {
-  val p  = max(x.prec,y.prec)
-  val xp = x.expand(p)
-  val yp = y.expand(p)
-  Fixed(xp.fix + yp.fix, p)
+  if (x.zero?) then y
+  elif (y.zero?) then x 
+  else {
+    val p  = max(x.prec,y.prec)
+    val xp = x.expand(p)
+    val yp = y.expand(p)
+    Fixed(xp.fix + yp.fix, p)
+  }
 }
 
 // Multiply two fixed-point numbers with an optional maximum precision `max-prec` (=`~1`). 
@@ -130,23 +134,28 @@ fun (*)( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
 // Multiply two fixed-point numbers with an optional maximum precision `max-prec` (=`~1`). 
 // If the maximum precision is negative, the multiplication will be precise.
 fun mul( x : fixed, y : fixed, max-prec : int = ~1 )  : fixed {
-  val p  = max(x.prec,y.prec)
-  val xp = x.expand(p)
-  val yp = y.expand(p)
-  val z  = Fixed(xp.fix * yp.fix, 2*p).reduce
-  if (max-prec>=0) then z.round-to-prec(max-prec) else z.round-to-prec(p)
+  if (x.zero? || y.zero?) then fixed(0) else {
+    val p  = max(x.prec,y.prec)
+    val xp = x.expand(p)
+    val yp = y.expand(p)
+    val z  = Fixed(xp.fix * yp.fix, 2*p).reduce
+    if (max-prec>=0) then z.round-to-prec(max-prec) else z.round-to-prec(p)
+  }
 }
 
 // Euclidean division and modulus up to a specified maximum precision (=`20` digits).
 fun divmod( x : fixed, y : fixed, max-prec : int = 20) : (fixed,fixed) {
-  val p  = max(x.prec,y.prec)
-  val xp = x.expand(p)
-  val yp = y.expand(p)
-  val dp = if (max-prec >= 0) then max-prec else 2*p
-  val q  = xp.fix.mul-pow10(dp) / yp.fix
-  val qq = Fixed(q,dp).reduce
-  val rr = xp - mul(qq,yp)
-  (qq,rr.reduce)
+  if (x.zero? || y.zero?) then (zero,zero)
+  else {
+    val p  = max(x.prec,y.prec)
+    val xp = x.expand(p)
+    val yp = y.expand(p)
+    val dp = if (max-prec >= 0) then max-prec else 2*p
+    val q  = xp.fix.mul-pow10(dp) / yp.fix
+    val qq = Fixed(q,dp).reduce
+    val rr = xp - mul(qq,yp)
+    (qq,rr.reduce)
+  }
 }
 
 fun show( t : (fixed,fixed) ) : string {
@@ -202,7 +211,7 @@ fun round( f : fixed ) : fixed {
 // Truncate a fixed-point number to a certain precision.
 fun trunc-to-prec( x : fixed, p : int ) : fixed {
   if (x.zero?) return zero
-  if (!x.prec.pos?) return x
+  if (x.prec.neg?) return x
   val z = x.prec - p
   if (z.pos? && z <= x.prec) then {
     Fixed( x.fix.cdiv-pow10(z), x.prec - z)
@@ -212,7 +221,7 @@ fun trunc-to-prec( x : fixed, p : int ) : fixed {
 
 // Return the fraction of a fixed-point number from a specified precision.
 fun fraction-to-prec( f : fixed, p : int ) : fixed {
-  if (!f.prec.pos?) then zero else f - f.trunc-to-prec(p)
+  f - f.trunc-to-prec(f.prec - p)
 }
 
 // Truncate a fixed-point number.
@@ -229,11 +238,11 @@ fun floor( f : fixed ) : fixed {
 
 // Return the fraction of a fixed-point number.
 fun fraction( f : fixed ) : fixed {
-  f.fraction-to-prec(0)
+  f.fraction-to-prec(f.prec)
 }
 
 // The zero fixed-point number.
-val zero = Fixed(0,0)
+val zero : fixed = Fixed(0,0)
 
 fun zero?( x : fixed ): bool  {x.fix.zero?}
 fun pos?( x : fixed ) : bool  {x.fix.pos?}
