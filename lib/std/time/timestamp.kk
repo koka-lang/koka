@@ -53,9 +53,9 @@ public fun timestamp( secs : double, leap-seconds : int = 0 ) : timestamp {
   timestamp(fixed(secs),leap-seconds)
 }
 
-// The time span since the epoch of the time stamp.
+// The time span since the epoch of the time stamp. (including leap seconds)
 public fun timespan( ts : timestamp ) : timespan {
-  ts.since
+  ts.seconds
 }
 
 // The total seconds (in some time unit) since the epoch of the time stamp
@@ -69,11 +69,12 @@ public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
 }
 
 
-// Return the non-leap seconds since its epoch.
+// Forget the leap seconds.
 public fun without-leap-seconds( ts : timestamp ) : timestamp {
   Timestamp(ts.since,0)
 }
 
+// Return the non-leap seconds since its epoch.
 public fun non-leap-seconds( ts : timestamp ) : timespan {
   ts.since
 }

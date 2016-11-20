@@ -920,8 +920,8 @@ fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
     if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
       val idx = (mjd - dtt.start).trunc.int
       val dut = dtt.duts[idx]
-      val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).timespan
-      // trace("found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
+      trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
   }
