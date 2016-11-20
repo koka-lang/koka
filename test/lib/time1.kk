@@ -8,7 +8,7 @@
 
 module time1
 
-public import std/fixed
+public import std/num/fixed
 public import std/xtime
 public import std/time/timezone
 

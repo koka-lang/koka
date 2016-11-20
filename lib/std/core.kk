@@ -274,6 +274,11 @@ fun ignore( x : a ) : () {
   ()
 }
 
+// Return a 'constant' function that ignores its argument and always returns the same result
+fun const( default : a ) : total (( x : b ) -> a) {
+  (fun(_){ default })
+}
+
 
 // ----------------------------------------------------------------------------
 // Standard Data types
@@ -1324,6 +1329,11 @@ extern pow10?( i : int ) : int {
   js "_int_count_pow10"
 }
 
+// Return the number of decimal digits of `i`. Return `0` when `i==0`.
+extern count-digits( i : int ) : int {
+  js "_int_count_digits"
+}
+
 extern mul-pow10( i : int, n : int ) : int {
   js "_int_mul_pow10"
 }
@@ -1688,7 +1698,7 @@ fun pow2( p : double ) : double {
 // Round a double to a specified precision
 fun round-to-prec( d : double, prec : int  ) : double {
   if (prec <= 0) then d.round else {
-    val p  = pow(10.0,prec.double)
+    val p  = pow10(prec.double)
     (d * p).round / p
   }
 }
