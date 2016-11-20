@@ -21,27 +21,36 @@ public import std/time/ut1
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, tst : () -> <console,ndet> bool ) : io () {
-  println(name + ": " + (if (tst()) then "ok" else "failed!"))
+
+fun check(name : string, res : string, tst : () -> io string ) : io () {
+  val got = tst()
+  println(name.pad-right(14,' ') + ": " 
+    + (if (got == res) then "ok: " + res 
+                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
+
 
 fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0"){ instant-at(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex == "0x80000000" }
-  check("misc1"){ instant-at(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex == "0x8000000000000000" }
+  check("misc0","0x80000000"){  instant-at(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex  }
+  check("misc1","0x8000000000000000"){  instant-at(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex  }
 }
 
 fun test-jd() {
-  check("jd0"){ instant-at(2000,1,1,12,0,0).jd(ts-utc).show == "2451545" }
-  check("jd1"){ instant-at(2013,1,1,0,30,0).jd(ts-utc).show(9) == "2456293.520833333" }
-  check("jd2"){ instant-at-jd(0.0,ts-utc).time.show == "-04713-11-24T12:00:00Z" }
-  check("jd3"){ instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show == "-04713-01-01T12:00:00Z JC" }
-  check("jd4"){ instant-at(2014,1,1).jd(ts-tai).show(12) == "2456658.500405092593" }
+  check("jd0","2451545"){  instant-at(2000,1,1,12,0,0).jd(ts-utc).show  }
+  check("jd1","2456293.520833333"){  instant-at(2013,1,1,0,30,0).jd(ts-utc).show(9)  }
+  check("jd2","-04713-11-24T12:00:00Z"){  instant-at-jd(0.0,ts-utc).time.show  }
+  check("jd3","-04713-01-01T12:00:00Z JC"){  instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show  }
+  check("jd4","2456658.500405092593"){  instant-at(2014,1,1).jd(ts-tai).show(12)  }
+  // fraction of a day with a leap second..
+  check("jdleap0","57753.999988425925926") { time(2016,12,31,23,59,59).mjd.show }
+  check("jdleap1","57753.999998842592593") { time(2016,12,31,23,59,59,0.9).mjd.show }
+  check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show }
 }
 
 fun test-astro() {
   // check("astro1"){ instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant-at(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
-  check("astro2"){ instant-at-jd(fixed(2443144,0.5003725),ts-tt).time(cal=cal-tai).show == "1977-01-01T00:00:00Z TAI" }
+  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(fixed(2443144,0.5003725),ts-tt).time(cal=cal-tai).show  }
 }
 
 public val sofai = instant-at(2006,1,15,21,24,37,0.5)
@@ -49,40 +58,40 @@ public val sofai = instant-at(2006,1,15,21,24,37,0.5)
 // from: <http://www.iausofa.org/sofa_ts_c.pdf>
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
 fun test-sofa() {
-  check("sofa1"){ instant-at(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show == "2010-07-24T11:19:13.502Z TT" }
-  check("sofa2"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).show(12) == "2454526.499998842593" }
-  check("sofa3"){ instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show == "2008-03-01T00:00:00Z" }
+  check("sofa1","2010-07-24T11:19:13.502Z TT"){  instant-at(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show  }
+  check("sofa2","2454526.499998842593"){  instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).show(12)  }
+  check("sofa3","2008-03-01T00:00:00Z"){  instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show  }
   val i = sofai
-  check("sofa4utc"){ i.time(cal=cal-iso).show == "2006-01-15T21:24:37.500Z" }
-  check("sofa4ut1"){ i.time(cal=cal-ut1()).show == "2006-01-15T21:24:37.831700800Z UT1" } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
-  check("sofa4tai"){ i.time(cal=cal-tai).show == "2006-01-15T21:25:10.500Z TAI" }
-  check("sofa4tt"){ i.time(cal=cal-tt).show  == "2006-01-15T21:25:42.684Z TT" }
-  check("sofa4tcg"){ i.time(cal=cal-tcg).show == "2006-01-15T21:25:43.322690496Z TCG" }   // astropy: 43.322690497
+  check("sofa4utc","2006-01-15T21:24:37.500Z"){  i.time(cal=cal-iso).show  }
+  check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(cal=cal-ut1()).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
+  check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.time(cal=cal-tai).show  }
+  check("sofa4tt","2006-01-15T21:25:42.684Z TT"){  i.time(cal=cal-tt).show   }
+  check("sofa4tcg","2006-01-15T21:25:43.322690496Z TCG"){  i.time(cal=cal-tcg).show  }   // astropy: 43.322690497
   // these differ slightly from astropy but up to 2micro-seconds
-  check("sofa4tdb"){ i.time(cal=cal-tdb).show == "2006-01-15T21:25:42.684373055Z TDB" }   // astropy: 42.684371185
-  check("sofa4tcb"){ i.time(cal=cal-tcb).show == "2006-01-15T21:25:56.893952304Z TCB" }   // astropy: 56.893950657  (differs because derived from tdb)
+  check("sofa4tdb","2006-01-15T21:25:42.684373055Z TDB"){  i.time(cal=cal-tdb).show  }   // astropy: 42.684371185
+  check("sofa4tcb","2006-01-15T21:25:56.893952304Z TCB"){  i.time(cal=cal-tcb).show  }   // astropy: 56.893950657  (differs because derived from tdb)
   // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
-  check("skyfield-tt") { i.jd(ts-tt).show(12)  == "2453751.392855138889" }  // skyfield: 2453751.392855139
-  check("skyfield-tdb"){ i.jd(ts-tdb).show(12) == "2453751.392855143207" }  // skyfield: 2453751.3928551432
-  check("skyfield-tai1"){ instant-at(2014,1,1).jd(ts-tai).show(12) == "2456658.500405092593" } // skyfield: 2456658.5004050927 
-  check("skyfield-tt1") { instant-at(2014,1,1).jd(ts-tt).show(12)  == "2456658.500777592593" } // skyfield: 2456658.5007775929  
-  check("skyfield-tdb1"){ instant-at(2014,1,1).jd(ts-tdb).show(12) == "2456658.500777591821" } // skyfield: 2456658.500777592  
+  check("skyfield-tt","2453751.392855138889") { i.jd(ts-tt).show(12) }  // skyfield: 2453751.392855139
+  check("skyfield-tdb","2453751.392855143207"){  i.jd(ts-tdb).show(12)  }  // skyfield: 2453751.3928551432
+  check("skyfield-tai1","2456658.500405092593"){  instant-at(2014,1,1).jd(ts-tai).show(12)  } // skyfield: 2456658.5004050927 
+  check("skyfield-tt1", "2456658.500777592593") { instant-at(2014,1,1).jd(ts-tt).show(12) } // skyfield: 2456658.5007775929  
+  check("skyfield-tdb1","2456658.500777591821"){  instant-at(2014,1,1).jd(ts-tdb).show(12)  } // skyfield: 2456658.500777592  
 }
 
 public fun test-ut1() {
   println("load UT1 calendar")
   val calut1= cal-ut1(load-iers-ut1())
   val t = time(2012,6,30,23,59,58)
-  check("sofa-ut1"){ sofai.time(cal=calut1).show == "2006-01-15T21:24:37.834087400Z UT1" } // astropy: 37.834077793, sofa: 37.834100 ; due to interpolation?
+  check("sofa-ut1","2006-01-15T21:24:37.834087400Z UT1"){  sofai.time(cal=calut1).show  } // astropy: 37.834077793, sofa: 37.834100 ; due to interpolation?
   list(0,4).foreach fun(i) {
-    check("leap-ut" + i.show){ 
+    val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
+                         else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
+    check("leap-ut" + i.show, r){ 
       //println("\ncheck: t + " + i.show)
       val s = (t + duration(i)).time(cal=calut1).show 
       val u = (t + duration(i)).time.show 
-      val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
-                           else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
-      //println("utc: " + u + "\nut1: " + s + "\nexp: " + r )
-      s == r
+      println("utc: " + u + "\nut1: " + s + "\nexp: " + r )
+      s 
     }
   }
 }
