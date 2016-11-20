@@ -15,7 +15,7 @@ A `:timestamp` can represent leap seconds through a special encoding.
 module std/time/timespan
 
 import std/regex
-import std/fixed
+import std/num/fixed
 
 // Represents timespan in time in seconds in some time unit.\
 // Timespans can be arbitrary long and are precise up to about 10^-15^s (a femto second).

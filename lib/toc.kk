@@ -18,8 +18,7 @@ import std/atom
 import std/dict
 import std/env
 import std/file
-//import std/flags
-import std/int32
+import std/flags
 import std/log
 import std/path
 import std/readline
@@ -28,8 +27,12 @@ import std/string
 import std/time
 import std/unicode
 
+import std/num/decimal
+import std/num/fixed
+import std/num/int32
+
 import std/xtime
-import std/time/timespan
+import std/time/timestamp
 import std/time/timezone
 import std/time/astro
 import std/time/ut1

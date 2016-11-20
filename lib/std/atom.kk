@@ -14,7 +14,7 @@
 */
 module std/atom
 
-import std/int32
+import std/num/int32
 
 external include {
   cs file "atom-inline.cs"

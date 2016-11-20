@@ -13,7 +13,7 @@
 */  
 module std/regex
 
-import std/int32
+import std/num/int32
 
 extern include {
   cs file "regex-inline.cs"

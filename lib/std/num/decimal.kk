@@ -37,7 +37,7 @@ public fun decimal( d : double, max-prec : int = 16 ) : decimal {
   val fl = d.floor
   val fr = d - fl
   if (fr.zero?) then return decimal(fl.int) 
-  val p = fr.show-decimal(max-prec).count - 2
+  val p = fr.show-fixed(max-prec).count - 2
   decimal(fl.int, (fr * pow10(p.double)).int, p)
 }
 
