@@ -9,15 +9,19 @@
 // Operations on 'fixed'ed point numbers. 
 // These have infinite range and a precision of up to 15 digits after the dot.
 // Internally they are represented by a infinite range `:int` for the whole
-// part and a `:double` to represent the fraction.
+// part and a `:double` to represent the fraction. 
+// A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
 public module std/num/fixed
 
 import std/regex
 
-// Type of a fixed.
+// A `:fixed` has infinite range and a precision of up to 15 digits after the dot.
+// Internally they are represented by a infinite range `:int` for the whole
+// part and a `:double` to represent the fraction. 
+// A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
 abstract struct fixed (
-  public floor     : int,
-  public ffraction : double  // 'floored fraction':  0 <= ffraction < 1.0                      
+  public floor: int,
+  frac        : double  // 'floored fraction':  0 <= frac < 1.0                      
 )
 
 val zero : fixed = fixed(0,0.0)
@@ -35,44 +39,53 @@ public fun fixed( i : int, frac : double = 0.0 ) : fixed {
 }
 
 public fun double( f : fixed ) : double {
-  f.floor.double + f.ffraction
+  f.floor.double + f.frac
 }
 
 public fun int( f : fixed ) : int {
-  f.round.floor
+  f.round
 }
 
 public fun trunc( f : fixed ) : int {
-  if (f.floor.neg? && f.ffraction != 0.0) then f.floor + 1 else f.floor
+  if (f.floor.neg? && f.frac != 0.0) then f.floor + 1 else f.floor
 }
 
+// Return the 'truncated' fraction, always in the range <`~1.0`,`1.0`>:\
+// `x.trunc.fixed + x.fraction == x`
 public fun fraction( f : fixed ) : double {
-  if (f.floor.neg? && f.ffraction != 0.0) then f.ffraction - 1.0 else f.ffraction
+  if (f.floor.neg? && f.frac != 0.0) then f.frac - 1.0 else f.frac
+}
+
+// Return the 'floored' fraction, always in the range [`0`,`1.0`>:\
+// `x.floor.fixed + x.ffraction == x` 
+public fun ffraction( f : fixed ) : double {
+  f.frac
 }
 
 public fun round-to-prec( f : fixed, prec : int ) : fixed {
-  if (prec.pos?) then fixed(f.floor, f.ffraction.round-to-prec(prec))
-                 else fixed(f.floor + f.ffraction.int, 0.0)
+  if (prec.pos?) then fixed(f.floor, f.frac.round-to-prec(prec))
+                 else fixed(f.floor + f.frac.int, 0.0)
 }
 
-public fun round( f : fixed ) : fixed {
-  f.round-to-prec(0)
+public fun round( f : fixed ) : int {
+  f.round-to-prec(0).floor
 }
 
 public fun show( f : fixed, prec : int = ~1, max-prec : int = 15) : string {
-  // trace("show: " + f.floor.show + " + " + f.ffraction.show-fixed)
-  if (prec==0 || f.fraction.zero?) then return f.int.show
+  // trace("show: " + f.floor.show + " + " + f.frac.show-fixed)
+  if (prec.zero? || f.frac.zero?) then return f.int.show
   val fprec = if (prec.neg?) then max-prec else min(prec,max-prec)
-  val frac  = f.fraction.abs.round-to-prec(fprec)
-  if (frac.zero?) then return f.int.show
-  val fracs = frac.show-fixed(fprec).first(2).after.string
-  val frac0 = if (prec.neg?) then fracs else fracs.first(prec).string.pad-right(prec,'0') 
+  val r     = f.round-to-prec(fprec)
+  val rfrac = r.fraction.abs
+  if (rfrac.zero?) then return r.floor.show
+  val strf  = rfrac.show-fixed(fprec).first(2).after.string
+  val padf  = if (prec.neg?) then strf else strf.first(prec).string.pad-right(prec,'0') 
   val sign  = if (f.neg?) then "-" else ""
-  sign + f.trunc.abs.show + "." + frac0
+  sign + r.trunc.abs.show + "." + padf
 }
 
 public fun (~)( f : fixed ) : fixed {
-  fixed( ~f.floor, ~f.ffraction )
+  fixed( ~f.floor, ~f.frac )
 }
 
 // The absolute value of a fixed number
@@ -81,11 +94,15 @@ public fun abs( f : fixed ) : fixed {
 }
 
 public fun (+)( q1 : fixed, q2 : fixed ) : fixed {
-  fixed(q1.floor + q2.floor, q1.ffraction + q2.ffraction )
+  fixed(q1.floor + q2.floor, q1.frac + q2.frac )
 }
 
 public fun (-)( q1 : fixed, q2 : fixed ) : fixed {
-  fixed(q1.floor - q2.floor, q1.ffraction - q2.ffraction )
+  fixed(q1.floor - q2.floor, q1.frac - q2.frac )
+}
+
+public fun sum( fs : list<fixed> ) : fixed {
+  fs.foldr(zero,(+))
 }
 
 val maxpd      : double = 1.0e15
@@ -129,9 +146,9 @@ fun ddiv( i : int, d : double ) : fixed {
 public fun (*)( q1 : fixed, q2 : fixed ) : fixed {
   // (t1 + f1)*(t2 + f2) == t1*t2 + t1*f2 + f1*t2 + f1*f2
   Fixed(q1.floor*q2.floor,0.0) 
-    + fmul(q1.floor, q2.ffraction)
-      + fmul(q2.floor, q1.ffraction)
-        + Fixed(0,q1.ffraction*q2.ffraction)
+    + fmul(q1.floor, q2.frac)
+      + fmul(q2.floor, q1.frac)
+        + Fixed(0,q1.frac*q2.frac)
 }
 
 public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
@@ -139,23 +156,23 @@ public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
   //  == t1/(t2 + f2) + f1/(t2 + f2)
   if (q1.zero? || q2.zero?) then return zero
   val d = q2.double // approximate up to 15 digits
-  if (q2.ffraction.zero? || !q2.floor.precise?) then { // ignore the fraction
+  if (q2.frac.zero? || !q2.floor.precise?) then { // ignore the fraction
     // (t1 + f1) / t2 == t1/t2 + f1/t2
     val (q,r) = divmod(q1.floor,q2.floor) // full int division
-    fixed(q, (r.double / d) + (q1.ffraction / d))
+    fixed(q, (r.double / d) + (q1.frac / d))
   }
   else {
-    ddiv(q1.floor, d) + fixed(q1.ffraction / d)
+    ddiv(q1.floor, d) + fixed(q1.frac / d)
   }
 }
 
 public fun neg?( f : fixed ) : bool  { f.floor.neg? }
-public fun pos?( f : fixed ) : bool  { f.floor.pos? || (f.floor.zero? && f.ffraction.pos?) }
-public fun zero?( f : fixed ) : bool { f.floor.zero? && f.ffraction.zero? }
+public fun pos?( f : fixed ) : bool  { f.floor.pos? || (f.floor.zero? && f.frac.pos?) }
+public fun zero?( f : fixed ) : bool { f.floor.zero? && f.frac.zero? }
 
 public fun compare( q1 : fixed, q2 : fixed ) : order {
   match(compare(q1.floor,q2.floor)) {
-    Eq  -> compare(q1.ffraction,q2.ffraction)
+    Eq  -> compare(q1.frac,q2.frac)
     ord -> ord
   }
 }

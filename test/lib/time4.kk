@@ -8,7 +8,7 @@
 
 module time4
 
-public import std/fixed
+public import std/num/fixed
 public import std/xtime
 
 /*----------------------------------------------------------------------------
