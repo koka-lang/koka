@@ -71,7 +71,7 @@ fun tcg-to-tai( t : timestamp ) : duration {
 // The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth. It is in a linear
 // relationship with TT (`ts-tt`) where TCG runs faster than TT at a constant rate. TCG and TT were equal on 1977-01-01Z.
 // Computed from TT using IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
-// (and updated to currently known [precision](https://en.wikipedia.org/wiki/Terrestrial_Time)):\
+// (and updated to currently known [precision](https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1)):\
 // TCG - TT = L~g~&times;(JD~TCG~ - 2443144.5003725)&times;86400, with L~g~ = 6.969290134&times;10^-10^.
 public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
