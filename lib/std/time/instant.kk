@@ -333,7 +333,7 @@ public fun mjd( i : instant, ts : timescale, delta : timespan = timespan0 ) : fi
     val secs = ((its.non-leap-seconds + delta) - ts.y2k-epoch.timespan)
     val w    = (secs / secs-per-day).floor.fixed
     val r    = secs - (w * secs-per-day)
-    val f    = (r + leaps.fixed / secs-per-day + leaps.fixed)
+    val f    = (r + leaps.fixed) / (secs-per-day + leaps.fixed)
     (w + f + mjd-epoch-delta)
   }
 }

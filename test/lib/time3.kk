@@ -21,7 +21,7 @@ public import std/time/ut1
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, tst : () -> ndet bool ) : io () {
+fun check(name : string, tst : () -> <console,ndet> bool ) : io () {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
 }
 
@@ -76,10 +76,13 @@ public fun test-ut1() {
   check("sofa-ut1"){ sofai.time(cal=calut1).show == "2006-01-15T21:24:37.834087400Z UT1" } // astropy: 37.834077793, sofa: 37.834100 ; due to interpolation?
   list(0,4).foreach fun(i) {
     check("leap-ut" + i.show){ 
+      println("\ncheck: t + " + i.show)
       val s = (t + duration(i)).time(cal=calut1).show 
+      val u = (t + duration(i)).time.show 
       val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
                            else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
-      trace("s=" + s.show + ", r=" + r.show)
+      println("utc: " + u + "\nut1: " + s + "\nexp: " + r )
+      //trace("s=" + s.show + ", r=" + r.show)
       s == r
     }
   }
@@ -89,5 +92,4 @@ public fun main() {
   test-misc()
   test-jd()
   test-astro()
-  test-sofa()
-}
+  test-sofa()}
