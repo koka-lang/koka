@@ -54,7 +54,8 @@ abstract struct timescale(
   // It is used for date calculations.
   // y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(<ts>).timestamp(<ts>) with <ts> this timescale
   y2k-epoch   : timestamp,
-  epoch-shift : timespan = timespan0
+  epoch-shift : timespan = timespan0,
+  secs-in-day : timestamp -> timespan = fun(_){ secs-per-day }
 )
 
 
@@ -101,6 +102,13 @@ public fun to-tai(  ts : timescale, t : timestamp ) : duration {
 // Given a `:duration` since the `epoch`, return a `:timestamp` for that instant in time scale `ts`.
 public fun from-tai(ts : timescale, d : duration ) : timestamp {
   d.timestamp.convert(ts-tai,ts)
+}
+
+// Returns the seconds in the day of the given instant in its timescale.
+// Is always 86400 for any timescale except UTC timescales after 1972 where a day
+// can be 86399 up to 86401 due to leap seconds.
+public fun seconds-in-day( i : instant ) : timespan {
+  (i.ts.secs-in-day)(i.since)
 }
 
 // Return the time scale that instant `i` uses.
@@ -222,7 +230,8 @@ public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoc
     from-tai,
     to-tai,
     y2k-epoch,
-    epoch-shift
+    epoch-shift,
+    fun(_){ secs-per-day }
   )
 }
 
@@ -235,7 +244,8 @@ public fun timescale( name : string,
                       from-tai : duration -> timestamp, 
                       to-tai   : timestamp -> duration, 
                       y2k-epoch : timestamp = timestamp0,
-                      unit : string = name
+                      unit : string = name,
+                      secs-in-day : timestamp -> timespan = fun(_){ secs-per-day }
                     ) : timescale {
   Timescale(
     name,
@@ -243,7 +253,8 @@ public fun timescale( name : string,
     from-tai,
     to-tai,
     y2k-epoch,
-    y2k-epoch.timespan
+    y2k-epoch.timespan,
+    secs-in-day
   )
 }
 
@@ -319,9 +330,9 @@ public fun jd( i : instant, ts : timescale ) : fixed {
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion.
 public fun mjd( i : instant, ts : timescale, delta : timespan = timespan0 ) : fixed {
-  val its = i.timestamp(ts)
-  val leaps = its.leap-seconds
-  if (leaps.zero?) then {
+  val j   = i.use(ts)
+  val its = j.timestamp(ts)
+  if (!ts.has-leap-seconds) then {
     // without leap seconds, just divide. 
     // TODO: we should really still check how many seconds are in this particular day;
     // if it contains a leap second, we need to divide the final day by the secs-per-day + the leap seconds.
@@ -330,10 +341,11 @@ public fun mjd( i : instant, ts : timescale, delta : timespan = timespan0 ) : fi
   else {
     // otherwise, divide the non-leap-seconds first, but for the seconds in the day
     // divide by the longer day so the day fraction is correct.
+    val leaps = its.leap-seconds
     val secs = ((its.non-leap-seconds + delta) - ts.y2k-epoch.timespan)
     val w    = (secs / secs-per-day).floor.fixed
     val r    = secs - (w * secs-per-day)
-    val f    = (r + leaps.fixed) / (secs-per-day + leaps.fixed)
+    val f    = (r + leaps.fixed) / j.seconds-in-day
     (w + f + mjd-epoch-delta)
   }
 }

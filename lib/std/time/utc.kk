@@ -120,7 +120,8 @@ public fun utc-timescale( name : string, y2k-epoch : timestamp = timestamp0 ) : 
     from-tai,
     to-tai,
     y2k-epoch,
-    "UTC"
+    "UTC",
+    utc-secs-in-day
   )
 }
 
@@ -218,10 +219,10 @@ public fun set-leaps-table( post72 : leaps-table ) : io () {
 
 // Convert a UTC duration since `epoch` to a TAI duration since `epoch`.
 fun utc-to-tai( t : timestamp ) : duration {
-  utc-to-tai-span( t ).unsafe-duration
+  utc-to-tai-stamp( t ).unsafe-duration
 }
 
-fun utc-to-tai-span( t : timestamp ) : timestamp {
+fun utc-to-tai-stamp( t : timestamp ) : timestamp {
   val nlsecs = t.without-leap-seconds
   if (nlsecs < utc1958) then return t
 
@@ -281,6 +282,35 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
           }
         }
       }  
+    }
+  }
+}
+
+
+// Return the SI seconds in the day of time `t` (as a UTC timestamp)
+public fun utc-secs-in-day( t : timestamp ) : timespan {
+  val nlsecs = t.without-leap-seconds
+  trace("search nlsecs: " + nlsecs.ts-show)
+  if (nlsecs < utc1972) then return secs-per-day
+  val leaps = unsafe-total(get-leaps-table)
+  match(leaps.adjusts.long-day?(nlsecs)) {
+    Just(leap-secs) -> leap-secs + secs-per-day
+    _ -> secs-per-day
+  }
+}
+val utc1972 = timestamp(~883612800)  // instant-at(1972).timestamp(ts-utc)
+
+fun long-day?( leaps : list<leap-adjust>, t : timestamp ) : maybe<fixed> {
+  match(leaps) {
+    Nil -> Nothing
+    Cons(la,rest) -> {
+      if (la.utc-start <= t) then return long-day?(rest,t) 
+      if (la.utc-start - secs-per-day > t) then return Nothing  
+      val delta = match(rest) {
+        Nil -> 1.fixed
+        Cons(la-before) -> (la.offset - la-before.offset)
+      }
+      Just(delta)
     }
   }
 }

@@ -20,8 +20,6 @@ public import std/time/ut1
   Testing
 ----------------------------------------------------------------------------*/
 
-
-
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
   println(name.pad-right(14,' ') + ": " 
@@ -43,9 +41,13 @@ fun test-jd() {
   check("jd3","-04713-01-01T12:00:00Z JC"){  instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show  }
   check("jd4","2456658.500405092593"){  instant-at(2014,1,1).jd(ts-tai).show(12)  }
   // fraction of a day with a leap second..
-  check("jdleap0","57753.999988425925926") { time(2016,12,31,23,59,59).mjd.show }
-  check("jdleap1","57753.999998842592593") { time(2016,12,31,23,59,59,0.9).mjd.show }
+  check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show }
+  check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show }
   check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show }
+  check("jdleapx0","2016-12-31T23:59:59Z")  { time(2016,12,31,23,59,59).mjd.instant-at-mjd(ts-utc).time.show }
+  check("jdleapx1","2016-12-31T23:59:59.900Z")  { time(2016,12,31,23,59,59,0.9).mjd.instant-at-mjd(ts-utc).time.show }
+  check("jdleapx2","2016-12-31T23:59:60Z")       { time(2016,12,31,23,59,60).mjd.instant-at-mjd(ts-utc).time.show }
+  check("jdleapx3","2017-01-01T00:00:00Z")       { time(2017).mjd.instant-at-mjd(ts-utc).time.show }
 }
 
 fun test-astro() {
