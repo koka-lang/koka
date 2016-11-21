@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 // Operations on 'fixed'ed point numbers. 
+//
 // These have infinite range and a precision of up to 15 digits after the dot.
 // Internally they are represented by a infinite range `:int` for the whole
 // part and a `:double` to represent the fraction. 
@@ -37,6 +38,21 @@ public fun fixed( i : int, frac : double = 0.0 ) : fixed {
   val ff = frac.floor
   Fixed( i + ff.int, frac - ff )
 }
+
+
+public fun parse-fixed( s : string ) : maybe<fixed> {
+  match(s.find(rx-fixed)) {
+    Nothing -> Nothing
+    Just(cap) -> {
+      val sign  = cap.groups[1]
+      val whole = cap.groups[2]
+      val frac  = cap.groups[3] || "0"
+      val f = fixed( whole.parse-int-default(0), ("0." + frac).parse-double-default(0.0) )
+      if (sign=="-") then Just(~f) else Just(f)
+    }
+  }
+}
+val rx-fixed = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?$")
 
 public fun double( f : fixed ) : double {
   f.floor.double + f.frac

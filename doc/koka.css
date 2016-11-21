@@ -321,7 +321,7 @@ div.nested {
       ; margin: 0em
       ; float: left;
       ; clear: none;
-      ; margin-bottom: 1.5em; 
+      /* ; margin-bottom: 1.5em;  */
       ; padding: 0.5ex 1.5ex 0ex 0.5ex;
       /* ; width: 10.5em; */
       ; white-space: nowrap
@@ -336,23 +336,28 @@ div.nested {
       ; width: 100%
       }
 
+.koka.doc div.toc+.doc {
+  margin: 1em 0em;
+  padding: 1em 0em;
+  border-top: 1px solid #AAA;
+}
+
 /* Index documentation */
 .koka.doc table.index td {
   vertical-align: top;
   padding-right: 1em;
-  padding-bottom: 0.5ex;
 }
 
 .koka.doc table.index .nested1 {
-  margin-left: 1.25ex;
+  margin-left: 1.5ex;
 }
 
 .koka.doc table.index .nested2 {
-  margin-left: 2.5ex;
+  margin-left: 2.75ex;
 }
 
 .koka.doc table.index .nested3 {
-  margin-left: 3.75ex;
+  margin-left: 4ex;
 }
 
 /* Print in black&white. Commented out for now  */

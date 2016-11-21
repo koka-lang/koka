@@ -52,8 +52,10 @@ genDoc env kgamma gamma core p
     htmlBody $
     do writeLn p $ ptag "h1" "" ( (atag (linkFromModName env (coreProgName core) "-source") $ span "module" $ fmtName (coreProgName core))
                                  ++ (atag "toc.html" (span "toc-link" "&#x25b2;toc")))
-       writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
        writeLn p $ doctag "div" "toc code" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
+       -- writeLn p $ ptag "h2" "" "Description"
+       writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
+       -- writeLn p $ ptag "h2" "" "Exports"
        mapM_ (writeLn p) (map (fmtPublicImport env kgamma gamma) publicImports)
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
        mapM_ (writeLn p) (map (fmtDef env kgamma gamma) otherDefs)
@@ -64,7 +66,7 @@ genDoc env kgamma gamma core p
       
     tocFmts
       = let fmts = concatMap fmtTypeDefTOC typeDefsDefs 
-                   ++ (if null otherDefs then [] else [doctag "li" "" "&nbsp;"]) 
+                   ++ (if (null otherDefs || null typeDefsDefs) then [] else [doctag "li" "" "&nbsp;"]) 
                    ++ map (fmtDefTOC False) otherDefs
             n    = length fmts
             niceRows  = 20  
@@ -242,21 +244,21 @@ fmtImport env kgamma gamma root name (imp)
     fmtModuleName env name qname
       = atag (linkFromModName env qname "") $ span "module" $ limit 15 name
       
-
+synopsis :: Env -> KGamma -> Gamma -> String -> String
 synopsis env kgamma gamma doc
   = showDoc env kgamma gamma $
     endWithDot $ capitalize $ 
-    extract "" $ 
+    fst $ extract "" $ 
     dropWhile isSpace $ 
     removeComment doc
   where
     extract acc s
       = case s of
           ('\n':cs) -> case dropWhile (\c -> c==' '||c=='\t') cs of
-                         ('\n':_) -> reverse acc
-                         _        -> extract ('\n':acc) cs
+                         ('\n':rest) -> (reverse acc,rest)
+                         _           -> extract ('\n':acc) cs
           (c:cs)    -> extract (c:acc) cs
-          []        -> reverse acc
+          []        -> (reverse acc,"")
 
 
 indent n s
