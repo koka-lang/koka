@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------------------
+  /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
     
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
@@ -8,19 +8,20 @@
 
 /* UTC time scales and leap second support.
 
-For proper UTC to TAI conversion, we need to know where leap seconds occur.
-The occurrence of leap seconds cannot be reliably predicted though and 
-the [IERS announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html) 
-leap seconds at most a year in advance. 
-The [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list) 
-table contains a list of all currently announced leap seconds.
+For proper UTC to TAI conversion, we need to know when leap seconds occur. The
+occurrence of leap seconds cannot be reliably predicted though and  the [IERS
+announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html)  leap
+seconds at most a year in advance.  The [IETF leap
+second](https://www.ietf.org/timezones/data/leap-seconds.list)  table contains
+a list of all currently announced leap seconds. As such, any future date
+calculation in UTC is essentially non-deterministic since it may be off by a
+number  of (as yet unannounced) leap seconds.
 
-As such, many functions operating on time would be non-deterministic for
-any future date as they may be off by a number of, as yet unannounced, leap seconds.
-To makes all these function non-deterministic, or to give them all a leap second table
-argument seems a bit too cumbersome. So, instead we choose to ignore this form
-of non-determinism and make the leap second table a hidden global variable. The 
-internal table is valid up to the release of the compiler. 
+To give all time functions related to UTC a non-deterministic effect (or to
+give them all a leap second table argument) seems a bit too cumbersome. 
+Instead we choose to ignore this form of non-determinism and make the leap
+second table a hidden global variable. The  internal table is valid up to the
+release of the compiler.
 
 It is recommended to call [`update-leaps-table`](std_time_download.html#update_leaps_table) at the 
 start of a program which will automatically ensure the leap second table is up-to-date
@@ -35,27 +36,80 @@ leap seconds were defined as a continuous linear interpolation (or 'drift')
 
 The difference (TAI - UT1) was approximately zero at the TAI epoch 1958-01-01Z (most close at 1958-01-12T15:00:00).
 Since 1958-01-01 up to 1961-01-01Z the relation between TAI and UTC was not 
-well defined (historically there seems to have been 29 20ms jumps in that time frame).
-Starting in 1961-01-01Z, the initial UTC offset was 1.422818s. To avoid having to insert
-such an odd initial leap second, we choose to extend the USNO table to linearly interpolate
-a 'drift' from 1958-01-01 to 1961-01-01 with one extra entry in the [USNO table](http://maia.usno.navy.mil/ser7/tai-utc.dat):\
-``#1958 JAN  12=JD 2436216.125  TAI-UTC=   0.0000000 S + (MJD - 36215.625) X 0.0013121088 S``\
-This makes the UTC coincide with TAI up to 1958-01-01, and continuously interpolated up to 1972-01-01,
-followed by modern integral leap-seconds.
+well defined -- historically there were 29 20ms steps (=0.58s) in that time frame (Arias et al. [2003](http://www.ucolick.org/~sla/leapsecs/torino/arias_3.pdf)).
+We model those initial time steps as a linear interpolation from 1958-01-01Z to 1961-01-01 of 0.58s.
+This change makes UTC coincide with TAI up to 1958-01-01, interpolated with 'drift' up to 1972-01-01,
+and using integral leap-seconds after that.
 
 More fun facts:
 
-* There was a small 0.05s discontinuity in the 'drift' at 1961-08-01Z:
+* There was a negative leap second of -0.05s inserted on 1961-08-01Z:
   ```
   instant-at(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show == "1961-07-31T23:59:59.902430Z" 
   instant-at(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show == "1961-08-01T00:00:00.052430Z" 
   ```
-* On the transition to modern UTC at 1972-01-01Z there is a mini leap second 0.107758s. 
+  The only other negative leap second was inserted on 1968-02-01Z with a duration of -0.1s.
+
+* On the transition to modern UTC at 1972-01-01Z there is a mini leap second of 0.107758s.
+  (because the final drift just before 1971-01-01 is 9.892242s) 
   ```
   instant-at(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show == "1971-12-31T23:59:60.107757999Z" 
   instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" 
   ```
 
+## Appendix A
+
+The table of all leap second time steps from 1958 up to 2017. This table
+is calculated and uses the initial 0.58s interpolation to model the initial
+29 20ms time steps:
+
+|-------------------|----------------------------|-------------|------------|
+| Date (UTC) &quad; | Leap seconds &quad; &quad; | (TAI--UTC)  | (TAI--UTC) |
+|                   |                            | before date | on date    |
++:------------------|----------------------------|-------------|------------+
+| 1958-01-01        | +0                         | 0           | 0          |
+| 1961-01-01        | +0.8428180                 | 0.5800000   | 1.4228180  |
+| 1961-08-01        | -0.0500000                 | 1.6975700   | 1.6475700  |
+| 1962-01-01        | +0                         | 1.8458580   | 1.8458580  |
+| 1963-11-01        | +0.1000000                 | 2.5972788   | 2.6972788  |
+| 1964-01-01        | +0                         | 2.7657940   | 2.7657940  |
+| 1964-04-01        | +0.1000000                 | 2.8837300   | 2.9837300  |
+| 1964-09-01        | +0.1000000                 | 3.1820180   | 3.2820180  |
+| 1965-01-01        | +0.1000000                 | 3.4401300   | 3.5401300  |
+| 1965-03-01        | +0.1000000                 | 3.6165940   | 3.7165940  |
+| 1965-07-01        | +0.1000000                 | 3.8747060   | 3.9747060  |
+| 1965-09-01        | +0.1000000                 | 4.0550580   | 4.1550580  |
+| 1966-01-01        | +0                         | 4.3131700   | 4.3131700  |
+| 1968-02-01        | -0.1000000                 | 6.2856820   | 6.1856820  |
+| 1972-01-01        | +0.1077580                 | 9.8922420   | 10         |
+| 1972-07-01        | +1                         | 10          | 11         |
+| 1973-01-01        | +1                         | 11          | 12         |
+| 1974-01-01        | +1                         | 12          | 13         |
+| 1975-01-01        | +1                         | 13          | 14         |
+| 1976-01-01        | +1                         | 14          | 15         |
+| 1977-01-01        | +1                         | 15          | 16         |
+| 1978-01-01        | +1                         | 16          | 17         |
+| 1979-01-01        | +1                         | 17          | 18         |
+| 1980-01-01        | +1                         | 18          | 19         |
+| 1981-07-01        | +1                         | 19          | 20         |
+| 1982-07-01        | +1                         | 20          | 21         |
+| 1983-07-01        | +1                         | 21          | 22         |
+| 1985-07-01        | +1                         | 22          | 23         |
+| 1988-01-01        | +1                         | 23          | 24         |
+| 1990-01-01        | +1                         | 24          | 25         |
+| 1991-01-01        | +1                         | 25          | 26         |
+| 1992-07-01        | +1                         | 26          | 27         |
+| 1993-07-01        | +1                         | 27          | 28         |
+| 1994-07-01        | +1                         | 28          | 29         |
+| 1996-01-01        | +1                         | 29          | 30         |
+| 1997-07-01        | +1                         | 30          | 31         |
+| 1999-01-01        | +1                         | 31          | 32         |
+| 2006-01-01        | +1                         | 32          | 33         |
+| 2009-01-01        | +1                         | 33          | 34         |
+| 2012-07-01        | +1                         | 34          | 35         |
+| 2015-07-01        | +1                         | 35          | 36         |
+| 2017-01-01        | +1                         | 36          | 37         |
+|-------------------|----------------------------|-------------|------------|
 */
 module std/time/utc
 
@@ -178,9 +232,20 @@ val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = ((utc-i.timespan - la.delta-start.timespan) / secs-per-day).floor.fixed
+    val days = ((utc-i.timespan - la.delta-start.timespan) / secs-per-day) // .floor.fixed
     la.offset + (la.delta * days)
   }
+}
+
+// Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time.
+public fun get-leap-steps( ) : io list<(timestamp,timespan,timespan)> {
+  val adjusts = unsafe-total(get-leaps-table).adjusts.reverse
+  zip(Cons(zero,adjusts),adjusts).map( fun(las) {
+    val ts = las.snd.utc-start
+    val ofs1 = las.fst.tai-offset(ts)
+    val ofs2 = las.snd.tai-offset(ts)
+    (ts,ofs1,ofs2)
+  })
 }
 
 // Set up a global leap second table.
@@ -395,7 +460,7 @@ val default-ietf-leap-seconds = @"
 // Cached leap second table for dates before 1972.
 val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
 
-val jd-epoch-shift     = 2400000.5
+val jd-epoch-shift     = 2400000.5.fixed
 val mjd-epoch-shift    = 4453401600.fixed // 2000-01-01 TAI - 1858-11-17 TAI modified julian date epoch
 
 
@@ -403,27 +468,33 @@ val mjd-epoch-shift    = 4453401600.fixed // 2000-01-01 TAI - 1858-11-17 TAI mod
 // See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
 fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
   s.find-all(rxtaiadjust).map( fun(cap) {
-    val mjd    = cap.groups[1].parse-double-default(jd-epoch-shift) - jd-epoch-shift 
-    val ofs    = cap.groups[2].parse-double-default(0.0)
-    val dmjd   = cap.groups[3].parse-double-default(0.0)
-    val delta  = cap.groups[4].parse-double-default(0.0)
-    val start  = timestamp(mjd.fixed*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
-    val dstart = timestamp(dmjd.fixed*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
-    // trace("pre72 start=" + start.show )
-    Leap-adjust( start, ofs.fixed, dstart, delta.fixed )
+    val mjd    = cap.groups[1].parse-fixed.default(jd-epoch-shift) - jd-epoch-shift 
+    val ofs    = cap.groups[2].parse-fixed.default(zero)
+    val dmjd   = cap.groups[3].parse-fixed.default(zero)
+    val delta  = cap.groups[4].parse-fixed.default(zero)
+    val start  = timestamp(mjd*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
+    val dstart = timestamp(dmjd*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
+    // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", delta: " + delta.show )
+    Leap-adjust( start, ofs, dstart, delta )
   }).reverse
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
-// Note: (TAI - UT1) was approximately zero at 1958-01-01Z (most close at 1958-01-12T15:00:00)
-// We added an initial entry starting at that time such that the UTC offset
-// increases linearly up to the first official 1.422818s offset in 1961-01-01Z.
-// Historically, there were 29 20ms jumps during that initial time frame.
-// #1958 JAN  12=JD 2436216.125  TAI-UTC=   0.0000000 S + (MJD - 36215.625) X 0.0013121088 S
+// TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there 
+// were 29 small steps of 20ms (=0.58s total) (see: <http://www.ucolick.org/~sla/leapsecs/torino/arias_3.pdf>)
+// We model this initial time frame with an initial extra table entry 
+// starting at 1958-01-01Z such that the UTC offset increases linearly up to 0.58s just before 1961-01-01Z.
+// This also avoids an initial leap second larger than 1 (and now becomes 1.422818s - 0.58s = 0.842818s).
+//
+// Various variations (we use the second one) (The final two start at 1958-01-12T15:00:00 when TAI-UT1 was approximately zero)
+// #1958 JAN  1 =JD 2436204.5   TAI-UTC=  0.0000000 S + (MJD - 36204.) X 0.001298191606 S     # linear up to 1.422818
+// #1958 JAN  1 =JD 2436204.5   TAI-UTC=  0.0000000 S + (MJD - 36204.) X 0.000529197080292 S  # linear up to 0.58s
+// #1958 JAN 12 =JD 2436216.125 TAI-UTC=  0.0000000 S + (MJD - 36215.625) X 0.0013121088 S    # linear up to 1.422818
+// #1958 JAN 12 =JD 2436216.125 TAI-UTC=  0.0000000 S + (MJD - 36215.625) X 0.0005348703 S    # linear up to 0.58 
 val leap-seconds-dat = @"
   # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
-  1958 JAN  1 =JD 2436204.5  TAI-UTC=   0.0000000 S + (MJD - 36204.) X 0.001298191606 S
+  1958 JAN  1 =JD 2436204.5  TAI-UTC=   0.0000000 S + (MJD - 36204.) X 0.0005291971 S
   1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
   1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S
   1962 JAN  1 =JD 2437665.5  TAI-UTC=   1.8458580 S + (MJD - 37665.) X 0.0011232S

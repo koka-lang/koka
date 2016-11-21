@@ -8,6 +8,7 @@
 
 module time2
 
+public import std/num/fixed
 public import std/xtime
 
 /*----------------------------------------------------------------------------
@@ -44,6 +45,28 @@ fun test-leap() {
   check("gps3"){ instant-at(2017,1,1,0,0,18,cal=cal-gps).time.show == "2017-01-01T00:00:00Z" }
 }
 
+public fun show-leap-steps() {
+  println(leap-steps-header)
+  val steps = get-leap-steps()  
+  steps.foreach( fun(step) {
+    val (ts,ofs1,ofs2) = step
+    val prec = 7
+    val diff = (ofs2 - ofs1).round-to-prec(prec)
+    println( "| " + [
+      unsafe-instant-at(ts,ts-utc).time.date.show.pad-right(17,' '),
+      ((if (diff.neg?) then "" else "+") + diff.show(prec)).pad-right(26,' '),
+      ofs1.show(prec).pad-right(11,' '),
+      ofs2.show(prec).pad-right(10,' ') 
+    ].join(" | ") + " |")
+  })
+  println(leap-steps-footer)
+}
+
+val leap-steps-header = @"|-------------------|----------------------------|-------------|------------|
+| Date (UTC) &quad; | Leap seconds &quad; &quad; | (TAI--UTC)  | (TAI--UTC) |
+|                   |                            | before date | on date    |
++:------------------|----------------------------|-------------|------------+"
+val leap-steps-footer = @"|-------------------|----------------------------|-------------|------------|"
 
 public fun main() {
   update-leaps-table()
