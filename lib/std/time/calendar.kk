@@ -28,6 +28,7 @@ extern include {
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
   name      : string,                 
+  long-name : string,
   timescale : timescale,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
   private dc-to-instant : (date,clock) -> instant
@@ -115,11 +116,12 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
 // calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
-public val cal-iso : calendar = iso-calendar( ts-utc, "" )
+public val cal-iso : calendar = iso-calendar( ts-utc, "", "ISO" )
 
 // The [Julian calendar](https://en.wikipedia.org/wiki/Julian_calendar).
 public val cal-julian = earth-calendar(
   "JC",
+  "Julian",
   julian-days-to-date,
   julian-date-to-days
 )
@@ -129,14 +131,35 @@ public val cal-julian = earth-calendar(
 // we have 1AD (=`1`).
 public val cal-gregorian = earth-calendar(
   "GC",
+  "Gregorian",
   gregorian-days-to-date,
   gregorian-date-to-days
+)
+
+// The [Coptic](https://en.wikipedia.org/wiki/Coptic_calendar) calendar.
+public val cal-coptic = earth-calendar(
+  "CC",
+  "Coptic",
+  coptic-days-to-date,
+  coptic-date-to-days
+)
+
+// The [Ethiopian](https://en.wikipedia.org/wiki/Ethiopian_calendar) calendar.
+public val cal-ethiopian = earth-calendar(
+  "EC",
+  "Ethiopian",
+  ethiopian-days-to-date,
+  ethiopian-date-to-days
 )
 
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
 // before 1582-10-15 and the Gregorian calendar otherwise. It is possible to 
 // specify a different switch date using the `julian-gregorian` function.
 public val cal-jg = julian-gregorian()
+
+/*----------------------------------------------------------------------------
+  Time scale calendars
+----------------------------------------------------------------------------*/
 
 // The TAI Calendar. This is a standard ISO 8601 calender using
 // TAI time where every day is exactly 86400 SI seconds (unlike
@@ -149,14 +172,16 @@ public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~1
 
 // Create a standard ISO calendar using a particular time scale
 // and calendar `name` (=`ts.name`).
-public fun iso-calendar( ts : timescale, name : string = ts.name ) : calendar {
+public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : string = name ) : calendar {
   earth-calendar(
     name,
+    long-name,
     iso-days-to-date,
     iso-date-to-days,
     ts
   )
 }
+
 
 /*----------------------------------------------------------------------------
   Earth calendars
@@ -175,6 +200,7 @@ val secs-per-day = 86400
 // and an optional time scale to be used (=`ts-utc`).
 public fun earth-calendar(
               name        : string,
+              long-name   : string,
               days-to-date  : (days:int) -> date,
               date-to-days  : date -> int,
               ts   : timescale = ts-utc
@@ -187,7 +213,7 @@ public fun earth-calendar(
   fun dc-to-instant(d : date, c : clock) { 
     unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
-  Calendar(name,ts,instant-to-dc,dc-to-instant)
+  Calendar(name,long-name,ts,instant-to-dc,dc-to-instant)
 }
 
 
@@ -219,7 +245,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
 // (Gregorian) date (=`Date(1582,10,15`)) and Gr egorian dates otherwise.
 public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
   val switch-days = iso-date-to-days(switch) //+ skip
-  earth-calendar( "JG", 
+  earth-calendar( "JG", "Julian-Gregorian",
     fun(days) { julgreg-days-to-date(days,switch-days) },
     fun(d)    { julgreg-date-to-days(d,switch) }
   )
@@ -433,4 +459,56 @@ fun julgreg-days-to-date( days : int, switch : int ) : date {
    else iso-days-to-date(days)
 }
 
+/*----------------------------------------------------------------------------
+  Coptic & Ethiopian calendars
+----------------------------------------------------------------------------*/
+
+val coptic-days-in-era  = 1461
+val coptic-years-in-era = 4
+val coptic-epoch-shift  = 626515 // Shift from 2000-01-01 to 0284-08-29 JC
+
+// Return a date from a number of days in the Coptic calendar.
+fun coptic-days-to-date( days : int ) : date {  
+  val z = days + coptic-epoch-shift
+  val (era,doe) = divmod(z,coptic-days-in-era)  // 0 <= doe <= 1460
+  val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
+  val doy   = doe - 365*yoe                     // 0 <= doy <= 365
+  val mp    = (doy / 30) 
+  val day   = (doy - (30 * mp)) + 1
+  val month = mp + 1
+  val year  = yoe + (coptic-years-in-era * era) 
+  val yyear = if (year<=0) then year.dec else year  // no zero year
+  val d = Date(yyear,month,day)
+  // trace("coptic days to date: " + days.show + " -> " + d.show)  
+  d
+}
+
+fun coptic-datex-to-days( year : int, month : int, day : int ) : int {
+  val (era,yoe) = divmod(year.dec,coptic-years-in-era)
+  val doy = 30*(month - 1) + (day - 1)
+  val doe = yoe*365 + doy
+  ((era * coptic-days-in-era) + doe) - coptic-epoch-shift
+}  
+
+// Return the days from a date in the Coptic calendar.
+public fun coptic-date-to-days( d : date ) : int {
+  val (xera,doe)  = divmod(d.day.dec, coptic-days-in-era)
+  val (xyear,moy) = divmod(d.month.dec, 13)
+  val yyear = if (d.year<=0) then d.year.inc else d.year  // no zero year, treat 0 as 1
+  val days = coptic-datex-to-days( yyear + (xera * coptic-years-in-era) + xyear, moy.inc, doe.inc )    
+  // trace("coptic date to days: " + d.show + " -> " + days.show)  
+  days
+}
+
+// The Ethiopian calendar is just Coptic but with a different epoch
+val ethiopian-epoch-shift  = 727324   // 2001-01-01 to 0008-08-29 JC
+val ethiopian-coptic-shift = (ethiopian-epoch-shift - coptic-epoch-shift)
+
+public fun ethiopian-date-to-days( d : date ) : int {
+  coptic-date-to-days(d) - ethiopian-coptic-shift
+}
+
+public fun ethiopian-days-to-date( days : int ) : date {
+  coptic-days-to-date(days + ethiopian-coptic-shift)
+}
 
