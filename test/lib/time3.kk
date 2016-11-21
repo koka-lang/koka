@@ -8,8 +8,6 @@
 
 module time3
 
-import std/path
-import std/file
 public import std/num/fixed
 public import std/xtime
 public import std/time/timestamp
@@ -83,26 +81,9 @@ fun test-sofa() {
   check("skyfield-tdb1","2456658.500777591821"){  instant-at(2014,1,1).jd(ts-tdb).show(12)  } // skyfield: 2456658.500777592  
 }
 
-public fun test-ut1() {
-  println("load UT1 calendar")
-  val calut1= cal-ut1(load-iers-ut1())
-  val t = time(2012,6,30,23,59,58)
-  check("sofa-ut1","2006-01-15T21:24:37.834087400Z UT1"){  sofai.time(cal=calut1).show  } // astropy: 37.834077793, sofa: 37.834100 ; due to interpolation?
-  list(0,4).foreach fun(i) {
-    val r = (if (i <= 2) then "2012-06-30T23:59:" + (i+57).show + ".413161800Z UT1" 
-                         else "2012-07-01T00:00:" + (i - 3).show.pad-left(2,'0') + ".413236Z UT1")  
-    check("leap-ut" + i.show, r){ 
-      //println("\ncheck: t + " + i.show)
-      val s = (t + duration(i)).time(cal=calut1).show 
-      val u = (t + duration(i)).time.show 
-      println("utc: " + u + "\nut1: " + s + "\nexp: " + r )
-      s 
-    }
-  }
-}
-
 public fun main() {
   test-misc()
   test-jd()
   test-astro()
-  test-sofa()}
+  test-sofa()
+}

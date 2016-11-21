@@ -44,8 +44,8 @@ public fun cal-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) 
 
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
-// information for precise UT1 determination. 
-// Looks by default for the file `fname` (= `"config/finals2000A.all"` in the application directory).
+// information for precise UT1 determination. Uses linear interpolation between daily UT1-UTC values.
+// By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
 // <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
 // Set the `url` to the empty string to suppress automatic downloading. 
@@ -913,13 +913,23 @@ struct dut-table(
 )
 
 // Calculate &Delta;T from a DUT table.
+// Interpolates linearly between daily entries.
 fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
   on-exn(Nothing) {
     val utci = i.use(ts-utc)
     val mjd = utci.mjd(ts-utc).double
     if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
       val idx = (mjd - dtt.start).trunc.int
-      val dut = dtt.duts[idx]
+      // interpolate
+      val dut1= dtt.duts[idx]
+      val dut2= if (idx + 1 >= dtt.duts.length) then dut1 else dtt.duts[idx+1]
+      val dut3= if (dut1 - 0.5 < dut2 && dut1 + 0.5 > dut2) then dut2
+                elif (dut1 + 0.5 < dut2 && dut1 + 1.5 > dut2) then dut2 - 1.0 // a leap second was added
+                elif (dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2) then dut2 + 1.0 // a leap second was subtracted
+                else dut1 // a jump outside a reasonable range; don't interpolate
+      val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
+      // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
+      // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
       val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
       // trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
