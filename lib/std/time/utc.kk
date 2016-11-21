@@ -121,7 +121,7 @@ public fun utc-timescale( name : string, y2k-epoch : timestamp = timestamp0 ) : 
     to-tai,
     y2k-epoch,
     "UTC",
-    utc-secs-in-day
+    Just(utc-secs-in-day)
   )
 }
 
@@ -276,7 +276,7 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
           else {
             // this is inside an added leap-second, encode as a fraction `> 1.0`.
             val diff     = ofs - ofs-before
-            val utc-leap = utc-i.add-leap-seconds(diff.double)                            
+            val utc-leap = utc-i.add-leap-seconds(diff)                            
             // trace(" in a leap second: " + utc-leap.show + ", diff: " + diff.ts-show + ", ofs: " + ofs.ts-show + ", ofs-before: " + ofs-before.ts-show )
             utc-leap
           }
@@ -290,7 +290,7 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
 // Return the SI seconds in the day of time `t` (as a UTC timestamp)
 public fun utc-secs-in-day( t : timestamp ) : timespan {
   val nlsecs = t.without-leap-seconds
-  trace("search nlsecs: " + nlsecs.ts-show)
+  //trace("search nlsecs: " + nlsecs.ts-show)
   if (nlsecs < utc1972) then return secs-per-day
   val leaps = unsafe-total(get-leaps-table)
   match(leaps.adjusts.long-day?(nlsecs)) {

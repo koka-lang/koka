@@ -80,11 +80,11 @@ public fun non-leap-seconds( ts : timestamp ) : timespan {
 }
 
 // Add `leaps` leap seconds to the time stamp.
-public fun add-leap-seconds( ts : timestamp, leaps : double ) : timestamp {
+public fun add-leap-seconds( ts : timestamp, leaps : fixed ) : timestamp {
   if (!leaps.pos?) then ts 
-  elif (leaps < 1.0 && ts.leap-seconds.zero?) 
-   then Timestamp( (ts.since - 1.fixed) + leaps.fixed, 1)
-   else Timestamp( ts.since + leaps.fraction.fixed, ts.leap-seconds + leaps.trunc.int )
+  elif (leaps < fixed(1.0) && ts.leap-seconds.zero?) 
+   then Timestamp( (ts.since - 1.fixed) + leaps, 1)
+   else Timestamp( ts.since + leaps.fraction.fixed, ts.leap-seconds + leaps.trunc )
 }
 
 

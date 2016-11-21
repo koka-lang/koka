@@ -44,6 +44,9 @@ fun test-jd() {
   check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show }
   check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show }
   check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show }
+  check("jdleap-tz1","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-gmt(2)).mjd.show } // across timezone (should *not* be: 57754.083332175925926)
+  check("jdleap-tz2","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-gmt(~2)).mjd.show } // across timezone without a leap
+  // inverses
   check("jdleapx0","2016-12-31T23:59:59Z")  { time(2016,12,31,23,59,59).mjd.instant-at-mjd(ts-utc).time.show }
   check("jdleapx1","2016-12-31T23:59:59.900Z")  { time(2016,12,31,23,59,59,0.9).mjd.instant-at-mjd(ts-utc).time.show }
   check("jdleapx2","2016-12-31T23:59:60Z")       { time(2016,12,31,23,59,60).mjd.instant-at-mjd(ts-utc).time.show }
