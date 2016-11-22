@@ -195,7 +195,7 @@ public fun add-clock( t : time, c : clock ) : time {
 
 // Add  a specified number of days to a calendar time.
 public fun add-days( t : time, days : int, c : clock = clock0 ) : time {
-  t.add-date( Date(t.year, t.month, t.day + days), c )
+  t.add-date( Date(0, 0, days), c )
 }
 
 // Add  a specified number of weeks to a calendar time.

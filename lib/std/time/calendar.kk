@@ -152,6 +152,32 @@ public val cal-ethiopian = earth-calendar(
   ethiopian-date-to-days
 )
 
+// The [Permanent](https://en.wikipedia.org/wiki/Hanke%E2%80%93Henry_Permanent_Calendar) calendar.
+// This is a _perennial_ calendar where dates always fall on the same week day.
+// Every year starts on Monday. There are four quarters of 13 weeks -- that always start on Monday
+// and end on Sunday (and there is never a Friday the 13th :-). The three months of a quarter are 
+// 30, 30, and 31 days. Once every 5 or 6 years, there is a leap year where there is one extra
+// week at the end of the year, called 'Xtra'. This way, permanent dates are never more than 5 days
+// apart from the Gregorian calendar. (A year gets an 'Xtra' week whenever the corresponding 
+// Gregorian calendar year starts- or ends with a Thursday.)
+//
+// Note that with a perennial calendar, things like finding the `n`th weekday is suddenly
+// trivial; For example, Thanksgiving (the fourth Thursday of November) is always on November 23 PC,
+// and always 31 days apart from Christmas. Similarly, ISO week dates map directly onto this
+// calendar, always neatly starting at the first day of the year, where 'Xtra' is always week 53.
+//
+// The epoch is Monday 2001-01-01 PC which coincides with Monday 2001-01-01 in the ISO calendar.
+// The 'Xtra' week is usually treated as an extra month in descriptions of the permanent calendar
+// but in the library we treat it as an extra week of December, with month days 32 to 38. This
+// ensures every year has 12 months and thus makes it possible to still use 'roll over' behaviour 
+// when specifying the next month for example. 
+public val cal-perm = earth-calendar(
+  "PC",
+  "Permanent",
+  perm-days-to-date,
+  perm-date-to-days
+)
+
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
 // before 1582-10-15 and the Gregorian calendar otherwise. It is possible to 
 // specify a different switch date using the `julian-gregorian` function.
@@ -512,3 +538,63 @@ public fun ethiopian-days-to-date( days : int ) : date {
   coptic-days-to-date(days + ethiopian-coptic-shift)
 }
 
+/*----------------------------------------------------------------------------
+  The 'Permanent Calendar' (Henry-Hancke Calendar)
+----------------------------------------------------------------------------*/
+
+val perm-days-in-era  = 146097   // 365*400 + 100 - 3
+val perm-years-in-era = 400
+val perm-epoch-shift  = 730483 // Shift from 2000-01-01 to 0000-01-03 PC
+
+// For now we map long years to day counts; it should be possible to optimize this further?
+val long-years-map = [
+  (398,145733),(392,143542),(387,141715),(381,139524),(376,137697),(370,135506),(364,133315),
+  (359,131488),(353,129297),(348,127470),(342,125279),(336,123088),(331,121261),(325,119070),
+  (320,117243),(314,115052),(308,112861),(303,111034),(296,108479),(291,106652),(285,104461),
+  (280,102634),(274,100443),(268, 98252),(263, 96425),(257, 94234),(252, 92407),(246, 90216),
+  (240, 88025),(235, 86198),(229, 84007),(224, 82180),(218, 79989),(212, 77798),(207, 75971),
+  (201, 73780),(195, 71589),(189, 69398),(184, 67571),(178, 65380),(172, 63189),(167, 61362),
+  (161, 59171),(156, 57344),(150, 55153),(144, 52962),(139, 51135),(133, 48944),(128, 47117),
+  (122, 44926),(116, 42735),(111, 40908),(105, 38717),( 99, 36526),( 93, 34335),( 88, 32508),
+  ( 82, 30317),( 76, 28126),( 71, 26299),( 65, 24108),( 60, 22281),( 54, 20090),( 48, 17899),
+  ( 43, 16072),( 37, 13881),( 32, 12054),( 26,  9863),( 20,  7672),( 15,  5845),(  9,  3654),
+  (  4,  1827),( ~1, 0 )
+]
+
+fun perm-days-to-date( days : int ) : date {
+  // todo: binary search or fitting formula?
+  val z     = days + perm-epoch-shift
+  val (era,doe) = divmod(z,perm-days-in-era)  
+  val yd    = long-years-map.find( fun(yd) { yd.snd - 371 <= doe }).default((~1,0))  
+  val ybase = yd.fst
+  val ddiff = doe - yd.snd
+  //trace("days-to-date: " + days.show + ", found: " + ybase.show + ", " + dx.show)
+  val (yoe,doy) = if (ddiff < 0) then (ybase, 371 + ddiff ) else {
+                      val (yextra,doy) = divmod(ddiff, 364)
+                      (ybase + yextra + 1, doy)
+                    }
+  val m     = min(11, ((100*doy) / 3034)) // make december extra long if needed
+  val month = m + 1
+  val day   = (doy - ((3034 * m) / 100)) + 1
+  val year  = era * perm-years-in-era + yoe
+  Date(year,month,day)
+}
+
+fun perm-datex-to-days( year : int, month: int, day : int ) : int {
+  // todo: binary search or fitting formula
+  val (era,yoe) = divmod(year, perm-years-in-era)
+  val yd    = long-years-map.find( fun(yd) { yd.fst < yoe }).default((~1,0))
+  val ybase = yd.fst
+  val dbase = yd.snd
+  val ydays = dbase + ((yoe - ybase) - 1)*364
+  val mdays = (3034*(month - 1))/100
+  val ddays = day - 1
+  //trace("mdays; " + mdays.show)
+  (era*perm-days-in-era + ydays + mdays + ddays -  perm-epoch-shift)
+}
+
+fun perm-date-to-days( d : date ) : int {
+  val (xera,doe)  = divmod(d.day.dec, perm-days-in-era)
+  val (xyear,moy) = divmod(d.month.dec, 12)
+  perm-datex-to-days( (d.year ) + (xera * perm-years-in-era) + xyear, moy.inc, doe.inc )
+}
