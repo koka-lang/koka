@@ -154,7 +154,7 @@ public val cal-ethiopian = earth-calendar(
 
 // The [Permanent](https://en.wikipedia.org/wiki/Hanke%E2%80%93Henry_Permanent_Calendar) calendar.
 // This is a _perennial_ calendar where dates always fall on the same week day.
-// Every year starts on Monday. There are four quarters of 13 weeks -- that always start on Monday
+// Every year always starts on Monday (January 1st). There are four quarters of 13 weeks -- that always start on Monday
 // and end on Sunday (and there is never a Friday the 13th :-). The three months of a quarter are 
 // 30, 30, and 31 days. Once every 5 or 6 years, there is a leap year where there is one extra
 // week at the end of the year, called 'Xtra'. This way, permanent dates are never more than 5 days
@@ -176,6 +176,14 @@ public val cal-perm = earth-calendar(
   "Permanent",
   perm-days-to-date,
   perm-date-to-days
+)
+
+// The [Symetry 454](http://individual.utoronto.ca/kalendis/symmetry.htm) calendar.
+public val cal-sym = earth-calendar(
+  "SC",
+  "Symetric 454",
+  sym-days-to-date,
+  sym-date-to-days
 )
 
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
@@ -598,3 +606,92 @@ fun perm-date-to-days( d : date ) : int {
   val (xyear,moy) = divmod(d.month.dec, 12)
   perm-datex-to-days( (d.year ) + (xera * perm-years-in-era) + xyear, moy.inc, doe.inc )
 }
+
+
+/*----------------------------------------------------------------------------
+  The 'Symetry 454 Calendar' 
+----------------------------------------------------------------------------*/
+
+val sym-days-in-era  = 294*364  // 293 years with 52 leap weeks
+val sym-years-in-era = 293
+val sym-epoch-shift  = 730485 - 366 // Shift from 2000-01-01 to 0000-01-03 PC
+
+
+// By linear regression, it turns out we can fit a years to days formula
+fun sym-yoe-to-days( yoe : int ) : int {
+  val w = 52.17743862*yoe.double + 52.00522393            
+  (7*w.int) 
+}
+
+// Convert a normalized date
+fun sym-datex-to-days( year : int, month : int, day : int ) : int {
+  val (era,yoe) = divmod( year, sym-years-in-era )
+  trace("sym xdays: " + year.show + ", yoe: " + yoe.show)
+  val ydays   = sym-yoe-to-days(yoe )
+  val (q,moq) = divmod(month - 1, 3)
+  val doq     = (day - 1) + (if (moq==0) then 0 elif (moq == 1) then 28 else 63)
+  val doy     = q*91 + doq
+  val days    = era*sym-days-in-era + ydays + doy
+  trace("sym days: " + days.show)
+  days - sym-epoch-shift
+}
+
+public fun sym-date-to-days( d : date ) : int {
+  val (xera,doe)  = divmod(d.day.dec, sym-days-in-era)
+  val (xyear,moy) = divmod(d.month.dec, 12)
+  sym-datex-to-days( d.year + (xera * sym-years-in-era) + xyear, moy.inc, doe.inc )
+}
+
+// Based on: http://individual.utoronto.ca/kalendis/leap/293-leap-pattern.pdf
+val cycle62 = 3*cycle17 + cycle11
+val cycle28 = cycle17 + cycle11  
+val cycle17 = 6209  // 3*371 + 14*364
+val cycle11 = 4018  // 22*371 + 9*364
+
+val year15= 5481    // 3*371 + 12*364
+val year9 = 3290    // 2*371 + 7*364
+val year3 = 1099    // 1*371 + 2*364
+
+// Finds the year and day-of-year for a short 11-year cycle, or a long 17-year cycle.
+// An 11-year cycle is: s s l s s s s s l s s
+// A 17-year cycle is : s s l s s s s s l s s s s s l s s
+// (with s for short years, and l for long years)
+fun sym-doe-to-year17( days : int ) : date {
+  val (y,d)  = if (days >= year15 - 7) then (15,days - year15)
+                elif (days >= year9 - 7) then (9,days - year9)
+                 elif (days >= year3 - 7) then (3,days - year3)
+                  else (0,days)
+  val (dy,doy) = if (d.neg?) then (~1, 371 + d) else divmod(d,364)                    
+  Date(y + dy, 0, doy)
+}
+
+// Finds the year and day-of-year for a 62-year cycle
+// which consists of 3 17-year cycles followed by a short 11-year cycle.
+// 62 == 17 + 17 + 17 + 11
+fun sym-doe-to-year62( days : int ) : date {
+  val (c,doc) = divmod( days, cycle17 )
+  val Date(y,m,doy) = sym-doe-to-year17(doc)
+  Date(y + c*17, m, doy)
+}
+
+// A full 293 year cycle always starts with a 17-year and 11-year cycle,
+// followed by 62-year cycles (the last one is partial)
+// i.e. 293 == 17 + 11 + 62 + 62 + 62 + 62 + 17
+fun sym-doe-to-year( days : int ) : date {
+  if (days < cycle28) then return sym-doe-to-year62(days)
+  val (c,doc) = divmod(days - cycle28, cycle62)
+  val Date(y,m,doy) = sym-doe-to-year62(doc)
+  Date(y + 28 + c*62, m, doy)
+}
+
+public fun sym-days-to-date( days : int ) : date {
+  val (era,doe) = divmod( days + sym-epoch-shift, sym-days-in-era )
+  val Date(y,_,d) = sym-doe-to-year(doe)
+  val (m,dom) = if (d >= 336) then (11,d - 336) else {
+    val (q,doq) = divmod(d,91)
+    val mq  = q*3
+    (if (doq < 63) then (if (doq < 28) then (mq,doq) else (mq+1,doq - 28)) else (mq+2,doq - 63))
+  }
+  Date(y + era*sym-years-in-era, m + 1, dom + 1)
+}
+
