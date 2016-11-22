@@ -152,39 +152,51 @@ public val cal-ethiopian = earth-calendar(
   ethiopian-date-to-days
 )
 
-// The [Permanent](https://en.wikipedia.org/wiki/Hanke%E2%80%93Henry_Permanent_Calendar) calendar.
-// This is a _perennial_ calendar where dates always fall on the same week day.
-// Every year always starts on Monday (January 1st). There are four quarters of 13 weeks -- that always start on Monday
+
+
+// The _ISO month_ calendar.
+// 
+// This is a (non-standard) extension of the [ISO standard week date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.
+// Normally, ISO week dates are expressed as a year, a week number, and a day of the week.
+// This makes a great calendar as it is _perennial_ where dates always fall on the same week day,
+// and it closely follows the Gregorian calendar where weeks always have 7 days.
+//
+// The _ISO month_ calendar takes this calendar as its base, but expresses it more regularly using
+// months and day of the month (instead of weeks and day of the week). 
+//
+// Every year always starts on Monday (January 1st). There are four quarters of 13 ISO weeks that always start on Monday
 // and end on Sunday (and there is never a Friday the 13th :-). The three months of a quarter are 
-// 30, 30, and 31 days. Once every 5 or 6 years, there is a leap year where there is one extra
-// week at the end of the year, called 'Xtra'. This way, permanent dates are never more than 5 days
-// apart from the Gregorian calendar. (A year gets an 'Xtra' week whenever the corresponding 
-// Gregorian calendar year starts- or ends with a Thursday.)
+// 30, 30, and 31 days. When there is an ISO week 53, we call it a leap year where the 'leap week'
+// gets inserted at the end of the last month (and adds days 32 to 38 to December).
+// This way, dates in the ISO month calendar are never  more than 5 days apart from the Gregorian calendar. 
+// (Just like ISO week dates, a year is a leap year whenever the corresponding Gregorian calendar year starts- or ends with a Thursday.)
+// The epoch is Monday 0001-01-01 IM which coincides with Monday 0001-01-01 in the ISO/Gregorian calendar.
 //
 // Note that with a perennial calendar, things like finding the `n`th weekday is suddenly
-// trivial; For example, Thanksgiving (the fourth Thursday of November) is always on November 23 PC,
-// and always 31 days apart from Christmas. Similarly, ISO week dates map directly onto this
-// calendar, always neatly starting at the first day of the year, where 'Xtra' is always week 53.
+// trivial; For example, Thanksgiving (the fourth Thursday of November) is always on November 23 IMC,
+// and always 31 days before from Christmas. 
 //
-// The epoch is Monday 2001-01-01 PC which coincides with Monday 2001-01-01 in the ISO calendar.
-// The 'Xtra' week is usually treated as an extra month in descriptions of the permanent calendar
-// but in the library we treat it as an extra week of December, with month days 32 to 38. This
-// ensures every year has 12 months and thus makes it possible to still use 'roll over' behaviour 
-// when specifying the next month for example. 
-public val cal-perm = earth-calendar(
-  "PC",
-  "Permanent",
-  perm-days-to-date,
-  perm-date-to-days
+// Note that this calendar coincides with The [Permanent](https://en.wikipedia.org/wiki/Hanke%E2%80%93Henry_Permanent_Calendar) 
+// calendar proposal except that we propose to base it directly on the standard ISO week calendar.
+public val cal-iso-month = iso-month-calendar("IMC","ISO month",30,30)
+
+public fun iso-month-calendar( name : string, long-name : string, m1 : int = 30, m2 : int = 30 ) : calendar {
+  earth-calendar(
+    name,
+    long-name,
+    fun(days:int) { isom-days-to-date(days,m1,m2) },
+    fun(d:date)   { isom-date-to-days(d,m1,m2) }
+  )
+}
+
+// The 'ISO week' calendar.
+public val cal-iso-week = earth-calendar(
+  "IWC",
+  "ISO Week",
+  isow-days-to-date,
+  isow-date-to-days
 )
 
-// The [Symetry 454](http://individual.utoronto.ca/kalendis/symmetry.htm) calendar.
-public val cal-sym = earth-calendar(
-  "SC",
-  "Symetric 454",
-  sym-days-to-date,
-  sym-date-to-days
-)
 
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
 // before 1582-10-15 and the Gregorian calendar otherwise. It is possible to 
@@ -546,66 +558,83 @@ public fun ethiopian-days-to-date( days : int ) : date {
   coptic-days-to-date(days + ethiopian-coptic-shift)
 }
 
+
+
 /*----------------------------------------------------------------------------
-  The 'Permanent Calendar' (Henry-Hancke Calendar)
+  The ISO week and ISO month calendars
 ----------------------------------------------------------------------------*/
 
-val perm-days-in-era  = 146097   // 365*400 + 100 - 3
-val perm-years-in-era = 400
-val perm-epoch-shift  = 730483 // Shift from 2000-01-01 to 0000-01-03 PC
+val isow-years-in-era = 400
+val isow-days-in-era  = 146097   // 365*400 + 100 - 3
+val isow-days-in-short= 364      // 52*7
+val isow-epoch-shift  = 730485
 
-// For now we map long years to day counts; it should be possible to optimize this further?
-val long-years-map = [
-  (398,145733),(392,143542),(387,141715),(381,139524),(376,137697),(370,135506),(364,133315),
-  (359,131488),(353,129297),(348,127470),(342,125279),(336,123088),(331,121261),(325,119070),
-  (320,117243),(314,115052),(308,112861),(303,111034),(296,108479),(291,106652),(285,104461),
-  (280,102634),(274,100443),(268, 98252),(263, 96425),(257, 94234),(252, 92407),(246, 90216),
-  (240, 88025),(235, 86198),(229, 84007),(224, 82180),(218, 79989),(212, 77798),(207, 75971),
-  (201, 73780),(195, 71589),(189, 69398),(184, 67571),(178, 65380),(172, 63189),(167, 61362),
-  (161, 59171),(156, 57344),(150, 55153),(144, 52962),(139, 51135),(133, 48944),(128, 47117),
-  (122, 44926),(116, 42735),(111, 40908),(105, 38717),( 99, 36526),( 93, 34335),( 88, 32508),
-  ( 82, 30317),( 76, 28126),( 71, 26299),( 65, 24108),( 60, 22281),( 54, 20090),( 48, 17899),
-  ( 43, 16072),( 37, 13881),( 32, 12054),( 26,  9863),( 20,  7672),( 15,  5845),(  9,  3654),
-  (  4,  1827),( ~1, 0 )
-]
-
-fun perm-days-to-date( days : int ) : date {
-  // todo: binary search or fitting formula?
-  val z     = days + perm-epoch-shift
-  val (era,doe) = divmod(z,perm-days-in-era)  
-  val yd    = long-years-map.find( fun(yd) { yd.snd - 371 <= doe }).default((~1,0))  
-  val ybase = yd.fst
-  val ddiff = doe - yd.snd
-  //trace("days-to-date: " + days.show + ", found: " + ybase.show + ", " + dx.show)
-  val (yoe,doy) = if (ddiff < 0) then (ybase, 371 + ddiff ) else {
-                      val (yextra,doy) = divmod(ddiff, 364)
-                      (ybase + yextra + 1, doy)
-                    }
-  val m     = min(11, ((100*doy) / 3034)) // make december extra long if needed
-  val month = m + 1
-  val day   = (doy - ((3034 * m) / 100)) + 1
-  val year  = era * perm-years-in-era + yoe
-  Date(year,month,day)
+fun isow-year-to-days( year : int ) : int {
+  val (era,yoe) = divmod(year - 1, isow-years-in-era)     // calculate `yoe` of one year before (as we want days up to `year`-01-01)
+  val gdays = ((yoe*365 + yoe/4) - yoe/100) + 366         // days to Gregorian year at Jan 1, +366 as year 0 was leap
+  val weeks = gdays / 7
+  val wday  = (gdays - 7*weeks) - 1                        // weekday of Gregorian Jan 1 ([-1,6]) (0 = Sunday) (because 0000-01-01 is Saturday and 0000 is leap)
+  val adj   = if (wday <= 4) then 1 - wday else 8 - wday   // adjust to start of ISO week (with first week containing the first Thursday)
+  //trace("isow-year-to-days: " + year.show + ": wday: " + wday.show + ", adj: " + adj.show + ", days; " + gdays.show)
+  (era*isow-days-in-era + gdays + adj)
 }
 
-fun perm-datex-to-days( year : int, month: int, day : int ) : int {
-  // todo: binary search or fitting formula
-  val (era,yoe) = divmod(year, perm-years-in-era)
-  val yd    = long-years-map.find( fun(yd) { yd.fst < yoe }).default((~1,0))
-  val ybase = yd.fst
-  val dbase = yd.snd
-  val ydays = dbase + ((yoe - ybase) - 1)*364
-  val mdays = (3034*(month - 1))/100
-  val ddays = day - 1
-  //trace("mdays; " + mdays.show)
-  (era*perm-days-in-era + ydays + mdays + ddays -  perm-epoch-shift)
+// Interpret the 'months' as ISO weeks
+fun isow-date-to-days( d : date ) : int {
+  val ydays = isow-year-to-days(d.year)
+  (ydays + d.month.dec*7 + d.day.dec) - isow-epoch-shift
 }
 
-fun perm-date-to-days( d : date ) : int {
-  val (xera,doe)  = divmod(d.day.dec, perm-days-in-era)
-  val (xyear,moy) = divmod(d.month.dec, 12)
-  perm-datex-to-days( (d.year ) + (xera * perm-years-in-era) + xyear, moy.inc, doe.inc )
+fun isow-year-is-long?( year : int ) : bool {
+  val diff = isow-year-to-days(year.inc) - isow-year-to-days(year)
+  // trace("isow long year: " + year.show + ": diff: " + diff.show)
+  (diff > isow-days-in-short)
 }
+
+fun isow-days-to-yearday( days : int ) : (int,int) {
+  val gyear = (((days - (days/1460)) + (days/36524)) - (days/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
+  val doy  = days - isow-year-to-days(gyear)
+  if (doy.neg?) then { // if it fell in the previous ISO year
+    (gyear.dec, days - isow-year-to-days(gyear.dec))
+  }
+  elif (doy >= isow-days-in-short && !isow-year-is-long?(gyear)) then { //  in the next ISO year?
+    (gyear.inc, doy - isow-days-in-short)
+  }
+  else (gyear,doy)
+}
+
+fun isow-days-to-date( days : int ) : date {
+  val (year,doy) = isow-days-to-yearday(days + isow-epoch-shift)
+  val (weeks,dow) = divmod(doy,7)
+  Date(year,weeks.inc,dow.inc)
+}
+
+// The ISO month calendar
+
+val isom-days-in-quarter = 91
+
+fun isom-days-to-date( days : int, m1 : int = 30, m2 : int = 30 ) : date {
+  val m12     = m1 + m2
+  val wdate   = isow-days-to-date(days)
+  val (q,doq) = divmod( 7*wdate.month.dec + wdate.day.dec, isom-days-in-quarter )
+  val (moq,dom) = if (q==4) then (~1, (doq + isom-days-in-quarter) - m12)  // minus 1 as q == 4 and we need month 12
+                  elif (doq >= m12) then (2, doq - m12) 
+                  elif (doq >= m1) then (1, doq - m1) 
+                  else (0, doq)
+  //trace("isom days to date: " + days.show + " -> " + wdate.show)
+  Date(wdate.year, q*3 + moq.inc, dom.inc)
+}
+
+fun isom-date-to-days( d : date, m1 : int = 30, m2 : int = 30 ) : int {
+  val (q,moq) = divmod( d.month.dec, 3)
+  val mdoq = if (moq == 2) then m1 + m2 elif (moq==1) then m1 else 0
+  val doy  = q*isom-days-in-quarter + mdoq + d.day.dec
+  //trace("isom date to days: " + d.show + ", mdoq; " + mdoq.show + ", doy : " + doy.show + ", day: " + d.day.show)
+  val days = isow-date-to-days(Date(d.year,1,doy.inc))
+  days
+}
+
+
 
 
 /*----------------------------------------------------------------------------
