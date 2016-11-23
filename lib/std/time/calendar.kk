@@ -562,6 +562,11 @@ public fun ethiopian-days-to-date( days : int ) : date {
 
 /*----------------------------------------------------------------------------
   The ISO week and ISO month calendars
+  The ISO week calendar is the ISO week date calendar where every 'month' is
+  the week of the year. The algorithms here are stand-alone and don't
+  rely on the Gregorian calendar.
+  The ISO month calendar is based upon the week calendar and expressses
+  the week/day-of-week as month/day-of-month.
 ----------------------------------------------------------------------------*/
 
 val isow-years-in-era = 400
@@ -609,13 +614,17 @@ fun isow-days-to-date( days : int ) : date {
   Date(year,weeks.inc,dow.inc)
 }
 
+// ------------------------------------------------------------------------------------------
 // The ISO month calendar
+// ------------------------------------------------------------------------------------------
 
 val isom-days-in-quarter = 91
 
 fun isom-days-to-date( days : int, m1 : int = 30, m2 : int = 30 ) : date {
   val m12     = m1 + m2
   val wdate   = isow-days-to-date(days)
+  val mdays   = (3034*wdate.month.dec)/100   // this works because of the 30/30/31 pattern 
+  val dom     = wdate.day - mdays
   val (q,doq) = divmod( 7*wdate.month.dec + wdate.day.dec, isom-days-in-quarter )
   val (moq,dom) = if (q==4) then (~1, (doq + isom-days-in-quarter) - m12)  // minus 1 as q == 4 and we need month 12
                   elif (doq >= m12) then (2, doq - m12) 
