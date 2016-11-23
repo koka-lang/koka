@@ -153,32 +153,109 @@ public val cal-ethiopian = earth-calendar(
 )
 
 
+/*
+This is _not_ a standard ISO calendar -- it is named this way because
+it is based directly on the standard [ISO week
+date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.
 
-// The _ISO month_ calendar.
-// 
-// This is a (non-standard) extension of the [ISO standard week date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.
-// Normally, ISO week dates are expressed as a year, a week number, and a day of the week.
-// This makes a great calendar as it is _perennial_ where dates always fall on the same week day,
-// and it closely follows the Gregorian calendar where weeks always have 7 days.
-//
-// The _ISO month_ calendar takes this calendar as its base, but expresses it more regularly using
-// months and day of the month (instead of weeks and day of the week). 
-//
-// Every year always starts on Monday (January 1st). There are four quarters of 13 ISO weeks that always start on Monday
-// and end on Sunday (and there is never a Friday the 13th :-). The three months of a quarter are 
-// 30, 30, and 31 days. When there is an ISO week 53, we call it a leap year where the 'leap week'
-// gets inserted at the end of the last month (and adds days 32 to 38 to December).
-// This way, dates in the ISO month calendar are never  more than 5 days apart from the Gregorian calendar. 
-// (Just like ISO week dates, a year is a leap year whenever the corresponding Gregorian calendar year starts- or ends with a Thursday.)
-// The epoch is Monday 0001-01-01 IM which coincides with Monday 0001-01-01 in the ISO/Gregorian calendar.
-//
-// Note that with a perennial calendar, things like finding the `n`th weekday is suddenly
-// trivial; For example, Thanksgiving (the fourth Thursday of November) is always on November 23 IMC,
-// and always 31 days before from Christmas. 
-//
-// Note that this calendar coincides with The [Permanent](https://en.wikipedia.org/wiki/Hanke%E2%80%93Henry_Permanent_Calendar) 
-// calendar proposal except that we propose to base it directly on the standard ISO week calendar.
-public val cal-iso-month = iso-month-calendar("IMC","ISO month",30,30)
+The 'ISO' month calendar matches the ISO week date calendar directly, but
+denotes dates as usual using months and a day of the month (instead of
+using a week number and day of the week).
+
+Every year always starts on the first day of week 1 in the ISO week
+calendar, and therefore always starts on a Monday (on January 1st) and
+ends on a Sunday. Each regular year is divided in 4 quarters of 13 ISO
+weeks each. A quarter also always starts on Monday and ends on Sunday.
+The three months of each quarter are 30, 30, and 31 days respectively.
+So, January has 30 days, February has 30 days too, March has 31 days,
+April has 30 days again, etc.
+
+When there is an ISO week 53, we call it a leap year where the 'leap
+week' 53 gets inserted at the end of the last month (and adds days 32 to
+38 to December). The epoch is Monday 0001-01-01 IM which coincides with
+Monday 0001-01-01 in the ISO/Gregorian calendar.
+
+Note that with
+a [perennial](https://en.wikipedia.org/wiki/Perennial_calendar) calendar,
+things like finding the _n_\/th weekday is suddenly trivial; For example,
+Thanksgiving (the 4th Thursday of November) is always on November 23 IM,
+and always 31 days before from Christmas. Similarly, Chrismas and New
+year are always on a Sunday.
+
+The short name of the calendar is `"IM"`.
+
+~ Begin Calendar { .sans-serif; border: 1px solid #AAA; padding:1ex; }
+
++~~~:|~~~:|~~~:|~~~:|~~~:|~~~:|~~~:+~~~|~~~~:|~~~~:|~~~~:|~~~~:|~~~~~~~~~~~~~|
+|  Quarterly Calendar        ||||||| &quad;  | ISO week numbers   ||||             |{.noborder; text-align:center}
+|    |    |    |    |    |    |    |   | Q1  | Q2  | Q3  | Q4  |             |{.noborder; .mheader}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+| Mo | Tu | We | Th | Fr | Sa | Su |   | Jan | Apr | Jul |Oct  |             |{.mheader}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+| 1  | 2  | 3  | 4  | 5  | 6  | 7  |   | 1   | 14  | 27  | 40  |             |
+| 8  | 9  | 10 | 11 | 12 | 13 | 14 |   | 2   | 15  | 28  | 41  |             |
+| 15 | 16 | 17 | 18 | 19 | 20 | 21 |   | 3   | 16  | 29  | 42  |             |
+| 22 | 23 | 24 | 25 | 26 | 27 | 28 |   | 4   | 17  | 30  | 43  |             |
+| 29 | 30 |    |    |    |    |    |   | 5   | 18  | 31  | 44  |             |
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+| Mo | Tu | We | Th | Fr | Sa | Su |   | Feb | May | Aug | Nov |             |{.mheader}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|    |    | 1  | 2  | 3  | 4  | 5  |   | 5   | 18  | 31  | 44  |             |
+| 6  | 7  | 8  | 9  | 10 | 11 | 12 |   | 6   | 19  | 32  | 45  |             |
+| 13 | 14 | 15 | 16 | 17 | 18 | 19 |   | 7   | 20  | 33  | 46  |             |
+| 20 | 21 | 22 | 23 | 24 | 25 | 26 |   | 8   | 21  | 34  | 47  |             |
+| 27 | 28 | 29 | 30 |    |    |    |   | 9   | 22  | 35  | 48  |             |
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+| Mo | Tu | We | Th | Fr | Sa | Su |   | Mar | Jun | Sep | Dec |             |{.mheader}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|    |    |    |    | 1  | 2  | 3  |   | 9   | 22  | 35  | 48  |             |
+| 4  | 5  | 6  | 7  | 8  | 9  | 10 |   | 10  | 23  | 36  | 49  |             |
+| 11 | 12 | 13 | 14 | 15 | 16 | 17 |   | 11  | 24  | 37  | 50  |             |
+| 18 | 19 | 20 | 21 | 22 | 23 | 24 |   | 12  | 25  | 38  | 51  |             |
+| 25 | 26 | 27 | 28 | 29 | 30 | 31 |   | 13  | 26  | 39  | 52  |             |
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+|\ 32|\ 33|\ 34|\ 35|\ 36|\ 37|\ 38|   | leap week^&dagger;^     ||| 53  |             |
+|----|----|----|----|----|----|----|   |     |     |     |     |             |
+{ .month; margin-left:auto; margin-right:auto }
+
+&nbsp;
+
+^&dagger;^ A leap week sometimes inserted
+  at the end of December. Upcoming years with a leap week are 2020, 2026, 2032, 2037, and 2043. In
+  general, a leap week is inserted whenever the corresponding Gregorian
+  year starts and/or ends on a Thursday.
+
+~ End Calendar
+
+Specific advantages:
+
+* Every year (and quarter) starts on a Monday and ends on a Sunday.
+* Dates always have the same week day in every year (&ie; the calendar
+  is [perennial](https://en.wikipedia.org/wiki/Perennial_calendar)).
+* A year divides in 4 equal quarters which simplifies financial
+  calculations.
+* Weeks are always 7 days, years are always 12 months.
+* Thanksgiving (4th Thursday of November) is always on November 23.
+* Christmas and New year are always on Sunday.
+* There is never a Friday the 13th.
+* Closely matches the existing Gregorian calendar in the months and month
+  lengths. A date is never more than 5 days apart from the corresponding
+  Gregorian date (90% of the time it is within 3 days).
+* Precisely matches the widely accepted and implemented standard 
+  [ISO 8601 week date](https://en.wikipedia.org/wiki/ISO_week_date) 
+  calendar. This makes it much simpler to adapt computer systems to
+  handle the new dates as they map directly onto each other. 
+* The leap week could be used to give everyone an extra week of vacation
+  every 5 or 6 years between Christmas and New year.
+
+*/
+public val cal-iso-month = iso-month-calendar("IM","ISO month",30,30)
 
 public fun iso-month-calendar( name : string, long-name : string, m1 : int = 30, m2 : int = 30 ) : calendar {
   earth-calendar(
@@ -189,9 +266,11 @@ public fun iso-month-calendar( name : string, long-name : string, m1 : int = 30,
   )
 }
 
-// The 'ISO week' calendar.
+// The 'ISO week' calendar. This implements the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
+// calendar the week number is interpreted as "month" number instead, i.e. every year has 52 (or 53)
+// months of 7 week days each. Short name is `"IW"`.
 public val cal-iso-week = earth-calendar(
-  "IWC",
+  "IW",
   "ISO Week",
   isow-days-to-date,
   isow-date-to-days
@@ -620,11 +699,11 @@ fun isow-days-to-date( days : int ) : date {
 
 val isom-days-in-quarter = 91
 
+// Parameterized over the duration of the first two months of a quarter.
+// For the `cal-iso-month` this is 30 and 30.
 fun isom-days-to-date( days : int, m1 : int = 30, m2 : int = 30 ) : date {
   val m12     = m1 + m2
   val wdate   = isow-days-to-date(days)
-  val mdays   = (3034*wdate.month.dec)/100   // this works because of the 30/30/31 pattern 
-  val dom     = wdate.day - mdays
   val (q,doq) = divmod( 7*wdate.month.dec + wdate.day.dec, isom-days-in-quarter )
   val (moq,dom) = if (q==4) then (~1, (doq + isom-days-in-quarter) - m12)  // minus 1 as q == 4 and we need month 12
                   elif (doq >= m12) then (2, doq - m12) 
