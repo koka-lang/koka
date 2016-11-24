@@ -12,6 +12,107 @@ public import std/num/fixed
 public import std/xtime
 
 
+fun group-by( xs : list<a>, n : int ) : list<list<a>> {
+  match(xs) {
+    Nil -> Nil
+    _   -> Cons(xs.take(n), group-by(unsafe-decreasing(xs.drop(n)),n))
+  }
+}
+
+fun show( xs : list<(int,int)> ) : string {
+  show( xs.map(fun(kv) { (kv.fst.show.pad-left(3,' '),kv.snd.show.pad-left(3,' ')) }), 7)
+}
+
+fun show( xs : list<(string,string)>, grp : int = 1 ) : string {
+  xs.group-by(grp).map( fun(ys) {
+    ys.map(fun(kv) { kv.fst + "->" + kv.snd }).join(", ")
+  }).join(",\n")
+}
+
+val delta-lo= (91.0/3.0)               // = 30.3333
+val delta-hi= (91.0/3.0) + (1.0/32.0)  // = 30.3646
+val delta   = 30.34 
+val idelta  = 3034
+
+fun imonth-start-days() : list<(int,int)> {
+  list(1,13).map( fun(m) { (m,((idelta * m.dec) / 100).inc) } )
+}
+
+fun mdays( m : int ) : int {
+  (delta * m.dec.double).floor.int 
+}
+
+fun dmonth( doy : int ) : int {
+  min(12, (doy.double / delta).floor.int.inc )
+}
+
+fun doy-to-md( doy : int ) : (int,int) {
+  val m = dmonth(doy)
+  val mdays = mdays(m).dec
+  (m, doy - mdays)
+}
+
+fun wd-to-doy( w : int, wd : int ) : int {
+  7*w.dec + wd
+}
+
+fun doy-to-wd( doy : int ) : (int,int) {
+  val (wk,dow) = divmod(doy.dec,7)
+  (wk.inc,dow.inc)
+}
+
+fun wd-to-md( w : int, wd : int ) : (int,int) {
+  wd-to-doy(w,wd).doy-to-md
+}
+
+fun md-to-wd( m : int, d : int ) : (int,int) {
+  val doy = mdays(m) + d
+  doy-to-wd(doy)
+}
+
+fun show-wd( w : int, wd : int ) : string {
+  "W" + w.show0 + "-" + wd.show
+}
+
+fun show-md( m : int, d : int ) : string {
+  "M" + m.show0 + "-" + d.show0
+}
+
+fun show0( i : int, width : int = 2) : string {
+  i.show.pad-left(width,'0')
+}
+
+fun wds-to-mds() : list<(string,string)> {
+  list(1,53).flatmap( fun(w) {
+    list(1,7).map( fun(wd) {
+      val (m,d) = wd-to-md(w,wd)
+      (show-wd(w,wd),show-md(m,d))
+    })
+  })
+}
+
+fun mds-to-wds() : list<(string,string)> {
+  list(1,12).flatmap( fun(m) {
+    list(1,if(m==12) then 38 else 31).map( fun(d) {
+      val (w,wd) = md-to-wd(m,d)
+      (show-md(m,d),show-wd(w,wd))
+    })
+  })
+}
+fun month-start-days() : list<(int,int)> {
+  list(0,13).map( fun(m) { (m, mdays(m)) } )
+}
+
+fun days-to-months() : list<(int,int)> {
+  list(1,369).map(fun(d){ (d, (d.double / delta).floor.int.inc) })
+}
+
+fun verify-slope() {
+  // list(1,12).map( fun(m){ (m, ( ((delta*m.dec.double).floor + 31.0) / delta).floor.int )})
+  list(1,12).flatmap( fun(m) {
+    list(1,31).map( fun(d) { (show-md(m,d), (((delta*m.dec.double).floor + d.double) / delta).floor.int != m.dec )})
+  }).filter(fun(kv){ kv.snd }).map(fst).show-list(id)
+}
 
 /*----------------------------------------------------------------------------
   Testing
