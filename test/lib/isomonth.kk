@@ -12,6 +12,190 @@ public import std/num/fixed
 public import std/xtime
 
 
+//--------------------------------------------------------------
+// month- and weekdate
+//--------------------------------------------------------------
+
+fun monthdate( wd : weekdate ) {
+  val doy   = days-before-week(wd.week) + wd.day.int
+  val month = month-of(doy)
+  val day   = doy - days-before-month(month)  
+  Date(wd.year,month,day)
+} 
+
+fun month-of(doy : int ) : int {
+  min( floor(doy.double / slope ).int + 1, 12 )
+}
+
+fun days-before-month(month : int ) : int {
+  floor(slope*(month - 1).double).int
+}
+
+val slope-lo= (91.0/3.0)               // = 30.3333
+val slope-hi= (91.0/3.0) + (1.0/32.0)  // = 30.3646
+val slope   = 30.34
+
+
+
+fun weekdate( d : date ) : weekdate {
+  val doy  = days-before-month(d.month) + d.day    
+  val week = week-of(doy)
+  val wday = doy - days-before-week(week) 
+  Weekdate(d.year, week, weekday(wday) )
+}
+
+fun weekday-of(doy : int) : int {
+  doy - days-before-week(week-of(doy)) 
+}
+
+fun week-of(doy : int) : int {
+  (doy - 1)/7 + 1
+}
+
+fun days-before-week(week : int ) : int {
+  7*(week - 1)
+}
+
+//--------------------------------------------------------------
+//  Date from days
+//--------------------------------------------------------------
+
+fun date-of(days : int) : date {
+  val approx  = gyear-of(days - 3)
+  val year    = if(days >= days-before-year(approx+1)) then approx+1 else approx
+  val doy     = (days - days-before-year(year)) + 1
+  val month   = month-of(doy)
+  val day     = doy - days-before-month(month)
+  Date(year,month,day)
+}
+
+fun gyear-of(days : int ) : int {
+  1 + (days - gleapdays-in(days))/365
+}
+
+fun gleapdays-in(days : int) : int {
+  val ldays = days + 307   // since 0000-03-01
+  (ldays/1460 - ldays/36524) + ldays/146096
+}
+
+
+//--------------------------------------------------------------
+//  Days from date
+//--------------------------------------------------------------
+
+fun days-before-date(d : date) : int {
+  days-before-year(d.year) + days-before-month(d.month) + (d.day - 1) 
+}
+
+fun days-before-year(year : int) : int {
+  val gdays    = gdays-before-gyear(year)
+  val weekday  = weekday-of(gdays+1)
+  val adjust   = if (weekday <= 4) then (1 - weekday) else (8 - weekday)
+  gdays + adjust
+}
+
+fun gdays-before-gyear(gyear : int ) : int {
+  365*(gyear - 1) + gleapdays-before(gyear) 
+}
+
+fun gleapdays-before(gyear : int) : int {
+ ((gyear - 1)/4 - (gyear - 1)/100) + (gyear - 1)/400
+}
+
+
+//--------------------------------------------------------------
+// 
+//--------------------------------------------------------------
+
+fun islong( year : int ) : bool {
+  fun p(y:int) { (((y + y/4) - y/100) + y/400) % 7 }
+  (p(year)==4 || p(year.dec)==3) 
+}
+
+fun lastweek( year : int ) : int {
+  if (islong(year)) then 53 else 52
+}
+
+fun lastday(month : int ) : int {
+  if (month % 3 == 0) then 31 else 30
+}
+
+
+//--------------------------------------------------------------
+// Verification
+//--------------------------------------------------------------
+
+fun xcheck( msg : string, expect : string, chk :() -> io string ) : io () {
+  val res = chk()
+  if (res==expect) then println(msg + ": " + expect + ": ok.") 
+  else {
+    println(msg + ": FAILED!!!\n expect: " + expect + "\n got   : " + res)
+    error("failed")
+  }
+}
+
+fun verify-id1(years=400) {
+  for-weekdates(years) fun(wd) {
+    xcheck("weekdate", wd.show ) { weekdate(monthdate(wd)).show }
+  }
+}
+
+fun verify-id2(years=400) {
+  for-monthdates(years) fun(date) {
+    xcheck("monthdate", date.show ) { monthdate(weekdate(date)).show }
+  }
+}
+
+fun verify-id3(years=400) {
+  for-monthdates(years) fun(date) {
+    xcheck("monthdate", date.show) { date-of(days-before-date(date)).show }
+  }
+}
+
+fun verify-id4(years=400) {
+  for-days(years) fun(days) {
+    xcheck("days", days.show) { days-before-date(date-of(days)).show }
+  }
+}
+
+
+/*----------------------------------------------------------------------------
+  Iterate through dates
+----------------------------------------------------------------------------*/
+
+fun for-weekdates(years=400, action : (weekdate) -> io ()) : io () {
+  for(~years,years) fun(year) {
+    for(1,year.lastweek) fun(week) {
+      for(1,7) fun(wday) {
+        action(Weekdate(year,week,weekday(wday)))
+      }
+    }
+  }
+}
+
+
+fun for-monthdates(years=400, action : (date) -> io ()) : io () {
+  for(~years,years) fun(year) {
+    for(1,12) fun(month) {
+      for(1,month.lastday) fun(day) {
+        action(Date(year,month,day))
+      }
+    }
+  }
+}
+
+fun for-days(years=400, action : (int) -> io ()) : io () {
+  val n = years*366
+  for(~1000,n) fun(days) {
+    action(days)
+  }
+}
+
+/*----------------------------------------------------------------------------
+  Util
+----------------------------------------------------------------------------*/
+
+
 fun group-by( xs : list<a>, n : int ) : list<list<a>> {
   match(xs) {
     Nil -> Nil
@@ -29,90 +213,7 @@ fun show( xs : list<(string,string)>, grp : int = 1 ) : string {
   }).join(",\n")
 }
 
-val delta-lo= (91.0/3.0)               // = 30.3333
-val delta-hi= (91.0/3.0) + (1.0/32.0)  // = 30.3646
-val delta   = 30.34 
-val idelta  = 3034
 
-fun imonth-start-days() : list<(int,int)> {
-  list(1,13).map( fun(m) { (m,((idelta * m.dec) / 100).inc) } )
-}
-
-fun mdays( m : int ) : int {
-  (delta * m.dec.double).floor.int 
-}
-
-fun dmonth( doy : int ) : int {
-  min(12, (doy.double / delta).floor.int.inc )
-}
-
-fun doy-to-md( doy : int ) : (int,int) {
-  val m = dmonth(doy)
-  val mdays = mdays(m).dec
-  (m, doy - mdays)
-}
-
-fun wd-to-doy( w : int, wd : int ) : int {
-  7*w.dec + wd
-}
-
-fun doy-to-wd( doy : int ) : (int,int) {
-  val (wk,dow) = divmod(doy.dec,7)
-  (wk.inc,dow.inc)
-}
-
-fun wd-to-md( w : int, wd : int ) : (int,int) {
-  wd-to-doy(w,wd).doy-to-md
-}
-
-fun md-to-wd( m : int, d : int ) : (int,int) {
-  val doy = mdays(m) + d
-  doy-to-wd(doy)
-}
-
-fun show-wd( w : int, wd : int ) : string {
-  "W" + w.show0 + "-" + wd.show
-}
-
-fun show-md( m : int, d : int ) : string {
-  "M" + m.show0 + "-" + d.show0
-}
-
-fun show0( i : int, width : int = 2) : string {
-  i.show.pad-left(width,'0')
-}
-
-fun wds-to-mds() : list<(string,string)> {
-  list(1,53).flatmap( fun(w) {
-    list(1,7).map( fun(wd) {
-      val (m,d) = wd-to-md(w,wd)
-      (show-wd(w,wd),show-md(m,d))
-    })
-  })
-}
-
-fun mds-to-wds() : list<(string,string)> {
-  list(1,12).flatmap( fun(m) {
-    list(1,if(m==12) then 38 else 31).map( fun(d) {
-      val (w,wd) = md-to-wd(m,d)
-      (show-md(m,d),show-wd(w,wd))
-    })
-  })
-}
-fun month-start-days() : list<(int,int)> {
-  list(0,13).map( fun(m) { (m, mdays(m)) } )
-}
-
-fun days-to-months() : list<(int,int)> {
-  list(1,369).map(fun(d){ (d, (d.double / delta).floor.int.inc) })
-}
-
-fun verify-slope() {
-  // list(1,12).map( fun(m){ (m, ( ((delta*m.dec.double).floor + 31.0) / delta).floor.int )})
-  list(1,12).flatmap( fun(m) {
-    list(1,31).map( fun(d) { (show-md(m,d), (((delta*m.dec.double).floor + d.double) / delta).floor.int != m.dec )})
-  }).filter(fun(kv){ kv.snd }).map(fst).show-list(id)
-}
 
 /*----------------------------------------------------------------------------
   Testing
