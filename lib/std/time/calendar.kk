@@ -255,16 +255,13 @@ Specific advantages:
   every 5 or 6 years between Christmas and New year.
 
 */
-public val cal-iso-month = iso-month-calendar("IM","ISO month",30,30)
+public val cal-iso-month = earth-calendar(
+  "IM",
+  "ISO Month",
+  isom-days-to-date,
+  isom-date-to-days
+)
 
-public fun iso-month-calendar( name : string, long-name : string, m1 : int = 30, m2 : int = 30 ) : calendar {
-  earth-calendar(
-    name,
-    long-name,
-    fun(days:int) { isom-days-to-date(days,m1,m2) },
-    fun(d:date)   { isom-date-to-days(d,m1,m2) }
-  )
-}
 
 // The 'ISO week' calendar. This implements the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
 // calendar the week number is interpreted as "month" number instead, i.e. every year has 52 (or 53)
@@ -648,76 +645,107 @@ public fun ethiopian-days-to-date( days : int ) : date {
   the week/day-of-week as month/day-of-month.
 ----------------------------------------------------------------------------*/
 
-val isow-years-in-era = 400
-val isow-days-in-era  = 146097   // 365*400 + 100 - 3
-val isow-days-in-short= 364      // 52*7
-val isow-epoch-shift  = 730485
+//--------------------------------------------------------------
+// ISO week calendar: date to days
+//--------------------------------------------------------------
 
-fun isow-year-to-days( year : int ) : int {
-  val (era,yoe) = divmod(year - 1, isow-years-in-era)     // calculate `yoe` of one year before (as we want days up to `year`-01-01)
-  val gdays = ((yoe*365 + yoe/4) - yoe/100) + 366         // days to Gregorian year at Jan 1, +366 as year 0 was leap
-  val weeks = gdays / 7
-  val wday  = (gdays - 7*weeks) - 1                        // weekday of Gregorian Jan 1 ([-1,6]) (0 = Sunday) (because 0000-01-01 is Saturday and 0000 is leap)
-  val adj   = if (wday <= 4) then 1 - wday else 8 - wday   // adjust to start of ISO week (with first week containing the first Thursday)
-  //trace("isow-year-to-days: " + year.show + ": wday: " + wday.show + ", adj: " + adj.show + ", days; " + gdays.show)
-  (era*isow-days-in-era + gdays + adj)
+val isow-epoch-shift = 730119 // to Monday, 0001-01-01  
+
+// Convert a `:date` in the ISO week calendar (the weeks are the `month`s of the year) to days since the epoch.
+fun isow-date-to-days(d : date ) : int {
+  isow-doy-to-days(d.year, 7*d.month.dec + d.day.dec)
 }
 
-// Interpret the 'months' as ISO weeks
-fun isow-date-to-days( d : date ) : int {
-  val ydays = isow-year-to-days(d.year)
-  (ydays + d.month.dec*7 + d.day.dec) - isow-epoch-shift
+fun isow-doy-to-days( year : int, doy : int ) : int {
+  (isow-before-year(year) + doy) - isow-epoch-shift
 }
 
-fun isow-year-is-long?( year : int ) : bool {
-  val diff = isow-year-to-days(year.inc) - isow-year-to-days(year)
-  // trace("isow long year: " + year.show + ": diff: " + diff.show)
-  (diff > isow-days-in-short)
+// Returns the days before `year` from epoch 0001-01-01
+fun isow-before-year(year : int) : int {
+  val gdays   = gbefore-year(year)
+  val weekday = gdays%7  // monday=0, sunday=6
+  val adjust  = if (weekday <= 3) then (0 - weekday) else (7 - weekday)
+  gdays + adjust
 }
 
-fun isow-days-to-yearday( days : int ) : (int,int) {
-  val gyear = (((days - (days/1460)) + (days/36524)) - (days/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
-  val doy  = days - isow-year-to-days(gyear)
-  if (doy.neg?) then { // if it fell in the previous ISO year
-    (gyear.dec, days - isow-year-to-days(gyear.dec))
+// Return the days before Gregorian year `gyear`.
+fun gbefore-year(gyear : int ) : int {
+  365*(gyear - 1) + gleapdays-before(gyear) 
+}
+
+// Number of leap days before a Gregorian year.
+fun gleapdays-before(gyear : int) : int {
+ ((gyear - 1)/4 - (gyear - 1)/100) + (gyear - 1)/400
+}
+
+//--------------------------------------------------------------
+// ISO week calendar: days to date
+//--------------------------------------------------------------
+
+// Convert days since epoch to an ISO week date.
+fun isow-days-to-date(days : int) : date {
+  val (year,doy) = isow-days-to-doy(days)
+  val (week,day) = divmod(doy,7)
+  Date(year,week.inc,day.inc)
+}
+
+// Convert days since epoch to an ISO year and day of year.
+fun isow-days-to-doy( days:int ) : (int,int) {
+  val edays   = days + isow-epoch-shift
+  val approx  = gyear-of(edays - 3) // -3 so we are at most one year early
+  val doy     = edays - isow-before-year(approx)
+  if (doy < 364 || doy < isow-days-in-year(approx))
+   then (approx,doy)
+   else (approx.inc, edays - isow-before-year(approx.inc))
+}
+
+
+// Return the Gregorian year that contains `days` after epoch (0001-01-01)
+fun gyear-of(days : int ) : int {
+  1 + (days - gleapdays-of(days))/365
+}
+
+// Return the Gregorian leap days that are contained in `days` after epoch.
+fun gleapdays-of(days : int) : int {
+  val ldays = days + 308   // since 0000-03-01, +1 to count from 1
+  (ldays/1461 - ldays/36525) + ldays/146097
+}
+
+// Return the number of days in an ISO week/month year.
+fun isow-days-in-year( year : int ) : int {
+  fun weekday(y:int) { 
+    (y + gleapdays-before(y)).dec % 7     // The first weekday of the year `y` (0001-01-01 is a Monday)
   }
-  elif (doy >= isow-days-in-short && !isow-year-is-long?(gyear)) then { //  in the next ISO year?
-    (gyear.inc, doy - isow-days-in-short)
-  }
-  else (gyear,doy)
+  if (weekday(year)==3 || weekday(year+1)==4) // `year` starts or ends on a Thursday
+   then 371 else 364
 }
 
-fun isow-days-to-date( days : int ) : date {
-  val (year,doy) = isow-days-to-yearday(days + isow-epoch-shift)
-  val (weeks,dow) = divmod(doy,7)
-  Date(year,weeks.inc,dow.inc)
+//--------------------------------------------------------------
+//  ISO month calendar
+//--------------------------------------------------------------
+
+// Convert an ISO month date to days since epoch. Built upon the ISO week calendar.
+fun isom-date-to-days(d : date) : int {
+  val (xyear,xmonth) = divmod(d.month.dec,12) // roll over months
+  val doy = isom-before-month(xmonth) + d.day.dec
+  isow-doy-to-days(d.year + xyear, doy)
 }
 
-// ------------------------------------------------------------------------------------------
-// The ISO month calendar
-// ------------------------------------------------------------------------------------------
-
-val isom-days-in-quarter = 91
-
-// Parameterized over the duration of the first two months of a quarter.
-// For the `cal-iso-month` this is 30 and 30.
-fun isom-days-to-date( days : int, m1 : int = 30, m2 : int = 30 ) : date {
-  val m12     = m1 + m2
-  val wdate   = isow-days-to-date(days)
-  val (q,doq) = divmod( 7*wdate.month.dec + wdate.day.dec, isom-days-in-quarter )
-  val (moq,dom) = if (q==4) then (~1, (doq + isom-days-in-quarter) - m12)  // minus 1 as q == 4 and we need month 12
-                  elif (doq >= m12) then (2, doq - m12) 
-                  elif (doq >= m1) then (1, doq - m1) 
-                  else (0, doq)
-  //trace("isom days to date: " + days.show + " -> " + wdate.show)
-  Date(wdate.year, q*3 + moq.inc, dom.inc)
+// Convert days since epoch to an ISO month date. Built upon the ISO week calendar.
+fun isom-days-to-date(days:int) : date {
+  val (year,doy) = isow-days-to-doy(days)
+  val month = isom-month-of( doy )
+  val day   = doy - isom-before-month(month)
+  Date(year,month.inc,day.inc)
 }
 
-fun isom-date-to-days( d : date, m1 : int = 30, m2 : int = 30 ) : int {
-  val (q,moq) = divmod( d.month.dec, 3)
-  val mdoq = if (moq == 2) then m1 + m2 elif (moq==1) then m1 else 0
-  val doy  = q*isom-days-in-quarter + mdoq + d.day.dec
-  //trace("isom date to days: " + d.show + ", mdoq; " + mdoq.show + ", doy : " + doy.show + ", day: " + d.day.show)
-  val days = isow-date-to-days(Date(d.year,1,doy.inc))
-  days
+// return the days before zero-based month `m`
+fun isom-before-month( month : int ) : int {
+  30*month + month/3
+}
+
+// given a zero based day of the year, returns its zero based month
+fun isom-month-of( doy : int ) : int {
+  val m = (100*doy.inc)/3034   // (doy - (doy+1)/91)/30
+  min(m,11)
 }

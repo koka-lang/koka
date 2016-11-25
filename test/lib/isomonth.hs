@@ -10,22 +10,18 @@ type Weekdate = (Year,Week,Weekday)
 
 monthdate( year, week, wday ) = (year, month, day)
   where
-    day    = doy - beforeMonth(month)
+    day    = doy - beforeMonth(month) 
     month  = monthOf(doy)
-    doy    = beforeWeek(week) + wday 
+    doy    = 7*(week-1) + wday 
 
 weekdate( year, month, day ) = (year, week, wday )
   where
-    wday   = doy - beforeWeek(week)
-    week   = weekOf(doy)
-    doy    = beforeMonth(month) + day
+    wday   = doy - 7*(week-1)
+    week   = (doy-1)/7 + 1
+    doy    = beforeMonth(month) + day 
 
-
-monthOf(doy)        = min((doy-1 - doy/91)/30 + 1, 12)
+monthOf(doy)        = min((100*doy)/3034 + 1, 12)
 beforeMonth(month)  = 30*(month-1) + (month-1)/3
-
-weekOf(doy)         = ((doy-1)/7) + 1
-beforeWeek(week)    = 7*(week-1)
 
 
 --------------------------------------------------------------
@@ -37,24 +33,15 @@ beforeMonthdate(year,month,day)
 
 beforeYear(year) = gdays + adjust
   where
-    adjust  = if (wday <= 4) then (1 - wday) else (8 - wday)
-    wday    = weekdayOf(gdays+1)
-    gdays   = gbeforeYear(year)
+     adjust  = if (wday <= 4) then (1 - wday) else (8 - wday)
+     wday    = (gdays%7) + 1
+     gdays   = beforeGyear(year)
 
-weekdayOf(doe) 
-  = ((doe-1)%7)+1
+beforeGyear(gyear)
+  = 365*y + y/4 - y/100 + y/400
+  where
+     y = gyear-1
 
-gbeforeYear(gyear)    
-  = 365*(gyear-1) + gleapdaysBefore(gyear)
-   
-gleapdaysBefore(gyear) 
-  = (gyear-1)/4 - (gyear-1)/100 + (gyear-1)/400
-
-
-isLong(year) = gfirstdayOf(year)==4 || gfirstdayOf(year+1)==5
-
-gfirstdayOf(gyear)
-  = weekdayOf( gyear + gleapdaysBefore(gyear) )  
 
 --------------------------------------------------------------
 -- 
@@ -69,19 +56,26 @@ monthdateOf(days) = (year,month,day)
      approx  = gyearOf(days-3) 
 
 gyearOf(days) 
-  = 1 + (days - gleapdaysOf(days))/365
-
-gleapdaysOf(days) 
-  = eday/1461 - eday/36525 + eday/146097
+  = 1 + (days - leapdays)/365
   where
-    eday = days + 308
-
+    leapdays  = doe/1461 - doe/36525 + doe/146097
+    doe       = days + 308
 
 
 -----------------------------------------------------------
 ---
 -- 
 --------------------------------------------------------------
+
+
+isLong(year) = gfirstdayOf(year)==4 || gfirstdayOf(year+1)==5
+
+gfirstdayOf(gyear)
+  = weekdayOf( gyear + leapdaysBefore )  
+  where
+    weekdayOf(doe) = ((doe-1)%7)+1
+    leapdaysBefore = (gyear-1)/4 - (gyear-1)/100 + (gyear-1)/400
+
 
 isLongX(year) = p(year) == 4 || p(year-1) == 3
   where

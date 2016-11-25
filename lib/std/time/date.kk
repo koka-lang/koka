@@ -167,6 +167,17 @@ public struct weekdate(
   day  : weekday                       
 )
 
+// Create a weekdate from an ISO week date as a `:date`, i.e. the month
+// is the week number and the day is the day of the week. Handles overflow of the day field.
+public fun weekdate( d : date ) : weekdate {
+  val (xweek,xday) = divmod(d.day.dec,7)
+  Weekdate(d.year, d.month + xweek, xday.inc.weekday )
+}
+
+// Create a ISO week `:date` from a `:weekdate` interpreting every week as a seven day 'month' in that year.
+public fun date( wd : weekdate ) : date {
+  Date(wd.year,wd.week,wd.day.int)
+}
 
 // Compare two week dates.
 public fun compare( wd1 : weekdate, wd2 : weekdate ) : order {
