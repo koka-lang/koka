@@ -18,33 +18,47 @@ public import std/xtime
 
 fun check(name : string, res : string, tst : () -> string ) : io () {
   val got = tst()
-  println(name + ": " + (if (got == res) then "ok: " + res else "failed!:\n expect: " + res + "\n gotten: " + got))
+  println(name + ": " + (if (got == res) then "ok: " + res 
+                         else "failed!:\n expect: " + res + "\n gotten: " + got))
 }
 
 fun test-week-dates() {
-  val dates = [
-      (Date(2005,01,01),Weekdate(2004,53,Sat)),
-      (Date(2005,01,02),Weekdate(2004,53,Sun)),
-      (Date(2005,12,31),Weekdate(2005,52,Sat)),
-      (Date(2007,01,01),Weekdate(2007,1,Mon)),
-      (Date(2007,12,30),Weekdate(2007,52,Sun)),
-      (Date(2007,12,31),Weekdate(2008,1,Mon)),
-      (Date(2008,01,01),Weekdate(2008,1,Tue)),
-      (Date(2008,12,28),Weekdate(2008,52,Sun)),
-      (Date(2008,12,29),Weekdate(2009,1,Mon)),
-      (Date(2008,12,30),Weekdate(2009,1,Tue)),
-      (Date(2008,12,31),Weekdate(2009,1,Wed)),
-      (Date(2009,01,01),Weekdate(2009,1,Thu)),
-      (Date(2009,12,31),Weekdate(2009,53,Thu)),
-      (Date(2010,01,01),Weekdate(2009,53,Fri)),
-      (Date(2010,01,02),Weekdate(2009,53,Sat)),
-      (Date(2010,01,03),Weekdate(2009,53,Sun))]
-  dates.foreach( fun(dwd) {
-    val (d,wd) = dwd
+  val dates = [ // Gregorian date, ISO week date, "ISO" month date
+      (Date(2005,01,01),Weekdate(2004,53,Sat),Date(2004,12,31+6)),
+      (Date(2005,01,02),Weekdate(2004,53,Sun),Date(2004,12,31+7)),
+      (Date(2005,12,31),Weekdate(2005,52,Sat),Date(2005,12,30)),
+      (Date(2007,01,01),Weekdate(2007,1,Mon),Date(2007,1,1)),
+      (Date(2007,12,30),Weekdate(2007,52,Sun),Date(2007,12,31)),
+      (Date(2007,12,31),Weekdate(2008,1,Mon),Date(2008,1,1)),
+      (Date(2008,01,01),Weekdate(2008,1,Tue),Date(2008,1,2)),
+      (Date(2008,12,28),Weekdate(2008,52,Sun),Date(2008,12,31)),
+      (Date(2008,12,29),Weekdate(2009,1,Mon),Date(2009,1,1)),
+      (Date(2008,12,30),Weekdate(2009,1,Tue),Date(2009,1,2)),
+      (Date(2008,12,31),Weekdate(2009,1,Wed),Date(2009,1,3)),
+      (Date(2009,01,01),Weekdate(2009,1,Thu),Date(2009,1,4)),
+      (Date(2009,12,31),Weekdate(2009,53,Thu),Date(2009,12,35)),
+      (Date(2010,01,01),Weekdate(2009,53,Fri),Date(2009,12,36)),
+      (Date(2010,01,02),Weekdate(2009,53,Sat),Date(2009,12,37)),
+      (Date(2010,01,03),Weekdate(2009,53,Sun),Date(2009,12,38))]
+  dates.foreach( fun(dwdmd) {
+    val (d,wd,md) = dwdmd
     val ds = d.show
     val wds = wd.show
+    val mds = md.show
     check("date-" + ds, wds) { time(d).weekdate.show }
     check("date-" + wds, ds) { time(wd).date.show }
+    check("date-isow-" + ds, wds) { 
+      val i = instant-at(d)
+      val id = i.time(cal=cal-iso-week).date
+      (Weekdate(id.year,id.month,id.day.weekday)).show
+    }
+    check("date-isow-" + wds, ds) { 
+      val id = Date(wd.year,wd.week,wd.day.int)
+      instant-at(id,cal=cal-iso-week).time.date.show
+    }
+    check("date-isom-" + mds, mds) {  instant-at(d).time(cal=cal-iso-month).date.show  }
+    check("date-isom-" + ds, ds) {  instant-at(md,cal=cal-iso-month).time.date.show  }
+    println("")
   })    
 }
 
@@ -58,6 +72,16 @@ fun test-week-in-years() {
   list(2000,2399).foreach( fun(year) {
     val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
     check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
+
+    check("isow-" + year.show, weeks.show) { 
+      val d = instant-at(year,12,28).time(cal=cal-iso-week).date 
+      if (d.month==53) then "53" else "52"
+    }
+ 
+    check("isom-" + year.show, weeks.show) { 
+      val d = instant-at(year,12,28).time(cal=cal-iso-month).date 
+      if (d.month==12 && d.day > 31) then "53" else "52"
+    }
   })
 }
 
@@ -66,7 +90,10 @@ fun test-day-in-year() {
   list(1999,2004).foreach(fun(year) {
     list(1,365).foreach( fun(doy) {
       val d = Date(year,1,doy)
-      check("doy-" + time(d).show, doy.show) { time(d).day-of-year.show }
+      val t = time(d)
+      check("doy-" + t.show, doy.show) { t.day-of-year.show }
+      val tw = time(d,cal=cal-iso-week)
+      check("doy-isow-" + tw.show, doy.show) { (tw.month.dec*7 + tw.day).show }
     })
   })
 }

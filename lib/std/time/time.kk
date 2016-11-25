@@ -142,8 +142,9 @@ fun show0( i : int, width : int = 2) : string {
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val (d,c,tzdelta,tzabbrv) = instant-dc(i,tz,cal)
-  Time(d,c,cal,tzdelta,tzabbrv,tz,i)
+  val j = i.use(cal.timescale) // minimize number of conversions
+  val (d,c,tzdelta,tzabbrv) = instant-dc(j,tz,cal)
+  Time(d,c,cal,tzdelta,tzabbrv,tz,j)
 }
 
 // Convert a `:time` `t` to a new `:time` value in a potentially different 

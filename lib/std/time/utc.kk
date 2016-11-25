@@ -43,17 +43,17 @@ and using integral leap-seconds after that.
 
 More fun facts:
 
-* There was a negative leap second of -0.05s inserted on 1961-08-01Z:
+* There was a negative leap second of -0.1s inserted on 1968-02-01Z:
   ```
-  instant-at(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show == "1961-07-31T23:59:59.902430Z" 
-  instant-at(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show == "1961-08-01T00:00:00.052430Z" 
+  instant-at(1968,1,31,23,59,59,0.9).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
+  instant-at(1968,2,1).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
   ```
-  The only other negative leap second was inserted on 1968-02-01Z with a duration of -0.1s.
+  The only other negative leap second was inserted on 1961-08-01Z with a duration of -0.05s.
 
 * On the transition to modern UTC at 1972-01-01Z there is a mini leap second of 0.107758s.
   (because the final drift just before 1971-01-01 is 9.892242s) 
   ```
-  instant-at(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show == "1971-12-31T23:59:60.107757999Z" 
+  instant-at(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show(6) == "1971-12-31T23:59:60.107758Z" 
   instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" 
   ```
 
@@ -288,14 +288,14 @@ fun utc-to-tai( t : timestamp ) : duration {
 }
 
 fun utc-to-tai-stamp( t : timestamp ) : timestamp {
-  val nlsecs = t.without-leap-seconds
+  val nlsecs = t //.without-leap-seconds
   if (nlsecs < utc1958) then return t
 
   val leaps = unsafe-total(get-leaps-table)
   leaps.adjusts.find-maybe(fun(la) {
     if (la.utc-start > nlsecs) then Nothing else {
       val ofs = la.tai-offset(nlsecs)
-      // trace("found: " + i.show + " >= " + la.utc-start.show + ", ofs:" + ofs.show)
+      // trace("found: " + t.show + " >= " + la.utc-start.show + ", ofs:" + ofs.show)
       Just( (t + ofs) )
     }
   }).default(t)  
@@ -354,7 +354,7 @@ fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
 
 // Return the SI seconds in the day of time `t` (as a UTC timestamp)
 public fun utc-secs-in-day( t : timestamp ) : timespan {
-  val nlsecs = t.without-leap-seconds
+  val nlsecs = t.without-leap-seconds // TODO: check again
   //trace("search nlsecs: " + nlsecs.ts-show)
   if (nlsecs < utc1972) then return secs-per-day
   val leaps = unsafe-total(get-leaps-table)
