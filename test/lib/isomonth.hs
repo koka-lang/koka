@@ -38,11 +38,11 @@ beforeMonthdate(year,month,day)
 beforeYear(year) = gdays + adjust
   where
     adjust  = if (wday <= 4) then (1 - wday) else (8 - wday)
-    wday    = weekdayOf(gdays)
+    wday    = weekdayOf(gdays+1)
     gdays   = gbeforeYear(year)
 
-weekdayOf(days) 
-  = (days%7)+1
+weekdayOf(doe) 
+  = ((doe-1)%7)+1
 
 gbeforeYear(gyear)    
   = 365*(gyear-1) + gleapdaysBefore(gyear)
@@ -54,7 +54,7 @@ gleapdaysBefore(gyear)
 isLong(year) = gfirstdayOf(year)==4 || gfirstdayOf(year+1)==5
 
 gfirstdayOf(gyear)
-  = weekdayOf( gyear + gleapdaysBefore(gyear) - 1 )  
+  = weekdayOf( gyear + gleapdaysBefore(gyear) )  
 
 --------------------------------------------------------------
 -- 
