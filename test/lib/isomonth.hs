@@ -1,5 +1,4 @@
-{-#OPTIONS -XNPlusKPatterns #-}
-import Prelude hiding (min,(%),(/),mod,div)
+import Prelude hiding (min,(%),(/))
 import qualified Prelude
 
 
@@ -9,44 +8,101 @@ type Weekday  = Integer
 type Weekdate = (Year,Week,Weekday)
 
 
-monthdate( year, week+1, weekday+1 ) = (year, month+1, day+1)
+monthdate( year, week, wday ) = (year, month, day)
   where
-    day      = doy - daysBeforeMonth(month)
-    month    = monthOf(doy)
-    doy      = daysBeforeWeek(week) + weekday 
+    day    = doy - beforeMonth(month)
+    month  = monthOf(doy)
+    doy    = beforeWeek(week) + wday 
 
-weekdate( year, month+1, day+1 ) = (year, week+1, weekday+1 )
+weekdate( year, month, day ) = (year, week, wday )
   where
-    weekday  = doy - daysBeforeWeek(week)
-    week     = weekOf(doy)
-    doy      = daysBeforeMonth(month) + day
+    wday   = doy - beforeWeek(week)
+    week   = weekOf(doy)
+    doy    = beforeMonth(month) + day
 
 
-monthOf(doy)            = min((doy - (doy+1)/91)/30, 11)
-daysBeforeMonth(month)  = month*30 + month/3
+monthOf(doy)        = min((doy-1 - doy/91)/30 + 1, 12)
+beforeMonth(month)  = 30*(month-1) + (month-1)/3
 
-weekOf(doy)             = doy/7
-daysBeforeWeek(week)    = 7*week
+weekOf(doy)         = ((doy-1)/7) + 1
+beforeWeek(week)    = 7*(week-1)
 
-weekdayOf(doy)          = doy - daysBeforeWeek(weekOf(doy))
 
 --------------------------------------------------------------
 -- 
 --------------------------------------------------------------
 
-isLong(year) = p(year) == 4 || p(year-1) == 3
+beforeMonthdate(year,month,day) 
+  = beforeYear(year) + beforeMonth(month) + (day - 1) 
+
+beforeYear(year) = gdays + adjust
+  where
+    adjust  = if (wday <= 4) then (1 - wday) else (8 - wday)
+    wday    = weekdayOf(gdays)
+    gdays   = gbeforeYear(year)
+
+weekdayOf(days) 
+  = (days%7)+1
+
+gbeforeYear(gyear)    
+  = 365*(gyear-1) + gleapdaysBefore(gyear)
+   
+gleapdaysBefore(gyear) 
+  = (gyear-1)/4 - (gyear-1)/100 + (gyear-1)/400
+
+
+isLong(year) = gfirstdayOf(year)==4 || gfirstdayOf(year+1)==5
+
+gfirstdayOf(gyear)
+  = weekdayOf( gyear + gleapdaysBefore(gyear) - 1 )  
+
+--------------------------------------------------------------
+-- 
+--------------------------------------------------------------
+
+monthdateOf(days) = (year,month,day)
+   where
+     day     = doy - beforeMonth(month)
+     month   = monthOf(doy)
+     doy     = days - beforeYear(year) + 1
+     year    = if(days >= beforeYear(approx+1)) then approx+1 else approx
+     approx  = gyearOf(days-3) 
+
+gyearOf(days) 
+  = 1 + (days - gleapdaysOf(days))/365
+
+gleapdaysOf(days) 
+  = eday/1461 - eday/36525 + eday/146097
+  where
+    eday = days + 308
+
+
+
+-----------------------------------------------------------
+---
+-- 
+--------------------------------------------------------------
+
+isLongX(year) = p(year) == 4 || p(year-1) == 3
   where
     p(y) = (y + y/4 - y/100 + y/400) % 7
 
-weeksIn(year)  = if (isLong year) then 53 else 52
+lastweek(year)  = if (isLong year) then 53 else 52
 
-daysIn(year,month+1) = if (month==11 && isLong(year)) then 38
-                         else if ((month+1)%3 == 0) then 31 
-                         else 30
+lastday(year,month) = if (month==12 && isLong(year)) then 38
+                      else if (month%3 == 0) then 31 
+                      else 30
 
 
 
 -- Testing
+
+verify years
+  = do verify1a years
+       verify1b years
+       verify2a years
+       verify2b years
+       verify3  years
 
 verify1a years
   = forWeekdates years $ \wd ->
@@ -56,8 +112,19 @@ verify1b years
   = forMonthdates years $ \md ->
     check "monthdate: " (showMd md) (showMd $ monthdate (weekdate md))
 
+verify2a years
+  = forMonthdates years $ \md ->
+    check "monthdays: " (showMd md) (showMd $ monthdateOf (beforeMonthdate md))
 
+verify2b years
+  = forDays years $ \d ->
+    let md = monthdateOf d in
+    check ("daysmonth: " ++ showMd md) (show d) (show $ beforeMonthdate md)
 
+verify3 years
+  = mapM_ perYear [(-years)..years]
+  where
+    perYear year = check ("year: " ++ show year) (show (isLongX year)) (show (isLong year))
 -- Helpers
 
 
@@ -67,14 +134,15 @@ check msg expect chk
                        error("test failed")
 
 
-base0 (year,mw,dw) = (year,mw-1,dw-1)
-base1 (year,mw,dw) = (year,mw+1,dw+1)
 
 showMd(year,month,day)
-  = show year ++ "-" ++ show2 month ++ "-" ++ show2 day
+  = show4 year ++ "-" ++ show2 month ++ "-" ++ show2 day
 
 showWd(year,week,weekday)
-  = show year ++ "-W" ++ show2 week ++ "-" ++ show weekday
+  = show4 year ++ "W" ++ show2 week ++ "-" ++ show weekday
+
+show4 i
+  = pad0 4 (show i)
 
 show2 i
   = pad0 2 (show i)
@@ -87,7 +155,7 @@ forWeekdates :: Year -> (Weekdate -> IO ()) ->  IO ()
 forWeekdates years action
   = mapM_ perYear [max(-5)(-years)..years] 
   where
-    perYear year      = mapM_ (perWeek year) [1..weeksIn year]
+    perYear year      = mapM_ (perWeek year) [1..lastweek year]
     perWeek year week = mapM_ (\wday -> action(year,week,wday)) [1..7]
 
 forMonthdates :: Year -> (Weekdate -> IO ()) ->  IO ()
@@ -95,22 +163,25 @@ forMonthdates years action
   = mapM_ perYear [max(-5)(-years)..years] 
   where
     perYear year        = mapM_ (perMonth year) [1..12]
-    perMonth year month = mapM_ (\day -> action(year,month,day)) [1..daysIn(year,month)]
+    perMonth year month = mapM_ (\day -> action(year,month,day)) [1..lastday(year,month)]
 
+forDays :: Year -> (Integer -> IO ()) ->  IO ()
+forDays years action
+  = mapM_ (\day -> action day) [366*max(-5)(-years)..years*366] 
+  
 
--- Floored division
+-- Euclidean division
 (/),(%) :: Integer -> Integer -> Integer
-(/) = fdiv
-(%) = fmod
+(/) = ediv
+(%) = emod
 
-fdiv :: Integer -> Integer -> Integer
-fdiv i j  | i < 0      = ((i+1) `Prelude.div` j) - 1
-          | otherwise  = i `Prelude.div` j
+ediv :: Integer -> Integer -> Integer
+ediv i d  = let (q,r) = i `divMod` d
+            in if (r>=0) then q else if (d > 0) then q-1 else q+1
 
-
-fmod :: Integer -> Integer -> Integer
-fmod i j  | i < 0      = i - (j*(i `fdiv` j))
-          | otherwise  = i `Prelude.mod` j
+emod :: Integer -> Integer -> Integer
+emod i d  = let r = i `mod` d
+            in if (r >= 0) then r else if (d > 0) then r+d else r-d
 
 min :: (Integer,Integer) -> Integer
 min(i,j)  = if (i<=j) then i else j
