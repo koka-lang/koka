@@ -39,8 +39,11 @@ public fun show-year( year : int ) : string {
 }
 
 // Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
-public fun show( d : date ) : string {
-  d.year.show-year + "-" + d.month.show0 + "-" + d.day.show0
+// Takes an optional `month-prefix` (=`""`) that is used by the ISO week
+// and month calendar to add a `"W"` or `"M"` prefix respectively.
+// Can also pass an optional width for the day field (=`2`).
+public fun show( d : date, month-prefix : string = "", day-width : int = 2 ) : string {
+  d.year.show-year + "-" + month-prefix + d.month.show0 + "-" + d.day.show0(day-width)
 }
 
 // Compare two dates by fields.
