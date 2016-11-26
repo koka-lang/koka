@@ -27,9 +27,10 @@ extern include {
 
 // A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
 public struct calendar(
-  name      : string,                 
-  long-name : string,
-  timescale : timescale,
+  name        : string,                 
+  long-name   : string,
+  timescale   : timescale,
+  show-date   : maybe<(date) -> string>,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
   private dc-to-instant : (date,clock) -> instant
 )
@@ -259,7 +260,8 @@ public val cal-iso-month = earth-calendar(
   "IM",
   "ISO Month",
   isom-days-to-date,
-  isom-date-to-days
+  isom-date-to-days,
+  Just(fun(d) { d.show("M") })
 )
 
 
@@ -270,7 +272,8 @@ public val cal-iso-week = earth-calendar(
   "IW",
   "ISO Week",
   isow-days-to-date,
-  isow-date-to-days
+  isow-date-to-days,
+  Just(fun(d){ d.show("W",1) } )
 )
 
 
@@ -300,7 +303,7 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
     long-name,
     iso-days-to-date,
     iso-date-to-days,
-    ts
+    ts=ts
   )
 }
 
@@ -325,6 +328,7 @@ public fun earth-calendar(
               long-name   : string,
               days-to-date  : (days:int) -> date,
               date-to-days  : date -> int,
+              show-date     : maybe<(date) -> string> = Nothing,
               ts   : timescale = ts-utc
             ) : calendar
 {
@@ -335,7 +339,7 @@ public fun earth-calendar(
   fun dc-to-instant(d : date, c : clock) { 
     unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
-  Calendar(name,long-name,ts,instant-to-dc,dc-to-instant)
+  Calendar(name,long-name,ts,show-date,instant-to-dc,dc-to-instant)
 }
 
 
@@ -594,21 +598,21 @@ fun coptic-days-to-date( days : int ) : date {
   val z = days + coptic-epoch-shift
   val (era,doe) = divmod(z,coptic-days-in-era)  // 0 <= doe <= 1460
   val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
-  val doy   = doe - 365*yoe                     // 0 <= doy <= 365
+  val doy   = doe - 365*yoe + yoe/3             // 0 <= doy <= 365
   val mp    = (doy / 30) 
   val day   = (doy - (30 * mp)) + 1
   val month = mp + 1
-  val year  = yoe + (coptic-years-in-era * era) 
-  val yyear = if (year<=0) then year.dec else year  // no zero year
-  val d = Date(yyear,month,day)
+  val year  = yoe + (coptic-years-in-era * era) + 1
+  //val yyear = if (year<=0) then year.dec else year  // no zero year
+  val d = Date(year,month,day)
   // trace("coptic days to date: " + days.show + " -> " + d.show)  
   d
 }
 
 fun coptic-datex-to-days( year : int, month : int, day : int ) : int {
-  val (era,yoe) = divmod(year.dec,coptic-years-in-era)
+  val (era,yoe) = divmod(year.dec,coptic-years-in-era)  // 0 <= yoe <= 3
   val doy = 30*(month - 1) + (day - 1)
-  val doe = yoe*365 + doy
+  val doe = yoe*365 + yoe/3 + doy
   ((era * coptic-days-in-era) + doe) - coptic-epoch-shift
 }  
 
@@ -616,8 +620,8 @@ fun coptic-datex-to-days( year : int, month : int, day : int ) : int {
 public fun coptic-date-to-days( d : date ) : int {
   val (xera,doe)  = divmod(d.day.dec, coptic-days-in-era)
   val (xyear,moy) = divmod(d.month.dec, 13)
-  val yyear = if (d.year<=0) then d.year.inc else d.year  // no zero year, treat 0 as 1
-  val days = coptic-datex-to-days( yyear + (xera * coptic-years-in-era) + xyear, moy.inc, doe.inc )    
+  // val yyear = if (d.year<=0) then d.year.inc else d.year  // no zero year, treat 0 as 1
+  val days = coptic-datex-to-days( d.year + (xera * coptic-years-in-era) + xyear, moy.inc, doe.inc )    
   // trace("coptic date to days: " + d.show + " -> " + days.show)  
   days
 }

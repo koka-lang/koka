@@ -108,11 +108,14 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t : time, prec : int = 9 ) : string {
   val tp = t.round-to-prec(prec)
-  tp.date.show 
+  (t.calendar.show-date.default(show-date))(t.date)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta ) 
    + (if (tp.tzabbrv.empty?) then "" else " (" + tp.tzabbrv + ")") 
    + (if (tp.calendar.name.empty?) then "" else " " + tp.calendar.name)
+}
+fun show-date(d : date) : string {
+  d.show
 }
 
 // Show a time zone delta. 
