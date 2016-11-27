@@ -6,6 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
+// Formatting of time into a string.
 module std/time/format
 
 import std/regex
@@ -39,13 +40,13 @@ public fun show-imf( t : time ) : string {
 }
 
 // Show the time as a human readable string in the given `locale` (=`time-locale-en`)
-// For example `now().show-en` -> `"Thu, 8 Oct 2016, 12:20pm"`.
+// For example `now().show-en` -> `"Thu, 8 Oct 2016, 12:20pm"`. Uses the `"llll"` format string.
 public fun show-in-locale( t : time, locale : time-locale = time-locale-en ) : string {
   t.format("llll",locale)
 }
 
 // Show the date in human readable string in the given `locale` (=`time-locale-en`).
-// For example `now().show-en-date` -> `"Thu, 8 Oct 2016"`.
+// For example `now().show-en-date` -> `"Thu, 8 Oct 2016"`. Uses the `"ll"` format string.
 public fun show-in-locale-date( t : time, locale : time-locale = time-locale-en ) : string {
   t.format("ll",locale)
 }
@@ -184,20 +185,26 @@ an ascii letter are displayed as is.
 Patterns of 2 letters are zero-padded on the left to always
 display as 2 digits. Allowed patterns:
 
-* ``Y``: the year as a number (without zero padding) (``1970``,``203``)
-* ``YY``, ```YYYY``: the year in upto 4 digits (``70``,``1970``,``0203``).
-* ``M``, ``MM``: the month. (``1``,``03``)
-* ``MMM``, ``MMMM``: name of the month in English. (``Jan``, ``January``)
-* ``D``,``DD``: the day of the month. (``1``,``08``)
+* ``Y``: the year as a number (without zero padding) (``1970``, ``203``)
+* ``YY``, ```YYYY``: the year in upto 4 digits (``70``, ``1970``, ``0203``).
+  If the year is smaller than zero or larger than 9999, the year is displayed
+  with 5 or more digits and preprended with an explicit sign (``-00030``, ``+10345``).
+* ``M``, ``MM``: the month. (``1``, ``03``). In case of an ISO week (`cal-iso-week`)
+  or ISO month (`cal-iso-month`) calendar, the month is prefixed with ``W`` or ``M``.
+* ``MMM``, ``MMMM``: name of the month in the specified `locale`. (``Jan``, ``January``)
+* ``D``, ``DD``: the day of the month. (``1``, ``08``). If ``DD`` is used and this
+  is an ISO week calendar (`cal-iso-week`) just one digit is used for the week day.
 * ``DDD``: the day of the year. (``087``)
 * ``d``: the ISO day of the week, 1 for Monday ending in 7 for Sunday.
-* ``dd``,``ddd``,``dddd``: the day of the week in English. (``We``,``Wed``,``Wednesday``)
-* ``h``,``hh``: the hours using a 12-hour clock (with am/pm). (``9``,``09``)
-* ``H``,``HH``: the hours using a 24-hour clock. (``21``,``09``)
-* ``a``,``aa``: AM/PM designation. (``a``,``am``)
-* ``A``,``AA``: AM/PM designation in upper-case. (``A``,``AM``)
-* ``f``,...,``fffffffff``: upto 9 digits of a fraction of a second. Starts with a ``.``. (``.320``,``.000``)
-* ``F``,...,``FFFFFFFFF``: upto 9 digits of a fraction of a second. If not zero, starts with a ``.``.
+* ``dd``, ``ddd``,``dddd``: the day of the week in the current `locale`. (``We``,``Wed``,``Wednesday``)
+* ``h``, ``hh``: the hours using a 12-hour clock (with am/pm). (``9``, ``09``)
+* ``H``, ``HH``: the hours using a 24-hour clock. (``21``, ``09``)
+* ``m``, ``mm``: the minutes. (``9``, ``09``)
+* ``s``, ``ss``: the whole seconds. (``8``, ``08``)
+* ``a``, ``aa``: AM/PM designation. (``a``, ``am``)
+* ``A``, ``AA``: AM/PM designation in upper-case. (``A``, ``AM``)
+* ``f``,...,``fffffffff``: upto 9 digits of a fraction of a second. Starts with a dot. (``.320``,  ``.000``)
+* ``F``,...,``FFFFFFFFF``: upto 9 digits of a fraction of a second. If not zero, starts with a dot.
     In contrast to the ``f`` patterns displays the minimal number of required digits 
     (and is not right-padded with zeros). (``.32``)
 * ``z``: timezone offset in hours and minutes separated by a colon. Use ``+00:00`` for UTC time. (``+01:00``)
@@ -206,7 +213,7 @@ display as 2 digits. Allowed patterns:
 * ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
 * ``x``: fractional seconds since `min-time`. (``63610768799.429``)
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
-* ``C``,``CC``: the short or long calendar name. (The short name is empty for the standard ISO calendars).
+* ``C``, ``CC``: the short or long calendar name. (The short name is empty for the standard ISO calendars).
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
 There are also various forms to display dates and times in a locale specific way.
@@ -215,13 +222,14 @@ names for month- and day names.
 
 * ``t``: hours and minutes (``3:21pm, 15:21``)
 * ``tt``: hours, minutes, and seconds (``3:21:01pm, 15:21:01``)
-* ``L``,``l``: a date (``09/29/2016, 29.09.2016``) and (``9/29/2016, 29.9.2016``)
-* ``LL``,``ll``: date with month name (``29 September 2016, 29 september 2016``) and (``29 Sep 2016, 29 sep 2016``)
-* ``LLL``,``lll``: date with month name and time (``29 September 2016 1:15pm, 29 september 2016 13:15``)
-* ``LLLL``,``llll``: date with day name, month name, and time (``Thursday, 29 September 2016 1:15pm``) and (``Thu, 29 Sep 2016 1:15pm``)
+* ``L``, ``l``: a date (``09/29/2016, 29.09.2016``) and (``9/29/2016, 29.9.2016``)
+* ``LL``, ``ll``: date with month name (``29 September 2016, 29 september 2016``) and (``29 Sep 2016, 29 sep 2016``)
+* ``LLL``, ``lll``: date with month name and time (``29 September 2016 1:15pm, 29 september 2016 13:15``)
+* ``LLLL``, ``llll``: date with day name, month name, and time (``Thursday, 29 September 2016 1:15pm``) and (``Thu, 29 Sep 2016 1:15pm``)
 
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
-you can use `now().format("ddd, D MMM Y HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.
+you can use `now().format("ddd, D MMM Y HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.\
+A standard ISO string can be formatted as, `"YYYY-MM-DD'T'HH:mm:ssFFFFFFFFFZC"`.
 
 */
 public fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string {

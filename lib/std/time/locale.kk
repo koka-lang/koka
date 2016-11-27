@@ -6,6 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
+// Localization of time formats.
 module std/time/locale
 
 // -----------------------------------------------------------

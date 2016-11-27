@@ -6,6 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
+// Parsing of time strings.
 module std/time/parse
 
 import std/regex
@@ -22,7 +23,8 @@ import std/time/locale
 // -----------------------------------------------------------
 
 /* Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
-   Always returns a UTC time. Use `local` to convert to the local time.
+The optional `calendar` (=`cal-iso`) argument can be given to interpret
+the date in a different calendar. If a time zone offset is given, the 
 
 ````plain
 2008-12-31               // just date
@@ -42,20 +44,31 @@ import std/time/locale
 2008-12-31 09-07:00      // UTC-07:00 time zone
 2008-12-31T09:20:16+0830 // UTC+08:30 time zone (without colon)
 ````
+
+And also parses the ISO month dates (see `cal-iso-month`):
+
+````plain
+2009-M01-03              // just month date
+2009-M003                // month date with day of the year
+````
 . 
 */
-public fun parse-iso( s : string ) : maybe<time> {
+public fun parse-iso( s : string, calendar : calendar = cal-iso ) : maybe<time> {
   match(s.find(rx-iso-date)) {
     Nothing -> Nothing
     Just(capd) -> {
       val xyear = capd.num(1)
       val (date,cal) =
-        if (capd.groups[2] != "") then 
-          (Date(xyear,capd.num(2),capd.num(3)),cal-iso)
-        elif (capd.groups[6] != "") then 
-          (Date(xyear,1,capd.num(6)), cal-iso)
-        else 
+        if (capd.groups[4] != "") then // ISO week date
           (Date(xyear,capd.num(4),capd.num(5,1)),cal-iso-week)        
+        elif (capd.groups[6] != "") then // ISO day of the year
+          (Date(xyear,1,capd.num(6)), calendar)
+        elif (capd.groups[7] != "") then // ISO month date
+          (Date(xyear,capd.num(7),capd.num(8)), cal-iso-month)
+        elif (capd.groups[9] != "") then // ISO month date, day of the year
+          (Date(xyear,1,capd.num(9)), cal-iso-month)
+        else // (capd.groups[2] != "")  // regular ISO date
+          (Date(xyear,capd.num(2),capd.num(3)),calendar)
       match(capd.slice.after.string.find(rx-iso-time)) {
         Nothing    -> Nothing
         Just(capt) -> {
@@ -65,7 +78,7 @@ public fun parse-iso( s : string ) : maybe<time> {
           val tzsign= if (capt.groups[5]=="+") then 1 else ~1
           val tzhours= capt.num(6) 
           val tzmins = capt.num(7)
-          val tzone = tz-gmt(tzsign*tzhours, tzmins)
+          val tzone = tz-fixed(tzsign*tzhours, tzmins)
           val clock = Clock(hours,mins,secs)
           Just(time(date,clock,tz=tzone,cal=cal))
         }
@@ -73,7 +86,7 @@ public fun parse-iso( s : string ) : maybe<time> {
     }
   }
 }
-val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d))(?=$|[T\+\- ]\d|Z)");
+val rx-iso-date = regex(@"^(\d\d\d\d)\-?(?:(\d\d)\-?(\d\d)|W(\d\d)\-?(\d)?|(\d\d\d)|M(\d\d)\-?(\d\d)|M(\d\d\d))(?=$|[T\+\- ]\d|Z)");
 val rx-iso-time = regex(@"^(?:[T ](\d\d)(?:\:?(\d\d)(?:\:?(\d\d))?)?(?:[\.,](\d+))?)?(?:Z|([\+\-])(\d\d)(?:\:?(\d\d))?)?$")
 
 fun num( cap : matched, group : int, default : int = 0 ) : int {
@@ -81,7 +94,7 @@ fun num( cap : matched, group : int, default : int = 0 ) : int {
 }
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
-// Always returns a UTC time. Use `local` to convert to the local time.
+// For example: `"Tue, 27 Sep 2016 06:36:55 -0700"`.
 public fun parse-imf( s : string ) : maybe<time> {
   match(s.find(rx-imf)) {
     Nothing -> Nothing
@@ -95,12 +108,12 @@ public fun parse-imf( s : string ) : maybe<time> {
       val tzsign= if (cap.groups[8]=="+") then 1 else ~1
       val tzhours= cap.num(9) 
       val tzmins = cap.num(10)
+      val tzone = tz-fixed(tzsign*tzhours, tzmins)
       // adjust 2 digit year
       val year  = if (cap.groups[4].count <= 2) 
                    then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
                    else xyear
-      val tzofs = tzsign * ((tzhours * 60) + tzmins)
-      Just(time(year,month,day,hours,mins - tzofs,secs))
+      Just(time(year,month,day,hours,mins,secs,tz=tzone))
     }
   }
 }

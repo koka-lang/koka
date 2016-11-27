@@ -58,36 +58,35 @@ public struct timezone(
 
 // Is this the UTC timezone?
 public fun tz-utc?( tz : timezone ) : bool {
-  (tz.name == "UTC")
-}
-
-// Create a time zone with a fixed delta in seconds from UTC.\
-// Takes a `name`, as `delta` from UTC, and optional time zone abbreviation (=`name`).
-// For example, for a fixed time zone``+07:00``, use `tz-fixed( "GMT+7", duration(7 * 3600) )`
-public fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
-  Timezone( 
-    name,            
-    fun(i) { (delta,abbrv) }, 
-    fun(i) { if (delta.zero?) then Just(i) else Nothing }
-  )
+  (tz.name == tz-utc.name)
 }
 
 // Create a time zone with a fixed number of hours and optional minutes (=`0`) difference from UTC/GMT.
-// The time zone name will reflect the offset, for example `"GMT+1:20"`, or `"GMT-8"`.
+// The time zone name and abbreviation is optional, and the default name
+// will reflect the offset from UTC, for example `"UTC+1:20"`, or `"UTC-8"`.
+// The default abbreviation is the empty string.
 // The sign of the minutes will be matched to the hours (unless `hours` is `0`). 
 // Returns `tz-utc` if both `hours` and `mins` are zero.
-public fun tz-gmt( hours: int, mins : int = 0, hourwidth : int = 1 ) : timezone {
+public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : string = "", hourwidth : int = 1 ) : timezone {
   if (hours.zero? && mins.zero?) then return tz-utc
   val xmins = if (hours.pos?) then mins.abs elif (hours.neg?) then (mins.abs).negate else mins
   val secs  = hours*3600 + xmins*60
-  val name  = "GMT" + (if (secs.neg?) then "-" else "+")
-                + hours.abs.show.pad-left(hourwidth,'0')
-                + (if (mins.zero?) then "" else ":" + mins.abs.show.pad-left(2,'0'))
-  tz-fixed(name, duration(secs) )
+  val tzname = name || ("UTC" + (if (secs.neg?) then "-" else "+")
+                          + hours.abs.show.pad-left(hourwidth,'0')
+                          + (if (mins.zero?) then "" else ":" + mins.abs.show.pad-left(2,'0')))
+  val delta  = duration(secs)
+  tz-fixed(tzname,delta,abbrv)
+}
+
+fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
+  Timezone( name, 
+    fun(i) { (delta,abbrv) },
+    fun(i) { if (delta.zero?) then Just(i) else Nothing } 
+  )
 }
 
 // The standard UTC time zone with a 0 delta.
-public val tz-utc : timezone = tz-fixed("UTC",duration0,"")
+public val tz-utc : timezone = tz-fixed("UTC",duration0)
 
 // Return the local timezone on the current system.
 public fun tz-local() : ndet timezone {
@@ -418,7 +417,7 @@ public fun instant-at( d : date, c : clock = clock0, tz : timezone = tz-utc, cal
         // But in other cases, we interpret a timezone offset in seconds of that time scale,
         // and we should *not* convert to UTC or otherwise we may lose/add a leap seconds
         // in a time zone transition.
-        // (for example: time(1973,1,1,0,0,11,tz=tz-gmt(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI")
+        // (for example: time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI")
         val tzd1 = (tz.utc-delta)(i).fst
         val tzi1 = i - tzd1
         val tzd2 = (tz.utc-delta)(tzi1).fst

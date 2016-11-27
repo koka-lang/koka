@@ -90,7 +90,7 @@ fun check-info( info : info ) : io () {
   val t = i.time
   fun check-date( name : string, res : string, cal : calendar, mpre : string = "", swidth : int = 2 ) {
     val tc  = t.time(cal=cal)    
-    val got = tc.date.show(mpre,swidth) + "/" + tc.jd.show  // check date and its inverse!
+    val got = tc.date.show(mpre) + "/" + tc.jd.show  // check date and its inverse!
     check(name, res + "/" + info.jd.show, got)
   }
 

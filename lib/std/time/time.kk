@@ -108,11 +108,11 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t : time, prec : int = 9 ) : string {
   val tp = t.round-to-prec(prec)
-  t.date.show(t.calendar.month-prefix)
+  tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta ) 
    + (if (tp.tzabbrv.empty?) then "" else " (" + tp.tzabbrv + ")") 
-   + (if (tp.calendar.name.empty? || t.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
+   + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
 }
 fun show-date(d : date) : string {
   d.show
@@ -235,7 +235,7 @@ public fun (-)( t : time, d : duration ) : time {
 // Return the exact SI second duration between to times.\
 // `time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59) == "1.5s"`\
 // `time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59) == "2.5s"`  &quad; (over a leap second)
-// `time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-gmt(3)) == 2.5s`  &quad; (GMT+3, and over a leap second)
+// `time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)) == 2.5s`  &quad; (GMT+3, and over a leap second)
 public fun (-)( t1 : time, t2 : time ) : duration {
   (t1.instant - t2.instant)
 }
@@ -409,8 +409,8 @@ public fun days-in-year( t : time) : int {
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
 // number for a given `:time`. This interprets the Julian date in that calendar date with
 // the timezone applied.\
-// `time(1972,1,2,tz=tz-gmt(1)).mjd == "41318"`\
-// `time(1972,1,2,tz=tz-gmt(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
+// `time(1972,1,2,tz=tz-fixed(1)).mjd == "41318"`\
+// `time(1972,1,2,tz=tz-fixed(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
 public fun mjd( t : time ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
@@ -421,8 +421,8 @@ public fun mjd( t : time ) : fixed {
 // number for a given `:time`. This interprets the Julian date in that calendar date with
 // the timezone applied.\
 // `time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
-// `time(1972,1,2,tz=tz-gmt(1)).jd == "2441318.5"`\
-// `time(1972,1,2,tz=tz-gmt(1)).instant.jd(ts-utc).show == "2441318.458333335"` 
+// `time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`\
+// `time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-utc).show == "2441318.458333335"` 
 public fun jd( t : time ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
