@@ -11,6 +11,24 @@ public module isomonth
 public import std/num/fixed
 public import std/xtime
 
+fun test-gdays(years : int = 400) {
+  for-days(years) fun(day) {
+    val d = instant-at-mjd( fixed(day - gmjd-epoch-shift), ts-utc ).time.date
+    xcheck("gday " + day.show + ", " + d.show, d.year.show) { gyear-of(day).show }
+  }
+}
+
+fun xdate-of-day( day : int ) : date {
+  instant-at-mjd( fixed(day - gmjd-epoch-shift), ts-utc).time.date
+}
+
+val gmjd-epoch-shift = 678575
+
+fun gyear-of-mjd( mjd : int ) : int {
+  gyear-of( mjd + gmjd-epoch-shift )
+}
+
+
 
 
 //--------------------------------------------------------------
@@ -46,6 +64,7 @@ fun gleapdays-before(gyear : int) : int {
  ((gyear - 1)/4 - (gyear - 1)/100) + (gyear - 1)/400
 }
 
+
 //--------------------------------------------------------------
 // ISO week calendar: days to date
 //--------------------------------------------------------------
@@ -68,17 +87,6 @@ fun isow-days-to-doy( days:int ) : (int,int) {
 }
 
 
-// Return the Gregorian year that contains `days` after epoch (0001-01-01)
-fun gyear-of(days : int ) : int {
-  1 + (days - gleapdays-of(days))/365
-}
-
-// Return the Gregorian leap days that are contained in `days` after epoch.
-fun gleapdays-of(days : int) : int {
-  val ldays = days + 308   // since 0000-03-01, +1 to count from 1
-  (ldays/1461 - ldays/36525) + ldays/146097
-}
-
 // Return the number of days in an ISO week/month year.
 fun isow-days-in-year( year : int ) : int {
   fun weekday(y:int) { 
@@ -86,6 +94,17 @@ fun isow-days-in-year( year : int ) : int {
   }
   if (weekday(year)==3 || weekday(year+1)==4) // `year` starts or ends on a Thursday
    then 371 else 364
+}
+
+// Return the Gregorian year that contains `days` after epoch (0001-01-01)
+fun gyear-of(days : int ) : int {
+  1 + (days - gleapdays-of(days))/365
+}
+
+// Return the Gregorian leap days that are contained in `days` after epoch.
+fun gleapdays-of(days : int) : int {
+  val ldays = days + 306   // since 0000-03-01, so all leap days are the same period away
+  (ldays/1460 - ldays/36524) + ldays/146096
 }
 
 //--------------------------------------------------------------

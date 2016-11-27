@@ -737,8 +737,8 @@ fun gyear-of(days : int ) : int {
 
 // Return the Gregorian leap days that are contained in `days` after epoch.
 fun gleapdays-of(days : int) : int {
-  val ldays = days + 308   // since 0000-03-01, +1 to count from 1
-  (ldays/1461 - ldays/36525) + ldays/146097
+  val ldays = days + 306   // since 0000-03-01
+  (ldays/1460 - ldays/36524) + ldays/146096
 }
 
 // Return the number of days in an ISO week/month year.
