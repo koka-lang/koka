@@ -31,16 +31,39 @@ import std/time/astro
 import std/time/calendar
 import std/time/time
 
-// The UT1 (Universal time 1) calendar. 
+// The default UT1 (Universal time 1) calendar. 
+// Uses builtin approximation of UT1 time as described in `deltat`.
+// To calculate UT1 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
+public val cal-ut1 = cal-ut1-create()
+
+// Create a UT1 (Universal time 1) calendar. 
 // Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
 // more precisely. The `override` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`).
 // (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
-public fun cal-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) {
+public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-none ) {
   iso-calendar( ts-ut1(override) )
 }
 
-
+// Create a new UT1 calendar using [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
+// data for precise UT1 calculation. Uses linear interpolation between daily UT1-UTC values.
+// This is a convenience function that composes `load-iers-ut1` and `cal-ut1-create`.
+//
+// By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish
+// (the full IERS data file is about 3mb).
+public fun cal-ut1-load( fname : path = path(""), 
+                          url   : string = "auto",
+                          download-delay : duration   = 4.weeks,
+                          download-timeout : duration = 20.seconds  // 3mb file!
+                        ) : <io,async> calendar 
+{
+  cal-ut1-create( load-iers-ut1( fname, url, download-delay, download-timeout ) )
+}
 
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
