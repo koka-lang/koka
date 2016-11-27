@@ -19,7 +19,7 @@ import std/time/locale
 
 val fmt-iso-date       = "YYYY-MM-DD"
 val fmt-iso-time       = "HH:mm:ssFFFFFFFFF"
-val fmt-iso-timezone   = "ZC"
+val fmt-iso-timezone   = "Z C"
 
 // Show a time as a standard ISO string. Will use automatic week date
 // or month date format for the `cal-iso-week` and `cal-iso-month` calendars.
@@ -94,6 +94,14 @@ fun format-year( t : time, n : int, locale : time-locale ) : string {
   }
 }
 
+fun format-absyear( t : time, n :int, locale : time-locale ) : string {
+  t.year.abs.show
+}
+
+fun format-era( t : time, n : int, locale : time-locale ) : string {
+  (t.calendar.show-era)(t.date)
+}
+
 fun format-seconds( t : time, n : int, locale : time-locale ) : string {
   t.seconds.trunc.showl(n)
 }
@@ -114,9 +122,9 @@ fun format-hours12( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-calname( t : time, n : int, locale : time-locale) : string {
-  val s = if (t.calendar.month-prefix.notempty?) then ""
-          elif (n==2) then t.calendar.long-name else t.calendar.name
-  if (s.empty?) then "" else " " + s
+  if (t.calendar.month-prefix.notempty?) then ""
+   elif (n==2) then t.calendar.long-name 
+   else t.calendar.name
 }
 
 fun format-ampm( t : time, n : int, locale : time-locale ) : string {
@@ -167,6 +175,8 @@ val formats : list<(char,int,(time,int,time-locale) -> string)> = [
   ('f', 8, format-frac0),
   ('F', 8, format-frac),
   ('C', 2, format-calname),
+  ('E', 1, format-era),
+  ('y', 1, format-absyear),
   ('d', 4, format-weekday),
   ('h', 2, format-hours12),
   ('a', 2, format-ampm),
@@ -213,7 +223,10 @@ display as 2 digits. Allowed patterns:
 * ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
 * ``x``: fractional seconds since `min-time`. (``63610768799.429``)
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
+* ``y``: the absolute value of the year as a number (without zero padding). Useful when
+         displaying Julian (`cal-julian`) negative years as ``10 BC`` for example (e.g. ``"y E"``).
 * ``C``, ``CC``: the short or long calendar name. (The short name is empty for the standard ISO calendars).
+* ``E``: the era name, for example ``CE`` for the Gregorian calendar.
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
 
 There are also various forms to display dates and times in a locale specific way.
@@ -227,9 +240,12 @@ names for month- and day names.
 * ``LLL``, ``lll``: date with month name and time (``29 September 2016 1:15pm, 29 september 2016 13:15``)
 * ``LLLL``, ``llll``: date with day name, month name, and time (``Thursday, 29 September 2016 1:15pm``) and (``Thu, 29 Sep 2016 1:15pm``)
 
+After formatting, any left- or right white space is trimmed. This allows specifiers
+like `"YYYY E C"` that display correctly even if the era or calendar name is empty.
+
 For example, to display a time in the standard [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3)
 you can use `now().format("ddd, D MMM Y HH:mm:ss zz")` displayed as `"Tue, 27 Sep 2016 06:36:55 -0700"` for example.\
-A standard ISO string can be formatted as, `"YYYY-MM-DD'T'HH:mm:ssFFFFFFFFFZC"`.
+A standard ISO string can be formatted as, `"YYYY-MM-DD'T'HH:mm:ssFFFFFFFFFZ C"`.
 
 */
 public fun format( t : time, fmt : string, locale : time-locale = time-locale-en-iso ) : string {

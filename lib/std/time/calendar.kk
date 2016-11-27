@@ -30,9 +30,10 @@ public struct calendar(
   name        : string,                 
   long-name   : string,
   timescale   : timescale,
-  month-prefix: string,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
-  private dc-to-instant : (date,clock) -> instant
+  private dc-to-instant : (date,clock) -> instant,
+  month-prefix: string = "",
+  show-era    : (date) -> string = fun(d){ "" }
 )
 
 
@@ -127,32 +128,40 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 public val cal-iso : calendar = iso-calendar( ts-utc, "", "ISO" )
 
 // The [Julian calendar](https://en.wikipedia.org/wiki/Julian_calendar).
+// Uses old-style ``BC`` and ``AD`` to display era's.
+// The calendar short name is ``JC``.
 public val cal-julian = earth-calendar(
   "JC",
   "Julian",
   julian-days-to-date,
-  julian-date-to-days
+  julian-date-to-days,
+  show-era = fun(d:date){ if (d.year.neg?) then "BC" else "AD" }
 )
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
-// Just like the ISO calendar except that the year 0 does not exist, i.e. after 1BC (=`~1`)
-// we have 1AD (=`1`).
+// Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
+// we have 1 CE (=`1`). 
+// The calendar short name is ``GC``.
 public val cal-gregorian = earth-calendar(
   "GC",
   "Gregorian",
   gregorian-days-to-date,
-  gregorian-date-to-days
+  gregorian-date-to-days,
+  show-era = fun(d:date){ if (d.year.neg?) then "BCE" else "CE" }
 )
 
 // The [Coptic](https://en.wikipedia.org/wiki/Coptic_calendar) calendar.
+// The calendar short name is ``CC``.
 public val cal-coptic = earth-calendar(
   "CC",
   "Coptic",
   coptic-days-to-date,
-  coptic-date-to-days
+  coptic-date-to-days,
+  show-era = fun(d:date){ if (d.year.pos?) then "A.M." else "" }  // Anno Martyrum
 )
 
 // The [Ethiopian](https://en.wikipedia.org/wiki/Ethiopian_calendar) calendar.
+// The calendar short name is ``EC``.
 public val cal-ethiopian = earth-calendar(
   "EC",
   "Ethiopian",
@@ -287,6 +296,7 @@ public val cal-iso-week = earth-calendar(
 // The combined Julian / Gregorian calendar, using the Julian calendar for dates 
 // before 1582-10-15 and the Gregorian calendar otherwise. It is possible to 
 // specify a different switch date using the `julian-gregorian` function.
+// The calendar short name is ``JG``.
 public val cal-jg = julian-gregorian()
 
 /*----------------------------------------------------------------------------
@@ -336,6 +346,7 @@ public fun earth-calendar(
               days-to-date  : (days:int) -> date,
               date-to-days  : date -> int,
               month-prefix  : string = "",
+              show-era      : (date)->string = fun(d){ "" },
               ts   : timescale = ts-utc
             ) : calendar
 {
@@ -346,7 +357,7 @@ public fun earth-calendar(
   fun dc-to-instant(d : date, c : clock) { 
     unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
-  Calendar(name,long-name,ts,month-prefix,instant-to-dc,dc-to-instant)
+  Calendar(name,long-name,ts,instant-to-dc,dc-to-instant,month-prefix,show-era)
 }
 
 
@@ -380,7 +391,15 @@ public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
   val switch-days = iso-date-to-days(switch) //+ skip
   earth-calendar( "JG", "Julian-Gregorian",
     fun(days) { julgreg-days-to-date(days,switch-days) },
-    fun(d)    { julgreg-date-to-days(d,switch) }
+    fun(d)    { julgreg-date-to-days(d,switch) },
+    show-era = fun(d:date) { 
+      if (d < switch) {
+        if (d.year >= 1500) then "CE (O.S.)" else (cal-julian.show-era)(d)
+      }
+      else {
+        if (d.year <= 1926) then "CE (N.S.)" else (cal-gregorian.show-era)(d)
+      }
+    }
   )
 }
 
