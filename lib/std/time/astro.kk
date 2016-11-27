@@ -82,7 +82,7 @@ public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 val j2k-epoch = fixed(43200)       // 2000-01-01T12:00:00 TT
 val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
-// Compute tdb-delta(TT) = TDB - TT
+// Compute tdb-delta(TT) = TDB - TT. This is the default function used for `ts-tdb`.
 // Fairhead & Bretagnon (1990) initial coefficents.
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
@@ -161,13 +161,13 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   wt          
 }
 
-fun tai-to-tdb( tai : duration ) : timestamp {
+fun tai-to-tdb( tai : duration, delta : timestamp -> timespan = tdb-delta ) : timestamp {
   val tt = ts-tt.from-tai(tai)
-  tt + tdb-delta(tt)
+  tt + delta(tt)
 }
 
-fun tdb-to-tai( tdb : timestamp ) : duration {
-  ts-tt.to-tai( tdb - tdb-delta(tdb) )
+fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : duration {
+  ts-tt.to-tai( tdb - delta(tdb) )
 }
 
 // The [TDB](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time) (Barycentric dynamical time) time scale
@@ -179,7 +179,18 @@ fun tdb-to-tai( tdb : timestamp ) : duration {
 // Fairhead &amp; Bretagnon (1990) assuming the geo center (longitude and latitude of 0 degrees).
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), equation 2.6).
 // The approximation is within 10&mu;s precision in the time span 1600 to 2200 (and probably a bit less).
-public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
+public val ts-tdb : timescale = ts-tdb-create(tdb-delta)
+
+// Creates a new TDB timescale given a user provided function to calculate TDB-TT.
+// The default function used for `ts-tdb` uses the Fairhead &amp; Bretagnon approximation
+// corrected for JPL planetary masses but assumes the geo center. Use this function 
+// to create a new TDB timescale if you need more precision.
+public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
+  timescale("TDB", 
+    fun(tai:duration)  { tai-to-tdb(tai,tdb-minus-tt) },
+    fun(tdb:timestamp) { tdb-to-tai(tdb,tdb-minus-tt) }
+  )
+}
 
 
 /*----------------------------------------------------------------------------
@@ -189,24 +200,45 @@ public val ts-tdb : timescale = timescale( "TDB", tai-to-tdb, tdb-to-tai )
 val lb   : fixed = fixed(1.55051976772e-8) // 1.55051976772e-8
 val tdb0 : fixed = fixed(~6.55e-5) // ~6.55e-5
 
-fun tai-to-tcb( tai : duration ) : timestamp {
-  val tdb = ts-tdb.from-tai(tai)
+fun tai-to-tcb( tai : duration, tstdb : timescale ) : timestamp {
+  val tdb = tstdb.from-tai(tai)
   val adj = lb*(tdb - tcg-epoch-delta).timespan
   tdb + (adj - tdb0)
 }
 
-fun tcb-to-tai( tcb : timestamp ) : duration {
+fun tcb-to-tai( tcb : timestamp, tstdb : timescale ) : duration {
   val adj = lb*(tcb - tcg-epoch-delta).timespan
   val tdb = tcb - (adj - tdb0)
-  ts-tdb.to-tai(tdb)
+  tstdb.to-tai(tdb)
 }
 
-// The [TCB](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Barycentric coordinate time) time scale.\
-// The unit of TCB is the SI second, but in a coordinate reference frame at the barycenter of the solar system.
-// TCB and TCG (`tt-tcg`) are related by a coordinate transformation taking into account relativistic effects (see 
-// IAU 2000 [Resolution B1.5](http://syrte.obspm.fr/IAU_resolutions/Resol-UAIEng.ps)).
-// Instead of transforming TCG, we compute TCB from (the approximated) TDB (`ts-tdb`) using the IAU 2006 [Resolution B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\
-// TDB = TCB - L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~,
-// with T~0~ = 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ = -6.55&times;10^-5^. 
-public val ts-tcb : timescale = timescale( "TCB", tai-to-tcb, tcb-to-tai )
+// The [TCB](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)
+// (Barycentric coordinate time) time scale.\ The unit of TCB is the SI
+// second, but in a coordinate reference frame at the barycenter of the solar
+// system. TCB and TCG (`tt-tcg`) are related by a coordinate transformation
+// taking into account relativistic effects (see  IAU 2000 [Resolution
+// B1.5](http://syrte.obspm.fr/IAU_resolutions/Resol-UAIEng.ps)). In the
+// library, instead of transforming TCG, we compute TCB from (the
+// approximated) TDB (`ts-tdb`) using the IAU 2006 [Resolution
+// B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\ TDB = TCB -
+// L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~, with T~0~ =
+// 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ =
+// -6.55&times;10^-5^.
+public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
+
+// Create a new TCB timescale given a TDB timescale (`tstdb`). The default
+// `ts-tcb` uses the default `ts-tdb` timescale, but if you created
+// a different TCB time scale (using `ts-tdb-create`) you can use
+// this function to create a TCB time scale from it. It computes
+// TCB from the provide TDB using the IAU 2006 [Resolution
+// B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\ TDB = TCB -
+// L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~, with T~0~ =
+// 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ =
+// -6.55&times;10^-5^.
+public fun ts-tcb-create( tstdb : timescale ) : timescale {
+  timescale( "TCB", 
+    fun(tai:duration)  { tai-to-tcb(tai, tstdb) },
+    fun(tcb:timestamp) { tcb-to-tai(tcb, tstdb) }
+  )
+}
 
