@@ -146,7 +146,7 @@ isMalformed :: String -> Bool
 isMalformed s
   = case s of
       '-':c:cs   | not (isLetter c) -> True
-      c:'-':cs   | not (isLetter c) -> True
+      c:'-':cs   | not (isLetter c || isDigit c) -> True
       c:cs       -> isMalformed cs
       []         -> False
 
