@@ -30,7 +30,7 @@ public struct calendar(
   name        : string,                 
   long-name   : string,
   timescale   : timescale,
-  show-date   : maybe<(date) -> string>,
+  month-prefix: string,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
   private dc-to-instant : (date,clock) -> instant
 )
@@ -72,10 +72,18 @@ public fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : ti
   )
 }
 
-// Create a time zone with a fixed number of hours difference from UTC/GMT.
-public fun tz-gmt( hours-delta: int ) : timezone {
-  tz-fixed("GMT" + (if (hours-delta.neg?) then "-" + hours-delta.abs.show else "+" + hours-delta.show),
-            duration(hours-delta * 3600) )
+// Create a time zone with a fixed number of hours and optional minutes (=`0`) difference from UTC/GMT.
+// The time zone name will reflect the offset, for example `"GMT+1:20"`, or `"GMT-8"`.
+// The sign of the minutes will be matched to the hours (unless `hours` is `0`). 
+// Returns `tz-utc` if both `hours` and `mins` are zero.
+public fun tz-gmt( hours: int, mins : int = 0, hourwidth : int = 1 ) : timezone {
+  if (hours.zero? && mins.zero?) then return tz-utc
+  val xmins = if (hours.pos?) then mins.abs elif (hours.neg?) then (mins.abs).negate else mins
+  val secs  = hours*3600 + xmins*60
+  val name  = "GMT" + (if (secs.neg?) then "-" else "+")
+                + hours.abs.show.pad-left(hourwidth,'0')
+                + (if (mins.zero?) then "" else ":" + mins.abs.show.pad-left(2,'0'))
+  tz-fixed(name, duration(secs) )
 }
 
 // The standard UTC time zone with a 0 delta.
@@ -261,7 +269,7 @@ public val cal-iso-month = earth-calendar(
   "ISO Month",
   isom-days-to-date,
   isom-date-to-days,
-  Just(fun(d) { d.show("M") })
+  "M"
 )
 
 
@@ -273,7 +281,7 @@ public val cal-iso-week = earth-calendar(
   "ISO Week",
   isow-days-to-date,
   isow-date-to-days,
-  Just(fun(d){ d.show("W",1) } )
+  "W"
 )
 
 
@@ -328,7 +336,7 @@ public fun earth-calendar(
               long-name   : string,
               days-to-date  : (days:int) -> date,
               date-to-days  : date -> int,
-              show-date     : maybe<(date) -> string> = Nothing,
+              month-prefix  : string = "",
               ts   : timescale = ts-utc
             ) : calendar
 {
@@ -339,7 +347,7 @@ public fun earth-calendar(
   fun dc-to-instant(d : date, c : clock) { 
     unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
-  Calendar(name,long-name,ts,show-date,instant-to-dc,dc-to-instant)
+  Calendar(name,long-name,ts,month-prefix,instant-to-dc,dc-to-instant)
 }
 
 
