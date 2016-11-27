@@ -8,6 +8,47 @@ type Weekday  = Integer
 type Weekdate = (Year,Week,Weekday)
 
 
+--------------------------------------------------------------
+-- 
+--------------------------------------------------------------
+weeksToYear0 :: Integer -> Integer
+
+weeksToYear weeks
+  = 1 + (w - w/208 - w/416 + w/417)/52
+    -- 1 + (w - w/208 + w/(4*208) + w/(32*208) + w/(48*208) ) /52 -- 14
+    -- 1 + (w - w/208 + w/(4*208) + w/(23*208))/52
+  where
+    w= weeks
+
+weeksToYear0 weeks 
+  = round year
+  where
+    year :: Double
+    year = (1.904557104e-2*(fromIntegral weeks) + 5.063163942e-1)
+
+checkWeekYear n
+  = filter pred (map addwy (weekyears n))
+  where
+    addwy (weeks,year) = (weeks,year,weeksToYear weeks)
+    pred (weeks,year,wy) = wy /= year
+
+weekyears n
+  =  (map pairw [1..n*53])
+  where
+    pair i =
+      map pairw ([(i*52 - 1)..(i*52 + 1)] ++ [(i*53 - 1)..(i*53 + 1)])
+    pairw week = 
+      let (year,_,_) = weekdateOf(7*(week-1))
+      in (week-1,year)
+
+
+weekdateOf(days) = weekdate(monthdateOf(days))
+
+--------------------------------------------------------------
+-- 
+--------------------------------------------------------------
+
+
 monthdate( year, week, wday ) = (year, month, day)
   where
     day    = doy - beforeMonth(month) 
