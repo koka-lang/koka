@@ -115,8 +115,8 @@ monthdateOf(days) = (year,month,day)
 
 weekdateOf(days) = (year,week,wday)
    where
-     wday        = doy - 7*(week-1)
-     week        = (doy-1)/7 + 1
+     wday        = doy - beforeWeek(week)
+     week        = weekof(doy)
      (year,doy)  = doydateOf(days)
      
 doydateOf(days) = (year,doy)

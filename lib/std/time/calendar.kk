@@ -726,7 +726,7 @@ fun isow-days-to-doy( days:int ) : (int,int) {
   val edays   = days + isow-epoch-shift
   val approx  = isow-estimate-year(edays) // might be one year too early..
   val doy     = edays - isow-before-year(approx)
-  if (doy < 364 || doy < isow-days-in-year(approx))  // check here if we were too early
+  if (doy < 364 || edays < isow-before-year(approx.inc))  // || doy < isow-days-in-year(approx))  // check here if we were too early
    then (approx,doy)
    else (approx.inc, edays - isow-before-year(approx.inc))
 }
@@ -738,15 +738,6 @@ fun isow-estimate-year(days) {
   1 + 400*era + (10000*doe)/3652425                  // note: 10000*146097 < 2^31
 }
 
-
-// Return the number of days in an ISO week/month year.
-fun isow-days-in-year( year : int ) : int {
-  fun weekday(y:int) { 
-    (y + gleapdays-before(y)).dec % 7   // The first weekday of the year `y` (0001-01-01 is a Monday)
-  }
-  if (weekday(year)==3 || weekday(year+1)==4) // `year` starts or ends on a Thursday
-   then 371 else 364
-}
 
 //--------------------------------------------------------------
 //  ISO month calendar
