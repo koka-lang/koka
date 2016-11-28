@@ -8,6 +8,15 @@ type Weekday  = Integer
 type Weekdate = (Year,Week,Weekday)
 
 
+testApprox years
+  = forDays years $ \day ->
+    let approx = estimateYear(day) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
+        gapprox = gyearOf( day ) in
+    if (approx==gapprox)  
+     then return ()
+     else putStrLn("diff: " ++ show day ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx+1 == gapprox) then "ok" else "FAIL"))
+
+
 --------------------------------------------------------------
 -- 
 --------------------------------------------------------------
@@ -42,7 +51,6 @@ weekyears n
       in (week-1,year)
 
 
-weekdateOf(days) = weekdate(monthdateOf(days))
 
 --------------------------------------------------------------
 -- 
@@ -53,24 +61,31 @@ monthdate( year, week, wday ) = (year, month, day)
   where
     day    = doy - beforeMonth(month) 
     month  = monthOf(doy)
-    doy    = 7*(week-1) + wday 
+    doy    = beforeWeek(week) + wday 
+
 
 weekdate( year, month, day ) = (year, week, wday )
   where
-    wday   = doy - 7*(week-1)
-    week   = (doy-1)/7 + 1
+    wday   = doy - beforeWeek(week)
+    week   = weekOf(doy)
     doy    = beforeMonth(month) + day 
 
 monthOf(doy)        = min((100*doy)/3034 + 1, 12)
 beforeMonth(month)  = 30*(month-1) + (month-1)/3
 
+weekOf(doy)         = (doy-1)/7 + 1
+beforeWeek(week)    = 7*(week-1)
+
+
 
 --------------------------------------------------------------
 -- 
 --------------------------------------------------------------
-
 beforeMonthdate(year,month,day) 
   = beforeYear(year) + beforeMonth(month) + (day - 1) 
+
+beforeWeekdate( year, week, wday ) 
+  = beforeYear(year) + beforeWeek(week) + (wday - 1)
 
 beforeYear(year) = gdays + adjust
   where
@@ -84,13 +99,6 @@ beforeGyear(gyear)
      y = gyear-1
 
 
-testApprox years
-  = forDays years $ \day ->
-    let approx = estimateYear(day) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
-        gapprox = gyearOf( day ) in
-    if (approx==gapprox)  
-     then return ()
-     else putStrLn("diff: " ++ show day ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx+1 == gapprox) then "ok" else "FAIL"))
 
 --------------------------------------------------------------
 -- 
@@ -98,17 +106,33 @@ testApprox years
 
 monthdateOf(days) = (year,month,day)
    where
-     day     = doy - beforeMonth(month)
-     month   = monthOf(doy)
+     day         = doy - beforeMonth(month)
+     month       = monthOf(doy)
+     (year,doy)  = doydateOf(days)  
+
+
+-- weekdateOf(days) = weekdate(monthdateOf(days))
+
+weekdateOf(days) = (year,week,wday)
+   where
+     wday        = doy - 7*(week-1)
+     week        = (doy-1)/7 + 1
+     (year,doy)  = doydateOf(days)
+     
+doydateOf(days) = (year,doy)
+  where
      doy     = days - beforeYear(year) + 1
      year    = if(days >= beforeYear(approx+1)) then approx+1 else approx
      approx  = estimateYear(days-3) -- gyearOf(days-3) 
 
--- under-estimate the year by at most 1.
 estimateYear(days)
-  = let era  = days / 146097
-        doe  = days % 146097
-    in era*400 + ((10000*doe) / 3652425) + 1
+  = 1 + era*400 + ((10000*doe) / 3652425) 
+  where 
+     era  = days / 146097
+     doe  = days % 146097
+    
+
+
 
 gyearOf(days) 
   = 1 + (days - leapdays)/365

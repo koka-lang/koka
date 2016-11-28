@@ -675,11 +675,13 @@ public fun ethiopian-days-to-date( days : int ) : date {
   the week/day-of-week as month/day-of-month.
 ----------------------------------------------------------------------------*/
 
+
+val isow-epoch-shift = 730119 // to Monday, 0001-01-01  
+val isow-days-in-era = 146097 // 400 years + leap weeks
+
 //--------------------------------------------------------------
 // ISO week calendar: date to days
 //--------------------------------------------------------------
-
-val isow-epoch-shift = 730119 // to Monday, 0001-01-01  
 
 // Convert a `:date` in the ISO week calendar (the weeks are the `month`s of the year) to days since the epoch.
 fun isow-date-to-days(d : date ) : int {
@@ -722,29 +724,25 @@ fun isow-days-to-date(days : int) : date {
 // Convert days since epoch to an ISO year and day of year.
 fun isow-days-to-doy( days:int ) : (int,int) {
   val edays   = days + isow-epoch-shift
-  val approx  = gyear-of(edays - 3) // -3 so we are at most one year early
+  val approx  = isow-estimate-year(edays) // might be one year too early..
   val doy     = edays - isow-before-year(approx)
-  if (doy < 364 || doy < isow-days-in-year(approx))
+  if (doy < 364 || doy < isow-days-in-year(approx))  // check here if we were too early
    then (approx,doy)
    else (approx.inc, edays - isow-before-year(approx.inc))
 }
 
-
-// Return the Gregorian year that contains `days` after epoch (0001-01-01)
-fun gyear-of(days : int ) : int {
-  1 + (days - gleapdays-of(days))/365
+// Estimates the ISO year given days since epoch. 
+// Is at most one year too low.
+fun isow-estimate-year(days) {
+  val (era,doe) = divmod(days - 3, isow-days-in-era) // days - 3 to always estimate low (as the last ISO week can reach at most 3 days into the next Gregorian year)
+  1 + 400*era + (10000*doe)/3652425                  // note: 10000*146097 < 2^31
 }
 
-// Return the Gregorian leap days that are contained in `days` after epoch.
-fun gleapdays-of(days : int) : int {
-  val ldays = days + 306   // since 0000-03-01
-  (ldays/1460 - ldays/36524) + ldays/146096
-}
 
 // Return the number of days in an ISO week/month year.
 fun isow-days-in-year( year : int ) : int {
   fun weekday(y:int) { 
-    (y + gleapdays-before(y)).dec % 7     // The first weekday of the year `y` (0001-01-01 is a Monday)
+    (y + gleapdays-before(y)).dec % 7   // The first weekday of the year `y` (0001-01-01 is a Monday)
   }
   if (weekday(year)==3 || weekday(year+1)==4) // `year` starts or ends on a Thursday
    then 371 else 364
