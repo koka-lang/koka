@@ -11,10 +11,41 @@ public module isomonth
 public import std/num/fixed
 public import std/xtime
 
+fun xdate-of( days : int ) : date {
+  val (year,doy) = xdoy-of(days)
+  
+}
+
+// days since 0000-01-01
+fun xdoy-of( days : int ) : (int,int) {
+  val (era,doe)    = divmod(days,146097)
+  val (approx,rem) = divmod(doe*100,36525) // (doe * 400) / 146097
+  val start     = if (rem < 36225) then doe+1 else xbefore-year(approx.inc)    
+  val (yoe,doy) = if (doe < start) then (approx, doe - xbefore-year(approx))    
+                                   else (approx.inc, doe - start)
+  // trace("doe: " + doe.show + ", approx: " + approx.show + ", start: " + start.show )
+  (400*era + yoe, doy)
+}
+
+
+// Return the days before Gregorian year `gyear`.
+fun xbefore-year(gyear : int ) : int {
+  365*gyear + xleapdays-upto(gyear) + 1
+}
+
+// Number of leap days before a Gregorian year.
+fun xleapdays-upto(gyear : int) : int {
+  (gyear.dec/4 - gyear.dec/100) + gyear.dec/400
+}
+
+
 fun test-gdays(years : int = 400) {
   for-days(years) fun(day) {
-    val d = instant-at-mjd( fixed(day - gmjd-epoch-shift), ts-utc ).time.date
-    xcheck("gday " + day.show + ", " + d.show, d.year.show) { gyear-of(day).show }
+    val d = instant-at-mjd( fixed((day - gmjd-epoch-shift) - 366), ts-utc ).time.date
+    //xcheck("gday " + day.show + ", " + d.show, d.year.show) { gyear-of(day).show }
+    val (y,_doy) = xdoy-of(day)
+    xcheck("xday " + day.show + ", " + d.show, d.year.show ) { y.show }
+    ()
   }
 }
 
@@ -165,7 +196,7 @@ fun lastday(month : int ) : int {
 
 fun xcheck( msg : string, expect : string, chk :() -> io string ) : io () {
   val res = chk()
-  if (res==expect) then println(msg + ": " + expect + ": ok.") 
+  if (res==expect) then () // println(msg + ": " + expect + ": ok.") 
   else {
     println(msg + ": FAILED!!!\n expect: " + expect + "\n got   : " + res)
     error("failed")

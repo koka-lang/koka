@@ -1,23 +1,72 @@
 import Prelude hiding (min,(%),(/))
 import qualified Prelude
-
+import Data.Time
 
 type Year  = Integer
 type Week  = Integer
 type Weekday  = Integer
 type Weekdate = (Year,Week,Weekday)
 
+beforeGdate( year, month, day )
+  = beforeGyear(year) + gbeforeMonth(month,year) + (day - 1)
+  
+gdateOf( days )
+  = ((year,month,day))
+  where
+    day        = doy - gbeforeMonth(month,year) 
+    month      = gmonthOf(doy,year)
+    (year,doy) = gdoydateOf days
+
+gbeforeMonth( month, year )  = (367*(month) - 362)/12 - adj
+  where
+    adj = gadjust(month<=2,year)
+
+gmonthOf( doy, year ) = ((12*(doy - 1 + adj) + 373) / 367)
+  where
+    adj = gadjust(doy<=59,year)
+
+gadjust( beforeMar, year )  | beforeMar    = 0
+                            | gisLeap year = 1
+                            | otherwise    = 2
+    
+gisLeap( year )    = (year%4 == 0) && (year%100/=0 || year%400==0)
+
+
+gdoydateOf( days ) = (year,doy)
+  where
+    doy    = days - beforeGyear(year) + 1
+    year   = if (days >= beforeGyear(approx+1)) then approx+1 else approx    
+    approx = estimateYear(days)
+
+
+
+testGdate years
+  = forDays years $ \days ->
+    let d1 = gregdateOf days
+        (d2) = gdateOf days
+        days2 = beforeGdate d2
+    in if (d1==d2 && days==days2) then return () else
+       putStrLn("diff: " ++ show d1 ++ " vs. " ++ show d2 ++ ", days=" ++ show (days,days2) )-- ++ ", corr/doy:" ++ show (corr,doy))
+
 
 testApprox years
   = forDays years $ \days ->
     let approx = estimateYear(days) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
-        gapprox = gyearOf( days ) in
-    if (approx==gapprox)  
+        gapprox = gregYearOf days -- gyearOf( days ) in
+    in if (approx==gapprox)  
      then return ()
      else let doy = days - beforeGyear(approx)
               approx2 = if (doy >= 365) then approx+1 else approx -- estimate is always correct just after a leap year!
           in putStrLn("diff: " ++ show days ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx2==gapprox) then "OK" else if (approx+1 == gapprox) then "ok" else "FAIL") ++ ", " ++ show approx2)
 
+
+gregYearOf(days) = let (y,m,d) = gregdateOf days in y
+gregdateOf :: Integer -> (Integer,Integer,Integer)
+gregdateOf(days) = let (y,m,d) = toGregorian (addDays days epoch)
+                   in (y,fromIntegral m,fromIntegral d)
+
+epoch :: Day
+epoch = fromGregorian 1 1 1  
 
 --------------------------------------------------------------
 -- 
@@ -139,8 +188,8 @@ estimateYear(days)
 gyearOf(days) 
   = 1 + (days - leapdays)/365
   where
-    leapdays  = doe/1461 - doe/36525 + doe/146097
-    doe       = days + 308
+    leapdays  = doe/1460 - doe/36524 + doe/146096
+    doe       = days + 306
 
 
 -----------------------------------------------------------

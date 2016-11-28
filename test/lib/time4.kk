@@ -24,7 +24,7 @@ fun check(name : string, res : string, tst : () -> string ) : io () {
 }
 
 fun test-week-dates() {
-  val dates = [ // Gregorian date, ISO week date, "ISO" month date
+  val dates : list<(date,weekdate,date)> = [ // Gregorian date, ISO week date, "ISO" month date
       (Date(2005,01,01),Weekdate(2004,53,Sat),Date(2004,12,31+6)),
       (Date(2005,01,02),Weekdate(2004,53,Sun),Date(2004,12,31+7)),
       (Date(2005,12,31),Weekdate(2005,52,Sat),Date(2005,12,30)),
