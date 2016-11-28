@@ -84,6 +84,14 @@ beforeGyear(gyear)
      y = gyear-1
 
 
+testApprox years
+  = forDays years $ \day ->
+    let approx = estimateYear(day) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
+        gapprox = gyearOf( day ) in
+    if (approx==gapprox)  
+     then return ()
+     else putStrLn("diff: " ++ show day ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx+1 == gapprox) then "ok" else "FAIL"))
+
 --------------------------------------------------------------
 -- 
 --------------------------------------------------------------
@@ -94,7 +102,13 @@ monthdateOf(days) = (year,month,day)
      month   = monthOf(doy)
      doy     = days - beforeYear(year) + 1
      year    = if(days >= beforeYear(approx+1)) then approx+1 else approx
-     approx  = gyearOf(days-3) 
+     approx  = estimateYear(days-3) -- gyearOf(days-3) 
+
+-- under-estimate the year by at most 1.
+estimateYear(days)
+  = let era  = days / 146097
+        doe  = days % 146097
+    in era*400 + ((10000*doe) / 3652425) + 1
 
 gyearOf(days) 
   = 1 + (days - leapdays)/365
@@ -220,3 +234,6 @@ emod i d  = let r = i `mod` d
 
 min :: (Integer,Integer) -> Integer
 min(i,j)  = if (i<=j) then i else j
+
+edivmod :: Integer -> Integer -> (Integer,Integer)
+edivmod i d = (ediv i d, emod i d)

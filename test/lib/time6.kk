@@ -49,7 +49,7 @@ fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, c
 }
 
 public fun main() {
-  test-dates(~1000,2000,print-every=100)
+  test-dates(~2000,3000,print-every=100)
   // test-dates(1450,1650,tz-fixed(1) ,cal-jg)  // fails on the gap start for 'minday' and 'plusday'; and at 1582-10-22 because days-in-month gives 21 for that month!
   test-dates()
   test-dates(tz=tz-fixed(1))
