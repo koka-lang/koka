@@ -1,27 +1,84 @@
 import Prelude hiding (min,(%),(/))
 import qualified Prelude
-import Data.Time
-
+import qualified Data.Time as T
+import qualified Data.Time.Calendar.WeekDate as W
 type Year  = Integer
+type Month = Integer
+type Day   = Integer
 type Week  = Integer
 type Weekday  = Integer
 type Weekdate = (Year,Week,Weekday)
 
+type Date = (Year,Month,Day)
+type Days = Integer
+type Doy  = Integer
+
+rcalendar :: (Year -> Days, Days -> Year, Month -> Doy, Doy -> Month) -> 
+            (Date -> Days, Days -> Date)
+rcalendar (beforeYear, eyearOf, beforeMonth, monthOf)
+  = ecalendar (beforeYear, eyearOf, beforeMonth . snd, monthOf . snd)
+
+
+ecalendar :: (Year -> Days, Days -> Year, (Year,Month) -> Doy, (Year,Doy) -> Month) -> 
+            (Date -> Days, Days -> Date)
+ecalendar (beforeYear, estimateYear, beforeMonth, monthOf ) 
+  = calendar(beforeYear, yearOf, beforeMonth, monthOf )
+  where
+    yearOf(days) = (year,doy)
+      where
+        doy    = days - beforeYear(year) + 1
+        year   = if (days >= beforeYear(approx+1)) then approx+1 else approx
+        approx = estimateYear(days) 
+
+
+calendar :: (Year -> Days, Days -> (Year,Doy), (Year,Month) -> Doy, (Year,Doy) -> Month) -> 
+            (Date -> Days, Days -> Date)
+
+calendar (beforeYear, yearOf, beforeMonth, monthOf)
+  = (beforeDate, dateOf)
+  where
+     beforeDate(year,month,day)
+       = beforeYear(year) + beforeMonth(year,month) + (day - 1)
+
+     dateOf(days)
+       = (year,month,day)
+       where
+          day   = doy - beforeMonth(year,month) 
+          month = monthOf(year,doy)
+          (year,doy) = yearOf days 
+
+
+
+(gbeforeDate,gdateOf) 
+  = ecalendar (beforeGyear, estimateYear, gbeforeMonth, gmonthOf)
+  
+(wbeforeDate,wdateOf)
+  = rcalendar (beforeYear, estimate, beforeWeek, weekOf )
+  where
+    estimate(days) = estimateYear(days-3)
+
+(mbeforeDate,mdateOf)
+  = rcalendar (beforeYear, estimate, beforeMonth, monthOf )
+  where
+    estimate(days) = estimateYear(days-3)
+
+
 beforeGdate( year, month, day )
   = beforeGyear(year) + gbeforeMonth(month,year) + (day - 1)
   
-gdateOf( days )
+xgdateOf( days )
   = ((year,month,day))
   where
-    day        = doy - gbeforeMonth(month,year) 
-    month      = gmonthOf(doy,year)
+    day        = doy - gbeforeMonth(year,year) 
+    month      = gmonthOf(year,doy)
     (year,doy) = gdoydateOf days
 
-gbeforeMonth( month, year )  = (367*(month) - 362)/12 - adj
+
+gbeforeMonth( year, month )  = (367*(month) - 362)/12 - adj
   where
     adj = gadjust(month<=2,year)
 
-gmonthOf( doy, year ) = ((12*(doy - 1 + adj) + 373) / 367)
+gmonthOf( year, doy ) = ((12*(doy - 1 + adj) + 373) / 367)
   where
     adj = gadjust(doy<=59,year)
 
@@ -44,9 +101,11 @@ testGdate years
   = forDays years $ \days ->
     let d1 = gregdateOf days
         (d2) = gdateOf days
-        days2 = beforeGdate d2
-    in if (d1==d2 && days==days2) then return () else
-       putStrLn("diff: " ++ show d1 ++ " vs. " ++ show d2 ++ ", days=" ++ show (days,days2) )-- ++ ", corr/doy:" ++ show (corr,doy))
+        days2 = gbeforeDate d2
+        w1 = gregWeekdateOf days
+        w2 = wdateOf days
+    in if (d1==d2 && days==days2 && w1 == w2) then return () else
+       putStrLn("diff: " ++ show (d1,d2) ++ ", week: " ++ show (w1,w2) ++ ", days=" ++ show (days,days2) )-- ++ ", corr/doy:" ++ show (corr,doy))
 
 
 testApprox years
@@ -61,12 +120,17 @@ testApprox years
 
 
 gregYearOf(days) = let (y,m,d) = gregdateOf days in y
-gregdateOf :: Integer -> (Integer,Integer,Integer)
-gregdateOf(days) = let (y,m,d) = toGregorian (addDays days epoch)
+
+gregdateOf :: Integer -> Date
+gregdateOf(days) = let (y,m,d) = T.toGregorian (T.addDays days epoch)
                    in (y,fromIntegral m,fromIntegral d)
 
-epoch :: Day
-epoch = fromGregorian 1 1 1  
+gregWeekdateOf :: Integer -> Weekdate
+gregWeekdateOf(days) = let (y,w,wd) = W.toWeekDate (T.addDays days epoch)
+                      in (y,fromIntegral w,fromIntegral wd)
+
+epoch :: T.Day
+epoch = T.fromGregorian 1 1 1  
 
 --------------------------------------------------------------
 -- 
