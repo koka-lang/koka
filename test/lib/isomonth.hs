@@ -9,12 +9,14 @@ type Weekdate = (Year,Week,Weekday)
 
 
 testApprox years
-  = forDays years $ \day ->
-    let approx = estimateYear(day) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
-        gapprox = gyearOf( day ) in
+  = forDays years $ \days ->
+    let approx = estimateYear(days) -- floor( (Prelude./) (fromIntegral day) 365.25 ) + 1
+        gapprox = gyearOf( days ) in
     if (approx==gapprox)  
      then return ()
-     else putStrLn("diff: " ++ show day ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx+1 == gapprox) then "ok" else "FAIL"))
+     else let doy = days - beforeGyear(approx)
+              approx2 = if (doy >= 365) then approx+1 else approx -- estimate is always correct just after a leap year!
+          in putStrLn("diff: " ++ show days ++ ", " ++ show approx ++ " /= " ++ show gapprox ++ ", " ++ (if (approx2==gapprox) then "OK" else if (approx+1 == gapprox) then "ok" else "FAIL") ++ ", " ++ show approx2)
 
 
 --------------------------------------------------------------
@@ -116,7 +118,7 @@ monthdateOf(days) = (year,month,day)
 weekdateOf(days) = (year,week,wday)
    where
      wday        = doy - beforeWeek(week)
-     week        = weekof(doy)
+     week        = weekOf(doy)
      (year,doy)  = doydateOf(days)
      
 doydateOf(days) = (year,doy)
@@ -126,7 +128,7 @@ doydateOf(days) = (year,doy)
      approx  = estimateYear(days-3) -- gyearOf(days-3) 
 
 estimateYear(days)
-  = 1 + era*400 + ((10000*doe) / 3652425) 
+  = 1 + era*400 + ((100*doe) / 36525)  -- or (10000*doe)/3652425
   where 
      era  = days / 146097
      doe  = days % 146097
