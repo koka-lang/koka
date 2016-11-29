@@ -624,7 +624,7 @@ fun coptic-days-to-date( days : int ) : date {
   val z = days + coptic-epoch-shift
   val (era,doe) = divmod(z,coptic-days-in-era)  // 0 <= doe <= 1460
   val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
-  val doy   = doe - 365*yoe + yoe/3             // 0 <= doy <= 365
+  val doy   = (doe - 365*yoe) - yoe/3           // 0 <= doy <= 365
   val mp    = (doy / 30) 
   val day   = (doy - (30 * mp)) + 1
   val month = mp + 1
