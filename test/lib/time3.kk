@@ -66,7 +66,7 @@ fun test-sofa() {
   check("sofa3","2008-03-01T00:00:00Z"){  instant-at(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show  }
   val i = sofai
   check("sofa4utc","2006-01-15T21:24:37.500Z"){  i.time(cal=cal-iso).show  }
-  check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(cal=cal-ut1).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
+  check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(cal=cal-ut1-approx).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
   check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.time(cal=cal-tai).show  }
   check("sofa4tt","2006-01-15T21:25:42.684Z TT"){  i.time(cal=cal-tt).show   }
   check("sofa4tcg","2006-01-15T21:25:43.322690496Z TCG"){  i.time(cal=cal-tcg).show  }   // astropy: 43.322690497

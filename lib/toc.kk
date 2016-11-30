@@ -24,14 +24,13 @@ import std/path
 import std/readline
 import std/regex
 import std/string
-import std/time
 import std/unicode
 
 import std/num/decimal
 import std/num/fixed
 import std/num/int32
 
-import std/xtime
+import std/time
 import std/time/timestamp
 import std/time/timezone
 import std/time/astro

@@ -9,10 +9,10 @@
 /* The UT1 time scale and calendar.
 
 ```
-val calut1 = cal-ut1( load-iers-ut1() )
+val cal-ut1 = cal-ut1-load()
 val i = now()
 i.time().show.println             // in UTC
-i.time(cal=calut1).show.println   // in UT1
+i.time(cal=cal-ut1).show.println   // in UT1
 ```
 */
 module std/time/ut1
@@ -34,7 +34,7 @@ import std/time/time
 // The default UT1 (Universal time 1) calendar. 
 // Uses builtin approximation of UT1 time as described in `deltat`.
 // To calculate UT1 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
-public val cal-ut1 = cal-ut1-create()
+public val cal-ut1-approx = cal-ut1-create()
 
 // Create a UT1 (Universal time 1) calendar. 
 // Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
