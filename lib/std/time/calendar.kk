@@ -30,10 +30,12 @@ public struct calendar(
   name        : string,                 
   long-name   : string,
   timescale   : timescale,
+  month-prefix: string,
+  show-era    : (date) -> string,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
   private dc-to-instant : (date,clock) -> instant,
-  month-prefix: string = "",
-  show-era    : (date) -> string = fun(d){ "" }
+  days-to-date          : (days:int) -> date,
+  date-to-days          : (date:date) -> int
 )
 
 
@@ -357,7 +359,9 @@ public fun earth-calendar(
   fun dc-to-instant(d : date, c : clock) { 
     unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
-  Calendar(name,long-name,ts,instant-to-dc,dc-to-instant,month-prefix,show-era)
+  Calendar( name,long-name,ts,month-prefix,show-era,
+            instant-to-dc,dc-to-instant,
+            days-to-date, date-to-days )
 }
 
 
@@ -617,18 +621,18 @@ fun julgreg-days-to-date( days : int, switch : int ) : date {
 
 val coptic-days-in-era  = 1461
 val coptic-years-in-era = 4
-val coptic-epoch-shift  = 626515 // Shift from 2000-01-01 to 0284-08-29 JC
+val coptic-epoch-shift  = 626880 // Shift from 2000-01-01 to 0283-08-30 JC
 
 // Return a date from a number of days in the Coptic calendar.
 fun coptic-days-to-date( days : int ) : date {  
   val z = days + coptic-epoch-shift
   val (era,doe) = divmod(z,coptic-days-in-era)  // 0 <= doe <= 1460
-  val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
-  val doy   = (doe - 365*yoe) - yoe/3           // 0 <= doy <= 365
+  val yoe   = min(doe/365, 3)                   // 0 <= yoe <= 3
+  val doy   = (doe - 365*yoe)                   // 0 <= doy <= 365
   val mp    = (doy / 30) 
   val day   = (doy - (30 * mp)) + 1
   val month = mp + 1
-  val year  = yoe + (coptic-years-in-era * era) + 1
+  val year  = yoe + (coptic-years-in-era * era) 
   //val yyear = if (year<=0) then year.dec else year  // no zero year
   val d = Date(year,month,day)
   // trace("coptic days to date: " + days.show + " -> " + d.show)  
@@ -636,9 +640,9 @@ fun coptic-days-to-date( days : int ) : date {
 }
 
 fun coptic-datex-to-days( year : int, month : int, day : int ) : int {
-  val (era,yoe) = divmod(year.dec,coptic-years-in-era)  // 0 <= yoe <= 3
+  val (era,yoe) = divmod(year,coptic-years-in-era)  // 0 <= yoe <= 3
   val doy = 30*(month - 1) + (day - 1)
-  val doe = yoe*365 + yoe/3 + doy
+  val doe = yoe*365 + doy //(if (yoe>=3 && month >= 3) then 1 else 0)
   ((era * coptic-days-in-era) + doe) - coptic-epoch-shift
 }  
 
@@ -653,7 +657,7 @@ public fun coptic-date-to-days( d : date ) : int {
 }
 
 // The Ethiopian calendar is just Coptic but with a different epoch
-val ethiopian-epoch-shift  = 727324   // 2001-01-01 to 0008-08-29 JC
+val ethiopian-epoch-shift  = 727689   // 2000-01-01 to 0007-08-30 JC
 val ethiopian-coptic-shift = (ethiopian-epoch-shift - coptic-epoch-shift)
 
 public fun ethiopian-date-to-days( d : date ) : int {
