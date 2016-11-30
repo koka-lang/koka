@@ -12,7 +12,7 @@ module time8
 import std/path
 import std/file
 public import std/num/fixed
-public import std/xtime
+public import std/time
 public import std/time/ut1
 
 /*----------------------------------------------------------------------------

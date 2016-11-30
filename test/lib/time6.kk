@@ -9,7 +9,7 @@
 module time6
 
 public import std/num/fixed
-public import std/xtime
+public import std/time
 
 /*----------------------------------------------------------------------------
   Testing

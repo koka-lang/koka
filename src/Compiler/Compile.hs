@@ -848,7 +848,8 @@ codeGen term flags compileTarget loaded
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program" term () $ 
           case concatMaybe mbRuns of
-            (run:_)  -> run
+            (run:_)  -> do termPhase term "run"
+                           run
             _        -> return ()
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }

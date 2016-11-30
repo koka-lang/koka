@@ -10,7 +10,7 @@
 public module time7
 
 public import std/num/fixed
-public import std/xtime
+public import std/time
 
 public struct info(
   jd       : double,

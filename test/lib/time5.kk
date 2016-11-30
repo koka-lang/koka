@@ -9,7 +9,7 @@
 module time5
 
 public import std/num/fixed
-public import std/xtime
+public import std/time
 import std/time/astro
 
 /*----------------------------------------------------------------------------

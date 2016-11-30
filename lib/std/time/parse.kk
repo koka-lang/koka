@@ -14,6 +14,7 @@ import std/num/fixed
 import std/time/duration
 import std/time/date
 import std/time/calendar
+import std/time/calendars  // iso-week, iso-month
 import std/time/time
 import std/time/locale
 

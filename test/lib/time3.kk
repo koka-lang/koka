@@ -9,7 +9,7 @@
 module time3
 
 public import std/num/fixed
-public import std/xtime
+public import std/time
 public import std/time/timestamp
 public import std/time/astro
 public import std/time/ut1

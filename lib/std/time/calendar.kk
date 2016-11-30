@@ -34,8 +34,8 @@ public struct calendar(
   show-era    : (date) -> string,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
   private dc-to-instant : (date,clock) -> instant,
-  days-to-date          : (days:int) -> date,
-  date-to-days          : (date:date) -> int
+  private days-to-date  : (days:int) -> date,
+  private date-to-days  : (date:date) -> int
 )
 
 
@@ -116,295 +116,6 @@ extern local-get-timezone() : ndet local-timezone {
 // time zone abbreviation.
 extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
   js "_local_utc_delta"
-}
-
-
-
-/*----------------------------------------------------------------------------
-  Standard calendars
-----------------------------------------------------------------------------*/
-
-// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// using UTC time. This is a proleptic Gregorian 
-// calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
-public val cal-iso : calendar = iso-calendar( ts-utc, "", "ISO" )
-
-// The [Julian calendar](https://en.wikipedia.org/wiki/Julian_calendar).
-// Uses old-style ``BC`` and ``AD`` to display era's.
-// The calendar short name is ``JC``.
-public val cal-julian = earth-calendar(
-  "JC",
-  "Julian",
-  julian-days-to-date,
-  julian-date-to-days,
-  show-era = fun(d:date){ if (d.year.neg?) then "BC" else "AD" }
-)
-
-// The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
-// Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
-// we have 1 CE (=`1`). 
-// The calendar short name is ``GC``.
-public val cal-gregorian = earth-calendar(
-  "GC",
-  "Gregorian",
-  gregorian-days-to-date,
-  gregorian-date-to-days,
-  show-era = fun(d:date){ if (d.year.neg?) then "BCE" else "CE" }
-)
-
-// The [Coptic](https://en.wikipedia.org/wiki/Coptic_calendar) calendar.
-// The calendar short name is ``CC``.
-public val cal-coptic = earth-calendar(
-  "CC",
-  "Coptic",
-  coptic-days-to-date,
-  coptic-date-to-days,
-  show-era = fun(d:date){ if (d.year.pos?) then "A.M." else "" }  // Anno Martyrum
-)
-
-// The [Ethiopian](https://en.wikipedia.org/wiki/Ethiopian_calendar) calendar.
-// The calendar short name is ``EC``.
-public val cal-ethiopian = earth-calendar(
-  "EC",
-  "Ethiopian",
-  ethiopian-days-to-date,
-  ethiopian-date-to-days
-)
-
-
-/*
-This is _not_ a standard ISO calendar -- it is named this way because
-it is based directly on the standard [ISO week
-date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.
-
-The 'ISO' month calendar matches the ISO week date calendar directly, but
-denotes dates as usual using months and a day of the month (instead of
-using a week number and day of the week).
-
-Every year always starts on the first day of week 1 in the ISO week
-calendar, and therefore always starts on a Monday (on January 1st) and
-ends on a Sunday. Each regular year is divided in 4 quarters of 13 ISO
-weeks each. A quarter also always starts on Monday and ends on Sunday.
-The three months of each quarter are 30, 30, and 31 days respectively.
-So, January has 30 days, February has 30 days too, March has 31 days,
-April has 30 days again, etc.
-
-When there is an ISO week 53, we call it a leap year where the 'leap
-week' 53 gets inserted at the end of the last month (and adds days 32 to
-38 to December). The epoch is Monday 0001-01-01 IM which coincides with
-Monday 0001-01-01 in the ISO/Gregorian calendar.
-
-Note that with
-a [perennial](https://en.wikipedia.org/wiki/Perennial_calendar) calendar,
-things like finding the _n_\/th weekday is suddenly trivial; For example,
-Thanksgiving (the 4th Thursday of November) is always on November 23 IM,
-and always 31 days before from Christmas. Similarly, Chrismas and New
-year are always on a Sunday.
-
-The short name of the calendar is `"IM"`.
-
-~ Begin Calendar { .sans-serif; border: 1px solid #AAA; padding:1ex; }
-
-+~~~:|~~~:|~~~:|~~~:|~~~:|~~~:|~~~:+~~~|~~~~:|~~~~:|~~~~:|~~~~:|~~~~~~~~~~~~~|
-|  Quarterly Calendar        ||||||| &quad;  | ISO week numbers   ||||             |{.noborder; text-align:center}
-|    |    |    |    |    |    |    |   | Q1  | Q2  | Q3  | Q4  |             |{.noborder; .mheader}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-| Mo | Tu | We | Th | Fr | Sa | Su |   | Jan | Apr | Jul |Oct  |             |{.mheader}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-| 1  | 2  | 3  | 4  | 5  | 6  | 7  |   | 1   | 14  | 27  | 40  |             |
-| 8  | 9  | 10 | 11 | 12 | 13 | 14 |   | 2   | 15  | 28  | 41  |             |
-| 15 | 16 | 17 | 18 | 19 | 20 | 21 |   | 3   | 16  | 29  | 42  |             |
-| 22 | 23 | 24 | 25 | 26 | 27 | 28 |   | 4   | 17  | 30  | 43  |             |
-| 29 | 30 |    |    |    |    |    |   | 5   | 18  | 31  | 44  |             |
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-| Mo | Tu | We | Th | Fr | Sa | Su |   | Feb | May | Aug | Nov |             |{.mheader}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|    |    | 1  | 2  | 3  | 4  | 5  |   | 5   | 18  | 31  | 44  |             |
-| 6  | 7  | 8  | 9  | 10 | 11 | 12 |   | 6   | 19  | 32  | 45  |             |
-| 13 | 14 | 15 | 16 | 17 | 18 | 19 |   | 7   | 20  | 33  | 46  |             |
-| 20 | 21 | 22 | 23 | 24 | 25 | 26 |   | 8   | 21  | 34  | 47  |             |
-| 27 | 28 | 29 | 30 |    |    |    |   | 9   | 22  | 35  | 48  |             |
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-| Mo | Tu | We | Th | Fr | Sa | Su |   | Mar | Jun | Sep | Dec |             |{.mheader}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|    |    |    |    | 1  | 2  | 3  |   | 9   | 22  | 35  | 48  |             |
-| 4  | 5  | 6  | 7  | 8  | 9  | 10 |   | 10  | 23  | 36  | 49  |             |
-| 11 | 12 | 13 | 14 | 15 | 16 | 17 |   | 11  | 24  | 37  | 50  |             |
-| 18 | 19 | 20 | 21 | 22 | 23 | 24 |   | 12  | 25  | 38  | 51  |             |
-| 25 | 26 | 27 | 28 | 29 | 30 | 31 |   | 13  | 26  | 39  | 52  |             |
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|    |    |    |    |    |    |    |   |     |     |     |     |             |{.spacer}
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-|\ 32|\ 33|\ 34|\ 35|\ 36|\ 37|\ 38|   | leap week^&dagger;^     ||| 53  |             |
-|----|----|----|----|----|----|----|   |     |     |     |     |             |
-{ .month; margin-left:auto; margin-right:auto }
-
-&nbsp;
-
-^&dagger;^ A leap week sometimes inserted
-  at the end of December. Upcoming years with a leap week are 2020, 2026, 2032, 2037, and 2043. In
-  general, a leap week is inserted whenever the corresponding Gregorian
-  year starts and/or ends on a Thursday.
-
-~ End Calendar
-
-Specific advantages:
-
-* Every year (and quarter) starts on a Monday and ends on a Sunday.
-* Dates always have the same week day in every year (&ie; the calendar
-  is [perennial](https://en.wikipedia.org/wiki/Perennial_calendar)).
-* A year divides in 4 equal quarters which simplifies financial
-  calculations.
-* Weeks are always 7 days, years are always 12 months.
-* Thanksgiving (4th Thursday of November) is always on November 23.
-* Christmas and New year are always on Sunday.
-* There is never a Friday the 13th.
-* Closely matches the existing Gregorian calendar in the months and month
-  lengths. A date is never more than 5 days apart from the corresponding
-  Gregorian date (90% of the time it is within 3 days).
-* Precisely matches the widely accepted and implemented standard 
-  [ISO 8601 week date](https://en.wikipedia.org/wiki/ISO_week_date) 
-  calendar. This makes it much simpler to adapt computer systems to
-  handle the new dates as they map directly onto each other. 
-* The leap week could be used to give everyone an extra week of vacation
-  every 5 or 6 years between Christmas and New year.
-
-*/
-public val cal-iso-month = earth-calendar(
-  "IM",
-  "ISO Month",
-  isom-days-to-date,
-  isom-date-to-days,
-  "M"
-)
-
-
-// The 'ISO week' calendar. This implements the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
-// calendar the week number is interpreted as "month" number instead, i.e. every year has 52 (or 53)
-// months of 7 week days each. Short name is `"IW"`.
-public val cal-iso-week = earth-calendar(
-  "IW",
-  "ISO Week",
-  isow-days-to-date,
-  isow-date-to-days,
-  "W"
-)
-
-
-// The combined Julian / Gregorian calendar, using the Julian calendar for dates 
-// before 1582-10-15 and the Gregorian calendar otherwise. It is possible to 
-// specify a different switch date using the `julian-gregorian` function.
-// The calendar short name is ``JG``.
-public val cal-jg = julian-gregorian()
-
-/*----------------------------------------------------------------------------
-  Time scale calendars
-----------------------------------------------------------------------------*/
-
-// The TAI Calendar. This is a standard ISO 8601 calender using
-// TAI time where every day is exactly 86400 SI seconds (unlike
-// standard UTC time which can insert leap seconds).
-public val cal-tai = iso-calendar( ts-tai )
-
-// The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
-
-
-// Create a standard ISO calendar using a particular time scale
-// and calendar `name` (=`ts.name`).
-public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : string = name ) : calendar {
-  earth-calendar(
-    name,
-    long-name,
-    iso-days-to-date,
-    iso-date-to-days,
-    ts=ts
-  )
-}
-
-
-/*----------------------------------------------------------------------------
-  Earth calendars
-----------------------------------------------------------------------------*/
-
-// Used for earth calendars
-val secs-per-day = 86400
-
-// Create a calendar where we assume that each
-// day has 24 hours with 60 minutes, and where minutes are 60 seconds
-// (with possibly leap seconds). 
-//
-// This function constructs a calendar given a calendar `name`,
-// a function `days-to-date` to calculate a date given a number of days since the `epoch`,
-// a function `date-to-days` to calculate days since the `epoch` for a given date,
-// and an optional time scale to be used (=`ts-utc`).
-public fun earth-calendar(
-              name        : string,
-              long-name   : string,
-              days-to-date  : (days:int) -> date,
-              date-to-days  : date -> int,
-              month-prefix  : string = "",
-              show-era      : (date)->string = fun(d){ "" },
-              ts   : timescale = ts-utc
-            ) : calendar
-{
-  val epoch-shift = ts.timescale-y2k.timespan(ts)  
-  fun instant-to-dc(i : instant, tzdelta : duration) { 
-    earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date ) 
-  }
-  fun dc-to-instant(d : date, c : clock) { 
-    unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
-  }
-  Calendar( name,long-name,ts,month-prefix,show-era,
-            instant-to-dc,dc-to-instant,
-            days-to-date, date-to-days )
-}
-
-
-fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,clock) {
-  // get whole seconds and fraction, such that fraction is always positive (into the day)
-  val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
-  // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
-  val (days,daysecs)   = divmod( nlsecs, secs-per-day)
-  val date             = days-to-date(days)
-  // Finally set the clock taking care of leap seconds
-  val (hours,minsecs)  = divmod(daysecs,3600)
-  val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs + leap, nlfrac)  // adjust for leap seconds
-  (date, Clock(hours,mins,tsecs))
-}
-
-fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
-  // Get seconds and leap seconds (if the clock has seconds > 59)
-  val secs = c.seconds.trunc
-  val frac = c.seconds.fraction
-  val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
-  val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
-  val sdays = date-to-days( d(day = d.day + xdays) )
-  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.fixed)  
-}
-
-
-// Create a Julian-Gregorian calendar which uses Julian dates before the optional `switch`
-// (Gregorian) date (=`Date(1582,10,15`)) and Gr egorian dates otherwise.
-public fun julian-gregorian( switch : date = Date(1582,10,15) ) : calendar {
-  val switch-days = iso-date-to-days(switch) //+ skip
-  earth-calendar( "JG", "Julian-Gregorian",
-    fun(days) { julgreg-days-to-date(days,switch-days) },
-    fun(d)    { julgreg-date-to-days(d,switch) },
-    show-era = fun(d:date) { 
-      if (d < switch) {
-        if (d.year >= 1500) then "CE (O.S.)" else (cal-julian.show-era)(d)
-      }
-      else {
-        if (d.year <= 1926) then "CE (N.S.)" else (cal-gregorian.show-era)(d)
-      }
-    }
-  )
 }
 
 
@@ -507,268 +218,245 @@ public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
 }
 
 
+
+
 /*----------------------------------------------------------------------------
-  ISO calendar, Proleptic Gregorian calendar, and Julian calendar.
-  Algorithms as described by Howard Hinnant <https://howardhinnant.github.io/date_algorithms.html>
+  Earth calendars
+  Abstracts over common patterns to relates dates and time instants to simpler
+  relations between dates and days.
 ----------------------------------------------------------------------------*/
 
-val iso-epoch-shift = 730425   // shift internal epoch from 0000-03-01 to 2000-01-01
-val iso-days-in-era = 146097   // 365*400 + 100 - 3
-val iso-years-in-era= 400
+// Used for earth calendars
+val secs-per-day = 86400
 
-// Convert days since `epoch` to a date in the [ISO8601] calendar,
-// a proleptic Gregorian calendar where year 0 is 1BC.
+// Create a calendar where we assume that each
+// day has 24 hours with 60 minutes, and where minutes are 60 seconds
+// (with possibly leap seconds). 
 //
-// [ISO8601]: https://en.wikipedia.org/wiki/ISO_8601
-fun iso-days-to-date( days : int ) : date {
-  val z    = days + iso-epoch-shift          // shift epoch from 2000-01-01 to 0000-03-01
-  val (era,doe) = divmod(z,iso-days-in-era)  // day of era: 0 <= doe < days-in-era
-  val yoe  = (((doe - (doe/1460)) + (doe/36524)) - (doe/146096)) / 365;  // year of era: 0 <= yoe < years-in-era 
-  val doy  = doe - ((yoe*365) + (yoe/4) - (yoe/100))   // day-of-year: 0 <= doy <= 365
-  val mp   = ((doy*5) + 2)/153                         // 0 <= mp <= 0,11
-  val day  = (doy - (((mp*153) + 2) / 5)) + 1          // 1 <= day <= 31
-  val month= mp + (if (mp < 10) then 3 else ~9)        // 1 <= month <= 12
-  val year = yoe + (iso-years-in-era * era) + (if (month <= 2) then 1 else 0)
-  Date(year,month,day)
+// This function constructs a calendar given a calendar `name`,
+// a function `days-to-date` to calculate a date given a number of days since the `epoch`,
+// a function `date-to-days` to calculate days since the `epoch` for a given date,
+// and an optional time scale to be used (=`ts-utc`).
+public fun earth-calendar(
+              name        : string,
+              long-name   : string,
+              days-to-date  : (days:int) -> date,
+              date-to-days  : date -> int,
+              month-prefix  : string = "",
+              show-era      : (date)->string = fun(d){ "" },
+              ts   : timescale = ts-utc
+            ) : calendar
+{
+  val epoch-shift = ts.timescale-y2k.timespan(ts)  
+  fun instant-to-dc(i : instant, tzdelta : duration) { 
+    earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date ) 
+  }
+  fun dc-to-instant(d : date, c : clock) { 
+    unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
+  }
+  Calendar( name,long-name,ts,month-prefix,show-era,
+            instant-to-dc,dc-to-instant,
+            days-to-date, date-to-days )
 }
 
 
-// Calculate days from a year/month/day triple in the proleptic Gregorian calendar
-// `month` must be between 1 and 12. `day` must be between 1 and `days-in-era`.
-fun iso-datex-to-days( year : int, month : int, day : int ) : int {
-  val y = if (month <= 2) then year.dec else year   // to internal year starting in Feb
-  val (era,yoe) = divmod(y,iso-years-in-era)             // year of era: 0<= yoe < 400
-  val mdoy = (((153 * (month + (if (month > 2) then ~3 else 9))) + 2)/5) 
-  val doe  = (((yoe*365) + (yoe/4)) - (yoe/100)) + mdoy + day.dec
-  ((iso-days-in-era * era) + doe) - iso-epoch-shift
+fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,clock) {
+  // get whole seconds and fraction, such that fraction is always positive (into the day)
+  val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
+  // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
+  val (days,daysecs)   = divmod( nlsecs, secs-per-day)
+  val date             = days-to-date(days)
+  // Finally set the clock taking care of leap seconds
+  val (hours,minsecs)  = divmod(daysecs,3600)
+  val (mins,xsecs)     = divmod(minsecs,60)
+  val tsecs            = fixed(xsecs + leap, nlfrac)  // adjust for leap seconds
+  (date, Clock(hours,mins,tsecs))
 }
 
-// Return days from a year, month, and day in the [ISO8601] calendar.
-// Months and days can be any value.
-fun iso-date-to-days( d : date ) : int {
-  val (xera,doe)  = divmod(d.day.dec, iso-days-in-era)
-  val (xyear,moy) = divmod(d.month.dec, 12)
-  iso-datex-to-days( d.year + (xera * iso-years-in-era) + xyear, moy.inc, doe.inc )
+fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
+  // Get seconds and leap seconds (if the clock has seconds > 59)
+  val secs = c.seconds.trunc
+  val frac = c.seconds.fraction
+  val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
+  val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
+  val sdays = date-to-days( d(day = d.day + xdays) )
+  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.fixed)  
 }
 
-// Return days from a date in the proleptic Gregorian calendar.
-fun gregorian-date-to-days( d : date ) : int {
-  if (d.year <= 0) 
-    then iso-date-to-days(d(year = d.year + 1)) 
-    else iso-date-to-days(d)
-}
-
-// Return a date from a number of days in the proleptic Gregorian calendar.
-fun gregorian-days-to-date( days : int ) : date {
-  val d = iso-days-to-date(days)
-  if (d.year<=0) then d(year = d.year - 1) else d
-}
-
-val julian-days-in-era  = 1461
-val julian-years-in-era = 4
-val julian-epoch-shift  = 730427 // Shift from 2000-01-01 to 0000-03-01
-
-// Return a date from a number of days in the Julian calendar.
-fun julian-days-to-date( days : int ) : date {  
-  val z = days + julian-epoch-shift
-  val (era,doe) = divmod(z,julian-days-in-era)  // 0 <= doe <= 1460
-  val yoe   = (doe - doe/1460) / 365            // 0 <= yoe <= 3
-  val doy   = doe - 365*yoe                     // 0 <= doy <= 365
-  val mp    = (doy*5 + 2) / 153
-  val day   = (doy - ((153*mp + 2)/5)) + 1
-  val month = mp + (if (mp < 10) then 3 else ~9)
-  val year  = yoe + (julian-years-in-era * era) + (if (month <= 2) then 1 else 0)
-  val yyear = if (year<=0) then year.dec else year
-  val d = Date(yyear,month,day)
-  // trace("julian days to date: " + days.show + " -> " + d.show)  
-  d
-}
-
-fun julian-datex-to-days( year : int, month : int, day : int ) : int {
-  val y = if (month <= 2) then year.dec else year
-  val (era,yoe) = divmod(y,julian-years-in-era)
-  val doy = ((153*(month + (if (month>2) then ~3 else 9)) + 2)/5 + day) - 1
-  val doe = yoe*365 + doy
-  ((era * julian-days-in-era) + doe) - julian-epoch-shift
-}  
-
-// Return the days from a date in the Julian calendar.
-fun julian-date-to-days( d : date ) : int {
-  val (xera,doe)  = divmod(d.day.dec, julian-days-in-era)
-  val (xyear,moy) = divmod(d.month.dec, 12)
-  val yyear = if (d.year<=0) then d.year.inc else d.year
-  val days = julian-datex-to-days( yyear + (xera * julian-years-in-era) + xyear, moy.inc, doe.inc )    
-  // trace("julian date to days: " + d.show + " -> " + days.show)  
-  days
-}
-
-
-fun julgreg-date-to-days( d : date, switch : date ) : int {
-  if (compare(d,switch).lt?) 
-    then julian-date-to-days(d)
-    else iso-date-to-days(d) 
-}
-
-fun julgreg-days-to-date( days : int, switch : int ) : date {
-  if (days < switch) 
-   then julian-days-to-date(days)
-   else iso-days-to-date(days)
-}
-
-/*----------------------------------------------------------------------------
-  Coptic & Ethiopian calendars
-----------------------------------------------------------------------------*/
-
-val coptic-days-in-era  = 1461
-val coptic-years-in-era = 4
-val coptic-epoch-shift  = 626880 // Shift from 2000-01-01 to 0283-08-30 JC
-
-// Return a date from a number of days in the Coptic calendar.
-fun coptic-days-to-date( days : int ) : date {  
-  val z = days + coptic-epoch-shift
-  val (era,doe) = divmod(z,coptic-days-in-era)  // 0 <= doe <= 1460
-  val yoe   = min(doe/365, 3)                   // 0 <= yoe <= 3
-  val doy   = (doe - 365*yoe)                   // 0 <= doy <= 365
-  val mp    = (doy / 30) 
-  val day   = (doy - (30 * mp)) + 1
-  val month = mp + 1
-  val year  = yoe + (coptic-years-in-era * era) 
-  //val yyear = if (year<=0) then year.dec else year  // no zero year
-  val d = Date(year,month,day)
-  // trace("coptic days to date: " + days.show + " -> " + d.show)  
-  d
-}
-
-fun coptic-datex-to-days( year : int, month : int, day : int ) : int {
-  val (era,yoe) = divmod(year,coptic-years-in-era)  // 0 <= yoe <= 3
-  val doy = 30*(month - 1) + (day - 1)
-  val doe = yoe*365 + doy //(if (yoe>=3 && month >= 3) then 1 else 0)
-  ((era * coptic-days-in-era) + doe) - coptic-epoch-shift
-}  
-
-// Return the days from a date in the Coptic calendar.
-public fun coptic-date-to-days( d : date ) : int {
-  val (xera,doe)  = divmod(d.day.dec, coptic-days-in-era)
-  val (xyear,moy) = divmod(d.month.dec, 13)
-  // val yyear = if (d.year<=0) then d.year.inc else d.year  // no zero year, treat 0 as 1
-  val days = coptic-datex-to-days( d.year + (xera * coptic-years-in-era) + xyear, moy.inc, doe.inc )    
-  // trace("coptic date to days: " + d.show + " -> " + days.show)  
-  days
-}
-
-// The Ethiopian calendar is just Coptic but with a different epoch
-val ethiopian-epoch-shift  = 727689   // 2000-01-01 to 0007-08-30 JC
-val ethiopian-coptic-shift = (ethiopian-epoch-shift - coptic-epoch-shift)
-
-public fun ethiopian-date-to-days( d : date ) : int {
-  coptic-date-to-days(d) - ethiopian-coptic-shift
-}
-
-public fun ethiopian-days-to-date( days : int ) : date {
-  coptic-days-to-date(days + ethiopian-coptic-shift)
-}
 
 
 
 /*----------------------------------------------------------------------------
-  The ISO week and ISO month calendars
-  The ISO week calendar is the ISO week date calendar where every 'month' is
-  the week of the year. The algorithms here are stand-alone and don't
-  rely on the Gregorian calendar.
-  The ISO month calendar is based upon the week calendar and expressses
-  the week/day-of-week as month/day-of-month.
+  Combine earth calendars/ year-shift earth calendars
 ----------------------------------------------------------------------------*/
 
-
-val isow-epoch-shift = 730119 // to Monday, 0001-01-01  
-val isow-days-in-era = 146097 // 400 years + leap weeks
-
-//--------------------------------------------------------------
-// ISO week calendar: date to days
-//--------------------------------------------------------------
-
-// Convert a `:date` in the ISO week calendar (the weeks are the `month`s of the year) to days since the epoch.
-fun isow-date-to-days(d : date ) : int {
-  isow-doy-to-days(d.year, 7*d.month.dec + d.day.dec)
+public fun combine-earth-calendars( name : string, long-name : string, 
+                            switch-date : date, cal1 : calendar, cal2 : calendar,
+                            mb-show-era : maybe<(date) -> string> = Nothing
+                          ) : calendar 
+{
+  val switch-days = (cal2.date-to-days)(switch-date) //+ skip
+  fun cdays-to-date( days : int ) : date {
+    ((if (days < switch-days) then cal1 else cal2).days-to-date)(days)
+  }
+  fun cdate-to-days( d : date ) : int {
+    ((if (d < switch-date) then cal1 else cal2).date-to-days)(d)
+  }
+  fun cshow-era(d : date ) : string {
+    match(mb-show-era) {
+      Just(showera) -> d.showera
+      Nothing -> ((if (d < switch-date) then cal1 else cal2).show-era)(d) 
+    }
+  }
+  earth-calendar( name, long-name, cdays-to-date, cdate-to-days, show-era = cshow-era, ts = cal2.timescale )
 }
 
-fun isow-doy-to-days( year : int, doy : int ) : int {
-  (isow-before-year(year) + doy) - isow-epoch-shift
-}
-
-// Returns the days before `year` from epoch 0001-01-01
-fun isow-before-year(year : int) : int {
-  val gdays   = gbefore-year(year)
-  val weekday = gdays%7  // monday=0, sunday=6
-  val adjust  = if (weekday <= 3) then (0 - weekday) else (7 - weekday)
-  gdays + adjust
-}
-
-// Return the days before Gregorian year `gyear`.
-fun gbefore-year(gyear : int ) : int {
-  365*(gyear - 1) + gleapdays-before(gyear) 
-}
-
-// Number of leap days before a Gregorian year.
-fun gleapdays-before(gyear : int) : int {
- ((gyear - 1)/4 - (gyear - 1)/100) + (gyear - 1)/400
-}
-
-//--------------------------------------------------------------
-// ISO week calendar: days to date
-//--------------------------------------------------------------
-
-// Convert days since epoch to an ISO week date.
-fun isow-days-to-date(days : int) : date {
-  val (year,doy) = isow-days-to-doy(days)
-  val (week,day) = divmod(doy,7)
-  Date(year,week.inc,day.inc)
-}
-
-// Convert days since epoch to an ISO year and day of year.
-fun isow-days-to-doy( days:int ) : (int,int) {
-  val edays   = days + isow-epoch-shift
-  val approx  = isow-estimate-year(edays) // might be one year too early..
-  val doy     = edays - isow-before-year(approx)
-  if (doy < 364 || edays < isow-before-year(approx.inc))  // || doy < isow-days-in-year(approx))  // check here if we were too early
-   then (approx,doy)
-   else (approx.inc, edays - isow-before-year(approx.inc))
-}
-
-// Estimates the ISO year given days since epoch. 
-// Is at most one year too low.
-fun isow-estimate-year(days) {
-  val (era,doe) = divmod(days - 3, isow-days-in-era) // days - 3 to always estimate low (as the last ISO week can reach at most 3 days into the next Gregorian year)
-  1 + 400*era + (10000*doe)/3652425                  // note: 10000*146097 < 2^31
+public fun year-shift-earth-calendar( name : string, long-name: string, 
+                                year-shift : int, cal : calendar, 
+                                month-prefix  : string = "",
+                                show-era      : (date)->string = fun(d){ "" }                                
+                             ) : calendar 
+{
+  fun shift-days-to-date( days : int ) : date {
+    val d = (cal.days-to-date)(days)
+    d(year = d.year - year-shift)
+  }
+  fun shift-date-to-days( d : date ) : int {
+    (cal.date-to-days)( d(year = d.year + year-shift) )
+  }  
+  earth-calendar( 
+    name, long-name, 
+    shift-days-to-date, shift-date-to-days,
+    month-prefix, show-era 
+  )
 }
 
 
-//--------------------------------------------------------------
-//  ISO month calendar
-//--------------------------------------------------------------
+/*----------------------------------------------------------------------------
+  Generic solar calendars: 
+  Abstract over almost all calendars that work in terms of months and solar years.
+----------------------------------------------------------------------------*/
 
-// Convert an ISO month date to days since epoch. Built upon the ISO week calendar.
-fun isom-date-to-days(d : date) : int {
-  val (xyear,xmonth) = divmod(d.month.dec,12) // roll over months
-  val doy = isom-before-month(xmonth) + d.day.dec
-  isow-doy-to-days(d.year + xyear, doy)
+public fun solar-calendar( name : string, long-name: string,
+                    days-before-year : (year:int) -> int,
+                    days-to-yeardoy  : (days:int) -> (int,int),
+                    days-before-month: (year:int, month:int) -> int,
+                    days-to-month    : (year:int, doy: int ) -> int,
+                    epoch-shift   : int = 730119,
+                    has-year-zero?: bool = True,
+                    month-prefix  : string = "",
+                    show-era      : (date)->string = fun(d){ "" },
+                    ts            : timescale = ts-utc ) : calendar 
+{
+  fun date-to-days( d : date ) : int {
+    val y = if (has-year-zero? || d.year.pos?) then d.year else d.year.inc
+    days-before-year( y ) + days-before-month( y, d.month ) 
+     + d.day.dec - epoch-shift
+  }
+
+  fun days-to-date( days0 : int ) : date {
+    val days    = days0 + epoch-shift
+    val (y,doy) = days-to-yeardoy( days )
+    val month   = days-to-month(y, doy)
+    val day     = (doy - days-before-month(y, month)) + 1
+    val year    = if (has-year-zero? || y.pos?) then y else y.dec
+    Date(year,month,day)
+  }
+
+  earth-calendar( 
+    name, long-name, 
+    days-to-date, date-to-days, 
+    month-prefix, show-era, ts 
+  )
 }
 
-// Convert days since epoch to an ISO month date. Built upon the ISO week calendar.
-fun isom-days-to-date(days:int) : date {
-  val (year,doy) = isow-days-to-doy(days)
-  val month = isom-month-of( doy )
-  val day   = doy - isom-before-month(month)
-  Date(year,month.inc,day.inc)
+public fun solar-ecalendar(  name : string, long-name: string,
+                      days-before-year : (year:int) -> int,
+                      estimate-year    : (days:int) -> (int,maybe<int>),
+                      days-before-month: (year:int, month:int) -> int,
+                      days-to-month    : (year:int, doy: int ) -> int,
+                      epoch-shift   : int = 730119,
+                      has-year-zero?: bool = True,
+                      month-prefix  : string = "",
+                      show-era      : (date)->string = fun(d){ "" },
+                      ts            : timescale = ts-utc )  : calendar
+{
+  fun days-to-yeardoy(days:int) : (int,int) {
+    val (approx,safe) = estimate-year(days)
+    val doy1 = days - days-before-year(approx)
+    if (doy1 <= safe.default(0)) then return (approx,doy1)
+    val doy2 = days - days-before-year(approx.inc)
+    if (doy2 < 0) then (approx,doy1) else (approx.inc, doy2)
+  }
+
+  solar-calendar(name,long-name,
+    days-before-year, days-to-yeardoy, 
+    days-before-month, days-to-month,
+    epoch-shift, has-year-zero?, month-prefix, show-era, ts
+  )
 }
 
-// return the days before zero-based month `m`
-fun isom-before-month( month : int ) : int {
-  30*month + month/3
+
+// ----------------------------------------------------
+// ISO calendar: 
+// We define it here (instead of std/time/calendars) because it is the default calendar.
+// ----------------------------------------------------
+
+
+// Create a standard ISO calendar using a particular time scale
+// and calendar `name` (=`ts.name`).
+public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : string = name ) : calendar {
+  solar-ecalendar(
+    name, long-name, 
+    iso-days-before-year, iso-estimate-year, 
+    iso-days-before-month, iso-doy-to-month,
+    ts = ts
+  )
 }
 
-// given a zero based day of the year, returns its zero based month
-fun isom-month-of( doy : int ) : int {
-  val m = (100*doy.inc)/3034   // (doy - (doy+1)/91)/30
-  min(m,11)
+// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// using UTC time. This is a proleptic Gregorian 
+// calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
+public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
+
+
+// The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
+// Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
+// we have 1 CE (=`1`). 
+// The calendar short name is ``GC``.
+public val cal-gregorian = solar-ecalendar(
+  "GC", "Gregorian", 
+  iso-days-before-year, iso-estimate-year, 
+  iso-days-before-month, iso-doy-to-month,
+  has-year-zero? = False,
+  show-era = fun(d:date){ if (d.year.neg?) then "BCE" else "CE" }
+)
+
+fun iso-days-before-month( year : int, month : int ) : int { 
+  val adj = iso-adjust( month<=2, year )
+  (367*month - 362)/12 - adj
+}
+
+fun iso-doy-to-month( year : int, doy : int ) : int {
+  val adj = iso-adjust( doy<=58,  year)
+  (12*(doy + adj) + 373)/367
+}
+
+fun iso-adjust( before-march? : bool, year : int ) : int {
+  if (before-march?) then 0 elif (iso-is-leap?(year)) then 1 else 2
+}
+    
+fun iso-is-leap?( year : int ) {
+  (year%4 == 0) && (year%100 != 0 || year%400 == 0)
+}
+
+fun iso-days-before-year( year : int ) {
+  val y = year.dec
+  val leapdays = (y/4 - y/100) + y/400
+  365*y + leapdays
+}
+
+fun iso-estimate-year( days : int ) : (int,maybe<int>) {
+  val (era,yoe) = divmod(days,146097)
+  (1 + 400*era + (100*yoe)/36525, Just(363))
 }
