@@ -56,13 +56,52 @@ public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish
 // (the full IERS data file is about 3mb).
-public fun cal-ut1-load( fname : path = path(""), 
-                          url   : string = "auto",
-                          download-delay : duration   = 4.weeks,
-                          download-timeout : duration = 20.seconds  // 3mb file!
+public fun cal-ut1-load( basename : string = "finals2000A",
+                         baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
+                         download-delay: duration = 1.weeks,
+                         download-timeout: duration = 5.seconds 
                         ) : <io,async> calendar 
 {
-  cal-ut1-create( load-iers-ut1( fname, url, download-delay, download-timeout ) )
+  cal-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout ) )
+}
+
+
+public fun load-iersA( basename : string = "finals2000A",
+                       baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
+                       download-delay: duration = 1.weeks,
+                       download-timeout: duration = 5.seconds 
+                     ) 
+{
+  val fname-all    = basename + ".all"
+  val finals-all   = load-iersA-all( fname-all, baseurl + fname-all, 
+                                     duration(download-delay.seconds * 8.fixed), 
+                                     duration(download-timeout.seconds * 4.fixed) ) 
+  val fname-daily  = basename + ".daily"
+  val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
+                                       download-delay, download-timeout )
+  (fun(i:instant) {
+    match(finals-daily(i)) {
+      Nothing -> finals-all(i)
+      just    -> just
+    }
+  })
+}
+
+// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
+// information for precise UT1 determination. Uses linear interpolation between daily UT1-UTC values.
+// By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish.
+public fun load-iersA-all( fname : string = "", 
+                          url   : string = "auto",
+                          download-delay : duration   = 8.weeks,
+                          download-timeout : duration = 20.seconds  // 3mb file!
+                         ) : <io,async> ((i:instant) -> maybe<duration>) 
+{
+  load-latest-iersA( (fname || "finals2000A.all").path, url, download-delay, download-timeout )
 }
 
 
@@ -74,19 +113,101 @@ public fun cal-ut1-load( fname : path = path(""),
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish.
-public fun load-iers-ut1( fname : path = path(""), 
-                          url   : string = "auto",
-                          download-delay : duration   = 4.weeks,
-                          download-timeout : duration = 20.seconds  // 3mb file!
-                         ) : <io,async> ((i:instant) -> maybe<duration>) {
-  val xfname = (fname || appdir() + path("config/finals2000A.all"))
-  val xurl   = (if (url=="auto") then "http://toshi.nofs.navy.mil/ser7/finals2000A.all" else url)
-  val dtt    = load-latest( xfname, xurl, parse-iers-ut1, fun(dtt:dut-table){ Just(dtt.expire) }, 
+public fun load-iersA-daily( fname : string = "", 
+                              url   : string = "auto",
+                              download-delay : duration   = 1.weeks,
+                              download-timeout : duration = 5.seconds  // ~37kb file
+                             ) : <io,async> ((i:instant) -> maybe<duration>) 
+{
+  load-latest-iersA( (fname || "finals2000A.daily").path, url, download-delay, download-timeout )
+}
+
+fun load-latest-iersA( fname : path, url   : string,
+                        download-delay : duration, download-timeout : duration
+                       ) : <io,async> ((i:instant) -> maybe<duration>) 
+{
+  val xfname = if (fname.dirname.empty?) then appdir() + path("config") + fname else fname
+  val xurl   = if (url=="auto") then "http://toshi.nofs.navy.mil/ser7/" + fname.basename else url
+  val dtt    = load-latest( xfname, xurl, parse-iersA, fun(dtt:dut-table){ Just(dtt.expire) }, 
                             download-timeout=download-timeout,download-delay=download-delay,
-                            error-prefix="load IERS-A table" 
+                            error-prefix="load IERS A data (" + fname.basename + ")" 
                           )
   (fun(i:instant){ dut-deltat(dtt,i) })
 }
+
+
+//-----------------------------------------------------------------
+// Data from a finals2000A file.
+//-----------------------------------------------------------------
+
+// A table of DUT (= UT1 - UTC) entries parsed from a IERS finals2000A file.
+struct dut-table(
+  expire: instant,
+  start : double,   // start mjd
+  end   : double,   // end mjd
+  duts  : vector<double> // one entry per day                      
+)
+
+// Calculate &Delta;T from a DUT table.
+// Interpolates linearly between daily entries.
+fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
+  on-exn(Nothing) {
+    val utci = i.use(ts-utc)
+    val mjd = utci.mjd(ts-utc).double
+    if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
+      val idx = (mjd - dtt.start).trunc.int
+      // interpolate
+      val dut1= dtt.duts[idx]
+      val dut2= if (idx + 1 >= dtt.duts.length) then dut1 else dtt.duts[idx+1]
+      val dut3= if (dut1 - 0.5 < dut2 && dut1 + 0.5 > dut2) then dut2
+                elif (dut1 + 0.5 < dut2 && dut1 + 1.5 > dut2) then dut2 - 1.0 // a leap second was added
+                elif (dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2) then dut2 + 1.0 // a leap second was subtracted
+                else dut1 // a jump outside a reasonable range; don't interpolate
+      val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
+      // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
+      // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
+      val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
+      trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      Just( unsafe-duration(dt) )
+    }
+  }
+}
+
+
+// Parse a ``finals2000A.all`` file into DUT table very precise &Delta;T calculation (using `dut-deltat`)
+// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
+fun parse-iersA( s : string ) : maybe<dut-table> {
+  val start   = match( s.find(rx-finals-start) ) {
+                  Nothing   -> 41684.0
+                  Just(cap) -> cap.groups[1].parse-double-default(41684.0)
+                }
+  val mbexp   = s.find(rx-finals-expire) // first prediction date
+  val caps    = s.find-all(rx-finals-dut)
+  val entries = caps.map-acc(fun(cap){ cap.groups[1].parse-double-default(0.0) }).vector
+
+  val end     = start + entries.length.double 
+  val expire  = (match(mbexp) {
+                  Just(cap) -> cap.groups[1].parse-double-default(end - 365.0)
+                  Nothing   -> end - 365.0  // guess one year early
+                }).instant-at-mjd(ts-utc)  
+  // trace("finals200A expire: " + expire.time.show)
+  // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
+  // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
+  Just(Dut-table(expire,start,end,entries))
+}
+val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
+val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
+val rx-finals-expire= regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
+
+// recurse using an accumulator using constant heap space
+private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
+  match(xs) {
+    Cons(x,xx) -> map-acc(xx,f,Cons(f(x),acc))
+    Nil -> reverse(acc)
+  }
+}
+
+
 
 // -----------------------------------------------------------
 // UT1 timescale; UT1 = TT - DeltaT
@@ -228,6 +349,13 @@ fun deltat-generic( y : double ) : double {
    ~20.0 + 32.0*u*u
 }
 
+
+
+// -----------------------------------------------------------
+// Parsing for less recent UT1 tables:
+// historic data, recent determined data, and 10 year predictions. 
+// -----------------------------------------------------------
+
 // A deltat-table has a `start` date (fractional year) and a number of evenly
 // spaced entries per year. Usually 2 for historic data (every half year),
 // 12 for determined data (monthly), and 4 for predicted data (quarterly).
@@ -273,53 +401,6 @@ fun parse-deltat( determined : string = "", predicted : string = "") : ((year:do
 }
 
 
-// Quarterly Predicted delta-t values, from 2016.75 upto 2026.50
-// from <http://maia.usno.navy.mil/ser7/deltat.preds>.
-val deltat-table-predicted = once{ parse-predicted(@"
-  YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
-
- 2016.75      68.51              -0.330         0.02
- 2017.00      68.66              -0.472         0.06
- 2017.25      68.8                0.384         0.1
- 2017.50      69.0                0.232         0.2
- 2017.75      69.1                              0.2
- 2018.00      69.2                              0.3
- 2018.25      69.4                              0.4
- 2018.50      69.5                              0.4
- 2018.75      69.7                              0.5
- 2019.00      69.8                              0.7
- 2019.25      69.9                              0.8
- 2019.50      70.0                              0.9
- 2019.75      70.                               1.
- 2020.00      70.                               1.
- 2020.25      70.                               1.
- 2020.50      71.                               1.
- 2020.75      71.                               2.
- 2021.00      71.                               2.
- 2021.25      71.                               2.
- 2021.50      71.                               2.
- 2021.75      71.                               2.
- 2022.00      71.                               2.
- 2022.25      71.                               2.
- 2022.50      71.                               3.
- 2022.75      72.                               3.
- 2023.00      72.                               3.
- 2023.25      72.                               3.
- 2023.50      72.                               3.
- 2023.75      72.                               3.
- 2024.00      72.                               3.
- 2024.25      72.                               4.
- 2024.50      72.                               4.
- 2024.75      73.                               4.
- 2025.00      73.                               4.
- 2025.25      73.                               4.
- 2025.50      73.                               5.
- 2025.75      73.                               5.
- 2026.00      73.                               5.
- 2026.25      73.                               5.
- 2026.50      73.                               5.
-")}
-
 fun parse-predicted( s : string ) : deltat-table {
   val caps = s.find-all(rx-predict)
   if (caps.nil?) return deltat-table-empty
@@ -329,6 +410,90 @@ fun parse-predicted( s : string ) : deltat-table {
 }
 val rx-predict = regex(@"^\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
 
+fun parse-determined( s : string ) : deltat-table {
+  val caps  = s.find-all(rx-determined)
+  if (caps.nil?) then return deltat-table-empty
+  val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
+  val start = y.parse-double-default(2000.0) + ((m.parse-double-default(1.0) - 1.0)/12.0)
+  val entries = caps.map(fun(cap){ cap.groups[4].parse-double-default(0.0) }).vector
+  Deltat-table(start,12.0,entries)
+}
+val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
+
+
+fun parse-historic( start: double, s : string ) : deltat-table {
+  val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
+  val entries = caps.map(fun(cap){ cap.matched.parse-double-default(0.0) }).vector
+  Deltat-table(start,2.0,entries)
+}   
+val rxdouble = regex(@"-?\d+(?:\.\d+)?")
+val rxcomment = regex(@"//.*")
+
+
+
+
+//-----------------------------------------------------------------
+// Historic data (half-yearly from 1750 up to 1987)
+//-----------------------------------------------------------------
+
+// Half-yearly history delta-t values from 1750 up to 1987
+// From: http://maia.usno.navy.mil/ser7/historic_deltat.data
+// Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
+// precise. The values in the original table are from McCarthy and Babcock (1986).
+// Table runs from 1750 to 1987 (excluded) for each half year.
+val deltat-table-historic : () -> deltat-table = once{ parse-historic(1750.0,@"
+[13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
+14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
+15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
+15.6,15.6,15.6,15.6,15.6,15.5,15.5,15.4,15.3,15.2,15.1,14.9,14.8,14.6,14.4,14.3,14.2,14.1,14.2,
+14.2,13.9,13.7,13.5,13.3,13.1,13.0,13.2,13.2,13.1,13.1,13.2,13.3,13.5,13.5,13.4,13.2,13.2,13.1,
+13.1,13.0,12.8,12.6,12.7,12.6,12.3,12.0,11.9,11.8,11.6,11.4,11.2,11.1,11.1,11.1,11.1,11.1,11.2,
+11.1,11.1,11.2,11.4,11.5,11.3,11.2,11.4,11.7,11.9,11.9,11.9,11.8,11.7,11.8,11.8,11.8,11.7,11.6,
+11.6,11.5,11.5,11.4,11.4,11.3,11.3,11.13,11.16,10.94,10.72,10.29,10.04,9.94,9.91,9.88,9.86,9.72,
+9.67,9.66,9.64,9.51,9.40,9.21,9.00,8.60,8.29,7.95,7.73,7.59,7.49,7.36,7.26,7.10,7.00,6.89,6.82,
+6.73,6.64,6.39,6.28,6.25,6.27,6.25,6.27,6.22,6.24,6.22,6.27,6.30,6.36,6.35,6.37,6.32,6.33,6.33,
+6.37,6.37,6.41,6.40,6.44,6.46,6.51,6.48,6.51,6.53,6.58,6.55,6.61,6.69,6.80,6.84,6.94,7.03,7.13,
+7.15,7.22,7.26,7.30,7.23,7.22,7.21,7.20,6.99,6.98,7.19,7.36,7.35,7.39,7.41,7.45,7.36,7.18,6.95,
+6.72,6.45,6.24,5.92,5.59,5.15,4.67,4.11,3.52,2.94,2.47,1.97,1.52,1.04,0.60,0.11,~0.34,~0.82,~1.25,
+~1.70,~2.08,~2.48,~2.82,~3.19,~3.50,~3.84,~4.14,~4.43,~4.59,~4.79,~4.92,~5.09,~5.24,~5.36,~5.34,
+~5.37,~5.32,~5.34,~5.33,~5.40,~5.47,~5.58,~5.66,~5.74,~5.68,~5.69,~5.65,~5.67,~5.68,~5.73,~5.72,
+~5.78,~5.79,~5.86,~5.89,~6.01,~6.13,~6.28,~6.41,~6.53,~6.49,~6.50,~6.45,~6.41,~6.26,~6.11,~5.90,
+~5.63,~5.13,~4.68,~4.19,~3.72,~3.21,~2.70,~2.09,~1.48,~0.75,~0.08,0.62,1.26,1.95,2.59,3.28,3.92,
+4.61,5.20,5.73,6.29,7.00,7.68,8.45,9.13,9.78,10.38,10.99,11.64,12.47,13.23,14.00,14.69,15.38,16.00,
+16.64,17.19,17.72,18.19,18.67,19.13,19.69,20.14,20.54,20.86,21.14,21.41,21.78,22.06,22.30,22.51,
+22.79,23.01,23.29,23.46,23.55,23.63,23.80,23.95,24.25,24.39,24.42,24.34,24.22,24.10,24.08,24.02,
+24.04,23.98,23.91,23.89,23.95,23.93,23.92,23.88,23.94,23.91,23.82,23.76,23.87,23.91,23.95,23.96,
+24.00,24.04,24.20,24.35,24.61,24.82,25.09,25.30,25.56,25.77,26.05,26.27,26.54,26.76,27.04,27.27,
+27.55,27.77,28.03,28.25,28.50,28.70,28.95,29.15,29.38,29.57,29.80,29.97,30.19,30.36,30.57,30.72,
+30.93,31.07,31.24,31.349,31.516,31.677,31.923,32.166,32.449,32.671,32.919,33.150,33.397,33.584,
+33.804,33.992,34.240,34.466,34.731,35.030,35.400,35.738,36.147,36.546,36.995,37.429,37.879,38.291,
+38.753,39.204,39.707,40.182,40.706,41.170,41.686,42.227,42.825,43.373,43.959,
+// 1974
+44.486,44.997,
+45.477,45.983,
+46.458,46.997,
+47.521,48.034,
+48.535,49.099,
+49.589,50.102,
+// 1980
+50.540,50.975,
+51.382,51.810,
+52.168,52.572,
+52.957,53.434,
+53.789,54.087  //1984: end of historic data file
+54.343,54.636  //1985: from determined
+54.872,55.113  //1986: from determined
+]"
+)}
+
+
+//-----------------------------------------------------------------
+// The following two tables should be updated yearly to contain
+// the latest builtin information Delta-T.
+//
+// determined data: <http://maia.usno.navy.mil/ser7/deltat.data>
+// predicted  data: <http://maia.usno.navy.mil/ser7/deltat.preds>
+//-----------------------------------------------------------------
 
 // Monthly observed delta-t data from 1973 up to 2016
 // See: <http://maia.usno.navy.mil/ser7/deltat.data>
@@ -857,139 +1022,50 @@ val deltat-table-determined = once{ parse-determined( @"
  2016  7  1  68.3964
 ")}
 
-fun parse-determined( s : string ) : deltat-table {
-  val caps  = s.find-all(rx-determined)
-  if (caps.nil?) then return deltat-table-empty
-  val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
-  val start = y.parse-double-default(2000.0) + ((m.parse-double-default(1.0) - 1.0)/12.0)
-  val entries = caps.map(fun(cap){ cap.groups[4].parse-double-default(0.0) }).vector
-  Deltat-table(start,12.0,entries)
-}
-val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
 
+// Quarterly Predicted delta-t values, from 2016.75 upto 2026.50
+// from <http://maia.usno.navy.mil/ser7/deltat.preds>.
+val deltat-table-predicted = once{ parse-predicted(@"
+  YEAR    TT-UT PREDICTION  UT1-UTC PREDICTION  ERROR
 
-// Half-yearly history delta-t values from 1750 up to 1987
-// From: http://maia.usno.navy.mil/ser7/historic_deltat.data
-// Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
-// precise. The values in the original table are from McCarthy and Babcock (1986).
-// Table runs from 1750 to 1987 (excluded) for each half year.
-val deltat-table-historic : () -> deltat-table = once{ parse-historic(1750.0,@"
-[13.7,13.8,13.9,14.0,14.0,14.1,14.1,14.1,14.1,14.2,14.3,14.4,14.4,14.5,14.6,14.6,14.7,14.7,14.7,
-14.8,14.8,14.9,14.9,15.0,15.0,15.1,15.2,15.3,15.4,15.5,15.6,15.6,15.6,15.8,15.9,15.9,15.9,15.8,
-15.7,15.8,15.7,15.7,15.7,15.8,15.9,16.1,16.1,16.0,15.9,15.9,15.7,15.4,15.3,15.4,15.5,15.6,15.6,
-15.6,15.6,15.6,15.6,15.6,15.5,15.5,15.4,15.3,15.2,15.1,14.9,14.8,14.6,14.4,14.3,14.2,14.1,14.2,
-14.2,13.9,13.7,13.5,13.3,13.1,13.0,13.2,13.2,13.1,13.1,13.2,13.3,13.5,13.5,13.4,13.2,13.2,13.1,
-13.1,13.0,12.8,12.6,12.7,12.6,12.3,12.0,11.9,11.8,11.6,11.4,11.2,11.1,11.1,11.1,11.1,11.1,11.2,
-11.1,11.1,11.2,11.4,11.5,11.3,11.2,11.4,11.7,11.9,11.9,11.9,11.8,11.7,11.8,11.8,11.8,11.7,11.6,
-11.6,11.5,11.5,11.4,11.4,11.3,11.3,11.13,11.16,10.94,10.72,10.29,10.04,9.94,9.91,9.88,9.86,9.72,
-9.67,9.66,9.64,9.51,9.40,9.21,9.00,8.60,8.29,7.95,7.73,7.59,7.49,7.36,7.26,7.10,7.00,6.89,6.82,
-6.73,6.64,6.39,6.28,6.25,6.27,6.25,6.27,6.22,6.24,6.22,6.27,6.30,6.36,6.35,6.37,6.32,6.33,6.33,
-6.37,6.37,6.41,6.40,6.44,6.46,6.51,6.48,6.51,6.53,6.58,6.55,6.61,6.69,6.80,6.84,6.94,7.03,7.13,
-7.15,7.22,7.26,7.30,7.23,7.22,7.21,7.20,6.99,6.98,7.19,7.36,7.35,7.39,7.41,7.45,7.36,7.18,6.95,
-6.72,6.45,6.24,5.92,5.59,5.15,4.67,4.11,3.52,2.94,2.47,1.97,1.52,1.04,0.60,0.11,~0.34,~0.82,~1.25,
-~1.70,~2.08,~2.48,~2.82,~3.19,~3.50,~3.84,~4.14,~4.43,~4.59,~4.79,~4.92,~5.09,~5.24,~5.36,~5.34,
-~5.37,~5.32,~5.34,~5.33,~5.40,~5.47,~5.58,~5.66,~5.74,~5.68,~5.69,~5.65,~5.67,~5.68,~5.73,~5.72,
-~5.78,~5.79,~5.86,~5.89,~6.01,~6.13,~6.28,~6.41,~6.53,~6.49,~6.50,~6.45,~6.41,~6.26,~6.11,~5.90,
-~5.63,~5.13,~4.68,~4.19,~3.72,~3.21,~2.70,~2.09,~1.48,~0.75,~0.08,0.62,1.26,1.95,2.59,3.28,3.92,
-4.61,5.20,5.73,6.29,7.00,7.68,8.45,9.13,9.78,10.38,10.99,11.64,12.47,13.23,14.00,14.69,15.38,16.00,
-16.64,17.19,17.72,18.19,18.67,19.13,19.69,20.14,20.54,20.86,21.14,21.41,21.78,22.06,22.30,22.51,
-22.79,23.01,23.29,23.46,23.55,23.63,23.80,23.95,24.25,24.39,24.42,24.34,24.22,24.10,24.08,24.02,
-24.04,23.98,23.91,23.89,23.95,23.93,23.92,23.88,23.94,23.91,23.82,23.76,23.87,23.91,23.95,23.96,
-24.00,24.04,24.20,24.35,24.61,24.82,25.09,25.30,25.56,25.77,26.05,26.27,26.54,26.76,27.04,27.27,
-27.55,27.77,28.03,28.25,28.50,28.70,28.95,29.15,29.38,29.57,29.80,29.97,30.19,30.36,30.57,30.72,
-30.93,31.07,31.24,31.349,31.516,31.677,31.923,32.166,32.449,32.671,32.919,33.150,33.397,33.584,
-33.804,33.992,34.240,34.466,34.731,35.030,35.400,35.738,36.147,36.546,36.995,37.429,37.879,38.291,
-38.753,39.204,39.707,40.182,40.706,41.170,41.686,42.227,42.825,43.373,43.959,
-// 1974
-44.486,44.997,
-45.477,45.983,
-46.458,46.997,
-47.521,48.034,
-48.535,49.099,
-49.589,50.102,
-// 1980
-50.540,50.975,
-51.382,51.810,
-52.168,52.572,
-52.957,53.434,
-53.789,54.087  //1984: end of historic data file
-54.343,54.636  //1985: from determined
-54.872,55.113  //1986: from determined
-]"
-)}
-
-
-fun parse-historic( start: double, s : string ) : deltat-table {
-  val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
-  val entries = caps.map(fun(cap){ cap.matched.parse-double-default(0.0) }).vector
-  Deltat-table(start,2.0,entries)
-}   
-val rxdouble = regex(@"-?\d+(?:\.\d+)?")
-val rxcomment = regex(@"//.*")
-
-// A table of DUT (= UT1 - UTC) entries parsed from a IERS finals2000A file.
-struct dut-table(
-  expire: instant,
-  start : double,   // start mjd
-  end   : double,   // end mjd
-  duts  : vector<double> // one entry per day                      
-)
-
-// Calculate &Delta;T from a DUT table.
-// Interpolates linearly between daily entries.
-fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
-  on-exn(Nothing) {
-    val utci = i.use(ts-utc)
-    val mjd = utci.mjd(ts-utc).double
-    if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
-      val idx = (mjd - dtt.start).trunc.int
-      // interpolate
-      val dut1= dtt.duts[idx]
-      val dut2= if (idx + 1 >= dtt.duts.length) then dut1 else dtt.duts[idx+1]
-      val dut3= if (dut1 - 0.5 < dut2 && dut1 + 0.5 > dut2) then dut2
-                elif (dut1 + 0.5 < dut2 && dut1 + 1.5 > dut2) then dut2 - 1.0 // a leap second was added
-                elif (dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2) then dut2 + 1.0 // a leap second was subtracted
-                else dut1 // a jump outside a reasonable range; don't interpolate
-      val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
-      // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
-      // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
-      val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
-      // trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
-      Just( unsafe-duration(dt) )
-    }
-  }
-}
-
-
-// Parse a ``finals2000A.all`` file into DUT table very precise &Delta;T calculation (using `dut-deltat`)
-// See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
-fun parse-iers-ut1( s : string ) : maybe<dut-table> {
-  val start   = match( s.find(rx-finals-start) ) {
-                  Nothing   -> 41684.0
-                  Just(cap) -> cap.groups[1].parse-double-default(41684.0)
-                }
-  val mbexp   = s.find(rx-finals-expire)
-  val caps    = s.find-all(rx-finals-dut)
-  val entries = caps.map-acc(fun(cap){ cap.groups[1].parse-double-default(0.0) }).vector
-
-  val end     = start + entries.length.double 
-  val expire  = (match(mbexp) {
-                  Just(cap) -> cap.groups[1].parse-double-default(end - 365.0)
-                  Nothing   -> end - 365.0  // guess one year early
-                }).instant-at-mjd(ts-utc)  
-  // trace("finals200A expire: " + expire.time.show)
-  // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
-  // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
-  Just(Dut-table(expire,start,end,entries))
-}
-val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
-val rx-finals-start = regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?)", multiline=True)
-val rx-finals-expire= regex(@"^(?:\d\d| \d).{4} (\d+(?:\.\d+)?) P", multiline=True)
-
-// recurse using an accumulator using constant heap space
-private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
-  match(xs) {
-    Cons(x,xx) -> map-acc(xx,f,Cons(f(x),acc))
-    Nil -> reverse(acc)
-  }
-}
+ 2016.75      68.51              -0.330         0.02
+ 2017.00      68.66              -0.472         0.06
+ 2017.25      68.8                0.384         0.1
+ 2017.50      69.0                0.232         0.2
+ 2017.75      69.1                              0.2
+ 2018.00      69.2                              0.3
+ 2018.25      69.4                              0.4
+ 2018.50      69.5                              0.4
+ 2018.75      69.7                              0.5
+ 2019.00      69.8                              0.7
+ 2019.25      69.9                              0.8
+ 2019.50      70.0                              0.9
+ 2019.75      70.                               1.
+ 2020.00      70.                               1.
+ 2020.25      70.                               1.
+ 2020.50      71.                               1.
+ 2020.75      71.                               2.
+ 2021.00      71.                               2.
+ 2021.25      71.                               2.
+ 2021.50      71.                               2.
+ 2021.75      71.                               2.
+ 2022.00      71.                               2.
+ 2022.25      71.                               2.
+ 2022.50      71.                               3.
+ 2022.75      72.                               3.
+ 2023.00      72.                               3.
+ 2023.25      72.                               3.
+ 2023.50      72.                               3.
+ 2023.75      72.                               3.
+ 2024.00      72.                               3.
+ 2024.25      72.                               4.
+ 2024.50      72.                               4.
+ 2024.75      73.                               4.
+ 2025.00      73.                               4.
+ 2025.25      73.                               4.
+ 2025.50      73.                               5.
+ 2025.75      73.                               5.
+ 2026.00      73.                               5.
+ 2026.25      73.                               5.
+ 2026.50      73.                               5.
+")}
