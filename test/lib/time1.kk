@@ -22,6 +22,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 }
 
 fun test-tz() {
+  /*
   println( "tz-local(): " + now().time(tz=tz-local()).show )
   val tzs = load-timezones()
   println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
@@ -58,7 +59,7 @@ fun test-tz() {
   // round into a timezone leap second (across a DST zone)
   check("tzroundleap1") { instant-at(1979,1,1,3,29,59,0.9999,tz=z2).time.show(3) == "1978-12-31T23:59:60Z" }
   check("tzroundleap2") { time(1979,1,1,3,29,59,0.9999,tz=z2).show(3) == "1979-01-01T03:29:60+03:30 (IRST)" }
-
+  */ 
   // Julian calendar
   check("julian1") { time(1900,3,0,cal=cal-julian).show == "1900-02-29T00:00:00Z JC" }
 }

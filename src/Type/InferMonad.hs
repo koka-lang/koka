@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 module Type.InferMonad( Inf, InfGamma
-                      , runInfer
+                      , runInfer, tryRun
                       
                       -- * substitutation
                       , zapSubst
@@ -798,6 +798,11 @@ instance Monad Inf where
                                                                    Ok y st2 w2 -> Ok y st2 (w1++w2)
                                                                    Err err w2 -> Err err (w1++w2)
                                        Err err w -> Err err w)
+
+tryRun :: Inf a -> Inf (Maybe a)
+tryRun (Inf i) = Inf (\env st -> case i env st of 
+                                   Ok x st1 w -> Ok (Just x) st1 w
+                                   Err err w  -> Ok Nothing st [])
 
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
