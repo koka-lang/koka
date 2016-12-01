@@ -66,7 +66,7 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn )
+import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -351,7 +351,7 @@ isTotal expr
       TypeApp e _ -> isTotal e
       Con _ _ -> True
       Lit _   -> True
-      App (Var v _) _ | getName v == nameReturn -> False
+      App (Var v _) _ | getName v == nameReturn || getName v == nameTrace || getName v ==nameLog -> False
       App f args -> case typeOf f of
                       TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
                       _                 -> False
