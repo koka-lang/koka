@@ -354,6 +354,7 @@ compileProgram' term flags modules compileTarget fname program
                                   , loadedModules = allmods
                                   }
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
+       liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        (loaded1,imported) <- resolveImports term flags (dirname fname) loaded (map ImpProgram (programImports program))
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+> 
@@ -363,7 +364,7 @@ compileProgram' term flags modules compileTarget fname program
            toCoreImport (mods,imp) = map (\mod -> Core.Import (modName mod) (modPackagePath mod) 
                                                   (importVis imp) (Core.coreProgDoc (modCore mod))) mods
        loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
-       -- liftIO $ termPhase term ("codegen " ++ show (getName program))
+       liftIO $ termPhase term ("codegen " ++ show (getName program))
        newTarget <- liftError $ 
            case compileTarget of
              Executable entryName _
@@ -542,7 +543,8 @@ resolveModule term flags currentDir modules mimp
                 Just mod ->
                   if (srcpath /= forceModule flags && modTime mod >= sourceTime)
                    then -- trace ("module " ++ show (name) ++ " already loaded") $ 
-                        loadFromModule iface root stem mod
+                        -- loadFromModule iface root stem mod
+                        return (mod,modules) -- TODO: revise! do proper dependency checking instead..
                    else -- trace ("module " ++ show ( name) ++ " already loaded but not recent enough..\n " ++ show (modTime mod, sourceTime)) $
                         loadFromSource modules root stem  
                 Nothing ->
@@ -557,14 +559,14 @@ resolveModule term flags currentDir modules mimp
              return (loadedModule loadedImp, loadedModules loadedImp)
       
       loadFromIface iface root stem 
-        = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ source) $
+        = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ stem) $
           do let (pkgQname,pkgLocal) = packageInfoFromDir (packages flags) (dirname iface)             
                  loadMessage msg = liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text msg) <+> 
                                        color (colorSource (colorScheme flags)) 
                                          (pretty (if null pkgQname then "" else pkgQname ++ "/") <>  pretty (name)))
              mod <- case lookupImport iface modules of
                       Just mod 
-                       -> do -- loadMessage "reusing:"
+                       -> do loadMessage "reusing:"
                              return mod 
                       Nothing
                        -> do loadMessage "loading:"
