@@ -9,7 +9,7 @@
 // Parsing of time strings.
 module std/time/parse
 
-import std/regex
+import std/text/regex
 import std/num/fixed
 import std/time/duration
 import std/time/date

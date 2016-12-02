@@ -30,9 +30,9 @@ interpretation of paths where ``..`` is considered lexically.
 If parent directories should be resolved through symbolic links, 
 the `realpath` function should be used (which has the `:io` effect though).  
 */
-module std/path
+module std/os/path
 
-import std/regex
+import std/text/regex
 
 extern include {
   cs file "path-inline.cs"

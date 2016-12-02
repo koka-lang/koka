@@ -9,8 +9,8 @@
 // Test UT1 time
 module time8
 
-import std/path
-import std/file
+import std/os/path
+import std/os/file
 public import std/num/fixed
 public import std/time
 public import std/time/ut1

@@ -12,7 +12,7 @@
    seldomly, a straight string compare will probably be faster since 
    creating an atom takes some initial work.
 */
-module std/atom
+module std/text/atom
 
 import std/num/int32
 

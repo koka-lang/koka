@@ -11,7 +11,7 @@
 // Note: this module is work in progress. 
 module std/num/decimal
 
-import std/regex
+import std/text/regex
 
 // Type of a decimal number.
 public struct decimal (

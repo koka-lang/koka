@@ -13,8 +13,8 @@
 */
 module std/time/download
 
-import std/file
-import std/path
+import std/os/file
+import std/os/path
 import std/time/duration
 import std/time/instant
 import std/time/utc

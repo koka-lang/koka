@@ -14,8 +14,8 @@
 // A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
 module std/num/fixed
 
-import std/regex
-
+import std/text/regex
+  
 // A `:fixed` has infinite range and a precision of up to 15 digits after the dot.
 // Internally they are represented by a infinite range `:int` for the whole
 // part and a `:double` to represent the fraction. 

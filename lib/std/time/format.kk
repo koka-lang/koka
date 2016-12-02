@@ -9,7 +9,7 @@
 // Formatting of time into a string.
 module std/time/format
 
-import std/regex
+import std/text/regex
 import std/num/fixed
 import std/time/instant
 import std/time/date

@@ -12,28 +12,31 @@ This is the main index of the standard Koka libraries.
 The draft language specification can be found <a href="kokaspec.html">here</a>.
 */
 module toc
-  
-import std/array
-import std/atom
-import std/dict
-import std/env
-import std/file
-import std/flags
+
 import std/log
-import std/path
-import std/readline
-import std/regex
-import std/string
-import std/unicode
+  
+import std/data/array
+import std/data/dict
+
+import std/os/env
+import std/os/file
+import std/os/flags
+import std/os/path
+import std/os/readline
+
+import std/text/atom
+import std/text/regex
+import std/text/string
+import std/text/unicode
 
 import std/num/decimal
-import std/num/fixed
 import std/num/int32
+import std/num/fixed
 
 import std/time
+import std/time/astro
 import std/time/timestamp
 import std/time/timezone
-import std/time/astro
 import std/time/ut1
 
 import sys/dom

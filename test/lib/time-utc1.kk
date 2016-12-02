@@ -8,7 +8,7 @@
 
 module time-utc1
 
-import std/file
+import std/os/file
 public import std/num/fixed
 public import std/time
 

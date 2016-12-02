@@ -14,7 +14,7 @@ A `:timestamp` will keep track of leap seconds.
 */
 module std/time/timestamp
 
-import std/regex
+import std/text/regex
 import std/num/fixed
 
 // Time spans are just fixed point numbers. This gives arbitrary range

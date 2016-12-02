@@ -64,9 +64,9 @@ fun show-flags( o : myflags ) {
 ```
 \/
 */
-module std/flags
+module std/os/flags
 
-import std/env
+import std/os/env
 
 // ----------------------------------------------------
 // Usage example

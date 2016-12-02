@@ -9,7 +9,7 @@
 /* Basic unicode support.
 
 */
-module std/unicode
+module std/text/unicode
 
 // Grapheme's are an alias for `:string`. 
 // Each grapheme is a self-contained symbol consisting of

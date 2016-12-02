@@ -38,9 +38,9 @@ i.time(cal=cal-ut1).show.println   // in UT1
 */
 module std/time/ut1
 
-import std/path
+import std/os/path
 import std/num/fixed
-import std/regex
+import std/text/regex
 
 import std/time/timestamp
 import std/time/duration

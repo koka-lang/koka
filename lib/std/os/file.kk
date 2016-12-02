@@ -9,9 +9,9 @@
 
 /* File operations. 
 */
-public module std/file
+public module std/os/file
 
-import std/path
+import std/os/path
 import std/num/fixed
 import std/time/duration
 import std/time/instant

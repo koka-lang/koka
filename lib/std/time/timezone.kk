@@ -22,10 +22,10 @@ println( now().time(tz-local()).show )
 */
 module std/time/timezone
 
-import std/dict
-import std/regex
-import std/path
-import std/file
+import std/data/dict
+import std/text/regex
+import std/os/path
+import std/os/file
 
 import std/time/timestamp
 import std/time/duration

@@ -9,7 +9,7 @@
 // Log messages
 public module std/log 
 
-import std/dict
+import std/data/dict
 
 private val log-dict : mdict<global,string> = unsafe-total { mdict() }
 

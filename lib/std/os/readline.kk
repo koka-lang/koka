@@ -8,7 +8,7 @@
 
 /* Read user input from the console.
 */
-module std/readline
+module std/os/readline
 
 external include {
   js file "readline-inline.js"

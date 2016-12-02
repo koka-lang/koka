@@ -203,7 +203,7 @@ time steps broadcast by the NIST WWV radio station.
 */
 module std/time/utc
 
-import std/regex
+import std/text/regex
 import std/num/fixed
 import std/time/timestamp
 import std/time/duration
