@@ -288,14 +288,15 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   }
 }
 
-// Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time.
-public fun get-leap-steps( ) : io list<(timestamp,timespan,timespan)> {
+// Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time,
+// the base offset, the delta start date and the delta rate.
+public fun get-leap-steps( ) : io list<(timestamp,timespan,timespan,(timespan,timestamp,fixed))> {
   val adjusts = unsafe-total(get-leaps-table).adjusts.reverse
   zip(Cons(zero,adjusts),adjusts).map( fun(las) {
     val ts = las.snd.utc-start
     val ofs1 = las.fst.tai-offset(ts)
     val ofs2 = las.snd.tai-offset(ts)
-    (ts,ofs1,ofs2)
+    (ts,ofs1,ofs2,(las.snd.offset,las.snd.delta-start,las.snd.delta))
   })
 }
 
@@ -529,24 +530,40 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     Leap-adjust( start, ofs, dstart, delta )
   }).reverse
 }
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
 // TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there 
 // were 29 small steps of 20ms (=0.58s total) (see: <http://www.ucolick.org/~sla/leapsecs/torino/arias_3.pdf>)
-// We model this initial time frame with an initial extra table entry 
-// starting at 1958-01-01Z such that the UTC offset increases linearly up to 0.58s just before 1961-01-01Z.
-// This also avoids an initial leap second larger than 1 (and now becomes 1.422818s - 0.58s = 0.842818s).
-//
-// Various variations (we use the second one) (The final two start at 1958-01-12T15:00:00 when TAI-UT1 was approximately zero)
-// #1958 JAN  1 =JD 2436204.5   TAI-UTC=  0.0000000 S + (MJD - 36204.) X 0.001298191606 S     # linear up to 1.422818
-// #1958 JAN  1 =JD 2436204.5   TAI-UTC=  0.0000000 S + (MJD - 36204.) X 0.000529197080292 S  # linear up to 0.58s
-// #1958 JAN 12 =JD 2436216.125 TAI-UTC=  0.0000000 S + (MJD - 36215.625) X 0.0013121088 S    # linear up to 1.422818
-// #1958 JAN 12 =JD 2436216.125 TAI-UTC=  0.0000000 S + (MJD - 36215.625) X 0.0005348703 S    # linear up to 0.58 
 val leap-seconds-dat = @"
-  # added to model the initial 29 20ms time steps during 1958 to 1960
-  1958 JAN  1 =JD 2436204.5  TAI-UTC=   0.0000000 S + (MJD - 36204.) X 0.000794520548 S
-  1960 JAN  1 =JD 2436934.5  TAI-UTC=   0.5800000 S + (MJD - 36934.) X 0.000000 S
+  # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
+  # In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we 
+  # change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01. 
+  # (without a rate change it is a negative -0.0272380s). 
+  # Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
+  1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S
+  1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S
+  1958 FEB  5 =JD 2436240.29167 TAI-UTC= 0.04 S + (MJD - 36204.) X 0.00073458 S
+  1958 FEB 19 =JD 2436254.29167 TAI-UTC= 0.06 S + (MJD - 36204.) X 0.00073458 S
+  1958 APR  9 =JD 2436303.29167 TAI-UTC= 0.08 S + (MJD - 36204.) X 0.00073458 S
+  1958 JUN 11 =JD 2436366.29167 TAI-UTC= 0.10 S + (MJD - 36204.) X 0.00073458 S
+  1958 JUL  2 =JD 2436387.29167 TAI-UTC= 0.12 S + (MJD - 36204.) X 0.00073458 S
+  1958 JUL 16 =JD 2436401.29167 TAI-UTC= 0.14 S + (MJD - 36204.) X 0.00073458 S
+  1958 OCT 22 =JD 2436499.29167 TAI-UTC= 0.16 S + (MJD - 36204.) X 0.00073458 S
+  1958 NOV 26 =JD 2436534.29167 TAI-UTC= 0.18 S + (MJD - 36204.) X 0.00073458 S
+  1958 DEC 24 =JD 2436562.29167 TAI-UTC= 0.20 S + (MJD - 36204.) X 0.00073458 S
+  
+  1959 JAN  1 =JD 2436569.5     TAI-UTC= 0.4681220 S + (MJD - 36569.) X 0.000864 S
+  1959 JAN 28 =JD 2436597.29167 TAI-UTC= 0.4881220 S + (MJD - 36569.) X 0.000864 S
+  1959 FEB 25 =JD 2436625.29167 TAI-UTC= 0.5081220 S + (MJD - 36569.) X 0.000864 S
+  1959 APR  5 =JD 2436664.29167 TAI-UTC= 0.5281220 S + (MJD - 36569.) X 0.000864 S
+  1959 AUG 26 =JD 2436807.29167 TAI-UTC= 0.5481220 S + (MJD - 36569.) X 0.000864 S
+  1959 SEP 30 =JD 2436842.29167 TAI-UTC= 0.5681220 S + (MJD - 36569.) X 0.000864 S
+  1959 NOV  4 =JD 2436877.29167 TAI-UTC= 0.5881220 S + (MJD - 36569.) X 0.000864 S
+  1959 NOV 18 =JD 2436891.29167 TAI-UTC= 0.6081220 S + (MJD - 36569.) X 0.000864 S
+  1959 DEC 16 =JD 2436919.29167 TAI-UTC= 0.6281220 S + (MJD - 36569.) X 0.000864 S
+  1960 JAN  1 =JD 2436934.5     TAI-UTC= 0.9434820 S + (MJD - 36934.) X 0.001296 S
+
   # from: http://maia.usno.navy.mil/ser7/tai-utc.dat
   1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
   1961 AUG  1 =JD 2437512.5  TAI-UTC=   1.3728180 S + (MJD - 37300.) X 0.001296 S

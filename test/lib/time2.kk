@@ -58,29 +58,6 @@ fun test-leap() {
   check("leap-neg3", "1968-02-01T00:00:06.185682Z TAI" ) {  instant-at(1968,2,1).time(cal=cal-tai).show  }
 }
 
-public fun show-leap-steps() {
-  println(leap-steps-header)
-  val steps = get-leap-steps()  
-  steps.foreach( fun(step) {
-    val (ts,ofs1,ofs2) = step
-    val prec = 7
-    val diff = (ofs2 - ofs1).round-to-prec(prec)
-    println( "| " + [
-      unsafe-instant-at(ts,ts-utc).time.date.show.pad-right(17,' '),
-      ((if (diff.neg?) then "" else "+") + diff.show(prec)).pad-right(26,' '),
-      ofs1.show(prec).pad-right(11,' '),
-      ofs2.show(prec).pad-right(10,' ') 
-    ].join(" | ") + " |")
-  })
-  println(leap-steps-footer)
-}
-
-val leap-steps-header = @"|-------------------|----------------------------|-------------|------------|
-| Date (UTC) &quad; | Leap seconds &quad; &quad; | (TAI--UTC)  | (TAI--UTC) |
-|                   |                            | before date | on date    |
-+:------------------|----------------------------|-------------|------------+"
-val leap-steps-footer = @"|-------------------|----------------------------|-------------|------------|"
-
 public fun main() {
   update-leaps-table()
   test-leap()
