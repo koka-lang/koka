@@ -254,7 +254,7 @@ fun tai-to-ut( tai : duration, override : (i:instant) -> maybe<duration> ) : tim
 }
 
 fun ut-to-tai( t : timestamp, override : (i : instant) -> maybe<duration> ) : duration {
-  val i   = unsafe-instant-at(t,ts-tt)   // approximately tt
+  val i   = unsafe-instant(t,ts-tt)   // approximately tt
   val i1  = i + deltat(i,override)    
   val i2  = i + deltat(i1,override)    
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)

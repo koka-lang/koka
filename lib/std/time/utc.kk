@@ -223,7 +223,7 @@ extern include {
 // Given a unix time stamp in seconds and possibly a separate fraction of seconds
 // (for increased precision for nanosecond timestamps) return a `:instant`.
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  unsafe-instant-at( timestamp(secs.trunc.int, secs.fraction + frac), ts-unix ) 
+  unsafe-instant( timestamp(secs.trunc.int, secs.fraction + frac), ts-unix ) 
 }
 
 // The current `:instant` in time as returned by the system clock.
@@ -498,7 +498,7 @@ public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
     timestamp(ntpex - ntp-shift)
   }.default(la-final.utc-start + (365.fixed*secs-per-day))
   // trace("expire: " + utc-expire.ts-show)
-  val expire = unsafe-instant-at( utc-expire + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion..
+  val expire = unsafe-instant( utc-expire + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion..
 
   val table = Leaps-table(expire,las)
   Just(table)

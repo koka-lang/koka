@@ -52,7 +52,7 @@ abstract struct timescale(
   to-tai      : timestamp -> duration,
   // The y2k-epoch states at what timestamp _in this timescale_ is the date 2001-01-01.
   // It is used for date calculations.
-  // y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(<ts>).timestamp(<ts>) with <ts> this timescale
+  // y2k-epoch = instant(2000,1,1,cal=iso-calendar(<ts>).timestamp(<ts>) with <ts> this timescale
   y2k-epoch   : timestamp,
   epoch-shift : timespan = timespan0,
   secs-in-day : maybe<timestamp -> timespan> = Nothing
@@ -131,7 +131,7 @@ public fun timespan( i : instant, tscale : timescale = ts-tai ) : timespan {
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
 // Be careful to ensure that `t` should indeed be interepreted in the given time scale.
-public fun unsafe-instant-at( t : timestamp, ts : timescale ) : instant {
+public fun unsafe-instant( t : timestamp, ts : timescale ) : instant {
   Instant(t,ts)
 }
 
@@ -161,7 +161,7 @@ public fun since-epoch( i : instant ) : duration {
 
 // Return the instant at (TAI) SI second duration from the the `epoch`.
 public fun since-epoch( d : duration ) : instant {
-  unsafe-instant-at(d.timestamp, ts-tai)
+  unsafe-instant(d.timestamp, ts-tai)
 }
 
 // Compare two `:instant`s in time.
@@ -223,7 +223,7 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
 //  `name`, a fixed `offset` (=`duration0`) from TAI (e.g. GPS = TAI - 19), and 
 // a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2001-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
-// `y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
+// `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoch : timestamp = timestamp0 ) : timescale {
   val epoch-shift = y2k-epoch.timespan + offset.timespan
   fun from-tai(tai:duration) { tai.timestamp + epoch-shift }
@@ -243,7 +243,7 @@ public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoc
 // and a `y2k-epoch` (=`timestamp0`). The time unit defaults to `name`. 
 // The `y2k-epoch` is the timestamp of the 2001-01-01 date in the new timescale
 // e.g. for a timescale `ts`:\
-// `y2k-epoch = instant-at(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
+// `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun timescale( name : string, 
                       from-tai : duration -> timestamp, 
                       to-tai   : timestamp -> duration, 
@@ -275,13 +275,13 @@ public val ts-gps : timescale = tai-timescale( "GPS", duration(~19), timestamp(6
 
 // Return the epoch of a certain time scale.
 public fun timescale-epoch( ts : timescale ) : instant {
-  unsafe-instant-at(timestamp0,ts)
+  unsafe-instant(timestamp0,ts)
 }
 
 // Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar).\
-// `timescale-y2k(ts) == instant-at(2000,1,1,cal=iso-calendar(ts))`
+// `timescale-y2k(ts) == instant(2000,1,1,cal=iso-calendar(ts))`
 public fun timescale-y2k( ts : timescale ) : instant {
-  unsafe-instant-at(ts.y2k-epoch,ts)
+  unsafe-instant(ts.y2k-epoch,ts)
 }
 
 // Show a time stamp with an optional maximum precision (`max-prec` (=`9`)) and 
@@ -323,7 +323,7 @@ public fun instant-at-mjd( mjd : fixed, tscale : timescale  ) : instant {
   val d  = mjd - mjd-epoch-delta // since our epoch
   val ts = tscale.y2k-epoch + (d*secs-per-day) // since the time scale epoch
   val daysecs = ts.seconds-in-day(tscale)
-  if (daysecs==secs-per-day) then return unsafe-instant-at(ts,tscale)
+  if (daysecs==secs-per-day) then return unsafe-instant(ts,tscale)
   // this is longer/shorter day due to leap seconds; adjust the fraction
   val days = d.trunc.fixed
   val sid  = (d - days)*daysecs  // seconds in the day
@@ -332,7 +332,7 @@ public fun instant-at-mjd( mjd : fixed, tscale : timescale  ) : instant {
                         else (sid,zero)
   val ts1  = tscale.y2k-epoch + (days*secs-per-day) + nlsecs
   val ts2  = ts1.add-leap-seconds(lsecs)
-  unsafe-instant-at(ts2,tscale) 
+  unsafe-instant(ts2,tscale) 
 }
 
 // Return the julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.

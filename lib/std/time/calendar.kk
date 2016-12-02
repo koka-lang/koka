@@ -125,7 +125,7 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 
 // Return the instant in time for a given `:date` and `:clock` (= `clock0`) interpreted by 
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
-public fun instant-at( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
+public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
 {
   // the year/month/day is interpreted as if in UTC first.
   val i = (cal.dc-to-instant)( d, c )   
@@ -139,12 +139,12 @@ public fun instant-at( d : date, c : clock = clock0, tz : timezone = tz-utc, cal
       if (i.timescale.has-leap-seconds) then {
         // If in UTC, we calculate directly on UTC timespan's as to ignore any possible
         // leap seconds during the timezone offset change. 
-        // (for example: instant-at(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
+        // (for example: instant(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
         val utci = i.timestamp(i.timescale)
         val tzd1 = (tz.utc-delta)(i).fst
-        val tzi1 = unsafe-instant-at(utci - tzd1.timespan, i.timescale)
+        val tzi1 = unsafe-instant(utci - tzd1.timespan, i.timescale)
         val tzd2 = (tz.utc-delta)(tzi1).fst
-        val tzi2 = unsafe-instant-at(utci - tzd2.timespan, i.timescale)
+        val tzi2 = unsafe-instant(utci - tzd2.timespan, i.timescale)
         tzi2
       }
       else {
@@ -181,29 +181,29 @@ public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-
   happend (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
   In such cases, the functions returns always interpreted in the earlier timezone.
 */
-public fun instant-at( year : int, month : int = 1, day : int = 1, 
+public fun instant( year : int, month : int = 1, day : int = 1, 
                     hours : int = 0, minutes : int = 0, seconds : int = 0, 
                     frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
 {
   val fsecs = if (frac.zero?) then fixed(seconds) else fixed(seconds) + fixed(frac)
-  instant-at( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
+  instant( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
 }
 
 // Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by 
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
 // It is also possible to pass the weekday that determines if 
 // a week falls in the current year or not (which is Thursday for the ISO definition)
-public fun instant-at( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant 
+public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant 
 {  
   val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
   val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)  
-  instant-at( d, c, tz, cal )
+  instant( d, c, tz, cal )
 }
 
 // Return the day of the week for a calendar `cal` (=`cal-iso`).
 fun weekday( d : date, cal : calendar ) : weekday {
   // Generic algorithm for any calendar
-  val i    = instant-at(d.year,d.month,d.day,cal=cal)
+  val i    = instant(d.year,d.month,d.day,cal=cal)
   val days = i.mjd(cal.timescale).floor
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
   dow.weekday                  // to ISO week day 
@@ -211,8 +211,8 @@ fun weekday( d : date, cal : calendar ) : weekday {
 
 // Return the difference in days between two dates interpreted by calendar `cal`.
 public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
-  val i1 = instant-at(d1,cal=cal)
-  val i2 = instant-at(d2,cal=cal)
+  val i1 = instant(d1,cal=cal)
+  val i2 = instant(d2,cal=cal)
   val ts = cal.timescale
   (i1.mjd(ts) - i2.mjd(ts)).floor
 }
@@ -252,7 +252,7 @@ public fun earth-calendar(
     earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date ) 
   }
   fun dc-to-instant(d : date, c : clock) { 
-    unsafe-instant-at( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
+    unsafe-instant( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
   }
   Calendar( name,long-name,ts,month-prefix,show-era,
             instant-to-dc,dc-to-instant,

@@ -49,16 +49,16 @@ fun test-week-dates() {
     check("date-" + ds, wds) { time(d).weekdate.show }
     check("date-" + wds, ds) { time(wd).date.show }
     check("date-isow-" + ds, wds) { 
-      val i = instant-at(d)
+      val i = instant(d)
       val id = i.time(cal=cal-iso-week).date
       (Weekdate(id.year,id.month,id.day.weekday)).show
     }
     check("date-isow-" + wds, ds) { 
       val id = Date(wd.year,wd.week,wd.day.int)
-      instant-at(id,cal=cal-iso-week).time.date.show
+      instant(id,cal=cal-iso-week).time.date.show
     }
-    check("date-isom-" + mds, mds) {  instant-at(d).time(cal=cal-iso-month).date.show  }
-    check("date-isom-" + ds, ds) {  instant-at(md,cal=cal-iso-month).time.date.show  }
+    check("date-isom-" + mds, mds) {  instant(d).time(cal=cal-iso-month).date.show  }
+    check("date-isom-" + ds, ds) {  instant(md,cal=cal-iso-month).time.date.show  }
     println("")
   })    
 }
@@ -75,12 +75,12 @@ fun test-week-in-years() {
     check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
     check("isow-" + year.show, weeks.show) { 
-      val d = instant-at(year,12,28).time(cal=cal-iso-week).date 
+      val d = instant(year,12,28).time(cal=cal-iso-week).date 
       if (d.month==53) then "53" else "52"
     }
  
     check("isom-" + year.show, weeks.show) { 
-      val d = instant-at(year,12,28).time(cal=cal-iso-month).date 
+      val d = instant(year,12,28).time(cal=cal-iso-month).date 
       if (d.month==12 && d.day > 31) then "53" else "52"
     }
   })

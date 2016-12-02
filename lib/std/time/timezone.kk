@@ -209,7 +209,7 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
     val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
                     val iu = acc.fst + diff*60.0
-                    val i = unsafe-instant-at(timestamp(iu),ts-unix)
+                    val i = unsafe-instant(timestamp(iu),ts-unix)
                     (iu,Cons(Just(i),acc.snd))
                   }).snd
     val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
@@ -312,7 +312,7 @@ public fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc 
 
 fun sample-dates( year : int ) : list<instant> {
   list(year - 1, year).flatmap( fun(y) {
-    list(0,3).map( fun(m) { instant-at(y,m*4,15) } )
+    list(0,3).map( fun(m) { instant(y,m*4,15) } )
   })
 }
 

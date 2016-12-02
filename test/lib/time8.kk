@@ -27,7 +27,7 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 }
 
 
-public val sofai = instant-at(2006,1,15,21,24,37,0.5)
+public val sofai = instant(2006,1,15,21,24,37,0.5)
 
 public fun test-ut1() {
   println("load UT1 calendar")
@@ -35,12 +35,12 @@ public fun test-ut1() {
   check("sofa-ut1","2006-01-15T21:24:37.834075267Z UT1"){  sofai.time(cal=calut1).show  } // astropy: 37.834077793, sofa: 37.834100 ; non-interpolated: 37.834087400Z
 
   // across a leap second
-  check("leap-ut1a","2012-06-30T23:59:57.413235998Z UT1"){ instant-at(2012,6,30,23,59,58).time(cal=calut1).show }
-  check("leap-ut1b","2012-06-30T23:59:58.413235999Z UT1"){ instant-at(2012,6,30,23,59,59).time(cal=calut1).show }
-  check("leap-ut1c","2012-06-30T23:59:59.413235999Z UT1"){ instant-at(2012,6,30,23,59,60).time(cal=calut1).show }
-  check("leap-ut1d","2012-07-01T00:00:00.412236Z UT1")   { instant-at(2012,6,30,23,59,60,0.999).time(cal=calut1).show }
-  check("leap-ut1e","2012-07-01T00:00:00.413236Z UT1")   { instant-at(2012,7,1,0,0,0).time(cal=calut1).show }
-  check("leap-ut1f","2012-07-01T00:00:01.413236002Z UT1"){ instant-at(2012,7,1,0,0,1).time(cal=calut1).show }
+  check("leap-ut1a","2012-06-30T23:59:57.413235998Z UT1"){ instant(2012,6,30,23,59,58).time(cal=calut1).show }
+  check("leap-ut1b","2012-06-30T23:59:58.413235999Z UT1"){ instant(2012,6,30,23,59,59).time(cal=calut1).show }
+  check("leap-ut1c","2012-06-30T23:59:59.413235999Z UT1"){ instant(2012,6,30,23,59,60).time(cal=calut1).show }
+  check("leap-ut1d","2012-07-01T00:00:00.412236Z UT1")   { instant(2012,6,30,23,59,60,0.999).time(cal=calut1).show }
+  check("leap-ut1e","2012-07-01T00:00:00.413236Z UT1")   { instant(2012,7,1,0,0,0).time(cal=calut1).show }
+  check("leap-ut1f","2012-07-01T00:00:01.413236002Z UT1"){ instant(2012,7,1,0,0,1).time(cal=calut1).show }
 
 }
 

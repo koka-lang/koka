@@ -24,14 +24,14 @@ fun check(name : string, res : string, tst : () -> string ) : io () {
 
 fun test-round() {
    // rounding of dates
-  check("round0", "2000-01-01T00:00:00Z"){ instant-at(1999,12,31,23,59,59,0.9999).time.show(3)  }
-  check("round1", "1999-12-31T23:59:59.999900Z" ){ instant-at(1999,12,31,23,59,59,0.9999).time.show(6) }
+  check("round0", "2000-01-01T00:00:00Z"){ instant(1999,12,31,23,59,59,0.9999).time.show(3)  }
+  check("round1", "1999-12-31T23:59:59.999900Z" ){ instant(1999,12,31,23,59,59,0.9999).time.show(6) }
 
   // round into a leap second
-  check("round2", "2016-12-31T23:59:60Z"){ instant-at(2016,12,31,23,59,59,0.9998).time.show(3)  }
+  check("round2", "2016-12-31T23:59:60Z"){ instant(2016,12,31,23,59,59,0.9998).time.show(3)  }
 
   // rounding between timescales 
-  check("round3", "2000-01-01T00:00:00Z TT"){ instant-at(2000,1,0,23,59,27,0.816,cal=cal-tai).time(cal=cal-tt).show }
+  check("round3", "2000-01-01T00:00:00Z TT"){ instant(2000,1,0,23,59,27,0.816,cal=cal-tai).time(cal=cal-tt).show }
 
   // round into a different calendar 
   check("round4", "1582-10-04T23:59:59.900Z JG") { time(1582,10,4,23,59,59,0.9,cal=cal-jg).show }

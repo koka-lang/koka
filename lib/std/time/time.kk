@@ -157,12 +157,12 @@ public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calend
 }
 
 // Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default) 
-// interpreted by calendar `cal` (=`cal-iso`). See `instant-at` for roll-over behaviour.
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
 public fun time( year : int, month : int = 1, day : int = 1, 
                  hours : int = 0, minutes : int = 0, secs : int = 0, 
                  frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time 
 {
-  time(instant-at(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
+  time(instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
 }
 
 
@@ -170,7 +170,7 @@ public fun time( year : int, month : int = 1, day : int = 1,
 // interpreted by calendar `cal` (=`cal-iso`)
 public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time 
 {
-  time(instant-at(d,c,tz,cal),tz,cal)
+  time(instant(d,c,tz,cal),tz,cal)
 }
 
 // Return the `:time` value for a given `:weekdate` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default) 
@@ -184,7 +184,7 @@ public fun time( wd : weekdate, c : clock = clock0,
                   tz : timezone = tz-utc, cal : calendar = cal-iso, 
                   weekday-in-year : weekday = Thu ) : time 
 {
-  time(instant-at(wd,c,tz,cal,weekday-in-year),tz,cal)
+  time(instant(wd,c,tz,cal,weekday-in-year),tz,cal)
 }
 
 // Add a date (years, months, days) and optional clock to a time. Takes leap years etc. into account.
@@ -491,7 +491,7 @@ public fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time {
 }
 
 // Return the `:time` value for a given date and clock in the local timezone
-// interpreted by calendar `cal` (=`cal-iso`). See `instant-at` for roll-over behaviour.
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
 public fun local-time( year : int, month : int = 1, day : int = 1, 
                        hours : int = 0, minutes : int = 0, secs : int = 0, 
                        frac : double = 0.0, cal : calendar = cal-iso ) : ndet time 
