@@ -1062,7 +1062,7 @@ inferApp propagated expect fun nargs rng
                           _          -> return Nothing -- many matches
                 _ -> return (Just Nothing) -- fun first
        case amb of
-         Nothing   -> inferAppFromArgs fixed named
+         Nothing   -> inferAppFromArgsX fixed named
          Just prop -> inferAppFunFirst prop fixed named
   where
     -- (names,args) = unzip nargs
@@ -1146,15 +1146,15 @@ inferApp propagated expect fun nargs rng
     inferAppFromArgsX fixed named
       = do guesses <- mapM (\_ -> do tv <- Op.freshTVar kindStar Meta
                                      return (tv,(rangeNull,typeTotal),failure "Infer.InferApp.inferAppFromArgs")) fixed
-           inferAppArgsFirst guesses (sortBy (comparing (weight . snd)) (zip [0..] fixed)) fixed named
+           inferAppArgsFirst guesses ({-sortBy (comparing (weight . snd))-} (zip [0..] fixed)) fixed named
       where
         weight expr
           = case expr of
               Lit _         -> 0
               Ann _ _ _     -> 0
-              Var _ _ _     -> 1
-              Parens e _    -> weight e
-              App e args _  -> 1 + weight e + sum (map (weight . snd) args)
+              --Var _ _ _     -> 1
+              --Parens e _    -> weight e
+              --App e args _  -> 1 + weight e + sum (map (weight . snd) args)
               _             -> 10
     reorder :: [(Int,a)] -> [a]
     reorder xs = map snd (sortBy (comparing fst) xs)              

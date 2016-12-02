@@ -123,7 +123,7 @@ public fun show( tzp : timezone-period) : string {
 // Show time zone information.
 public fun show (tzi : timezone-info, show-periods : bool = False  ) : string {
   tzi.name + ", population: " + tzi.population.show 
-    + (if (!show-periods) then "" else ":\n  " + (tzi.periods)().map(show).join("\n  "))
+    + (if (!show-periods) then "" else ":\n  " + (tzi.periods)().map(show : timezone-period -> string).join("\n  "))
 }
 
 
