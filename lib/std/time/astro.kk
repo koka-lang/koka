@@ -7,6 +7,84 @@
 ----------------------------------------------------------------------------*/
 
 /* Time scales for astronomy (TT, TCG, TDB, and TCB).
+
+
+Internally all computations use `:fixed` numbers with 15 digits precision
+after the dot (and infinite range and precision before the dot). The
+different time scales relate as follows:
+
+* TAI, `ts-tai`: International Atomic Time. The atomic time standard
+  measuring SI seconds on the Earth's geoid.
+  
+* GPS, `ts-gps`: Global Positioning System. Runs at the same rate as
+  TAI but with a 19 second offset: GPS = TAI - 19.
+  
+* UT1, [`ts-ut1`](std_time_ut1.html): Universal Time: A time scale based
+  on the rotation of the earth where one rotation is 86400 seconds. 
+  Defined to be a linear function of the rotation angle of the Earth. 
+  See the [`std/time/ut1`](std_time_ut1.html) module for more information.
+  
+* UTC, [`ts-utc`](std_time_utc.html): Coordinate Universal Time: A hybrid of UT1 and TAI: uses
+  SI seconds as its unit, but inserts (or deletes) periodically leap
+  seconds in order to stay within 0.9s of UT1. See the [`std/time/utc`](std_time_utc.html)
+  module for more information.
+  
+* TT, `ts-tt`: Terrestrial time. This is an ideal time scale defined to
+  run slower at a constant rate from TCG such that TT runs at the same rate as a
+  time scale based on SI seconds on the Earth's geoid. Since TCG
+  is a theoretical time scale, TT can be considered an idealized form
+  of TAI and is currently realized by defining:\
+  TT = TAI + 32.184s.\
+  Terrestrial time replaces (and preserves continuity with) the older Terrestrial
+  Dynamic Time (TDT) and Ephemeris Time (ET).
+  
+* TCG, `ts-tcg`: Geocentric Coordinate Time. Theoretical clock using
+  SI seconds in a coordinate reference frame at the center of the Earth.
+  It is in a linear relationship with TT where TCG runs faster
+  than TT at a constant rate. By definition, TCG and TT were equal on 1977-01-01Z.
+  Computed from TT using IAU recommendation IV
+  ([1991][IAU-IV])
+   (and updated to currently known [precision][IERS-2010])):\
+  TCG = TT + L~g~&times;(JD~TCG~ - 2443144.5003725)&times;86400, with L~g~ = 6.969290134&times;10^-10^.
+
+* TCB, `ts-tcb`: Barycentric Coordinate Time. Theoretical clock using SI
+   seconds in a coordinate reference frame at the barycenter of the solar
+   system. TCB and TCG are related by a coordinate transformation taking
+   into account relativistic effects (see IAU 2000 [Resolution
+   B1.5](http://syrte.obspm.fr/IAU_resolutions/Resol-UAIEng.ps)). In the
+   library, instead of transforming TCG, we compute TCB from (the
+   approximated) TDB (`ts-tdb`) using the IAU 2006 [Resolution
+   B3][IAU-B3]:\
+   TDB = TCB - L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~,
+   with T~0~ = 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~
+   = -6.55&times;10^-5^.
+
+* TDB, `ts-tdb`: Barycentric Dynamical Time. Defined to run slower at a
+   constant rate from TCB in order to be approximately equal to TT These
+   relativistic corrections ensure a difference to TT of less then 2
+   milli-seconds and are periodic with an average of zero. In the
+   library, TDB is approximated from TT using an initial set of
+   coefficients by Fairhead &amp; Bretagnon ([1990][FB]) assuming the geo
+   center (longitude and latitude of 0 degrees), and corrected for JPL
+   planetary masses. See also USNO circular 179 ([2005][USNO-179]),
+   equation 2.6). The approximation is within 10&mu;s precision in the
+   time span 1600 to 2200 (and probably a bit less).
+
+Note that theoretically the definition of TT is based on TCG which is
+based on TCB, but in practice we define TT on the basis of an actual clock (TAI) 
+and derive TCG from TT. Moreover, TDB is approximated from TT, and TCB 
+is derived from the approximated TDB. 
+
+Since TDB (and in turn TCB) are approximated, it is possible to create
+your own time scale which uses a potentially more precise approximation using
+`ts-tdb-create` and `ts-tcb-create`.
+
+[IAU-B3]: http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf
+[IAU-IV]: https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932
+[IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1
+[USNO-179]: http://aa.usno.navy.mil/publications/docs/Circular_179.pdf
+[FB]: http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?1990A%26A...229..240F&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
+
 */
 module std/time/astro
 
@@ -23,22 +101,24 @@ extern include {
 
 
 
-// The Terrestrial (or Ephemeris) time calendar is always `TAI + 32.184`
+// The Terrestrial (or Ephemeris) time calendar, i.e. an ISO calendar but using the `ts-tt` time scale.
+// TT is always `TAI + 32.184`
 public val cal-tt  = iso-calendar( ts-tt )//, fixed(32184,3) )
 
-// The TCG (Geometric coordinate time) calendar. See also `ts-tcg`
+// The TCG (Geometric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcg` time scale.
 public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
 
-// The TDB (Barycentric dynamical time) calendar. See also `ts-tdb`. Always within 2ms of TT (`cal-tt`).
+// The TDB (Barycentric dynamical time) calendar, i.e. an ISO calendar but using the `ts-tdb` time scale. Always within 2ms of TT (`cal-tt`).
 public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 
-// The TCB (Barycentric coordinate time) calendar. See also `ts-tcb`.
+// The TCB (Barycentric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcb` time scale.
 public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 
 
-// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time) time scale is based on SI seconds with a 2000-01-01 TAI `epoch`.
-// It is the continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time).
-// TT is defined as: TT = TAI + 32.184s, as by IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
+// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time)
+// time scale is based on SI seconds with a 2000-01-01 TAI `epoch`. It is the
+// continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time). TT
+// is defined as: TT = TAI + 32.184s.
 public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 
@@ -68,11 +148,7 @@ fun tcg-to-tai( t : timestamp ) : duration {
 }
 
 // The [TCG](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time) (Geocentric coordinate time) time scale.
-// The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth. It is in a linear
-// relationship with TT (`ts-tt`) where TCG runs faster than TT at a constant rate. TCG and TT were equal on 1977-01-01Z.
-// Computed from TT using IAU recommendation IV ([1991](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932))
-// (and updated to currently known [precision](https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1)):\
-// TCG - TT = L~g~&times;(JD~TCG~ - 2443144.5003725)&times;86400, with L~g~ = 6.969290134&times;10^-10^.
+// The unit of TCG is the SI second in a coordinate reference frame at the center of the Earth. 
 public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 
 
@@ -172,9 +248,7 @@ fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : d
 
 // The [TDB](https://en.wikipedia.org/wiki/Barycentric_Coordinate_Time) (Barycentric dynamical time) time scale
 // (which can be considered equivalent T~eph~).
-// Runs slower than TCB (`ts-tcb`) at a constant rate in order to remain approximately equal to TT (`ts-tt`).
-// These relativistic corrections ensure a difference to TT of less then 2 milli-seconds and are
-// periodic with an average of zero.\
+//
 // TDB is approximated from TT using an initial set of coefficients by
 // Fairhead &amp; Bretagnon (1990) assuming the geo center (longitude and latitude of 0 degrees).
 // See also USNO circular 179 ([2005](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf), equation 2.6).
@@ -215,22 +289,14 @@ fun tcb-to-tai( tcb : timestamp, tstdb : timescale ) : duration {
 // The [TCB](https://en.wikipedia.org/wiki/Geocentric_Coordinate_Time)
 // (Barycentric coordinate time) time scale.\ The unit of TCB is the SI
 // second, but in a coordinate reference frame at the barycenter of the solar
-// system. TCB and TCG (`tt-tcg`) are related by a coordinate transformation
-// taking into account relativistic effects (see  IAU 2000 [Resolution
-// B1.5](http://syrte.obspm.fr/IAU_resolutions/Resol-UAIEng.ps)). In the
-// library, instead of transforming TCG, we compute TCB from (the
-// approximated) TDB (`ts-tdb`) using the IAU 2006 [Resolution
-// B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\ TDB = TCB -
-// L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~, with T~0~ =
-// 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ =
-// -6.55&times;10^-5^.
+// system. 
 public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
 
 // Create a new TCB timescale given a TDB timescale (`tstdb`). The default
 // `ts-tcb` uses the default `ts-tdb` timescale, but if you created
 // a different TCB time scale (using `ts-tdb-create`) you can use
 // this function to create a TCB time scale from it. It computes
-// TCB from the provide TDB using the IAU 2006 [Resolution
+// TCB from the provided TDB using the IAU 2006 [Resolution
 // B3](http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf):\ TDB = TCB -
 // L~b~ &times; (JD~TCB~ - T~0~) &times; 86400 + TDB~0~, with T~0~ =
 // 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~ =

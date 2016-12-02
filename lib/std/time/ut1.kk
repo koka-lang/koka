@@ -8,10 +8,31 @@
 
 /* The UT1 time scale and calendar.
 
+The UT1 time scale is based on the rotation of the earth where one rotation is 86400 seconds. 
+Defined to be a linear function of the rotation angle of the Earth. The exact UT1 time can only 
+be determined by measuring the Earth's rotation angle very precisely. Currently, VLBI is the 
+most accurate way to measuring this and the IERS (International Earth Rotation Service) issues
+[bulletin A](https://www.iers.org/IERS/EN/Publications/Bulletins/bulletins.html) 
+containing accurate (UT1 - UTC) deltas. 
+
+The library provides the `cal-ut1-load` function to automatically cache and download the latest USNO
+bulletin A information (``finals2000A`` ``all`` and ``daily``) to calculate UT1 very accurately from
+1972 until about 3 months from now (using predicted values). By default it downloads daily data
+every week and full data about every 8 weeks. For dates outside this range, the library uses its builtin
+tables and approximations:
+
+* monthly determined tables for any observed date (usually > 1973 up to the compiler release (2016))
+* quarterly prediction tables for dates after that (2016) up to about 10 years (2025)
+* yearly historic tables for dates >= 1750 and before 1973
+* fitted parabolic approximations for dates between -500 and 2150; (Espenak & Meeus 2006)
+* generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
+
+You can also use `cal-ut1-approx` to not download any recent data and always use approximated values.
+
 ```
 val cal-ut1 = cal-ut1-load()
 val i = now()
-i.time().show.println             // in UTC
+i.time().show.println              // in UTC
 i.time(cal=cal-ut1).show.println   // in UT1
 ```
 */
@@ -49,13 +70,14 @@ public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-
 // data for precise UT1 calculation. Uses linear interpolation between daily UT1-UTC values.
 // This is a convenience function that composes `load-iers-ut1` and `cal-ut1-create`.
 //
-// By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
-// If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// By default loads the daily and full data from the files `basename` (= `"config/finals2000A"` in the application directory).
+// If the files are not present, they will be downloaded from `url`. The default `url` is:\
+// <http://toshi.nofs.navy.mil/ser7>\
 // Set the `url` to the empty string to suppress automatic downloading. 
-// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
-// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish
-// (the full IERS data file is about 3mb).
+// If the ``.daily`` file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish (daily file is about 40kb).
+// If the ``.all`` file is older than `8*download-delay` the file is automatically refreshed from `url`.
+// The `4*download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (``.all`` file is about 3mb).
 public fun cal-ut1-load( basename : string = "finals2000A",
                          baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
                          download-delay: duration = 1.weeks,
@@ -65,7 +87,14 @@ public fun cal-ut1-load( basename : string = "finals2000A",
   cal-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout ) )
 }
 
-
+// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
+// information for precise UT1 determination. Loads and caches both the _daily_ and _all_
+// data. Downloads a fresh daily file about every week (`download-delay`) with a given `download-timeout` (=`5`s).
+// The full data is refreshed only every `8*download-delay` (=`8.weeks`). The `basename` gives
+// the basic file name `finals2000A` and the `baseurl` the download URL 
+// (= <http://toshi.nofs.navy.mil/ser7/>).
+// Set the `baseurl` to the empty string to suppress automatic downloading. The files are cached
+// in the `config/` directory of the application installation directory.
 public fun load-iersA( basename : string = "finals2000A",
                        baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
                        download-delay: duration = 1.weeks,
@@ -88,13 +117,15 @@ public fun load-iersA( basename : string = "finals2000A",
 }
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
-// information for precise UT1 determination. Uses linear interpolation between daily UT1-UTC values.
+// information for precise UT1 determination. Loads the full bulletin A data since 1973
+// with about 1 year of predictions. Uses linear interpolation between daily UT1-UTC values.
 // By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
 // <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
-// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish.
+// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (the
+// full data is about 3mb in size).
 public fun load-iersA-all( fname : string = "", 
                           url   : string = "auto",
                           download-delay : duration   = 8.weeks,
@@ -105,14 +136,16 @@ public fun load-iersA-all( fname : string = "",
 }
 
 
-// Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
-// information for precise UT1 determination. Uses linear interpolation between daily UT1-UTC values.
-// By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
+// Load the daily [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
+// information for precise UT1 determination. The daily file contains information for the past 90 days
+// with 90 days of predictions. This file is about 40kb and much smaller than the full data. 
+// Uses linear interpolation between daily UT1-UTC values.
+// By default loads the file `fname` (= `"config/finals2000A.daily"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// <http://toshi.nofs.navy.mil/ser7/finals2000A.daily>\
 // Set the `url` to the empty string to suppress automatic downloading. 
-// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
-// The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish.
+// If the file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 public fun load-iersA-daily( fname : string = "", 
                               url   : string = "auto",
                               download-delay : duration   = 1.weeks,
