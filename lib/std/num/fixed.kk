@@ -8,11 +8,11 @@
 
 // Operations on 'fixed'ed point numbers. 
 //
-// These have infinite range and a precision of up to 15 digits after the dot.
+// These have infinite range and precision for the whole part, and a precision of up to 15 digits after the dot.
 // Internally they are represented by a infinite range `:int` for the whole
 // part and a `:double` to represent the fraction. 
 // A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
-public module std/num/fixed
+module std/num/fixed
 
 import std/regex
 
@@ -25,13 +25,18 @@ abstract struct fixed (
   frac        : double  // 'floored fraction':  0 <= frac < 1.0                      
 )
 
-val zero : fixed = fixed(0,0.0)
+// The `:fixed` point zero.
+public val zero : fixed = fixed(0,0.0)
 
 
+// Create a `:fixed` point number from a `:double`.
 public fun fixed( d : double ) : fixed {
   fixed(0,d)
 }
 
+// Create a `:fixed` point number from a whole part `i` and a fractional part `frac`. 
+// The fixed point number is equal to `i + frac` and correctly deals with negative numbers.
+// This is the most precise way to create a fixed number.
 public fun fixed( i : int, frac : double = 0.0 ) : fixed {
   if (0.0 <= frac && frac < 1.0) then return Fixed(i,frac)
   if (frac.nan?) then return Fixed(i,0.0)
@@ -39,7 +44,7 @@ public fun fixed( i : int, frac : double = 0.0 ) : fixed {
   Fixed( i + ff.int, frac - ff )
 }
 
-
+// Parse a `:fixed` point number where a dot (`.`) separates the factional part.
 public fun parse-fixed( s : string ) : maybe<fixed> {
   match(s.find(rx-fixed)) {
     Nothing -> Nothing
@@ -54,14 +59,17 @@ public fun parse-fixed( s : string ) : maybe<fixed> {
 }
 val rx-fixed = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?$")
 
+// Convert a fixed point number to a double. This may lose precision.
 public fun double( f : fixed ) : double {
   f.floor.double + f.frac
 }
 
+// Round a fixed point number to an integer.
 public fun int( f : fixed ) : int {
   f.round
 }
 
+// Truncate a fixed point number to an integer.
 public fun trunc( f : fixed ) : int {
   if (f.floor.neg? && f.frac != 0.0) then f.floor + 1 else f.floor
 }
@@ -78,15 +86,20 @@ public fun ffraction( f : fixed ) : double {
   f.frac
 }
 
+// Round a fixed point number to a specified precision of digits after the dot.
 public fun round-to-prec( f : fixed, prec : int ) : fixed {
   if (prec.pos?) then fixed(f.floor, f.frac.round-to-prec(prec))
                  else fixed(f.floor + f.frac.int, 0.0)
 }
 
+// Round a fixed point number to a whole integer.
 public fun round( f : fixed ) : int {
   f.round-to-prec(0).floor
 }
 
+// Show a fixed point number rounded to a specified maximum precision (`max-prec`, =`15`), 
+// showing at most `prec` digits after the dot (=`~1`). Use a negative number to use the 
+// minimal digits to show the required precision.
 public fun show( f : fixed, prec : int = ~1, max-prec : int = 15) : string {
   // trace("show: " + f.floor.show + " + " + f.frac.show-fixed)
   if (prec.zero? || f.frac.zero?) then return f.int.show
@@ -100,6 +113,7 @@ public fun show( f : fixed, prec : int = ~1, max-prec : int = 15) : string {
   sign + r.trunc.abs.show + "." + padf
 }
 
+// Negate a `:fixed` point number.
 public fun (~)( f : fixed ) : fixed {
   fixed( ~f.floor, ~f.frac )
 }
@@ -109,14 +123,17 @@ public fun abs( f : fixed ) : fixed {
   if (f.neg?) then ~f else f
 }
 
+// Add two fixed point numbers.
 public fun (+)( q1 : fixed, q2 : fixed ) : fixed {
   fixed(q1.floor + q2.floor, q1.frac + q2.frac )
 }
 
+// Subtract two fixed point numbers.
 public fun (-)( q1 : fixed, q2 : fixed ) : fixed {
   fixed(q1.floor - q2.floor, q1.frac - q2.frac )
 }
 
+// Take the sum of a list of fixed point numbers (0 for the empty list).
 public fun sum( fs : list<fixed> ) : fixed {
   fs.foldr(zero,(+))
 }
@@ -159,6 +176,7 @@ fun ddiv( i : int, d : double ) : fixed {
   dmul(i, 1.0 / d)
 }
 
+// Multiply two fixed point numbers.
 public fun (*)( q1 : fixed, q2 : fixed ) : fixed {
   // (t1 + f1)*(t2 + f2) == t1*t2 + t1*f2 + f1*t2 + f1*f2
   Fixed(q1.floor*q2.floor,0.0) 
@@ -167,6 +185,7 @@ public fun (*)( q1 : fixed, q2 : fixed ) : fixed {
         + Fixed(0,q1.frac*q2.frac)
 }
 
+// Divide two fixed point numbers.
 public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
   // (t1 + f1)/(t2 + f2) 
   //  == t1/(t2 + f2) + f1/(t2 + f2)
@@ -182,10 +201,16 @@ public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
   }
 }
 
+// Is a fixed point number negative?
 public fun neg?( f : fixed ) : bool  { f.floor.neg? }
+
+// Is a fixed point number positive?
 public fun pos?( f : fixed ) : bool  { f.floor.pos? || (f.floor.zero? && f.frac.pos?) }
+
+// Is a fixed point number zero?
 public fun zero?( f : fixed ) : bool { f.floor.zero? && f.frac.zero? }
 
+// Compare two fixed point numbers.
 public fun compare( q1 : fixed, q2 : fixed ) : order {
   match(compare(q1.floor,q2.floor)) {
     Eq  -> compare(q1.frac,q2.frac)
@@ -223,7 +248,7 @@ public fun max( x : fixed, y : fixed ) : fixed {
   if (x >= y) then x else y
 }
 
-public fun  test( op : string, d1 : double, d2 : double ) {
+fun  test( op : string, d1 : double, d2 : double ) {
   val (f,g) : ((fixed,fixed) -> fixed, (double,double) -> double) 
     = if   (op=="*") then ((*) : (fixed,fixed) -> fixed,(*) : (double,double) -> double)
       elif (op=="/") then ((/) : (fixed,fixed) -> fixed,(/) : (double,double) -> double)
