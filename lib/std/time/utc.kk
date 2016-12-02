@@ -10,50 +10,73 @@
 
 # UTC time calculation 
 
-For proper UTC to TAI conversion, we need to know when leap seconds occur. The
-occurrence of leap seconds cannot be reliably predicted though and  the [IERS
-announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html)  leap
-seconds at most a year in advance.  The [IETF leap
-second](https://www.ietf.org/timezones/data/leap-seconds.list)  table contains
-a list of all currently announced leap seconds. As such, any future date
-calculation in UTC is essentially non-deterministic since it may be off by a
-number  of (as yet unannounced) leap seconds.
+The world's civic time scale is Universal Coordinated Time (UTC)
+(`ts-utc`). UTC is directly based on International Atomic Time (TAI)
+(`ts-tai`) and uses standard SI seconds. The UTC time scale differs from
+TAI in that UTC stays within 1 second of [UT1](std_time_ut1.html); the
+time scale based on the rotation of the Earth. To keep UTC close to UT1
+about every 1.5 year a _leap second_ is added to the day, appearing as
+23:59:60h.
 
-To give all time functions related to UTC a non-deterministic effect (or to
-give them all a leap second table argument) seems a bit too cumbersome. 
-Instead we choose to ignore this form of non-determinism and make the leap
-second table a hidden global variable. The  internal table is valid up to the
-release of the compiler.
+In order to calculate SI second durations between time instants, we need to 
+know when a leap second is inserted. For example, there was a leap second
+inserted on 2017-01-01Z, so:
+```
+time(2017,1,1,0,0,0) - time(2016,12,31,23,0,0) 
+```
+equals 3601 seconds to account for the extra leap second. We also need to
+know the inserted leap seconds to convert UTC time to TAI which forms the
+basis of many other time scales (like Terrestrial Time (TT)).
 
-It is recommended to call [`update-leaps-table`](std_time_download.html#update_leaps_table) at the 
-start of a program which will automatically ensure the leap second table is up-to-date
-(automatically downloading and caching the IETF leap second table as necessary).
+The occurrence of leap seconds cannot be reliably predicted though and
+the IERS
+usually [announces](https://www.iers.org/SharedDocs/News/EN/BulletinC.html)
+leap seconds at most a year in advance. The [IETF leap second][ietfl]
+table contains a list of all currently announced leap seconds. As such,
+any future date calculation in UTC is essentially non-deterministic since
+it may be off by a number of (as yet unannounced) leap seconds.
+
+To give all time functions related to UTC a non-deterministic effect (or
+to give them all a leap second table argument) seems a bit too
+cumbersome. Instead we chose to ignore this form of non-determinism and
+make the leap second table a hidden global variable. The internal table
+is valid up to the release of the compiler.
+
+It is recommended to
+call [`update-leaps-table`](std_time_download.html#update_leaps_table) at
+the start of a program which will automatically ensure the leap second
+table is up-to-date (automatically downloading and caching the IETF leap
+second table as necessary).
 
 ## UTC before 1972
 
 UTC is only well defined after 1972-01-01Z where it got integral leap
-seconds. Before that the leap seconds were defined as a continuous linear
-interpolation, called _drift_. For example, between 1963-11-01Z and
-1964-01-01Z the drift was defined as:
+seconds. Before 1972, the UTC time was broadcast using a combination of
+fixed time steps (i.e. _mini leap seconds_) and an offset from the atomic
+clock frequency. By adjusting the frequency, UTC time was effectively
+running at a linearly adjusted rate relative to TAI. We call this
+adjustment _drift_. For example, between 1963-11-01Z and 1964-01-01Z
+the frequency offset was -130e-10 which means UTC was running
+ahead of TAI by 0.0011232 seconds per day. The drift was then defined as:
 
 &quad;(TAI-UTC) = 1.9458580 + 0.0011232&times;&Delta;(1962-01-01) 
 
-where the function &Delta;(_date_) returns the number of days since _date_.
-Therefore, the difference started as 2.6972788s (as there were 669 days
-between 1962-01-01 and 1963-11-01) and increased linearly up to
+where the function &Delta;(_date_) returns the number of days since
+_date_. Therefore, the difference started as 2.6972788s (as there were
+669 days between 1962-01-01 and 1963-11-01) and increased linearly up to
 2.7657940s on 1964-01-01Z. For dates between 1961-01-01Z and 1972-01-01Z
-the library calculates the UTC time based on the
-historical [USNO](http://maia.usno.navy.mil/ser7/tai-utc.dat) drift data
-(see Appendix [#sec-appendix-a] below).
+the library calculates the UTC time based on the historical [USNO][dat]
+drift data (see Appendix [#sec-appendix-a]).
 
 Here are some interesting time steps that occurred in this time frame: 
 
-* There was a negative leap second of -0.1s inserted on 1968-02-01Z:
+* There was a negative time step of -0.1s inserted on 1968-02-01Z:
   ```
   instant-at(1968,1,31,23,59,59,0.9).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
   instant-at(1968,2,1).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
   ```
-  The only other negative leap second was inserted on 1961-08-01Z with a duration of -0.05s.
+  The only other negative time step was inserted on 1961-08-01Z with a
+  duration of -0.05s.
 
 * On the transition to modern UTC at 1972-01-01Z there is a mini leap second of 0.107758s.
   (because the final drift just before 1971-01-01 is 9.892242s) 
@@ -65,102 +88,118 @@ Here are some interesting time steps that occurred in this time frame:
 ## UTC before 1961
 
 The TAI timescale was officially established on 1958-01-01Z, and at that
-time the difference (TAI - UT1) was approximately zero (most close at 1958-01-12T15:00:00Z).
-
+time the difference (TAI - UT1) was approximately zero.
 In the time frame 1958 up to 1961 the relation between TAI and UTC is not
-well defined. Historically there seemed to have been 29 small 20ms steps
-(=0.58s total) during the first two years (Unfortunately, I have not yet
-been able to find when exactly those 29 20ms time steps occurred). Arias
-and Guinot ([2004](http://syrte.obspm.fr/journees2004/pdf/Arias2.pdf))
-write:
+well defined, as UTC was officially established in 1960 (Arias
+and Guinot ([2004](http://syrte.obspm.fr/journees2004/pdf/Arias2.pdf))).
 
-> "In 1960 the International Union of Radiosciences recommended that the
-> BIH[Bureau International de l'Heure], after consulting the concerned parties, announce the value of the
-> frequency offset to be used during the following year and suggested that
-> _the nominal value will not change during the year_."
+We can however use the time steps and frequency adjustments as
+broadcast by the NIST WWV radio station (see [pages 86--87][astroa]
+of the Explanatory Supplement to the Astronomical Almanac, by
+P. Kenneth Seidelmann, 1992 edition.). Historically there
+were no less than 18 20ms time steps from 1958. The frequency offset
+in the year 1958 is not clear, and is described in the Supplement as 
 
-That implies that the first 29 20ms steps were applied during 1958 to
-1960, and that in 1960 the offset was constant. In the library, we model
-those initial 0.58s of time steps as a drift, linearly interpolated
-from 1958 to 1960:
+> .. an offset of [about]{font-style:normal} -100e-10 during 1958 
 
-&quad;(TAI-UTC) = 0s + 0.000794520548&times;&Delta;(1958-01-01Z)
+We fixed the offset at -85e-10 in order to have a zero difference from
+TAI at exactly 1958-01-01Z.
 
-and keep it constant at 0.58ms during 1960.
-This change makes UTC coincide with
-TAI up to 1958-01-01, interpolated with 'drift' up to 1972-01-01, and
-using integral leap-seconds after that.
+In the library, this makes UTC coincide with TAI up to 1958-01-01,
+interpolated with 'drift' up to 1972-01-01, and using integral
+leap-seconds after that.
 
-## Appendix A { label:"A" }
+## Appendix A { -; label:"A" }
 
-The table below shows all leap second time steps from 1958 up to 2017. This table
-is calculated and uses linear interpolation to model the initial
-29 20ms time steps.
+Table 1 shows all leap second time steps from 1958 up to 2017. This table
+is calculated and uses historical data for time steps before 1972.
 
-|-------------------|----------------------------|----------------|-----------------------|-------------------------------------------------|
-| Date (UTC) &quad; | Leap seconds &quad; &quad; | (TAI--UTC)     | (TAI--UTC)            | Drift                                           |
-|                   |                            | Just before\ \ | On the date           |                                                 |
-+:------------------|----------------------------|:---------------|:----------------------|-------------------------------------------------+
-| 1958-01-01        | +0                         | 0              | 0                     | 0.0s + 0.000794520548&times;&Delta;(1958-01-01) |
-| 1960-01-01        | +0                         | 0.5800000      | 0.5800000             |                                                 |
-|                   |                            |                |                       |                                                 |
-| \                 |                            |                |                       |                                                 |
-| 1961-01-01        | +0.8428180                 | 0.5800000      | 1.4228180             | 1.422818s + 0.001296&times;&Delta;(1961-01-01)  |
-| 1961-08-01        | -0.0500000                 | 1.6975700      | 1.6475700             | 1.372818s + 0.001296&times;&Delta;(1961-01-01)  |
-| 1962-01-01        | +0                         | 1.8458580      | 1.8458580             | 1.845858s + 0.0011232&times;&Delta;(1962-01-01) |
-| 1963-11-01        | +0.1000000                 | 2.5972788      | 2.6972788             | 1.945858s + 0.0011232&times;&Delta;(1962-01-01) |
-| 1964-01-01        | +0                         | 2.7657940      | 2.7657940             | 3.240130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1964-04-01        | +0.1000000                 | 2.8837300      | 2.9837300             | 3.340130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1964-09-01        | +0.1000000                 | 3.1820180      | 3.2820180             | 3.440130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1965-01-01        | +0.1000000                 | 3.4401300      | 3.5401300             | 3.540130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1965-03-01        | +0.1000000                 | 3.6165940      | 3.7165940             | 3.640130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1965-07-01        | +0.1000000                 | 3.8747060      | 3.9747060             | 3.740130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1965-09-01        | +0.1000000                 | 4.0550580      | 4.1550580             | 3.840130s + 0.001296&times;&Delta;(1965-01-01)  |
-| 1966-01-01        | +0                         | 4.3131700      | 4.3131700             | 4.313170s + 0.002592&times;&Delta;(1966-01-01)  |
-| 1968-02-01        | -0.1000000                 | 6.2856820      | 6.1856820&quad;&quad; | 4.213170s + 0.002592&times;&Delta;(1966-01-01)  |
-| \                 |                            |                |                       |                                                 |
-| 1972-01-01        | +0.1077580                 | 9.8922420      | 10                    |                                                 |
-| 1972-07-01        | +1                         | 10             | 11                    |                                                 |
-| 1973-01-01        | +1                         | 11             | 12                    |                                                 |
-| 1974-01-01        | +1                         | 12             | 13                    |                                                 |
-| 1975-01-01        | +1                         | 13             | 14                    |                                                 |
-| 1976-01-01        | +1                         | 14             | 15                    |                                                 |
-| 1977-01-01        | +1                         | 15             | 16                    |                                                 |
-| 1978-01-01        | +1                         | 16             | 17                    |                                                 |
-| 1979-01-01        | +1                         | 17             | 18                    |                                                 |
-| 1980-01-01        | +1                         | 18             | 19                    |                                                 |
-| 1981-07-01        | +1                         | 19             | 20                    |                                                 |
-| 1982-07-01        | +1                         | 20             | 21                    |                                                 |
-| 1983-07-01        | +1                         | 21             | 22                    |                                                 |
-| 1985-07-01        | +1                         | 22             | 23                    |                                                 |
-| 1988-01-01        | +1                         | 23             | 24                    |                                                 |
-| 1990-01-01        | +1                         | 24             | 25                    |                                                 |
-| 1991-01-01        | +1                         | 25             | 26                    |                                                 |
-| 1992-07-01        | +1                         | 26             | 27                    |                                                 |
-| 1993-07-01        | +1                         | 27             | 28                    |                                                 |
-| 1994-07-01        | +1                         | 28             | 29                    |                                                 |
-| 1996-01-01        | +1                         | 29             | 30                    |                                                 |
-| 1997-07-01        | +1                         | 30             | 31                    |                                                 |
-| 1999-01-01        | +1                         | 31             | 32                    |                                                 |
-| 2006-01-01        | +1                         | 32             | 33                    |                                                 |
-| 2009-01-01        | +1                         | 33             | 34                    |                                                 |
-| 2012-07-01        | +1                         | 34             | 35                    |                                                 |
-| 2015-07-01        | +1                         | 35             | 36                    |                                                 |
-| 2017-01-01        | +1                         | 36             | 37                    |                                                 |
-|-------------------|----------------------------|----------------|-----------------------|-------------------------------------------------|
-{ white-space:nowrap;  }
 
-**Table 1: ** Leap second time steps since 1958. 
-The function &Delta;(_date_) returns the number of days since _date_. 
-Entries after 1972 are based on 
-[IETF data](https://www.ietf.org/timezones/data/leap-seconds.list). 
-Entries between 1961 and 1972 are based on historical 
-[USNO data](http://maia.usno.navy.mil/ser7/tai-utc.dat). 
-The first entry linearly interpolates the initial 29 20ms time steps 
-(Arias and Guinot, [2004](http://syrte.obspm.fr/journees2004/pdf/Arias2.pdf)) 
-up to 1960, and the second entry keeps it constant during 1960[].
+|-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
+| Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
+|                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
++:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
+| 1958-01-01        | +0                       | 0              | 0              | 0.000s + 0.00073458&times;&Delta;(1958-01-01)       | -85&times;10^-10^ |
+| 1958-01-15, 19:00 | +0.020                   | 0.0108657      | 0.0308657      | 0.020s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-05, 19:00 | +0.020                   | 0.0462918      | 0.0662918      | 0.040s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-19, 19:00 | +0.020                   | 0.0765760      | 0.0965760      | 0.060s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-04-09, 19:00 | +0.020                   | 0.1325704      | 0.1525704      | 0.080s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-06-11, 19:00 | +0.020                   | 0.1988489      | 0.2188489      | 0.100s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-02, 19:00 | +0.020                   | 0.2342751      | 0.2542751      | 0.120s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-16, 19:00 | +0.020                   | 0.2645592      | 0.2845592      | 0.140s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-10-22, 19:00 | +0.020                   | 0.3565481      | 0.3765481      | 0.160s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-11-26, 19:00 | +0.020                   | 0.4022584      | 0.4222584      | 0.180s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-12-24, 19:00 | +0.020                   | 0.4428266      | 0.4628266      | 0.200s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1959-01-01        | +0                       | 0.4681217      | 0.4681220      | 0.468122s + 0.0008640&times;&Delta;(1959-01-01) | -100&times;10^-10^ |
+| 1959-01-28, 19:00 | +0.020                   | 0.4921340      | 0.5121340      | 0.488122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-02-25, 19:00 | +0.020                   | 0.5363260      | 0.5563260      | 0.508122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-04-05, 19:00 | +0.020                   | 0.5900220      | 0.6100220      | 0.528122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-08-26, 19:00 | +0.020                   | 0.7335740      | 0.7535740      | 0.548122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-09-30, 19:00 | +0.020                   | 0.7838140      | 0.8038140      | 0.568122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-04, 19:00 | +0.020                   | 0.8340540      | 0.8540540      | 0.588122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-18, 19:00 | +0.020                   | 0.8661500      | 0.8861500      | 0.608122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-12-16, 19:00 | +0.020                   | 0.9103420      | 0.9303420      | 0.628122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| \                 |                          |                |                   |                                                                 |                    |
+| 1960-01-01        | +0                       | 0.9434820      | 0.9434820      | 0.943482s + 0.0012960&times;&Delta;(1960-01-01) | -150&times;10^-10^ |
+| 1961-01-01        | +0.005                   | 1.4178180      | 1.4228180      | 1.422818s + 0.0012960&times;&Delta;(1961-01-01) | -150&times;10^-10^ |
+| 1961-08-01        | --0.050                  | 1.6975700      | 1.6475700      | 1.372818s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1962-01-01        | +0                       | 1.8458580      | 1.8458580      | 1.845858s + 0.0011232&times;&Delta;(1962-01-01) | -130&times;10^-10^ |
+| 1963-11-01        | +0.100                   | 2.5972788      | 2.6972788      | 1.945858s + 0.0011232&times;&Delta;(&quad;&quad;"&quad;&quad;) | -130&times;10^-10^ |
+| 1964-01-01        | +0                       | 2.7657940      | 2.7657940      | 3.240130s + 0.0012960&times;&Delta;(1965-01-01) | -150&times;10^-10^ |
+| 1964-04-01        | +0.100                   | 2.8837300      | 2.9837300      | 3.340130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1964-09-01        | +0.100                   | 3.1820180      | 3.2820180      | 3.440130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-01-01        | +0.100                   | 3.4401300      | 3.5401300      | 3.540130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-03-01        | +0.100                   | 3.6165940      | 3.7165940      | 3.640130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-07-01        | +0.100                   | 3.8747060      | 3.9747060      | 3.740130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-09-01        | +0.100                   | 4.0550580      | 4.1550580      | 3.840130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1966-01-01        | +0                       | 4.3131700      | 4.3131700      | 4.313170s + 0.0025920&times;&Delta;(1966-01-01) | -300&times;10^-10^ |
+| 1968-02-01        | --0.100                  | 6.2856820      | 6.1856820      | 4.213170s + 0.0025920&times;&Delta;(&quad;&quad;"&quad;&quad;) | -300&times;10^-10^ |
+| \                 |                          |                |                   |                                                                 |                    |
+| 1972-01-01        | +0.107758                | 9.8922420      | 10             |                                                 |            |
+| 1972-07-01        | +1                       | 10             | 11             |                                                 |            |
+| 1973-01-01        | +1                       | 11             | 12             |                                                 |            |
+| 1974-01-01        | +1                       | 12             | 13             |                                                 |            |
+| 1975-01-01        | +1                       | 13             | 14             |                                                 |            |
+| 1976-01-01        | +1                       | 14             | 15             |                                                 |            |
+| 1977-01-01        | +1                       | 15             | 16             |                                                 |            |
+| 1978-01-01        | +1                       | 16             | 17             |                                                 |            |
+| 1979-01-01        | +1                       | 17             | 18             |                                                 |            |
+| 1980-01-01        | +1                       | 18             | 19             |                                                 |            |
+| 1981-07-01        | +1                       | 19             | 20             |                                                 |            |
+| 1982-07-01        | +1                       | 20             | 21             |                                                 |            |
+| 1983-07-01        | +1                       | 21             | 22             |                                                 |            |
+| 1985-07-01        | +1                       | 22             | 23             |                                                 |            |
+| 1988-01-01        | +1                       | 23             | 24             |                                                 |            |
+| 1990-01-01        | +1                       | 24             | 25             |                                                 |            |
+| 1991-01-01        | +1                       | 25             | 26             |                                                 |            |
+| 1992-07-01        | +1                       | 26             | 27             |                                                 |            |
+| 1993-07-01        | +1                       | 27             | 28             |                                                 |            |
+| 1994-07-01        | +1                       | 28             | 29             |                                                 |            |
+| 1996-01-01        | +1                       | 29             | 30             |                                                 |            |
+| 1997-07-01        | +1                       | 30             | 31             |                                                 |            |
+| 1999-01-01        | +1                       | 31             | 32             |                                                 |            |
+| 2006-01-01        | +1                       | 32             | 33             |                                                 |            |
+| 2009-01-01        | +1                       | 33             | 34             |                                                 |            |
+| 2012-07-01        | +1                       | 34             | 35             |                                                 |            |
+| 2015-07-01        | +1                       | 35             | 36             |                                                 |            |
+| 2017-01-01        | +1                       | 36             | 37             |                                                 |            |
+|-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
+{white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 
-~
+
+** Table 1. ** Leap second time steps since 1958. The function
+&Delta;(_date_) returns the number of days since _date_. Entries after
+1972 are based on [IETF data][ietfl]. Entries between 1961 and 1972 are
+based on historical  [USNO data][dat]. The entries before 1961 are from
+derived from the "Explanatory Supplement to the Astronomical Almanac", by
+P. Kenneth Seidelmann, 1992 edition, [pages 86--87][astroa], based on the
+time steps broadcast by the NIST WWV radio station.
+
+[ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
+[dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
+[astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
+
+-- Daan Leijen, 2016.
 */
 module std/time/utc
 
@@ -534,13 +573,13 @@ val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
 // TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there 
-// were 29 small steps of 20ms (=0.58s total) (see: <http://www.ucolick.org/~sla/leapsecs/torino/arias_3.pdf>)
+// were small steps of 20ms. See Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
+// In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we 
+// change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01. 
+// (without a rate change it is a negative -0.0272380s). 
+// Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
 val leap-seconds-dat = @"
   # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
-  # In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we 
-  # change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01. 
-  # (without a rate change it is a negative -0.0272380s). 
-  # Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
   1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S
   1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S
   1958 FEB  5 =JD 2436240.29167 TAI-UTC= 0.04 S + (MJD - 36204.) X 0.00073458 S

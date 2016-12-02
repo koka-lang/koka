@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Various calendars: TAI, GPS, ISO week, Julian, Coptic, etc.
+/* Various calendars\: TAI, GPS, ISO week, Julian, Coptic, etc.
   
 */
 module std/time/calendars
@@ -76,9 +76,26 @@ public val cal-ethiopian = year-shift-earth-calendar( "EC", "Ethiopian", ~276, c
 // ISO week calendar
 // ----------------------------------------------------
 
-// The 'ISO week' calendar. This implements the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
-// calendar the week number is interpreted as "month" number instead, i.e. every year has 52 (or 53)
-// months of 7 week days each. Short name is `"IW"`.
+/* The 'ISO week' calendar. This implements the [ISO week date](https://en.wikipedia.org/wiki/ISO_week_date)
+calendar the week number is interpreted as "month" number instead, i.e. every year has 52 (or 53)
+months of 7 week days each. Short name is `"IW"`.
+
+Since its introduction in 1988, the ISO week calendar is a widely accepted standard for a weekly
+calendar. It is used mainly by businesses for fiscal year calculations.
+Weeks start on Monday (as day 1) and every common year has 52 weeks.
+Every 5 to 7 years, there is a 'leap' year with an extra week 53. 
+The ISO week calendar is directly based on the Gregorian calendar.
+For example, Tuesday 2001-01-02 is denoted as 2001-W01-2 in the ISO week
+calendar: weekday 2 (Tuesday) of week 1 in 2001. 
+
+The year of an ISO week is defined as the Gregorian year that has the
+Thursday of that week, &ie; contains the most days of that week. For
+example, Thursday 2004-01-01 has week date 2004-W01-4. This means that
+sometimes the Gregorian year is different for a first- or last week:
+Wednesday 2003-12-31 falls in the first week of 2004W and has week date
+2004-W01-3. Similarly, Saturday 2005-01-01 falls in the last (leap) week of
+2004W and has week date 2004-W53-6.
+*/
 public val cal-iso-week = solar-ecalendar(
   "IW", "ISO Week", 
   isow-days-before-year, isow-estimate-year, 
@@ -126,32 +143,54 @@ fun iso-estimate-year( days : int ) : (int,maybe<int>) {
 This is _not_ a standard ISO calendar -- it is named this way because
 it is based directly on the standard [ISO week
 date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.
-
-The 'ISO' month calendar matches the ISO week date calendar directly, but
-denotes dates as usual using months and a day of the month (instead of
-using a week number and day of the week).
-
-Every year always starts on the first day of week 1 in the ISO week
-calendar, and therefore always starts on a Monday (on January 1st) and
-ends on a Sunday. Each regular year is divided in 4 quarters of 13 ISO
-weeks each. A quarter also always starts on Monday and ends on Sunday.
-The three months of each quarter are 30, 30, and 31 days respectively.
-So, January has 30 days, February has 30 days too, March has 31 days,
-April has 30 days again, etc.
-
-When there is an ISO week 53, we call it a leap year where the 'leap
-week' 53 gets inserted at the end of the last month (and adds days 32 to
-38 to December). The epoch is Monday 0001-01-01 IM which coincides with
-Monday 0001-01-01 in the ISO/Gregorian calendar.
-
-Note that with
-a [perennial](https://en.wikipedia.org/wiki/Perennial_calendar) calendar,
-things like finding the _n_\/th weekday is suddenly trivial; For example,
-Thanksgiving (the 4th Thursday of November) is always on November 23 IM,
-and always 31 days before from Christmas. Similarly, Chrismas and New
-year are always on a Sunday.
-
 The short name of the calendar is `"IM"`.
+
+The "ISO month" calendar takes the ISO week calendar _as is_, but divides
+it up in 12 months. This is more familiar than using week numbers to
+denote a date. A common ISO week year of 52 weeks is divided into 4
+quarters of 13 weeks each. Each quarter has 3 months of 30, 30, and 31
+days respectively. So, January has 30 days, February has 30 days too,
+March has 31 days, April has 30 days again, etc. On a leap year, we have
+an extra leap week 53 that is inserted at the end of the last month,
+&ie; adds days 32 to 38 to December. Since quarters are meant to be equal
+for business purposes, we generally don't count the leap week as part of
+the 4th quarter.
+
+This monthly calendar has many good properties, not the least that it
+matches the Gregorian calendar dates very closely[^fn-match], and is based a widely supported standard ISO calendar. Moreover,
+it is [perennial](https://en.wikipedia.org/wiki/Perennial_calendar) where
+every date in the year always has the same weekday. For example, every
+year and every quarter always start on a Monday and end on a Sunday.
+Thanksgiving (the 4th Thursday of November) is always on November 23, and
+always 31 days before Christmas. Christmas and New year are always on
+Sunday, and there is never a Friday the 13th.
+
+[^fn-match]: The month date always matches within 5 days of the
+    Gregorian calendar; and 90% of the time, the date is within 3 days. 
+
+When writing down a date in the monthly calendar we prefix the 
+month with a capital [M]{.sans-serif} in order to distinguish these
+dates from regular Gregorian dates or ISO week dates. For example,
+
+
+|-----|----------------|----------------|----------------------------------------------------------|---------------|
+| Day | Gregorian date | Month date     | Remarks                                                | ISO week date |
++-----|:--------------:|:--------------:+----------------------------------------------------------|:-------------:+
+| Mon | 2018-01-01     | 2018-M01-01    | Matches since Monday starts the first week of the year.  | 2018-W01-1    |
+| Thu | 2016-11-24     | 2016-M11-23    | Thanksgiving, always on Thursday M11-23 every year.      | 2016-W47-5    |
+| Thu | 2013-07-04     | 2013-M07-04    | Independence day is always on Thursday M07-04.           | 2013-W27-4    |
+|-----|----------------|----------------|----------------------------------------------------------|---------------|
+| Thu | 2004-01-01     | 2004-M01-04    | Since the first week falls partly in 2003M.              | 2004-W01-4    |
+| Sun | 2005-01-02     | 2004-M12-38    | Since it is the last day of the leap week of 2004M.      | 2004-W53-7    |
+|-----|----------------|----------------|----------------------------------------------------------|---------------|
+{ white-space:nowrap; col-4-white-space:normal; col-3-padding-right:1ex;   }
+
+
+With the regularity of the new calendar, we can reuse the same calendar
+pattern for each quarter over and over; unlike the Gregorian calendar it
+never changes which makes planning for businesses, schools, government
+etc. much simpler. Here is the (perpetual) calendar with the
+corresponding ISO week numbers:
 
 ~ Begin Calendar { .sans-serif; border: 1px solid #AAA; padding:1ex; }
 
@@ -195,34 +234,14 @@ The short name of the calendar is `"IM"`.
 
 &nbsp;
 
-^&dagger;^ A leap week sometimes inserted
+^&dagger;^ A leap week is inserted
   at the end of December. Upcoming years with a leap week are 2020, 2026, 2032, 2037, and 2043. In
   general, a leap week is inserted whenever the corresponding Gregorian
   year starts and/or ends on a Thursday.
 
 ~ End Calendar
 
-Specific advantages:
-
-* Every year (and quarter) starts on a Monday and ends on a Sunday.
-* Dates always have the same week day in every year (&ie; the calendar
-  is [perennial](https://en.wikipedia.org/wiki/Perennial_calendar)).
-* A year divides in 4 equal quarters which simplifies financial
-  calculations.
-* Weeks are always 7 days, years are always 12 months.
-* Thanksgiving (4th Thursday of November) is always on November 23.
-* Christmas and New year are always on Sunday.
-* There is never a Friday the 13th.
-* Closely matches the existing Gregorian calendar in the months and month
-  lengths. A date is never more than 5 days apart from the corresponding
-  Gregorian date (90% of the time it is within 3 days).
-* Precisely matches the widely accepted and implemented standard 
-  [ISO 8601 week date](https://en.wikipedia.org/wiki/ISO_week_date) 
-  calendar. This makes it much simpler to adapt computer systems to
-  handle the new dates as they map directly onto each other. 
-* The leap week could be used to give everyone an extra week of vacation
-  every 5 or 6 years between Christmas and New year.
-
+-- Daan Leijen, 2016.
 */
 public val cal-iso-month = solar-ecalendar(
   "IM", "ISO Month", 
