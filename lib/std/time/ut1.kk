@@ -78,13 +78,15 @@ public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish (daily file is about 40kb).
 // If the ``.all`` file is older than `8*download-delay` the file is automatically refreshed from `url`.
 // The `4*download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (``.all`` file is about 3mb).
+// Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun cal-ut1-load( basename : string = "finals2000A",
                          baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
                          download-delay: duration = 1.weeks,
-                         download-timeout: duration = 5.seconds 
+                         download-timeout: duration = 5.seconds,
+                         verbose : bool = True
                         ) : <io,async> calendar 
 {
-  cal-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout ) )
+  cal-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout, verbose ) )
 }
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
@@ -95,19 +97,21 @@ public fun cal-ut1-load( basename : string = "finals2000A",
 // (= <http://toshi.nofs.navy.mil/ser7/>).
 // Set the `baseurl` to the empty string to suppress automatic downloading. The files are cached
 // in the `config/` directory of the application installation directory.
+// Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun load-iersA( basename : string = "finals2000A",
                        baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
                        download-delay: duration = 1.weeks,
-                       download-timeout: duration = 5.seconds 
+                       download-timeout: duration = 5.seconds,
+                       verbose : bool = True
                      ) 
 {
   val fname-all    = basename + ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all, 
                                      duration(download-delay.seconds * 8.fixed), 
-                                     duration(download-timeout.seconds * 4.fixed) ) 
+                                     duration(download-timeout.seconds * 4.fixed), verbose ) 
   val fname-daily  = basename + ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
-                                       download-delay, download-timeout )
+                                       download-delay, download-timeout, verbose )
   (fun(i:instant) {
     match(finals-daily(i)) {
       Nothing -> finals-all(i)
@@ -126,13 +130,15 @@ public fun load-iersA( basename : string = "finals2000A",
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (the
 // full data is about 3mb in size).
+// Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun load-iersA-all( fname : string = "", 
                           url   : string = "auto",
                           download-delay : duration   = 8.weeks,
-                          download-timeout : duration = 20.seconds  // 3mb file!
+                          download-timeout : duration = 20.seconds,  // 3mb file!
+                          verbose : bool = True
                          ) : <io,async> ((i:instant) -> maybe<duration>) 
 {
-  load-latest-iersA( (fname || "finals2000A.all").path, url, download-delay, download-timeout )
+  load-latest-iersA( (fname || "finals2000A.all").path, url, download-delay, download-timeout, verbose )
 }
 
 
@@ -146,24 +152,28 @@ public fun load-iersA-all( fname : string = "",
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
+// Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun load-iersA-daily( fname : string = "", 
                               url   : string = "auto",
                               download-delay : duration   = 1.weeks,
-                              download-timeout : duration = 5.seconds  // ~37kb file
+                              download-timeout : duration = 5.seconds, // ~37kb file
+                              verbose : bool = True
                              ) : <io,async> ((i:instant) -> maybe<duration>) 
 {
-  load-latest-iersA( (fname || "finals2000A.daily").path, url, download-delay, download-timeout )
+  load-latest-iersA( (fname || "finals2000A.daily").path, url, download-delay, download-timeout, verbose )
 }
 
 fun load-latest-iersA( fname : path, url   : string,
-                        download-delay : duration, download-timeout : duration
+                        download-delay : duration, download-timeout : duration,
+                        verbose : bool = True
                        ) : <io,async> ((i:instant) -> maybe<duration>) 
 {
   val xfname = if (fname.dirname.empty?) then appdir() + path("config") + fname else fname
   val xurl   = if (url=="auto") then "http://toshi.nofs.navy.mil/ser7/" + fname.basename else url
   val dtt    = load-latest( xfname, xurl, parse-iersA, fun(dtt:dut-table){ Just(dtt.expire) }, 
                             download-timeout=download-timeout,download-delay=download-delay,
-                            error-prefix="load IERS A data (" + fname.basename + ")" 
+                            error-prefix="load IERS A data (" + fname.basename + ")",
+                            verbose=verbose
                           )
   (fun(i:instant){ dut-deltat(dtt,i) })
 }

@@ -29,10 +29,12 @@ import std/time/utc
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun update-leaps-table( fname : path = path(""), 
                                url   : string = "auto",
                                download-delay : duration   = 4.weeks,
-                               download-timeout : duration = 5.seconds
+                               download-timeout : duration = 5.seconds,
+                               verbose : bool = False
                              ) : <io,async> () 
 {
   val xfname = (fname || appdir() + path("config/leap-seconds.list"))
@@ -40,7 +42,8 @@ public fun update-leaps-table( fname : path = path(""),
   val leaps  = load-latest( xfname, xurl, parse-leaps-table, fun(lt:leaps-table){ Just(lt.expire) }, 
                             Just(get-leaps-table()),
                             download-timeout=download-timeout,download-delay=download-delay,
-                            error-prefix="load IETF leap seconds table" 
+                            error-prefix="load IETF leap seconds table",
+                            verbose=verbose
                           )
   set-leaps-table(leaps)
 }
@@ -53,6 +56,7 @@ public fun update-leaps-table( fname : path = path(""),
 // if any error occurs. The `download-timeout` gives the download time out, while the 
 // `download-delay` gives the minimum amount of time that must have passed before a newer
 // file is downloaded again. The `error-prefix` is prepended to any error messages (=`load cached`).
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 //
 // The function first checks if the `current` data is not yet expired and returns it directly if 
 // it is still valid. Otherwise, it attempts to read and parse the file from `fname`. If it is
@@ -65,13 +69,14 @@ public fun load-latest( fname  : path,
                          current: maybe<a> = Nothing,
                          download-timeout: duration = 5.seconds,
                          download-delay: duration = 2.weeks,
-                         error-prefix: string = "load cached"  ) : <ndet,file,net,exn,async> a 
+                         error-prefix: string = "load cached",
+                         verbose : bool = False  ) : <ndet,file,net,exn,async> a 
 {
   fun full(msg) {
     error-prefix + ": " + msg + ".\n  cached: " + fname.show + "\n  url   : " + url.show
   }
   fun warn(msg) {    
-    trace(msg.full)
+    if (verbose) then trace("warning: " + msg.full) else ()
   }
   // is the current data still valid? 
   val unow  = now()
@@ -112,10 +117,13 @@ public fun load-latest( fname  : path,
         // check file mod time to see if we tried downloading recently
         val fi = on-exn(epoch){ fname.mod-time }
         if (download-delay.pos? && (on-exn(epoch){ fname.mod-time } + download-delay > unow)) {
-          warn("using cached file since it was recently updated.\n  " + fname.show)
+          warn("but using cached file since it was recently updated.\n  " + fname.show)
+          trace("using cached file")
           return recent  // expired, but use anyway since we recently updated the file
         }
-        else Just(recent)  // expired, try to download more recent version
+        else {
+          Just(recent)  // expired, try to download more recent version
+        }
       }
     }
   }
@@ -140,19 +148,21 @@ public fun load-latest( fname  : path,
 // which is used to check if the downloaded content is newer than the optional current
 // data `current` (=`Nothing`). The `download-timeout` gives the download timeout.
 // The `error-prefix` is prepended to any error messages (=`download failed`).
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun download-latest(  url   : string,
                              parse : string -> maybe<a>, 
                              expire : a -> maybe<instant> = fun(_){ Nothing },
                              cache  : path = path(""),
                              current: maybe<a> = Nothing,
                              download-timeout: duration = 5.seconds,
-                             error-prefix: string = "download failed"
+                             error-prefix: string = "download failed",
+                             verbose : bool = False
                            ) : <ndet,file,net,async,exn> a 
 {
   fun warn(msg) {
     val full-msg = error-prefix + ": " + msg + ".\n  url: " + url.show
     match(current) {
-      Just(cur) -> { trace(full-msg); cur }
+      Just(cur) -> { if (verbose) then trace(full-msg); cur }
       Nothing   -> { error(full-msg) }
     }
   }
