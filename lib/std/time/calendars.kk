@@ -140,6 +140,33 @@ fun iso-estimate-year( days : int ) : (int,maybe<int>) {
 // ----------------------------------------------------
 
 /*
+<!--meta
+.calendar {
+  .sans-serif;
+  border: 1px solid black;
+}
+.mheader {
+  font-weight: bold;
+}
+.separator {
+  padding-bottom:0.2ex;
+}
+.noborder {
+  border-left:none;
+  border-right:none;
+}
+.spacer {
+  border-left:none;
+  border-right:none;
+  height:0.4ex;
+}
+.month {
+  td-padding-right: 1ex;
+  tr-padding-top: 0.25ex;
+  tbody-tr-1-padding-top: 0.5ex;
+  .sans-serif
+}
+-->
 This is _not_ a standard ISO calendar -- it is named this way because
 it is based directly on the standard [ISO week
 date](https://en.wikipedia.org/wiki/ISO_week_date) calendar.

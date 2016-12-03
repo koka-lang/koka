@@ -180,7 +180,7 @@ task("grammar",[],function(testfile)
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "madoko";
+var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
 var docsite  = (process.env.docsite || "http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
 var doclocal = (process.env.doclocal || "\\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
           
@@ -191,7 +191,7 @@ task("spec", ["compiler"], function(mode) {
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
   var specdir   = path.join("doc","spec");
-  var docflags  = (mode === "publish") ? "--htmlbases=" + docsite + " " : "";  
+  var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");  
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
@@ -210,11 +210,17 @@ task("spec", ["compiler"], function(mode) {
       copyFiles(specdir,files,outspec);
       files = new jake.FileList().include(path.join(specdir,"*.bib"))
                                  .toArray();
-      copyFiles(specdir,files,outspec);
+      copyFiles(specdir,files,outspec);      
+      // copy images
+      var imgs1 = new jake.FileList().include("lib/std/time/*.png").toArray();
+      copyFiles("lib/std/time",imgs1,outspec);
+      // process xmp.html to html using madoko
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"kokaspec.md"))
-                                        .toArray();
-      command(cmdMarkdown + " --odir=" + outspec + " -v -mline-no:false -mlogo:false " + xmpFiles.join(" "), function () {
+                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
+      console.log(xmpFiles)                                        
+      command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
+        jake.cpR(path.join(outspec,"madoko.css"),outstyles);      
         if (mode === "publish") {
           // copy to website
           files = new jake.FileList().include(path.join(outspec,"*.html"))

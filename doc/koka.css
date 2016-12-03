@@ -9,9 +9,12 @@
 /* Text size and margins for screen & print */
 @media screen {
   body {
-    max-width: 60em;
+    max-width: 50em;
     margin: 1em auto;
     padding: 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
+  }
+  .koka.doc p {
+    text-align: left;
   }
 }
 

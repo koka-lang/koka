@@ -56,7 +56,7 @@ fixed time steps (i.e. _mini leap seconds_) and an offset from the atomic
 clock frequency. By adjusting the frequency, UTC time was effectively
 running at a linearly adjusted rate relative to TAI. We call this
 adjustment _drift_. For example, between 1963-11-01Z and 1964-01-01Z
-the frequency offset was -130e-10 which means UTC was running
+the frequency offset was -130&times;10^-10^ which means UTC was running
 ahead of TAI by 0.0011232 seconds per day. The drift was then defined as:
 
 &quad;(TAI-UTC) = 1.9458580 + 0.0011232&times;&Delta;(1962-01-01) 
@@ -66,7 +66,7 @@ _date_. Therefore, the difference started as 2.6972788s (as there were
 669 days between 1962-01-01 and 1963-11-01) and increased linearly up to
 2.7657940s on 1964-01-01Z. For dates between 1961-01-01Z and 1972-01-01Z
 the library calculates the UTC time based on the historical [USNO][dat]
-drift data (see Appendix [#sec-appendix-a]).
+drift data (see Table [#tab-utc]).
 
 Here are some interesting time steps that occurred in this time frame: 
 
@@ -91,29 +91,33 @@ The TAI timescale was officially established on 1958-01-01Z, and at that
 time the difference (TAI - UT1) was approximately zero.
 In the time frame 1958 up to 1961 the relation between TAI and UTC is not
 well defined, as UTC was officially established in 1960 (Arias
-and Guinot ([2004](http://syrte.obspm.fr/journees2004/pdf/Arias2.pdf))).
+and Guinot [@Arias:utc]).
 
 We can however use the time steps and frequency adjustments as
-broadcast by the NIST WWV radio station (see [pages 86--87][astroa]
-of the Explanatory Supplement to the Astronomical Almanac, by
-P. Kenneth Seidelmann, 1992 edition.). Historically there
+broadcast by the NIST WWV radio station (see Explanatory Supplement to the
+Astronomical Almanac [@Almanac, pages [86--87][astroa]]). 
+Historically there
 were no less than 18 20ms time steps from 1958. The frequency offset
 in the year 1958 is not clear, and is described in the Supplement as 
 
-> .. an offset of [about]{font-style:normal} -100e-10 during 1958 
+> .. an offset of [about]{font-style:normal} -100&times;10^-10^ during 1958 
 
-We fixed the offset at -85e-10 in order to have a zero difference from
+We fixed the offset at -85&times;10^-10^ in order to have a zero difference from
 TAI at exactly 1958-01-01Z.
 
 In the library, this makes UTC coincide with TAI up to 1958-01-01,
 interpolated with 'drift' up to 1972-01-01, and using integral
 leap-seconds after that.
 
-## Appendix A { -; label:"A" }
-
-Table 1 shows all leap second time steps from 1958 up to 2017. This table
+Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
 is calculated and uses historical data for time steps before 1972.
 
+~ TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
+  &Delta;(_date_) returns the number of days since _date_. Entries after \
+  1972 are based on [IETF data][ietfl]. The entries before 1972 are  \
+  derived from the _Explanatory Supplement to the Astronomical Almanac_, by \
+  P. Kenneth Seidelmann [@Almanac, pages [86--87][astroa]]. Entries before 1961 are based on the \
+  time steps broadcast by the NIST [WWV] radio station."}
 
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 | Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
@@ -186,20 +190,33 @@ is calculated and uses historical data for time steps before 1972.
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 
+~
 
-** Table 1. ** Leap second time steps since 1958. The function
-&Delta;(_date_) returns the number of days since _date_. Entries after
-1972 are based on [IETF data][ietfl]. Entries between 1961 and 1972 are
-based on historical  [USNO data][dat]. The entries before 1961 are from
-derived from the "Explanatory Supplement to the Astronomical Almanac", by
-P. Kenneth Seidelmann, 1992 edition, [pages 86--87][astroa], based on the
-time steps broadcast by the NIST WWV radio station.
+-- Daan Leijen, 2016.
+
+## References { - }
+
+~ Bibliography
+
+~~ BibItem { #Arias:utc }
+E.F.\ Arias and B.\ Guinot.
+_Coordinated universal time UTC: historical background and perspectives_. 
+Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 2004.
+[pdf][astroa].
+~~
+
+~~ BibItem { #Almanac }
+P.K.\ Seidelmann.
+_Explanatory Supplement to the Astronomical Almanac_. 
+University Science Books, 1992.
+~~
+~
 
 [ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
 [dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
+[WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
 
--- Daan Leijen, 2016.
 */
 module std/time/utc
 
