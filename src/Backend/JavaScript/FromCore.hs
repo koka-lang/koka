@@ -252,6 +252,7 @@ genTypeDef (Data info _ _ isExtend)
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
                          <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 -- tagless
+                ConIso{}     -> genConstr penv c repr name args []
                 ConSingle{}  -> genConstr penv c repr name args [] 
                 ConAsCons{}  -> genConstr penv c repr name args []
                 _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
@@ -267,7 +268,7 @@ genTypeDef (Data info _ _ isExtend)
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
           <+> block ( text "return" <+> 
-                      (if conInfoName c == nameOptional then head args 
+                      (if (conInfoName c == nameOptional || isConIso repr) then head args 
                         else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
 
 getConTag modName coninfo repr
@@ -512,9 +513,9 @@ genMatch result scrutinees branches
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
-              PatCon tn args _ _ _ info 
+              PatCon tn args repr _ _ info 
                 -> concatMap (\(pat',fn)-> getSubstitutions 
-                                             (nameDoc <> (if (getName tn == nameOptional) then empty else (text "."  <> fn)))
+                                             (nameDoc <> (if (getName tn == nameOptional || isConIso repr) then empty else (text "."  <> fn)))
                                              pat'
                             ) (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
@@ -550,6 +551,8 @@ genMatch result scrutinees branches
                      ConSingleton{} -- the only constructor without fields (=== null)
                        -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)
                      ConSingle{} -- always succeeds
+                       -> []
+                     ConIso{} -- alwasy success
                        -> []
                      ConStruct{}
                        -> fail "Backend.JavaScript.FromCore.genTest: encountered ConStruct, which is not supposed to happen"

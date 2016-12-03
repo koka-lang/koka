@@ -124,11 +124,13 @@ vcatBreak xs  = linebreak <> vcat xs
 isStruct :: DataRepr -> Bool
 isStruct DataSingleStruct = True
 isStruct DataStruct       = True
+isStruct DataIso          = True  -- because C# distinguishes on types, we cannot unwrap :-(
 isStruct _                = False
 
 hasTagField :: DataRepr -> Bool
 hasTagField DataNormal = True
 hasTagField DataStruct = True
+hasTagField DataIso    = True
 hasTagField _          = False
 
 genTypeDef :: Int -> TypeDef -> Asm ()
@@ -179,6 +181,8 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                                  (case dataRepr of 
                                                     DataStruct -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
                                                                   in map (ppAssignDefault ctx) allfields
+                                                    DataIso    -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
+                                                                  in map (ppAssignDefault ctx) allfields
                                                     _          -> [])
                                                ))
                                             )
@@ -217,13 +221,10 @@ genConstructor info dataRepr ((con,vis),conRepr) =
               else putLn (vcat docs)
 
     ConStruct typeName _
-       -> -- merge it into the type class itself
-          do ctx <- getModule
-             let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
-                 docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
-             if (null docs)
-              then return ()
-              else putLn (vcat (docs))
+       -> conStruct typeName
+
+    ConIso typeName _
+       -> conStruct typeName
 
     _  -> onTopLevel $
           do ctx <- getModule
@@ -238,7 +239,15 @@ genConstructor info dataRepr ((con,vis),conRepr) =
                  )
              -- genConCreator con conRepr vis
              -- putLn (linebreak)
-    
+  where
+    conStruct typeName
+      = -- merge it into the type class itself
+        do ctx <- getModule
+           let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
+               docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
+           if (null docs)
+            then return ()
+            else putLn (vcat (docs))  
 
 ppConField :: ModuleName -> (Name,Type) -> Doc
 ppConField ctx (name,tp) 
@@ -253,9 +262,11 @@ ppConConstructor ctx con conRepr defaults
               ConAsCons typeName nilName _ -> ppDefName (typeClassName typeName)
               ConSingle typeName _ -> ppDefName (typeClassName typeName)
               ConStruct typeName _ -> ppDefName (typeClassName typeName)
+              ConIso    typeName _ -> ppDefName (typeClassName typeName)
               _                    -> ppDefName (conClassName (conInfoName con))) <> 
            tupled (case conRepr of
                      ConStruct typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
+                     ConIso    typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
                      _                    -> map ppParam (conInfoParams con)) <+>
            (case conRepr of
               ConNormal typeName _ -> text ":" <+> text "base" <> parens (ppTag ctx typeName (conInfoName con)) <> space
@@ -263,6 +274,7 @@ ppConConstructor ctx con conRepr defaults
            block (linebreak <> vcat (
               (case conRepr of
                  ConStruct _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
+                 ConIso    _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
                  _             -> [])
               ++ map ppAssignConField (conInfoParams con)
               ++ map (ppAssignDefault ctx) defaults
@@ -672,6 +684,11 @@ genCon tname repr targs args
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
                    tupled (ppTag ctx typeName (getName tname) : argDocs)
+              ConIso typeName _
+                -> text "new" <+> 
+                   ppQName ctx (typeClassName typeName) <>
+                   ppTypeArgs ctx targs <//>
+                   tupled (ppTag ctx typeName (getName tname) : argDocs)
               _ -> text "new" <+> 
                    (case repr of
                       ConAsCons typeName _ _
@@ -971,6 +988,7 @@ genTag (exprDoc,patterns)
   where
     isConMatch (PatCon _ _ (ConNormal _ _) _ _ _) = True
     isConMatch (PatCon _ _ (ConStruct _ _) _ _ _) = True
+    isConMatch (PatCon _ _ (ConIso _ _) _ _ _)    = True
     isConMatch _                                  = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
@@ -1050,17 +1068,21 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                                 ,[]
                                 ,next)] 
                  ConStruct typeName _
-                  -> case mbTagDoc of
-                       Nothing -> failure "CSharp.FromCore: should always have tag when matching on structs"
-                       Just tagDoc
-                        -> do ctx <- getModule
-                              let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
-                              return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next)] 
+                  -> testStruct typeName
+                 ConIso typeName _ 
+                  -> testStruct typeName 
                  ConNormal typeName _
                   -> conTest ctx typeName -- TODO: use tags if available
                  ConOpen typeName 
                   -> conTest ctx typeName
         where
+          testStruct typeName
+            = case mbTagDoc of
+               Nothing -> failure "CSharp.FromCore: should always have tag when matching on structs"
+               Just tagDoc
+                -> do ctx <- getModule
+                      let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
+                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next)]
           tpars 
             = case expandSyn tres of
                 TApp _ targs -> targs
