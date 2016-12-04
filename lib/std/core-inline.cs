@@ -271,7 +271,7 @@ public static class Primitive
   }
 
   public static std_core._sslice SliceExtend( std_core._sslice slice, BigInteger bcount ) {
-    int count = IntClamp32(bcount);
+    int count = IntToInt32(bcount);
     if (count==0) return slice;
     int i = slice.start + slice.len;
     if (count > 0) {
@@ -290,11 +290,11 @@ public static class Primitive
   }
 
   public static std_core._sslice SliceAdvance( std_core._sslice slice, BigInteger bcount ) {
-    int count = IntClamp32(bcount);    
+    int count = IntToInt32(bcount);    
     if (count==0) return slice;
     int i   = slice.start;
     int end = slice.start + slice.len;
-    int sliceCount = IntClamp32(SliceCount(slice));
+    int sliceCount = IntToInt32(SliceCount(slice));
     int extra = 0;
     if (count > 0) {
       while(i < slice.str.Length && extra < count) {
@@ -324,7 +324,7 @@ public static class Primitive
   }
 
   public static std_core._sslice SliceCommonPrefix( string s, string t, BigInteger bupto ) {
-    int upto = IntClamp32(bupto);
+    int upto = IntToInt32(bupto);
     int min  = Math.Min(s.Length,t.Length);
     int i;
     if (upto<0) upto = min;
@@ -411,8 +411,8 @@ public static class Primitive
   }
 
   public static int DoubleToInt32( double d ) {
-    if (d > Int.MaxValue) return Int.MaxValue;
-    if (d < Int.MinValue) return Int.MinValue;
+    if (d > Int32.MaxValue) return Int32.MaxValue;
+    if (d < Int32.MinValue) return Int32.MinValue;
     if (Double.IsNaN(d))  return 0;
     return Convert.ToInt32(d);
   }
