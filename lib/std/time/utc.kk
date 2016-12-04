@@ -319,6 +319,10 @@ struct leap-adjust(
 val leap-table0 = Leaps-table(epoch,[])
 val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 
+fun zero?( la : leap-adjust ) : bool {
+  la.offset.zero? && la.delta.zero?
+}
+
 // Get the leap-second adjustment
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
@@ -366,6 +370,68 @@ public fun set-leaps-table( post72 : leaps-table ) : io () {
   if (post72.expire > get-leaps-table().expire) then {
     val r = global-leaps-table()
     r := post72( adjusts = post72.adjusts + leap-seconds-pre72() )
+  }
+}
+
+/*----------------------------------------------------------------------------
+  UTC-SLS: smeared leap seconds
+----------------------------------------------------------------------------*/
+public val ts-utc-sls : timescale = timescale(
+  "UTC-SLS",
+  tai-to-utc-sls,
+  utc-sls-to-tai,
+  timestamp0,
+  "UTC-SLS",
+  Nothing
+)
+
+fun utc-sls-to-tai( t : timestamp ) : duration {
+  t.utc-sls-to-tai-stamp.unsafe-duration
+}
+
+val smear-period = 1000.fixed
+
+fun utc-sls-to-tai-stamp( t : timestamp ) : timestamp {
+  val (ofs,smear) = find-utc-smear(t)
+  t + ofs + smear
+}
+
+fun find-utc-smear( t : timestamp ) : (timespan,timespan) {
+  if (t < utc1958) then return (zero:fixed,zero:fixed)
+
+  val leaps = unsafe-total(get-leaps-table)
+  match(leaps.adjusts.find-adjust(t)) {
+    Nothing -> (zero:fixed,zero:fixed) 
+    Just((ladj,next)) -> {
+      val ofs = ladj.tai-offset(t)
+      val smear = if (next.zero? || t + smear-period < next.utc-start) then 0.fixed else {
+                    val togo = (next.utc-start.seconds - t.non-leap-seconds) // 0 <= togo <= smear-period
+                    val frac = (smear-period - togo) / smear-period 
+                    val ofsnext = next.tai-offset(next.utc-start)
+                    (ofsnext - ofs) * frac
+                  }
+      trace("find-utc-smear: " + smear.show + ", tai-offset: " + ofs.show)                  
+      (ofs,smear.round-to-prec(4))
+    }
+  } 
+}
+
+fun tai-to-utc-sls( tai :duration ) : timestamp {
+  val t  = tai-to-utc(tai)
+  val t0 = t - find-utc-smear(t).snd
+  val smear = find-utc-smear(t0).snd
+  trace("t: " + t.show + ", smear: " + smear.show + ", t-smear: " + (t - smear).show)
+  timestamp(t.seconds) - smear
+}
+
+fun find-adjust( leaps : list<leap-adjust>, t : timestamp, previous : leap-adjust = zero ) : maybe<(leap-adjust,leap-adjust)> {
+  match(leaps) {
+    Nil -> Nothing
+    Cons(la,earlier) -> {
+      if (la.utc-start <= t) 
+       then Just((la,previous))
+       else find-adjust(earlier, t, la)
+    }
   }
 }
 
@@ -543,7 +609,7 @@ val default-ietf-leap-seconds = @"
   3550089600  35  # 1 Jul 2012
   3644697600  36  # 1 Jul 2015
   3692217600  37  # 1 Jan 2017"
-// 3723753600  35  # 1 Jan 2018 # testing
+  // 3723753600  35  # 1 Jan 2018" //testing negative 2 seconds
 
 // -----------------------------------------------------------
 // Parsing TAI 'continuous' leap second tables from before 1972

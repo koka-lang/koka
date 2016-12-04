@@ -34,6 +34,7 @@ import std/time/utc
 import std/time/download
 import std/time/calendar
 import std/time/time
+import std/time/chrono
 
 extern include {
   js file "timezone-inline.js"
