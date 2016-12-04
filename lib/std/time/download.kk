@@ -18,7 +18,7 @@ import std/os/path
 import std/time/duration
 import std/time/instant
 import std/time/utc
-
+import std/time/chrono
 
 // Update the internal leap second table precise UTC time calculation. If the internal table is not
 // yet expired (after 2017-01-01) nothing is done. 

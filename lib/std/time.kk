@@ -6,20 +6,24 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Basic date and time funs.
+/* Date and time functionality.
 
-   Years, months, days etc. are always 1-based, while durations are always in (fractional) seconds.
+   Months, weeks, days etc. are always 1-based, while durations are always in (fractional) seconds.
 */
 module std/time
 
 public import std/time/duration
 public import std/time/instant
 public import std/time/utc
+public import std/time/chrono
+public import std/time/timer
+
 public import std/time/download
 public import std/time/date
 public import std/time/calendar
 public import std/time/calendars
 public import std/time/time
+
 public import std/time/locale
 public import std/time/format
 public import std/time/parse

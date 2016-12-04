@@ -237,29 +237,13 @@ extern include {
   Unix
 ----------------------------------------------------------------------------*/
 
-// Given a unix time stamp in seconds and possibly a separate fraction of seconds
+// Given a unix time stamp in (fractional) seconds and possibly a separate fraction of seconds
 // (for increased precision for nanosecond timestamps) return a `:instant`.
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
   unsafe-instant( timestamp(secs.trunc.int, secs.fraction + frac), ts-unix ) 
 }
 
-// The current `:instant` in time as returned by the system clock.
-public fun now() : ndet instant {
-  val (secs,frac) = unix-now()
-  unix-instant(secs,frac)
-} 
-
-// Returns a unix time stamp; this still needs
-// to be adjusted to our epoch and taking account of leap seconds.
-public extern unix-now() : ndet (double,double) {
-  js "_unix_now"
-}
-
-// The resolution in seconds of the system clock.
-extern now-precision() : ndet int {
-  js "_now_precision"
-}
-
+// Get a unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
 public fun unix-timestamp( i :instant ) : double {
   i.timestamp(ts-unix).seconds.double
 }

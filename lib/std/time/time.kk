@@ -20,7 +20,7 @@ import std/time/instant
 import std/time/utc
 import std/time/date
 import std/time/calendar
-
+import std/time/chrono
 
 // Represents an instant in time for a certain calendar and timezone.
 abstract struct time (
