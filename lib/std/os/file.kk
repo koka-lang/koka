@@ -17,9 +17,6 @@ import std/time/duration
 import std/time/instant
 import std/time/utc
 
-extern import {
-  js "fs"
-}
 
 extern include {
   js file "file-inline.js"
