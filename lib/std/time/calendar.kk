@@ -419,6 +419,10 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
 // calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
 public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
 
+// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// but using UTC-SLS time, i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+public val cal-iso-sls = iso-calendar( ts-utc-sls, "", "ISO" )
+
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
 // Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)

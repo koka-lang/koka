@@ -376,6 +376,15 @@ public fun set-leaps-table( post72 : leaps-table ) : io () {
 /*----------------------------------------------------------------------------
   UTC-SLS: smeared leap seconds
 ----------------------------------------------------------------------------*/
+
+// UTC with smoothed leap seconds.
+// Implements a UTC time scale except without ever showing leap seconds.
+// Instead, on a day with a leap second, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, UTC
+// and UTC-SLS are equal again. This is a highly recommendable time scale to use for
+// time stamps or communication with other servers since it avoids any potential trouble
+// with leap seconds while still being very precise (at most 0.1\% difference with UTC).
+// See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
 public val ts-utc-sls : timescale = timescale(
   "UTC-SLS",
   tai-to-utc-sls,
@@ -396,6 +405,11 @@ fun utc-sls-to-tai-stamp( t : timestamp ) : timestamp {
   t + ofs + smear
 }
 
+
+/* utc-sls = utc - smear
+           = utc - step*((1000 - (t + step - utc))/1000)
+*/
+
 fun find-utc-smear( t : timestamp ) : (timespan,timespan) {
   if (t < utc1958) then return (zero:fixed,zero:fixed)
 
@@ -404,13 +418,13 @@ fun find-utc-smear( t : timestamp ) : (timespan,timespan) {
     Nothing -> (zero:fixed,zero:fixed) 
     Just((ladj,next)) -> {
       val ofs = ladj.tai-offset(t)
-      val smear = if (next.zero? || t + smear-period < next.utc-start) then 0.fixed else {
-                    val togo = (next.utc-start.seconds - t.non-leap-seconds) // 0 <= togo <= smear-period
+      val step  = if (next.zero?) then (zero:fixed) else next.tai-offset(next.utc-start) - ofs
+      val smear = if (next.zero? || t + smear-period < next.utc-start + step) then 0.fixed else {
+                    val togo = ((next.utc-start.seconds + step) - t.seconds) // 0 <= togo <= smear-period
                     val frac = (smear-period - togo) / smear-period 
-                    val ofsnext = next.tai-offset(next.utc-start)
-                    (ofsnext - ofs) * frac
+                    step * frac
                   }
-      trace("find-utc-smear: " + smear.show + ", tai-offset: " + ofs.show)                  
+      // trace("find-utc-smear: " + smear.show + ", tai-offset: " + ofs.show)                  
       (ofs,smear.round-to-prec(4))
     }
   } 
@@ -420,7 +434,7 @@ fun tai-to-utc-sls( tai :duration ) : timestamp {
   val t  = tai-to-utc(tai)
   val t0 = t - find-utc-smear(t).snd
   val smear = find-utc-smear(t0).snd
-  trace("t: " + t.show + ", smear: " + smear.show + ", t-smear: " + (t - smear).show)
+  //trace("t: " + t.show + ", smear: " + smear.show + ", t-smear: " + (t - smear).show)
   timestamp(t.seconds) - smear
 }
 
