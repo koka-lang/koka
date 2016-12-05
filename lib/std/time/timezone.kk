@@ -275,6 +275,9 @@ public fun timezones( zones : list<timezone-info> ) {
   Timezones( zones.map(fun(tzi) { (tzi.name.normalize, tzi) }).dict ) 
 }
 
+// Empty `:timezones`. 
+public val timezones-empty = Timezones([].dict)
+
 // Load time zone information from a [packed json](http://momentjs.com/timezone/docs/#/data-formats/packed-format)
 // file. Looks by default for the file `"config/timezones.json"` in the application directory
 // but an optional file name can be supplied. 
