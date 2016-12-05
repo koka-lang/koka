@@ -222,13 +222,6 @@ import std/time/timestamp
 import std/time/duration
 import std/time/instant
 
-extern include {
-  // cs file "time-inline.cs"
-  js file "utc-inline.js"
-}
-
-
-
 /*----------------------------------------------------------------------------
   Unix
 ----------------------------------------------------------------------------*/

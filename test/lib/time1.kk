@@ -23,7 +23,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 
 fun test-tz() {
   println( "tz-local(): " + now().time(tz=tz-local()).show )
-  val tzs = load-timezones()
+  val tzs = on-exn(timezones-empty){ load-timezones() }
   println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
   val zlocal = tzs.guess-local-timezone()
   println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
