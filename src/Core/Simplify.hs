@@ -152,6 +152,8 @@ topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nam
         else return expr
 
 
+
+
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
   = do newNames <- mapM uniqueTName pars
@@ -161,6 +163,7 @@ topDown (App (Lam pars eff body) args) | length pars >= length args  -- continua
   where           
     makeDef (TName npar nparTp) arg 
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+
 
 
 -- No optimization applies
@@ -258,9 +261,23 @@ bottomUp expr@(Case scruts bs)  | commonContinue
     flattenJust acc  []           = Just (reverse acc)
 
 
+-- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
+bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars 
+  = f
+  where
+    argsMatchPars = and (zipWith argMatchPar pars args)
+    argMatchPar par (Var name _)  = par == name
+    argMatchPar _    _            = False
+
+    notExternal = case info of 
+                    InfoExternal{} -> False
+                    _ -> True
+
+
 -- return immediately from a lambda
 bottomUp (Lam pars eff (App (Var ret _) [arg]))  | getName ret == nameReturn
   = Lam pars eff arg
+
 
 bottomUp (App f args)
   = App f (map bottomUpArg args)
