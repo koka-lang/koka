@@ -1651,9 +1651,9 @@ extern inline ceiling : (d:double) -> double {
 // Return the integral part of a `:double` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
 // If `d < 0.0` , return the smallest integer equal or larger to `d` .
-extern inline trunc : (d:double) -> double {
+extern trunc : (d:double) -> double {
   cs "Math.Truncate"
-  js "Math.trunc"
+  js "Mathtrunc"
 }
 
 // Return the fractional part of a `:double` `d`.\
