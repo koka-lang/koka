@@ -24,12 +24,12 @@ extern include {
 // Ticks
 // -----------------------------------------------------------
 
-// Return a high-resolution timestamp in fractional seconds. 
-// The timestamp is guaranteed to be monotonically increasing
+// Return a high-resolution time stamp in fractional SI seconds. 
+// The duration is guaranteed to be monotonically increasing
 // and have at least millisecond resolution. 
-public fun ticks() : ndet timespan {
+public fun ticks() : ndet duration {
   val (secs,frac) = xticks()
-  return fixed(secs.trunc.int, secs.fraction + frac)
+  duration(secs.trunc.int, secs.fraction + frac)
 }
 
 extern xticks() : ndet (double,double) {
@@ -38,7 +38,12 @@ extern xticks() : ndet (double,double) {
 }
 
 // Return the smallest time difference in seconds that `ticks` can measure.
-public extern ticks-resolution() : ndet double {
+public fun ticks-resolution() : ndet duration {
+  duration(xticks-resolution())
+}
+
+// Return the smallest time difference in seconds that `ticks` can measure.
+extern xticks-resolution() : ndet double {
   cs inline "_Time.TicksResolution"
   js inline "_ticks_resolution"
 }
@@ -48,7 +53,7 @@ public fun elapsed( action : () -> <ndet|e> a ) : <ndet|e> (duration,a) {
   val t0 = ticks()
   val x = action()
   val t1 = ticks()
-  (duration(t1 - t0),x)
+  (t1 - t0, x)
 }
 
 // Measure the number of fractional seconds that it takes to evaluate `action`, and print `msg` postfixed with the

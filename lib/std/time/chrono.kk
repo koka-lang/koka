@@ -36,7 +36,11 @@ extern unix-now() : ndet (double,double) {
 }
 
 // The resolution in seconds of the system clock.
-public extern now-precision() : ndet double {
+public fun now-precision() : ndet duration {
+  duration(xnow-precision())
+}
+
+extern xnow-precision() : ndet double {
   js "_now_precision"
 }
 

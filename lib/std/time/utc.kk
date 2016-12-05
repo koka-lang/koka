@@ -93,21 +93,17 @@ In the time frame 1958 up to 1961 the relation between TAI and UTC is not
 well defined, as UTC was officially established in 1960 (Arias
 and Guinot [@Arias:utc]).
 
-We can however use the time steps and frequency adjustments as
-broadcast by the NIST WWV radio station (see Explanatory Supplement to the
-Astronomical Almanac [@Almanac, pages [86--87][astroa]]). 
-Historically there
-were no less than 18 20ms time steps from 1958. The frequency offset
-in the year 1958 is not clear, and is described in the Supplement as 
-
-> .. an offset of [about]{font-style:normal} -100&times;10^-10^ during 1958 
-
-We fixed the offset at -85&times;10^-10^ in order to have a zero difference from
-TAI at exactly 1958-01-01Z.
+We can however use the time steps and frequency adjustments as broadcast by
+the NIST WWV radio station (see Explanatory Supplement to the Astronomical
+Almanac [@Almanac, pages [86--87][astroa]]).  Historically there were no less
+than 18 20ms time steps from 1958. The frequency offset in the year 1958 is
+not clear, and is described in the Supplement as  ".. an offset of _about_
+-100&times;10^-10^ during 1958".  We fixed the offset at -85&times;10^-10^ in
+order to have a zero difference from TAI at exactly 1958-01-01Z.
 
 In the library, this makes UTC coincide with TAI up to 1958-01-01,
-interpolated with 'drift' up to 1972-01-01, and using integral
-leap-seconds after that.
+interpolated with 'drift' up to 1972-01-01, and using integral leap-seconds
+after that.
 
 Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
 is calculated and uses historical data for time steps before 1972.

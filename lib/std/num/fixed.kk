@@ -38,6 +38,7 @@ public fun fixed( d : double ) : fixed {
 // The fixed point number is equal to `i + frac` and correctly deals with negative numbers.
 // This is the most precise way to create a fixed number.
 public fun fixed( i : int, frac : double = 0.0 ) : fixed {
+  // trace("fixed( " + i.show + ", " + frac.show + ")")
   if (0.0 <= frac && frac < 1.0) then return Fixed(i,frac)
   if (frac.nan?) then return Fixed(i,0.0)
   val ff = frac.floor

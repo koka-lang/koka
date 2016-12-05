@@ -416,11 +416,14 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
-// calendar except that it uses the year 0 for 1BC, -1 for 2BC etc. 
+// calendar except that it uses the year 0 for 1BCE, -1 for 2BCE etc. 
 public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// but using UTC-SLS time, i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+// but using UTC-SLS time (`ts-utc-sls`), i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+// This calendar is recommended when communicating dates with other programs since it
+// avoids any trouble with leap seconds as these are always smoothed out over the last 1000
+// seconds of a day with a leap second.
 public val cal-iso-sls = iso-calendar( ts-utc-sls, "", "ISO" )
 
 
