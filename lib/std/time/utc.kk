@@ -385,57 +385,58 @@ public fun set-leaps-table( post72 : leaps-table ) : io () {
 // time stamps or communication with other servers since it avoids any potential trouble
 // with leap seconds while still being very precise (at most 0.1\% difference with UTC).
 // See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
-public val ts-utc-sls : timescale = timescale(
-  "UTC-SLS",
-  tai-to-utc-sls,
-  utc-sls-to-tai,
-  timestamp0,
-  "UTC-SLS",
-  Nothing
-)
+public val ts-utc-sls : timescale = ts-utc-sls-create( "UTC-SLS", 1000.seconds )
 
-fun utc-sls-to-tai( t : timestamp ) : duration {
-  t.utc-sls-to-tai-stamp.unsafe-duration
+// Create a new smooted leap second time scale with an optional period during
+// which smoothing takes place. This is 1000s for `ts-utc-sls`.
+public fun ts-utc-sls-create( name : string, smear-period : duration ) : timescale {
+  val sp = smear-period.seconds
+  timescale(
+    name,
+    fun(tai:duration) { tai-to-utc-sls(tai,sp) },
+    fun(utc:timestamp) { utc-sls-to-tai(utc,sp) },
+    timestamp0,
+    "UTC-SLS",
+    Nothing
+  )
 }
 
-val smear-period = 1000.fixed
+fun utc-sls-to-tai( t : timestamp, smear-period : fixed ) : duration {
+  val (ofs,mbsmear) = find-utc-smear(t, smear-period) 
+  // convert directly to tai as we have all info
+  match(mbsmear) { 
+    Nothing -> {
+      unsafe-duration( t + ofs )
+    }
+    Just((step,start)) -> {
+      unsafe-duration( ofs + start + (t.timespan - start) / (1.fixed - (step / smear-period)) )
+    }
+  }
+}
 
-fun utc-sls-to-tai-stamp( t : timestamp ) : timestamp {
-  val (ofs,smear) = find-utc-smear(t)
-  t + ofs + smear
+fun tai-to-utc-sls( tai :duration, smear-period : fixed ) : timestamp {
+  val t = tai-to-utc(tai)
+  val tsls = match(find-utc-smear(t, smear-period).snd) {
+    Nothing -> t
+    Just((step,start)) -> t - step*((t.timespan - start) / smear-period)
+  }
+  timestamp(tsls.seconds) // remove leap seconds
 }
 
 
-/* utc-sls = utc - smear
-           = utc - step*((1000 - (t + step - utc))/1000)
-*/
-
-fun find-utc-smear( t : timestamp ) : (timespan,timespan) {
-  if (t < utc1958) then return (zero:fixed,zero:fixed)
+fun find-utc-smear( t : timestamp, smear-period : fixed ) : (timespan,maybe<(timespan,timespan)>) {
+  if (t < utc1958) then return (zero:fixed,Nothing)
 
   val leaps = unsafe-total(get-leaps-table)
   match(leaps.adjusts.find-adjust(t)) {
-    Nothing -> (zero:fixed,zero:fixed) 
     Just((ladj,next)) -> {
-      val ofs = ladj.tai-offset(t)
-      val step  = if (next.zero?) then (zero:fixed) else next.tai-offset(next.utc-start) - ofs
-      val smear = if (next.zero? || t + smear-period < next.utc-start + step) then 0.fixed else {
-                    val togo = ((next.utc-start.seconds + step) - t.seconds) // 0 <= togo <= smear-period
-                    val frac = (smear-period - togo) / smear-period 
-                    step * frac
-                  }
-      // trace("find-utc-smear: " + smear.show + ", tai-offset: " + ofs.show)                  
-      (ofs,smear.round-to-prec(4))
+      val ofs   = ladj.tai-offset(t)
+      val step  = next.tai-offset(next.utc-start) - ofs
+      val start = next.utc-start + step - smear-period
+      (ofs, if (next.zero? || t < start) then Nothing else Just((step,start.timespan)))
     }
+    Nothing -> (zero:fixed,Nothing)
   } 
-}
-
-fun tai-to-utc-sls( tai :duration ) : timestamp {
-  val t  = tai-to-utc(tai)
-  val t0 = t - find-utc-smear(t).snd
-  val smear = find-utc-smear(t0).snd
-  //trace("t: " + t.show + ", smear: " + smear.show + ", t-smear: " + (t - smear).show)
-  timestamp(t.seconds) - smear
 }
 
 fun find-adjust( leaps : list<leap-adjust>, t : timestamp, previous : leap-adjust = zero ) : maybe<(leap-adjust,leap-adjust)> {
