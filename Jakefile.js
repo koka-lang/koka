@@ -181,8 +181,8 @@ task("grammar",[],function(testfile)
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
 var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
-var docsite  = (process.env.docsite || "http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
-var doclocal = (process.env.doclocal || "\\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
+var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
+var doclocal = (process.env.doclocal || "c:\\users\\daan\\dev\\koka-gh\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
           
 desc("generate the language specification")  
 task("spec", ["compiler"], function(mode) {
@@ -225,6 +225,7 @@ task("spec", ["compiler"], function(mode) {
           // copy to website
           files = new jake.FileList().include(path.join(outspec,"*.html"))
                                      .include(path.join(outstyles,"*.css"))
+                                     .exclude(path.join(outspec,"*.xmp.html"))
                                      .toArray();
           copyFiles(outspec,files,doclocal);
         }
