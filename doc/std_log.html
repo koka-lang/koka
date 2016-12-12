@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/log documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_log-source.html"><span class="mo">std<span class="fslash">/</span>log</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#get_log"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>log</a></li><li><a class="link" href="#log"><span class="kw">fun</span>&nbsp;log</a></li><li><a class="link" href="#nolog"><span class="kw">fun</span>&nbsp;nolog</a></li><li><a class="link" href="#with_log"><span class="kw">fun</span>&nbsp;with<span class="dash">-</span>log</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent">   Log messages.
+</p></div>
+<div class="decl" id="get_log"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_log-source.html#get_log">get<span class="dash">-</span>log</a></span>( <span class="tp tpp">log<span class="dash">-</span>name</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_io"><span class="tp">io</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>io: <span class="tp">E</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Get the current log. Since this is in the <code class="koka">io</code> effect, <code class="koka"><a class="pp" href="#with_log">with<span class="dash">-</span>log<span class="pc"><span class="mo">std<span class="fslash">/</span>log<span class="fslash last">/</span></span>with<span class="dash">-</span>log: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">log<span class="dash">-</span>name</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">ndet</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">ndet</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp">string</span><span class="tp sp">,</span> <span class="tp tv">a</span><span class="tp sp">)</span></span></a></code> is preferred.
+</p></div></div>
+<div class="decl" id="log"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_log-source.html#log">log</a></span>( <span class="tp tpp">log<span class="dash">-</span>name</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a>, <span class="tp tpp">message</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Total fun that logs a message in a certain log <code class="koka">log<span class="dash">-</span>name</code>.
+   Has no observable effect but see <code class="koka">withLog</code>.
+</p></div></div>
+<div class="decl" id="nolog"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_log-source.html#nolog">nolog</a></span>()<span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_st"><span class="tp">st</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>st: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">E</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_global"><span class="tp">global</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>global: <span class="tp">H</span></span></a><span class="tp sp">&gt;</span><span class="tp sp">)</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Disable logging completely.
+</p></div></div>
+<div class="decl" id="with_log"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_log-source.html#with_log">with<span class="dash">-</span>log</a></span>( <span class="tp tpp">log<span class="dash">-</span>name</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a>, <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp tv">a</span> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a><span class="tp sp">,</span> <span class="tp tv">a</span><span class="tp sp">)</span></div><div class="doc koka comment">
+
+<p class="p noindent">   Encloses a possibly total <code class="koka">action</code> and returns its result together
+   with the contents of a log named <code class="koka">log<span class="dash">-</span>name</code>. The contents of the log
+   are non-deterministically determined. However, in practice, they contain
+   any messages that were recorded in the <code class="koka">action</code> by calls to <code class="koka">log</code>.
+   However, if <code class="koka"><a class="pp" href="#nolog">nolog<span class="pc"><span class="mo">std<span class="fslash">/</span>log<span class="fslash last">/</span></span>nolog: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">(</span><span class="tp">st</span><span class="tp sp">&#60;</span><span class="tp">global</span><span class="tp sp">&#62;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code> was called, the log is always empty.
+</p></div></div>
+</div></body>
+</html>
+
+<span data-line=""></span>

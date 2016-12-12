@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/time/format documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_time_format-source.html"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>format</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#format"><span class="kw">fun</span>&nbsp;format</a></li><li><a class="link" href="#show_imf"><span class="kw">fun</span>&nbsp;show<span class="dash">-</span>imf</a></li><li><a class="link" href="#show_in_locale"><span class="kw">fun</span>&nbsp;show<span class="dash">-</span>in<span class="dash">-</span>locale</a></li><li><a class="link" href="#show_in_locale_date"><span class="kw">fun</span>&nbsp;show<span class="dash">-</span>in<span class="dash">-</span>locale<span class="dash">-</span>date</a></li><li><a class="link" href="#show_iso"><span class="kw">fun</span>&nbsp;show<span class="dash">-</span>iso</a></li><li><a class="link" href="#show_iso_date"><span class="kw">fun</span>&nbsp;show<span class="dash">-</span>iso<span class="dash">-</span>date</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent">   Formatting of time into a string.
+</p></div>
+<div class="decl" id="format"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#format">format</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a>, <span class="tp tpp">fmt</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a>, <span class="tp tpp">locale</span> <span class="tp sp">:</span>&nbsp;<span class="tp op">?</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#type_space_time_locale"><span class="tp">time<span class="dash">-</span>locale</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Format a time according to format string <code class="koka">fmt</code> and using a optional
+   time locale (= <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#time_locale_en_iso">time<span class="dash">-</span>locale<span class="dash">-</span>en<span class="dash">-</span>iso<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale<span class="dash">-</span>en<span class="dash">-</span>iso: <span class="tp">time<span class="dash">-</span>locale</span></span></a></code>).
+</p>
+<p class="p indent">Letters (<code class="code code2">a</code> to <code class="code code2">z</code>) are always interpreted as a pattern where unknown letter
+patterns are ignored. Any literal text should be quote-escaped i.e. use <code class="koka"><span class="st">&#34;&#39;GMT&#39;ZZ&#34;</span></code> 
+to display as <code class="koka"><span class="st">&#34;GMT-07:00&#34;</span></code> (in the PST time zone). Any characters other then
+an ascii letter are displayed as is.
+</p>
+<p class="p indent">Patterns of 2 letters are zero-padded on the left to always
+display as 2 digits. Allowed patterns:
+</p>
+<ul class="ul list-star compact">
+<li class="li ul-li list-star-li compact-li"><code class="code code2">Y</code>: the year as a number (without zero padding) (<code class="code code2">1970</code>, <code class="code code2">203</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">YY</code>, <code class="code code2">`YYYY</code>: the year in upto 4 digits (<code class="code code2">70</code>, <code class="code code2">1970</code>, <code class="code code2">0203</code>).
+If the year is smaller than zero or larger than 9999, the year is displayed
+with 5 or more digits and preprended with an explicit sign (<code class="code code2">-00030</code>, <code class="code code2">+10345</code>).
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">M</code>, <code class="code code2">MM</code>: the month. (<code class="code code2">1</code>, <code class="code code2">03</code>). In case of an ISO week (<code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>week</code>)
+or ISO month (<code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>month</code>) calendar, the month is prefixed with <code class="code code2">W</code> or <code class="code code2">M</code>.
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">MMM</code>, <code class="code code2">MMMM</code>: name of the month in the specified <code class="koka">locale</code>. (<code class="code code2">Jan</code>, <code class="code code2">January</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">D</code>, <code class="code code2">DD</code>: the day of the month. (<code class="code code2">1</code>, <code class="code code2">08</code>). If <code class="code code2">DD</code> is used and this
+is an ISO week calendar (<code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>week</code>) just one digit is used for the week day.
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">DDD</code>: the day of the year. (<code class="code code2">087</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">d</code>: the ISO day of the week, 1 for Monday ending in 7 for Sunday.
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">dd</code>, <code class="code code2">ddd</code>,<code class="code code2">dddd</code>: the day of the week in the current <code class="koka">locale</code>. (<code class="code code2">We</code>,<code class="code code2">Wed</code>,<code class="code code2">Wednesday</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">h</code>, <code class="code code2">hh</code>: the hours using a 12-hour clock (with am/pm). (<code class="code code2">9</code>, <code class="code code2">09</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">H</code>, <code class="code code2">HH</code>: the hours using a 24-hour clock. (<code class="code code2">21</code>, <code class="code code2">09</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">m</code>, <code class="code code2">mm</code>: the minutes. (<code class="code code2">9</code>, <code class="code code2">09</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">s</code>, <code class="code code2">ss</code>: the whole seconds. (<code class="code code2">8</code>, <code class="code code2">08</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">a</code>, <code class="code code2">aa</code>: AM/PM designation. (<code class="code code2">a</code>, <code class="code code2">am</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">A</code>, <code class="code code2">AA</code>: AM/PM designation in upper-case. (<code class="code code2">A</code>, <code class="code code2">AM</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">f</code>,&#8230;,<code class="code code2">fffffffff</code>: upto 9 digits of a fraction of a second. Starts with a dot. (<code class="code code2">.320</code>,  <code class="code code2">.000</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">F</code>,&#8230;,<code class="code code2">FFFFFFFFF</code>: upto 9 digits of a fraction of a second. If not zero, starts with a dot.
+  In contrast to the <code class="code code2">f</code> patterns displays the minimal number of required digits 
+  (and is not right-padded with zeros). (<code class="code code2">.32</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">z</code>: timezone offset in hours and minutes separated by a colon. Use <code class="code code2">+00:00</code> for UTC time. (<code class="code code2">+01:00</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">zz</code>: timezone offset in hours and minutes without a separator. Use <code class="code code2">+0000</code> for UTC time. (<code class="code code2">-0700</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">Z</code>: timezone offset in hours and minutes separated by a colon, use <code class="code code2">Z</code> for UTC time.   
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">ZZ</code>: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">x</code>: fractional seconds since <code class="koka">min<span class="dash">-</span>time</code>. (<code class="code code2">63610768799.429</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">YYYYYY</code>: the year in&nbsp;<a href="http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1">ECMAscript</a> 6 digits, prepended with the sign. (<code class="code code2">+002016</code>,<code class="code code2">-000023</code>,<code class="code code2">+000000</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">y</code>: the absolute value of the year as a number (without zero padding). Useful when
+
+<pre class="para-block pre-indented" style="display:block"><code>   displaying Julian (&lt;code class=&quot;koka&quot;&gt;cal&lt;span class=&quot;dash&quot;&gt;-&lt;/span&gt;julian&lt;/code&gt;) negative years as ``10 BC`` for example (e.g. ``&quot;y E&quot;``).</code></pre></li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">C</code>, <code class="code code2">CC</code>: the short or long calendar name. (The short name is empty for the standard ISO calendars).
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">E</code>: the era name, for example <code class="code code2">CE</code> for the Gregorian calendar.
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">&#39;...&#39;</code>, <code class="code code2">&quot;...&quot;</code>: anything between quotes is displayed as is. (<code class="code code2">&#39;M&#39;M</code> becomes <code class="code code2">M11</code> for November)
+</li></ul>
+
+<p class="p noindent">There are also various forms to display dates and times in a locale specific way.
+We give examples in English and Dutch. The lower-case <code class="code code2">l</code> variants use short
+names for month- and day names.
+</p>
+<ul class="ul list-star compact">
+<li class="li ul-li list-star-li compact-li"><code class="code code2">t</code>: hours and minutes (<code class="code code2">3:21pm, 15:21</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">tt</code>: hours, minutes, and seconds (<code class="code code2">3:21:01pm, 15:21:01</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">L</code>, <code class="code code2">l</code>: a date (<code class="code code2">09/29/2016, 29.09.2016</code>) and (<code class="code code2">9/29/2016, 29.9.2016</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">LL</code>, <code class="code code2">ll</code>: date with month name (<code class="code code2">29 September 2016, 29 september 2016</code>) and (<code class="code code2">29 Sep 2016, 29 sep 2016</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">LLL</code>, <code class="code code2">lll</code>: date with month name and time (<code class="code code2">29 September 2016 1:15pm, 29 september 2016 13:15</code>)
+</li>
+<li class="li ul-li list-star-li compact-li"><code class="code code2">LLLL</code>, <code class="code code2">llll</code>: date with day name, month name, and time (<code class="code code2">Thursday, 29 September 2016 1:15pm</code>) and (<code class="code code2">Thu, 29 Sep 2016 1:15pm</code>)
+</li></ul>
+
+<p class="p noindent">After formatting, any left- or right white space is trimmed. This allows specifiers
+like <code class="koka"><span class="st">&#34;YYYY E C&#34;</span></code> that display correctly even if the era or calendar name is empty.
+</p>
+<p class="p indent">For example, to display a time in the standard&nbsp;<a href="https://tools.ietf.org/html/rfc2822#section-3.3">Internet Message Format</a>
+you can use <code class="koka">now()<span class="kw op">.</span>format(<span class="st">&#34;ddd, D MMM Y HH:mm:ss zz&#34;</span>)</code> displayed as <code class="koka"><span class="st">&#34;Tue, 27 Sep 2016 06:36:55 -0700&#34;</span></code> for example.<br>
+A standard ISO string can be formatted as, <code class="koka"><span class="st">&#34;YYYY-MM-DD&#39;T&#39;HH:mm:ssFFFFFFFFFZ C&#34;</span></code>.
+</p></div></div>
+<div class="decl" id="show_imf"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#show_imf">show<span class="dash">-</span>imf</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Show time as a standard&nbsp;<a href="https://tools.ietf.org/html/rfc2822#section-3.3">Internet Message Format</a> date.<br>
+   For example <code class="koka">now()<span class="kw op">.</span>show<span class="dash">-</span>imf</code> returns <code class="koka"><span class="st">&#34;Fri, 9 Oct 2016 11:57:45 -0700&#34;</span></code>.
+</p></div></div>
+<div class="decl" id="show_in_locale"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#show_in_locale">show<span class="dash">-</span>in<span class="dash">-</span>locale</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a>, <span class="tp tpp">locale</span> <span class="tp sp">:</span>&nbsp;<span class="tp op">?</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#type_space_time_locale"><span class="tp">time<span class="dash">-</span>locale</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Show the time as a human readable string in the given <code class="koka">locale</code> (=<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#time_locale_en">time<span class="dash">-</span>locale<span class="dash">-</span>en<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale<span class="dash">-</span>en: <span class="tp">time<span class="dash">-</span>locale</span></span></a></code>)
+   For example <code class="koka">now()<span class="kw op">.</span>show<span class="dash">-</span>en</code> -&gt; <code class="koka"><span class="st">&#34;Thu, 8 Oct 2016, 12:20pm&#34;</span></code>. Uses the <code class="koka"><span class="st">&#34;llll&#34;</span></code> format string.
+</p></div></div>
+<div class="decl" id="show_in_locale_date"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#show_in_locale_date">show<span class="dash">-</span>in<span class="dash">-</span>locale<span class="dash">-</span>date</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a>, <span class="tp tpp">locale</span> <span class="tp sp">:</span>&nbsp;<span class="tp op">?</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#type_space_time_locale"><span class="tp">time<span class="dash">-</span>locale</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Show the date in human readable string in the given <code class="koka">locale</code> (=<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_locale.html#time_locale_en">time<span class="dash">-</span>locale<span class="dash">-</span>en<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>locale<span class="fslash last">/</span></span>time<span class="dash">-</span>locale<span class="dash">-</span>en: <span class="tp">time<span class="dash">-</span>locale</span></span></a></code>).
+   For example <code class="koka">now()<span class="kw op">.</span>show<span class="dash">-</span>en<span class="dash">-</span>date</code> -&gt; <code class="koka"><span class="st">&#34;Thu, 8 Oct 2016&#34;</span></code>. Uses the <code class="koka"><span class="st">&#34;ll&#34;</span></code> format string.
+</p></div></div>
+<div class="decl" id="show_iso"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#show_iso">show<span class="dash">-</span>iso</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Show a time as a standard ISO string. Will use automatic week date
+   or month date format for the <code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>week</code> and <code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>month</code> calendars.
+</p></div></div>
+<div class="decl" id="show_iso_date"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_format-source.html#show_iso_date">show<span class="dash">-</span>iso<span class="dash">-</span>date</a></span>( <span class="tp tpp">t</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_time_time.html#type_space_time"><span class="tp">time</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>time<span class="fslash last">/</span></span>time: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Show a time as a standard ISO date. Will use automatic week date
+   or month date format for th  <code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>week</code> and <code class="koka">cal<span class="dash">-</span>iso<span class="dash">-</span>month</code> calendars.
+</p></div></div>
+</div></body>
+</html>
+
+<span data-line=""></span>

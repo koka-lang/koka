@@ -1,0 +1,162 @@
+/* ---------------------------------------------
+  Center document in the viewport
+----------------------------------------------*/
+body.madoko {
+  margin: 0pt;
+  padding: 0pt;
+  max-width: 100%;
+}
+
+.body {
+  width: 70em;
+  max-width: 90%;
+  margin: 1em auto;
+}
+
+.preview .body {
+  width: 98%;
+  max-width: 100%;
+  margin: 0.25em auto;
+}
+
+/* -----------------------------------------
+   Settings for a wide viewport:
+   The contents are shown in the side panel
+   on the left side.
+-------------------------------------------- */
+@media (min-width: 1024px) {
+  body.madoko {
+    padding-right: 8%; /* looks more balanced with sidepanel */
+  }
+    
+  .sidepanel {
+    width   : 14rem; 
+    position: fixed;
+    top     : 3rem;
+    max-height: 90%;
+    overflow-y: auto;
+  }
+  
+  .mainpanel, .footnotes, .titleblock {
+    margin-left: calc(14rem + 4rem + 2px + 1rem);
+  }
+  
+  .tocblock2, .tocblock3 {
+    display:none;
+  }
+  
+  .tocblock.auto-expands, .tocblock.click-expands {
+    display:block;
+  }
+  
+  /*
+  .tocitem.current::after {
+    content: "\00A0\25CF";
+  }
+  */
+  
+  .tocitem.current .heading-label {
+    font-weight: bold;
+  }
+  
+  span.unexpanded, span.expanded {
+    display: inline-block;
+    width: 1.25em;
+    margin-left: -1.25em;
+    font-family: "Segoe UI Symbol", Symbola, serif;
+    font-size: 70%;
+    cursor: pointer;
+    vertical-align: 0.1em;
+  }
+  span.unexpanded::before {
+    content: "\25B6";
+  }
+  span.expanded::before {
+    content: "\25BC";
+  }
+}
+
+/* ---------------------------------------------------
+   Set margins and padding for side panel and sections
+------------------------------------------------------ */
+.sidepanel, .mainpanel section, .footnotes {
+  padding: 0pt 1rem 0.25rem 1rem;
+}
+
+.sidepanel .tocblock {
+  font-size  : small;
+  white-space: nowrap;
+}
+
+.sidepanel .toc, .sidepanel h2, .sidepanel h1 {
+  margin-top: 0pt;
+}
+
+.footnotes {
+  padding-top: 0.5em; 
+}
+
+.footnotes>hr {
+  display:none;
+}
+
+section,.sidepanel {
+  margin-bottom: 1em;
+}
+
+
+/* -----------------------------------
+   Nice scrollbar for toc
+----------------------------------- */
+.sidepanel::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+ 
+/* Track */
+.sidepanel::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
+    -webkit-border-radius: 6px;
+    border-radius: 6px;
+}
+ 
+/* Handle */
+.sidepanel::-webkit-scrollbar-thumb {
+    -webkit-border-radius: 6px;
+    border-radius: 6px;
+    background: lightgray; 
+    -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.5); 
+}
+.sidepanel::-webkit-scrollbar-thumb:window-inactive {
+	background: gainsboro; 
+}
+
+.madoko .toc > .tocblock .tocblock .tocblock {
+  margin-left: 1.5em;
+}
+
+.madoko .toc a {
+  color: #444; 
+}
+
+h1:hover .entity-anchor,
+h2:hover .entity-anchor,
+h3:hover .entity-anchor {
+  display: inline-block;
+}
+
+a.entity-anchor {
+  color: black;
+}
+
+a.localref.entity-anchor:hover {
+  text-decoration: none;
+}
+
+.entity-anchor {
+  display: none;
+  width: 1.25em;
+  margin-left: -1.25em;
+  font-family: "Segoe UI Symbol", Symbola, serif;
+  font-size: 80%;
+}

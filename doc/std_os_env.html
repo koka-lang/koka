@@ -1,0 +1,55 @@
+
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/os/env documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_os_env-source.html"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#get_args"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>args</a></li><li><a class="link" href="#get_argv"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>argv</a></li><li><a class="link" href="#get_env"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>env</a></li><li><a class="link" href="#get_env_1"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>env</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent"><br>
+Access to the program environment and commmand line arguments.
+</p>
+<p class="p indent">Print the environment: <code class="koka">get<span class="dash">-</span>env()<span class="kw op">.</span>list<span class="kw op">.</span>map(<span class="kw">fun</span>(p) { p<span class="kw op">.</span>fst <span class="op">+</span> <span class="st">&#34;=&#34;</span> <span class="op">+</span> p<span class="kw op">.</span>snd })<span class="kw op">.</span>join(<span class="st">&#34;\n&#34;</span>)<span class="kw op">.</span>print</code>.
+</p></div>
+<div class="decl" id="get_args"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_os_env-source.html#get_args">get<span class="dash">-</span>args</a></span>()<span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_list"><span class="tp">list</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>list: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">V</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the arguments that were passed to program itself.
+   Strips off the initial program from the unprocessed command line.
+   i.e. If a program started as:
+</p>
+<pre class="para-block pre-fenced pre-fenced4" style="display:block"><code>   &gt; node myprogram.js --flag bla</code></pre>
+<p class="p noindent para-continued">   The <code class="koka">arguments</code> list will be <code class="koka">[<span class="st">&#34;--flag&#34;</span>,<span class="st">&#34;bla&#34;</span>]</code>.
+</p></div></div>
+<div class="decl" id="get_argv"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_os_env-source.html#get_argv">get<span class="dash">-</span>argv</a></span>()<span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_list"><span class="tp">list</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>list: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">V</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span></div><div class="doc koka comment">
+
+<p class="p noindent">   The unprocessed command line that was used to start this program.
+   On &#8216;&#39;Node&#8217;&#39; the first arguments will often be of the form <code class="koka">[<span class="st">&#34;node&#34;</span>,<span class="st">&#34;interactive.js&#34;</span>,<span class="op">...</span>]</code>.
+</p></div></div>
+<div class="decl" id="get_env"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_os_env-source.html#get_env">get<span class="dash">-</span>env</a></span>()<span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_data_dict.html#type_space_dict"><span class="tp">dict</span><span class="pc"><span class="mo">std<span class="fslash">/</span>data<span class="fslash">/</span>dict<span class="fslash last">/</span></span>dict: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">V</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span></div><div class="doc koka comment">
+
+<p class="p noindent">   Get the environment variables for this program.
+</p></div></div>
+<div class="decl" id="get_env_1"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_os_env-source.html#get_env_1">get<span class="dash">-</span>env</a></span>( <span class="tp tpp">name</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a>, <span class="tp tpp">default</span> <span class="tp sp">:</span>&nbsp;<span class="tp op">?</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Returns the value of an environment variable <code class="koka">name</code>.
+   Returns <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#default">default<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>default: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">m</span> <span class="tp kw op">:</span> <span class="tp">maybe</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">nothing</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">a</span></span></a></code> (= <code class="koka"><span class="st">&#34;&#34;</span></code>) if the environment variable was not present.
+</p></div></div>
+</div></body>
+</html>
+
+<span data-line=""></span>

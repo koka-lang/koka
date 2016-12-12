@@ -1,0 +1,41 @@
+
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>sys/dom documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<h1><a class="link" href="https://koka-lang.github.io/koka/doc/sys_dom-source.html"><span class="mo">sys<span class="fslash">/</span>dom</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#interval"><span class="kw">fun</span>&nbsp;interval</a></li><li><a class="link" href="#timeout"><span class="kw">fun</span>&nbsp;timeout</a></li><li><a class="link" href="#withWindow"><span class="kw">fun</span>&nbsp;withWindow</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent">   Utility function to access the DOM inside a browser.
+</p></div>
+<div class="decl" id="interval"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="sys_dom-source.html#interval">interval</a></span>( <span class="tp tpp">msecs</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>, <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Execute an action on a specified interval.
+</p></div></div>
+<div class="decl" id="timeout"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="sys_dom-source.html#timeout">timeout</a></span>( <span class="tp tpp">msecs</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>, <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Execute an action after a specified time out.
+</p></div></div>
+<div class="decl" id="withWindow"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="sys_dom-source.html#withWindow">withWindow</a></span>( <span class="tp tpp">action</span> <span class="tp sp">:</span>&nbsp;<span class="tp sp">(</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_window"><span class="tp">window</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>window: <span class="tp">V</span></span></a><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/sys_dom_types.html#type_space_dom"><span class="tp">dom</span><span class="pc"><span class="mo">sys<span class="fslash">/</span>dom<span class="fslash">/</span>types<span class="fslash last">/</span></span>dom: <span class="tp">E</span></span></a><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space__lp__rp_"><span class="tp">()</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Execute an action that gains access to the global &#8220;:window&#8221; object. 
+</p></div></div>
+</div></body>
+</html>
+
+<span data-line=""></span>
