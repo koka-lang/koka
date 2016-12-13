@@ -23,10 +23,6 @@ infixr 20  (||)
 // prefix     (!), (-) 
 
 extern include {
-  js file "biginteger.js"
-}
-
-extern include {
   cs file "core-inline.cs"
   js file "core-inline.js"
 }
@@ -42,6 +38,11 @@ extern include {
 extern include {
   js file "core-handlers-inline.js"
 }
+
+extern include {
+  js file "contrib/biginteger.js"
+}
+
 
 // ----------------------------------------------------------------------------
 // Core types

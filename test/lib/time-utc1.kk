@@ -29,9 +29,9 @@ public fun show-leap-steps() {
     val (ts,ofs1,ofs2,(base,dstart,delta)) = step
     val prec = 7
     val diff = (ofs2 - ofs1).round-to-prec(prec)
-    val t = unsafe-instant-at(ts,ts-utc).time.round-to-prec(0)
+    val t = unsafe-instant(ts,ts-utc).time.round-to-prec(0)
     val c = if (t.clock.hours != 0) then ", " + t.clock.hours.show + ":" + t.clock.minutes.show.pad-left(2,'0') else ""
-    val dds = unsafe-instant-at(dstart,ts-utc).time.date
+    val dds = unsafe-instant(dstart,ts-utc).time.date
     val ds  = if (dds==dlast) then "&quad;&quad;\"&quad;&quad;" else dds.show
     dlast := dds
     ( "| " + [

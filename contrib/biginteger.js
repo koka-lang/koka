@@ -3,9 +3,11 @@
 // This module is Peter Olson's big-integer library.
 // https://github.com/peterolson/BigInteger.js
 //
-// It is modified to always return NaN for the `valueOf` member.
+// It is modified:
+// 1. to always return NaN for the `valueOf` member.
+// 2. had additions for decimal arithmetic, mul_pow10, div_pow10, count_pow10 etc.
 //
-// Original license is the 'uni-licence'
+// Original license is the 'un-licence'
 /*
 This is free and unencumbered software released into the public domain.
 
