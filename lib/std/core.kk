@@ -2962,11 +2962,6 @@ fun ".async-handle"(action) {
   }
 }
 
-// Wait (asynchronously) for `ms` milliseconds. Use `wait(0)` to yield to other asynchronous operations.
-extern wait( ms : int ) : async () {
-  js inline "(function(){ setTimeout( _async_callback0(_k), #1 ); return async_yield(); })()"
-}
-
 fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
   async-all-prim( actions.vector ).list;
 }
@@ -2975,25 +2970,32 @@ private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e>
   js inline "$asyncAll(actions,_k)"
 }
 
-extern ".async-callback0"( action: () -> b ) : (() -> b) {
-  js inline "$asyncCallback0(#1)"
+extern ".async-callback"( action: () -> a, haserr : bool, nodup : bool ) : (() -> b) {
+  js "$asyncCallback"
 }
 
-extern ".async-callback1"( action: a -> b ) : (a -> b) {
-  js inline "$asyncCallback1(#1)"
+
+// Wait (asynchronously) for `ms` milliseconds. Use `wait(0)` to yield to other asynchronous operations.
+extern wait( ms : int ) : async () {
+  js inline "(function(){ setTimeout( $std_core._async_callback(_k), #1 ); return async_yield(); })()"
 }
 
-extern ".async-callback-err0"( action: () -> b ) : (() -> b) {
-  js inline "$asyncCallbackErr0(#1)"
+// Execute any asynchronous actions inside `action` synchronously, ie. 
+// no other actions are interleaved.
+fun synchronous( action : () -> <async|e> a ) : e a {
+  start-synchronous()
+  on-exit(end-synchronous){ unsafe-total(action) }
 }
 
-extern ".async-callback-err1"( action: a -> b ) : (a -> b) {
-  js inline "$asyncCallbackErr1(#1)"
+private extern start-synchronous() : () {
+  js "$asyncStartSynchronous"
 }
 
-extern ".async-callback-err2"( action: (a1,a2) -> b ) : ((a1,a2) -> b) {
-  js inline "$asyncCallbackErr2(#1)"
+private extern end-synchronous() : () {
+  js "$asyncEndSynchronous"
 }
+
+
 
 // ----------------------------------------------------------------------------
 // Handler primitives. 
