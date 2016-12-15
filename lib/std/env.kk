@@ -67,7 +67,7 @@ public fun get-argv() : ndet list<string> {
 // The `arguments` list will be `["--flag","bla"]`
 public fun get-args() : ndet list<string> {
   match(get-argv()) {
-    Cons(x,xx) | x.stemname == "node" -> xx.drop(1)
+    Cons(x,xx) | x.path.stemname == "node" -> xx.drop(1)
     xs -> xs.drop(1)
   }
 }

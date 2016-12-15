@@ -157,13 +157,13 @@ importExternal _
 
 genGroups :: [DefGroup] -> Asm Doc
 genGroups groups
-  = do docs <- mapM genGroup groups
+  = localUnique $
+    do docs <- mapM genGroup groups
        return (vcat docs)
 
 genGroup :: DefGroup -> Asm Doc
 genGroup group
-  = localUnique $
-    case group of
+  = case group of
       DefRec defs   -> do docs <- mapM genDef defs
                           return (vcat docs)
       DefNonRec def -> genDef def
@@ -237,14 +237,14 @@ genTypeDef (Data info _ _ isExtend)
              name <- genName (conInfoName c)
              penv <- getPrettyEnv
              if (conInfoName c == nameTrue)
-              then return (text "var" <+> name <+> text "=" <+> text "true" <> semi)
+              then return (constdecl <+> name <+> text "=" <+> text "true" <> semi)
               else if (conInfoName c == nameFalse)
-              then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
+              then return (constdecl <+> name <+> text "=" <+> text "false" <> semi)
               else return $ case repr of
                 ConEnum{}   
-                   -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+                   -> constdecl <+> name <+> text "=" <+> int (conTag repr) <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 ConSingleton{}                                             
-                   -> text "var" <+> name <+> text "=" <+> 
+                   -> constdecl <+> name <+> text "=" <+> 
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
                          <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 -- tagless
@@ -259,7 +259,7 @@ genTypeDef (Data info _ _ isExtend)
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> linecomment (Pretty.ppType penv (conInfoType c)) 
+            $ constdecl <+> name <+> text "=" <+> object tagFields <> semi <+> linecomment (Pretty.ppType penv (conInfoType c)) 
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
           <+> block ( text "return" <+> 
@@ -621,7 +621,7 @@ genExpr expr
                      then return (vcat (decls ++ [doc <> semi]), text "") 
                      else return (vcat decls, doc)
              Nothing
-              -> do (decls,fdoc:docs) <- genExprs (f:args) 
+              -> do (decls,fdoc:docs) <- genExprs (f:trimOptionalArgs args) 
                     return (vcat decls, fdoc <> tupled docs)
 
      Let groups body 
@@ -726,7 +726,7 @@ genInline expr
       App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
         -> genInline arg
       App f args     
-        -> do argDocs <- mapM genInline args
+        -> do argDocs <- mapM genInline (trimOptionalArgs args)
               case extractExtern f of
                 Just (tname,formats) 
                   -> genInlineExternal tname formats argDocs
@@ -815,6 +815,14 @@ genCommentTName (TName n t)
   = do env <- getPrettyEnv
        return $ ppName n <+> comment (Pretty.ppType env t ) 
 
+trimOptionalArgs args
+  = reverse (dropWhile isOptionalNone (reverse args))
+  where
+    isOptionalNone arg
+      = case arg of
+          TypeApp (Con tname _) _ -> getName tname == nameOptionalNone
+          _ -> False
+
 ---------------------------------------------------------------------------------
 -- Classification
 ---------------------------------------------------------------------------------
@@ -848,7 +856,9 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App f args       -> isPureExpr f && all isPureExpr args && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
+      App f args       -> isPureExpr f && all isPureExpr args 
+                          -- all isInlineableExpr (f:args)
+                          && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
       _                -> isPureExpr expr
 
 isPureExpr :: Expr -> Bool
@@ -1065,10 +1075,13 @@ reserved
     , "NaN" 
     ]
     ++ -- JavaScript keywords
-    [ "break"
+    [ "async"
+    , "await"
+    , "break"
     , "case"
     , "catch"
     , "continue"
+    , "const"
     , "debugger"
     , "default"
     , "delete"
@@ -1100,7 +1113,6 @@ reserved
     , "extends"
     , "import"
     , "super"
-    , "const"
     ]
     ++ -- special globals
     [ "window"
@@ -1158,3 +1170,5 @@ debugWrap s d
 tagField :: Doc
 tagField  = text "_tag"
 
+constdecl :: Doc
+constdecl = text "const"

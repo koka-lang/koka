@@ -192,7 +192,18 @@ cpsExpr' topLevel expr
       Case exprs bs
         -> do exprs' <- cpsTrans cpsExpr exprs
               bs'    <- mapM cpsBranch bs
-              return $ \k -> exprs' (\xxs -> Case xxs (map (\b -> b k) bs'))              
+              nameX  <- uniqueName "x"
+              nameF  <- uniqueName "f"
+              let resTp = typeOf expr
+                  tnameX = TName nameX resTp
+                  typeF  = typeFun [(nameX,resTp)] effectEmpty typeVoid
+                  tnameF = TName nameF typeF
+                  klam k = Lam [tnameX] effectEmpty (k (Var tnameX InfoNone))
+                  kdef k body = Let [DefNonRec (Def nameF typeF (klam k) Private DefFun rangeNull "")] body  
+                  kapp x   = App (Var tnameF (InfoArity 0 1)) [x]
+              return $ \k -> exprs' (\xxs -> kdef k (Case xxs (map (\b -> b kapp) bs')))
+              -- return $ \k -> exprs' (\xxs -> Case xxs (map (\b -> b k) bs'))
+              -- return $ \k -> exprs' (\xxs -> k (Case xxs (map (\b -> b id) bs')))              
       Var (TName name tp) info
         -> do -- tp' <- cpsTypeX tp
               return (\k -> k (Var (TName name tp) info)) 
@@ -495,6 +506,15 @@ needsCpsExpr expr
         -> anyM needsCpsExpr (f:args)
       Lam pars eff body
         -> orM [needsCpsEffect eff, needsCpsExpr body]
+      
+      TypeApp (TypeLam tpars body) targs
+        -> do b1 <- anyM needsCpsType targs
+              if (b1 || any (isKindEffect . getKind) tpars)
+               then return True
+               else needsCpsExpr (subNew (zip tpars targs) |-> body)
+      TypeApp (Var tname info) targs
+        -> orM [anyM needsCpsType targs, needsCpsType (typeOf expr)]                    
+      
       TypeApp body targs
         -> orM [anyM needsCpsType targs, needsCpsExpr body]
       TypeLam tpars body

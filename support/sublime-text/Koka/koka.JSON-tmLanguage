@@ -232,7 +232,7 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?!\\w)"
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\\w\\-?'])"
       , "name": "keyword.other.koka"
       },
 
@@ -435,7 +435,7 @@
       },
 
     "top_type_struct": 
-      { "match": "(struct)\\s+([a-z]\\w*|\\(,*\\))"
+      { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.type.koka" },
           "2": { "name": "entity.name.type.storage.type.koka" }
@@ -443,7 +443,7 @@
       },
 
     "top_type_struct_args": 
-      { "begin": "(struct)\\s+([a-z]\\w*|\\(,*\\))\\s*(<)"
+      { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
       , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }, 
                            "2" : { "name": "entity.name.type.storage.type.koka"  },

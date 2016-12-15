@@ -3,7 +3,7 @@
 // --------------------------------------------------------
 import std/readline
 
-fun test() {
+fun main() {
   println("starting")
   val xs = async-all( [
     { println("what is your name?")
@@ -15,9 +15,5 @@ fun test() {
       "timing"
     }
   ])
-  println("hi " + xs.join(","))  
-}
-
-fun main() {
-  test()
+  println("hi " + xs.join(", "))  
 }

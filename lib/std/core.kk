@@ -28,6 +28,10 @@ extern include {
 }
 
 extern include {
+  js file "core-string-inline.js"
+}
+
+extern include {
   js file "core-console-inline.js"
 }
 
@@ -402,13 +406,11 @@ fun head( xs : list<a>, default : a ) : a {
   }
 }
 
-// Return the tail of list if the list is not empty
-// Note: if a `:maybe` type is inconvenient,
-// you can use `drop(1)` to return an empty list if the input list was empty.
-fun tail( xs : list<a> ) : maybe<list<a>> {
+// Return the tail of list. Returns the empty list if `xs` is empty.
+fun tail( xs : list<a> ) : list<a> {
   match(xs) {
-    Cons(_,xx) -> Just(xx)
-    _          -> Nothing
+    Cons(_,xx) -> xx
+    _          -> []
   }
 }
 
@@ -826,7 +828,17 @@ fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 // Find the first element satisfying some predicate
 fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
 {
-  xs.filter(pred).maybe
+  xs.foreach-while fun(x) {
+    if (pred(x)) then Just(x) else Nothing
+  }
+}
+
+// Lookup the first element satisfying some predicate
+fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+{
+  xs.foreach-while fun(kv) {
+    if (pred(kv.fst)) then Just(kv.snd) else Nothing
+  }  
 }
 
 // Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
@@ -872,13 +884,13 @@ fun foreach( xs : list<a>, action : (a) -> e () ) : e ()
 }
 
 // Invoke `action` for each element of a list while `action` return `Nothing`
-fun foreach-until( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
+fun foreach-while( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
 {
   match(xs) {
     Nil        -> Nothing
     Cons(x,xx) -> { 
       match(action(x)) {
-        Nothing -> xx.foreach-until(action) 
+        Nothing -> xx.foreach-while(action) 
         just    -> just
       }
     }
@@ -929,30 +941,41 @@ fun intersperse( xs : list<a>, sep : a ) : list<a>
 }
 
 // Concatenate all strings in a list
-fun join( xs : list<string> ) : string
+private fun joinsep( xs : list<string>, sep : string ) : string
 {
   fun join-acc( ys : list<string>, acc : string ) {
     match(ys) {
-      Cons(y,yy) -> join-acc(yy, acc+y)
+      Cons(y,yy) -> join-acc(yy, acc + sep + y)  // todo: use string builder
       Nil -> acc
     }
-  }
-  
+  }  
   match(xs) {
     Nil -> ""
-    Cons(x,xx) -> match(xx) {
-      Nil -> x
-      _   -> join-acc(xx,x)
-    }
+    Cons(x,xx) -> join-acc(xx,x)
   }
-  //xs.foldl( "", fun(x,y){ x + y } )  // TODO: should use a string builder
+}
+
+// Concatenate all strings in a list
+fun join( xs : list<string> ) : string {
+  return xs.joinsep("")
 }
 
 // Concatenate all strings in a list using a specific separator
-fun join( xs : list<string>, sep : string ) : string
-{
-  return xs.intersperse(sep).join()
+fun join( xs : list<string>, sep : string ) : string {
+  return xs.joinsep(sep)
 }
+
+
+// Append `end` to each string in the list `xs` and join them all together.\
+// `join-end([],end) === ""`\
+// `join-end(["a","b"],"/") === "a/b/"`
+public fun join-end( xs : list<string>, end : string) : string {
+  match(xs) {
+    Nil -> ""
+    _   -> xs.joinsep(end) + end
+  }
+}
+
 
 // Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
 fun concat( xs : list<list<a>> ) : list<a>
@@ -978,12 +1001,23 @@ fun concat-maybe( xs : list<maybe<a>> ) : list<a>
   xs.map(list).concat()
 }
 
-// Return the last element of a list. Raise an exception if the empty list is passed.
-fun last( xs : list<a> ) : exn a
+// Return the last element of a list (or `Nothing` for the empty list) 
+fun last( xs : list<a> ) : maybe<a>
+{
+  match(xs) {
+    Cons(x,Nil) -> Just(x)
+    Cons(_,xx)  -> last(xx)
+    Nil         -> Nothing
+  }
+}
+
+// Return the last element of a list (or `default` for the empty list) 
+fun last( xs : list<a>, default : a ) : a
 {
   match(xs) {
     Cons(x,Nil) -> x
-    Cons(_,xx)  -> last(xx)
+    Cons(_,xx)  -> last(xx,default)
+    Nil         -> default
   }
 }
 
@@ -1146,14 +1180,25 @@ fun compare( x : int, y : int) : order
 
 
 // Return the absolute value of an integer.
-// Raises an exception if the `:int` is `minInt`
-// (since the negation of `minInt` equals itself and is still negative)
+// Raises an exception if the `:int` is `min-int`
+// (since the negation of `min-int` equals itself and is still negative)
 fun abs( i : int ) : exn int
 {
-  if (i >= 0) return i
-  if (i > min-int) return negate(i)
-  error( "system.core.abs: cannot make minInt into a positive int without overflow" )
+  if (i >= 0) then i
+  elif (i > min-int) then negate(i)
+  else error( "system.core.abs: cannot make min-int into a positive int without overflow" )
 }
+
+// Return the absolute value of an integer.
+// Returns 0 if the `:int` is `min-int`
+// (since the negation of `min-int` equals itself and is still negative)
+fun abs0( i : int ) : int
+{
+  if (i >= 0) then i
+  elif (i > min-int) then negate(i)
+  else 0
+}
+
 
 // Take the bitwise _and_ of two `:int`s
 extern inline (&) : (int,int) -> int { 
@@ -1796,7 +1841,7 @@ fun empty?( slice : sslice ) : bool  -> (slice.len <= 0)
 // Is a slice not empty?
 fun notempty?( slice : sslice ) : bool  -> (slice.len > 0)
 
-// Return the first character of a string (or the empty string)
+// Return the first character of a string as a string (or the empty string)
 fun head( s : string ) : string {
   s.first.string
 }
@@ -2059,7 +2104,10 @@ fun foreach( s : string, action : (c:char) -> e () ) : e () {
   s.slice.foreach(action)
 }
 
-
+// Return the first character of a string (or `Nothing` for the empty string).
+fun head-char( s : string ) : maybe<char> {
+  s.foreach-while( Just )
+}
 
 // Invoke a function for each character in a string
 //fun foreach( s : string, f : char -> e () ) : e () {
