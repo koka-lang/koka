@@ -1,0 +1,2 @@
+ioapp : forall<e> (f : () -> <io|e> ()) -> <io|e> ()
+test : () -> io ()

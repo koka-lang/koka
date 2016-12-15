@@ -1,0 +1,6 @@
+test/static/wrong/rec1.kk(4,10): error: types do not match
+ context : function rfix(f) { f( fun(x) { rfix(f,x) }) }
+ term : rfix
+ inferred type: forall<b,c,a,e,e1> (f : ((x : b) -> e c) -> <div|e1> a) -> <div|e1> a
+ expected type: (((x : _b) -> _e _c) -> <div|_e1> _a, _b) -> _e _c
+ because : recursive invocations do not match the assumed type; add a type annotation?

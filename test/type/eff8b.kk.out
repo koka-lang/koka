@@ -1,0 +1,2 @@
+forever : forall<a,b,e> ((string) -> <pure|e> a) -> <pure|e> b
+test : forall<a> () -> <pure,console> a

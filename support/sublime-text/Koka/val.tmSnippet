@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>content</key>
+	<string>val ${1:name} = $0</string>
+	<key>name</key>
+	<string>Val declaration</string>
+	<key>scope</key>
+	<string>source.koka</string>
+	<key>tabTrigger</key>
+	<string>val</string>
+	<key>uuid</key>
+	<string>F9B44CC5-B004-4793-B125-7E429FDCCE41</string>
+</dict>
+</plist>

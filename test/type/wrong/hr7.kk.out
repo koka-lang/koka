@@ -1,0 +1,6 @@
+test/type/wrong/hr7.kk(4,47): error: types do not match (due to an infinite type)
+ context : (error("hi") : some<a> ... d -> c) -> c>)
+ term : ... d -> c) -> c>
+ inferred type: list<(forall<b> (b) -> _a) -> _a>
+ expected type: list<(_a) -> _a>
+ hint : annotate the function definition?

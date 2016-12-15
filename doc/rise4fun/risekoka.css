@@ -1,0 +1,31 @@
+/* fixes to work with rise layout */
+pre.listing		
+	{ border: none
+	; margin: 0pt
+	; padding: 0pt
+	}
+
+pre.listing a.listinglink	
+	{ margin: 0.6ex }
+
+a.listinglink
+	{ font-family: Consolas,'Courier New','Lucida Console','Andale Mono',monospace }
+	
+
+h3  { margin-bottom: -1ex }
+
+h2	{ 
+	margin-bottom: -0.5ex;
+	margin-top: 1em;
+}
+
+
+.math { 
+	font-family: "Times New Roman", serif;
+	font-size: 100%;
+}
+
+.koka.source {
+	background-color: white;
+  border: 1px dotted #DDD; 
+}

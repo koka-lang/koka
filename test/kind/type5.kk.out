@@ -1,0 +1,5 @@
+kind/type5/app: (V -> V, V) -> V
+kind/type5/id: V -> V
+kind/type5/int: V
+kind/type5/ok: V
+public alias ok = app<id,int> = 1

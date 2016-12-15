@@ -1,0 +1,1 @@
+ok : forall<a,e> (f : (string) -> <exn|e> a) -> ndet ((string) -> <exn|e> a)

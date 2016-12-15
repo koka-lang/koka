@@ -1,0 +1,5 @@
+test/type/wrong/hr2.kk(6, 8): error: type is not polymorph enough
+ context : auto(f)
+ term : f
+ inferred type : ($a) -> $a
+ is less polymorph as: forall<b> (b) -> b

@@ -1,0 +1,1 @@
+test/algeff/wrong/ops1.kk(48, 5): error: operator flip is not defined as part of the handled effect (state)

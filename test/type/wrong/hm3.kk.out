@@ -1,0 +1,5 @@
+test/type/wrong/hm3.kk(2,11): error: types do not match
+ context : f(True)
+ term : True
+ inferred type: bool
+ expected type: int

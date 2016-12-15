@@ -1,0 +1,2 @@
+test/type/wrong/open1.kk(5,13): error: Type test1 is not defined
+ hint: bind the variable using forall<test1> ?

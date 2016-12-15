@@ -1,0 +1,2 @@
+test/kind/wrong/type7.kk(2, 7): error: invalid syntax
+ open or extend

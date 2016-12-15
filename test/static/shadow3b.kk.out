@@ -1,0 +1,2 @@
+test/static/shadow3b.kk(3,16): warning: x shadows an earlier local definition or parameter
+id : forall<a> (x : a) -> a

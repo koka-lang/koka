@@ -1,0 +1,2 @@
+test/type/wrong/overlap3.kk(3, 5): error: definition x is already defined in this module
+ because: only functions can have overloaded names

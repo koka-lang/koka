@@ -1,0 +1,84 @@
+.tocitem {
+  font-weight: normal !importan;
+}
+
+.koka.source, .madoko .koka.source {
+  border-left: 0.5ex solid green;
+} 
+
+code, .madoko code,
+pre, .madoko pre,
+.koka.source.unchecked {
+  background-color: #F0F0F0;
+}
+pre, .madoko pre,
+.koka.source,
+.koka.source.unchecked {
+  border-left: 0.5ex solid #BBB; 
+  padding: 0.5ex 1ex 0.5ex 2ex;
+}
+
+code, .madoko code {
+  padding-right: 0.2ex;
+}
+
+.grammar table,
+table.grammar  {   
+  margin: 0.5ex 0.5ex 0.5ex 2ex;
+  padding: 0.5ex 1ex 0.5ex 1ex;
+}
+
+.grammar .code,
+.grammar code {
+  padding: 0pt;
+}
+
+.grammar .bar {
+  padding: 0ex 0.5ex;
+}
+
+.grammar td:nth-child(2) {
+  font-style: normal; 
+  padding: 0em 1ex;
+  text-align: center;
+}
+
+.grammar td:nth-child(4) {
+  font-style: normal; 
+  padding-left: 2ex;
+}
+
+.grammar td {
+  white-space: nowrap;
+}
+.grammar .code, .grammar code,
+.grammar .pre, .grammar pre {
+  font-weight: bold;
+}
+
+table .kw, table .tp, table .co,
+.grammar .keyword, .grammar .kw,
+.grammar .type, .grammar .tp,
+.grammar .constructor, .grammar .co {
+  color: black;
+}
+
+.nt {
+  font-style: italic;
+}          
+
+.opt, .many {   
+  padding: 0ex 0.5ex;
+}
+
+
+#toc {
+  display: none;
+}
+
+#toc-toggle {
+  cursor: pointer;
+  vertical-align: center;
+  margin-right: 10px;
+  font-size: 16pt;
+}

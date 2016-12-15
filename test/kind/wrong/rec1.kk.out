@@ -1,0 +1,1 @@
+test/kind/wrong/rec1.kk(1, 1): error: Type synonyms cannot be recursive

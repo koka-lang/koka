@@ -1,0 +1,7 @@
+test/type/wrong/higherrank1.kk(3,11): error: unannotated parameters cannot be polymorphic
+ context : fun wrong(x) {
+ choose(x,ids)
+ }
+ term : x
+ inferred type: list<forall<a> (a) -> a>
+ hint : annotate the parameter with a polymorphic type

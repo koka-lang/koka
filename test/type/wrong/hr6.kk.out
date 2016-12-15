@@ -1,0 +1,5 @@
+test/type/wrong/hr6.kk(9,15): error: types do not match
+ context : g(f)
+ term : f
+ inferred type: (x : (int) -> int) -> int
+ expected type: (forall<a> (a) -> a) -> int

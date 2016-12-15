@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>content</key>
+	<string>for(${1:lo},${2:hi}) fun(i) {
+  $0
+}</string>
+	<key>name</key>
+	<string>For statement</string>
+	<key>scope</key>
+	<string>source.koka</string>
+	<key>tabTrigger</key>
+	<string>for</string>
+	<key>uuid</key>
+	<string>F9B44CC5-B004-4793-B125-7E429FDCCE43</string>
+</dict>
+</plist>

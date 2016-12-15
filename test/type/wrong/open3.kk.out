@@ -1,0 +1,1 @@
+test/type/wrong/open3.kk(6, 3): error: Constructor type/wrong/open3/X is already defined at (2, 3)

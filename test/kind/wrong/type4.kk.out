@@ -1,0 +1,6 @@
+test/kind/wrong/type4.kk(2,15): error: Invalid type
+ type context : int -> int int
+ type : int -> int int
+ inferred kind: V
+ expected kind: E
+ because : The effect of a function type must be an effect type

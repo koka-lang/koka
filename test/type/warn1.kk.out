@@ -1,0 +1,3 @@
+test/type/warn1.kk(3,16): warning: xs shadows an earlier local definition or parameter
+test/type/warn1.kk(5,14): warning: xs shadows an earlier local definition or parameter
+f : forall<a> (xs : list<a>) -> int

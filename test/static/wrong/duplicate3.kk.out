@@ -1,0 +1,1 @@
+test/static/wrong/duplicate3.kk(2,25): error: Constructor static/wrong/duplicate3/Dup1 is already defined at (2,13)

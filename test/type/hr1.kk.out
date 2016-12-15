@@ -1,0 +1,15 @@
+auto : (f : forall<a> (a) -> a) -> (forall<a> (a) -> a)
+ids : list<forall<a> (a) -> a>
+test1 : forall<a> (a) -> a
+test2 : forall<a> (a) -> a
+test3 : list<forall<a> (a) -> a>
+test3a : forall<a> list<(a) -> a>
+test4 : () -> maybe<forall<a> (a) -> a>
+test4a : () -> list<forall<a> (a) -> a>
+test5 : () -> list<maybe<forall<a> (a) -> a>>
+test6 : () -> ndet ((x : forall<a> (a) -> a) -> (forall<a> (a) -> a))
+test6a : () -> ndet ((f : forall<a> (a) -> a) -> (forall<a> (a) -> a))
+test7 : forall<a> () -> ndet ((f : forall<b> (b) -> b) -> ((a) -> a))
+test8 : () -> ndet list<forall<a> (a) -> a>
+test8a : () -> ndet list<forall<a> (a) -> a>
+xauto : forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)

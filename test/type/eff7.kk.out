@@ -1,0 +1,1 @@
+while : forall<a,e> (() -> <div,console|e> bool, () -> <div,console|e> a) -> <div,console|e> ()

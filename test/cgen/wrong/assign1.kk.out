@@ -1,0 +1,9 @@
+test/cgen/wrong/assign1.kk(6, 5): error: no function count is defined that matches the argument types
+ context : c.count := 1
+ term : count
+ inferred type: (counter<_h>, _a, ...) -> ...
+ candidates : count: forall<h> (counter : counter<h>) -> ref<h,int>
+ count: (s : string, pattern : string) -> int
+ count: (s : string, pred : (char) -> bool) -> int
+ count: (slice : sslice) -> int
+ count: (s : string) -> int

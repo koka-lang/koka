@@ -1,0 +1,1 @@
+test/static/wrong/duplicate3a.kk(3,13): error: Constructor static/wrong/duplicate3a/Dup1 is already defined at (2,13)

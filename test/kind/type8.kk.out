@@ -1,0 +1,6 @@
+kind/type8/int: V
+kind/type8/tt: (V, V) -> V
+kind/type8/tuple: (V, V) -> V
+kind/type8/uu: V
+public alias tt<a,b> :: (V, V) -> V = tuple<a,b> = 1
+public alias uu = tuple<int,int> = 1

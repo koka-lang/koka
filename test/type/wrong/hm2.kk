@@ -1,0 +1,1 @@
+function selfapp(x)  -> x(x)

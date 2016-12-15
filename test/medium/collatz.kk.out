@@ -1,0 +1,3 @@
+Took 111 steps.
+collatz : (n : int, steps : ?int) -> div maybe<int>
+main : () -> io ()

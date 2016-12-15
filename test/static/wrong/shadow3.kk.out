@@ -1,0 +1,2 @@
+test/static/wrong/shadow3.kk(2,15): error: x is already defined at (2,13)
+ hint: if these are potentially recursive definitions, give a full type signature to disambiguate them.

@@ -1,0 +1,2 @@
+ok : () -> exn int
+runST : forall<a> (action : forall<h> () -> <st<h>,exn> a) -> exn a

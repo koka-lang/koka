@@ -1,0 +1,3 @@
+test/kind/wrong/negative2.kk(2, 1): error: Type foo is declared as being (co)inductive but it occurs
+ recursively in a negative position.
+ hint: declare it as a 'rectype' to allow negative occurrences

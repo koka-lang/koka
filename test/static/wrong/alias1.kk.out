@@ -1,0 +1,2 @@
+test/static/wrong/alias1.kk(4,15): error: Type aint is ambiguous.
+ hint: It can refer to either static/modAWrong/aint, or static/modA/aint

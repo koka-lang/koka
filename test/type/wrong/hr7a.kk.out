@@ -1,0 +1,5 @@
+test/type/wrong/hr7a.kk(4,47): error: types do not match
+ context : (error("hi") : some<a> ... d) -> (int -> int)>)
+ term : ... d) -> (int -> int)>
+ inferred type: list<(forall<a> (a) -> a) -> ((int) -> int)>
+ expected type: list<((int) -> int) -> ((int) -> int)>

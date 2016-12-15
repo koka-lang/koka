@@ -1,0 +1,2 @@
+test : forall<h> () -> <exn,alloc<h>,ndet> ref<h,int>
+test2 : () -> ndet ()

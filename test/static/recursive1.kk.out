@@ -1,0 +1,5 @@
+static/recursive1/list: V -> V
+Cons : forall<a> (head : a, tail : list<a>) -> list<a>
+Nil : forall<a> list<a>
+cons? : forall<a> (list : list<a>) -> bool
+nil? : forall<a> (list : list<a>) -> bool

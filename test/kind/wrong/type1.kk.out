@@ -1,0 +1,5 @@
+test/kind/wrong/type1.kk(6,20): error: Invalid type
+ type context : list<id>
+ type : id
+ inferred kind: V -> V
+ expected kind: V

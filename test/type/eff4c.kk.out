@@ -1,0 +1,2 @@
+ioapp : forall<e> (f : () -> <console|e> ()) -> <console|e> ()
+test : () -> console ()

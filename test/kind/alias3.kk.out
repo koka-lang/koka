@@ -1,0 +1,7 @@
+kind/alias3/ap: (V -> V, V) -> V
+kind/alias3/foo: V
+kind/alias3/id: V -> V
+kind/alias3/ok: V
+public alias ap<a,b> :: (V -> V, V) -> V = a<b> = 1
+public alias id<a> :: V -> V = a = 1
+public alias ok = ap<id,foo> = 2

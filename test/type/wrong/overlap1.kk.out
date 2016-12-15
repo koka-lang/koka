@@ -1,0 +1,4 @@
+test/type/wrong/overlap1.kk(3,10): error: definition f overlaps with an earlier definition of the same name
+ type : (x : int, y : int) -> int
+ overlaps: (x : int, y : int) -> int
+ because : definitions with the same name must differ on the argument types

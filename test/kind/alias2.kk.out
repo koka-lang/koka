@@ -1,0 +1,6 @@
+kind/alias2/int: V
+kind/alias2/list: V -> V
+kind/alias2/tt: V -> V
+kind/alias2/uu: V
+public alias tt<a> :: V -> V = list<a> = 1
+public alias uu = list<list<tt<int>>> = 2

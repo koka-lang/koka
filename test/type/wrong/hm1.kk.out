@@ -1,0 +1,6 @@
+test/type/wrong/hm1.kk(1,35): error: types do not match
+ context : True) then 1 else True
+ term : True
+ inferred type: bool
+ expected type: int
+ because : branch has not the same type as previous branches

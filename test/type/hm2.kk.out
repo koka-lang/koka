@@ -1,0 +1,2 @@
+choose2 : forall<a> (x : a, y : a) -> a
+choose3 : forall<a> (x : a, y : a) -> a

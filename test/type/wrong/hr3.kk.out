@@ -1,0 +1,7 @@
+test/type/wrong/hr3.kk(5,16): error: unannotated parameters cannot be polymorphic
+ context : function wrong(x) {
+ poly(x)
+ }
+ term : x
+ inferred type: list<forall<a> (a) -> a>
+ hint : annotate the parameter with a polymorphic type

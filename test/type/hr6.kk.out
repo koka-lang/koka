@@ -1,0 +1,3 @@
+f : (x : (int) -> int) -> int
+g : (x : (forall<a> (a) -> a) -> int) -> int
+ok : int

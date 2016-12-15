@@ -1,0 +1,2 @@
+auto : forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)
+ok : forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)

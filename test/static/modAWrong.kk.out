@@ -1,0 +1,3 @@
+static/modAWrong/aint: V
+static/modAWrong/int: V
+public alias aint = int = 1

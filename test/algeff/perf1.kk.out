@@ -1,0 +1,15 @@
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-put : forall<a,b> (a) -> .ops-state<a,b>
+.extern-direct_count: () -> (state<int>) int
+.tag-Eff-state: string
+comp : () -> div int
+count : () -> <state<int>,div> int
+direct_count: () -> (state<int>) int
+fib : (int) -> div int
+get : forall<a> () -> (state<a>) a
+main : () -> <div,console,ndet> int
+n : int
+put : forall<a> (i : a) -> (state<a>) ()
+testD : (int) -> div int
+testH : forall<a,b,e> (i0 : a, action : () -> <state<a>|e> b) -> e b

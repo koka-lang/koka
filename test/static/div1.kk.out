@@ -1,0 +1,6 @@
+static/div1/nat: V
+Succ : (nat) -> nat
+Zero : nat
+h : (nat, nat) -> nat
+succ? : (nat : nat) -> bool
+zero? : (nat : nat) -> bool

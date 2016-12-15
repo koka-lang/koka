@@ -1,0 +1,4 @@
+test/algeff/wrong/ops2.kk(47, 5): error: operator has too many parameters
+ context : set(j,x)
+ term : set
+ inferred type: (i : int) -> state ()

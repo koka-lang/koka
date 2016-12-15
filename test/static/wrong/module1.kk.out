@@ -1,0 +1,2 @@
+test/static/wrong/module1.kk(5,14): error: Type int is ambiguous.
+ hint: It can refer to either static/modB/int, static/modA/int, or std/core/int

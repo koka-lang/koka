@@ -1,0 +1,1 @@
+forever : forall<a,b,e> (() -> <div|e> a) -> <div|e> b

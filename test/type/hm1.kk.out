@@ -1,0 +1,6 @@
+apply : forall<a,b,e> (f : (a) -> e b, x : a) -> e b
+id : forall<a> (x : a) -> a
+test : forall<a> () -> ((x : a) -> a)
+test2 : forall<a,e> () -> list<(x : a) -> e a>
+test3 : forall<a> () -> ndet ((x : a, y : a) -> a)
+test4 : forall<a,e> (f : (x : a) -> e a) -> ndet ((x : a) -> e a)

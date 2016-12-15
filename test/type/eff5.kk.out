@@ -1,0 +1,1 @@
+ok : forall<a,e> (f : (x : a) -> e a) -> ndet ((x : a) -> e a)

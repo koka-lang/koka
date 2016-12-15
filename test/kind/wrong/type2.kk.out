@@ -1,0 +1,6 @@
+test/kind/wrong/type2.kk(2,15): error: Invalid type
+ type context : int<int>
+ type : int
+ inferred kind: V
+ expected kind: k1 -> k
+ because : The type cannot be applied to those arguments

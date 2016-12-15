@@ -1,0 +1,1 @@
+alias id<a> = a

@@ -1,0 +1,6 @@
+test/static/wrong/shadow4.kk(2,23): warning: x shadows an earlier local definition or parameter
+test/static/wrong/shadow4.kk(2,34): error: types do not match
+ context : x + True
+ term : True
+ inferred type: bool
+ expected type: int

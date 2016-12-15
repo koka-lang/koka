@@ -1,0 +1,4 @@
+type void { }
+type () {
+  con ()
+}

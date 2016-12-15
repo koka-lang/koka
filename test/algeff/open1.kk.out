@@ -1,0 +1,5 @@
+10
+bar : () -> int
+hs : forall<e> list<(int) -> e int>
+main : () -> console ()
+myid : forall<a,e> () -> ((x : a) -> e a)

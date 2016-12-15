@@ -1,0 +1,6 @@
+test/type/wrong/hm2.kk(1,27): error: types do not match (due to an infinite type)
+ context : x(x)
+ term : x
+ inferred type: (_a) -> _e _b
+ expected type: _a
+ hint : annotate the function definition?

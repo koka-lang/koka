@@ -1,0 +1,14 @@
+False,True,True,False
+.Eff-amb : forall<a> (.ops-amb<a>) -> operation<a>
+.Op-flip : forall<a> .ops-amb<a>
+.copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
+.tag-Eff-amb: string
+amb_handle : forall<a,e> () -> ((action : () -> <amb|e> a) -> e list<a>)
+flip : () -> amb bool
+main : () -> console ()
+mmap : forall<a,b,e> ((a) -> e b, list<a>) -> e list<b>
+upcast1 : () -> amb string
+upcast2 : () -> string
+xor : () -> amb bool
+xors : () -> amb string
+xorss : () -> amb string

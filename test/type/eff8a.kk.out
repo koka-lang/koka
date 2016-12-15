@@ -1,0 +1,1 @@
+forever : forall<a,b,e> (() -> <div,console|e> a) -> <div,console|e> b

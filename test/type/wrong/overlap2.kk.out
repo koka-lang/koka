@@ -1,0 +1,4 @@
+test/type/wrong/overlap2.kk(3,10): error: definition g overlaps with an earlier definition of the same name
+ type : forall<a> (x : a) -> a
+ overlaps: (x : int) -> int
+ because : definitions with the same name must differ on the argument types

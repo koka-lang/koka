@@ -1,0 +1,5 @@
+test/type/wrong/hr1.kk(7,10): error: type is not polymorph enough
+ context : runST( fun() { !r } )
+ term : fun() { !r }
+ inferred type : () -> <st<$h>,exn> int
+ is less polymorph as: forall<h1> () -> <st<h1>,exn> int

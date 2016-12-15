@@ -1,0 +1,5 @@
+test/syntax/wrong/utf1.kk(3,13): error: types do not match
+ context : 2 + "hello effectful world of ??! "
+ term : "hello effectful world of ??! "
+ inferred type: string
+ expected type: int
