@@ -2,5 +2,4 @@
 44
 compose1 : forall<a,b,c,e> (f : (a) -> e b, g : (c) -> e a) -> ((x : c) -> e b)
 compose2 : forall<a,b,c,e> (f : (a) -> e b, g : (c) -> e a) -> ((x : c) -> e b)
-inc : (x : int) -> int
 main : () -> console ()

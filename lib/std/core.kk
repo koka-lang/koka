@@ -2475,9 +2475,9 @@ private fun show-char( c : char ) : string
     if (c == '\n') then "\\n"
     elif (c == '\r') then "\\r"
     elif (c == '\t') then "\\t"
-    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2)
-    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4)
-    else "\\U" + c.int.show-hex(6)
+    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2,pre="")
+    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4,pre="")
+    else "\\U" + c.int.show-hex(6,pre="")
   }
   else {
     if (c == '\'') then "\\'"

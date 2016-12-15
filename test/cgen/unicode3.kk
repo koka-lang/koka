@@ -1,4 +1,4 @@
-import std/unicode
+import std/text/unicode
 
 val s0 = "한"
 val s1 = "한글"  

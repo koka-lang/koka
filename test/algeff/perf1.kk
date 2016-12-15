@@ -46,7 +46,7 @@ fun testD(i) {
 
 val n = 10000000
 fun main() {
-  print-elapsed({testD(n)})
-  print-elapsed({testH(n,count)})
-  print-elapsed({testH(n,direct_count)})
+  print-elapsed({testD(n)},             "direct")
+  print-elapsed({testH(n,count)},       "handler")
+  print-elapsed({testH(n,direct_count)},"internal handler")
 }

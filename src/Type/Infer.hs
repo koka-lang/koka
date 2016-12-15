@@ -1144,8 +1144,8 @@ inferApp propagated expect fun nargs rng
     -- first we order the arguments to infer arguments with simple expressions first
     inferAppFromArgsX :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFromArgsX fixed named
-      = do guesses <- mapM (\_ -> do tv <- Op.freshTVar kindStar Meta
-                                     return (tv,(rangeNull,typeTotal),failure "Infer.InferApp.inferAppFromArgs")) fixed
+      = do guesses <- mapM (\fix -> do tv <- Op.freshTVar kindStar Meta
+                                       return (tv,(getRange fix,typeTotal),failure "Infer.InferApp.inferAppFromArgs")) fixed
            inferAppArgsFirst guesses ({-sortBy (comparing (weight . snd))-} (zip [0..] fixed)) fixed named
       where
         weight expr

@@ -4,10 +4,10 @@ fun collatz(n : int, steps : int = 0) : div maybe<int> {
   if (n == 1) {
     Just(steps)
   }
-  elif (even(n)) {
+  elif (n.even?) {
     collatz(n/2, steps+1)
   } 
-  elif (n+1 > max-int/3) {
+  elif (n+1 > 1000000000) {
     Nothing
   }
   else {

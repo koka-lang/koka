@@ -72,8 +72,8 @@ fun testR(n) {
 
 val n = 5000000
 fun main() {
-  print-elapsed({testD(n)})
-  print-elapsed({testR(n)})
-  print-elapsed({testH1(n)})
-  print-elapsed({testH(n)})
+  print-elapsed({testD(n)}, "direct         ")
+  print-elapsed({testR(n)}, "recursive      ")
+  print-elapsed({testH1(n)},"linear handler ")
+  print-elapsed({testH(n)}, "regular handler")
 }
