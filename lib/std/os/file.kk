@@ -16,7 +16,7 @@ import std/num/fixed
 import std/time/duration
 import std/time/instant
 import std/time/utc
-
+import std/async
 
 extern include {
   js file "file-inline.js"
@@ -68,11 +68,11 @@ extern xwrite-text( fname : string, text : string ) : <async,file,exn> () {
 
 // Read a text file (using UTF8 encoding) asynchronously
 public fun read-text( fname : path ) : <async,file,exn> string {
-  xread-text(fname.string)
+  unsafe-async-yield-err( fun(cb) { xread-text(fname.string,cb) } )
 }
 
-extern xread-text( fname : string ) : <async,file,exn> string {
-  js inline "_file_read_text(fname, _k)"
+extern xread-text( fname : string, cb : string -> <async,file,exn> ()  ) : () {
+  js "_file_read_text"
 }
 
 // Download a text file from `url`, timing out after `timeout` seconds (=`10.seconds`).

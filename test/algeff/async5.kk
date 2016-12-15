@@ -1,7 +1,9 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
-import std/readline
+import std/async
+import std/time/duration
+import std/os/readline
 
 effect amb {
   flip() : bool
@@ -12,10 +14,10 @@ val amb = handler {
   flip()   -> resume(False) + resume(True)
 }
 
-fun dowait(s : int) {
-  val secs = s.show + " seconds"
+fun dowait(s : duration) {
+  val secs = s.show
   println("and waiting at least " + secs)
-  wait(s * 1000)
+  wait(s)
   println("(done waiting " + secs + ")")
   "waited " + secs
 }
@@ -27,8 +29,8 @@ fun test() {
     readline()
   }
   fun g() {
-    wait(1000)
-    if (flip()) then dowait(2) else dowait(3)
+    wait(1.seconds)
+    if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = async-all( [f,g] )
   println("hi " + xs.join(","))  

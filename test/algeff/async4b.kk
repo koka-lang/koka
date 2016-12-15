@@ -1,8 +1,10 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
-import std/readline
-import std/file
+import std/async
+import std/os/readline
+import std/os/path
+import std/os/file
 
 fun test() {
   println("starting")
@@ -12,7 +14,7 @@ fun test() {
   }
   fun g() {
     println("and reading a file")
-    val content = read-text-file("package.json")    
+    val content = read-text("package.json".path)    
     println("(done reading file)")
     content
   }

@@ -69,6 +69,16 @@ public fun seconds( d : duration ) : timespan {
   d.secs
 }
 
+// Return the duration in rounded SI milli-seconds.
+public fun milli-seconds( d : duration ) : int {
+  (d.secs * 1000.fixed).round
+}
+
+// Return the duration in rounded SI nano-seconds.
+public fun nano-seconds( d : duration ) : int {
+  (d.secs * 1000000000.fixed).round
+}
+
 // The whole seconds (in some time unit) of the duration as `:int``.
 public fun trunc( d : duration ) : int {
   d.secs.trunc

@@ -2917,6 +2917,7 @@ extern incps2( action: (a,b) -> e c, x : a, y : b ) : <cps|e> c {
 // Continuation alias. Used internally to do special checks on cps converted code.
 alias cont<a,e,b> = a -> e b
 
+
 // ----------------------------------------------------------------------------
 // Handling exceptions when in cps / effect handling mode.
 // These are called transparently from the primcatch/primfinally funs
@@ -2948,6 +2949,7 @@ private fun hfinally( action, fhandler ) {
 
 // ----------------------------------------------------------------------------
 // Asynchronous operations are supported through the `:async` effect.
+// The basic effect is in core since it usually requires some support from the host system.
 // ----------------------------------------------------------------------------
 
 // Asynchronous operations have the `:async` effect.
@@ -2955,46 +2957,21 @@ abstract effect async {
   async-yield() : ()
 }
 
-fun ".async-handle"(action) {
+public fun ".async-handle"(action) {
   handle(action) {
     return x -> x
     async-yield() -> () // todo: do a zero timeout?
   }
 }
 
-fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
-  async-all-prim( actions.vector ).list;
+
+extern ".save-handler-context"() : any {
+  js "$saveHandlerContext"
 }
 
-private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
-  js inline "$asyncAll(actions,_k)"
+extern ".restore-handler-context"( context : any, action : a -> (), arg : a ) : () {
+  js "$restoreHandlerContext"
 }
-
-extern ".async-callback"( action: () -> a, haserr : bool, nodup : bool ) : (() -> b) {
-  js "$asyncCallback"
-}
-
-
-// Wait (asynchronously) for `ms` milliseconds. Use `wait(0)` to yield to other asynchronous operations.
-extern wait( ms : int ) : async () {
-  js inline "(function(){ setTimeout( $std_core._async_callback(_k), #1 ); return async_yield(); })()"
-}
-
-// Execute any asynchronous actions inside `action` synchronously, ie. 
-// no other actions are interleaved.
-fun synchronous( action : () -> <async|e> a ) : e a {
-  start-synchronous()
-  on-exit(end-synchronous){ unsafe-total(action) }
-}
-
-private extern start-synchronous() : () {
-  js "$asyncStartSynchronous"
-}
-
-private extern end-synchronous() : () {
-  js "$asyncEndSynchronous"
-}
-
 
 
 // ----------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
-import std/readline
+import std/async
+import std/os/readline
 
 fun test() {
   println("let's start")

@@ -10,6 +10,8 @@
 */
 module std/os/readline
 
+import std/async
+
 external include {
   js file "readline-inline.js"
 }
@@ -21,6 +23,16 @@ public fun question( query : string ) : <async,console> string {
 }
 
 // Read a line of input from the user.
-public extern readline() : <async,console> string {
+public fun readline() : <async,console> string {
+  unsafe-async-yield( prim-readline )
+}
+
+private extern prim-readline( cb : (string) -> <console|e> () ) : console () {
+  js "_readline"
+}
+
+
+// Read a line of input from the user.
+extern xreadline() : <async,console> string {
   js inline "(function(){ _readline( $std_core._async_callback1(_k) ); return $std_core.async_yield(); })()"
 }
