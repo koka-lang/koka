@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-missing-signatures #-}
 {-# LANGUAGE CPP #-}
 {-# LINE 8 "src\Syntax\Lexer.x" #-}
 
@@ -30,12 +29,12 @@ import Data.Word( Word8 )
 #endif
 #if __GLASGOW_HASKELL__ >= 503
 import Data.Array
+import Data.Char (ord)
 import Data.Array.Base (unsafeAt)
 #else
 import Array
+import Char (ord)
 #endif
-alex_tab_size :: Int
-alex_tab_size = 8
 alex_base :: Array Int Int
 alex_base = listArray (0,202) [-9,109,345,581,816,1052,1257,1347,-39,1382,-38,-34,-33,-32,1365,-31,231,1383,317,564,1447,1568,1632,229,1791,188,895,1131,1251,1560,1583,1807,-5,1790,381,1854,628,1918,702,1982,2126,838,2101,2165,2309,2252,2300,2364,2396,2428,2476,2540,2572,2604,2652,2716,2748,2780,2828,2892,2924,3068,3011,3059,3123,3155,3219,3363,3338,-119,3402,-118,3466,-117,2,3530,-115,4,3674,3649,-113,224,243,477,3793,-16,0,3838,3873,3908,0,0,3938,208,4022,943,4106,4190,4274,4358,944,4442,4526,4610,4694,4778,4862,220,4940,5030,0,5065,5100,0,0,5135,5170,5205,-25,1018,5223,5235,5269,1154,0,0,0,0,0,-21,0,0,5331,-15,10,5544,0,0,0,0,0,1084,5330,5511,5645,5575,5709,11,1377,5773,-41,5956,0,86,0,1758,5955,6041,6089,6153,6185,6249,-7,129,0,0,6432,93,204,0,2069,6431,6517,6565,6629,6661,6725,120,239,6908,0,0,2253,6907,6993,7041,7105,7137,240,7201,123,7384,0,0,3012,7383,7469,7517,7581,7613,242,7677,132]
 
@@ -358,178 +357,6 @@ alex_action_48 =  string $ \s -> LexError ("illegal character in line directive:
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
-{-# LINE 9 "<command-line>" #-}
-{-# LINE 1 "G:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 9 "<command-line>" #-}
-{-# LINE 1 "C:\\Users\\randy\\AppData\\Local\\Temp\\ghc7256_0\\ghc_2.h" #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{-# LINE 9 "<command-line>" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -540,19 +367,19 @@ alex_action_48 =  string $ \s -> LexError ("illegal character in line directive:
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 21 "templates\\GenericTemplate.hs" #-}
+{-# LINE 35 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 51 "templates\\GenericTemplate.hs" #-}
+{-# LINE 45 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 72 "templates\\GenericTemplate.hs" #-}
+{-# LINE 66 "templates\\GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-{-# LINE 93 "templates\\GenericTemplate.hs" #-}
+{-# LINE 87 "templates\\GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-{-# LINE 105 "templates\\GenericTemplate.hs" #-}
+{-# LINE 98 "templates\\GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 
@@ -571,30 +398,30 @@ alexScan input (sc)
 
 alexScanUser user input (sc)
   = case alex_scan_tkn user input (0) input sc AlexNone of
-        (AlexNone, input') ->
-                case alexGetByte input of
-                        Nothing -> 
+	(AlexNone, input') ->
+		case alexGetByte input of
+			Nothing -> 
 
 
 
-                                   AlexEOF
-                        Just _ ->
+				   AlexEOF
+			Just _ ->
 
 
 
-                                   AlexError input'
+				   AlexError input'
 
-        (AlexLastSkip input'' len, _) ->
-
-
-
-                AlexSkip input'' len
-
-        (AlexLastAcc k input''' len, _) ->
+	(AlexLastSkip input'' len, _) ->
 
 
 
-                AlexToken input''' len k
+		AlexSkip input'' len
+
+	(AlexLastAcc k input''' len, _) ->
+
+
+
+		AlexToken input''' len k
 
 
 -- Push the input through the DFA, remembering the most recent accepting
@@ -603,7 +430,7 @@ alexScanUser user input (sc)
 alex_scan_tkn user orig_input len input s last_acc =
   input `seq` -- strict in the input
   let 
-        new_acc = (check_accs (alex_accept `quickIndex` (s)))
+	new_acc = (check_accs (alex_accept `quickIndex` (s)))
   in
   new_acc `seq`
   case alexGetByte input of
@@ -617,34 +444,34 @@ alex_scan_tkn user orig_input len input s last_acc =
                 base   = alexIndexInt32OffAddr alex_base s
                 offset = (base + ord_c)
                 check  = alexIndexInt16OffAddr alex_check offset
-                
+		
                 new_s = if (offset >= (0)) && (check == ord_c)
-                          then alexIndexInt16OffAddr alex_table offset
-                          else alexIndexInt16OffAddr alex_deflt s
-        in
+			  then alexIndexInt16OffAddr alex_table offset
+			  else alexIndexInt16OffAddr alex_deflt s
+	in
         case new_s of
-            (-1) -> (new_acc, input)
-                -- on an error, we want to keep the input *before* the
-                -- character that failed, not after.
-            _ -> alex_scan_tkn user orig_input (if c < 0x80 || c >= 0xC0 then (len + (1)) else len)
+	    (-1) -> (new_acc, input)
+		-- on an error, we want to keep the input *before* the
+		-- character that failed, not after.
+    	    _ -> alex_scan_tkn user orig_input (if c < 0x80 || c >= 0xC0 then (len + (1)) else len)
                                                 -- note that the length is increased ONLY if this is the 1st byte in a char encoding)
-                        new_input new_s new_acc
+			new_input new_s new_acc
       }
   where
-        check_accs (AlexAccNone) = last_acc
-        check_accs (AlexAcc a  ) = AlexLastAcc a input (len)
-        check_accs (AlexAccSkip) = AlexLastSkip  input (len)
+	check_accs (AlexAccNone) = last_acc
+	check_accs (AlexAcc a  ) = AlexLastAcc a input (len)
+	check_accs (AlexAccSkip) = AlexLastSkip  input (len)
 
-        check_accs (AlexAccPred a predx rest)
-           | predx user orig_input (len) input
-           = AlexLastAcc a input (len)
-           | otherwise
-           = check_accs rest
-        check_accs (AlexAccSkipPred predx rest)
-           | predx user orig_input (len) input
-           = AlexLastSkip input (len)
-           | otherwise
-           = check_accs rest
+	check_accs (AlexAccPred a predx rest)
+	   | predx user orig_input (len) input
+	   = AlexLastAcc a input (len)
+	   | otherwise
+	   = check_accs rest
+	check_accs (AlexAccSkipPred predx rest)
+	   | predx user orig_input (len) input
+	   = AlexLastSkip input (len)
+	   | otherwise
+	   = check_accs rest
 
 
 data AlexLastAcc a
@@ -653,9 +480,9 @@ data AlexLastAcc a
   | AlexLastSkip  !AlexInput !Int
 
 instance Functor AlexLastAcc where
-    fmap _ AlexNone = AlexNone
+    fmap f AlexNone = AlexNone
     fmap f (AlexLastAcc x y z) = AlexLastAcc (f x) y z
-    fmap _ (AlexLastSkip x y) = AlexLastSkip x y
+    fmap f (AlexLastSkip x y) = AlexLastSkip x y
 
 data AlexAcc a user
   = AlexAccNone
@@ -684,8 +511,12 @@ alexPrevCharIsOneOf arr _ input _ _ = arr ! alexInputPrevChar input
 --alexRightContext :: Int -> AlexAccPred _
 alexRightContext (sc) user _ _ input = 
      case alex_scan_tkn user input (0) input sc AlexNone of
-          (AlexNone, _) -> False
-          _ -> True
-        -- TODO: there's no need to find the longest
-        -- match when checking the right context, just
-        -- the first match will do.
+	  (AlexNone, _) -> False
+	  _ -> True
+	-- TODO: there's no need to find the longest
+	-- match when checking the right context, just
+	-- the first match will do.
+
+
+-- used by wrappers
+iUnbox (i) = i
