@@ -52,7 +52,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff;test/lib " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -148,6 +148,7 @@ task("test", ["compiler"], function(testdir,testmode) {
   testdir=testdir||"test";
   testmode=testmode||"";
   // jake.rmRf(path.join(outputDir,"test"))
+  jake.mkdirP("out/test/config");
   runTests(pathnorm(testdir),testmode);
 });
 
@@ -180,9 +181,9 @@ task("grammar",[],function(testfile)
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "madoko";
-var docsite  = (process.env.docsite || "http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
-var doclocal = (process.env.doclocal || "\\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
+var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
+var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
+var doclocal = (process.env.doclocal || "c:\\users\\daan\\dev\\koka-gh\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
           
 desc("generate the language specification")  
 task("spec", ["compiler"], function(mode) {
@@ -191,7 +192,7 @@ task("spec", ["compiler"], function(mode) {
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
   var specdir   = path.join("doc","spec");
-  var docflags  = (mode === "publish") ? "--htmlbases=" + docsite + " " : "";  
+  var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");  
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
@@ -210,15 +211,22 @@ task("spec", ["compiler"], function(mode) {
       copyFiles(specdir,files,outspec);
       files = new jake.FileList().include(path.join(specdir,"*.bib"))
                                  .toArray();
-      copyFiles(specdir,files,outspec);
+      copyFiles(specdir,files,outspec);      
+      // copy images
+      var imgs1 = new jake.FileList().include("lib/std/time/*.png").toArray();
+      copyFiles("lib/std/time",imgs1,outspec);
+      // process xmp.html to html using madoko
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"kokaspec.md"))
-                                        .toArray();
-      command(cmdMarkdown + " --odir=" + outspec + " -v -mline-no:false -mlogo:false " + xmpFiles.join(" "), function () {
+                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
+      console.log(xmpFiles)                                        
+      command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
+        jake.cpR(path.join(outspec,"madoko.css"),outstyles);      
         if (mode === "publish") {
           // copy to website
           files = new jake.FileList().include(path.join(outspec,"*.html"))
                                      .include(path.join(outstyles,"*.css"))
+                                     .exclude(path.join(outspec,"*.xmp.html"))
                                      .toArray();
           copyFiles(outspec,files,doclocal);
         }

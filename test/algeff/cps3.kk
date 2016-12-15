@@ -14,10 +14,6 @@ fun compose2(f,g) {
   }
 }
 
-fun inc(x:int) {
-  x+1
-}
-
 fun main() {
   println(compose1(inc,inc)(42))
   println(compose2(inc,inc)(42))

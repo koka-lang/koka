@@ -3,10 +3,10 @@ Sub Title     : An Introduction and Specification of the Koka language.
 Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
-Css           : http://fonts.googleapis.com/css?family=Noto+Sans:400,400italic,700,700italic
-Css           : http://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic
-Css           : http://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic
-Css           : http://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700
+Css           : https://fonts.googleapis.com/css?family=Noto+Sans:400,400italic,700,700italic
+Css           : https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic
+Css           : https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic
+Css           : https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
 Script        : scripts/kokaspec.js

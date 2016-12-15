@@ -79,8 +79,8 @@ fun queens-choose(n : int ) : div solutions {
 // -----------------------------------------------------------------
 
 fun test(n) {
-  print-elapsed({ queens(n) }).length.println
-  print-elapsed({ queens-choose(n) }).length.println
+  print-elapsed({ queens(n) }, "regular").length.println
+  print-elapsed({ queens-choose(n) }, "algebraic").length.println
 }
 
 fun main() {

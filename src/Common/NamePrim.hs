@@ -26,12 +26,13 @@ module Common.NamePrim
           , nameDecreasing, nameSubStr1
 
           , nameUnit
-          , nameReturn
+          , nameReturn, nameTrace, nameLog
           , nameEffectOpen
           , nameToAny
           , nameEnsureK
           , nameIsValidK
           , nameUnsafeTotal
+          , nameIntConst, nameInt32
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -47,6 +48,7 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat
           , nameTpString
+          , nameTpInt32
           , nameTpAny
           , nameTpException
           , nameTpHandled, nameTpHandled1
@@ -116,6 +118,9 @@ namePredHeapDiv = preludeName "hdiv"
 nameReturn :: Name
 nameReturn = preludeName ".return"
 
+nameTrace  = preludeName "trace"
+nameLog    = preludeName "log"
+
 nameEffectOpen :: Name
 nameEffectOpen = newName ".open"
 
@@ -160,7 +165,8 @@ nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-
+nameIntConst    = preludeName ".int-string"
+nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
@@ -197,6 +203,7 @@ nameOpNoMatch   = preludeName ".conOpNoMatch"
 
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
+nameTpInt32     = preludeName "int32"
 nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"

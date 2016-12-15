@@ -43,6 +43,7 @@ function _direct_op(eff) {
 
 function _direct_count(k) {
   while(1) {
+    comp();
     var i = _direct_op(_Eff_state(_Op_get));
     if (i===0) {
       return k(i);

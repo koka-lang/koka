@@ -51,6 +51,7 @@ module Core.Core ( -- Data structures
                    , DataRepr(..), ConRepr(..)
                    , isConSingleton
                    , isConNormal
+                   , isConIso
                    , getDataRepr
                    , VarInfo(..)
 
@@ -66,7 +67,7 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn )
+import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -88,7 +89,7 @@ isExprFalse _              = False
 patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool tag
-        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] False ""
+        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False ""
         pat = PatCon tname [] conEnum [] typeBool conInfo
         expr = Con tname conEnum
     in (pat,expr)
@@ -183,12 +184,19 @@ typeDefIsExtension _                 = False
 {--------------------------------------------------------------------------
   Data representation
 --------------------------------------------------------------------------}
-data DataRepr = DataEnum | DataSingleStruct | DataSingle 
-              | DataAsList | DataSingleNormal | DataStruct 
-              | DataNormal | DataOpen 
+data DataRepr = DataEnum            -- only singletons
+              | DataIso             -- only one constructor with one field
+              | DataSingleStruct    -- only one constructor; it has  less than max-struct fields
+              | DataSingle          -- only one constructor
+              | DataAsList          -- one constructor with fields, and one singleton
+              | DataSingleNormal    -- one constructor with fields, and possibly singletons
+              | DataStruct          -- only one constructor with fields
+              | DataNormal        
+              | DataOpen 
               deriving (Eq,Ord,Show)
 
 data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                     -- part of enumeration (none has fields)
+              | ConIso{ conTypeName:: Name, conTag :: Int }                       -- one constructor with one field
               | ConSingleton{ conTypeName :: Name, conTag :: Int }                -- the only constructor without fields
               | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
               | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
@@ -203,6 +211,9 @@ isConSingleton _ = False
 isConNormal (ConNormal _ _) = True
 isConNormal _  = False
 
+isConIso (ConIso{}) = True
+isConIso _ = False
+
 getDataRepr :: Int -> DataInfo -> (DataRepr,[ConRepr])
 getDataRepr maxStructFields info
   = let typeName  = dataInfoName info
@@ -216,10 +227,14 @@ getDataRepr maxStructFields info
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos
-               in (if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info)) 
+               in (if (length (conInfoParams conInfo) == 1)
+                    then DataIso
+                   else if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info)) 
                     then DataSingleStruct 
                     else DataSingle
-                  ,[if length singletons == 1 then ConSingleton typeName else ConSingle typeName])
+                  ,[if (length (conInfoParams conInfo) == 1) then ConIso typeName
+                    else if length singletons == 1 then ConSingleton typeName 
+                    else ConSingle typeName])
          else if (length singletons == length conInfos-1 && length (concatMap conInfoParams conInfos) <= maxStructFields && not (dataInfoIsRec info))
           then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
          else if (length conInfos == 2 && length singletons == 1)
@@ -351,7 +366,7 @@ isTotal expr
       TypeApp e _ -> isTotal e
       Con _ _ -> True
       Lit _   -> True
-      App (Var v _) _ | getName v == nameReturn -> False
+      App (Var v _) _ | getName v == nameReturn || getName v == nameTrace || getName v ==nameLog -> False
       App f args -> case typeOf f of
                       TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
                       _                 -> False

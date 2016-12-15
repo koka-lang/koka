@@ -323,7 +323,7 @@ function foo()
     "list",
     "elements",
   ]
-  if (odd(randomInt())) 
+  if (odd?(randomInt())) 
   {
     print("odd")
   }

@@ -1,2 +1,1 @@
 main : () -> <async,console> ()
-test : () -> <async,console> ()

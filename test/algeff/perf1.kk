@@ -14,7 +14,7 @@ fun fib(n) {
 }
 
 fun comp() { 
-  fib(5)
+  fib(4)
 }
  
 fun count() {
@@ -44,8 +44,9 @@ fun testD(i) {
   if (i==0) then i else testD(i - 1)
 }
 
+val n = 10000000
 fun main() {
-  print-elapsed({testD(10000000)})
-  print-elapsed({testH(10000000,direct_count)})
-  print-elapsed({testH(10000000,count)})
+  print-elapsed({testD(n)},             "direct")
+  print-elapsed({testH(n,count)},       "handler")
+  print-elapsed({testH(n,direct_count)},"internal handler")
 }

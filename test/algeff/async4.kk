@@ -1,7 +1,9 @@
 // --------------------------------------------------------
 // Async demo: do concurrently
 // --------------------------------------------------------
-import std/readline
+import std/async
+import std/time/duration
+import std/os/readline
 
 fun test() {
   println("starting")
@@ -11,7 +13,7 @@ fun test() {
   }
   fun g() {
     println("and waiting at least 3 secs")
-    wait(3000)
+    wait(3.seconds)
     println("(done waiting)")
     "timing"
   }

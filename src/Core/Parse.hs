@@ -181,7 +181,7 @@ conDecl tname foralls sort env
        params <- parameters env1 
        tp     <- typeAnnot env
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
+       return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False doc)
 
 
 typeSort :: LexParser (DataDef, Bool, DataKind,String)

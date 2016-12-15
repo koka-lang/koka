@@ -1,7 +1,7 @@
 // --------------------------------------------------------
 // Jaro distance with vector allocation
 // --------------------------------------------------------
-import std/array
+import std/data/array
 import jaro
 
 fun main() {

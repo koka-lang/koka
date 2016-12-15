@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 module Type.InferMonad( Inf, InfGamma
-                      , runInfer
+                      , runInfer, tryRun
                       
                       -- * substitutation
                       , zapSubst
@@ -799,6 +799,11 @@ instance Monad Inf where
                                                                    Err err w2 -> Err err (w1++w2)
                                        Err err w -> Err err w)
 
+tryRun :: Inf a -> Inf (Maybe a)
+tryRun (Inf i) = Inf (\env st -> case i env st of 
+                                   Ok x st1 w -> Ok (Just x) st1 w
+                                   Err err w  -> Ok Nothing st [])
+
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
                                                               
@@ -1316,7 +1321,7 @@ lookupNameEx infoFilter name ctx range
                                                                        return (concat mss)
                                                  CtxFunArgs n named -> do mss <- mapM (matchNamedArgs n named) candidates
                                                                           return (concat mss)
-                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates
+                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates                                                                                       
                                                                                        return (concat mss)
                                     case matches of
                                       [(qname,info)] -> return matches
@@ -1353,7 +1358,8 @@ lookupNameEx infoFilter name ctx range
 
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchArgs matchSome fixed named (name,info)
-      = do free <- freeInGamma
+      = -- trace ("match args: " ++ show matchSome ++ ", " ++ show fixed ++ ", " ++ show (length named) ++ " on " ++ show (infoType info)) $
+        do free <- freeInGamma
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named) 
            case res of
              (Right _,_)  -> return [(name,info)]

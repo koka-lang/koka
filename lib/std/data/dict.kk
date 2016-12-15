@@ -8,7 +8,7 @@
 
 /* String dictionaries.
 */  
-public module std/dict
+public module std/data/dict
 
 extern include {
   js file "dict-inline.js"

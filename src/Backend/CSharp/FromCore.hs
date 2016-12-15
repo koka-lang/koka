@@ -18,7 +18,7 @@ import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Data.Char( isDigit )
+import Data.Char( isDigit, isAlphaNum )
 import Data.List( transpose )
 import Lib.PPrint
 
@@ -54,6 +54,7 @@ csharpFromCore maxStructFields mbMain core
        text "#pragma warning disable 162 // unreachable code" <->
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
+       text "using System.Numerics;" <->
        vcat (concatMap includeExternal (coreProgExternals core)) <->
        text "// module" <+> pretty (coreProgName core) <->
        text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <> body)  <->
@@ -123,11 +124,13 @@ vcatBreak xs  = linebreak <> vcat xs
 isStruct :: DataRepr -> Bool
 isStruct DataSingleStruct = True
 isStruct DataStruct       = True
+isStruct DataIso          = True  -- because C# distinguishes on types, we cannot unwrap :-(
 isStruct _                = False
 
 hasTagField :: DataRepr -> Bool
 hasTagField DataNormal = True
 hasTagField DataStruct = True
+hasTagField DataIso    = True
 hasTagField _          = False
 
 genTypeDef :: Int -> TypeDef -> Asm ()
@@ -178,6 +181,8 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                                  (case dataRepr of 
                                                     DataStruct -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
                                                                   in map (ppAssignDefault ctx) allfields
+                                                    DataIso    -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
+                                                                  in map (ppAssignDefault ctx) allfields
                                                     _          -> [])
                                                ))
                                             )
@@ -216,13 +221,10 @@ genConstructor info dataRepr ((con,vis),conRepr) =
               else putLn (vcat docs)
 
     ConStruct typeName _
-       -> -- merge it into the type class itself
-          do ctx <- getModule
-             let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
-                 docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
-             if (null docs)
-              then return ()
-              else putLn (vcat (docs))
+       -> conStruct typeName
+
+    ConIso typeName _
+       -> conStruct typeName
 
     _  -> onTopLevel $
           do ctx <- getModule
@@ -237,7 +239,15 @@ genConstructor info dataRepr ((con,vis),conRepr) =
                  )
              -- genConCreator con conRepr vis
              -- putLn (linebreak)
-    
+  where
+    conStruct typeName
+      = -- merge it into the type class itself
+        do ctx <- getModule
+           let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
+               docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
+           if (null docs)
+            then return ()
+            else putLn (vcat (docs))  
 
 ppConField :: ModuleName -> (Name,Type) -> Doc
 ppConField ctx (name,tp) 
@@ -252,9 +262,11 @@ ppConConstructor ctx con conRepr defaults
               ConAsCons typeName nilName _ -> ppDefName (typeClassName typeName)
               ConSingle typeName _ -> ppDefName (typeClassName typeName)
               ConStruct typeName _ -> ppDefName (typeClassName typeName)
+              ConIso    typeName _ -> ppDefName (typeClassName typeName)
               _                    -> ppDefName (conClassName (conInfoName con))) <> 
            tupled (case conRepr of
                      ConStruct typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
+                     ConIso    typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
                      _                    -> map ppParam (conInfoParams con)) <+>
            (case conRepr of
               ConNormal typeName _ -> text ":" <+> text "base" <> parens (ppTag ctx typeName (conInfoName con)) <> space
@@ -262,6 +274,7 @@ ppConConstructor ctx con conRepr defaults
            block (linebreak <> vcat (
               (case conRepr of
                  ConStruct _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
+                 ConIso    _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
                  _             -> [])
               ++ map ppAssignConField (conInfoParams con)
               ++ map (ppAssignDefault ctx) defaults
@@ -388,7 +401,11 @@ genDef isRec (Def name tp expr vis isVal nameRng doc)
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppParams ctx (unzipTNames pars))
                   genBody isRec True e                       
          Lit lit
-            -> do putLn (ppVis vis <+> text "const" <+> ppType ctx tp <+> ppDefName name <+> text "=" <+> ppLit lit <> semi)
+            -> do putLn (ppVis vis <+> text constdecl <+> ppType ctx tp <+> ppDefName name <+> text "=" <+> ppLit lit <> semi)
+            where 
+               constdecl = case lit of
+                             LitInt _ -> "static readonly"
+                             _        -> "const"
          _  -> do putLn (text "private static " <+> ppType ctx tp <+> ppEvalName name <> text "()")
                   genBody False True expr
                   putLn (hang 2 $ ppVis vis <+> text "static readonly" <+> ppType ctx tp <+> ppDefName name </> text "=" <+> ppEvalName name <> text "()" <> semi)
@@ -667,6 +684,11 @@ genCon tname repr targs args
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
                    tupled (ppTag ctx typeName (getName tname) : argDocs)
+              ConIso typeName _
+                -> text "new" <+> 
+                   ppQName ctx (typeClassName typeName) <>
+                   ppTypeArgs ctx targs <//>
+                   tupled (ppTag ctx typeName (getName tname) : argDocs)
               _ -> text "new" <+> 
                    (case repr of
                       ConAsCons typeName _ _
@@ -694,8 +716,9 @@ ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <> ppTypeArgs ctx targs <> text "." <> ppDefName (conClassName (getName tname))
 
 ppExternal :: Name -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
-ppExternal currentDef formats resTp targs args
-  = case lookup CS formats of
+ppExternal currentDef formats resTp targs args0
+  = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
+    in case lookup CS formats of
      Nothing -> case lookup Default formats of
       Nothing -> 
         trace( "warning: backend does not support external in " ++ show currentDef ) $
@@ -965,6 +988,7 @@ genTag (exprDoc,patterns)
   where
     isConMatch (PatCon _ _ (ConNormal _ _) _ _ _) = True
     isConMatch (PatCon _ _ (ConStruct _ _) _ _ _) = True
+    isConMatch (PatCon _ _ (ConIso _ _) _ _ _)    = True
     isConMatch _                                  = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
@@ -1044,17 +1068,21 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                                 ,[]
                                 ,next)] 
                  ConStruct typeName _
-                  -> case mbTagDoc of
-                       Nothing -> failure "CSharp.FromCore: should always have tag when matching on structs"
-                       Just tagDoc
-                        -> do ctx <- getModule
-                              let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
-                              return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next)] 
+                  -> testStruct typeName
+                 ConIso typeName _ 
+                  -> testStruct typeName 
                  ConNormal typeName _
                   -> conTest ctx typeName -- TODO: use tags if available
                  ConOpen typeName 
                   -> conTest ctx typeName
         where
+          testStruct typeName
+            = case mbTagDoc of
+               Nothing -> failure "CSharp.FromCore: should always have tag when matching on structs"
+               Just tagDoc
+                -> do ctx <- getModule
+                      let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
+                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next)]
           tpars 
             = case expandSyn tres of
                 TApp _ targs -> targs
@@ -1185,7 +1213,7 @@ ppField ctx (name,tp)
 ppLit :: Lit -> Doc
 ppLit lit
   = case lit of
-      LitInt i  -> pretty i
+      LitInt i  -> if (isSmallInt i) then pretty i else text ("Primitive.IntString(\"" ++ show i ++ "\")")
       LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d -> pretty d
       LitString s -> dquotes (hcat (map escape s))
@@ -1197,6 +1225,8 @@ ppLit lit
          then text ("\\u" ++ showHex 4 (fromEnum c))
          else text ("\\U" ++ showHex 8 (fromEnum c))
 
+    isSmallInt :: Integer -> Bool
+    isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
 
 ---------------------------------------------------------------------------------
 -- Types
@@ -1236,11 +1266,13 @@ ppType ctx tp
 ppTypeCon ctx c kind
    = let name = typeConName c
      in if (name == nameTpInt)
-         then text "int"
+         then text "BigInteger"
         else if (name == nameTpString)
          then text "string"
         else if (name == nameTpChar)
          then text "int"  -- we need to represent as int since Char in C# is only defined as a UTF16 point
+        else if (name == nameTpInt32)
+         then text "int"
         else if (name == nameTpFloat)
          then text "double"
         else if (name == nameTpBool)

@@ -15,7 +15,7 @@ import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List ( intersperse, partition )
-import Data.Char
+import Data.Char  
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
 import qualified Data.Set as S
@@ -86,6 +86,7 @@ genModule mbMain core
                    text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
+                    , text "var" <+> modName <+> text " = {};"
                     , text " "
                     , text "// externals"
                     , externs 
@@ -99,15 +100,18 @@ genModule mbMain core
                     , mainEntry
                     , text " "
                     , text "// exports"
-                    , hang 2 (text "return {" <--> 
+                    , hang 2 (modName <+> text "=" <+> ppModName nameSystemCore <> dot <> text "_export(" <>
+                                modName <> text ", {" <--> 
                         (vcat $ punctuate comma $ 
                            map (\n-> fill 12 (ppName n) <> text ":" <+> ppName n) 
                               ( exportedConstrs ++ exportedValues ))
-                      ) <--> text "};" 
+                      ) <--> text "});"
+                    , text "return" <+> modName <> semi 
                     ])
                  ) 
               <-> text "});"
   where
+    modName         = ppModName (coreProgName core)
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
                       in map unqualify $ concatMap f (coreProgDefs core) 
@@ -248,6 +252,7 @@ genTypeDef (Data info _ _ isExtend)
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
                          <> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 -- tagless
+                ConIso{}     -> genConstr penv c repr name args []
                 ConSingle{}  -> genConstr penv c repr name args [] 
                 ConAsCons{}  -> genConstr penv c repr name args []
                 _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
@@ -263,7 +268,7 @@ genTypeDef (Data info _ _ isExtend)
          else debugWrap "genConstr: with fields"
             $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
           <+> block ( text "return" <+> 
-                      (if conInfoName c == nameOptional then head args 
+                      (if (conInfoName c == nameOptional || isConIso repr) then head args 
                         else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
 
 getConTag modName coninfo repr
@@ -508,9 +513,9 @@ genMatch result scrutinees branches
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
-              PatCon tn args _ _ _ info 
+              PatCon tn args repr _ _ info 
                 -> concatMap (\(pat',fn)-> getSubstitutions 
-                                             (nameDoc <> (if (getName tn == nameOptional) then empty else (text "."  <> fn)))
+                                             (nameDoc <> (if (getName tn == nameOptional || isConIso repr) then empty else (text "."  <> fn)))
                                              pat'
                             ) (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
@@ -546,6 +551,8 @@ genMatch result scrutinees branches
                      ConSingleton{} -- the only constructor without fields (=== null)
                        -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)
                      ConSingle{} -- always succeeds
+                       -> []
+                     ConIso{} -- alwasy success
                        -> []
                      ConStruct{}
                        -> fail "Backend.JavaScript.FromCore.genTest: encountered ConStruct, which is not supposed to happen"
@@ -616,10 +623,10 @@ genExpr expr
             Nothing -> case extractExtern f of
              Just (tname,formats)
               -> do (decls,argDocs) <- genExprs args
-                    doc <- genInlineExternal tname formats argDocs
+                    (edecls,doc) <- genExprExternal tname formats argDocs
                     if (getName tname == nameReturn)
-                     then return (vcat (decls ++ [doc <> semi]), text "") 
-                     else return (vcat decls, doc)
+                     then return (vcat (decls ++ edecls ++ [doc <> semi]), text "") 
+                     else return (vcat (decls ++ edecls), doc)
              Nothing
               -> do (decls,fdoc:docs) <- genExprs (f:trimOptionalArgs args) 
                     return (vcat decls, fdoc <> tupled docs)
@@ -729,7 +736,10 @@ genInline expr
         -> do argDocs <- mapM genInline (trimOptionalArgs args)
               case extractExtern f of
                 Just (tname,formats) 
-                  -> genInlineExternal tname formats argDocs
+                  -> case args of
+                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+                         -> return (pretty i)
+                       _ -> genInlineExternal tname formats argDocs
                 Nothing 
                   -> do fdoc <- genInline f
                         return (fdoc <> tupled argDocs)
@@ -742,18 +752,31 @@ extractExtern expr
       Var tname (InfoExternal formats) -> Just (tname,formats)
       _ -> Nothing
 
+-- not fully applied external gets wrapped in a function
 genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
 genWrapExternal tname formats
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
-       doc <- genInlineExternal tname formats vs
-       return $ parens (text "function" <> tupled vs <+> block ( text "return" <+> doc <> semi))
+       (decls,doc) <- genExprExternal tname formats vs
+       return $ parens (text "function" <> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <> semi])))
 
+-- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
 genInlineExternal tname formats argDocs
-  = do let name = getName tname
-           format = getFormat tname formats
-       return $ ppExternalF name format argDocs
+  = do (decls,doc) <- genExprExternal tname formats argDocs
+       if (null decls)
+        then return doc
+        else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <> semi]))) <> text "()"
+
+-- generate external
+genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternal tname formats argDocs0
+  = let name = getName tname
+        format = getFormat tname formats
+        argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
+    in return $ case map (\fmt -> ppExternalF name fmt argDocs) $ lines format of 
+         [] -> ([],empty)
+         ds -> (init ds, last ds)
   where           
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
@@ -767,7 +790,7 @@ genInlineExternal tname formats argDocs
         then (let n = length args
                   i = fromEnum y - fromEnum '1'
               in assertion ("illegal index in external: " ++ show tname ++ "("++k++"): index: " ++ show i) (i < n) $
-                 args!!i <> ppExternalF name xs args)
+                 (args!!i) <> ppExternalF name xs args)
         else char y <> ppExternalF name xs args
     ppExternalF name (x:xs)  args
      = char x <> ppExternalF name xs args
@@ -1007,7 +1030,9 @@ getInStatement
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
-      LitInt i    -> (pretty i)
+      LitInt i    -> if (isSmallInt(i)) 
+                      then (pretty i) 
+                      else ppName nameIntConst <> parens (dquotes (pretty i))
       LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> (pretty d)
       LitString s -> dquotes (hcat (map escape s))
@@ -1031,6 +1056,17 @@ ppLit lit
                     hi = (code `div` 0x0400) + 0xD800
                     lo = (code `mod` 0x0400) + 0xDC00
                 in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
+
+isSmallLitInt expr
+  = case expr of
+      Lit (LitInt i)  -> isSmallInt i
+      _ -> False
+
+isSmallInt i = (i > minSmallInt && i < maxSmallInt)
+
+maxSmallInt, minSmallInt :: Integer
+maxSmallInt = 9007199254740991  -- 2^53 - 1
+minSmallInt = -maxSmallInt
 
 ppName :: Name -> Doc
 ppName name
@@ -1120,6 +1156,7 @@ reserved
     , "process"
     , "exports"
     , "module"
+    , "Date"
     ]
 
 block :: Doc -> Doc

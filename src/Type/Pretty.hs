@@ -233,7 +233,7 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
               indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <-> text "}")
         else empty))
 
-prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields scheme sort range paramRanges singleton doc)
+prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton doc)
   = if (publicOnly && isPrivate vis) then empty else 
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <>
@@ -242,10 +242,13 @@ prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields 
       (if null exists then empty else (angled (map (ppTypeVar env) exists))) <>
       (if null fields 
         then empty
-        else parens (commaSep (map (ppField env) fields)))
+        else parens (commaSep (map (ppField env) (zip paramVis fields))))
       <+> text ":" <+> ppType env scheme <> semi)
   where
-    ppField env (name,tp) = (if isFieldName name then empty else (ppName env name <> text ": ")) <> ppType env tp
+    ppField env (fvis,(name,tp)) 
+      = -- (if (fvis /= vis) then ppVis env fvis else empty) <> 
+        (if isFieldName name then empty else (ppName env name <> text ": ")) <> 
+        ppType env tp
     env = env0{ nice = niceTypeExtend exists (nice env0) } 
              
 

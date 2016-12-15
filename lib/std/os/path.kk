@@ -30,9 +30,9 @@ interpretation of paths where ``..`` is considered lexically.
 If parent directories should be resolved through symbolic links, 
 the `realpath` function should be used (which has the `:io` effect though).  
 */
-module std/path
+module std/os/path
 
-import std/regex
+import std/text/regex
 
 extern include {
   cs file "path-inline.cs"
@@ -129,7 +129,7 @@ public fun path( s : string ) : path {
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {  
-  val parts = s.split(rx-partsep).list.path-split(dirs)
+  val parts = s.split(rx-partsep).path-split(dirs)
   Path(root,parts)
 }
 fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
@@ -153,7 +153,7 @@ val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 // In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
 // parsed as ``c:/foo`` and ``/bar``. 
 public fun paths( s : string ) : list<path> {
-  s.split(rx-pathsep).list.paths-split
+  s.split(rx-pathsep).paths-split
 }
 fun paths-split( ps : list<string> ) : list<path> {
   match(ps) {
@@ -177,6 +177,11 @@ val rx-pathsep = regex(@"([;:])")
 // `"c:/foo" + "d:/bar"          === "c:/foo/bar"`
 public fun (+)(p1 : path, p2: path) : path {
   Path(p1.root,p2.parts + p1.parts)
+}
+
+// Return the first path if it is not empty, otherwise return the second one.
+public fun (||)(p1 : path, p2: path) : path {
+  if (p1.empty?) then p2 else p1
 }
 
 // Combine multiple paths using `(+)`.

@@ -12,10 +12,10 @@ Access to the program environment and commmand line arguments.
 
 Print the environment: `get-env().list.map(fun(p) { p.fst + "=" + p.snd }).join("\n").print`
 */
-module std/env
+module std/os/env
 
-import std/path
-import std/dict
+import std/os/path
+import std/data/dict
 
 extern xget-env() : ndet dict<string>  {
   cs inline "Primitive.DictFromStringCollection(System.Environment.GetEnvironmentVariables())"

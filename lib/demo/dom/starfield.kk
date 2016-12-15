@@ -46,10 +46,10 @@ public fun main() : _ ()
                                     Star(star.x * 1.015, star.y * 1.015, star.size, star.color)
                                   }
                       Backward -> if(random() < 0.01) {
-                                    if(random-int().even) {
-                                      Star(random() * w - w / 2.0, if(random-int().even) { h / 2.0 } else { (0.0-h) / 2.0 } , random() * 4.0, starColor)
+                                    if(random-int().even?) {
+                                      Star(random() * w - w / 2.0, if(random-int().even?) { h / 2.0 } else { (0.0-h) / 2.0 } , random() * 4.0, starColor)
                                     } else {
-                                      Star(if(random-int().even) { w / 2.0 } else { (0.0-w) / 2.0 }, random() * h - h / 2.0, random() * 4.0, starColor)
+                                      Star(if(random-int().even?) { w / 2.0 } else { (0.0-w) / 2.0 }, random() * h - h / 2.0, random() * 4.0, starColor)
                                     }
                                   } else {
                                     Star(star.x * 0.985, star.y * 0.985, star.size, star.color)

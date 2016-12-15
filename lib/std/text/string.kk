@@ -8,9 +8,9 @@
 
 /* Extended string operations and a string builder.
 */  
-module std/string
+module std/text/string
 
-import array
+import std/data/array
 
 // Indent all lines a string `s` by `n`. `fill` is used for indentation, by default `" "`.
 public fun indent( s : string, n : int = 2, fill : string = " " ) {

@@ -64,9 +64,9 @@ fun show-flags( o : myflags ) {
 ```
 \/
 */
-module std/flags
+module std/os/flags
 
-import std/env
+import std/os/env
 
 // ----------------------------------------------------
 // Usage example
@@ -89,15 +89,8 @@ fun show-flags( o : myflags ) {
 }
 
 
-val myflags : list<flag<myflags>>
-  = [ Flag( "V?", ["version"], Bool(set-version),     "display version information" ),
-      Flag( "v",  ["verbose"], Bool(set-verbose),     "verbosely list files"),
-      Flag( "o",  ["output"],  Opt(set-output,"FILE"),"use FILE for dump" ),
-      Flag( "n",  ["name"],    Req(set-name,"USER"),  "only show USER files" ),
-    ]
-
 fun set-name( t : myflags, name )  { t(name = name) }
-fun set-verbose( t : myflags, v )  { t(verbose = v) }
+fun set-verbose( t : myflags, v : bool) : myflags  { t(verbose = v) }
 fun set-version( t : myflags, v )  { t(version = v) }
 fun set-output( t : myflags, mbs : maybe<string> ) : myflags
 {
@@ -106,6 +99,14 @@ fun set-output( t : myflags, mbs : maybe<string> ) : myflags
     Just(s) -> t(output = s)
   } 
 }
+
+val myflags : list<flag<myflags>>
+  = [ Flag( "V?", ["version"], Bool(set-version),     "display version information" ),
+      Flag( "v",  ["verbose"], Bool(set-verbose),     "verbosely list files"),
+      Flag( "o",  ["output"],  Opt(set-output,"FILE"),"use FILE for dump" ),
+      Flag( "n",  ["name"],    Req(set-name,"USER"),  "only show USER files" ),
+    ]
+
 
 public fun test( cmdargs )
 {

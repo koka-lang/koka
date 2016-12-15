@@ -329,7 +329,7 @@ fun main() { looptest() }
 ////
 fun looptest() 
 {
-  while { odd(random-int()) } 
+  while { odd?(random-int()) } 
   {
     error("<b>")
   }

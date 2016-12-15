@@ -15,6 +15,8 @@ module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
 import qualified Lib.Trace
 import Data.List(partition,sortBy)
+import Data.Ord(comparing)
+import Data.Maybe(catMaybes)
 import Lib.PPrint
 import Common.Failure
 import Common.Error
@@ -57,7 +59,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   Lib.Trace.trace s 
+   -- Lib.Trace.trace s 
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -1051,6 +1053,7 @@ inferApp propagated expect fun nargs rng
        amb <- case rootExpr fun of
                 (Var name isOp nameRange)
                   -> do matches <- lookupNameN name (length fixed) (map (fst . fst) named) nameRange
+                        traceDoc $ \env -> text "matched for: " <+> ppName env name <+> text " = " <+> pretty (length matches)
                         case matches of
                           []         -> do -- emit an error
                                            resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named)) rng nameRange
@@ -1059,13 +1062,13 @@ inferApp propagated expect fun nargs rng
                           _          -> return Nothing -- many matches
                 _ -> return (Just Nothing) -- fun first
        case amb of
-         Nothing   -> inferAppArgsFirst [] fixed fixed named
+         Nothing   -> inferAppFromArgsX fixed named
          Just prop -> inferAppFunFirst prop fixed named
   where
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop fixed named
-      = -- trace ("inferAppFunFirst") $
+      = trace ("inferAppFunFirst") $
         do -- infer type of function
            (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated fun
            -- match the type with a function type
@@ -1102,21 +1105,85 @@ inferApp propagated expect fun nargs rng
            (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
            return (resTp,topEff,resCore )
 
+    inferAppFromArgs :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
+    inferAppFromArgs fixed named
+      = trace ("inferApp From Args") $
+        do mbargs <- mapM (\fix -> tryRun $ inferExpr Nothing Instantiated fix) fixed
+           let iargs = catMaybes mbargs
+           if (length iargs==length mbargs && null named) -- TODO: we can extend inferAppFixedArgs to deal with named arguments?
+            then inferAppFixedArgs (zipWith (\(tpArg,eff,cexpr) fix -> (tpArg,(getRange fix,eff),cexpr)) iargs fixed)
+            else do argtps <- mapM (\mbarg -> case mbarg of 
+                                                Nothing -> Op.freshTVar kindStar Meta
+                                                Just(tpArg,_,_) -> subst tpArg)  mbargs
+                    let ctx = CtxFunTypes False argtps [] -- TODO: can we add the named arguments here?
+                    prop <- case rootExpr fun of
+                            (Var name _ nameRange) | isConstructorName name
+                              -> do matches <- lookupNameEx (isInfoCon {- const True -}) name ctx nameRange
+                                    traceDoc $ \env -> text " app args matched for constructor " <+> ppName env name <+> text " = " <+> pretty (length matches)
+                                    case matches of
+                                      [(_,info)] -> return (Just (infoType info, rng))
+                                      _          -> do -- emit an error
+                                                       resolveConName name Nothing nameRange 
+                                                       return Nothing
+                                     -- _          -> return Nothing
+                            (Var name _ nameRange)
+                              -> do matches <- lookupNameEx (isInfoValFunExt {- const True -}) name ctx nameRange
+                                    traceDoc $ \env -> text " app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixed) <+> text ", args: " <+> list (niceTypes env argtps )
+                                    case matches of
+                                      [(_,info)] -> return (Just (infoType info, rng))
+                                      _          -> do -- emit an error
+                                                       resolveFunName name ctx rng nameRange 
+                                                       return Nothing
+                                      -- _          -> return Nothing
+                            _ -> return Nothing
+                    -- and reinfer!  TODO: very bad because this can cause exponential backtracking...
+                    traceDoc $ \env -> "REINFER!!"
+                    inferAppFunFirst prop fixed named            
+
     -- we cannot determine what function is called, infer types of arguments without propagation
-    inferAppArgsFirst :: [(Type,(Range,Effect),Core.Expr)] -> [Expr Type] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
-    inferAppArgsFirst [] [] [] named
-      = inferAppFunFirst Nothing [] named
-    inferAppArgsFirst acc [] fixed []
+    -- first we order the arguments to infer arguments with simple expressions first
+    inferAppFromArgsX :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
+    inferAppFromArgsX fixed named
+      = do guesses <- mapM (\fix -> do tv <- Op.freshTVar kindStar Meta
+                                       return (tv,(getRange fix,typeTotal),failure "Infer.InferApp.inferAppFromArgs")) fixed
+           inferAppArgsFirst guesses ({-sortBy (comparing (weight . snd))-} (zip [0..] fixed)) fixed named
+      where
+        weight expr
+          = case expr of
+              Lit _         -> 0
+              Ann _ _ _     -> 0
+              --Var _ _ _     -> 1
+              --Parens e _    -> weight e
+              --App e args _  -> 1 + weight e + sum (map (weight . snd) args)
+              _             -> 10
+    reorder :: [(Int,a)] -> [a]
+    reorder xs = map snd (sortBy (comparing fst) xs)              
+
+    inferAppArgsFirst :: [(Type,(Range,Effect),Core.Expr)] -> [(Int,Expr Type)] -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
+    inferAppArgsFirst [] [] [] named       -- no fixed arguments, try FunFirst
+      = inferAppFunFirst Nothing [] named  
+    inferAppArgsFirst acc [] fixed []      -- we tried all fixed arguments
       = inferAppFixedArgs acc
     inferAppArgsFirst acc [] fixed named
       = infError rng (text "named arguments can only be used if the function is unambiguously determined by the context" <-> text " hint: annotate the function parameters?" )
 
-    inferAppArgsFirst acc (fix:fixs) fixed named
-      = do (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
-           let acc' = (acc ++ [(tpArg,(getRange fix, effArg),coreArg)])
+    inferAppArgsFirst acc ((idx,fix):fixs) fixed named  -- try to improve our guess
+      = do traceDoc $ \env -> "infer app args first :-(: "
+           (tpArg,effArg,coreArg)  <- allowReturn False $ inferExpr Nothing Instantiated fix
+           let acc' = take idx acc ++ [(tpArg,(getRange fix,effArg),coreArg)] ++ drop (idx+1) acc
            amb <- case rootExpr fun of
+                    (Var name _ nameRange) | isConstructorName name
+                      -> do matches <- lookupNameEx (isInfoCon {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                            -- traceDoc $ \env -> text "app args matched for constructor " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 acc') )
+                            case matches of
+                              []         -> do -- emit an error
+                                               resolveConName name Nothing nameRange 
+                                               return Nothing
+                              [(_,info)] -> return (Just (infoType info, rng))
+                              _          -> return Nothing
                     (Var name _ nameRange)
-                      -> do matches <- lookupNameEx (const True) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                      -> do matches <- lookupNameEx (isInfoValFunExt {- const True -}) name (CtxFunTypes True (map fst3 acc') []) nameRange
+                            -- traceDoc $ \env -> text "app args matched for " <+> ppName env name <+> text " = " <+> pretty (length matches) <+> text ", " <+> pretty (length fixs) <+> text ", args: " <+> list (map (ppType env) (map fst3 acc)  )
                             case matches of
                               []         -> do -- emit an error
                                                resolveFunName name (CtxFunTypes True (map fst3 acc') []) rng nameRange 
@@ -1130,7 +1197,7 @@ inferApp propagated expect fun nargs rng
                            -- what we could do is check if the check arguments up to this point (in acc) are not optional or delayed, and in that case
                            -- we can avoid redoing the inference for those.
                            -- TODO: this can lead to exponential behavior... really bad
-                           -- trace(" reinfer") $
+                           trace(" reinfer") $
                             inferAppFunFirst (Just prop) fixed named
              Nothing    -> {-
                            if (not (null named0)) 
@@ -1166,15 +1233,16 @@ inferApp propagated expect fun nargs rng
      
     inferAppFixedArgs :: [(Type,(Range,Effect),Core.Expr)] -> Inf (Type,Effect,Core.Expr)
     inferAppFixedArgs acc
-      = -- trace ("inferAppFixedArgs") $
+      = trace ("inferAppFixedArgs") $
         do -- (tpArgs,effArgs,coreArgs) <- fmap unzip3 $ mapM (inferExpr Nothing Instantiated) args  -- todo: what about higher-ranked types?
            let (tpArgs,effArgs,coreArgs) = unzip3 acc
+           stpArgs <- mapM subst tpArgs
 
            funEff <- freshEffect
            expTp  <- case propagated of
                          Just (tp,_) -> return tp
                          _           -> Op.freshTVar kindStar Meta
-           let propType = TFun [(newName "",targ) | targ <- tpArgs] funEff expTp
+           let propType = TFun [(newName "",targ) | targ <- stpArgs] funEff expTp
            (ftp,eff1,fcore) <- allowReturn False $ inferExpr (Just (propType,rng)) Instantiated fun
            -- check the inferred type matches the arguments
            inferUnify (checkFun rng) rng propType ftp
@@ -1192,28 +1260,32 @@ inferApp propagated expect fun nargs rng
 
 inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,Effect,Core.Expr)
 inferVar propagated expect name rng isRhs  | isConstructorName name
-  = do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
+  = -- trace("inferVar: constructor: " ++ show name)$ 
+    do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
        let info1 = InfoCon tp1 conRepr conInfo rng
        (qname,tp,info) <- do defName <- currentDefName
                              let creatorName = newCreatorName qname1
-                             -- trace ("inferCon: " ++ show (defName,creatorName,qname1)) $ return ()
+                             -- trace ("inferCon: " ++ show (defName,creatorName,qname1,nameCopy)) $ return ()
                              if (defName /= unqualify creatorName && defName /= nameCopy) -- a bit hacky, but ensure we don't call the creator function inside itself or the copy function
                                then do mbRes <- lookupFunName creatorName propagated rng 
                                        case mbRes of
                                           Just (qname',tp',info') -> 
+                                            -- trace "creator found" $
                                             do return (qname',tp',info')
                                           Nothing  -> 
+                                            -- trace "no creator found" $
                                             do return (qname1,tp1,info1)
                                else return (qname1,tp1,info1)
        let coreVar = coreExprFromNameInfo qname info
        addRangeInfo rng (RM.Id (infoCanonicalName qname1 info1) (RM.NICon tp) False)                                  
        (itp,coref) <- maybeInstantiate rng expect tp 
-       -- trace ("Type.Infer.Con: " ++ show (name,itp)) $ return ()
+       -- traceDoc $ \env -> text "Type.Infer.Con: " <+> ppName env qname <+> text ":" <+> ppType env itp
        eff <- freshEffect
        return (itp,eff,coref coreVar)                              
 
 inferVar propagated expect name rng isRhs
-  = do (qname,tp,info) <- resolveName name propagated rng
+  = -- trace("inferVar; " ++ show name) $
+    do (qname,tp,info) <- resolveName name propagated rng
        case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)

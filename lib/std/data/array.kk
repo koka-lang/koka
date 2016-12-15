@@ -9,7 +9,7 @@
 /* Mutable arrays.
 
 */
-public module std/array
+public module std/data/array
 
 // ----------------------------------------------------------------------------
 // Arrays

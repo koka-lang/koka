@@ -95,7 +95,7 @@ htmlHeader env title
     ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
     ,""
     ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
-    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ htmlCss env ++ "\" />"
+    , unlines (map linkCss (undelimPaths (htmlCss env)))
     ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic\" />"
     ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic\" />"
     ,if (null (htmlJs env)) then "" 
@@ -105,11 +105,13 @@ htmlHeader env title
     ,"<title>" ++ title ++ " documentation</title>"
     ,"</head>"
     ,""
-    ,"<body class=\"" ++ prefix ++ "doc body\">"
+    ,"<body class=\"" ++ prefix ++ "doc body\"><div class=\"madoko\">"
     ]
+  where
+    linkCss cssPath = "<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ cssPath ++ "\" />"  
   
 htmlFooter
-  = ["</body>"
+  = ["</div></body>"
     ,"</html>"
     ]
 
@@ -432,7 +434,7 @@ removeComment s
 
 
     align ls
-      = let n = minimum (map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls))
+      = let n = minimum (0:(map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls)))
         in map (drop n) ls
 
 

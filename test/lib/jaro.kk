@@ -3,7 +3,7 @@
 // --------------------------------------------------------
 module jaro
 
-import std/string
+import std/text/string
 
 public fun main() {
   run-tests(jaro-distance,fun(s,t){ jaro-winkler-distance(s,t) })

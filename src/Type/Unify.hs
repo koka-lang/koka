@@ -101,7 +101,7 @@ matchArguments matchSome range free tp fixed named
               then unifyError NoMatch
               else do -- subsume fixed parameters
                       let (fpars,npars) = splitAt (length fixed) pars
-                      mapM_  (\(tpar,targ) -> subsume range free tpar targ) (zip (map snd fpars) fixed)
+                      mapM_  (\(tpar,targ) -> subsume range free (unOptional tpar) targ) (zip (map snd fpars) fixed)
                       -- subsume named parameters
                       mapM_ (\(name,targ) -> case lookup name npars of
                                                Nothing   -> unifyError NoMatch

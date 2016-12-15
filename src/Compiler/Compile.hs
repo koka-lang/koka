@@ -298,7 +298,7 @@ compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
 compileModule term flags modules name  -- todo: take force into account
   = runIOErr $ -- trace ("compileModule: " ++ show name) $
     do let imp = ImpProgram (Import name name rangeNull Private) 
-       (loaded,(mod:_)) <- resolveImports term flags "" initialLoaded{ loadedModules = modules } [imp]
+       (loaded,((mod:_):_)) <- resolveImports term flags "" initialLoaded{ loadedModules = modules } [imp]
        return loaded{ loadedModule = mod }
   
 {---------------------------------------------------------------
@@ -354,16 +354,17 @@ compileProgram' term flags modules compileTarget fname program
                                   , loadedModules = allmods
                                   }
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
+       liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        (loaded1,imported) <- resolveImports term flags (dirname fname) loaded (map ImpProgram (programImports program))
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+> 
                                            color (colorSource (colorScheme flags)) (pretty (name)))
         else return ()
-       let coreImports = map toCoreImport (zip imported (programImports program))
-           toCoreImport (mod,imp) = Core.Import (modName mod) (modPackagePath mod) 
-                                          (importVis imp) (Core.coreProgDoc (modCore mod))
+       let coreImports = concatMap toCoreImport (zip imported (programImports program))
+           toCoreImport (mods,imp) = map (\mod -> Core.Import (modName mod) (modPackagePath mod) 
+                                                  (importVis imp) (Core.coreProgDoc (modCore mod))) mods
        loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
-       -- liftIO $ termPhase term ("codegen " ++ show (getName program))
+       liftIO $ termPhase term ("codegen " ++ show (getName program))
        newTarget <- liftError $ 
            case compileTarget of
              Executable entryName _
@@ -425,16 +426,45 @@ impFullName :: ModImport -> Name
 impFullName (ImpProgram imp)  = importFullName imp
 impFullName (ImpCore cimp)    = Core.importName cimp  
 
-resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOErr (Loaded,[Module])
+resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOErr (Loaded,[[Module]])
 resolveImports term flags currentDir loaded []
   = return (loaded,[])
 resolveImports term flags currentDir loaded (imp:imps)
   = do (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
        let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (getRange imp) (impName imp) 
            loaded2        = loaded1{ loadedModules = modules }
+           -- impsPub        = filter (\imp -> Core.importVis imp == Public) $ Core.coreProgImports $ modCore mod
        mapM_ (\err -> liftError (errorMsg err)) errs   
+       -- trace ("impsPub: " ++ show [show (Core.importName imp) ++ ": " ++ Core.importPackage imp | imp <- impsPub]) $ return ()
        (loaded3,mods3) <- resolveImports term flags currentDir loaded2 imps
-       return (loaded3,mod:mods3)
+       (loaded4,mods) <- resolvePubImports flags loaded3 mod
+       return (loaded4,mods:mods3)
+
+resolvePubImports :: Flags -> Loaded -> Module -> IOErr (Loaded,[Module])
+resolvePubImports flags loaded0 mod  
+  = do let imports = Core.coreProgImports $ modCore mod
+           pubImports = filter (\imp -> Core.importVis imp == Public) imports
+       ifaces <- mapM findImp pubImports
+       let (loaded1,imps,errs) = foldl loadPubImport (loaded0,[],[])  (zip ifaces pubImports)
+       mapM_ (\err -> liftError (errorMsg err)) errs
+       return (loaded1,mod:imps)
+  where
+    modules = loadedModules loaded0
+    modNames = map modName modules
+           
+    findImp imp
+      = do mbiface <- liftIO $ searchOutputIface flags (Core.importName imp)
+           case mbiface of
+             Just iface -> return iface
+
+    loadPubImport :: (Loaded,[Module],[ErrorMessage]) -> (FilePath,Core.Import) -> (Loaded,[Module],[ErrorMessage])            
+    loadPubImport (loaded,imps,errs0) (iface,imp)
+      = -- trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
+        case lookupImport iface modules of
+          Just impMod | True -- modName impMod /= Core.importName imp
+                      -> let (loadedImp,errs1) = loadedImportModule (maxStructFields flags) loaded impMod rangeNull (Core.importName imp)
+                         in (loadedImp,impMod:imps,errs0) --  ++ errs1)
+          _ -> (loaded,imps,errs0)
 
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
@@ -513,7 +543,8 @@ resolveModule term flags currentDir modules mimp
                 Just mod ->
                   if (srcpath /= forceModule flags && modTime mod >= sourceTime)
                    then -- trace ("module " ++ show (name) ++ " already loaded") $ 
-                        loadFromModule iface root stem mod
+                        -- loadFromModule iface root stem mod
+                        return (mod,modules) -- TODO: revise! do proper dependency checking instead..
                    else -- trace ("module " ++ show ( name) ++ " already loaded but not recent enough..\n " ++ show (modTime mod, sourceTime)) $
                         loadFromSource modules root stem  
                 Nothing ->
@@ -528,14 +559,14 @@ resolveModule term flags currentDir modules mimp
              return (loadedModule loadedImp, loadedModules loadedImp)
       
       loadFromIface iface root stem 
-        = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ source) $
+        = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ stem) $
           do let (pkgQname,pkgLocal) = packageInfoFromDir (packages flags) (dirname iface)             
                  loadMessage msg = liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text msg) <+> 
                                        color (colorSource (colorScheme flags)) 
                                          (pretty (if null pkgQname then "" else pkgQname ++ "/") <>  pretty (name)))
              mod <- case lookupImport iface modules of
                       Just mod 
-                       -> do -- loadMessage "reusing:"
+                       -> do loadMessage "reusing:"
                              return mod 
                       Nothing
                        -> do loadMessage "loading:"
@@ -554,13 +585,13 @@ resolveModule term flags currentDir modules mimp
                  loaded = initialLoaded { loadedModule = mod 
                                         , loadedModules = allmods
                                         }
-             (loadedImp,imps) <- resolveImports term flags (dirname iface) loaded (map ImpCore (Core.coreProgImports (modCore mod)))
-             let latest = maxFileTimes (map modTime imps)
+             (loadedImp,impss) <- resolveImports term flags (dirname iface) loaded (map ImpCore (Core.coreProgImports (modCore mod)))
+             let latest = maxFileTimes (map modTime (concat impss))
              -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
              if (latest > modTime mod 
                   && not (null source)) -- happens if no source is present but (package) depencies have updated... 
                then loadFromSource (loadedModules loadedImp) root source -- load from source after all
-               else do liftIO $ copyIFaceToOutputDir term flags iface (modPackageQPath mod) imps
+               else do liftIO $ copyIFaceToOutputDir term flags iface (modPackageQPath mod) (concat impss)
                        return ((loadedModule loadedImp){ modSourcePath = joinPath root source }, loadedModules loadedImp)
 
 
@@ -819,7 +850,8 @@ codeGen term flags compileTarget loaded
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program" term () $ 
           case concatMaybe mbRuns of
-            (run:_)  -> run
+            (run:_)  -> do termPhase term "run"
+                           run
             _        -> return ()
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
@@ -848,6 +880,7 @@ codeGenCS term flags modules compileTarget outBase core
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " " 
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
+                        ++ "-r:System.Numerics.dll "
            targetName = case compileTarget of
                           Executable _ _ -> dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                           _              -> dquote (outBase ++ dllExtension)

@@ -174,10 +174,10 @@ command st cmd
 
   Load fnames force 
               -> do{ let st' = st{ lastLoad = fnames } 
-                   ; loadFiles term st' (reset st') fnames force
+                   ; loadFiles term st' (reset True st') fnames force
                    }
 
-  Reload      -> do{ loadFiles term st (reset st) (lastLoad st) True {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
+  Reload      -> do{ loadFiles term st (reset True st) (lastLoad st) True {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
 
   
   Edit []     -> do{ let fpath = lastFilePath st
@@ -307,14 +307,14 @@ loadFilesErr term startSt fileNames force
                                }
                    }
 
-reset :: State -> State
-reset st
+reset :: Bool -> State -> State
+reset full st
   =  st{ program       = programNull nameInteractiveModule
        , defines       = [] 
        , loaded        = loadedPrelude st -- initialLoaded 
        -- , modules       = []
        -- , loaded0       = loadedPrelude st -- initialLoaded 
-       , loaded0       = if (rebuild (flags st)) then initialLoaded else loaded0 st
+       , loaded0       = if (full || rebuild (flags st)) then initialLoaded else loaded0 st
        , errorRange    = Nothing
        }
 
