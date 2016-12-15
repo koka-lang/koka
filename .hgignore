@@ -1,7 +1,0 @@
-# generated output
-^node_modules/*
-^out/*
-^doc/spec/out/*
-^__pycache*
-.prof
-.kke
