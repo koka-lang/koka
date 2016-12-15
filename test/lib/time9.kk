@@ -81,5 +81,5 @@ fun for-days( ylo : int, yhi : int, action : int -> io () ) : io () {
 
 
 fun main() {
-  test()
+  test(50)
 }

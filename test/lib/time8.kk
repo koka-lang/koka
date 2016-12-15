@@ -31,7 +31,7 @@ public val sofai = instant(2006,1,15,21,24,37,0.5)
 
 public fun test-ut1() {
   println("load UT1 calendar")
-  val calut1= on-exn(cal-ut1-approx){ cal-ut1-load() }
+  val calut1= on-exn(cal-ut1-approx){ cal-ut1-load(verbose=True) }
   check("sofa-ut1","2006-01-15T21:24:37.834075267Z UT1"){  sofai.time(cal=calut1).show  } // astropy: 37.834077793, sofa: 37.834100 ; non-interpolated: 37.834087400Z
 
   // across a leap second

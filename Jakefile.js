@@ -148,6 +148,7 @@ task("test", ["compiler"], function(testdir,testmode) {
   testdir=testdir||"test";
   testmode=testmode||"";
   // jake.rmRf(path.join(outputDir,"test"))
+  jake.mkdirP("out/test/config");
   runTests(pathnorm(testdir),testmode);
 });
 

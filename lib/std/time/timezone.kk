@@ -49,10 +49,12 @@ extern include {
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`10.seconds`) gives the maximum time for downloading to finish.
+// Set `verbose` to `True` to see trace messages.
 public fun load-timezones( fname : path = path(""), 
                            url   : string = "auto",
                            download-delay : duration   = 4.weeks,
-                           download-timeout : duration = 10.seconds 
+                           download-timeout : duration = 10.seconds,
+                           verbose : bool = False
                          ) : <io,async> timezones 
 {
   fun parse(s :string) : maybe<timezones> {
@@ -61,7 +63,7 @@ public fun load-timezones( fname : path = path(""),
   val xfname = (fname || appdir() + path("config/timezones.json"))
   val xurl   = (if (url=="auto") then "https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json" else url)
   load-latest( xfname, xurl, parse, download-delay=download-delay, download-timeout=download-timeout,
-               error-prefix="load timezone table")
+               error-prefix="load timezone table", verbose=verbose)
 }
 
 

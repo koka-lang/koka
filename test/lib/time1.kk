@@ -21,13 +21,8 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
   println(name + ": " + (if (tst()) then "ok" else "failed!"))
 }
 
-fun test-tz() {
-  println( "tz-local(): " + now().time(tz=tz-local()).show )
-  val tzs = on-exn(timezones-empty){ load-timezones() }
-  println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
-  val zlocal = tzs.guess-local-timezone()
-  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
 
+fun test-tzs( tzs : timezones ) {
   val z1  = tzs.timezone("America/New_York")
   val z2  = tzs.timezone("Asia/Tehran")
   val t1  = instant(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60)
@@ -64,7 +59,15 @@ fun test-tz() {
 }
 
 
+fun test() {
+  println( "tz-local(): " + now().time(tz=tz-local()).show )
+  val tzs = on-exn(timezones-empty){ load-timezones(verbose=True) }
+  println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
+  val zlocal = tzs.guess-local-timezone()
+  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
+  test-tzs(tzs)
+}
 
 public fun main() {
-  test-tz()
+  test-tzs(on-exn(timezones-empty){ load-timezones() })
 }

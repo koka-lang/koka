@@ -1,7 +1,7 @@
 // --------------------------------------------------------
 // Jaro distance using direct string slices
 // --------------------------------------------------------
-import std/array
+import std/data/array
 import jaro
 
 fun main() {
