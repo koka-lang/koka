@@ -125,9 +125,10 @@ uniquefyDef def
 uniquefyExpr :: Expr -> Un Expr
 uniquefyExpr expr
   = case expr of
-      Lam tnames expr   -> do tnames1 <- mapM uniquefyTName tnames
-                              expr1   <- uniquefyExpr expr
-                              return (Lam tnames1 expr1)
+      Lam tnames eff expr-> localized $
+                            do tnames1 <- mapM uniquefyTName tnames
+                               expr1   <- uniquefyExpr expr                               
+                               return (Lam tnames1 eff expr1)
       Var tname info    -> do renaming <- getRenaming
                               case M.lookup (getName tname) renaming of
                                 Just name -> return $ Var (TName name (typeOf tname)) info

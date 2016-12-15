@@ -22,9 +22,11 @@ module Common.Name
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName
           , newHiddenName, isHiddenName
+          , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName
-          , toConstructorName, isConstructorName
+          , newCreatorName, toOperationsName, fromOperationsName, toEffectConName, toOpConName
+          , toConstructorName, isConstructorName, toVarName
+          , toOpenTagName, isOpenTagName
           , splitModuleName, unsplitModuleName
           
           , prepend, postpend
@@ -54,8 +56,11 @@ data Name  = Name
              , hashId     :: !Int
              }
 
-nameCaseEqual (Name m1 _ n1 _) (Name m2 _ n2 _)
-  = (m1 == m2) && (n1 == n2) 
+nameCaseEqual name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
+  = nameId name1 == nameId name2
+    &&
+    and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
+    -- (m1 == m2) && (n1 == n2) 
 
 nameCaseOverlap :: Name -> Name -> Bool
 nameCaseOverlap name1 name2 
@@ -167,6 +172,7 @@ unsplitModuleName :: [Name] -> Name
 unsplitModuleName xs
   = newName (concat (intersperse "/" (map show xs)))
 
+
 ----------------------------------------------------------------
 -- wildcards & constructors
 ----------------------------------------------------------------
@@ -177,14 +183,28 @@ isWildcard name
 
 isConstructorName name
   = case nameId name of
-      (c:cs) -> isUpper c || c == '('
-      _      -> False
+      ('.':c:cs) -> isUpper c || c == '('
+      (c:cs)     -> isUpper c || c == '('
+      _          -> False
 
 toConstructorName name
   = newQualified (nameModule name) $
     case nameId name of
-      (c:cs) -> toUpper c : cs
-      ""     -> ""
+      ('.':c:cs) -> '.':toUpper c : cs  -- keep hidden names hidden
+      (c:cs)     -> toUpper c : cs
+      ""         -> ""
+
+toVarName name
+  = newQualified (nameModule name) $
+    case nameId name of
+      ('.':cs)   -> '.':toLowers cs  -- keep hidden names hidden
+      cs         -> toLowers cs
+  where
+    toLowers s  -- while uppercase, map toLower
+      = case s of
+          (c:cs) | isUpper c -> toLower c : toLowers cs
+          _      -> s
+
 
 ----------------------------------------------------------------
 -- various special names
@@ -198,6 +218,8 @@ isHiddenName name
       ('.':_) -> True
       _       -> False
 
+makeHiddenName s name
+  = prepend ("." ++ s ++ "-") name
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -214,7 +236,7 @@ isImplicitTypeVarName name
 
 
 newHiddenExternalName name
-  = newHiddenName (show name ++ "@extern")
+  = makeHiddenName "extern" name
 
 
 -- | Create a constructor creator name from the constructor name.
@@ -222,16 +244,52 @@ newHiddenExternalName name
 -- in particular for the case of optional arguments.
 newCreatorName :: Name -> Name
 newCreatorName name
-  = prepend ".create" name
+  = makeHiddenName "create" name
+
+
+-- | Create an operations type name from an effect type name.
+toOperationsName :: Name -> Name
+toOperationsName name
+  = makeHiddenName "ops" name
+  
+-- | Create an effect type name from an operations type name.
+fromOperationsName :: Name -> Name
+fromOperationsName name
+  = newQualified (nameModule name) (drop 5 (nameId name))
+
+
+-- | Create an operation constructor name from an operation name.
+toOpConName :: Name -> Name
+toOpConName name
+  = makeHiddenName "Op" name
+  
+-- | Create an effects constructor (in the operations type) from an effect type name.
+toEffectConName :: Name -> Name
+toEffectConName name
+  = makeHiddenName "Eff" name
+
+-- | Create an open tag name from a constructor name in an open type
+toOpenTagName :: Name -> Name
+toOpenTagName name
+  = makeHiddenName "tag" name  
+
+isOpenTagName :: Name -> Bool
+isOpenTagName name
+  = nameId name `startsWith` ".tag-"
 
 prepend :: String -> Name -> Name
 prepend s name
-  = newQualified (nameModule name) (s ++ nameId name)
+  = newQualified (nameModule name) 
+    (case nameId name of 
+      ('.':t) -> case s of
+                   '.':_ -> s ++ t  -- keep hidden names hidden
+                   _     -> '.' : s ++ t
+      t       -> s ++ t
+    )
 
 postpend :: String -> Name -> Name
 postpend s name
   = newQualified (nameModule name) (nameId name ++ s)
-
 
 ----------------------------------------------------------------
 -- camel-case to dash-case
@@ -266,7 +324,7 @@ moduleNameToPath name
 {---------------------------------------------------------------
   Ascii encode a name
   - on module names  '/' becomes '_'
-  - on normal names '.' becomes '_' 
+  - on normal names '-' becomes '_' 
 ---------------------------------------------------------------}
 asciiEncode :: Bool -> String -> String
 asciiEncode isModule name
@@ -284,24 +342,26 @@ asciiEncode isModule name
       "(,,)"  -> "_tuple3_"
       "(,,,)" -> "_tuple4_"
       "[]"    -> "_index_"
-      '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
-      '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
+      -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
+      -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs
       _       -> encodeChars name
   where
     encodeChars s
-      = let (dots,rest) = span (=='.') s
-        in map (const '_') dots ++ concatMap encodeChar rest
-  
-    encodeChar :: Char -> String
-    encodeChar c | isAlphaNum c  = [c]
-    encodeChar c
+      = concat (zipWith3 encodeChar (' ':s) s (tail (s ++ " ")))
+
+    encodeChar :: Char -> Char -> Char -> String
+    encodeChar pre c post | isAlphaNum c  = [c]
+    encodeChar pre c post
       = case c of
           '/' | isModule -> "_"
-          '.' | not isModule -> "_"
+          '-' | not isModule && isAlphaNum post -> "_"
+          '.' | isDigit post || post == ' ' || pre == ' ' -> "_"
 
           '_' -> "__"
           '.' -> "_dot_"
           '-' -> "_dash_"   
+          '/' -> "_fs_"
+          
           '+' -> "_plus_"
           '*' -> "_star_"
           '&' -> "_amp_"
@@ -319,7 +379,6 @@ asciiEncode isModule name
           '[' -> "_lb_"
           ']' -> "_rb_"
           '?' -> "_ques_"
-          '/' -> "_fs_"
           '\\'-> "_bs_"
           '(' -> "_lp_"
           ')' -> "_rp_"
@@ -330,6 +389,7 @@ asciiEncode isModule name
           '`'  -> "_bq_"
           '{'  -> "_lc_"
           '}'  -> "_rc_"
+          '|'  -> "_bar_"
             
           _   -> "_x" ++ showHex 2 (fromEnum c) ++ "_"
 

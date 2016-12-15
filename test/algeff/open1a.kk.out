@@ -1,0 +1,4 @@
+42
+bar : (x : int) -> int
+hs : forall<e> list<(int) -> e int>
+main : () -> console ()

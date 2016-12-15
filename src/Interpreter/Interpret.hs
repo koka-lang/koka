@@ -85,7 +85,7 @@ interpret printer flags0 files
    -}
       -- ; interpreterEx st2
   
-      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))]  -- map (\c -> if c == '.' then fileSep else c) 
+      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c) 
                   `catchIO` (\msg -> do messageError st2 msg; 
                                         return (errorMsg (ErrorGeneral rangeNull (text msg))))
       ; case checkError err of
@@ -96,7 +96,7 @@ interpret printer flags0 files
           Right (preludeSt,warnings)
                       -> if (null files)
                              then interpreterEx preludeSt{ lastLoad = [] }
-                             else command preludeSt (Load files)  
+                             else command preludeSt (Load files False)  
   
       }
 
@@ -172,11 +172,12 @@ command st cmd
                                        }
                        }
 
-  Load fnames -> do{ let st' = st{ lastLoad = fnames } 
-                   ; loadFiles term st' (reset st') fnames 
+  Load fnames force 
+              -> do{ let st' = st{ lastLoad = fnames } 
+                   ; loadFiles term st' (reset True st') fnames force
                    }
 
-  Reload      -> do{ loadFiles term st (reset st) (lastLoad st) {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
+  Reload      -> do{ loadFiles term st (reset True st) (lastLoad st) True {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
 
   
   Edit []     -> do{ let fpath = lastFilePath st
@@ -252,15 +253,15 @@ command st cmd
 {--------------------------------------------------------------------------
   File loading
 --------------------------------------------------------------------------}
-loadFiles :: Terminal -> State -> State -> [FilePath] -> IO ()
-loadFiles term originalSt startSt files
-  = do err <- loadFilesErr term startSt files
+loadFiles :: Terminal -> State -> State -> [FilePath] -> Bool -> IO ()
+loadFiles term originalSt startSt files force
+  = do err <- loadFilesErr term startSt files force
        case checkError err of
          Left msg -> interpreterEx originalSt{ errorRange = Just (getRange msg) }
          Right (st,warnings) -> interpreterEx st 
 
 
-loadFilesErr term startSt fileNames
+loadFilesErr term startSt fileNames force
   = do walk [] startSt fileNames
   where
     walk :: [Module] -> State -> [FilePath] -> IO (Error State)
@@ -282,7 +283,7 @@ loadFilesErr term startSt fileNames
                              then compileFile term (flags st) (loadedModules (loaded0 st)) Object fname
                              else compileModule term (flags st) (loadedModules (loaded0 st)) (newName fname)
                              -}
-                             compileModuleOrFile term (flags st) (loadedModules (loaded0 st)) fname
+                             compileModuleOrFile term (flags st) (loadedModules (loaded0 st)) fname force
                    ; case checkError err of 
                        Left msg 
                           -> do messageErrorMsgLnLn st msg
@@ -306,14 +307,14 @@ loadFilesErr term startSt fileNames
                                }
                    }
 
-reset :: State -> State
-reset st
+reset :: Bool -> State -> State
+reset full st
   =  st{ program       = programNull nameInteractiveModule
        , defines       = [] 
        , loaded        = loadedPrelude st -- initialLoaded 
        -- , modules       = []
        -- , loaded0       = loadedPrelude st -- initialLoaded 
-       , loaded0       = if (rebuild (flags st)) then initialLoaded else loaded0 st
+       , loaded0       = if (full || rebuild (flags st)) then initialLoaded else loaded0 st
        , errorRange    = Nothing
        }
 

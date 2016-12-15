@@ -18,13 +18,13 @@ type serverCommand {
   SetUsername( username : string ) 
 }
 
-function log( s : string ) {
+fun log( s : string ) {
   trace( "[log] " + s );
 }
 
-public function main(): io ()
+public fun main(): io ()
 { 
-  function serverCode() : nodeServer serverHandlers<serverCommand, clientCommand>           
+  fun serverCode() : nodeServer serverHandlers<serverCommand, clientCommand>           
   { 
     log("rpc server listening on localhost:8080")
     val broadcast = createBroadcast()
@@ -35,7 +35,7 @@ public function main(): io ()
       exit(0);
     }
 
-    function init()
+    fun init()
     { 
       log("`serverCode.init`") 
       var username := "anonymous"
@@ -54,7 +54,7 @@ public function main(): io ()
       }
     }
 
-    function interact(client)
+    fun interact(client)
     { 
       log("`serverCode.interact`")
       Display("|  Welcome").client
@@ -67,9 +67,9 @@ public function main(): io ()
     return ServerHandlers( init, interact )
   }
 
-  function clientCode() : nodeClient clientHandlers<serverCommand, clientCommand> 
+  fun clientCode() : nodeClient clientHandlers<serverCommand, clientCommand> 
   { 
-    function init() { 
+    fun init() { 
       log("`clientCode.init`")      
       return fun(c) {
         match(c) {
@@ -78,9 +78,9 @@ public function main(): io ()
       }
     }
 
-    function interact(server) { 
+    fun interact(server) { 
       log("`clientCode.interact`")
-      function loop() 
+      fun loop() 
       {
         readln() fun(input) { 
           if( input.startsWith("/") ) {

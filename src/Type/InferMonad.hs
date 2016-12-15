@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 module Type.InferMonad( Inf, InfGamma
-                      , runInfer
+                      , runInfer, tryRun
                       
                       -- * substitutation
                       , zapSubst
@@ -40,6 +40,7 @@ module Type.InferMonad( Inf, InfGamma
                       , withLhs, isLhs
                       , getPrettyEnv
                       , splitEffect
+                      , occursInContext
 
                       -- * Operations
                       , generalize
@@ -53,9 +54,11 @@ module Type.InferMonad( Inf, InfGamma
                       , Context(..)
                       , inferUnify, inferUnifies
                       , inferSubsume
+                      , withSkolemized
 
                       , typeError
                       , contextError
+                      , termError
                       , infError, infWarning
 
                       -- * Documentation, Intellisense
@@ -100,8 +103,8 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import qualified Lib.Trace( trace ) 
 
 trace s x =
-   -- Lib.Trace.trace (" " ++ s)
-     x
+  -- Lib.Trace.trace (" " ++ s)
+   x
 
 {--------------------------------------------------------------------------
   Generalization
@@ -133,11 +136,11 @@ generalize contextRange range eff0 rho0 core0
        score0 <- subst core0
 
        sub <- getSub
-       trace (" generalize: " ++ show (seff,srho) ++ " with " ++ show ps0 
+        -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0 
                   {- ++ " and free " ++ show (tvsList free) -} 
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -} 
-                  {- ++ "\ncore: " ++ show score0 -}) 
-             $ return ()
+                  {- ++ "\ncore: " ++ show score0 -} 
+            -- return ()
        -- simplify and improve predicates
        (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho) 
        -- trace (" improved to: " ++ show (eff1,rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
@@ -151,7 +154,7 @@ generalize contextRange range eff0 rho0 core0
                 -- substitute more free variables in the core with ()
                 let score1 = substFree free score
                 nrho <- normalizeX free rho1
-                trace (" generalized to (as rho type): " ++ show (nrho)) $ return () 
+                trace ("generalized to (as rho type): " ++ show (pretty nrho)) $ return () 
                 return (nrho,score1)
 
         else do -- check that the computation is total
@@ -194,7 +197,7 @@ generalize contextRange range eff0 rho0 core0
                 -- extendSub bsub
                 -- substitute more free variables in the core with ()
                 let core6 = substFree free core5
-                trace (" generalized to: " ++ show (resTp)) $ return () 
+                trace ("generalized to: " ++ show (pretty resTp)) $ return () 
                 return (resTp, core6)
 
   where
@@ -220,7 +223,7 @@ improve contextRange range eff0 rho0 core0
        -- let free = tvsUnion free0 (fuv seff)
        sps    <- splitPredicates free
        score0 <- subst core0
-       trace (" improve: " ++ show (seff,srho) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
+       -- trace (" improve: " ++ show (Pretty.niceTypes Pretty.defaultEnv [seff,srho]) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        
        -- isolate: do first to discharge certain hdiv predicates.
        -- todo: in general, we must to this after some improvement since that can lead to substitutions that may enable isolation..
@@ -234,13 +237,13 @@ improve contextRange range eff0 rho0 core0
        
        (nrho) <- normalizeX free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
-       trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
+       -- trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiate range tp | isRho tp
-  = do rho <- Op.extend tp
-       return (rho,[],id)
+  = do (rho,coref) <- Op.extend tp
+       return (rho,[],coref)
 instantiate range tp 
   = do (tvars,ps,rho,coref) <- instantiateEx range tp
        addPredicates ps
@@ -330,7 +333,8 @@ normalizeX free tp
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type 
                           (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
-                            -> return (effectFixed ls)
+                            -> trace ("close effect: " ++ show (pretty tp)) $
+                                return (effectFixed ls)
                           _ -> do ls' <- mapM (normalizex Pos) ls
                                   tl' <- normalizex Pos tl
                                   return (effectExtends ls' tl')
@@ -356,7 +360,7 @@ normalizeX free tp
                   -}
                               _ -> do ls' <- mapM (normalizex var) ls
                                       tl' <- normalizex var tl
-                                      return (effectExtends ls' tl')          
+                                      return $ effectExtends ls' tl'
                   args' <- mapM (\(name,arg) -> do{arg' <- normalizex (vflip var) arg; return (name,arg')}) args
                   res'  <- normalizex var res
                   niceEff <- nicefyEffect eff'
@@ -547,7 +551,7 @@ instance Ranged Context where
 inferUnify :: Context -> Range -> Type -> Type -> Inf ()
 inferUnify context range expected tp
   = do (sexp,stp) <- subst (expected,tp)
-       -- trace ("infer unify: " ++ show (sexp,stp)) $ return ()
+       -- trace ("infer unify: " ++ show (Pretty.niceTypes Pretty.defaultEnv [sexp,stp])) $ return ()
        res <- doUnify (unify sexp stp)
        case res of
          Right () -> return ()
@@ -569,7 +573,7 @@ inferSubsume :: Context -> Range -> Type -> Type -> Inf (Type,Core.Expr -> Core.
 inferSubsume context range expected tp
   = do free <- freeInGamma
        (sexp,stp) <- subst (expected,tp)
-       -- trace ("inferSubsume: " ++ show (sexp,stp) ++ " with free " ++ show (tvsList free)) $ return ()
+       -- trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
        res <- doUnify (subsume range free sexp stp)
        case res of
          Right (t,ps,coref) -> do addPredicates ps
@@ -588,6 +592,20 @@ nofailUnify u
           -> do extendSub sub
                 failure ("Type.InferMonad.runUnify: should never fail!")
 
+withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> Inf (a,Tvs)) -> Inf a
+withSkolemized rng tp mhint action
+  = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
+       (x,extraFree) <- action xrho
+       --sub <- getSub
+       free <- freeInGamma
+       let allfree = tvsUnion free extraFree
+           --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]     
+       if (tvsDisjoint (tvsNew xvars) allfree) 
+         then return ()
+         else do sxrho <- subst xrho
+                 let escaped = [v | v <- xvars, tvsMember v allfree]
+                 termError rng (text "abstract type(s) escape(s) into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
+       return x
 
 doUnify :: Unify a -> Inf (Either UnifyError a)
 doUnify u
@@ -600,6 +618,11 @@ doUnify u
           -> do extendSub sub
                 return (Left err)
 
+occursInContext :: TypeVar -> Tvs -> Inf Bool
+occursInContext tv extraFree
+  = do free <- freeInGamma
+       let allFree = tvsUnion free extraFree
+       return (tvsMember tv allFree)
 
 {--------------------------------------------------------------------------
   Unification errors
@@ -707,6 +730,21 @@ contextError' env contextRange range message extra
                 ,(text "term", docFromRange (Pretty.colors env) range)
                 ]
                 ++ extra)
+
+termError :: Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
+termError range message tp extra
+  = do env <- getEnv
+       termError' (prettyEnv env) range message tp extra
+
+termError' env range message tp extra
+  = do infError range $
+        message <->
+        table  ([(text "term", docFromRange (Pretty.colors env) range)
+                ,(text "inferred type", Pretty.niceType env tp)
+                ]
+                ++ extra)
+    
+
     
 {--------------------------------------------------------------------------
   Inference monad
@@ -760,6 +798,11 @@ instance Monad Inf where
                                                                    Ok y st2 w2 -> Ok y st2 (w1++w2)
                                                                    Err err w2 -> Err err (w1++w2)
                                        Err err w -> Err err w)
+
+tryRun :: Inf a -> Inf (Maybe a)
+tryRun (Inf i) = Inf (\env st -> case i env st of 
+                                   Ok x st1 w -> Ok (Just x) st1 w
+                                   Err err w  -> Ok Nothing st [])
 
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
@@ -863,11 +906,15 @@ extendGammaCore :: Bool -> [Core.DefGroup] -> Inf a -> Inf (a)
 extendGammaCore isAlreadyCanonical [] inf
   = inf
 extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
-  = -- Lib.Trace.trace ("extend gamma: " ++ show (zip (nameSchemes coreDefs) (nameInfos coreDefs))) $
-    extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
+  = extendGamma isAlreadyCanonical (nameInfos coreGroup) (extendGammaCore isAlreadyCanonical coreDefss inf)
   where
-    nameInfos (Core.DefRec defs)    = map coreDefInfo defs
-    nameInfos (Core.DefNonRec def)  = [coreDefInfo def]
+    nameInfos (Core.DefRec defs)    = map coreDefInfoX defs
+    nameInfos (Core.DefNonRec def)  
+      = [coreDefInfoX def]  -- used to be coreDefInfo
+
+-- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
+coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)
+  = (Core.nonCanonicalName name, createNameInfoX name sort nameRng tp)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -891,7 +938,7 @@ extendGamma isAlreadyCanonical defs inf
                             InfoFun{} -> info{ infoCName = cname }
                             InfoExternal{} -> info{ infoCName = cname }
                             _ -> info
-           -- Lib.Trace.trace (" extend gamma: " ++ show (name,infoType info) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
+           -- Lib.Trace.trace (" extend gamma: " ++ show (pretty name, pretty (infoType info), show cinfo) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
            extend ctx rest (gammaExtend name cinfo gamma)
            
      
@@ -1253,13 +1300,14 @@ data NameContext
 
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
 lookupNameEx infoFilter name ctx range 
-  = -- trace ("lookup: " ++ show name ++ ": " ++ show mbType) $
+  = -- trace ("lookup: " ++ show name) $
     do env <- getEnv
+       -- trace (" in infgamma: " ++ show (ppInfGamma (prettyEnv env) (infgamma env))) $ return ()
        case infgammaLookupX name (infgamma env) of
          Just info  | infoFilter info  
                   -> do sinfo <- subst info
                         return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
-         _        -> -- trace ("gamma: " ++ show (gamma env)) $
+         _        -> -- trace ("gamma: " ++ show (ppGamma (prettyEnv env) (gamma env))) $
                      -- lookup global candidates
                      do let candidates = filter (infoFilter . snd) (gammaLookup name (gamma env))
                         case candidates of
@@ -1273,9 +1321,8 @@ lookupNameEx infoFilter name ctx range
                                                                        return (concat mss)
                                                  CtxFunArgs n named -> do mss <- mapM (matchNamedArgs n named) candidates
                                                                           return (concat mss)
-                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates
+                                                 CtxFunTypes partial fixed named -> do mss <- mapM (matchArgs partial fixed named) candidates                                                                                       
                                                                                        return (concat mss)
-                                    -- trace ("matches: " ++ show matches) $
                                     case matches of
                                       [(qname,info)] -> return matches
                                       _  -> do -- lookup global names defined in the current module
@@ -1311,7 +1358,8 @@ lookupNameEx infoFilter name ctx range
 
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchArgs matchSome fixed named (name,info)
-      = do free <- freeInGamma
+      = -- trace ("match args: " ++ show matchSome ++ ", " ++ show fixed ++ ", " ++ show (length named) ++ " on " ++ show (infoType info)) $
+        do free <- freeInGamma
            res <- runUnify (matchArguments matchSome range free (infoType info) fixed named) 
            case res of
              (Right _,_)  -> return [(name,info)]

@@ -217,7 +217,7 @@
       },
 
     "libraryid":
-      { "match": "(repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned)(?!\\w)"
+      { "match": "(repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned|resume|cont)(?!\\w)"
       , "name": "support.function.koka"
       },
 
@@ -232,7 +232,7 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w)"
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\\w\\-?'])"
       , "name": "keyword.other.koka"
       },
 
@@ -264,12 +264,12 @@
       },
 
     "identifier" :
-      { "match": "[a-z]\\w*"
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
       , "name": "variable.koka"
       },
 
     "qidentifier" :
-      { "match": "([a-z]\\w*/)+([a-z]\\w*)"
+      { "match": "([a-z][\\w\\-]*/)+([a-z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "variable.koka" }
@@ -277,12 +277,12 @@
       },
 
     "constructor":
-      { "match": "[A-Z]\\w*|\\(,+\\)"
+      { "match": "[A-Z][\\w\\-]*[\\'\\?]*|\\(,+\\)"
       , "name": "constant.other.constructor.koka"
       },
 
     "qconstructor" :
-      { "match": "([a-z]\\w*/)([A-Z]\\w*)"
+      { "match": "([a-z][\\w\\-]*/)([A-Z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "constant.other.constructor.koka" }
@@ -300,44 +300,44 @@
       },
 
     "wildcard" :
-      { "match": "_\\w*"
+      { "match": "_[\\w\\-]*[\\'\\?]*"
       , "name": "variable.wildcard.koka"
       },
 
     "type_variable" :
-      { "match": "([a-z][0-9]*|_\\w*|self)(?!\\w)"
+      { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
       , "name": "storage.type.typevar.koka"
       },
 
     "type_identifier" :
-      { "match": "[a-z]\\w*"
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
       , "name": "storage.type.constant.koka"
       },
 
     "type_qidentifier" :
-      { "match": "([a-z]\\w*/)+"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*/)+"
       , "name": "entity.name.class.module.koka"
       },
 
     "type_parameter" :
-      { "match": "([a-zA-Z]\\w*)\\s*:(?!:)"
+      { "match": "([a-zA-Z][\\w\\-]*[\\'\\?]*)\\s*:(?!:)"
       , "captures": {
            "1": { "name" : "variable.typeparam.koka" }
          }
       },   
 
     "type_kind" :
-      { "match": "[A-Z](?!\\w)"  
+      { "match": "[A-Z](?![\\w\\-])"  
       , "name": "storage.type.kind.koka"
       },
 
     "type_interface" :
-      { "match": "[A-Z]\\w+"  
+      { "match": "[A-Z][\\w\\-]+[\\'\\?]*"  
       , "name": "storage.type.interface.koka"
       },
 
     "decl_function": 
-      { "match": "(fun|function)\\s+([a-z]\\w*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
+      { "match": "(fun|function|val|var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "entity.name.function.koka" }
@@ -345,13 +345,13 @@
       },
 
     "param_identifier" :
-      { "match": "([a-z]\\w*)\\s*(?=[:,\\)])"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=[:,\\)])"
       , "name" : "entity.name.function.koka"
       },   
 
     "decl_function0": 
-      { "begin": "(fun|function)\\s*(([a-z]\\w*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]))?\\s*(\\()"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      { "begin": "(fun|function)\\s*(([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]))?\\s*(\\()"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|cont)(?!\\w))" 
       , "beginCaptures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "3": { "name": "entity.name.function.koka" },
@@ -366,7 +366,7 @@
       },
 
     "decl_external": 
-      { "match": "(external)\\s+(include|inline)?\\s*([a-z]\\w*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])?"
+      { "match": "(extern|external)\\s+(include|inline)?\\s*([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])?"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "support.function.koka" },
@@ -375,7 +375,7 @@
       },
 
     "decl_val": 
-      { "match": "(((val)\\s+)?)(([a-z]\\w*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
+      { "match": "(((val)\\s+)?)(([a-z][\\w\\-]*[\\'\\?]*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
       , "captures": {
           "3": { "name": "keyword.declaration.val.koka" },
           "5": { "name": "entity.name.val.koka" },
@@ -384,7 +384,7 @@
       },
 
     "decl_var": 
-      { "match": "(var)\\s+([a-z]\\w*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
+      { "match": "(var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.var.koka" },
           "2": { "name": "entity.name.var.koka" }
@@ -392,13 +392,13 @@
       },
 
     "decl_param" :
-      { "match": "([a-z]\\w*)\\s*(?=:)"
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=:)"
       , "name" : "entity.name.param.koka"
       },   
 
     "top_type": 
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(with|iff|when)(?!\\w)"
-      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "storage.type.koka" },
                            "2" : { "name": "keyword.koka" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}
@@ -409,8 +409,8 @@
 
 
     "top_type_type": 
-      { "begin": "(cotype|type|rectype)\\s+([a-z]\\w+|<>|<\\|>|\\(,*\\))"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      { "begin": "((?:cotype|type|rectype)(?:\\s+(?:open|extend))?|effect)\\s+([a-z]\\w+|<>|<\\|>|\\(,*\\))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.type.storage.type.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}                         
@@ -421,7 +421,7 @@
 
     "top_type_alias": 
       { "begin": "(alias)\\s+([a-z]\\w+)"
-      , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|if|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|effect|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.type.storage.type.koka" }}
       , "endCaptures": { "0": { "name": "invalid.keyword.koka" }}                         
@@ -435,7 +435,7 @@
       },
 
     "top_type_struct": 
-      { "match": "(struct)\\s+([a-z]\\w*|\\(,*\\))"
+      { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.type.koka" },
           "2": { "name": "entity.name.type.storage.type.koka" }
@@ -443,8 +443,8 @@
       },
 
     "top_type_struct_args": 
-      { "begin": "(struct)\\s+([a-z]\\w*|\\(,*\\))\\s*(<)"
-      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }, 
                            "2" : { "name": "entity.name.type.storage.type.koka"  },
                            "3" : { "name": "storage.type.punctuation.separator.koka"  }}
@@ -457,7 +457,7 @@
 
     "top_type_interface": 
       { "begin": "(interface|instance)\\s+([A-Z]\\w+|<>|<\\|>|\\(,*\\))"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.type.interface.storage.type.interface.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}                         
@@ -468,7 +468,7 @@
 
     "top_type_quantifier": 
       { "begin": "(exists|forall|some)(\\s*)(<)"
-      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|external|fun|function|val|var|con|then|else|elif|match|return|module|import|as|public|private|abstract|yield)(?!\\w))" 
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.koka" }, 
                            "3" : { "name": "storage.type.punctuation.separator.koka"  }}
       , "endCaptures": { "1": {"name": "storage.type.punctuation.separator.koka" },

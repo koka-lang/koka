@@ -14,11 +14,13 @@ module Kind.Kind( -- * Kinds
                   , KindCon
                  -- * Standard kinds
                   , kindStar, kindPred, kindEffect, kindArrow, kindHeap
+                  , kindHandled, kindHandled1
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
                   , isKindFun
                   , isKindStar
-                  , isKindEffect
+                  , isKindEffect, isKindHandled, isKindHandled1
+                  , kindAddArg
                   ) where
 
 import Common.Name
@@ -68,6 +70,13 @@ kindArrowN :: Int -> Kind
 kindArrowN n
   = foldr kindFun (kindFun kindEffect kindStar) (replicate n kindStar)
 
+kindAddArg :: Kind -> Kind -> Kind
+kindAddArg kfun karg
+  = case kfun of
+      KApp (KApp k0 k1) k2  | k0 == kindArrow && not (isKindEffect k1 && isKindStar k2)
+        -> KApp (KApp k0 k1) (kindAddArg k1 karg)
+      _ -> kindFun karg kfun
+
 kindPred :: Kind
 kindPred
   = KCon nameKindPred
@@ -79,6 +88,14 @@ kindEffect
 kindHeap :: Kind
 kindHeap
   = KCon nameKindHeap
+
+kindHandled :: Kind
+kindHandled
+  = KCon nameKindHandled
+
+kindHandled1 :: Kind
+kindHandled1
+  = KCon nameKindHandled1
 
 kindExtend :: Kind 
 kindExtend 
@@ -104,12 +121,15 @@ extractKindFun k
            in (k1:args,res)
       _ -> ([],k)
 
-isKindStar, isKindEffect :: Kind -> Bool
+isKindStar, isKindEffect, isKindHandled :: Kind -> Bool
 isKindStar k
   = k == kindStar
 isKindEffect k
   = k == kindEffect
-
+isKindHandled k
+  = k == kindHandled
+isKindHandled1 k
+  = k == kindHandled1
 
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
@@ -120,4 +140,6 @@ builtinKinds
     ,(nameKindEffect, kindEffect)
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
+    ,(nameKindHandled, kindHandled)
+    ,(nameKindHandled1, kindHandled1)
     ]

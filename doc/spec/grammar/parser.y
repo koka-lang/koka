@@ -50,7 +50,7 @@ void printDecl( const char* sort, const char* name );
 %token MATCH 
 %token RARROW 
 
-%token FUN FUNCTION VAL VAR
+%token FUN FUNX VAL VAR
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -58,7 +58,7 @@ void printDecl( const char* sort, const char* name );
 
 %token IMPORT AS MODULE 
 %token PUBLIC PRIVATE ABSTRACT
-%token EXTERNAL
+%token EXTERN
 %token INFIX INFIXL INFIXR 
 
 %token LEX_WHITE LEX_COMMENT 
@@ -66,16 +66,23 @@ void printDecl( const char* sort, const char* name );
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN 
 
+%token HANDLER HANDLE EFFECT
+
 %token YIELD REC TRY IFACE INST
 
-%token INLINE INCLUDE ID_CS ID_JS ID_FILE
+%token ID_INLINE ID_INCLUDE 
+%token ID_CS ID_JS ID_FILE 
+%token ID_LINEAR ID_OPEN
 
 %type <Id>  varid conid qvarid qconid op  
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder 
 %type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
 
-
+/* these are non-reserved words but have special meaning after
+   an extern or type declaration. If seen, we should 'shift' instead of reduce.
+   The following declaration make Bison prefer a shift in those situations */
+%nonassoc "inline" "include" "open" "linear"
 %%
 
 
@@ -157,7 +164,7 @@ topdecl     : visibility puredecl                             { printDecl("value
             | visibility aliasdecl                            { printDecl("alias",$2); }
             | visibility typedecl                             { printDecl("type",$2); }
             | ABSTRACT typedecl                               { printDecl("type",$2); }
-            | visibility externdecl                           { printDecl("external",$2); }
+            | visibility externdecl                           { printDecl("extern",$2); }
             ;
 
 
@@ -165,13 +172,16 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERNAL externinline funid ':' typescheme externbody   { $$ = $3; }
-            | EXTERNAL externinline funid APP parameters ')' annotres externbody { $$ = $3; } 
-            | EXTERNAL INCLUDE externincbody                       { $$ = "<external include>"; }
+externdecl  : EXTERN funid externtype externbody               { $$ = $2; }                    
+            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec "inline"
+            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec "include"
             ;
 
-externbody  : '=' externstat
-            | '{' semis externstats1 '}'
+externtype  : ':' typescheme 
+            | lparen parameters ')' annotres 
+            ;
+
+externbody  : '{' semis externstats1 '}'
             ;
 
 externstats1: externstats1 externstat semis1
@@ -202,10 +212,9 @@ externfile  : ID_FILE
             | /* empty */
             ;
 
-externinline: INLINE
+externinline: ID_INLINE
             | /* empty */
             ;
-
 
 
 /* ---------------------------------------------------------
@@ -214,12 +223,18 @@ externinline: INLINE
 aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
-typedecl    : typesort typeid typeparams kannot  '{' semis constructors '}'     { $$ = $2; }
-            | typesort typeid typeparams kannot                                 { $$ = $2; }
-            | STRUCT typeid typeparams kannot  conparams                        { $$ = $2; }
+typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
+            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } %prec "open"
+            | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
+            | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; } 
+            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } %prec "linear"
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
+            ;
+
+typebody    : '{' semis constructors '}'
+            | /* empty */
             ;
 
 typeid      : '(' commas ')'      { $$ = "(,)"; }       /* tuples */
@@ -237,10 +252,6 @@ commas1     : commas ','
             ;
 
 
-typeparams  : '<' tbinders '>'
-            | /* empty */
-            ;
-
 constructors: constructors1 semis
             | /* empty */
             ;
@@ -249,8 +260,7 @@ constructors1: constructors1 semis1 constructor
             | constructor
             ;
 
-constructor : visibility con equantifier conid conparams
-            | visibility con conid conparams
+constructor : visibility con conid typeparams conparams
             ;
 
 con         : CON
@@ -273,13 +283,27 @@ conpar      : paramid ':' paramtype
             ;
 
 /* ---------------------------------------------------------
+-- Effect declarations
+----------------------------------------------------------*/
+
+
+opdecls     : '{' semis operations '}'            
+
+operations  : operations operation semis
+            | /* empty */
+            ;
+
+operation   : visibility FUN identifier typeparams lparen parameters ')' ':' tatomic
+            ;
+
+/* ---------------------------------------------------------
 -- Pure Declarations
 ----------------------------------------------------------*/   
 puredecl    : VAL valdecl                   { $$ = $2; }
-            | FUNCTION fundecl              { $$ = $2; }
+            | FUN fundecl                   { $$ = $2; }
             ;
 
-valdecl     : binder '=' expr               { $$ = $1; }
+valdecl     : binder '=' blockexpr          { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -288,14 +312,14 @@ binder      : identifier                    { $$ = $1; }
 
 funid       : identifier         { $$ = $1; }
             | '[' commas ']'     { $$ = "[]"; }
+            | STRING             { $$ = $1; }
             ;
 
 
-fundecl     : quantifiers funid fundef block          { $$ = $2; }
-            | quantifiers funid fundef '=' blockexpr  { $$ = $2; } 
+fundecl     : some funid fundef bodyexpr    { $$ = $2; }
             ;
 
-fundef      : lparen parameters ')' annotres qualifier
+fundef      : typeparams lparen parameters ')' annotres qualifier
             ;
 
 
@@ -342,17 +366,21 @@ statement   : decl
             | nofunexpr
             ;
 
-decl        : FUNCTION fundecl
-            | VAL pattern '=' expr          /* local value declaration can use a pattern binding */
-            | VAR binder ASSIGN expr        /* local variable declaration */
+decl        : FUN fundecl
+            | VAL apattern '=' blockexpr    /* local value declaration can use a pattern binding */
+            | VAR binder ASSIGN blockexpr   /* local variable declaration */
             ;
 
 
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
-blockexpr   : expr          /* block is interpreted specially; used in branches and functions */
-            ;            
+bodyexpr    : RARROW blockexpr
+            | block
+            ;
+
+blockexpr   : expr              /* a block is not interpreted as an anonymous function but as grouping */
+            ;
 
 expr        : ifexpr
             | noifexpr
@@ -360,6 +388,7 @@ expr        : ifexpr
 
 noifexpr    : returnexpr
             | matchexpr
+            | handleexpr
             | funexpr
             | opexpr
             ;
@@ -367,15 +396,20 @@ noifexpr    : returnexpr
 nofunexpr   : ifexpr
             | returnexpr
             | matchexpr
+            | handleexpr
             | opexpr
 
 /* keyword expressions */
 
 matchexpr   : MATCH atom '{' semis matchrules '}'
-            ;            
+            ; 
 
-funexpr     : FUN quantifiers fundef block
-            | block /* zero-argument function */
+handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
+            | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
+            ;        
+
+funexpr     : FUNX fundef block
+            | block                    /* zero-argument function */
             ;
 
 returnexpr  : RETURN opexpr          
@@ -404,16 +438,19 @@ opexpr      : opexpr qoperator prefixexpr
 
 prefixexpr  : '!' prefixexpr
             | '~' prefixexpr
-            | fappexpr
+            | appexpr
             ;         
 
-fappexpr    : fappexpr funexpr                /* trailing function application */  
+/*
+fappexpr    : fappexpr funexpr               
             | appexpr
             ;               
+*/
 
 appexpr     : appexpr APP arguments ')'       /* application */
             | appexpr IDX arguments ']'       /* index expression */
             | appexpr '.' atom                /* dot application */
+            | appexpr funexpr                 /* trailing function application */  
             | atom
             ; 
 
@@ -486,7 +523,7 @@ qidentifier : qvarid
             | identifier           
             ;
 
-identifier  : varid 
+identifier  : varid  
             | IDOP
             ;
 
@@ -497,6 +534,10 @@ varid       : ID
             | ID_CS           { $$ = "cs"; }
             | ID_JS           { $$ = "js"; }      
             | ID_FILE         { $$ = "file"; }
+            | ID_INLINE       { $$ = "inline"; }
+            | ID_INCLUDE      { $$ = "include"; }
+            | ID_OPEN         { $$ = "open"; }     
+            | ID_LINEAR       { $$ = "linear"; }   
             ; 
 
 qconstructor: conid 
@@ -527,27 +568,31 @@ matchrules1 : matchrules1 semis1 matchrule
             | matchrule
             ;
 
-matchrule   : patterns1 guard RARROW blockexpr
+matchrule   : patterns1 '|' expr RARROW blockexpr
+            | patterns1 bodyexpr
             ;            
-
-guard       : '|' expr
-            | /* empty */
-            ;
-
-patterns    : patterns1
-            | /* empty */
-            ;
 
 patterns1   : patterns1 ',' pattern
             | pattern
             ;
 
+apatterns   : apatterns1 
+            | /* empty */
+            ;
+
+apatterns1  : apatterns1 ',' apattern
+            | apattern
+            ;
+
+apattern    : pattern annot                      /* annotated pattern */
+            ;
+
 pattern     : identifier
             | conid
             | conid APP patargs ')'
-            | '(' patterns ')'                   /* unit, parenthesized pattern, tuple pattern */
-            | '[' patterns ']'                   /* list pattern */
-            | pattern AS identifier              /* named pattern */
+            | '(' apatterns ')'                  /* unit, parenthesized, and tuple pattern */
+            | '[' apatterns ']'                  /* list pattern */
+            | apattern AS identifier             /* named pattern */
             | literal
             | WILDCARD
             ;
@@ -560,9 +605,48 @@ patargs1    : patargs ',' patarg
             | patarg
             ;
 
-patarg      : identifier '=' pattern                  /* named argument */
-            | pattern
+patarg      : identifier '=' apattern            /* named argument */
+            | apattern
             ;
+
+
+/* ---------------------------------------------------------
+-- Handlers
+----------------------------------------------------------*/
+
+handlereff  : '<' anntype '>'
+            | /* empty */
+            ; 
+
+handlerpars : lparen parameters ')'
+            | /* empty */
+            ;
+
+handlerrules1: handlerrules1 semis1 handlerrule
+            | handlerrule
+            ;
+
+handlerrule : qidentifier opargs bodyexpr
+            | RETURN lparen oparg ')' bodyexpr
+            | RETURN paramid bodyexpr
+            ;
+                        
+opargs      : lparen opargs0 ')'
+            | /* empty */
+            ;
+
+opargs0     : opargs1
+            | /* empty */
+            ;
+
+opargs1     : opargs1 ',' oparg
+            | oparg
+            ;
+
+oparg       : paramid 
+            | paramid ':' type
+            ;
+
 
 /* ---------------------------------------------------------
 -- Types
@@ -580,27 +664,31 @@ tbinder     : varid kannot
 
 
 /* full type */
-typescheme  : quantifiers tarrow qualifier        /* used for type annotations */
+typescheme  : someforalls tarrow qualifier        /* used for type annotations */
             ;
 
-type        : aquantifier tarrow qualifier        /* used for plain types (without some or exists quantifiers) */
+type        : FORALL typeparams1 tarrow qualifier
             | tarrow qualifier
             ;
 
-quantifiers : squantifier aquantifier
-            | squantifier
-            | aquantifier
+
+some        : SOME typeparams1
             | /* empty */
             ;
-            
-aquantifier : FORALL '<' tbinders1 '>'
+
+
+someforalls : SOME typeparams1 FORALL typeparams1
+            | SOME typeparams1
+            | FORALL typeparams1
+            | /* empty */
             ;
 
-squantifier : SOME '<' tbinders1 '>'
+typeparams  : typeparams1
+            | /* empty */
             ;
 
-equantifier : EXISTS '<' tbinders1 '>'
-            ;
+typeparams1 : '<' tbinders '>'
+            ;            
 
 qualifier   : WITH '(' predicates1 ')'
             | /* empty */
@@ -694,5 +782,5 @@ katom       : conid
 
 void printDecl( const char* sort, const char* name )
 {
-  fprintf( stderr, "parsed %s declaration: %s\n", sort, name );
+  printf( "parsed %s declaration: %s\n", sort, name );
 }

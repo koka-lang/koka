@@ -9,30 +9,120 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Check (check) where
+module Core.Check (checkCore) where
 
 import Control.Monad
+import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
+import Common.Failure
+import Common.NamePrim( nameYieldOp )
 import Common.Name
 import Common.Unique
-import Core.Core hiding (typeOf)
+import Common.Error
+import Common.Range
+
+import Core.Core hiding (check)
 import qualified Core.Core as Core
-import Core.Pretty
+import qualified Core.Pretty as PrettyCore
+-- import Core.Cps( cpsType, typeK )
+
+import Kind.Kind
 import Type.Type
 import Type.TypeVar
--- import Type.Operations
 import Type.Assumption
 import Type.Pretty
 import Type.Kind
-import Kind.Kind
--- import Kind.KindVar
+import Type.TypeVar
+import Type.Unify( unify, runUnify )
+import Type.Operations( instantiate )
 
-import qualified Lib.Set as S
-check :: Int -> DefGroups -> Gamma -> Exception () 
-check uniq defGroups gamma 
-  = do checkDefGroups uniq defGroups gamma
-       return ()
+import qualified Data.Set as S
+
+checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error () 
+checkCore cps prettyEnv uniq gamma  defGroups
+  = case checkDefGroups defGroups (return ()) of
+      Check c -> case c uniq (CEnv cps gamma prettyEnv []) of 
+                   Ok x _  -> return x
+                   Err doc -> warningMsg (rangeNull, doc)
+       
+
+{--------------------------------------------------------------------------
+  Checking monad
+--------------------------------------------------------------------------}  
+newtype Check a = Check (Int -> CheckEnv -> Result a)
+
+data CheckEnv = CEnv{ cps :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+
+data Result a = Ok a Int 
+              | Err Doc
+
+instance Functor Check where
+  fmap f (Check c)  = Check (\u env -> case c u env of Ok x u' -> Ok (f x) u'
+                                                       Err doc -> Err doc)
+
+instance Applicative Check where
+  pure  = return
+  (<*>) = ap                    
+
+instance Monad Check where
+  return x      = Check (\u g -> Ok x u)
+  fail s        = Check (\u g -> Err (text s))
+  (Check c) >>= f  = Check (\u g -> case c u g of 
+                                      Ok x u' -> case f x of 
+                                                   Check d -> d u' g
+                                      Err doc -> Err doc)
+
+instance HasUnique Check where
+  updateUnique f = Check (\u g -> Ok u (f u))
+  setUnique  i   = Check (\u g -> Ok () i)
+
+extendGamma :: [(Name,NameInfo)] -> Check a -> Check a
+extendGamma ex (Check c) = Check (\u env -> c u env{ gamma = (gammaExtends ex (gamma env)) })
+
+withDef :: Def -> Check a -> Check a
+withDef def (Check c) 
+  = -- trace ("checking: " ++ show (defName def)) $
+    Check (\u env -> c u env{ currentDef = def : (currentDef env) })
+
+getEnv :: Check CheckEnv
+getEnv
+  = Check (\u env -> Ok env u)
+
+getGamma :: Check Gamma
+getGamma
+  = do env <- getEnv
+       return (gamma env)
+
+lookupVar :: Name -> Check Scheme
+lookupVar name
+  = do gamma <- getGamma
+       case gammaLookupQ name gamma of
+         [info] -> return (infoType info)
+         []     -> fail ("unknown variable: " ++ show name)
+         _      -> fail ("cannot pick overloaded variable: " ++ show name)
+
+failDoc :: (Env -> Doc) -> Check a
+failDoc fdoc
+  = Check (\u env -> Err (fdoc (prettyEnv env) <-> ppDefs (prettyEnv env) (currentDef env)))
+
+ppDefs :: Env -> [Def] -> Doc
+ppDefs env []
+  = Lib.PPrint.empty
+ppDefs env defs
+  = text "in definition:" <+> tupled (map (text.show.defName) defs)
+    <-> prettyDef (head defs) env
+
+checkTName :: TName -> Check TName
+checkTName (TName name tp)
+  = do tp' <- checkType tp
+       return (TName name tp')
+
+
+checkType :: Type -> Check Type
+checkType tp
+  = do env <- getEnv
+       return tp -- return (if (cps env) then cpsType tvsEmpty tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups 
@@ -42,133 +132,136 @@ check uniq defGroups gamma
   each definition
 --------------------------------------------------------------------------}
 
-checkDefGroups :: Int -> DefGroups -> (Gamma -> Exception Gamma)
-checkDefGroups uniq (DefGroups defGroups)
-  = runM $ map (checkDefGroup uniq) defGroups
+checkDefGroups :: DefGroups -> Check a -> Check a
+checkDefGroups [] body
+  = body
+checkDefGroups (dgroup:dgroups) body 
+  = checkDefGroup dgroup (checkDefGroups dgroups body)
 
-checkDefGroup :: Int -> DefGroup -> (Gamma -> Exception Gamma) 
-checkDefGroup uniq defGroup env 
-  = do let defs = case defGroup of
-                    DefRec (Defs defs) -> defs
-                    DefNonRec def      -> [def]
-           env' = gammaUnion env (gammaNew $ map annotation defs) 
-       mapM (checkDef env' uniq) defs 
-       return env'
-  where
-    annotation :: Def -> (Name, Type)
-    annotation (Def name tp expr) = (name, tp)
+checkDefGroup :: DefGroup -> Check a -> Check a
+checkDefGroup defGroup body  
+  = let defs = case defGroup of
+                DefRec defs   -> defs
+                DefNonRec def -> [def]
+        env  = map coreDefInfo defs
+    in extendGamma env $
+       do mapM_ checkDef defs
+          body
 
-checkDef :: Gamma -> Int -> Def -> Exception () 
-checkDef env uniq d@(Def name tp expr) 
-  = do tp' <- typeOfT env uniq expr 
-       match "checking annotation on definition" (prettyDef defaultEnv d) uniq tp tp'
+checkDef :: Def -> Check () 
+checkDef d
+  = withDef d $
+    do tp <- check (defExpr d)
+       dtp <- checkType (defType d)
+       -- trace ("deftype: " ++ show (defType d) ++ "\ninferred: " ++ show tp) $ return ()
+       match "checking annotation on definition" (prettyDef d) (dtp) tp
+
+coreNameInfo :: TName -> (Name,NameInfo)
+coreNameInfo tname = coreNameInfoX tname True
+
+coreNameInfoX tname isVal
+  = (getName tname, createNameInfo (getName tname) isVal rangeNull (typeOf tname))
 
 {--------------------------------------------------------------------------
   Expressions   
 --------------------------------------------------------------------------}
 
-typeOfT :: Gamma -> Int -> Expr -> Exception Type
-typeOfT env uniq expr 
-  = do tp <- typeOf env uniq expr
-       -- trace ("(" ++ show expr ++ ") :: " ++ show tp) return ()
-       return tp
+check :: Expr -> Check Type
+check expr 
+  = case expr of
+      Lam pars eff body
+        -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
+              pars' <- mapM checkTName pars
+              return (typeFun [(name,tp) | TName name tp <- pars'] eff tpRes)
+      App (TypeApp (Var tname info) _) [x,k]
+        | getName tname == nameYieldOp
+        -> -- trace ("found unsafeyield: " ++ show (pretty (typeOf tname)) ++ ", " ++ show (pretty (typeOf k))) $
+           case splitFunType (expandSyn (typeOf k)) of
+            Nothing -> failDoc $ \env -> text "illegal unsafeyield:" <+> prettyExpr expr env
+            Just(_,_,tpYld)
+              -> return tpYld
+                  {- 
+                     let (tvars,preds,rho) = splitPredType (typeOf tname) 
+                     in case splitFunType rho of 
+                      Nothing -> return $ typeOf tname
+                      Just (tpPars,eff,tpRes)
+                        -> trace ("adjust result") $
+                           do tvYld <- freshTypeVar kindStar Meta
+                              let tpYld = TVar tvYld
+                                  tpK   = typeK tpRes eff tpYld
+                              return (tForall (tvars) preds -- should add tvYld but leads to kind error...
+                                        (TFun (tpPars ++ [(nameNil,tpK)]) eff (TVar tvYld)))
+               else return (typeOf tname)
+               -}
+      Var tname info  
+        -> checkType $ typeOf tname                
+      Con tname info
+        -> return $ typeOf tname
+      App fun args
+        -> do tpFun <- check fun
+              tpArgs <- mapM check args
+              case splitFunType tpFun of
+                Nothing -> fail "expecting function type in application"
+                Just (tpPars,eff,tpRes) 
+                  -> do -- env <- getEnv
+                        --when (length tpPars /= length args + n) $
+                        --  failDoc (\env -> text "wrong number of arguments in application: " <+> prettyExpr expr env)
+                        sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                        return tpRes
+      TypeLam tvars body
+        -> do tp <- check body
+              return (quantifyType tvars tp)
+      TypeApp e tps
+        -> do tpTForall <- check e
+              let (tvars,_,tp) = splitPredType tpTForall  
+              -- We can use actual equality for kinds, because any kind variables will have been
+              -- substituted when doing kind application (above)
+              when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+                failDoc (\env -> text "kind error in type application:" <+> prettyExpr expr env)
+              return (subNew (zip tvars tps) |-> tp) 
+      Lit lit 
+        -> return (typeOf lit)  
 
-typeOf :: Gamma -> Int -> Expr -> Exception Type 
-
--- Lambda abstraction
-typeOf env uniq (Lam tname expr)
-  = do body <- typeOfT (gammaExtend (getName tname) (Core.typeOf tname) env) uniq expr
-       return (typeFun (Core.typeOf tname) body)
-
--- Variables
-typeOf env uniq (Var tname)
-  = find env (getName tname)
-
--- Constants 
-typeOf env uniq (Con tname)
-  = find env (getName tname)
-
--- Application
-typeOf env uniq e@(App fun arg)
-  = do tpFun            <- typeOfT env uniq fun
-       (formal, result) <- splitFun tpFun
-       actual           <- typeOfT env uniq arg
-       match "comparing formal and actual argument" (prettyExpr defaultEnv e) uniq formal actual
-       return result
-
--- Kind lambdas
-typeOf env uniq (KindLam x tp)
-  = do tp' <- typeOfT env uniq tp
-       return (KForall x tp')
-
--- Kind application
-typeOf env uniq (KindApp expr kind)
-  = do tpKForall <- typeOfT env uniq expr
-       (k, tp')  <- splitKForall tpKForall
-       return (ksubSingle k kind |=> tp')
-
--- Type lambdas
-typeOf env uniq (TypeLam x tp)
-  = do tp' <- typeOfT env uniq tp
-       return (TForall x tp')
-
--- Type application
-typeOf env uniq e@(TypeApp expr tp)
-  = do tpTForall <- typeOfT env uniq expr
-       (t, tp')  <- splitTForall tpTForall 
-       -- Kind check
-       -- We can use actual equality for kinds, because any kind variables will have been
-       -- substituted when doing kind application (above)
-       when (getKind t /= getKind tp) $
-         throw $ "kind error: " ++ show e
-       return (subSingle t tp |-> tp') 
-
--- Literals
-typeOf env uniq (Lit (LitInt _)) 
-  = return typeInt
-typeOf env uniq (Lit (LitFloat _)) 
-  = return typeFloat
-typeOf env uniq (Lit (LitChar _)) 
-  = return typeChar
-typeOf env uniq (Lit (LitString _)) 
-  = return typeString
-
--- Let
-typeOf env uniq (Let defGroups expr) 
-  = do env' <- checkDefGroups uniq defGroups env
-       typeOfT env' uniq expr 
-
--- Labels
-typeOf env uniq (Label name)
-  = return (TApp typeLabel (TCon (TypeCon name kindLabel)))
-
--- Case
-typeOf env uniq e@(Case exprs branches)
-  = do tpScrutinees <- mapM (typeOf env uniq) exprs
-       tpBranches   <- mapM (typeOfBranch env uniq tpScrutinees) branches
-       mapConseqM (match "verifying that all branches have the same type" (prettyExpr defaultEnv e) uniq) tpBranches
-       return (head tpBranches)
+      Let defGroups body
+        -> checkDefGroups defGroups (check body)
+      
+      Case exprs branches
+        -> do tpScrutinees <- mapM check exprs
+              tpBranchess   <- mapM (checkBranch tpScrutinees) branches
+              mapConseqM (match "verifying that all branches have the same type" (prettyExpr expr)) (concat tpBranchess)
+              return (head (head tpBranchess))
+        
+mapConseqM f (tp1:tp2:tps)
+  = do f tp1 tp2
+       mapConseqM f (tp2:tps)
+mapConseqM f _ 
+  = return ()
 
 {--------------------------------------------------------------------------
   Type of a branch 
 --------------------------------------------------------------------------}
 
-typeOfBranch :: Gamma -> Int -> [Type] -> Branch -> Exception Type
-typeOfBranch env uniq tpScrutinees b@(Branch patterns guard expr) 
-  = do mapM_ (typeOfPattern env uniq) (zip tpScrutinees patterns)
-       let g = gammaUnion env (gammaNew [(getName tname, Core.typeOf tname) | tname <- S.toList (bv patterns)])
-       tp <- typeOf g uniq guard
-       match "verify that the guard is a boolean expression" (prettyExpr defaultEnv guard) uniq tp typeBool
-       typeOf g uniq expr
+checkBranch :: [Type] -> Branch -> Check [Type]
+checkBranch tpScrutinees b@(Branch patterns guard) 
+  = do mapM_ checkPattern (zip tpScrutinees patterns)
+       let vars = [coreNameInfo tname | tname <- S.toList (bv patterns)]
+       extendGamma vars (mapM checkGuard guard)
 
-typeOfPattern :: Gamma -> Int -> (Type,Pattern) -> Exception ()
-typeOfPattern env uniq (tpScrutinee,pat)
+
+checkGuard (Guard guard expr)
+  = do gtp <- check guard       
+       match "verify that the guard is a boolean expression" (prettyExpr guard) gtp typeBool
+       check expr
+
+checkPattern :: (Type,Pattern) -> Check ()
+checkPattern (tpScrutinee,pat)
   = case pat of
-      PatCon tname args  -> do constrArgs <- findConstrArgs env uniq (prettyPattern defaultEnv pat) tpScrutinee (getName tname)
-                               mapM_  (typeOfPattern env uniq) (zip constrArgs args)
-      PatVar tname       -> match "comparing constructor argument to case annotation" (prettyPattern defaultEnv pat) uniq tpScrutinee (Core.typeOf tname)
-      PatWild            -> return ()
-                              
+      PatCon tname args _ tpargs _ coninfo 
+        -> do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
+              mapM_  checkPattern  (zip tpargs args)
+      PatVar tname _ -> match "comparing constructor argument to case annotation" (prettyPattern pat) tpScrutinee (typeOf tname)
+      PatWild        -> return ()
+
 
 {--------------------------------------------------------------------------
   Util 
@@ -176,62 +269,47 @@ typeOfPattern env uniq (tpScrutinee,pat)
 
 -- Find the types of the arguments of a constructor,
 -- given the type of the result of the constructor
--- Currently constructors can only have a single argument
-findConstrArgs :: Gamma -> Int -> Doc -> Type -> Name -> Exception [Type]
-findConstrArgs env uniq doc tpScrutinee con 
-  = do tpCon <- find env con
+findConstrArgs :: (Env -> Doc) -> Type -> Name -> Check [Type]
+findConstrArgs fdoc tpScrutinee con 
+  = do tpCon <- lookupVar con
        -- Until we add qualifiers to constructor types, the list of predicates
        -- returned by instantiate' must always be empty
-       let (([], tpConInst, _), uniq') = runUnique uniq (instantiate' tpCon)
-           (tpArgs, tpRes) = splitArgs tpConInst
-       subst <- case runUnique uniq' (unify tpRes tpScrutinee) of
-                 (Left error, _) -> showError "comparing scrutinee with branch type" "cannot unify" tpRes tpScrutinee doc
-                 (Right subst, _) -> return subst 
-       return $ (subst `substApply` tpArgs)
+       tpConInst <- instantiate rangeNull tpCon
+       let Just (tpArgs, eff, tpRes) = splitFunType tpConInst
+       ures <- runUnify (unify tpRes tpScrutinee)
+       case ures of
+        (Left error, _)  -> showCheck "comparing scrutinee with branch type" "cannot unify" tpRes tpScrutinee fdoc
+        (Right _, subst) -> return $ (subst |-> map snd tpArgs)
 
--- Find a variable in the environment
-find :: Gamma -> Name -> Exception Type
-find env name = case gammaInRange name env of
-                  True  -> return (gammaFind name env) 
-                  False -> throw $ "Unbound variable " ++ show name  
 
 -- In Core, when we are comparing types, we are interested in exact 
 -- matches only.
-match :: String -> Doc -> Int -> Type -> Type -> Exception ()
-match when e uniq a b = case runUnique uniq (unify a b) of
-                   (Left error, _)  -> showError "cannot unify" when a b e 
-                   (Right subst, _) -> if substIsNull subst 
-                                       then return () 
-                                       else showError "non-empty substitution" when a b e 
+match :: String -> (Env -> Doc) -> Type -> Type -> Check ()
+match when fdoc a b 
+  = do ures <- runUnify (unify a b)
+       case ures of
+         (Left error, _)  -> showCheck ("cannot unify (" ++ show error ++ ")") when a b fdoc
+         (Right _, subst) -> if subIsNull subst
+                              then return () 
+                              else do env <- getEnv
+                                      if (cps env) then return () 
+                                        else showCheck "non-empty substitution" when a b (\env -> text "") 
+                                      return ()
 
 -- Print unification error
-showError :: String -> String -> Type -> Type -> Doc -> Exception a 
-showError err when a b e = throw . show $ align $ vcat [ text err 
-                                                   , text "     " <> prettyType defaultEnv a
-                                                   , text "  =~ " <> prettyType defaultEnv b
-                                                   , text "when" <+> text when 
-                                                   , indent 2 e
-                                                   ]
+showCheck :: String -> String -> Type -> Type -> (Env -> Doc) -> Check a 
+showCheck err when a b fdoc 
+  = failDoc (showMessage err when a b fdoc)
 
-{--------------------------------------------------------------------------
-  Decompose types 
---------------------------------------------------------------------------}
-splitArgs :: Type -> ([Type],Type)
-splitArgs tp
-  = case tp of
-      (TApp (TApp con arg) rest) | con == typeArrow 
-          -> let (args,res) = splitArgs rest
-             in (arg:args, res)
-      _   -> ([],tp)
+showMessage err when a b fdoc env
+  = let [docA,docB] = niceTypes env [a,b]
+    in align $ vcat [ text err 
+                     , text "     " <> docA
+                     , text "  =~ " <> docB
+                     , text "when" <+> text when 
+                     , indent 2 (fdoc env)
+                     ]  
 
-splitFun :: Type -> Exception (Type, Type)
-splitFun (TApp (TApp con arg) res) | con == typeArrow = return (arg, res)
-splitFun _ = failure "Core.Check.splitFun: Expected function" 
-  
-splitKForall :: Type -> Exception (KindVar, Type)
-splitKForall (KForall k tp) = return (k, tp)
-splitKForall _ = failure "Core.Check.splitKForall: Expected kforall"
-
-splitTForall :: Type -> Exception (TypeVar, Type)
-splitTForall (TForall t tp) = return (t, tp)
-splitTForall _ = throw $ "Expected forall"
+prettyExpr e env = PrettyCore.prettyExpr env e
+prettyPattern e env = PrettyCore.prettyPattern env e
+prettyDef d env     = PrettyCore.prettyDef env d

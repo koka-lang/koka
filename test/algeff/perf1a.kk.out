@@ -1,0 +1,22 @@
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Eff-state1 : forall<a,b> (.ops-state1<b,a>) -> operation<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-get1 : forall<a,b> .ops-state1<a,b>
+.Op-put : forall<a,b> (a) -> .ops-state<a,b>
+.Op-put1 : forall<a,b> (a) -> .ops-state1<a,b>
+.tag-Eff-state: string
+.tag-Eff-state1: string
+comp : () -> div int
+count : () -> <state<int>,div> int
+count1 : () -> <div,state1<int>> int
+fib : (int) -> div int
+get : forall<a> () -> (state<a>) a
+get1 : forall<a> () -> (state1<a>) a
+main : () -> <div,console,ndet> int
+n : int
+put : forall<a> (i : a) -> (state<a>) ()
+put1 : forall<a> (i : a) -> (state1<a>) ()
+testD : (int) -> div int
+testH : (i0 : int) -> div int
+testH1 : (i0 : int) -> div int
+testR : (n : int) -> div int

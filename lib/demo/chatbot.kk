@@ -7,6 +7,8 @@
 ----------------------------------------------------------------------------*/
 module chatbot
 
+import std/readline
+
 val answers = [ 
   "In what way?",
   "Can you think of a specific example?",
@@ -20,15 +22,15 @@ val answers = [
   "Does it please you to believe I am afraid of you?",
 ]
 
-public function main() : <console, exn, ndet> () 
+public fun main() : <console,exn,ndet,div,async> () 
 { 
-  function reacton(input: string) : <console, exn, ndet> ()
+  fun reacton(input: string) : <console,exn,ndet,div,async> ()
   {
     if (input != "exit" && input != "quit") {
-      val answer = answers[randomInt() % answers.length()]
-      question(answer, reacton)
+      val answer = answers[random-int() % answers.length()].maybe("?",id)
+      question(answer).reacton
     }
   }
 
-  question("(type 'exit' to quit)\n\nWhat is your concern?", reacton );
+  reacton( question("(type 'exit' to quit)\n\nWhat is your concern?" ) );
 }

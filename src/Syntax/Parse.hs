@@ -27,10 +27,13 @@ module Syntax.Parse( parseProgramFromFile
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId
                    , keyword, dockeyword
+                   , parseOpenExtend
                    ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.List (intersperse)
+import Data.Maybe( isJust )
+import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
 
@@ -52,7 +55,7 @@ import Syntax.Syntax
 import Syntax.Lexeme
 import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout )
-import Syntax.Promote ( promote, promoteType, quantify )
+import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 
 
 -----------------------------------------------------------
@@ -101,7 +104,7 @@ lexParseS semiInsert p sourceName line str
 lexParse :: Bool -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
 lexParse semiInsert p sourceName line rawinput
   = let source = Source sourceName rawinput 
-        input  = if (extname sourceName == sourceExtension ++ "doc") then extractLiterate rawinput else rawinput
+        input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
         xs = lexing source line input 
         lexemes = layout semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
@@ -187,7 +190,7 @@ pmodule source
        (name,rng) <- modulepath
        programBody vis source name rng doc
   <|>
-    programBody Public source (newName (basename (sourceName source))) (rangeNull) ""
+    programBody Public source (newName (noexts (basename (sourceName source)))) (rangeNull) ""
 
 programBody vis source modName nameRange doc
   = do many semiColon
@@ -238,7 +241,7 @@ splitTopDefs ds
 
 
 topdef :: Visibility -> LexParser [TopDef]
-topdef vis
+topdef vis 
   = do def <- pureDecl vis
        return [DefValue def]
   <|>
@@ -246,10 +249,11 @@ topdef vis
        return [DefType tdef]
   <|> 
     do (tdef,cdefs) <- typeDecl vis
-       return ([DefType tdef] ++ map DefValue cdefs)
+       return ([DefType tdef] ++ map DefValue cdefs)       
+  <|> 
+    do effectDecl vis
   <|> 
     do externDecl vis
-
 
 {---------------------------------------------------------------
   Import declaration
@@ -286,7 +290,7 @@ visibility vis
 externDecl :: Visibility -> LexParser [TopDef]
 externDecl dvis
   = do (vis,vrng)  <- visibility dvis
-       (krng,doc) <- dockeyword "external"
+       (krng,doc) <- dockeyword "external" <|> dockeyword "extern"
        (do specialId "include"
            extern <- externalInclude (combineRange vrng krng)
            return [DefExtern extern]
@@ -400,11 +404,7 @@ externalIncludeEntry
 
 externalBody :: LexParser ([(Target,ExternalCall)],Range)
 externalBody 
-  = do keyword "="
-       (target,inline,rng) <- externalEntryRanged
-       return ([(target,inline)],rng)
-  <|>
-    do semiBracesRanged externalEntry
+  = semiBracesRanged externalEntry
 
 externalEntry
   = do (target,inline,_) <- externalEntryRanged
@@ -477,43 +477,59 @@ aliasDecl dvis
        let range = combineRanges [vrng,trng,krng,getRange tp]
        return (Synonym (tbind kind) tpars tp range vis doc)
 
-typeDecl :: Visibility -> LexParser (UserTypeDef, [UserDef])
+typeDecl,dataTypeDecl,structDecl :: Visibility -> LexParser (UserTypeDef, [UserDef])
 typeDecl dvis
-  = do (vis,defvis,vrng,(mbTypeSort,trng,doc)) <- 
-          do rng <- keyword "abstract"
-             x   <- typeDeclKind 
-             return (Public,Private,rng,x)
-          <|>
-            (try $ do (vis,vrng) <- visibility dvis
-                      x <- typeDeclKind 
-                      return (vis,vis,vrng,x))
+  = dataTypeDecl dvis <|> structDecl dvis
 
-       case mbTypeSort of
-         Just typeSort -> -- type, rectype or cotype                     
-            do tbind <- tbinderDef
-               (tpars,kind,prng) <- typeKindParams
-               let name = tbind kind
-                   resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
-               (cs,crng)    <- semiBracesRanged (constructor defvis tpars resTp) <|> return ([],rangeNull)
-               let (constrs,creatorss) = unzip cs
-                   range   = combineRanges [vrng,trng, getRange (tbind kind),prng,crng]
-               return (DataType name tpars constrs range vis typeSort doc, concat creatorss)
-          
-         Nothing ->  -- struct
-            do tbind <- tbinderDef
-               tpars <- angles tbinders <|> return []
-               let name = tbind KindNone
-                   resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
-
-               (pars,prng)  <- conPars
-               let (tid,rng) = getRName name
-                   conId     = toConstructorName tid
-                   (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
-               return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive doc, creators)
-         
-  where
+dataTypeDecl dvis =
+   do (vis,defvis,vrng,(typeSort,trng,doc,ddef,isExtend)) <- 
+          (try $
+            do rng <- keyword "abstract"
+               x   <- typeDeclKind 
+               return (Public,Private,rng,x)
+            <|>
+            do (vis,vrng) <- visibility dvis
+               x <- typeDeclKind 
+               return (vis,vis,vrng,x))
+      tbind <- if isExtend
+                then do (qid,rng) <- qtypeid
+                        return (\kind -> TypeBinder qid kind rng rng)
+                else tbinderDef
+      (tpars,kind,prng) <- typeKindParams
+      let name = tbind kind
+          resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
+      (cs,crng)    <- semiBracesRanged (constructor defvis tpars resTp) <|> return ([],rangeNull)
+      let (constrs,creatorss) = unzip cs
+          range   = combineRanges [vrng,trng, getRange (tbind kind),prng,crng]
+      return (DataType name tpars constrs range vis typeSort ddef isExtend doc, concat creatorss)
+   where
     tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
     tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
+
+structDecl dvis =            
+   do (vis,defvis,vrng,trng,doc) <- 
+        (try $
+          do rng     <- keyword "abstract"
+             (trng,doc) <- dockeyword "struct"
+             return (Public,Private,rng,trng,doc)
+          <|>
+          do (vis,vrng) <- visibility dvis
+             (trng,doc) <- dockeyword "struct"
+             return (vis,vis,vrng,trng,doc))
+
+      tbind <- tbinderDef
+      tpars <- angles tbinders <|> return []
+      let name = tbind KindNone
+          resTp = TpApp (tpCon name) (map tpVar tpars) (combineRanged name tpars)
+
+      (pars,prng)  <- conPars defvis
+      let (tid,rng) = getRName name
+          conId     = toConstructorName tid
+          (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
+      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive DataDefNormal False doc, creators)
+
+tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
+tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
                
   {-
   <|>
@@ -527,20 +543,24 @@ enum
        return (UserCon con [] [] rng rng)
   -}
 
-typeDeclKind :: LexParser (Maybe DataKind,Range,String)
+typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do (rng,doc) <- dockeyword "type"
-       return (Just Inductive,rng,doc)
-  <|> 
-    do (rng,doc) <- dockeyword "cotype"
-       return (Just CoInductive,rng,doc)
-  <|> 
-    do (rng,doc) <- dockeyword "rectype"
-       return (Just Retractive, rng,doc)
-  <|> 
-    do (rng,doc) <- dockeyword "struct"
-       return (Nothing, rng,doc)
-  
+  = do let f kw sort = do (rng,doc) <- dockeyword kw   
+                          (ddef,isExtend) <- parseOpenExtend
+                          return (sort,rng,doc,ddef,isExtend)                            
+       (f "type" (Inductive)
+        <|> 
+        f "cotype" (CoInductive)
+        <|> 
+        f "rectype" (Retractive))
+
+parseOpenExtend :: LexParser (DataDef,Bool) 
+parseOpenExtend
+  =   do{ specialId "open"; return (DataDefOpen, False) }
+  <|> do{ specialId "extend"; return (DataDefOpen, True) }
+  <|> return (DataDefNormal, False)
+  <?> ""
+
 typeKindParams
    = do (tpars,rng) <- anglesRanged tbinders
         kind  <- kindAnnot
@@ -559,22 +579,22 @@ constructor defvis foralls resTp
                                                      c <- constructorId
                                                      return (v,k,c)
        exists    <- typeparams
-       (pars,prng) <- conPars
+       (pars,prng) <- conPars vis
        return (makeUserCon con foralls resTp exists pars rng (combineRanges [vrng,rng0,rng,getRange exists,prng]) vis doc)
 
-makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [ValueBinder UserType (Maybe UserExpr)] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
+makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [(Visibility,ValueBinder UserType (Maybe UserExpr))] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
 makeUserCon con foralls resTp exists pars nameRng rng vis doc
   = (UserCon con exists conParams nameRng rng vis doc
-    ,if (any (isJust . binderExpr) pars) then [creator] else [])  
+    ,if (any (isJust . binderExpr . snd) pars) then [creator] else [])  
   where
     conParams
-      = [par{ binderExpr = Nothing } | par <- pars]
+      = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator 
       = let name = newCreatorName con
             def  = Def binder rng vis DefFun doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
-            params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars]
+            params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
             lparams   = [par{ binderType = Nothing} | par <- params]
             arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
             tpParams  = [(binderName par, binderType par) | par <- params] 
@@ -585,15 +605,16 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
     isJust (Just{}) = True
     isJust _        = False
 
-conPars
-  = parensCommasRng (lparen <|> lapp) conBinder
+conPars defVis
+  = parensCommasRng (lparen <|> lapp) (conBinder defVis)
   <|>
     return ([],rangeNull)
 
-conBinder
-  = do (name,rng,tp) <- paramType
+conBinder defVis
+  = do (vis,vrng)    <- visibility defVis
+       (name,rng,tp) <- paramType
        (opt,drng)    <- defaultExpr
-       return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+       return (vis, ValueBinder name tp opt rng (combineRanges [vrng,rng,getRange tp,drng]))
 {-
     do (name,rng) <- try (do{ (Var name _ rng) <- variable; keyword ":"; return (name,rng) })
        tp <- ptype <?> "field type"
@@ -613,6 +634,146 @@ constructorId
     conid
   <?> "constructor"
 
+-----------------------------------------------------------
+-- Effect definitions
+-- 
+-- We don't return a syntactic construction for effects
+-- but immediately build the underlying data structures.
+-----------------------------------------------------------
+effectDecl :: Visibility -> LexParser [TopDef]
+effectDecl dvis 
+  = do (vis,defvis,vrng,erng,doc) <- 
+          (try $
+            do rng     <- keyword "abstract"
+               (trng,doc) <- dockeyword "effect"
+               return (Public,Private,rng,trng,doc)
+            <|>
+            do (vis,vrng) <- visibility dvis
+               (erng,doc) <- dockeyword "effect"
+               return (vis,vis,vrng,erng,doc))
+       singleShot <- do{ specialId "linear"; return True} <|> return False          
+       (id,irng) <- typeid
+       (tpars,kind,prng) <- typeKindParams
+       let infkind = case kind of
+                      KindNone -> foldr KindArrow 
+                                    (KindCon (if singleShot then nameKindHandled1 else nameKindHandled) irng) 
+                                    (map tbinderKind tpars)
+                      _ -> kind
+           ename   = TypeBinder id infkind {- KindCon nameKindHandled irng) -} irng irng
+           effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
+           effTp   = TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename)) 
+                           [effTpH] irng
+           rng     = combineRanges [vrng,erng,irng]
+
+           -- declare the effect type
+           effTpDecl = DataType ename tpars [] rng vis Inductive DataDefNormal False doc
+
+           -- define the effect operations type
+           opsName   = TypeBinder (toOperationsName id) KindNone irng irng
+           opsTp    = -- TpCon (tbinderName tname) (tbinderRange tname)
+                      tpCon opsName
+                      --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
+           extendConName = toEffectConName (tbinderName ename)
+           
+       -- parse the operations and return the constructors and function definitions
+       (ops,xrng) <- semiBracesRanged1 (operation singleShot defvis tpars effTp opsTp extendConName)
+          
+       let kindStar = (KindCon nameKindStar rng)
+           (opCons,opDefs) = unzip ops 
+           -- declare the effect operations type
+           opsTpDecl= DataType opsName (tpars ++ [TypeBinder nameA kindStar irng irng]) 
+                        (opCons) rng vis Inductive DataDefNormal False ""
+
+           -- extend the core operations type
+           opsTpFull    = TpApp opsTp (map tpVar tpars ++ [tpVarA]) irng
+           extendResTp  = TpApp (TpCon nameTpOperation irng) [tpVarA] rng
+           extendPars   = [(defvis,ValueBinder nameNil opsTpFull Nothing rng rng)]
+           (extendCon,extendConDefs)    = makeUserCon extendConName [] extendResTp tpars extendPars irng rng vis ""
+           extendTpDecl = DataType (TypeBinder nameTpOperation (KindArrow kindStar kindStar) irng irng) 
+                          [TypeBinder nameA kindStar irng irng] [extendCon] rng vis Inductive DataDefOpen True ""
+
+           -- create opmatchX function
+           {-
+           tpEffE     = makeEffectExtend rng effTp tpVarE
+           opmatchTp  = promoteType $
+                        TpFun [(newName "operation",extendResTp)] (makeEffectEmpty irng)
+                              (TpApp (TpCon nameTpOpMatch irng) 
+                                [tpEffE,tpVarE,opsTpFull] irng) rng
+
+           opmatchDef = Def (ValueBinder (prepend "opmatch" extendConName) () opmatch irng rng)
+                              rng vis DefFun "// Automatically generated operation matcher" 
+           opmatch   = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) opmatchTp rng
+           caseExpr  = Case (Var arg False rng) [branch1,branch2] rng
+           branch1   = Branch (PatCon (extendConName) patterns rng rng) guardTrue 
+                            (App (Var nameOpMatch False rng) [(Nothing,Var fld False rng)] rng)
+           branch2   = Branch (PatWild rng) guardTrue (App (Var nameOpNoMatch False rng) [] rng)
+           patterns  = [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
+           fld       = newName "x"
+           arg       = newName "op"
+           -}
+
+           nameA    = newHiddenName "a"
+           nameE    = newHiddenName "e"
+           tpVarE   = TpVar nameE irng
+           tpVarA   = TpVar nameA irng   
+           tpBindA  = TypeBinder nameA kindStar irng irng   
+
+       return $ [DefType effTpDecl, DefType opsTpDecl, DefType extendTpDecl] ++ 
+                  map DefValue ( opDefs ++ extendConDefs {- ++ [opmatchDef] -})
+
+
+operation :: Bool -> Visibility -> [UserTypeBinder] -> UserType -> UserType -> Name -> LexParser (UserCon UserType UserType UserKind, UserDef)
+operation singleShot vis foralls effTp opsTp extendConName
+  = do optional (keyword "function" <|> keyword "fun")
+       (id,idrng)   <- identifier
+       exists0      <- typeparams
+       (pars,prng)  <- conPars vis
+       keyword ":"
+       (mbteff,tres) <- tresult
+       teff <- case mbteff of 
+                 Nothing  -> return $ makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+                 Just etp -> -- TODO: check if declared effect is part of the effect type
+                             -- return etp    
+                             fail "an explicit effect in result type of an operation is not allowed (yet)"
+       let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+           rng      = combineRanges [idrng,prng,getRange tres]
+           nameA    = newName ".a"
+           tpVarA   = TpVar nameA idrng   
+           tpConRes = TpApp opsTp [tpVarA] rng             
+           -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
+
+           exists   = if (not (null exists0)) then exists0
+                       else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
+
+           conName  = toOpConName id
+           conDef   = UserCon conName exists conParams idrng rng vis ""
+           conParams= [(pvis,par{ binderName = nameNil, binderExpr = Nothing }) | (pvis,par) <- pars]
+           opDef  = let def  = Def binder rng vis DefFun ""
+                        nameRng   = idrng
+                        binder    = ValueBinder id () body nameRng nameRng
+                        body      = Ann (Lam lparams innerBody rng) tpFull rng
+                        opCon     = if null arguments then conNameVar else App conNameVar arguments rng
+                        innerBody = if (singleShot) 
+                                     then App (Var nameYieldOp1 False nameRng)
+                                              [(Nothing,Var (toOpenTagName extendConName) False nameRng),
+                                               (Nothing,opCon)] rng
+                                     else 
+                                    App (Var (if singleShot then nameYieldOp1 else nameYieldOp) False nameRng) 
+                                            [(Nothing, App (Var extendConName False nameRng) 
+                                                          [(Nothing,opCon)] rng)] rng
+                        conNameVar = Var conName False nameRng                                      
+                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
+                        lparams   = [par{ binderType = Nothing} | par <- params]
+                        arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
+                        tpParams  = [(binderName par, binderType par) | par <- params] 
+                        tpFull    = quantify QForall (foralls ++ exists) (TpFun tpParams teff tres rng)
+                        makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
+                        isJust (Just{}) = True
+                        isJust _        = False
+                    in def          
+       return (conDef,opDef)
+
+       
 
 -----------------------------------------------------------
 -- Value definitions
@@ -621,7 +782,7 @@ constructorId
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
   = do (vis,vrng,rng,doc,isVal) <- try $ do (vis,vrng) <- visibility dvis
-                                            (do (rng,doc) <- dockeyword "function"; return (vis,vrng,rng,doc,False)
+                                            (do (rng,doc) <- (dockeyword "function" <|> dockeyword "fun"); return (vis,vrng,rng,doc,False)
                                              <|>
                                              do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,True)) 
        (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis
@@ -639,13 +800,13 @@ varDecl
   = do (vrng,doc) <- dockeyword "var"
        bind <- binder
        keyword ":="
-       body <- valexpr
+       body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar doc)
 
 valDecl rng doc vis
   = do bind <- binder
        keyword "="
-       body <- valexpr
+       body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal doc)
  
 funDecl rng doc vis
@@ -653,7 +814,7 @@ funDecl rng doc vis
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,ann) <- funDef  
-       body   <- block <|> do{ keyword "="; branchexpr }
+       body   <- bodyexpr
        let fun = promote spars tpars mbtres
                   (Lam pars body (combineRanged rng body)) 
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis DefFun doc)
@@ -678,13 +839,7 @@ annotRes
 annotResult :: LexParser (UserType,UserType)
 annotResult
   = do keyword ":"
-       (tpars,mbteff,tres) <- tresult
-       let teff = case mbteff of Nothing -> makeTpTotal (before (getRange tres))
-                                 Just tp -> tp
-       if (null tpars)
-        then return (teff, tres)
-        else return (teff, makeTpFun tpars teff tres (combineRanged (map snd tpars) tres))
-
+       tresultTotal
 
 typeparams
   = do tbinds <- angles tbinders
@@ -731,9 +886,10 @@ block
                     return []
        rng2 <- rcurly
        let stats = stmts1 ++ stmts2
-       case (last stats) of
-         StatExpr exp -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
-         _            -> fail "Last statement in a block must be an expression"
+       case (reverse stats) of
+         (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
+         []               -> return (Var nameUnit False (combineRange rng1 rng2))
+         _                -> fail "Last statement in a block must be an expression"
   where
     combine :: Statement -> UserExpr -> UserExpr
     combine (StatFun f) exp   = f exp
@@ -777,7 +933,7 @@ localValueDecl
   = do krng <- keyword "val"
        pat  <- pattern
        keyword "="
-       e    <- valexpr
+       e    <- blockexpr
        let bindVar binder mbTp rng
             = let annexpr = case mbTp of
                               Just tp -> Ann e tp rng
@@ -805,19 +961,22 @@ typeAnnotation
 {--------------------------------------------------------------------------
   Expressions
 --------------------------------------------------------------------------}
-valexpr :: LexParser UserExpr
-valexpr
-  = ifexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
-  <?> "expression"
+bodyexpr :: LexParser UserExpr
+bodyexpr
+  = do keyword "->"
+       blockexpr
+  <|>
+    block
 
 expr :: LexParser UserExpr
 expr
   = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
   <?> "expression"
 
-branchexpr :: LexParser UserExpr
-branchexpr
+blockexpr :: LexParser UserExpr
+blockexpr
   = ifexpr <|> noifexpr
+  <?> "expression"
 
 noifexpr :: LexParser UserExpr
 noifexpr
@@ -842,9 +1001,10 @@ ifexpr
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs) 
                      where
                        match (tst,texpr) eexpr
-                        = Case tst [Branch (PatCon nameTrue [] rangeNull (getRange texpr)) guardTrue texpr
-                                   ,Branch (PatCon nameFalse [] rangeNull (getRange eexpr)) guardTrue eexpr]
-                                   (combineRanged tst eexpr)
+                        = let trng = getRange tst
+                          in  Case tst [Branch (PatCon nameTrue [] trng trng) guardTrue texpr
+                                       ,Branch (PatCon nameFalse [] trng trng) guardTrue eexpr]
+                                       (combineRanged tst eexpr)
        
        return fullMatch
   where
@@ -866,23 +1026,110 @@ matchexpr
        tst <- parens expr  -- todo: multiple patterns
        (branches,rng2) <- semiBracesRanged1 branch 
        return (Case tst branches (combineRange rng rng2))
+  <|> handlerExpr
+  
+handlerExpr
+  = do rng <- keyword "handler"
+       shallow <- do{ specialId "shallow"; return True } <|> return False
+       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
+       handlerExprX lparen rng shallow mbEff
+  <|> 
+    do rng <- keyword "handle"
+       shallow <- do{ specialId "shallow"; return True } <|> return False
+       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
+       args <- parensCommas lparen argument 
+       expr <- handlerExprX lparen rng shallow mbEff
+       return (App expr args (combineRanged rng expr))
+
+handlerExprX lp rng shallow mbEff
+  = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
+       (retops,rng2)  <- semiBracesRanged1 handlerOp
+       let (rets,ops) = partitionEithers retops
+       ret <- case rets of
+                [r] -> return r
+                []  -> return (handlerReturnDefault rng)
+                _   -> fail "There can be be at most one 'return' clause in a handler body"
+       return (parsLam $ Handler shallow mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+       
+handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
+handlerParams 
+  = do (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
+       let hpars  = [p{ binderExpr = () } | p <- pars]
+           hlam   = if (any (isJust.binderExpr) pars) 
+                      then let apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
+                               xpars  = [case binderExpr p of
+                                           Nothing -> p{binderName = makeHiddenName "par" (binderName p)} 
+                                           Just _  -> p
+                                        | p <- pars] 
+                               xargs  = [(Nothing,
+                                          case binderExpr p of
+                                            Nothing -> Var (binderName p) False rng
+                                            Just e  -> e) |  p <- xpars] 
+                                        ++ 
+                                        [(Nothing, (Var (binderName apar) False rng) )]
+                               xxpars = [p | p <- xpars, not (isJust (binderExpr p))]         
+                               hlam h = Lam (xxpars ++ [apar]) (App h xargs rng) rng
+                           in hlam
+                      else id
+       return (hpars,hlam,rng)
+
+handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
+handlerOp 
+  = do rng <- keyword "return"
+       (name,prng) <- paramid
+       tp         <- optionMaybe typeAnnotPar 
+       expr <- bodyexpr
+       return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
+  <|>
+    do (name,nameRng) <- qidentifier
+       (pars,prng) <- opParams 
+       expr <- bodyexpr
+       return (Right (HandlerBranch name pars expr nameRng (combineRanges [nameRng,prng])))
+
+opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
+opParams
+  = parensCommasRng (lparen <|> lapp) opParam <|> return ([],rangeNull)
+
+opParam :: LexParser (ValueBinder (Maybe UserType) ())
+opParam
+  = do (name,rng) <- identifier     
+       tp <- optionMaybe typeAnnot
+       return (ValueBinder name tp () rng (combineRanged rng tp))
+
+
+handlerPar :: LexParser (ValueBinder (Maybe UserType) ()) 
+handlerPar
+  = do (name,rng) <- identifier     
+       tp <- optionMaybe typeAnnot
+       return (ValueBinder name tp () rng (combineRanged rng tp))  
+
+-- default return clause: return x -> x
+handlerReturnDefault :: Range -> UserExpr
+handlerReturnDefault rng
+  = let xname = newHiddenName "x"
+        xbind = ValueBinder xname Nothing Nothing rng rng
+        xvar  = Var xname False rng
+    in Lam [xbind] xvar rng
+
 
 {--------------------------------------------------------------------------
   Branches
 --------------------------------------------------------------------------}
 branch
   = do pat  <- pattern
-       grd  <- guard
-       keyword "->"
-       exp  <- branchexpr
+       (grd,exp) <- guard
        return (Branch pat grd exp)
   <?> "pattern match"
 
 guard
   = do bar
-       expr <?> "guard expression"
+       grd <- expr <?> "guard expression"
+       keyword "->"
+       exp <- blockexpr
+       return (grd,exp)
   <|>
-    do return guardTrue
+    do exp <- bodyexpr
+       return (guardTrue, exp)
 
 
 {--------------------------------------------------------------------------
@@ -907,31 +1154,16 @@ operatorVar
 prefixexpr :: LexParser UserExpr
 prefixexpr
   = do ops  <- many prefixOp
-       aexp <- fappexpr
+       aexp <- appexpr
        return (foldr (\op e -> App op [(Nothing,e)] (combineRanged op e)) aexp ops)
-
-fappexpr :: LexParser UserExpr
-fappexpr
-  = do e <- appexpr
-       fargs <- many bfunexpr
-       return (injectApply e fargs)       
-  where
-    injectApply expr []
-      = expr
-    injectApply expr fargs
-      = case expr of
-          App fun args rng -> App fun (args ++ nfargs) rng
-          _                -> App expr nfargs (combineRanged expr fargs)
-      where
-        nfargs = [(Nothing,f) | f <- fargs]
 
 appexpr :: LexParser UserExpr
 appexpr 
   = do e0 <- atom
-       fs <- many (dotexpr <|> applier <|> indexer)
+       fs <- many (dotexpr <|> applier <|> indexer <|> funapps)
        return (foldl (\e f -> f e) e0 fs)
   where      
-    dotexpr, indexer, applier :: LexParser (UserExpr -> UserExpr)
+    dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
            e <- atom
@@ -954,6 +1186,18 @@ appexpr
            rng1 <- rparen
            return (\exp -> App exp (args) (combineRanged exp rng1))
 
+    funapps
+      = do fs <- many1 bfunexpr 
+           return (\arg0 -> injectApply arg0 fs)
+      where        
+        injectApply expr []
+          = expr
+        injectApply expr fargs
+          = case expr of
+              App fun args rng -> App fun (args ++ nfargs) rng
+              _                -> App expr nfargs (combineRanged expr fargs)
+          where
+            nfargs = [(Nothing,f) | f <- fargs]
 
 argument :: LexParser (Maybe (Name,Range),UserExpr)
 argument
@@ -974,7 +1218,7 @@ funblock
        return (Lam [] exp (getRange exp))    
 
 funexpr
-  = do rng <- keyword "fun" 
+  = do rng <- keyword "fun.anon" <|> keyword "function.anon" 
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,ann) <- funDef 
        body <- block
@@ -1042,10 +1286,10 @@ listExpr
        rng2 <- special "]"
        if null es 
         then return (makeNil (combineRange rng1 rng2))
-        else return (adjustRange (combineRange rng1 rng2) (foldr makeCons (makeNil (after rng2)) (es)))
+        else return (adjustRange (combineRange rng1 rng2) (foldr (makeCons rng1) (makeNil rng2) (es)))
 
 makeNil rng   = Var nameNull False rng
-makeCons x xs = makeApp (Var nameCons False (after (getRange x))) [x,xs]
+makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
 -----------------------------------------------------------
 -- Patterns (and binders)
@@ -1062,7 +1306,10 @@ funid
     do rng1 <- special "["
        rng2 <- special "]"
        return (nameIndex,combineRange rng1 rng2)
-
+  -- secretly allow definition of any name       
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s, rng)
 
 pattern :: LexParser UserPattern
 pattern
@@ -1156,7 +1403,7 @@ typeAnnotPar
            return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng tp))
         <|>
         do rng <- specialOp "$"
-           ([],eff,res) <- tresultTotal -- todo: use proper result
+           (eff,res) <- tresultTotal -- todo: use proper result
            return (TpApp (TpCon nameTpDelay rng) [eff,res] (combineRanged rng res))
         <|>
         ptype)
@@ -1224,8 +1471,8 @@ tarrow :: LexParser UserType
 tarrow
   = do (tps,rng1) <- tatom
        (do keyword "->"
-           (targs,teff,tres) <- tresultTotal
-           return (makeTpFun (tps ++ targs) teff tres (combineRanged rng1 tres))
+           (teff,tres) <- tresultTotal
+           return (makeTpFun tps teff tres (combineRanged rng1 tres))
         <|>
         return (tuple (tps,rng1)))
 
@@ -1253,31 +1500,29 @@ tlabel
        return tp2
 
 
-tresultTotal :: LexParser ([(Name,UserType)],UserType,UserType)
+tresultTotal :: LexParser (UserType,UserType)
 tresultTotal
-  = do (targs,mbeff,tres) <- tresult
+  = do (mbeff,tres) <- tresult
        let teff = case mbeff of Just tp -> tp
                                 Nothing -> makeTpTotal (before (getRange tres))
-       return (targs,teff,tres)
+       return (teff,tres)
 
-tresult :: LexParser ([(Name,UserType)],Maybe UserType,UserType)
+tresult :: LexParser (Maybe UserType,UserType)
 tresult
   = do (tps1,rng1)  <- tatom
-
-       (targs,tps2) <-  do ts <- many (do{ keyword "->"; tatom})
-                           if null ts
-                            then return ([],tps1)
-                            else return (merge ((tps1,rng1):init ts), fst (last ts))
        (teff,tres) <- do (tps,rng) <- tatom
-                         return (Just (tuple (tps2,rng)), tuple (tps,rng))
+                         return (Just (tuple (tps1,rng)), tuple (tps,rng))
                       <|>
-                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple(tps2,rng1)) -- TODO: range
-       return (targs,teff,tres)
+                         return (Nothing {-makeTpTotal (getRange (map snd tps2))-}, tuple(tps1,rng1)) -- TODO: range
+       return (teff,tres)
   where
     merge :: [([(Name,UserType)],Range)] -> [(Name,UserType)]
     merge ts  = concat (map fst ts)
 
-
+tatomic :: LexParser UserType
+tatomic 
+  = do (ts,rng) <- tatom
+       return (tuple (ts,rng))
 
 tuple :: ([(Name,UserType)],Range) -> UserType
 tuple ([tp],rng) = snd tp
@@ -1502,7 +1747,13 @@ katom
   <|>
     do rng <- specialConId "P"
        return (KindCon nameKindPred rng)
-  <?> "kind constant (V,E,H,X, or P)"
+  <|>
+    do rng <- specialConId "HX"
+       return (KindCon nameKindHandled rng)
+  <|>
+    do rng <- specialConId "HX1"
+       return (KindCon nameKindHandled1 rng)
+  <?> "kind constant (V,E,H,X,HX,HX1, or P)"
 
 -----------------------------------------------------------
 -- Braces and parenthesis
@@ -1572,8 +1823,8 @@ bracketed open close f p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-lapp     = special "((" <?> show "("
-lidx     = special "[[" <?> show "["
+lapp     = special "(.(" <?> show "("
+lidx     = special "[.[" <?> show "["
 lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<" 
@@ -1640,6 +1891,10 @@ idop
 conid :: LexParser (Name,Range)
 conid
   = ensureUnqualified "constructor" qconid
+  -- secretly allow any name
+  <|>
+    do (s,rng) <- stringLit
+       return (newName s,rng)
 
 op :: LexParser (Name,Range)
 op = ensureUnqualified "operator" qop
@@ -1720,7 +1975,7 @@ wildcard
 
 integer :: LexParser (Integer,Range)
 integer
-  = do (Lexeme rng (LexInt i)) <- parseLex (LexInt 0)
+  = do (Lexeme rng (LexInt i _)) <- parseLex (LexInt 0 "0")
        return (i,rng)
   <?> "integer"
 

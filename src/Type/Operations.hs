@@ -56,8 +56,8 @@ instantiate range tp
 instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
-       erho <- extend rho
-       return (ids,preds,erho,coref)
+       (erho,coreg) <- extend rho
+       return (ids,preds,erho, coreg . coref)
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
@@ -70,16 +70,19 @@ instantiateNoEx rng tp
 -- This is necessary to do on instantiation since we simplify such effect variables
 -- away during generalization. Effectively, the set of accepted programs does not 
 -- change but the types look simpler to the user.
-extend :: HasUnique m => Rho -> m Rho
+extend :: HasUnique m => Rho -> m (Rho, Core.Expr -> Core.Expr)
 extend tp
   = case expandSyn tp of
       TFun args eff res
         -> let (ls,tl) = extractOrderedEffect eff
            in if isEffectEmpty tl
                then do tv <- freshTVar kindEffect Meta
-                       return (TFun args (effectExtends ls tv) res)
-               else return tp
-      _ -> return tp
+                       let openEff = effectExtends ls tv
+                           openTp  = TFun args openEff res
+                       -- return (openTp, id)
+                       return (openTp, \core -> Core.openEffectExpr eff openEff tp openTp core)
+               else return (tp,id)
+      _ -> return (tp,id)
 
 
 -- | Skolemize a type
@@ -100,7 +103,7 @@ instantiateExFl flavour range tp
   = case splitPredType tp of
       ([],[],rho) -> return ([],[],rho,id)
       (vars,preds,rho)
-        ->  do (tvars,sub) <- freshSub flavour vars
+        ->  do (tvars,sub) <- freshSubX TVar flavour vars
                let srho   = sub |-> rho
                    spreds = sub |-> preds
                pnames <- mapM predName spreds
@@ -124,6 +127,12 @@ freshSub flavour vars
        let sub = subNew (zip vars (map TVar tvars))
        return (tvars,sub)
 
+
+freshSubX :: HasUnique m => (TypeVar -> Type) -> Flavour -> [TypeVar] -> m ([TypeVar],Sub)
+freshSubX makeTVar flavour vars
+  = do tvars <- mapM (\tv -> freshTypeVar (typevarKind tv) flavour) vars
+       let sub = subNew (zip vars (map makeTVar tvars))
+       return (tvars,sub)
 
 {-
 -- | Instantiate the the "some" quantifiers of an annotation to fresh type variables

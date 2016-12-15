@@ -18,7 +18,7 @@ import Control.Applicative
 import Control.Monad
 import Data.List( transpose, permutations )
 import Common.Name
-import Common.NamePrim( nameSubStr1, namesSameSize )
+import Common.NamePrim( nameSubStr1, namesSameSize, nameEffectOpen, nameDecreasing )
 import Common.Failure
 import Common.Syntax
 import qualified Common.NameSet as S
@@ -56,7 +56,7 @@ isDivergentBody dname body
         -> isDivergentBody dname expr
       TypeApp expr targs
         -> isDivergentBody dname expr
-      Lam pars body  
+      Lam pars eff body  
         -> isDivFun dname pars body
       _ -> -- ctrace DarkRed ("Core.Divergent.isDivergentBody: not a function? " ++ show body) $
            True  -- assume that non-functions are divergent
@@ -173,17 +173,28 @@ addRelation sz name1 name2 div
 divExpr :: Expr -> Div ()
 divExpr expr
   = case expr of
-      Lam tnames expr   
+      Lam tnames eff expr   
         -> divExpr expr
+      -- Ignore .open effect calls
+      App (App (TypeApp (Var openName _) _) [f]) args  | getName openName == nameEffectOpen        
+        -> divExpr (App f args)
+      App (TypeApp (App (TypeApp (Var openName _) _) [f]) targs) args  | getName openName == nameEffectOpen        
+        -> divExpr (App (TypeApp f targs) args)
+      -- applications        
       App (TypeApp var@(Var tname info) targs) args
         -> divExpr (App var args)
       App (Var tname info) args
         -> do isRec <- isRecursiveCall (getName tname)
               if isRec 
-                then do call <- mapM (argumentSize (getName tname)) (zip [0..] args)
+                then do call <- mapM (argumentSize (getName tname)) (zip [0..] args) -- todo: should we add 'Unknown's for partial applications?
                         addCall (getName tname) call
                 else return ()
               mapM_ divExpr args
+
+      Var tname info  -- recursive call may appear as argument, say id(recfun)(x)
+        -> do isRec <- isRecursiveCall (getName tname)
+              if isRec then addCall (getName tname) [Unknown] else return ()
+              
       App f args        
         -> do divExpr f
               mapM_ divExpr args
@@ -222,7 +233,7 @@ divPattern size (mbName,pat)
       (Just name, PatVar pname pat)
         -> do f <- divPattern size (mbName,pat)
               return (addRelation size name (getName pname) . f)  
-      (_, PatCon _ patterns _ _ info)
+      (_, PatCon _ patterns _ _ _ info)
         -> do fs <- mapM (\pat -> divPattern (if conInfoTypeSort info == Inductive then Lt else size) (mbName,pat)) patterns
               return (compose fs)
       (_, _)
@@ -246,6 +257,14 @@ argumentSize name (pos,arg)
   = case arg of
       Var tname info
         -> lookupSize name pos (getName tname)
+      -- Ignore .open effect calls
+      App (App (TypeApp (Var openName _) _) [f]) args  | getName openName == nameEffectOpen        
+        -> argumentSize name (pos,App f args)
+      App (TypeApp (App (TypeApp (Var openName _) _) [f]) targs) args  | getName openName == nameEffectOpen        
+        -> argumentSize name (pos,App (TypeApp f targs) args)
+      -- special 'unsafeDecreasing' call
+      App (TypeApp (Var name _) [targ]) [arg] | getName name == nameDecreasing
+        -> return Lt  
       -- special case substr1
       App (Var substrName _) (Var sname _ : args) | getName substrName == nameSubStr1
         -> do sz <- lookupSize name pos (getName sname)

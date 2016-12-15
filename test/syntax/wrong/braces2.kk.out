@@ -1,0 +1,3 @@
+test/syntax/wrong/braces2.kk(4,15): error: invalid syntax
+ unexpected keyword ->
+ expecting "," or ")"

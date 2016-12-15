@@ -1,0 +1,10 @@
+positive
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-set : forall<a,b> (a) -> .ops-state<a,b>
+.tag-Eff-state: string
+get : forall<a> () -> (state<a>) a
+main : () -> console ()
+set : forall<a> (x : a) -> (state<a>) ()
+state : forall<a,b> (action : () -> (state<a>) b) -> ((s : a) -> cps b)
+test : () -> (state<int>) string

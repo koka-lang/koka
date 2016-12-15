@@ -1,0 +1,58 @@
+[[3],[2,1],[1,2],[1,1,1]]
+(state=12, [[3],[2,1],[1,2],[1,1,1]])
+[(state=1, [3]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
+[[3]]
+[42]
+.Eff-cutfail: forall<a> (.ops-cutfail<a>) -> operation<a>
+.Eff-nondet : forall<a> (.ops-nondet<a>) -> operation<a>
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Eff-symbol : forall<a> (.ops-symbol<a>) -> operation<a>
+.Op-cutfail : forall<a,b> .ops-cutfail<a>
+.Op-fail : forall<a,b> .ops-nondet<a>
+.Op-flip : forall<a> .ops-nondet<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-put : forall<a,b> (a) -> .ops-state<a,b>
+.Op-symbol : forall<a> (string) -> .ops-symbol<a>
+.copy : forall<a> (.ops-symbol<a>, string) -> .ops-symbol<a>
+.copy : forall<a,b> (.ops-cutfail<a>) -> .ops-cutfail<a>
+.tag-Eff-cutfail: string
+.tag-Eff-nondet: string
+.tag-Eff-state: string
+.tag-Eff-symbol: string
+call : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
+choice : forall<a,e> (p1 : () -> <nondet|e> a, p2 : () -> <nondet|e> a) -> <nondet|e> a
+choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<int>|e> a
+collect : forall<a,e> (() -> <nondet|e> a) -> <nondet|e> a
+cut : () -> <cutfail,nondet> ()
+cutfail : forall<a> () -> cutfail a
+digit : () -> <nondet,symbol> string
+expr : () -> <nondet,symbol,div> int
+factor : () -> <nondet,symbol,div> int
+fail : forall<a> () -> nondet a
+flip : () -> nondet bool
+get : forall<a> () -> (state<a>) a
+global : forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e (a, list<b>)
+hcutfail : forall<a,e> (action : () -> <cutfail,nondet|e> a) -> <nondet|e> a
+incr : (i : ?int) -> (state<int>) ()
+knapsack : (w : int, vs : list<int>) -> <nondet,div> list<int>
+local : forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e list<(a, b)>
+main : () -> <div,console> ()
+many : forall<a,e> (() -> <nondet,div|e> a) -> <nondet,div|e> list<a>
+many1 : forall<a,e> (() -> <nondet,div|e> a) -> <nondet,div|e> list<a>
+number : () -> <nondet,symbol,div> int
+once : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
+parse : forall<a,e> (cs : string, action : () -> <nondet,symbol|e> a) -> <nondet|e> a
+put : forall<a> (i : a) -> (state<a>) ()
+select : forall<a> (list<a>) -> nondet a
+show : (xs : list<(int, list<int>)>) -> string
+show : (x : (int, list<list<int>>)) -> string
+show : (xss : list<list<int>>) -> string
+solutions : forall<a,e> (action : () -> <nondet|e> a) -> e list<a>
+state : forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e (a, b)
+symbol : (s : string) -> symbol string
+term : () -> <nondet,symbol,div> int
+test1 : () -> div list<list<int>>
+test2 : () -> div (int, list<list<int>>)
+test3 : () -> div list<(int, list<int>)>
+test4 : () -> div list<list<int>>
+test5 : () -> div list<int>

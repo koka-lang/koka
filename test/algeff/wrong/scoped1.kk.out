@@ -1,0 +1,6 @@
+test/algeff/wrong/scoped1.kk(62, 3): error: abstract type(s) escape(s) into the context
+ term : choice(xs) -> {
+ ...
+ }
+ inferred type: (list<$a>) -> nondet $a
+ hint : perhaps you forgot to apply 'resume'?

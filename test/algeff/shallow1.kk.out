@@ -1,0 +1,3 @@
+test/algeff/shallow1.kk(14,17): error: invalid syntax
+ unexpected "(.("
+ expecting "<" or "("

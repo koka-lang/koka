@@ -33,7 +33,7 @@ module Type.Assumption (
                     , createNameInfoX
                     , getArity
                     ) where
-
+import Lib.Trace
 import Common.Range
 import Common.Failure
 import Common.Syntax( DefSort(..) )
@@ -154,11 +154,11 @@ gammaLookup name (Gamma gamma)
       Nothing -> []
       Just xs -> -- let qname = if isQualified name then name else qualify context name 
                  -- in filter (\(n,_) -> n == qname) xs 
+                 -- trace (" in gamma found: " ++ show (map fst xs)) $ 
                  if (isQualified name)
-                  then filter (\(n,_) -> n == name) xs
+                  then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
                   else xs
-
-
+                 
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)
   = Gamma (M.map (\xs -> [(name,f tp) | (name,tp) <- xs]) gamma)
@@ -219,7 +219,7 @@ extractTypeDefGroup isVisible msf (Core.TypeDefGroup tdefs)
 
 extractTypeDef isVisible msf tdef
   = case tdef of
-     Core.Data dataInfo vis conViss   | isVisible vis
+     Core.Data dataInfo vis conViss isExtend  | isVisible vis
        -> gammaUnions (L.map extractConInfo 
             [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo) 
                (zip conViss (snd (Core.getDataRepr msf {- struct fields do not matter for extraction -} dataInfo))), isVisible vis])
@@ -237,8 +237,8 @@ extractDefGroup isVisible (Core.DefNonRec def)
 
 
 
-extractDef isVisible def@(Core.Def name tp expr vis isVal nameRng doc) | isVisible vis
-  = let info = createNameInfo name (Core.defIsVal def) nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
+extractDef isVisible def@(Core.Def name tp expr vis sort nameRng doc) | isVisible vis
+  = let info = createNameInfoX name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
     in gammaSingle (Core.nonCanonicalName name) info
 extractDef isVisible _
   = gammaEmpty
@@ -253,7 +253,8 @@ coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
 
 createNameInfoX :: Name -> DefSort -> Range -> Type -> NameInfo
 createNameInfoX name sort rng tp
-  = if (sort /= DefFun) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity tp) rng
+  = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
+     if (sort /= DefFun) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
   = createNameInfoX name (if isVal then DefVal else DefFun) rng tp

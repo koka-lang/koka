@@ -46,7 +46,7 @@ layout semiInsert lexemes
               -- semi checkComments $ 
               lexemes
     in -- trace (unlines (map show (take 100 ls))) $
-       seq (last ls) ls          
+       seq (length ls) ls          
 
 removeWhite :: [Lexeme] -> [Lexeme]
 removeWhite lexemes
@@ -105,7 +105,7 @@ associateComments lexs
              -> l : scan ls
           [] -> []
       where
-        docKeyword = ["fun","function","val","type","cotype","rectype","struct","con","alias","external","module"]
+        docKeyword = ["fun","function","val","type","cotype","rectype","effect","struct","con","alias","extern","external","module"]
 
         adjacent comment r1 r2
           = case (reverse comment) of
@@ -252,7 +252,7 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexId _     -> True
           LexIdOp _   -> True
           LexCons _   -> True
-          LexInt _    -> True
+          LexInt _ _  -> True
           LexFloat _  -> True
           LexChar _   -> True
           LexString _ -> True

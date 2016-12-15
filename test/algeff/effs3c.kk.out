@@ -1,0 +1,26 @@
+False,True,True,False
+False,False,True,True,False
+False,False
+test/algeff/effs3c.kk(40,19): warning: i shadows an earlier local definition or parameter
+test/algeff/effs3c.kk(40,19): warning: i shadows an earlier local definition or parameter
+.Eff-amb : forall<a> (.ops-amb<a>) -> operation<a>
+.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
+.Op-flip : forall<a> .ops-amb<a>
+.Op-get : forall<a,b> .ops-state<a,b>
+.Op-set : forall<a,b> (a) -> .ops-state<a,b>
+.copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
+.tag-Eff-amb: string
+.tag-Eff-state: string
+amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
+flip : () -> amb bool
+foo : () -> <amb,state<int>> bool
+foos : () -> <amb,state<int>> string
+get : forall<a> () -> (state<a>) a
+main : () -> console ()
+set : forall<a> (x : a) -> (state<a>) ()
+state_handle: forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e b
+test1 : () -> string
+test2 : () -> string
+test3 : () -> string
+xor : () -> amb bool
+xors : () -> amb string

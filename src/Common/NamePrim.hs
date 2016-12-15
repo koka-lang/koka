@@ -23,17 +23,24 @@ module Common.NamePrim
           , nameCopy
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
-          , nameSubStr1
+          , nameDecreasing, nameSubStr1
 
           , nameUnit
-          , nameReturn
+          , nameReturn, nameTrace, nameLog
+          , nameEffectOpen
+          , nameToAny
+          , nameEnsureK
+          , nameIsValidK
+          , nameUnsafeTotal
+          , nameIntConst, nameInt32
 
           -- * Constructors
           , nameTrue, nameFalse
+          , nameJust, nameNothing
           , nameOptional, nameOptionalNone
           , nameTpDelay
           -- * Lists
-          , nameNull, nameCons, nameEnumFromTo, nameEnumFromThenTo, nameTpList
+          , nameNull, nameCons, nameTpList
           -- * Type constructors
           , nameEffectEmpty, nameEffectExtend
           , nameEffectAppend
@@ -41,10 +48,19 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat
           , nameTpString
+          , nameTpInt32
           , nameTpAny
-          , nameTpAsync
           , nameTpException
-          , nameTpMDict, nameTpDict, nameTpBuilder
+          , nameTpHandled, nameTpHandled1
+          , nameTpOperation, nameYieldOp, nameYieldOp1
+          , nameTpCps, nameTpYld, nameTpCont
+          , nameInCps
+
+          , nameTpAsync
+          , nameApplyK
+          , nameMakeHandler, nameMakeHandlerRet
+          , nameTpOpMatch, nameOpMatch, nameOpNoMatch
+          , nameTpMDict, nameTpDict, nameTpBuilder, nameTpTime
 
           , nameTpUnit, nameTpVoid
           , nameTpRef, nameRef
@@ -66,6 +82,7 @@ module Common.NamePrim
           , nameKindLabel
           , nameKindPred, nameKindEffect
           , nameKindHeap
+          , nameKindHandled1, nameKindHandled
 
           , toShortModuleName
 
@@ -93,7 +110,7 @@ nameOpExpr      = newName ".opexpr"
 --------------------------------------------------------------------------}
 nameIf          = newName "if"
 nameCase        = newName "case"
-nameUnit        = newName "()"
+nameUnit        = preludeName "()"
 
 namePredHeapDiv :: Name
 namePredHeapDiv = preludeName "hdiv"
@@ -101,11 +118,20 @@ namePredHeapDiv = preludeName "hdiv"
 nameReturn :: Name
 nameReturn = preludeName ".return"
 
+nameTrace  = preludeName "trace"
+nameLog    = preludeName "log"
+
+nameEffectOpen :: Name
+nameEffectOpen = newName ".open"
+
 {--------------------------------------------------------------------------
   Primitive constructors
 --------------------------------------------------------------------------}
 nameTrue        = preludeName "True"
 nameFalse       = preludeName "False"
+
+nameJust        = preludeName "Just"
+nameNothing     = preludeName "Nothing"
 
 nameOptional         = preludeName "Optional"
 nameOptionalNone     = preludeName "None"
@@ -113,8 +139,8 @@ nameTpOptional       = preludeName "optional"
 
 nameTpDelay          = preludeName "delay"
 
-namePatternMatchError = preludeName "patternMatchError"
-nameMainConsole      = preludeName "mainConsole"
+namePatternMatchError = preludeName "error-pattern-match"
+nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
 
 nameAssign      = preludeName ":="
@@ -125,21 +151,22 @@ nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
 nameIndex       = newName "[]"
 
-nameTpArray     = preludeName "array"
+nameTpArray     = qualify (newName "std/array") (newName "array") 
 nameTpVector    = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
+nameDecreasing  = preludeName "unsafe-decreasing"
+nameUnsafeTotal = preludeName "unsafe-total"
 
 {--------------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------------}
 nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
-nameEnumFromTo  = preludeName "enumFromTo"
-nameEnumFromThenTo = preludeName "enumFromThenTo"
 nameTpList      = preludeName "list"
 
-
+nameIntConst    = preludeName ".int-string"
+nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
@@ -148,8 +175,35 @@ nameEffectEmpty = preludeName "<>"
 nameEffectExtend= preludeName "<|>"
 nameEffectAppend= newName ".<+>"
 
+nameTpHandled   = preludeName "handled"
+nameTpHandled1  = preludeName "handled1"
+nameTpOperation = preludeName "operation"
+
+nameTpCps       = preludeName "cps"
+nameInCps       = preludeName "incps"
+nameTpYld       = preludeName "yld"
+nameTpCont      = preludeName "cont"
+nameEnsureK     = preludeName "ensureK"
+nameTpAsync     = preludeName "async"
+
+nameYieldOp     = preludeName ".yieldop"
+nameYieldOp1    = preludeName ".yieldop1"
+nameToAny       = preludeName ".toany"
+nameApplyK      = preludeName ".applyK"
+nameIsValidK    = preludeName ".isValidK"
+nameMakeHandler shallow n 
+  = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
+nameMakeHandlerRet n 
+  = preludeName (".makeHandlerRet" ++ show n)
+
+nameTpOpMatch   = preludeName "opmatch"
+nameOpMatch     = preludeName ".conOpMatch"
+nameOpNoMatch   = preludeName ".conOpNoMatch"
+
+
 nameTpBool      = preludeName "bool"
 nameTpInt       = preludeName "int"
+nameTpInt32     = preludeName "int32"
 nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"
@@ -171,14 +225,13 @@ nameTpRead         = preludeName "read"
 nameTpWrite        = preludeName "write"
 nameTpST           = preludeName "st"
 
-nameTpVoid      = preludeName "void"
-
-nameTpAsync     = preludeName "async"
-nameTpException = preludeName "exception"
+nameTpVoid       = preludeName "void"
+nameTpException  = preludeName "exception"
 
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/string") (newName "builder")
+nameTpTime      = qualify (newName "std/time") (newName "time")
 
 nameTuple :: Int -> Name
 nameTuple n     = preludeName ("(" ++ (replicate (n-1) ',') ++ ")")
@@ -210,3 +263,5 @@ nameKindFun     = newName "->"
 nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
+nameKindHandled = newName "HX"
+nameKindHandled1 = newName "HX1"

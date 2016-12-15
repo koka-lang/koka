@@ -9,7 +9,7 @@
 -----------------------------------------------------------------------------
 
 module Kind.InferKind ( InfKind(..)
-                      , infKindStar
+                      , infKindStar, infKindHandled
                       , infKindFun
                       , infKindFunN
                       , ppInfKind, niceInfKinds
@@ -52,6 +52,9 @@ type InfKGamma = M.Map Name InfKind
 
 infKindStar 
   = KICon kindStar
+
+infKindHandled
+  = KICon kindHandled
 
 infKindFun k1 k2
   = KIApp (KIApp (KICon kindArrow) k1) k2

@@ -46,6 +46,7 @@ $symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
 $special  = [\(\)\[\]\{\}\;\,]
 $anglebar = [\<\>\|]
 $angle    = [\<\>]
+$finalid  = [\'\?]
 $charesc  = [nrt\\\'\"]    -- "
 
 -----------------------------------------------------------
@@ -53,11 +54,15 @@ $charesc  = [nrt\\\'\"]    -- "
 -----------------------------------------------------------
 @newline      = $return?$linefeed
 
-@utf8         = \xC0\x80 | [\xC2-\xDF] $cont 
+@utf8         = \xC0\x80 
+              | [\xC2-\xDF] $cont 
               | \xE0 [\xA0-\xBF] $cont
-              | [\xE1-\xEC] $cont $cont | \xED [\x80-\x9F] $cont
-              | [\xEE-\xEF] $cont $cont | \xF0 [\x90-\xBF] $cont
-              | [\xF1-\xF3] $cont $cont $cont | \xF4 [\x80-\x8F] $cont $cont 
+              | [\xE1-\xEC] $cont $cont 
+              | \xED [\x80-\x9F] $cont
+              | [\xEE-\xEF] $cont $cont 
+              | \xF0 [\x90-\xBF] $cont
+              | [\xF1-\xF3] $cont $cont $cont 
+              | \xF4 [\x80-\x8F] $cont $cont 
   
 @linechar     = [$graphic$space$tab]|@utf8  
 @commentchar  = ([$graphic$space$tab] # [\/\*])|@newline|@utf8
@@ -66,13 +71,13 @@ $charesc  = [nrt\\\'\"]    -- "
 @hexdigit4    = @hexdigit2 @hexdigit2
 @hexesc       = x@hexdigit2|u@hexdigit4|U@hexdigit4@hexdigit2
 @escape       = \\($charesc|@hexesc)
-@stringchar   = ([$graphic$space] # [\\\"])|@utf8               -- " fix highlight
+@stringchar   = ([$graphic$space] # [\\\"])|@utf8             -- " fix highlight
 @charchar     = ([$graphic$space] # [\\\'])|@utf8    
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
-@idchar       = $letter|$digit|_
-@lowerid      = $lower @idchar*
-@upperid      = $upper @idchar*
+@idchar       = $letter|$digit|_|\-
+@lowerid      = $lower @idchar* $finalid*
+@upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
 @qvarid       = @modulepath @lowerid
@@ -99,11 +104,18 @@ program :-
 <0> "//" $symbol*         { next linecom $ more id }
 <0> ^\# $symbol*          { next linedir $ more id }
 
+
+-- fun/function followed by '(' or '<'
+<0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
+<0> "function" [\(\<]     { less 7 $ constant $ LexKeyword "function.anon" "" }
+
 -- identifiers
 <0> @qconid               { string $ LexCons . newQName }
 <0> @qvarid               { string $ LexId . newQName }
 <0> @lowerid              { string $ \s -> if isReserved s
                                                then LexKeyword s "" 
+                                           else if isMalformed s
+                                               then LexError messageMalformed
                                                else LexId (newName s) }
 <0> @conid                { string $ LexCons . newName }
 <0> _@idchar*             { string $ LexWildCard . newName }             
@@ -112,24 +124,21 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- type operators
-<0> "<" $anglebar+        { less 1 $ string $ LexOp . newName }
-<0> ">" $anglebar+        { less 1 $ string $ LexOp . newName }
-<0> "|" $angle $symbol*   { less 1 $ string $ LexOp . newName }
-<0> "-><" $symbol*        { less 2 $ constant $ LexKeyword "->" "" }
-<0> ":?" $symbol*         { less 1 $ constant $ LexKeyword ":" "" }
+<0> "||"                  { string $ LexOp . newName }
+<0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
 
 -- operators 
 <0> @qidop                { string $ LexIdOp . newQName . stripParens }
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
 <0> @symbols              { string $ \s -> if isReserved s
                                              then LexKeyword s "" 
-                                           else if isPrefix s 
+                                           else if isPrefixOp s 
                                              then LexPrefix (newName s)
                                              else LexOp (newName s) }
 
 -- literals
-<0> @decimal              { string $ LexInt . digitsToNum 10 }
-<0> @hexadecimal          { string $ LexInt . digitsToNum 16 . drop 2 }
+<0> @decimal              { string $ \s -> LexInt (digitsToNum 10 s) s }
+<0> @hexadecimal          { string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s }
 <0> @float                { string $ LexFloat . read }
 <0> \"                    { next stringlit $ more (const B.empty) }  -- " 
 <0> \@\"                  { next stringraw $ more (const B.empty) }  -- "
@@ -149,13 +158,13 @@ program :-
 <stringlit> @stringchar+  { more id }
 <stringlit> \\$charesc    { more fromCharEscB }
 <stringlit> \\@hexesc     { more fromHexEscB }
-<stringlit> \"            { pop $ \_ -> withmore (string $ LexString . init) } -- "
+<stringlit> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
 <stringlit> @newline      { pop $ \_ -> constant (LexError "string literal ended by a new line") }
 <stringlit> .             { string $ \s -> LexError ("illegal character in string: " ++ show s) } 
 
 <stringraw> @stringraw+   { more id }
 <stringraw> \"\"          { more B.tail } -- " 
-<stringraw> \"            { pop $ \_ -> withmore (string $ LexString . init) } -- "
+<stringraw> \"            { pop $ \_ -> withmore (string LexString . B.init) } -- "
 <stringraw> .             { string $ \s -> LexError ("illegal character in raw string: " ++ show s) }
 
 --------------------------
@@ -237,8 +246,9 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "fun", "function", "val", "var"
-    , "external"
+    , "fun", "val", "var"
+    , "extern"
+    , "effect", "handle", "handler"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"
@@ -248,10 +258,12 @@ reservedNames
     , ":"
     , "->"
     , ":="
+    -- backward compatibility
+    , "function","external"
     -- for core interfaces
     , "rec"
     -- future reserved
-    , "try", "yield"
+    -- , "try", "yield"
     , "interface", "instance"
     ]
 
@@ -263,8 +275,8 @@ isReserved :: String -> Bool
 isReserved name
   = Set.member name reservedNames
 
-isPrefix :: String -> Bool
-isPrefix name
+isPrefixOp :: String -> Bool
+isPrefixOp name
   = (name == "!" || name == "~")
 
 digitsToNum :: Num a => a -> String -> a
@@ -272,6 +284,15 @@ digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
     in seq n n
 
+isMalformed :: String -> Bool
+isMalformed s
+  = case s of
+      '-':c:cs   | not (isLetter c) -> True
+      c:'-':cs   | not (isLetter c || isDigit c) -> True
+      c:cs       -> isMalformed cs
+      []         -> False
+
+messageMalformed = "malformed identifier: a dash must be preceded and followed by a letter"
 ------------------------------------------------------------------------------
 -- Lexer state and actions
 ------------------------------------------------------------------------------
@@ -350,8 +371,8 @@ alexGetByte st@State{ current = cs }
 -- compatibility
 alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
 alexGetChar st@State{ current = cs } 
-  = if B.null cs then Nothing
-    else Just (BC.head cs, st{ current = B.tail cs })
+  = if BC.null cs then Nothing
+    else Just (BC.head cs, st{ current = BC.tail cs })
 
 
 -- alexScanTokens :: ByteString -> [token]
@@ -366,6 +387,7 @@ lexing source lineNo input
     in go initSt
   where go st =
           -- trace ("scan: " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
+          let idx0 = B.length (current st) in
           case alexScan st (head (states st)) of
             AlexEOF -> []
             AlexSkip  st1 len 
@@ -376,8 +398,9 @@ lexing source lineNo input
                   then [Lexeme range $ LexError "unexpected end of input"]                                   
                   else Lexeme range (LexError ("unexpected character " ++ show (BC.head (current st))))
                         : go (st1{ current = B.tail (current st1) }) 
-            AlexToken st1 len act 
-              -> let bs = B.take (fromIntegral len) (current st)
+            AlexToken st1 len act  -- len is wrong with utf8!
+              -> let idx1 = B.length (current st1)
+                     bs = B.take (idx0 - idx1) (current st)
                      p  = posMoves8 (pos st) bs
                      (mbtoken,st2) = seq p $ act bs st st1{ pos = p }
                  in case mbtoken of
@@ -389,8 +412,8 @@ lexing source lineNo input
 
         lparen token prev
           = case token of
-              LexSpecial "("  | isApplyToken prev -> LexSpecial "(("  -- application
-              LexSpecial "["  | isApplyToken prev -> LexSpecial "[["  -- indexing
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.("  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.["  -- indexing
               _ -> token
 
         isApplyToken prev 
@@ -405,4 +428,5 @@ lexing source lineNo input
 
 before p
   = p{ posColumn = max 1 (posColumn p - 1 ) }
+
 }

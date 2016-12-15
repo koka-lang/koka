@@ -25,7 +25,8 @@ import Platform.Config( programName )
 import Data.List( partition )
 import Lib.PPrint
 import Common.Name
-import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, nameTpDelay, nameSystemCore )
+import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, 
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -201,16 +202,16 @@ instance Show DataInfo where
   show = show . pretty
 
 instance Pretty DataInfo where
-  pretty = ppDataInfo Type.Pretty.defaultEnv True
+  pretty = ppDataInfo Type.Pretty.defaultEnv True False
 
-ppDataInfo env showBody dataInfo
-  = prettyDataInfo env showBody False dataInfo Private (repeat Private)
+ppDataInfo env showBody isExtend dataInfo
+  = prettyDataInfo env showBody False isExtend dataInfo Private (repeat Private)
 
 
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly info@(DataInfo datakind name kind args cons range isRec doc) vis conViss
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef doc) vis conViss
   = if (publicOnly && isPrivate vis) then empty else 
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <>
@@ -219,7 +220,10 @@ prettyDataInfo env0 showBody publicOnly info@(DataInfo datakind name kind args c
          Inductive -> keyword env "type"
          CoInductive -> keyword env "cotype"
          Retractive  -> keyword env "rectype") <+>
-      (if isRec then keyword env "rec " else empty) <>
+      (if isExtend then keyword env "extend " 
+        else if dataDefIsOpen datadef then keyword env "open " 
+          else if dataDefIsRec datadef then keyword env "rec "
+            else empty) <>
       -- ppVis env vis <+>
       ppName env name <> 
       (if null args then empty else space <> angled (map (ppTypeVar env) args)) <>
@@ -229,20 +233,24 @@ prettyDataInfo env0 showBody publicOnly info@(DataInfo datakind name kind args c
               indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <-> text "}")
         else empty))
 
-prettyConInfo env publicOnly (vis,ConInfo conName ntname exists fields scheme sort range paramRanges singleton doc)
+prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton doc)
   = if (publicOnly && isPrivate vis) then empty else 
-    (prettyComment env doc $
-      (if publicOnly then empty else ppVis env vis) <>
-      keyword env "con" <+> 
-      ppName env conName <>
+    (prettyComment env0 doc $
+      (if publicOnly then empty else ppVis env0 vis) <>
+      keyword env0 "con" <+> 
+      ppName env0 conName <>
       (if null exists then empty else (angled (map (ppTypeVar env) exists))) <>
       (if null fields 
         then empty
-        else parens (commaSep (map (ppField env) fields)))
+        else parens (commaSep (map (ppField env) (zip paramVis fields))))
       <+> text ":" <+> ppType env scheme <> semi)
   where
-    ppField env (name,tp)
-      = (if isFieldName name then empty else (ppName env name <> text ": ")) <> ppType env tp
+    ppField env (fvis,(name,tp)) 
+      = -- (if (fvis /= vis) then ppVis env fvis else empty) <> 
+        (if isFieldName name then empty else (ppName env name <> text ": ")) <> 
+        ppType env tp
+    env = env0{ nice = niceTypeExtend exists (nice env0) } 
+             
 
 prettyComment env comment doc
   = if null comment then doc 
@@ -333,13 +341,15 @@ ppType env tp
 
       TApp (TCon con) [eff,res]
                     | typeConName con == nameTpDelay
-                    -> text "$" <+>            
+                    -> text "$" <+>                                
                        (if (isTypeTotal eff) then empty else (ppType env{prec = precArrow} eff <> space)) <>
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional
                     -> text "?" <> ppType env{prec=precTop} arg
+                    | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
+                    -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name) 
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))
       TApp f args   -> pparens (prec env) precApp $

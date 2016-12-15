@@ -35,8 +35,9 @@ import Common.Failure( assertion )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T (Text, pack, unpack)
--- import qualified Data.Text.Encoding as T (decodeUtf8With)
+import qualified Data.Text.Encoding as T (decodeUtf8) -- ,decodeUtf8With)
 -- import qualified Data.Text.Encoding.Error as E(lenientDecode)
+-- import Common.Name(showHex)
 
 {--------------------------------------------------------------------------
   BStrings 
@@ -46,7 +47,8 @@ type BString = B.ByteString
 bstringEmpty = B.empty
 
 bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8With E.lenientDecode bstr  
-bstringToString bstr = T.unpack (bstringToText bstr)
+
+bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
 
 stringToBString str = BC.pack str
 
@@ -103,26 +105,32 @@ utfDecode bs
 -- process literate file
 extractLiterate :: BString -> BString
 extractLiterate input
-  = let res = B.concat (scan input)
+  = let res = B.concat (scan False input)
     in res
   where
-    scan input
+    scan skipping input
       = if (B.null input) then [] else
         let (line,rest) = BC.span (/='\n') input            
-            (qs,cs) = BC.span(=='"') $ BC.dropWhile (==' ') line 
-        in if (B.length qs == 2 && BC.all isWhite cs) 
-            then BC.pack "\n" : scanCode (safeTail rest)
-            else BC.pack "//" : line : BC.pack "\n" : scan (safeTail rest)
+            (qs,cs) = BC.span(=='`') $ BC.dropWhile (==' ') line 
+            isQ3    = B.length qs == 3
+        in if isQ3 && not skipping && (BC.all isWhite cs || startsWith cs "koka")
+            then BC.pack "\n" : scanCode [] (safeTail rest)
+            else BC.pack "//" : line : BC.pack "\n" : 
+                  scan (if (isQ3) then not skipping else skipping) (safeTail rest)
 
-    scanCode input
+    scanCode acc input
       = if (B.null input) then [] else
         let (line,rest) = BC.span (/='\n') input
-            (qs,cs) = BC.span(=='"') $ BC.dropWhile (==' ') line 
-        in if (B.length qs == 2 && BC.all isWhite cs) 
-            then BC.pack "\n" : scan (safeTail rest)
-            else if (B.length qs == 1 && BC.all isWhite cs) 
-             then BC.pack "\n" : scan (safeTail rest)
-             else line : BC.pack "\n" : scanCode (safeTail rest)
+            wline   = BC.dropWhile (==' ') line 
+            (qs,cs) = BC.span(=='`') wline
+        in if (B.length qs == 3 && BC.all isWhite cs) 
+            then map (\ln -> BC.snoc ln '\n') (reverse (BC.empty : acc)) ++ scan False (safeTail rest)
+            else if startsWith cs "////"
+             then scanCode (BC.empty : map (const BC.empty) acc) (safeTail rest)
+            -- if (B.length qs == 1 && BC.all isWhite cs) 
+             -- then BC.pack "\n" : scan (safeTail rest)
+             -- else 
+             else scanCode (line : acc) (safeTail rest)
 
     safeTail bstr
       = if (B.null bstr) then B.empty else B.tail bstr    
@@ -131,6 +139,9 @@ extractLiterate input
       = c `elem` " \r\v\f\n"  
 
 
+startsWith :: BC.ByteString -> String -> Bool
+startsWith bs s
+  = BC.unpack (BC.take (length s) bs) == s
 
 {--------------------------------------------------------------------------
   Source 

@@ -11,6 +11,7 @@ module Static.BindingGroups( bindingGroups ) where
 import qualified Common.NameMap as M
 import qualified Common.NameSet as S
 
+import Data.List(partition,isPrefixOf)
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
 import Common.NamePrim (toShortModuleName)
@@ -18,7 +19,7 @@ import Common.Range
 import Common.Syntax
 import Syntax.Syntax
 
--- import Lib.Trace (trace)
+import Lib.Trace (trace)
 
 ---------------------------------------------------------------------------
 -- Program
@@ -33,25 +34,22 @@ bindingGroups (Program source modName nameRange typeDefs defs imports externals 
 ---------------------------------------------------------------------------
 bindingsTypeDefs :: [UserTypeDefGroup] -> [UserTypeDefGroup]
 bindingsTypeDefs typeDefGroups
-  = groupTypeDefs (flatten typeDefGroups) (M.unions (map dependencyTypeDefGroup typeDefGroups))
+  = let (ds,extends) = partition isDefinition (flatten typeDefGroups)
+    in groupTypeDefs ds (M.fromList (map dependencyTypeDef ds)) ++ (map TypeDefNonRec extends)
   where
     flatten groups
       = concatMap (\g -> case g of { TypeDefRec typeDefs -> typeDefs; TypeDefNonRec td -> [td]}) groups
 
-          
-dependencyTypeDefGroup :: UserTypeDefGroup -> Deps
-dependencyTypeDefGroup (TypeDefRec typeDefs)
-  = M.fromList (map dependencyTypeDef typeDefs)
-dependencyTypeDefGroup (TypeDefNonRec typeDef)
-  = M.fromList (map dependencyTypeDef [typeDef])
-
-
+    isDefinition td
+      = case td of
+          DataType binder args cons range vis sort ddef isExtend doc -> not isExtend
+          _ -> True
 
 dependencyTypeDef :: UserTypeDef -> (Name,S.NameSet)
 dependencyTypeDef typeDef
   = case typeDef of
       Synonym binder args tp range vis doc    -> (typeDefName typeDef, freeTypes tp)
-      DataType binder args cons range vis sort doc -> (typeDefName typeDef, freeTypes cons)
+      DataType binder args cons range vis sort ddef isExtend doc -> (typeDefName typeDef, freeTypes cons)
 
 ---------------------------------------------------------------------------
 -- Free type constructors
@@ -69,7 +67,7 @@ instance HasFreeTypes a => HasFreeTypes (Maybe a) where
 
 instance (HasFreeTypes t) => HasFreeTypes (UserCon t u k) where
   freeTypes (UserCon name exist params nameRng rng vis doc)
-    = freeTypes params
+    = freeTypes (map snd params)
 
 instance (HasFreeTypes t) => HasFreeTypes (ValueBinder t e) where
   freeTypes vb 
@@ -123,7 +121,8 @@ dependencyDef modName (Def binding range vis isVal defDoc)
 
 dependencyBinding :: Name -> UserValueBinder UserExpr -> (UserValueBinder UserExpr, Deps)
 dependencyBinding modName vb
-  = (vb{ binderExpr = depBody }, M.singleton (binderName vb) freeVar)
+  = -- trace ("dependency def: " ++ show (binderName vb) ++ ": " ++ show (S.toList freeVar)) $
+    (vb{ binderExpr = depBody }, M.singleton ((binderName vb)) freeVar)
   where    
     (depBody, freeVar) = dependencyExpr modName (binderExpr vb) 
 
@@ -154,7 +153,7 @@ dependencyExpr modName expr
       Let group body rng   -> let (depGroups,fv1,names) = dependencyDefGroupFv modName group
                                   (depBody,fv2)   = dependencyExpr modName body
                               in (foldr (\g b -> Let g b rng)  depBody depGroups, S.union fv1 (S.difference fv2 names))
-      Var name op rng      -> let uname = if (qualifier name == modName) then unqualify name else name
+      Var name op rng      -> let uname = name -- if (qualifier name == modName) then unqualify name else name
                               in if isConstructorName name
                                   then (expr,S.fromList [uname,newCreatorName uname])  
                                   else (expr,S.singleton uname)
@@ -165,12 +164,29 @@ dependencyExpr modName expr
       Ann expr t rng       -> let (depExpr,fv) = dependencyExpr modName expr
                               in (Ann depExpr t rng, fv)
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr 
-                                    (depBranches,fv2) = unzipWith (id,S.unions) (map (dependencyBranch modName) branches)
+                                    (depBranches,fv2) = dependencyBranches dependencyBranch modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
       Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit             -> (expr, S.empty)
+      Handler shallow eff pars ret ops hrng rng 
+        -> let (depRet,fv1)     = dependencyExpr modName ret
+               (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
+           in (Handler shallow eff pars depRet depBranches hrng rng, 
+                S.difference (S.union fv1 fv2) (S.fromList (map binderName pars)))
+
+dependencyBranches f modName branches
+  = unzipWith (id,S.unions) (map (f modName) branches)
+
+
+dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
+dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
+  = (hb{ hbranchExpr = depExpr }, S.insert uname (S.difference fvExpr (S.fromList (map getName pars))))
+  where
+    uname = if (qualifier name == modName) then unqualify name else name                              
+    (depExpr, fvExpr)   = dependencyExpr modName expr
+
 
 dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
 dependencyBranch modName (Branch pattern guard expr)
@@ -211,7 +227,6 @@ instance HasFreeVar (Pattern t) where
         PatVar  binder           -> S.singleton (getName binder)
         PatAnn  pat tp range     -> freeVar pat
         PatParens pat range      -> freeVar pat
-      
 
 unzipWith (f,g) xs
   = let (x,y) = unzip xs in (f x, g y)
@@ -231,18 +246,24 @@ group defs deps
   = let -- get definition id's
         defVars  = S.fromList (M.keys deps)
         -- constrain to the current group of id's
-        defDeps  = M.map (\fvs -> S.intersection defVars fvs) deps
+        defDeps0 = M.map (\fvs -> S.intersection defVars fvs) deps        
         -- determine strongly connected components
-        defOrder = scc [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps]
+        defDeps   = [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps0]
+        defOrder0 = scc defDeps
+        defOrder  = let (xs,ys) = partition noDeps defOrder0
+                        noDeps ids = case ids of
+                                       [id] -> S.null (M.find id defDeps0)
+                                       _    -> False 
+                    in (xs++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.
         makeGroup ids  = case ids of
-                           [id] -> if S.member id (M.find id defDeps)
+                           [id] -> if S.member id (M.find id defDeps0)
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: binding order: " ++ show defOrder) $
+    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder) $
        concatMap makeGroup defOrder
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]

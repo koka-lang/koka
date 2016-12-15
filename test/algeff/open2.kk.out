@@ -1,0 +1,8 @@
+42
+.copy : forall<e> (func<e>, f : ?(int) -> e int) -> func<e>
+Func : forall<e> (f : (int) -> e int) -> func<e>
+bar : () -> int
+f : forall<e> (func : func<e>) -> ((int) -> e int)
+main : () -> console ()
+myfunc : forall<e> func<e>
+myid : forall<a,e> () -> ((x : a) -> e a)

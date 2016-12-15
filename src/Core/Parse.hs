@@ -140,22 +140,29 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (sort,doc) <- typeSort
-       isRec      <- do{ keyword "rec"; return True } <|> return False
-       (name,_)   <- tbinderId
+  = do (ddef0,isExtend,sort,doc) <- typeSort
+       ddef       <- do keyword "rec"
+                        return (case ddef0 of 
+                                  DataDefNormal -> DataDefRec
+                                  _ -> ddef0)                         
+                     <|> return ddef0
+       tname <- if (isExtend)
+                 then qualifiedTypeId
+                 else do (name,_)   <- tbinderId <|> tbinderDot
+                         return (qualify (modName env) name)
+
        -- trace ("core type: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind       <- kindAnnotFull
-       let tname = qualify (modName env) name
-       cons       <- semiBraces (conDecl tname sort env) <|> return []
+       cons       <- semiBraces (conDecl tname params sort env) <|> return []
        let cons1    = case cons of
                         [con] -> [con{ conInfoSingleton = True }]
                         _     -> cons
-           dataInfo = DataInfo sort tname kind params cons1 rangeNull isRec doc
-       return (Data dataInfo Public (map (const Public) cons), env)
+           dataInfo = DataInfo sort tname kind params cons1 rangeNull ddef doc
+       return (Data dataInfo Public (map (const Public) cons) isExtend, env)
   <|>
     do (_,doc) <- dockeyword "alias"
-       (name,_) <- tbinderId
+       (name,_) <- tbinderId <|> tbinderDot
        --trace ("core alias: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
@@ -166,25 +173,24 @@ typeDecl env
        let synInfo = SynInfo qname kind params tp (fromInteger rank) rangeNull doc       
        return (Synonym synInfo Public, envExtendSynonym env synInfo)
 
-conDecl tname sort env
+conDecl tname foralls sort env
   = do (_,doc) <- dockeyword "con"
-       (name,_)  <- constructorId
+       (name,_)  <- constructorId <|> constructorDot
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        params <- parameters env1 
        tp     <- typeAnnot env
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       return (ConInfo (qualify (modName env) name) tname existss params2 tp sort rangeNull (map (const rangeNull) params2) False doc)
+       return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False doc)
 
 
-typeSort :: LexParser (DataKind,String)
+typeSort :: LexParser (DataDef, Bool, DataKind,String)
 typeSort
-  =   do (_,doc) <- dockeyword "type"
-         return (Inductive,doc)
-  <|> do (_,doc) <- dockeyword "cotype"
-         return (CoInductive,doc)
-  <|> do (_,doc) <- dockeyword "rectype"
-         return (Retractive,doc)
+  = do let f kw sort = do (_,doc) <- dockeyword kw
+                          (ddef,isExtend) <- parseOpenExtend
+                          return (ddef,isExtend,sort,doc)
+       (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
+
 
 {--------------------------------------------------------------------------
   Value definitions 
@@ -215,6 +221,7 @@ pdefSort
   <|>
     do (_,doc) <- dockeyword "val"
        return (DefVal,doc)
+
        
 binderDot
   = parens $
@@ -222,6 +229,16 @@ binderDot
        (name,rng) <- identifier
        return (prepend "." name,rng)
 
+constructorDot
+  = -- parens $
+    do keyword "."
+       (name,rng) <- constructorId
+       return (prepend "." name,rng)
+
+tbinderDot
+  = do keyword "."
+       (name,rng) <- tbinderId
+       return (prepend "." name,rng)
 
 {--------------------------------------------------------------------------
   External definitions 
@@ -229,7 +246,7 @@ binderDot
 externDecl :: Env -> LexParser External
 externDecl env
   = do (_,doc) <- dockeyword "external"
-       (name) <- canonical funid 
+       (name) <- canonical (funid  <|> binderDot)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp <- ptype env
@@ -484,7 +501,10 @@ qualifiedTypeId
        cs <- many comma
        special ")"
        return (nameTuple (length cs+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
-
+  <|>
+    do keyword "."
+       (name,_) <- qvarid
+       return (prepend "." name)     
 
 
 {--------------------------------------------------------------------------
@@ -520,6 +540,12 @@ katom
   <|>
     do specialConId "H"
        return kindHeap
+  <|>
+    do specialConId "HX"
+       return kindHandled
+  <|>
+    do specialConId "HX1"
+       return kindHandled1
   <|>
     do specialConId "P"
        return kindPred

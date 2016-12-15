@@ -79,5 +79,5 @@ docFromRange colors range
               in take n2 prepost ++ ["..."] ++ drop n2 prepost
       where
         removeIndent ls
-          = let i = minimum (map (length . takeWhile isSpace) ls)
+          = let i = minimum (0:(map (length . takeWhile isSpace) ls))
             in map (drop i) ls

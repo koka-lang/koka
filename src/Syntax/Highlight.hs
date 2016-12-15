@@ -20,6 +20,7 @@ module Syntax.Highlight( Context(..), Nesting(..), Token(..), TokenComment(..)
                        , isKeywordOp
                        ) where
 
+-- import Lib.Trace
 import Data.Char( isAlpha, isSpace, isAlphaNum, toLower )
 import Lib.Printer
 import Common.ColorScheme
@@ -84,7 +85,7 @@ fmtPrint cscheme p token
 showLexeme :: Lexeme -> String
 showLexeme (Lexeme _ lex)
   = case lex of
-      LexInt i      -> show i
+      LexInt _ _    -> show lex
       LexFloat d    -> show d
       LexString s   -> show s
       LexChar c     -> show c
@@ -96,10 +97,8 @@ showLexeme (Lexeme _ lex)
       LexModule id _ -> show id
       LexCons id    -> show id
       LexTypedId id tp -> show id
-      LexKeyword k _ -> k
-      LexSpecial s  | s == "((" -> "("
-                    | s == "[[" -> "["
-                    | otherwise -> s
+      LexKeyword k _ -> normalize k
+      LexSpecial s  -> normalize s
       LexComment s  -> s
       LexWhite w    -> w
       LexInsLCurly  -> ""
@@ -107,6 +106,9 @@ showLexeme (Lexeme _ lex)
       LexInsSemi    -> ""
       LexError msg  -> ""
 
+normalize :: String -> String
+normalize s 
+  = take 1 s ++ takeWhile (/='.') (drop 1 s)
 
 isKeywordOp :: String -> Bool
 isKeywordOp s
@@ -219,18 +221,19 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
-            LexInt i      -> fmt TokNumber (show i)
+            LexInt i isHex-> fmt TokNumber (show lex)
             LexFloat d    -> fmt TokNumber (show d)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
             
             LexModule id mid  -> fmt (TokModule mid) (show id)
             LexCons id        -> fmt (if (isCtxType ctx) then TokTypeId id else TokCons id) (showId (unqualify id))
-            LexTypedId id tp  -> fmt (TokId id tp) (showId (unqualify id))
+            LexTypedId id tp  -> -- trace ("**fmt type id: " ++ show id ++ ": " ++ show tp) $
+                                 fmt (TokId id tp) (showId (unqualify id))
 
             LexKeyword ":" _ -> fmt TokTypeKeyword ":"
-            LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) k
-            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) s
+            LexKeyword k _-> fmt (if (isCtxType ctx) then TokTypeKeyword else TokKeyword) (normalize k)
+            LexSpecial s  -> fmt (if (isCtxType ctx) then TokTypeSpecial else TokSpecial) (normalize s)
             LexComment s  -> fmt (TokRichComment ({- map highlightComment -} (lexComment (sourceName (rangeSource rng)) (posLine (rangeStart rng)) s))) s
             LexWhite w    -> fmt TokWhite w
             LexInsLCurly  -> fmt TokWhite ""
@@ -240,9 +243,10 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
 
     showId :: Name -> String
     showId name
-      = case nameId name of
-          (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
-          _       -> show name
+      = if (nameId name == "!" || nameId name == "~") then show name
+        else case nameId name of
+              (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
+              _       -> show name
 
     showOp :: Name -> String
     showOp name
@@ -275,6 +279,7 @@ adjustContext ctx lex lexs
              LexKeyword "cotype" _  -> CtxType [] "cotype"
              LexKeyword "rectype" _ -> CtxType [] "rectype"
              LexKeyword "alias" _   -> CtxType [] "alias"
+             LexKeyword "effect" _  -> CtxType [] "effect"
              LexKeyword "struct" _  -> case dropWhile lexemeIsWhite lexs of
                                          (Lexeme _ (LexSpecial "("):_) -> CtxType [] "struct-tuple"
                                          _ -> CtxType [] "struct"
@@ -340,21 +345,26 @@ lexComment sourceName lineNo content
     -- skip inside tags (so html renders correctly)
     scan n lacc acc ('<':c:rest)  | not (isSpace c)  = scanTag n (ComText (reverse acc) : lacc) ('<':c:rest)
 
+    -- skip inside $ (so math renders correctly)
+    scan n lacc acc ('$':c:rest)  = scanMath n (ComText (reverse acc) : lacc) (c:rest)
 
     -- code
-    scan n lacc acc ('"':':':rest)  = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest
-    scan n lacc acc ('"':'"':rest)  = if (onLine acc rest)
-                                       then scanCodeBlock2 (n+1) ComCodeLit (n+1) (ComText (reverse (dropLine acc)) : lacc) "" [] (dropLine rest)
-                                       else scan n lacc ('"':acc) rest
-    scan n lacc acc ('"':rest)      = if (onLine acc rest)
-                                       then scanCodeBlock (n+1) ComCodeBlock (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine rest)
-                                       else scanCode n ComCode (ComText (reverse (acc)) : lacc) [] rest
+    scan n lacc acc ('`':c:rest)    
+      | c /= '`' = scanCode n ComCode (ComText (reverse acc) : lacc) "" (c:rest)                                   
+      | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest      
+    scan n lacc acc ('`':'`':'`':c:rest) | whiteLine acc && c /= '`'
+      = let (pre,post) = span (/='\n') (c:rest)
+            comCode = if (pre == "unchecked") then ComCodeBlock else ComCodeLit
+        in if (pre=="unchecked" || pre=="koka" || pre=="")
+            then scanCodeBlock (n+1) comCode (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine post)
+            else scanPreBlock 3 n (ComText (reverse ("```" ++ pre ++ acc)) : lacc) [] post
+    scan n lacc acc ('`':rest)       
+      = let (pre,post) = span (=='`') rest 
+            lacc' = ComText (reverse ('`':pre ++ acc)) : lacc
+        in if (whiteLine acc && length pre >= 2) 
+            then scanPreBlock (length pre + 1) n lacc' [] post
+            else scanPre (length pre + 1) n lacc' [] post
     
-    -- pre
-    scan n lacc acc ('`':'`':'`':rest)    | whiteLine acc  = scanPreBlock n (ComText (reverse ("```" ++ acc)) : lacc) [] rest
-    scan n lacc acc ('`':'`':rest)  = scanPre True n (ComText (reverse ('`':'`':acc)) : lacc) [] rest
-    scan n lacc acc ('`':rest)      = scanPre False n (ComText (reverse ('`':acc)) : lacc) [] rest
-
     -- regular
     scan n lacc acc ('\n':rest)     = scan (n+1) lacc ('\n':acc) rest
     scan n lacc acc (c:rest)        = scan n lacc (c:acc) rest
@@ -384,17 +394,23 @@ lexComment sourceName lineNo content
                                           (end,rest)  = if null close then ([],[]) else ([head close], tail close)
                                       in scan (if ('\n' `elem` end) then (n+1) else n) (ComText (tag ++ end) : lacc) [] rest
 
+
+    scanMath n lacc content         = let (math,close) = span (\c -> not (c `elem` "$\n")) content
+                                          (end,rest)   = if null close then ([],[]) else ([head close], tail close)
+                                      in scan (if ('\n' `elem` end) then (n+1) else n) (ComText ("$" ++ math ++ end) : lacc) [] rest
     
-    -- scanPre formatted `pre`
-    scanPre isDouble n lacc acc ('`':'`':rest)  | isDouble     = scan n lacc ('`':'`':acc) rest
-    scanPre isDouble n lacc acc ('`':rest)      | not isDouble = scan n lacc ('`':acc) rest
-    scanPre isDouble n lacc acc ('\n':rest)     = scan n lacc acc ('\n':rest) -- don't go through newlines
-    scanPre isDouble n lacc acc (c:rest)        = scanPre isDouble n lacc (c:acc) rest
-    scanPre isDouble n lacc acc []              = scan n lacc acc []
+    -- scanPre formatted ``pre``
+    scanPre m n lacc acc ('`':rest)  
+      = let (pre,post) = span (=='`') rest
+        in if (length pre+1 == m)
+            then scan n lacc ('`':pre ++ acc) post
+            else scanPre m n lacc ('`':acc) rest
+    scanPre m n lacc acc ('\n':rest)     = scan n lacc acc ('\n':rest) -- don't go through newlines
+    scanPre m n lacc acc (c:rest)        = scanPre m n lacc (c:acc) rest
+    scanPre m n lacc acc []              = scan n lacc acc []
 
     -- scanCode "f(x)"
-    scanCode n com lacc acc ('"':'"':rest)  = scanCode n com lacc ('"':acc) rest
-    scanCode n com lacc acc ('"':rest)      = endCode n com lacc acc "" rest
+    scanCode n com lacc acc ('`':rest)      = endCode n com lacc acc "" rest
     scanCode n com lacc acc ('\n':rest)     = endCode n com lacc acc "\n" rest
     scanCode n com lacc acc (c:rest)        = scanCode n com lacc (c:acc) rest
     scanCode n com lacc acc []              = endCode n com lacc acc "" []
@@ -403,20 +419,24 @@ lexComment sourceName lineNo content
                                        in scan n (com (lexemes) (reverse acc) : lacc) (reverse post) rest
 
     -- pre block ```
-    scanPreBlock n lacc acc ('`':'`':'`':rest) = scan n lacc ("```" ++ acc) rest
-    scanPreBlock n lacc acc (c:rest)        = scanPreBlock (if (c=='\n') then n+1 else n) lacc (c:acc) rest
-    scanPreBlock n lacc acc []              = scan n lacc acc []
+    scanPreBlock m n lacc acc ('`':rest) 
+      = let (pre,post) = span (=='`') rest
+        in if (m == length pre + 1) 
+            then scan n lacc ('`':pre ++ acc) post
+            else scanPreBlock m n lacc ('`':acc) rest
+    scanPreBlock m n lacc acc (c:rest)        = scanPreBlock m (if (c=='\n') then n+1 else n) lacc (c:acc) rest
+    scanPreBlock m n lacc acc []              = scan n lacc acc []
 
 
     -- code block
-    scanCodeBlock n com m lacc acc ('"':'"':rest) | (onLine acc rest)
+    scanCodeBlock n com m lacc acc ('/':'/':'/':'/':rest) | (onLine acc rest)
                                                 = scanCodeBlock2 (n+1) ComCodeLit (n+1) lacc (reverse (acc)) "" (dropLine rest)
-    scanCodeBlock n com m lacc acc ('"':rest)   | onLine acc rest
+    scanCodeBlock n com m lacc acc ('`':'`':'`':rest)   | onLine acc rest
                                                 = endCodeBlock (n+1) com m lacc "" acc (dropLine rest)
     scanCodeBlock n com m lacc acc (c:rest)     = scanCodeBlock (if (c=='\n') then n+1 else n) com m lacc (c:acc) rest
     scanCodeBlock n com m lacc acc []           = endCodeBlock n com m lacc (reverse acc) "" []
 
-    scanCodeBlock2 n com m lacc pre acc ('"':rest)  | (onLine acc rest)
+    scanCodeBlock2 n com m lacc pre acc ('`':'`':'`':rest)  | (onLine acc rest)
                                                 = endCodeBlock (n+1) com m lacc pre acc (dropLine rest)
     scanCodeBlock2 n com m lacc pre acc (c:rest)= scanCodeBlock2 (if (c=='\n') then n+1 else n) com m lacc pre (c:acc) rest
     scanCodeBlock2 n com m lacc pre acc []      = endCodeBlock n com m lacc pre acc []

@@ -14,7 +14,7 @@ import sys/dom/html/htmlElement
 import sys/dom/html/htmlSpanElement 
 import sys/dom/css/cssStyleDeclaration
 
-public function main() : dom ()
+public fun main() : dom ()
 { 
   withWindow fun(window : window) 
   {
@@ -37,19 +37,19 @@ public function main() : dom ()
     window.document.body.appendChild(span2.node)
     window.document.body.appendChild(span3.node)
 
-    function place(element : htmlSpanElement)
+    fun place(element : htmlSpanElement)
     { 
-      val x = randomInt() % 500
-      val y = randomInt() % 500
+      val x = random-int() % 500
+      val y = random-int() % 500
       element.style.left := x.show + "px"
       element.style.top  := y.show + "px"
-      val r = (randomInt() % 100) + 155
-      val g = (randomInt() % 100) + 155
-      val b = (randomInt() % 100) + 155
+      val r = (random-int() % 100) + 155
+      val g = (random-int() % 100) + 155
+      val b = (random-int() % 100) + 155
       element.style.backgroundColor := "rgb(" + r.show + "," + g.show + "," + b.show + ")"
     } 
 
-    function renew()
+    fun renew()
     { 
       place(span1)
       place(span2)

@@ -26,7 +26,8 @@ import Lib.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
-import Data.List(groupBy,intersperse)
+import Data.List(groupBy,intersperse,nubBy)
+import Data.Maybe(catMaybes)
 
 import Lib.PPrint
 import Common.Failure
@@ -35,7 +36,9 @@ import Common.Error
 import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
 import Common.Name
-import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend, nameCopy, namePatternMatchError )
+import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend, 
+                        nameTpHandled, nameTpHandled1, nameCopy, namePatternMatchError,
+                        nameJust, nameNothing )
 import Common.Syntax
 import qualified Common.NameMap as M
 import Syntax.Syntax
@@ -130,8 +133,8 @@ extractInfos groups
     extractGroupInfos (Core.TypeDefGroup ctdefs)
       = map extractInfo ctdefs
 
-    extractInfo (Core.Synonym synInfo vis)        = Left synInfo
-    extractInfo (Core.Data dataInfo vis convss)   = Right dataInfo
+    extractInfo (Core.Synonym synInfo vis)                 = Left synInfo
+    extractInfo (Core.Data dataInfo vis convss isExtend)   = Right dataInfo
 
 {---------------------------------------------------------------
   
@@ -142,17 +145,21 @@ synTypeDefGroup modName (Core.TypeDefGroup ctdefs)
 
 synTypeDef :: Name -> Core.TypeDef -> DefGroups Type
 synTypeDef modName (Core.Synonym synInfo vis) = []
-synTypeDef modName (Core.Data dataInfo vis conviss)
+synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
   = synAccessors modName dataInfo vis conviss 
     ++
-    (if (length (dataInfoConstrs dataInfo) == 1)
+    (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo))
       then [synCopyCon modName dataInfo (head conviss) (head (dataInfoConstrs dataInfo))]  
       else [])
     ++
-    (if (length (dataInfoConstrs dataInfo) > 1)
-      then map (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
+    (if (length (dataInfoConstrs dataInfo) > 1 || (dataInfoIsOpen dataInfo))
+      then concatMap (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
       else [])
-      
+    ++
+    (if (dataInfoIsOpen dataInfo)
+      then map synConstrTag (zip conviss (dataInfoConstrs dataInfo))
+      else [])
+    
 
 synCopyCon :: Name -> DataInfo -> Visibility -> ConInfo -> DefGroup Type
 synCopyCon modName info vis con
@@ -178,23 +185,21 @@ synCopyCon modName info vis con
 
 synAccessors :: Name -> DataInfo -> Visibility -> [Visibility] -> [DefGroup Type]
 synAccessors modName info vis conviss
-  = let params = concatMap (\conInfo -> zipWith (\(name,tp) rng -> (name,(tp,rng))) (conInfoParams conInfo) (conInfoParamRanges conInfo)) (dataInfoConstrs info)
+  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis))) 
+                                   (conInfoParams conInfo) (zip (conInfoParamVis conInfo) (conInfoParamRanges conInfo))) 
+                      (dataInfoConstrs info)
         
-        fields :: [(Name,(Type,Range))]
-        fields = filter (\(nm,(tp,rng)) -> not (isFieldName nm) && tvsIsEmpty (ftv (TForall (dataInfoParams info) [] tp))) $ -- no existentials
-                 select [] params
-          
-        select acc [] = reverse acc
-        select acc ((name,(tp,rng)):params)
-          = case lookup name acc of
-              Nothing -> select ((name,(tp,rng)):acc) params
-              Just (t,r) -> if (t == tp)
-                              then select acc params
-                              else -- todo: give an error if duplicate names with different types exist?
-                                   select (filter (\(n,_) -> n /= name) acc) params
-
-        synAccessor :: (Name,(Type,Range)) -> DefGroup Type
-        synAccessor (name,(tp,rng))
+        fields :: [(Name,(Type,Range,Visibility))]
+        fields  = filter occursOnAll $
+                  nubBy (\x y -> fst x == fst y) $ 
+                  filter (not . isFieldName . fst) $
+                  concat paramss
+        
+        occursOnAll (name,(tp,rng,pvis))
+          = all (\ps -> any (\(n,(t,_,_)) -> n == name && t == tp) ps) paramss
+                              
+        synAccessor :: (Name,(Type,Range,Visibility)) -> DefGroup Type
+        synAccessor (name,(tp,rng,visibility))
           = let dataName = unqualify $ dataInfoName info 
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName ".this"
@@ -206,9 +211,9 @@ synAccessors modName info vis conviss
                           
                 expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp rng
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) rng
-                visibility = if (all (==Public) (map fst branches)) then Public else Private
+                -- visibility = if (all (==Public) (map fst branches)) then Public else Private
 
-                isPartial = (length branches < length (dataInfoConstrs info))
+                isPartial = (length branches < length (dataInfoConstrs info)) || dataInfoIsOpen info
 
                 branches :: [(Visibility,Branch Type)]
                 branches = concatMap makeBranch (zip conviss (dataInfoConstrs info))
@@ -225,14 +230,16 @@ synAccessors modName info vis conviss
                      else []
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]      
-                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
+                doc = "// Automatically generated. Retrieves the `" ++ show name ++ "` constructor field of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
             in DefNonRec (Def (ValueBinder name () expr rng rng) rng visibility DefFun doc)
     
     in map synAccessor fields
     
-synTester :: DataInfo -> (Visibility,ConInfo) -> DefGroup Type
+synTester :: DataInfo -> (Visibility,ConInfo) -> [DefGroup Type]
+synTester info (vis,con) | isHiddenName (conInfoName con) 
+  = []
 synTester info (vis,con)
-  = let name = (newName ("is" ++ nameId (conInfoName con)))
+  = let name = (postpend "?" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
 
@@ -241,8 +248,16 @@ synTester info (vis,con)
         branch1   = Branch (PatCon (conInfoName con) patterns rc rc) guardTrue (Var nameTrue False rc)
         branch2   = Branch (PatWild rc) guardTrue (Var nameFalse False rc)
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
-        doc = "// Automatically generated. Tests for the \"" ++ nameId (conInfoName con) ++ "\" constructor of the \":" ++ nameId (dataInfoName info) ++ "\" type.\n"
-    in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)
+        doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
+    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefFun doc)]
+
+synConstrTag :: (Visibility,ConInfo) -> DefGroup Type
+synConstrTag (vis,con) 
+  = let name = toOpenTagName (unqualify (conInfoName con))
+        rc   = conInfoRange con
+        expr = Lit (LitString (show (conInfoName con)) rc)
+    in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefVal "")
+
 
 {---------------------------------------------------------------
   Types for constructors
@@ -293,10 +308,12 @@ infTypeDefGroup (TypeDefNonRec tdef)
   = infTypeDefs False [tdef]
  
 infTypeDefs isRec tdefs
-  = do infgamma <- mapM bindTypeDef tdefs -- set up recursion
+  = do -- trace ("infTypeDefs: " ++ show (length tdefs)) $ return ()
+       xinfgamma <- mapM bindTypeDef tdefs -- set up recursion
+       let infgamma = map fst (filter snd xinfgamma)
        ctdefs   <- extendInfGamma infgamma $ -- extend inference gamma, also checks for duplicates
                    do let names = map tbinderName infgamma
-                      tdefs1 <- mapM infTypeDef (zip infgamma tdefs)
+                      tdefs1 <- mapM infTypeDef (zip (map fst xinfgamma) tdefs)
                       mapM (resolveTypeDef isRec names) tdefs1
        checkRecursion tdefs -- check for recursive type synonym definitions rather late so we spot duplicate definitions first
        return (Core.TypeDefGroup ctdefs)
@@ -315,11 +332,16 @@ checkRecursion tdefs
 {---------------------------------------------------------------
   Setup type environment for recursive definitions
 ---------------------------------------------------------------}
-bindTypeDef :: TypeDef UserType UserType UserKind -> KInfer (TypeBinder InfKind)
-bindTypeDef tdef
+bindTypeDef :: TypeDef UserType UserType UserKind -> KInfer (TypeBinder InfKind,Bool {-not isExtend-})
+bindTypeDef tdef -- extension
   = do (TypeBinder name kind rngName rng) <- bindTypeBinder (typeDefBinder tdef)
-       qname <- qualifyDef name
-       return (TypeBinder qname kind rngName rng)
+       qname <- if isExtend then return name else qualifyDef name
+       return (TypeBinder qname kind rngName rng, not isExtend)
+  where
+    isExtend = 
+      case tdef of
+        (DataType newtp args constructors range vis sort ddef isExtend doc) -> isExtend
+        _ -> False
 
 bindTypeBinder :: TypeBinder UserKind -> KInfer (TypeBinder InfKind)
 bindTypeBinder (TypeBinder name userKind rngName rng)
@@ -327,17 +349,19 @@ bindTypeBinder (TypeBinder name userKind rngName rng)
        return (TypeBinder name kind rngName rng)
 
 userKindToKind :: UserKind -> KInfer InfKind
-userKindToKind KindNone
-  = freshKind
 userKindToKind userKind
-  = return (KICon (convert userKind))
+  = convert userKind
   where
     convert userKind
       = case userKind of
-          KindCon name rng -> KCon name
-          KindArrow k1 k2  -> kindFun (convert k1) (convert k2)
+          KindCon name rng -> return $ KICon (KCon name)
+          KindArrow k1 k2  -> do k1' <- convert k1
+                                 k2' <- convert k2
+                                 case (k1',k2') of
+                                   (KICon kk1,KICon kk2) -> return (KICon (kindFun kk1 kk2))
+                                   _ -> return $ KIApp k1' k2'
           KindParens k rng -> convert k
-          KindNone         -> failure ("Kind.Infer.userKindToKind.convert: unexpected kindNone")
+          KindNone         -> freshKind -- failure ("Kind.Infer.userKindToKind.convert: unexpected kindNone")
 
 
 {---------------------------------------------------------------
@@ -364,7 +388,8 @@ infExternal names (External name tp nameRng rng calls vis doc)
         else do addRangeInfo nameRng (Id qname (NIValue tp') True)
                 addRangeInfo rng (Decl "external" qname (mangle cname tp'))
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
-       return (Core.External cname tp' (map (formatCall tp') calls) vis nameRng doc, qname:names)
+       return (Core.External cname tp' (map (formatCall tp') calls)
+                  vis nameRng doc, qname:names)
 infExternal names (ExternalInclude include range)
   = return (Core.ExternalInclude include range, names)
 infExternal names (ExternalImport imports range)
@@ -404,6 +429,10 @@ infResolveType tp ctx
   = do infTp <- infUserType infKindStar ctx tp
        resolveType M.empty False infTp
        
+infResolveHX :: UserType -> Context -> KInfer Type
+infResolveHX tp ctx
+  = do infTp <- infUserType infKindHandled ctx tp
+       resolveType M.empty False infTp
 
 {---------------------------------------------------------------
   Infer kinds of definitions
@@ -448,7 +477,14 @@ infPatValueBinder (ValueBinder name mbTp pat nameRng rng)
                                 return (Just tp')
        pat'  <- infPat pat
        return (ValueBinder name mbTp' pat' nameRng rng)
-     
+
+infHandlerValueBinder (ValueBinder name mbTp () nameRng rng)
+  = do mbTp' <- case mbTp of
+                  Nothing -> return Nothing
+                  Just tp -> do tp' <- infResolveType tp (Check "Handler parameters must be values" rng)
+                                return (Just tp')
+       return (ValueBinder name mbTp' () nameRng rng)
+       
 
 infExpr :: Expr UserType -> KInfer (Expr Type)
 infExpr expr
@@ -478,6 +514,16 @@ infExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- infExpr expr
                                    return (Parens expr' range)
+      Handler shallow meff pars ret ops hrng rng 
+                             -> do pars' <- mapM infHandlerValueBinder pars 
+                                   meff' <- case meff of
+                                              Nothing  -> return Nothing
+                                              Just eff -> do eff' <- infResolveHX eff (Check "Handler types must be effects" hrng)
+                                                             return (Just eff')
+                                   ret' <- infExpr ret
+                                   ops' <- mapM infHandlerBranch ops
+                                   return (Handler shallow meff' pars' ret' ops' hrng rng)
+
 
 infPat pat
   = case pat of
@@ -492,6 +538,11 @@ infPat pat
       PatParens pat range     -> do pat' <- infPat pat
                                     return (PatParens pat' range)
 
+
+infHandlerBranch (HandlerBranch name pars expr nameRng rng) 
+  = do pars' <- mapM infHandlerValueBinder pars
+       expr' <- infExpr expr
+       return (HandlerBranch name pars' expr' nameRng rng)
 
 infBranch (Branch pattern guard body)
   = do pattern'<- infPat pattern
@@ -508,19 +559,25 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
   = do infgamma <- mapM bindTypeBinder args
        kind <- freshKind
        tp' <- extendInfGamma infgamma (infUserType kind (Infer range) tp)
-       unifyBinder tbinder range infgamma kind
-       return (Synonym tbinder infgamma tp' range vis doc)
+       tbinder' <- unifyBinder tbinder syn range infgamma kind
+       return (Synonym tbinder' infgamma tp' range vis doc)
 
-infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort doc))
-  = do infgamma <- mapM bindTypeBinder args
+infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
+  = -- trace ("inf datatype: " ++ show (tbinderName newtp)) $
+    do infgamma <- mapM bindTypeBinder args
        constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
-       reskind <- freshKind
-       unifyBinder tbinder range infgamma reskind
-       return (DataType tbinder infgamma constructors' range vis sort doc)
+       -- todo: unify extended datatype kind with original
+       reskind <- if dataDefIsOpen ddef then return infKindStar else freshKind
+       tbinder' <- unifyBinder tbinder newtp range infgamma reskind
+       if not isExtend then return ()
+        else do (qname,kind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
+                unify (Check "extended type must have the same kind as the open type" (tbinderRange newtp) ) (tbinderRange newtp) (typeBinderKind tbinder') kind                
+       return (DataType tbinder' infgamma constructors' range vis sort ddef isExtend doc)
 
-unifyBinder tbinder range infgamma reskind
+unifyBinder tbinder defbinder range infgamma reskind
  = do let kind = infKindFunN (map typeBinderKind infgamma) reskind 
       unify (Infer range) range (typeBinderKind tbinder) kind
+      return tbinder
 
 typeBinderKind (TypeBinder name kind _ _) = kind
 
@@ -530,10 +587,10 @@ infConstructor (UserCon name exist params rngName rng vis doc)
        params'  <- extendInfGamma infgamma (mapM infConValueBinder params)
        return (UserCon name infgamma params' rngName rng vis doc)
 
-infConValueBinder :: ValueBinder UserType (Maybe (Expr UserType)) -> KInfer (ValueBinder (KUserType InfKind) (Maybe (Expr UserType)))
-infConValueBinder (ValueBinder name tp mbExpr nameRng rng)
+infConValueBinder :: (Visibility,ValueBinder UserType (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType)))
+infConValueBinder (vis,ValueBinder name tp mbExpr nameRng rng)
   = do tp' <- infUserType infKindStar (Check "Constructor parameters must be values" rng) tp
-       return (ValueBinder name tp' mbExpr nameRng rng)
+       return (vis,ValueBinder name tp' mbExpr nameRng rng)
 
 
 infUserType :: InfKind -> Context -> UserType -> KInfer (KUserType InfKind)
@@ -559,6 +616,10 @@ infUserType expected  context userType
               skind   <- subst ekind
               effect' <- case skind of
                           KICon kind | kind == kindLabel -> return (makeEffectExtend etp makeEffectEmpty)
+                          KICon kind | isKindHandled kind ->  -- TODO: check if there is an effect declaration
+                                          return (makeEffectExtend (makeHandled etp rng) makeEffectEmpty)
+                          KICon kind | isKindHandled1 kind ->  -- TODO: check if there is an effect declaration
+                                          return (makeEffectExtend (makeHandled1 etp rng) makeEffectEmpty)
                           _  -> do unify (checkEff range) range (KICon kindEffect) skind
                                    return etp              
               tp'     <- infUserType infKindStar (checkRes range) tp
@@ -575,6 +636,12 @@ infUserType expected  context userType
               case skind of
                 KICon kind | kind == kindEffect
                   -> return (makeEffectAppend ltp tl')
+                KICon kind | isKindHandled kind -- TODO: check effects environment if really effect?
+                  -> do unify (checkExtendLabel range) range (KICon kindHandled) skind
+                        return (TpApp tp' [makeHandled ltp rng, tl'] rng)
+                KICon kind | isKindHandled1 kind -- TODO: check effects environment if really effect?
+                  -> do unify (checkExtendLabel range) range (KICon kindHandled1) skind
+                        return (TpApp tp' [makeHandled1 ltp rng, tl'] rng)
                 _ -> do unify (checkExtendLabel range) range (KICon kindLabel) skind
                         return (TpApp tp' [ltp,tl'] rng)
 
@@ -643,8 +710,14 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
 
-resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort doc)
-  = do newtp' <- resolveTypeBinderDef newtp
+resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort ddef isExtend doc)
+  = do -- trace ("datatype: " ++ show(tbinderName newtp) ++ " " ++ show isExtend) $ return ()                          
+       newtp' <- if isExtend
+                  then do (qname,ikind) <- findInfKind (tbinderName newtp) (tbinderRange newtp)
+                          kind  <- resolveKind ikind
+                          -- addRangeInfo range (Id qname (NITypeCon kind) False)
+                          return (TypeBinder qname kind (tbinderNameRange newtp) (tbinderRange newtp))
+                  else resolveTypeBinderDef newtp
        params' <- mapM resolveTypeBinder params
        let typeResult = TCon (TypeCon (getName newtp') (typeBinderKind newtp'))
        typeVars  <- let (kargs,kres) = extractKindFun (typeBinderKind newtp')
@@ -652,7 +725,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                      then mapM (\karg -> do{ id <- uniqueId "k"; return (TypeVar id karg Bound) }) kargs  -- invent parameters if they are not given (and it has an arrow kind)
                      else mapM (\param -> freshTypeVar param Bound) params'          
        let tvarMap = M.fromList (zip (map getName params') typeVars)       
-       consinfos <- mapM (resolveConstructor (getName newtp') sort (length constructors == 1) typeResult typeVars tvarMap) constructors
+       consinfos <- mapM (resolveConstructor (getName newtp') sort (not (dataDefIsOpen ddef) && length constructors == 1) typeResult typeVars tvarMap) constructors
        let (constructors',infos) = unzip consinfos
        if (sort == Retractive)
         then return ()
@@ -663,8 +736,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               else return ()
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
-       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range isRec doc
-       return (Core.Data dataInfo vis (map conVis constructors))
+       let ddef' = case ddef of
+                     DataDefNormal | isRec -> DataDefRec
+                     _ -> ddef
+           dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' doc
+       return (Core.Data dataInfo vis (map conVis constructors) isExtend)
   where
     conVis (UserCon name exist params rngName rng vis _) = vis
 
@@ -719,20 +795,21 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        params' <- mapM (resolveConParam idmap') params -- mapM (resolveType idmap' False) params
        let result = typeApp typeResult (map TVar typeParams)
            scheme = quantifyType (typeParams ++ existVars) $
-                    if (null params') then result else typeFun [(binderName p, binderType p) | p <- params'] typeTotal result
+                    if (null params') then result else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result
        addRangeInfo rngName (Id qname (NICon scheme) True)
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
        return (UserCon qname exist' params' rngName rng vis doc
-              ,ConInfo qname typeName existVars 
-                  (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] params')) 
+              ,ConInfo qname typeName typeParams existVars 
+                  (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params'))) 
                   scheme 
                   typeSort rngName
-                  (map binderNameRange params')
+                  (map (binderNameRange . snd) params')
+                  (map fst params')
                   isSingleton
                   doc)
 
-resolveConParam :: M.NameMap TypeVar -> ValueBinder (KUserType InfKind) (Maybe (Expr UserType)) -> KInfer (ValueBinder Type (Maybe (Expr Type)))
-resolveConParam idmap vb
+resolveConParam :: M.NameMap TypeVar -> (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder Type (Maybe (Expr Type)))
+resolveConParam idmap (vis,vb)
   = do tp <- resolveType idmap False (binderType vb)
        expr <- case (binderExpr vb) of
                  Nothing -> return Nothing
@@ -740,7 +817,7 @@ resolveConParam idmap vb
                                   return (Just e') -}
                             return (Just (failure "Kind.Infer.resolveConParam: optional parameter expression in constructor"))
        addRangeInfo (binderNameRange vb) (Id (binderName vb) (NIValue tp) True)
-       return (vb{ binderType = tp, binderExpr = expr })
+       return (vis,vb{ binderType = tp, binderExpr = expr })
 
 -- | @resolveType@ takes: a map from locally quantified type name variables to types,
 -- a boolean that is 'True' if partially applied type synonyms are allowed (i.e. when
@@ -868,3 +945,9 @@ makeEffectExtend (label) ext
 
 makeEffectEmpty 
   = TpCon nameEffectEmpty rangeNull
+
+makeHandled u rng
+  = TpApp (TpCon nameTpHandled rangeNull) [u] rangeNull
+
+makeHandled1 u rng
+  = TpApp (TpCon nameTpHandled1 rangeNull) [u] rangeNull

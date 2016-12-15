@@ -43,6 +43,7 @@ type UserTypeDef = TypeDef UserType UserType UserKind
 type UserTypeDefGroup = TypeDefGroup UserType UserKind
 type UserPattern = Pattern UserType
 type UserBranch  = Branch UserType
+type UserHandlerBranch = HandlerBranch UserType
 type UserValueBinder = ValueBinder () -- (Maybe UserType)
 type UserTypeBinder = TypeBinder UserKind
 
@@ -118,6 +119,8 @@ data TypeDef t u k
             , typeDefRange :: Range 
             , typeDefVis :: Visibility 
             , typeDefSort :: DataKind
+            , typeDefDef  :: DataDef  
+            , typeDefIsExtend :: Bool -- ^ True if this is an extension; the binder contains a qualified id (and is not a declaration)
             , typeDefDoc  :: String
             }
 
@@ -132,7 +135,7 @@ data TypeBinder k
 data UserCon t u k
   = UserCon { userconName :: Name 
             , userconExists :: [TypeBinder k] -- ^ existentials 
-            , userconParams :: [ValueBinder t (Maybe (Expr u))]            -- ^ parameters 
+            , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters 
             , userconNameRange :: Range       --  ^ name range 
             , userconRange :: Range           --  ^ total range 
             , userconVis :: Visibility     -- ^  visibility
@@ -163,6 +166,7 @@ data ValueBinder t e
                , binderNameRange :: Range  -- ^ name range
                , binderRange :: Range      -- ^ full range
                }
+
 
 --  | A value or function definition
 data Def t
@@ -196,6 +200,15 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
+  | Handler Bool (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+
+data HandlerBranch t
+  = HandlerBranch{ hbranchName :: Name
+                 , hbranchPars :: [ValueBinder (Maybe t) ()]
+                 , hbranchExpr :: Expr t
+                 , hbranchNameRange :: Range
+                 , hbranchPatRange  :: Range
+                 }
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)
@@ -308,6 +321,7 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
+        Handler shallow eff pars ret ops hrng range -> range
 
 instance Ranged Lit where
   getRange lit
@@ -329,6 +343,10 @@ instance Ranged (Pattern t) where
 instance Ranged (Branch t) where
   getRange (Branch patterns guard body)
     = combineRange (getRange patterns) (getRange body)
+
+instance Ranged (HandlerBranch t) where
+  getRange (HandlerBranch{ hbranchPatRange=rng, hbranchExpr=expr })
+    = combineRange rng (getRange expr)
 
 ---------------------------------------------------------------------------
 -- Get Name

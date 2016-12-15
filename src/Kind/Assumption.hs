@@ -147,6 +147,6 @@ extractTypeDef tdef
   = case tdef of
       Core.Synonym synInfo Core.Public 
         -> kgammaSingle (synInfoName synInfo) (synInfoKind synInfo)
-      Core.Data dataInfo Core.Public conviss
+      Core.Data dataInfo Core.Public conviss False
         -> kgammaSingle (dataInfoName dataInfo) (dataInfoKind dataInfo)
       _ -> kgammaEmpty

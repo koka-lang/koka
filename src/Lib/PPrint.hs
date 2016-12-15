@@ -18,7 +18,7 @@ module Lib.PPrint
         ( Doc, Docs
         , Pretty(pretty,prettyList), putPretty
 
-        , show, putDoc, hPutDoc
+        , show, putDoc, hPutDoc, asString
 
         , (<>)
         , (<+>)
@@ -59,13 +59,15 @@ module Lib.PPrint
         , isEmptyDoc
         ) where
 
+
 import System.IO           -- (Handle,hPutStr,hPutChar,stdout,openFile,hClose)
 import Lib.Printer  
 import Platform.Runtime( finally )
 
-import qualified Data.Text    as T
+import Data.Text.Encoding (encodeUtf8) -- ,decodeUtf8With)
+import qualified Data.ByteString as B( hPutStr )
 import qualified Data.Text.Lazy.Builder as B
-import qualified Data.Text.Lazy.IO as TL
+import qualified Data.Text.Lazy as TL
 
 import Data.Monoid (mempty, mappend)
 
@@ -91,7 +93,8 @@ encloseSep left right sep ds
     = case ds of
         []  -> left <> right
         [d] -> left <> d <> right
-        _   -> align (cat (zipWith (<>) (left : repeat sep) ds) <> right)
+        _   -> nest 2  -- align
+               (hcat (zipWith (<>) (left : repeat sep) ds) <> right)
 
 
 -----------------------------------------------------------
@@ -282,7 +285,7 @@ type Docs       = [Doc]
 
 data Doc        = Empty
                 | Char !Char             -- invariant: char is not '\n'
-                | Text !T.Text          -- invariant: text doesn't contain '\n'
+                | Text !String           -- invariant: text doesn't contain '\n'
                 | Line !Bool            -- True <=> when undone by group, do not insert a space
                 | Cat Doc Doc
                 | Nest !Int Doc
@@ -294,7 +297,7 @@ data Doc        = Empty
 
 data SimpleDoc  = SEmpty
                 | SChar Int Char SimpleDoc
-                | SText Int T.Text SimpleDoc
+                | SText Int String SimpleDoc
                 | SLine Int SimpleDoc
                 | SColorOpen Bool Color SimpleDoc 
                 | SColorClose SimpleDoc
@@ -309,9 +312,9 @@ char '\n'       = line
 char c          = Char c
 
 text ""         = Empty
-text s          = Text (T.pack s)
+text s          = Text s
 
-text' x | T.null x  = Empty
+text' x | null x    = Empty
         | otherwise = Text x
 
 line            = Line False
@@ -333,7 +336,7 @@ bcolor c doc    = Colored False c doc
 flatten :: Doc -> Doc
 flatten (Cat x y)       = Cat (flatten x) (flatten y)
 flatten (Nest i x)      = Nest i (flatten x)
-flatten (Line break)    = if break then Empty else Text (T.pack " ")
+flatten (Line break)    = if break then Empty else Text " "
 flatten (Union x y)     = flatten x
 flatten (Column f)      = Column (flatten . f)
 flatten (Nesting f)     = Nesting (flatten . f)
@@ -375,8 +378,8 @@ renderPrettyB rfrac w x
         = case d of
             Empty         -> best b n k ds
             Char c        -> B.singleton c    `mappend` best b n (k+1) ds
-            Text s        -> B.fromText  s    `mappend` best b n (k+T.length s) ds
-            Line _        -> B.singleton '\n' `mappend` (B.fromText (indentation i) `mappend` best b i i ds)
+            Text s        -> B.fromString  s  `mappend` best b n (k+length s) ds
+            Line _        -> B.singleton '\n' `mappend` (B.fromString (indentation i) `mappend` best b i i ds)
             Cat x y       -> best b n k ((i,x):((i,y):ds))
             Nest j x      -> let i' = i+j
                                  z  = if b == 0 then i' else b
@@ -410,7 +413,7 @@ renderPretty rfrac w x
         = case d of
             Empty       -> best b n k ds
             Char c      -> let k' = k+1 in seq k' (SChar b c (best b n k' ds))
-            Text s      -> let k' = k+(T.length s) in seq k' (SText b s (best b n k' ds))
+            Text s      -> let k' = k+(length s) in seq k' (SText b s (best b n k' ds))
             Line _      -> SLine i (best b i i ds)
             Cat x y     -> best b n k ((i,x):((i,y):ds))
             Nest j x    -> let i' = i+j in seq i' (best (if b==0 then i' else b) n k ((i',x):ds))
@@ -435,7 +438,7 @@ renderPretty rfrac w x
 fits w x        | w < 0         = False
 fits w SEmpty                   = True
 fits w (SChar i c x)            = fits (w - 1) x
-fits w (SText i s x)            = fits (w - T.length s) x
+fits w (SText i s x)            = fits (w - length s) x
 fits w (SLine i x)              = True
 fits w (SColorOpen f c x)       = fits w x
 fits w (SColorClose x)          = fits w x
@@ -452,7 +455,7 @@ renderCompact x
       scan k (d:ds) = case d of
                         Empty       -> scan k ds
                         Char c      -> let k' = k+1 in seq k' (SChar 0 c (scan k' ds))
-                        Text s      -> let k' = k+(T.length s) in seq k' (SText 0 s (scan k' ds))
+                        Text s      -> let k' = k+(length s) in seq k' (SText 0 s (scan k' ds))
                         Line _      -> SLine 0 (scan 0 ds)
                         Cat x y     -> scan k (x:y:ds)
                         Nest j x    -> scan k (x:ds)
@@ -462,13 +465,18 @@ renderCompact x
                         Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))  
                         ColoredEnd   -> SColorClose (scan k ds)
 
+
+asString :: Doc -> String
+asString doc
+  = displayS (renderCompact doc) ""
+
 -----------------------------------------------------------
 -- Displayers:  displayS and displayIO
 -----------------------------------------------------------
 displayS :: SimpleDoc -> ShowS
 displayS SEmpty             = id
 displayS (SChar i c x)      = showChar c . displayS x
-displayS (SText i s x)      = showString (T.unpack s) . displayS x
+displayS (SText i s x)      = showString s . displayS x
 displayS (SLine i x)        = showString ('\n':(replicate i ' ')) . displayS x
 displayS (SColorOpen f c x) = displayS x
 displayS (SColorClose x)    = displayS x
@@ -482,10 +490,10 @@ displayP p w simpleDoc
 
       display' k SEmpty            = return (k,SEmpty)
       display' k (SChar i c x)     | k+1 >= w && i+1 < w = display k (SLine (i+1) (skipSpaces (SChar i c x)))
-      display' k (SChar i c x)     = do{ writeText p (T.pack [c]); display (k+1) x }
-      display' k (SText i s x)     | k+(T.length s) >= w && i+(T.length s) < w = display k (SLine (i+1) (skipSpaces (SText i s x)))
-      display' k (SText i s x)     = do{ writeText p s; display (k+(T.length s)) x  }
-      display' k (SLine i x)       = do{ writeTextLn p T.empty; writeText p (indentation i); display i x }
+      display' k (SChar i c x)     = do{ write p [c]; display (k+1) x }
+      display' k (SText i s x)     | k+(length s) >= w && i+(length s) < w = display k (SLine (i+1) (skipSpaces (SText i s x)))
+      display' k (SText i s x)     = do{ write p s; display (k+(length s)) x  }
+      display' k (SLine i x)       = do{ writeLn p ""; write p (indentation i); display i x }
       display' k (SColorOpen f c x)= do{ let with = if f then withColor else withBackColor
                                        ; (kc,cont) <- with p c (display k x)
                                        ; display kc cont
@@ -493,10 +501,10 @@ displayP p w simpleDoc
       display' k (SColorClose x)   = return (k,x)
 
       skipSpaces (SChar i c x)     | isSpace c = skipSpaces x
-      skipSpaces (SText i s x)     | T.null s' = skipSpaces x
+      skipSpaces (SText i s x)     | null s'   = skipSpaces x
                                    | otherwise = SText i s' x
                                    where
-                                     s' = T.dropWhile isSpace s
+                                     s' = dropWhile isSpace s
       skipSpaces s                 = s
       isSpace c                    = (c==' ' || c=='\t')
 
@@ -526,7 +534,11 @@ hPutDoc handle doc
     
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
-  = TL.hPutStr handle (B.toLazyText $ renderPrettyB 0.5 width doc)
+  = do s <- return $ encodeUtf8
+                   $ TL.toStrict
+                   $ B.toLazyText 
+                   $ renderPrettyB 0.5 width doc
+       B.hPutStr handle s
 
 writeDoc :: FilePath -> Doc -> IO ()
 writeDoc fpath doc
@@ -542,8 +554,9 @@ writeDocW width fpath doc
 -- "indentation" used to insert tabs but tabs seem to cause
 -- more trouble than they solve :-)
 -----------------------------------------------------------
-spaces n        | n <= 0    = T.empty
-                | otherwise = T.replicate n " "
+spaces :: Int -> String
+spaces n        | n <= 0    = ""
+                | otherwise = replicate n ' '
 
 indentation 0  = ""
 indentation 1  = " "

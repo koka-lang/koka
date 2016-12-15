@@ -52,7 +52,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff;test/lib " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -67,7 +67,7 @@ else if (variant === "trace") {
   hsFlags += " -prof -fprof-auto"
   hsLinkFlags += " -prof -rtsopts"
   // for now a bit useless since 'internal exceptions' are raised on things like doesFileExist...
-  // hsRunFlags  += " +RTS -xc -RTS"
+  hsRunFlags  += " +RTS -xc -RTS"
 }
 
 
@@ -143,18 +143,21 @@ task("iclean", function() {
 //-----------------------------------------------------
 desc(["run tests.",
       "     test[<dir|file>,<mode>]  # use <dir|file> to run the tests ('test')",
-      "                              # optional <mode> is 'update', or 'new'"].join("\n"));
+      "                              # optional <mode> is 'update','new',or 'verbose'"].join("\n"));
 task("test", ["compiler"], function(testdir,testmode) {
   testdir=testdir||"test";
   testmode=testmode||"";
   // jake.rmRf(path.join(outputDir,"test"))
+  jake.mkdirP("out/test/config");
   runTests(pathnorm(testdir),testmode);
 });
 
 //-----------------------------------------------------
 // Tasks: c-grammar specification
 //-----------------------------------------------------
-task("grammar",[],function()
+desc(["compile flex/bison grammar",
+      "     grammar[<file>]    # run parser on <file>"].join("\n"));
+task("grammar",[],function(testfile)
 {
   var outdir = path.join(outputDir,"grammar");
   var gdir = path.join("doc","spec","grammar");
@@ -163,7 +166,13 @@ task("grammar",[],function()
   command("cd " + outdir + " && bison -vd -W parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -v8 lexer.lex 2>&1", function() {
       command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
-        complete();
+        if (testfile==null) complete();
+         else {
+            console.log("testing..")
+            command( path.join(outdir,"koka-parser") + " --nosemi " + testfile, function() {
+              complete();
+            });
+         };
       });
     });
   });
@@ -172,9 +181,9 @@ task("grammar",[],function()
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "madoko";
-var docsite  = (process.env.docsite || "http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
-var doclocal = (process.env.doclocal || "\\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
+var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
+var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
+var doclocal = (process.env.doclocal || "c:\\users\\daan\\dev\\koka-gh\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
           
 desc("generate the language specification")  
 task("spec", ["compiler"], function(mode) {
@@ -183,24 +192,43 @@ task("spec", ["compiler"], function(mode) {
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
   var specdir   = path.join("doc","spec");
-  var docflags  = (mode === "publish") ? "--htmlbases=" + docsite + " " : "";  
+  var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");  
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
-  command(cmd + "kokaspec.kkdoc", function() {
+  command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
+      // fix up includes
+      patchFile(path.join(outspec,"kokaspec.md"),/^\[INCLUDE=(\w+)\.kk\.md\]/mg, "[INCLUDE=$1.md]");
+      // copy style files
+      jake.mkdirP(outstyles);
+      jake.mkdirP(outscripts);
+      jake.cpR(path.join("doc","koka.css"),outstyles);
+      var files = new jake.FileList().include(path.join(specdir,"styles/*.css"))
+                                     .include(path.join(specdir,"styles/*.mdk"))
+                                     .toArray();
+      copyFiles(specdir,files,outspec);
+      files = new jake.FileList().include(path.join(specdir,"scripts/*.js"))
+                                 .toArray();
+      copyFiles(specdir,files,outspec);
+      files = new jake.FileList().include(path.join(specdir,"*.bib"))
+                                 .toArray();
+      copyFiles(specdir,files,outspec);      
+      // copy images
+      var imgs1 = new jake.FileList().include("lib/std/time/*.png").toArray();
+      copyFiles("lib/std/time",imgs1,outspec);
+      // process xmp.html to html using madoko
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
-                                        .include(path.join(outspec,"*.doc.html"));
-      command(cmdMarkdown + " -v " + xmpFiles.toArray().join(" "), function () {
-        // copy style file
-        jake.mkdirP(outstyles);
-        jake.cpR(path.join("doc","koka.css"),outstyles);
-        jake.cpR(path.join(specdir,"kokaspec.css"),outstyles);
-        jake.mkdirP(outscripts);
-        jake.cpR(path.join(specdir,"kokaspec.js"),outscripts);
+                                        .include(path.join(outspec,"kokaspec.md"))
+                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
+      console.log(xmpFiles)                                        
+      command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
+        jake.cpR(path.join(outspec,"madoko.css"),outstyles);      
         if (mode === "publish") {
           // copy to website
-          var files = new jake.FileList().include(path.join(outspec,"*.html"))
-                                         .include(path.join(outstyles,"*.css"));
-          copyFiles(outspec,files.toArray(),doclocal);
+          files = new jake.FileList().include(path.join(outspec,"*.html"))
+                                     .include(path.join(outstyles,"*.css"))
+                                     .exclude(path.join(outspec,"*.xmp.html"))
+                                     .toArray();
+          copyFiles(outspec,files,doclocal);
         }
         complete();
       });
@@ -215,10 +243,10 @@ task("guide", ["compiler"], function(publish) {
   var outstyles = path.join(outguide,"styles");
   var guidedir  = path.join("doc","rise4fun");
   var docflags  = publish ? "--htmlbases=" + docsite + " " : "";  
-  var cmd = mainExe + " -c -l --target=cs --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
-  command(cmd + "guide.kkdoc", function() {
+  var cmd = mainExe + " -c -l --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
+  command(cmd + "guide.kk.md", function() {
     // convert markdown
-    command(cmdMarkdown + " " + path.join(outguide,"guide.xmp.html"), function() {
+    command(cmdMarkdown + " --odir=" + outguide + " -v " + path.join(outguide,"guide.md"), function() {
       // copy style files
       jake.mkdirP(outstyles);
       jake.cpR(path.join("doc","koka.css"),outstyles);
@@ -227,13 +255,13 @@ task("guide", ["compiler"], function(publish) {
   });
 });
 
-desc(["install Sublime Text 2 support files for Koka",
+desc(["install Sublime Text 3 support files for Koka",
      "     sublime[<version>]  # install for <version> instead (2 or 3)"].join("\n")
     );
 task("sublime", function(sversion) {
   jake.logger.log("install Sublime Text support");
   var sublime =　"";
-  var sversion = sversion || "2"
+  var sversion = sversion || "3"
   if (process.env.APPDATA) {
     sublime = path.join(process.env.APPDATA,"Sublime Text " + sversion);
   } 
@@ -394,6 +422,8 @@ var hsModules = [
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
+  "Core.Cps",
+  "Core.Check",
   
   "Compiler.Package",
   "Compiler.Options",
@@ -537,11 +567,17 @@ function fileExist(fileName) {
   return (stats != null);
 }
 
+function normalize(filename) {
+  if (filename==null) return "";
+  return filename.replace(/\\/g,"/");
+}
+
 // copyFiles 'files' to 'destdir' where the files in destdir are named relative to 'rootdir'
 // i.e. copyFiles('A',['A/B/c.txt'],'D')  creates 'D/B/c.txt'
 function copyFiles(rootdir,files,destdir) {
-  rootdir = rootdir || "";
+  rootdir = normalize(rootdir || "");
   files.forEach(function(filename) {
+    filename = normalize(filename);
     // make relative
     var destname = path.join(destdir,(rootdir && filename.lastIndexOf(rootdir,0)===0 ? filename.substr(rootdir.length) : filename));
     var logfilename = (filename.length > 30 ? "..." + filename.substr(filename.length-30) : filename);    
@@ -766,7 +802,8 @@ var testMessage = "total time ";
 
 function runTests(test,testMode,flags,callback) {
   testMode = testMode||"";
-  flags = flags || ("-i" + testDir + " --outdir=" + path.join(outputDir,"test"));
+  flags = flags || ("-i" + libraryDir + " -i" + testDir + " --outdir=" + path.join(outputDir,"test"));
+  flags = "--checkcore " + flags 
   fs.stat(test,function(err,stats) {
     if (err) {
       jake.logger.error("file or directory does not exist: " + test);
@@ -871,27 +908,36 @@ function runTestFile(n,testFile,testMode,flags,callback) {
   var flags = flags || "";
   fs.readFile(path.join(testDir,".flags"), { encoding: "utf8" }, function(err,content) {
     if (!err) flags += " " + content.trim().replace("\n"," ");
-    var cmd = [mainExe,hsRunFlags,kokaFlags," -c --console=raw",flags,testFile].join(" ");
-    jake.logger.log(n + ": " + testFile);
-    if (testMode==="verbose") jake.logger.log("> " + cmd);
-    child.exec(cmd, function (error, stdout, stderr) {
-      var output = "";
-      if (stdout && stdout.length > 0) output += stdout;
-      if (stderr && stderr.length > 0) output += stderr;
-      if (error !== null) {
-        // output += "command failed with exit code " + error.code + ".";
-      }
-      if (testMode) jake.logger.log(output);
-      output = testSanitize(output);      
-      if (callback) {
-        callback(output);
-      }
-      else {
-        jake.logger.log(output);
-        complete();
-      }
+    fs.readFile(testFile + ".flags", { encoding: "utf8" }, function(err,content) {
+      if (!err) flags += " " + content.trim().replace("\n"," ");      
+      var cmd = [mainExe,hsRunFlags," -c --console=raw",flags,testFile].join(" ");
+      jake.logger.log(n + ": " + testFile);
+      if (testMode==="verbose") jake.logger.log("> " + cmd);
+      child.exec(cmd, function (error, stdout, stderr) {
+        var output = "";
+        if (stdout && stdout.length > 0) output += stdout;
+        if (stderr && stderr.length > 0) output += stderr;
+        if (error !== null) {
+          // output += "command failed with exit code " + error.code + ".";
+        }
+        if (testMode) jake.logger.log(output);
+        output = testSanitize(output);      
+        if (callback) {
+          callback(output);
+        }
+        else {
+          jake.logger.log(output);
+          complete();
+        }
+      });
     });    
   });
+}
+
+function patchFile( fname, regex, replacer ) {
+  var contents1 = fs.readFileSync( fname, {encoding:"utf8"});
+  var contents2 = contents1.replace(regex,replacer);
+  fs.writeFileSync(fname,contents2,{encoding:"utf8"});
 }
 
 function testSanitize(s) {
@@ -899,5 +945,6 @@ function testSanitize(s) {
           .replace(/\\/g,"/")        // unix style slashes
           .replace(/[ \t]+/g, " ")   // compress whitespace
           .replace(/[\r\n]+/g, "\n") // compress newlines sequences
+          .replace(/(std_core\.js\:)\d+/, "$1" )  // hide line number of an exception
           .trim();                   // and trim
 }

@@ -1,0 +1,3 @@
+42
+main : () -> console ()
+test : forall<a> (x : a) -> a

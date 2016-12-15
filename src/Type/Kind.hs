@@ -5,11 +5,49 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-module Type.Kind ( HasKind( getKind ) ) where
+module Type.Kind ( HasKind( getKind )
+                 , handledToLabel
+                 , HandledSort(..)
+                 , getHandledEffect, containsHandledEffect
+                 ) where
 
+import Data.Maybe( isJust )
+import Common.NamePrim( nameTpHandled, nameTpHandled1 )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
+
+
+handledToLabel :: Type -> Type
+handledToLabel e 
+  = if (isKindHandled1 (getKind e)) 
+     then TApp tconHandled1 [e]
+     else TApp tconHandled [e]
+
+containsHandledEffect :: [Name] -> Effect -> Bool
+containsHandledEffect exclude eff
+  = let (ls,_) = extractEffectExtend eff
+    in any (isJust . getHandledEffectX exclude) ls
+
+data HandledSort = ResumeOnce | ResumeMany
+                 deriving (Eq,Show)
+
+getHandledEffect :: Type -> Maybe HandledSort
+getHandledEffect tp
+  = getHandledEffectX [] tp
+
+getHandledEffectX exclude tp
+  = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) [t]  
+        | name == nameTpHandled  -> getHandledEffectX exclude t
+        | name == nameTpHandled1 -> getHandledEffectX exclude t
+      TApp (TCon (TypeCon hxName _)) _
+        | isKindHandled (getKind tp)  && not (hxName `elem` exclude) -> Just ResumeMany
+        | isKindHandled1 (getKind tp) && not (hxName `elem` exclude) -> Just ResumeOnce
+      TCon (TypeCon hxName kind) 
+        | isKindHandled kind  && not (hxName `elem` exclude) -> Just ResumeMany
+        | isKindHandled1 kind && not (hxName `elem` exclude) -> Just ResumeOnce
+      _ -> Nothing
 
 {--------------------------------------------------------------------------
   Get the kind of a type.

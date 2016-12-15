@@ -1,4 +1,6 @@
-function runST( action : forall<h> () -> <st<h>,exn> a ) : exn a  = error("runST")
+function runST( action : forall<h> () -> <st<h>,exn> a ) : exn a  {
+  error("runST")
+}
 
 function wrong() {
   val r = ref(1)

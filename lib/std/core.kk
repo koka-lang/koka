@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2016 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -9,23 +9,40 @@
 /* This module defines standard operations that are always available.
 
    Some types and operations are required to be defined for the compiler
-   to work correctly (i.e. types like ":int" or ":list")
+   to work correctly (i.e. types like `:int` or `:list`)
 */
 public module std/core
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
 infixr 60  (+), (-)
-infix  40  (!=), (==), (<=), (>=), (<), (>)
+infix  40  (!=), (==), (<=), (>=), (<), (>) 
 infixr 30  (&&)
 infixr 20  (||)
 
 // prefix     (!), (-) 
 
-external include {
+extern include {
   cs file "core-inline.cs"
   js file "core-inline.js"
 }
+
+extern include {
+  js file "core-string-inline.js"
+}
+
+extern include {
+  js file "core-console-inline.js"
+}
+
+extern include {
+  js file "core-handlers-inline.js"
+}
+
+extern include {
+  js file "contrib/biginteger.js"
+}
+
 
 // ----------------------------------------------------------------------------
 // Core types
@@ -34,17 +51,27 @@ external include {
 // A 32-bit signed integer (using two's complement to represent negative numbers).
 type int
 
-// A unicode character
-type char
-
-// A unicode string
+// A unicode string is a sequence of unicode characters (`char`).
+// The encoding of a string is internal and not exposed and there
+// is no direct indexing of characters in string. 
+// Use the `:sslice` type for efficient matching and retrieving
+// sub-strings from string.\
+// See also the [``std/string``](std_string.html) module.
 type string
 
 // A 64-bit IEEE 754 floating point value
 type double
 
-// An any type. Used for external calls
+// An any type. Used for extern calls
 type any
+
+// A unicode character. 
+// Characters are unicode _codepoint_\/s.
+// This is different from a unicode _grapheme_ which represents a single displayed
+// symbol and can consists of multiple codepoints due to combining characters and marks.
+// (see also the [``std/unicode``](std_unicode.html) module.)
+type char
+
 
 // ----------------------------------------------------------------------------
 // Core effects
@@ -66,13 +93,13 @@ type div :: X
 // results even when called with the same input values.
 type ndet :: X
 
-// The alloc effect signifies a function may allocate in a heap ":h"
+// The alloc effect signifies a function may allocate in a heap `:h`
 type alloc :: H -> X
 
-// The read effect: signifies that a function may read from from heap ":h".
+// The read effect: signifies that a function may read from from heap `:h`.
 type read :: H -> X
 
-// The write effect: signifies that a function may write to heap ":h".
+// The write effect: signifies that a function may write to heap `:h`.
 type write :: H -> X
 
 // The console effect signifies that a function may read or write to the console.
@@ -85,25 +112,25 @@ alias total = <>
 // when called with the same arguments but may not terminate or raise an exception.
 alias pure = <exn,div>
 
-// Stateful functions can manipulate heap ":h" using allocations, reads and writes.
+// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
 alias st<h> = <read<h>, write<h>, alloc<h>>
 
-// The ":global" heap is a special heap constant to denote the global shared heap
+// The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
 
-// The ":net" effect signifies a function may access the network
+// The `:net` effect signifies a function may access the network
 type net :: X
 
-// The ":file" effect signifies a function may access the file system
+// The `:file` effect signifies a function may access the file system
 type file :: X
 
-// The ":ui" effect signifies a function may access the graphics system
+// The `:ui` effect signifies a function may access the graphics system
 type ui :: X
 
-// The ":blocking" effect signifies that a function may block
+// The `:blocking` effect signifies that a function may block
 type blocking :: X
 
-// The ":io" effect is used for functions that perform arbitrary I/O operations.
+// The `:io` effect is used for funs that perform arbitrary I/O operations.
 alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 
 // ----------------------------------------------------------------------------
@@ -111,26 +138,16 @@ alias io = <exn,div,ndet,console,net,file,ui,st<global>>
 // ----------------------------------------------------------------------------
 
 // Add the divergent effect to a function effect.
-external inline injectDiv : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) = inline "#1"
+extern inline inject-div : forall<a,e> (() -> e a) -> (() -> <div|e> a) { inline "#1" }
 
-// Add the exception effect to a function effect.
-external inline injectExn : forall<a,b,e> (a -> e b) -> (a -> <exn|e> b) = inline "#1"
+// Add the divergent effect to a function effect.
+extern inline inject-div : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
 
 // Add the state effect to a function effect.
-external inline injectSt : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)  = inline "#1"
+extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
-// Add the "read" effect to a function effect.
-external inline injectRead : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <read<h>|e> b)  = inline "#1"
-
-// Add the "write" effect to a function effect.
-external inline injectWrite : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <write<h>|e> b)  = inline "#1"
-
-// Add the "ndet" effect to a function effect.
-external inline injectNdet : forall<a,b,e> ((a) -> e b) -> total ((a) -> <ndet|e> b)  = inline "#1"
-
-// Add the "io" effect to a function effect.
-external inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)  = inline "#1"
-
+// Add the state effect to a function effect.
+extern inline inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
 
 
 // ----------------------------------------------------------------------------
@@ -141,127 +158,126 @@ external inline injectIo : forall<a,b,e> ((a) -> e b) -> total ((a) -> <io|e> b)
 type exception
 
 // Return a system dependent description of an exception
-external show( exn : exception ) : string {
+extern show( exn : exception ) : string {
   cs inline "#1.ToString()"
   js inline "(#1 ? #1.toString() : 'unknown exception')"
 }
 
-// Catch an exception raised by "error" and handle it.
-// Use "onExn" or "onFail" when appropiate.
-external catch : forall<e,a> ( action : () -> <exn|e> a, handler: exception -> e a) -> e a {
-  cs inline "Primitive.Catch<##2>(#1,#2)"
-  js "$primcatch"
+// Catch an exception raised by `error` and handle it.
+// Use `on-exn` or `on-fail` when appropiate.
+extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
+  cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
+  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
   
-// Execute a "handler" no matter what exception was raised in "action".
-// Use of "onExit" is preferred (which has its arguments swapped).
-external inline finally : forall<e,a> (action: () -> e a, handler: () -> e ()) -> e a  {
-  cs inline "Primitive.Finally<##2>(#1,#2)"
-  js "$finally"
+// Execute a `hndler` no matter what exception was raised in `action`.
+// Use of `on-exit` is preferred (which has its arguments swapped).
+extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
+  cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
+  js inline "_primfinally(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
 // Raise an exception with a specified message.
-external error : forall<a> string -> exn a { 
+extern error : forall<a> string -> exn a { 
     cs "Primitive.Error";
-    js "$error"
+    js "_error"
 }
 
 // Throw an exception
-external throw : forall<a> exception -> exn a {
+extern throw : forall<a> exception -> exn a {
   cs inline "Primitive.Throw<##1>(#1)"
   js "error(#1)"
 }
 
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
-external patternMatchError : forall<a> (range : string, def : string) -> exn a { 
+extern error-pattern-match : forall<a> (range : string, def : string) -> exn a { 
     cs "Primitive.PatternMatchError"
-    js "$pattern_match_error"
+    js "_error_pattern_match"
 }
 
-// Set a "handler" that is called when an exception is raised in the "action" block.
-function onFail( handler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
+// Set a `hndler` that is called when an exception is raised in the `action` block.
+fun on-fail( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
-  catchOnFail( action, fun(exn){ handler(); throw(exn) })
+  catch-on-fail( action, fun(exn){ hndler(); throw(exn) })
 }
 
 // Return a default value when an exception is raised
-function onExn( value : a , action : () -> <exn|e> a ) : e a {
+fun on-exn( value : a , action : () -> <exn|e> a ) : e a {
   catch( action, fun(_) { value })
 }
 
-private external catchOnFail : forall<e,a> ( action : () -> e a, handler: exception -> e a) -> e a {
+private extern catch-on-fail : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
-  js "$catch"
+  js "_catch"
 }
 
 
-// Set a "handler" that is always called when the "action" finishes (either normally or with an exception).
-function onExit( handler : () -> e (), action : () -> e a ) : e a
+// Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
+fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
 {
-  finally(action,handler)  
+  finally(action,hndler)  
 }
 
-// Set a "handler" that is called if "action" returns without raising an exception.
-function onSuccess( handler : () -> e (), action : () -> e a ) : e a
+// Set a `hndler` that is called if `action` returns without raising an exception.
+fun on-success( hndler : () -> e (), action : () -> e a ) : e a
 {
   val x = action()
-  handler()
+  hndler()
   return x
 }
 
-// Ignore any Exceptions
-function ignore( action : () -> <exn|e> () ) : e () {
-  catch( action, fun(_) { () })
+// Transform an Exception to an `:either` type.
+fun try( action : () -> <exn|e> a ) : e either<exception,a> {
+  catch({ Right(action()) },Left)
 }
-
 
 // ----------------------------------------------------------------------------
 // Internal types
 // ----------------------------------------------------------------------------
 
 // Optional is used internally by the compiler to pass optional arguments.
-// It is usually displayed as ":?a" for some type ":a".
+// It is usually displayed as `:?a` for some type `:a`.
 type optional<a> {
-  // The "Optional" constructor is used when an optional argument is given.
+  // The `Optional` constructor is used when an optional argument is given.
   con Optional(value:a)
-  // "None" is used when an optional argument is not provided.
+  // `None` is used when an optional argument is not provided.
   con None
 }
 
-
-type primarray<a>
-
-external conslist( elems: primarray<a>, tail : list<a> ) : total list<a> {
-  js "$list"
-}
-
-external unlist( list : list<a> ) : total primarray<a> {
-  js "$unlist"
-}
 
 // ----------------------------------------------------------------------------
 // Standard functions
 // ----------------------------------------------------------------------------
 
-// The identify function returns its argument unchanged.
-function id(x) {
+// The identity function returns its argument unchanged.
+fun id(x) {
   x;
 }
 
-// The "const" functions returns its first argument and ignores the second.
-function const(x,y) {
+// The `const` funs returns its first argument and ignores the second.
+fun const(x,y) {
   x;
 }
 
-// Apply a function "f" to a specified argument "x".
-function apply(f,x) {
+// Apply a function `f` to a specified argument `x`.
+fun apply(f,x) {
   f(x);
 }
 
-// Compose two functions "f" and "g".
-function o(f,g) {
+// Compose two funs `f` and `g`.
+fun o(f,g) {
   (fun(x){ f(g(x)) })
+}
+
+// The `ignore` function ignores its argument.
+fun ignore( x : a ) : () {
+  ()
+}
+
+// Return a 'constant' function that ignores its argument and always returns the same result
+fun const( default : a ) : total (( x : b ) -> a) {
+  (fun(_){ default })
 }
 
 
@@ -269,42 +285,45 @@ function o(f,g) {
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-// The ":void" type is empty and has no constructors.
-// See also the ":()" unit type and the ":bool" type.
+// The `:void` type is empty and has no constructors.
+// See also the `:()` unit type and the `:bool` type.
 type void
 
-// The type of booleans has two inhabitants: "True" and "False".
+// The type of booleans has two inhabitants: `True` and `False`.
 type bool {
   con False
   con True
 }
 
 
-function int( b : bool ) : int = if (b) then 1 else 0
+fun int( b : bool ) : int  -> if (b) then 1 else 0
 
-function mbint( m : maybe<int> ) : int {
+fun mbint( m : maybe<int> ) : int {
   match(m) {
     Nothing -> 0
     Just(i) -> i
   }
 }
 
-function bool( i : int ) : bool = (i!=0)
+// Convert an int to a boolean, using `False` for 0 and `True` otherwise.
+fun bool( i : int ) : bool  -> (i!=0)
 
-function bool( m : maybe<a> ) : bool {
+// Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
+fun bool( m : maybe<a> ) : bool {
   match(m) {
     Nothing -> False
     _       -> True
   }
 }
 
-function bool( s : string ) : bool = (s!="")
+// Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
+fun bool( s : string ) : bool  -> (s!="")
 
-// The unit type ":()" is inhabited by just a single value, namely "()".
-// See also the ":void" type and the ":bool" type.
+// The unit type `:()` is inhabited by just a single value, namely `()`.
+// See also the `:void` type and the `:bool` type.
 struct ()
 
-// A pair of values ":a" and ":b".
+// A pair of values `:a` and `:b`.
 struct (,)<a,b>(fst:a,snd:b)
 
 // A triple of values.
@@ -316,15 +335,15 @@ struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 // A quintuple of values.
 struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
-// The ":maybe" type is used to represent either a value ("Just(x)") or "Nothing".
+// The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
 type maybe<a> {
   con Nothing
-  con Just( unJust : a )
+  con Just( value : a )
 }
 
-// Match a ":maybe" value and either return a default value on "Nothing" or apply a function to the value on "Just"
-function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
+// Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
+fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
 {
   match(m) {
     Nothing -> onNothing
@@ -332,13 +351,50 @@ function maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
   }
 }
 
-// The choice type represents one of two possible types ":a" or ":b".
-type either<a,b> {
-  con Left( left : a )
-  con Right( left : b )
+// Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+// This is an alias for `default`.
+fun maybe( m : maybe<a>, nothing : a ) : a {
+  default(m,nothing)
 }
 
-function maybe( e : either<a,b> ) : maybe<b> 
+// Convert a `:maybe<a>` value to `:a`, using the `nothing` parameter for `Nothing`.
+fun default( m : maybe<a>, nothing : a ) : a {
+  match(m) {
+    Nothing -> nothing
+    Just(x) -> x
+  }
+}
+
+// Get the value of the `Just` constructor or raise an exception
+fun unjust( m : maybe<a> ) : exn a {
+  match(m) {
+    Just(x) -> x
+  }
+}
+
+fun map( m : maybe<a>, f : a -> e b ) : e maybe<b> {
+  match(m) {
+    Nothing -> Nothing
+    Just(x) -> Just(f(x))
+  }
+}
+
+fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a> {
+  match(m1) {
+    Nothing -> m2
+    _       -> m1
+  }
+}
+
+// The choice type represents one of two possible types `:a` or `:b`.
+type either<a,b> {
+  con Left( left : a )
+  con Right( right : b )
+}
+
+// Convert a `:either` to a `:maybe` type discarding the value of the `Left` constructor
+// and using `Just` for the `Right` constructor.
+fun maybe( e : either<a,b> ) : maybe<b> 
 {
   match(e) {
     Left -> Nothing
@@ -346,16 +402,49 @@ function maybe( e : either<a,b> ) : maybe<b>
   }
 }
 
-// The type of lists, which can be either empty ("Nil") or an element followed
-// by a list ("Cons").
+// Map over the `Right` component of an `:either` type.
+fun map( e : either<a,b>, f : b -> e c  ) : e either<a,c> {
+  match(e) {
+    Right(x) -> Right(f(x))
+    Left(x)  -> Left(x)
+  }
+}
+
+// The type of lists, which can be either empty (`Nil`) or an element followed
+// by a list (`Cons`).
 type list<a> {
   // The empty list.
   con Nil
-  // A `head`  element followed by the `tail`  of the list.
+  // A ``head``  element followed by the ``tail``  of the list.
   con Cons(head:a, tail : list<a> )
 }
 
-// A ":stream" is a co-inductive type reprenting an infinite list of elements.
+// Return the head of list if the list is not empty.
+fun head( xs : list<a> ) : maybe<a> {
+  match(xs) {
+    Cons(x) -> Just(x)
+    _       -> Nothing
+  }
+}
+
+// Return the head of list if the list is not empty, or use `default` otherwise
+fun head( xs : list<a>, default : a ) : a {
+  match(xs) {
+    Cons(x) -> x
+    _       -> default
+  }
+}
+
+// Return the tail of list. Returns the empty list if `xs` is empty.
+fun tail( xs : list<a> ) : list<a> {
+  match(xs) {
+    Cons(_,xx) -> xx
+    _          -> []
+  }
+}
+
+
+// A `:stream` is a co-inductive type reprenting an infinite list of elements.
 cotype stream<a> {
   con Next(head:a, tail: stream<a> )
 }
@@ -367,54 +456,54 @@ type order {
   Gt
 }
 
-function int( x : order ) : int
+fun int( x : order ) : int
 {
   match(x) {
-    Lt -> 0-1
+    Lt -> 0 - 1
     Eq -> 0
     Gt -> 1
   }
 }
 
-function order( i : int ) : order
+fun order( i : int ) : order
 {
   if (i < 0) Lt
   elif (i > 0) Gt
   else Eq
 }
 
-function (==)( x : order, y : order ) : bool = (x.int == y.int)
-function (!=)( x : order, y : order ) : bool = (x.int != y.int)
-function (>=)( x : order, y : order ) : bool = (x.int >= y.int)
-function (<=)( x : order, y : order ) : bool = (x.int <= y.int)
-function (>)( x : order, y : order ) : bool = (x.int > y.int)
-function (<)( x : order, y : order ) : bool = (x.int < y.int)
+fun (==)( x : order, y : order ) : bool  -> (x.int == y.int)
+fun (!=)( x : order, y : order ) : bool  -> (x.int != y.int)
+fun (>=)( x : order, y : order ) : bool  -> (x.int >= y.int)
+fun (<=)( x : order, y : order ) : bool  -> (x.int <= y.int)
+fun (>)( x : order, y : order ) : bool   -> (x.int > y.int)
+fun (<)( x : order, y : order ) : bool   -> (x.int < y.int)
 
-function map( t : (a,a), f : a -> e b ) : e (b, b) {
+fun map( t : (a,a), f : a -> e b ) : e (b, b) {
   (t.fst.f, t.snd.f)
 }
 
-function map( t : (a,a,a), f : a -> e b ) : e (b, b, b) {
+fun map( t : (a,a,a), f : a -> e b ) : e (b, b, b) {
   (t.fst.f, t.snd.f, t.thd.f)
 }
 
-function map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b) {
+fun map( t : (a,a,a,a), f : a -> e b ) : e (b,b,b,b) {
   (t.fst.f, t.snd.f, t.thd.f, t.field4.f)
 }
 
 // ----------------------------------------------------------------------------
-// List functions
+// List funs
 // ----------------------------------------------------------------------------
 
 // Returns a singleton list.
-function single(x) {
+fun single(x) {
   return Cons(x,Nil)
 }
 
 // Returns the length of a list.
-function length(xs)
+fun length(xs)
 {
-  function len(acc,ys) {
+  fun len(acc,ys) {
     match(ys)
     {
       Cons(_,yy) -> len( acc+1, yy )
@@ -428,17 +517,31 @@ function length(xs)
 // Returns an integer list of increasing elements from `lo`  to `hi` 
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-function list( lo: int, hi: int ) : total list<int>
+fun list( lo: int, hi: int ) : total list<int>
 {
-  function enumerate( low:int, high:int, acc: list<int> ) : div list<int>
+  fun enumerate( low:int, high:int, acc: list<int> ) : list<int>
   {
     if (low > high)
      then acc
-     else enumerate(low, high-1, Cons(high,acc))
+     else enumerate(low, unsafe-decreasing(high - 1), Cons(high,acc))
   }
 
-  unsafeNoDiv { enumerate(lo,hi,[]) }
+  enumerate(lo,hi,[]) 
 }
+
+// Applies a function `f` to list of increasing elements from `lo`  to `hi` 
+// (including both `lo`  and `hi` ).
+// If `lo > hi`  the function returns the empty list.
+fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
+  fun enumerate( low:int, high:int, acc ) 
+  {
+    if (low > high)
+     then acc
+     else enumerate(low, unsafe-decreasing(high - 1), Cons(f(high),acc))
+  }
+  enumerate(lo,hi,[]) 
+}
+
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
 function list( lo : char, hi : char ) : total list<char>
@@ -446,32 +549,32 @@ function list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 }
 
-private val maxListStack = 200
+private val maxListStack = 100
 
 
-private function zipWithAcc( f, i, acc, xs, ys )
+private fun zipwith-acc( f, i, acc, xs, ys )
 {
   match(xs) {
     Nil -> reverse(acc)
     Cons(x,xx) ->
       match(ys) {
         Nil -> reverse(acc)
-        Cons(y,yy) -> zipWithAcc(f, i+1, Cons( f(i,x,y), acc), xx, yy)
+        Cons(y,yy) -> zipwith-acc(f, i+1, Cons( f(i,x,y), acc), xx, yy)
       }
   }
 }
 
-private function zipWithIter( f, i, xs, ys )
+private fun zipwith-iter( f, i, xs, ys )
 {
-  // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
-  if (i > maxListStack) then zipWithAcc( f, i, Nil, xs, ys )
+  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
+  if (i > maxListStack) then zipwith-acc( f, i, Nil, xs, ys )
   else {
     match(xs) {
       Nil -> Nil
       Cons(x,xx) ->
         match(ys) {
           Nil -> Nil
-          Cons(y,yy) -> Cons( f(i,x,y), zipWithIter(f,i+1,xx,yy))
+          Cons(y,yy) -> Cons( f(i,x,y), zipwith-iter(f,i+1,xx,yy))
         }
     }
   }
@@ -479,30 +582,30 @@ private function zipWithIter( f, i, xs, ys )
 
 // Zip two lists together by pairing the corresponding elements.
 // The returned list is only as long as the smallest input list.
-function zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
+fun zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
 {
-  zipWithIndexed( xs, ys, fun(i,x,y) { (x,y) } )
+  zipwith-indexed( xs, ys, fun(i,x,y) { (x,y) } )
 }
 
-// Zip two lists together by apply a function "f" to all corresponding elements.
+// Zip two lists together by apply a function `f` to all corresponding elements.
 // The returned list is only as long as the smallest input list.
-function zipWith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
+fun zipwith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
 {
-  zipWithIndexed(xs,ys,fun(i,x,y) { f(x,y) })
+  zipwith-indexed(xs,ys,fun(i,x,y) { f(x,y) })
 }
 
-// Zip two lists together by apply a function "f" to all corresponding elements
+// Zip two lists together by apply a function `f` to all corresponding elements
 // and their index in the list.
 // The returned list is only as long as the smallest input list.
-function zipWithIndexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
+fun zipwith-indexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
 {
-  zipWithIter(f,0,xs,ys)
+  zipwith-iter(f,0,xs,ys)
 }
 
 // Unzip a list of pairs into two lists
-function unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
+fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
 {
-  function iter( ys, acc1, acc2 )
+  fun iter( ys, acc1, acc2 )
   {
     match(ys) {
       Cons((x,y),xx) -> iter(xx,Cons(x,acc1),Cons(y,acc2))
@@ -513,103 +616,103 @@ function unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
   iter(xs,[],[])
 }
 
-// Take the first "n" elements of a list (or fewer if the list is shorter than "n")
-function take( xs : list<a>, n : int ) : list<a>
+// Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
+fun take( xs : list<a>, n : int ) : list<a>
 {
   if (n <= 0) return Nil
   match(xs) {
     Nil -> Nil
-    Cons(x,xx) -> Cons(x,take(xx,n-1))
+    Cons(x,xx) -> Cons(x,take(xx,n - 1))
   }
 }
 
-// Drop the first "n" elements of a list (or fewer if the list is shorter than "n")
-function drop( xs : list<a>, n : int ) : list<a>
+// Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
+fun drop( xs : list<a>, n : int ) : list<a>
 {
   if (n <= 0) return xs
   match(xs) {
     Nil -> Nil
-    Cons(_,xx) -> drop(xx,n-1)
+    Cons(_,xx) -> drop(xx,n - 1)
   }
 }
 
 
 
 // Apply a function `f`  to each element of the input list in sequence.
-function map(xs : list<a>, f : a -> e b) : e list<b>
+fun map(xs : list<a>, f : a -> e b) : e list<b>
 {
-  xs.mapIndexedPeek( fun(i,x,xx) { f(x) } )
+  xs.map-indexed-peek( fun(i,x,xx) { f(x) } )
 }
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element and the element itself as arguments.
-function mapIndexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
+fun map-indexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
 {
-  xs.mapIndexedPeek( fun(i,x,xx) { f(i,x) })
+  xs.map-indexed-peek( fun(i,x,xx) { f(i,x) })
 }
 
 // Apply a function `f`  to each element of the input list in sequence where `f` takes
 // both the current element and the tail list as arguments.
-function mapPeek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
+fun map-peek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
 {
-  xs.mapIndexedPeek( fun(i,x,xx) { f(x,xx) })
+  xs.map-indexed-peek( fun(i,x,xx) { f(x,xx) })
+}
+
+
+// recurse using an accumulator using constant heap space
+private fun map-acc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
+  match(ys) {
+    Cons(x,xx) -> map-acc(g,n+1,Cons(g(n,x,xx),acc),xx)
+    Nil -> reverse(acc)
+  }
 }
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element, the element itself, and the tail list as arguments.
-function mapIndexedPeek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
+fun map-indexed-peek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
 {
-  // recurse using an accumulator using constant heap space
-  function mapAcc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
-
-    match(ys) {
-      Cons(x,xx) -> mapAcc(g,n+1,Cons(g(n,x,xx),acc),xx)
-      Nil -> reverse(acc)
-    }
-  }
-
-  // recurse for the first "maxListStack" elements over the stack (to avoid extra heap allocation)
-  function mapIter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
+  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
+  fun map-iter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
     if (n > maxListStack) {
-      mapAcc(g,n,Nil,ys)
+      map-acc(g,n,Nil,ys)
     }
     else {
       match(ys) {
-        Cons(x,xx) -> Cons(g(n,x,xx),mapIter(g,n+1,xx))
+        Cons(x,xx) -> Cons(g(n,x,xx),map-iter(g,n+1,xx))
         Nil        -> Nil
       }
     }
   }
 
-  return mapIter(f,0,xs)
+  return map-iter(f,0,xs)
 }
 
 // Reverse a list.
-function reverse(xs : list<a>) : list<a>
+fun reverse(xs : list<a>) : list<a>
 {
-  function reverseAcc(acc : list<a>, ys : list<a> ) : list<a> {
+  fun reverse-acc(acc : list<a>, ys : list<a> ) : list<a> {
     match(ys) {
-      Cons(x,xx) -> reverseAcc(Cons(x,acc),xx)
+      Cons(x,xx) -> reverse-acc(Cons(x,acc),xx)
       _          -> acc
     }
   }
-  reverseAcc(Nil,xs)
+  reverse-acc(Nil,xs)
 }
 
 // Append two lists.
-function (+)(xs : list<a>, ys : list<a> ) : list<a>
+fun (+)(xs : list<a>, ys : list<a> ) : list<a>
 {
   // append using _constant_ stack space (by reversing the argument list)
-  function revAppend(xx,yy) {
+  fun rev-append(xx,yy) {
     match(xx) {
-      Cons(z,zz) -> revAppend(zz,Cons(z,yy))
+      Cons(z,zz) -> rev-append(zz,Cons(z,yy))
       _          -> yy
     }
   }
-  // append for the first "maxListStack" elements over the stack
-  function append(n,xx,yy) {
+  // append for the first `maxListStack` elements over the stack
+  fun append(n,xx,yy) {
     if (n > maxListStack) {
-      revAppend(reverse(xx),yy)
+      rev-append(reverse(xx),yy)
     }
     else {
       match(xx) {
@@ -629,15 +732,15 @@ function (+)(xs : list<a>, ys : list<a> ) : list<a>
 }
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)` 
-// Note, "foldr" is less efficient than "foldl" as it reverses the list first. 
-function foldr(xs,z,f)
+// Note, `foldr` is less efficient than `foldl` as it reverses the list first. 
+fun foldr(xs,z,f)
 {
   xs.reverse.foldl(z,fun(x,y){f(y,x)}) 
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2` 
-// Since "foldl" is tail recursive, it is preferred over "foldr" when using an associative function `f` 
-function foldl(xs,z,f)
+// Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f` 
+fun foldl(xs,z,f)
 {
   match(xs) {
     Cons(x,xx) -> foldl(xx,f(z,x),f)
@@ -645,14 +748,14 @@ function foldl(xs,z,f)
   }
 }
 
-function foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
+fun foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 {
   match(xs) {
     Cons(x,xx) -> xx.foldl(x,f)
   }
 }
 
-function foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
+fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 {
   match(xs) {
     Cons(x,Nil) -> x
@@ -661,50 +764,50 @@ function foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 }
 
 // Create a list of `n`  repeated elementes `x` 
-function replicate( x : a, n : int ) : list<a>
+fun replicate( x : a, n : int ) : list<a>
 {
-  function enumerate( i : int, acc : list<_a> ) {
-    if (i <= 0) then acc else enumerate(i-1,Cons(x,acc))
+  fun enumerate( i : int, acc : list<_a> ) {
+    if (i <= 0) then acc else enumerate(i - 1,Cons(x,acc))
   }
 
-  unsafeNoDiv{ enumerate(n,[]) }
+  unsafe-nodiv{ enumerate(n,[]) }
 }
 
 // split a list at position `n` 
-function split( xs : list<a>, n : int ) : (list<a>, list<a>)
+fun split( xs : list<a>, n : int ) : (list<a>, list<a>)
 {
   (xs.take(n), xs.drop(n))
 }
 
 
-function span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
+fun span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
 {
-  function spanAcc( ys, acc)
+  fun span-acc( ys, acc)
   {
     match(ys) {
-      Cons(y,yy) -> if (y.predicate) then yy.spanAcc(Cons(y,acc)) else (acc.reverse,ys)
+      Cons(y,yy) -> if (y.predicate) then yy.span-acc(Cons(y,acc)) else (acc.reverse,ys)
       _ -> (acc.reverse, ys)
     }
   }
 
-  xs.spanAcc( [] )
+  xs.span-acc( [] )
 }
 
 // Keep only those initial elements that satisfy `predicate` 
-function takeWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
+fun take-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
 {
   xs.span(predicate).fst
 }
 
 // Drop all initial elements that satisfy `predicate` 
-function dropWhile( xs : list<a>, predicate : a -> e bool ) : e list<a>
+fun drop-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
 {
   xs.span(predicate).snd
 }
 
-// Retain only those elements of a list that satisfy the given predicate "pred".
-// For example: "filter([1,2,3],odd) == [1,3]"
-function filter( xs : list<a>, pred : a -> e bool ) : e list<a>
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filter([1,2,3],odd?) == [1,3]`
+fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 {
   match(xs) {
     Nil -> Nil
@@ -713,52 +816,69 @@ function filter( xs : list<a>, pred : a -> e bool ) : e list<a>
 }
 
 
-// Remove those elements of a list that satisfy the given predicate "pred".
-// For example: "remove([1,2,3],odd) == [2]"
-function remove( xs : list<a>, pred : a -> bool ) : list<a> {
+// Remove those elements of a list that satisfy the given predicate `pred`.
+// For example: `remove([1,2,3],odd?) == [2]`
+fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
   xs.filter( fun(x) { !pred(x) } )
 }
 
 // Partition a list in two lists where the first list contains
-// those elements that satisfy the given predicate "pred".
-// For example: "partition([1,2,3],odd) == ([1,3],[2])"
-function partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
+// those elements that satisfy the given predicate `pred`.
+// For example: `partition([1,2,3],odd?) == ([1,3],[2])`
+fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
 {
-  partitionAcc( xs, pred, Nil, Nil)
+  partition-acc( xs, pred, Nil, Nil)
 }
 
-private function partitionAcc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>)
+private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>)
 {
   match(xs) {
     Nil -> (acc1.reverse, acc2.reverse)
     Cons(x,xx) -> if (pred(x)) 
-                    then partitionAcc(xx,pred,Cons(x,acc1),acc2)
-                    else partitionAcc(xx,pred,acc1,Cons(x,acc2))
+                    then partition-acc(xx,pred,Cons(x,acc1),acc2)
+                    else partition-acc(xx,pred,acc1,Cons(x,acc2))
   }
 }
 
 
-// Retain only those elements of a list that satisfy the given predicate "pred".
-// For example: "filterMap([1,2,3],fun(i) { if (odd(i)) then Nothing else Just(i*i) }) == [4]"
-function filterMap( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
+// Retain only those elements of a list that satisfy the given predicate `pred`.
+// For example: `filterMap([1,2,3],fun(i) { if (i.odd?) then Nothing else Just(i*i) }) == [4]`
+fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 {
   match(xs) {
     Nil -> Nil
     Cons(x,xx) -> match(pred(x)) {
-      Nothing -> xx.filterMap(pred)
-      Just(y) -> Cons(y,xx.filterMap(pred))
+      Nothing -> xx.filter-map(pred)
+      Just(y) -> Cons(y,xx.filter-map(pred))
     }
   }
 }
 
 // Find the first element satisfying some predicate
-function find( xs : list<a>, pred : a -> bool ) : maybe<a>
+fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
 {
-  xs.filter(pred).maybe
+  xs.foreach-while fun(x) {
+    if (pred(x)) then Just(x) else Nothing
+  }
 }
 
-// Convert a list to a ":maybe" type, using "Nothing" for an empty list, and otherwise "Just" on the head element.
-function maybe( xs : list<a> ) : maybe<a>
+// Find the first element satisfying some predicate and return it.
+fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
+{
+  xs.foreach-while(pred)
+}
+
+// Lookup the first element satisfying some predicate
+fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+{
+  xs.foreach-while fun(kv) {
+    if (pred(kv.fst)) then Just(kv.snd) else Nothing
+  }  
+}
+
+// Convert a list to a `:maybe` type, using `Nothing` for an empty list, and otherwise `Just` on the head element.
+// Note: this is just `head`.
+fun maybe( xs : list<a> ) : maybe<a>
 {
   match(xs) {
     Nil -> Nothing
@@ -766,8 +886,8 @@ function maybe( xs : list<a> ) : maybe<a>
   }
 }
 
-// Convert a ":maybe" type to a list type.
-function list( m : maybe<a> ) : list<a> 
+// Convert a `:maybe` type to a list type.
+fun list( m : maybe<a> ) : list<a> 
 {
   match(m) {
     Nothing -> Nil
@@ -775,22 +895,22 @@ function list( m : maybe<a> ) : list<a>
   }
 }
 
-private function indexOfAcc( xs : list<a>, pred : a -> bool, idx : int ) : int
+private fun index-of-acc( xs : list<a>, pred : a -> bool, idx : int ) : int
 {
   match(xs) {
-    Nil -> 0-1
-    Cons(x,xx) -> if (pred(x)) then idx else indexOfAcc(xx,pred,idx+1)
+    Nil -> 0 - 1
+    Cons(x,xx) -> if (pred(x)) then idx else index-of-acc(xx,pred,idx+1)
   }
 }
 
-// Returns the index of the first element where "pred" holds, or "-1" if no such element exists.
-function indexOf( xs : list<a>, pred : a -> bool ) : int
+// Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
+fun index-of( xs : list<a>, pred : a -> bool ) : int
 {
-  indexOfAcc( xs, pred, 0 )
+  index-of-acc( xs, pred, 0 )
 }
 
-// Invoke "action" for each element of a list
-function foreach( xs : list<a>, action : (a) -> e () ) : e ()
+// Invoke `action` for each element of a list
+fun foreach( xs : list<a>, action : (a) -> e () ) : e ()
 {
   match(xs) {
     Nil        -> return ()
@@ -798,51 +918,51 @@ function foreach( xs : list<a>, action : (a) -> e () ) : e ()
   }
 }
 
-// Invoke "action" for each element of a list while "action" return "Nothing"
-function foreachUntil( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
+// Invoke `action` for each element of a list while `action` return `Nothing`
+fun foreach-while( xs : list<a>, action : (a) -> e maybe<b> ) : e maybe<b>
 {
   match(xs) {
     Nil        -> Nothing
     Cons(x,xx) -> { 
       match(action(x)) {
-        Nothing -> xx.foreachUntil(action) 
+        Nothing -> xx.foreach-while(action) 
         just    -> just
       }
     }
   }
 }
 
-// Invoke "action" on each element of a list while "action" returns "Just"
-function mapWhile( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
+// Invoke `action` on each element of a list while `action` returns `Just`
+fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 {
   match(xs) {
     Nil        -> Nil
     Cons(x,xx) -> { 
       match(action(x)) {
-        Just(y) -> Cons(y,xx.mapWhile(action))
+        Just(y) -> Cons(y,xx.map-while(action))
         Nothing -> Nil
       }
     }
   }
 }
 
-private external inline injectSt : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  = inline "#1"
+private extern inline inject-st : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  { inline "#1" }
 
-// Invoke "action" for each element of a list, passing also the position of the element.
-function foreachIndexed( xs : list<a>, action : (int,a) -> e () ) : e ()
+// Invoke `action` for each element of a list, passing also the position of the element.
+fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
   xs.foreach fun(x) {
-    injectSt(action)(i,x)
+    inject-st(action)(i,x)
     i := i+1
   }
 }
 
 // Insert a separator `sep`  between all elements of a list `xs` .
-function intersperse( xs : list<a>, sep : a ) : list<a>
+fun intersperse( xs : list<a>, sep : a ) : list<a>
 {
   //TODO: make tail recursive
-  function before(ys,s) {
+  fun before(ys,s) {
     match(ys) {
       Cons(y,yy) -> Cons(s,Cons(y,before(yy,s)))
       Nil        -> Nil
@@ -856,61 +976,89 @@ function intersperse( xs : list<a>, sep : a ) : list<a>
 }
 
 // Concatenate all strings in a list
-function join( xs : list<string> ) : string
+private fun joinsep( xs : list<string>, sep : string ) : string
 {
-  function joinAcc( ys : list<string>, acc : string ) {
+  fun join-acc( ys : list<string>, acc : string ) {
     match(ys) {
-      Cons(y,yy) -> joinAcc(yy, acc+y)
+      Cons(y,yy) -> join-acc(yy, acc + sep + y)  // todo: use string builder
       Nil -> acc
     }
-  }
-  
+  }  
   match(xs) {
     Nil -> ""
-    Cons(x,xx) -> match(xx) {
-      Nil -> x
-      _   -> joinAcc(xx,x)
-    }
+    Cons(x,xx) -> join-acc(xx,x)
   }
-  //xs.foldl( "", function(x,y){ x + y } )  // TODO: should use a string builder
+}
+
+// Concatenate all strings in a list
+fun join( xs : list<string> ) : string {
+  return xs.joinsep("")
 }
 
 // Concatenate all strings in a list using a specific separator
-function join( xs : list<string>, sep : string ) : string
-{
-  return xs.intersperse(sep).join()
+fun join( xs : list<string>, sep : string ) : string {
+  return xs.joinsep(sep)
 }
 
-// Concatenate all lists in a list (e.g. flatten the list)
-function concat( xs : list<list<a>> ) : list<a>
-{
-  xs.foldr( [], (+) )
+
+// Append `end` to each string in the list `xs` and join them all together.\
+// `join-end([],end) === ""`\
+// `join-end(["a","b"],"/") === "a/b/"`
+public fun join-end( xs : list<string>, end : string) : string {
+  match(xs) {
+    Nil -> ""
+    _   -> xs.joinsep(end) + end
+  }
 }
 
-// Concatenate the result lists from applying a function to all elements
-function concat( xs: list<a>, f : a -> e list<b> ) : e list<b>
+
+// Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
+fun concat( xs : list<list<a>> ) : list<a>
+{
+  fun concat-rev( xss : list<list<a>>, acc : list<a> ) : list<a> {
+    match(xss) {
+      Cons(ys,yss) -> concat-rev( yss, ys + acc )
+      Nil          -> acc
+    }
+  }
+  concat-rev(xs.reverse,[])
+}
+
+// Concatenate the result lists from applying a function to all elements.
+fun flatmap( xs: list<a>, f : a -> e list<b> ) : e list<b>
 {
   xs.map(f).concat()
 }
 
-// Concatenate a list of ":maybe" values
-function concatMaybe( xs : list<maybe<a>> ) : list<a>
+// Concatenate a list of `:maybe` values
+fun concat-maybe( xs : list<maybe<a>> ) : list<a>
 {
   xs.map(list).concat()
 }
 
-// Return the last element of a list. Raise an exception if the empty list is passed.
-function last( xs : list<a> ) : exn a
+// Return the last element of a list (or `Nothing` for the empty list) 
+fun last( xs : list<a> ) : maybe<a>
+{
+  match(xs) {
+    Cons(x,Nil) -> Just(x)
+    Cons(_,xx)  -> last(xx)
+    Nil         -> Nothing
+  }
+}
+
+// Return the last element of a list (or `default` for the empty list) 
+fun last( xs : list<a>, default : a ) : a
 {
   match(xs) {
     Cons(x,Nil) -> x
-    Cons(_,xx)  -> last(xx)
+    Cons(_,xx)  -> last(xx,default)
+    Nil         -> default
   }
 }
 
 // Return the list without its last element.
 // Return an empty list for an empty list.
-function init( xs : list<a> ) : list<a>
+fun init( xs : list<a> ) : list<a>
 {
   match(xs) {
     Cons(x,xx)  -> match(xx) {
@@ -922,16 +1070,16 @@ function init( xs : list<a> ) : list<a>
 }
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
-function []( xs : list<a>, n : int ) : maybe<a>
+fun []( xs : list<a>, n : int ) : maybe<a>
 {
   match(xs) {
-    Cons(x,xx) -> if (n==0) then Just(x) else xx[n-1]
+    Cons(x,xx) -> if (n==0) then Just(x) else xx[n - 1]
     Nil -> Nothing
   }
 }
 
 // Do all elements satisfy a predicate ?
-function all( xs : list<a>, predicate : a -> e bool ) : e bool
+fun all( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
     Nil -> True
@@ -941,7 +1089,7 @@ function all( xs : list<a>, predicate : a -> e bool ) : e bool
 
 
 // Are there any elements in a list that satisfy a predicate ?
-function any( xs : list<a>, predicate : a -> e bool ) : e bool
+fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
     Nil -> False
@@ -953,14 +1101,14 @@ function any( xs : list<a>, predicate : a -> e bool ) : e bool
 // Characters
 // ----------------------------------------------------------------------------
 
-external inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-external inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-external inline (<=) : (char,char) -> bool  = inline "(#1 <= #2)"
-external inline (>=) : (char,char) -> bool  = inline "(#1 >= #2)"
-external inline (<)  : (char,char) -> bool  = inline "(#1 < #2)"
-external inline (>)  : (char,char) -> bool  = inline "(#1 > #2)"
+extern inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+extern inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+extern inline (<=) : (char,char) -> bool  { inline "(#1 <= #2)" }
+extern inline (>=) : (char,char) -> bool  { inline "(#1 >= #2)" }
+extern inline (<)  : (char,char) -> bool  { inline "(#1 < #2)" }
+extern inline (>)  : (char,char) -> bool  { inline "(#1 > #2)" }
 
-function compare( x : char, y : char ) : order
+fun compare( x : char, y : char ) : order
 {
   if (x < y) then Lt
   elif (x > y) then Gt
@@ -968,279 +1116,146 @@ function compare( x : char, y : char ) : order
 }
 
 // Convert a character to its unicode code point
-external inline int : (char) -> int { cs inline "(int)(#1)"; js inline "(#1).charCodeAt(0)" }
+extern inline int : (char) -> int { inline "(#1)" }
 
 // Convert a unicode code point to a character
-external inline char : (int) -> char { cs inline "(char)(#1)"; js inline "String.fromCharCode(#1)" }
+extern inline char : (int) -> char { inline "(#1)" }
 
 // Add two character code points
-function (+)(c : char, d : char) : total char  = (c.int + d.int).char
+fun (+)(c : char, d : char) : total char  -> (c.int + d.int).char
 // Substract two character codePoints
-function (-)(c : char, d : char) : total char  = (c.int - d.int).char
+fun (-)(c : char, d : char) : total char  -> (c.int - d.int).char
 
 // Is the character a lower-case ASCII character ?
-function isLower( c : char ) : bool = (c >= 'a' && c <= 'z')
+fun lower?( c : char ) : bool  -> (c >= 'a' && c <= 'z')
 // Is the character an upper-case ASCII character ?
-function isUpper( c : char ) : bool = (c >= 'A' && c <= 'Z')
+fun upper?( c : char ) : bool  -> (c >= 'A' && c <= 'Z')
 // Is the character an ASCII digit ?
-function isDigit( c : char ) : bool = (c >= '0' && c <= '9')
+fun digit?( c : char ) : bool  -> (c >= '0' && c <= '9')
 // Is the character an ASCII hexa-decimal digit ?
-function isHexDigit( c : char ) : bool = (c.isDigit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
+fun hex-digit?( c : char ) : bool  -> (c.digit? || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
 // Is the character an ASCII letter ?
-function isAlpha( c : char ) : bool = (isLower(c) || isUpper(c))
+fun alpha?( c : char ) : bool  -> (c.lower? || c.upper?)
 // Is the character ASCII letter or digit?
-function isAlphaNum( c : char ) : bool = (isAlpha(c) || isDigit(c))
+fun alpha-num?( c : char ) : bool  -> (c.alpha? || c.digit?)
 // Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
-function isAscii( c : char )     : bool = (c <= '\x7F')
+fun ascii?( c : char )     : bool  -> (c <= '\x7F')
 // Is the character an ASCII control character, e.g. `c < ' '`  ?
-function isControl( c : char )   : bool = (c < ' ')
+fun control?( c : char )   : bool  -> (c < ' ')
 // Tests if a character is an element of `" \t\n\r"` 
-function isWhite( c : char )     : bool = (c == ' ' || c == '\t' || c == '\n' || c == '\r')
-
+fun white?( c : char )     : bool  -> (c == ' ' || c == '\t' || c == '\n' || c == '\r')
 
 
 // ----------------------------------------------------------------------------
 // Booleans
 // ----------------------------------------------------------------------------
 
-// For short-circuiting we use external here
-// function (&&)( x : bool, y : bool) : bool = if (x) then y else false
-// function (||)( x : bool, y : bool) : bool = if (x) then true else y
+// For short-circuiting we use extern here
+// fun (&&)( x : bool, y : bool) : bool = if (x) then y else false
+// fun (||)( x : bool, y : bool) : bool = if (x) then true else y
 
-external inline (&&) : (bool,bool) -> bool  = inline "(#1 && #2)"
-external inline (||) : (bool,bool) -> bool  = inline "(#1 || #2)"
+extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
+extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
-// for efficiency we use external here
-// function (!)( b : bool ) : bool = if (x) then false else true
-// function not( b : bool ) : bool = if (x) then false else true
+// for efficiency we use extern here
+// fun (!)( b : bool ) : bool = if (x) then false else true
+// fun not( b : bool ) : bool = if (x) then false else true
 
-external inline not  : (bool) -> bool  = inline "!(#1)"
-external inline (!)  : (bool) -> bool  = inline "!(#1)"
+extern inline not  : (bool) -> bool  { inline "!(#1)" }
+extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
 
-function (==)( x : bool, y : bool) : bool = if (x) then y else !y
-function (!=)( x : bool, y : bool) : bool = if (x) then !y else y
+fun (==)( x : bool, y : bool) : bool  -> if (x) then y else !y
+fun (!=)( x : bool, y : bool) : bool  -> if (x) then !y else y
 
-function (<)( x : bool, y : bool) : bool  = (!x && y)
-function (<=)( x : bool, y : bool) : bool = !(x > y)
-function (>)( x : bool, y : bool) : bool  = (x && !y)
-function (>=)( x : bool, y : bool) : bool = !(x < y)
+fun (<)( x : bool, y : bool) : bool   -> (!x && y)
+fun (<=)( x : bool, y : bool) : bool  -> !(x > y)
+fun (>)( x : bool, y : bool) : bool   -> (x && !y)
+fun (>=)( x : bool, y : bool) : bool  -> !(x < y)
 
-function compare( x : bool, y : bool) : order
+fun compare( x : bool, y : bool) : order
 {
   if (x < y) then Lt
   elif (x > y) then Gt
   else Eq
 }
-
 
 // ----------------------------------------------------------------------------
 // Integers
 // ----------------------------------------------------------------------------
 
-external inline (==) : (int,int) -> bool  { inline "(#1 == #2)"; js inline "#1 === #2" }
-external inline (!=) : (int,int) -> bool  { inline "(#1 != #2)"; js inline "#1 !== #2" }
-external inline (<=) : (int,int) -> bool  { inline "(#1 <= #2)"; js inline "#1 <= #2" }
-external inline (>=) : (int,int) -> bool  { inline "(#1 >= #2)"; js inline "#1 >= #2"}
-external inline (<)  : (int,int) -> bool  { inline "(#1 < #2)"; js inline "#1 < #2" }
-external inline (>)  : (int,int) -> bool  { inline "(#1 > #2)"; js inline "#1 > #2" }
-
-external inline (+) : (int,int) -> int { cs inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-external inline (-) : (int,int) -> int { cs inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+// Compare two integers
+extern inline compare : (int,int) -> order  { 
+  cs "Primitive.IntCompare"
+  js "$std_core._int_compare" 
+}
 
 
-// Do not use. Used by the compiler for platforms that do not support 32 bit multiplication natively.
-external intMultiply : (int,int) -> int {
+// Are two integers equal?
+extern inline (==) : (int,int) -> bool  { 
+  cs inline "(#1 == #2)"
+  js "$std_core._int_eq" 
+}
+
+// Are two integers not equal?
+extern inline (!=) : (int,int) -> bool  { 
+  cs inline "(#1 != #2)"
+  js "$std_core._int_ne" 
+}
+
+// Is the first integer smaller or equal to the second?
+extern inline (<=) : (int,int) -> bool  { 
+  cs inline "(#1 <= #2)"
+  js "$std_core._int_le" 
+}
+
+// Is the first integer greater or equal to the second?
+extern inline (>=) : (int,int) -> bool  { 
+  cs inline "(#1 >= #2)"
+  js "$std_core._int_ge" 
+}
+
+// Is the first integer smaller than the second?
+extern inline (<)  : (int,int) -> bool  { 
+  cs inline "(#1 < #2)"  
+  js "$std_core._int_lt"  
+}
+
+// Is the first integer greater than the second?
+extern inline (>)  : (int,int) -> bool  { 
+  cs inline "(#1 > #2)"
+  js "$std_core._int_gt"  
+}
+
+// Add two integers.
+extern inline (+) : (int,int) -> int { 
+  cs inline "(#1 + #2)"
+  js "$std_core._int_add" 
+}
+
+// Substract two integers.
+extern inline (-) : (int,int) -> int { 
+  cs inline "(#1 - #2)"
+  js "$std_core._int_sub" 
+}
+
+// Multiply two integers.
+extern inline (*) : (int,int) -> int { 
   cs inline "(#1 * #2)"
-  js "$int32_multiply"
+  js "$std_core._int_mul" 
 }
 
-external inline (*) : (int,int) -> int { 
-  cs inline "(#1 * #2)"; 
-  js "$std_core.intMultiply" 
+// Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
+extern inline (/)(x:int,y:int) : int { 
+  cs "Primitive.IntDiv"
+  js "$std_core._int_div" 
+}
+// Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
+extern inline (%)  : (int,int) -> int { 
+  cs "Primitive.IntMod"
+  js "$std_core._int_mod" 
 }
 
-function compare( x : int, y : int) : order
-{
-  if (x < y) then Lt
-  elif (x > y) then Gt
-  else Eq
-}
-
-
-// Return the absolute value of an integer.
-// Raises an exception if the ":int" is "minInt"
-// (since the negation of "minInt" equals itself and is still negative)
-function abs( i : int ) : exn int
-{
-  if (i >= 0) return i
-  if (i > minInt) return negate(i)
-  error( "system.core.abs: cannot make minInt into a positive int without overflow" )
-}
-
-// Take the bitwise _and_ of two ":int"s
-external inline (&) : (int,int) -> int { 
-  cs inline "((#1)&(#2))";
-  js inline "((#1)&(#2))"
-}
-  
-// Take the bitwise _or_ of two ":int"s
-external inline (|) : (int,int) -> int { 
-  cs inline "((#1)|(#2))";
-  js inline "((#1)|(#2))";
-}
-
-// Take the bitwise _xor_ of two ":int"s
-external inline (^) : (int,int) -> int { 
-  cs inline "((#1)^(#2))";
-  js inline "((#1)^(#2))"
-}
-
-// Bitwise _not_ of an ":int", i.e. flips all bits.
-external inline not : ( i : int ) -> int  { 
-  cs inline "(~(#1))";
-  js inline "(~(#1))"
-}
-
-private external inline primShl : (int,int) -> int { 
-  cs inline "((#1)<<(#2))";
-  js inline "((#1)<<(#2))";
-}
-
-private external inline primShr : (int,int) -> int { 
-  cs inline "(int)((uint)(#1)>>(#2))";
-  js inline "((#1)>>>(#2))";
-}
-
-private external inline primSar : (int,int) -> int { 
-  cs inline "((#1)>>(#2))";
-  js inline "((#1)>>(#2))";
-}
-
-// Bitwise rotate an ":int" "n" bits to the left.
-// Does not rotate when "n" is negative.
-function rotl( i : int, n : int ) : int {
-  if (n < 0) return i;
-  val r = n & (bitsInt - 1)  // modulo bits in an int
-  (primShl(i,r) | primShr(i,bitsInt - r))
-}
-
-// Bitwise rotate an ":int" "n" bits to the right.
-// Does not rotate when "n" is negative.
-function rotr( i : int, n : int ) : int {
-  if (n < 0) return i;
-  val r = n & (bitsInt - 1)  // modulo bits in an int
-  (primShr(i,r) | primShl(i,bitsInt - r))
-}
-
-// Shift an ":int" "i" to the left by "n" bits.
-// Returns "i" when "n" is negative, or "0" when "n >= bitsInt".
-function shl( i : int, n : int ) {
-  if (n < 0) return i
-  if (n >= bitsInt) return 0
-  primShl(i,n)
-}
-
-// Logical shift an ":int" to the right by "n" bits. Shift in zeros from the left.
-// Returns "i" when "n" is negative, or "0" when "n >= bitsInt".
-function shr( i : int, n : int ) {
-  if (n < 0) return i;
-  if (n >= bitsInt) return 0;
-  primShr(i,n);
-}
-
-// Arithmetic shift an ":int" to the right by "n" bits. Preserves the sign bit.
-// Returns "i" when "n" is negative. When "n >= bitsInt" returns either "-1" when "i<0", or "0" when "i>=0".
-function sar( i : int, n : int ) {
-  if (n < 0) return i;
-  if (n >= bitsInt) return (if (i < 0) then (0-1) else 0);
-  primSar(i,n);
-}
-
-
-
-// Return the minimum of two integers
-function min( i : int, j : int ) : int =  if (i <= j) then i else j
-// Return the maximum of two integers
-function max( i : int, j : int ) : int =  if (i >= j) then i else j
-
-
-// Returns the smallest element of a list of integers (or "0" for the empty list)
-function minimum( xs : list<int> ) : int
-{
-  match(xs) {
-    Nil -> 0 
-    Cons(x,xx) -> xx.foldl( x, min )
-  }
-}
-
-// Returns the largest element of a list of integers (or "0" for the empty list)
-function maximum( xs : list<int> ) : int
-{
-  match(xs) {
-    Nil -> 0 
-    Cons(x,xx) -> xx.foldl( x, max )
-  }
-}
-
-// Do not use. Used by the compiler for platforms that do not support 32 bit truncated division natively.
-external intCdiv : (int,int) -> exn int {
-  cs inline "(#1 / #2)"
-  js "$int32_cdiv"
-}
-
-// Do not use. Used by the compiler for platforms that do not support 32 bit truncated modulus natively.
-external intCmod : (int,int) -> exn int {
-  cs inline "(#1 % #2)"
-  js "$int32_cmod"
-}
-
-// Truncated division (as in C). See also "(/):(x : int, y : int) -> int".
-external inline cdiv : (int,int) -> exn int { 
-  cs inline "(#1/#2)";
-  js "$std_core.intCdiv"
-}
-
-// Truncated modulus (as in C). See also "(%):(x : int, y : int) -> int".
-external inline cmod : (int,int) -> exn int { 
-  cs inline "(#1 % #2)";
-  js "$std_core.intCmod"
-}
-
-// Truncated division (as in C). See also "(/):(x : int, y : int) -> int".
-private external inline unsafeCdiv : (int,int) -> int {
-  cs inline "(#1/#2)";
-  js inline "((#1/#2)|0)"
-}
-
-// Truncated modulus (as in C). See also "(%):(x : int, y : int) -> int".
-private external inline unsafeCmod : (int,int) -> int { 
-  cs inline "(#1 % #2)";
-  js inline "((#1 % #2)|0)"
-}
-
-// Convert an integer to a double.
-external inline double : (int) -> double { cs inline "(double)(#1)"; js inline "(#1)" }
-
-// Negate an integer
-function negate( i : int ) {
-  return (0 - i)
-}
-
-// Negate an integer
-function (~)(i : int) : total int {
-  return (0 - i)
-}
-
-// The maximal integer value before overflow happens
-val maxInt = 0x7FFFFFFF
-
-// The minimal integer value before underflow happens
-val minInt = 0 - maxInt - 1
-
-// The number of bits in an ":int" (always 32)
-val bitsInt = 32
-
-// Euclidean-0 division.
+// Euclidean-0 division & modulus.
 // Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
 //
 // 1. `D == d*(D/d) + (D%d)` 
@@ -1253,137 +1268,201 @@ val bitsInt = 32
 //
 // * `D/(-d) == -(D/d)` 
 // * `D%(-d) == D%d` 
-// * ``D/(2^n) == D `sar` n        ``  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
+// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 // * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
 //
-// Note that an interesting edge case is "minInt / -1" which equals "minInt" since in modulo 32-bit 
-// arithmetic "minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)" satisfying property (1).
-// Of course "(minInt + 1) / -1" is again positive (namely "maxInt").  
-// 
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-function (/)( x : int, y : int ) : int
+extern inline divmod(x:int,y:int) : (int,int) { 
+  cs "Primitive.IntDivMod"
+  js "$std_core._int_divmod" 
+}
+
+fun negate(i : int) : int {
+  ~i
+}
+
+// Negate an integer.
+extern inline (~)(i:int) : int { 
+  cs inline "(-#1)"
+  js "$std_core._int_negate" 
+}
+
+// Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
+extern inline double : (int) -> double  { 
+  cs "Primitive.IntToDouble"
+  js "$std_core._int_to_double" 
+}
+
+// Is this an odd integer?
+extern inline odd?   : ( int ) -> bool  { 
+  cs inline "!(#1.IsEven)"
+  js "$std_core._int_isodd" 
+}
+
+// Is this equal to zero?
+extern inline zero?  : ( int ) -> bool  { 
+  cs inline "(#1.IsZero)"
+  js "$std_core._int_iszero" 
+}
+
+
+// Return the absolute value of an integer.
+extern inline abs(i : int) : int { 
+  cs "BigInteger.Abs"
+  js "$std_core._int_abs" 
+}
+
+fun inc( i : int ) : int {
+  i + 1
+}
+
+fun dec( i : int ) : int {
+  i - 1
+}
+
+fun pow10( exp : int ) : int {
+  1.mul-pow10(exp)
+}
+
+// Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
+extern pow10?( i : int ) : int {
+  js "_int_count_pow10"
+}
+
+// Return the number of decimal digits of `i`. Return `0` when `i==0`.
+extern count-digits( i : int ) : int {
+  js "_int_count_digits"
+}
+
+extern mul-pow10( i : int, n : int ) : int {
+  js "_int_mul_pow10"
+}
+
+extern cdiv-pow10( i : int, n : int ) : int {
+  js "_int_cdiv_pow10"
+}
+
+
+
+// Is this an even integer?
+fun even?(i:int) : bool { !odd?(i) }
+
+// Is the integer positive (stricly greater than zero)
+fun pos?(i : int ) : bool { i.sign == Gt }
+
+// Is the integer negative (stricly smaller than zero)
+fun neg?(i : int ) : bool { i.sign == Lt }
+
+extern inline sign(i : int ) : order {
+  cs "Primitive.IntSign"
+  js "$std_core._int_sign"
+}
+
+// Return the minimum of two integers
+fun min( i : int, j : int ) : int  -> if (i <= j) then i else j
+
+// Return the maximum of two integers
+fun max( i : int, j : int ) : int  -> if (i >= j) then i else j
+
+// Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
+fun minimum( xs : list<int>, default : int = 0 ) : int
 {
-  if (y == 0) then return 0
-  val q = unsafeCdiv(x,y)
-  val r = unsafeCmod(x,y)
-  if (r >= 0) then q
-  elif (y > 0) then q-1
-  else q+1
+  match(xs) {
+    Nil -> default
+    Cons(x,xx) -> xx.foldl( x, min )
+  }
 }
 
-// Euclidean-0 modulus. See "(/):(x : int, y : int) -> int" division for more information.
-function (%)( x : int, y : int ) : int
+// Returns the largest element of a list of integers (or `default` (=`0`) for the empty list)
+fun maximum( xs : list<int>, default : int = 0 ) : int
 {
-  if (y == 0) then return x
-  val r = unsafeCmod(x,y)
-  if (r >= 0) then r
-  elif (y > 0) then (r+y)
-  else (r - y)
-}
-
-// Returns "true" if the integer `i`  is an odd number.
-function odd( i ) {
-  return (i&1==1);
-}
-
-// Returns "true" if the integer `i`  is an even number.
-function even( i ) {
-  return (i&1==0);
+  match(xs) {
+    Nil -> default
+    Cons(x,xx) -> xx.foldl( x, max )
+  }
 }
 
 // Return the sum of a list of integers
-function sum( xs : list<int> ) : int
+fun sum( xs : list<int> ) : int
 {
   xs.foldl( 0, fun(x,y) { x + y } )
 }
 
+// ----------------------------------------------------------------------------
+// 32-bit integers
+// Just define the operations needed for defining the std/core interface but
+// don't export any definitions here. Full operations are defined in `std/int32`.
+// ----------------------------------------------------------------------------
+
+// Type of a 32-bit signed integer. 
+// See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
+private type int32
+
+// Convert an `:int32` to an `:int`.
+private extern inline int( i : int32 ) : int { 
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_double" 
+}
+
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+private extern inline int32  : (int) -> int32   { 
+  cs "Primitive.IntToInt32"
+  js "$std_core._int_to_int32" 
+}
+
+
+// Minimal set of operations that we need in `std/core`.
+private extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+private extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+private extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+private extern inline pos?( i : int32 ) : bool { inline "(#1>0)" }
+private extern inline neg?( i : int32 ) : bool { inline "(#1<0)" }
+
+private fun inc( i : int32 ) : int32 {
+  i + 1.int32
+}
+
+private fun dec( i : int32 ) : int32 {
+  i - 1.int32
+}
+
+
+// ----------------------------------------------------------------------------
+// Parse numbers
+// ----------------------------------------------------------------------------
+
 // Parse an integer using `parseInt`. If an illegal digit character is encountered the 
 // `default` value is returned. An empty string will also result in `default`.
-function parseIntDefault( s : string, default : int = 0, hex : bool = False ) : int {
-  if (s.isEmpty) then default else {
-    match( s.parseInt(hex) ) {
-      Nothing -> default
-      Just(i) -> i
-    }
-  }
+fun parse-int-default( s : string, default : int = 0, hex : bool = False ) : int {
+  if (s.empty?) then default else s.parse-int(hex).maybe(default)
 }
 
-// Parse an integer. If an illegal digit character is encountered "Nothing" is returned.
-// An empty string will result in "Just(0)".
+// Parse an integer after trimming whitespace. 
+// If an illegal digit character is encountered `Nothing` is returned.
+// An empty string will result in `Just(0)`.
 // A string can start with a `-` sign for negative numbers, 
 // and with `0x` or `0X` for hexadecimal numbers (in which case the `hex` parameter is ignored).
-function parseInt( s : string, hex : bool = False) : maybe<int> {
-  val base = if (hex) then 16 else 10
-  match(s.list.dropWhile(isWhite)) {
-    Nil -> Just(0)
-    Cons(c,cc) | c=='-' -> {
-      match(parsePosInt(cc,base)) {
-        Nothing -> Nothing
-        Just(i) -> Just(0-i)
-      }
-    }
-    cs -> parsePosInt(cs,base)     
-  }
+fun parse-int( s : string, hex : bool = False) : maybe<int> {
+  s.trim.xparse-int(hex)
 }
 
-private function parsePosInt( s : list<char>, base : int = 10 ) : maybe<int> {
-  match(s) {
-    Cons(c1,Cons(c2,cs)) | c1=='0' && (c2=='x' || c2=='X')
-      -> parseDigits(cs,16)
-    _ -> parseDigits(s,base)
-  }
+private extern xparse-int( s : string, hex : bool ) : maybe<int> {
+  cs "Primitive.IntParse"
+  js "_int_parse"
 }
 
-// Parse digits in a "base" between 2 and 36 (default 10) given an initial value "acc" (default 0)
-// Returns "acc" on the empty string, and "Nothing" if an invalid digit is encountered.
-private function parseDigits( cs : list<char>, base : int = 10, acc : int = 0 ) : maybe<int> {
-  match(cs) {
-    Nil -> Just(acc)
-    Cons(c,cc) -> {
-      val d = if (c >= '0' && c <= (if (base >= 10) then '9' else ('0' + (base-1).char))) then {
-                (c - '0').int
-              }
-              elif (base > 10 && base <= 36 && c >= 'a' && c <= ('a' + (base-11).char)) then { 
-                (c - 'a').int + 10
-              }
-              elif (base > 10 && base <= 36 && c >= 'A' && c <= ('A' + (base-11).char)) then { 
-                (c - 'A').int + 10
-              }
-              else return Nothing   
-      parseDigits(cc, base, base*acc + d)
-    }
-  }
+public fun parse-double( s : string ) : maybe<double> {
+  s.trim.xparse-double
 }
 
-
-public function parseFixed( s : string ) : maybe<double> {
-  match(s.split(".",2).list) {
-    Cons(pre,Cons(post,Nil)) -> {
-      match(pre.parseInt) {
-        Nothing -> Nothing
-        Just(d) -> match(post.parseInt) {
-          Nothing -> Nothing
-          Just(f) -> {
-            if (f < 0) then Nothing
-            elif (f == 0) then Just(d.double)
-            else Just( d.double + (10.0^(post.length.double) / f.double) )
-          }
-        }
-      }
-    }
-    _ -> match(s.parseInt) {
-      Nothing -> Nothing
-      Just(i) -> Just(i.double)
-    }
-  }
+private extern xparse-double( s : string ) : maybe<double> {
+  js "_double_parse"
 }
 
-public function parseFixedDefault( s : string, default : double = 0.0 ) : double {
-  match(s.parseFixed) {
-    Nothing -> default
-    Just(d) -> d
-  }
+public fun parse-double-default( s : string, default : double = 0.0 ) : double {
+   if (s.empty?) then default else s.parse-double.maybe(default)
 }
 
 
@@ -1391,20 +1470,20 @@ public function parseFixedDefault( s : string, default : double = 0.0 ) : double
 // Doubles
 // ----------------------------------------------------------------------------
 
-external inline (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-external inline (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-external inline (<=) : (double,double) -> bool  = inline "(#1 <= #2)"
-external inline (>=) : (double,double) -> bool  = inline "(#1 >= #2)"
-external inline (<)  : (double,double) -> bool  = inline "(#1 < #2)"
-external inline (>)  : (double,double) -> bool  = inline "(#1 > #2)"
+extern inline (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+extern inline (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+extern inline (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
+extern inline (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
+extern inline (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
+extern inline (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
 
-external inline (+) : (double,double) -> double = inline "(#1 + #2)"
-external inline (-) : (double,double) -> double = inline "(#1 - #2)"
-external inline (*) : (double,double) -> double = inline "(#1 * #2)"
-external inline (/) : (double,double) -> double = inline "(#1 / #2)"
-external inline (%) : (double,double) -> double = inline "(#1 % #2)"
+extern inline (+) : (double,double) -> double { inline "(#1 + #2)" }
+extern inline (-) : (double,double) -> double { inline "(#1 - #2)" }
+extern inline (*) : (double,double) -> double { inline "(#1 * #2)" }
+extern inline (/) : (double,double) -> double { inline "(#1 / #2)" }
+extern inline (%) : (double,double) -> double { inline "(#1 % #2)" }
 
-function compare( x : double, y : double) : order
+fun compare( x : double, y : double) : order
 {
   if (x < y) then Lt
   elif (x > y) then Gt
@@ -1412,153 +1491,248 @@ function compare( x : double, y : double) : order
 }
 
 
-// Convert a ":double" to ":int" using "round" to round the double to its nearest integer.
-// if the double is larger than "maxInt" or smaller than "minInt" just the lower 32 bits are returned.
-external inline unsafeInt : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
+// Is the value negative?
+fun neg?( d : double ) : bool {
+  d < 0.0
+}
 
-private external inline getNan : () -> double { 
+// Is the value positive?
+fun pos?( d : double ) : bool {
+  d > 0.0
+}
+
+// Is the value zero?
+fun zero?( d : double ) : bool {
+  d == 0.0
+}
+
+fun sign( d : double ) : order {
+  if (d<0.0) then Lt elif (d>0.0) then Gt else Eq
+}
+
+fun (~)(d : double ) : double {
+  0.0 - d
+}
+
+/*
+fun (/)(x : double, y : double ) : double {
+  if (y.zero?) then return y
+  val q = cdiv(x,y)
+  val r = cmod(x,y)
+  if (r>=0.0) then q
+  elif (y>0.0) then q - 1.0
+  else q + 1.0
+}
+
+fun (%)(x : double, y : double ) : double {
+  if (y.zero?) then return y
+  val r = cmod(x,y)
+  if (r>=0.0) then r
+  elif (y>0.0) then r + y
+  else r - y
+}
+*/
+
+// Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
+// if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
+// extern inline unsafe-int : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
+
+private extern inline getNan : () -> double { 
   cs inline "double.NaN";
   js inline "NaN"
 }
 
-private external inline getNegInf : () -> double { 
+private extern inline getNegInf : () -> double { 
   cs inline "double.NegativeInfinity";
   js inline "(- Infinity)"
 }
 
-private external inline getPosInf : () -> double { 
+private extern inline getPosInf : () -> double { 
   cs inline "double.PositiveInfinity";
   js inline "Infinity"
 }
 
-private external inline getMaxDouble : () -> double { 
+private extern inline getMaxDouble : () -> double { 
   cs inline "double.MaxValue";
   js inline "(1.7976931348623157e+308)"
 }
 
-private external inline getMinDouble : () -> double { 
+private extern inline getMinDouble : () -> double { 
   cs inline "double.MinValue";
   js inline "-(1.7976931348623157e+308)"
 }
 
-private external inline getEpsilon : () -> double { 
+private extern inline getEpsilon : () -> double { 
   cs inline "double.Epsilon";
   js inline "(4.94065645841247e-324)"
 }
 
-// convert a ":double" to an ":int" using "round" to round to its nearest integer.
-// If the double is larger than "maxInt" or smaller than "minInt" this returns "default" (=0)
-public function int(d : double, default : int = 0 ) : int {
-  if (d > maxInt.double || d < minInt.double)
-   then default
-   else d.unsafeInt
+// convert a `:double` to an `:int` using `round` to round to its nearest integer.
+extern inline int(d : double ) : int { 
+  cs "Primitive.IntDouble"
+  js "$std_core._int_double" 
 }
 
 // Represents a value that is _not a number_ (NaN)
 val nan : double = getNan()
 
 // Positive infinity
-val posInf : double = getPosInf()
+val pos-inf : double = getPosInf()
 
 // Negative infinity
-val negInf : double = getNegInf()
+val neg-inf : double = getNegInf()
 
 // The maximal double value
-val maxDouble : double = getMaxDouble()
+val max-double : double = getMaxDouble()
 
 // The minimal double value
-val minDouble : double = getMinDouble()
+val min-double : double = getMinDouble()
 
-// The number of bits in a ":double" (64)
-val bitsDouble = 64
+// The number of bits in a `:double` (64)
+val bits-double = 64
 
 // Is this value equal to NaN ?
-external inline isNan : (double) -> bool {
+extern inline nan? : (double) -> bool {
   cs "double.IsNaN"
   js "isNaN"
 } 
 
 // Is this value equal to negative or positive infinity ?
-external isInf : (double) -> bool {
+extern inf? : (double) -> bool {
   cs "double.IsInfinity"
   js inline "((#1) === Number.POSITIVE_INFINITY || (#1) === Number.NEGATIVE_INFINITY)"
 }
 
 // Is this value equal to positive infinity ?
-external inline isPosInf : (double) -> bool {
+extern inline posinf? : (double) -> bool {
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Number.POSITIVE_INFINITY)"
 }
 
 
 // Is this value equal to negative infinity ?
-external inline isNegInf : (double) -> bool {
+extern inline neginf? : (double) -> bool {
   cs "double.IsNegativeInfinity"
   js inline "((#1) === Number.NEGATIVE_INFINITY)"
 }
 
 
 // Returns the value `d`  raised to the power `p` .
-external inline (^) : (d:double,p:double) -> double {
+extern inline (^) : (d:double,p:double) -> double {
   cs "Math.Pow"
   js inline "((#1) ^ (#2))"
 }
 
 // Return the square root of a value `d` 
-// Returns "nan" if `d == nan`  or if `d`  is negative.
-// Returns "inf" if `d == inf` .
-external inline sqrt : (d:double) -> double {
+// Returns `nan` if `d == nan`  or if `d`  is negative.
+// Returns `inf` if `d == inf` .
+extern inline sqrt : (d:double) -> double {
   cs "Math.Sqrt"
   js "Math.sqrt"
 }
 
-// Return the absolute value of a ":double" `d` 
-external inline abs : (d:double) -> double  { 
+// Return the absolute value of a `:double` `d` 
+extern inline abs : (d:double) -> double  { 
   cs "Math.Abs"
   js "Math.abs" 
 }
 
 // Return the largest integer equal or less than `d` 
-external inline floor : (d:double) -> double {
+extern inline floor : (d:double) -> double {
   cs "Math.Floor"
   js "Math.floor"
 }
 
 // Return the smallest integer equal or larger than `d` 
-external inline ceiling : (d:double) -> double {
+extern inline ceiling : (d:double) -> double {
   cs "Math.Ceiling"
-  js "Math.ceiling"
+  js "Math.ceil"
 }
 
-// Return the integral part of a ":double" `d` .
+// Return the integral part of a `:double` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
 // If `d < 0.0` , return the smallest integer equal or larger to `d` .
-external inline trunc : (d:double) -> double {
+extern trunc : (d:double) -> double {
   cs "Math.Truncate"
-  js "Math.trunc"
+  js "Mathtrunc"
+}
+
+// Return the fractional part of a `:double` `d`.\
+// `d.trunc + d.fraction === d`\
+// `(~2.4).fraction === ~0.4`
+fun fraction(d : double) : double {
+  d - d.trunc
+}
+
+// Return the `d` raised to the power of `p`. 
+extern inline pow : (d:double, p:double) -> double  { 
+  cs "Math.Pow"
+  js "Math.pow" 
+}
+
+// Return the natural logarithm (in base _e_)  of a `:double` `d` 
+extern inline log : (d:double) -> double  { 
+  cs "Math.Log"
+  js "Math.log" 
+}
+
+// Return the logarithm in base 10 of a `:double` `d`.
+fun log10( d : double ) : double {
+  log(d) / log(10.0)
+}
+
+// Return the logarithm in base 2 of a `:double` `d`.
+fun log2( d : double ) : double {
+  log(d) / log(2.0)
+}
+
+// Return the 10 to the power of `p`.
+fun pow10( p : double ) : double {
+  pow(10.0,p)
+}
+
+// Return the 2 to the power of `p`.
+fun pow2( p : double ) : double {
+  pow(2.0,p)
+}
+
+// Round a double to a specified precision
+fun round-to-prec( d : double, prec : int  ) : double {
+  if (prec <= 0) then d.round else {
+    val p  = pow10(prec.double)
+    (d * p).round / p
+  }
+}
+
+extern inline sin( d : double ) : double {
+  js "Math.sin"
+}
+
+extern inline cos( d : double ) : double {
+  js "Math.cos"
 }
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
-external inline round : (d:double) -> double {
+extern inline round : (d:double) -> double {
   cs "Math.Round"
   js "Math.round"
 }
 
 // Return the sum of a list of doubles
-function sum( xs : list<double> ) : double
+fun sum( xs : list<double> ) : double
 {
   xs.foldl( 0.0, (+))
 }
 
 // Returns the smallest of two doubles
-function min( x : double, y : double ) : double = if (x <= y) then x else y
+fun min( x : double, y : double ) : double  -> if (x <= y) then x else y
 
 // Returns the largest of two doubles
-function max( x : double, y : double ) : double = if (x >= y) then x else y
+fun max( x : double, y : double ) : double  -> if (x >= y) then x else y
 
-// Returns the smallest element of a list of doubles (or "0" for the empty list)
-function minimum( xs : list<double> ) : double
+// Returns the smallest element of a list of doubles (or `0` for the empty list)
+fun minimum( xs : list<double> ) : double
 {
   match(xs) {
     Nil -> 0.0
@@ -1566,8 +1740,8 @@ function minimum( xs : list<double> ) : double
   }
 }
 
-// Returns the largest element of a list of doubles (or "0" for the empty list)
-function maximum( xs : list<double> ) : double
+// Returns the largest element of a list of doubles (or `0` for the empty list)
+fun maximum( xs : list<double> ) : double
 {
   match(xs) {
     Nil -> 0.0
@@ -1575,356 +1749,355 @@ function maximum( xs : list<double> ) : double
   }
 }
 
-// ----------------------------------------------------------------------------
-// Arrays
-// ----------------------------------------------------------------------------
-
-// The type of mutable arrays. See also ":vector" for immutable arrays.
-type array :: (H,V) -> V
-
-// used internally to have non-bound-checked access
-private external inline unsafeIdx : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>|e> a with(hdiv<h,a,e>) {
-  cs inline "(#1)[#2]";
-  js inline "(#1)[#2]";
-}
-
-private external inline unsafeAssign : forall<h,a> ( a : array<h,a>, i : int, x : a ) -> write<h> () {
-  cs inline "(#1)[#2] = #3";
-  js inline "(#1)[#2] = #3";
-}
-
-// Return the "index" element of an array. Raises an exception for out-of-bounds access.
-external inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
-  = inline "(#1)[#2]"
-
-// Return the length of an ":array".
-external inline length : forall<h,a> ( self : array<h,a> ) -> int { 
-  cs inline "(#1 == null ? 0 : (#1).Length)";
-  js inline "(#1).length"
-}
-
-// Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
-external inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
-  = inline "(#1)[#2] = #3"
-
-// Create a new array of length `n`  with initial elements `a` .
-external inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
-  cs inline "Primitive.NewArray<##2>(#1,#2)";
-  js inline "Array(#2)"
-}
- 
-// Create a zero length array
-external inline array : forall<h,a> () -> array<h,a> = cs inline "new ##2[0]"
-
-private external inline unsafeArray  : forall<h,a> (n : int) -> array<h,a> { 
-  cs inline "new ##2[#1]";
-  js inline "Array(#1)";
-}
-
-private external inline arrayCopy    : forall<h,a> ( src : array<h,a>, dest : array<h,a>, len : int ) -> read<h> ()  { 
-  cs inline "Array.Copy(#1,#2,#3)";
-  js inline "error('arrayCopy')"
-}
-
-private external inline unsafeFreeze : forall<h,a> ( self : array<h,a> ) -> read<h> vector<a> { 
-  cs inline "(#1)";
-  js inline "(#1)";
-}
-
-// Copy an array
-function copy( self : array<h,a> ) : read<h> array<h,a> {
-  val dest = unsafeArray(self.length)
-  arrayCopy(self,dest,self.length)
-  return dest
-}
-
-// Convert an array to a vector (to guarantee safety, a copy is made)
-function vector( self : array<h,a> ) : read<h> vector<a>
-{
-  copy(self).unsafeFreeze()
-}
-
-
-// Convert a list to an array.
-function array( xs : list<a> ) : array<h,a>
-{
-  unsafeTotal {
-    val n = xs.length
-    val a = unsafeArray(n)
-    xs.foreachIndexed fun(i,x) {
-      a[i] := x
-    }
-    a
-  }
-}
-
-// Convert an array to a list
-function list( a : array<h,a> ) : read<h> list<a>
-{
-  unsafeTotal {
-    val len = a.length()
-    function build( i : int, acc : list<_a> )
-    {
-      if (i >= 0) then build(i-1, Cons(a[i],acc)) else acc
-    }
-
-    build(len-1,Nil)
-  }
-}
-
-// Invoke a function "f" for each element in a an array `a`.   
-// Note: this can diverge by storing self referential functions in the array
-function foreach( a : array<h,a>, f : a -> <read<h>,div|e> () ) : <read<h>,div|e> ()
-{
-  for( 0, a.length-1 ) fun(i) {
-    f(a.unsafeIdx(i))
-  }
-}
-
-// Destructively apply function `f`  to each element in an array `a`.   
-// Note: this can diverge by storing self referential functions in the array
-function map( a : array<h,a>, f : a -> <st<h>,div|e> a ) : <st<h>,div|e> array<h,a>
-{
-  for( 0, a.length-1 ) fun(i) {
-    a.unsafeAssign( i, f(a.unsafeIdx(i)) )
-  }
-  a
-}
-
-// ----------------------------------------------------------------------------
-//  Vectors
-// ----------------------------------------------------------------------------
-
-// The type of immutable arrays is called ":vector".
-type vector<a>
-
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-private external inline unsafeIdx : forall<a> ( v : vector<a>, index : int ) -> total a { 
-  cs inline "(#1)[#2]";
-  js inline "(#1)[#2]";
-}
-
-// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-external inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  = inline "(#1)[#2]"
-
-// Return the length of a vector.
-external inline length : forall<a> (v : vector<a> ) -> int  { 
-  cs inline "(#1 == null ? 0 : (#1).Length)";
-  js inline "(#1).length";
-}
-
-// Create a new vector of length `n`  with initial elements `default` .
-public function vector(n : int, default : a) : vector<a> {
-  list(1,n).map( fun(i){ default }).vector
-} 
-
-// Create an empty vector.
-external inline vector : forall<a> () -> vector<a> {
-  cs inline "new ##1[0]"
-  js inline "[]"
-}
-
-private external inline unsafeUnfreeze : forall<h,a> (v : vector<a>) -> array<h,a> = inline "(#1)"
-
-// Invoke a function "f" for each element in a vector "v"
-function foreach( v : vector<a>, f : a -> e () ) : e ()
-{
-  for( 0, v.length-1 ) fun(i) {
-    f(v.unsafeIdx(i))
-  }
-}
-
-// Invoke a function "f" for each element in a vector "v".
-// If "f" returns "Just", the iteration is stopped early and the result is returned.
-function foreachWhile( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b>
-{
-  forWhile( 0, v.length-1 ) fun(i) {
-    f(v.unsafeIdx(i))
-  }
-}
-
-// Apply function "f" to each element in a vector "v"Ju
-function map( v : vector<a>, f : a -> e b ) : e vector<b>
-{
-  val n = v.length
-  val a = unsafeArray(n)
-  for( 0, v.length-1 ) fun(i) {
-    a.unsafeAssign( i, injectSt(f)(v.unsafeIdx(i)) )
-  }
-  a.unsafeFreeze
-}
-
-// Convert a vector to a list.
-function list( v : vector<a> ) : list<a>
-{
-  unsafeTotal{
-    v.unsafeUnfreeze.list
-  }
-}
-
-// Convert a list to a vector.
-function vector( xs : list<a> ) : vector<a>
-{
-  xs.array.unsafeFreeze
-}
-
-// Convert a vector to an array (by making a copy)
-external inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> { 
-  cs inline "(##2[])Array.Clone(#1)";
-  js inline "#1"
-}
-
 
 // ----------------------------------------------------------------------------
 // Strings
 // ----------------------------------------------------------------------------
 
-// Return the `n` th character in a string `s` .
-private external inline unsafeIdx : ( s : string, n : int ) -> char  = inline "(#1)[#2]"
 
-// Are two strings equal?
-external inline (==) : (string,string) -> bool {
+// A `:sslice` represents a sub-slice of string and
+// has a specific start position and character count. It is used
+// instead of string indices to make the actual internal representation
+// of strings abstract (like UTF-8 or UTF-16). String slices are 
+// returned by functions that find sub strings or patterns in
+// in strings. Use `string:(slice : sslice) -> string` to 
+// create a fresh substring from a slice. 
+abstract struct sslice( str : string, start : int32, len : int32 )
+
+// Internal export for the regex module
+fun ".new-sslice"( str :string, start: int32, len : int32 ) {
+  Sslice(str,start,len)
+}
+
+// Convert a character to a string
+external string : ( c : char ) -> string  { 
+  cs inline "Primitive.CharToString(#1)";
+  js inline "_char_to_string(#1)"
+}
+
+// Convert a vector of characters to a string.
+extern string : (vector<char>) -> string { 
+  cs inline "Primitive.CharsToString(#1)";
+  js inline "_chars_to_string(#1)"
+}
+
+// Convert a string to a vector of characters.
+extern vector : ( s : string ) -> vector<char> { 
+  cs inline "Primitive.StringToChars(#1)";
+  js inline "_string_to_chars(#1)"
+}
+
+
+// Convert a string to a list of characters
+extern list( s : string ) : total list<char> {
+  cs inline "Primitive.StringToList(#1)"
+  js inline "_string_to_list(#1)"
+}
+
+// Convert a list of characters to a string
+extern string( cs : list<char> ) : total string {
+  cs inline "Primitive.ListToString(#1)"
+  js inline "_list_to_string(#1)"
+}
+
+
+// Are two strings equal? 
+// Uses exact equality between character codes.
+extern inline (==) : (string,string) -> bool {
   inline "(#1 == #2)"
   js inline "(#1 === #2)"
 }
 
 // Are two strings not equal?
-external inline (!=) : (string,string) -> bool {
+extern inline (!=) : (string,string) -> bool {
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 }
 
-private external stringCompare : ( x : string, y : string ) -> int
+private extern string-compare : ( x : string, y : string ) -> int
 {
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 }
 
-// Compare two strings
-function compare( x : string, y : string) : order
+// Compare two strings.
+// Uses the character codes directly for comparison
+fun compare( x : string, y : string) : order
 {
-  stringCompare(x,y).order;
+  string-compare(x,y).order;
 }
 
-function (>=)( x : string, y : string ) : bool = compare(x,y) > Lt
-function (<=)( x : string, y : string ) : bool = compare(x,y) < Gt
-function (>)( x : string, y : string ) : bool  = compare(x,y) == Gt
-function (<)( x : string, y : string ) : bool  = compare(x,y) == Lt
+fun (>=)( x : string, y : string ) : bool  -> compare(x,y) > Lt
+fun (<=)( x : string, y : string ) : bool  -> compare(x,y) < Gt
+fun (>)( x : string, y : string ) : bool   -> compare(x,y) == Gt
+fun (<)( x : string, y : string ) : bool   -> compare(x,y) == Lt
 
 // Append two strings.
-external inline (+) : (string,string) -> string = inline "(#1 + #2)"
+extern inline (+) : (string,string) -> string { inline "(#1 + #2)" }
 
 // Choose a non-empty string
-function (||)( x : string, y : string ) : string {
-  if (x.isEmpty) then y else x 
+fun (||)( x : string, y : string ) : string {
+  if (x.empty?) then y else x 
 }
 
-// Return the `n` th character in a string `s` . 
-// Raise an out-of-bounds exception if "n < 0" or "n >= s.length".
-external inline [] : ( s : string, n : int ) -> exn char  = inline "(#1)[#2]"
-
-// Return the length of a string.
-external inline length : ( s : string ) -> int  { 
-  cs inline "(#1).Length";
-  js inline "(#1).length";
+// Length returns the length in the platform specific encoding (and should not be exported)
+private extern inline length( s : string ) : int32 {
+  cs inline "#1.Length"
+  js inline "#1.length"
 }
 
-// Does string `s`  contain the character `c`  ?
-external inline indexOf : (s : string, c : char ) -> int { 
-  cs inline "(#1.IndexOf(#2))";
+// O(n). Return the number of characters in a string.
+extern count( s : string ) : int {
+  cs "Primitive.StringCount"
+  js "_string_count"
+}
+
+// O(n). Return the number of characters in a string slice
+extern count( slice : sslice ) : int {
+  cs "Primitive.SliceCount"
+  js "_sslice_count"
+}
+
+private extern inline first1(s : string ) : sslice { 
+  cs "Primitive.SliceFirst"
+  js "_sslice_first"
+}
+
+private extern inline last1(s : string ) : sslice { 
+  cs "Primitive.SliceLast"
+  js "_sslice_last"
+}
+
+// O(`n`). The first `n` (default = `1`) characters in a string.
+fun first(s : string, n : int = 1) : sslice {
+  val slice = s.first1
+  if (n==1) then slice else slice.extend( n - 1 )
+}
+
+// O(`n`). The last `n` (default = `1`) characters in a string
+fun last(s : string, n : int = 1) : sslice {
+  val slice = s.last1
+  if (n==1) then slice 
+            else slice.advance(1 - n).extend(n - 1)
+}
+
+// O(1). The entire string as a slice
+fun slice( s : string ) : sslice {
+  Sslice(s,0.int32,s.length)
+}
+
+// An empty slice
+val empty = Sslice("",0.int32,0.int32)
+
+// Is a slice empty?
+fun empty?( slice : sslice ) : bool {
+  !slice.len.pos?
+}
+
+// Is a slice not empty?
+fun notempty?( slice : sslice ) : bool {
+  slice.len.pos?
+}
+
+// Return the first character of a string as a string (or the empty string)
+fun head( s : string ) : string {
+  s.first.string
+}
+
+// Return the tail of a string (or the empty string)
+fun tail( s : string ) : string {
+  s.first.after.string
+}
+
+// Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
+extern common-prefix(s : string, t : string, upto : int = ~1 ) : sslice {
+  cs "Primitive.SliceCommonPrefix"
+  js "_sslice_common_prefix"
+}
+
+
+
+// O(`count`). Advance the start position of a string slice by `count` characters
+// up to the end of the string.
+// A negative `count` advances the start position backwards upto the first position
+// in a string.
+// Maintains the character count of the original slice upto the end of the string.
+// For example:
+//
+// * `"abc".first.advance(1).string == "b"`,
+// * `"abc".first.advance(3).string == ""`,
+// * `"abc".last.advance(~1).string == "b"`.
+// 
+public extern advance( slice : sslice, count : int ) : sslice {
+  cs "Primitive.SliceAdvance"
+  js "_sslice_advance"
+}
+
+// O(`count`). Extend a string slice by `count` characters up to the end of the string.
+// A negative `count` shrinks the slice up to the empty slice.
+// For example:
+//
+// * `"abc".first.extend(1).string == "ab"`
+// * `"abc".last.extend(~1).string == ""`
+// 
+extern extend( slice : sslice, count : int ) : sslice {
+  cs "Primitive.SliceExtend"
+  js "_sslice_extend"
+}
+
+
+// O(1). Return the string slice from the start of a string up to the
+// start of `slice` argument.
+fun before(slice : sslice) : sslice {
+  val Sslice(s,start,_len) = slice
+  Sslice(s,0.int32,start)
+}
+
+// O(1). Return the string slice from the end of `slice` argument
+// to the end of the string.
+fun after(slice : sslice) : sslice {
+  val Sslice(s,start,len) = slice
+  Sslice(s,start+len,s.length - (start+len))
+}
+
+// O(n). Copy the `slice` argument into a fresh string.
+// Takes O(1) time if the slice covers the entire string.
+extern string( slice : sslice ) : string {
+  cs "Primitive.SliceToString"
+  js "_slice_to_string"
+}
+
+// If the slice is not empty, 
+// return the first character, and a new slice that is advanced by 1.
+extern next( slice : sslice ) : maybe<(char,sslice)> {
+  cs "Primitive.SliceNext"
+  js "_sslice_next"
+}
+
+// Apply a function for each character in a string slice.
+// If `action` returns `Just`, the function returns immediately with that result.
+fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe<a> {
+  match(slice.next) {
+    Nothing -> Nothing
+    Just((c,rest)) -> {
+      match(action(c)) {
+        Nothing -> foreach-while(unsafe-decreasing(rest),action)
+        res     -> res
+      }
+    }
+  }
+}
+
+// Apply a function for each character in a string slice.
+fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
+  foreach-while(slice, fun(c) { action(c); Nothing })
+  ()
+}
+
+// Does string `s`  contain the string `sub`  ?
+private extern inline xindex-of(s : string, sub : string ) : int32 { 
+  cs inline "((#1).IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
 }
 
-// Does string `s`  contain the character `c`  ?
-external inline lastIndexOf : (s : string, c : char ) -> int { 
+// O(n). If it occurs, return the position of substring `sub` in `s`, tupled with 
+// the position just following the substring `sub`. 
+fun find( s : string, sub : string ) : maybe<sslice> {
+  val i = s.xindex-of(sub)
+  if (i.neg?) then Nothing else Just(Sslice(s,i,sub.length)) 
+}
+
+// Does string `s`  contain the string `sub`  ?
+private extern inline xlast-index-of(s : string, sub : string ) : int32 { 
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
 
-// Does string `s`  contain the string `sub`  ?
-external inline indexOf : (s : string, sub : string ) -> int { 
-  cs inline "(#1.IndexOf(#2))";
-  js inline "((#1).indexOf(#2))";
+// Return the last index of substring `sub` in `s` if it occurs.
+fun find-last( s : string, sub : string ) : maybe<sslice> {
+  val i = s.xlast-index-of(sub)
+  if (i.neg?) then Nothing else Just(Sslice(s,i,sub.length)) 
 }
 
-// Does string `s`  contain the string `sub`  ?
-external inline lastIndexOf : (s : string, sub : string ) -> int { 
-  cs inline "(#1.LastIndexOf(#2))";
-  js inline "((#1).lastIndexOf(#2))";
-}
-
-// Does string `s`  contain the character `c`  ?
-external inline contains : (s : string, c : char ) -> bool { 
-  cs inline "(#1.IndexOf(#2) >= 0)";
-  js inline "((#1).indexOf(#2) >= 0)";
-}
-
-// Is `pre`  a prefix of `s`  ?
-external startsWith: (s : string, pre : string ) -> bool { 
+private extern inline xstarts-with: (s : string, pre : string ) -> bool { 
   cs inline "#1.StartsWith(#2)";
-  js inline "#1.substr(0,#2.length) === #2"
+  js inline "(#1.substr(0,#2.length) === #2)"
 }
 
-// Does string `s`  end with `post`  ?
-external endsWith: (s : string, post : string ) -> bool { 
+
+// Is `pre`  a prefix of `s`? If so, returns a slice
+// of `s` following `pre` up to the end of `s`.
+fun starts-with( s : string, pre : string ) : maybe<sslice> {
+  if (xstarts-with(s,pre))
+   then Just(Sslice(s,pre.length,s.length - pre.length))
+   else Nothing
+}
+
+
+private extern xends-with: (s : string, post : string ) -> bool { 
   cs inline "#1.EndsWith(#2)";
   js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
 }
 
+// Does string `s`  end with `post`?
+// If so, returns a slice of `s` from the start up to the `post` string at the end.
+fun ends-with( s : string, post : string ) : maybe<sslice> {
+  if (xends-with(s,post))
+   then Just(Sslice(s,0.int32,s.length - post.length))
+   else Nothing
+}
+
 // Does string `s`  contain the string `sub`  ?
-external inline contains: (s : string, sub : string ) -> bool { 
+extern inline contains: (s : string, sub : string ) -> bool { 
   cs inline "((#1).Contains(#2))";
   js inline "((#1).indexOf(#2) >= 0)"
 }
 
 // Concatenate a vector of strings
-external inline join: (v : vector<string> ) -> string { 
+extern inline join: (v : vector<string> ) -> string { 
   cs "String.Concat";
   js inline "((#1).join(''))"
 }
 
-// Concatenate a vector of strings with a separator "sep"
-external inline join: (v : vector<string>, sep : string ) -> total string { 
+// Concatenate a vector of strings with a separator `sep`
+extern inline join: (v : vector<string>, sep : string ) -> total string { 
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
 }
 
-// Concatenate an array of strings
-external inline join: forall<h> (a : array<h,string> ) -> read<h> string { 
-  cs inline "String.Concat(#1)";
-  js inline "((#1).join(''))";
+// Truncate a string to `count` characters.
+fun truncate( s : string, count : int ) : string  {
+  s.first.extend(count - 1).string
 }
 
-// Concatenate an array of strings with a separator "sep"
-external join: forall<h> (v : array<h,string>, sep : string ) -> read<h> string { 
-  cs inline "Primitive.Concat(#1,#2)";
-  js inline "(#1).join(#2)"
+// Trim off a substring `sub` if `s` starts with that string.
+fun trim-left( s : string, sub : string ) : string {
+  match(s.starts-with(sub)) {
+    Just(slice) -> slice.string
+    Nothing -> s
+  }
 }
 
-public external inline substr : (s : string, start : int ) -> string { 
-  cs inline "((#1).Substring(#2))";
-  js inline "((#1).substr(#2))";
+// Trim off a substring `sub` if `s` ends with that string.
+fun trim-right( s : string, sub : string ) : string {
+  match(s.ends-with(sub)) {
+    Just(slice) -> slice.string
+    Nothing -> s
+  }
 }
 
-
-private external inline substr2 : (s : string, start : int, len : int ) -> string { 
-  cs inline "#1.Substring(#2,#3)";
-  js inline "#1.substr(#2, #3)"
+// Repeat a string `n` times 
+fun repeat( s : string, n : int ) : string {
+  repeat32(s,n.int32)
 }
 
-private external inline makeString : (n : int, c : char ) -> string { 
-  cs inline "new String(#2,#1)";
-  js inline "Array(#1 + 1).join(#2)";
+private extern repeat32( s : string, n : int32 ) : string {
+  cs "Primitive.Repeat"
+  js "_string_repeat"
 }
 
-// Construct a string of `n`  characters `c`  (or the empty string if `n <= 0` )
-function string( n : int, c : char ) : string 
-{
-  if (n <= 0) then "" else makeString(n,c)
-}
-
-// Convert a ":maybe" string to a string using the empty sting for "Nothing"
-function mbstring( ms : maybe<string> ) : string {
+// Convert a `:maybe` string to a string using the empty sting for `Nothing`
+fun string( ms : maybe<string> ) : string {
   match(ms) {
     Nothing -> ""
     Just(s) -> s
@@ -1932,136 +2105,79 @@ function mbstring( ms : maybe<string> ) : string {
 }
 
 // Is a string empty?
-function isEmpty( s : string ) : bool {
+fun empty?( s : string ) : bool {
   s == ""
 }
 
 // Is a string not empty?
-function notEmpty( s : string ) : bool {
+fun notempty?( s : string ) : bool {
   s != ""
 }
 
-/*
-function substr1( s : string, start : int, len : int = maxInt   )
-{
-  if (len <= 0) then ""
-   else substr2(s, if (start <= 0) then 1 else start, len)
-}
-*/
 
-public external inline substr1 : (s : string, start : int ) -> string { 
-  cs inline "((#1).Substring(#2))";
-  js inline "((#1).substr(#2 >=1 ? #2 : 1))";
+private extern inline splitv : ( s : string,  sep : string ) -> vector<string> { 
+  cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))";
+  js inline "((#1).split(#2))"
 }
 
-
-// Return a substring from start position "start" up to either the end of the string, 
-// or of at most length "len"
-function substr( s : string, start : int, len : int   )
-{
-  if (len <= 0) then ""
-   else substr2(s,start,len)
-}
-
-private external inline splitv : ( s : string,  sep : string ) -> vector<string> { 
-  cs inline "#1.Split(new String[]{#2}, StringSplitOptions.None)";
-  js inline "(#1).split(#2)"
-}
-
-private external inline splitv : ( s : string,  sep : string, n : int ) -> vector<string> { 
+private extern inline splitv : ( s : string,  sep : string, n : int32 ) -> vector<string> { 
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
 }
 
-// Split a string into parts that were delimited by "sep". The delimeters are not included in the results.
-// For example: "split(""1,,2"","","") == [""1"","""",""2""]"
-
-function split( s : string, sep : string ) : vector<string>
-{
-  splitv(s,sep)
+// Split a string into parts that were delimited by `sep`. The delimeters are not included in the results.
+// For example: `split("1,,2",",") == ["1","","2]`
+fun split( s : string, sep : string ) : list<string> {
+  splitv(s,sep).list
 }
 
-// Split a string into at most "n" parts that were delimited by a string "sep". The delimeters are not included in the results (except for possibly the final part).
-// For example: "split(""1,2,3"","","",2) == [""1"",""2,3""]"
-function split( s : string, sep: string, n : int) : vector<string>
-{
-  splitv(s,sep,n)
+// Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
+// For example: `split("1,2,3",",",2) == ["1","2,3"]`
+fun split( s : string, sep: string, n : int) : list<string> {
+  splitv(s,sep,n.int32).list
 }
 
-// Replace every occurrence of "pattern" to "repl" in a string.
-public external inline replaceAll( s : string, pattern : string, repl : string ) : string { 
+// Replace every occurrence of `pattern` to `repl` in a string.
+public extern inline replace-all( s : string, pattern : string, repl : string ) : string { 
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";  
 }
 
-// Count occurences of "pattern" in a string.
-public external inline count( s : string, pattern : string ) : int { 
+// Count occurences of `pattern` in a string.
+public extern inline count( s : string, pattern : string ) : int { 
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";  
 }
 
-// Convert a string to a vector of characters.
-external inline vector : ( s : string ) -> vector<char> { 
-  cs inline "#1.ToCharArray()";
-  js inline "#1"
+
+// Apply a function `f` to each character in a string
+fun map( s : string, f : char -> e char ) : e string {
+  s.list.map(f).string // todo: optimize
 }
 
-// Convert a string to an array of characters.
-external inline array : forall<h> ( s : string ) -> array<h,char> { 
-  cs inline "#1.ToCharArray()";
-  js inline "#1"
-}
-
-// Convert an array of characters to a string.
-external inline string : forall<h> (array<h,char>) -> read<h> string { 
-  cs inline "new String(#1)";
-  js inline "#1"
-}
-
-// Convert a vector of characters to a string.
-external inline string : (vector<char>) -> string { 
-  cs inline "new String(#1)";
-  js inline "#1"
-}
-
-// Convert a string to a list of characters
-function list( s : string ) : total list<char>
-{
-  list(s.vector())
-}
-
-// Convert a list of characters to a string
-function string( cs : list<char> ) : total string
-{
-  cs.map( fun(c){ c.string } ).join()
-}
-
-// Apply a function "f" to each character in a string
-function map( s : string, f : char -> e char ) : e string
-{
-  s.list().map(f).string()
+// Invoke a function for each character in a string. 
+// If `action` returns `Just`, the function returns immediately with that result.
+fun foreach-while( s : string, action : (c:char) -> e maybe<a> ) : e maybe<a> {
+  s.slice.foreach-while(action)
 }
 
 // Invoke a function for each character in a string
-function foreach( s : string, f : char -> e () ) : e ()
-{
-  for( 0, s.length-1 ) fun(i) {
-    f(s.unsafeIdx(i))
-  }
+fun foreach( s : string, action : (c:char) -> e () ) : e () {
+  s.slice.foreach(action)
 }
 
-// Count the number of occurrences of a character in a string
-function count( s : string, c : char ) : int
-{
-  var cnt := 0
-  s.foreach fun(d) {
-    if (c == d) then cnt := cnt+1
-  }
-  cnt
+// Return the first character of a string (or `Nothing` for the empty string).
+fun head-char( s : string ) : maybe<char> {
+  s.foreach-while( Just )
 }
+
+// Invoke a function for each character in a string
+//fun foreach( s : string, f : char -> e () ) : e () {
+//  s.list.foreach(f)  // todo: optimize
+//}
 
 // Count the number of times a predicate is true for each character in a string
-function count( s : string, pred : (char) -> bool ) : int
+fun count( s : string, pred : (char) -> bool ) : int
 {
   var cnt := 0
   s.foreach fun(c) {
@@ -2070,118 +2186,298 @@ function count( s : string, pred : (char) -> bool ) : int
   cnt
 }
 
-
-function lines( s : string ) : vector<string>
-{
+// Split a string into a list of lines
+fun lines( s : string ) : list<string> {
   s.split("\n")
 }
 
-function unlines( xs : vector<string> ) : string
-{
+// Join a list of strings with newlines
+fun unlines( xs : list<string> ) : string {
   xs.join("\n") 
 }
 
-external toUpper : (s : string) -> string { 
+// Convert a string to upper-case 
+extern to-upper : (s : string) -> string { 
   cs inline "(#1).ToUpper()"
   js inline "(#1).toUpperCase()" 
 }
 
-external toLower : (s : string) -> string { 
+// Convert a string to lower-case
+extern to-lower : (s : string) -> string { 
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()" 
 }
 
-function capitalize( s : string ) : string {
-  s.substr(0,1).toUpper + s.substr(1)
+// Convert the first character of a string to uppercase.
+fun capitalize( s : string ) : string {
+  s.first.string.to-upper + s.first.after.string
+}
+
+// Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
+fun pad-left( s : string, width : int, fill : char = ' ') : string
+{
+  val w = width.int32
+  val n = s.length
+  if (w <= n)
+   then s
+   else fill.string.repeat32( w - n ) + s
+}
+
+// Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
+fun pad-right( s : string, width : int, fill : char = ' ') : string
+{
+  val w = width.int32
+  val n = s.length
+  if (w <= n)
+   then s
+   else s + fill.string.repeat32(w - n)
+}
+
+// Trim whitespace on the left and right side of a string
+fun trim( s : string ) : string {
+  s.trim-left.trim-right
+}
+
+// Trim the starting white space of a string 
+extern inline trim-left( s : string ) : string {
+  cs inline "(#1).TrimStart()"
+  js inline "((#1).replace(/^\\s\\s*/,''))"
+}
+
+// Trim the ending white space of a string.
+extern inline trim-right( s : string ) : string {
+  cs inline "(#1).TrimEnd()"
+  js inline "((#1).replace(/\\s+$/,''))"
+}
+ 
+
+
+// ----------------------------------------------------------------------------
+//  Vectors
+// ----------------------------------------------------------------------------
+
+// The type of immutable arrays is called `:vector`.
+type vector<a>
+
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
+private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int32 ) -> total a { 
+  cs inline "(#1)[#2]";
+  js inline "(#1)[#2]";
+}
+
+private extern inline unsafe-assign : forall<a> ( v : vector<a>, i : int32, x : a ) -> total () {
+  cs inline "(#1)[#2] = #3";
+  js inline "(#1)[#2] = #3";
+}
+
+private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a> {
+  cs inline "(new ##1[#1])"
+  js inline "Array(#1)"
+}
+
+// Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
+extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { 
+  cs inline "(#1)[Primitive.IntToInt32(#2)]" 
+  js inline "(#1)[$std_core._int_to_int32(#2)]" 
+}
+
+// Return the length of a vector.
+fun length( v : vector<a> ) : int {
+  v.length32.int
+}
+
+private extern inline length32 : forall<a> (v : vector<a> ) -> int32  { 
+  cs inline "((#1).Length)";
+  js inline "((#1).length)";
+}
+
+// Create a new vector of length `n`  with initial elements `default` .
+fun vector(n : int, default : a) : vector<a> {
+  vector-init32(n.int32, fun(_i){ default } )
+} 
+
+// Create a new vector of length `n`  with initial elements given by function `f` .
+fun vector-init( n : int, f : int -> a ) : vector<a> {
+  vector-init32( n.int32, fun(i) { f(i.int) } )
+}
+
+// Create a new vector of length `n`  with initial elements given by function `f` .
+private extern vector-init32(n : int32, f : int32 -> a) : vector<a> {
+  cs inline "Primitive.NewArray<##1>(#1,#2)"
+  js inline "_vector(#1,#2)"
+} 
+
+// Create an empty vector.
+extern inline vector : forall<a> () -> vector<a> {
+  cs inline "new ##1[0]"
+  js inline "[]"
+}
+
+// Invoke a function `f` for each element in a vector `v`
+fun foreach( v : vector<a>, f : (a) -> e () ) : e () {
+  v.foreach-indexed32( fun(x,_) { f(x) })
+}
+
+// Invoke a function `f` for each element in a vector `v`
+fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
+  foreach-indexed32( v, fun(x,i) { f(x,i.int) } )
+}
+
+private fun foreach-indexed32( v : vector<a>, f : (a,int32) -> e () ) : e () {
+  for32( 0.int32, v.length32.dec ) fun(i) {
+    f(v.unsafe-idx(i),i)
+  }
+}
+
+// Invoke a function `f` for each element in a vector `v`.
+// If `f` returns `Just`, the iteration is stopped early and the result is returned.
+fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
+  for-while32( 0.int32, v.length32.dec ) fun(i) {
+    f(v.unsafe-idx(i))
+  }
+}
+
+// Apply a total function `f` to each element in a vector `v`
+fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
+  val w = unsafe-vector(v.length.int32)
+  v.foreach-indexed32 fun(x,i) {
+    unsafe-assign(w,i,f(x))
+  }
+  w
+}
+
+// Convert a vector to a list.
+fun list( v : vector<a> ) : list<a> {
+  v.vlist
+}
+
+// Convert a vector to a list with an optional tail.
+extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
+  cs inline "Primitive.VList<##1>(#1,#2)"
+  js inline "_vlist(#1,#2)"
+}
+
+// Convert a list to a vector.
+extern vector( xs : list<a> ) : vector<a> {
+  cs inline "Primitive.UnVList<##1>(#1)"
+  js inline "_unvlist(#1)"
 }
 
 
+
+
+// ----------------------------------------------------------------------------
+// Delayed values
+// ----------------------------------------------------------------------------
+
+// Delayed (or _lazy_) values are computed (with effect `:e`) only the first time
+// `force` is called and cached afterwards.
+abstract type delayed<e,a> {
+  con Delay( dref : ref<global,either<() -> e a,a>> )
+}
+
+// Create a new `:delayed` value.
+public fun delay( action : () -> e a ) : delayed<e,a> {
+  unsafe-total{ 
+    Delay(ref(Left(action)))
+  }
+}
+
+// Force a delayed value; the value is computed only on the first
+// call to `force` and cached afterwards.
+fun force( delayed : delayed<e,a> ) : e a {
+  unsafe-total {
+    val r = delayed.dref
+    match(!r) {
+      Right(x) -> x
+      Left(action) -> {
+        val x = inject-st(inject-div(action))()
+        r := Right(x)
+        x
+      }
+    }
+  }
+}
 
 
 // ----------------------------------------------------------------------------
 // Show
 // ----------------------------------------------------------------------------
 
-// Generic print routine: prints the internal representation as a string to the console, including a final newline character.  
-// Note: this breaks parametricity so it should not be public
-private function gprintln( x : a ) : console () {
-  println( x.gshow )
-}
-
-// Generic print routine: prints the internal representation as a string to the console, 
-// including a final newline character.  
-// Note: this breaks parametricity so it should not be public
-private function gprint( x : a ) : console () {
-  print( x.gshow )
-}
-
-
 // Generic show: shows the internal representation of an object as a string  
 // Note: this breaks parametricity so it should not be public
-private external gshow : forall<a> a -> string { 
+private extern gshow : forall<a> a -> string { 
   cs inline "#1.ToString()";
-  js inline "(#1).toString()"
+  js inline "#1.toString()"
 }
 
 // Generic formatting
-private external inline gformat : forall<a> (value:a,format:string) -> string { 
-  cs inline "#1.ToString(#2)";
-  js inline "$gformat(#1, #2)";
+private extern inline gformat : forall<a> (value:a,format:string) -> string { 
+  cs inline "#1.ToString(#2,CultureInfo.InvariantCulture)";
+  js inline "_gformat(#1, #2)";
 }
 
-// Convert an ":int" to a string
-function show( i : int ) : string 
-{ 
+// Convert an `:int` to a string
+fun show( i : int ) : string { 
   i.gshow()  
 }
 
-// Show an ":int" as a hexadecimal value.
-// The `width`  parameter specifies how wide the hex value is where `0`  is used to align
-// Uses capital letters for hexadecimal digits by default.
-function showHex( i : int, width : int = 1, useCapitals : bool = True )
-{
-  val w = if (width < 0) then 0 else width
-  val x = if (useCapitals) then "X" else "x"
-  gformat(i, x + w.show)
+
+private extern int-show-hex(i:int,use-capitals:bool) : string { 
+  cs "Primitive.IntShowHex"
+  js "_int_showhex"
 }
 
-// Show a ":double" as a string with a default `precision`  of `0` .
-// Pass a precision of `0`  (or less) to display numbers precisely.
-// Uses either "showFixed" or "showExp" depending on what is the most compact representation
-function show( d : double, precision : int = 6 ) : string
-{
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"g" + show(p))
+// Show an `:int` as a hexadecimal value.\
+// The `width`  parameter specifies how wide the hex value is where `"0"`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
+fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) {
+  (if (i<0) then "-" else "") + pre + int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 }
 
-function showFixed( d : double, precision : int = 6 )
+private fun show-double( d : double, precision : int, format : string )
 {
   val p = if (precision < 0) then 0 else precision
-  gformat(d,"F" + show(p))
+  val s = gformat(d,format + show(p))
+  if (s.contains(".") || s.contains("e")) then s else s + ".0"
 }
 
-// Show a ":double" in exponential (scientific) notation 
-function showExp( d : double, precision : int = 6 )
+// Show a `:double` as a string.
+// The option `precision` (= `0`) should a number be between 0 and 21. 
+// use `0` to display the number precisely using the least digits necessary.
+// Uses either `showFixed` or `showExp` depending on what is the most compact representation
+fun show( d : double, precision : int = 0 ) : string
 {
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,"e" + show(p))
+  show-double(d,precision,"g")
 }
 
-// Convert a character to a oneElement string
-external inline string : ( c : char ) -> string  { 
-  cs inline "(new String(#1,1))";
-  js inline "(#1)"
+// Show a `:double` as in decimal notation.
+// The optional `precision` (= `0`) and should be between 0 and 21. 
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-fixed( d : double, precision : int = 0 )
+{
+  show-double(d,precision,"F")
 }
 
-private function showChar( c : char ) : string
+// Show a `:double` in exponential (scientific) notation.
+// The optional `precision` (= `0`) should be between 0 and 21.
+// Use `0` to display the number precisely using the least digits necessary.
+fun show-exp( d : double, precision : int = 0 )
+{
+  show-double(d,precision,"e")
+}
+
+// Show a character as a string
+private fun show-char( c : char ) : string
 {
   if (c < ' ' || c > '~') {
     if (c == '\n') then "\\n"
     elif (c == '\r') then "\\r"
     elif (c == '\t') then "\\t"
-    elif (c.int <= 0xFF) then "\\x" + c.int.showHex(2)
-    elif (c.int <= 0xFFFF) then "\\u" + c.int.showHex(4)
-    else "\\U" + c.int.showHex(6)
+    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2,pre="")
+    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4,pre="")
+    else "\\U" + c.int.show-hex(6,pre="")
   }
   else {
     if (c == '\'') then "\\'"
@@ -2191,40 +2487,91 @@ private function showChar( c : char ) : string
   }
 }
 
-// Show a ":char" as a char literal
+// Show a `:char` as a character literal
 function show( c : char ) : string
 {
-  "'" + c.showChar + "'"
+  "'" + c.show-char + "'"
 }
+
 
 // Show a string as a string literal
-function show( s : string ) : string
+fun show( s : string ) : string
 {
-  "\"" + s.list.map(showChar).join + "\""
+  "\"" + s.list.map(show-char).join + "\""
 }
 
-private val redirect : ref<global,maybe<(string) -> console ()>> = unsafeTotal { ref(Nothing) }
+// Convert a `:bool` to a string
+fun show( b : bool ) : string  -> if (b) then "True" else "False"
 
-// redirect "print" and "println" calls to a specified function.
-public function printRedirect( print : (msg : string) -> console () ) : io ()
+// Convert a unit value `()` to a string
+fun show( u : () ) : string  -> "()"
+
+// Show an `:sslice` as a string literal
+fun show( s : sslice ) : string  -> s.string.show
+
+// Convert a list to a string
+fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
+{
+  "[" + xs.map(show-elem).join(",") + "]"
+}
+
+
+fun show( xs : list<string> ) : string {
+  show-list(xs,show)
+}
+
+fun show( xs : list<int> ) : string {
+  show-list(xs,show)
+}
+
+fun show( xs : list<bool> ) : string {
+  show-list(xs,show)
+}
+
+fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string {
+  "(" + x.fst.showfst + "," + x.snd.showsnd + ")"
+}
+
+// ----------------------------------------------------------------------------
+// Print to the console
+// ----------------------------------------------------------------------------
+
+// Generic print routine: prints the internal representation as a string to the console, including a final newline character.  
+// Note: this breaks parametricity so it should not be public
+private fun gprintln( x : a ) : console () {
+  println( x.gshow )
+}
+
+// Generic print routine: prints the internal representation as a string to the console, 
+// including a final newline character.  
+// Note: this breaks parametricity so it should not be public
+private fun gprint( x : a ) : console () {
+  print( x.gshow )
+}
+
+
+private val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
+
+// redirect `print` and `println` calls to a specified function.
+public fun print-redirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
 }
 
 // Print a string to the console, including a final newline character.
-private external xprintsln : string -> console ()  { 
+private extern xprintsln : string -> console ()  { 
   cs "Console.WriteLine";
-  js "$println"
+  js "_println"
 }
 
 // Print a string to the console
-private external xprints : string -> console ()  { 
+private extern xprints : string -> console ()  { 
   cs "Console.Write";
-  js "$print"
+  js "_print"
 }
 
-private function prints( s : string ) : console () {
-  unsafeTotal { 
+private fun prints( s : string ) : console () {
+  unsafe-total { 
     match(!redirect) {
       Nothing -> xprints(s)
       Just(f) -> f(s)
@@ -2232,8 +2579,8 @@ private function prints( s : string ) : console () {
   }
 }
 
-private function printsln( s : string ) : console () {
-  unsafeTotal { 
+private fun printsln( s : string ) : console () {
+  unsafe-total { 
     match(!redirect) {
       Nothing -> xprintsln(s)
       Just(f) -> f(s + "\n")
@@ -2242,187 +2589,129 @@ private function printsln( s : string ) : console () {
 }
 
 // Print a string to the console.
-function print(s : string)  { prints(s) }
+fun print(s : string)  { prints(s) }
 
 // Print an integer to the console.
-function print(i : int)     { prints(show(i)) }
-
-// Print a character to the console.
-function print(c : char)    { prints(string(c)) }
+fun print(i : int)     { prints(show(i)) }
 
 // Print a double to the console.
-function print(d : double)  { prints(show(d)) }
+fun print(d : double)  { prints(show(d)) }
 
 // Print a boolean to the console
-function print( b : bool )  { prints(show(b)) }
+fun print( b : bool )  { prints(show(b)) }
+
+// Print a character to the console.
+fun print(c : char)    { prints(c.string) }
 
 // Print a unit value to the console
-function print( u : () )  { prints(show(())) }
+fun print( u : () )  { prints(show(())) }
 
 
 // Print a string to the console, including a final newline character.
-function println(s : string)  { printsln(s) }
+fun println(s : string)  { printsln(s) }
 
 // Print an integer to the console, including a final newline character.
-function println(i : int)     { printsln(show(i)) }
-
-// Print a character to the console, including a final newline character.
-function println(c : char)    { printsln(string(c)) }
+fun println(i : int)     { printsln(show(i)) }
 
 // Print a double to the console, including a final newline character.
-function println(d : double)  { printsln(show(d)) }
+fun println(d : double)  { printsln(show(d)) }
 
 // Print a boolean to the console, including a final newline character
-function println( b : bool )  { printsln(show(b)) }
+fun println( b : bool )  { printsln(show(b)) }
+
+// Print a character to the console, including a final newline character.
+function println(c : char)    { printsln(c.string) }
 
 // Print a unit value to the console, including a final newline character
-function println( u : () )  { printsln(show(())) }
+fun println( u : () )  { printsln(show(())) }
 
 
-private external xtrace : ( message : string ) -> ()  {
+private extern xtrace : ( message : string ) -> ()  {
   cs "Primitive.Trace"
-  js "$trace"
+  js "_trace"
 }
 
-private val traceEnabled : ref<global,bool> = unsafeTotal { ref(True) }
+private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 
 // Trace a message used for debug purposes. 
 // The behaviour is system dependent. On a browser and node it uses
 // `console.log`  by default. 
-// Disabled if "notrace" is called.
-public function trace( message : string ) : () {
-  unsafeTotal {
-    if (!traceEnabled) then xtrace(message) 
+// Disabled if `notrace` is called.
+public fun trace( message : string ) : () {
+  unsafe-total {
+    if (!trace-enabled) then xtrace(message) 
   }    
 }
 
 // Disable tracing completely.
-public function notrace() : st<global> () {
-  traceEnabled := False
+public fun notrace() : st<global> () {
+  trace-enabled := False
 }
 
-// Convert a ":bool" to a string
-function show( b : bool ) : string =  if (b) then "True" else "False"
-
-// Convert a unit value "()" to a string
-function show( u : () ) : string =  "()"
-
-// Convert a list to a string
-function show( xs : list<a>, showElem : (a) -> string ) : string
-{
-  "[" + xs.map(showElem).join(",") + "]"
-}
-
-
-// Right-align a string to width `width`  using `char`  (default is a space) to fill from the left.
-function align( s : string, width : int, char : char = ' ') : string
-{
-  val n = s.length
-  if (n >= width)
-   then s
-   else string(width - n, char) + s
-}
-
-// Left-align a string to width `width`  using `char`  (default is a space) to fill on the right.
-function fill( s : string, width : int, char : char = ' ') : string
-{
-  val n = s.length
-  if (n >= width)
-   then s
-   else s + string(width - n, char)
-}
-
-// ----------------------------------------------------------------------------
-// Input
-// ----------------------------------------------------------------------------
-
-// Represents values that are computed asynchronously
-type async<a>
-
-// When an asynchronous value is computed, call the specified "handler" (at most once).
-external on : forall<a,b,e> ( async : async<a>, handler : (value : a) -> e b ) -> e async<b> {
-  js "async_on"
-  cs inline "#1.On<##2>(#2)"
-}
-
-// When an asynchronous value computation fails, call the specified "handler" (at most once).
-external onExn : forall<a,e> ( async : async<a>, handler : (exn : exception) -> e a) -> e async<a> {
-  js "async_on_exn"
-  cs inline "#1.OnExn<##1>(#2)"
-}
-
-// Has an asynchronous value been computed?
-external isDone : forall<a> ( async : async<a> ) -> bool {
-  js "async_is_done"
-  cs inline "#1.IsDone"
-}
-
-// Read a line from the console.
-external readln : forall<e> () -> <console|e> async<string>  { 
-  js "$read_line"
-  cs inline "Primitive.ReadLine()"
-}
-
-// Read a line from the console and immediately supply a handler 
-// For convenience, returns a unit value. Use an explicit "on" if
-// the returned ":async" is needed.
-function readln( handler : (string) -> <console|e> a ) : <console|e> () 
-{
-  readln().on(handler)
-  return ()
-}
-
-// Displays "query" to the user (with a space attached) and invokes "handler" with 
-// the user's response. 
-function question( query : string, handler : (input : string) -> <console|e> a ) : <console|e> ()
-{
-  print(query + " ")
-  readln( handler )
-}
-
- 
 // Used by the compiler to wrap main console applications
-external mainConsole : forall<a,e> ( main : () -> e a ) -> e a {
+extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
   cs inline "Primitive.MainConsole<##1>(#1)"
   js inline "(#1)()"
 }
+
 
 // ----------------------------------------------------------------------------
 // References
 // ----------------------------------------------------------------------------
 
-// The predicate ":hdiv<h,a,e>" signifies that if the type ":a" contains a reference to ":h",
-// then the effect ":e" must contain the divergent effect (":div"). This constraint is generated
-// when writing to the heap (see "(!)") and is necessary to catch cases where code can diverge
-// by storing selfReferential functions in the heap.
+// The predicate `:hdiv<h,a,e>` signifies that if the type `:a` contains a reference to `:h`,
+// then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
+// when writing to the heap (see `(!)`) and is necessary to catch cases where code can diverge
+// by storing selfReferential funs in the heap.
 type hdiv :: (H,V,E) -> P
 
-// A reference ":ref<h,a>" points to a value of type ":a" in heap ":h".
+// A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
-external inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> { 
+extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> { 
   cs inline "new Ref<##1,##2>(#1)";
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
-external inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () { 
+extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () { 
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of reference.
-external inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  { 
+extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  { 
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
 
-// If a heap effect is unobservable, the heap effect can be erased by using the "run" function.
+// If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-external inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  { 
+extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  { 
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
+}
+
+// Given a total function to calculate a value `:a`, return
+// a total function that only calculates the value once and then 
+// returns the cached result.
+fun once( calc : () -> a ) : (() -> a) {
+  unsafe-total {
+    var value := Nothing
+    return fun() {
+      unsafe-total {
+        match(value) {
+          Just(x) -> x
+          Nothing -> {
+            val x = calc()
+            value := Just(x)
+            x
+          }
+        }
+      }
+    }
+  }
 }
 
 
@@ -2430,66 +2719,75 @@ external inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> 
 // Unsafe
 // ----------------------------------------------------------------------------
 
-private external inline unsafeTotalCast : forall<e,a> ( action : () -> e a ) -> (() -> total a) = inline "#1"
+private extern inline unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> total a) { inline "#1" }
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
-function unsafeTotal( action : () -> e a ) : total a
+fun unsafe-total( action : () -> e a ) : total a
 {
-  unsafeTotalCast( action )()
+  unsafe-total-cast( action )()
 }
 
 
-// _Unsafe_. This function removes the exception effect (":exn") from the effect of an action
-function unsafeNoExn( action : () -> <exn|e> a ) : e a
+// _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
+fun unsafe-noexn( action : () -> <exn|e> a ) : e a
 {
-  unsafeTotal( action )
+  unsafe-total( action )
 }
 
-// _Unsafe_. This function removes the non-termination effect (":div") from the effect of an action
-function unsafeNoDiv( action : () -> <div|e> a ) : e a
+// _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
+fun unsafe-nodiv( action : () -> <div|e> a ) : e a
 {
-  unsafeTotal( action )
+  unsafe-total( action )
 }
+
+// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
+extern inline unsafe-decreasing( x : a ) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
 // Non determinism
 // ----------------------------------------------------------------------------
 
-private val uniqueCount : ref<global,int> = unsafeTotal { ref(0) }
+private val unique-count : ref<global,int> = unsafe-total { ref(0) }
 
 // Returns a unique integer (modulo 32-bits).
-function unique() : ndet int
+fun unique() : ndet int
 {
-  unsafeTotal {
-    val u = !uniqueCount
-    uniqueCount := u+1
+  unsafe-total {
+    val u = !unique-count
+    unique-count := u+1
     u
   }
 }
 
 // Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
-function choose( x: a, y: a) : ndet a {
-  if (odd(randomInt())) then x else y
+fun choose( x: a, y: a) : ndet a {
+  if (random-bool()) then x else y
 }
 
 // Return a random number equal or larger than 0.0 and smaller than 1.0
-external random : () -> ndet double   { 
+extern random : () -> ndet double   { 
   cs "Primitive.RandomDouble"
   js "Math.random"
 }
 
 // Return a positive random integer (including 0)
-external randomInt: () -> ndet int  { 
+extern random-int: () -> ndet int  { 
   cs "Primitive.RandomInt"
-  js inline "Math.floor(Math.random()*2147483647)"
+  js inline "Math.floor(Math.random()*_max_precise)"
 }
+
+// Return a random boolean
+fun random-bool() : ndet bool {
+  odd?(random-int())
+}
+
 
 // ----------------------------------------------------------------------------
 // Control
 // ----------------------------------------------------------------------------
 
-// The "while" function executes `action`  as long as `pred`  is "true".
-function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
+// The `while` fun executes `action`  as long as `pred`  is `true`.
+fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
 {
   if (predicate()) {
     action()
@@ -2497,45 +2795,312 @@ function while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <d
   }
 }
 
-// The "repeat" function executes `action`  `n`  times.
-function repeat( n : int, action : () -> e () ) : e ()
+// The `repeat` fun executes `action`  `n`  times.
+fun repeat( n : int, action : () -> e () ) : e ()
 {
   for(1,n) fun(i) { action() }
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-function for( start: int, end : int, action : (int) -> e () ) : e ()
+fun for( start: int, end : int, action : (int) -> e () ) : e ()
 {
-  function rep( i : int ) {
+  fun rep( i : int ) {
     if (i <= end) {
-      injectDiv(action)(i)
-      rep(i+1)
+      inject-div(action)(i)
+      rep(i.inc)
     }
   }
-  unsafeNoDiv { rep(start) }
+  unsafe-nodiv { rep(start) }
 }
+
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-// If `action` returns "Just", the iteration is stopped and the result returned
-function forWhile( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
+private fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
 {
-  function rep( i : int ) {
+  fun rep( i : int32 ) {
     if (i <= end) {
-      match(injectDiv(action)(i)) {
-        Nothing -> rep(i+1)
+      inject-div(action)(i)
+      rep(i.inc)
+    }
+  }
+  unsafe-nodiv { rep(start) }
+}
+
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
+{
+  fun rep( i : int ) {
+    if (i <= end) {
+      match(inject-div(action)(i)) {
+        Nothing -> rep(i.inc)
         Just(x) -> Just(x)
       }
     }
     else Nothing
   }
-  unsafeNoDiv { rep(start) }
+  unsafe-nodiv { rep(start) }
 }
 
-// Return the host environment: `dotnet`, `browser`, (web)`worker`, or `nodejs`. 
-external getHost() : ndet string {
-  cs inline "\"dotnet\""
-  js inline "($inBrowser ? 'browser' : ($inWebWorker ? 'worker' : 'nodejs'))"
+
+// Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
+// If `start > end`  the function returns without any call to `action` .
+// If `action` returns `Just`, the iteration is stopped and the result returned
+private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<a> ) : e maybe<a>
+{
+  fun rep( i : int32 ) {
+    if (i <= end) {
+      match(inject-div(action)(i)) {
+        Nothing -> rep(i.inc)
+        Just(x) -> Just(x)
+      }
+    }
+    else Nothing
+  }
+  unsafe-nodiv { rep(start) }
 }
+
+// Return the host environment: `dotnet`, `browser`, `webworker`, or `node`. 
+extern host() : ndet string {
+  cs inline "\"dotnet\""
+  js inline "_host"
+}
+
+
+
+
+// ----------------------------------------------------------------------------
+// Handled effects
+// ----------------------------------------------------------------------------
+
+// Handled effects are lifted to an atomic effect using the `:handled` type constructor
+type handled    :: HX -> X;
+
+// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
+type handled1   :: HX1 -> X;
+
+// Effect operations with result type `:a`
+type open operation<a> 
+
+// Cps effect. This is used by the compiler internally to ensure certain funs
+// are compiled with a cps translation
+effect cps {
+  cps() : ()
+}
+
+// Handle the `:cps` effect. 
+val uncps = handler {
+  return x -> x
+  cps()    -> resume(())
+}
+
+// inject the `:cps` effect into a non-cps function
+extern incps( action: () -> e a ) : <cps|e> a { 
+  js inline "(action.length === 1 ? action(_k) : _k(action()))" 
+}
+
+// inject the `:cps` effect into a non-cps function with one argument
+extern incps1( action: a -> e b, x : a ) : <cps|e> b { 
+  js inline "(action.length === 2 ? action(x,_k) : _k(action(x)))" 
+}
+
+// inject the `:cps` effect into a non-cps function with two arguments
+extern incps2( action: (a,b) -> e c, x : a, y : b ) : <cps|e> c { 
+  js inline "(action.length === 3 ? action(x,y,_k) : _k(action(x,y)))" 
+}
+
+
+// Continuation alias. Used internally to do special checks on cps converted code.
+alias cont<a,e,b> = a -> e b
+
+
+// ----------------------------------------------------------------------------
+// Handling exceptions when in cps / effect handling mode.
+// These are called transparently from the primcatch/primfinally funs
+// ----------------------------------------------------------------------------
+
+private effect hexn {
+  hthrow(exn : exception) : void  // cannot resume
+}
+
+private fun hcatch( action, ehandler ) {
+  handle(action) {
+    return x    -> x
+    hthrow(exn) -> ehandler(exn)
+  }
+}
+
+private fun hfinally( action, fhandler ) {
+  handle(action) {
+    return x    -> { 
+      fhandler() 
+      x
+    }
+    hthrow(exn) -> {
+      fhandler()
+      throw(exn)
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Asynchronous operations are supported through the `:async` effect.
+// The basic effect is in core since it usually requires some support from the host system.
+// ----------------------------------------------------------------------------
+
+// Asynchronous operations have the `:async` effect.
+abstract effect async {
+  async-yield() : ()
+}
+
+public fun ".async-handle"(action) {
+  handle(action) {
+    return x -> x
+    async-yield() -> () // todo: do a zero timeout?
+  }
+}
+
+
+extern ".save-handler-context"() : any {
+  js "$saveHandlerContext"
+}
+
+extern ".restore-handler-context"( context : any, action : a -> (), arg : a ) : () {
+  js "$restoreHandlerContext"
+}
+
+
+// ----------------------------------------------------------------------------
+// Handler primitives. 
+// These are hidden from normal usage but generated by the compiler since
+// the continuations are not safely typed in plain Koka
+// ----------------------------------------------------------------------------
+
+// The Yield monad
+type yld<a> {
+  Yield<b>( op: operation<b>, cont : b -> yld<a> )
+  Result( result: a ) 
+}
+
+extern inline ".yieldop"( op : operation<a> ) : a {
+  js inline "$std_core.Yield(#1,_k)" 
+}
+
+extern ".yieldop1"( efftag: string, op : a ) : b {
+  js inline "$yield_linearx(#1,#2)" 
+}
+
+/*
+extern ".yieldop1"( op : operation<a> ) : a {
+  js inline "$yield_linear(#1)" 
+}
+*/
+  
+extern inline ".toany"( x : a ) : any { 
+  inline "#1" 
+} 
+
+extern inline ".applyK"(k : a -> e b, x : a) : e b {
+  js inline "(#1 || $std_core.id)(#2)"
+}
+
+extern ".htop"() : any {
+  js inline "$htop"
+}
+
+extern ".hstack"() : any {
+  js inline "$hstack"
+}
+
+extern ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
+                          ret : a -> <cps|e> b,  
+                          ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
+                                 resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b  
+                        ) : total ((action : () -> e1 a) -> e b) { 
+  js inline "$makeGenOptHandler0(optag,false,ret,ops)"
+}
+
+extern ".makeHandlerRet0"( optag:string, ret : a -> <cps|e> b, ops : int ) : total ((action : () -> e a) -> e b) {
+  js inline "$makeGenOptHandler0(optag,false,ret,ops)"
+}
+
+extern ".makeShallowHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
+                          ret : a -> e b,  
+                          ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o, 
+                                resume:(l1:any,l2:int, cont:(c) -> yld<a>, c) -> e a) -> e b  
+                        ) : total ((action : () -> e a) -> e b) { 
+  js inline "$makeGenOptHandler0(optag,true,ret,ops)"
+}
+
+
+extern ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
+                          ret : (d,a) -> <cps|e> b, 
+                          ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o, 
+                                  resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b), 
+                                  loc:d) -> <cps|e> b  
+                        ) :  total ((loc:d, action: () -> e1 a) -> e b) {
+  js inline "$makeGenOptHandler1(optag,false,ret,ops)"
+}
+
+
+/*
+// Abstract operation matching
+abstract type opmatch<e1::E,e2::E,a> {
+  OpMatch( : a )
+  OpNoMatch
+} 
+
+fun ".conOpMatch"(x)  { OpMatch(x) }
+fun ".conOpNoMatch"() { OpNoMatch  }
+
+fun ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>, 
+                          res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
+  fun hndler(yld) {
+    match(yld) {
+      Yield(op,f) -> {
+        match(matchop(op)) {
+          OpMatch(eop) -> ops(eop,fun(_,x) { hndler(f(x))}) 
+          OpNoMatch    -> reyield(op,fun(x) { hndler(f(x))})
+        }
+      }
+      Result(x) -> res(x)
+    }
+  }
+  unsafeMakeHandler0(hndler)
+}
+
+fun ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> <cps|e> b, ops : (op:o, cont: ((c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
+  fun hndler(yld,loc) {
+    match(yld) {
+      Yield(op,f) -> {      
+        match(matchop(op)) {
+          OpMatch(eop) -> ops(eop, fun(x,loc0) { hndler(f(x),loc0) }, loc)
+          OpNoMatch    -> reyield(op, fun(x) { hndler(f(x),loc) }) 
+        }
+      }
+      Result(x) -> res(x,loc)          
+    }
+  }
+  unsafeMakeHandler1(hndler)
+}
+
+private extern unsafeMakeHandler0( hndler : yld<a> -> <cps|e> b ) : total ((action : () -> e1 a) -> e b) {
+  js inline "fun(_action,_k){ _k = _k || id; return hndler(_action(Result),_k); }"
+}
+
+private extern unsafeMakeHandler1( hndler : (yld<a>,d) -> <cps|e> b ) : total ((action : () -> e1 a, loc : d) -> e b) {
+  js inline "fun(_action,_loc,_k){ _k = _k || id; return hndler(_action(Result),_loc,_k); }"
+}
+
+private extern reyield( op: operation<b>, f : b -> <cps|e> a ) : <cps|e> a {
+  js inline "Yield(op,fun(_x) { return f(_x,_k); } )"
+}
+*/
+
+
+
 

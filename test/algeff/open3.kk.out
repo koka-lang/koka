@@ -1,0 +1,5 @@
+42
+main : () -> console ()
+myid : forall<a> (x : a) -> a
+mymap : forall<a,b,e> ((a) -> e b, list<a>) -> e list<b>
+test : () -> list<int>

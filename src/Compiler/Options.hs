@@ -91,7 +91,7 @@ data Flags
          , library          :: Bool
          , targets          :: [Target]
          , host             :: Host
-         , noSimplify       :: Bool
+         , simplify         :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
          , includePath      :: [FilePath]
@@ -110,9 +110,12 @@ data Flags
          , console          :: String
          , rebuild          :: Bool
          , genCore          :: Bool
+         , coreCheck        :: Bool
+         , enableCps        :: Bool
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
+         , forceModule      :: FilePath
          }
 
 flagsNull :: Flags
@@ -129,7 +132,7 @@ flagsNull
           False -- library
           [JS]
           Node
-          False -- noSimplify
+          3     -- simplify passes
           defaultColorScheme
           "."    -- out-dir
           []
@@ -148,9 +151,12 @@ flagsNull
           "ansi"  -- console: ansi, html
           False -- rebuild
           False -- genCore
+          False -- coreCheck
+          True  -- enableCps
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
+          "" -- forceModule
 
 isHelp Help = True
 isHelp _    = False
@@ -200,6 +206,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
  , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
@@ -210,9 +217,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hiddenFlag   []    ["simplify"]  (\b f -> f{noSimplify= not b})       "enable core simplification"
- , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
- 
+ , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
+ , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=b})          "enable cps translation"
+ , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack" 
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
  ]
  where
@@ -232,6 +239,17 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   hiddenFlag short long f desc
     = ([],[Option short long (NoArg (Flag (f True))) desc
           ,Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+
+  hiddenNumOption def optarg short long f desc
+    = ([],[Option short long (OptArg (\mbs -> Flag (numOption def f mbs)) optarg) desc
+          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
+
+  numOption def f mbs
+    = case mbs of
+        Nothing -> f def
+        Just s  -> case reads s of 
+                     ((i,""):_) -> f i
+                     _ -> f def  -- parse error
 
   config short long opts f desc
     = option short long (ReqArg validate valid) desc  
@@ -479,7 +497,7 @@ versionMessage
   ])
   <->
   (color DarkGray $ vcat $ map text
-  [ "Copyright 2012 Microsoft Corporation, by Daan Leijen."
+  [ "Copyright (c) 2012-2016 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"

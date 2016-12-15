@@ -8,9 +8,13 @@
 
 /* Text size and margins for screen & print */
 @media screen {
-  body { 
-    padding: 1em 8% 1em 8%;
-    padding-bottom: 50em; /* so a link to the end always puts the definition on top of the screen */
+  body {
+    max-width: 52em;
+    margin: 1em auto;
+    padding: 0em 1ex 45em 1ex; /* so a link to the end always puts the definition on top of the screen */
+  }
+  .koka.doc p {
+    text-align: left;
   }
 }
 
@@ -31,6 +35,7 @@
 /* p,li,div.koka.doc.comment { text-align: justify;} */
 
 
+
 /* source code font styles: 
    font stack designed for windows, mac, and linux.
    see also: http://www.apaddedcell.com/sites/www.apaddedcell.com/files/fonts-article/final/index.html
@@ -40,14 +45,14 @@ body {
   color: black;
 }
 
-body,
-.koka .comment,
 .sans-serif { 
-  font-family: 'Segoe UI', 'PT Sans', 'Candara', 'DejaVu Sans', sans-serif;
+  font-family: 'Noto Sans', 'Segoe UI', 'DejaVu Sans', sans-serif;
 }
 
+body,
+.koka .comment,
 .serif {
-  font-family: Cambria,"Times New Roman","Liberation Serif","Times",serif;
+  font-family: 'Noto Serif', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
 }
 
 h1 { 
@@ -59,50 +64,36 @@ h1 {
 }
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
-body.koka.doc,
-.koka .mo, .koka .module,
 .koka.source,
-.koka.code, code,
 .koka.codeblock,
-.koka.pre, pre,
 .koka.preblock, 
+code, code.koka, .koka .code, .madoko code,
+pre, pre.koka, .madoko pre,
 .monospace { 
-  font-family: Consolas,"Andale Mono WT","Andale Mono",Lucida Console,Monaco,monospace,monospace;
+  font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
 }
 
-.koka.code, code {
-  font-size: 0.9em;
-} 
-
-.koka pre code,
-.koka.pre, 
-.koka.preblock,
-.koka.codeblock {
+code, code.koka, .koka .code, .madoko code 
+{ 
   font-size: 0.95em;
 }
 
+pre code code, .madoko pre code code {
+  font-size: 1em;
+}
 
 /* source code blocks */
 .koka.codeblock,
 .koka.preblock,
 .koka.source  { 
-  background: #F8F8F8;  
-  border: 1px solid #DDD;   /* dark grey */
   padding: 0.5ex 1ex 0.5ex 1ex;
-  margin: 1ex 5% 1ex 0ex;
 }
 
 .koka.source.unchecked {
-  border: 1px dotted #DDD;
 }
 
 .koka.source-body .source {
   margin-right: 1ex;
-}
-
-.koka.code, code,
-.koka.pre, pre { 
-  padding: 0px 3px 0px 3px;
 }
 
 .koka .dash { 
@@ -247,6 +238,11 @@ a.pp a.pp:hover .pc
 
 
 /* Documentation */
+.koka.doc>pre.source {
+  background-color: #F0F0F0;
+  border: 1px solid #AAA;
+}
+
 h1.koka.module
       { font-weight: normal
       }
@@ -258,8 +254,8 @@ h1.koka.module
       }
 
 .koka.doc .header
-      { background: #F8F8F8     /* light grey */
-      ; padding: 1px
+      { background: #F0F0F0
+      ; padding: 0.25ex
       ; padding-left: 0.5ex
       ; margin-top: 0px
       ; margin-bottom: 0.5em
@@ -282,12 +278,12 @@ h1.koka.module
       { margin: 0em 0em 0em 1em }
 
 .koka.doc.body>.comment
-      { margin-bottom: 2em }
+      { margin-bottom: 1em }
 
 .koka.doc .decl, 
 .koka.doc .con-decl
-      { margin-top: 1em
-      ; border: 1px solid #DDD
+      { margin-top: 1.2em
+      ; border: 1px solid #AAA
       ; border-width: 1px 0px 0px 1px
       }
   
@@ -328,7 +324,7 @@ div.nested {
       ; margin: 0em
       ; float: left;
       ; clear: none;
-      ; margin-bottom: 1.5em; 
+      /* ; margin-bottom: 1.5em;  */
       ; padding: 0.5ex 1.5ex 0ex 0.5ex;
       /* ; width: 10.5em; */
       ; white-space: nowrap
@@ -343,23 +339,28 @@ div.nested {
       ; width: 100%
       }
 
+.koka.doc div.toc+.doc {
+  margin: 1em 0em;
+  padding: 1em 0em;
+  border-top: 1px solid #AAA;
+}
+
 /* Index documentation */
 .koka.doc table.index td {
   vertical-align: top;
   padding-right: 1em;
-  padding-bottom: 0.5ex;
 }
 
 .koka.doc table.index .nested1 {
-  margin-left: 1.25ex;
+  margin-left: 1.5ex;
 }
 
 .koka.doc table.index .nested2 {
-  margin-left: 2.5ex;
+  margin-left: 2.75ex;
 }
 
 .koka.doc table.index .nested3 {
-  margin-left: 3.75ex;
+  margin-left: 4ex;
 }
 
 /* Print in black&white. Commented out for now  */

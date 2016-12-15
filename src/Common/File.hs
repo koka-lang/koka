@@ -21,13 +21,14 @@ module Common.File(
 
                   -- * File names
                   , FileName
-                  , basename, notdir, notext, joinPath, joinPaths, extname, dirname
+                  , basename, notdir, notext, joinPath, joinPaths, extname, dirname, noexts
                   , splitPath, undelimPaths
                   , isPathSep, isPathDelimiter
                   , findMaximalPrefix
                   , isAbsolute
                   , commonPathPrefix
                   , normalizeWith
+                  , isLiteralDoc 
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
@@ -39,7 +40,7 @@ module Common.File(
 
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
-import Platform.Config  ( pathSep, pathDelimiter )
+import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile )
 import Common.Failure   ( raiseIO, catchIO )
  
@@ -71,6 +72,11 @@ splitOn pred xs
       = case (span (not . pred) xs) of
           (pre,post) -> normalize (pre:acc) (dropWhile pred post)
 
+
+isLiteralDoc :: FileName -> Bool
+isLiteralDoc fname
+  = endsWith fname (sourceExtension ++ ".md") ||
+    endsWith fname (sourceExtension ++ ".mdk")
 
 {--------------------------------------------------------------------------
   File names
@@ -108,6 +114,10 @@ notdir fname
 notext :: FileName -> FileName
 notext fname
   = reverse (drop (length (extname fname)) (reverse fname))  
+
+noexts :: FileName -> FileName
+noexts fname
+  = joinPaths [dirname fname, takeWhile (/='.') (notdir fname)]
 
 -- | Split a (semi-)colon separated list of directories into a directory list
 undelimPaths :: String -> [FilePath]

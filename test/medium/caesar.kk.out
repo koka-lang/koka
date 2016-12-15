@@ -1,0 +1,13 @@
+plain : Koka is a well-typed language
+encoded: Krnd lv d zhoo-wbshg odqjxdjh
+cracked: Koka is a well-typed language
+caesar : (s : string) -> string
+chisqr : (xs : list<double>, ys : list<double>) -> double
+encode : (s : string, shift : ?int) -> string
+english : list<double>
+freqs : (s : string) -> list<double>
+main : () -> console ()
+percent : (n : int, m : int) -> double
+rotate : forall<a> (xs : list<a>, n : int) -> list<a>
+test-uncaesar: () -> console ()
+uncaesar : (s : string) -> string

@@ -13,6 +13,7 @@ module Type.Type (-- * Types
                     Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType, Pred(..)
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
+                  , dataInfoIsRec, dataInfoIsOpen
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -30,7 +31,7 @@ module Type.Type (-- * Types
                   -- ** Standard types
                   , typeInt, typeBool, typeFun, typeVoid
                   , typeUnit, typeChar, typeString, typeFloat
-                  , typeTuple
+                  , typeTuple, typeAny
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -40,7 +41,13 @@ module Type.Type (-- * Types
 
                   , typeDivergent, typeTotal, typePartial 
                   , typeList, typeApp, typeRef, typeOptional
-                  , isOptional, makeOptional
+                  , isOptional, makeOptional, unOptional
+
+                  --, handledToLabel
+                  , tconHandled, tconHandled1
+                  , typeCps
+                  , isEffectAsync, isAsyncFunction
+
                   -- , isDelay
                   -- ** Standard tests
                   , isTau, isRho, isTVar, isTCon
@@ -52,11 +59,12 @@ module Type.Type (-- * Types
                   , IsType( toType) 
                   -- ** Primitive
                   , isFun, splitFunType
-                  , getConArities
-                  , module Common.Name
+                  , getTypeArities
+                  , module Common.Name                
                   ) where
 
 -- import Lib.Trace
+import Data.Maybe(isJust)
 import Data.List( nub, sortBy )
 
 import Common.Name
@@ -64,7 +72,7 @@ import Common.NamePrim
 import Common.Range
 import Common.Id
 import Common.Failure
-import Common.Syntax( DataKind(..) )
+import Common.Syntax( Visibility, DataKind(..), DataDef(..), dataDefIsRec, dataDefIsOpen )
 import Kind.Kind
 
 {--------------------------------------------------------------------------
@@ -160,20 +168,28 @@ data DataInfo = DataInfo{ dataInfoSort :: DataKind
                         , dataInfoParams :: [TypeVar] {- ^ arguments -} 
                         , dataInfoConstrs :: [ConInfo] 
                         , dataInfoRange  :: Range
-                        , dataInfoIsRec  :: Bool  {- ^ recursive? -}
+                        , dataInfoDef    :: DataDef
                         , dataInfoDoc    :: String
                         }
+
+dataInfoIsRec info 
+  = dataDefIsRec (dataInfoDef info)
+
+dataInfoIsOpen info 
+  = dataDefIsOpen (dataInfoDef info)
 
 -- | Constructor information: constructor name, name of the newtype, field types, and the full type of the constructor
 data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoTypeName :: Name 
                       -- , conInfoTypeSort :: Name 
+                      , conInfoForalls:: [TypeVar] {- ^ quantifiers -}
                       , conInfoExists :: [TypeVar] {- ^ existentials -} 
                       , conInfoParams :: [(Name,Type)] {- ^ field types -} 
                       , conInfoType   :: Scheme  
                       , conInfoTypeSort :: DataKind  -- ^ inductive, coinductive, retractive
                       , conInfoRange :: Range
                       , conInfoParamRanges :: [Range]
+                      , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
                       , conInfoDoc :: String
                       }
@@ -358,8 +374,8 @@ applyType tp1 tp2
           _           -> False
 
 
-getConArities :: Type -> (Int,Int)
-getConArities tp
+getTypeArities :: Type -> (Int,Int)
+getTypeArities tp
   = let (tvars, preds, rho) = splitPredType tp
     in case splitFunType rho of
          Just (pars,eff,res) -> (length tvars, length pars)
@@ -493,9 +509,47 @@ labelName :: Tau -> Name
 labelName tp
   = case expandSyn tp of
       TCon tc -> typeConName tc
+      TApp (TCon (TypeCon name _)) [htp] | name == nameTpHandled
+        -> labelName htp -- use the handled effect name for handled<htp> types.
       TApp (TCon tc) _  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
                            typeConName tc
       _  -> failure "Type.Unify.labelName: label is not a constant"
+
+
+typeCps :: Type
+typeCps
+  = TApp tconHandled [TCon (TypeCon nameTpCps kindHandled)]
+
+tconHandled :: Type
+tconHandled = TCon $ TypeCon nameTpHandled kind
+  where
+    kind = kindFun kindHandled kindLabel
+
+tconHandled1 :: Type
+tconHandled1 = TCon $ TypeCon nameTpHandled1 kind
+  where
+    kind = kindFun kindHandled1 kindLabel    
+
+
+isAsyncFunction tp
+  = let (_,_,rho) = splitPredType tp
+    in case splitFunType rho of
+         Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff 
+                           in any isEffectAsync ls
+         _ -> False    
+
+isEffectAsync tp
+  = case expandSyn tp of
+      TForall _ _ rho -> isEffectAsync rho
+      TFun _ eff _    -> isEffectAsync eff
+      TApp (TCon (TypeCon name _)) [t]  
+        | name == nameTpHandled -> isEffectAsync t
+      TCon (TypeCon hxName _)
+        -> hxName == nameTpAsync
+      _ -> False
+
+isEffectTyVar (TVar v) = isKindEffect $ typevarKind v 
+isEffectTyVar _        = False
 
 
 effectEmpty :: Tau
@@ -666,6 +720,10 @@ typeVoid :: Tau
 typeVoid
   = TCon (TypeCon nameTpVoid kindStar)
 
+typeAny :: Tau
+typeAny
+  = TCon (TypeCon (nameTpAny) kindStar)
+
 typeTuple :: Int -> Tau
 typeTuple n
   = TCon (TypeCon (nameTuple n) (kindArrowN n))
@@ -687,6 +745,12 @@ isOptional tp
 makeOptional :: Type -> Type
 makeOptional tp
   = TApp typeOptional [tp]
+
+unOptional :: Type -> Type
+unOptional tp
+  = case expandSyn tp of
+      TApp (TCon tc) [t] | tc == tconOptional -> t
+      _ -> tp
 
 
 

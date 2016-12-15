@@ -1,4 +1,4 @@
-module codegen/javascript
+module javascript
 
 function prematureReturn(xs: list<int>): bool {
   val x = match(xs) {
@@ -108,6 +108,18 @@ function tcoWhile( predicate : () -> <div|e> bool, action : () -> <div|e> () ) :
 function foo( i : int ) {
   if (i < 0) then return Lt
   elif (i > 0) then return Gt
+  else Eq
+}
+
+function foo2( i : int ) {
+  if (i < 0) then return Lt
+  elif (i > 0) then return Gt
+  else return Eq
+}
+
+function foo3( i : int ) {
+  if (i < 0) then  Lt
+  elif (i > 0) then  Gt
   else Eq
 }
 

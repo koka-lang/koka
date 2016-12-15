@@ -1,6 +1,9 @@
-/* Copyright 2012 Microsoft Corporation, Daan Leijen
+/* Copyright 2012-2016 Microsoft Corporation, Daan Leijen
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
+*/
+/* Requires at least Flex 2.5.37; you can get a version for windows from 
+   https://sourceforge.net/projects/winflexbison
 */
 %option 8bit noyywrap bison-bridge bison-locations reentrant 
 
@@ -11,6 +14,8 @@
 %x litstring
 
 %{
+#define CHECK_BALANCED  // check balanced parenthesis
+
 #define INDENT_LAYOUT   // use full layout rule based on nested indentation
 #undef LINE_LAYOUT    // use simple layout based on line ending token
 
@@ -38,7 +43,7 @@ void  commentNestingInc(yyscan_t scanner);
 int   commentNestingDec(yyscan_t scanner);   
 
 /*  Allocation of identifiers and string literals */
-char* identifier( const char* s, yyscan_t scanner );
+char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
 char* stringDup( const char* s, yyscan_t scanner );
 void  stringStart( yyscan_t scanner );
 void  stringAdd( unsigned int c, yyscan_t scanner);
@@ -63,18 +68,19 @@ char escapeToChar( char esc, yyscan_t scanner )
 %}
 
   /* Character classes */
-Op              {Symbol}+
-Symbol          [\$\%\&\*\+\@!/\\\^\~=\.\-\?\:\|\<\>]
+
+Symbols         {Symbol}+|[/]
+Symbol          [\$\%\&\*\+\@!\\\^\~=\.\-\:\?\|\<\>]
 AngleBar        [\<\>\|]
 Angle           [\<\>]
 
-ConId           {Upper}{IdChar}*
-Id              {Lower}{IdChar}*
-IdChar          {Letter}|{Digit}|[_]
+ConId           {Upper}{IdChar}*{Final}*
+Id              {Lower}{IdChar}*{Final}*
+IdChar          {Letter}|{Digit}|[_\-]
 
 HexEsc          x{Hex}{Hex}|u{Hex}{Hex}{Hex}{Hex}|U{Hex}{Hex}{Hex}{Hex}{Hex}{Hex}  
 CharEsc         [nrt\\\"\']                         
-/* " for editor highlighting */
+/* for editor highlighting " */
 
 LineChar        {GraphicLine}|{Utf8}
 BlockChar       {GraphicBlock}|{Utf8}
@@ -84,9 +90,10 @@ Upper           [A-Z]
 Lower           [a-z]
 Digit           [0-9]
 Hex             [0-9a-fA-F]
-Space           [ ]
-Tab             [\t]
+Space           [ \t]
 Newline         [\r]?[\n]
+Final           [\'\?]              
+/* for editor highlighting ' */
 
 GraphicChar     [ \x21-\x26\x28-\[\]-\x7E]
 GraphicStr      [ \x21\x23-\[\]-\x7E]
@@ -127,10 +134,15 @@ some                      { return SOME; }
 with                      { return WITH; }
 
 abstract                  { return ABSTRACT; }
-external                  { return EXTERNAL; }
+extern                    { return EXTERN; }
+external                  { return EXTERN; }
 
+function[\(\<]            { yyless(7); return FUNX; }
+fun[\(\<]                 { yyless(3); return FUNX; }
+
+function                  { return FUN; }
 fun                       { return FUN; }
-function                  { return FUNCTION; }
+
 val                       { return VAL; }
 var                       { return VAR; }
 con                       { return CON; }
@@ -149,8 +161,15 @@ public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
 
-inline                    { return INLINE;  }
-include                   { return INCLUDE; }
+inline                    { return ID_INLINE;  }
+include                   { return ID_INCLUDE; }
+
+open                      { return ID_OPEN; }
+linear                    { return ID_LINEAR;  }
+
+handler                   { return HANDLER; }
+handle                    { return HANDLE; }
+effect                    { return EFFECT; } 
 
   /* unused reserved identifiers */
 yield                     { return YIELD;}
@@ -190,18 +209,21 @@ js                        { return ID_JS;      }
 `                         { return '`'; }
 
   /* Comments */
-\/\/{Symbol}*             { BEGIN(linecomment); yymore(); }
-\/\*{Symbol}*             { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); } 
+\/\/                      { BEGIN(linecomment); yymore(); }
+\/\*                      { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); } 
 
   /* Type operators: these are all illegal operators and should be parsed as single characters
      For example, in types, we can have sequences like "<<exn>|<div|e>>" where "<<", ">|<", and ">>"
      should not be parsed as operator tokens. */
-\<{AngleBar}+            { yyless(1); return '<'; }
-\>{AngleBar}+            { yyless(1); return '>'; }
-\|{Angle}{Symbol}*       { yyless(1); return '|'; }
-\-\>\<{Symbol}*          { yyless(2); return RARROW; }
-\:\?{Symbol}*            { yyless(1); return ':'; }
-
+\|\|                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
+{AngleBar}{AngleBar}+     { yyless(1); return yytext[0]; }
+  /*     
+  \<{AngleBar}+            { yyless(1); return '<'; }
+  \>{AngleBar}+            { yyless(1); return '>'; }
+  \|{Angle}{Symbol}*       { yyless(1); return '|'; }
+  \-\>\<{Symbol}*          { yyless(2); return RARROW; }
+  \:\?{Symbol}*            { yyless(1); return ':'; }
+  */
 
   /* Non escaped string literal start */
 @\"                      { BEGIN(litstring);          /* " for editor highlighting */
@@ -210,15 +232,15 @@ js                        { return ID_JS;      }
                          }
 
   /* Identifiers and operators */
-({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner); return QCONID; }
-({Id}\/)+{Id}             { yylval->Id = identifier(yytext,yyscanner); return QID; }
-({Id}\/)+\({Op}\)         { yylval->Id = identifier(yytext,yyscanner); return QIDOP; }
+({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner,true); return QCONID; }
+({Id}\/)+{Id}             { yylval->Id = identifier(yytext,yyscanner,true); return QID; }
+({Id}\/)+\({Symbols}\)    { yylval->Id = identifier(yytext,yyscanner,true); return QIDOP; }
 
-{ConId}                   { yylval->Id = identifier(yytext,yyscanner); return CONID; }
-{Id}                      { yylval->Id = identifier(yytext,yyscanner); return ID; }
-\({Op}\)                  { yylval->Id = identifier(yytext,yyscanner); return IDOP; }
-{Op}                      { yylval->Id = identifier(yytext,yyscanner); return OP; }
-_{IdChar}*                { yylval->Id = identifier(yytext,yyscanner); return WILDCARD; }
+{ConId}                   { yylval->Id = identifier(yytext,yyscanner,true); return CONID; }
+{Id}                      { yylval->Id = identifier(yytext,yyscanner,true); return ID; }
+\({Symbols}\)             { yylval->Id = identifier(yytext,yyscanner,false); return IDOP; }
+{Symbols}                 { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
+_{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); return WILDCARD; }
 
   /* Numbers */
 0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
@@ -351,6 +373,7 @@ char* showString( const char* s, yyscan_t scanner );
 ---------------------------------------------------------*/
 #define errorMax  25
 #define layoutMax 255   /* Limit maximal layout stack to 255 for simplicity */
+#define braceMax  255   /* maximal nesting depth of parenthesis */
 #define Token     int
 
 typedef struct _ExtraState {
@@ -369,6 +392,13 @@ typedef struct _ExtraState {
   
   /* location of the last seen comment -- used to prevent comments in indentation */
   YYLTYPE     commentLoc;              
+#endif
+
+#ifdef CHECK_BALANCED
+  /* balanced braces */
+  int         braceTop;
+  Token       braces[braceMax];
+  YYLTYPE     bracesLoc[braceMax];
 #endif
 
   /* the previous non-white token and its location */
@@ -406,14 +436,18 @@ void printToken( int token, int state, yyscan_t scanner );  /* print a token for
    For semi-colon insertion, we look at the tokens that
    end statements, and ones that continue a statement
 ----------------------------------------------------*/
-static bool contains( Token tokens[], Token token )
+static int find( Token tokens[], Token token )
 {
   int i = 0;
   while (tokens[i] != 0) {
-    if (tokens[i] == token) return true;
+    if (tokens[i] == token) return i;
     i++;
   }
-  return false;
+  return -1;
+}
+
+static bool contains( Token tokens[], Token token ) {
+  return (find(tokens,token) >= 0);
 }
 
 static Token appTokens[] = { ')', ']', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
@@ -444,6 +478,21 @@ static bool isAppToken( Token token ) {
   }
 #endif
 
+#ifdef CHECK_BALANCED
+  static Token closeTokens[] = { ')', '}', ']', ')', ']', 0 };
+  static Token openTokens[]  = { '(', '{', '[', APP, IDX, 0 };
+
+  Token isCloseBrace( Token token ) {
+    int i = find(closeTokens,token);
+    return (i >= 0 ? openTokens[i] : -1);
+  }
+
+  Token isOpenBrace( Token token ) {
+    int i = find(openTokens,token);
+    return (i >= 0 ? closeTokens[i] : -1);
+  }
+#endif
+
 /*----------------------------------------------------
    Main lexical analysis routine 'mylex'
 ----------------------------------------------------*/
@@ -465,7 +514,8 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   else {
     token = yylex( lval, loc, scanner ); 
     *loc = updateLoc( scanner );
-
+    
+    // this is to avoid needing semicolons
     if (token=='(' && isAppToken(yyextra->previous)) token = APP;
     if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
 
@@ -481,6 +531,48 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner ); 
       *loc = updateLoc(scanner);
     }
+
+#ifdef CHECK_BALANCED
+    // check balanced braces
+    Token closeBrace = isOpenBrace(token);
+    //fprintf(stderr,"scan: %d, %d, (%d,%d)\n", token, closeBrace, loc->first_line, loc->first_column);
+    if (closeBrace>=0) {
+      if (yyextra->braceTop >= (braceMax-1)) {
+        yyerror(loc,scanner, "maximal nesting level of braces reached");        
+      }
+      else {
+        // push the close brace
+        yyextra->braceTop++;
+        yyextra->braces[yyextra->braceTop] = closeBrace;
+        yyextra->bracesLoc[yyextra->braceTop] = *loc;
+      }
+    }
+    else if (isCloseBrace(token) >= 0) {
+      // check if the close brace matches the context
+      if (yyextra->braceTop < 0) {
+        yyerror(loc, scanner, "unbalanced braces: '%c' is not opened", token);
+      }
+      else if (yyextra->braces[yyextra->braceTop] != token) {
+        YYLTYPE openLoc = yyextra->bracesLoc[yyextra->braceTop];
+        // try to pop to nearest open brace; otherwise don't pop at all
+        int top = yyextra->braceTop-1;
+        while( top >= 0 && yyextra->braces[top] != token) top--;
+        if (top >= 0) {
+          // there is a matching open brace on the stack
+          yyerror(&openLoc, scanner, "unbalanced braces: '%c' is not closed", isCloseBrace(yyextra->braces[yyextra->braceTop]) );
+          yyextra->braceTop = top-1; // pop to matching one          
+        }
+        else {
+          // no matching brace
+          yyerror(loc, scanner, "unbalanced braces: '%c' is not opened", token ); //, yyextra->braces[yyextra->braceTop],openLoc.first_line,openLoc.first_column);
+        }       
+      }
+      else {
+        // pop
+        yyextra->braceTop--;
+      }
+    }
+#endif
 
     // Do layout ?
     if (!yyextra->noLayout) 
@@ -602,7 +694,11 @@ void initScanState( ExtraState* st )
   st->layout[0] = 0;  
   initLoc(&st->commentLoc, 0);
 #endif  
-  
+
+#ifdef CHECK_BALANCED
+  st->braceTop = -1;
+#endif
+
   st->column = 1;
   st->line = 1;
   
@@ -717,8 +813,28 @@ char* stringDup( const char* s, yyscan_t scanner )
 /*----------------------------------------------------
    identifier allocation
 ----------------------------------------------------*/
-char* identifier( const char* s, yyscan_t scanner )
+
+bool isLetter(char c) {
+  return ((c>='a' && c <= 'z') || (c>='A' && c<='Z') || c=='\0' || c==' ');
+}
+
+bool wellformed( const char* s ) {
+  char prev = '\0';
+  char next = '\0';
+  const char* c;
+  for(c = s; *c != 0; c++) {
+    next = *(c+1);
+    if (*c=='-' && (!isLetter(prev) || !isLetter(next))) return false;
+    if (*c=='(') return true; // qualified operator, or operator name
+    prev = *c;
+  }
+  return true;
+}
+
+char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck )
 {
+  EnableMacros(scanner);
+  if (wellformedCheck && !wellformed(s)) yyerror(yylloc,scanner,"malformed identifier: a dash must be preceded and followed by a letter");
   return stringDup(s,scanner);
 }
 
@@ -983,9 +1099,11 @@ int main( int argc, char** argv )
     /* final message */
     if (errorCount == 0) {
       printf("Success!\n");
+      return 0;
     }
     else {
       printf("Failure (%i errors encountered)\n", errorCount);
+      return 1;
     }
   }
 }

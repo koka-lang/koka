@@ -609,24 +609,24 @@ external inline atob : (this: window, atob: string) -> dom string
 { inline "#1.atob(#2)" }
 
 // Window implements WindowTimers (supplemental)
-external inline setTimeout : (this: window, handler: () -> dom ()) -> dom int32
+external inline setTimeout : (this: window, _handler: () -> dom ()) -> dom int32
 { inline "#1.setTimeout(#2)" }
 
-external inline setTimeout : forall<e> (this: window, handler: () -> <dom|e> (), timeout: milliseconds) -> <dom|e> int32
+external inline setTimeout : forall<e> (this: window, _handler: () -> <dom|e> (), timeout: milliseconds) -> <dom|e> int32
 { inline "#1.setTimeout(#2, #3)" }
 
 
-external inline clearTimeout : (this: window, handle: int32) -> dom ()
+external inline clearTimeout : (this: window, _handle: int32) -> dom ()
 { inline "#1.clearTimeout(#2)" }
 
-external inline setInterval : (this: window, handler: () -> dom ()) -> dom int32
+external inline setInterval : (this: window, _handler: () -> dom ()) -> dom int32
 { inline "#1.setInterval(#2)" }
 
-external inline setInterval : (this: window, handler: () -> dom (), timeout: milliseconds) -> dom int32
+external inline setInterval : (this: window, _handler: () -> dom (), timeout: milliseconds) -> dom int32
 { inline "#1.setInterval(#2, #3)" }
 
 
-external inline clearInterval : (this: window, handle: int32) -> dom ()
+external inline clearInterval : (this: window, _handle: int32) -> dom ()
 { inline "#1.clearInterval(#2)" }
 
 // Window implements EventTarget (overloading)

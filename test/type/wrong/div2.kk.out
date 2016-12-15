@@ -1,0 +1,4 @@
+test/type/wrong/div2.kk(1,19): error: function has not enough arguments
+ context : recursive()
+ term : recursive
+ inferred type: (x : int) -> div int

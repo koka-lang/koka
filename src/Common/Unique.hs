@@ -57,7 +57,7 @@ class (Monad m, Functor m) => HasUnique m where
 
   uniqueName baseName
     = do i <- unique
-         return (newName (baseName ++ "." ++ show i))
+         return (newHiddenName (baseName ++ "." ++ show i))
 
 {--------------------------------------------------------------------------
   Helper instance for unique variables

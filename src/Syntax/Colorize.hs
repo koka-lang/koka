@@ -15,7 +15,7 @@ module Syntax.Colorize( colorize
                       , tag
                       , span, cspan
                       , escapes, escape
-                      , prefix
+                      , prefix, htmlHeader, htmlFooter
                       , signature, linkModule
                       , popup
                       , fmtHtml
@@ -24,6 +24,7 @@ module Syntax.Colorize( colorize
                       , linkFromModName
                       , linkEncode
                       , fmtLiterate, showDoc
+                      , capitalize, endWithDot
                       , removeComment
                       , kindSignature
                       ) where
@@ -31,7 +32,7 @@ module Syntax.Colorize( colorize
 -- import Lib.Trace
 import Prelude hiding (span)
 import qualified Prelude
-import Data.Char( isAlphaNum, isSpace )
+import Data.Char( isAlphaNum, isSpace, toUpper )
 import Lib.Printer
 import Common.File  
 import Common.Name
@@ -60,7 +61,8 @@ import Core.Core (canonicalSplit)
 -- | Print source in color, given a color scheme, source name, initial line number, the input string, and
 -- a 'Printer'.
 colorize :: Printer p => Maybe RangeMap -> Env -> KGamma -> Gamma -> Bool -> FilePath -> Int -> BString -> p -> IO ()
-colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | extname sourceName == (sourceExtension ++ "doc")
+colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  
+  | extname sourceName == ".md" && extname (notext sourceName) == sourceExtension -- ".kk.md"
   = let coms = lexComment sourceName lineNo (bstringToString input)
     in mapM_ (write p . fmtComment (fmap rangeMapSort mbRangeMap) env kgamma gamma) coms
 
@@ -75,39 +77,43 @@ colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | other
   where
     htmlBody pre
       = if not fullHtml then pre
-        else do mapM_ (writeLn p) header
+        else do mapM_ (writeLn p) (htmlHeader env (concatMap escape (notdir sourceName)))
                 pre
-                mapM_ (writeLn p) footer
+                mapM_ (writeLn p) htmlFooter
         
     htmlPre body
       = do write p ("<pre class=\"" ++ prefix ++ "source\">")
            body
            writeLn p ("</pre>\n")  -- add empty line for correct markdown
 
-    header
-      = ["<!DOCTYPE html>"
-        ,"<html>"
-        ,"<!-- NO_CLICK_TRACKING -->" -- for MS website
-        ,""
-        ,"<head>"
-        ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
-        ,""
-        ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
-        ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ htmlCss env ++ "\" />"
-        ,if (null (htmlJs env)) then "" 
-          else if (extname (htmlJs env) == "require") 
-           then "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ dirname (htmlJs env) ++ "require.js\"></script>"
-           else "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ htmlJs env ++ "\"></script>"
-        ,"<title>" ++ concatMap escape (notdir sourceName) ++ " source code</title>"
-        ,"</head>"
-        ,""
-        ,"<body class=\"" ++ prefix ++ "source-body\">"
-        ]
-
-    footer
-      = ["</body>"
-        ,"</html>"
-        ]
+htmlHeader env title
+  = ["<!DOCTYPE html>"
+    ,"<html>"
+    ,"<!-- NO_CLICK_TRACKING -->" -- for MS website
+    ,""
+    ,"<head>"
+    ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
+    ,""
+    ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
+    , unlines (map linkCss (undelimPaths (htmlCss env)))
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic\" />"
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic\" />"
+    ,if (null (htmlJs env)) then "" 
+      else if (extname (htmlJs env) == "require") 
+       then "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ dirname (htmlJs env) ++ "require.js\"></script>"
+       else "<script type=\"text/javascript\" data-main=\"" ++ basename (htmlJs env) ++ "\" src=\"" ++ htmlJs env ++ "\"></script>"
+    ,"<title>" ++ title ++ " documentation</title>"
+    ,"</head>"
+    ,""
+    ,"<body class=\"" ++ prefix ++ "doc body\"><div class=\"madoko\">"
+    ]
+  where
+    linkCss cssPath = "<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ cssPath ++ "\" />"  
+  
+htmlFooter
+  = ["</div></body>"
+    ,"</html>"
+    ]
 
 
 ---------------------------------------------------------------------------------------------
@@ -177,7 +183,7 @@ transform isLiterate rng rangeMap env lexeme content
     plainText acc (c:cs)   = plainText (c:acc) cs
 
 showType env tp
-  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (niceType env tp)))
+  = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (ppType env tp)))
   
 showKind env k
   = concat $ highlight fmtHtml id (CtxType [] "::") "" 1 (compress [] (show (prettyKind (colors env) k)))
@@ -239,6 +245,8 @@ showDoc env kgamma gamma doc
   = -- concat $ showLexemes env kgamma gamma [Lexeme rangeNull (LexComment (removeComment doc))]
     doctag "div" (prefix ++ "comment") $
     doctag "xmp" "" $
+    capitalize $ 
+    endWithDot $
     concatMap (fmtComment Nothing env kgamma gamma) $
     (lexComment "" 1 (removeComment doc))
 
@@ -310,11 +318,11 @@ linkFromId env name tp gamma
       [(qname,info@InfoCon{})]-> signature env True True "type" qname (mangleConName qname) (showType env (infoType info)) $ cspan "constructor" $ fmtName (unqualify qname) -- atag (linkFromConName env qname) $ span "con" $ span "id" $ fmtName (unqualify qname)
       [(qname,info)]         -> signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ fmtName (unqualify qname)
       results -> let filtered = if null tp then results
-                                           else -- trace ("linkFromId: " ++ show (name,tp) ++ ": " ++ show (map (infoType . snd) results)) $
-                                                filter (\(qname,info) -> canonical (infoType info) == tp) results
+                                           else -- trace ("\n***linkFromId: " ++ show (name,tp) ++ ": " ++ show (map (show . ppType defaultEnv . infoType . snd) results)) $
+                                                filter (\(qname,info) -> show (ppType defaultEnv (infoType info)) == tp) results
                  in case filtered of
                       [(qname,info)] -> -- atag (linkFromName env qname (infoType info)) $ span "id" $ fmtName (unqualify qname)
-                                        signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ cspan "type" $ fmtName (unqualify qname) 
+                                        signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ fmtName (unqualify qname) 
                       _ -> (if (isConstructorName name) then cspan "constructor" else id) (fmtName (unqualify name))
 
 fmtTypeName :: Name -> String
@@ -426,7 +434,7 @@ removeComment s
 
 
     align ls
-      = let n = minimum (map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls))
+      = let n = minimum (0:(map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls)))
         in map (drop n) ls
 
 
@@ -562,3 +570,15 @@ shorthands = [
   ("special","sp"),
   ("delimiter","dl")
  ]                  
+
+
+
+capitalize s
+  = case s of
+      c:cs -> toUpper c : cs
+      _    -> s
+
+endWithDot s
+  = case dropWhile isSpace (reverse s) of
+      (c:cs) | not (c `elem` ".?!") -> reverse ('.':c:cs)
+      _      -> s

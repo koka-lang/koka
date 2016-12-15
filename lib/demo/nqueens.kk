@@ -3,45 +3,36 @@
 alias solution = list<int>
 alias solutions = list<list<int>>
 
-function safe( queen : int, diag : int, xs : solution ) : bool
-{
+fun safe( queen : int, diag : int, xs : solution ) : bool {
   match(xs) {
     Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && safe(queen,diag+1,qs))
     _          -> True
   }
 }
 
-function appendSafe( queen : int, xs : solution, xss : solutions ) : div solutions
-{
-  if (queen <= 0) xss
-  else {
-   if (safe(queen,1,xs))
-    then appendSafe( queen-1, xs, Cons(Cons(queen,xs),xss) )
-    else appendSafe( queen-1, xs, xss )
-  }
+fun appendSafe( queen : int, xs : solution, xss : solutions ) : div solutions {
+  if (queen <= 0) then xss
+  elif (safe(queen,1,xs)) then appendSafe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
+  else appendSafe( queen - 1, xs, xss )
 }
 
-function extend(queen : int, acc : solutions, xss : solutions ) : div solutions
-{
+fun extend(queen : int, acc : solutions, xss : solutions ) : div solutions {
   match(xss) {
     Cons(xs,rest) -> extend(queen, appendSafe(queen,xs,acc), rest)
     Nil           -> acc
   }
 }
 
-function findSolutions( n : int, queen : int ) : div solutions
-{
+fun findSolutions( n : int, queen : int ) : div solutions {
   if (queen==0) [[]]
-           else extend(n,[], findSolutions(n,queen-1))
+           else extend(n,[], findSolutions(n,queen - 1))
 }
 
-public function queens( n : int ) : div int
-{
+public fun queens( n : int ) : div int {
   length(findSolutions(n,n))
 }
 
-public function main()
-{
+public fun main() {
   queens(8).println
 }
 
@@ -93,21 +84,21 @@ let rec interval n m =
  if n > m then [] else n :: interval (n + 1) m;;
 
 let filter_append p l l0 =
-  let rec filter = function
+  let rec filter = fun
     | [] -> l0
     | h :: t -> if p h then h :: filter t else filter t in
    filter l;;
 
-let rec concmap f = function
+let rec concmap f = fun
   | [] -> []
   | h :: t -> f h (concmap f t);;
 
-let rec safe x d  = function
+let rec safe x d  = fun
   | [] -> true
   | h :: t ->
      x <> h && x <> h + d && x <> h - d && safe x (d + 1) t;;
 
-let rec ok = function
+let rec ok = fun
   | [] -> true
   | h :: t -> safe h 1 t;;
 
