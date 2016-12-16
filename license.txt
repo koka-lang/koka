@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 Copyright (C) 2012-2016 Microsoft Corporation, Daan Leijen. 
-=======
-Copyright (C) 2012 Microsoft Corporation, Daan Leijen. 
->>>>>>> hg-default
 
 Koka is free software; You can redistribute it and/or 
 modify it under the terms of this license.
