@@ -2,12 +2,12 @@
 
 For more background information, see:
 
+* The [Koka book][kokabook] for a specification of the Koka language and a primer on algebraic effects.
 * The [library documentation][libraries].
 * The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
 * The article _Algebraic Effects for Functional Programming_ [3](#references) about the algebraic effects in Koka.
-* An article about the type system and semantics of Koka [2](#references).
 
-[langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  
+[kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html 
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka 
@@ -33,7 +33,7 @@ Now we can build Koka itself:
 
 1. First clone the Koka sources with algebraic effects support:
 
-       > git clone https://github.com/koka-lang/koka.git 
+   `> git clone https://github.com/koka-lang/koka.git`
 
    <!--
   You can also use ``-b dev`` to get the latest development version.
@@ -41,25 +41,26 @@ Now we can build Koka itself:
 
 2. Go to the newly created Koka directory:
 
-       > cd koka
+   `> cd koka`
 
 3. Install any needed Node libraries using the Node package manager: 
 
-       > npm install
+   `> npm install`
 
    If you are running on MacOSX or Unix, you may have to run this as
    ``sudo npm install`` so that the ``npm`` package manager has enough
   permissions to install the ``jake`` and ``madoko`` tools.
 
 4. Finally, build the compiler and run the Koka interactive environment:
-       > jake
+
+   `> jake`
 
    You can type ``jake help`` to see an overview of all make targets.
 
 The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
-    > jake sublime
+`> jake sublime`
 
 After this ``.kk`` files will be properly highlighted. It is also
 recommended to use the newly installed ``snow`` color theme which is
