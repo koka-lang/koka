@@ -13,7 +13,10 @@ Script        : scripts/kokaspec.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
-[INCLUDE=styles/webpaginated.mdk]
+Description   : Koka Language Specification
+[INCLUDE=book]
+[INCLUDE=webtoc]
+[INCLUDE=webanchors]
 
 ~bar          : before='|' 
 ~many         : before='{ ' after=' }'

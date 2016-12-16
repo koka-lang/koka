@@ -6,7 +6,7 @@ For more background information, see:
 
 * The [library documentation][libraries].
 * The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The [source code][codeplex] of the Koka compiler.
+* The [source code][kokarepo] of the Koka compiler.
 * The article _Algebraic Effects for Functional Programming_ [@Leijen:algeff] about the algebraic effects in Koka.
 * An article about the type system and semantics of Koka [@Leijen:msfp].
 
@@ -14,7 +14,7 @@ For more background information, see:
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[codeplex]: http://koka.codeplex.com {target='_top'} 
+[kokarepo]: https://github.com/koka-lang/koka {target='_top'} 
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
@@ -30,16 +30,18 @@ The following programs are required to build Koka:
 
 * The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
 * The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
-* Some version of Mercurial (`hg`), like the excellent [TortoiseHg](http://tortoisehg.bitbucket.org/download).
+* Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
 
 All these programs are very easy to install on most platforms.
 Now we can build Koka itself: 
 
 1. First clone the Koka sources with algebraic effects support:
 
-       > hg clone https://hg.codeplex.com/koka -b algeff
+       > git clone https://github.com/koka-lang/koka.git 
 
-   You can also use ``-b algeff-dev`` to get the latest development version.
+   <!--
+  You can also use ``-b dev`` to get the latest development version.
+  -->
 
 2. Go to the newly created Koka directory:
 

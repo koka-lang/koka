@@ -68,6 +68,10 @@ val leap-steps-sep = @"
 | \                 |                          |                |                   |                                                                 |                    |"
 
 
-public fun main() {
+public fun test() {
   show-leap-steps()
+}
+
+public fun main() {
+  ()
 }
