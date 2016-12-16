@@ -167,7 +167,7 @@ public fun download-latest(  url   : string,
     }
   }
   catch {
-    trace("start download: " + url.show)
+    if (verbose) then trace("start download: " + url.show)
     val text = url.download-text(download-timeout)
     // trace("downloaded: " + url + ": " + text.first(10).string + "...")
     match(text.parse) {
@@ -179,7 +179,7 @@ public fun download-latest(  url   : string,
           }
           _ -> {
             if (!cache.empty?) then {
-              trace("cache to file: " + cache.string)
+              if (verbose) then trace("cache to file: " + cache.string)
               try{ write-text(cache,text) }
               ()
             }
