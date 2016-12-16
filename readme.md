@@ -4,14 +4,14 @@ For more background information, see:
 
 * The [library documentation][libraries].
 * The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The article _Algebraic Effects for Functional Programming_ [3][#references] about the algebraic effects in Koka.
-* An article about the type system and semantics of Koka [2][#references].
+* The article _Algebraic Effects for Functional Programming_ [3](#references) about the algebraic effects in Koka.
+* An article about the type system and semantics of Koka [2](#references).
 
-[langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
-[libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
-[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[kokarepo]: https://github.com/koka-lang/koka {target='_top'} 
-[kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
+[langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  
+[libraries]: https://koka-lang.github.io/koka/doc/toc.html 
+[slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
+[kokarepo]: https://github.com/koka-lang/koka 
+[kokaproject]: http://research.microsoft.com/en-us/projects/koka
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
 
@@ -118,7 +118,7 @@ Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 ## Algebraic effect handlers
 
 A novel feature of Koka is a compiled and typed implementation of algebraic 
-effect handlers (described in detail in [3][#references]).
+effect handlers (described in detail in [3](#references)).
 In the interactive environment, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly using
@@ -145,15 +145,15 @@ loading the ``scoped`` demo, we can run it directly from the interpreter:
 Some interesting demos are:
 
 * ``common.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [3][#references]. Shows how to implement
+  Functional Programming_" [3](#references). Shows how to implement
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
 * ``scoped.kk``: Various examples from the paper "_Effect handlers in
-  Scope_" [4][#references].
+  Scope_" [4](#references).
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [1][#references].
+  rows and handlers_" [1](#references).
 
 * ``async*.kk``: Various asynchronous effect examples.
 
