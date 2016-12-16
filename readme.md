@@ -5,7 +5,7 @@ For more background information, see:
 * The [Koka book][kokabook] for a specification of the Koka language and a primer on algebraic effects.
 * The [library documentation][libraries].
 * The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The article _Algebraic Effects for Functional Programming_ [3](#references) about the algebraic effects in Koka.
+* The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html 
@@ -119,7 +119,7 @@ Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 ## Algebraic effect handlers
 
 A novel feature of Koka is a compiled and typed implementation of algebraic 
-effect handlers (described in detail in [3](#references)).
+effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic 
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly using
@@ -137,24 +137,24 @@ loading the ``scoped`` demo, we can run it directly from the interpreter:
       scoped
     
     > main()
-    [[3],[2,1],[1,2],[1,1,1]]
-    (state=12, [[3],[2,1],[1,2],[1,1,1]])
-    [(state=1, [3]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
-    [[3]]
+    [[[3]],[2,1],[1,2],[1,1,1]]
+    (state=12, [[[3]],[2,1],[1,2],[1,1,1]])
+    [(state=1, [[3]]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
+    [[[3]]]
     [42]
 
 Some interesting demos are:
 
 * ``common.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [3](#references). Shows how to implement
+  Functional Programming_" [[3]](#references). Shows how to implement
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
 * ``scoped.kk``: Various examples from the paper "_Effect handlers in
-  Scope_" [4](#references).
+  Scope_" [[4]](#references).
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [1](#references).
+  rows and handlers_" [[1]](#references).
 
 * ``async*.kk``: Various asynchronous effect examples.
 
