@@ -30,7 +30,7 @@
     "preinstall": "npm install -g jake madoko"
   },
   "repository": {
-    "type": "hg", 
-    "url" : "https://hg.codeplex.com/koka"
+    "type": "git", 
+    "url" : "https://github.com/koka-lang/koka.git"
   }
 }
