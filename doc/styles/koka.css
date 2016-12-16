@@ -9,7 +9,7 @@
 /* Text size and margins for screen & print */
 @media screen {
   body {
-    max-width: 65em;
+    max-width: 52em;
     margin: 1em auto;
     padding: 0em 1ex 45em 1ex; /* so a link to the end always puts the definition on top of the screen */
   }

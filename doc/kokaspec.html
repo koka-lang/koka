@@ -4,6 +4,9 @@
   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
   <meta name="generator" content="Madoko, version 1.0.3" />
   <meta name="viewport" content="initial-scale=1.0" />
+  <meta name="description" content="Provides popup anchor links to headings in a web page.
+     This makes it easier for others to link to specific sections
+     in a large web manual or book." />
   <title>The Koka Book</title>
   <style type="text/css"  class="link">
   /*# sourceURL=madoko.css */
@@ -291,7 +294,7 @@
   
   @media screen {
     body {
-      max-width: 65em;
+      max-width: 52em;
       margin: 1em auto;
       padding: 0em 1ex 45em 1ex; 
     }
@@ -618,126 +621,6 @@
   }
   
     </style>
-  <style type="text/css"  class="link">
-  /*# sourceURL=styles/webpaginated.css */
-  
-  body.madoko {
-    margin: 0pt;
-    padding: 0pt;
-    max-width: 100%;
-  }
-  .body {
-    width: 70em;
-    max-width: 90%;
-    margin: 1em auto;
-  }
-  .preview .body {
-    width: 98%;
-    max-width: 100%;
-    margin: 0.25em auto;
-  }
-  @media (min-width: 1024px) {
-    body.madoko {
-      padding-right: 8%; 
-    }
-    .sidepanel {
-      width   : 14rem; 
-      position: fixed;
-      top     : 3rem;
-      max-height: 90%;
-      overflow-y: auto;
-    }
-    .mainpanel, .footnotes, .titleblock {
-      margin-left: calc(14rem + 4rem + 2px + 1rem);
-    }
-    .tocblock2, .tocblock3 {
-      display:none;
-    }
-    .tocblock.auto-expands, .tocblock.click-expands {
-      display:block;
-    }
-    .tocitem.current .heading-label {
-      font-weight: bold;
-    }
-    span.unexpanded, span.expanded {
-      display: inline-block;
-      width: 1.25em;
-      margin-left: -1.25em;
-      font-family: "Segoe UI Symbol", Symbola, serif;
-      font-size: 70%;
-      cursor: pointer;
-      vertical-align: 0.1em;
-    }
-    span.unexpanded::before {
-      content: "\25B6";
-    }
-    span.expanded::before {
-      content: "\25BC";
-    }
-  }
-  .sidepanel, .mainpanel section, .footnotes {
-    padding: 0pt 1rem 0.25rem 1rem;
-  }
-  .sidepanel .tocblock {
-    font-size  : small;
-    white-space: nowrap;
-  }
-  .sidepanel .toc, .sidepanel h2, .sidepanel h1 {
-    margin-top: 0pt;
-  }
-  .footnotes {
-    padding-top: 0.5em; 
-  }
-  .footnotes>hr {
-    display:none;
-  }
-  section,.sidepanel {
-    margin-bottom: 1em;
-  }
-  .sidepanel::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-  }
-  .sidepanel::-webkit-scrollbar-track {
-      -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
-      -webkit-border-radius: 6px;
-      border-radius: 6px;
-  }
-  .sidepanel::-webkit-scrollbar-thumb {
-      -webkit-border-radius: 6px;
-      border-radius: 6px;
-      background: lightgray; 
-      -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.5); 
-  }
-  .sidepanel::-webkit-scrollbar-thumb:window-inactive {
-  	background: gainsboro; 
-  }
-  .madoko .toc > .tocblock .tocblock .tocblock {
-    margin-left: 1.5em;
-  }
-  .madoko .toc a {
-    color: #444; 
-  }
-  h1:hover .entity-anchor,
-  h2:hover .entity-anchor,
-  h3:hover .entity-anchor {
-    display: inline-block;
-  }
-  a.entity-anchor {
-    color: black;
-  }
-  a.localref.entity-anchor:hover {
-    text-decoration: none;
-  }
-  .entity-anchor {
-    display: none;
-    width: 1.25em;
-    margin-left: -1.25em;
-    font-family: "Segoe UI Symbol", Symbola, serif;
-    font-size: 80%;
-  }
-  
-    </style>
   <script  class="script">function genFullGrammar() {
     var fullLex = "";
     var fullParse = "";
@@ -768,6 +651,150 @@
       terms of the Apache License, Version 2.0. A copy of the License can be
       found in the file "license.txt" at the root of this distribution.
     -->
+  <style>
+    /* ---------------------------------------------
+          Center document in the viewport
+        ----------------------------------------------*/
+        body.madoko {
+          margin: 0pt;
+          padding: 0pt;
+          max-width: 100%;
+        }
+        .body {
+          width: 70em;
+          max-width: 90%;
+          margin: 1em auto;
+        }
+        .preview .body {
+          width: 98%;
+          max-width: 100%;
+          margin: 0.25em auto;
+        }
+        
+        /* -----------------------------------------
+           Settings for a wide viewport:
+           The contents are shown in the side panel
+           on the left side.
+        -------------------------------------------- */
+        @media (min-width: 1024px) {
+          body.madoko {
+            padding-right: 8%; /* looks more balanced with sidepanel */
+          }       
+          .sidepanel {
+            width   : 14rem ; 
+            position: fixed;
+            top     : 3rem ;
+            max-height: 90%;
+            overflow-y: auto;
+          }
+          .mainpanel, .footnotes, .titleblock {
+            margin-left: calc(14rem + 4rem + 2px + 1rem);
+          }
+          .tocblock2, .tocblock3 {
+            display:none;
+          }
+          .tocblock.auto-expands, .tocblock.click-expands {
+            display:block;
+          }     
+          /*
+          .tocitem.current::after {
+            content: "\00A0\25CF";
+          }
+          */
+          .tocitem.current .heading-label {
+            font-weight: bold;
+          }      
+          span.unexpanded, span.expanded {
+            display: inline-block;
+            width: 1.25em;
+            margin-left: -1.25em;
+            font-family: "Segoe UI Symbol", Symbola, serif;
+            font-size: 70%;
+            cursor: pointer;
+            vertical-align: 0.1em;
+          }
+          span.unexpanded::before {
+            content: "\25B6";
+          }
+          span.expanded::before {
+            content: "\25BC";
+          }
+        }
+        
+        /* ---------------------------------------------------
+           Set margins and padding for side panel and sections
+        ------------------------------------------------------ */
+        .sidepanel, .mainpanel section, .footnotes {
+          padding: 0pt 1rem 0.25rem 1rem;
+        }
+        .sidepanel .tocblock {
+          font-size  : small;
+          white-space: nowrap;
+        }
+        .sidepanel .toc, .sidepanel h2, .sidepanel h1 {
+          margin-top: 0pt;
+        }
+        .footnotes {
+          padding-top: 0.5em; 
+        }
+        .footnotes>hr {
+          display:none;
+        }
+        section,.sidepanel {
+          margin-bottom: 1em;
+        }
+        
+        /* -----------------------------------
+           Nice scrollbar for toc
+        ----------------------------------- */
+        .sidepanel::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }     
+        /* Track */
+        .sidepanel::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
+            -webkit-border-radius: 6px;
+            border-radius: 6px;
+        }    
+        /* Handle */
+        .sidepanel::-webkit-scrollbar-thumb {
+            -webkit-border-radius: 6px;
+            border-radius: 6px;
+            background: lightgray; 
+            -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.5); 
+        }
+        .sidepanel::-webkit-scrollbar-thumb:window-inactive {
+          background: gainsboro; 
+        }
+        .madoko .toc > .tocblock .tocblock .tocblock {
+          margin-left: 1.5em;
+        }
+        .madoko .toc a {
+          color: #444; 
+        }
+    h1:hover .entity-anchor,
+        h2:hover .entity-anchor,
+        h3:hover .entity-anchor {
+          display: inline-block;
+        }
+        
+        a.entity-anchor {
+          color: black;
+        }
+        
+        a.localref.entity-anchor:hover {
+          text-decoration: none;
+        }
+        
+        .entity-anchor {
+          display: none;
+          width: 1.25em;
+          margin-left: -1.25em;
+          font-family: "Segoe UI Symbol", Symbola, serif;
+          font-size: 80%;
+        }
+  </style>
   </head>
 <body class="madoko">
 
@@ -843,8 +870,7 @@
 <div class="tocitem tocitem2" data-toc-target="sec:full-lexical" data-toc-depth="2" data-toc-line="[A.1]{.heading-label}.&#8194;Lexical syntax" style="toctarget:sec:full-lexical"><a href="#sec:full-lexical" class="localref"><span class="heading-label">A.1</span>.&#8194;Lexical syntax</a></div>
 <div class="tocitem tocitem2" data-toc-target="sec:full-grammar" data-toc-depth="2" data-toc-line="[A.2]{.heading-label}.&#8194;Context-free syntax" style="toctarget:sec:full-grammar"><a href="#sec:full-grammar" class="localref"><span class="heading-label">A.2</span>.&#8194;Context-free syntax</a></div></div></div></nav></div>
 <div class="mainpanel">
-
-<section id="sec-getting-started" class="section section1" data-section-depth="1"><h1 id="heading-sec-getting-started" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-getting-started" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Getting started</h1>
+<h1 id="sec-getting-started" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-getting-started" class="entity-anchor localref">&#x1F517;</a><a href="#sec-getting-started" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Getting started</h1>
 <p class="p noindent">Welcome to the Koka book. This provides an overview and
 formal specification of the language. 
 For more background information, see:
@@ -854,7 +880,7 @@ For more background information, see:
 </li>
 <li class="li ul-li list-star-li compact-li">The&nbsp;<a href="http://research.microsoft.com/en-us/projects/koka" data-linkid="kokaproject" target="_top">Koka research page</a> and the&nbsp;<a href="http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf" data-linkid="slides" target="_top">slides</a> of a talk presented Lang.Next (April 2012).
 </li>
-<li class="li ul-li list-star-li compact-li">The&nbsp;<a href="http://koka.codeplex.com" data-linkid="codeplex" target="_top">source code</a> of the Koka compiler.
+<li class="li ul-li list-star-li compact-li">The&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">source code</a> of the Koka compiler.
 </li>
 <li class="li ul-li list-star-li compact-li">The article <em class="em-low1">Algebraic Effects for Functional Programming</em>&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:algeff" title="Algebraic Effects for Functional Programming
 Leijen, 2016" class="bibref localref" style="target-element:bibitem"><span class="cite-number">3</span></a>]</span> about the algebraic effects in Koka.
@@ -862,7 +888,7 @@ Leijen, 2016" class="bibref localref" style="target-element:bibitem"><span class
 <li class="li ul-li list-star-li compact-li">An article about the type system and semantics of Koka&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:msfp" title="Koka: Programming with Row Polymorphic Effect Types
 Leijen, 2014" class="bibref localref" style="target-element:bibitem"><span class="cite-number">2</span></a>]</span>.
 </li></ul>
-<h2 id="sec-installing-the-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-installing-the-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
+<h2 id="sec-installing-the-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-installing-the-compiler" class="entity-anchor localref">&#x1F517;</a><a href="#sec-installing-the-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">At this point there are no binary releases of Koka and you need to build
 the compiler yourself. Fortunately, Koka has few dependencies and builds
 without problems on most common platforms, e.g. Windows, MacOSX, and
@@ -875,7 +901,7 @@ Unix.
 </li>
 <li class="li ul-li list-star-li compact-li">The&nbsp;<a href="http://nodejs.org">NodeJS</a> runtime (version 4.2 LTS or later).
 </li>
-<li class="li ul-li list-star-li compact-li">Some version of Mercurial (<code class="koka">hg</code>), like the excellent&nbsp;<a href="http://tortoisehg.bitbucket.org/download">TortoiseHg</a>.
+<li class="li ul-li list-star-li compact-li">Some version of&nbsp;<a href="https://help.github.com/articles/set-up-git/">Git</a> for version control.
 </li></ul>
 
 <p class="p noindent">All these programs are very easy to install on most platforms.
@@ -885,9 +911,12 @@ Now we can build Koka itself:
 <li class="li ol-li loose-li">
 <p>First clone the Koka sources with algebraic effects support:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; hg clone https://hg.codeplex.com/koka -b algeff</code></strong></span></code></pre>
-<p>You can also use <code class="code code2">-b algeff-dev</code> to get the latest development version.
-</p></li>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; git clone https://github.com/koka-lang/koka.git </code></strong></span></code></pre><!--
+You can also use ``-b dev`` to get the latest development version.
+-->
+
+
+</li>
 <li class="li ol-li loose-li">
 <p>Go to the newly created Koka directory:
 </p>
@@ -914,7 +943,7 @@ to edit Koka programs. You can install support for Koka programs using
 <p class="p noindent para-continued">After this <code class="code code2">.kk</code> files will be properly highlighted. It is also
 recommended to use the newly installed <code class="code code2">snow</code> color theme which is
 designed to work well with Koka files.
-</p><h2 id="sec-running-the-interactive-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-interactive-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.2</span>.&#8194;</span>Running the interactive compiler</h2>
+</p><h2 id="sec-running-the-interactive-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-interactive-compiler" class="entity-anchor localref">&#x1F517;</a><a href="#sec-running-the-interactive-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.2</span>.&#8194;</span>Running the interactive compiler</h2>
 <p class="p noindent">After running a plain <code class="code code2">jake</code> command, the Koka interactive environment will start:
 </p>
 <pre class="para-block pre-fenced pre-fenced4" style="display:block"><code>__          _
@@ -956,7 +985,7 @@ Before the effect one believes in different causes than one does after the effec
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; :set --host=browser</code></strong></span>
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; 1+2</code></strong></span></code></pre>
 <p class="p noindent para-continued">Some browser specific demo to try is for example <code class="code code2">demo/dom/conway.kk</code>.
-</p><h2 id="sec-algebraic-effect-handlers" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-algebraic-effect-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.3</span>.&#8194;</span>Algebraic effect handlers</h2>
+</p><h2 id="sec-algebraic-effect-handlers" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-algebraic-effect-handlers" class="entity-anchor localref">&#x1F517;</a><a href="#sec-algebraic-effect-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.3</span>.&#8194;</span>Algebraic effect handlers</h2>
 <p class="p noindent">A novel feature of Koka is a compiled and typed implementation of algebraic 
 effect handlers (described in detail in&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:algeff" title="Algebraic Effects for Functional Programming
 Leijen, 2016" class="bibref localref" style="target-element:bibitem"><span class="cite-number">3</span></a>]</span>).
@@ -1008,7 +1037,7 @@ Hillerström and Lindley, 2016" class="bibref localref" style="target-element:bi
 <li class="li ul-li list-star-li loose-li">
 <p><code class="code code2">parser.kk</code>: Implements parser combinators as an effect.
 </p></li></ul>
-<h2 id="sec-a-primer-on-effect-handlers" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-a-primer-on-effect-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.4</span>.&#8194;</span>A primer on effect handlers</h2>
+<h2 id="sec-a-primer-on-effect-handlers" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-a-primer-on-effect-handlers" class="entity-anchor localref">&#x1F517;</a><a href="#sec-a-primer-on-effect-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.4</span>.&#8194;</span>A primer on effect handlers</h2>
 <p class="p noindent">Another small demo is <code class="code code2">effs2</code> that demonstrates the ambiguity
 and state effect:
 </p>
@@ -1082,7 +1111,7 @@ handle the <code class="koka"><a class="pp" href="#flip">flip<span class="pc"><s
 </span></pre>
 
 
-<p class="p noindent">Here we used <em class="em-low1">dot</em> syntax introduced in Section&nbsp;<a href="#sec-dot" title="&#x1F517;2.2.&#8194;Dot selection" class="localref" style="target-element:h2"><span class="heading-label">2.2</span></a>. If we run
+<p class="p noindent">Here we used <em class="em-low1">dot</em> syntax introduced in Section&nbsp;<a href="#sec-dot" title="&#x1F517;&#x1F517;2.2.&#8194;Dot selection" class="localref" style="target-element:h2"><span class="heading-label">2.2</span></a>. If we run
 <code class="koka"><a class="pp" href="#test1">test1<span class="pc"><span class="mo">getstarted<span class="fslash last">/</span></span>test1: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">console</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code> in the interpreter, we see all possible results:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; test1()</code></strong></span>
@@ -1139,7 +1168,7 @@ is propagated through the <code class="koka">resume</code> function.
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; :t state</code></strong></span>
 <span class="code-escaped"><code class="koka"><span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp op">&#62;.</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">(</span><span class="tp sp">(</span><span class="tp tpp">i</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><a class="pp" href="#type_space_state"><span class="tp">state</span><span class="pc"><span class="mo">getstarted<span class="fslash last">/</span></span>state: <span class="tp">V</span> <span class="tp kw op">-&gt;</span> <span class="tp">HX</span></span></a><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span><span class="tp sp">)</span></code></span></code></pre>
 <p class="p noindent para-continued">We can now combine the ambiguity handler with the state handler in
-two ways (see Section&nbsp;<a href="#sec-anon" title="&#x1F517;2.4.&#8194;Anonymous functions" class="localref" style="target-element:h2"><span class="heading-label">2.4</span></a> for a primer on anonymous function syntax):
+two ways (see Section&nbsp;<a href="#sec-anon" title="&#x1F517;&#x1F517;2.4.&#8194;Anonymous functions" class="localref" style="target-element:h2"><span class="heading-label">2.4</span></a> for a primer on anonymous function syntax):
 </p><pre class="koka source"><span class="plaincode">fun test2()  {
   state(0){ amb(foo) }
 }
@@ -1166,8 +1195,7 @@ predict the outcomes of running the tests?
 <span class="code-escaped"><code class="koka">[<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_True"><span class="co">True</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>True: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_True"><span class="co">True</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>True: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>]</code></span>
 
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; test3()</code></strong></span>
-<span class="code-escaped"><code class="koka">[<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>]</code></span></code></pre></section>
-<section id="sec-an-overview-of-koka" class="section section1" data-section-depth="1"><h1 id="heading-sec-an-overview-of-koka" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-an-overview-of-koka" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span>An overview of Koka</h1>
+<span class="code-escaped"><code class="koka">[<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>,<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_False"><span class="co">False</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>False: <span class="tp">bool</span></span></a>]</code></span></code></pre><h1 id="sec-an-overview-of-koka" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-an-overview-of-koka" class="entity-anchor localref">&#x1F517;</a><a href="#sec-an-overview-of-koka" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2</span>.&#8194;</span>An overview of Koka</h1>
 <p class="p noindent">This is a short introduction to the Koka programming language meant for
 programmers familiar with languages like C++, C#, or JavaScript.
 </p>
@@ -1178,7 +1206,7 @@ flexible and <code class="koka"><span class="kw">fun</span></code>: Koka has man
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 JavaScript like syntax.
-</p><h2 id="sec-hello-world" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-hello-world" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.1</span>.&#8194;</span>Hello world</h2>
+</p><h2 id="sec-hello-world" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-hello-world" class="entity-anchor localref">&#x1F517;</a><a href="#sec-hello-world" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.1</span>.&#8194;</span>Hello world</h2>
 <p class="p noindent">As usual, we start with the familiar <em class="em-low1">Hello world</em> program:<span id=`examplemain`></span>
 </p><pre class="koka source"><span class="plaincode">fun main() {
   println("Hello world!") // println output
@@ -1241,7 +1269,7 @@ statement in a function is also the return value of that function, and you can
 generally leave out an explicit <code class="koka"><span class="kw">return</span></code> keyword.
 Similarly, Koka&#39;s grammar is constructed in such a way that no semi-colons
 are needed to separate statements.
-</p><h2 id="sec-dot" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-dot" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.2</span>.&#8194;</span>Dot selection</h2>
+</p><h2 id="sec-dot" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-dot" class="entity-anchor localref">&#x1F517;</a><a href="#sec-dot" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.2</span>.&#8194;</span>Dot selection</h2>
 <p class="p noindent">Koka is a <em class="em-low1">function-oriented</em> language where <em class="em-low1">functions</em> and <em class="em-low1">data</em> form the
 core of the language (in contrast to objects for example). In particular, the
 expression <code class="koka">s<span class="kw op">.</span>encode(<span class="number">3</span>)</code> does <em class="em-low1">not</em> select the <code class="koka"><a class="pp" href="#encode">encode<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>encode: <span class="tp sp">(</span><span class="tp tpp">s</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">shift</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">string</span></span></a></code> method from the
@@ -1262,7 +1290,7 @@ is easy to extend the &#8216;primitive&#8217; methods of any data type: just wri
 function that takes that type as its first argument. In most object-oriented
 languages one would need to add that method to the class definition itself
 which is not always possible if such class came as a library for example.
-</p><h2 id="sec-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.3</span>.&#8194;</span>Types</h2>
+</p><h2 id="sec-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.3</span>.&#8194;</span>Types</h2>
 <p class="p noindent">Koka is also strongly typed. It uses a powerful type inference engine to
 infer most types, and types generally do not get in the way. In
 particular, you can always leave out the types of any local variables.
@@ -1278,7 +1306,7 @@ the <code class="koka">s</code> parameter: since the <code class="koka">map</cod
 and <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></code> types and the program is ambiguous without an annotation.
 Try to load the example in the editor and remove the annotation to see
 what error Koka produces.
-</p><h2 id="sec-anon" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-anon" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.4</span>.&#8194;</span>Anonymous functions</h2>
+</p><h2 id="sec-anon" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-anon" class="entity-anchor localref">&#x1F517;</a><a href="#sec-anon" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.4</span>.&#8194;</span>Anonymous functions</h2>
 <p class="p noindent">Koka also allows for anonymous function expressions. For example, instead of
 declaring the <code class="koka">encode<span class="dash">-</span>char</code> function, we could just have passed it directly to
 the <code class="koka">map</code> function as a function expression:
@@ -1379,7 +1407,7 @@ parenthesis: Koka makes it always explicit whether code is evaluated
 before a function is called (in between parenthesis), or whether 
 code is evaluated (potentially
 multiple times) by the called function instead (in between braces).
-</p><h2 id="sec-effect-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-effect-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.5</span>.&#8194;</span>Effect types</h2>
+</p><h2 id="sec-effect-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-effect-types" class="entity-anchor localref">&#x1F517;</a><a href="#sec-effect-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.5</span>.&#8194;</span>Effect types</h2>
 <p class="p noindent">A novel part about Koka is that it automatically infers all the <em class="em-low1">side effects</em>
 that occur in a function. The absence of any effect is denoted as <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_total"><span class="tp">total</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>total: <span class="tp">E</span></span></a></code> (or
 <code class="koka"><span class="op">&#60;</span><span class="op">&#62;</span></code>) and corresponds to pure mathematical functions. If a function can raise
@@ -1466,7 +1494,7 @@ underscore, or even just an underscore by itself:
 
 
 <p class="p noindent">Hover over <code class="koka"><a class="pp" href="#square6">square6<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>square6: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">console</span> <span class="tp">int</span></span></a></code> to see the inferred effect for <code class="koka"><span class="tp tv">&#95;e</span></code>
-</p><h2 id="sec-semantics-of-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-semantics-of-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.6</span>.&#8194;</span>Semantics of effects</h2>
+</p><h2 id="sec-semantics-of-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-semantics-of-effects" class="entity-anchor localref">&#x1F517;</a><a href="#sec-semantics-of-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.6</span>.&#8194;</span>Semantics of effects</h2>
 <p class="p noindent">The inferred effects are not just considered as some extra type information on
 functions. On the contrary, through the inference of effects, Koka has a very
 strong connection to its denotational semantics. In particular, <em class="em-low1">the full type
@@ -1497,7 +1525,7 @@ divergence. In contrast, Koka allows a layered semantics where we can easily
 separate out nicely behaved parts, which is essential for many domains, like
 safe LINQ queries, parallel tasks, tier-splitting, sand-boxed mobile code,
 etc.
-</p><h2 id="sec-combining-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-combining-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.7</span>.&#8194;</span>Combining effects</h2>
+</p><h2 id="sec-combining-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-combining-effects" class="entity-anchor localref">&#x1F517;</a><a href="#sec-combining-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.7</span>.&#8194;</span>Combining effects</h2>
 <p class="p noindent">Often, a function contains multiple effects, for example:
 </p><pre class="koka source"><span class="plaincode">fun combine-effects() 
 {
@@ -1524,7 +1552,7 @@ inferred is really <code class="koka"><span class="tp sp">&#60;</span><a class="
 </span></pre>
 
 
-<h2 id="sec-polymorphic-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-polymorphic-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.8</span>.&#8194;</span>Polymorphic effects</h2>
+<h2 id="sec-polymorphic-effects" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-polymorphic-effects" class="entity-anchor localref">&#x1F517;</a><a href="#sec-polymorphic-effects" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.8</span>.&#8194;</span>Polymorphic effects</h2>
 <p class="p noindent">Many functions are polymorphic in their effect. For example, the
 <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#map">map<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>map: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">b</span><span class="tp sp">&#62;</span></span></a></code> function
 applies a function <code class="koka">f</code> to each element of a (finite) list. As such, the effect
@@ -1582,7 +1610,7 @@ effect <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="ht
 When applying <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#while">while<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>while: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">predicate</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp">bool</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp sp">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code>, those
 effects are unified to the type <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_exn"><span class="tp">exn</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>exn: <span class="tp">X</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>div: <span class="tp">X</span></span></a><span class="tp sp">|</span><span class="tp tv">e3</span><span class="tp sp">&#62;</span></code> for some <code class="koka"><span class="tp tv">e3</span></code> (which can
 be seen by hovering over the <code class="koka"><a class="pp" href="#looptest">looptest<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>looptest: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">pure</span><span class="tp sp">,</span><span class="tp">ndet</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code> identifier)
-</p><h2 id="sec-runst" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-runst" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.9</span>.&#8194;</span>Isolated state</h2>
+</p><h2 id="sec-runst" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-runst" class="entity-anchor localref">&#x1F517;</a><a href="#sec-runst" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.9</span>.&#8194;</span>Isolated state</h2>
 <p class="p noindent">The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where <code class="koka">fib(<span class="number">0</span>) <span class="op">==</span> <span class="number">0</span></code> and <code class="koka">fib(<span class="number">1</span>) <span class="op">==</span> <span class="number">1</span></code>. We can
 easily calculate Fibonacci numbers using a recursive function:
@@ -1703,7 +1731,7 @@ Haskell) to discard the <code class="koka"><a class="pp" href="https://koka-lang
 internally across function definitions and data structures, but where the
 final algorithm itself behaves like a pure function, see the
 <code class="code code2">lib/demo/garsiaWachs.kk</code> example in the distribution.
-</p><h2 id="sec-a-larger-example--cracking-caesar-encoding" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-a-larger-example--cracking-caesar-encoding" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.10</span>.&#8194;</span>A larger example: cracking Caesar encoding</h2>
+</p><h2 id="sec-a-larger-example--cracking-caesar-encoding" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-a-larger-example--cracking-caesar-encoding" class="entity-anchor localref">&#x1F517;</a><a href="#sec-a-larger-example--cracking-caesar-encoding" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.10</span>.&#8194;</span>A larger example: cracking Caesar encoding</h2>
 <p class="p noindent">Enough about effects and imperative updates. Let&#39;s look at some more functional examples :-) 
 For example, cracking Caesar encoded strings:
 </p><pre class="koka source"><span class="plaincode">fun main() { test-uncaesar() }
@@ -1824,7 +1852,7 @@ tables match. In the function <code class="koka">crack</code> these functions ar
 <code class="koka">shift</code> value that results in a string whose frequency table matches the
 <code class="koka"><a class="pp" href="#english">english<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>english: <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp">double</span><span class="tp sp">&#62;</span></span></a></code> one the closest &#8211; and we use that to decode the string. Let&#39;s try
 it out in the editor!
-</p><h2 id="sec-optional-and-named-parameters" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-optional-and-named-parameters" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.11</span>.&#8194;</span>Optional and named parameters</h2>
+</p><h2 id="sec-optional-and-named-parameters" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-optional-and-named-parameters" class="entity-anchor localref">&#x1F517;</a><a href="#sec-optional-and-named-parameters" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.11</span>.&#8194;</span>Optional and named parameters</h2>
 <p class="p noindent">Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
 function <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#replace_all">replace<span class="dash">-</span>all<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>replace<span class="dash">-</span>all: <span class="tp sp">(</span><span class="tp tpp">s</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">pattern</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">repl</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">string</span></span></a></code> takes a string, a <code class="code code2">pattern</code> pattern, and 
@@ -1891,7 +1919,7 @@ fun sublist( xs : list&lt;a&gt;, start : int,
 <p class="p noindent">Hover over the <code class="koka"><a class="pp" href="#sublist">sublist<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>sublist: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">start</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">len</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span></span></a></code> identifier to see its full type, where the <code class="code code2">len</code>
 parameter has gotten an optional <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a></code> type signified by the question mark:
 <code class="koka"><span class="op">:?</span>int</code>.
-</p><h2 id="sec-structs" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-structs" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.12</span>.&#8194;</span>Structs</h2>
+</p><h2 id="sec-structs" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-structs" class="entity-anchor localref">&#x1F517;</a><a href="#sec-structs" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.12</span>.&#8194;</span>Structs</h2>
 <p class="p noindent">An important aspect of a function-oriented language is to be able to define
 rich data types over which the functions work. A common data type is that of a
 <em class="em-low1">struct</em> or <em class="em-low1">record</em>. Here is an example of a struct that contains information
@@ -1920,7 +1948,7 @@ it is just functions all the way down!
 <p class="p indent">Also, Koka automatically generates accessor functions for each field in a
 struct (or other data type), and we can access the <code class="koka"><a class="pp" href="#age">age<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>age: <span class="tp sp">(</span><span class="tp tpp">person</span> <span class="tp kw op">:</span> <span class="tp">person</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code> of a <code class="koka"><a class="pp" href="#type_space_person"><span class="tp">person</span><span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>person: <span class="tp">V</span></span></a></code> as
 <code class="koka">gaga<span class="kw op">.</span>age</code> (which is of course just syntactic sugar for <code class="koka">age(gaga)</code>).
-</p><h2 id="sec-copying" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-copying" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.13</span>.&#8194;</span>Copying</h2>
+</p><h2 id="sec-copying" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-copying" class="entity-anchor localref">&#x1F517;</a><a href="#sec-copying" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.13</span>.&#8194;</span>Copying</h2>
 <p class="p noindent">By default, all structs (and other data types) are <em class="em-low1">immutable</em>. Instead of
 directly mutating a field in a struct, we usually return a new struct where
 the fields are updated. For example, here is a <code class="koka"><a class="pp" href="#birthday">birthday<span class="pc"><span class="mo">overview<span class="fslash last">/</span></span>birthday: <span class="tp sp">(</span><span class="tp tpp">p</span> <span class="tp kw op">:</span> <span class="tp">person</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">person</span></span></a></code> function that
@@ -1971,7 +1999,7 @@ fun copy( p, age = p.age, name = p.name,
 copy function, as in <code class="koka">p<span class="kw op">.</span>copy( age <span class="kw">=</span> p<span class="kw op">.</span>age<span class="op">+</span><span class="number">1</span> )</code>. Again, there are no special
 rules for record updates and everything is just function calls with optional
 and named parameters.
-</p><h2 id="sec-more-data-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-more-data-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.14</span>.&#8194;</span>More data types</h2>
+</p><h2 id="sec-more-data-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-more-data-types" class="entity-anchor localref">&#x1F517;</a><a href="#sec-more-data-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.14</span>.&#8194;</span>More data types</h2>
 <p class="p noindent">Koka also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
 </p><pre class="koka source unchecked"><span class="plaincode">type colors {
@@ -2067,19 +2095,18 @@ our earlier <code class="koka"><a class="pp" href="#type_space_person"><span cla
 </span></pre>
 
 
-<h2 id="sec-matching" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.15</span>.&#8194;</span>Matching</h2>
+<h2 id="sec-matching" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.15</span>.&#8194;</span>Matching</h2>
 <p class="p noindent">Todo
-</p><h2 id="sec-inductive-co-inductive-and-recursive-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-inductive-co-inductive-and-recursive-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.16</span>.&#8194;</span>Inductive, co-inductive, and recursive types</h2>
+</p><h2 id="sec-inductive-co-inductive-and-recursive-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-inductive-co-inductive-and-recursive-types" class="entity-anchor localref">&#x1F517;</a><a href="#sec-inductive-co-inductive-and-recursive-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.16</span>.&#8194;</span>Inductive, co-inductive, and recursive types</h2>
 <p class="p noindent">For the purposes of equational reasoning and termination checking, a <code class="koka"><span class="tp kw">type</span></code>
 declaration is limited to finite inductive types. There are two more
 declarations, namely <code class="koka"><span class="tp kw">cotype</span></code> and <code class="koka"><span class="tp kw">rectype</span></code> that allow for co-inductive types,
 and arbitrary recursive types respectively.
-</p></section>
-<section id="sec-koka-language-specification" class="section section1" data-section-depth="1"><h1 id="heading-sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span>Koka language specification</h1>
+</p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor localref">&#x1F517;</a><a href="#sec-koka-language-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span>Koka language specification</h1>
 <p class="p noindent">This is the draft language specification of the Koka language, version 0.7.<br>
 Currently only the lexical and context-free grammar are specified. 
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
-</p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1</span>.&#8194;</span>Lexical syntax</h2>
+</p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor localref">&#x1F517;</a><a href="#sec-lexical-syntax" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1</span>.&#8194;</span>Lexical syntax</h2>
 <p class="p noindent">We define the grammar and lexical syntax of the language using standard BNF
 notation where non-terminals are generated by alternative patterns:
 </p><table class="grammar madoko block">
@@ -2106,12 +2133,12 @@ the order of the productions is not important and at each point the
 <em class="em-low1">longest matching lexeme</em> is preferred. For example, even though
 <code class="koka"><span class="kw">function</span></code> is a reserved word, the word <code class="koka">functions</code> is considered a
 single identifier. A <em class="em-low1">prefix</em> or <em class="em-low1">postfix</em> pattern is included 
-when considering a longest match.</p><h3 id="sec-source-code" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-source-code" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1.1</span>.&#8194;</span>Source code</h3>
+when considering a longest match.</p><h3 id="sec-source-code" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-source-code" class="entity-anchor localref">&#x1F517;</a><a href="#sec-source-code" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1.1</span>.&#8194;</span>Source code</h3>
 <p class="p noindent">Source code consists of a sequence of 8-bit characters. Valid characters in
 actual program code consists strictly of ASCII characters which range from 0
 to 127 and can be encoded in 7-bits. Only comments, string literals, and
 character literals are allowed to contain extended 8-bit characters.
-</p><h3 id="sec-encoding" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-encoding" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1.2</span>.&#8194;</span>Encoding</h3>
+</p><h3 id="sec-encoding" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-encoding" class="entity-anchor localref">&#x1F517;</a><a href="#sec-encoding" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.1.2</span>.&#8194;</span>Encoding</h3>
 <p class="p noindent">A program source is assumed to be UTF-8 encoded which allows comments,
 string literals, and character literals to contain (encoded) unicode
 characters. Moreover, the grammar is designed such that a lexical
@@ -2121,7 +2148,7 @@ processing of UTF-8 encoded files the lexical analyzer ignores an initial
 byte-order mark that some UTF-8 encoders insert. In particular, any
 program source is allowed to start with three byte-order mark bytes
 <code class="code code2">0xEF</code>, <code class="code code2">0xBB</code>, and <code class="code code2">0xBF</code>, which are ignored.
-</p><h2 id="sec-lexical-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-grammar" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2</span>.&#8194;</span>Lexical grammar</h2>
+</p><h2 id="sec-lexical-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-grammar" class="entity-anchor localref">&#x1F517;</a><a href="#sec-lexical-grammar" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2</span>.&#8194;</span>Lexical grammar</h2>
 <p class="p noindent">In the specification of the lexical grammar all white space is explicit
 and there is no implicit white space between juxtaposed symbols. The
 lexical token stream is generated by the non-terminal <em class="em-low1">lex</em> which
@@ -2130,7 +2157,7 @@ consists of lexemes and whitespace.
 <p class="p indent">Before doing lexical analysis, there is a <em class="em-low1">linefeed</em> character inserted
 at the start and end of the input, which makes it easier to specify line
 comments and directives.
-</p><h3 id="sec-lexical-tokens" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-tokens" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.1</span>.&#8194;</span>Lexical tokens</h3><table class="grammar lex madoko block">
+</p><h3 id="sec-lexical-tokens" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-tokens" class="entity-anchor localref">&#x1F517;</a><a href="#sec-lexical-tokens" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.1</span>.&#8194;</span>Lexical tokens</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">lex</em>                </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">lexeme</em> <span class="bar">|</span> <em class="em-low1">whitespace</em>                               </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">lexeme</em>&#160;&#160; </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">conid</em> <span class="bar">|</span> <em class="em-low1">qconid</em>                                    </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">     </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1">                      </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> &#124; </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">varid</em> <span class="bar">|</span> <em class="em-low1">qvarid</em>                                    </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">     </td></tr>
@@ -2140,7 +2167,7 @@ comments and directives.
 <tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="7" data-col="1">                      </td><td class="tbody tr-odd tr-last col col-even" data-row="7" data-col="2"> &#124; </td><td class="tbody tr-odd tr-last col col-odd" data-row="7" data-col="3"> <em class="em-low1">special</em> <span class="bar">|</span> <em class="em-low1">funanon</em>                                 </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="7" data-col="4">     </td></tr></tbody></table>
 <p class="p noindent">The main program consists of <em class="em-low1">whitespace</em> or <em class="em-low1">lexeme</em>&#39;s. The context-free
 grammar will draw it&#39;s lexemes from the <em class="em-low1">lex</em> production.
-</p><h3 id="sec-identifiers" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-identifiers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.2</span>.&#8194;</span>Identifiers</h3><table class="grammar lex madoko block">
+</p><h3 id="sec-identifiers" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-identifiers" class="entity-anchor localref">&#x1F517;</a><a href="#sec-identifiers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.2</span>.&#8194;</span>Identifiers</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">anyid</em>      </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">varid</em> <span class="bar">|</span> <em class="em-low1">qvarid</em> <span class="bar">|</span> <em class="em-low1">opid</em> <span class="bar">|</span> <em class="em-low1">qopid</em> <span class="bar">|</span> <em class="em-low1">conid</em> <span class="bar">|</span> <em class="em-low1">qconid</em> </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                                         </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> &#160;       </td><td class="tbody tr-even col col-even" data-row="2" data-col="2">       </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3">                                                                                               </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                                         </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">qconid</em>     </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">modulepath</em> <em class="em-low1">conid</em>                                                                          </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                                         </td></tr>
@@ -2209,7 +2236,7 @@ n - x - <span class="constant" style="color:purple">1</span>  <span style="color
 paths can be partial as long as they are unambiguous. 
 </p>
 <pre class="para-block pre-fenced pre-fenced4 language-koka lang-koka koka colorized" style="display:block"><code><span style="color:navy">core/</span>map
-<span style="color:navy">std/</span>core/(&amp;)</code></pre><h3 id="sec-operators-and-symbols" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-operators-and-symbols" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.3</span>.&#8194;</span>Operators and symbols</h3><table class="grammar lex madoko block">
+<span style="color:navy">std/</span>core/(&amp;)</code></pre><h3 id="sec-operators-and-symbols" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-operators-and-symbols" class="entity-anchor localref">&#x1F517;</a><a href="#sec-operators-and-symbols" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.3</span>.&#8194;</span>Operators and symbols</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">qopid</em>      </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">modulepath</em> <em class="em-low1">opid</em>                                                                                                                                   </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">opid</em>       </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <code class="koka">(</code> <em class="em-low1">symbols</em> <code class="koka">)</code>                                                                                                                                     </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;       </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">       </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                                                                                                                       </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">    </td></tr>
@@ -2229,7 +2256,7 @@ paths can be partial as long as they are unambiguous.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="17" data-col="1"> <em class="em-low1">lapp</em>       </td><td class="tbody tr-odd col col-even" data-row="17" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="17" data-col="3"> <sub>&#60;<em class="em-low1">apply</em>&#62;</sub><code class="koka">(</code>                                                                                                                                  </td><td class="tbody tr-odd col col-even col-last" data-row="17" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="18" data-col="1"> <em class="em-low1">lidx</em>       </td><td class="tbody tr-even col col-even" data-row="18" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="18" data-col="3"> <sub>&#60;<em class="em-low1">apply</em>&#62;</sub><code class="koka">[</code>                                                                                                                                  </td><td class="tbody tr-even col col-even col-last" data-row="18" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="19" data-col="1"> <em class="em-low1">apply</em>      </td><td class="tbody tr-odd col col-even" data-row="19" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="19" data-col="3"> <code class="koka">)</code> <span class="bar">|</span> <code class="koka">]</code> <span class="bar">|</span> <em class="em-low1">anyid</em>                                                                                                                     </td><td class="tbody tr-odd col col-even col-last" data-row="19" data-col="4">    </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="20" data-col="1"> &#160;       </td><td class="tbody tr-even tr-last col col-even" data-row="20" data-col="2">       </td><td class="tbody tr-even tr-last col col-odd" data-row="20" data-col="3">                                                                                                                                                       </td><td class="tbody tr-even tr-last col col-even col-last" data-row="20" data-col="4">    </td></tr></tbody></table><h3 id="sec-literals" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-literals" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.4</span>.&#8194;</span>Literals</h3><table class="grammar lex madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="20" data-col="1"> &#160;       </td><td class="tbody tr-even tr-last col col-even" data-row="20" data-col="2">       </td><td class="tbody tr-even tr-last col col-odd" data-row="20" data-col="3">                                                                                                                                                       </td><td class="tbody tr-even tr-last col col-even col-last" data-row="20" data-col="4">    </td></tr></tbody></table><h3 id="sec-literals" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-literals" class="entity-anchor localref">&#x1F517;</a><a href="#sec-literals" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.4</span>.&#8194;</span>Literals</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">string</em>      </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="code code2">@&quot;</code> <span class="many">{ <em class="em-low1">graphic</em><sub>&#60;<code class="code code2">&quot;</code>&#62;</sub> <span class="bar">|</span> <em class="em-low1">utf8</em> <span class="bar">|</span> <em class="em-low1">space</em> <span class="bar">|</span> <em class="em-low1">tab</em> <span class="bar">|</span> <em class="em-low1">newline</em> <span class="bar">|</span> <code class="code code2">&quot;&quot;</code> }</span> <code class="code code2">&quot;</code> </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4"> (raw string) </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1">               </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <code class="code code2">&quot;</code> <span class="many">{ <em class="em-low1">graphic</em><sub>&#60;<code class="code code2">&quot;</code><span class="bar">|</span><code class="code code2">\</code>&#62;</sub> <span class="bar">|</span> <em class="em-low1">utf8</em> <span class="bar">|</span> <em class="em-low1">space</em> <span class="bar">|</span> <em class="em-low1">escape</em> }</span> <code class="code code2">&quot;</code>                     </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">char</em>        </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <code class="code code2">&#39;</code> ( <em class="em-low1">graphic</em><sub>&#60;<code class="code code2">&#39;</code><span class="bar">|</span><code class="code code2">\</code>&#62;</sub> <span class="bar">|</span> <em class="em-low1">utf8</em> <span class="bar">|</span> <em class="em-low1">space</em> <span class="bar">|</span> <em class="em-low1">escape</em> ) <code class="code code2">&#39;</code>                          </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">              </td></tr>
@@ -2244,7 +2271,7 @@ paths can be partial as long as they are unambiguous.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="12" data-col="1"> <em class="em-low1">exponent</em>    </td><td class="tbody tr-even col col-even" data-row="12" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="12" data-col="3"> (<code class="code code2">e</code> &#124;  <code class="code code2">E</code>) <span class="opt">[ <code class="code code2">-</code> &#124;  <code class="code code2">+</code> ]</span> <em class="em-low1">decimal</em>                                                                     </td><td class="tbody tr-even col col-even col-last" data-row="12" data-col="4">              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="13" data-col="1"> <em class="em-low1">natural</em>     </td><td class="tbody tr-odd col col-even" data-row="13" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="13" data-col="3"> <em class="em-low1">decimal</em> <span class="bar">|</span> <code class="koka"><span class="number">0</span></code> &#160; (<code class="code code2">x</code> &#124;  <code class="code code2">X</code>) <em class="em-low1">hexadecimal</em>                                                              </td><td class="tbody tr-odd col col-even col-last" data-row="13" data-col="4">              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="14" data-col="1"> <em class="em-low1">decimal</em>     </td><td class="tbody tr-even col col-even" data-row="14" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="14" data-col="3"> <em class="em-low1">digit</em> <span class="many">{ <em class="em-low1">digit</em> }</span>                                                                                                  </td><td class="tbody tr-even col col-even col-last" data-row="14" data-col="4">              </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="15" data-col="1"> <em class="em-low1">hexadecimal</em> </td><td class="tbody tr-odd tr-last col col-even" data-row="15" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="15" data-col="3"> <em class="em-low1">hexdigit</em> <span class="many">{ <em class="em-low1">hexdigit</em> }</span>                                                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="15" data-col="4">              </td></tr></tbody></table><h3 id="sec-white-space" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-white-space" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.5</span>.&#8194;</span>White space</h3><table class="grammar lex madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="15" data-col="1"> <em class="em-low1">hexadecimal</em> </td><td class="tbody tr-odd tr-last col col-even" data-row="15" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="15" data-col="3"> <em class="em-low1">hexdigit</em> <span class="many">{ <em class="em-low1">hexdigit</em> }</span>                                                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="15" data-col="4">              </td></tr></tbody></table><h3 id="sec-white-space" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-white-space" class="entity-anchor localref">&#x1F517;</a><a href="#sec-white-space" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.5</span>.&#8194;</span>White space</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">whitespace</em>    </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">white</em> <span class="many">{ <em class="em-low1">white</em> }</span> <span class="bar">|</span> <em class="em-low1">newline</em>                                                                           </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                          </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">white</em>         </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">space</em>                                                                         </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                          </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1">                 </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">linecomment</em> <span class="bar">|</span> <em class="em-low1">blockcomment</em>                                                              </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                          </td></tr>
@@ -2257,7 +2284,7 @@ paths can be partial as long as they are unambiguous.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">blockcomment</em>  </td><td class="tbody tr-even col col-even" data-row="10" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="10" data-col="3"> <code>/&#42;</code> <em class="em-low1">blockpart</em> <span class="many">{ <em class="em-low1">blockcomment</em> <em class="em-low1">blockpart</em> }</span> <code>&#42;/</code>            </td><td class="tbody tr-even col col-even col-last" data-row="10" data-col="4"> (allows nested comments) </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="11" data-col="1"> <em class="em-low1">blockpart</em>     </td><td class="tbody tr-odd col col-even" data-row="11" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="11" data-col="3"> <em class="em-low1">blockchars</em><sub>&#60;<em class="em-low1">blockchars</em>&#160;(<code>/&#42;</code><span class="bar">|</span><code>&#42;/</code>)&#160;<em class="em-low1">blockchars</em>&#62;</sub> </td><td class="tbody tr-odd col col-even col-last" data-row="11" data-col="4">                          </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="12" data-col="1"> <em class="em-low1">blockchars</em>    </td><td class="tbody tr-even col col-even" data-row="12" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="12" data-col="3"> <span class="many">{ <em class="em-low1">blockchar</em> }</span>                                                                               </td><td class="tbody tr-even col col-even col-last" data-row="12" data-col="4">                          </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="13" data-col="1"> <em class="em-low1">blockchar</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="13" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="13" data-col="3"> <em class="em-low1">graphic</em> <span class="bar">|</span> <em class="em-low1">utf8</em> <span class="bar">|</span> <em class="em-low1">space</em> <span class="bar">|</span> <em class="em-low1">tab</em> <span class="bar">|</span> <em class="em-low1">newline</em>                       </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="13" data-col="4">                          </td></tr></tbody></table><h3 id="sec-character-classes" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-character-classes" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.6</span>.&#8194;</span>Character classes</h3><table class="grammar lex madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="13" data-col="1"> <em class="em-low1">blockchar</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="13" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="13" data-col="3"> <em class="em-low1">graphic</em> <span class="bar">|</span> <em class="em-low1">utf8</em> <span class="bar">|</span> <em class="em-low1">space</em> <span class="bar">|</span> <em class="em-low1">tab</em> <span class="bar">|</span> <em class="em-low1">newline</em>                       </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="13" data-col="4">                          </td></tr></tbody></table><h3 id="sec-character-classes" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-character-classes" class="entity-anchor localref">&#x1F517;</a><a href="#sec-character-classes" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.6</span>.&#8194;</span>Character classes</h3><table class="grammar lex madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">letter</em>   </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">upper</em> <span class="bar">|</span> <em class="em-low1">lower</em>                </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">upper</em>    </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <code class="code code2">A..Z</code>                                  </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                     </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">lower</em>    </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <code class="code code2">a..z</code>                                  </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                     </td></tr>
@@ -2281,7 +2308,7 @@ paths can be partial as long as they are unambiguous.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="21" data-col="1">            </td><td class="tbody tr-odd col col-even" data-row="21" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="21" data-col="3"> <code class="code code2">xF0</code> (<code class="code code2">x90</code>..<code class="code code2">xBF</code>) <em class="em-low1">cont</em> <em class="em-low1">cont</em>      </td><td class="tbody tr-odd col col-even col-last" data-row="21" data-col="4">                                     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="22" data-col="1">            </td><td class="tbody tr-even col col-even" data-row="22" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="22" data-col="3"> (<code class="code code2">xF1</code>..<code class="code code2">xF3</code>) <em class="em-low1">cont</em> <em class="em-low1">cont</em> <em class="em-low1">cont</em>     </td><td class="tbody tr-even col col-even col-last" data-row="22" data-col="4">                                     </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="23" data-col="1">            </td><td class="tbody tr-odd col col-even" data-row="23" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="23" data-col="3"> <code class="code code2">xF4</code> (<code class="code code2">x80</code>..<code class="code code2">x8F</code>) <em class="em-low1">cont</em> <em class="em-low1">cont</em>      </td><td class="tbody tr-odd col col-even col-last" data-row="23" data-col="4">                                     </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="24" data-col="1"> <em class="em-low1">cont</em>     </td><td class="tbody tr-even tr-last col col-even" data-row="24" data-col="2"> ::=    </td><td class="tbody tr-even tr-last col col-odd" data-row="24" data-col="3"> <code class="code code2">x80</code>..<code class="code code2">xBF</code>                            </td><td class="tbody tr-even tr-last col col-even col-last" data-row="24" data-col="4">                                     </td></tr></tbody></table><h3 id="sec-semicolons" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-semicolons" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.7</span>.&#8194;</span>Semicolons?</h3>
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="24" data-col="1"> <em class="em-low1">cont</em>     </td><td class="tbody tr-even tr-last col col-even" data-row="24" data-col="2"> ::=    </td><td class="tbody tr-even tr-last col col-odd" data-row="24" data-col="3"> <code class="code code2">x80</code>..<code class="code code2">xBF</code>                            </td><td class="tbody tr-even tr-last col col-even col-last" data-row="24" data-col="4">                                     </td></tr></tbody></table><h3 id="sec-semicolons" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-semicolons" class="entity-anchor localref">&#x1F517;</a><a href="#sec-semicolons" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.7</span>.&#8194;</span>Semicolons?</h3>
 <p class="p noindent">Many languages have rules to avoid writing semicolons to separate
 statements. Even though most of the time these rules are quite intuitive
 to use, their actual definition can be quite subtle. For example,
@@ -2542,16 +2569,16 @@ that lead to bizarrely complex layout rules, as is the case in languages like
 -->
 
 
-<h3 id="sec:lex-implementation" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:lex-implementation" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.8</span>.&#8194;</span>Implementation</h3>
+<h3 id="sec:lex-implementation" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:lex-implementation" class="entity-anchor localref">&#x1F517;</a><a href="#sec:lex-implementation" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.8</span>.&#8194;</span>Implementation</h3>
 <p class="p noindent">There is a full&nbsp;<a href="https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex" data-linkid="flexlexer">Flex (Lex) implementation</a> of lexical
 analysis, Ultimately, the Flex implementation serves as <em class="em-low1">the</em>
 specification, and this document and the Flex implementation should
 always be in agreement.
-</p><h2 id="sec-context-free-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-context-free-syntax" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3</span>.&#8194;</span>Context-free syntax</h2>
+</p><h2 id="sec-context-free-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-context-free-syntax" class="entity-anchor localref">&#x1F517;</a><a href="#sec-context-free-syntax" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3</span>.&#8194;</span>Context-free syntax</h2>
 <p class="p noindent">The grammar specification starts with the non terminal <em class="em-low1">module</em> which draws
 its lexical tokens from <em class="em-low1">lex</em> where all <em class="em-low1">whitespace</em> tokens are implicitly
 ignored.
-</p><h3 id="sec-modules" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-modules" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.1</span>.&#8194;</span>Modules</h3><table class="grammar parse madoko block">
+</p><h3 id="sec-modules" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-modules" class="entity-anchor localref">&#x1F517;</a><a href="#sec-modules" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.1</span>.&#8194;</span>Modules</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">module</em><sub><span class="opt">[ <em class="em-low1">lex</em> ]</span></sub> </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <span class="opt">[ <em class="em-low1">moduledecl</em> ]</span> <em class="em-low1">modulebody</em>                         </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">   </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> &#160;                  </td><td class="tbody tr-even col col-even" data-row="2" data-col="2">        </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3">                                                           </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">   </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">moduledecl</em>            </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">semis</em>  <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <code class="koka"><span class="kw">module</span></code> <em class="em-low1">moduleid</em> </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">   </td></tr>
@@ -2561,7 +2588,7 @@ ignored.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="7" data-col="1">                         </td><td class="tbody tr-odd col col-even" data-row="7" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="7" data-col="3"> <em class="em-low1">semis</em> <em class="em-low1">declarations</em>                            </td><td class="tbody tr-odd col col-even col-last" data-row="7" data-col="4">   </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="8" data-col="1"> &#160;                  </td><td class="tbody tr-even col col-even" data-row="8" data-col="2">        </td><td class="tbody tr-even col col-odd" data-row="8" data-col="3">                                                           </td><td class="tbody tr-even col col-even col-last" data-row="8" data-col="4">   </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="9" data-col="1"> <em class="em-low1">visibility</em>            </td><td class="tbody tr-odd col col-even" data-row="9" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="9" data-col="3"> <code class="koka"><span class="kw">public</span></code> <span class="bar">|</span> <code class="koka"><span class="kw">private</span></code>                               </td><td class="tbody tr-odd col col-even col-last" data-row="9" data-col="4">   </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">semis</em>                 </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="2"> ::=    </td><td class="tbody tr-even tr-last col col-odd" data-row="10" data-col="3"> <span class="many">{ <code class="koka">;</code> }</span>                                          </td><td class="tbody tr-even tr-last col col-even col-last" data-row="10" data-col="4">   </td></tr></tbody></table><h3 id="sec-top-level-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-top-level-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.2</span>.&#8194;</span>Top level declarations</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">semis</em>                 </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="2"> ::=    </td><td class="tbody tr-even tr-last col col-odd" data-row="10" data-col="3"> <span class="many">{ <code class="koka">;</code> }</span>                                          </td><td class="tbody tr-even tr-last col col-even col-last" data-row="10" data-col="4">   </td></tr></tbody></table><h3 id="sec-top-level-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-top-level-declarations" class="entity-anchor localref">&#x1F517;</a><a href="#sec-top-level-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.2</span>.&#8194;</span>Top level declarations</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">declarations</em> </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <span class="many">{ <em class="em-low1">import</em> <em class="em-low1">semis</em> }</span> <span class="many">{ <em class="em-low1">fixitydecl</em> <em class="em-low1">semis</em> }</span> <span class="many">{ <em class="em-low1">topdecl</em> <em class="em-low1">semis</em> }</span> </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">   </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> &#160;         </td><td class="tbody tr-even col col-even" data-row="2" data-col="2">        </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3">                                                                                    </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">   </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">import</em>       </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <code class="koka"><span class="kw">import</span></code> <span class="opt">[ <em class="em-low1">moduleid</em> <code class="koka"><span class="kw">=</span></code> ]</span> <em class="em-low1">moduleid</em>                    </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">   </td></tr>
@@ -2575,7 +2602,7 @@ ignored.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="11" data-col="1">                </td><td class="tbody tr-odd col col-even" data-row="11" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="11" data-col="3"> <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <em class="em-low1">aliasdecl</em>                                                   </td><td class="tbody tr-odd col col-even col-last" data-row="11" data-col="4">   </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="12" data-col="1">                </td><td class="tbody tr-even col col-even" data-row="12" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="12" data-col="3"> <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <em class="em-low1">typedecl</em>                                                    </td><td class="tbody tr-even col col-even col-last" data-row="12" data-col="4">   </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="13" data-col="1">                </td><td class="tbody tr-odd col col-even" data-row="13" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="13" data-col="3"> <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <em class="em-low1">externdecl</em>                                                  </td><td class="tbody tr-odd col col-even col-last" data-row="13" data-col="4">   </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="14" data-col="1">                </td><td class="tbody tr-even tr-last col col-even" data-row="14" data-col="2"> &#124;  </td><td class="tbody tr-even tr-last col col-odd" data-row="14" data-col="3"> <code class="koka"><span class="kw">abstract</span></code> <em class="em-low1">typedecl</em>                                                             </td><td class="tbody tr-even tr-last col col-even col-last" data-row="14" data-col="4">   </td></tr></tbody></table><h3 id="sec-type-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-type-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.3</span>.&#8194;</span>Type declarations</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="14" data-col="1">                </td><td class="tbody tr-even tr-last col col-even" data-row="14" data-col="2"> &#124;  </td><td class="tbody tr-even tr-last col col-odd" data-row="14" data-col="3"> <code class="koka"><span class="kw">abstract</span></code> <em class="em-low1">typedecl</em>                                                             </td><td class="tbody tr-even tr-last col col-even col-last" data-row="14" data-col="4">   </td></tr></tbody></table><h3 id="sec-type-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-type-declarations" class="entity-anchor localref">&#x1F517;</a><a href="#sec-type-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.3</span>.&#8194;</span>Type declarations</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">aliasdecl</em>   </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="koka"><span class="tp kw">alias</span></code> <em class="em-low1">typeid</em> <span class="opt">[ <em class="em-low1">typeparams</em> ]</span> <span class="opt">[ <em class="em-low1">kannot</em> ]</span> <code class="koka"><span class="kw">=</span></code> <em class="em-low1">type</em>                              </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">typedecl</em>    </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">typesort</em> <span class="opt">[ <em class="em-low1">typemod</em> ]</span> <em class="em-low1">typeid</em> <span class="opt">[ <em class="em-low1">typeparams</em> ]</span> <span class="opt">[ <em class="em-low1">kannot</em> ]</span> <span class="opt">[ <em class="em-low1">typebody</em> ]</span> </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1">               </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> &#124; </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <code class="koka"><span class="tp kw">struct</span></code> <em class="em-low1">typeid</em> <span class="opt">[ <em class="em-low1">typeparams</em> ]</span> <span class="opt">[ <em class="em-low1">kannot</em> ]</span> <span class="opt">[ <em class="em-low1">conparams</em> ]</span>                    </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">    </td></tr>
@@ -2602,7 +2629,7 @@ ignored.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="24" data-col="1"> <em class="em-low1">opdecls</em>     </td><td class="tbody tr-even col col-even" data-row="24" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="24" data-col="3"> <code class="koka">{</code> <em class="em-low1">semis</em> <span class="many">{ <em class="em-low1">opdecl</em> <em class="em-low1">semis</em> }</span> <code class="koka">}</code>                                                      </td><td class="tbody tr-even col col-even col-last" data-row="24" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="25" data-col="1"> <em class="em-low1">opdecl</em>      </td><td class="tbody tr-odd col col-even" data-row="25" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="25" data-col="3"> <span class="opt">[ <em class="em-low1">visibility</em> ]</span> <em class="em-low1">identifier</em> <span class="opt">[ <em class="em-low1">typeparams</em> ]</span> <em class="em-low1">opparams</em> <span class="opt">[  <code class="code code2">:</code> <em class="em-low1">tatom</em> ]</span>       </td><td class="tbody tr-odd col col-even col-last" data-row="25" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="26" data-col="1"> <em class="em-low1">opparams</em>    </td><td class="tbody tr-even col col-even" data-row="26" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="26" data-col="3"> <em class="em-low1">lparen</em> <span class="opt">[ <em class="em-low1">opparam</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">opparam</em> }</span> ]</span> <code class="koka">)</code>                                          </td><td class="tbody tr-even col col-even col-last" data-row="26" data-col="4">    </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="27" data-col="1"> <em class="em-low1">opparam</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="27" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="27" data-col="3"> <span class="opt">[ <em class="em-low1">paramid</em> ]</span> <code class="code code2">:</code> <em class="em-low1">paramtype</em>                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="27" data-col="4">    </td></tr></tbody></table><h3 id="sec-value-and-function-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-value-and-function-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.4</span>.&#8194;</span>Value and function declarations</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="27" data-col="1"> <em class="em-low1">opparam</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="27" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="27" data-col="3"> <span class="opt">[ <em class="em-low1">paramid</em> ]</span> <code class="code code2">:</code> <em class="em-low1">paramtype</em>                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="27" data-col="4">    </td></tr></tbody></table><h3 id="sec-value-and-function-declarations" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-value-and-function-declarations" class="entity-anchor localref">&#x1F517;</a><a href="#sec-value-and-function-declarations" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.4</span>.&#8194;</span>Value and function declarations</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">puredecl</em>       </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=      </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="koka"><span class="kw">val</span></code> <em class="em-low1">valdecl</em>                                                                               </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                       </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1">                  </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> &#124;    </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> (<code class="koka"><span class="kw">fun</span></code><span class="bar">|</span><code class="koka"><span class="kw">function</span></code>) <em class="em-low1">fundecl</em>                                                                          </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                       </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;           </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">          </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                                                               </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                       </td></tr>
@@ -2625,7 +2652,7 @@ ignored.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="20" data-col="1"> &#160;           </td><td class="tbody tr-even col col-even" data-row="20" data-col="2">          </td><td class="tbody tr-even col col-odd" data-row="20" data-col="3">                                                                                               </td><td class="tbody tr-even col col-even col-last" data-row="20" data-col="4">                       </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="21" data-col="1"> <em class="em-low1">qoperator</em>      </td><td class="tbody tr-odd col col-even" data-row="21" data-col="2"> ::=      </td><td class="tbody tr-odd col col-odd" data-row="21" data-col="3"> <em class="em-low1">op</em>                                                                                          </td><td class="tbody tr-odd col col-even col-last" data-row="21" data-col="4">                       </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="22" data-col="1"> &#160;           </td><td class="tbody tr-even col col-even" data-row="22" data-col="2">          </td><td class="tbody tr-even col col-odd" data-row="22" data-col="3">                                                                                               </td><td class="tbody tr-even col col-even col-last" data-row="22" data-col="4">                       </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">qconstructor</em>   </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=      </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> <em class="em-low1">conid</em> <span class="bar">|</span> <em class="em-low1">qconid</em>                                                                     </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                       </td></tr></tbody></table><h3 id="sec-statements" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-statements" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.5</span>.&#8194;</span>Statements</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">qconstructor</em>   </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=      </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> <em class="em-low1">conid</em> <span class="bar">|</span> <em class="em-low1">qconid</em>                                                                     </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                       </td></tr></tbody></table><h3 id="sec-statements" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-statements" class="entity-anchor localref">&#x1F517;</a><a href="#sec-statements" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.5</span>.&#8194;</span>Statements</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">block</em>     </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="code code2">{</code> <em class="em-low1">semis</em> <span class="many">{ <em class="em-low1">statement</em> <em class="em-low1">semis</em> }</span> <code class="code code2">}</code> </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                          </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> &#160;      </td><td class="tbody tr-even col col-even" data-row="2" data-col="2">       </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3">                                                  </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                          </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">statement</em> </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">expr</em><sub>&#60;!&#160;<em class="em-low1">funexpr</em>&#62;</sub>                     </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                          </td></tr>
@@ -2633,7 +2660,7 @@ ignored.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="5" data-col="1"> &#160;      </td><td class="tbody tr-odd col col-even" data-row="5" data-col="2">       </td><td class="tbody tr-odd col col-odd" data-row="5" data-col="3">                                                  </td><td class="tbody tr-odd col col-even col-last" data-row="5" data-col="4">                                          </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="6" data-col="1"> <em class="em-low1">decl</em>      </td><td class="tbody tr-even col col-even" data-row="6" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="6" data-col="3"> (<code class="koka"><span class="kw">fun</span></code><span class="bar">|</span><code class="koka"><span class="kw">function</span></code>) <em class="em-low1">fundecl</em>              </td><td class="tbody tr-even col col-even col-last" data-row="6" data-col="4">                                          </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="7" data-col="1">             </td><td class="tbody tr-odd col col-even" data-row="7" data-col="2"> &#124; </td><td class="tbody tr-odd col col-odd" data-row="7" data-col="3"> <code class="koka"><span class="kw">val</span></code> <em class="em-low1">apattern</em> <code class="koka"><span class="kw">=</span></code> <em class="em-low1">valexpr</em>                   </td><td class="tbody tr-odd col col-even col-last" data-row="7" data-col="4"> (local values can use a pattern binding) </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="8" data-col="1">             </td><td class="tbody tr-even tr-last col col-even" data-row="8" data-col="2"> &#124; </td><td class="tbody tr-even tr-last col col-odd" data-row="8" data-col="3"> <code class="koka"><span class="kw">var</span></code> <em class="em-low1">binder</em> <code class="code code2">:=</code> <em class="em-low1">valexpr</em>                  </td><td class="tbody tr-even tr-last col col-even col-last" data-row="8" data-col="4">                                          </td></tr></tbody></table><h3 id="sec-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.6</span>.&#8194;</span>Expressions</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="8" data-col="1">             </td><td class="tbody tr-even tr-last col col-even" data-row="8" data-col="2"> &#124; </td><td class="tbody tr-even tr-last col col-odd" data-row="8" data-col="3"> <code class="koka"><span class="kw">var</span></code> <em class="em-low1">binder</em> <code class="code code2">:=</code> <em class="em-low1">valexpr</em>                  </td><td class="tbody tr-even tr-last col col-even col-last" data-row="8" data-col="4">                                          </td></tr></tbody></table><h3 id="sec-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-expressions" class="entity-anchor localref">&#x1F517;</a><a href="#sec-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.6</span>.&#8194;</span>Expressions</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">bodyexpr</em>    </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="koka"><span class="kw op">-&gt;</span></code> <em class="em-low1">blockexpr</em>                                                            </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1">               </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> &#124; </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">block</em>                                                                     </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;        </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">       </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                                             </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                    </td></tr>
@@ -2656,7 +2683,7 @@ ignored.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="20" data-col="1">               </td><td class="tbody tr-even col col-even" data-row="20" data-col="2"> &#124; </td><td class="tbody tr-even col col-odd" data-row="20" data-col="3"> <em class="em-low1">block</em>                                                                     </td><td class="tbody tr-even col col-even col-last" data-row="20" data-col="4"> (zero-argument anonymous function) </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="21" data-col="1"> <em class="em-low1">handlerexpr</em> </td><td class="tbody tr-odd col col-even" data-row="21" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="21" data-col="3"> <code class="koka"><span class="kw">handler</span></code> <em class="em-low1">handlereff</em> <em class="em-low1">handlerpars</em> <code class="koka">{</code> <em class="em-low1">handlerrules</em> <code class="koka">}</code>                 </td><td class="tbody tr-odd col col-even col-last" data-row="21" data-col="4">                                    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="22" data-col="1">               </td><td class="tbody tr-even col col-even" data-row="22" data-col="2"> &#124; </td><td class="tbody tr-even col col-odd" data-row="22" data-col="3"> <code class="koka"><span class="kw">handle</span></code> <em class="em-low1">handlereff</em> <em class="em-low1">haction</em> <em class="em-low1">handlerpars</em> <code class="koka">{</code> <em class="em-low1">handlerrules</em> <code class="koka">}</code>        </td><td class="tbody tr-even col col-even col-last" data-row="22" data-col="4">                                    </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">haction</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> lparen <em class="em-low1">expr</em> <code class="koka">)</code>                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                                    </td></tr></tbody></table><h3 id="sec-operator-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-operator-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.7</span>.&#8194;</span>Operator expressions</h3>
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">haction</em>     </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> lparen <em class="em-low1">expr</em> <code class="koka">)</code>                                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                                    </td></tr></tbody></table><h3 id="sec-operator-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-operator-expressions" class="entity-anchor localref">&#x1F517;</a><a href="#sec-operator-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.7</span>.&#8194;</span>Operator expressions</h3>
 <p class="p noindent">For simplicity, we parse all operators as if they are left associative with
 the same precedence. We assume that a separate pass in the compiler will use
 the fixity declarations that are in scope to properly associate all operators
@@ -2672,7 +2699,7 @@ in an expressions.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="8" data-col="1">              </td><td class="tbody tr-even col col-even" data-row="8" data-col="2"> &#124; </td><td class="tbody tr-even col col-odd" data-row="8" data-col="3"> <em class="em-low1">atom</em>                                     </td><td class="tbody tr-even col col-even col-last" data-row="8" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="9" data-col="1"> &#160;       </td><td class="tbody tr-odd col col-even" data-row="9" data-col="2">       </td><td class="tbody tr-odd col col-odd" data-row="9" data-col="3">                                            </td><td class="tbody tr-odd col col-even col-last" data-row="9" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">arguments</em>  </td><td class="tbody tr-even col col-even" data-row="10" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="10" data-col="3"> <em class="em-low1">argument</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">argument</em> }</span>         </td><td class="tbody tr-even col col-even col-last" data-row="10" data-col="4">                              </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="11" data-col="1"> <em class="em-low1">argument</em>   </td><td class="tbody tr-odd tr-last col col-even" data-row="11" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="11" data-col="3"> <span class="opt">[ <em class="em-low1">identifier</em> <code class="koka"><span class="kw">=</span></code> ]</span> <em class="em-low1">expr</em>            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="11" data-col="4">                              </td></tr></tbody></table><h3 id="sec-atomic-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-atomic-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.8</span>.&#8194;</span>Atomic expressions</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="11" data-col="1"> <em class="em-low1">argument</em>   </td><td class="tbody tr-odd tr-last col col-even" data-row="11" data-col="2"> ::=   </td><td class="tbody tr-odd tr-last col col-odd" data-row="11" data-col="3"> <span class="opt">[ <em class="em-low1">identifier</em> <code class="koka"><span class="kw">=</span></code> ]</span> <em class="em-low1">expr</em>            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="11" data-col="4">                              </td></tr></tbody></table><h3 id="sec-atomic-expressions" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-atomic-expressions" class="entity-anchor localref">&#x1F517;</a><a href="#sec-atomic-expressions" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.8</span>.&#8194;</span>Atomic expressions</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">atom</em>       </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=      </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">qidentifier</em>                                                  </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1">              </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> &#124;    </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">qconstructor</em>                                                 </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1">              </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> &#124;    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <em class="em-low1">literal</em>                                                      </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                              </td></tr>
@@ -2684,7 +2711,7 @@ in an expressions.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="9" data-col="1"> <em class="em-low1">literal</em>    </td><td class="tbody tr-odd col col-even" data-row="9" data-col="2"> ::=      </td><td class="tbody tr-odd col col-odd" data-row="9" data-col="3"> <em class="em-low1">natural</em> <span class="bar">|</span> <em class="em-low1">float</em> <span class="bar">|</span> <em class="em-low1">char</em> <span class="bar">|</span> <em class="em-low1">string</em>   </td><td class="tbody tr-odd col col-even col-last" data-row="9" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="10" data-col="1"> &#160;       </td><td class="tbody tr-even col col-even" data-row="10" data-col="2">          </td><td class="tbody tr-even col col-odd" data-row="10" data-col="3">                                                                </td><td class="tbody tr-even col col-even col-last" data-row="10" data-col="4">                              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="11" data-col="1"> <em class="em-low1">annexprs</em>   </td><td class="tbody tr-odd col col-even" data-row="11" data-col="2"> ::=      </td><td class="tbody tr-odd col col-odd" data-row="11" data-col="3"> <em class="em-low1">annexpr</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">annexpr</em> }</span>                               </td><td class="tbody tr-odd col col-even col-last" data-row="11" data-col="4">                              </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="12" data-col="1"> <em class="em-low1">annexpr</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="12" data-col="2"> ::=      </td><td class="tbody tr-even tr-last col col-odd" data-row="12" data-col="3"> <em class="em-low1">expr</em> <span class="opt">[ <code class="code code2">:</code> <em class="em-low1">typescheme</em> ]</span>                                </td><td class="tbody tr-even tr-last col col-even col-last" data-row="12" data-col="4">                              </td></tr></tbody></table><h3 id="sec-matching" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.9</span>.&#8194;</span>Matching</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="12" data-col="1"> <em class="em-low1">annexpr</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="12" data-col="2"> ::=      </td><td class="tbody tr-even tr-last col col-odd" data-row="12" data-col="3"> <em class="em-low1">expr</em> <span class="opt">[ <code class="code code2">:</code> <em class="em-low1">typescheme</em> ]</span>                                </td><td class="tbody tr-even tr-last col col-even col-last" data-row="12" data-col="4">                              </td></tr></tbody></table><h3 id="sec-matching" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><a href="#sec-matching" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.9</span>.&#8194;</span>Matching</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">matchrule</em> </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">patterns</em> <code class="code code2"><span class="code-escaped">&#124;</span></code> <em class="em-low1">expr</em> <code class="koka"><span class="kw op">-&gt;</span></code> <em class="em-low1">blockexpr</em> </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1">             </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> &#124; </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">patterns</em> <em class="em-low1">bodyexpr</em>                                    </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;      </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">       </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                          </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                              </td></tr>
@@ -2700,13 +2727,13 @@ in an expressions.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="13" data-col="1"> <em class="em-low1">patterns</em>  </td><td class="tbody tr-odd col col-even" data-row="13" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="13" data-col="3"> <em class="em-low1">pattern</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">pattern</em> }</span>                         </td><td class="tbody tr-odd col col-even col-last" data-row="13" data-col="4">                                              </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="14" data-col="1"> <em class="em-low1">apatterns</em> </td><td class="tbody tr-even col col-even" data-row="14" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="14" data-col="3"> <em class="em-low1">apattern</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">apattern</em> }</span>                       </td><td class="tbody tr-even col col-even col-last" data-row="14" data-col="4">                                              </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="15" data-col="1"> <em class="em-low1">patargs</em>   </td><td class="tbody tr-odd col col-even" data-row="15" data-col="2"> ::=   </td><td class="tbody tr-odd col col-odd" data-row="15" data-col="3"> <em class="em-low1">patarg</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">patarg</em> }</span>                           </td><td class="tbody tr-odd col col-even col-last" data-row="15" data-col="4">                                              </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="16" data-col="1"> <em class="em-low1">patarg</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="16" data-col="2"> ::=   </td><td class="tbody tr-even tr-last col col-odd" data-row="16" data-col="3"> <span class="opt">[ <em class="em-low1">identifier</em> <code class="koka"><span class="kw">=</span></code> ]</span> <em class="em-low1">apattern</em>                      </td><td class="tbody tr-even tr-last col col-even col-last" data-row="16" data-col="4"> (possibly named parameter)                   </td></tr></tbody></table><h3 id="sec-handlers" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.10</span>.&#8194;</span>Handlers</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="16" data-col="1"> <em class="em-low1">patarg</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="16" data-col="2"> ::=   </td><td class="tbody tr-even tr-last col col-odd" data-row="16" data-col="3"> <span class="opt">[ <em class="em-low1">identifier</em> <code class="koka"><span class="kw">=</span></code> ]</span> <em class="em-low1">apattern</em>                      </td><td class="tbody tr-even tr-last col col-even col-last" data-row="16" data-col="4"> (possibly named parameter)                   </td></tr></tbody></table><h3 id="sec-handlers" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-handlers" class="entity-anchor localref">&#x1F517;</a><a href="#sec-handlers" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.10</span>.&#8194;</span>Handlers</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">handlerrules</em> </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=   </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">semis</em> <em class="em-low1">handlerrule</em> <span class="many">{ <em class="em-low1">semis</em> <em class="em-low1">handlerrule</em> }</span> semis     </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">handlerrule</em>  </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=   </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">qidentifier</em> <em class="em-low1">opargs</em> <em class="em-low1">bodyexpr</em>                              </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1">                </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> &#124; </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <code class="koka"><span class="kw">return</span></code>  (<em class="em-low1">lparen</em> <em class="em-low1">oparg</em> <code class="koka">)</code> <span class="bar">|</span> <em class="em-low1">paramid</em>) <em class="em-low1">bodyexpr</em> </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">    </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="4" data-col="1"> &#160;         </td><td class="tbody tr-even col col-even" data-row="4" data-col="2">       </td><td class="tbody tr-even col col-odd" data-row="4" data-col="3">                                                                </td><td class="tbody tr-even col col-even col-last" data-row="4" data-col="4">    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="5" data-col="1"> <em class="em-low1">opargs</em>       </td><td class="tbody tr-odd col col-even" data-row="5" data-col="2"> &#124; </td><td class="tbody tr-odd col col-odd" data-row="5" data-col="3"> <em class="em-low1">lparen</em> <span class="opt">[ <em class="em-low1">oparg</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">oparg</em> }</span> ]</span> <code class="koka">)</code>              </td><td class="tbody tr-odd col col-even col-last" data-row="5" data-col="4">    </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="6" data-col="1"> <em class="em-low1">oparg</em>        </td><td class="tbody tr-even tr-last col col-even" data-row="6" data-col="2"> &#124; </td><td class="tbody tr-even tr-last col col-odd" data-row="6" data-col="3"> <em class="em-low1">paramid</em> <span class="opt">[ <code class="code code2">:</code> <em class="em-low1">type</em> ]</span>                                 </td><td class="tbody tr-even tr-last col col-even col-last" data-row="6" data-col="4">    </td></tr></tbody></table><h3 id="sec-type-schemes" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-type-schemes" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.11</span>.&#8194;</span>Type schemes</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="6" data-col="1"> <em class="em-low1">oparg</em>        </td><td class="tbody tr-even tr-last col col-even" data-row="6" data-col="2"> &#124; </td><td class="tbody tr-even tr-last col col-odd" data-row="6" data-col="3"> <em class="em-low1">paramid</em> <span class="opt">[ <code class="code code2">:</code> <em class="em-low1">type</em> ]</span>                                 </td><td class="tbody tr-even tr-last col col-even col-last" data-row="6" data-col="4">    </td></tr></tbody></table><h3 id="sec-type-schemes" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-type-schemes" class="entity-anchor localref">&#x1F517;</a><a href="#sec-type-schemes" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.11</span>.&#8194;</span>Type schemes</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">typescheme</em>   </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::= </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">somes</em> <em class="em-low1">foralls</em> <em class="em-low1">tarrow</em> <span class="opt">[ <em class="em-low1">qualifier</em> ]</span>    </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="4">             </td><td class="tbody tr-odd tr-first col col-odd col-last" data-row="1" data-col="5">     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">type</em>         </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::= </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">foralls</em> <em class="em-low1">tarrow</em> <span class="opt">[ <em class="em-low1">qualifier</em> ]</span>    </td><td class="tbody tr-even col col-even" data-row="2" data-col="4">             </td><td class="tbody tr-even col col-odd col-last" data-row="2" data-col="5">     </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;         </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">     </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                       </td><td class="tbody tr-odd col col-even" data-row="3" data-col="4">             </td><td class="tbody tr-odd col col-odd col-last" data-row="3" data-col="5">     </td></tr>
@@ -2716,7 +2743,7 @@ in an expressions.
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="7" data-col="1"> <em class="em-low1">qualifier</em>    </td><td class="tbody tr-odd col col-even" data-row="7" data-col="2"> ::= </td><td class="tbody tr-odd col col-odd" data-row="7" data-col="3"> <code class="koka"><span class="kw">with</span></code> <code class="koka">(</code> <em class="em-low1">predicates</em> <code class="koka">)</code>                           </td><td class="tbody tr-odd col col-even" data-row="7" data-col="4">             </td><td class="tbody tr-odd col col-odd col-last" data-row="7" data-col="5">     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="8" data-col="1"> &#160;         </td><td class="tbody tr-even col col-even" data-row="8" data-col="2">     </td><td class="tbody tr-even col col-odd" data-row="8" data-col="3">                                                       </td><td class="tbody tr-even col col-even" data-row="8" data-col="4">             </td><td class="tbody tr-even col col-odd col-last" data-row="8" data-col="5">     </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="9" data-col="1"> <em class="em-low1">predicates</em>   </td><td class="tbody tr-odd col col-even" data-row="9" data-col="2"> ::= </td><td class="tbody tr-odd col col-odd" data-row="9" data-col="3"> <em class="em-low1">predicate</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">predicate</em> }</span>                  </td><td class="tbody tr-odd col col-even" data-row="9" data-col="4">             </td><td class="tbody tr-odd col col-odd col-last" data-row="9" data-col="5">     </td></tr>
-<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">predicate</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="2"> ::= </td><td class="tbody tr-even tr-last col col-odd" data-row="10" data-col="3"> <em class="em-low1">typeapp</em>                                             </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="4"> (interface) </td><td class="tbody tr-even tr-last col col-odd col-last" data-row="10" data-col="5">     </td></tr></tbody></table><h3 id="sec-types" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.12</span>.&#8194;</span>Types</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-even tr-last col col-odd col-first" data-row="10" data-col="1"> <em class="em-low1">predicate</em>    </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="2"> ::= </td><td class="tbody tr-even tr-last col col-odd" data-row="10" data-col="3"> <em class="em-low1">typeapp</em>                                             </td><td class="tbody tr-even tr-last col col-even" data-row="10" data-col="4"> (interface) </td><td class="tbody tr-even tr-last col col-odd col-last" data-row="10" data-col="5">     </td></tr></tbody></table><h3 id="sec-types" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><a href="#sec-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.12</span>.&#8194;</span>Types</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">tarrow</em>  </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <em class="em-low1">tatom</em> <span class="opt">[ <code class="koka"><span class="kw op">-&gt;</span></code> <em class="em-low1">tresult</em> ]</span>                                                 </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                                        </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> <em class="em-low1">tresult</em> </td><td class="tbody tr-even col col-even" data-row="2" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3"> <em class="em-low1">tatom</em> <span class="opt">[ <em class="em-low1">tbasic</em> ]</span>                                                       </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                                        </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> &#160;    </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2">        </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3">                                                                                </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                                        </td></tr>
@@ -2739,7 +2766,7 @@ in an expressions.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="20" data-col="1">           </td><td class="tbody tr-even col col-even" data-row="20" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="20" data-col="3"> <code class="koka">(</code> <code class="koka"><span class="kw op">-&gt;</span></code> <code class="koka">)</code>                                                                   </td><td class="tbody tr-even col col-even col-last" data-row="20" data-col="4"> (function constructor)                 </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="21" data-col="1"> &#160;    </td><td class="tbody tr-odd col col-even" data-row="21" data-col="2">        </td><td class="tbody tr-odd col col-odd" data-row="21" data-col="3">                                                                                </td><td class="tbody tr-odd col col-even col-last" data-row="21" data-col="4">                                        </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="22" data-col="1"> <em class="em-low1">tparam</em>  </td><td class="tbody tr-even col col-even" data-row="22" data-col="2"> ::=    </td><td class="tbody tr-even col col-odd" data-row="22" data-col="3"> <span class="opt">[ <em class="em-low1">varid</em> <code class="code code2">:</code> ]</span> <em class="em-low1">anntype</em>                                                  </td><td class="tbody tr-even col col-even col-last" data-row="22" data-col="4">                                        </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">anntype</em> </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> <em class="em-low1">type</em> <span class="opt">[ <em class="em-low1">kannot</em> ]</span>                                                        </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                                        </td></tr></tbody></table><h3 id="sec-kinds" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-kinds" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.13</span>.&#8194;</span>Kinds</h3><table class="grammar parse madoko block">
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="23" data-col="1"> <em class="em-low1">anntype</em> </td><td class="tbody tr-odd tr-last col col-even" data-row="23" data-col="2"> ::=    </td><td class="tbody tr-odd tr-last col col-odd" data-row="23" data-col="3"> <em class="em-low1">type</em> <span class="opt">[ <em class="em-low1">kannot</em> ]</span>                                                        </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="23" data-col="4">                                        </td></tr></tbody></table><h3 id="sec-kinds" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-kinds" class="entity-anchor localref">&#x1F517;</a><a href="#sec-kinds" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.13</span>.&#8194;</span>Kinds</h3><table class="grammar parse madoko block">
 <tbody><tr><td class="tbody tr-odd tr-first col col-odd col-first" data-row="1" data-col="1"> <em class="em-low1">kannot</em> </td><td class="tbody tr-odd tr-first col col-even" data-row="1" data-col="2"> ::=    </td><td class="tbody tr-odd tr-first col col-odd" data-row="1" data-col="3"> <code class="code code2">::</code> <em class="em-low1">kind</em>                                    </td><td class="tbody tr-odd tr-first col col-even col-last" data-row="1" data-col="4">                  </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="2" data-col="1"> &#160;   </td><td class="tbody tr-even col col-even" data-row="2" data-col="2">        </td><td class="tbody tr-even col col-odd" data-row="2" data-col="3">                                                </td><td class="tbody tr-even col col-even col-last" data-row="2" data-col="4">                  </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="3" data-col="1"> <em class="em-low1">kind</em>   </td><td class="tbody tr-odd col col-even" data-row="3" data-col="2"> ::=    </td><td class="tbody tr-odd col col-odd" data-row="3" data-col="3"> <code class="koka">(</code> <em class="em-low1">kind</em> <span class="many">{ <code class="koka">,</code> <em class="em-low1">kind</em> }</span> <code class="koka">)</code> <code class="koka"><span class="kw op">-&gt;</span></code> <em class="em-low1">kind</em> </td><td class="tbody tr-odd col col-even col-last" data-row="3" data-col="4">                  </td></tr>
@@ -2750,7 +2777,7 @@ in an expressions.
 <tr><td class="tbody tr-even col col-odd col-first" data-row="8" data-col="1">          </td><td class="tbody tr-even col col-even" data-row="8" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="8" data-col="3"> <code class="koka"><span class="co">X</span></code>                                            </td><td class="tbody tr-even col col-even col-last" data-row="8" data-col="4"> (effect type)    </td></tr>
 <tr><td class="tbody tr-odd col col-odd col-first" data-row="9" data-col="1">          </td><td class="tbody tr-odd col col-even" data-row="9" data-col="2"> &#124;  </td><td class="tbody tr-odd col col-odd" data-row="9" data-col="3"> <code class="koka"><span class="co">E</span></code>                                            </td><td class="tbody tr-odd col col-even col-last" data-row="9" data-col="4"> (effect row)     </td></tr>
 <tr><td class="tbody tr-even col col-odd col-first" data-row="10" data-col="1">          </td><td class="tbody tr-even col col-even" data-row="10" data-col="2"> &#124;  </td><td class="tbody tr-even col col-odd" data-row="10" data-col="3"> <code class="koka"><span class="co">H</span></code>                                            </td><td class="tbody tr-even col col-even col-last" data-row="10" data-col="4"> (heap type)      </td></tr>
-<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="11" data-col="1">          </td><td class="tbody tr-odd tr-last col col-even" data-row="11" data-col="2"> &#124;  </td><td class="tbody tr-odd tr-last col col-odd" data-row="11" data-col="3"> <code class="koka"><span class="co">P</span></code>                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="11" data-col="4"> (predicate type) </td></tr></tbody></table><h3 id="sec-implementation" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-implementation" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.14</span>.&#8194;</span>Implementation</h3>
+<tr><td class="tbody tr-odd tr-last col col-odd col-first" data-row="11" data-col="1">          </td><td class="tbody tr-odd tr-last col col-even" data-row="11" data-col="2"> &#124;  </td><td class="tbody tr-odd tr-last col col-odd" data-row="11" data-col="3"> <code class="koka"><span class="co">P</span></code>                                            </td><td class="tbody tr-odd tr-last col col-even col-last" data-row="11" data-col="4"> (predicate type) </td></tr></tbody></table><h3 id="sec-implementation" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-implementation" class="entity-anchor localref">&#x1F517;</a><a href="#sec-implementation" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.3.14</span>.&#8194;</span>Implementation</h3>
 <p class="p noindent">As a companion to the Flex lexical implementation, there is a full 
 Bison(Yacc) LALR(1)&nbsp;<a href="https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y" data-linkid="bisongrammar">implementation</a> 
 available. Again, the Bison parser functions
@@ -2762,212 +2789,206 @@ be in agreement with that implementation.
 <div id="lindley:liberate" class="bibitem" data-cite-year="2016" data-cite-authors="Hillerström and Lindley" data-cite-authors-long="Hillerström and Lindley" data-cite-label="1" data-line="koka.bib:16" style="text-indent:-2rem;margin-left:2rem;searchterm:Liberating%20Effects%20with%20Rows%20and%20Handlers%20Hillerstr%C3%B6m%20and%20Lindley%2C%202016;bibitem-label:\5C [1\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[1]</span>Daniel Hillerström, and Sam Lindley. &#8220;Liberating Effects with Rows and Handlers.&#8221; Mar. 2016. Draft.&nbsp;<a href="http://www.bing.com/search?q=Liberating%20Effects%20with%20Rows%20and%20Handlers%20Hillerstr%C3%B6m%20and%20Lindley%2C%202016" class="bibsearch">&#128270;</a></div>
 <div id="leijen:msfp" class="bibitem" data-cite-year="2014" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="2" data-line="koka.bib:24" style="text-indent:-2rem;margin-left:2rem;searchterm:Koka%3A%20Programming%20with%20Row%20Polymorphic%20Effect%20Types%20Leijen%2C%202014;bibitem-label:\5C [2\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[2]</span>Daan Leijen. &#8220;Koka: Programming with Row Polymorphic Effect Types.&#8221; In <em class="em-low1">Mathematically Structured Functional Programming 2014</em>. EPTCS.&#160;Mar. 2014. <span class="bib-urlpre"><span class="etype">arXiv:</span></span><a href="http://arxiv.org/abs/1406.2061" class="bib-url">1406.2061</a>.&nbsp;<a href="http://www.bing.com/search?q=Koka%3A%20Programming%20with%20Row%20Polymorphic%20Effect%20Types%20Leijen%2C%202014" class="bibsearch">&#128270;</a></div>
 <div id="leijen:algeff" class="bibitem" data-cite-year="2016" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="3" data-line="koka.bib:35" style="text-indent:-2rem;margin-left:2rem;searchterm:Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016;bibitem-label:\5C [3\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[3]</span>Daan Leijen. <em class="em-low1">Algebraic Effects for Functional Programming</em>. {MSR-TR-2016-29}. Microsoft Research. Aug. 2016. <a href="https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming" class="bib-url texturl monospace">https://&#8203;www.&#8203;microsoft.&#8203;com/&#8203;en-&#8203;us/&#8203;research/&#8203;publication/&#8203;algebraic-&#8203;effects-&#8203;for-&#8203;functional-&#8203;programming</a>.&nbsp;<a href="http://www.bing.com/search?q=Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016" class="bibsearch">&#128270;</a></div>
-<div id="wu:hscope" class="bibitem" data-cite-year="2014" data-cite-authors="Wu et al." data-cite-authors-long="Wu, Schrijvers, and Hinze" data-cite-label="4" data-line="koka.bib:1" style="text-indent:-2rem;margin-left:2rem;searchterm:Effect%20Handlers%20in%20Scope%20Wu%2C%20Schrijvers%2C%20and%20Hinze%2C%202014;bibitem-label:\5C [4\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[4]</span>Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &#8220;Effect Handlers in Scope.&#8221; In <em class="em-low1">Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell</em>, 1–12. Haskell ’14. ACM, New York, NY, USA.&#160;2014. doi:<a href="https://dx.doi.org/10.1145/2633357.2633358" class="bib-doi">10.1145/2633357.2633358</a>.&nbsp;<a href="http://www.bing.com/search?q=Effect%20Handlers%20in%20Scope%20Wu%2C%20Schrijvers%2C%20and%20Hinze%2C%202014" class="bibsearch">&#128270;</a></div></div></div></section>
-<section id="sec-appendix" class="section section1" data-section-depth="1"><h1 id="heading-sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1></section>
-<section id="sec-full-grammar-specification" class="section section1" data-section-depth="1"><h1 id="heading-sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
-<div id="full-lexical" class="div"></div><h2 id="sec:full-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-grammar" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.2</span>.&#8194;</span>Context-free syntax</h2>
-<div id="full-grammar" class="div"></div></section></div><span data-line=""></span></div>
+<div id="wu:hscope" class="bibitem" data-cite-year="2014" data-cite-authors="Wu et al." data-cite-authors-long="Wu, Schrijvers, and Hinze" data-cite-label="4" data-line="koka.bib:1" style="text-indent:-2rem;margin-left:2rem;searchterm:Effect%20Handlers%20in%20Scope%20Wu%2C%20Schrijvers%2C%20and%20Hinze%2C%202014;bibitem-label:\5C [4\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[4]</span>Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &#8220;Effect Handlers in Scope.&#8221; In <em class="em-low1">Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell</em>, 1–12. Haskell ’14. ACM, New York, NY, USA.&#160;2014. doi:<a href="https://dx.doi.org/10.1145/2633357.2633358" class="bib-doi">10.1145/2633357.2633358</a>.&nbsp;<a href="http://www.bing.com/search?q=Effect%20Handlers%20in%20Scope%20Wu%2C%20Schrijvers%2C%20and%20Hinze%2C%202014" class="bibsearch">&#128270;</a></div></div></div><h1 id="sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1><h1 id="sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor localref">&#x1F517;</a><a href="#sec-full-grammar-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor localref">&#x1F517;</a><a href="#sec:full-lexical" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
+<div id="full-lexical" class="div"></div><h2 id="sec:full-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Noto Sans&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-grammar" class="entity-anchor localref">&#x1F517;</a><a href="#sec:full-grammar" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.2</span>.&#8194;</span>Context-free syntax</h2>
+<div id="full-grammar" class="div"></div></div><span data-line=""></span></div>
 </body>
-<script  class="script">// ---------------------------------------------
-// Classname helpers
-// ---------------------------------------------
-function hasClassName(elem,cname) {
-  if (elem==null) return false;
-  var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
-  return regex.test(elem.className);
-}
-
-function removeClassName(elem,cname) {
-  var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
-  elem.className = elem.className.replace( regex, "" );
-}
-
-function addClassName(elem,cname) {
-  if (!hasClassName(elem,cname)) elem.className = elem.className + " " + cname;
-}
-
-function toggleClassName(elem,cname) {
-  var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
-  var classes = elem.className;
-  if (regex.test(classes)) {
-    elem.className = classes.replace( regex, "" );
-    return false;
-  }
-  else {
-    elem.className = classes + " " + cname;
-    return true;
-  }
-}
-
-// ---------------------------------------------
-// Reliable offset determination
-// ---------------------------------------------
-
-function getWindowOffset(elem) {
-  var box;
-  if (elem.getBoundingClientRect) {
-    box = elem.getBoundingClientRect();
-  }
-  else if (elem.offsetParent && elem.offsetParent.getBoundingClientRect) {
-    // text node
-    box = elem.offsetParent.getBoundingClientRect();
-    box.top = box.top + elem.offsetTop;
-    box.left = box.left + elem.offsetLeft;
-  }
-  else {
-    box = { top: 0, left : 0 };
-  }
-  return box;
-}
-
-// Return the viewport position: -1 (before), 0 (visible), 1 (after)
-function viewportPosition(elem) {
-  var pos = getWindowOffset(elem)
-  if (pos.top < 0 || pos.left < 0) 
-    return -1;
-  else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
-           pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
-    return 1;
-  else 
-    return 0;
-}
-
-// ---------------------------------------------
-// Expand the toc sections and align headers with the toc.
-// ---------------------------------------------
-
-var side = document.getElementsByClassName("sidepanel")[0];
-var afterScroll = null;
-
-// Align a heading at the top of the page with the toc
-function alignHeading( elem ) {
-  var ofs     = getWindowOffset(elem).top;
-  var sideofs = getWindowOffset(side).top;
-  if (ofs >= 0 && ofs < sideofs) {
-    window.scrollBy(0, ofs - sideofs);
-  } 
-}
-
-// Expand, or unexpand, one toc item
-// The class is 'auto-expands' or 'click-expands'; the latter is sticky
-// as it is user induced and will not be automatically unexpanded.
-function itemExpand(item,cls,expand) {
-  // get possible toc block (that follows the item)
-  var tocblock = item.nextElementSibling;
-  if (tocblock==null || !hasClassName(tocblock,"tocblock")) return;
-  
-  // set expand class
-  if (expand===undefined) expand = !hasClassName(tocblock,"expands");
-  if (cls===undefined) cls = "auto-expands" 
-  if (cls==="click-expands") removeClassName(tocblock,"auto-expands");
-  if (expand && !hasClassName(tocblock,cls)) {
-    toggleClassName(tocblock,cls); 
-  }
-  else if (!expand && hasClassName(tocblock,cls)) {
-    toggleClassName(tocblock,cls);
-    item.firstElementChild.className = "unexpanded";
-  }
-  
-  // set expansion icon
-  if (hasClassName(tocblock,"auto-expands") || hasClassName(tocblock,"click-expands")) {
-    item.firstElementChild.className = "expanded";   
-  }
-  else {
-    item.firstElementChild.className = "unexpanded";
-  }
-}
-
-
-// Expand a single item in the toc (and unexpand others).
-function itemExpandOne(item) {
-  // unexpand anything that was expanded
-  [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
-    removeClassName(item,"current");
-    itemExpand(item,"auto-expands",false);      
-  });
-  addClassName(item,"current");
-  // expand the chain of parent blocks
-  var tocblock = null;
-  var toc = item.nextElementSibling;
-  if (toc && hasClassName(toc,"tocblock")) { 
-    tocblock = toc;
-  }
-  else {
-    tocblock = item.parentElement;
-  }
-  while(tocblock != null && !hasClassName(tocblock,"toc")) {
-    if (hasClassName(tocblock,"tocblock")) {
-      item = tocblock.previousElementSibling;
-      if (item != null) itemExpand(item,"auto-expands",true);
-    }
-    tocblock = tocblock.parentElement;
-  }
-}
-
-// Auto expand the toc at current  position in the document 
-function expandToc() {
-  // find the first section heading that is visible in the viewport 
-  var current = null;
-  [].every.call( document.querySelectorAll(".tocitem"), function(item) {
-    var target = document.getElementById( item.getAttribute("data-toc-target") );
-    var pos = viewportPosition(target);
-    if (pos <= 0) current = item;
-    return (pos < 0);
-  });
-  // if found, expand the corresponding item
-  if (current != null) itemExpandOne(current);
-}
-
-
-document.addEventListener("load", function(ev) { expandToc(); });
-document.addEventListener("resize", function(ev) { expandToc(); });
-
-// fire at end of scrolling
-var scrollHandler = null;
-document.addEventListener("scroll", function(ev) {
-  if (scrollHandler) clearTimeout(scrollHandler);
-  scrollHandler = setTimeout( function() {
-    scrollHandler = null;
-    if (afterScroll) {
-      afterScroll();
-      afterScroll = null;
-    }
-    else {
-      expandToc();
-    }
-  }, 50 );
-});
-
-// ---------------------------------------------
-// Install event handlers for all items in the TOC
-// ---------------------------------------------
-
-[].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
-  // only for toc items with a target
-  var target = document.getElementById( item.getAttribute("data-toc-target") );
-  if (!target) return;
-  
-  // ensure every tocblock has a expansion icon in front
-  // (the optional nested tocblock follows the item)
-  var tocblock = null;
-  var toc = item.nextElementSibling;  
-  if (toc && hasClassName(toc,"tocblock")) { 
-    tocblock = toc;
-    item.innerHTML = "<span class='unexpanded'></span>" + item.innerHTML;   
-  } 
-  
-  // on a click
-  item.addEventListener( "click", function() {
-    // expand this toc item and set expansion icon
-    itemExpand(item,"click-expands");
-    // after navigation, align the heading with the toc
-    afterScroll = (function() {
-      alignHeading(target);
-    });    
-  }); 
-});
- 
-//# sourceURL=scripts/webpaginated.js
+<script type="text/javascript">
+  // ---------------------------------------------
+      // Classname helpers
+      // ---------------------------------------------
+      function hasClassName(elem,cname) {
+        if (elem==null) return false;
+        var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+        return regex.test(elem.className);
+      }
+      
+      function removeClassName(elem,cname) {
+        var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+        elem.className = elem.className.replace( regex, "" );
+      }
+      
+      function addClassName(elem,cname) {
+        if (!hasClassName(elem,cname)) elem.className = elem.className + " " + cname;
+      }
+      
+      function toggleClassName(elem,cname) {
+        var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+        var classes = elem.className;
+        if (regex.test(classes)) {
+          elem.className = classes.replace( regex, "" );
+          return false;
+        }
+        else {
+          elem.className = classes + " " + cname;
+          return true;
+        }
+      }
+      
+      // ---------------------------------------------
+      // Reliable offset determination
+      // ---------------------------------------------
+      
+      function getWindowOffset(elem) {
+        var box;
+        if (elem.getBoundingClientRect) {
+          box = elem.getBoundingClientRect();
+        }
+        else if (elem.offsetParent && elem.offsetParent.getBoundingClientRect) {
+          // text node
+          box = elem.offsetParent.getBoundingClientRect();
+          box.top = box.top + elem.offsetTop;
+          box.left = box.left + elem.offsetLeft;
+        }
+        else {
+          box = { top: 0, left : 0 };
+        }
+        return box;
+      }
+      
+      // Return the viewport position: -1 (before), 0 (visible), 1 (after)
+      function viewportPosition(elem) {
+        var pos = getWindowOffset(elem)
+        if (pos.top < 0 || pos.left < 0) 
+          return -1;
+        else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+                 pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
+          return 1;
+        else 
+          return 0;
+      }
+      
+      // ---------------------------------------------
+      // Expand the toc sections and align headers with the toc.
+      // ---------------------------------------------
+      
+      var side = document.getElementsByClassName("sidepanel")[0];
+      var afterScroll = null;
+      
+      // Align a heading at the top of the page with the toc
+      function alignHeading( elem ) {
+        var ofs     = getWindowOffset(elem).top;
+        var sideofs = getWindowOffset(side).top;
+        if (ofs >= 0 && ofs < sideofs) {
+          window.scrollBy(0, ofs - sideofs);
+        } 
+      }
+      
+      // Expand, or unexpand, one toc item
+      // The class is 'auto-expands' or 'click-expands'; the latter is sticky
+      // as it is user induced and will not be automatically unexpanded.
+      function itemExpand(item,cls,expand) {
+        // get possible toc block (that follows the item)
+        var tocblock = item.nextElementSibling;
+        if (tocblock==null || !hasClassName(tocblock,"tocblock")) return;
+       
+        // set expand class
+        if (expand===undefined) expand = !hasClassName(tocblock,"expands");
+        if (cls===undefined) cls = "auto-expands" 
+        if (cls==="click-expands") removeClassName(tocblock,"auto-expands");
+        if (expand && !hasClassName(tocblock,cls)) {
+          toggleClassName(tocblock,cls); 
+        }
+        else if (!expand && hasClassName(tocblock,cls)) {
+          toggleClassName(tocblock,cls);
+          item.firstElementChild.className = "unexpanded";
+        }
+        
+        // set expansion icon
+        if (hasClassName(tocblock,"auto-expands") || hasClassName(tocblock,"click-expands")) {
+          item.firstElementChild.className = "expanded";   
+        }
+        else {
+          item.firstElementChild.className = "unexpanded";
+        }
+      }
+      
+      // Expand a single item in the toc (and unexpand others).
+      function itemExpandOne(item) {
+        // unexpand anything that was expanded
+        [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+          removeClassName(item,"current");
+          itemExpand(item,"auto-expands",false);      
+        });
+        addClassName(item,"current");
+        // expand the chain of parent blocks
+        var tocblock = null;
+        var toc = item.nextElementSibling;
+        if (toc && hasClassName(toc,"tocblock")) { 
+          tocblock = toc;
+        }
+        else {
+          tocblock = item.parentElement;
+        }
+        while(tocblock != null && !hasClassName(tocblock,"toc")) {
+          if (hasClassName(tocblock,"tocblock")) {
+            item = tocblock.previousElementSibling;
+            if (item != null) itemExpand(item,"auto-expands",true);
+          }
+          tocblock = tocblock.parentElement;
+        }
+      }
+      
+      // Auto expand the toc at current  position in the document 
+      function expandToc() {
+        // find the first section heading that is visible in the viewport 
+        var current = null;
+        [].every.call( document.querySelectorAll(".tocitem"), function(item) {
+          var target = document.getElementById( item.getAttribute("data-toc-target") );
+          var pos = viewportPosition(target);
+          if (pos <= 0) current = item;
+          return (pos < 0);
+        });
+        // if found, expand the corresponding item
+        if (current != null) itemExpandOne(current);
+      }
+      
+      document.addEventListener("load", function(ev) { expandToc(); });
+      document.addEventListener("resize", function(ev) { expandToc(); });
+      
+      // fire at end of scrolling
+      var scrollHandler = null;
+      document.addEventListener("scroll", function(ev) {
+        if (scrollHandler) clearTimeout(scrollHandler);
+        scrollHandler = setTimeout( function() {
+          scrollHandler = null;
+          if (afterScroll) {
+            afterScroll();
+            afterScroll = null;
+          }
+          else {
+            expandToc();
+          }
+        }, 50 );
+      });
+      
+      // ---------------------------------------------
+      // Install event handlers for all items in the TOC
+      // ---------------------------------------------
+      [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+        // only for toc items with a target
+        var target = document.getElementById( item.getAttribute("data-toc-target") );
+        if (!target) return;
+        
+        // ensure every tocblock has a expansion icon in front
+        // (the optional nested tocblock follows the item)
+        var tocblock = null;
+        var toc = item.nextElementSibling;  
+        if (toc && hasClassName(toc,"tocblock")) { 
+          tocblock = toc;
+          item.innerHTML = "<span class='unexpanded'></span>" + item.innerHTML;   
+        } 
+        
+        // on a click
+        item.addEventListener( "click", function() {
+          // expand this toc item and set expansion icon
+          itemExpand(item,"click-expands");
+          // after navigation, align the heading with the toc
+          afterScroll = (function() {
+            alignHeading(target);
+          });    
+        }); 
+      });
 </script>
 
 </html>
