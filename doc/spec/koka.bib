@@ -13,13 +13,18 @@
  address = {New York, NY, USA}
 } 
 
-@unpublished{Lindley:liberate,
+@inproceedings{Lindley:liberate,
   author  = "Hillerström, Daniel and Lindley, Sam",
   title   = "Liberating Effects with Rows and Handlers",
-  year    = 2016,
-  month   = Mar,
-  note    = "Draft"
+  booktitle = {Proceedings of the 1st International Workshop on Type-Driven Development},
+  series = {{TyDe} 2016},
+  year = {2016},
+  location = {Nara, Japan},
+  pages = {15--27},
+  numpages = {13},
+  doi = {10.1145/2976022.2976033},
 }
+
 
 @inproceedings{Leijen:msfp,
   author       = {Daan Leijen},
@@ -35,9 +40,19 @@
 @techreport{Leijen:algeff,
   author     = {Daan Leijen},
   title      = {Algebraic Effects for Functional Programming},
-  number     = {{MSR-TR-2016-29}},
+  number     = {MSR-TR-2016-29},
   institution= {Microsoft Research},
   month      = Aug,
   year       = 2016,
-  url        = {https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming}
+  url        = {https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming},
+  note       = "Extended version of \cite{Leijen:algeffpopl}"
+}
+
+@inproceedings{Leijen:algeffpopl,
+  author={Daan Leijen},
+  title = {Type Directed Compilation of Row-Typed Algebraic Effects},
+  booktitle={Proceedings of Principles of Programming Languages ({POPL}'17)},
+  location={Paris, France},  
+  month= jan,
+  year = 2017
 }
