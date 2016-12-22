@@ -28,7 +28,7 @@ fun test() {
     fun f() {
       println("what is your name?")
       readline()
-      //error("ouch")
+      error("ouch")
     }
     fun g() {
       wait(1.seconds)
@@ -36,7 +36,8 @@ fun test() {
     }
     val xs = async-all( [f,g] )
     println("hi " + xs.join(","))  
-  } fun(exn) { println("exception thrown: " + exn.show) } 
+  } 
+  fun(exn) { println("exception thrown: " + exn.show) } 
 }
 
 fun main() {

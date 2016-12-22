@@ -172,4 +172,4 @@ Enjoy,
 
 3. Daan Leijen. _Algebraic Effects for Functional Programming_. MSR-TR-2016-29. Microsoft Research. Aug. 2016. <https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming>.
 
-4. Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &ldquo;Effect Handlers in Scope.&rdquo; In _Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell_, 1–12. Haskell ’14. ACM, New York, NY, USA.&nbsp;2014. doi:[10.1145/2633357.2633358](https://dx.doi.org/10.1145/2633357.2633358){.bib-doi}.
+4. Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &ldquo;Effect Handlers in Scope.&rdquo; In _Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell_, 1–12. Haskell ’14. ACM, New York, NY, USA.&nbsp;2014. doi:[10.1145/2633357.2633358](https://dx.doi.org/10.1145/2633357.2633358)
