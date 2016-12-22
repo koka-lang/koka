@@ -10,7 +10,7 @@
 
   A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time
   with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates. 
-  Years, months, days etc. are always 1-based.  
+  Months, days etc. are always 1-based.  
 */
 module std/time/calendar
 
@@ -43,7 +43,8 @@ public struct calendar(
   Time zone
 ----------------------------------------------------------------------------*/
 
-// A `:timezone` determines a time offset with respect to the UTC / GMT timezone.
+// A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For 
+// using general time zones, see the [`std/time/timezone`](std_time_timezone.html) module.\
 // The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
 // The `name` field contains the time zone name as IANA timezone identifier.
 // The `utc-delta` field returns the time zone offset
@@ -179,7 +180,7 @@ public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-
 
   Due to timezone transitions, or leap seconds, it is possible to specify dates that never
   happend (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
-  In such cases, the functions returns always interpreted in the earlier timezone.
+  In such cases, the time is always interpreted in the earlier timezone.
 */
 public fun instant( year : int, month : int = 1, day : int = 1, 
                     hours : int = 0, minutes : int = 0, seconds : int = 0, 
@@ -231,12 +232,14 @@ val secs-per-day = 86400
 
 // Create a calendar where we assume that each
 // day has 24 hours with 60 minutes, and where minutes are 60 seconds
-// (with possibly leap seconds). 
-//
-// This function constructs a calendar given a calendar `name`,
+// (with possibly leap seconds). The function takes care of timezones,
+// epoch shifts, and leap seconds, and only needs a calendar `name`,
 // a function `days-to-date` to calculate a date given a number of days since the `epoch`,
 // a function `date-to-days` to calculate days since the `epoch` for a given date,
-// and an optional time scale to be used (=`ts-utc`).
+// and an optional time scale to be used (=`ts-utc`).\
+// `month-prefix` (=`""`) is used when displaying numeric months and is set for 
+// the ISO week dates to `"W"` for example. The `show-era` function can be given
+// to display the era of a date.
 public fun earth-calendar(
               name        : string,
               long-name   : string,
@@ -290,6 +293,10 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   Combine earth calendars/ year-shift earth calendars
 ----------------------------------------------------------------------------*/
 
+// Create a new calendar from by combining two other calendars. The `switch-date`
+// is in terms of the second calendar (`cal2`) and time after (and including) the switch 
+// date is displayed in `cal2` while times before it in `cal1`. This function is used
+// for example for the Julian Gregorian calendar.
 public fun combine-earth-calendars( name : string, long-name : string, 
                             switch-date : date, cal1 : calendar, cal2 : calendar,
                             mb-show-era : maybe<(date) -> string> = Nothing
@@ -311,6 +318,10 @@ public fun combine-earth-calendars( name : string, long-name : string,
   earth-calendar( name, long-name, cdays-to-date, cdate-to-days, show-era = cshow-era, ts = cal2.timescale )
 }
 
+// Create a new calendar from anoter calendar `cal` by adding an offset to the
+// years (`year-shift`). This is used for example to create the Ethiopian calendar
+// from the Coptic calendar, by using:
+// `year-shift-earth-calendar( "EC", "Ethiopian", ~276, cal-coptic )`
 public fun year-shift-earth-calendar( name : string, long-name: string, 
                                 year-shift : int, cal : calendar, 
                                 month-prefix  : string = "",
@@ -337,6 +348,18 @@ public fun year-shift-earth-calendar( name : string, long-name: string,
   Abstract over almost all calendars that work in terms of months and solar years.
 ----------------------------------------------------------------------------*/
 
+// An abstraction over solar calendars. Almost all calendars can be defined
+// in terms of this function (and `solar-ecalendar`). Given functions to 
+// convert days to and from a year, and day-of-the-year to and from month
+// and month day, this constructs a full calendar.\
+// Also needs an `epoch-shift` that gives the number of days from the
+// calendar epoch to the date ``2000-01-01``. By default this is `730119` 
+// which corresponds to a ``0001-01-01`` ISO calendar epoch. The
+// `has-year-zero?` (=`True`) parameter is used when the calendar has a 
+// year zero. The `month-prefix` (=`""`) is used for displaying numeric
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function 
+// can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
+// gives the time scale for the calendar.
 public fun solar-calendar( name : string, long-name: string,
                     days-before-year : (year:int) -> int,
                     days-to-yeardoy  : (days:int) -> (int,int),
@@ -370,6 +393,24 @@ public fun solar-calendar( name : string, long-name: string,
   )
 }
 
+// An abstraction over solar calendars. Almost all calendars can be defined
+// in terms of this function (and `solar-calendar`). Given functions to 
+// convert days to and from a year, and day-of-the-year to and from month
+// and month day, this constructs a full calendar. In contrast to `solar-calendar`
+// this function just needs an estimation function from days to a year -- for most
+// calendars this is much more convenient. The estimation function returns a
+// conservative (i.e. lowest) estimate for the year and a `maybe<int>` that
+// is the `safe-day`: if the day of the year is lower or equal to that the estimate
+// is surely correct. Otherwise the wrapper will calculate the start day for the next
+// year until the correct year is found.\
+// Also needs an `epoch-shift` that gives the number of days from the
+// calendar epoch to the date ``2000-01-01``. By default this is `730119` 
+// which corresponds to a ``0001-01-01`` ISO calendar epoch. The
+// `has-year-zero?` (=`True`) parameter is used when the calendar has a 
+// year zero. The `month-prefix` (=`""`) is used for displaying numeric
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function 
+// can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
+// gives the time scale for the calendar.
 public fun solar-ecalendar(  name : string, long-name: string,
                       days-before-year : (year:int) -> int,
                       estimate-year    : (days:int) -> (int,maybe<int>),
@@ -404,7 +445,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
 
 
 // Create a standard ISO calendar using a particular time scale
-// and calendar `name` (=`ts.name`).
+// and calendar `name` (=`ts.name`). 
 public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : string = name ) : calendar {
   solar-ecalendar(
     name, long-name, 
@@ -416,14 +457,17 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // using UTC time. This is a proleptic Gregorian 
-// calendar except that it uses the year 0 for 1BCE, -1 for 2BCE etc. 
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
 public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
 // but using UTC-SLS time (`ts-utc-sls`), i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
 // This calendar is recommended when communicating dates with other programs since it
-// avoids any trouble with leap seconds as these are always smoothed out over the last 1000
-// seconds of a day with a leap second.
+// is based directly on UTC but avoids showing leap seconds.\ 
+// Instead, on a day with a leap second, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, UTC
+// and UTC-SLS are equal again. This way UTC-SLS is amost always equal to UTC except
+// a the end of leap second days where there is at most 0.1\% difference with UTC.
 public val cal-iso-sls = iso-calendar( ts-utc-sls, "", "ISO" )
 
 

@@ -72,8 +72,8 @@ Here are some interesting time steps that occurred in this time frame:
 
 * There was a negative time step of -0.1s inserted on 1968-02-01Z:
   ```
-  instant-at(1968,1,31,23,59,59,0.9).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
-  instant-at(1968,2,1).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
+  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
+  instant(1968,2,1).time(cal=cal-tai) == "1968-02-01T00:00:06.185682Z TAI"
   ```
   The only other negative time step was inserted on 1961-08-01Z with a
   duration of -0.05s.
@@ -81,8 +81,8 @@ Here are some interesting time steps that occurred in this time frame:
 * On the transition to modern UTC at 1972-01-01Z there is a mini leap second of 0.107758s.
   (because the final drift just before 1971-01-01 is 9.892242s) 
   ```
-  instant-at(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show(6) == "1971-12-31T23:59:60.107758Z" 
-  instant-at(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" 
+  instant(1972,1,1,0,0,9,0.99999999,cal=cal-tai).time.show(6) == "1971-12-31T23:59:60.107758Z" 
+  instant(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z" 
   ```
 
 ## UTC before 1961
