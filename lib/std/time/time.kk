@@ -9,7 +9,7 @@
 /* Time represents instants as human readable calendar time.
 
   A `:time` represents an `:instant` in time in a given `:calendar` and `:timezone`
-  as a "human" calendar time. Years, months, days etc. are always 1-based.  
+  as a "human" calendar time. Months, days etc. are always 1-based.  
 */
 module std/time/time
 
@@ -66,7 +66,7 @@ public fun seconds( t : time ) : fixed {
 
 // Compare two `:time`s. Compares the actual instants in time
 // and can thus compare across calendars and timezones.\
-// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))) > time(2001,7,1,23,30,0)` &quad; (False!)`
+// `time(2001,7,2,tz=tz-fixed("GMT+1",duration(3600))) > time(2001,7,1,23,30,0)` &quad; (`False`!)
 public fun compare( t1 : time, t2 : time ) : order {
   compare(t1.instant,t2.instant)
 }  
@@ -187,17 +187,19 @@ public fun time( wd : weekdate, c : clock = clock0,
   time(instant(wd,c,tz,cal,weekday-in-year),tz,cal)
 }
 
-// Add a date (years, months, days) and optional clock to a time. Takes leap years etc. into account.
+// Add a date (years, months, days) and optional clock to a time.  Takes leap years, leap seconds, etc. into account.
 public fun add-date( t : time, d : date, c : clock = clock0 ) : time {
   time( t.date + d, t.clock + c, t.timezone, t.calendar )
 }
 
-// Add a clock (hours, minutes, seconds) to a time. Takes leap years etc. into account.
+// Add a clock (hours, minutes, seconds) to a time. Takes leap years, leap seconds, etc. into account.
 public fun add-clock( t : time, c : clock ) : time {
   time( t.date, t.clock + c, t.timezone, t.calendar )
 }
 
-// Add  a specified number of days to a calendar time.
+// Add  a specified number of days to a calendar time. Takes leap years etc. into account.\
+// `time(2016,12,31,12).add-days(1).show == "2017-01-01T12:00:00Z"` &quad; (over a leap second)\
+// `time(1582,10,4,cal=cal-jg).add-days(1).show == "1582-10-15T00:00:00Z JG"` &quad; (transition from Julian (`cal-julian`) to Gregorian (`cal-gregorian`) calendar)\
 public fun add-days( t : time, days : int, c : clock = clock0 ) : time {
   t.add-date( Date(0, 0, days), c )
 }
@@ -233,9 +235,9 @@ public fun (-)( t : time, d : duration ) : time {
 }
 
 // Return the exact SI second duration between to times.\
-// `time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59) == "1.5s"`\
-// `time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59) == "2.5s"`  &quad; (over a leap second)
-// `time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)) == 2.5s`  &quad; (GMT+3, and over a leap second)
+// `(time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show == "1.5s"`\
+// `(time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show == "2.5s"`  &quad; (over a leap second)\
+// `(time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show == "2.5s"`  &quad; (GMT+3, and over a leap second)\
 public fun (-)( t1 : time, t2 : time ) : duration {
   (t1.instant - t2.instant)
 }
@@ -407,10 +409,14 @@ public fun days-in-year( t : time) : int {
 }
 
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants)) 
-// number for a given `:time`. This interprets the Julian date in that calendar date with
-// the timezone applied.\
+// number for a given `:time`. This interprets the Modified Julian Date in the calendar
+// system of `t` with the timezone applied.\
 // `time(1972,1,2,tz=tz-fixed(1)).mjd == "41318"`\
-// `time(1972,1,2,tz=tz-fixed(1)).instant.mjd(ts-utc).show == "41317.958333335"` 
+// `time(1972,1,2,tz=tz-fixed(1)).instant.mjd(ts-utc).show == "41317.958333335"` &quad; (one hour earlier)\
+// Also takes leap seconds into account:\
+// `time(2015,12,31,12,0,0).mjd.show == "57387.5"` &quad; (exactly mid-day)\
+// `time(2016,12,31,12,0,0).mjd.show == "57753.499994213029942"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
+// `time(2016,12,31,12,0,0,0.5).mjd.show == "57753.5"` &quad; (real middle of the day)\
 public fun mjd( t : time ) : fixed {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
@@ -418,8 +424,8 @@ public fun mjd( t : time ) : fixed {
 }
 
 // Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day)) 
-// number for a given `:time`. This interprets the Julian date in that calendar date with
-// the timezone applied.\
+// number for a given `:time` `t`. This interprets the Julian date in the calendar of `t` with
+// the timezone of `t` applied.\
 // `time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
 // `time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`\
 // `time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-utc).show == "2441318.458333335"` 

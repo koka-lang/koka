@@ -13,6 +13,7 @@ The draft language specification can be found <a href="kokaspec.html">here</a>.
 */
 module toc
 
+import std/async
 import std/log
   
 import std/data/array
