@@ -138,7 +138,7 @@ public fun load-latest( fname  : path,
     // try to touch the file so we won't retry the download too often
     try{ fname.utimes(unow,unow) }
     // go download (and prefer a possibly expired file if the download fails)
-    download-latest(url,parse,expire,fname,mbrecent,download-timeout,error-prefix)
+    download-latest(url,parse,expire,fname,mbrecent,download-timeout,error-prefix,verbose)
   }
 }
 
@@ -161,6 +161,7 @@ public fun download-latest(  url   : string,
 {
   fun warn(msg) {
     val full-msg = error-prefix + ": " + msg + ".\n  url: " + url.show
+    // trace(full-msg)
     match(current) {
       Just(cur) -> { if (verbose) then trace(full-msg); cur }
       Nothing   -> { error(full-msg) }
