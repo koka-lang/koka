@@ -190,6 +190,7 @@ public fun instant( year : int, month : int = 1, day : int = 1,
   instant( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
 }
 
+/*
 // Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by 
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
 // It is also possible to pass the weekday that determines if 
@@ -200,6 +201,7 @@ public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, c
   val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)  
   instant( d, c, tz, cal )
 }
+*/
 
 // Return the day of the week for a calendar `cal` (=`cal-iso`).
 fun weekday( d : date, cal : calendar ) : weekday {
@@ -460,14 +462,17 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
 // calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
 public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
 
-// The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// but using UTC-SLS time (`ts-utc-sls`), i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
-// This calendar is recommended when communicating dates with other programs since it
-// is based directly on UTC but avoids showing leap seconds.\ 
-// Instead, on a day with a leap second, the leap second time step (positive or negative)
-// is distributed over the last 1000 seconds of the day. On the full hour, UTC
-// and UTC-SLS are equal again. This way UTC-SLS is amost always equal to UTC except
-// a the end of leap second days where there is at most 0.1\% difference with UTC.
+/* The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+but using UTC-SLS time (`ts-utc-sls`), i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+
+This calendar is equivalent to the ISO calendar except for the last 1000 seconds of a day where
+a leap second occurs. On such day, the leap second time step (positive or negative)
+is distributed over the last 1000 seconds of the day. On the full hour, ISO and ISO-SLS are equal again. 
+
+This is a recommended calendar to use for
+time stamps or communication with other services since it avoids any potential trouble
+with leap seconds while still being quite precise.
+*/
 public val cal-iso-sls = iso-calendar( ts-utc-sls, "", "ISO" )
 
 

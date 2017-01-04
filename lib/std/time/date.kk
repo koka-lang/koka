@@ -6,10 +6,10 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Date, weekdate, clock, and week days support. 
+/* Date, clock, and week days support. 
 
-   Defines basic types for human readable time.
-   Years, months, days etc. are always 1-based.
+   Defines basic types for human readable time. Years, months, days etc. are always 1-based.
+   Week dates are absent as they are treated as normal dates, using the `std/time/calendars/cal-iso-week` calendar.
 */
 module std/time/date
 
@@ -31,6 +31,11 @@ public struct date(
   month: int,
   day  : int 
 )
+
+// Create an ISO weekdate where the "month" is the ISO week number.
+public fun weekdate( year : int, month: int, weekday : weekday ) : date {
+  Date(year,month,weekday.int)
+}
 
 // Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
 public fun show-year( year : int ) : string {
@@ -159,49 +164,6 @@ public fun (+)( c : clock, d : clock ) : clock {
 }
 
 /*----------------------------------------------------------------------------
-
-----------------------------------------------------------------------------*/
-
-// An [ISO `:weekdate`](https://en.wikipedia.org/wiki/ISO_week_date) 
-// represents a date as a year, the week of the year, and the day of the week.
-public struct weekdate(
-  year : int,
-  week : int,
-  day  : weekday                       
-)
-
-// Create a weekdate from an ISO week date as a `:date`, i.e. the month
-// is the week number and the day is the day of the week. Handles overflow of the day field.
-public fun weekdate( d : date ) : weekdate {
-  val (xweek,xday) = divmod(d.day.dec,7)
-  Weekdate(d.year, d.month + xweek, xday.inc.weekday )
-}
-
-// Create a ISO week `:date` from a `:weekdate` interpreting every week as a seven day 'month' in that year.
-public fun date( wd : weekdate ) : date {
-  Date(wd.year,wd.week,wd.day.int)
-}
-
-// Compare two week dates.
-public fun compare( wd1 : weekdate, wd2 : weekdate ) : order {
-  match(compare(wd1.year,wd2.year)) {
-    Eq -> match(compare(wd1.week,wd2.week)) {
-      Eq  -> compare(wd1.day,wd2.day)
-      ord -> ord
-    }
-    ord -> ord
-  }
-}
-
-public fun (<)( i : weekdate, j : weekdate )  : bool { compare(i,j) == Lt }
-public fun (<=)( i : weekdate, j : weekdate ) : bool { compare(i,j) != Gt }
-public fun (>)( i : weekdate, j : weekdate )  : bool { compare(i,j) == Gt }
-public fun (>=)( i : weekdate, j : weekdate ) : bool { compare(i,j) != Lt }
-public fun (==)( i : weekdate, j : weekdate ) : bool { compare(i,j) == Eq }
-public fun (!=)( i : weekdate, j : weekdate ) : bool { compare(i,j) != Eq }
-
-
-/*----------------------------------------------------------------------------
    Days of the week
 ----------------------------------------------------------------------------*/
 
@@ -271,11 +233,6 @@ public fun (-)(wd : weekday, n : int ) : weekday {
 // `wd2 == wd1 + (wd2 - wd1)`
 public fun (-)(wd1 : weekday, wd2 : weekday ) : int {
   (wd1.int  - wd2.int)%7
-}
-
-// Show a `:weekdate` in the ISO week date format: ``2000-W01-1`` (for 2000-01-03Z).
-public fun show( wd : weekdate ) : string {
-  wd.year.show-year + "-W" + wd.week.show0 + "-" + wd.day.int.show
 }
 
 

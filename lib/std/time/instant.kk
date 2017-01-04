@@ -340,7 +340,24 @@ public fun instant-at-mjd( mjd : fixed, tscale : timescale  ) : instant {
   unsafe-instant(ts2,tscale) 
 }
 
-// Return the julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
+/* Return the julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
+Properly takes leap seconds into account when calculating the fraction of the day 
+in a UTC calendar. For example:
+````  
+> time(2014,12,31,23,59,59).jd
+2457023.499988425925926
+
+> time(2015,12,31,23,59,59).jd
+2457388.499988425925926
+
+> time(2016,12,31,23,59,59).jd
+2457754.499976852119767
+
+> time(2016,12,31,23,59,60).jd
+2457754.499988426059884
+````
+.
+*/
 public fun jd( i : instant, ts : timescale ) : fixed {
   i.mjd(ts) + jd-epoch-delta
 }

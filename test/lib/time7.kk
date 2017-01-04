@@ -96,8 +96,8 @@ fun check-info( info : info ) : io () {
 
   check("mjd", info.mjd.show, i.mjd(ts-utc).show)
   check("jd", info.jd.show, i.jd(ts-utc).show)
-  check("wday", info.wday.show, t.weekday.show)
-  check("weekdate", info.isoweek, t.weekdate.show)
+  //check("wday", info.wday.show, t.weekday.show)
+  //check("weekdate", info.isoweek, t.weekdate.show)
   
   check-date("greg", info.greg, cal-iso)
   check-date("isoweek", info.isoweek, cal-iso-week, "W", 1)

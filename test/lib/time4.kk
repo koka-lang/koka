@@ -24,38 +24,37 @@ fun check(name : string, res : string, tst : () -> string ) : io () {
 }
 
 fun test-week-dates() {
-  val dates : list<(date,weekdate,date)> = [ // Gregorian date, ISO week date, "ISO" month date
-      (Date(2005,01,01),Weekdate(2004,53,Sat),Date(2004,12,31+6)),
-      (Date(2005,01,02),Weekdate(2004,53,Sun),Date(2004,12,31+7)),
-      (Date(2005,12,31),Weekdate(2005,52,Sat),Date(2005,12,30)),
-      (Date(2007,01,01),Weekdate(2007,1,Mon),Date(2007,1,1)),
-      (Date(2007,12,30),Weekdate(2007,52,Sun),Date(2007,12,31)),
-      (Date(2007,12,31),Weekdate(2008,1,Mon),Date(2008,1,1)),
-      (Date(2008,01,01),Weekdate(2008,1,Tue),Date(2008,1,2)),
-      (Date(2008,12,28),Weekdate(2008,52,Sun),Date(2008,12,31)),
-      (Date(2008,12,29),Weekdate(2009,1,Mon),Date(2009,1,1)),
-      (Date(2008,12,30),Weekdate(2009,1,Tue),Date(2009,1,2)),
-      (Date(2008,12,31),Weekdate(2009,1,Wed),Date(2009,1,3)),
-      (Date(2009,01,01),Weekdate(2009,1,Thu),Date(2009,1,4)),
-      (Date(2009,12,31),Weekdate(2009,53,Thu),Date(2009,12,35)),
-      (Date(2010,01,01),Weekdate(2009,53,Fri),Date(2009,12,36)),
-      (Date(2010,01,02),Weekdate(2009,53,Sat),Date(2009,12,37)),
-      (Date(2010,01,03),Weekdate(2009,53,Sun),Date(2009,12,38))]
+  val dates : list<(date,date,date)> = [ // Gregorian date, ISO week date, "ISO" month date
+      (Date(2005,01,01),weekdate(2004,53,Sat),Date(2004,12,31+6)),
+      (Date(2005,01,02),weekdate(2004,53,Sun),Date(2004,12,31+7)),
+      (Date(2005,12,31),weekdate(2005,52,Sat),Date(2005,12,30)),
+      (Date(2007,01,01),weekdate(2007,1,Mon),Date(2007,1,1)),
+      (Date(2007,12,30),weekdate(2007,52,Sun),Date(2007,12,31)),
+      (Date(2007,12,31),weekdate(2008,1,Mon),Date(2008,1,1)),
+      (Date(2008,01,01),weekdate(2008,1,Tue),Date(2008,1,2)),
+      (Date(2008,12,28),weekdate(2008,52,Sun),Date(2008,12,31)),
+      (Date(2008,12,29),weekdate(2009,1,Mon),Date(2009,1,1)),
+      (Date(2008,12,30),weekdate(2009,1,Tue),Date(2009,1,2)),
+      (Date(2008,12,31),weekdate(2009,1,Wed),Date(2009,1,3)),
+      (Date(2009,01,01),weekdate(2009,1,Thu),Date(2009,1,4)),
+      (Date(2009,12,31),weekdate(2009,53,Thu),Date(2009,12,35)),
+      (Date(2010,01,01),weekdate(2009,53,Fri),Date(2009,12,36)),
+      (Date(2010,01,02),weekdate(2009,53,Sat),Date(2009,12,37)),
+      (Date(2010,01,03),weekdate(2009,53,Sun),Date(2009,12,38))]
   dates.foreach( fun(dwdmd) {
     val (d,wd,md) = dwdmd
     val ds = d.show
     val wds = wd.show
     val mds = md.show
-    check("date-" + ds, wds) { time(d).weekdate.show }
-    check("date-" + wds, ds) { time(wd).date.show }
+    check("date-" + ds, wds) { instant(d).time(cal=cal-iso-week).date.show }
+    check("date-" + wds, ds) { instant(wd,cal=cal-iso-week).time(cal=cal-iso).date.show }
     check("date-isow-" + ds, wds) { 
       val i = instant(d)
       val id = i.time(cal=cal-iso-week).date
-      (Weekdate(id.year,id.month,id.day.weekday)).show
+      (weekdate(id.year,id.month,id.day.weekday)).show
     }
     check("date-isow-" + wds, ds) { 
-      val id = Date(wd.year,wd.week,wd.day.int)
-      instant(id,cal=cal-iso-week).time.date.show
+      instant(wd,cal=cal-iso-week).time.date.show
     }
     check("date-isom-" + mds, mds) {  instant(d).time(cal=cal-iso-month).date.show  }
     check("date-isom-" + ds, ds) {  instant(md,cal=cal-iso-month).time.date.show  }
@@ -72,7 +71,7 @@ fun test-week-in-years() {
   ]
   list(2000,2399).foreach( fun(year) {
     val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
-    check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
+    // check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
     check("isow-" + year.show, weeks.show) { 
       val d = instant(year,12,28).time(cal=cal-iso-week).date 
