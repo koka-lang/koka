@@ -9,8 +9,8 @@
 /* Low level time stamps.
 
 These are unit-less and may not necessarily be in (TAI) SI seconds, and
-are used internally to do time scale conversions and calendar calculations.
-A `:timestamp` will keep track of leap seconds.
+are used internally to do time scale conversions and calendar calculations. 
+User code should use `:std/time/duration/duration`s and `:std/time/instant/instant`s instead.
 */
 module std/time/timestamp
 
@@ -18,7 +18,7 @@ import std/text/regex
 import std/num/fixed
 
 // Time spans are just fixed point numbers. This gives arbitrary range
-// with up to femto-seconds precision (10&times;^-15^s).
+// with up to femto-second precision (10^-15^s).
 public alias timespan = fixed
 
 public val timespan0 : timespan = zero
@@ -28,9 +28,11 @@ public val timespan0 : timespan = zero
   Timestamps expose leap seconds (when appropiate for the time scale)
 ----------------------------------------------------------------------------*/
 
-// A time stamp is a `:timespan` since some epoch.
+// A time stamp is a `:timespan` since some epoch. Time stamps also keep 
+// track of possible leap seconds when the unit is in Unix/UTC seconds.
 abstract struct timestamp(
   since : timespan,
+  // the extra leap seconds
   public leap-seconds : int
 )
 
@@ -44,6 +46,8 @@ public fun timestamp( t : timespan, leap-seconds : int = 0 ) : timestamp {
 }
 
 // Create a time stamp in seconds and fraction of seconds since its epoch.
+// Can also pass possible `leap-seconds` (=`0`). If the unit is in Unix seconds
+// (where a day is always 86400 seconds) this is used to indicate extra leap seconds in that day.
 public fun timestamp( secs : int, frac : double = 0.0, leap-seconds : int = 0 ) : timestamp {
   timestamp(fixed(secs,frac), leap-seconds)
 }
@@ -58,7 +62,8 @@ public fun timespan( ts : timestamp ) : timespan {
   ts.seconds
 }
 
-// The total seconds (in some time unit) since the epoch of the time stamp
+// The total seconds (in some time unit) since the epoch of the time stamp.
+// This includes possible leap seconds.
 public fun seconds( ts : timestamp ) : fixed {
   ts.since + ts.leap-seconds.fixed
 }
@@ -89,14 +94,18 @@ public fun add-leap-seconds( ts : timestamp, leaps : fixed ) : timestamp {
 
 
 
-// Return the total non-leap seconds, the positive fraction (in the range [0,1.0>), and the leap seconds
+// Return the total non-leap seconds, the positive fraction (in the range [0,1.0>), and the leap seconds.
+// This is used when displaying calendar time such that leap seconds can be displayed correctly.
 public fun calendar-seconds( ts : timestamp ) : (int,double,int) {
   (ts.since.floor, ts.since.ffraction, ts.leap-seconds)
 }
 
-// Compare two `:timestamp`s.
+// Compare two `:timestamp`s. 
 public fun compare( i : timestamp, j : timestamp ) : order {
-  compare(i.since,j.since)
+  match(compare(i.since,j.since)) {  // compare without leap-seconds first!
+    Eq  -> compare(i.leap-seconds,j.leap-seconds)
+    ord -> ord
+  }
 }
 
 public fun (<)( i : timestamp, j : timestamp )  : bool { compare(i,j) == Lt }
