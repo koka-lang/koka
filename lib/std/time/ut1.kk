@@ -1,4 +1,4 @@
-/*----------------------------------------------------------------------------
+  /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
     
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
@@ -9,10 +9,9 @@
 /* The UT1 time scale and calendar.
 
 The UT1 time scale is based on the rotation of the earth where one rotation is 86400 seconds. 
-Defined to be a linear function of the rotation angle of the Earth. The exact UT1 time can only 
-be determined by measuring the Earth's rotation angle very precisely. Currently, VLBI is the 
-most accurate way to measuring this and the IERS (International Earth Rotation Service) issues
-[bulletin A](https://www.iers.org/IERS/EN/Publications/Bulletins/bulletins.html) 
+The exact UT1 time can only be determined by measuring the Earth's rotation angle very precisely. 
+The International Earth Rotation Service
+(IERS) issues [bulletin A](https://www.iers.org/IERS/EN/Publications/Bulletins/bulletins.html) 
 containing accurate (UT1 - UTC) deltas. 
 
 The library provides the `cal-ut1-load` function to automatically cache and download the latest USNO
@@ -29,6 +28,7 @@ tables and approximations:
 
 You can also use `cal-ut1-approx` to not download any recent data and always use approximated values.
 
+Usage:
 ```
 val cal-ut1 = cal-ut1-load()
 val i = now()
@@ -66,13 +66,15 @@ public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-
   iso-calendar( ts-ut1(override) )
 }
 
+val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
+
 // Create a new UT1 calendar using [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly) 
 // data for precise UT1 calculation. Uses linear interpolation between daily UT1-UTC values.
 // This is a convenience function that composes `load-iers-ut1` and `cal-ut1-create`.
 //
 // By default loads the daily and full data from the files `basename` (= `"config/finals2000A"` in the application directory).
 // If the files are not present, they will be downloaded from `url`. The default `url` is:\
-// <http://toshi.nofs.navy.mil/ser7>\
+// <http://maia.usno.navy.mil/ser7>\
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the ``.daily`` file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish (daily file is about 40kb).
@@ -80,7 +82,7 @@ public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-
 // The `4*download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (``.all`` file is about 3mb).
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun cal-ut1-load( basename : string = "finals2000A",
-                         baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
+                         baseurl  : string = usno-url,
                          download-delay: duration = 1.weeks,
                          download-timeout: duration = 5.seconds,
                          verbose : bool = True
@@ -94,12 +96,12 @@ public fun cal-ut1-load( basename : string = "finals2000A",
 // data. Downloads a fresh daily file about every week (`download-delay`) with a given `download-timeout` (=`5`s).
 // The full data is refreshed only every `8*download-delay` (=`8.weeks`). The `basename` gives
 // the basic file name `finals2000A` and the `baseurl` the download URL 
-// (= <http://toshi.nofs.navy.mil/ser7/>).
+// (= <http://maia.usno.navy.mil/ser7/>).
 // Set the `baseurl` to the empty string to suppress automatic downloading. The files are cached
 // in the `config/` directory of the application installation directory.
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
 public fun load-iersA( basename : string = "finals2000A",
-                       baseurl  : string = "http://toshi.nofs.navy.mil/ser7/",
+                       baseurl  : string = usno-url,
                        download-delay: duration = 1.weeks,
                        download-timeout: duration = 5.seconds,
                        verbose : bool = True
@@ -169,7 +171,7 @@ fun load-latest-iersA( fname : path, url   : string,
                        ) : <io,async> ((i:instant) -> maybe<duration>) 
 {
   val xfname = if (fname.dirname.empty?) then appdir() + path("config") + fname else fname
-  val xurl   = if (url=="auto") then "http://toshi.nofs.navy.mil/ser7/" + fname.basename else url
+  val xurl   = if (url=="auto") then usno-url + fname.basename else url
   val dtt    = load-latest( xfname, xurl, parse-iersA, fun(dtt:dut-table){ Just(dtt.expire) }, 
                             download-timeout=download-timeout,download-delay=download-delay,
                             error-prefix="load IERS A data (" + fname.basename + ")",
@@ -210,14 +212,14 @@ fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
       // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
       val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
-      trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      // trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
   }
 }
 
 
-// Parse a ``finals2000A.all`` file into DUT table very precise &Delta;T calculation (using `dut-deltat`)
+// Parse a ``finals2000A.all`` file into a DUT table for precise &Delta;T calculation (using `dut-deltat`)
 // See <http://maia.usno.navy.mil/ser7/finals2000A.all>, or <http://toshi.nofs.navy.mil/ser7/finals2000A.all>
 fun parse-iersA( s : string ) : maybe<dut-table> {
   val start   = match( s.find(rx-finals-start) ) {
@@ -257,7 +259,7 @@ private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
 // -----------------------------------------------------------
 
 fun tai-to-ut( tai : duration, override : (i:instant) -> maybe<duration> ) : timestamp {
-  val i  = tai.since-epoch
+  val i  = tai.instant-since-epoch
   val dt = deltat(i,override)
   // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp(ts-tt)

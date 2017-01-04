@@ -125,12 +125,6 @@ import std/time/duration
 import std/time/instant
 import std/time/calendar
 
-extern include {
-  // cs file "time-inline.cs"
-  js file "instant-inline.js"
-}
-
-
 
 // The Terrestrial (or Ephemeris) time calendar, i.e. an ISO calendar but using the `ts-tt` time scale.
 // TT is always `TAI + 32.184`

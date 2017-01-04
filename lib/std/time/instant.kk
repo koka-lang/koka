@@ -10,9 +10,10 @@
 
    Instants can be arbitrary far into the past
    and future and are precise up to 10^-15^s (a femto-second). 
-   Instants are represented in a certain time scale (`:timescale`) and can
-   automatically convert between different time scales when necessary (for 
-   example when comparing instants in time).
+   Internally, instants are represented in a certain time scale (`:timescale`) for
+   efficiency and precision. They automatically convert between different time scales 
+   when necessary (for example when comparing instants in time, or calculating durations
+   between UTC calendar times).
 
    Time durations (`:duration`) are always in SI seconds (as measured on the Earth's geoid).
 */
@@ -28,9 +29,10 @@ import std/time/duration
 
 // Represents an instant in time. Instants can be arbitrary far into the past
 // and future and are precise up to 10^-15^s (a femto-second). 
-// Instants are represented in a certain time scale (`:timescale`) and can
-// automatically convert between different time scales when necessary (for 
-// example when comparing instants in time). 
+// Internally, instants are represented in a certain time scale (`:timescale`) for
+// efficiency and precision. They automatically convert between different time scales 
+// when necessary (for example when comparing instants in time, or calculating durations
+// between UTC calendar times).
 abstract struct instant(
   since : timestamp,  // since the time-scale epoch
   ts    : timescale   // the time scale (TAI, UTC, etc)
@@ -40,11 +42,11 @@ abstract struct instant(
   Timescale
 ----------------------------------------------------------------------------*/
 
-// A time scale defines how time is measured, and defines the unit of time, the epoch,
+// A time scale defines how time is measured, defines the unit of time, the epoch,
 // and how it can be converted to- and from TAI.\
 // For time calculations, usually the [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time)
-// (international atomic time) time scale is used which is time measured as SI seconds on the Earths geoid.
-// Another scale is UTC which also uses SI second time units but contains leap seconds.
+// (international atomic time) time scale (`ts-tai`) is used which is time measured as SI seconds on the Earths geoid.
+// Another common time scale is UTC (`std/time/utc/ts-utc`) which also uses SI second time units but can contain leap seconds.
 abstract struct timescale(
   public name : string,
   unit        : string,
@@ -64,7 +66,9 @@ abstract struct timescale(
 ----------------------------------------------------------------------------*/
 
 // Change the internal representation of an instant to use another timescale.
-// Only used in special cases for efficiency.
+// Only used in special cases for efficiency. For example, when comparing an 
+// instant in TAI time to thousands of UTC times, it is more efficient to convert
+// the TAI time to UTC first to avoid converting at each comparision.
 public fun use( i : instant, tscale : timescale ) : instant {
   if (i.ts.name == tscale.name) then {
     // already using the right time scale
@@ -104,7 +108,7 @@ public fun from-tai(ts : timescale, d : duration ) : timestamp {
   d.timestamp.convert(ts-tai,ts)
 }
 
-// Returns the seconds in the day of a timestamp with a given timescale.
+// Returns the 'seconds' in the day of a timestamp with a given timescale.
 // Is always 86400 for any timescale except UTC timescales after 1972 where a day
 // can be 86399 up to 86401 due to leap seconds.
 fun seconds-in-day( ts : timestamp, tscale : timescale ) : timespan {
@@ -159,8 +163,8 @@ public fun since-epoch( i : instant ) : duration {
   i.timestamp(ts-tai).unsafe-duration
 }
 
-// Return the instant at (TAI) SI second duration from the the `epoch`.
-public fun since-epoch( d : duration ) : instant {
+// Return the instant at (TAI) SI seconds duration since the `epoch`.
+public fun instant-since-epoch( d : duration ) : instant {
   unsafe-instant(d.timestamp, ts-tai)
 }
 
@@ -203,12 +207,13 @@ public fun (-)( i : instant, j : instant ) : duration {
   i.since-epoch - j.since-epoch
 }
 
-// Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision
+// Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision.
+// This can be used as an unambigious time stamp.
 public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
   i.use(ts-tai).show-raw(max-prec,secs-width)
 }
 
-// Show an instant as a raw timestamp in a given precision
+// Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name. 
 public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
   i.since.show(max-prec,secs-width) 
    + (if (i.ts.unit == "TAI") then "s" else "")

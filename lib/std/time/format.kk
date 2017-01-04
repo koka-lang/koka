@@ -28,7 +28,7 @@ public fun show-iso( t : time ) : string {
 }
 
 // Show a time as a standard ISO date. Will use automatic week date
-// or month date format for th  `cal-iso-week` and `cal-iso-month` calendars.
+// or month date format for the  `cal-iso-week` and `cal-iso-month` calendars.
 public fun show-iso-date( t : time ) : string {
   t.format( fmt-iso-date )
 }
