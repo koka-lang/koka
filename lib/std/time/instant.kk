@@ -155,7 +155,16 @@ public fun has-leap-seconds( ts : timescale ) : bool {
   ts.secs-in-day.just?
 }
 
-// Our epoch is set at 2000-01-01 TAI (= 1999-12-31T23:59:28Z UTC)
+// Our epoch is set at 2000-01-01 TAI (= 1999-12-31T23:59:28Z UTC).
+//
+// Another candidate epoch could have been the standard [J2000] epoch ([`epoch-j2000`](std_time_astro.html#epoch_j2000)), 
+// which equals 2000-01-01T12:00:00 TT (terrestrial time).
+// However, that would mean that for the most common time scales, namely UTC and TAI, there would always be a 
+// fractional offset (of 32.184s) for common time stamps. Moreover, by having an epoch at noon there would be
+// an extra correction needed for calendar date calculations too. Given these issues, we fixed the epoch at
+// midnight 2000-01-01 TAI instead.
+//
+// [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
 public val epoch : instant = Instant(timestamp0,ts-tai)
 
 // Return the (TAI) SI second duration since the `epoch` at this instant.
@@ -226,7 +235,7 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
 
 // Create a new time scale based on SI seconds (as measured on the Earth's geoid) with a given
 //  `name`, a fixed `offset` (=`duration0`) from TAI (e.g. GPS = TAI - 19), and 
-// a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2001-01-01 date in that timescale
+// a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2000-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
 // `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoch : timestamp = timestamp0 ) : timescale {
@@ -246,7 +255,7 @@ public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoc
 
 // Create a new time scale given `name`, two inverse function `from-tai` and `to-tai`,
 // and a `y2k-epoch` (=`timestamp0`). The time unit defaults to `name`. 
-// The `y2k-epoch` is the timestamp of the 2001-01-01 date in the new timescale
+// The `y2k-epoch` is the timestamp of the 2000-01-01 date in the new timescale
 // e.g. for a timescale `ts`:\
 // `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
 public fun timescale( name : string, 

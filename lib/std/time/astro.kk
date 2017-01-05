@@ -147,6 +147,31 @@ public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 
+val secs-per-day    = fixed(86400)
+val offset-j2000    = fixed(43200)
+
+// The [J2000] epoch is defined as 2000-01-01T12:00:00 TT (Terrestrial time).
+//
+// [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
+public val epoch-j2000 = instant-at-j2000(zero)
+
+// Return the J2000 julian date for an instant. This is the number of days, and
+// the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
+// `instant(2000,1,1,12,0,0).j2000.show == "0.00074287037037"`\
+// `instant(2000,1,1,12,0,0,cal=cal-tt).j2000.show == "0"`
+public fun j2000( i : instant ) : fixed {
+  (i.timespan(ts-tt) - offset-j2000) / secs-per-day
+}
+
+// Return the instant corresponding to a J2000 julian date: this is the number of days, and
+// the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
+// `instant-at-j2000(zero).time.show == "2000-01-01T11:58:55.816Z"`\
+// `instant-at-j2000(zero).time(cal=cal-tt).show == "2000-01-01T12:00:00Z TT"`
+public fun instant-at-j2000( jd : fixed ) : instant {
+  unsafe-instant( timestamp( (jd * secs-per-day) + offset-j2000 ), ts-tt )
+}
+
+
 /*----------------------------------------------------------------------------
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
