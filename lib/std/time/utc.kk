@@ -37,22 +37,20 @@ any future duration calculation in UTC is essentially non-deterministic since
 it may be off by a number of (as yet unannounced) leap seconds_. This means
 in practice:
 
-1. You cannot reliably tell how many SI seconds in the future a certain 
-   UTC time occurs (since there may be leap seconds inserted in the future).
-   If you need to store a future date, say ``2020-01-01T12:00:00Z``, then
-   store it as an ISO calendar date (`:std/time/time/time`), not as a time stamp.
+* You cannot reliably tell how many SI seconds in the future a certain 
+  UTC time occurs (since there may be leap seconds inserted in the future).
+  If you need to store a future date, say ``2020-01-01T12:00:00Z``, then
+  store it as an ISO calendar date (`:std/time/time/time`), not as a time stamp.
 
-2. Do not use Unix time stamps as those may be ambigious (see `unix-instant`); 
-   this library
-   already defaults to time stamps as SI seconds since `epoch` which are
-   monotonic and unambigious. If no interaction with the user is needed, 
-   consider using TAI time and calendar instead.
+* Do not use Unix time stamps as those may be ambigious (see `unix-instant`); 
+  this library
+  already defaults to time stamps as SI seconds since `epoch` which are
+  monotonic and unambigious. If no interaction with the user is needed, 
+  consider using TAI time and calendar instead.
 
-3. This library handles leap seconds but most other software
-   does not always handle leap seconds correctly. When storing dates and 
-   times in a database or when communicating with other programs, you may 
-   consider using _smoothed UTC_ instead (`ts-utc-sls`) which hides any leap 
-   second by smoothing it out over the last 1000 seconds of a day.
+* When communicating with other services, you may consider using _smoothed UTC_ 
+  instead (`ts-utc-sls`) which hides any leap second by smoothing it out 
+  over the last 1000 seconds of a day.
 
 
 ## Effect types
