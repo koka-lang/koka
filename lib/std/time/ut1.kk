@@ -127,7 +127,7 @@ public fun load-iersA( basename : string = "finals2000A",
 // with about 1 year of predictions. Uses linear interpolation between daily UT1-UTC values.
 // By default loads the file `fname` (= `"config/finals2000A.all"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://toshi.nofs.navy.mil/ser7/finals2000A.all>\
+// <http://maia.usno.navy.mil/ser7/finals2000A.all>\
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (the
@@ -150,7 +150,7 @@ public fun load-iersA-all( fname : string = "",
 // Uses linear interpolation between daily UT1-UTC values.
 // By default loads the file `fname` (= `"config/finals2000A.daily"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
-// <http://toshi.nofs.navy.mil/ser7/finals2000A.daily>\
+// <http://maia.usno.navy.mil/ser7/finals2000A.daily>\
 // Set the `url` to the empty string to suppress automatic downloading. 
 // If the file is older than `download-delay` (=`1.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
