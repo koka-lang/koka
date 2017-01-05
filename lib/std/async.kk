@@ -20,7 +20,9 @@ extern include {
 // Asynchronous operations are supported through the `:async` effect.
 // ----------------------------------------------------------------------------
 
-
+// Execute `actions` asynchronously, i.e. interleaved around asynchronous operations.
+// When all operations have terminated (or raised an exception) return the list of
+// results (or raise the first raised exception).
 public fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
   async-all-prim( actions.vector ).list;
 }
@@ -42,10 +44,14 @@ public extern unsafe-async-yield( action : (cc : a -> <async|e> ()) -> <async|e>
   js inline "(#1)( $asyncCallback(_k,#2), $std_core.async_yield)"
 }
 
+// Wait (asynchronously) for `secs` seconds. 
+// Use `wait(0)` to yield to other asynchronous operations.
 public fun wait( secs : double ) : async () {
   wait(secs.duration)
 }
 
+// Wait (asynchronously) for `secs` seconds duration. 
+// Use `wait(0)` to yield to other asynchronous operations.
 public fun wait( secs : duration ) : async () {
   unsafe-async-yield( fun(cb) { set-timeout( cb, secs.milli-seconds.int32) } )
 }
@@ -54,10 +60,6 @@ private extern set-timeout( action : (()) -> e (), ms : int32 ) : () {
   js "setTimeout"
 }
 
-// Wait (asynchronously) for `ms` milliseconds. Use `wait(0)` to yield to other asynchronous operations.
-public extern xwait( ms : int ) : async () {
-  js inline "(function(){ setTimeout( $std_core._async_callback(_k), #1 ); return $std_core.async_yield(); })()"
-}
 
 // Execute any asynchronous actions inside `action` synchronously, ie. 
 // no other actions are interleaved.
