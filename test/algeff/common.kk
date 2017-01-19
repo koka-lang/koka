@@ -4,7 +4,7 @@
 // --------------------------------------------------------
 public module common
 
-import std/readline
+import std/os/readline
 
 // --------------------------------------------------------
 //  Exceptions
