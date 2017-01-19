@@ -52,7 +52,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff;test/lib " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/lib " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
