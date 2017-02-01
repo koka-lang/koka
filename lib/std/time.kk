@@ -8,7 +8,93 @@
 
 /* Date and time functionality.
 
-   Months, weeks, days etc. are always 1-based, while durations are always in (fractional) seconds.
+This is an extensive library for managing time and supports advanced features
+as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
+Times span arbitrary far in the past and future, and calculations are accurate
+up to femto-seconds (1&times;10^-15^s).
+
+Core concepts are:
+
+* An `:instant` represents an instant in time. Instants can be substracted to
+get the `:duration` between them. Instands are usually represented as the number
+of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
+in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),
+standard UTC (`ts-utc`), or astronimical time scales like terrestrial time (`std/time/astro/ts-tt`).
+
+* A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
+in a particular `:calendar` (usually the standard ISO calendar) and time zone. 
+Instants can be converted to 
+time values and back. We can add years, months, or days to a `:time`, or get the difference
+between times in days etc.
+
+* A `:duration` is a span of time in fractional SI seconds. 
+
+Months, weeks, days etc. are always 1-based, while durations are always in (fractional) seconds.
+
+The current time, in the local timezone (`tz-local`) using the ISO calendar (`cal-iso`):
+
+``>`` `time-now`\/``()``\
+``2017-01-30T15:40:25.367000103Z``
+
+Or the current time in the local timezone:
+
+``>`` `local-time-now`\/``()``\
+``2017-01-30T07:59:01.693000078-08:00 (PST)``
+
+We can also get the current instant in time as the number of SI seconds since the `epoch`:
+
+``>`` `now`\/``()``\
+``539106063.980999947s``
+
+Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
+and optional hour, minutes, seconds, fraction of the second, timezone (`tz-utc`) and
+calendar (`cal-iso`):
+
+``>`` `time(2000,1,1)`\
+``2000-01-01T00:00:00Z``
+
+Instants can be constructed similarly (except no calendar or timezone can be given). 
+Times can be constructed from instants. Here we construct a time value interpreted in using
+the TAI time scale (which was 32 seconds ahead of UTC on 2000-01-01Z):
+
+``>`` `instant(2000,1,1).time(cal=cal-tai)`\
+``2000-01-01T00:00:32Z TAI``
+
+The library takes much care to correctly handle leap seconds and time zone transitions.
+For example, here are some durations between different times:
+
+`(time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show == "1.5s"`\
+`(time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show == "2.5s"`  &quad; (over a leap second)\
+`(time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show == "2.5s"`  &quad; (GMT+3, and over a leap second)\
+
+Similarly, adding logical _days_ (or weeks, months, or years) works over leap seconds and
+other time irregularties:
+
+`time(2016,12,31,12).add-days(1).show == "2017-01-01T12:00:00Z"` &quad; (over a leap second)\
+`time(1582,10,4,cal=cal-jg).add-days(1).show == "1582-10-15T00:00:00Z JG"` &quad; (transition from Julian (`cal-julian`) to Gregorian (`cal-gregorian`) calendar)\
+
+To calculate correctly with leap-seconds, it is recommended to call `update-leaps-table`
+at the start of a progrom which will ensure leap second information is up-to-date (automatically
+downloading and caching the latest IETF leap second table if required). See the `std/time/utc`
+module for more information. Similarly, if calculating with timezones besides the UTC (`tz-utc`)
+and local timezone (`tz-local`), one needs to use the [`std/time/timezone`](std_time_timezone.html) 
+modules to load the latest time zone information ([`std/time/timezone/load-timezones`](std_time_timezone.html#load_timezones)).
+
+```koka
+import std/time
+import std/time/timezone
+
+fun test-timezones() {
+  val tzs = load-timezones()
+  val z1  = tzs.timezone("America/New_York")
+  val z2  = tzs.timezone("Asia/Tehran")
+  val t1  = instant(1978,12,30,12,1,0,tz=z1) + (14.hours + 44.minutes)
+  t1.time(tz=z2).show.println()  // 1978-12-31T11:45:00+04:00 (IRST)
+  val t2  = instant(1978,12,31,12,1,0,tz=z1) + (14.hours + 44.minutes) // across DST & leap second
+  t2.time(tz=z2).show.println   // 1979-01-01T11:14:59+03:30 (IRST)"
+}
+```
+.
 */
 module std/time
 

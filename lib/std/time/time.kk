@@ -288,8 +288,8 @@ public fun weekday( t : time ) : weekday {
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
 public fun year-frac( t : time ) : fixed {
-  val dfrac = t.clock.total-seconds.double / 86400.0
-  val yfrac = ((t.day-of-year.double - 1.0) + dfrac) / t.days-in-year.double
+  val dfrac = t.mjd.fraction // t.clock.total-seconds.double / 86400.0
+  val yfrac = ((t.day-of-year - 1).double + dfrac) / t.days-in-year.double
   fixed(t.year,yfrac)
 }
 

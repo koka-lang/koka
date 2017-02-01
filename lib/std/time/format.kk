@@ -215,8 +215,8 @@ display as 2 digits. Allowed patterns:
 * ``A``, ``AA``: AM/PM designation in upper-case. (``A``, ``AM``)
 * ``f``,...,``fffffffff``: upto 9 digits of a fraction of a second. Starts with a dot. (``.320``,  ``.000``)
 * ``F``,...,``FFFFFFFFF``: upto 9 digits of a fraction of a second. If not zero, starts with a dot.
-    In contrast to the ``f`` patterns displays the minimal number of required digits 
-    (and is not right-padded with zeros). (``.32``)
+  In contrast to the ``f`` patterns displays the minimal number of required digits 
+  (and is not right-padded with zeros). (``.32``)
 * ``z``: timezone offset in hours and minutes separated by a colon. Use ``+00:00`` for UTC time. (``+01:00``)
 * ``zz``: timezone offset in hours and minutes without a separator. Use ``+0000`` for UTC time. (``-0700``)
 * ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.   
@@ -224,7 +224,7 @@ display as 2 digits. Allowed patterns:
 * ``x``: fractional seconds since `min-time`. (``63610768799.429``)
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``y``: the absolute value of the year as a number (without zero padding). Useful when
-         displaying Julian (`cal-julian`) negative years as ``10 BC`` for example (e.g. ``"y E"``).
+  displaying Julian (`cal-julian`) negative years as ``10 BC`` for example (e.g. ``"y E"``).
 * ``C``, ``CC``: the short or long calendar name. (The short name is empty for the standard ISO calendars).
 * ``E``: the era name, for example ``CE`` for the Gregorian calendar.
 * ``'...'``, ``"..."``: anything between quotes is displayed as is. (``'M'M`` becomes ``M11`` for November)
