@@ -72,8 +72,8 @@ is an ISO week calendar (<code class="koka">cal<span class="dash">-</span>iso<sp
 <li class="li ul-li list-star-li compact-li"><code class="code code2">f</code>,&#8230;,<code class="code code2">fffffffff</code>: upto 9 digits of a fraction of a second. Starts with a dot. (<code class="code code2">.320</code>,  <code class="code code2">.000</code>)
 </li>
 <li class="li ul-li list-star-li compact-li"><code class="code code2">F</code>,&#8230;,<code class="code code2">FFFFFFFFF</code>: upto 9 digits of a fraction of a second. If not zero, starts with a dot.
-  In contrast to the <code class="code code2">f</code> patterns displays the minimal number of required digits 
-  (and is not right-padded with zeros). (<code class="code code2">.32</code>)
+In contrast to the <code class="code code2">f</code> patterns displays the minimal number of required digits 
+(and is not right-padded with zeros). (<code class="code code2">.32</code>)
 </li>
 <li class="li ul-li list-star-li compact-li"><code class="code code2">z</code>: timezone offset in hours and minutes separated by a colon. Use <code class="code code2">+00:00</code> for UTC time. (<code class="code code2">+01:00</code>)
 </li>
@@ -88,8 +88,8 @@ is an ISO week calendar (<code class="koka">cal<span class="dash">-</span>iso<sp
 <li class="li ul-li list-star-li compact-li"><code class="code code2">YYYYYY</code>: the year in&nbsp;<a href="http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1">ECMAscript</a> 6 digits, prepended with the sign. (<code class="code code2">+002016</code>,<code class="code code2">-000023</code>,<code class="code code2">+000000</code>)
 </li>
 <li class="li ul-li list-star-li compact-li"><code class="code code2">y</code>: the absolute value of the year as a number (without zero padding). Useful when
-
-<pre class="para-block pre-indented" style="display:block"><code>   displaying Julian (&lt;code class=&quot;koka&quot;&gt;cal&lt;span class=&quot;dash&quot;&gt;-&lt;/span&gt;julian&lt;/code&gt;) negative years as ``10 BC`` for example (e.g. ``&quot;y E&quot;``).</code></pre></li>
+displaying Julian (<code class="koka">cal<span class="dash">-</span>julian</code>) negative years as <code class="code code2">10 BC</code> for example (e.g. <code class="code code2">&quot;y E&quot;</code>).
+</li>
 <li class="li ul-li list-star-li compact-li"><code class="code code2">C</code>, <code class="code code2">CC</code>: the short or long calendar name. (The short name is empty for the standard ISO calendars).
 </li>
 <li class="li ul-li list-star-li compact-li"><code class="code code2">E</code>: the era name, for example <code class="code code2">CE</code> for the Gregorian calendar.
