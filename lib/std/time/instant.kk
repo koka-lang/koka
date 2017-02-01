@@ -155,14 +155,18 @@ public fun has-leap-seconds( ts : timescale ) : bool {
   ts.secs-in-day.just?
 }
 
-// Our epoch is set at 2000-01-01 TAI (= 1999-12-31T23:59:28Z UTC).
+// Our epoch is set at 2000-01-01 TAI (which is equal to 1999-12-31T23:59:28Z UTC).
 //
 // Another candidate epoch could have been the standard [J2000] epoch ([`epoch-j2000`](std_time_astro.html#epoch_j2000)), 
 // which equals 2000-01-01T12:00:00 TT (terrestrial time).
 // However, that would mean that for the most common time scales, namely UTC and TAI, there would always be a 
 // fractional offset (of 32.184s) for common time stamps. Moreover, by having an epoch at noon there would be
-// an extra correction needed for calendar date calculations too. Given these issues, we fixed the epoch at
-// midnight 2000-01-01 TAI instead.
+// an extra correction needed for calendar date calculations too. 
+//
+// Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
+// was fractional at that time (namely 8.000082s).
+//
+// Given these issues, we fixed the epoch at 2000-01-01T00:00:00 TAI instead.
 //
 // [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
 public val epoch : instant = Instant(timestamp0,ts-tai)
