@@ -78,6 +78,8 @@ the TAI time scale (which was 32 seconds ahead of UTC on 2000-01-01Z):
 &#96;&#96;&gt;&#96;&#96; &#96;instant(2000,1,1).time(cal=cal-tai)&#96;\
 &#96;&#96;2000-01-01T00:00:32Z TAI&#96;&#96;
 
+# Leap seconds
+
 The library takes much care to correctly handle leap seconds and time zone transitions.
 For example, here are some durations between different times:
 
@@ -93,8 +95,12 @@ other time irregularties:
 
 To calculate correctly with leap-seconds, it is recommended to call &#96;update-leaps-table&#96;
 at the start of a progrom which will ensure leap second information is up-to-date (automatically
-downloading and caching the latest IETF leap second table if required). See the &#96;std/time/utc&#96;
-module for more information. Similarly, if calculating with timezones besides the UTC (&#96;tz-utc&#96;)
+downloading and caching the latest IETF leap second table if required). See the [&#96;std/time/utc&#96;](std&#95;time&#95;utc.html)
+module for more information. 
+
+# Time zones
+
+If calculating with timezones besides the UTC (&#96;tz-utc&#96;)
 and local timezone (&#96;tz-local&#96;), one needs to use the [&#96;std/time/timezone&#96;](std&#95;time&#95;timezone.html) 
 modules to load the latest time zone information ([&#96;std/time/timezone/load-timezones&#96;](std&#95;time&#95;timezone.html#load&#95;timezones)).
 
@@ -110,6 +116,23 @@ fun test-timezones() {
   t1.time(tz=z2).show.println()  // 1978-12-31T11:45:00+04:00 (IRST)
   val t2  = instant(1978,12,31,12,1,0,tz=z1) + (14.hours + 44.minutes) // across DST &amp; leap second
   t2.time(tz=z2).show.println   // 1979-01-01T11:14:59+03:30 (IRST)"
+}
+&#96;&#96;&#96;
+
+# Intervals
+
+Using the &#96;now&#96; or &#96;time-now&#96; for measuring time intervals is not appropriate since these functions
+are not guaranteed to be monotonic or of sufficiently high precision. For timing, the [&#96;std/time/timer&#96;](std&#95;time&#95;timer.html) module
+should be used with functions like &#96;ticks&#96; or &#96;elapsed&#96;:
+&#96;&#96;&#96;koka
+import std/time/timer
+
+fun nfib(n : int) : int {
+  if (n &lt;= 1) then 1 else 1 + nfib(n - 1) + nfib(n - 2)
+}
+
+fun test-nfib() {
+  print-elapsed{ nfib(30) }   // "elapsed 0.111s"
 }
 &#96;&#96;&#96;
 .
