@@ -21,6 +21,7 @@ import std/num/fixed
 // with up to femto-second precision (10^-15^s).
 public alias timespan = fixed
 
+// A zero-valued timespan.
 public val timespan0 : timespan = zero
 
 /*----------------------------------------------------------------------------
@@ -29,7 +30,10 @@ public val timespan0 : timespan = zero
 ----------------------------------------------------------------------------*/
 
 // A time stamp is a `:timespan` since some epoch. Time stamps also keep 
-// track of possible leap seconds when the unit is in Unix/UTC seconds.
+// track of possible leap seconds when the unit is in [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
+//
+// When using Unix/UTC seconds, the `leap-seconds` field is non-zero if this `:timestamp` is inside a leap 
+// second. It is _not_ the total number of leap seconds that have occurred. 
 abstract struct timestamp(
   since : timespan,
   // the extra leap seconds

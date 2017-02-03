@@ -60,6 +60,8 @@ the TAI time scale (which was 32 seconds ahead of UTC on 2000-01-01Z):
 ``>`` `instant(2000,1,1).time(cal=cal-tai)`\
 ``2000-01-01T00:00:32Z TAI``
 
+# Leap seconds
+
 The library takes much care to correctly handle leap seconds and time zone transitions.
 For example, here are some durations between different times:
 
@@ -75,8 +77,12 @@ other time irregularties:
 
 To calculate correctly with leap-seconds, it is recommended to call `update-leaps-table`
 at the start of a progrom which will ensure leap second information is up-to-date (automatically
-downloading and caching the latest IETF leap second table if required). See the `std/time/utc`
-module for more information. Similarly, if calculating with timezones besides the UTC (`tz-utc`)
+downloading and caching the latest IETF leap second table if required). See the [`std/time/utc`](std_time_utc.html)
+module for more information. 
+
+# Time zones
+
+If calculating with timezones besides the UTC (`tz-utc`)
 and local timezone (`tz-local`), one needs to use the [`std/time/timezone`](std_time_timezone.html) 
 modules to load the latest time zone information ([`std/time/timezone/load-timezones`](std_time_timezone.html#load_timezones)).
 
@@ -92,6 +98,23 @@ fun test-timezones() {
   t1.time(tz=z2).show.println()  // 1978-12-31T11:45:00+04:00 (IRST)
   val t2  = instant(1978,12,31,12,1,0,tz=z1) + (14.hours + 44.minutes) // across DST & leap second
   t2.time(tz=z2).show.println   // 1979-01-01T11:14:59+03:30 (IRST)"
+}
+```
+
+# Intervals
+
+Using the `now` or `time-now` for measuring time intervals is not appropriate since these functions
+are not guaranteed to be monotonic or of sufficiently high precision. For timing, the [`std/time/timer`](std_time_timer.html) module
+should be used with functions like `ticks` or `elapsed`:
+```koka
+import std/time/timer
+
+fun nfib(n : int) : int {
+  if (n <= 1) then 1 else 1 + nfib(n - 1) + nfib(n - 2)
+}
+
+fun test-nfib() {
+  print-elapsed{ nfib(30) }   // "elapsed 0.111s"
 }
 ```
 .
