@@ -1981,7 +1981,7 @@ integer
 
 floatLit :: LexParser (Double,Range)
 floatLit
-  = do (Lexeme rng (LexFloat f)) <- parseLex (LexFloat 0.0)
+  = do (Lexeme rng (LexFloat f _)) <- parseLex (LexFloat 0.0 "0.0")
        return (f,rng)
   <?> "float"
 

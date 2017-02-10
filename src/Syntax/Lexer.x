@@ -139,7 +139,7 @@ program :-
 -- literals
 <0> @decimal              { string $ \s -> LexInt (digitsToNum 10 s) s }
 <0> @hexadecimal          { string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s }
-<0> @float                { string $ LexFloat . read }
+<0> @float                { string $ \s -> LexFloat (read s) s }
 <0> \"                    { next stringlit $ more (const B.empty) }  -- " 
 <0> \@\"                  { next stringraw $ more (const B.empty) }  -- "
 

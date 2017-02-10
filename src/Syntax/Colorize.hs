@@ -29,7 +29,7 @@ module Syntax.Colorize( colorize
                       , kindSignature
                       ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Prelude hiding (span)
 import qualified Prelude
 import Data.Char( isAlphaNum, isSpace, toUpper )
@@ -254,12 +254,6 @@ showLexemes :: Env -> KGamma -> Gamma -> [Lexeme] -> [String]
 showLexemes env kgamma gamma lexs
   = highlightLexemes fmtQualify (fmtLiterate Nothing env kgamma gamma) CtxNormal [] (fmtQualify lexs)
   where
-    -- single identifier
-    fmtQualify [Lexeme r1 (LexId id)]
-      = [Lexeme r1 (tryQualify LexId id)]
-    fmtQualify [Lexeme r1 (LexOp id)]
-      = [Lexeme r1 (tryQualify LexOp id)]
-
     -- type identifier
     fmtQualify [Lexeme r0 (LexKeyword ":" doc), Lexeme r1 (LexId id)]
       = [Lexeme r0 (LexKeyword ":" doc), Lexeme r1 (tryQualifyType LexId id)]
@@ -273,7 +267,16 @@ showLexemes env kgamma gamma lexs
       = [Lexeme r1 (LexTypedId id (concatMap showLexeme lexs))] -- : Lexeme r2 (LexKeyword ":" doc) : lexs
 
     fmtQualify lexs
-      = lexs
+      = map fmtQualifyId lexs
+
+    -- single identifier
+    fmtQualifyId (Lexeme r1 (LexId id))
+      = Lexeme r1 (tryQualify LexId id)
+    fmtQualifyId (Lexeme r1 (LexOp id))
+      = Lexeme r1 (tryQualify LexOp id)
+    fmtQualifyId lex
+      = lex
+      
    
 
     tryQualify lex name

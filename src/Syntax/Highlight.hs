@@ -86,7 +86,7 @@ showLexeme :: Lexeme -> String
 showLexeme (Lexeme _ lex)
   = case lex of
       LexInt _ _    -> show lex
-      LexFloat d    -> show d
+      LexFloat _ _  -> show lex
       LexString s   -> show s
       LexChar c     -> show c
       LexId id      -> show id
@@ -221,8 +221,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
-            LexInt i isHex-> fmt TokNumber (show lex)
-            LexFloat d    -> fmt TokNumber (show d)
+            LexInt _ _    -> fmt TokNumber (show lex)
+            LexFloat _ _  -> fmt TokNumber (show lex)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
             

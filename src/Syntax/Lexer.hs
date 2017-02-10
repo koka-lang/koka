@@ -324,7 +324,7 @@ alex_action_17 =  string $ \s -> if isReserved s
                                              else LexOp (newName s) 
 alex_action_18 =  string $ \s -> LexInt (digitsToNum 10 s) s 
 alex_action_19 =  string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s 
-alex_action_20 =  string $ LexFloat . read 
+alex_action_20 =  string $ \s -> LexFloat (read s) s 
 alex_action_21 =  next stringlit $ more (const B.empty) 
 alex_action_22 =  next stringraw $ more (const B.empty) 
 alex_action_23 =  string $ LexChar . fromCharEsc . head . drop 2 
