@@ -21,7 +21,7 @@ different time scales relate as follows:
 * **UT1**, [`ts-ut1`](std_time_ut1.html): Universal Time: A time scale based
   on the rotation of the earth where one rotation is 86400 seconds. 
   Defined to be a linear function of the rotation angle of the Earth. 
-  See the [`std/time/ut1`](std_time_ut1.html) module for more information.
+  See the [``std/time/ut1``](std_time_ut1.html) module for more information.
   
 * **UTC**, [`ts-utc`](std_time_utc.html): Coordinated Universal Time: A hybrid of UT1 and TAI: uses
   SI seconds as its unit, but inserts (or deletes) periodically leap
