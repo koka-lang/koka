@@ -109,9 +109,12 @@ program :-
 <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
 <0> "function" [\(\<]     { less 7 $ constant $ LexKeyword "function.anon" "" }
 
--- identifiers
+-- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
 <0> @qvarid               { string $ LexId . newQName }
+<0> @qidop                { string $ LexIdOp . newQName . stripParens }
+
+-- identifiers
 <0> @lowerid              { string $ \s -> if isReserved s
                                                then LexKeyword s "" 
                                            else if isMalformed s
@@ -128,7 +131,6 @@ program :-
 <0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
 
 -- operators 
-<0> @qidop                { string $ LexIdOp . newQName . stripParens }
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
 <0> @symbols              { string $ \s -> if isReserved s
                                              then LexKeyword s "" 
