@@ -26,6 +26,8 @@
 
 <span class="comment">/&#42; Date and time functionality.
 
+# Dates and time
+
 This is an extensive library for managing time and supports advanced features
 as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
 Times span arbitrary far in the past and future, and calculations are accurate
@@ -33,11 +35,13 @@ up to femto-seconds (1&amp;times;10^-15^s).
 
 Core concepts are:
 
+&#42; A &#96;:duration&#96; is a span of time in fractional SI seconds. 
+
 &#42; An &#96;:instant&#96; represents an instant in time. Instants can be substracted to
-get the &#96;:duration&#96; between them. Instands are usually represented as the number
+get the &#96;:duration&#96; between them. Instants are usually represented as the number
 of fractional SI seconds since the &#96;epoch&#96; (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (&#96;ts-tai&#96;),
-standard UTC (&#96;ts-utc&#96;), or astronimical time scales like terrestrial time (&#96;std/time/astro/ts-tt&#96;).
+standard UTC (&#96;ts-utc&#96;), or astronimical time scales like terrestrial time ([&#96;&#96;std/time/astro/ts-tt&#96;&#96;](std&#95;time&#95;astro.html#ts&#95;tt)).
 
 &#42; A &#96;:time&#96; is a human readable &#96;:date&#96; (year, month, day), and &#96;:clock&#96; (hour, minutes, seconds)
 in a particular &#96;:calendar&#96; (usually the standard ISO calendar) and time zone. 
@@ -45,66 +49,87 @@ Instants can be converted to
 time values and back. We can add years, months, or days to a &#96;:time&#96;, or get the difference
 between times in days etc.
 
-&#42; A &#96;:duration&#96; is a span of time in fractional SI seconds. 
+The current time, in the UTC timezone (&#96;tz-utc&#96;) using the ISO calendar (&#96;cal-iso&#96;):
 
-Months, weeks, days etc. are always 1-based, while durations are always in (fractional) seconds.
-
-The current time, in the local timezone (&#96;tz-local&#96;) using the ISO calendar (&#96;cal-iso&#96;):
-
-&#96;&#96;&gt;&#96;&#96; &#96;time-now&#96;\/&#96;&#96;()&#96;&#96;\
-&#96;&#96;2017-01-30T15:40:25.367000103Z&#96;&#96;
+&#96;&#96;&#96;
+&gt; time-now().show
+"2017-01-30T15:40:25.367000103Z"
+&#96;&#96;&#96;
 
 Or the current time in the local timezone:
 
-&#96;&#96;&gt;&#96;&#96; &#96;local-time-now&#96;\/&#96;&#96;()&#96;&#96;\
-&#96;&#96;2017-01-30T07:59:01.693000078-08:00 (PST)&#96;&#96;
+&#96;&#96;&#96;
+&gt; local-time-now().show
+"2017-01-30T07:59:01.693000078-08:00 (PST)"
+&#96;&#96;&#96;
 
 We can also get the current instant in time as the number of SI seconds since the &#96;epoch&#96;:
 
-&#96;&#96;&gt;&#96;&#96; &#96;now&#96;\/&#96;&#96;()&#96;&#96;\
-&#96;&#96;539106063.980999947s&#96;&#96;
+&#96;&#96;&#96;
+&gt; now()
+539106063.980999947s
+&#96;&#96;&#96;
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (&#96;tz-utc&#96;) and
 calendar (&#96;cal-iso&#96;):
 
-&#96;&#96;&gt;&#96;&#96; &#96;time(2000,1,1)&#96;\
-&#96;&#96;2000-01-01T00:00:00Z&#96;&#96;
+&#96;&#96;&#96;
+&gt; time(2000,1,1).show
+"2000-01-01T00:00:00Z"
+&#96;&#96;&#96;
 
-Instants can be constructed similarly (except no calendar or timezone can be given). 
-Times can be constructed from instants. Here we construct a time value interpreted in using
+Instants can be constructed similarly, and can be converted to and from
+&#96;:time&#96; values. Here we construct a time value interpreted in 
 the TAI time scale (which was 32 seconds ahead of UTC on 2000-01-01Z):
 
-&#96;&#96;&gt;&#96;&#96; &#96;instant(2000,1,1).time(cal=cal-tai)&#96;\
-&#96;&#96;2000-01-01T00:00:32Z TAI&#96;&#96;
+&#96;&#96;&#96;
+&gt; instant(2000,1,1).time(cal=cal-tai).show
+"2000-01-01T00:00:32Z TAI"
+&#96;&#96;&#96;
 
-# Leap seconds
+The &#96;cal-tai&#96; calendar is the standard ISO calendar but uses the TAI time scale (&#96;ts-tai&#96;)
+instead of UTC time.
+
+## Leap seconds
 
 The library takes much care to correctly handle leap seconds and time zone transitions.
 For example, here are some durations between different times:
 
-&#96;(time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show == "1.5s"&#96;\
-&#96;(time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show == "2.5s"&#96;  &amp;quad; (over a leap second)\
-&#96;(time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show == "2.5s"&#96;  &amp;quad; (GMT+3, and over a leap second)\
+&#96;&#96;&#96;
+&gt; (time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show
+"1.5s"
+
+&gt; (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show
+"2.5s" // over a leap second
+
+&gt; (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show 
+"2.5s" // UTC+3, and over a leap second
+&#96;&#96;&#96;
 
 Similarly, adding logical &#95;days&#95; (or weeks, months, or years) works over leap seconds and
 other time irregularties:
 
-&#96;time(2016,12,31,12).add-days(1).show == "2017-01-01T12:00:00Z"&#96; &amp;quad; (over a leap second)\
-&#96;time(1582,10,4,cal=cal-jg).add-days(1).show == "1582-10-15T00:00:00Z JG"&#96; &amp;quad; (transition from Julian (&#96;cal-julian&#96;) to Gregorian (&#96;cal-gregorian&#96;) calendar)\
+&#96;&#96;&#96;
+&gt; time(2016,12,31,12).add-days(1).show 
+"2017-01-01T12:00:00Z"   // over a leap second
+
+&gt; time(1582,10,4,cal=cal-jg).add-days(1).show
+"1582-10-15T00:00:00Z JG"  // transition from Julian (&#96;cal-julian&#96;) to Gregorian (&#96;cal-gregorian&#96;) calendar)
+&#96;&#96;&#96;
 
 To calculate correctly with leap-seconds, it is recommended to call &#96;update-leaps-table&#96;
 at the start of a progrom which will ensure leap second information is up-to-date (automatically
 downloading and caching the latest IETF leap second table if required). See the [&#96;std/time/utc&#96;](std&#95;time&#95;utc.html)
 module for more information. 
 
-# Time zones
+## Time zones
 
 If calculating with timezones besides the UTC (&#96;tz-utc&#96;)
 and local timezone (&#96;tz-local&#96;), one needs to use the [&#96;std/time/timezone&#96;](std&#95;time&#95;timezone.html) 
 modules to load the latest time zone information ([&#96;std/time/timezone/load-timezones&#96;](std&#95;time&#95;timezone.html#load&#95;timezones)).
 
-&#96;&#96;&#96;koka
+&#96;&#96;&#96;
 import std/time
 import std/time/timezone
 
@@ -119,7 +144,7 @@ fun test-timezones() {
 }
 &#96;&#96;&#96;
 
-# Intervals
+## Intervals
 
 Using the &#96;now&#96; or &#96;time-now&#96; for measuring time intervals is not appropriate since these functions
 are not guaranteed to be monotonic or of sufficiently high precision. For timing, the [&#96;std/time/timer&#96;](std&#95;time&#95;timer.html) module
