@@ -23,7 +23,7 @@ Core concepts are:
 get the `:duration` between them. Instants are usually represented as the number
 of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),
-standard UTC (`ts-utc`), or astronimical time scales like terrestrial time (`std/time/astro/ts-tt`).
+standard UTC (`ts-utc`), or astronimical time ([``std/time/astro``](std_time_astro.html)).
 
 * A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
 in a particular `:calendar` (usually the standard ISO calendar) and time zone. 
@@ -80,8 +80,9 @@ other time irregularties:
 
 To calculate correctly with leap-seconds, it is recommended to call `update-leaps-table`
 at the start of a progrom which will ensure leap second information is up-to-date (automatically
-downloading and caching the latest IETF leap second table if required). See the [`std/time/utc`](std_time_utc.html)
-module for more information. 
+downloading and caching the latest IETF leap second table if required). 
+
+More information about leap seconds is in the [``std/time/utc``](std_time_utc.html) module.
 
 ## Time zones
 
