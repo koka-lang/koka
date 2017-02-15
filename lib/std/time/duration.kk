@@ -12,7 +12,7 @@
 */
 module std/time/duration
 
-import std/num/fixed
+import std/num/decimal
 import std/time/timestamp
 
 /*----------------------------------------------------------------------------
@@ -56,12 +56,12 @@ public fun timestamp( d : duration ) : timestamp {
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
 public fun duration( secs : int, frac : double = 0.0 ) : duration {
-  Duration(fixed(secs,frac))
+  Duration(timespan(secs,frac))
 }
 
 // Create a duration from seconds as a `:double`.
 public fun duration( secs : double ) : duration {
-  Duration(fixed(secs))
+  Duration(timespan(secs))
 }
 
 // Return the duration in SI seconds.
@@ -71,12 +71,12 @@ public fun seconds( d : duration ) : timespan {
 
 // Return the duration in rounded SI milli-seconds.
 public fun milli-seconds( d : duration ) : int {
-  (d.secs * 1000.fixed).round
+  (d.secs * 1000.timespan).round
 }
 
 // Return the duration in rounded SI nano-seconds.
 public fun nano-seconds( d : duration ) : int {
-  (d.secs * 1000000000.fixed).round
+  (d.secs * 1000000000.timespan).round
 }
 
 // The whole seconds (in some time unit) of the duration as `:int``.

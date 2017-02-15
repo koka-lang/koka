@@ -15,14 +15,22 @@ User code should use `:std/time/duration/duration`s and `:std/time/instant/insta
 module std/time/timestamp
 
 import std/text/regex
-import std/num/fixed
+import std/num/decimal
 
 // Time spans are just fixed point numbers. This gives arbitrary range
 // with up to femto-second precision (10^-15^s).
-public alias timespan = fixed
+public alias timespan = decimal
 
 // A zero-valued timespan.
 public val timespan0 : timespan = zero
+
+public fun timespan( seconds : int, frac : double = 0.0 ) : timespan {
+  if (frac.zero?) then decimal(seconds) else decimal(seconds) + decimal(frac)
+}
+
+public fun timespan( secs : double ) : timespan {
+  decimal(secs)
+}
 
 /*----------------------------------------------------------------------------
   Timestamps are timespan's since some epoch in some time unit.
@@ -53,12 +61,12 @@ public fun timestamp( t : timespan, leap-seconds : int = 0 ) : timestamp {
 // Can also pass possible `leap-seconds` (=`0`). If the unit is in Unix seconds
 // (where a day is always 86400 seconds) this is used to indicate extra leap seconds in that day.
 public fun timestamp( secs : int, frac : double = 0.0, leap-seconds : int = 0 ) : timestamp {
-  timestamp(fixed(secs,frac), leap-seconds)
+  timestamp(timespan(secs,frac), leap-seconds)
 }
 
 // Create a time stamp in seconds since its epoch
 public fun timestamp( secs : double, leap-seconds : int = 0 ) : timestamp {
-  timestamp(fixed(secs),leap-seconds)
+  timestamp(timespan(secs),leap-seconds)
 }
 
 // The time span since the epoch of the time stamp. (including leap seconds)
@@ -68,8 +76,8 @@ public fun timespan( ts : timestamp ) : timespan {
 
 // The total seconds (in some time unit) since the epoch of the time stamp.
 // This includes possible leap seconds.
-public fun seconds( ts : timestamp ) : fixed {
-  ts.since + ts.leap-seconds.fixed
+public fun seconds( ts : timestamp ) : timespan {
+  ts.since + ts.leap-seconds.timespan
 }
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
@@ -89,11 +97,11 @@ public fun non-leap-seconds( ts : timestamp ) : timespan {
 }
 
 // Add `leaps` leap seconds to the time stamp.
-public fun add-leap-seconds( ts : timestamp, leaps : fixed ) : timestamp {
+public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
   if (!leaps.pos?) then ts 
-  elif (leaps < fixed(1.0) && ts.leap-seconds.zero?) 
-   then Timestamp( (ts.since - 1.fixed) + leaps, 1)
-   else Timestamp( ts.since + leaps.fraction.fixed, ts.leap-seconds + leaps.trunc )
+  elif (leaps < timespan(1.0) && ts.leap-seconds.zero?) 
+   then Timestamp( (ts.since - 1.timespan) + leaps, 1)
+   else Timestamp( ts.since + leaps.fraction.timespan, ts.leap-seconds + leaps.trunc )
 }
 
 

@@ -11,6 +11,7 @@ module time6
 public import std/num/fixed
 public import std/time
 
+
 /*----------------------------------------------------------------------------
   Testing
 ----------------------------------------------------------------------------*/
@@ -57,4 +58,8 @@ public fun main() {
   test-dates(tz=tz-fixed(~1),cal=cal-julian)
   test-dates(tz=tz-fixed(~1),cal=cal-tai)
   test-dates(tz=tz-fixed(1) ,cal=cal-gps)
+}
+
+public fun benchmark() {
+  print-elapsed(main)
 }

@@ -10,7 +10,7 @@
 module std/time/format
 
 import std/text/regex
-import std/num/fixed
+import std/num/decimal
 import std/time/instant
 import std/time/date
 import std/time/calendar

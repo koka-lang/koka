@@ -8,7 +8,7 @@
 
 module time1
 
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 public import std/time/timezone
 
@@ -17,45 +17,49 @@ public import std/time/timezone
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, tst : () -> ndet bool ) : io () {
-  println(name + ": " + (if (tst()) then "ok" else "failed!"))
+fun check(name : string, res : string, tst : () -> ndet string ) : io () {
+  val got = tst()
+  println(name.pad-right(14,' ') + ": " 
+    + (if (got == res) then "ok: " + res 
+                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
+
 
 
 fun test-tzs( tzs : timezones ) {
   val z1  = tzs.timezone("America/New_York")
   val z2  = tzs.timezone("Asia/Tehran")
   val t1  = instant(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60)
-  check("tz1"){ t1.time(tz=z2).show == "1978-12-31T11:45:00+04:00 (IRST)"}
+  check("tz1", "1978-12-31T11:45:00+04:00 (IRST)"){ t1.time(tz=z2).show } 
   val t2  = instant(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
-  check("tz2"){ t2.time(tz=z2).show == "1979-01-01T11:14:59+03:30 (IRST)"}
+  check("tz2", "1979-01-01T11:14:59+03:30 (IRST)"){ t2.time(tz=z2).show } 
 
-  check("tz3a"){ time(2011,3,13,1,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" }
-  check("tz3b"){ time(2011,3,13,2,15,tz=z1).show == "2011-03-13T01:15:00-05:00 (EST)" } // non-existent: repeat previous hour for non-existent time!
-  check("tz3c"){ time(2011,3,13,3,15,tz=z1).show == "2011-03-13T03:15:00-04:00 (EDT)" }
+  check("tz3a", "2011-03-13T01:15:00-05:00 (EST)"){ time(2011,3,13,1,15,tz=z1).show } 
+  check("tz3b", "2011-03-13T01:15:00-05:00 (EST)"){ time(2011,3,13,2,15,tz=z1).show } // non-existent: repeat previous hour for non-existent time!
+  check("tz3c", "2011-03-13T03:15:00-04:00 (EDT)"){ time(2011,3,13,3,15,tz=z1).show } 
   
-  check("tz4a"){ time(2011,11,6,0,15,tz=z1).show == "2011-11-06T00:15:00-04:00 (EDT)" }
-  check("tz4b"){ time(2011,11,6,1,15,tz=z1).show == "2011-11-06T01:15:00-04:00 (EDT)" } // ambigious: choose earliest
-  check("tz4c"){ time(2011,11,6,2,15,tz=z1).show == "2011-11-06T02:15:00-05:00 (EST)" }
-  check("tz4d") { instant(2011,11,6,5,15).time(tz=z1).show == "2011-11-06T01:15:00-04:00 (EDT)" }
-  check("tz4e") { instant(2011,11,6,6,15).time(tz=z1).show == "2011-11-06T01:15:00-05:00 (EST)" }
+  check("tz4a", "2011-11-06T00:15:00-04:00 (EDT)"){ time(2011,11,6,0,15,tz=z1).show } 
+  check("tz4b", "2011-11-06T01:15:00-04:00 (EDT)"){ time(2011,11,6,1,15,tz=z1).show } // ambigious: choose earliest
+  check("tz4c", "2011-11-06T02:15:00-05:00 (EST)"){ time(2011,11,6,2,15,tz=z1).show } 
+  check("tz4d", "2011-11-06T01:15:00-04:00 (EDT)"){ instant(2011,11,6,5,15).time(tz=z1).show } 
+  check("tz4e", "2011-11-06T01:15:00-05:00 (EST)"){ instant(2011,11,6,6,15).time(tz=z1).show } 
 
   // leap second in other time zone
-  check("tzleap1"){ instant(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=tzs.timezone("US/Pacific")).show == "2016-12-31T15:59:60.500-08:00 (PST)" }
-  check("tzleap2"){ instant(1979,1,1,0,0,17,0.5,cal=cal-tai).time(tz=z2).show == "1979-01-01T03:29:60.500+03:30 (IRST)" }
-  check("tzleap3"){ instant(1979,1,1,3,29,59,tz=z2).time.show == "1978-12-31T23:59:59Z" }
+  check("tzleap1", "2016-12-31T15:59:60.500-08:00 (PST)"){ instant(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=tzs.timezone("US/Pacific")).show } 
+  check("tzleap2", "1979-01-01T03:29:60.500+03:30 (IRST)"){ instant(1979,1,1,0,0,17,0.5,cal=cal-tai).time(tz=z2).show } 
+  check("tzleap3", "1978-12-31T23:59:59Z"){ instant(1979,1,1,3,29,59,tz=z2).time.show } 
   
   // round into a time zone skip
   //println( time(2011,3,13,2,59,59,0.9999,tz=z1).show )
-  check("tzround1"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show == "2011-03-13T01:59:59.999900-05:00 (EST)" }
-  check("tzround2"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) == "2011-03-13T03:00:00-04:00 (EDT)" }
+  check("tzround1", "2011-03-13T01:59:59.999900-05:00 (EST)"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show } 
+  check("tzround2", "2011-03-13T03:00:00-04:00 (EDT)"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) } 
 
   // round into a timezone leap second (across a DST zone)
-  check("tzroundleap1") { instant(1979,1,1,3,29,59,0.9999,tz=z2).time.show(3) == "1978-12-31T23:59:60Z" }
-  check("tzroundleap2") { time(1979,1,1,3,29,59,0.9999,tz=z2).show(3) == "1979-01-01T03:29:60+03:30 (IRST)" }
+  check("tzroundleap1", "1978-12-31T23:59:60Z"){ instant(1979,1,1,3,29,59,0.9999,tz=z2).time.show(3) } 
+  check("tzroundleap2", "1979-01-01T03:29:60+03:30 (IRST)"){ time(1979,1,1,3,29,59,0.9999,tz=z2).show(3) } 
 
   // Julian calendar
-  check("julian1") { time(1900,3,0,cal=cal-julian).show == "1900-02-29T00:00:00Z JC" }
+  check("julian1", "1900-02-29T00:00:00Z JC"){ time(1900,3,0,cal=cal-julian).show } 
 }
 
 

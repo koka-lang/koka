@@ -14,7 +14,7 @@
 */
 module std/time/calendar
 
-import std/num/fixed
+import std/num/decimal
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
@@ -99,7 +99,7 @@ public fun tz-local() : ndet timezone {
     "",
     fun(i) { 
       val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double) 
-      (duration(ofs.fixed),abbrv)
+      (duration(ofs.timespan),abbrv)
     }
   )
 }
@@ -186,7 +186,7 @@ public fun instant( year : int, month : int = 1, day : int = 1,
                     hours : int = 0, minutes : int = 0, seconds : int = 0, 
                     frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
 {
-  val fsecs = if (frac.zero?) then fixed(seconds) else fixed(seconds) + fixed(frac)
+  val fsecs = timespan(seconds,frac)
   instant( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
 }
 
@@ -274,7 +274,7 @@ fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = fixed(xsecs + leap, nlfrac)  // adjust for leap seconds
+  val tsecs            = timespan(xsecs + leap, nlfrac)  // adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
@@ -285,7 +285,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = date-to-days( d(day = d.day + xdays) )
-  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.fixed)  
+  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.timespan)  
 }
 
 

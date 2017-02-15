@@ -24,7 +24,7 @@ public val zero : decimal = Decimal(0,0,0)
 
 // Create a decimal number with precision `prec` (=`~1`) from a 
 // whole part `i` and fractional part `frac`. The result is `i + frac`&times;10^-`prec`^.
-// i.e. `prec` determines how far to shift the fraction. 
+// i.e. `prec` determines how many digits there are behind the dot.
 // `decimal(1,123,4).show == "1.0123"`\
 // `decimal(1,123).show == "1.123"`\
 // `decimal(123).show == "123"`\
@@ -43,6 +43,7 @@ public fun decimal( i : int, frac : int = 0, prec : int = ~1 ) : decimal {
     Decimal(i, frac, fprec)
   }
 }
+
 
 // Create a decimal from a `:double` with a specified maximal precision (=`16` which is the maximal precision of a `:double`).
 public fun decimal( d : double, max-prec : int = 16 ) : decimal {
@@ -101,7 +102,7 @@ val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(0*([1-9]\d*))?)$")
 // Ensure a decimal has at least `p` precision.
 fun expand( x : decimal, p : int ) : decimal {
   if (x.prec >= p) then x else {
-    trace("expand: " + x.show + " to prec " + p.show)
+    //trace("expand: " + x.show + " to prec " + p.show)
     Decimal(x.whole, x.frac.mul-pow10(p - x.prec), p)
   }
 }
@@ -197,7 +198,7 @@ public fun round-to-prec( x : decimal, p : int, rnd : round = Even) : total deci
   val d   = x.prec - p 
   val q   = x.frac.cdiv-pow10(d)  
   val r   = x.frac - q.mul-pow10(d)
-  val qr  = Decimal(q,r,d).round(rnd)
+  val qr  = Decimal( q,r,d).round(rnd)
   val res = Decimal(x.whole, qr, p)
   // trace("round-to-prec: " + p.show + ", d: " + d.show +  ", q: " + q.show + ", x: " + xr.fix.show + ", res: " + res.fix.show )// q1: " + q1.show + ", r:" + r.show + ", half:" + half.show)                  
   res
@@ -211,7 +212,7 @@ public fun mul( x : decimal, y : decimal, max-prec : int = ~1, rnd : round = Eve
     val p  = max(x.prec,y.prec)
     val xi = x.unsafe-expand-int(p)
     val yi = y.unsafe-expand-int(p)
-    trace("mul: " + xi.show  + " * " + yi.show)
+    //trace("mul: " + xi.show  + " * " + yi.show)
     val z  = decimal-at( xi*yi, 2*p ).reduce
     z.round-to-prec( if (max-prec.neg?) then p else max-prec, rnd )
   }  
@@ -245,11 +246,11 @@ public fun (/)( x : decimal, y : decimal ) : decimal {
 // Show a decimal to a specified maximum precision (=`~1`). use a negative value to 
 // use maximum precision required.
 public fun show( f : decimal, max-prec : int = ~1 ) : string {
-  trace("show: " + f.whole.show + "," + f.frac.show + " prec:" + f.prec.show)
+  //trace("show: " + f.whole.show + "," + f.frac.show + " prec:" + f.prec.show)
   val fp      = f.reduce.round-to-prec(max-prec)
   val (tr,fr) = fp.truncfrac
   val sign    = if (f.neg?) then "-" else ""
-  sign + tr.abs.show + "." + fr.abs.show.pad-left(fp.prec,'0')
+  sign + tr.abs.show + (if (fr.zero?) then "" else "." + fr.abs.show.pad-left(fp.prec,'0'))
 }
 
 fun truncfrac( f : decimal ) : (int,int) {
