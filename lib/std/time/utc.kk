@@ -370,7 +370,7 @@ fun zero?( la : leap-adjust ) : bool {
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = ((utc-i.timespan - la.delta-start.timespan) / secs-per-day) // .floor.fixed
+    val days = div((utc-i.timespan - la.delta-start.timespan), secs-per-day, 3) 
     la.offset + (la.delta * days)
   }
 }
@@ -455,7 +455,7 @@ fun utc-sls-to-tai( t : timestamp, smooth-period : decimal ) : duration {
       unsafe-duration( t + ofs )
     }
     Just((step,start)) -> {
-      unsafe-duration( ofs + start + (t.timespan - start) / (1.decimal - (step / smooth-period)) )
+      unsafe-duration( div( ofs + start + (t.timespan - start), (1.decimal - div(step,smooth-period)) ) )
     }
   }
 }
@@ -464,7 +464,7 @@ fun tai-to-utc-sls( tai :duration, smooth-period : decimal ) : timestamp {
   val t = tai-to-utc(tai)
   val tsls = match(find-utc-smooth(t, smooth-period).snd) {
     Nothing -> t
-    Just((step,start)) -> t - step*((t.timespan - start) / smooth-period)
+    Just((step,start)) -> t - step*(div(t.timespan - start, smooth-period))
   }
   timestamp(tsls.seconds) // remove leap seconds
 }

@@ -375,6 +375,8 @@ public fun jd( i : instant, ts : timescale ) : decimal {
   i.mjd(ts) + jd-epoch-delta
 }
 
+val julian-prec = 9 // nano-second precision
+
 // Return the modified julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion (used in `std/time/time` to take timezones into account)
@@ -384,7 +386,7 @@ public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) 
   val ts      = ts0 + delta
   if (daysecs==secs-per-day) then {
     // without leap seconds, just divide. 
-    ((ts.non-leap-seconds - tscale.y2k-epoch.timespan) / secs-per-day) + mjd-epoch-delta
+    div((ts.non-leap-seconds - tscale.y2k-epoch.timespan), secs-per-day, julian-prec) + mjd-epoch-delta
   }
   else {
     // otherwise, divide the non-leap-seconds first, but for the seconds in the day
@@ -392,9 +394,9 @@ public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) 
     // trace("mjd: day seconds: " + daysecs.show)
     val leaps = ts.leap-seconds
     val secs  = (ts.non-leap-seconds - tscale.y2k-epoch.timespan)
-    val w     = (secs / secs-per-day).floor.timespan
+    val w     = div(secs, secs-per-day, julian-prec).floor.timespan
     val r     = secs - (w * secs-per-day)
-    val f     = (r + leaps.timespan) / daysecs
+    val f     = div(r + leaps.timespan, daysecs, julian-prec)
     (w + f + mjd-epoch-delta)
   }
 }

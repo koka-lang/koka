@@ -92,7 +92,7 @@ public fun clock( d : duration ) : clock {
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60. 
 public fun clock( seconds : decimal ) : clock {
-  val hm     = (seconds / 60.decimal).floor
+  val hm     = seconds.floor / 60
   val s      = seconds - hm.decimal
   val (h,m)  = divmod(hm,60)
   Clock(h, m, s)

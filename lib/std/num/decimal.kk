@@ -198,12 +198,10 @@ public fun round-to-prec( x : decimal, p : int, rnd : round = Even) : total deci
   val d   = x.prec - p 
   val q   = x.frac.cdiv-pow10(d)  
   val r   = x.frac - q.mul-pow10(d)
-  val y   = x.whole.mul-pow10(d)
+  val y   = x.whole.mul-pow10(p)
   val z   = Decimal( y + q,r,d).round(rnd)
-  val zq  = z.cdiv-pow10(d)
-  val zr  = z - zq.mul-pow10(d)
-  val res = Decimal(zq, zr, p)
-  // trace("round-to-prec: " + p.show + ", d: " + d.show +  ", q: " + q.show + ", x: " + xr.fix.show + ", res: " + res.fix.show )// q1: " + q1.show + ", r:" + r.show + ", half:" + half.show)                  
+  //trace("round-to-prec: " + x.prec.show + ", x.frac:" + x.frac.show + ", d:" + d.show + ", y: " + y.show + ", q:" + q.show + ", r:" + r.show + ", z: " + z.show)
+  val res = decimal-at(z,p)
   res
 }
 
@@ -240,9 +238,9 @@ public fun div( x : decimal, y : decimal, max-prec : int = ~1, rnd : round = Eve
 }
 
 // Divide two decimals up to the maximum precision of either argument using `Even` rounding.
-public fun (/)( x : decimal, y : decimal ) : decimal {
-  div(x,y)
-}
+// public fun (/)( x : decimal, y : decimal ) : decimal {
+//   div(x,y)
+// }
 
 
 
