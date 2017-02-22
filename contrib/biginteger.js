@@ -1212,7 +1212,7 @@ const bigInt = (function (undefined) {
     BigInteger.prototype.mul_pow10 = function(n) {
         var i = parseValue(n);
         //console.log(" mul_pow10, big: " + this.toString() + ", i: " + i.toString() + ", n: " + n.toString());        
-        if (i.isZero())     return this;
+        if (this.isZero() || i.isZero())     return this;
         if (i.isNegative()) return this.div_pow10(i.negate())           
         if (!i.isSmall)     return this.multiply( Integer[10].pow(i) );
         var large = Math.floor(i.value / LOG_BASE);
@@ -1238,7 +1238,7 @@ const bigInt = (function (undefined) {
     SmallInteger.prototype.mul_pow10 = function(n) {
         var i = parseValue(n);
         //console.log("mul_pow10, small: " + this.toString() + ", i: " + i.toString() + ", n: " + n.toString() + ", ");
-        if (i.isZero())     return this;
+        if (this.isZero() || i.isZero())     return this;
         if (i.isNegative()) return this.div_pow10(i.negate())           
         if (i.isSmall && i.value <= 2*LOG_BASE) return this.multiply(Math.pow(10,i.value));
         return this.toBig().mul_pow10(i);
@@ -1246,7 +1246,7 @@ const bigInt = (function (undefined) {
 
     BigInteger.prototype.div_pow10 = function(n) {
         var i = parseValue(n);
-        if (i.isZero())     return this;
+        if (this.isZero() || i.isZero())     return this;
         if (i.isNegative()) return this.mul_pow10(i.negate())           
         if (!i.isSmall)     return this.divide( Integer[10].pow(i) );
         var large = Math.floor(i.value / LOG_BASE);
@@ -1260,7 +1260,7 @@ const bigInt = (function (undefined) {
     }
     SmallInteger.prototype.div_pow10 = function(n) {
         var i = parseValue(n);
-        if (i.isZero())     return this;
+        if (this.isZero() || i.isZero())     return this;
         if (i.isNegative()) return this.mul_pow10(i.negate())           
         if (i.isSmall && i.value <= 2*LOG_BASE) return this.divide( Math.pow(10,i.value) );
         //console.log("small div pow10: " + this.value.toString() + ", " + n.toString());
