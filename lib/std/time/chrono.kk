@@ -11,7 +11,6 @@
 */
 module std/time/chrono
 
-import std/num/fixed
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
