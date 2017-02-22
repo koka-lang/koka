@@ -268,9 +268,11 @@ public fun earth-calendar(
 fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
   val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
+  //trace("ts-to-dc: " + t.show + ": " + nlsecs.show + ", " + nlfrac.show + ", " + leap.show)
   // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = days-to-date(days)
+  //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
   // Finally set the clock taking care of leap seconds
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
@@ -285,6 +287,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = date-to-days( d(day = d.day + xdays) )
+  //trace("dc-to-ts: " + d.show + "T" + c.show + ", xdays: " + xdays.show + ", xsecs: " + xsecs.show + ", sdays: " + sdays.show )
   timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.timespan)  
 }
 

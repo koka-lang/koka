@@ -39,7 +39,7 @@ i.time(cal=cal-ut1).show.println   // in UT1
 module std/time/ut1
 
 import std/os/path
-import std/num/fixed
+import std/num/decimal
 import std/text/regex
 
 import std/time/timestamp
@@ -109,8 +109,8 @@ public fun load-iersA( basename : string = "finals2000A",
 {
   val fname-all    = basename + ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all, 
-                                     duration(download-delay.seconds * 8.fixed), 
-                                     duration(download-timeout.seconds * 4.fixed), verbose ) 
+                                     duration(download-delay.seconds * 8.decimal), 
+                                     duration(download-timeout.seconds * 4.decimal), verbose ) 
   val fname-daily  = basename + ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
                                        download-delay, download-timeout, verbose )
@@ -211,7 +211,7 @@ fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
       // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
-      val dt  = (i.timestamp(ts-tt) - dut.fixed) - utci.timestamp(ts-utc).seconds // include leap seconds!
+      val dt  = (i.timestamp(ts-tt) - dut.decimal) - utci.timestamp(ts-utc).seconds // include leap seconds!
       // trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
@@ -310,7 +310,7 @@ public fun deltat( i : instant, override : (i : instant) -> maybe<duration> = de
               deltat-builtin(y).duration
             }
           }
-  // trace("deltat: year: " + y.show-fixed + ", dt: " + dt.show)
+  // trace("deltat: year: " + y.show-decimal + ", dt: " + dt.show)
   dt
 }
 

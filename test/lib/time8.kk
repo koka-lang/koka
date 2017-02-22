@@ -11,7 +11,7 @@ module time8
 
 import std/os/path
 import std/os/file
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 public import std/time/ut1
 

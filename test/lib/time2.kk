@@ -9,7 +9,7 @@
 // Testing leap seconds
 module time2
 
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 
 /*----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ fun test-leap() {
   check("leap-ovf4", "2017-01-01T00:00:37Z TAI" ) {  instant(2017,1,1).time(cal=cal-tai).show  }
   // a negative leap second of 1968-02-01
   check("leap-neg1", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai).show(6)  }
-  check("leap-neg2", "1968-02-01T00:00:06.235682Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show  }  // overflow of leap seconds
+  check("leap-neg2", "1968-02-01T00:00:06.235682Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show(6)  }  // overflow of leap seconds
   check("leap-neg3", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,2,1).time(cal=cal-tai).show  }
 }
 

@@ -95,6 +95,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
   val ri   = t.instant.use(t.calendar.timescale).round-to-prec(prec)
+  // trace("time.round-to-prec: " + t.showx + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
   if (secs.trunc == t.seconds.trunc) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
     t(clock=c(seconds=secs), instant = ri)
@@ -108,12 +109,17 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t : time, prec : int = 9 ) : string {
   val tp = t.round-to-prec(prec)
+  tp.showx(prec)
+}
+
+fun showx( tp : time, prec : int = 9 ) : string {
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta ) 
    + (if (tp.tzabbrv.empty?) then "" else " (" + tp.tzabbrv + ")") 
    + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
 }
+
 fun show-date(d : date) : string {
   d.show
 }

@@ -24,7 +24,7 @@ fun date-at-days( days : int, cal : calendar ) : date {
 }
 
 fun days-at-date( date : date, cal : calendar ) : int {
-  time(date, cal=cal).mjd.round - mjd-y2000
+  time(date, cal=cal).mjd.int - mjd-y2000
 }
 
 

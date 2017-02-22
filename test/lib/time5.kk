@@ -8,7 +8,7 @@
 
 module time5
 
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 import std/time/astro
 

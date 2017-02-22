@@ -8,7 +8,7 @@
 
 module time3
 
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 public import std/time/timestamp
 public import std/time/astro
@@ -39,11 +39,11 @@ fun test-jd() {
   check("jd3","-04713-01-01T12:00:00Z JC"){  instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show  }
   check("jd4","2456658.500405092593"){  instant(2014,1,1).jd(ts-tai).show(12)  }
   // fraction of a day with a leap second..
-  check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show }
-  check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show }
-  check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show }
-  check("jdleap-tz1","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(2)).mjd.show } // across timezone (should *not* be: 57754.083332175925926)
-  check("jdleap-tz2","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(~2)).mjd.show } // across timezone without a leap
+  check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show(15) }
+  check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show(15) }
+  check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show(15) }
+  check("jdleap-tz1","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(2)).mjd.show(15) } // across timezone (should *not* be: 57754.083332175925926)
+  check("jdleap-tz2","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(~2)).mjd.show(15) } // across timezone without a leap
   // inverses
   check("jdleapx0","2016-12-31T23:59:59Z")  { time(2016,12,31,23,59,59).mjd.instant-at-mjd(ts-utc).time.show }
   check("jdleapx1","2016-12-31T23:59:59.900Z")  { time(2016,12,31,23,59,59,0.9).mjd.instant-at-mjd(ts-utc).time.show }
@@ -53,7 +53,7 @@ fun test-jd() {
 
 fun test-astro() {
   // check("astro1"){ instant(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
-  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(fixed(2443144,0.5003725),ts-tt).time(cal=cal-tai).show  }
+  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(decimal-exp(24431445003725,~7),ts-tt).time(cal=cal-tai).show  }
 }
 
 public val sofai = instant(2006,1,15,21,24,37,0.5)
