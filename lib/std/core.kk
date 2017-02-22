@@ -1343,7 +1343,12 @@ extern cdiv-pow10( i : int, n : int ) : int {
   js "_int_cdiv_pow10"
 }
 
-
+fun divmod-pow10( i : int, n : int ) : (int,int) {
+  if (n <= 0) return (i,0)
+  val cq = i.cdiv-pow10(n)
+  val cr = i - cq.mul-pow10(n)
+  if (!cr.neg?) then (cq,cr) else (cq.dec, cr + pow10(n))
+}
 
 // Is this an even integer?
 fun even?(i:int) : bool { !odd?(i) }
@@ -2070,18 +2075,20 @@ fun truncate( s : string, count : int ) : string  {
   s.first.extend(count - 1).string
 }
 
-// Trim off a substring `sub` if `s` starts with that string.
+// Trim off a substring `sub` while `s` starts with that string.
 fun trim-left( s : string, sub : string ) : string {
+  if (sub.empty?) return s
   match(s.starts-with(sub)) {
-    Just(slice) -> slice.string
+    Just(slice) -> trim-left(unsafe-decreasing(slice.string),sub)
     Nothing -> s
   }
 }
 
-// Trim off a substring `sub` if `s` ends with that string.
+// Trim off a substring `sub` while `s` ends with that string.
 fun trim-right( s : string, sub : string ) : string {
+  if (sub.empty?) return s
   match(s.ends-with(sub)) {
-    Just(slice) -> slice.string
+    Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
     Nothing -> s
   }
 }
