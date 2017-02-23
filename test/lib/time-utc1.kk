@@ -9,7 +9,7 @@
 module time-utc1
 
 import std/os/file
-public import std/num/fixed
+public import std/num/decimal
 public import std/time
 
 /*----------------------------------------------------------------------------
