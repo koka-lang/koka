@@ -7,16 +7,14 @@
 ---------------------------------------------------------------------------*/
 
 // Operations on arbitrary precision decimal numbers.
-//
-// In operations like division (`div`) we use the term _precision_ to 
-// mean the number of digits after the dot -- not the total number of
-// significant digits.
 module std/num/decimal
 
 import std/text/regex
 
-// Type of a decimal number.
-public struct decimal (
+// Type of a decimal number. Decimals have arbitrary precision and range and 
+// do exact decimal arithmetic and are well suited for financial calculations for 
+// example. They are also used to represent precise [time](std_time.html).
+abstract struct decimal (
   num: int,
   exp: int
 )
@@ -56,7 +54,17 @@ public fun decimal( i : int, frac : int = 0, prec : int = ~1 ) : decimal {
 }
 
 
-// Create a decimal from a `:double` with a specified maximal precision (=`16` which is the maximal precision of a `:double`).
+/* Create a decimal from a `:double` with a specified maximal precision (=`16` which is the maximal precision of a `:double`).
+Note: creating a `:decimal` from a `:double` may loose precision and give surprising results as many decimal 
+fractions cannot be represented precisely by a `:double`. Use `decimal-exp` or `parse-decimal` when exact representations
+are required. For example:
+```
+> decimal(1.1)
+1.1000000000000001
+> decimal(1.2)
+1.2
+```
+*/
 public fun decimal( d : double, max-prec : int = 16 ) : decimal {
   // todo: optimize 
   val fl = d.floor
@@ -246,11 +254,24 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
 }
 
 
-// Divide two decimals with a given minimal precision `min-prec` (=`7`).
-// Use a negative precision to compute to the maximum precision either argument.
-// Note: the division uses up to `min-prec` precision using `Floor` rounding
-// for the last digit if the result is  inexact. To round differently, you can
-// for example divide with larger precision and use `round-to-prec`. 
+/* Divide two decimals with a given minimal precision `min-prec` (=`7`).
+The `min-prec` is the number of extra digits used to calculate inexact 
+divisions.
+
+Note: the division uses up to `min-prec` precision using `Floor` rounding
+for the last digit if the result is  inexact. To round differently, you can
+for example divide with larger precision and use `round-to-prec`. 
+```
+> div( decimal(2), decimal(3), 0 )
+0
+> div( decimal(2), decimal(3), 1 )
+0.6
+> div( decimal(2), decimal(3) )  default precision is 7
+0.6666666
+> div( decimal(2), decimal(3) ).round-to-prec(6)
+0.666667
+```
+*/
 public fun div( x : decimal, y : decimal, min-prec : int = 7 ) : decimal {
   if (x.zero? || y.zero?) then return zero
   val e  = x.exp - y.exp
