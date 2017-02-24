@@ -15,45 +15,66 @@
 module std/num/fixed
 
 import std/text/regex
+
   
 // A `:fixed` has infinite range and a precision of up to 15 digits after the dot.
 // Internally they are represented by a infinite range `:int` for the whole
 // part and a `:double` to represent the fraction. 
 // A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
 abstract struct fixed (
-  public floor: int,
-  frac        : double  // 'floored fraction':  0 <= frac < 1.0                      
+  // value == trunc + frac * 1.0e15                      
+  public trunc: int,
+  frac        : double  // 'fraction':  0 <= frac < 1.0                      
 )
 
-// The `:fixed` point zero.
-public val zero : fixed = fixed(0,0.0)
+val scale = 16
+val base = 1.0e16
 
+// The `:fixed` point zero.
+public val zero : fixed = Fixed(0,0.0)
+
+
+public fun fixed( i : int, prec : int = 0 ) : fixed {
+  val p = max(0,prec)
+  if (p.zero?) then Fixed(i,0.0) else {
+    val q = cdiv-pow10(i,p)
+    val r = i - q.mul-pow10(p)
+    val rr = if (p > scale) then r.cdiv-pow10(p - scale) else r.mul-pow10(scale - p)
+    Fixed(q,rr.double)
+  }
+}
 
 // Create a `:fixed` point number from a `:double`.
 public fun fixed( d : double ) : fixed {
-  fixed(0,d)
+  if (d.nan? || d.inf?) then zero else {
+    val fl = d.trunc
+    val fr = ((d - fl)*base).round
+    fixed-frac(fl.int,fr)
+  }
 }
 
-// Create a `:fixed` point number from a whole part `i` and a fractional part `frac`. 
-// The fixed point number is equal to `i + frac` and correctly deals with negative numbers.
-// This is the most precise way to create a fixed number.
-public fun fixed( i : int, frac : double = 0.0 ) : fixed {
-  // trace("fixed( " + i.show + ", " + frac.show + ")")
-  if (0.0 <= frac && frac < 1.0) then return Fixed(i,frac)
-  if (frac.nan?) then return Fixed(i,0.0)
-  val ff = frac.floor
-  Fixed( i + ff.int, frac - ff )
+public fun fixed-frac( tr : int, fr : double ) : fixed {
+  if (fr >= base) then fixed-fracx(tr.inc,fr - base)
+  elif (fr <= ~base) then fixed-fracx(tr.dec,fr + base)
+  else fixed-fracx(tr,fr)
 }
+
+fun fixed-fracx( tr : int, fr : double ) : fixed {
+  if (tr.neg? && fr.pos?) then Fixed(tr.inc, fr - base)
+  elif (tr.pos? && fr.neg?) then Fixed(tr.dec, base + fr)
+  else Fixed(tr,fr)
+}
+
 
 // Parse a `:fixed` point number where a dot (`.`) separates the factional part.
 public fun parse-fixed( s : string ) : maybe<fixed> {
   match(s.find(rx-fixed)) {
     Nothing -> Nothing
     Just(cap) -> {
-      val sign  = cap.groups[1]
+      val sign  = cap.groups[1] 
       val whole = cap.groups[2]
-      val frac  = cap.groups[3] || "0"
-      val f = fixed( whole.parse-int-default(0), ("0." + frac).parse-double-default(0.0) )
+      val frac  = cap.groups[3].pad-right(scale,'0').first(scale).string.trim-left("0") + ".0"
+      val f     = Fixed(whole.parse-int-default(0),frac.parse-double-default(0.0))
       if (sign=="-") then Just(~f) else Just(f)
     }
   }
@@ -62,14 +83,15 @@ val rx-fixed = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?$")
 
 // Convert a fixed point number to a double. This may lose precision.
 public fun double( f : fixed ) : double {
-  f.floor.double + f.frac
+  f.trunc.double + (f.frac / base)
 }
 
 // Round a fixed point number to an integer.
 public fun int( f : fixed ) : int {
-  f.round
+  val base2  = base/2.0
+  if (f.frac < ~base2) then f.trunc.dec elif (f.frac > base2) then f.trunc.inc else f.trunc
 }
-
+/*
 // Truncate a fixed point number to an integer.
 public fun trunc( f : fixed ) : int {
   if (f.floor.neg? && f.frac != 0.0) then f.floor + 1 else f.floor
@@ -87,36 +109,59 @@ public fun ffraction( f : fixed ) : double {
   f.frac
 }
 
+
 // Round a fixed point number to a specified precision of digits after the dot.
 public fun round-to-prec( f : fixed, prec : int ) : fixed {
-  if (prec.pos?) then fixed(f.floor, f.frac.round-to-prec(prec))
-                 else fixed(f.floor + f.frac.int, 0.0)
+  if (prec.pos?) then fixed-frac(f.floor, f.frac.round-to-prec(prec))
+                 else fixed-frac(f.floor + f.frac.int, 0.0)
 }
 
 // Round a fixed point number to a whole integer.
 public fun round( f : fixed ) : int {
   f.round-to-prec(0).floor
 }
+*/
 
 // Show a fixed point number rounded to a specified maximum precision (`max-prec`, =`15`), 
 // showing at most `prec` digits after the dot (=`~1`). Use a negative number to use the 
 // minimal digits to show the required precision.
-public fun show( f : fixed, prec : int = ~1, max-prec : int = 15) : string {
-  // trace("show: " + f.floor.show + " + " + f.frac.show-fixed)
+public fun show( f : fixed, prec : int = ~1 ) : string {
+  trace("show: " + f.trunc.show + " + " + f.frac.show-fixed)
   if (prec.zero? || f.frac.zero?) then return f.int.show
-  val fprec = if (prec.neg?) then max-prec else min(prec,max-prec)
-  val r     = f.round-to-prec(fprec)
-  val rfrac = r.fraction.abs
-  if (rfrac.zero?) then return r.floor.show
-  val strf  = rfrac.show-fixed(fprec).first(2).after.string
-  val padf  = if (prec.neg?) then strf else strf.first(prec).string.pad-right(prec,'0') 
-  val sign  = if (f.neg?) then "-" else ""
-  sign + r.trunc.abs.show + "." + padf
+  val fr = f.frac.abs.show-fixed(scale).last(2).before.string
+  val sign = if (f.neg?) then "-" else ""
+  sign + f.trunc.abs.show + "." + fr.pad-left(scale,'0').trim-right("0")  
 }
+
+
+
+// Is a fixed point number negative?
+public fun neg?( f : fixed ) : bool  { f.trunc.neg? || f.frac.neg? }
+
+// Is a fixed point number positive?
+public fun pos?( f : fixed ) : bool  { f.trunc.pos? || f.frac.pos? }
+
+// Is a fixed point number zero?
+public fun zero?( f : fixed ) : bool { f.trunc.zero? && f.frac.zero? }
+
+// Compare two fixed point numbers.
+public fun compare( q1 : fixed, q2 : fixed ) : order {
+  match(compare(q1.trunc,q2.trunc)) {
+    Eq  -> compare(q1.frac,q2.frac)
+    ord -> ord
+  }
+}
+
+public fun (>) (x : fixed, y : fixed) : bool { compare(x,y) == Gt }
+public fun (>=)(x : fixed, y : fixed) : bool { compare(x,y) != Lt }
+public fun (==)(x : fixed, y : fixed) : bool { compare(x,y) == Eq }
+public fun (!=)(x : fixed, y : fixed) : bool { compare(x,y) != Eq }
+public fun (<) (x : fixed, y : fixed) : bool { compare(x,y) == Lt }
+public fun (<=)(x : fixed, y : fixed) : bool { compare(x,y) != Gt }
 
 // Negate a `:fixed` point number.
 public fun (~)( f : fixed ) : fixed {
-  fixed( ~f.floor, ~f.frac )
+  Fixed(~f.trunc,~f.frac)
 }
 
 // The absolute value of a fixed number
@@ -125,13 +170,13 @@ public fun abs( f : fixed ) : fixed {
 }
 
 // Add two fixed point numbers.
-public fun (+)( q1 : fixed, q2 : fixed ) : fixed {
-  fixed(q1.floor + q2.floor, q1.frac + q2.frac )
+public fun (+)( x : fixed, y : fixed ) : fixed {
+  fixed-frac(x.trunc + y.trunc, x.frac + y.frac)
 }
 
 // Subtract two fixed point numbers.
-public fun (-)( q1 : fixed, q2 : fixed ) : fixed {
-  fixed(q1.floor - q2.floor, q1.frac - q2.frac )
+public fun (-)( x : fixed, y : fixed ) : fixed {
+  fixed-frac(x.trunc - y.trunc, x.frac - y.frac )
 }
 
 // Take the sum of a list of fixed point numbers (0 for the empty list).
@@ -139,6 +184,7 @@ public fun sum( fs : list<fixed> ) : fixed {
   fs.foldr(zero,(+))
 }
 
+/*
 val maxpd      : double = 1.0e15
 val maxprecise : int = int(maxpd)
 val minprecise : int = ~maxprecise
@@ -202,29 +248,6 @@ public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
   }
 }
 
-// Is a fixed point number negative?
-public fun neg?( f : fixed ) : bool  { f.floor.neg? }
-
-// Is a fixed point number positive?
-public fun pos?( f : fixed ) : bool  { f.floor.pos? || (f.floor.zero? && f.frac.pos?) }
-
-// Is a fixed point number zero?
-public fun zero?( f : fixed ) : bool { f.floor.zero? && f.frac.zero? }
-
-// Compare two fixed point numbers.
-public fun compare( q1 : fixed, q2 : fixed ) : order {
-  match(compare(q1.floor,q2.floor)) {
-    Eq  -> compare(q1.frac,q2.frac)
-    ord -> ord
-  }
-}
-
-public fun (>) (x : fixed, y : fixed) : bool { compare(x,y) == Gt }
-public fun (>=)(x : fixed, y : fixed) : bool { compare(x,y) != Lt }
-public fun (==)(x : fixed, y : fixed) : bool { compare(x,y) == Eq }
-public fun (!=)(x : fixed, y : fixed) : bool { compare(x,y) != Eq }
-public fun (<) (x : fixed, y : fixed) : bool { compare(x,y) == Lt }
-public fun (<=)(x : fixed, y : fixed) : bool { compare(x,y) != Gt }
 
 // The sign of a fixed point number.
 public fun sign( x : fixed ) : order {
@@ -256,3 +279,5 @@ fun  test( op : string, d1 : double, d2 : double ) {
       else ((+) : (fixed,fixed) -> fixed,(+) : (double,double) -> double)
   println( d1.show + op + d2.show + "\n == " + f(d1.fixed,d2.fixed).show + "\n == " + g(d1,d2).show-fixed() )
 }
+
+*/
