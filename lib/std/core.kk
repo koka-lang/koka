@@ -1659,7 +1659,7 @@ extern inline ceiling : (d:double) -> double {
 // If `d < 0.0` , return the smallest integer equal or larger to `d` .
 extern trunc : (d:double) -> double {
   cs "Math.Truncate"
-  js "Mathtrunc"
+  js "_double_trunc"
 }
 
 // Return the fractional part of a `:double` `d`.\
@@ -1719,9 +1719,9 @@ extern inline cos( d : double ) : double {
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
-extern inline round : (d:double) -> double {
+extern round : (d:double) -> double {
   cs "Math.Round"
-  js "Math.round"
+  js "_double_round"
 }
 
 // Return the sum of a list of doubles
