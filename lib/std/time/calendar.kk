@@ -14,7 +14,7 @@
 */
 module std/time/calendar
 
-import std/num/decimal
+import std/num/fixed
 import std/time/timestamp
 import std/time/duration
 import std/time/instant

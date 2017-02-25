@@ -15,21 +15,21 @@ User code should use `:std/time/duration/duration`s and `:std/time/instant/insta
 module std/time/timestamp
 
 import std/text/regex
-import std/num/decimal
+import std/num/fixed
 
 // Time spans are just fixed point numbers. This gives arbitrary range
 // with up to femto-second precision (10^-15^s).
-public alias timespan = decimal
+public alias timespan = fixed
 
 // A zero-valued timespan.
 public val timespan0 : timespan = zero
 
 public fun timespan( seconds : int, frac : double = 0.0 ) : timespan {
-  if (frac.zero?) then decimal(seconds) else decimal(seconds) + decimal(frac)
+  if (frac.zero?) then fixed(seconds) else fixed(seconds) + fixed(frac)
 }
 
 public fun timespan( secs : double ) : timespan {
-  decimal(secs)
+  fixed(secs)
 }
 
 /*----------------------------------------------------------------------------
@@ -154,7 +154,7 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 
 // Show a time stamp (without the `s` postfix).
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
-  val s = ts.since.show(max-prec=max-prec)
+  val s = ts.since.show(max-prec)
   val l = if (ts.leap-seconds.zero?) then "" else " (+" + ts.leap-seconds.show + " leap)"
   //trace("show timestamp: " + s + ", " + ts.since.show + ", " + ts.since.show(max-prec))
   match(s.find(".")) {
