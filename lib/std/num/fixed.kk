@@ -49,17 +49,17 @@ public fun fixed( d : double ) : fixed {
   if (d.nan? || d.inf?) then zero else {
     val fl = d.trunc
     val fr = ((d - fl)*base).round
-    fixed-frac(fl.int,fr)
+    fixed-frac-sign(fl.int,fr)
   }
 }
 
-public fun fixed-frac( tr : int, fr : double ) : fixed {
-  if (fr >= base) then fixed-fracx(tr.inc,fr - base)
-  elif (fr <= ~base) then fixed-fracx(tr.dec,fr + base)
-  else fixed-fracx(tr,fr)
+fun fixed-frac-ovf( tr : int, fr : double ) : fixed {
+  if (fr >= base) then fixed-frac-sign(tr.inc,fr - base)
+  elif (fr <= ~base) then fixed-frac-sign(tr.dec,fr + base)
+  else fixed-frac-sign(tr,fr)
 }
 
-fun fixed-fracx( tr : int, fr : double ) : fixed {
+fun fixed-frac-sign( tr : int, fr : double ) : fixed {
   if (tr.neg? && fr.pos?) then Fixed(tr.inc, fr - base)
   elif (tr.pos? && fr.neg?) then Fixed(tr.dec, base + fr)
   else Fixed(tr,fr)
@@ -91,25 +91,25 @@ public fun int( f : fixed ) : int {
   val base2  = base/2.0
   if (f.frac < ~base2) then f.trunc.dec elif (f.frac > base2) then f.trunc.inc else f.trunc
 }
-/*
-// Truncate a fixed point number to an integer.
-public fun trunc( f : fixed ) : int {
-  if (f.floor.neg? && f.frac != 0.0) then f.floor + 1 else f.floor
+
+// Floor a fixed point number to an integer (i.e. round to minus infinity)
+public fun floor( x : fixed ) : int {
+  if (x.trunc.neg? && !x.frac.zero?) then x.trunc.dec else x.trunc
 }
 
 // Return the 'truncated' fraction, always in the range <`~1.0`,`1.0`>:\
 // `x.trunc.fixed + x.fraction == x`
-public fun fraction( f : fixed ) : double {
-  if (f.floor.neg? && f.frac != 0.0) then f.frac - 1.0 else f.frac
+public fun fraction( x : fixed ) : double {
+  x.frac / base
 }
 
 // Return the 'floored' fraction, always in the range [`0`,`1.0`>:\
 // `x.floor.fixed + x.ffraction == x` 
-public fun ffraction( f : fixed ) : double {
-  f.frac
+public fun ffraction( x : fixed ) : double {
+  if (x.trunc.neg? && !x.frac.zero?) then x.fraction + 1.0 else x.fraction
 }
 
-
+/*
 // Round a fixed point number to a specified precision of digits after the dot.
 public fun round-to-prec( f : fixed, prec : int ) : fixed {
   if (prec.pos?) then fixed-frac(f.floor, f.frac.round-to-prec(prec))
@@ -171,12 +171,12 @@ public fun abs( f : fixed ) : fixed {
 
 // Add two fixed point numbers.
 public fun (+)( x : fixed, y : fixed ) : fixed {
-  fixed-frac(x.trunc + y.trunc, x.frac + y.frac)
+  fixed-frac-ovf(x.trunc + y.trunc, x.frac + y.frac)
 }
 
 // Subtract two fixed point numbers.
 public fun (-)( x : fixed, y : fixed ) : fixed {
-  fixed-frac(x.trunc - y.trunc, x.frac - y.frac )
+  fixed-frac-ovf(x.trunc - y.trunc, x.frac - y.frac )
 }
 
 // Take the sum of a list of fixed point numbers (0 for the empty list).
@@ -184,68 +184,27 @@ public fun sum( fs : list<fixed> ) : fixed {
   fs.foldr(zero,(+))
 }
 
-/*
-val maxpd      : double = 1.0e15
-val maxprecise : int = int(maxpd)
-val minprecise : int = ~maxprecise
-
-fun precise?(i : int ) : bool {
-  (i > minprecise && i < maxprecise)
+fun expand( x : fixed ) : (int, int ) {
+  if (x.frac.zero?) return (x.trunc,0)
+  val fi = x.frac.int
+  val p = fi.pow10?
+  val f = fi.cdiv-pow10(p)
+  trace("expand: " + x.show + ", f: " + f.show + ", p:" + p.show )
+  (x.trunc.mul-pow10(scale - p) + f, scale - p)
 }
 
-fun fmul( i : int, frac : double ) : fixed {
-  // assert: 0 <= frac < 1.0
-  if (i.zero? || frac == 0.0) then return zero 
-  if (i.precise?) then {
-    fixed( i.double * frac )
-  }
-  else {
-    // we are going to split 
-    val (hi,lo) = divmod(i,maxprecise)
-    val f  = hi*(frac * maxpd).int  // round?? Yes, because rounds to 15 digits precision
-    val ff = lo.double * frac 
-    fixed(f,ff) 
-  }
+// Multiply two `:fixed` numbers.
+public fun (*)( x : fixed, y : fixed ) : fixed {
+  val (xx,px) = x.expand
+  val (yy,py) = y.expand
+  fixed( xx*yy, px + py )
 }
 
-fun dmul( i : int, d : double ) : fixed {
-  // i*d == i*(t + f)  == i*t + i*f 
-  if (i.zero? || d.zero?) then return zero
-  if (d==1.0) then return i.fixed
-  val fl = d.floor
-  val fr = d - fl
-  fixed( i * fl.int ) + fmul( i, fr )
-}
-
-fun ddiv( i : int, d : double ) : fixed {
-  // i / d == i * (1/d)
-  if (i.zero? || d.inf? || d.zero?) then return zero
-  dmul(i, 1.0 / d)
-}
-
-// Multiply two fixed point numbers.
-public fun (*)( q1 : fixed, q2 : fixed ) : fixed {
-  // (t1 + f1)*(t2 + f2) == t1*t2 + t1*f2 + f1*t2 + f1*f2
-  Fixed(q1.floor*q2.floor,0.0) 
-    + fmul(q1.floor, q2.frac)
-      + fmul(q2.floor, q1.frac)
-        + Fixed(0,q1.frac*q2.frac)
-}
-
-// Divide two fixed point numbers.
-public fun (/)( q1 : fixed, q2 : fixed ) : fixed {
-  // (t1 + f1)/(t2 + f2) 
-  //  == t1/(t2 + f2) + f1/(t2 + f2)
-  if (q1.zero? || q2.zero?) then return zero
-  val d = q2.double // approximate up to 15 digits
-  if (q2.frac.zero? || !q2.floor.precise?) then { // ignore the fraction
-    // (t1 + f1) / t2 == t1/t2 + f1/t2
-    val (q,r) = divmod(q1.floor,q2.floor) // full int division
-    fixed(q, (r.double / d) + (q1.frac / d))
-  }
-  else {
-    ddiv(q1.floor, d) + fixed(q1.frac / d)
-  }
+// Divide two `:fixed` numbers.
+public fun (/)( x : fixed, y : fixed ) : fixed {
+  val (yy,py) = y.expand
+  val xx = x.trunc.mul-pow10(scale + py) + x.frac.int.mul-pow10(py)
+  fixed( xx / yy, scale )
 }
 
 
@@ -271,13 +230,3 @@ public fun min( x : fixed, y : fixed ) : fixed {
 public fun max( x : fixed, y : fixed ) : fixed {
   if (x >= y) then x else y
 }
-
-fun  test( op : string, d1 : double, d2 : double ) {
-  val (f,g) : ((fixed,fixed) -> fixed, (double,double) -> double) 
-    = if   (op=="*") then ((*) : (fixed,fixed) -> fixed,(*) : (double,double) -> double)
-      elif (op=="/") then ((/) : (fixed,fixed) -> fixed,(/) : (double,double) -> double)
-      else ((+) : (fixed,fixed) -> fixed,(+) : (double,double) -> double)
-  println( d1.show + op + d2.show + "\n == " + f(d1.fixed,d2.fixed).show + "\n == " + g(d1,d2).show-fixed() )
-}
-
-*/
