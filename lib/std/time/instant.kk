@@ -375,7 +375,7 @@ public fun jd( i : instant, ts : timescale ) : decimal {
   i.mjd(ts) + jd-epoch-delta
 }
 
-val atto = 15 // atto-second precision
+val femto = 15 // femto-second precision
 
 // Return the modified julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
@@ -384,21 +384,20 @@ public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) 
   val ts0     = i.timestamp(tscale)
   val daysecs = ts0.seconds-in-day(tscale) // total-seconds in the day of the timezone (before delta)
   val ts      = ts0 + delta
-  val jd = if (daysecs==secs-per-day) then {
-      // without leap seconds, just divide. 
-      div((ts.non-leap-seconds - tscale.y2k-epoch.timespan), secs-per-day, atto+1) + mjd-epoch-delta
-    }
-    else {
-      // otherwise, divide the non-leap-seconds first, but for the seconds in the day
-      // divide by the longer day so the day fraction is correct.
-      // trace("mjd: day seconds: " + daysecs.show)
-      val leaps = ts.leap-seconds
-      val secs  = (ts.non-leap-seconds - tscale.y2k-epoch.timespan)
-      val w     = div(secs, secs-per-day, 9).floor.timespan
-      val r     = secs - (w * secs-per-day)
-      val f     = div(r + leaps.timespan, daysecs, atto+1)
-      (w + f + mjd-epoch-delta)
-    }
-  jd.round-to-prec(atto)
+  if (daysecs==secs-per-day) then {
+    // without leap seconds, just divide. 
+    div((ts.non-leap-seconds - tscale.y2k-epoch.timespan), secs-per-day, femto) + mjd-epoch-delta
+  }
+  else {
+    // otherwise, divide the non-leap-seconds first, but for the seconds in the day
+    // divide by the longer day so the day fraction is correct.
+    // trace("mjd: day seconds: " + daysecs.show)
+    val leaps = ts.leap-seconds
+    val secs  = (ts.non-leap-seconds - tscale.y2k-epoch.timespan)
+    val w     = div(secs, secs-per-day, femto).floor.timespan
+    val r     = secs - (w * secs-per-day)
+    val f     = div(r + leaps.timespan, daysecs, femto+3) // see: test/lib/time3, jdleapx2  -- extra precision required on leap seconds
+    (w + f + mjd-epoch-delta)
+  }
 }
 

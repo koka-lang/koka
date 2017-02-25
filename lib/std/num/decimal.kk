@@ -167,7 +167,7 @@ public fun neg?( x : decimal ) : bool {
 // Show a decimal to a specified maximum precision (=`~1`). use a negative value to 
 // use maximum precision required.
 public fun show( x : decimal, max-prec : int = ~1 ) : string {
-  trace("show: " + x.num.show + "x" + x.exp.show)
+  // trace("show: " + x.num.show + "x" + x.exp.show)
   val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
   cx.showx()
 }
@@ -289,7 +289,7 @@ public fun div( x : decimal, y : decimal, min-prec : int = 7 ) : decimal {
   val e  = x.exp - y.exp
   val mp = max(min-prec,0)
   val z = decimal-exp( x.num.mul-pow10(mp) / y.num, e - mp ).reduce
-  trace("div: " + x.show + " / " + y.show + " = " + z.show)
+  // trace("div: " + x.show + " / " + y.show + " = " + z.show)
   z
 }
 
