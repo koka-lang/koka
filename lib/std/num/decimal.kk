@@ -167,7 +167,7 @@ public fun neg?( x : decimal ) : bool {
 // Show a decimal to a specified maximum precision (=`~1`). use a negative value to 
 // use maximum precision required.
 public fun show( x : decimal, max-prec : int = ~1 ) : string {
-  //trace("show: " + x.num.show + "x" + x.exp.show)
+  trace("show: " + x.num.show + "x" + x.exp.show)
   val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
   cx.showx()
 }
@@ -254,6 +254,15 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
 }
 
 
+val maxpd      : double = 1.0e15
+val maxprecise : int = int(maxpd)
+val minprecise : int = ~maxprecise
+
+fun precise?(i : int ) : bool {
+  (i > minprecise && i < maxprecise)
+}
+
+
 /* Divide two decimals with a given minimal precision `min-prec` (=`7`).
 The `min-prec` is the number of extra digits used to calculate inexact 
 divisions.
@@ -274,10 +283,13 @@ for example divide with larger precision and use `round-to-prec`.
 */
 public fun div( x : decimal, y : decimal, min-prec : int = 7 ) : decimal {
   if (x.zero? || y.zero?) then return zero
+  if (min-prec <= 16 && x.exp.zero? && y.exp.zero? && x.num.precise? && y.num.precise?) {
+    return decimal( x.num.double / y.num.double )
+  }  
   val e  = x.exp - y.exp
   val mp = max(min-prec,0)
   val z = decimal-exp( x.num.mul-pow10(mp) / y.num, e - mp ).reduce
-  // trace("div: " + x.show + " / " + y.show + " = " + z.show)
+  trace("div: " + x.show + " / " + y.show + " = " + z.show)
   z
 }
 

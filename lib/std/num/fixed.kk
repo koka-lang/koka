@@ -133,7 +133,7 @@ public fun round( x : fixed ) : fixed {
 // showing at most `prec` digits after the dot (=`~1`). Use a negative number to use the 
 // minimal digits to show the required precision.
 public fun show( f : fixed, prec : int = ~1 ) : string {
-  trace("show: " + f.trunc.show + " + " + f.frac.show-fixed)
+  // trace("show: " + f.trunc.show + " + " + f.frac.show-fixed)
   if (prec.zero? || f.frac.zero?) then return f.int.show
   val fp = if (prec.pos?) then f.round-to-prec(prec) else f
   val fr = fp.frac.abs.show-fixed(scale).last(2).before.string
@@ -202,18 +202,37 @@ fun expand( x : fixed ) : (int, int ) {
   (x.trunc.mul-pow10(scale - p) + f, scale - p)
 }
 
+
+
 // Multiply two `:fixed` numbers.
 public fun (*)( x : fixed, y : fixed ) : fixed {
+  // trace("mul: " + x.show + " * " + y.show)
   val (xx,px) = x.expand
   val (yy,py) = y.expand
   fixed( xx*yy, px + py )
 }
 
+
+val maxpd      : double = 1.0e15
+val maxprecise : int = int(maxpd)
+val minprecise : int = ~maxprecise
+
+fun precise?(i : int ) : bool {
+  (i > minprecise && i < maxprecise)
+}
+
+
 // Divide two `:fixed` numbers.
 public fun (/)( x : fixed, y : fixed ) : fixed {
-  val (yy,py) = y.expand
-  val xx = x.trunc.mul-pow10(scale + py) + x.frac.int.mul-pow10(py)
-  fixed( xx / yy, scale )
+  // trace("div: " + x.show + " / " + y.show)  
+  if (x.frac.zero? && y.frac.zero? && x.trunc.precise? && y.trunc.precise?) {
+    fixed(x.trunc.double / y.trunc.double)
+  }
+  else {
+    val (yy,py) = y.expand
+    val xx = x.trunc.mul-pow10(scale + py) + x.frac.int.mul-pow10(py)
+    fixed( xx / yy, scale )
+  }
 }
 
 

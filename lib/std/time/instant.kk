@@ -375,7 +375,7 @@ public fun jd( i : instant, ts : timescale ) : decimal {
   i.mjd(ts) + jd-epoch-delta
 }
 
-val atto = 18 // atto-second precision
+val atto = 15 // atto-second precision
 
 // Return the modified julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
