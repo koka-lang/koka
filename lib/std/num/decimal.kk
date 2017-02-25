@@ -253,7 +253,8 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
   decimal-exp(q1,~prec)
 }
 
-
+// Optimize: Use double division when within precision bounds.
+val maxexp     : int = 308 
 val maxpd      : double = 1.0e15
 val maxprecise : int = int(maxpd)
 val minprecise : int = ~maxprecise
@@ -263,7 +264,7 @@ fun precise?(i : int ) : bool {
 }
 
 
-/* Divide two decimals with a given minimal precision `min-prec` (=`7`).
+/* Divide two decimals with a given extra precision `min-prec` (=`15`).
 The `min-prec` is the number of extra digits used to calculate inexact 
 divisions.
 
@@ -275,28 +276,33 @@ for example divide with larger precision and use `round-to-prec`.
 0
 > div( decimal(2), decimal(3), 1 )
 0.6
-> div( decimal(2), decimal(3) )  default precision is 7
-0.6666666
+> div( decimal(2), decimal(3) )  default precision is 15
+0.6666666666666666
 > div( decimal(2), decimal(3) ).round-to-prec(6)
 0.666667
 ```
 */
-public fun div( x : decimal, y : decimal, min-prec : int = 7 ) : decimal {
+public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   if (x.zero? || y.zero?) then return zero
-  if (min-prec <= 16 && x.exp.zero? && y.exp.zero? && x.num.precise? && y.num.precise?) {
-    return decimal( x.num.double / y.num.double )
+  val e = x.exp - y.exp
+  // use double division if within precision bounds..
+  if (min-prec <= 15 && e.abs <= 15 && x.num.precise? && y.num.precise?) {
+    val r = x.num.double / y.num.double
+    if (e.zero?) then decimal(r) else decimal(r * pow10(e.double))
   }  
-  val e  = x.exp - y.exp
-  val mp = max(min-prec,0)
-  val z = decimal-exp( x.num.mul-pow10(mp) / y.num, e - mp ).reduce
-  // trace("div: " + x.show + " / " + y.show + " = " + z.show)
-  z
+  else {
+    // otherwise use long integer division
+    val mp = max(min-prec,0)
+    val z = decimal-exp( x.num.mul-pow10(mp) / y.num, e - mp ).reduce
+    // trace("div: " + x.show + " / " + y.show + " = " + z.show)
+    z
+  }
 }
 
-// Divide two decimals up to the maximum precision of either argument using `Even` rounding.
-// public fun (/)( x : decimal, y : decimal ) : decimal {
-//   div(x,y)
-// }
+// Divide two decimals using 15 digits of extra precision.
+public fun (/)( x : decimal, y : decimal ) : decimal {
+  div(x,y)
+}
 
 
 // Compare decimals.
