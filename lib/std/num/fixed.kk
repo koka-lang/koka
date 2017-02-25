@@ -22,9 +22,9 @@ import std/text/regex
 // part and a `:double` to represent the fraction. 
 // A `:fixed` generally has better performance than arbitrary precision [`:decimal`](std_num_decimal.html)s.
 abstract struct fixed (
-  // value == trunc + frac * 1.0e15                      
+  // value == trunc + frac / base
   public trunc: int,
-  frac        : double  // 'fraction':  0 <= frac < 1.0                      
+  frac        : double  // 'fraction':  -base < frac < base
 )
 
 val scale = 16
@@ -53,12 +53,14 @@ public fun fixed( d : double ) : fixed {
   }
 }
 
+// use when the fraction can be between -2*base < fr < 2*base, and the signs may not agree
 fun fixed-frac-ovf( tr : int, fr : double ) : fixed {
   if (fr >= base) then fixed-frac-sign(tr.inc,fr - base)
   elif (fr <= ~base) then fixed-frac-sign(tr.dec,fr + base)
   else fixed-frac-sign(tr,fr)
 }
 
+// use when fraction is in range but the sign may not agree 
 fun fixed-frac-sign( tr : int, fr : double ) : fixed {
   if (tr.neg? && fr.pos?) then Fixed(tr.inc, fr - base)
   elif (tr.pos? && fr.neg?) then Fixed(tr.dec, base + fr)
@@ -109,18 +111,23 @@ public fun ffraction( x : fixed ) : double {
   if (x.trunc.neg? && !x.frac.zero?) then x.fraction + 1.0 else x.fraction
 }
 
-/*
+
 // Round a fixed point number to a specified precision of digits after the dot.
-public fun round-to-prec( f : fixed, prec : int ) : fixed {
-  if (prec.pos?) then fixed-frac(f.floor, f.frac.round-to-prec(prec))
-                 else fixed-frac(f.floor + f.frac.int, 0.0)
+public fun round-to-prec( x : fixed, prec : int ) : fixed {
+  if (!prec.pos?) then x.round 
+  elif (prec >= scale) then x 
+  else {
+    val p = pow10( (scale - prec).double )
+    val f  = (x.frac / p).round * p
+    fixed-frac-ovf(x.trunc,f)
+  }  
 }
 
 // Round a fixed point number to a whole integer.
-public fun round( f : fixed ) : int {
-  f.round-to-prec(0).floor
+public fun round( x : fixed ) : fixed {
+  Fixed(x.int,0.0)
 }
-*/
+
 
 // Show a fixed point number rounded to a specified maximum precision (`max-prec`, =`15`), 
 // showing at most `prec` digits after the dot (=`~1`). Use a negative number to use the 
@@ -128,9 +135,11 @@ public fun round( f : fixed ) : int {
 public fun show( f : fixed, prec : int = ~1 ) : string {
   trace("show: " + f.trunc.show + " + " + f.frac.show-fixed)
   if (prec.zero? || f.frac.zero?) then return f.int.show
-  val fr = f.frac.abs.show-fixed(scale).last(2).before.string
-  val sign = if (f.neg?) then "-" else ""
-  sign + f.trunc.abs.show + "." + fr.pad-left(scale,'0').trim-right("0")  
+  val fp = if (prec.pos?) then f.round-to-prec(prec) else f
+  val fr = fp.frac.abs.show-fixed(scale).last(2).before.string
+  val sign = if (fp.neg?) then "-" else ""
+  val frac = fr.pad-left(scale,'0').trim-right("0")  
+  sign + fp.trunc.abs.show + (if (frac.empty?) then "" else "." + frac)
 }
 
 
@@ -189,7 +198,7 @@ fun expand( x : fixed ) : (int, int ) {
   val fi = x.frac.int
   val p = fi.pow10?
   val f = fi.cdiv-pow10(p)
-  trace("expand: " + x.show + ", f: " + f.show + ", p:" + p.show )
+  //trace("expand: " + x.show + ", f: " + f.show + ", p:" + p.show )
   (x.trunc.mul-pow10(scale - p) + f, scale - p)
 }
 
