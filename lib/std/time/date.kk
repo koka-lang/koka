@@ -13,7 +13,7 @@
 */
 module std/time/date
 
-import std/num/fixed
+import std/num/decimal
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
@@ -82,7 +82,7 @@ public fun (+)( d1 : date, d2 : date ) : date {
 public struct clock(
   hours   : int,
   minutes : int,
-  seconds : fixed
+  seconds : decimal
 )
 
 // Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60. 
@@ -91,9 +91,9 @@ public fun clock( d : duration ) : clock {
 }
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60. 
-public fun clock( seconds : fixed ) : clock {
+public fun clock( seconds : decimal ) : clock {
   val hm     = seconds.floor / 60
-  val s      = seconds - hm.fixed
+  val s      = seconds - hm.decimal
   val (h,m)  = divmod(hm,60)
   Clock(h, m, s)
 }
@@ -115,8 +115,8 @@ public fun zero?( c : clock ) : bool {
 
 // Return the total seconds of a `:clock` assuming 60 seconds per 
 // minute and 60 minutes per hour.
-public fun total-seconds( c : clock ) : fixed {
-  fixed((c.hours*60 + c.minutes)*60) + c.seconds
+public fun total-seconds( c : clock ) : decimal {
+  decimal((c.hours*60 + c.minutes)*60) + c.seconds
 }
 
 // Return the whole seconds part of a `:clock`.

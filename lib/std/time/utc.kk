@@ -237,7 +237,7 @@ University Science Books, 1992.
 module std/time/utc
 
 import std/text/regex
-import std/num/fixed
+import std/num/decimal
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
@@ -356,7 +356,7 @@ struct leap-adjust(
   utc-start  : utc-timestamp,  // start time in UTC seconds since 1972-01-01Z
   offset     : timespan,       // base offset
   delta-start: utc-timestamp  = timestamp0,   // start of delta adjustment
-  delta      : fixed = zero   
+  delta      : decimal = zero   
 )
 
 val leap-table0 = Leaps-table(epoch,[])
@@ -370,14 +370,14 @@ fun zero?( la : leap-adjust ) : bool {
 fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
   if (la.delta.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = ((utc-i.timespan - la.delta-start.timespan) / secs-per-day) 
+    val days = div((utc-i.timespan - la.delta-start.timespan), secs-per-day, 3) 
     la.offset + (la.delta * days)
   }
 }
 
 // Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time,
 // the base offset, the delta start date and the delta rate.
-public fun get-leap-steps( ) : io list<(timestamp,timespan,timespan,(timespan,timestamp,fixed))> {
+public fun get-leap-steps( ) : io list<(timestamp,timespan,timespan,(timespan,timestamp,decimal))> {
   val adjusts = unsafe-total(get-leaps-table).adjusts.reverse
   zip(Cons(zero,adjusts),adjusts).map( fun(las) {
     val ts = las.snd.utc-start
@@ -447,7 +447,7 @@ public fun ts-utc-sls-create( name : string, smooth-period : duration ) : timesc
   )
 }
 
-fun utc-sls-to-tai( t : timestamp, smooth-period : fixed ) : duration {
+fun utc-sls-to-tai( t : timestamp, smooth-period : decimal ) : duration {
   val (ofs,mbsmooth) = find-utc-smooth(t, smooth-period) 
   // convert directly to tai as we have all info
   match(mbsmooth) { 
@@ -455,22 +455,22 @@ fun utc-sls-to-tai( t : timestamp, smooth-period : fixed ) : duration {
       unsafe-duration( t + ofs )
     }
     Just((step,start)) -> {
-      unsafe-duration( ( ofs + start + (t.timespan - start) / (1.fixed - (step / smooth-period)) ) )
+      unsafe-duration( div( ofs + start + (t.timespan - start), (1.decimal - div(step,smooth-period)) ) )
     }
   }
 }
 
-fun tai-to-utc-sls( tai :duration, smooth-period : fixed ) : timestamp {
+fun tai-to-utc-sls( tai :duration, smooth-period : decimal ) : timestamp {
   val t = tai-to-utc(tai)
   val tsls = match(find-utc-smooth(t, smooth-period).snd) {
     Nothing -> t
-    Just((step,start)) -> t - step*(t.timespan - start / smooth-period)
+    Just((step,start)) -> t - step*(div(t.timespan - start, smooth-period))
   }
   timestamp(tsls.seconds) // remove leap seconds
 }
 
 
-fun find-utc-smooth( t : timestamp, smooth-period : fixed ) : (timespan,maybe<(timespan,timespan)>) {
+fun find-utc-smooth( t : timestamp, smooth-period : decimal ) : (timespan,maybe<(timespan,timespan)>) {
   if (t < utc1958) then return (zero:timespan,Nothing)
 
   val leaps = unsafe-total(get-leaps-table)
@@ -584,7 +584,7 @@ public fun utc-secs-in-day( t : timestamp ) : timespan {
 }
 val utc1972 = timestamp(~883612800)  // instant-at(1972).timestamp(ts-utc)
 
-fun long-day?( leaps : list<leap-adjust>, t : timestamp ) : maybe<fixed> {
+fun long-day?( leaps : list<leap-adjust>, t : timestamp ) : maybe<decimal> {
   match(leaps) {
     Nil -> Nothing
     Cons(la,rest) -> {
@@ -687,10 +687,10 @@ val mjd-epoch-shift    = 4453401600.timespan // 2000-01-01 TAI - 1858-11-17 TAI 
 // See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
 fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
   s.find-all(rxtaiadjust).map( fun(cap) {
-    val mjd    = cap.groups[1].parse-fixed.default(jd-epoch-shift) - jd-epoch-shift 
-    val ofs    = cap.groups[2].parse-fixed.default(zero)
-    val dmjd   = cap.groups[3].parse-fixed.default(zero)
-    val delta  = cap.groups[4].parse-fixed.default(zero)
+    val mjd    = cap.groups[1].parse-decimal.default(jd-epoch-shift) - jd-epoch-shift 
+    val ofs    = cap.groups[2].parse-decimal.default(zero)
+    val dmjd   = cap.groups[3].parse-decimal.default(zero)
+    val delta  = cap.groups[4].parse-decimal.default(zero)
     val start  = timestamp(mjd*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
     val dstart = timestamp(dmjd*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
     // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", delta: " + delta.show )

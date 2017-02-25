@@ -10,7 +10,7 @@
 module std/time/parse
 
 import std/text/regex
-import std/num/fixed
+import std/num/decimal
 import std/time/duration
 import std/time/date
 import std/time/calendar
@@ -75,7 +75,7 @@ public fun parse-iso( s : string, calendar : calendar = cal-iso ) : maybe<time> 
         Just(capt) -> {
           val hours = capt.num(1)
           val mins  = capt.num(2)
-          val secs  = parse-fixed(capt.groups[3] + "." + capt.groups[4]).default(zero)
+          val secs  = parse-decimal(capt.groups[3] + "." + capt.groups[4]).default(zero)
           val tzsign= if (capt.groups[5]=="+") then 1 else ~1
           val tzhours= capt.num(6) 
           val tzmins = capt.num(7)
