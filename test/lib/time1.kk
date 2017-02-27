@@ -25,14 +25,17 @@ fun check(name : string, res : string, tst : () -> ndet string ) : io () {
 }
 
 
-
 fun test-tzs( tzs : timezones ) {
   val z1  = tzs.timezone("America/New_York")
-  val z2  = tzs.timezone("Asia/Tehran")
-  val t1  = instant(1978,12,30,12,1,0,tz=z1) + duration(14*3600 + 44*60)
-  check("tz1", "1978-12-31T11:45:00+04:00 (IRST)"){ t1.time(tz=z2).show } 
-  val t2  = instant(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
-  check("tz2", "1979-01-01T11:14:59+03:30 (IRST)"){ t2.time(tz=z2).show } 
+  val z2  = tzs.timezone("Pacific/Kosrae")
+  val z3  = tzs.timezone("Asia/Tehran")
+
+  val t1  = instant(1997,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60)
+  check("tz1", "1998-01-01T19:45:00+12:00 (KOST)"){ t1.time(tz=z2).show } 
+  val t2  = instant(1998,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
+  check("tz2", "1999-01-01T18:44:59+11:00 (KOST)"){ t2.time(tz=z2).show } 
+  val t3  = instant(1978,12,31,12,1,0,tz=z1) + duration(14*3600 + 44*60) // across DST & leap second
+  check("tz3", "1979-01-01T11:14:59+03:30 (IRST)"){ t3.time(tz=z3).show } 
 
   check("tz3a", "2011-03-13T01:15:00-05:00 (EST)"){ time(2011,3,13,1,15,tz=z1).show } 
   check("tz3b", "2011-03-13T01:15:00-05:00 (EST)"){ time(2011,3,13,2,15,tz=z1).show } // non-existent: repeat previous hour for non-existent time!
@@ -46,8 +49,9 @@ fun test-tzs( tzs : timezones ) {
 
   // leap second in other time zone
   check("tzleap1", "2016-12-31T15:59:60.500-08:00 (PST)"){ instant(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=tzs.timezone("US/Pacific")).show } 
-  check("tzleap2", "1979-01-01T03:29:60.500+03:30 (IRST)"){ instant(1979,1,1,0,0,17,0.5,cal=cal-tai).time(tz=z2).show } 
-  check("tzleap3", "1978-12-31T23:59:59Z"){ instant(1979,1,1,3,29,59,tz=z2).time.show } 
+  check("tzleap2", "1999-01-01T10:59:60.500+11:00 (KOST)"){ instant(1999,1,1,0,0,31,0.5,cal=cal-tai).time(tz=z2).show } 
+  check("tzleap3", "1979-01-01T03:29:60.500+03:30 (IRST)"){ instant(1979,1,1,0,0,17,0.5,cal=cal-tai).time(tz=z3).show } 
+  check("tzleap4", "1978-12-31T23:59:59Z"){ instant(1979,1,1,3,29,59,tz=z3).time.show } 
   
   // round into a time zone skip
   //println( time(2011,3,13,2,59,59,0.9999,tz=z1).show )
@@ -55,15 +59,17 @@ fun test-tzs( tzs : timezones ) {
   check("tzround2", "2011-03-13T03:00:00-04:00 (EDT)"){ time(2011,3,13,2,59,59,0.9999,tz=z1).show(3) } 
 
   // round into a timezone leap second (across a DST zone)
-  check("tzroundleap1", "1978-12-31T23:59:60Z"){ instant(1979,1,1,3,29,59,0.9999,tz=z2).time.show(3) } 
-  check("tzroundleap2", "1979-01-01T03:29:60+03:30 (IRST)"){ time(1979,1,1,3,29,59,0.9999,tz=z2).show(3) } 
-
+  check("tzroundleap1", "1998-12-31T23:59:60Z"){ instant(1999,1,1,10,59,59,0.9999,tz=z2).time.show(3) } 
+  check("tzroundleap2", "1978-12-31T23:59:60Z"){ instant(1979,1,1,3,29,59,0.9999,tz=z3).time.show(3) } 
+  check("tzroundleap3", "1999-01-01T10:59:60+11:00 (KOST)"){ time(1999,1,1,10,59,59,0.9999,tz=z2).show(3) } 
+  check("tzroundleap4", "1979-01-01T03:29:60+03:30 (IRST)"){ time(1979,1,1,3,29,59,0.9999,tz=z3).show(3) } 
+  
   // Julian calendar
   check("julian1", "1900-02-29T00:00:00Z JC"){ time(1900,3,0,cal=cal-julian).show } 
 }
 
 
-fun test() {
+public fun test() {
   println( "tz-local(): " + now().time(tz=tz-local()).show )
   val tzs = on-exn(timezones-empty){ load-timezones(verbose=True) }
   println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
