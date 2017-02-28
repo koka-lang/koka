@@ -49,7 +49,7 @@ in practice:
   consider using TAI time and calendar instead.
 
 
-## Effect types
+## Effect types and future leap seconds
 
 Since UTC time calculations depend on a leap second table (`:leaps-table`),
 the UTC time scale can only be created from such table (`ts-utc-create`).
@@ -57,16 +57,13 @@ For most precise UTC time, you can use [`ts-utc-load`](std_time_download.html#ts
 to automatically download and cache the latest IERS leap second information.
 This can be somewhat cumbersome though as this is a function with an `:io` effect.
 
-
-## International Time (TI)
-
 International Time ([TI]) (or _Temps International_) is a proposed time scale
 that matches exactly UTC up to some date but with no further leap seconds
 added  after that -- which makes time calculations robust and deterministic
 with regard to future dates. For this reason, this library defaults to using
 TI instead of UTC. The TI time scale (`ts-ti`) is defined
 to exactly match UTC before the compiler release date (currently 2017) but
-ignores any leap seconds after that.
+ignores any future leap seconds.
 
 
 ## UTC between 1961 and 1972
@@ -234,10 +231,10 @@ University Science Books, 1992. [pdf][astroa]
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
 [utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
 [WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
-[UTC]: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
-[TAI]: https://en.wikipedia.org/wiki/International_Atomic_Time
-[TI]: http://www.bipm.org/cc/CCTF/Allowed/16/cctf04-27.pdf
-
+[UTC]: std_time_astro.html
+[TAI]: std_time_astro.html
+[TI]: std_time_astro.html
+[TIpropose]: https://syrte.obspm.fr/journees2004/pdf/McCarthy2.pdf#page=4
 \/
 */
 module std/time/utc
@@ -289,12 +286,12 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  unsafe-instant( timestamp( timespan(secs.trunc.int, secs.fraction + frac.fraction), frac.trunc.int), ts-unix-ti ) 
+  unsafe-instant( timestamp( timespan(secs.trunc.int, secs.fraction + frac.fraction), frac.trunc.int), ts-unix ) 
 }
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
 public fun unix-timestamp( i :instant ) : double {
-  i.timestamp(ts-unix-ti).seconds.double
+  i.timestamp(ts-unix).seconds.double
 }
 
 /*----------------------------------------------------------------------------
@@ -338,16 +335,20 @@ public fun ts-ntp-create( leaps : leaps-table ) : timescale {
   utc-timescale( "NTP", leaps, timestamp(3155673600) )
 }
 
-// The [TI] (_International Time_) time scale with a 2000-01-01Z UTC epoch. 
-// This is the default time scale used in this library -- it is defined
-// to match [UTC] time exactly up to the compiler release date (currently 2017)
-// and ignore any (currently unknown) future leap seconds. 
-// This means that starting at 2017-01-01Z, we have TI == TAI - 37s.
-public val ts-ti : timescale = utc-timescale( "TI", ti-leaps-table )
+/* The [TI] (_International Time_) time scale with a 2000-01-01Z UTC epoch. 
+This is the default time scale used in this library. It was a
+[proposed][TIpropose] time scale at the 2004 ITU-R meeting as a replacement of UTC
+without future leap seconds. In this library, we define TI to match
+exactly UTC up to the compiler release date (currently 2017) but ignore any
+possible future leap seconds after that date. This is the preferred time scale
+in this library as it guarantees deterministic time calculations for any
+future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 37s.
+*/
+public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds. 
 // It equals the `ts-ti` time scale except with a 1970-01-01 epoch.
-public val ts-unix-ti : timescale = ts-unix-create( ti-leaps-table )
+public val ts-unix : timescale = ts-unix-create( leaps-table-ti )
 
 
 // Standard seconds per day (=`86400`). Note that a UTC day can contain extra leap seconds.
@@ -399,11 +400,14 @@ fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
 }
 
 
-// Default TI leaps table has leap second information up to the compiler release
-public val ti-leaps-table : leaps-table = {
+// Leap second table up to 2017-01-01Z.
+public val leaps-table-y2017 : leaps-table = {
   val post72 = parse-leaps-table( default-ietf-leap-seconds ).default(leap-table0)
   post72.extend-ietf-leaps-table
 }
+
+// Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
+public val leaps-table-ti = leaps-table-y2017
 
 // Create a full leap second table from a parsed IETF leap seconds table.
 // The preferred way of loading the latest leap second table is through 
@@ -414,7 +418,7 @@ public fun extend-ietf-leaps-table( post72 : leaps-table ) : leaps-table {
 
 // Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time,
 // the base offset, the delta start date and the delta rate.
-public fun get-leap-steps( table : leaps-table = ti-leaps-table ) : list<(timestamp,timespan,timespan,(timespan,timestamp,decimal))> {
+public fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(timestamp,timespan,timespan,(timespan,timestamp,decimal))> {
   val adjusts = table.adjusts.reverse
   zip(Cons(zero,adjusts),adjusts).map( fun(las) {
     val ts = las.snd.utc-start
@@ -435,7 +439,7 @@ public fun get-leap-steps( table : leaps-table = ti-leaps-table ) : list<(timest
 // a leap second occurs. On such day, the leap second time step (positive or negative)
 // is distributed over the last 1000 seconds of the day. On the full hour, TI
 // and TI-SLS are equal again. 
-public val ts-ti-sls : timescale = utc-sls-create( "TI-SLS", ti-leaps-table )
+public val ts-ti-sls : timescale = utc-sls-create( "TI-SLS", leaps-table-ti )
 
 
 // Create a new UTC-SLS time scale from a provided leap second table `leaps`.

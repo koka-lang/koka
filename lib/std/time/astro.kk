@@ -8,34 +8,35 @@
 
 /* Time scales for astronomy (TT, TCG, TDB, and TCB).
 
-Internally all computations use `:fixed` numbers with 15 digits precision
-after the dot (and infinite range and precision before the dot). The
-different time scales relate as follows:
+Internally all computations use `:decimal` numbers with arbitray precision. 
+The different time scales relate as follows:
 
-* **TAI**, `ts-tai`: International Atomic Time. The atomic time standard
+* **TAI**, `ts-tai`, `cal-tai`: International Atomic Time. The atomic time standard
   measuring SI seconds on the Earth's geoid.
   
-* **GPS**, `ts-gps`: Global Positioning System. Runs at the same rate as
-  TAI but with a 19 second offset: GPS = TAI - 19.
+* **GPS**, `ts-gps`, `cal-gps`: Global Positioning System time. Runs at the same rate as
+  TAI but with a 19 second offset: GPS = TAI - 19s.
   
-* **UT1**, [`ts-ut1`](std_time_ut1.html): Universal Time: A time scale based
-  on the rotation of the earth where one rotation is 86400 seconds. 
+* **UT1**, [`cal-ut1-load`](std_time_ut1.html): Universal Time: A time scale based
+  on the rotation of the earth where one rotation is 86400 (solar) seconds. 
   Defined to be a linear function of the rotation angle of the Earth. 
   See the [``std/time/ut1``](std_time_ut1.html) module for more information.
   
-* **UTC**, [`ts-utc`](std_time_utc.html): Coordinated Universal Time: A hybrid of UT1 and TAI: uses
+* **UTC**, `ts-utc-create`, `cal-utc-load`: 
+  Coordinated Universal Time: A hybrid of UT1 and TAI: uses
   SI seconds as its unit, but inserts (or deletes) periodically leap
   seconds in order to stay within 0.9s of UT1. See the [`std/time/utc`](std_time_utc.html)
   module for more information.
 
-* **TI**, [`ts-ti`](std_time_utc.html#ts_ti): International Time: not an official time
-  scale but [proposed][TI] to avoid future leap seconds. In this library, `ts-ti` is
-  defined to match exactly UTC up to the compiler release date (currently 2017)
-  but ignore any possible future leap seconds. This is the preferred time scale
-  in this library as it guarantees deterministic time calculations for any future
-  date.
+* **TI**, `ts-ti`, `cal-iso`: International Time: this was a
+  [proposed][TIpropose] time scale at the 2004 ITU-R meeting as a replacement of UTC
+  without future leap seconds. In this library, we define TI to match
+  exactly UTC up to the compiler release date (currently 2017) but ignore any
+  possible future leap seconds after that date. This is the preferred time scale
+  in this library as it guarantees deterministic time calculations for any
+  future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 37s.
   
-* **TT**, `ts-tt`: Terrestrial time. This is an ideal time scale defined to
+* **[TT]**, `ts-tt`, `cal-tt`: Terrestrial time. This is an ideal time scale defined to
   run slower at a constant rate from TCG such that TT runs at the same rate as a
   time scale based on SI seconds on the Earth's geoid. Since TCG
   is a theoretical time scale, TT can be considered an idealized form
@@ -44,7 +45,7 @@ different time scales relate as follows:
   Terrestrial time replaces (and preserves continuity with) the older Terrestrial
   Dynamic Time (TDT) and Ephemeris Time (ET).
   
-* **TCG**, `ts-tcg`: Geocentric Coordinate Time. Theoretical clock using
+* **TCG**, `ts-tcg`, `cal-tcg`: Geocentric Coordinate Time. Theoretical clock using
   SI seconds in a coordinate reference frame at the center of the Earth.
   It is in a linear relationship with TT where TCG runs faster
   than TT at a constant rate. By definition, TCG and TT were equal on 1977-01-01Z.
@@ -52,7 +53,7 @@ different time scales relate as follows:
    (and updated to currently known [precision][IERS-2010])):\
   TCG = TT + L~g~&times;(JD~TCG~ - 2443144.5003725)&times;86400, with L~g~ = 6.969290134&times;10^-10^.
 
-* **TCB**, `ts-tcb`: Barycentric Coordinate Time. Theoretical clock using SI
+* **TCB**, `ts-tcb`, `cal-tcb`: Barycentric Coordinate Time. Theoretical clock using SI
    seconds in a coordinate reference frame at the gravitational center of the solar
    system. TCB and TCG are related by a coordinate transformation taking
    into account relativistic effects (see IAU 2000 resolution
@@ -63,7 +64,7 @@ different time scales relate as follows:
    with T~0~ = 2443144.5003725, L~b~ = 1.55051976772&times;10^-8^, TDB~0~
    = -6.55&times;10^-5^.
 
-* **TDB**, `ts-tdb`: Barycentric Dynamical Time. Defined to run slower at a
+* **TDB**, `ts-tdb`, `cal-tdb`: Barycentric Dynamical Time. Defined to run slower at a
    constant rate from TCB in order to be approximately equal to TT These
    relativistic corrections ensure a difference to TT of less then 2
    milli-seconds and are periodic with an average of zero. In the
@@ -122,7 +123,12 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 [IAU-B3]: http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf
 [IAU-IV]: https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932
 [IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1
-[TI]: http://www.bipm.org/cc/CCTF/Allowed/16/cctf04-27.pdf
+[TIpropose]: https://syrte.obspm.fr/journees2004/pdf/McCarthy2.pdf#page=4
+[Java time]: https://docs.oracle.com/javase/8/docs/api/java/time/Instant.html
+[UTC]: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
+[TAI]: https://en.wikipedia.org/wiki/International_Atomic_Time
+[UT1]: https://en.wikipedia.org/wiki/Universal_Time
+[TT]: https://en.wikipedia.org/wiki/Terrestrial_Time
 \/
 
 */
@@ -134,6 +140,10 @@ import std/time/duration
 import std/time/instant
 import std/time/calendar
 
+// for documentation
+import std/time/utc        // ts-ti
+import std/time/calendars  // cal-tai, cal-gps
+import std/time/download   // cal-utc-load
 
 // The Terrestrial (or Ephemeris) time calendar, i.e. an ISO calendar but using the `ts-tt` time scale.
 // TT is always `TAI + 32.184`

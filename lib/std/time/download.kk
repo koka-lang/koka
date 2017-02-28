@@ -8,7 +8,7 @@
 
 /* Automatic downloading of time information.
 
-   Provides auto download functions to download leap second tables (`update-leaps-table`),
+   Provides auto download functions to use the latest leap second tables,
    time zone information, and UT1 tables.
 */
 module std/time/download
@@ -21,6 +21,15 @@ import std/time/utc
 import std/time/chrono
 import std/time/calendar
 
+// Construct a smoothed UTC-SLS based ISO calendar (see `ts-utc-sls-create`),
+// using the latest IERS leap second information from file `fname` 
+// (= `"config/leap-seconds.list"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun cal-utc-sls-load( fname : path = path(""), 
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
@@ -32,6 +41,14 @@ public fun cal-utc-sls-load( fname : path = path(""),
   cal-utc-sls-create(leaps)
 }                       
 
+// Construct a UTC based ISO calendar using the latest IERS leap second information from file `fname` 
+// (= `"config/leap-seconds.list"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun cal-utc-load( fname : path = path(""), 
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
@@ -43,6 +60,14 @@ public fun cal-utc-load( fname : path = path(""),
   cal-utc-create(leaps)
 }                       
 
+// Construct a UTC time scale using the latest IERS leap second information from file `fname` 
+// (= `"config/leap-seconds.list"` in the application directory).
+// If the file is not present, it will be downloaded from `url`. The default `url` is:\
+// <https://www.ietf.org/timezones/data/leap-seconds.list>\
+// Set the `url` to the empty string to suppress automatic downloading. 
+// If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
+// The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
+// Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun ts-utc-load( fname : path = path(""), 
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
@@ -53,9 +78,7 @@ public fun ts-utc-load( fname : path = path(""),
   cal-utc-load(fname,url,download-delay,download-timeout,verbose).timescale
 }          
 
-// Update the internal leap second table precise UTC time calculation. If the internal table is not
-// yet expired (after 2017-01-01) nothing is done. 
-// Otherwise, it updates the internal table with the information in the file `fname` 
+// Load the latest leap second information from file `fname` 
 // (= `"config/leap-seconds.list"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
 // <https://www.ietf.org/timezones/data/leap-seconds.list>\
@@ -73,7 +96,7 @@ public fun load-leaps-table( fname : path = path(""),
   val xfname = (fname || appdir() + path("config/leap-seconds.list"))
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   val leaps  = load-latest( xfname, xurl, parse-leaps-table, fun(lt:leaps-table){ Just(lt.expire) }, 
-                            Just(ti-leaps-table),
+                            Just(leaps-table-ti),
                             download-timeout=download-timeout,download-delay=download-delay,
                             error-prefix="load IETF leap seconds table",
                             verbose=verbose

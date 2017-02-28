@@ -98,7 +98,7 @@ public fun tz-local() : ndet timezone {
   Timezone( 
     "",
     fun(i) { 
-      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix-ti).seconds.double) 
+      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double) 
       (duration(ofs.timespan),abbrv)
     }
   )
