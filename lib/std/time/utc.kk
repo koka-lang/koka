@@ -215,23 +215,24 @@ is calculated and uses historical data for time steps before 1972.
 
 ~ Bibliography
 
-~~ BibItem { #Arias:utc }
+~~ BibItem { #Arias:utc; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
 E.F.\ Arias and B.\ Guinot.
 _Coordinated universal time UTC: historical background and perspectives_. 
 Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 2004.
-[pdf][astroa].
+[pdf][utchistory].
 ~~
 
-~~ BibItem { #Almanac }
+~~ BibItem { #Almanac; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
 P.K.\ Seidelmann.
 _Explanatory Supplement to the Astronomical Almanac_. 
-University Science Books, 1992.
+University Science Books, 1992. [pdf][astroa]
 ~~
 ~
 
 [ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
 [dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
+[utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
 [WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
 [UTC]: https://en.wikipedia.org/wiki/Coordinated_Universal_Time
 [TAI]: https://en.wikipedia.org/wiki/International_Atomic_Time
@@ -341,6 +342,7 @@ public fun ts-ntp-create( leaps : leaps-table ) : timescale {
 // This is the default time scale used in this library -- it is defined
 // to match [UTC] time exactly up to the compiler release date (currently 2017)
 // and ignore any (currently unknown) future leap seconds. 
+// This means that starting at 2017-01-01Z, we have TI == TAI - 37s.
 public val ts-ti : timescale = utc-timescale( "TI", ti-leaps-table )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds. 
