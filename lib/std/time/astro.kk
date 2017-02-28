@@ -27,6 +27,13 @@ different time scales relate as follows:
   SI seconds as its unit, but inserts (or deletes) periodically leap
   seconds in order to stay within 0.9s of UT1. See the [`std/time/utc`](std_time_utc.html)
   module for more information.
+
+* **TI**, [`ts-ti`](std_time_utc.html#ts_ti): International Time: not an official time
+  scale but [proposed][TI] to avoid future leap seconds. In this library, `ts-ti` is
+  defined to match exactly UTC up to the compiler release date (currently 2017)
+  but ignore any possible future leap seconds. This is the preferred time scale
+  in this library as it guarantees deterministic time calculations for any future
+  date.
   
 * **TT**, `ts-tt`: Terrestrial time. This is an ideal time scale defined to
   run slower at a constant rate from TCG such that TT runs at the same rate as a
@@ -115,6 +122,8 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 [IAU-B3]: http://www.iau.org/static/resolutions/IAU2006_Resol3.pdf
 [IAU-IV]: https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932
 [IERS-2010]: https://www.iers.org/SharedDocs/Publikationen/EN/IERS/Publications/tn/TechnNote36/tn36.pdf?__blob=publicationFile&v=1
+[TI]: http://www.bipm.org/cc/CCTF/Allowed/16/cctf04-27.pdf
+\/
 
 */
 module std/time/astro

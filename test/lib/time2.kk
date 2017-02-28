@@ -57,6 +57,6 @@ fun test-leap() {
 }
 
 public fun main() {
-  update-leaps-table(verbose=True)
+  //update-leaps-table(verbose=True)
   test-leap()
 }

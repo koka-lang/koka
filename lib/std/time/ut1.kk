@@ -177,7 +177,8 @@ fun load-latest-iersA( fname : path, url   : string,
                             error-prefix="load IERS A data (" + fname.basename + ")",
                             verbose=verbose
                           )
-  (fun(i:instant){ dut-deltat(dtt,i) })
+  val ts-utc = ts-utc-load(verbose=verbose)
+  (fun(i:instant){ dut-deltat(ts-utc, dtt,i) })
 }
 
 
@@ -195,7 +196,7 @@ struct dut-table(
 
 // Calculate &Delta;T from a DUT table.
 // Interpolates linearly between daily entries.
-fun dut-deltat( dtt : dut-table, i : instant ) : maybe<duration> {
+fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration> {
   on-exn(Nothing) {
     val utci = i.use(ts-utc)
     val mjd = utci.mjd(ts-utc).double
@@ -234,7 +235,7 @@ fun parse-iersA( s : string ) : maybe<dut-table> {
   val expire  = (match(mbexp) {
                   Just(cap) -> cap.groups[1].parse-double-default(end - 365.0)
                   Nothing   -> end - 365.0  // guess one year early
-                }).instant-at-mjd(ts-utc)  
+                }).instant-at-mjd(ts-ti)  
   // trace("finals200A expire: " + expire.time.show)
   // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
   // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )

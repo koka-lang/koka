@@ -86,7 +86,7 @@ fun check(name : string, res : string, got: string ) : io () {
 
 fun check-info( info : info ) : io () {
   println("\n" + info.show)
-  val i = instant-at-jd(info.jd,ts-utc)
+  val i = instant-at-jd(info.jd,ts-ti)
   val t = i.time
   fun check-date( name : string, res : string, cal : calendar, mpre : string = "", swidth : int = 2 ) {
     val tc  = t.time(cal=cal)    
@@ -94,8 +94,8 @@ fun check-info( info : info ) : io () {
     check(name, res + "/" + info.jd.show, got)
   }
 
-  check("mjd", info.mjd.show, i.mjd(ts-utc).show)
-  check("jd", info.jd.show, i.jd(ts-utc).show)
+  check("mjd", info.mjd.show, i.mjd(ts-ti).show)
+  check("jd", info.jd.show, i.jd(ts-ti).show)
   //check("wday", info.wday.show, t.weekday.show)
   //check("weekdate", info.isoweek, t.weekdate.show)
   

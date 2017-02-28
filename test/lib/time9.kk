@@ -20,7 +20,7 @@ public import std/time
 val mjd-y2000 = 51544
 
 fun date-at-days( days : int, cal : calendar ) : date {
-  instant-at-mjd( decimal(days + mjd-y2000), ts-utc ).time(cal=cal).date
+  instant-at-mjd( decimal(days + mjd-y2000), ts-ti ).time(cal=cal).date
 }
 
 fun days-at-date( date : date, cal : calendar ) : int {

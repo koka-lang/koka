@@ -98,7 +98,7 @@ public fun tz-local() : ndet timezone {
   Timezone( 
     "",
     fun(i) { 
-      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double) 
+      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix-ti).seconds.double) 
       (duration(ofs.timespan),abbrv)
     }
   )
@@ -249,7 +249,7 @@ public fun earth-calendar(
               date-to-days  : date -> int,
               month-prefix  : string = "",
               show-era      : (date)->string = fun(d){ "" },
-              ts   : timescale = ts-utc
+              ts   : timescale = ts-ti
             ) : calendar
 {
   val epoch-shift = ts.timescale-y2k.timespan(ts)  
@@ -374,7 +374,7 @@ public fun solar-calendar( name : string, long-name: string,
                     has-year-zero?: bool = True,
                     month-prefix  : string = "",
                     show-era      : (date)->string = fun(d){ "" },
-                    ts            : timescale = ts-utc ) : calendar 
+                    ts            : timescale = ts-ti ) : calendar 
 {
   fun date-to-days( d : date ) : int {
     val y = if (has-year-zero? || d.year.pos?) then d.year else d.year.inc
@@ -425,7 +425,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
                       has-year-zero?: bool = True,
                       month-prefix  : string = "",
                       show-era      : (date)->string = fun(d){ "" },
-                      ts            : timescale = ts-utc )  : calendar
+                      ts            : timescale = ts-ti )  : calendar
 {
   fun days-to-yeardoy(days:int) : (int,int) {
     val (approx,safe) = estimate-year(days)
@@ -461,12 +461,29 @@ public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : st
 }
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// using UTC time. This is a proleptic Gregorian 
+// using TI time (`ts-ti`). This is a proleptic Gregorian 
 // calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
-public val cal-iso = iso-calendar( ts-utc, "", "ISO" )
+//
+// This is the default calendar used in the library as it guarantees deterministic
+// date calculations while still taking historical leap seconds into account.
+public val cal-iso = iso-calendar( ts-ti, "", "ISO" )
+
+// Create a standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
+// using UTC time (`ts-utc-create`) given a provide leap second table (`:leaps-table`). 
+// This is a proleptic Gregorian 
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
+//
+// You can create an ISO 8601 UTC calendar using the latest IETF leap
+// second data using [`cal-utc-load`](std_time_download.html#cal_utc_load).
+public fun cal-utc-create( leaps : leaps-table ) : calendar {
+  val ts-utc = ts-utc-create(leaps)
+  iso-calendar( ts-utc, "", "ISO" )
+}
+
 
 /* The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-but using UTC-SLS time (`ts-utc-sls`), i.e. UTC with [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
+but using TI-SLS time (`ts-ti-sls`), i.e. TI with 
+[smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
 
 This calendar is equivalent to the ISO calendar except for the last 1000 seconds of a day where
 a leap second occurs. On such day, the leap second time step (positive or negative)
@@ -476,7 +493,14 @@ This is a recommended calendar to use for
 time stamps or communication with other services since it avoids any potential trouble
 with leap seconds while still being quite precise.
 */
-public val cal-iso-sls = iso-calendar( ts-utc-sls, "", "ISO" )
+public val cal-iso-sls = iso-calendar( ts-ti-sls, "", "ISO-SLS" )
+
+// Create a new ISO 8601 calendar based on UTC-SLS time, i.e. UTC with smoothed leap
+// seconds. 
+public fun cal-utc-sls-create( leaps : leaps-table ) : calendar {
+  val ts-utc-sls = ts-utc-sls-create(leaps)
+  iso-calendar( ts-utc-sls, "", "ISO-SLS" )
+}
 
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).

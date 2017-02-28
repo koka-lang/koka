@@ -28,11 +28,11 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 
 fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex  }
-  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex  }
+  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).timestamp(ts-unix-ti).seconds.int.show-hex  }
+  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).timestamp(ts-unix-ti).seconds.int.show-hex  }
 }
 
-fun test-jd() {
+fun test-jd(ts-utc) {
   check("jd0","2451545"){  instant(2000,1,1,12,0,0).jd(ts-utc).show  }
   check("jd1","2456293.520833333"){  instant(2013,1,1,0,30,0).jd(ts-utc).show(9)  }
   check("jd2","-04713-11-24T12:00:00Z"){  instant-at-jd(0.0,ts-utc).time.show  }
@@ -60,7 +60,7 @@ public val sofai = instant(2006,1,15,21,24,37,0.5)
 
 // from: <http://www.iausofa.org/sofa_ts_c.pdf>
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
-fun test-sofa() {
+fun test-sofa(ts-utc) {
   check("sofa1","2010-07-24T11:19:13.502Z TT"){  instant(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show  }
   check("sofa2","2454526.499998842593"){  instant(2008,2,29,23,59,59,0.9).jd(ts-utc).show(12)  }
   check("sofa3","2008-03-01T00:00:00Z"){  instant(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show  }
@@ -82,8 +82,9 @@ fun test-sofa() {
 }
 
 public fun main() {
+  val ts-utc = ts-utc-load()
   test-misc()
-  test-jd()
+  test-jd(ts-utc)
   test-astro()
-  test-sofa()
+  test-sofa(ts-utc)
 }

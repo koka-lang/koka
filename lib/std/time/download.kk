@@ -19,6 +19,39 @@ import std/time/duration
 import std/time/instant
 import std/time/utc
 import std/time/chrono
+import std/time/calendar
+
+public fun cal-utc-sls-load( fname : path = path(""), 
+                         url   : string = "auto",
+                         download-delay : duration   = 4.weeks,
+                         download-timeout : duration = 5.seconds,
+                         verbose : bool = False
+                       ) : <io,async> calendar
+{
+  val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
+  cal-utc-sls-create(leaps)
+}                       
+
+public fun cal-utc-load( fname : path = path(""), 
+                         url   : string = "auto",
+                         download-delay : duration   = 4.weeks,
+                         download-timeout : duration = 5.seconds,
+                         verbose : bool = False
+                       ) : <io,async> calendar
+{
+  val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
+  cal-utc-create(leaps)
+}                       
+
+public fun ts-utc-load( fname : path = path(""), 
+                         url   : string = "auto",
+                         download-delay : duration   = 4.weeks,
+                         download-timeout : duration = 5.seconds,
+                         verbose : bool = False
+                       ) : <io,async> timescale
+{
+  cal-utc-load(fname,url,download-delay,download-timeout,verbose).timescale
+}          
 
 // Update the internal leap second table precise UTC time calculation. If the internal table is not
 // yet expired (after 2017-01-01) nothing is done. 
@@ -30,22 +63,22 @@ import std/time/chrono
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
-public fun update-leaps-table( fname : path = path(""), 
+public fun load-leaps-table( fname : path = path(""), 
                                url   : string = "auto",
                                download-delay : duration   = 4.weeks,
                                download-timeout : duration = 5.seconds,
                                verbose : bool = False
-                             ) : <io,async> () 
+                             ) : <io,async> leaps-table 
 {
   val xfname = (fname || appdir() + path("config/leap-seconds.list"))
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   val leaps  = load-latest( xfname, xurl, parse-leaps-table, fun(lt:leaps-table){ Just(lt.expire) }, 
-                            Just(get-leaps-table()),
+                            Just(ti-leaps-table),
                             download-timeout=download-timeout,download-delay=download-delay,
                             error-prefix="load IETF leap seconds table",
                             verbose=verbose
                           )
-  set-leaps-table(leaps)
+  leaps
 }
 
 
@@ -78,6 +111,7 @@ public fun load-latest( fname  : path,
   fun warn(msg) {    
     if (verbose) then trace("warning: " + msg.full) else ()
   }
+
   // is the current data still valid? 
   val unow  = now()
   match(current) {
