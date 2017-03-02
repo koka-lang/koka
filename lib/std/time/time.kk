@@ -162,8 +162,19 @@ public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calend
   time(t.instant,tz,cal)
 }
 
-// Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default) 
-// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
+/* Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default) 
+interpreted by calendar `cal` (=`cal-iso`). 
+
+The `month`, `day`, `hour`, `minutes` may be outside their usual ranges 
+and will be normalized during the conversion. For example, January 33 converts to February 2.
+This makes it very easy to add- or subtract days or months to an existing time.
+When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are 
+interpreted as leap seconds.
+
+Due to timezone transitions, or leap seconds, it is possible to specify dates that never
+happened (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
+In such cases, the time is always interpreted in the earlier timezone.
+*/
 public fun time( year : int, month : int = 1, day : int = 1, 
                  hours : int = 0, minutes : int = 0, secs : int = 0, 
                  frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time 

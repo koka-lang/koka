@@ -174,12 +174,14 @@ public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-
 /* Return the instant in time for a given date and clock interpreted by 
    calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
 
-  The `month`, `day`, `hour`, `minutes`, and `seconds` may be outside their usual ranges 
+  The `month`, `day`, `hour`, `minutes` may be outside their usual ranges 
   and will be normalized during the conversion. For example, January 33 converts to February 2.
   This makes it very easy to add- or subtract days or months to an existing time.
+  When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are 
+  interpreted as leap seconds.
 
   Due to timezone transitions, or leap seconds, it is possible to specify dates that never
-  happend (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
+  happened (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
   In such cases, the time is always interpreted in the earlier timezone.
 */
 public fun instant( year : int, month : int = 1, day : int = 1, 
@@ -288,7 +290,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = date-to-days( d(day = d.day + xdays) )
   //trace("dc-to-ts: " + d.show + "T" + c.show + ", xdays: " + xdays.show + ", xsecs: " + xsecs.show + ", sdays: " + sdays.show )
-  timestamp( sdays*secs-per-day + xsecs, frac ).add-leap-seconds(leaps.timespan)  
+  timestamp( sdays*secs-per-day + xsecs, frac ).adjust-leap-seconds(leaps.timespan)  
 }
 
 

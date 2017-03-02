@@ -40,12 +40,17 @@ public fun timespan( secs : double ) : timespan {
 // A time stamp is a `:timespan` since some epoch. Time stamps also keep 
 // track of possible leap seconds when the unit is in [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
 //
-// When using Unix/UTC seconds, the `leap-seconds` field is non-zero if this `:timestamp` is inside a leap 
-// second. It is _not_ the total number of leap seconds that have occurred. 
+// When using Unix/UTC seconds, the `leap-adjust` field is non-zero if this `:timestamp` is inside a leap 
+// second. It is _not_ the total number of leap seconds that have occurred up to that time, but is used
+// as an adjustment to signify the time is in a particular leap second. For example, for a regular
+// leap second we have:\
+// ``2016-12-31T23:59:59Z`` = 536543999 with a `leap-adjust` of 0.\
+// ``2016-12-31T23:59:60Z`` = 536543999 with a `leap-adjust` of 1.\
+// ``2017-01-01Z`` = 536544000 with a `leap-adjust` of 0 again.
 abstract struct timestamp(
   since : timespan,
-  // the extra leap seconds
-  public leap-seconds : int
+  // the extra leap seconds; zero for any time scale except non-monotonic ones like Unix time.
+  public leap-adjust : int
 )
 
 // The time stamp at its epoch.
@@ -53,20 +58,20 @@ public val timestamp0 : timestamp = Timestamp(zero,0)
 
 
 // Create a time stamp from a `:timespan` since some epoch.
-public fun timestamp( t : timespan, leap-seconds : int = 0 ) : timestamp {
-  Timestamp(t,leap-seconds)
+public fun timestamp( t : timespan, leap-adjust : int = 0 ) : timestamp {
+  Timestamp(t,leap-adjust)
 }
 
 // Create a time stamp in seconds and fraction of seconds since its epoch.
-// Can also pass possible `leap-seconds` (=`0`). If the unit is in Unix seconds
+// Can also pass possible `leap-adjust` (=`0`). If the unit is in Unix seconds
 // (where a day is always 86400 seconds) this is used to indicate extra leap seconds in that day.
-public fun timestamp( secs : int, frac : double = 0.0, leap-seconds : int = 0 ) : timestamp {
-  timestamp(timespan(secs,frac), leap-seconds)
+public fun timestamp( secs : int, frac : double = 0.0, leap-adjust : int = 0 ) : timestamp {
+  timestamp(timespan(secs,frac), leap-adjust)
 }
 
 // Create a time stamp in seconds since its epoch
-public fun timestamp( secs : double, leap-seconds : int = 0 ) : timestamp {
-  timestamp(timespan(secs),leap-seconds)
+public fun timestamp( secs : double, leap-adjust : int = 0 ) : timestamp {
+  timestamp(timespan(secs),leap-adjust)
 }
 
 // The time span since the epoch of the time stamp. (including leap seconds)
@@ -75,47 +80,42 @@ public fun timespan( ts : timestamp ) : timespan {
 }
 
 // The total seconds (in some time unit) since the epoch of the time stamp.
-// This includes possible leap seconds.
+// This includes a possible leap adjustment. 
 public fun seconds( ts : timestamp ) : timespan {
-  ts.since + ts.leap-seconds.timespan
+  ts.since + ts.leap-adjust.timespan
 }
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
-public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
-  Timestamp(t.since.round-to-prec(prec), t.leap-seconds)
-}
-
-
-// Forget the leap seconds.
-public fun without-leap-seconds( ts : timestamp ) : timestamp {
-  Timestamp(ts.since,0)
+public fun round-to-prec(t : timestamp, prec : int ) : timestamp {  
+  Timestamp(t.since.round-to-prec(prec), t.leap-adjust)
 }
 
 // Return the non-leap seconds since its epoch.
-public fun non-leap-seconds( ts : timestamp ) : timespan {
+// `t.seconds == t.unadjusted-seconds + t.leap-adjust.timespan`.
+public fun unadjusted-seconds( ts : timestamp ) : timespan {
   ts.since
 }
 
-// Add `leaps` leap seconds to the time stamp.
-public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
+// Add `leaps` leap seconds to the leap adjustment of the timestamp.
+public fun adjust-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
   if (!leaps.pos?) then ts 
-  elif (leaps < timespan(1.0) && ts.leap-seconds.zero?) 
+  elif (leaps < timespan(1.0) && ts.leap-adjust.zero?) 
    then Timestamp( (ts.since - 1.timespan) + leaps, 1)
-   else Timestamp( ts.since + leaps.fraction.timespan, ts.leap-seconds + leaps.trunc )
+   else Timestamp( ts.since + leaps.fraction.timespan, ts.leap-adjust + leaps.trunc )
 }
 
 
 
-// Return the total non-leap seconds, the positive fraction (in the range [0,1.0>), and the leap seconds.
+// Return the total non-leap seconds, the positive fraction (in the range [0,1.0>), and the leap adjustment.
 // This is used when displaying calendar time such that leap seconds can be displayed correctly.
 public fun calendar-seconds( ts : timestamp ) : (int,double,int) {
-  (ts.since.floor, ts.since.ffraction, ts.leap-seconds)
+  (ts.since.floor, ts.since.ffraction, ts.leap-adjust)
 }
 
 // Compare two `:timestamp`s. 
 public fun compare( i : timestamp, j : timestamp ) : order {
   match(compare(i.since,j.since)) {  // compare without leap-seconds first!
-    Eq  -> compare(i.leap-seconds,j.leap-seconds)
+    Eq  -> compare(i.leap-adjust,j.leap-adjust)
     ord -> ord
   }
 }
@@ -139,12 +139,12 @@ public fun max( i : timestamp, j : timestamp ) : timestamp {
 
 // Add a time span to a time stamp.
 public fun (+)( ts : timestamp, t : timespan ) : timestamp {
-  Timestamp(ts.since + t, ts.leap-seconds)
+  Timestamp(ts.since + t, ts.leap-adjust)
 }
 
 // Subtract a time span from a time stamp.
 public fun (-)( ts : timestamp, t : timespan ) : timestamp {
-  Timestamp(ts.since - t, ts.leap-seconds)
+  Timestamp(ts.since - t, ts.leap-adjust)
 }
 
 // Difference between two time stamps.
@@ -155,7 +155,7 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 // Show a time stamp (without the `s` postfix).
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
   val s = ts.since.show(max-prec=max-prec)
-  val l = if (ts.leap-seconds.zero?) then "" else " (+" + ts.leap-seconds.show + " leap)"
+  val l = if (ts.leap-adjust.zero?) then "" else " (+" + ts.leap-adjust.show + " leap)"
   //trace("show timestamp: " + s + ", " + ts.since.show + ", " + ts.since.show(max-prec))
   match(s.find(".")) {
     Nothing -> s.pad-left(secs-width,'0') + l

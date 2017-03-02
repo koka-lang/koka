@@ -134,10 +134,17 @@ public fun timespan( i : instant, tscale : timescale = ts-tai ) : timespan {
 }
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
-// Be careful to ensure that `t` should indeed be interepreted in the given time scale.
+// Be careful to ensure that `t` should indeed be interpreted in the given time scale.
 public fun unsafe-instant( t : timestamp, ts : timescale ) : instant {
   Instant(t,ts)
 }
+
+// Create an instant from a time span in `seconds` interpreted in time scale `ts`.\
+// Be careful to ensure that `secs` should indeed be interpreted in the given time scale.
+public fun unsafe-instant( secs : int, ts : timescale ) : instant {
+  unsafe-instant(secs.timestamp, ts)
+}
+
 
 // Round an instant to a certain precision (`prec` is number of digits of the fraction of the second).\
 // Takes special care for instants that use a UTC timescale to round into leap seconds if appropriate.
@@ -349,7 +356,7 @@ public fun instant-at-mjd( mjd : decimal, tscale : timescale  ) : instant {
                         then (secs-per-day.dec, sid.inc - secs-per-day)
                         else (sid,zero)
   val ts1  = tscale.y2k-epoch + (days*secs-per-day) + nlsecs
-  val ts2  = ts1.add-leap-seconds(lsecs)
+  val ts2  = ts1.adjust-leap-seconds(lsecs)
   unsafe-instant(ts2,tscale) 
 }
 
@@ -386,14 +393,14 @@ public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) 
   val ts      = ts0 + delta
   if (daysecs==secs-per-day) then {
     // without leap seconds, just divide. 
-    div((ts.non-leap-seconds - tscale.y2k-epoch.timespan), secs-per-day, femto) + mjd-epoch-delta
+    div((ts.unadjusted-seconds - tscale.y2k-epoch.timespan), secs-per-day, femto) + mjd-epoch-delta
   }
   else {
     // otherwise, divide the non-leap-seconds first, but for the seconds in the day
     // divide by the longer day so the day fraction is correct.
     // trace("mjd: day seconds: " + daysecs.show)
-    val leaps = ts.leap-seconds
-    val secs  = (ts.non-leap-seconds - tscale.y2k-epoch.timespan)
+    val leaps = ts.leap-adjust
+    val secs  = (ts.unadjusted-seconds - tscale.y2k-epoch.timespan)
     val w     = div(secs, secs-per-day, femto).floor.timespan
     val r     = secs - (w * secs-per-day)
     val f     = div(r + leaps.timespan, daysecs, femto+3) // see: test/lib/time3, jdleapx2  -- extra precision required on leap seconds
