@@ -25,7 +25,6 @@ fun check(name : string, res : string, tst : () -> ndet string ) : io () {
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
-
 fun test-tzs( tzs : timezones ) {
   val z1  = tzs.timezone("America/New_York")
   val z2  = tzs.timezone("Pacific/Kosrae")

@@ -54,6 +54,10 @@ fun test-leap() {
   check("leap-neg1", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai).show(6)  }
   check("leap-neg2", "1968-02-01T00:00:06.235682Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show(6)  }  // overflow of leap seconds
   check("leap-neg3", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,2,1).time(cal=cal-tai).show  }
+  // durations over leap seconds
+  check("leap-sub1","1.5s") { (time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show }
+  check("leap-sub2","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show }
+  check("leap-sub3","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3))).show }
 }
 
 public fun main() {

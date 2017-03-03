@@ -189,6 +189,7 @@ public fun instant( year : int, month : int = 1, day : int = 1,
                     frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
 {
   val fsecs = timespan(seconds,frac)
+  //trace("instant: " + seconds.show + "+" + frac.show + ", t:" + fsecs.show)
   instant( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
 }
 
@@ -286,6 +287,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   // Get seconds and leap seconds (if the clock has seconds > 59)
   val secs = c.seconds.trunc
   val frac = c.seconds.fraction
+  //trace("dc-to-timestamp: " + c.show + ", secs/frac:" + secs.show + "+" + frac.show)
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
   val (xdays,xsecs) = divmod( ((((c.hours*60) + c.minutes)*60) + fsecs), secs-per-day )
   val sdays = date-to-days( d(day = d.day + xdays) )
