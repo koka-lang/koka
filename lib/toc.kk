@@ -32,7 +32,6 @@ import std/text/unicode
 
 import std/num/decimal
 import std/num/int32
-import std/num/fixed
 
 import std/time
 import std/time/astro

@@ -20,3 +20,8 @@ leap-ovf4 : ok: 2017-01-01T00:00:37Z TAI
 leap-neg1 : ok: 1968-02-01T00:00:06.185682Z TAI
 leap-neg2 : ok: 1968-02-01T00:00:06.235682Z TAI
 leap-neg3 : ok: 1968-02-01T00:00:06.185682Z TAI
+leap-sub1 : ok: 1.5s
+leap-sub2 : ok: 2.5s
+leap-sub3 : ok: 2.5s
+add-days1 : ok: 2017-01-01T12:00:00Z
+add-days2 : ok: 1582-10-15T00:00:00Z JG
