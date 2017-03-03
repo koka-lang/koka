@@ -117,12 +117,14 @@ import std/time/timezone
 
 fun test-timezones() {
   val tzs = load-timezones()
-  val z1  = tzs.timezone("America/New_York")
-  val z2  = tzs.timezone("Asia/Tehran")
-  val t1  = instant(1978,12,30,12,1,0,tz=z1) + (14.hours + 44.minutes)
-  t1.time(tz=z2).show.println()  // 1978-12-31T11:45:00+04:00 (IRST)
-  val t2  = instant(1978,12,31,12,1,0,tz=z1) + (14.hours + 44.minutes) // across DST & leap second
-  t2.time(tz=z2).show.println   // 1979-01-01T11:14:59+03:30 (IRST)"
+  val tz1 = tzs.timezone("America/New_York")
+  val tz2 = tzs.timezone("Pacific/Kosrae")
+  
+  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // A flight of 12.5 hours from New York to Kosrae
+  t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00 (KOST)"
+  
+  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // again, but across DST & leap second
+  t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00 (KOST)"
 }
 ```
 

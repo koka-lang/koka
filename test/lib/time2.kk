@@ -58,6 +58,8 @@ fun test-leap() {
   check("leap-sub1","1.5s") { (time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show }
   check("leap-sub2","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show }
   check("leap-sub3","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3))).show }
+  check("add-days1","2017-01-01T12:00:00Z") { time(2016,12,31,12).add-days(1).show }
+  check("add-days2","1582-10-15T00:00:00Z JG") { time(1582,10,4,cal=cal-jg).add-days(1).show}
 }
 
 public fun main() {

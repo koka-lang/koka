@@ -25,6 +25,16 @@ fun check(name : string, res : string, tst : () -> ndet string ) : io () {
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
+public fun test-timezones() {
+  val tzs = load-timezones()
+  val tz1 = tzs.timezone("America/New_York")
+  val tz2 = tzs.timezone("Pacific/Kosrae")
+  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
+  t1.time(tz=tz2).show.println // "1998-01-01T19:45:00+12:00 (KOST)"
+  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // across DST & leap second
+  t2.time(tz=tz2).show.println // 
+}
+
 fun test-tzs( tzs : timezones ) {
   val z1  = tzs.timezone("America/New_York")
   val z2  = tzs.timezone("Pacific/Kosrae")
