@@ -239,14 +239,14 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
     }
   }
 
-  val q1 = match(rnd) {
+  val q1 = if (r.zero?) then q else match(rnd) {
     Even     -> round-half(q.even?)
     HalfUp   -> round-half(q.neg?)
     HalfDown -> round-half(q.pos?)
     Floor    -> q
     Ceil     -> q.inc
-    Up       -> if (q.neg?) then q else q.inc
-    Down     -> if (q.pos?) then q else q.inc
+    Up       -> if (!q.pos?) then q else q.inc
+    Down     -> if (!q.neg?) then q else q.inc
   }
 
   //trace("round: " + x.showx + ", q: " + q.show + ", r: " + r.show + ", q1: " + q1.show + "e-" + prec.show )
