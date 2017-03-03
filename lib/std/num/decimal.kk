@@ -229,7 +229,7 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
   if (!p.pos?) return cx  // already less than prec precision
 
   val (q,r) = cx.num.divmod-pow10(p)
-    
+
   fun round-half( keep-on-eq : bool ) {
     val half = p.pow10 / 2
     match(compare(r,half)) {
@@ -239,7 +239,7 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
     }
   }
 
-  val q1 = if (r.zero?) then q else match(rnd) {
+  val q1 = if (r.zero?) then q else match(rnd) {  
     Even     -> round-half(q.even?)
     HalfUp   -> round-half(q.neg?)
     HalfDown -> round-half(q.pos?)
@@ -276,7 +276,7 @@ for example divide with larger precision and use `round-to-prec`.
 0
 > div( decimal(2), decimal(3), 1 )
 0.6
-> div( decimal(2), decimal(3) )  default precision is 15
+> div( decimal(2), decimal(3) )  // default precision is 15
 0.6666666666666666
 > div( decimal(2), decimal(3) ).round-to-prec(6)
 0.666667
