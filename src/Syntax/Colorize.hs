@@ -243,6 +243,7 @@ showDoc :: Env -> KGamma -> Gamma -> String -> String
 showDoc env kgamma gamma [] = ""
 showDoc env kgamma gamma doc
   = -- concat $ showLexemes env kgamma gamma [Lexeme rangeNull (LexComment (removeComment doc))]
+    -- trace("showDoc:\n" ++ doc ++ "\n\n" ++ removeComment doc ++ "\n\n") $
     doctag "div" (prefix ++ "comment") $
     doctag "xmp" "" $
     capitalize $ 
@@ -417,26 +418,27 @@ removeCommentOpenClose lex
       _ -> lex
 
 removeComment s
-  = let t = unlines (align (map remove (lines s)))
-    in if null t then [] else init t
+  = case dropWhile isSpace s of
+      ('/':'/':_)  -> align $ removeLineComments s
+      ('/':'*':cs) -> align $ removeBlockComment cs
+      _            -> s
   where
-    isCommentStart 
-      = case dropWhile isSpace s of
-          ('/':'/':_) -> True
-          ('/':'*':_) -> True
-          _           -> False
-
-    remove line
+    removeLineComments s 
+      = unlines (map removeLineComment (lines s))
+    removeLineComment line
       = let (pre,post) = Prelude.span isSpace line
         in case post of
           ('/':'/':cs)  -> pre ++ "  " ++ cs
-          ('/':'*':cs)  -> pre ++ "  " ++ cs
-          _ -> case reverse line of
-                 ('/':'*':cs) -> reverse (dropWhile isSpace cs)
-                 _            -> line
+          _ -> line
+         
+    removeBlockComment s
+      = case reverse s of
+          ('/':'*':cs) -> reverse cs  -- (dropWhile isSpace cs) 
+          _ -> s
 
-
-    align ls
+    align s
+      = unlines (alignLines (lines s))
+    alignLines ls
       = let n = minimum (0:(map (length . takeWhile isSpace) (filter (not . null . dropWhile isSpace) ls)))
         in map (drop n) ls
 
