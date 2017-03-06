@@ -1621,6 +1621,11 @@ extern inline neginf? : (double) -> bool {
   js inline "((#1) === Number.NEGATIVE_INFINITY)"
 }
 
+// Is this a finite number (i.e. not `nan` or infinity)
+extern inline finite?( d : double ) : bool {
+  js "isFinite"
+}
+
 
 // Returns the value `d`  raised to the power `p` .
 extern inline (^) : (d:double,p:double) -> double {
@@ -1699,6 +1704,16 @@ fun pow10( p : double ) : double {
 // Return the 2 to the power of `p`.
 fun pow2( p : double ) : double {
   pow(2.0,p)
+}
+
+// Return _e_ to the power of `p`.
+extern inline exp( p : double ) : double {
+  js "Math.exp"
+}
+
+// Return the logarithm in base _e_.
+extern inline ln( d : double ) : double {
+  js "Math.log"
 }
 
 // Round a double to a specified precision
