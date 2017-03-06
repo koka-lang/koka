@@ -210,7 +210,7 @@ is calculated and uses historical data for time steps before 1972.
 
 ## References { - }
 
-~ Bibliography
+~ Bibliography { caption:"9" }
 
 ~~ BibItem { #Arias:utc; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
 E.F.\ Arias and B.\ Guinot.

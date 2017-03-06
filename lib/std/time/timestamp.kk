@@ -17,8 +17,8 @@ module std/time/timestamp
 import std/text/regex
 import std/num/ddouble
 
-// Time spans are just fixed point numbers. This gives arbitrary range
-// with up to femto-second precision (10^-15^s).
+// Time spans are just a `:ddouble`; this gives it very high precision
+// and range to represent time very precisely. (see the [`instant`](std_time_instant.html) module)
 public alias timespan = ddouble
 
 // A zero-valued timespan.

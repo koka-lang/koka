@@ -8,14 +8,26 @@
 
 /* Instants in time.
 
-   Instants can be arbitrary far into the past
-   and future and are precise up to 10^-15^s (a femto-second). 
-   Internally, instants are represented in a certain time scale (`:timescale`) for
-   efficiency and precision. They automatically convert between different time scales 
-   when necessary (for example when comparing instants in time, or calculating durations
-   between UTC calendar times).
+Instants use `:ddouble` timestamps to represent a `:duration` since the `epoch`.
+This gives very high range and precision. It spans about 10^300^ years
+into the past and future, well beyond the expected life span of the universe.
+Any time can be expressed up to atto-second (10^-18^) precision up to 300,000 years 
+in the past and future, and can express up to pico-second (10^-12^) precision any time 
+since the age of the universe (about 13.8 billion years ago).
 
-   Time durations (`:duration`) are always in SI seconds (as measured on the Earth's geoid).
+``` unchecked
+> instant(300000,1,1,0,0,0,1.0e-18).show(18) // 1 atto-second after Jan 1, 300000
+"9403971696037.000000000000000001s"
+> instant((~13.82e9).int,1,1,0,0,0,1.0e-12).show(12) // 1 pico-second after the birth of the universe
+"-436117139753903999.999999999999s" 
+```
+
+Internally, instants are represented in a certain time scale (`:timescale`) for
+efficiency and precision. They automatically convert between different time scales 
+when necessary (for example when comparing instants in time, or calculating durations
+between UTC calendar times).
+
+Time durations (`:duration`) are always in SI seconds (as measured on the Earth's geoid).
 */
 module std/time/instant
 
@@ -27,12 +39,13 @@ import std/time/duration
   Instant
 ----------------------------------------------------------------------------*/
 
-// Represents an instant in time. Instants can be arbitrary far into the past
-// and future and are precise up to 10^-15^s (a femto-second). 
-// Internally, instants are represented in a certain time scale (`:timescale`) for
-// efficiency and precision. They automatically convert between different time scales 
-// when necessary (for example when comparing instants in time, or calculating durations
-// between UTC calendar times).
+/* Represents a precise instant in time.
+
+Internally, instants are represented in a certain time scale (`:timescale`) for
+efficiency and precision. They automatically convert between different time scales 
+when necessary (for example when comparing instants in time, or calculating durations
+between UTC calendar times).
+*/
 abstract struct instant(
   since : timestamp,  // since the time-scale epoch
   ts    : timescale   // the time scale (TAI, UTC, etc)

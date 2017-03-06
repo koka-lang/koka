@@ -20,7 +20,7 @@ import std/time/timestamp
 ----------------------------------------------------------------------------*/
 
 // A duration in time in SI seconds (as measured on the Earth's geoid).\
-// A duration can be arbitrarly long and is precise up to 10^-15^s (1 femto-second).
+// A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
 abstract struct duration(
   secs : timespan                     
 )

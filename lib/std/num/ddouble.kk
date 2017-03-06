@@ -1,15 +1,67 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2016 Microsoft Corporation.
+  Copyright 2017 Microsoft Corporation.
  
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Operations on _double double_ 128-bit floating point numbers.
-//
+/* Operations on _double double_ 128-bit floating point numbers.
+
+The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
+(versus 15 for `:double`), but keeps the same range as
+a `:double` with a maximum  value of about 1.8&times;10^308^. Because
+`:double`s usually have hardware support, a `:ddouble` is usually much faster
+than arbitrary precision floating point numbers.
+
+Note that despite the extra precision, underflow/overflow and machine precision are 
+not as well-defined as with a regular `:double` [@Dekker;@Hida:qd;@Hida:qdlib].
+
+The implementation is based closely on the [QD] library and assumes proper IEEE `:double`s 
+with correct rounding.
+
+
+## References {-}
+
+~ Bibliography { caption:"0" }
+
+~~ BibItem { #Hida:qd; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
+Yozo Hida,\ X.\ Li, and D.\ H.\ Bailey.
+_Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
+Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+~~
+
+~~ BibItem { #Hida:qdlib; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+Yozo Hida,\ X.\ Li, and D.\ H.\ Bailey.
+_Library for double-double and quad-double arithmetic._ 
+(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~
+
+~~ BibItem { #dekker; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
+T.\ Dekker.
+_A Floating-Point Technique for Extending the Available Precision_.
+Numerische\ Mathematik **18**(3), June 1971, 224--242.
+~~
+~
+
+[ddwiki]: https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format#Double-double_arithmetic
+[qd]:     http://crd-legacy.lbl.gov/~dhbailey/mpdist
+
+\/
+*/
 module std/num/ddouble
 
+/* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
+as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
+(versus 15 for `:double`), but keeps the same range as
+a `:double` with a maximum  value of about 1.8&times;10^308^. Because
+`:double`s usually have hardware support, a `:ddouble` is usually much faster
+than arbitrary precision floating point numbers.
+
+Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_
+such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&times;ulp(_hi_).
+*/
 abstract struct ddouble(
   hi : double,
   lo : double
@@ -291,7 +343,7 @@ public fun ffraction( x : ddouble ) : ddouble {
 // Round a `:ddouble` to a specified precision
 public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
   if (prec <= 0) then x.round 
-  elif (prec > ddouble-max-prec) then x 
+  elif (prec > dd-max-prec) then x 
   else {
     val p : ddouble = pow10(prec)
     (x * p).round / p
@@ -362,7 +414,7 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
   if (x.zero?) then return "0"
   // guess exponent
   val e = x.hi.abs.log10.floor.int  
-  val p = if (prec.neg?) then ddouble-max-prec else max(1,prec)
+  val p = if (prec.neg?) then dd-max-prec else max(1,prec)
   if (p > e && e >= ~4 && e < 27)
    then show-fixed(x, (p - 1) - e, prec.neg? )
    else show-exp(x, prec)
@@ -371,11 +423,11 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
-  val (ds,e) = digits(x, ddouble-max-prec + 1 )
+  val (ds,e) = digits(x, dd-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
   // don't print too large a number; 10^28 and larger is problematic anyway
-  if (e.abs > 27) return show-exp-digits(x,ddouble-max-prec,ds,e)
+  if (e.abs > 27) return show-exp-digits(x,dd-max-prec,ds,e)
   show-fixed-digits(x,dprec,ds,e,trim-zeros)
 }
 
@@ -414,7 +466,7 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
 public fun show-exp( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
-  val (ds,e) = digits(x, (if (prec.neg?) then ddouble-max-prec else prec) + 1 )
+  val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec) + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
   show-exp-digits(x,prec,ds,e)
 }
@@ -433,10 +485,9 @@ fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string
 /*------------------------------------------------------
    Extract digits
 ------------------------------------------------------*/
-public val ddouble-max-prec = 31
 
 // Extract significant digits and exponent from a `:ddouble`.
-fun digits( x : ddouble, prec : int = ddouble-max-prec ) : (list<int>,int) {
+fun digits( x : ddouble, prec : int = dd-max-prec ) : (list<int>,int) {
   val n = prec + 1  // number of digits
   val (e,r) = digits-toexp(x)
   // trace(" digits-toexp: e: " + e.show + ", r: " + r.show-debug )
@@ -520,3 +571,7 @@ public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-
 
 public val dd-epsilon = ddouble(4.93038065763132e-32)
 public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
+public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
+
+// maximal precision in decimal digits of a `:ddouble`.
+public val dd-max-prec = 31

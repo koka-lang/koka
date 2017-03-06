@@ -12,8 +12,8 @@
 
 This is an extensive library for managing time and supports advanced features
 as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
-Times span arbitrary far in the past and future, and calculations are accurate
-up to femto-seconds (1&times;10^-15^s).
+Internally time is represented by a `:ddouble` giving it a very high range and precision 
+(see the [`instant`](std_time_instant.html) module).
 
 Core concepts are:
 
@@ -120,10 +120,12 @@ fun test-timezones() {
   val tz1 = tzs.timezone("America/New_York")
   val tz2 = tzs.timezone("Pacific/Kosrae")
   
-  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // A flight of 12.5 hours from New York to Kosrae
+  /* A flight of 12.5 hours from New York to Kosrae */
+  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
   t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00 (KOST)"
   
-  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // again, but across DST & leap second
+  /* Again, but across DST & leap second */
+  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
   t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00 (KOST)"
 }
 ```
@@ -163,3 +165,5 @@ public import std/time/time
 public import std/time/locale
 public import std/time/format
 public import std/time/parse
+
+import std/num/ddouble  // for documentation

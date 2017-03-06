@@ -31,6 +31,7 @@ import std/text/string
 import std/text/unicode
 
 import std/num/decimal
+import std/num/ddouble
 import std/num/int32
 
 import std/time
