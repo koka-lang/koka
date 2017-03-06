@@ -23,7 +23,7 @@ module Common.NamePrim
           , nameCopy
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
-          , nameDecreasing, nameSubStr1
+          , nameDecreasing, nameSubStr1, nameDec
 
           , nameUnit
           , nameReturn, nameTrace, nameLog
@@ -142,6 +142,7 @@ nameTpDelay          = preludeName "delay"
 namePatternMatchError = preludeName "error-pattern-match"
 nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
+nameDec              = preludeName "dec"
 
 nameAssign      = preludeName ":="
 nameAssigned    = newName "assigned"

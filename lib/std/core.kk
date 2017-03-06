@@ -1425,11 +1425,11 @@ private extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inl
 private extern inline pos?( i : int32 ) : bool { inline "(#1>0)" }
 private extern inline neg?( i : int32 ) : bool { inline "(#1<0)" }
 
-private fun inc( i : int32 ) : int32 {
+private fun incr( i : int32 ) : int32 {
   i + 1.int32
 }
 
-private fun dec( i : int32 ) : int32 {
+private fun decr( i : int32 ) : int32 {
   i - 1.int32
 }
 
@@ -2346,7 +2346,7 @@ fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
 }
 
 private fun foreach-indexed32( v : vector<a>, f : (a,int32) -> e () ) : e () {
-  for32( 0.int32, v.length32.dec ) fun(i) {
+  for32( 0.int32, v.length32.decr ) fun(i) {
     f(v.unsafe-idx(i),i)
   }
 }
@@ -2354,7 +2354,7 @@ private fun foreach-indexed32( v : vector<a>, f : (a,int32) -> e () ) : e () {
 // Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
 fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
-  for-while32( 0.int32, v.length32.dec ) fun(i) {
+  for-while32( 0.int32, v.length32.decr ) fun(i) {
     f(v.unsafe-idx(i))
   }
 }
@@ -2844,7 +2844,7 @@ private fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
   fun rep( i : int32 ) {
     if (i <= end) {
       inject-div(action)(i)
-      rep(i.inc)
+      rep(i.incr)
     }
   }
   unsafe-nodiv { rep(start) }
@@ -2877,7 +2877,7 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
   fun rep( i : int32 ) {
     if (i <= end) {
       match(inject-div(action)(i)) {
-        Nothing -> rep(i.inc)
+        Nothing -> rep(i.incr)
         Just(x) -> Just(x)
       }
     }
