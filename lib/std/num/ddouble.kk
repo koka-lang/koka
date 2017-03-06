@@ -89,6 +89,26 @@ public fun ddouble( i : int ) : ddouble {
   }
 }
 
+
+public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
+public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16);
+public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17);
+public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17);
+public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-16)
+public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17);
+public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-16);
+
+public val dd-epsilon = ddouble(4.93038065763132e-32)
+public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
+public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
+
+public val dd-nan     = Ddouble(nan,nan)
+public val dd-pos-inf = Ddouble(pos-inf,pos-inf)
+
+// maximal precision in decimal digits of a `:ddouble`.
+public val dd-max-prec = 31
+
+
 /*------------------------------------------------------
    Compare etc.
 ------------------------------------------------------*/
@@ -217,6 +237,10 @@ public fun dec( x : ddouble ) :ddouble {
   x - one
 }
 
+public fun sum( xs : list<ddouble> ) : ddouble {
+  xs.foldl(zero,(+))
+}
+
 /*------------------------------------------------------
    Multiply and divide
 ------------------------------------------------------*/
@@ -226,33 +250,46 @@ val two28 = 268435456.0;                 // = 2^28
 
 fun split( x : double ) : (double,double) {
   if (x > splitbound || x < ~splitbound) {
-    val y = x * 3.7252902984619140625e-09;  // 2^-28
-    val t = y * splitter;
-    val hi = t - (t - y);
-    val lo = y - hi;
-    (hi*two28, lo*two28);
+    val y = x * 3.7252902984619140625e-09  // 2^-28
+    val t = y * splitter
+    val hi = t - (t - y)
+    val lo = y - hi
+    (hi*two28, lo*two28)
   }
   else {
-    val t = x * splitter;
-    val hi = t - (t - x);
-    val lo = x - hi;
-    (hi,lo);
+    val t = x * splitter
+    val hi = t - (t - x)
+    val lo = x - hi
+    (hi,lo)
   }
 }
 
 fun prod( x : double, y : double ) : edouble {
-  val z = x*y;
-  val (xhi,xlo) = split(x);
-  val (yhi,ylo) = split(y);
-  val err = ((xhi*yhi - z) + (xhi*ylo) + (xlo*yhi)) + (xlo*ylo);
+  val z = x*y
+  val (xhi,xlo) = split(x)
+  val (yhi,ylo) = split(y)
+  val err = ((xhi*yhi - z) + (xhi*ylo) + (xlo*yhi)) + (xlo*ylo)
   Edouble(z,err)
 }
 
-// `prod` can also be implemented using 'fused multiply add'
+fun prodsqr( x : double ) : edouble {
+  val z = x*x
+  val (h,l) = split(x)
+  val err = ((h*h - z) + (2.0*h*l)) + (l*l)
+  Edouble(z,err)             
+}
+
+// `prod` & `prodsqr` can also be implemented using 'fused multiply add'
 /* 
 fun prod( x : double, y : double ) : edouble {
-  val z = x*y;
+  val z = x*y
   err = fmadd(x,y,~z)
+  Edouble(z,err)
+}
+
+fun prodsqr( x : double ) : edouble {
+  val z = x*x
+  val err = fmadd(x,x,~z)
   Edouble(z,err)
 }
 */
@@ -261,6 +298,12 @@ public fun (*)( x : ddouble, y : ddouble ) : ddouble {
   val z  = prod(x.hi, y.hi);
   val e  = z.err + (x.hi*y.lo + x.lo*y.hi);
   qquicksum(z.num, e);
+}
+
+public fun sqr( x : ddouble ) : ddouble {
+  val z = prodsqr(x.hi)
+  val e = (z.err + (2.0*x.hi*x.lo)) + (x.lo*x.lo)
+  qquicksum(z.num,e)
 }
 
 public fun (/)( x : ddouble, y : ddouble ) : ddouble {
@@ -293,10 +336,12 @@ public fun double( x : ddouble ) : double {
 
 public fun int( x : ddouble ) : int {
   val r = x.round
-  val i = r.hi.int
-  if (i.precise?) then i else {
-    // todo: optimize?
-    r.show-fixed().parse-int-default(r.hi.int)
+  if (!r.finite?) then 0 else {
+    val i = r.hi.int
+    if (i.precise?) then i else {
+      // todo: optimize?
+      r.show-fixed().parse-int-default(0)
+    }
   }
 }
 
@@ -351,17 +396,13 @@ public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
 }
 
 /*------------------------------------------------------
-   Various
+   Exponents (needed for showing ddouble's)
 ------------------------------------------------------*/
 fun ldexp( x : double, exp : double ) : double {
   x*pow2(exp)
 }
 public fun ldexp( x : ddouble, exp : double ) : ddouble {
   Ddouble(ldexp(x.hi,exp),ldexp(x.lo,exp))
-}
-
-public fun sqr( x : ddouble ) : ddouble {
-  x * x
 }
 
 fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble {
@@ -371,15 +412,9 @@ fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble {
 }
 
 fun npwr( x : ddouble, n : int ) : ddouble {
-  if (n==0) {
-    if (x.zero?) then ddouble(nan) else one
-  }
-  elif (n==1) {
-    x
-  }
-  else {
-    x.npwr-acc(one,n)
-  }
+  if (n==0) then (if (x.zero?) then dd-nan else one)
+  elif (n==1) then x
+  else x.npwr-acc(one,n)
 }
 
 public fun pow( x : ddouble, n : int ) : ddouble {
@@ -394,6 +429,7 @@ public fun pow10( exp : int ) : ddouble {
 public fun ddouble-exp( i : int, exp : int ) : ddouble {
   i.ddouble * pow10(exp)
 }
+
 
 /*------------------------------------------------------
    Show
@@ -466,7 +502,7 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
 public fun show-exp( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
-  val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec) + 1 )
+  val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec)  )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
   show-exp-digits(x,prec,ds,e)
 }
@@ -554,24 +590,149 @@ fun digits-adjust( rds : list<int>, adj : int = 0, acc : list<int> = [] ) : list
   }
 }
 
+/*------------------------------------------------------
+  Parsing
+------------------------------------------------------*/
+
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
   parse-double(s).map(ddouble)
 }
 
 
 
+/*------------------------------------------------------
+  Advanced operations
+------------------------------------------------------*/
 
-public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
-public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16);
-public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17);
-public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17);
-public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-16)
-public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17);
-public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-16);
+// The square root of a non-negative `:ddouble` `x`.
+// For negative `x`, `dd-nan` is returned.
+public fun sqrt( x : ddouble ) : ddouble {
+  // From the QD library:
+  // Use Karp's strategy: if a is an approximation to sqrt(x), then
+  // sqrt(x) = x*a + (x - (x*a)^2) * a/2   
+  if (x.zero?) return zero
+  if (x.neg?)  return dd-nan
+  val a = 1.0 / sqrt(x.hi)
+  val t1 = ddouble( x.hi * a )
+  val t2 = (x - sqr(t1)) * ddouble(a * 0.5)
+  t1 + t2
+}
 
-public val dd-epsilon = ddouble(4.93038065763132e-32)
-public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
-public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
+// The `n`-th root of a `:ddouble` number `x`.
+// `n` must be positive, and if `n` is even, then
+// `x` must not be negative.
+public fun nroot( x : ddouble, n : int ) : ddouble {
+  if (n==2) then x.sqrt
+  elif (n==1) then x
+  elif (n<=0 || (n.even? && x.neg?)) then dd-nan
+  elif (x.zero?) then zero
+  else {
+    val r = x.abs
+    val a0 = exp( ~log(r.hi) / n.double ).ddouble
+    val a1 = a0 + ((a0 * (one - r * pow(a0,n))) / n.ddouble)
+    (if (x.hi.neg?) then ~one else one) / a1
+  }
+} 
 
-// maximal precision in decimal digits of a `:ddouble`.
-public val dd-max-prec = 31
+// Multiply `x` by a `:double` `p` where `p` must be a power of 2.
+fun mul-pwr2( x : ddouble, p : double ) : ddouble {
+  Ddouble(x.hi * p, x.lo * p)
+}
+
+// Return _e_ (`dd-e`) to the power of `x`.
+public fun exp( x : ddouble ) : ddouble {
+  /* From the QD library:
+     Strategy:  We first reduce the size of x by noting that
+     
+          exp(kr + m * log(2)) = 2^m * exp(r)^k
+
+     where m and k are integers.  By choosing m appropriately
+     we can make |kr| <= log(2) / 2 = 0.347.  Then exp(r) is 
+     evaluated using the familiar Taylor series.  Reducing the 
+     argument substantially speeds up the convergence.  
+  */
+  val k : double = 512.0
+  val inv-k = 1.0 / k
+
+  if (x.hi <= ~709.0) then zero 
+  elif (x.hi >= 709.0) then dd-pos-inf
+  elif (x.zero?) then one
+  elif (x==one) then dd-e
+  else {
+    val m : double = floor( (x.hi / dd-log2.hi) + 0.5 )
+    val r = mul-pwr2( x - (m.ddouble * dd-log2), inv-k )
+    val p = r.sqr
+    val t = r + mul-pwr2(p, 0.5)
+    var acc := exp-approx( p, t, r, inv-k * dd-epsilon.hi, exp-factors )
+    repeat(9) {
+      acc := mul-pwr2(acc,2.0) + acc.sqr
+    }
+    acc := acc + one
+    ldexp( acc, m )
+  }
+}
+
+val exp-factors : list<ddouble> = [
+  Ddouble(1.66666666666666657e-01,  9.25185853854297066e-18),
+  Ddouble(4.16666666666666644e-02,  2.31296463463574266e-18),
+  Ddouble(8.33333333333333322e-03,  1.15648231731787138e-19),
+  Ddouble(1.38888888888888894e-03, ~5.30054395437357706e-20),
+  Ddouble(1.98412698412698413e-04,  1.72095582934207053e-22),
+  Ddouble(2.48015873015873016e-05,  2.15119478667758816e-23)
+]
+
+fun exp-approx( p : ddouble, t : ddouble, 
+                r : ddouble,
+                eps : double,
+                fs : list<ddouble>,
+                s : ddouble = zero ) : ddouble {
+  match(fs) {
+    Nil -> s + t
+    Cons(f,fs1) -> {
+      val s1 = s + t
+      val p1 = p * r
+      val t1 = p1 * f
+      if (t1.double.abs <= eps) 
+       then s + t
+       else exp-approx( p1, t1, r, eps, fs1, s1 )
+    }
+  }
+}
+
+
+
+// The natural logarithm (in base _e_) of `x`.
+public fun log( x : ddouble ) : ddouble {
+  /* From QD Library:
+     Strategy.  The Taylor series for log converges much more
+     slowly than that of exp, due to the lack of the factorial
+     term in the denominator.  Hence this routine instead tries
+     to determine the root of the function
+         f(x) = exp(x) - a
+     using Newton iteration.  The iteration is given by
+         x' = x - f(x)/f'(x) 
+            = x - (1 - a * exp(-x))
+            = x + a * exp(-x) - 1.         
+     Only one iteration is needed, since Newton's iteration
+     approximately doubles the number of digits per iteration. 
+  */
+  if (x == one) then zero
+  elif (x <= zero) then dd-nan
+  elif (x == dd-e) then one
+  else {
+    val a0 = log(x.hi).ddouble // approximate
+    val a1 = a0 + (x * exp(~a0) - one)
+    a1
+  }
+}
+
+// The logarithm in base 10 of `x`.
+public fun log10( x : ddouble ) : ddouble {
+  return log(x) / dd-log10
+}
+
+
+// The logarithm in base 2 of `x`.
+public fun log2( x : ddouble ) : ddouble {
+  return log(x) / dd-log2
+}
