@@ -2461,8 +2461,8 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string
 private fun show-double( d : double, precision : int, format : string )
 {
   val p = if (precision < 0) then 0 else precision
-  val s = gformat(d,format + show(p))
-  if (s.contains(".") || s.contains("e")) then s else s + ".0"
+  gformat(d,format + show(p))
+  // if (s.contains(".") || s.contains("e")) then s else s + ".0"
 }
 
 // Show a `:double` as a string.
