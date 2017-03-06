@@ -30,8 +30,8 @@
 
 This is an extensive library for managing time and supports advanced features
 as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
-Times span arbitrary far in the past and future, and calculations are accurate
-up to femto-seconds (1&amp;times;10^-15^s).
+Internally time is represented by a &#96;:ddouble&#96; giving it a very high range and precision 
+(see the [&#96;instant&#96;](std&#95;time&#95;instant.html) module).
 
 Core concepts are:
 
@@ -135,12 +135,16 @@ import std/time/timezone
 
 fun test-timezones() {
   val tzs = load-timezones()
-  val z1  = tzs.timezone("America/New&#95;York")
-  val z2  = tzs.timezone("Asia/Tehran")
-  val t1  = instant(1978,12,30,12,1,0,tz=z1) + (14.hours + 44.minutes)
-  t1.time(tz=z2).show.println()  // 1978-12-31T11:45:00+04:00 (IRST)
-  val t2  = instant(1978,12,31,12,1,0,tz=z1) + (14.hours + 44.minutes) // across DST &amp; leap second
-  t2.time(tz=z2).show.println   // 1979-01-01T11:14:59+03:30 (IRST)"
+  val tz1 = tzs.timezone("America/New&#95;York")
+  val tz2 = tzs.timezone("Pacific/Kosrae")
+  
+  /&#42; A flight of 12.5 hours from New York to Kosrae &#42;/
+  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
+  t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00 (KOST)"
+  
+  /&#42; Again, but across DST &amp; leap second &#42;/
+  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
+  t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00 (KOST)"
 }
 &#96;&#96;&#96;
 
@@ -179,7 +183,9 @@ fun test-nfib() {
 <span class="kw">public</span> <span class="kw">import</span> locale
 <span class="kw">public</span> <span class="kw">import</span> format
 <span class="kw">public</span> <span class="kw">import</span> parse
-</pre>
+
+<span class="kw">import</span> ddouble  <span class="comment">// for documentation
+</span></pre>
 
 </div></body>
 </html>
