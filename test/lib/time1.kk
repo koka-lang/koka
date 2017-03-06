@@ -8,7 +8,7 @@
 
 module time1
 
-public import std/num/decimal
+public import std/num/ddouble
 public import std/time
 public import std/time/timezone
 public import std/time/timestamp

@@ -1,21 +1,21 @@
 "abc" - "abc"
-jaro: 1.0: success
-jw : 1.0: success
+jaro: 1: success
+jw : 1: success
 "" - ""
-jaro: 1.0: success
-jw : 1.0: success
+jaro: 1: success
+jw : 1: success
 "" - "abc"
-jaro: 0.0: success
-jw : 0.0: success
+jaro: 0: success
+jw : 0: success
 "abc" - ""
-jaro: 0.0: success
-jw : 0.0: success
+jaro: 0: success
+jw : 0: success
 "a" - "a"
-jaro: 1.0: success
-jw : 1.0: success
+jaro: 1: success
+jw : 1: success
 "a" - "bc"
-jaro: 0.0: success
-jw : 0.0: success
+jaro: 0: success
+jw : 0: success
 "martha" - "marhta"
 jaro: 0.94: success
 jw : 0.96: success

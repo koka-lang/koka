@@ -8,7 +8,7 @@
 
 /* Time scales for astronomy (TT, TCG, TDB, and TCB).
 
-Internally all computations use `:decimal` numbers with arbitray precision. 
+Internally all computations use `:ddouble` numbers with arbitray precision. 
 The different time scales relate as follows:
 
 * **TAI**, `ts-tai`, `cal-tai`: International Atomic Time. The atomic time standard
@@ -134,7 +134,7 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 */
 module std/time/astro
 
-import std/num/decimal
+import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
@@ -166,8 +166,8 @@ public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 
-val secs-per-day    = decimal(86400)
-val offset-j2000    = decimal(43200)
+val secs-per-day    = ddouble(86400)
+val offset-j2000    = ddouble(43200)
 
 // The [J2000] epoch is defined as 2000-01-01T12:00:00 TT (Terrestrial time).
 //
@@ -178,7 +178,7 @@ public val epoch-j2000 = instant-at-j2000(zero)
 // the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
 // `instant(2000,1,1,12,0,0).j2000.show == "0.00074287037037"`\
 // `instant(2000,1,1,12,0,0,cal=cal-tt).j2000.show == "0"`
-public fun j2000( i : instant ) : decimal {
+public fun j2000( i : instant ) : ddouble {
   div( (i.timespan(ts-tt) - offset-j2000), secs-per-day, 18 )  // atto-second precision
 }
 
@@ -186,7 +186,7 @@ public fun j2000( i : instant ) : decimal {
 // the fraction of the day since J2000 (`epoch-j2000`) in terrestrial time (`ts-tt`).\
 // `instant-at-j2000(zero).time.show == "2000-01-01T11:58:55.816Z"`\
 // `instant-at-j2000(zero).time(cal=cal-tt).show == "2000-01-01T12:00:00Z TT"`
-public fun instant-at-j2000( jd : decimal ) : instant {
+public fun instant-at-j2000( jd : ddouble ) : instant {
   unsafe-instant( timestamp( (jd * secs-per-day) + offset-j2000 ), ts-tt )
 }
 
@@ -195,8 +195,8 @@ public fun instant-at-j2000( jd : decimal ) : instant {
   TCG: Geocentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lg : decimal = decimal-exp(6969290134,~19) // 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
-val tcg-epoch-delta = decimal-exp(~725759967816,~3) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
+val lg : ddouble = ddouble-exp(6969290134,~19) // 6.969290134e-10  // 1991: 6.969291e-10  // now: 6.969290134
+val tcg-epoch-delta = ddouble-exp(~725759967816,~3) // 1977-01-01T00:00:32.184 TT, 2443144.5003725 JD~TT~
 
 // IAU 1991 recommendation IV :\
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
@@ -224,7 +224,7 @@ public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = decimal(43200)       // 2000-01-01T12:00:00 TT
+val j2k-epoch = ddouble(43200)       // 2000-01-01T12:00:00 TT
 val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
 // Compute tdb-delta(TT) = TDB - TT. This is the default function used for `ts-tdb`.
@@ -258,7 +258,7 @@ fun tdb-delta( tt : timestamp ) : timespan {
   // Topo centric adjustments
   val wt = 0.0 // tdb-topocentric(t,0.5,~155.933222,10000.0,5000.0)
   
-  decimal( wf+wj+wt )
+  ddouble( wf+wj+wt )
 }
 
 val pi2   = 6.283185307179586476925287      // 2pi
@@ -340,8 +340,8 @@ public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
   TCB: Barycentric coordinate time
 ----------------------------------------------------------------------------*/
 
-val lb   : decimal = decimal-exp(155051976772,~19) // 1.55051976772e-8
-val tdb0 : decimal = decimal-exp(~655,~7) // ~6.55e-5
+val lb   : ddouble = ddouble-exp(155051976772,~19) // 1.55051976772e-8
+val tdb0 : ddouble = ddouble-exp(~655,~7) // ~6.55e-5
 
 fun tai-to-tcb( tai : duration, tstdb : timescale ) : timestamp {
   val tdb = tstdb.from-tai(tai)

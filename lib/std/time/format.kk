@@ -10,7 +10,7 @@
 module std/time/format
 
 import std/text/regex
-import std/num/decimal
+import std/num/ddouble
 import std/time/instant
 import std/time/date
 import std/time/calendar
@@ -103,7 +103,7 @@ fun format-era( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-seconds( t : time, n : int, locale : time-locale ) : string {
-  t.seconds.trunc.showl(n)
+  t.seconds.trunc.int.showl(n)
 }
 
 fun format-minutes( t : time, n : int, locale : time-locale ) : string {

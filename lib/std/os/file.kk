@@ -12,7 +12,7 @@
 module std/os/file
 
 import std/os/path
-import std/num/decimal
+import std/num/ddouble
 import std/time/duration
 import std/time/instant
 import std/time/utc

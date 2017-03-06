@@ -13,7 +13,7 @@
 */
 module std/time/time
 
-import std/num/decimal
+import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
@@ -251,7 +251,7 @@ public fun (-)( t1 : time, t2 : time ) : duration {
 // `t.copy(tz=tz-local())                               ` &quad; (change to a different time zone)
 public fun copy( t : time, 
                  year : int = t.year, month : int = t.month, day : int = t.day, 
-                 hours : int = t.hours, minutes : int = t.minutes, seconds : decimal = t.seconds, 
+                 hours : int = t.hours, minutes : int = t.minutes, seconds : ddouble = t.seconds, 
                  tz : timezone = t.timezone, cal : calendar = t.calendar ) : time 
 {
   time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal )
@@ -296,7 +296,7 @@ public fun start-of-year( t : time ) : time {
 
 // Return the weekday of a given time `t`.
 public fun weekday( t : time ) : weekday {
-  val days = t.mjd.floor
+  val days = t.mjd.floor.int
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
   dow.weekday                  // to ISO week day 
 }
@@ -304,8 +304,8 @@ public fun weekday( t : time ) : weekday {
 
 // Return a `:time` as a fractional year.\
 // `year-frac(time(2000,7,2)) == fixed(2000.5)`
-public fun year-frac( t : time ) : decimal {
-  val dfrac = t.mjd.fraction // t.clock.total-seconds.double / 86400.0
+public fun year-frac( t : time ) : ddouble {
+  val dfrac = t.mjd.fraction.double // t.clock.total-seconds.double / 86400.0
   val yfrac = ((t.day-of-year - 1).double + dfrac) / t.days-in-year.double
   timespan(t.year,yfrac)
 }
@@ -392,7 +392,7 @@ public fun days-in-year( t : time) : int {
 // `time(2015,12,31,12,0,0).mjd.show == "57387.5"` &quad; (exactly mid-day)\
 // `time(2016,12,31,12,0,0).mjd.show == "57753.499994213029942"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
 // `time(2016,12,31,12,0,0,0.5).mjd.show == "57753.5"` &quad; (real middle of the day)\
-public fun mjd( t : time ) : decimal {
+public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
@@ -408,7 +408,7 @@ the timezone of `t` applied.\
 Takes leap seconds into account when calculating the fraction of the day,
 see `mjd` for examples.
 */
-public fun jd( t : time ) : decimal {
+public fun jd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   t.mjd() + jd-epoch-delta

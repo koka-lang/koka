@@ -19,8 +19,22 @@ public fun ddouble( d : double ) : ddouble {
   Ddouble(d,0.0)
 }
 
+
+val maxprecise : int = 9007199254740991
+val minprecise : int = ~maxprecise
+
+fun precise?(i : int ) : bool {
+  (i >= minprecise && i <= maxprecise)
+}
+
 public fun ddouble( i : int ) : ddouble {
-  ddouble( i.double )
+  if (i.precise?) then ddouble( i.double ) else {
+    val pd = i.count-digits
+    val p  = pd - 15
+    val hi = i.cdiv-pow10(p)
+    val r  = i - hi.mul-pow10(p)
+    ddouble(hi.double)*pow10(p) + ddouble(r.double)
+  }
 }
 
 /*------------------------------------------------------
@@ -143,6 +157,14 @@ public fun abs( x : ddouble ) : ddouble {
   if (x.neg?) then ~x else x
 }
 
+public fun inc( x : ddouble ) :ddouble {
+  x + one
+}
+
+public fun dec( x : ddouble ) :ddouble {
+  x - one
+}
+
 /*------------------------------------------------------
    Multiply and divide
 ------------------------------------------------------*/
@@ -204,7 +226,7 @@ public fun (%)( x : ddouble, y : ddouble ) : ddouble {
   x - (n*y)
 }
 
-public fun (/%)( x : ddouble, y : ddouble ) : (ddouble,ddouble) {
+public fun divrem( x : ddouble, y : ddouble ) : (ddouble,ddouble) {
   val n = (x / y).round
   (n, x - (n*y))
 }
@@ -218,7 +240,12 @@ public fun double( x : ddouble ) : double {
 }
 
 public fun int( x : ddouble ) : int {
-  x.round.hi.int
+  val r = x.round
+  val i = r.hi.int
+  if (i.precise?) then i else {
+    // todo: optimize?
+    r.show-fixed().parse-int-default(r.hi.int)
+  }
 }
 
 public fun round( x : ddouble ) : ddouble {
@@ -258,6 +285,17 @@ public fun fraction( x : ddouble ) : ddouble {
 
 public fun ffraction( x : ddouble ) : ddouble {
   x - x.floor
+}
+
+
+// Round a `:ddouble` to a specified precision
+public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
+  if (prec <= 0) then x.round 
+  elif (prec > ddouble-max-prec) then x 
+  else {
+    val p : ddouble = pow10(prec)
+    (x * p).round / p
+  }
 }
 
 /*------------------------------------------------------
@@ -301,6 +339,9 @@ public fun pow10( exp : int ) : ddouble {
   pow(ten,exp)
 }
 
+public fun ddouble-exp( i : int, exp : int ) : ddouble {
+  i.ddouble * pow10(exp)
+}
 
 /*------------------------------------------------------
    Show
@@ -329,7 +370,7 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
 
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
-  if (x.zero?) then return ("0" + (if (dprec.pos?) then "." + repeat("0",dprec) else ""))
+  if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
   val (ds,e) = digits(x, ddouble-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
@@ -460,4 +501,8 @@ fun digits-adjust( rds : list<int>, adj : int = 0, acc : list<int> = [] ) : list
     }
     Nil -> acc
   }
+}
+
+public fun parse-ddouble( s  : string ) : maybe<ddouble> {
+  parse-double(s).map(ddouble)
 }

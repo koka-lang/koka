@@ -12,7 +12,7 @@
 */
 module std/time/duration
 
-import std/num/decimal
+import std/num/ddouble
 import std/time/timestamp
 
 /*----------------------------------------------------------------------------
@@ -81,13 +81,13 @@ public fun nano-seconds( d : duration ) : int {
 
 // The whole seconds (in some time unit) of the duration as `:int``.
 public fun trunc( d : duration ) : int {
-  d.secs.trunc
+  d.secs.trunc.int
 }
 
 // The fractional seconds of a duration as a `:double`.
 // `d.seconds == d.trunc.fixed + d.fraction.fixed
 public fun fraction( d : duration ) : double {
-  d.secs.fraction
+  d.secs.fraction.double
 }
 
 // Is this a negative duration?
@@ -144,7 +144,7 @@ public fun (-)( d : duration, e : duration ) : duration {
 
 // Show a duration in SI seconds.
 public fun show( d : duration, max-prec : int = 9 ) : string {
-  d.secs.show(max-prec=max-prec) + "s"
+  d.secs.show-fixed(max-prec,True) + "s"
 }
 
 // Create a `:duration` of `n` seconds.

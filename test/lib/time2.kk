@@ -9,7 +9,7 @@
 // Testing leap seconds
 module time2
 
-public import std/num/decimal
+public import std/num/ddouble
 public import std/time
 
 /*----------------------------------------------------------------------------

@@ -19,7 +19,7 @@
 */
 module std/time/instant
 
-import std/num/decimal
+import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 
@@ -325,12 +325,12 @@ val secs-per-day    = timespan(86400)
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day).
 public fun instant-at-jd( jd: double, ts : timescale ) : instant {
-  instant-at-jd(decimal(jd),ts)
+  instant-at-jd(ddouble(jd),ts)
 }
 
 // Create an instant given a [julian day](https://en.wikipedia.org/wiki/Julian_day)
 // and time scale `ts` (=`ts-utc`).
-public fun instant-at-jd( jd: decimal, ts : timescale  ) : instant {
+public fun instant-at-jd( jd: ddouble, ts : timescale  ) : instant {
   instant-at-mjd( jd - jd-epoch-delta, ts )
 }
 
@@ -338,19 +338,19 @@ public fun instant-at-jd( jd: decimal, ts : timescale  ) : instant {
 // and time scale `ts` (=`ts-utc`).\
 // `modified-julian-day = julian-day - 2400000.5`
 public fun instant-at-mjd( mjd : double, ts : timescale ) : instant {
-  instant-at-mjd(decimal(mjd),ts)
+  instant-at-mjd(ddouble(mjd),ts)
 }
 
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
 // and time scale `ts` (=`ts-utc`).\
 // `modified-julian-day = julian-day - 2400000.5`
-public fun instant-at-mjd( mjd : decimal, tscale : timescale  ) : instant {
+public fun instant-at-mjd( mjd : ddouble, tscale : timescale  ) : instant {
   val d  = mjd - mjd-epoch-delta // since our epoch
   val ts = tscale.y2k-epoch + (d*secs-per-day) // since the time scale epoch
   val daysecs = ts.seconds-in-day(tscale)
   if (daysecs==secs-per-day) then return unsafe-instant(ts,tscale)
   // this is longer/shorter day due to leap seconds; adjust the fraction
-  val days = d.trunc.decimal
+  val days = d.trunc
   val sid  = (d - days)*daysecs  // seconds in the day
   val (nlsecs,lsecs) = if (sid >= secs-per-day)
                         then (secs-per-day.dec, sid.inc - secs-per-day)
@@ -378,7 +378,7 @@ in a UTC calendar. For example:
 ````
 .
 */
-public fun jd( i : instant, ts : timescale ) : decimal {
+public fun jd( i : instant, ts : timescale ) : ddouble {
   i.mjd(ts) + jd-epoch-delta
 }
 
@@ -387,7 +387,7 @@ val femto = 15 // femto-second precision
 // Return the modified julian day in a given time scale `ts` (=`ts-utc`) for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion (used in `std/time/time` to take timezones into account)
-public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) : decimal {
+public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) : ddouble {
   val ts0     = i.timestamp(tscale)
   val daysecs = ts0.seconds-in-day(tscale) // total-seconds in the day of the timezone (before delta)
   val ts      = ts0 + delta
@@ -401,7 +401,7 @@ public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) 
     // trace("mjd: day seconds: " + daysecs.show)
     val leaps = ts.leap-adjust
     val secs  = (ts.unadjusted-seconds - tscale.y2k-epoch.timespan)
-    val w     = div(secs, secs-per-day, femto).floor.timespan
+    val w     = div(secs, secs-per-day, femto).floor
     val r     = secs - (w * secs-per-day)
     val f     = div(r + leaps.timespan, daysecs, femto+3) // see: test/lib/time3, jdleapx2  -- extra precision required on leap seconds
     (w + f + mjd-epoch-delta)
