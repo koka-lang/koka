@@ -196,6 +196,13 @@ fun sum( x : double, y : double ) : edouble {
   Edouble(z,err)
 }
 
+fun dsum( x : double, y : double ) : ddouble {
+  val z    = x + y
+  val diff = z - x
+  val err  = (x - (z - diff)) + (y - diff)
+  Ddouble(z,err)  
+}
+
 fun quicksum( x : double, y : double ) : edouble {
   val z   = x + y
   val err = y - (z - x)
@@ -612,10 +619,10 @@ public fun sqrt( x : ddouble ) : ddouble {
   // sqrt(x) = x*a + (x - (x*a)^2) * a/2   
   if (x.zero?) return zero
   if (x.neg?)  return dd-nan
-  val a = 1.0 / sqrt(x.hi)
-  val t1 = ddouble( x.hi * a )
-  val t2 = (x - sqr(t1)) * ddouble(a * 0.5)
-  t1 + t2
+  val a  = 1.0 / sqrt(x.hi)
+  val t1 = x.hi * a
+  val t2 = (x - sqr(t1.ddouble)).hi * a * 0.5
+  dsum(t1,t2)
 }
 
 // The `n`-th root of a `:ddouble` number `x`.
