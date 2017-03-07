@@ -136,11 +136,11 @@ public fun sign?( x : ddouble ) : order {
 }
 
 public fun nan?( x : ddouble ) : bool {
-  x.hi.nan?
+  x.hi.nan? || x.lo.nan?
 }
 
 public fun finite?( x : ddouble ) : bool {
-  x.hi.finite?
+  x.hi.finite? && x.lo.finite?
 }
 
 public fun inf?( x : ddouble ) : bool {
@@ -148,11 +148,11 @@ public fun inf?( x : ddouble ) : bool {
 }
 
 public fun posinf?( x : ddouble ) : bool {
-  x.hi.inf?
+  x.hi.posinf?
 }
 
 public fun neginf?( x : ddouble ) : bool {
-  x.hi.inf?
+  x.hi.neginf?
 }
 
 
@@ -193,26 +193,27 @@ fun sum( x : double, y : double ) : edouble {
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
-  Edouble(z,err)
+  Edouble(z, if (z.finite?) then err else z)
 }
 
 fun dsum( x : double, y : double ) : ddouble {
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
-  Ddouble(z,err)  
+  Ddouble(z, if (z.finite?) then err else z)
 }
 
 fun quicksum( x : double, y : double ) : edouble {
   val z   = x + y
   val err = y - (z - x)
-  Edouble(z,err)
+  Edouble(z, if (z.finite?) then err else z)
 }
 
 fun qquicksum( x : double, y : double ) : ddouble {
+  if (!x.finite?) return ddouble(x)
   val z   = x + y
   val err = y - (z - x)
-  Ddouble(z,err)
+  Ddouble(z, if (z.finite?) then err else z)
 }
 
 public fun (+)( x : ddouble, y : ddouble ) : ddouble {
@@ -251,9 +252,9 @@ public fun sum( xs : list<ddouble> ) : ddouble {
 /*------------------------------------------------------
    Multiply and divide
 ------------------------------------------------------*/
-val splitter = 134217729.0;              // = 2^27 + 1
-val splitbound  = 6.69692879491417e+299; // = 2^996
-val two28 = 268435456.0;                 // = 2^28
+val splitter = 134217729.0              // = 2^27 + 1
+val splitbound  = 6.69692879491417e+299 // = 2^996
+val two28 = 268435456.0                 // = 2^28
 
 fun split( x : double ) : (double,double) {
   if (x > splitbound || x < ~splitbound) {
@@ -276,14 +277,14 @@ fun prod( x : double, y : double ) : edouble {
   val (xhi,xlo) = split(x)
   val (yhi,ylo) = split(y)
   val err = ((xhi*yhi - z) + (xhi*ylo) + (xlo*yhi)) + (xlo*ylo)
-  Edouble(z,err)
+  Edouble(z,if (z.finite?) then err else z)
 }
 
 fun prodsqr( x : double ) : edouble {
   val z = x*x
   val (h,l) = split(x)
   val err = ((h*h - z) + (2.0*h*l)) + (l*l)
-  Edouble(z,err)             
+  Edouble(z,if (z.finite?) then err else z)
 }
 
 // `prod` & `prodsqr` can also be implemented using 'fused multiply add'
@@ -302,9 +303,9 @@ fun prodsqr( x : double ) : edouble {
 */
 
 public fun (*)( x : ddouble, y : ddouble ) : ddouble {
-  val z  = prod(x.hi, y.hi);
-  val e  = z.err + (x.hi*y.lo + x.lo*y.hi);
-  qquicksum(z.num, e);
+  val z  = prod(x.hi, y.hi)
+  val e  = z.err + (x.hi*y.lo + x.lo*y.hi)
+  qquicksum(z.num, e)
 }
 
 public fun sqr( x : ddouble ) : ddouble {
@@ -314,12 +315,13 @@ public fun sqr( x : ddouble ) : ddouble {
 }
 
 public fun (/)( x : ddouble, y : ddouble ) : ddouble {
-  val q1 = ddouble(x.hi / y.hi);
-  val r1 = x - (y * q1);
-  val q2 = ddouble(r1.hi / y.hi);
-  val r2 = r1 - (y * q2); 
-  val q3 = ddouble(r2.hi / y.hi);
-  val q  = qquicksum(q1.hi,q2.hi);
+  val q1 = ddouble(x.hi / y.hi)
+  if (!q1.finite?) return q1
+  val r1 = x - (y * q1)
+  val q2 = ddouble(r1.hi / y.hi)
+  val r2 = r1 - (y * q2)
+  val q3 = ddouble(r2.hi / y.hi)
+  val q  = qquicksum(q1.hi,q2.hi)
   q + q3
 }
 
