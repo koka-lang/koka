@@ -15,7 +15,7 @@ Any time can be expressed up to atto-second (10^-18^) precision up to 300,000 ye
 in the past and future, and can express up to pico-second (10^-12^) precision any time 
 since the age of the universe (about 13.8 billion years ago).
 
-``` unchecked
+```unchecked
 > instant(300000,1,1,0,0,0,1.0e-18).show(18) // 1 atto-second after Jan 1, 300000
 "9403971696037.000000000000000001s"
 > instant((~13.82e9).int,1,1,0,0,0,1.0e-12).show(12) // 1 pico-second after the birth of the universe

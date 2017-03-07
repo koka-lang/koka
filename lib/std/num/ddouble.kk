@@ -67,6 +67,7 @@ abstract struct ddouble(
   lo : double
 )
 
+// Create a `:ddouble` from a `:double`.
 public fun ddouble( d : double ) : ddouble {
   Ddouble(d,0.0)
 }
@@ -79,31 +80,60 @@ fun precise?(i : int ) : bool {
   (i >= minprecise && i <= maxprecise)
 }
 
+// Create a `:ddouble` from an `:int`. 
+// A `:ddouble` can represent integers precisely up to 30 digits.
+// If an integer is passed that is out of range an infinity is returned.
 public fun ddouble( i : int ) : ddouble {
   if (i.precise?) then ddouble( i.double ) else {
     val pd = i.count-digits
-    val p  = pd - 15
-    val hi = i.cdiv-pow10(p)
-    val r  = i - hi.mul-pow10(p)
-    ddouble(hi.double)*pow10(p) + ddouble(r.double)
+    //if (pd > 30) then (if (i.neg?) then dd-neg-inf else dd-pos-inf) else {
+      // ensure we convert up to 30 digits precisely
+      val p  = pd - 15
+      val hi = i.cdiv-pow10(p)
+      val r  = i - hi.mul-pow10(p)
+      ddouble(hi.double)*pow10(p) + ddouble(r.double)
+    //}
   }
 }
 
 
+// &pi; 
 public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
+
+// 2&pi;
 public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16);
+
+// &pi;/2
 public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17);
+
+// &pi;/4
 public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17);
+
+// The _e_ constant.
 public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-16)
+
+// The natural logarithm of 2
 public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17);
+
+// The natural logarithm of 10
 public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-16);
 
 public val dd-epsilon = ddouble(4.93038065763132e-32)
+
+// The maximum representable `:ddouble`
 public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
+
+// The smallest positive `:ddouble` that is still normalized
 public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
 
+// Not-A-Number
 public val dd-nan     = Ddouble(nan,nan)
+
+// Positive infinity
 public val dd-pos-inf = Ddouble(pos-inf,pos-inf)
+
+// Negative infinity
+public val dd-neg-inf = Ddouble(neg-inf,neg-inf)
 
 // maximal precision in decimal digits of a `:ddouble`.
 public val dd-max-prec = 31
@@ -113,49 +143,66 @@ public val dd-max-prec = 31
    Compare etc.
 ------------------------------------------------------*/
 
+// Zero constant
 public val zero = ddouble(0.0)
+
+// One
 public val one  = ddouble(1.0)
+
+// Ten (`10.ddouble`)
 public val ten  = ddouble(10.0)
 
+val two         = ddouble(2.0)
+
+// Is this `:ddouble` equal to zero?
 public fun zero?( x : ddouble ) : bool {
   x.hi.zero?
 }
 
+// Is this `:ddouble` negative?
 public fun neg?( x : ddouble ) : bool {
   x.hi.neg?
 }
 
+// Is this `:ddouble` positive?
 public fun pos?( x : ddouble ) : bool {
   x.hi.pos?
 }
 
+// Return the sign of the `:ddouble`.
 public fun sign?( x : ddouble ) : order {
   if (x.hi==0.0) then Eq
   elif (x.hi < 0.0) then Lt
   else Gt
 }
 
+// Is this `:ddouble` not-a-number?
 public fun nan?( x : ddouble ) : bool {
   x.hi.nan? || x.lo.nan?
 }
 
+// Is this a finite `:ddouble`? (i.e. not `nan?` or `inf?`)
 public fun finite?( x : ddouble ) : bool {
   x.hi.finite? && x.lo.finite?
 }
 
+// Is this an infinite value.
 public fun inf?( x : ddouble ) : bool {
   x.hi.inf?
 }
 
+// Does `x` equal positive infinity?
 public fun posinf?( x : ddouble ) : bool {
   x.hi.posinf?
 }
 
+// Does `x` equal negative infinity?
 public fun neginf?( x : ddouble ) : bool {
   x.hi.neginf?
 }
 
 
+// Compare two `:ddouble` values.
 public fun compare( x : ddouble, y : ddouble ) : order {
   match(compare(x.hi,y.hi)) {
     Eq  -> compare(x.lo,y.lo)
@@ -216,6 +263,7 @@ fun qquicksum( x : double, y : double ) : ddouble {
   Ddouble(z, if (z.finite?) then err else z)
 }
 
+// Add two `:ddouble`s
 public fun (+)( x : ddouble, y : ddouble ) : ddouble {
   val z1 = sum(x.hi,y.hi)
   val lo = sum(x.lo,y.lo)
@@ -225,26 +273,34 @@ public fun (+)( x : ddouble, y : ddouble ) : ddouble {
   qquicksum(z2.num,e2)
 }
 
+// Negate a `:ddouble`.
 public fun (~)( x : ddouble ) : ddouble {
   Ddouble(~x.hi,~x.lo)
 }
 
+// Subtract two values.
 public fun (-)( x : ddouble, y : ddouble ) : ddouble {
   x + (~y)
 }
 
+// Return the absolute value.
 public fun abs( x : ddouble ) : ddouble {
   if (x.neg?) then ~x else x
 }
 
+// Increment by one.
 public fun inc( x : ddouble ) :ddouble {
   x + one
 }
 
+
+// Decrement by one.
 public fun dec( x : ddouble ) :ddouble {
   x - one
 }
 
+
+// The sum of a list of values.
 public fun sum( xs : list<ddouble> ) : ddouble {
   xs.foldl(zero,(+))
 }
@@ -302,18 +358,22 @@ fun prodsqr( x : double ) : edouble {
 }
 */
 
+// Multiply two `:ddouble`s
 public fun (*)( x : ddouble, y : ddouble ) : ddouble {
   val z  = prod(x.hi, y.hi)
   val e  = z.err + (x.hi*y.lo + x.lo*y.hi)
   qquicksum(z.num, e)
 }
 
+// Multiply `x` with itself.
 public fun sqr( x : ddouble ) : ddouble {
   val z = prodsqr(x.hi)
   val e = (z.err + (2.0*x.hi*x.lo)) + (x.lo*x.lo)
   qquicksum(z.num,e)
 }
 
+
+// Divide two `:ddouble`s
 public fun (/)( x : ddouble, y : ddouble ) : ddouble {
   val q1 = ddouble(x.hi / y.hi)
   if (!q1.finite?) return q1
@@ -433,6 +493,10 @@ public fun pow( x : ddouble, n : int ) : ddouble {
 
 public fun pow10( exp : int ) : ddouble {
   pow(ten,exp)
+}
+
+public fun pow2( exp : int ) : ddouble {
+  pow(two,exp)
 }
 
 public fun ddouble-exp( i : int, exp : int ) : ddouble {
