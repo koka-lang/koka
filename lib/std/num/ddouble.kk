@@ -521,6 +521,7 @@ public fun show( x : ddouble, prec : int = ~1 ) : string {
 public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
+  if (x.in-double-range(prec)) then return x.hi.show(prec)
   // guess exponent
   val e = x.hi.abs.log10.floor.int  
   val p = if (prec.neg?) then dd-max-prec else max(1,prec)
@@ -532,6 +533,7 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
+  if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
   val (ds,e) = digits(x, dd-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
@@ -542,6 +544,10 @@ public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False )
 
 fun in-fixed-range( x : ddouble, e : int ) : bool {
   (e.abs <= 27 || (e.abs <= 30 && x.floor == x))
+}
+
+fun in-double-range( x : ddouble, prec : int  ) : bool {
+  (x.lo.zero? && prec >= 0 && prec <= 15)
 }
 
 fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim-zeros : bool ) : string {
@@ -572,7 +578,7 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
   match(post) {
     Cons(p) | p > 5 || (p==5 && pre.last.default(0).pred) -> {
       if (pre.nil?) then ([1],e.inc) 
-      else pre.reverse.digits-adjust(1).adjust10(e)
+      else pre.reverse.digits-carry(e,1)
     }
     _ -> (pre,e)
   }
@@ -581,6 +587,7 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
 public fun show-exp( x : ddouble, prec : int = ~1, trim-zeros : bool = prec.neg? ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
+  if (x.in-double-range(prec)) then return x.hi.show-exp(prec)
   val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec)  )
   //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
   show-exp-digits(x,prec,ds,e,trim-zeros)
@@ -604,37 +611,15 @@ fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int, trim-zero
 // Extract significant digits and exponent from a `:ddouble`.
 fun digits( x : ddouble, prec : int = dd-max-prec ) : (list<int>,int) {
   val n = prec + 1  // number of digits
-  val (e,r) = digits-toexp(x)
-  //trace(" digits-toexp: e: " + e.show + ", r: " + r.show-debug )
-  val ds = r.digits-extract(n).take(prec)
-  //trace(" digits-extract: " + ds.show-list(show))
-  ds.adjust10(e)
-}
-
-// adjust if starts with a digit > 9
-fun adjust10( ds : list<int>, e : int ) : (list<int>,int) {
-  match(ds) {
-    Cons(d,ds1) | d > 9 -> {
-      ( Cons(1,Cons(0,ds1)), e.inc )
-    }
-    Cons(d) | d == 0 && e > 0 -> {
-      //trace("testing: e: " + e.show + ", len: " + ds.length.show )
-      val (ds0,ds1) = ds.span(zero?) 
-      val e0 = e - ds0.length
-      if (e0 > 0 && ds1.cons?) then (ds1,e0) else (Cons(1,ds),e.inc)
-      //(ds1,e.dec))
-    }
-    _ -> (ds,e)
-  }
-}
-
-fun tracex( msg : string, x : a ) : a {
-  trace(" " + msg)
-  x
+  val (e0,r) = digits-to-exp(x)
+  //trace(" digits-toexp: e: " + e0.show + ", r: " + r.show-debug )
+  val ds0 = r.digits-extract(n)
+  val (ds1,e1) = ds0.digits-carry(e0)
+  (ds1.take(prec),e1)
 }
 
 // Return an exponent and normalized ddouble
-fun digits-toexp( x : ddouble ) : (int,ddouble) {
+fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   // guess approximate exponent
   val e1 = x.hi.abs.log10.floor.int  
   // guess exponential
@@ -651,7 +636,7 @@ fun digits-toexp( x : ddouble ) : (int,ddouble) {
  
 // extract the first n digits from a normalized ddouble (in reverse)
 fun digits-extract( r : ddouble, n : int, acc : list<int> = [] ) : list<int> {
-  if (n <= 0) then digits-round(acc).digits-adjust else {
+  if (n <= 0) then digits-round(acc) else {
     val d = r.hi.trunc.int
     digits-extract( (r - ddouble(d))*ten, 
                     unsafe-decreasing(n.dec), Cons(d,acc) )
@@ -668,16 +653,18 @@ fun digits-round( rds : list<int> ) : list<int> {
 }
 
 // adjust overflow digits in a reversed list of digits
-fun digits-adjust( rds : list<int>, adj : int = 0, acc : list<int> = [] ) : list<int> {
+fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [] ) : (list<int>,int) {
   match(rds) {
     Cons(d0,ds) {
       // propagate carry while adjusting
-      val d = d0 + adj
-      if (d < 0)   then digits-adjust( ds, ~1, Cons(d + 10, acc))
-      elif (d > 9) then digits-adjust( ds, 1, Cons(d - 10, acc))
-      else digits-adjust( ds, 0, Cons(d,acc) )
+      val d = d0 + carry
+      if (d < 0)   then digits-carry( ds, e, ~1, Cons(d + 10, acc))
+      elif (d > 9) then digits-carry( ds, e, 1, Cons(d - 10, acc))
+      else digits-carry( ds, e, 0, Cons(d,acc) )
     }
-    Nil -> acc
+    Nil -> {
+      (if (carry.pos?) then Cons(1,acc) else acc, e + carry) 
+    }
   }
 }
 
