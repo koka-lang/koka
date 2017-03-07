@@ -65,9 +65,11 @@ public fun test-int99() {
     val expect1 = "1." + repeat("0",i.dec) + "1e+" + i.show
     check("int" + i.show, expect1) { core/pow10(i).inc.ddouble.show-exp() }    
     val expect2 = "1." + repeat("0",i.dec) + "2e+" + i.show
-    check("int" + i.show, expect2) { core/pow10(i).inc.inc.ddouble.show-exp() }    
-    //val expect99 = "1." + repeat("9",i) + "e+" + i.show
-    //check("int" + i.show, expect99) { (core/pow10(i) + core/pow10(i).dec).ddouble.show-exp() }        
+    check("int" + i.show, expect2) { core/pow10(i).inc.inc.ddouble.show-exp() } 
+    if (i < 30) {   
+      val expect99 = "1" + repeat("9",i)// + "e+" + i.show
+      check("int" + i.show, expect99) { (core/pow10(i) + core/pow10(i).dec).ddouble.show-fixed() }        
+    }
   }
 }
 

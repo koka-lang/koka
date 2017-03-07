@@ -644,7 +644,6 @@ fun digits-toexp( x : ddouble ) : (int,ddouble) {
            else r0 / pow10(e1)
   // fix off by one
   // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
-  // note: we cannot do r1 >= ten since for a number as ("1e30".int.ddouble) we get in trouble
   if (r1 >= ten) then (e1.inc, r1 / ten)
   elif (r1 < one) then (e1.dec, r1 * ten)
   else (e1,r1)
