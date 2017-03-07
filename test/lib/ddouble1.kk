@@ -9,6 +9,23 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
+
+public fun main() {
+  test-big()
+  test-show()
+  test-e()
+  test-pi-machin()
+  test-pi-borwein()
+  test-pi-salmanbrent()
+  test-log2()
+  test-exp()
+  check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
+  check("pow1","1e+31") { pow(ddouble(10.0),31).show }
+  check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec(dd-max-prec) }
+  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec() }
+  check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
+}
+
 val max-int = 9007199254740991.0
 val mx = 123456789012345.0
 
@@ -26,32 +43,18 @@ public fun test-show() {
   check("prec2","0.00012"){ x2.show-prec(2) }
 }
 
-public fun main() {
-  test-big()
-  test-show()
-  test-e()
-  test-pi-machin()
-  test-log2()
-  test-exp()
-  check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
-  check("pow1","1e+31") { pow(ddouble(10.0),31).show }
-  check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec(dd-max-prec) }
-  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec() }
-  check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
-}
-
 public fun test-e(){
   /* Use Taylor series
        e = 1 + 1 + 1/2! + 1/3! + 1/4! + ...
      To compute e.
   */
-  check("e","approx-e: 2.718281828459045235360287471353, err: 0 ulp") {
+  check("e",dd-e.show + ", err: 0 ulp") {
       val approx = expand-e()
       val delta  = (approx - dd-e).abs
       val err    = delta / dd-epsilon    
       //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
       //trace(" e: " + dd-e.show)
-      ("approx-e: " + approx.show + ", err: " + err.show(3) + " ulp")
+      (approx.show + ", err: " + err.show(3) + " ulp")
   }
 }
 
@@ -69,13 +72,13 @@ public fun test-pi-machin() {
      The arctangent is computed based on the Taylor series expansion
        arctan(x) = x - x^3 / 3 + x^5 / 5 - x^7 / 7 + ...
   */
-  check("pi-mach","approx-pi: 3.141592653589793238462643383279, err: 2.00 ulp") {
+  check("pi-mach", dd-pi.show + ", err: 2.00 ulp") {
     val approx = 4.ddouble * ((4.ddouble * arctan(one / 5.ddouble )) - arctan( one / 239.ddouble ))
     val delta  = (approx - dd-pi).abs
     val err    = delta / dd-epsilon
     //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
     //trace(" pi: " + dd-pi.show )
-    ("approx-pi: " + approx.show + ", err: " + err.show(3) + " ulp")
+    (approx.show + ", err: " + err.show(3) + " ulp")
   }
 }
 
@@ -94,13 +97,13 @@ fun expand-arctan( t : ddouble, xsqr : ddouble, n : ddouble = one, acc : ddouble
 
 
 public fun test-log2() {
-  check("log2","approx-log2: 0.6931471805599453094172321214582, err: 0.375 ulp") {
+  check("log2",dd-log2.show + ", err: 0.375 ulp") {
     val approx = log2()
     val delta  = (approx - dd-log2).abs
     val err    = delta / dd-epsilon    
     //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
     //trace(" log2: " + dd-log2.show )
-    ("approx-log2: " + approx.show + ", err: " + err.show(3) + " ulp")
+    (approx.show + ", err: " + err.show(3) + " ulp")
   }
 }
 
@@ -149,7 +152,7 @@ public fun test-exp() {
   
   val expect = (dd-e * dd-e).show
 
-  check("epx1",expect) { dd-e.sqr.show }
+  check("exp1",expect) { dd-e.sqr.show }
   check("exp2",expect) { exp(2.ddouble).show }
   check("exp3",expect) {
     list(~3,4).map( fun(i) { 
@@ -157,3 +160,62 @@ public fun test-exp() {
     }).foldl(one,(*)).show
   }
 }
+
+public fun test-pi-borwein() {
+  check("borwein", dd-pi.show-exp(30)) {
+    val a = 6.ddouble - (4.ddouble * sqrt(2.ddouble))
+    val y = sqrt(2.ddouble) - one
+    val m = 2.ddouble
+    val p = one / a
+    val approx = expand-pi( a, y, m, p )
+    approx.show-exp(30)
+  }
+}
+
+fun expand-pi( a : ddouble, y : ddouble, m : ddouble,
+               p : ddouble, i : int = 0 ) : div ddouble 
+{
+  val m1 = m * 4.ddouble
+  val r  = nroot( one - y.sqr.sqr, 4 )
+  val y1 = (one - r) / (one + r)
+  val a1 = (a * sqr(sqr(one + y1))) - (m1*y1*(one + y1 + y1.sqr))
+
+  val p1 = one / a1
+  if (i >= 20 || ((p1 - p).abs < 4.ddouble * dd-epsilon))
+   then p1
+   else expand-pi(a1,y1,m1,p1,i.inc)
+}
+
+public fun test-pi-salmanbrent() {
+  check("pi-sb",dd-pi.show) {
+    val a = one
+    val b = sqrt(0.5.ddouble)
+    val s = 0.5.ddouble
+    val m = one
+    val p = (2.0.ddouble * sqr(a)) / s
+    val approx = expand-pi-sb(a,b,s,m,p)
+    approx.show
+  }
+}
+
+public fun showx( x : ddouble ) : string {
+  x.show-exp(dd-max-prec+1)
+}
+
+fun expand-pi-sb( a : ddouble, b : ddouble, s : ddouble,
+                  m : ddouble, p : ddouble, i : int = 0 ) : div ddouble 
+{
+  val m1 = m * 2.0.ddouble
+  val a1 = 0.5.ddouble * (a + b)
+  val b1 = a * b
+  val s1 = s - (m1 * (a1.sqr - b1))
+  val b2 = sqrt(b1)
+  //trace(" a: " + a.showx + ", b: " + b.showx)
+  //trace(" b2: " + b2.showx + ", b1: " + b1.showx )
+  val p1 = (2.0.ddouble * a1.sqr) / s1
+  //trace("i: " + i.show + ": p: " + p1.show-exp(dd-max-prec+1))
+  if (i >= 20 || ((p1 - p).abs <= 64.ddouble*dd-epsilon))
+   then p1
+   else expand-pi-sb(a1,b2,s1,m1,p1,i.inc)
+}
+
