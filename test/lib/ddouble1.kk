@@ -7,11 +7,14 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
   println(name.pad-right(8,' ') + ": " 
     + (if (got == res) then "ok: " + res 
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  if (got != res) then error("failed") else ()
 }
 
 
 public fun main() {
   test-big()
+  test-int10()
+  test-int99()
   test-show()
   test-e()
   test-pi-machin()
@@ -21,8 +24,8 @@ public fun main() {
   test-exp()
   check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
   check("pow1","1e+31") { pow(ddouble(10.0),31).show }
-  check("mul1a","1.5241578753238668e+28 vs. 15241578753238669120562399025.00") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
-  check("mul1b","1.5241578753238668e+28 vs. 15241578753238669120562399025") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show }
+  check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
+  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show }
   check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
 }
 
@@ -44,6 +47,28 @@ public fun test-show() {
   val x30 = "1e30".parse-int.default(0)
   check("int1","1000000000000000000000000000000"){ x30.ddouble.show-fixed }
   check("int2", "999999999999999999999999999999"){ x30.dec.ddouble.show-fixed }
+}
+
+public fun test-int10() {
+  for(2,308) fun(i){
+    val expect = "1e+" + i.show
+    check("int" + i.show, expect) { core/pow10(i).ddouble.show-exp }
+  }
+}
+
+public fun test-int99() {
+  for(2,30) fun(i) {
+    val expect8 = "9." + repeat("9",i - 2) + "8e+" + i.dec.show
+    check("int" + i.show, expect8) { core/pow10(i).dec.dec.ddouble.show-exp() }    
+    val expect9 = "9." + repeat("9",i.dec) + "e+" + i.dec.show
+    check("int" + i.show, expect9) { core/pow10(i).dec.ddouble.show-exp() }    
+    val expect1 = "1." + repeat("0",i.dec) + "1e+" + i.show
+    check("int" + i.show, expect1) { core/pow10(i).inc.ddouble.show-exp() }    
+    val expect2 = "1." + repeat("0",i.dec) + "2e+" + i.show
+    check("int" + i.show, expect2) { core/pow10(i).inc.inc.ddouble.show-exp() }    
+    //val expect99 = "1." + repeat("9",i) + "e+" + i.show
+    //check("int" + i.show, expect99) { (core/pow10(i) + core/pow10(i).dec).ddouble.show-exp() }        
+  }
 }
 
 public fun test-e(){

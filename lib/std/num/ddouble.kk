@@ -578,12 +578,12 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
   }
 }  
 
-public fun show-exp( x : ddouble, prec : int = ~1 ) : string {
+public fun show-exp( x : ddouble, prec : int = ~1, trim-zeros : bool = prec.neg? ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec)  )
   //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
-  show-exp-digits(x,prec,ds,e)
+  show-exp-digits(x,prec,ds,e,trim-zeros)
 }
 
 fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int, trim-zeros : bool = prec.neg? ) : string {    
@@ -617,8 +617,20 @@ fun adjust10( ds : list<int>, e : int ) : (list<int>,int) {
     Cons(d,ds1) | d > 9 -> {
       ( Cons(1,Cons(0,ds1)), e.inc )
     }
+    Cons(d) | d == 0 && e > 0 -> {
+      //trace("testing: e: " + e.show + ", len: " + ds.length.show )
+      val (ds0,ds1) = ds.span(zero?) 
+      val e0 = e - ds0.length
+      if (e0 > 0 && ds1.cons?) then (ds1,e0) else (Cons(1,ds),e.inc)
+      //(ds1,e.dec))
+    }
     _ -> (ds,e)
   }
+}
+
+fun tracex( msg : string, x : a ) : a {
+  trace(" " + msg)
+  x
 }
 
 // Return an exponent and normalized ddouble
@@ -631,10 +643,10 @@ fun digits-toexp( x : ddouble ) : (int,ddouble) {
            elif (e1 > 300) then ldexp(ldexp(r0,~53.0) / pow10(e1), 53.0)
            else r0 / pow10(e1)
   // fix off by one
-  // trace("digits-toexp: r1: " + r1.show-debug)
+  // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
   // note: we cannot do r1 >= ten since for a number as ("1e30".int.ddouble) we get in trouble
-  if (r1.hi >= 10.0) then (e1.inc, r1 / ten)
-  elif (r1.hi < 1.0) then (e1.dec, r1 * ten)
+  if (r1 >= ten) then (e1.inc, r1 / ten)
+  elif (r1 < one) then (e1.dec, r1 * ten)
   else (e1,r1)
 }
  
