@@ -21,8 +21,8 @@ public fun main() {
   test-exp()
   check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
   check("pow1","1e+31") { pow(ddouble(10.0),31).show }
-  check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec(dd-max-prec) }
-  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show-prec() }
+  check("mul1a","1.5241578753238668e+28 vs. 15241578753238669120562399025.00") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
+  check("mul1b","1.5241578753238668e+28 vs. 15241578753238669120562399025") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show }
   check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
 }
 
@@ -41,6 +41,9 @@ public fun test-show() {
   check("prec2","0.0001230000000000000081983031474664"){ x2.show-prec() }
   check("prec2","0.00012300"){ x2.show-prec(5) }
   check("prec2","0.00012"){ x2.show-prec(2) }
+  val x30 = "1e30".parse-int.default(0)
+  check("int1","1000000000000000000000000000000"){ x30.ddouble.show-fixed }
+  check("int2", "999999999999999999999999999999"){ x30.dec.ddouble.show-fixed }
 }
 
 public fun test-e(){

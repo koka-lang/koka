@@ -524,7 +524,7 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
   // guess exponent
   val e = x.hi.abs.log10.floor.int  
   val p = if (prec.neg?) then dd-max-prec else max(1,prec)
-  if (p > e && e >= ~4 && e < 27)
+  if (p > e && e >= ~4 && e <= 20 && in-fixed-range(x,e))
    then show-fixed(x, (p - 1) - e, prec.neg? )
    else show-exp(x, prec)
 }
@@ -536,8 +536,12 @@ public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
   // don't print too large a number; 10^28 and larger is problematic anyway
-  if (e.abs > 27) return show-exp-digits(x,dd-max-prec,ds,e)
+  if (!in-fixed-range(x,e)) return show-exp-digits(x,dd-max-prec,ds,e,trim-zeros)
   show-fixed-digits(x,dprec,ds,e,trim-zeros)
+}
+
+fun in-fixed-range( x : ddouble, e : int ) : bool {
+  (e.abs <= 27 || (e.abs <= 30 && x.floor == x))
 }
 
 fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim-zeros : bool ) : string {
@@ -547,7 +551,9 @@ fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim
 
   // use fixed
   val (whole,frac) = if (e.neg?) then ([0], replicate(0, ~e - 1 ) + ds) else ds.split(e+1)
-  val pre  = (whole + replicate(0,e + 1 - whole.length)).map(show).join
+  val pre0 = (whole + replicate(0,e + 1 - whole.length)).map(show).join
+  val pre1 = pre0.trim-left("0")
+  val pre  = if (pre1.empty?) then "0" else pre1
   val frac0= if (dprec.zero?) then []
              elif (dprec.pos?) then frac.take(dprec) + replicate(0, dprec - frac.length)
              else frac
@@ -576,14 +582,14 @@ public fun show-exp( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec)  )
-  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
+  //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
   show-exp-digits(x,prec,ds,e)
 }
 
-fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string {    
+fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int, trim-zeros : bool = prec.neg? ) : string {    
   val pre  = ds.head.default(0).show
   val frac0= (if (!prec.zero?) then ds.tail else []).map(show).join
-  val frac = if (!prec.neg?) then frac0 else frac0.trim-right("0")
+  val frac = if (trim-zeros) then frac0.trim-right("0") else frac0
   val post = if (frac.empty?) then "" else "." + frac
   val sign = if (x.neg?) then "-" else ""
   val exp  = if (e.zero?) then "" else ("e" + (if (e.pos?) then "+" else "") + e.show)
@@ -599,7 +605,7 @@ fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string
 fun digits( x : ddouble, prec : int = dd-max-prec ) : (list<int>,int) {
   val n = prec + 1  // number of digits
   val (e,r) = digits-toexp(x)
-  // trace(" digits-toexp: e: " + e.show + ", r: " + r.show-debug )
+  //trace(" digits-toexp: e: " + e.show + ", r: " + r.show-debug )
   val ds = r.digits-extract(n).take(prec)
   //trace(" digits-extract: " + ds.show-list(show))
   ds.adjust10(e)
@@ -625,9 +631,10 @@ fun digits-toexp( x : ddouble ) : (int,ddouble) {
            elif (e1 > 300) then ldexp(ldexp(r0,~53.0) / pow10(e1), 53.0)
            else r0 / pow10(e1)
   // fix off by one
-  val ten = ddouble(10.0)
-  if (r1 >= ten) then (e1.inc, r1 / ten)
-  elif (r1 < one) then (e1.dec, r1 * ten)
+  // trace("digits-toexp: r1: " + r1.show-debug)
+  // note: we cannot do r1 >= ten since for a number as ("1e30".int.ddouble) we get in trouble
+  if (r1.hi >= 10.0) then (e1.inc, r1 / ten)
+  elif (r1.hi < 1.0) then (e1.dec, r1 * ten)
   else (e1,r1)
 }
  
