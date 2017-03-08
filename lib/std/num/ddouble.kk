@@ -82,11 +82,17 @@ fun precise?(i : int ) : bool {
   (i >= minprecise && i <= maxprecise)
 }
 
+
+
 // Create a `:ddouble` from an `:int`. 
 // A `:ddouble` can represent integers precisely up to 30 digits.
 // If an integer is passed that is out of range an infinity is returned.
 public fun ddouble( i : int ) : ddouble {
-  if (i.precise?) then ddouble( i.double ) else {
+  ddouble-int-exp(i,0)
+}
+
+fun ddouble-int-exp( i : int, e : int ) : ddouble {
+  if (i.precise?) then small-exp( i, e ) else {
     // ensure we convert at least 31 (and at most 45) digits precisely
     val p    = i.count-digits
     val x    = i
@@ -95,18 +101,21 @@ public fun ddouble( i : int ) : ddouble {
     val py   = px - 15
     if (py <= 0) then { 
       // if 30 or less digits we can convert with two doubles
-      ddouble(hi.double)*pow10(px) + ddouble(y.double)
+      small-exp(hi, px + e) + small-exp( y, e)
     }
     else {
-      // otherwise use 2 initial 15 digits and 1 trailing values but
+      // otherwise use 2 initial 15 digits and 1 trailing value but
       // optimize the case of trailing zeros.
       val (mid,z) = y.divmod-pow10(py)
       val pz = z.pow10?  // number of trailing zeros
       val lo = z.cdiv-pow10(pz) 
-      (ddouble(hi.double)*pow10(px) + ddouble(mid.double)*pow10(py)) + ddouble(lo.double)*pow10(pz)
+      //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
+      (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, pz + e)
     }
-    //}
   }
+}
+fun small-exp( i : int, e : int ) {
+  i.double.ddouble.mul-pow10(e)
 }
 
 
@@ -512,10 +521,18 @@ public fun pow2( exp : int ) : ddouble {
   pow(two,exp)
 }
 
-public fun ddouble-exp( i : int, exp : int ) : ddouble {
-  i.ddouble * pow10(exp)
+
+public fun ddouble-exp( d : double, e : int ) {
+  d.ddouble.mul-pow10(e)
 }
 
+public fun ddouble-exp( i : int, exp : int ) : ddouble {
+  i.ddouble.mul-pow10(exp)
+}
+
+fun mul-pow10( x : ddouble, exp : int ) : ddouble {
+  if (exp.zero?) then x else x * pow10(exp)
+}
 
 /*------------------------------------------------------
    Show
@@ -709,14 +726,14 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
       if (cap.groups[7].empty?) {  // single double-double float
         val sign  = cap.groups[2].parse-int-sign
         val whole = cap.groups[3]
-        val frac  = cap.groups[4] || ""
+        val frac  = (cap.groups[4] || "").trim-right("0")
         val esign = cap.groups[5].parse-int-sign
         val exp   = cap.groups[6].parse-int-default(0) * esign
 
         val w = (whole + frac).parse-int-default(0) * sign
         val e = exp - frac.count
-        val x = w.ddouble * pow10(e)
-        //trace("parse: w: " + w.show + ", e: " + e.show )
+        val x = ddouble-int-exp(w,e) 
+        // trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
         Just(x)
       }
       else { // sum of two double's for precise round trips
