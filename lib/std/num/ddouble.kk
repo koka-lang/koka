@@ -52,6 +52,8 @@ Numerische\ Mathematik **18**(3), June 1971, 224--242.
 */
 module std/num/ddouble
 
+import std/text/regex
+
 /* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
 (versus 15 for `:double`), but keeps the same range as
@@ -85,13 +87,24 @@ fun precise?(i : int ) : bool {
 // If an integer is passed that is out of range an infinity is returned.
 public fun ddouble( i : int ) : ddouble {
   if (i.precise?) then ddouble( i.double ) else {
-    val pd = i.count-digits
-    //if (pd > 30) then (if (i.neg?) then dd-neg-inf else dd-pos-inf) else {
-      // ensure we convert up to 30 digits precisely
-      val p  = pd - 15
-      val hi = i.cdiv-pow10(p)
-      val r  = i - hi.mul-pow10(p)
-      ddouble(hi.double)*pow10(p) + ddouble(r.double)
+    // ensure we convert at least 31 (and at most 45) digits precisely
+    val p    = i.count-digits
+    val x    = i
+    val px   = p - 15
+    val (hi,y) = x.divmod-pow10(px)
+    val py   = px - 15
+    if (py <= 0) then { 
+      // if 30 or less digits we can convert with two doubles
+      ddouble(hi.double)*pow10(px) + ddouble(y.double)
+    }
+    else {
+      // otherwise use 2 initial 15 digits and 1 trailing values but
+      // optimize the case of trailing zeros.
+      val (mid,z) = y.divmod-pow10(py)
+      val pz = z.pow10?  // number of trailing zeros
+      val lo = z.cdiv-pow10(pz) 
+      (ddouble(hi.double)*pow10(px) + ddouble(mid.double)*pow10(py)) + ddouble(lo.double)*pow10(pz)
+    }
     //}
   }
 }
@@ -256,7 +269,7 @@ fun quicksum( x : double, y : double ) : edouble {
   Edouble(z, if (z.finite?) then err else z)
 }
 
-fun qquicksum( x : double, y : double ) : ddouble {
+fun dquicksum( x : double, y : double ) : ddouble {
   if (!x.finite?) return ddouble(x)
   val z   = x + y
   val err = y - (z - x)
@@ -270,7 +283,7 @@ public fun (+)( x : ddouble, y : ddouble ) : ddouble {
   val e1 = z1.err + lo.num
   val z2 = quicksum(z1.num,e1)
   val e2 = z2.err + lo.err
-  qquicksum(z2.num,e2)
+  dquicksum(z2.num,e2)
 }
 
 // Negate a `:ddouble`.
@@ -332,7 +345,7 @@ fun prod( x : double, y : double ) : edouble {
   val z = x*y
   val (xhi,xlo) = split(x)
   val (yhi,ylo) = split(y)
-  val err = ((xhi*yhi - z) + (xhi*ylo) + (xlo*yhi)) + (xlo*ylo)
+  val err = ((xhi*yhi - z) + (xhi*ylo + xlo*yhi)) + (xlo*ylo)
   Edouble(z,if (z.finite?) then err else z)
 }
 
@@ -362,14 +375,14 @@ fun prodsqr( x : double ) : edouble {
 public fun (*)( x : ddouble, y : ddouble ) : ddouble {
   val z  = prod(x.hi, y.hi)
   val e  = z.err + (x.hi*y.lo + x.lo*y.hi)
-  qquicksum(z.num, e)
+  dquicksum(z.num, e)
 }
 
 // Multiply `x` with itself.
 public fun sqr( x : ddouble ) : ddouble {
   val z = prodsqr(x.hi)
   val e = (z.err + (2.0*x.hi*x.lo)) + (x.lo*x.lo)
-  qquicksum(z.num,e)
+  dquicksum(z.num,e)
 }
 
 
@@ -381,7 +394,7 @@ public fun (/)( x : ddouble, y : ddouble ) : ddouble {
   val q2 = ddouble(r1.hi / y.hi)
   val r2 = r1 - (y * q2)
   val q3 = ddouble(r2.hi / y.hi)
-  val q  = qquicksum(q1.hi,q2.hi)
+  val q  = dquicksum(q1.hi,q2.hi)
   q + q3
 }
 
@@ -417,7 +430,7 @@ public fun int( x : ddouble ) : int {
 public fun round( x : ddouble ) : ddouble {
   val r = x.hi.round
   if (r == x.hi) {
-    qquicksum(r,x.lo.round)
+    dquicksum(r,x.lo.round)
   }
   elif(abs(r - x.hi) == 0.5 && x.lo.neg?) {
     Ddouble(r - 1.0,0.0)
@@ -430,14 +443,14 @@ public fun round( x : ddouble ) : ddouble {
 public fun floor( x : ddouble ) : ddouble {
   val r = x.hi.floor
   if (r == x.hi) 
-   then qquicksum(r,x.lo.floor)
+   then dquicksum(r,x.lo.floor)
    else Ddouble(r,0.0)
 }
 
 public fun ceiling( x : ddouble ) : ddouble {
   val r = x.hi.ceiling
   if (r == x.hi) 
-   then qquicksum(r,x.lo.ceiling)
+   then dquicksum(r,x.lo.ceiling)
    else Ddouble(r,0.0)
 }
 
@@ -507,6 +520,12 @@ public fun ddouble-exp( i : int, exp : int ) : ddouble {
 /*------------------------------------------------------
    Show
 ------------------------------------------------------*/
+
+public fun show-sum( x : ddouble ) : string {
+  if (!x.finite?) 
+   then x.hi.show
+   else x.hi.show + " + " + x.lo.show 
+}
 
 public fun show-debug( q : ddouble ) : string {
   "ddouble(" + q.hi.show +
@@ -673,10 +692,47 @@ fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [
 ------------------------------------------------------*/
 
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
-  parse-double(s).map(ddouble)
+  //parse-double(s).map(ddouble)
+  match(s.find(rx-ddouble)) {
+    Nothing -> {
+      match(s.find(rx-special)) {
+        Nothing -> Nothing
+        Just(cap) -> {
+          Just( if (!cap.groups[1].empty?) then dd-nan
+                elif (cap.groups[2] == "-") then dd-neg-inf
+                else dd-pos-inf
+              )
+        }
+      }
+    }
+    Just(cap) -> 
+      if (cap.groups[7].empty?) {  // single double-double float
+        val sign  = cap.groups[2].parse-int-sign
+        val whole = cap.groups[3]
+        val frac  = cap.groups[4] || ""
+        val esign = cap.groups[5].parse-int-sign
+        val exp   = cap.groups[6].parse-int-default(0) * esign
+
+        val w = (whole + frac).parse-int-default(0) * sign
+        val e = exp - frac.count
+        val x = w.ddouble * pow10(e)
+        //trace("parse: w: " + w.show + ", e: " + e.show )
+        Just(x)
+      }
+      else { // sum of two double's for precise round trips
+        val d1 = cap.groups[1].parse-double.default(nan)
+        val d2 = cap.groups[7].parse-double.default(nan)
+        Just(d1.ddouble + d2.ddouble)
+      }
+  }
 }
 
+fun parse-int-sign( s : string ) : int {
+  if (s=="-") then ~1 else 1
+}
 
+val rx-ddouble = regex(@"^(([\+\-])?(\d+)(?:\.(\d*))?(?:[eE]([\+\-])?(\d+))?)(?:\s*\+\s*([\+\-]?\d+(?:\.\d*)?(?:[eE][\+\-]?\d+)?))?$")
+val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$")
 
 /*------------------------------------------------------
   Advanced operations
