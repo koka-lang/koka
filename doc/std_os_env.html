@@ -21,8 +21,7 @@
 <div class="toc code"><ul class="toc"><li><a class="link" href="#get_args"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>args</a></li><li><a class="link" href="#get_argv"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>argv</a></li><li><a class="link" href="#get_env"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>env</a></li><li><a class="link" href="#get_env_1"><span class="kw">fun</span>&nbsp;get<span class="dash">-</span>env</a></li></ul></div>
 <div class="doc koka comment">
 
-<p class="p noindent"><br>
-Access to the program environment and commmand line arguments.
+<p class="p noindent">Access to the program environment and commmand line arguments.
 </p>
 <p class="p indent">Print the environment: <code class="koka">get<span class="dash">-</span>env()<span class="kw op">.</span>list<span class="kw op">.</span>map(<span class="kw">fun</span>(p) { p<span class="kw op">.</span>fst <span class="op">+</span> <span class="st">&#34;=&#34;</span> <span class="op">+</span> p<span class="kw op">.</span>snd })<span class="kw op">.</span>join(<span class="st">&#34;\n&#34;</span>)<span class="kw op">.</span>print</code>.
 </p></div>
