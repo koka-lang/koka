@@ -194,6 +194,36 @@ public fun test-exp() {
   }
 }
 
+/* Check sin/cos equalities:
+  sin(x) = sin(5x/7)cos(2x/7) + cos(5x/7)sin(2x/7)
+  cos(x) = cos(5x/7)cos(2x/7) - sin(5x/7)sin(2x/7)
+*/
+public fun test-sincos() {
+  [1,2,4,3,5,6,7,8,9,10,1000,10000000000]
+    .foreach-indexed(fun(i,r) { 
+      check-sincos(i, dd-twopi / r.ddouble) 
+      check-sincos(i, ~dd-twopi / r.ddouble) 
+    })
+}
+
+public fun check-sincos( i : int, x : ddouble ) {
+  val x1 = (5.ddouble * x) / 7.ddouble
+  val x2 = (2.ddouble * x) / 7.ddouble
+
+  val s1 = sin(x)
+  val c1 = cos(x)
+  val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
+  val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
+  check("sin" + i.show, s1.show(30)) { s2.show(30) }
+  check("cos" + i.show, c1.show(30)) { c2.show(30) }
+  
+  // check not too much error with respect to the double computation
+  val e1 = (s1 - sin(x.double).ddouble).abs.double
+  val e2 = (c1 - cos(x.double).ddouble).abs.double
+  if (e1 > 3.0e-16) then error("sin does not match double: " + e1.show)
+  if (e2 > 3.0e-16) then error("cos does not match double: " + e2.show)    
+}
+
 
 /*-------------------------------------------------------
   Various formulas to approximate pi

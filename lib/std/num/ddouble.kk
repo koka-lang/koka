@@ -6,36 +6,92 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Operations on _double double_ 128-bit floating point numbers.
+/* Operations on double double 128-bit floating point numbers.
 
-The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
+The `:ddouble` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
 (versus 15 for `:double`), but keeps the same range as
-a `:double` with a maximum  value of about 1.8&times;10^308^. Because
+a `:double` with a maximum  value of about 1.8&middot;10^308^ (`dd-max`). Because
 `:double`s usually have hardware support, a `:ddouble` is usually much faster
 than arbitrary precision floating point numbers.
 
-Note that despite the extra precision, underflow/overflow and machine precision are 
-not as well-defined as with a regular `:double` [@Dekker;@Hida:qd;@Hida:qdlib].
+## Precision {-}
 
-The implementation is based closely on the [QD] library and assumes proper IEEE `:double`s 
-with correct rounding.
+If you add two regular 64-bit `:double` values you can quickly notice the imprecision
+especially because decimal fractions cannot be represented precisely. For example:
+
+```
+> 0.1 + 0.2
+0.30000000000000004
+```
+
+When we show the `0.1` to 20 digits of precision, we see that it is not precisely 
+represented by a `:double`:
+
+```
+> 0.1.show(20)
+"0.10000000000000000555"
+```
+
+If we convert this to a `:ddouble` we can see with even more precision how 0.1 is
+represented by a `:double`:
+
+```
+> 0.1.ddouble
+0.1000000000000000055511151231258
+```
+
+However, if we convert the number `0.1` directly to a `:ddouble` instead of going through
+a `:double` constant, we get `0.1` exactly:
+
+```
+> ddouble("0.1")   // for convenience; using `ddouble-exp(1,~1)` is more efficient
+0.1
+```
+
+This is possible because a `:ddouble` uses two `:double`s to represent numbers; in this
+case the first (_hi_) double is (the inexact) `0.1` while the second one (_lo_) is the
+correction to that number. The `show-sum` function shows this internal pair of numbers:
+
+```
+> ddouble("0.1").show-sum(20)
+"0.10000000000000000555 + -5.5511151231257830103e-18"
+
+> ddouble("0.1") + ddouble("0.2")
+0.3
+```
+
+More precisely, a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_
+such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
+
+## Notes {-}
+
+Note that despite the extra precision, underflow/overflow and machine precision are 
+not as well-defined as with a regular `:double` [@Hida:qd;@Hida:qdlib;@lin;@Dekker].
+The implementation is based closely on the [QD] C++ library,
+and assumes proper 64-bit IEEE `:double`s with correct rounding.
 
 
 ## References {-}
 
 ~ Bibliography { caption:"0" }
 
+~~ BibItem { #Hida:qdlib; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
+_Library for double-double and quad-double arithmetic._ 
+(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~
+
 ~~ BibItem { #Hida:qd; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
-Yozo Hida,\ X.\ Li, and D.\ H.\ Bailey.
+Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
 Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
-~~ BibItem { #Hida:qdlib; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
-Yozo Hida,\ X.\ Li, and D.\ H.\ Bailey.
-_Library for double-double and quad-double arithmetic._ 
-(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~ Bibitem { #lin; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
+Seppo\ Linnainmaa.
+_Software for Doubled-Precision Floating-Point Computations_.
+ACM Transactions on Mathematical Software (TOMS), Volume **7** Issue 3, Sept. 1981, 272--283.
 ~~
 
 ~~ BibItem { #dekker; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
@@ -57,12 +113,12 @@ import std/text/regex
 /* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
 (versus 15 for `:double`), but keeps the same range as
-a `:double` with a maximum  value of about 1.8&times;10^308^. Because
+a `:double` with a maximum  value of about 1.8&middot;10^308^. Because
 `:double`s usually have hardware support, a `:ddouble` is usually much faster
 than arbitrary precision floating point numbers.
 
 Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_
-such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&times;ulp(_hi_).
+such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
 abstract struct ddouble(
   hi : double,
@@ -140,6 +196,7 @@ public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-1
 // The natural logarithm of 10
 public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-16);
 
+// The 'machine epsilon'
 public val dd-epsilon = ddouble(4.93038065763132e-32)
 
 // The maximum representable `:ddouble`
@@ -152,10 +209,10 @@ public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-10
 public val dd-nan     = Ddouble(nan,nan)
 
 // Positive infinity
-public val dd-pos-inf = Ddouble(pos-inf,pos-inf)
+public val dd-posinf = Ddouble(posinf,posinf)
 
 // Negative infinity
-public val dd-neg-inf = Ddouble(neg-inf,neg-inf)
+public val dd-neginf = Ddouble(neginf,neginf)
 
 // maximal precision in decimal digits of a `:ddouble`.
 public val dd-max-prec = 31
@@ -258,6 +315,7 @@ struct edouble(
   err : double              
 )
 
+// often called `twosum` in literature
 fun sum( x : double, y : double ) : edouble {
   val z    = x + y
   val diff = z - x
@@ -350,6 +408,7 @@ fun split( x : double ) : (double,double) {
   }
 }
 
+// often called `twoproduct` in literature
 fun prod( x : double, y : double ) : edouble {
   val z = x*y
   val (xhi,xlo) = split(x)
@@ -407,11 +466,14 @@ public fun (/)( x : ddouble, y : ddouble ) : ddouble {
   q + q3
 }
 
+// Remainder of two `:ddouble`s
 public fun (%)( x : ddouble, y : ddouble ) : ddouble {
   val n = (x / y).round
   x - (n*y)
 }
 
+
+// Division and remainder of two `:ddouble`s
 public fun divrem( x : ddouble, y : ddouble ) : (ddouble,ddouble) {
   val n = (x / y).round
   (n, x - (n*y))
@@ -421,10 +483,12 @@ public fun divrem( x : ddouble, y : ddouble ) : (ddouble,ddouble) {
    Rounding
 ------------------------------------------------------*/
 
+// Convert a `:ddouble` to a `:double` (losing precision)
 public fun double( x : ddouble ) : double {
   x.hi
 }
 
+// Convert a `:ddouble` to an integer (using `round`)
 public fun int( x : ddouble ) : int {
   val r = x.round
   if (!r.finite?) then 0 else {
@@ -436,6 +500,7 @@ public fun int( x : ddouble ) : int {
   }
 }
 
+// Round a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie).
 public fun round( x : ddouble ) : ddouble {
   val r = x.hi.round
   if (r == x.hi) {
@@ -449,6 +514,7 @@ public fun round( x : ddouble ) : ddouble {
   }
 }
 
+// Round to negative infinity.
 public fun floor( x : ddouble ) : ddouble {
   val r = x.hi.floor
   if (r == x.hi) 
@@ -456,6 +522,8 @@ public fun floor( x : ddouble ) : ddouble {
    else Ddouble(r,0.0)
 }
 
+
+// Round to positive infinity.
 public fun ceiling( x : ddouble ) : ddouble {
   val r = x.hi.ceiling
   if (r == x.hi) 
@@ -463,20 +531,25 @@ public fun ceiling( x : ddouble ) : ddouble {
    else Ddouble(r,0.0)
 }
 
+
+// Round to zero.
 public fun trunc( x : ddouble ) : ddouble {
   if (x.neg?) then x.ceiling else x.floor
 }
 
+
+// The fraction of `x` such that `x.trunc + x.fraction == x`.
 public fun fraction( x : ddouble ) : ddouble {
   x - x.trunc
 }
 
+// The _floored_ fraction of `x`. This is always positive, such that `x.floor + x.ffraction == x`.
 public fun ffraction( x : ddouble ) : ddouble {
   x - x.floor
 }
 
 
-// Round a `:ddouble` to a specified precision
+// Round a `:ddouble` to a specified precision. Uses `round` if the precision is smaller or equal to zero.
 public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
   if (prec <= 0) then x.round 
   elif (prec > dd-max-prec) then x 
@@ -492,6 +565,8 @@ public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
 fun ldexp( x : double, exp : double ) : double {
   x*pow2(exp)
 }
+
+// 'Load exponent': returns `x`&middot;2^`exp`^.
 public fun ldexp( x : ddouble, exp : double ) : ddouble {
   Ddouble(ldexp(x.hi,exp),ldexp(x.lo,exp))
 }
@@ -508,24 +583,30 @@ fun npwr( x : ddouble, n : int ) : ddouble {
   else x.npwr-acc(one,n)
 }
 
+// Return `x` to the power of `n`.
 public fun pow( x : ddouble, n : int ) : ddouble {
   val p = npwr(x,n.abs)
   if (n.neg?) then (one / p) else p
 }
 
+// Return 10 to the power of `exp`.
 public fun pow10( exp : int ) : ddouble {
   pow(ten,exp)
 }
 
+
+// Return 2 to the power of `exp`.
 public fun pow2( exp : int ) : ddouble {
   pow(two,exp)
 }
 
 
+// Create a `:ddouble` `x` such that `x` equals `d`&middot;10^`e`^.
 public fun ddouble-exp( d : double, e : int ) {
   d.ddouble.mul-pow10(e)
 }
 
+// Create a `:ddouble` `x` such that `x` equals `i`&middot;10^`e`^.
 public fun ddouble-exp( i : int, exp : int ) : ddouble {
   i.ddouble.mul-pow10(exp)
 }
@@ -538,22 +619,21 @@ fun mul-pow10( x : ddouble, exp : int ) : ddouble {
    Show
 ------------------------------------------------------*/
 
-public fun show-sum( x : ddouble ) : string {
+// Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
+// Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
+// i.e. `x == x.show-sum.ddouble`
+public fun show-sum( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) 
    then x.hi.show
-   else x.hi.show + " + " + x.lo.show 
+   else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
-public fun show-debug( q : ddouble ) : string {
-  "ddouble(" + q.hi.show +
-    (if (q.hi.finite?) then " + " + q.lo.show else "") +
-    ")"   
-}
-
+// Show a `:ddouble` with an optional precision. 
 public fun show( x : ddouble, prec : int = ~1 ) : string {
   x.show-prec(prec)
 }
 
+// Show a `:ddouble` with an optional precision. 
 public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
@@ -566,6 +646,9 @@ public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
    else show-exp(x, prec)
 }
 
+// Show a `:ddouble` as a fixed point number with an optional precision `dprec` (=`0`) that
+// specifies the number of digits after the dot. For some numbers `show-fixed` will still
+// use exponential notation.
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
@@ -620,6 +703,8 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
   }
 }  
 
+// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`~1`)
+// and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
 public fun show-exp( x : ddouble, prec : int = ~1, trim-zeros : bool = prec.neg? ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
@@ -708,6 +793,14 @@ fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [
   Parsing
 ------------------------------------------------------*/
 
+// Parse a floating point number with up to 31 digits precision. 
+// Return `dd-nan` if the string is an invalid number.
+public fun ddouble( s : string ) : ddouble {
+  s.parse-ddouble.default(dd-nan)
+}
+
+// Parse a floating point number with up to 31 digits precision. 
+// Returns `Nothing` on invalid input.
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
   //parse-double(s).map(ddouble)
   match(s.find(rx-ddouble)) {
@@ -716,8 +809,8 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
         Nothing -> Nothing
         Just(cap) -> {
           Just( if (!cap.groups[1].empty?) then dd-nan
-                elif (cap.groups[2] == "-") then dd-neg-inf
-                else dd-pos-inf
+                elif (cap.groups[2] == "-") then dd-neginf
+                else dd-posinf
               )
         }
       }
@@ -806,7 +899,7 @@ public fun exp( x : ddouble ) : ddouble {
   val inv-k = 1.0 / k
 
   if (x.hi <= ~709.0) then zero 
-  elif (x.hi >= 709.0) then dd-pos-inf
+  elif (x.hi >= 709.0) then dd-posinf
   elif (x.zero?) then one
   elif (x==one) then dd-e
   else {
@@ -886,4 +979,87 @@ public fun log10( x : ddouble ) : ddouble {
 // The logarithm in base 2 of `x`.
 public fun log2( x : ddouble ) : ddouble {
   return log(x) / dd-log2
+}
+
+
+
+// The sine function of a given angle in radians.
+public fun sin( rad : ddouble ) : ddouble {
+  rad.sincos.fst
+}
+
+// The cosine function of a given angle in radians.
+public fun cos( rad : ddouble ) : ddouble {
+  rad.sincos.snd
+}
+
+// The tangent of a given angle in radians.
+public fun tan( rad : ddouble ) : ddouble {
+  val (s,c) = rad.sincos
+  s / c
+}
+
+// Calculate sine and cosine on an angle in radians.
+public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
+  // quick approximation for small values
+  if (rad.hi.abs < 1.0e-11) then {
+    val s = rad * (one - (rad.sqr / 3.ddouble))
+    val c = (one - s.sqr).sqrt
+    return (s,c)
+  }
+  // restrict range
+  val x1 = rad / dd-twopi
+  val x3 = x1 - x1.round
+  // s = x - a*pi/2 - b*pi/16
+  val x32 = x3 + x3
+  val x34 = x32 + x32 // 4.ddouble * x3
+  val a   = x34.int
+  val b   = (8.ddouble * (x34 - a.ddouble)).int
+  val s   = dd-pi * (x32 - ((8*a + b).ddouble / 16.ddouble))
+  val s2  = s.sqr
+  // Use the Chebyshev series for best precision.
+  val sins = s * ch-factors().foldl(zero) fun(acc,f) { f + acc*s2 }
+  val coss = (one - sins.sqr).sqrt
+  // sinb = sin(b*pi/16)
+  val sinb = if (b.pos?) then sin16(b) else ~sin16(~b)
+  val cosb = sin16(8 - b.abs)
+
+  if (a==0) then (sins*cosb + coss*sinb, coss*cosb - sins*sinb)
+  elif (a==1) then (coss*cosb - sins*sinb, ~coss*sinb - sins*cosb)
+  elif (a== ~1) then (sins*sinb -  coss*cosb, coss*sinb + sins*cosb)
+  else (~sins*cosb - coss*sinb, sins*sinb - coss*cosb)
+}
+
+val ch-factors : () -> list<ddouble> = once {
+  ["0.9999999999999999999999999999993767021096",
+  "-0.1666666666666666666666666602899977158461",
+  "8333333333333333333322459353395394180616.0e-42",
+  "-1984126984126984056685882073709830240680.0e-43",
+  "2755731922396443936999523827282063607870.0e-45",
+  "-2505210805220830174499424295197047025509.0e-47",
+  "1605649194713006247696761143618673476113.0e-49"]
+  .map(ddouble).reverse
+}
+
+// Return sin(i*pi/16) for 0 <= i <= 8
+fun sin16( i : int ) : ddouble {
+  if (i <= 0) then zero
+  elif (i >= 8) then one
+  else {
+    val s = 
+      if (i >= 4) then {
+        if (i >= 6) then {
+          if (i==7) then "0.9807852804032304491261822361342390369739"
+                    else "0.9238795325112867561281831893967882868225"
+        }
+        elif (i==5) then "0.8314696123025452370787883776179057567386"
+                    else "0.7071067811865475244008443621048490392850"
+      }
+      elif (i >= 2) {
+        if (i==3) then "0.5555702330196022247428308139485328743749"
+                  else "0.3826834323650897717284599840303988667613"                
+      }
+      else "0.1950903220161282678482848684770222409277"
+    s.ddouble  
+  }
 }
