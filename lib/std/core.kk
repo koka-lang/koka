@@ -1582,10 +1582,10 @@ extern inline int(d : double ) : int {
 val nan : double = getNan()
 
 // Positive infinity
-val pos-inf : double = getPosInf()
+val posinf : double = getPosInf()
 
 // Negative infinity
-val neg-inf : double = getNegInf()
+val neginf : double = getNegInf()
 
 // The maximal double value
 val max-double : double = getMaxDouble()
