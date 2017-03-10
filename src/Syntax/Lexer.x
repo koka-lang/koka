@@ -92,6 +92,7 @@ $charesc  = [nrt\\\'\"]    -- "
 
 @exponent     = [eE](\-|\+)? @decimal
 @float        = @decimal \. @decimal @exponent?
+@sign         = [\-]?
 
 -----------------------------------------------------------
 -- Main tokenizer
@@ -126,6 +127,12 @@ program :-
 -- specials
 <0> $special              { string $ LexSpecial }
 
+-- literals
+<0> @sign @decimal        { string $ \s -> LexInt (digitsToNum 10 s) s }
+<0> @sign @hexadecimal    { string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s }
+<0> @sign @float          { string $ \s -> LexFloat (read s) s }
+
+
 -- type operators
 <0> "||"                  { string $ LexOp . newName }
 <0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
@@ -138,14 +145,11 @@ program :-
                                              then LexPrefix (newName s)
                                              else LexOp (newName s) }
 
--- literals
-<0> @decimal              { string $ \s -> LexInt (digitsToNum 10 s) s }
-<0> @hexadecimal          { string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s }
-<0> @float                { string $ \s -> LexFloat (read s) s }
+
+-- characters
 <0> \"                    { next stringlit $ more (const B.empty) }  -- " 
 <0> \@\"                  { next stringraw $ more (const B.empty) }  -- "
 
--- characters
 <0> \'\\$charesc\'        { string $ LexChar . fromCharEsc . head . drop 2 }
 <0> \'\\@hexesc\'         { string $ LexChar . fromHexEsc . init . drop 3 }
 <0> \'@charchar\'         { string $ LexChar . head . tail }
@@ -282,6 +286,8 @@ isPrefixOp name
   = (name == "!" || name == "~")
 
 digitsToNum :: Num a => a -> String -> a
+digitsToNum base ('-':digits)
+  = negate (digitsToNum base digits)
 digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
     in seq n n
