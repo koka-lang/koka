@@ -1420,6 +1420,7 @@ private extern inline int32  : (int) -> int32   {
 
 // Minimal set of operations that we need in `std/core`.
 private extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+private extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
 private extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 private extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 private extern inline pos?( i : int32 ) : bool { inline "(#1>0)" }
@@ -1669,7 +1670,7 @@ extern trunc : (d:double) -> double {
 
 // Return the fractional part of a `:double` `d`.\
 // `d.trunc + d.fraction === d`\
-// `(~2.4).fraction === ~0.4`
+// `(-2.4).fraction === -0.4`
 fun fraction(d : double) : double {
   d - d.trunc
 }
@@ -1930,7 +1931,7 @@ fun tail( s : string ) : string {
 }
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
-extern common-prefix(s : string, t : string, upto : int = ~1 ) : sslice {
+extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
   cs "Primitive.SliceCommonPrefix"
   js "_sslice_common_prefix"
 }
@@ -1946,7 +1947,7 @@ extern common-prefix(s : string, t : string, upto : int = ~1 ) : sslice {
 //
 // * `"abc".first.advance(1).string == "b"`,
 // * `"abc".first.advance(3).string == ""`,
-// * `"abc".last.advance(~1).string == "b"`.
+// * `"abc".last.advance(-1).string == "b"`.
 // 
 public extern advance( slice : sslice, count : int ) : sslice {
   cs "Primitive.SliceAdvance"
@@ -1958,7 +1959,7 @@ public extern advance( slice : sslice, count : int ) : sslice {
 // For example:
 //
 // * `"abc".first.extend(1).string == "ab"`
-// * `"abc".last.extend(~1).string == ""`
+// * `"abc".last.extend(-1).string == ""`
 // 
 extern extend( slice : sslice, count : int ) : sslice {
   cs "Primitive.SliceExtend"
@@ -2301,6 +2302,12 @@ private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a>
 extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { 
   cs inline "(#1)[Primitive.IntToInt32(#2)]" 
   js inline "(#1)[$std_core._int_to_int32(#2)]" 
+}
+
+// Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
+fun at( v  : vector<a>, index : int ) : maybe<a> {
+  val idx = index.int32
+  if (idx < 0.int32 || v.length32 <= idx) then Nothing else Just(unsafe-idx(v,idx))
 }
 
 // Return the length of a vector.
