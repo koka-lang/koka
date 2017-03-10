@@ -180,22 +180,25 @@ fun small-exp( i : int, e : int ) {
 public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
 
 // 2&pi;
-public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16);
+public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16)
 
 // &pi;/2
-public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17);
+public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17)
 
 // &pi;/4
-public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17);
+public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17)
+
+// 3&midpoint;&pi/4
+public val dd-pi34    = Ddouble(2.356194490192344837e+00,9.1848509936051484375e-17)
 
 // The _e_ constant.
 public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-16)
 
 // The natural logarithm of 2
-public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17);
+public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17)
 
 // The natural logarithm of 10
-public val dd-log10   = Ddouble(2.302585092994045901e+00,-2.170756223382249351e-16);
+public val dd-log10   = Ddouble(2.302585092994045901e+00,-2.170756223382249351e-16)
 
 // The 'machine epsilon'
 public val dd-epsilon = ddouble(4.93038065763132e-32)
@@ -207,13 +210,13 @@ public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795
 public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
 
 // Not-A-Number
-public val dd-nan     = Ddouble(nan,nan)
+public val dd-nan     = Ddouble(nan,0.0)
 
 // Positive infinity
-public val dd-posinf = Ddouble(posinf,posinf)
+public val dd-posinf = Ddouble(posinf,0.0)
 
 // Negative infinity
-public val dd-neginf = Ddouble(neginf,neginf)
+public val dd-neginf = Ddouble(neginf,0.0)
 
 // maximal precision in decimal digits of a `:ddouble`.
 public val dd-max-prec = 31
@@ -1013,27 +1016,39 @@ public fun tan( rad : ddouble ) : ddouble {
   s / c
 }
 
+val dd-pi16 = Ddouble(1.963495408493620697e-01,7.654042494670957545e-18)
+
+
 // Calculate sine and cosine on an angle in radians.
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
   if (rad.hi.abs < 1.0e-11) then {
-    val s = rad * (one - (rad.sqr / 3.ddouble))
-    val c = (one - s.sqr).sqrt
-    return (s,c)
+    return (rad, one - 0.5.ddouble*sqr(rad))   
   }
-  // restrict range
-  val x1 = rad / dd-twopi
-  val x3 = x1 - x1.round   
-  // s = x - a*pi/2 - b*pi/16
-  val x32 = x3 + x3
-  val x34 = x32 + x32 // 4.ddouble * x3
-  val a   = x34.floor.int  // ensure positive remainder
-  val b   = (8.ddouble * (x34 - a.ddouble)).int 
-  val s   = dd-pi * (x32 - ((8*a + b).ddouble / 16.ddouble))
-  val s2  = s.sqr
+
+  /*
+  To compute sin(x), we choose integers a, b so that
+       rad = s + a * (pi/2) + b * (pi/16)
+  and |s| <= pi/32.  A precomputed sin(pi/16) and
+  Chebyshev series, we can compute very precisely.
+  */
+  // find a, b, and s.
+  val z  = (rad / dd-twopi).round
+  val r  = rad - (dd-twopi * z)
+  
+  val qa : double = floor( (r.hi / dd-pi2.hi) + 0.5)
+  val a  = qa.trunc.int
+  val t  = r - (dd-pi2 * qa.ddouble)
+  val qb : double = floor((t.hi / dd-pi16.hi) + 0.5)
+  val b  = qb.trunc.int
+  
+  val s  = t - (dd-pi16 * qb.ddouble)
+  val s2 = s.sqr
+  
   // Use the Chebyshev series for best precision.
   val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
+
   // sinb = sin(b*pi/16)
   val sinb = if (b >= 0) then sin16(b) else ~sin16(~b)
   val cosb = sin16(8 - b.abs)
@@ -1041,7 +1056,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   if (a==0) then (sins*cosb + coss*sinb, coss*cosb - sins*sinb)
   elif (a==1) then (coss*cosb - sins*sinb, ~coss*sinb - sins*cosb)
   elif (a== -1) then (sins*sinb -  coss*cosb, coss*sinb + sins*cosb)
-  else (~sins*cosb - coss*sinb, sins*sinb - coss*cosb)
+  else (~sins*cosb - coss*sinb, sins*sinb - coss*cosb) // |a| == 2
 }
 
 public val ch-factors : list<ddouble> = [
@@ -1072,18 +1087,104 @@ val sin16-table : vector<ddouble> = [
 ].vector
 
 
+public fun with-sign-of( x : ddouble, y : ddouble ) : ddouble {
+  if (y.neg?) then ~(x.abs) else x.abs
+}
+
+
+
+public fun asin( x : ddouble ) : ddouble {
+  val a = x.abs
+  if (a > one) then dd-nan
+  elif (a == one) then dd-pi2.with-sign-of(x)
+  else atan2( x, sqrt(one - x.sqr) )
+}
+
+public fun acos( x : ddouble ) : ddouble {
+  val a = x.abs
+  if (a > one) then dd-nan
+  elif (a == one) then (if (x.pos?) then zero else dd-pi)
+  else atan2( sqrt(one - x.sqr), x )
+}
 
 public fun atan( x : ddouble ) : ddouble {
-  if (x.zero?) then zero
-  elif (x.hi.abs > 1.0e6) {
-    val r = one / x
-    val r2 = r.sqr
-    val r3 = r * r2
-    (dd-pi2 - r) + ((r3*(one - r2*ddouble-exp(6,-1))) / 3.ddouble)
+  atan2(x,one)
+}
+
+public fun atan2( y : ddouble, x : ddouble ) : ddouble {
+  if (x.zero?) {
+    if (y.zero?) then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
+  }
+  elif (y.zero?) then {
+    if (x.pos?) then zero else dd-pi
+  }
+  elif (x == y) then {
+    if (y.pos?) then dd-pi4 else ~dd-pi34
+  }
+  elif (x == ~y) then {
+    if (y.pos?) then dd-pi34 else ~dd-pi4
   }
   else {
-    val a = atan(x.hi).ddouble
-    val (s,c) = sincos(a)
-    a + c*(c*x - s)
+    val r = sqrt( x.sqr + y.sqr )
+    val xr = x / r
+    val yr = y / r
+
+    val z = atan2( y.double, x.double ).ddouble // approximation
+    val (sinz,cosz) = sincos(z)
+    if (xr.hi.abs > yr.abs.hi) 
+     then z + ((yr - sinz) / cosz)
+     else z - ((xr - cosz) / sinz)
   }
+}
+
+public fun sinh( x : ddouble ) : ddouble {
+  if (x.zero?) then zero
+  elif (x.abs.double > 0.05) then {
+    val ex = x.exp
+    if (!ex.finite?) then ex else mul-pwr2( ex - (one / ex), 0.5 )
+  }
+  else {
+    // small x so use Taylor series to avoid cancellation 
+    val x2 = x.sqr    
+    x*(one + (x2/6.ddouble)*(one + (x2/20.ddouble)*(one + (x2/42.ddouble))))
+  }
+}
+
+public fun cosh( x : ddouble ) : ddouble {
+  if (x.zero?) then one 
+  elif (x.abs.double > 0.05) then {
+    val ex = x.exp
+    if (!ex.finite?) then ex else mul-pwr2(ex + (one / ex), 0.5)
+  }
+  else {
+    val s = x.sinh
+    sqrt( one + s.sqr )
+  }
+}
+
+public fun tanh( x : ddouble ) : ddouble {
+  if (x.zero?) then zero 
+  elif (x.abs.double > 0.05) then {
+    val ex = x.exp
+    val iex = one / ex
+    ((ex - iex) / (ex + iex))
+  }
+  else {
+    val s = x.sinh
+    val c = sqrt( one + s.sqr )
+    return (s / c)
+  }
+}
+
+public fun asinh( x : ddouble ) : ddouble {
+  log( x + sqrt(x.sqr + one))
+}
+
+public fun acosh( x : ddouble ) : ddouble {
+  if (x < one) then dd-nan else log(x + sqrt(x.sqr - one))
+}
+
+public fun atanh( x : ddouble ) : ddouble {
+  if (x.abs >= one) then dd-nan 
+   else mul-pwr2( log((one + x) / (one - x)), 0.5 )
 }

@@ -34,14 +34,32 @@ fun check-round-trip( name : string, x : ddouble ) : io ddouble {
 } 
 
 fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
-  val delta  = (res - expect).abs
   val pre = name.pad-right(8,' ') + ": "
-  if (delta < eps) then {
-    println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
+  if (expect.finite?) then {  
+    val delta  = (res - expect).abs
+    if (delta < eps) then {
+      println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
+    }
+    else {
+      val relerr = (delta / expect).abs
+      val releps = if (expect.abs < ten) then eps else eps * 1000.ddouble
+      if (relerr < releps) then {
+        println(pre + "ok: " + res.show + ", derr: " + relerr.show(6)  )
+      }
+      else {
+        println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show + "\n delta : " + delta.show + "\n error: " + relerr.show )
+        error("failed " + name)
+      }
+    }
   }
   else {
-    println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show + "\n delta : " + delta.show )
-    error("failed " + name)
+    if (expect == res) then {
+      println( pre + "ok: " + res.show )
+    }
+    else {
+      println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
+      error("failed " + name)
+    }
   } 
 }
 
@@ -60,6 +78,8 @@ public fun main() {
   test-sincos()
   test-sin()
   test-atan()
+  test-trig()
+  test-atrig()
   check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
   check("pow1","1e+31") { pow(ddouble(10.0),31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
@@ -230,8 +250,8 @@ public fun check-sincos( i : int, x : ddouble ) {
   val c1 = cos(x)
   val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
   val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
-  check("sin" + i.show, s1.show(30)) { s2.show(30) }
-  check("cos" + i.show, c1.show(30)) { c2.show(30) }
+  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))
+  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-31))
   
   // check not too much error with respect to the double computation
   check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
@@ -274,6 +294,38 @@ public fun test-atan() {
     val x = ddouble("0.0001") * pow10(i)
     val a = atan(x)
     check-prec( "eatan" + i.show + ": atan(" + x.show  + "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
+  })
+}
+
+val posnums   = [1.0e-12,1.0e-8,1.0e-6,0.1,0.25,0.5,0.75,0.9,0.99999999,1.0,1.00000001,1.1,1.5,2.0,2.5,5.0,10.0,100.0,1.0e6,1.0e8,1.0e12]
+val posexotic = [0.5*sqrt(2.0),atan(1.0),sqrt(2.0)]
+val exotic    = posexotic.map((~)).reverse + posexotic
+val nums      = posnums.map((~)).reverse + [0.0] + posnums + exotic
+val pinums    = nums.map( fun(d){ d*pi } ) + exotic
+  
+public fun test-trig() {
+  test-double-fun( "tan", tan, tan, pinums )
+  test-double-fun( "sin", sin, sin, pinums )
+  test-double-fun( "cos", cos, cos, pinums ) 
+  test-double-fun( "tanh", tanh, tanh, pinums ) 
+  test-double-fun( "sinh", sinh, sinh, pinums ) 
+  test-double-fun( "cosh", cosh, cosh, pinums ) 
+}
+
+public fun test-atrig() {
+  test-double-fun( "atan", atan, atan, nums )
+  test-double-fun( "asin", asin, asin, nums )
+  test-double-fun( "acos", acos, acos, nums )
+  test-double-fun( "atanh", atanh, atanh, nums )
+  test-double-fun( "asinh", asinh, asinh, nums )
+  test-double-fun( "acosh", acosh, acosh, nums )
+}
+
+public fun test-double-fun( name : string, fd : double -> double, fdd : ddouble -> ddouble, nums : list<double> ) : io () {
+  nums.foreach-indexed( fun( i:int, x : double ) {
+    val d = x.fd
+    val dd = x.ddouble.fdd
+    check-prec( name + "(" + x.show(3) + ")", d.ddouble, dd, ddouble-exp(1,~14))
   })
 }
 

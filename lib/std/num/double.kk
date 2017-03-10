@@ -11,6 +11,12 @@
 */
 public module std/num/double
 
+val pi = 3.141592653589793116
+
+// Return the tangent of an angle in radians
+extern inline tan( d : double ) : double {
+  js "Math.tan"
+}
 // Return the arc-tangent in radians of a number
 extern inline atan( d : double ) : double {
   js "Math.atan"
@@ -33,17 +39,17 @@ extern inline asin( d : double ) : double {
 
 
 // Return the hyperbolic tangent of an angle in radians
-extern inline atanh( d : double ) : double {
+extern inline tanh( d : double ) : double {
   js "Math.tanh"
 }
 
 // Return the hyperbolic cosine of an angle in radians
-extern inline acosh( d : double ) : double {
+extern inline cosh( d : double ) : double {
   js "Math.cosh"
 }
 
 // Return the hyperbolic sine of an angle in radians
-extern inline asinh( d : double ) : double {
+extern inline sinh( d : double ) : double {
   js "Math.sinh"
 }
 
