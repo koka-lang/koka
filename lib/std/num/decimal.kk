@@ -37,7 +37,7 @@ public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-pow10(diff),x)
 }
 
-// Create a decimal number with precision `prec` (=`~1`) from a 
+// Create a decimal number with precision `prec` (=`-1`) from a 
 // whole part `i` and fractional part `frac`. The result is `i + frac`&times;10^-`prec`^.
 // i.e. `prec` determines how many digits there are behind the dot.
 // `decimal(1,123,4).show == "1.0123"`\
@@ -46,7 +46,7 @@ public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
 // If `prec` is negative or smaller than the number of digits in `frac`, 
 // the result will take the width of `frac` in digits as its precision.\
 // `decimal(1,123,2).show == "1.123"`
-public fun decimal( i : int, frac : int = 0, prec : int = ~1 ) : decimal {
+public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
   if (frac.zero? || prec.zero?) then return Decimal(i,0)
   val ds    = frac.count-digits
   val fprec = max(ds,prec) // always > 0
@@ -164,9 +164,9 @@ public fun neg?( x : decimal ) : bool {
   x.num.neg?
 }
 
-// Show a decimal to a specified maximum precision (=`~1`). use a negative value to 
+// Show a decimal to a specified maximum precision (=`-1`). use a negative value to 
 // use maximum precision required.
-public fun show( x : decimal, max-prec : int = ~1 ) : string {
+public fun show( x : decimal, max-prec : int = -1 ) : string {
   // trace("show: " + x.num.show + "x" + x.exp.show)
   val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
   cx.showx()
@@ -221,7 +221,7 @@ public fun round( x : decimal, rnd : round = Even ) : decimal {
 // to a specified number of digits behind the dot `prec` (=`0`) with an optional
 // rounding mode `rnd` (=`Even`). The precision can be negative.\
 // `decimal(1,485).round-to-prec(2).show == "1.48"` \
-// `decimal(112,49).round-to-prec(~1).show == "110"`
+// `decimal(112,49).round-to-prec(-1).show == "110"`
 public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : total decimal {
   if (x.exp >= ~prec) return x
   val cx = x.reduce
@@ -381,7 +381,7 @@ public fun ffraction( x : decimal ) : double {
   //if (x.frac.zero? || x.prec.zero?) then 0.0 else x.frac.double * pow10(~x.prec.double)
 }
 
-// Return the 'truncated' fraction, always in the range [`~1.0`,`1.0`] (can reach extremes on precision loss):\
+// Return the 'truncated' fraction, always in the range [`-1.0`,`1.0`] (can reach extremes on precision loss):\
 // `x.trunc.decimal + x.fraction.decimal == x`
 public fun fraction( x : decimal ) : double {
   val f = x.ffraction
