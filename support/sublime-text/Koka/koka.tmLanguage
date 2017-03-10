@@ -808,7 +808,7 @@
 		<key>top_type</key>
 		<dict>
 			<key>begin</key>
-			<string>(:(?![$%&amp;\*\+@!\\\^~=\.:\-\|&lt;&gt;]))|(with|iff|when)(?!\w)</string>
+			<string>(:(?![$%&amp;\*\+@!\\\^~=\.:\-\|&lt;&gt;]))|(with|iff|when)(?![\w\-])</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
@@ -1074,7 +1074,7 @@
 			<array>
 				<dict>
 					<key>match</key>
-					<string>(forall|exists|some|with|iff|when|is|if)(?!\w)</string>
+					<string>(forall|exists|some|with|iff|when|is|if)(?![\w\-])</string>
 					<key>name</key>
 					<string>keyword.other.koka</string>
 				</dict>
