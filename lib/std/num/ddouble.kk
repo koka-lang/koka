@@ -45,7 +45,7 @@ However, if we convert the number `0.1` directly to a `:ddouble` instead of goin
 a `:double` constant, we get `0.1` exactly:
 
 ```
-> ddouble("0.1")   // for convenience; using `ddouble-exp(1,~1)` is more efficient
+> ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
 0.1
 ```
 
@@ -108,6 +108,7 @@ Numerische\ Mathematik **18**(3), June 1971, 224--242.
 */
 module std/num/ddouble
 
+import std/num/double   
 import std/text/regex
 
 /* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
@@ -176,7 +177,7 @@ fun small-exp( i : int, e : int ) {
 
 
 // &pi; 
-public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
+public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
 
 // 2&pi;
 public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16);
@@ -194,7 +195,7 @@ public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-1
 public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17);
 
 // The natural logarithm of 10
-public val dd-log10   = Ddouble(2.302585092994045901e+00,~2.170756223382249351e-16);
+public val dd-log10   = Ddouble(2.302585092994045901e+00,-2.170756223382249351e-16);
 
 // The 'machine epsilon'
 public val dd-epsilon = ddouble(4.93038065763132e-32)
@@ -622,26 +623,26 @@ fun mul-pow10( x : ddouble, exp : int ) : ddouble {
 // Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
 // Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
 // i.e. `x == x.show-sum.ddouble`
-public fun show-sum( x : ddouble, prec : int = ~1 ) : string {
+public fun show-sum( x : ddouble, prec : int = -1 ) : string {
   if (!x.finite?) 
    then x.hi.show
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
 // Show a `:ddouble` with an optional precision. 
-public fun show( x : ddouble, prec : int = ~1 ) : string {
+public fun show( x : ddouble, prec : int = -1 ) : string {
   x.show-prec(prec)
 }
 
 // Show a `:ddouble` with an optional precision. 
-public fun show-prec( x : ddouble, prec : int = ~1 ) : string {
+public fun show-prec( x : ddouble, prec : int = -1 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
   if (x.in-double-range(prec)) then return x.hi.show(prec)
   // guess exponent
   val e = x.hi.abs.log10.floor.int  
   val p = if (prec.neg?) then dd-max-prec else max(1,prec)
-  if (p > e && e >= ~4 && e <= 20 && in-fixed-range(x,e))
+  if (p > e && e >= -4 && e <= 20 && in-fixed-range(x,e))
    then show-fixed(x, (p - 1) - e, prec.neg? )
    else show-exp(x, prec)
 }
@@ -703,9 +704,9 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
   }
 }  
 
-// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`~1`)
+// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-1`)
 // and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
-public fun show-exp( x : ddouble, prec : int = ~1, trim-zeros : bool = prec.neg? ) : string {
+public fun show-exp( x : ddouble, prec : int = -1, trim-zeros : bool = prec.neg? ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   if (x.in-double-range(prec)) then return x.hi.show-exp(prec)
@@ -745,8 +746,8 @@ fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   val e1 = x.hi.abs.log10.floor.int  
   // guess exponential
   val r0 = x.abs
-  val r1 = if (e1 < ~300) then (r0*pow10(300)) / pow10(e1+300)
-           elif (e1 > 300) then ldexp(ldexp(r0,~53.0) / pow10(e1), 53.0)
+  val r1 = if (e1 < -300) then (r0*pow10(300)) / pow10(e1+300)
+           elif (e1 > 300) then ldexp(ldexp(r0,-53.0) / pow10(e1), 53.0)
            else r0 / pow10(e1)
   // fix off by one
   // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
@@ -779,7 +780,7 @@ fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [
     Cons(d0,ds) {
       // propagate carry while adjusting
       val d = d0 + carry
-      if (d < 0)   then digits-carry( ds, e, ~1, Cons(d + 10, acc))
+      if (d < 0)   then digits-carry( ds, e, -1, Cons(d + 10, acc))
       elif (d > 9) then digits-carry( ds, e, 1, Cons(d - 10, acc))
       else digits-carry( ds, e, 0, Cons(d,acc) )
     }
@@ -838,7 +839,7 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
 }
 
 fun parse-int-sign( s : string ) : int {
-  if (s=="-") then ~1 else 1
+  if (s=="-") then -1 else 1
 }
 
 val rx-ddouble = regex(@"^(([\+\-])?(\d+)(?:\.(\d*))?(?:[eE]([\+\-])?(\d+))?)(?:\s*\+\s*([\+\-]?\d+(?:\.\d*)?(?:[eE][\+\-]?\d+)?))?$")
@@ -847,6 +848,11 @@ val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$")
 /*------------------------------------------------------
   Advanced operations
 ------------------------------------------------------*/
+
+/*------------------------------------------------------
+  Roots
+------------------------------------------------------*/
+
 
 // The square root of a non-negative `:ddouble` `x`.
 // For negative `x`, `dd-nan` is returned.
@@ -883,6 +889,11 @@ fun mul-pwr2( x : ddouble, p : double ) : ddouble {
   Ddouble(x.hi * p, x.lo * p)
 }
 
+
+/*------------------------------------------------------
+  Exponents and logarithms
+------------------------------------------------------*/
+
 // Return _e_ (`dd-e`) to the power of `x`.
 public fun exp( x : ddouble ) : ddouble {
   /* From the QD library:
@@ -898,7 +909,7 @@ public fun exp( x : ddouble ) : ddouble {
   val k : double = 512.0
   val inv-k = 1.0 / k
 
-  if (x.hi <= ~709.0) then zero 
+  if (x.hi <= -709.0) then zero 
   elif (x.hi >= 709.0) then dd-posinf
   elif (x.zero?) then one
   elif (x==one) then dd-e
@@ -920,7 +931,7 @@ val exp-factors : list<ddouble> = [
   Ddouble(1.66666666666666657e-01,  9.25185853854297066e-18),
   Ddouble(4.16666666666666644e-02,  2.31296463463574266e-18),
   Ddouble(8.33333333333333322e-03,  1.15648231731787138e-19),
-  Ddouble(1.38888888888888894e-03, ~5.30054395437357706e-20),
+  Ddouble(1.38888888888888894e-03, -5.30054395437357706e-20),
   Ddouble(1.98412698412698413e-04,  1.72095582934207053e-22),
   Ddouble(2.48015873015873016e-05,  2.15119478667758816e-23)
 ]
@@ -982,6 +993,9 @@ public fun log2( x : ddouble ) : ddouble {
 }
 
 
+/*------------------------------------------------------
+  Trigonometry
+------------------------------------------------------*/
 
 // The sine function of a given angle in radians.
 public fun sin( rad : ddouble ) : ddouble {
@@ -1009,57 +1023,67 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   }
   // restrict range
   val x1 = rad / dd-twopi
-  val x3 = x1 - x1.round
+  val x3 = x1 - x1.round   
   // s = x - a*pi/2 - b*pi/16
   val x32 = x3 + x3
   val x34 = x32 + x32 // 4.ddouble * x3
-  val a   = x34.int
-  val b   = (8.ddouble * (x34 - a.ddouble)).int
+  val a   = x34.floor.int  // ensure positive remainder
+  val b   = (8.ddouble * (x34 - a.ddouble)).int 
   val s   = dd-pi * (x32 - ((8*a + b).ddouble / 16.ddouble))
   val s2  = s.sqr
   // Use the Chebyshev series for best precision.
-  val sins = s * ch-factors().foldl(zero) fun(acc,f) { f + acc*s2 }
+  val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
   // sinb = sin(b*pi/16)
-  val sinb = if (b.pos?) then sin16(b) else ~sin16(~b)
+  val sinb = if (b >= 0) then sin16(b) else ~sin16(~b)
   val cosb = sin16(8 - b.abs)
 
   if (a==0) then (sins*cosb + coss*sinb, coss*cosb - sins*sinb)
   elif (a==1) then (coss*cosb - sins*sinb, ~coss*sinb - sins*cosb)
-  elif (a== ~1) then (sins*sinb -  coss*cosb, coss*sinb + sins*cosb)
+  elif (a== -1) then (sins*sinb -  coss*cosb, coss*sinb + sins*cosb)
   else (~sins*cosb - coss*sinb, sins*sinb - coss*cosb)
 }
 
-val ch-factors : () -> list<ddouble> = once {
-  ["0.9999999999999999999999999999993767021096",
-  "-0.1666666666666666666666666602899977158461",
-  "8333333333333333333322459353395394180616.0e-42",
-  "-1984126984126984056685882073709830240680.0e-43",
-  "2755731922396443936999523827282063607870.0e-45",
-  "-2505210805220830174499424295197047025509.0e-47",
-  "1605649194713006247696761143618673476113.0e-49"]
-  .map(ddouble).reverse
-}
+public val ch-factors : list<ddouble> = [
+  Ddouble( 1.6056491947130061858e-10, 6.1925234565562595936e-27 ),
+  Ddouble( -2.5052108052208301379e-8, -3.6598195022865791876e-25 ),
+  Ddouble( 0.0000027557319223964441402, -2.0315661398415506513e-22 ),
+  Ddouble( -0.00019841269841269841253, 6.8577289081075077176e-21 ),
+  Ddouble( 0.0083333333333333332177, 1.1563735775184918100e-19 ),
+  Ddouble( -0.16666666666666665741, -9.2518585321663028924e-18 ),
+  Ddouble( 1.0000000000000000000, -6.0239567712403467977e-31 )
+]
 
 // Return sin(i*pi/16) for 0 <= i <= 8
-fun sin16( i : int ) : ddouble {
-  if (i <= 0) then zero
-  elif (i >= 8) then one
+public fun sin16( i : int ) : ddouble {
+  sin16-table.at(i).default(dd-nan)
+}
+
+val sin16-table : vector<ddouble> = [
+  zero,
+  Ddouble( 0.19509032201612827584, -7.9910790684617312634e-18 ),
+  Ddouble( 0.38268343236508978178, -1.0050772696461587612e-17 ),
+  Ddouble( 0.55557023301960217765, 4.7094109405616768214e-17 ),
+  Ddouble( 0.70710678118654757274, -4.8336466567264561092e-17 ),
+  Ddouble( 0.83146961230254523567, 1.4073856984728100930e-18 ),
+  Ddouble( 0.92387953251128673848, 1.7645047084336683223e-17 ),
+  Ddouble( 0.98078528040323043058, 1.8546939997825014970e-17 ),
+  one
+].vector
+
+
+
+public fun atan( x : ddouble ) : ddouble {
+  if (x.zero?) then zero
+  elif (x.hi.abs > 1.0e6) {
+    val r = one / x
+    val r2 = r.sqr
+    val r3 = r * r2
+    (dd-pi2 - r) + ((r3*(one - r2*ddouble-exp(6,-1))) / 3.ddouble)
+  }
   else {
-    val s = 
-      if (i >= 4) then {
-        if (i >= 6) then {
-          if (i==7) then "0.9807852804032304491261822361342390369739"
-                    else "0.9238795325112867561281831893967882868225"
-        }
-        elif (i==5) then "0.8314696123025452370787883776179057567386"
-                    else "0.7071067811865475244008443621048490392850"
-      }
-      elif (i >= 2) {
-        if (i==3) then "0.5555702330196022247428308139485328743749"
-                  else "0.3826834323650897717284599840303988667613"                
-      }
-      else "0.1950903220161282678482848684770222409277"
-    s.ddouble  
+    val a = atan(x.hi).ddouble
+    val (s,c) = sincos(a)
+    a + c*(c*x - s)
   }
 }

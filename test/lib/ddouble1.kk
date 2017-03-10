@@ -1,6 +1,7 @@
 module ddouble1
 
 public import std/num/ddouble
+public import std/num/double
 
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
@@ -32,6 +33,18 @@ fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   x
 } 
 
+fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
+  val delta  = (res - expect).abs
+  val pre = name.pad-right(8,' ') + ": "
+  if (delta < eps) then {
+    println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
+  }
+  else {
+    println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show + "\n delta : " + delta.show )
+    error("failed " + name)
+  } 
+}
+
 
 public fun main() {
   test-big()
@@ -44,6 +57,9 @@ public fun main() {
   test-pi-salmanbrent()
   test-log2()
   test-exp()
+  test-sincos()
+  test-sin()
+  test-atan()
   check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
   check("pow1","1e+31") { pow(ddouble(10.0),31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
@@ -188,7 +204,7 @@ public fun test-exp() {
   check-rt("exp1",expect) { dd-e.sqr }
   check-rt("exp2",expect) { exp(2.ddouble) }
   check-rt("exp3",expect) {
-    list(~3,4).map( fun(i) { 
+    list(-3,4).map( fun(i) { 
       exp((4*i).dec.ddouble / 4.ddouble)
     }).foldl(one,(*))
   }
@@ -218,12 +234,48 @@ public fun check-sincos( i : int, x : ddouble ) {
   check("cos" + i.show, c1.show(30)) { c2.show(30) }
   
   // check not too much error with respect to the double computation
-  val e1 = (s1 - sin(x.double).ddouble).abs.double
-  val e2 = (c1 - cos(x.double).ddouble).abs.double
-  if (e1 > 3.0e-16) then error("sin does not match double: " + e1.show)
-  if (e2 > 3.0e-16) then error("cos does not match double: " + e2.show)    
+  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
+  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
 }
 
+public fun test-sin() {
+  val exact-sin : list<ddouble> =
+    ["0.000099999999833333333416666666646825396828152557318973",
+    "0.0009999998333333416666664682539710097001513147348086",
+    "0.0099998333341666646825424382690997290389643853601692",
+    "0.099833416646828152306814198410622026989915388017982",
+    "0.84147098480789650665250232163029899962256306079837",
+    "-0.54402111088936981340474766185137728168364301291622",
+    "-0.50636564110975879365655761045978543206503272129066",
+    "0.82687954053200256025588742910921814121272496784779",
+    "-0.30561438888825214136091003523250697423185004386181"]
+    .map(ddouble)
+  exact-sin.foreach-indexed( fun(i : int, esin : ddouble) {
+    val x = ddouble("0.0001") * pow10(i)
+    val s = sin(x)
+    check-prec( "esin" + i.show + ": sin(" + x.show  + "): ", esin, s, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
+  })
+  check( "sin-atan", "0.7071067811865475027519429562175") { sin(atan(1.0).ddouble).show }
+}
+
+public fun test-atan() {
+  val exact-atan : list<ddouble> =
+   ["0.000099999999666666668666666652380952492063491154401162",
+    "0.00099999966666686666652380963492054401162093455426801",
+    "0.0099996666866652382063401162092795485613693525443766",
+    "0.099668652491162027378446119878020590243278322504315",
+    "0.78539816339744830961566084581987572104929234984378",
+    "1.4711276743037345918528755717617308518553063771832",
+    "1.5607966601082313810249815754304718935372153471432",
+    "1.5697963271282297525647978820048308980869637651333",
+    "1.5706963267952299525626550249873704896065212085332"]
+   .map(ddouble)
+  exact-atan.foreach-indexed( fun(i : int, eatan : ddouble) {
+    val x = ddouble("0.0001") * pow10(i)
+    val a = atan(x)
+    check-prec( "eatan" + i.show + ": atan(" + x.show  + "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
+  })
+}
 
 /*-------------------------------------------------------
   Various formulas to approximate pi
