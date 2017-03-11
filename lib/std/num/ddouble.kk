@@ -61,8 +61,8 @@ correction to that number. The `show-sum` function shows this internal pair of n
 0.3
 ```
 
-More precisely, a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_
-such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
+Generally, a `:ddouble` _d_ is represented by a pair of `:double`s, _hi_ and _lo_,
+such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 
 ## Notes {-}
 
@@ -118,7 +118,7 @@ a `:double` with a maximum  value of about 1.8&middot;10^308^. Because
 `:double`s usually have hardware support, a `:ddouble` is usually much faster
 than arbitrary precision floating point numbers.
 
-Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_
+Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo_,
 such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
 abstract struct ddouble(
