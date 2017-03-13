@@ -236,20 +236,25 @@ fun tdb-delta( tt : timestamp ) : timespan {
   val t = (tt - j2k-epoch).seconds.double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
 
   // First terms of Fairhead et al. model 
-  val wf =  1656.6746e-6*sin( 6283.0758*t + 6.2401)
+  val wf : double
+         =( 1656.6746e-6*sin( 6283.0758*t + 6.2401)
           +   22.4175e-6*sin( 5753.3859*t + 4.2970)
           +   13.8398e-6*sin(12566.1527*t + 6.1969)
           +    4.7701e-6*sin(  529.6910*t + 0.4444)
           +    4.6767e-6*sin( 6069.7768*t + 4.0212)
-          +    2.2567e-6*sin(  213.2991*t + 5.5431)
+          )
+          +
+          (    2.2567e-6*sin(  213.2991*t + 5.5431)
           +    1.6942e-6*sin(   ~3.5232*t + 5.0251)
           +    1.5549e-6*sin(77713.7715*t + 5.1985)
           +    1.2768e-6*sin( 7860.4194*t + 5.9888)
-          +    1.1934e-6*sin( 5223.6939*t + 3.6498)            
+          +    1.1934e-6*sin( 5223.6939*t + 3.6498)
+          )            
           + t*(102.1567e-6*sin( 6283.0758*t + 4.2490))
            
   // Adjustments to use JPL planetary masses instead of IAU.
-  val wj =  0.00065e-6*sin(6069.776754*t + 4.021194) +
+  val wj : double
+         =  0.00065e-6*sin(6069.776754*t + 4.021194) +
             0.00033e-6*sin( 213.299095*t + 5.543132) +
           (~0.00196e-6*sin(6208.294251*t + 5.696701)) +
           (~0.00173e-6*sin(  74.781599*t + 2.435900)) +
@@ -293,16 +298,20 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   val els = ((50.07744430 + 44046398.47038 * w) % 360.0) * dd2r
 
   // Moyer 1981 and Murray 1983. 
-  val wt =   0.00029e-10 * u * sin(tsol + elsun - els)
+  val wt : double 
+         =(  0.00029e-10 * u * sin(tsol + elsun - els)
           +  0.00100e-10 * u * sin(tsol - 2.0 * emsun)
           +  0.00133e-10 * u * sin(tsol - d)
           +  0.00133e-10 * u * sin(tsol + (elsun - elj))
           -  0.00229e-10 * u * sin(tsol + (2.0 * elsun) + emsun)
           -  0.02200e-10 * v * cos(elsun + emsun)
-          +  0.05312e-10 * u * sin(tsol - emsun)
+          )
+          +  
+          (  0.05312e-10 * u * sin(tsol - emsun)
           -  0.13677e-10 * u * sin(tsol + 2.0 * elsun)
           -  1.31840e-10 * v * cos(elsun)
-          +  3.17679e-10 * u * sin(tsol);
+          +  3.17679e-10 * u * sin(tsol)
+          );
   wt          
 }
 

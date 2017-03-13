@@ -18,7 +18,7 @@ than arbitrary precision floating point numbers.
 ## Precision {-}
 
 If you add two regular 64-bit `:double` values you can quickly notice the imprecision
-especially because decimal fractions cannot be represented precisely. For example:
+due to decimal fractions that cannot be represented precisely. For example:
 
 ```
 > 0.1 + 0.2
@@ -33,7 +33,7 @@ represented by a `:double`:
 "0.10000000000000000555"
 ```
 
-If we convert this to a `:ddouble` we can see with even more precision how 0.1 is
+If we convert this to a `:ddouble` we can see with more precision how 0.1 is
 represented by a `:double`:
 
 ```
@@ -41,8 +41,8 @@ represented by a `:double`:
 0.1000000000000000055511151231258
 ```
 
-However, if we convert the number `0.1` directly to a `:ddouble` instead of going through
-a `:double` constant, we get `0.1` exactly:
+However, if we convert the number `0.1` directly to a `:ddouble` (instead of going through
+a `:double` constant), we get `0.1` (almost) exactly:
 
 ```
 > ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
@@ -64,10 +64,12 @@ correction to that number. The `show-sum` function shows this internal pair of n
 Generally, a `:ddouble` _d_ is represented by a pair of `:double`s, _hi_ and _lo_,
 such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 
-## Notes {-}
+Using a `:ddouble` often prevents instability in `:double` computations due to 
+rounding errors or combining very large and small numbers. 
+
 
 Note that despite the extra precision, underflow/overflow and machine precision are 
-not as well-defined as with a regular `:double` [@Hida:qd;@Hida:qdlib;@lin;@Dekker].
+not as well-defined as with a regular `:double` [@Hida:qd;@Hida:qdlib;@lin;@shewchuk;@Dekker].
 The implementation is based closely on the [QD] C++ library,
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
 
@@ -86,6 +88,12 @@ _Library for double-double and quad-double arithmetic._
 Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
 Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+~~
+
+~~ BibItem { #shewchuk; }
+Jonathan\ Richard\ Shewchuk.
+_Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
+Discrete & Computational Geometry **18** 305--363 (1997). [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
 ~~
 
 ~~ Bibitem { #lin; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
@@ -172,7 +180,8 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
   }
 }
 fun small-exp( i : int, e : int ) {
-  i.double.ddouble.mul-pow10(e)
+  val dd = i.double.ddouble
+  if (e.zero?) then dd else dd.mul-pow10(e)
 }
 
 
@@ -319,7 +328,7 @@ struct edouble(
   err : double              
 )
 
-// often called `twosum` in literature
+// often called `twosum` in literature (see [@shewchuk])
 fun sum( x : double, y : double ) : edouble {
   val z    = x + y
   val diff = z - x
@@ -334,6 +343,7 @@ fun dsum( x : double, y : double ) : ddouble {
   Ddouble(z, if (z.finite?) then err else z)
 }
 
+// As `sum` but with `x.abs >= y.abs`
 fun quicksum( x : double, y : double ) : edouble {
   val z   = x + y
   val err = y - (z - x)
@@ -412,7 +422,7 @@ fun split( x : double ) : (double,double) {
   }
 }
 
-// often called `twoproduct` in literature
+// often called `twoproduct` in literature (see [@shewchuk])
 fun prod( x : double, y : double ) : edouble {
   val z = x*y
   val (xhi,xlo) = split(x)
@@ -1087,12 +1097,13 @@ val sin16-table : vector<ddouble> = [
 ].vector
 
 
+// Return `x` with the sign of `y`.
 public fun with-sign-of( x : ddouble, y : ddouble ) : ddouble {
   if (y.neg?) then ~(x.abs) else x.abs
 }
 
 
-
+// The arc-sine of `x`. Returns the angle in radians.
 public fun asin( x : ddouble ) : ddouble {
   val a = x.abs
   if (a > one) then dd-nan
@@ -1100,6 +1111,7 @@ public fun asin( x : ddouble ) : ddouble {
   else atan2( x, sqrt(one - x.sqr) )
 }
 
+// The arc-cosine of `x`. Returns the angle in radians.
 public fun acos( x : ddouble ) : ddouble {
   val a = x.abs
   if (a > one) then dd-nan
@@ -1107,10 +1119,12 @@ public fun acos( x : ddouble ) : ddouble {
   else atan2( sqrt(one - x.sqr), x )
 }
 
+// The arc-tangent of `x`. Returns the angle in radians.
 public fun atan( x : ddouble ) : ddouble {
   atan2(x,one)
 }
 
+// The arc-tangent of a point (`x`,`y`). Returns the angle with respect to the x-axis in radians between -&pi; and &pi;.
 public fun atan2( y : ddouble, x : ddouble ) : ddouble {
   if (x.zero?) {
     if (y.zero?) then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
@@ -1137,6 +1151,7 @@ public fun atan2( y : ddouble, x : ddouble ) : ddouble {
   }
 }
 
+// The hyperbolic sine of `x`.
 public fun sinh( x : ddouble ) : ddouble {
   if (x.zero?) then zero
   elif (x.abs.double > 0.05) then {
@@ -1150,6 +1165,7 @@ public fun sinh( x : ddouble ) : ddouble {
   }
 }
 
+// The hyperbolic cosine of `x`.
 public fun cosh( x : ddouble ) : ddouble {
   if (x.zero?) then one 
   elif (x.abs.double > 0.05) then {
@@ -1162,6 +1178,7 @@ public fun cosh( x : ddouble ) : ddouble {
   }
 }
 
+// The hyperbolic tangent of `x`.
 public fun tanh( x : ddouble ) : ddouble {
   if (x.zero?) then zero 
   elif (x.abs.double > 0.05) then {
@@ -1176,14 +1193,17 @@ public fun tanh( x : ddouble ) : ddouble {
   }
 }
 
+// The area hyperbolic sine of `x`.
 public fun asinh( x : ddouble ) : ddouble {
   log( x + sqrt(x.sqr + one))
 }
 
+// The area hyperbolic cosine of `x`.
 public fun acosh( x : ddouble ) : ddouble {
   if (x < one) then dd-nan else log(x + sqrt(x.sqr - one))
 }
 
+// The area hyperbolic tangent of `x`.
 public fun atanh( x : ddouble ) : ddouble {
   if (x.abs >= one) then dd-nan 
    else mul-pwr2( log((one + x) / (one - x)), 0.5 )
