@@ -15,7 +15,7 @@ public module std/core
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
-infixr 60  (+), (-)
+infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>) 
 infixr 30  (&&)
 infixr 20  (||)
