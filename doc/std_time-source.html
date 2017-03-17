@@ -41,7 +41,7 @@ Core concepts are:
 get the &#96;:duration&#96; between them. Instants are usually represented as the number
 of fractional SI seconds since the &#96;epoch&#96; (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (&#96;ts-tai&#96;),
-standard UTC (&#96;ts-utc&#96;), or astronimical time scales like terrestrial time ([&#96;&#96;std/time/astro/ts-tt&#96;&#96;](std&#95;time&#95;astro.html#ts&#95;tt)).
+standard UTC (&#96;ts-ti&#96;), or astronimical time scales like terrestrial time ([&#96;&#96;std/time/astro/ts-tt&#96;&#96;](std&#95;time&#95;astro.html#ts&#95;tt)).
 
 &#42; A &#96;:time&#96; is a human readable &#96;:date&#96; (year, month, day), and &#96;:clock&#96; (hour, minutes, seconds)
 in a particular &#96;:calendar&#96; (usually the standard ISO calendar) and time zone. 
@@ -118,10 +118,7 @@ other time irregularties:
 "1582-10-15T00:00:00Z JG"  // transition from Julian (&#96;cal-julian&#96;) to Gregorian (&#96;cal-gregorian&#96;) calendar)
 &#96;&#96;&#96;
 
-To calculate correctly with leap-seconds, it is recommended to call &#96;update-leaps-table&#96;
-at the start of a progrom which will ensure leap second information is up-to-date (automatically
-downloading and caching the latest IETF leap second table if required). See the [&#96;std/time/utc&#96;](std&#95;time&#95;utc.html)
-module for more information. 
+See the [&#96;std/time/utc&#96;](std&#95;time&#95;utc.html) module for more information on leap seconds. 
 
 ## Time zones
 

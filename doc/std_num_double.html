@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>std/num/double documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<h1><a class="link" href="std_num_double-source.html"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>double</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#acos"><span class="kw">fun</span>&nbsp;acos</a></li><li><a class="link" href="#acosh"><span class="kw">fun</span>&nbsp;acosh</a></li><li><a class="link" href="#asin"><span class="kw">fun</span>&nbsp;asin</a></li><li><a class="link" href="#asinh"><span class="kw">fun</span>&nbsp;asinh</a></li><li><a class="link" href="#atan"><span class="kw">fun</span>&nbsp;atan</a></li><li><a class="link" href="#atan2"><span class="kw">fun</span>&nbsp;atan2</a></li><li><a class="link" href="#atanh"><span class="kw">fun</span>&nbsp;atanh</a></li><li><a class="link" href="#cosh"><span class="kw">fun</span>&nbsp;cosh</a></li><li><a class="link" href="#dbl_e"><span class="kw">val</span>&nbsp;dbl<span class="dash">-</span>e</a></li></ul><ul class="toc"><li><a class="link" href="#dbl_log10"><span class="kw">val</span>&nbsp;dbl<span class="dash">-</span>log10</a></li><li><a class="link" href="#dbl_log2"><span class="kw">val</span>&nbsp;dbl<span class="dash">-</span>log2</a></li><li><a class="link" href="#dbl_pi2"><span class="kw">val</span>&nbsp;dbl<span class="dash">-</span>pi2</a></li><li><a class="link" href="#dbl_twopi"><span class="kw">val</span>&nbsp;dbl<span class="dash">-</span>twopi</a></li><li><a class="link" href="#pi"><span class="kw">val</span>&nbsp;pi</a></li><li><a class="link" href="#sinh"><span class="kw">fun</span>&nbsp;sinh</a></li><li><a class="link" href="#tan"><span class="kw">fun</span>&nbsp;tan</a></li><li><a class="link" href="#tanh"><span class="kw">fun</span>&nbsp;tanh</a></li></ul></div>
+<div class="doc koka comment">
+
+<p class="p noindent"> Advanced operations on <code class="koka"><a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></code>.
+</p></div>
+<div class="decl" id="acos"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#acos">acos</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the arc-cosine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="acosh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#acosh">acosh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The area hyperbolic cosine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="asin"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#asin">asin</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the arc-sine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="asinh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#asinh">asinh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The area hyperbolic sine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="atan"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#atan">atan</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the arc-tangent of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="atan2"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#atan2">atan2</a></span>( <span class="tp tpp">x</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a>, <span class="tp tpp">y</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the arc-tangent of a point (<code class="koka">x</code>,<code class="koka">y</code>).
+</p></div></div>
+<div class="decl" id="atanh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#atanh">atanh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The area hyperbolic tangent of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="cosh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#cosh">cosh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The hyperbolic cosine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="dbl_e"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#dbl_e">dbl<span class="dash">-</span>e</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The <em class="em-low1">e</em> constant.
+</p></div></div>
+<div class="decl" id="dbl_log10"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#dbl_log10">dbl<span class="dash">-</span>log10</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The natural logarithm of 10.
+</p></div></div>
+<div class="decl" id="dbl_log2"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#dbl_log2">dbl<span class="dash">-</span>log2</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The natural logarithm of 2.
+</p></div></div>
+<div class="decl" id="dbl_pi2"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#dbl_pi2">dbl<span class="dash">-</span>pi2</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   &#960;/2.
+</p></div></div>
+<div class="decl" id="dbl_twopi"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#dbl_twopi">dbl<span class="dash">-</span>twopi</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   2&#960;.
+</p></div></div>
+<div class="decl" id="pi"><div class="header code"><span class="def"><span class="kw">val</span>&nbsp;<a class="link" href="std_num_double-source.html#pi">pi</a></span><span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   &#960;.
+</p></div></div>
+<div class="decl" id="sinh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#sinh">sinh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The hyperbolic sine of <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="tan"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#tan">tan</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   Return the tangent of an angle in radians <code class="koka">d</code>.
+</p></div></div>
+<div class="decl" id="tanh"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_num_double-source.html#tanh">tanh</a></span>( <span class="tp tpp">d</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_core.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></div><div class="doc koka comment">
+
+<p class="p noindent">   The hyperbolic tangent of <code class="koka">d</code>.
+</p></div></div>
+</div></body>
+</html>
+
+<span data-line=""></span>
