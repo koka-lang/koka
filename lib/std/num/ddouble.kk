@@ -197,7 +197,7 @@ public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-1
 // &pi;/4
 public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17)
 
-// 3&midpoint;&pi/4
+// 3&pi;/4
 public val dd-pi34    = Ddouble(2.356194490192344837e+00,9.1848509936051484375e-17)
 
 // The _e_ constant.
@@ -1069,7 +1069,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   else (~sins*cosb - coss*sinb, sins*sinb - coss*cosb) // |a| == 2
 }
 
-public val ch-factors : list<ddouble> = [
+val ch-factors : list<ddouble> = [
   Ddouble( 1.6056491947130061858e-10, 6.1925234565562595936e-27 ),
   Ddouble( -2.5052108052208301379e-8, -3.6598195022865791876e-25 ),
   Ddouble( 0.0000027557319223964441402, -2.0315661398415506513e-22 ),
@@ -1080,7 +1080,7 @@ public val ch-factors : list<ddouble> = [
 ]
 
 // Return sin(i*pi/16) for 0 <= i <= 8
-public fun sin16( i : int ) : ddouble {
+fun sin16( i : int ) : ddouble {
   sin16-table.at(i).default(dd-nan)
 }
 

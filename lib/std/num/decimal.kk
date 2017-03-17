@@ -13,7 +13,7 @@ import std/text/regex
 
 // Type of a decimal number. Decimals have arbitrary precision and range and 
 // do exact decimal arithmetic and are well suited for financial calculations for 
-// example. They are also used to represent precise [time](std_time.html).
+// example.
 abstract struct decimal (
   num: int,
   exp: int
