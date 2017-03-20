@@ -10,6 +10,8 @@ var fs = require("fs");
 var path = require("path");
 var child = require("child_process");
 
+var Colors = require("colors");
+var Diff   = require("diff");
 
 //-----------------------------------------------------
 // Get the version from the package.json file
@@ -890,11 +892,22 @@ function runTest(n,testMode,testFile,flags,callback) {
         }
         else {
           //jake.logger.log( n + ": failed!" );
+          /*
           var msg = "----- expected output -----\n" + content 
                       + "\n----- actual output -----\n" + output
                       + "\n-------------------------";
           msg = msg.split("\n").map(function(line) { return "    " + line }).join("\n");
           jake.logger.log( msg );
+          */
+          process.stderr.write("----- difference -----\n");
+          var diff = Diff.diffTrimmedLines(content,output);
+          diff.forEach(function(part){
+            // green for additions, red for deletions
+            // grey for common parts
+            var color = (part.added ? 'green' : (part.removed ? 'red' : 'grey'));
+            process.stderr.write(part.value[color]);
+          });
+
           jake.logger.log( n + ": " + testFile + " failed.\n" );
           callback(2);
         }

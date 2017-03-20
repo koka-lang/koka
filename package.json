@@ -24,7 +24,9 @@
     "requirejs"  : ">=2.1",
     "node-static": ">=0.6",
     "ws"         : ">=0.4",
-    "commander"  : ">=1.1.1"
+    "commander"  : ">=1.1.1",
+    "colors"     : ">=1.0",
+    "diff"       : ">=1.0"
   },
   "scripts": {
     "preinstall": "npm install -g jake madoko"
