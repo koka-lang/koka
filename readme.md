@@ -25,6 +25,8 @@ Unix.
 The following programs are required to build Koka:
 
 * The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
+  * Make sure the following packages are installed:
+    > cabal install text parsec random
 * The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
 * Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
 
