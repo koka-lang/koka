@@ -116,8 +116,12 @@ fun showx( tp : time, prec : int = 9 ) : string {
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta ) 
-   + (if (tp.tzabbrv.empty?) then "" else " (" + tp.tzabbrv + ")") 
+   + (if (tp.tzabbrv.numeric?) then "" else " (" + tp.tzabbrv + ")") 
    + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
+}
+
+fun numeric?( abbrv : string ) : bool {
+  (abbrv.empty? || abbrv.head=="+" || abbrv.head=="-")
 }
 
 fun show-date(d : date) : string {

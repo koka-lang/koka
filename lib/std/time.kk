@@ -119,11 +119,11 @@ fun test-timezones() {
   
   /* A flight of 12.5 hours from New York to Kosrae */
   val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
-  t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00 (KOST)"
+  t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00"
   
   /* Again, but across DST & leap second */
   val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
-  t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00 (KOST)"
+  t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00"
 }
 ```
 

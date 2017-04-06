@@ -1,4 +1,8 @@
-count: 1, width: 2, glen: 1, gs: [['/uD55C']]
-count: 2, width: 4, glen: 2, gs: [['/uD55C'],['/uAE00']]
-count: 4, width: 2, glen: 2, gs: [['/u1E8B','/u0323'],['x']]
-count: 3, width: 2, glen: 1, gs: [['/uAE4D']]
+count: 1, width: 2, grapheme len: 1,
+ graphemes: [['/uD55C']], unicodes: [0xD55C]
+count: 2, width: 4, grapheme len: 2,
+ graphemes: [['/uD55C'],['/uAE00']], unicodes: [0xD55C,0xAE00]
+count: 4, width: 2, grapheme len: 2,
+ graphemes: [['/u1E8B','/u0323'],['x']], unicodes: [0x78,0x307,0x323,0x78]
+count: 3, width: 2, grapheme len: 1,
+ graphemes: [['/uAE4D']], unicodes: [0x1101,0x1161,0x11A8]
