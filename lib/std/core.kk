@@ -48,15 +48,15 @@ extern include {
 // Core types
 // ----------------------------------------------------------------------------
 
-// A 32-bit signed integer (using two's complement to represent negative numbers).
+// An arbitrary precision signed integer.
 type int
 
-// A unicode string is a sequence of unicode characters (`char`).
-// The encoding of a string is internal and not exposed and there
-// is no direct indexing of characters in string. 
+// A string is a sequence of unicode character points (`char`).
+// The encoding of a string is internal and there
+// is no constant-time indexing of characters in a string. 
 // Use the `:sslice` type for efficient matching and retrieving
 // sub-strings from string.\
-// See also the [``std/string``](std_string.html) module.
+// See also the [``std/text/string``](std_text_string.html) module.
 type string
 
 // A 64-bit IEEE 754 floating point value
@@ -69,7 +69,7 @@ type any
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
-// (see also the [``std/unicode``](std_unicode.html) module.)
+// (see also the [``std/text/unicode``](std_text_unicode.html) module.)
 type char
 
 
@@ -157,17 +157,65 @@ extern inline inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)
 // Exceptions
 type exception
 
-// Return a system dependent description of an exception
-extern show( exn : exception ) : string {
-  cs inline "#1.ToString()"
-  js inline "(#1 ? #1.toString() : 'unknown exception')"
+type open exception-info {
+  Error
+  Assert
+  Todo
+  Nomemory
+  Range
+  Reference
+  Pattern( location : string, definition : string )
+  System( errno : string )   
+  Internal( name : string )  
 }
 
-// Catch an exception raised by `error` and handle it.
-// Use `on-exn` or `on-fail` when appropiate.
-extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
-  cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
+extern info( exn : exception ) : exception-info {
+  cs "Primitive.ExnInfo"
+  js "exn_info"
+}
+
+extern stack-trace( exn : exception ) : string {
+  cs "Primitive.ExnStackTrace"
+  js "exn_stacktrace"
+}
+
+extern exception( message : string, info : exception-info ) : exception {
+  cs "Primitive.ExnException"
+  js "exn_exception"
+}
+
+extern throw( exn : exception ) : exn a {
+  cs "Primitive.Throw"
+  js "exn_throw"
+}
+
+// Return the message associated with an exception
+extern message( exn : exception ) : string {
+  cs "Primitive.ExnMessage"
+  js "exn_message"
+}
+
+// Show the exception message and its stack trace.
+fun show( exn : exception ) : string {
+  exn.stack-trace
+}
+
+// Raise an exception with a specified message.
+fun error( message : string ) : exn a { 
+  throw(message,Error)
+}
+
+// Throw an exception
+fun throw( message : string, err : exception-info = Error) : exn a {
+  throw( exception(message,err) )
+}
+
+// Raise a pattern match exception. This is function is used internally by the
+// compiler to generate error messages on pattern match failures.
+extern error-pattern(location : string, definition : string) : exn a { 
+  // needs to be extern since the compiler generates calls and dependency resolution does not work on it
+  cs "Primitive.ExnErrorPattern"
+  js "exn_error_pattern"  
 }
   
 // Execute a `hndler` no matter what exception was raised in `action`.
@@ -177,37 +225,22 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   js inline "_primfinally(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
-// Raise an exception with a specified message.
-extern error : forall<a> string -> exn a { 
-    cs "Primitive.Error";
-    js "_error"
+
+// Catch an exception raised by `error` and handle it.
+// Use `on-exn` or `on-fail` when appropiate.
+extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
+  cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
+  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
-// Throw an exception
-extern throw : forall<a> exception -> exn a {
-  cs inline "Primitive.Throw<##1>(#1)"
-  js "error(#1)"
-}
-
-// Raise a pattern match exception. This is function is used internally by the
-// compiler to generate error messages on pattern match failures.
-extern error-pattern-match : forall<a> (range : string, def : string) -> exn a { 
-    cs "Primitive.PatternMatchError"
-    js "_error_pattern_match"
-}
 
 // Set a `hndler` that is called when an exception is raised in the `action` block.
-fun on-fail( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
+fun on-exn( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
-  catch-on-fail( action, fun(exn){ hndler(); throw(exn) })
+  catch-on-exn( action, fun(exn){ hndler(); throw(exn) })
 }
 
-// Return a default value when an exception is raised
-fun on-exn( value : a , action : () -> <exn|e> a ) : e a {
-  catch( action, fun(_) { value })
-}
-
-private extern catch-on-fail : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
+private extern catch-on-exn : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)"
   js "_catch"
 }
@@ -231,6 +264,13 @@ fun on-success( hndler : () -> e (), action : () -> e a ) : e a
 fun try( action : () -> <exn|e> a ) : e either<exception,a> {
   catch({ Right(action()) },Left)
 }
+
+// Return a default value when an exception is raised
+fun try( value : a , action : () -> <exn|e> a ) : e a {
+  catch( action, fun(_) { value })
+}
+
+
 
 // ----------------------------------------------------------------------------
 // Internal types
@@ -2301,7 +2341,7 @@ private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a>
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  { 
   cs inline "(#1)[Primitive.IntToInt32(#2)]" 
-  js inline "(#1)[$std_core._int_to_int32(#2)]" 
+  js inline "$std_core._vector_at(#1,#2)" 
 }
 
 // Return the element at position `index` in vector `v`, or `Nothing` if out of bounds

@@ -907,6 +907,7 @@ function runTest(n,testMode,testFile,flags,callback) {
             var color = (part.added ? 'green' : (part.removed ? 'red' : 'grey'));
             process.stderr.write(part.value[color]);
           });
+          process.stderr.write("\n");
 
           jake.logger.log( n + ": " + testFile + " failed.\n" );
           callback(2);
@@ -959,5 +960,6 @@ function testSanitize(s) {
           .replace(/[ \t]+/g, " ")   // compress whitespace
           .replace(/[\r\n]+/g, "\n") // compress newlines sequences
           .replace(/(std_core\.js\:)\d+/, "$1" )  // hide line number of an exception
-          .trim();                   // and trim
+          .replace(/\n\s+at .*/g, "") // hide stack trace in exceptions
+          .trim();                     // and trim
 }

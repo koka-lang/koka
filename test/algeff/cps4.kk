@@ -66,7 +66,7 @@ fun tick() {
   return fun(s) { Right(((),s+1))}
 }
 
-fun fail(err) {
+fun failure(err) {
   return fun(s) { Left(err) }
 }
 
@@ -77,7 +77,7 @@ fun eval( e : expr ) : stexn<int> {
       tick() >>= (fun(_){
         eval(x) >>= (fun(i) {
           eval(y) >>= (fun(j) {
-            (if (j==0) then fail("division by zero") else unit(())) >>= (fun(_){
+            (if (j==0) then failure("division by zero") else unit(())) >>= (fun(_){
                unit( i / j )
       })})})}) 
   }

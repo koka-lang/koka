@@ -133,7 +133,7 @@ fun abs( i : int32 ) : exn int32
 {
   if (!i.neg?) then i
   elif (i > min-int32.int32) then negate(i)
-  else error( "system.core.abs: cannot make min-int32 into a positive int32 without overflow" )
+  else error( "std/num/int32/abs: cannot make min-int32 into a positive int32 without overflow" )
 }
 
 // Return the absolute value of an integer.

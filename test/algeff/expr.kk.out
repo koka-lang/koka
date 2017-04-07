@@ -11,7 +11,7 @@ ticks: 2
 .Eff-exc : forall<a> (.ops-exc<a>) -> operation<a>
 .Eff-out : forall<a> (.ops-out<a>) -> operation<a>
 .Eff-state : forall<a> (.ops-state<a>) -> operation<a>
-.Op-fail : forall<a,b> (string) -> .ops-exc<a>
+.Op-failure : forall<a,b> (string) -> .ops-exc<a>
 .Op-line : forall<a> (expr) -> .ops-out<a>
 .Op-tick : forall<a> .ops-state<a>
 .copy : forall<a> (.ops-state<a>) -> .ops-state<a>
@@ -33,7 +33,7 @@ exc : forall<a,e> (action : () -> <exc|e> a) -> e either<string,a>
 expr1 : expr
 expr2 : expr
 exprX : expr
-fail : forall<a> (s : string) -> exc a
+failure : forall<a> (s : string) -> exc a
 int? : (expr : expr) -> bool
 line : (e : expr) -> out ()
 main : () -> console ()

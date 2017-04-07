@@ -8,7 +8,7 @@ eval0 : (e : expr) -> int
 expr1 : expr
 expr2 : expr
 exprX : expr
-fail : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
+failure : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
 int? : (expr : expr) -> bool
 main : () -> console ()
 run : forall<a,b,e> (s : a, m : (a) -> e b) -> e b

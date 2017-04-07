@@ -18,22 +18,44 @@ public static class Primitive
   public static A Throw<A>( Exception exn ) {
     throw exn;
   }
-  public static A Error<A>( string message ) {
-    throw new ErrorException( message );
+  
+  public static A ExnErrorPattern<A>( string location, string definition )
+  {
+    string msg = location + (String.IsNullOrEmpty(definition) ? "" : (": " + definition)) + ": pattern match failure";
+    throw new InfoException( msg, new std_core.Pattern_(location,definition) );
   }
 
-  public static A PatternMatchError<A>( string location, string definition )
-  {
-    throw new PatternMatchException(location,definition);
+  public static InfoException ExnException( string message, std_core._exception_info info ) {
+    return new InfoException(message,info);
   }
+
+  public static std_core._exception_info ExnInfo( Exception exn ) {
+    InfoException eexn = exn as InfoException;
+    if (eexn != null) {
+      return eexn.info;
+    }
+    else {
+      return new std_core.Error_();
+    }
+  }
+
+  public static string ExnMessage( Exception exn ) {
+    return (exn != null ? exn.Message : "invalid error");
+  }
+
+  public static string ExnStackTrace( Exception exn ) {
+    return (exn != null ? exn.StackTrace : "");
+  }
+
+
 
   public static A Unreachable<A>()
   {
-    throw new ErrorException( "unreachable code reached");
+    throw new InfoException( "unreachable code reached", new std_core.Error_() );
   }
 
   public static A UnsupportedExternal<A>( string name ) {
-    throw new ErrorException( "external '" + name + "' is not supported on this platform" );
+    throw new InfoException( "external '" + name + "' is not supported on this platform", new std_core.Error_() );
   }
 
   public static A Catch<A>( Fun0<A> action, Fun1<Exception,A> handler )
@@ -572,18 +594,15 @@ public class Async<A> : AsyncGlobal
 //---------------------------------------
 // Exceptions classes
 //---------------------------------------
-public class ErrorException : Exception
+public class InfoException : Exception
 {
-  public ErrorException( string message ) : base(message) 
-  {}
+  public readonly std_core._exception_info info;
+
+  public InfoException( string message, std_core._exception_info info ) : base(message) {
+    this.info = info;
+  }
 };
 
-public class PatternMatchException : Exception
-{
-   public PatternMatchException( string location, string definition ) 
-     : base( location + (String.IsNullOrEmpty(definition) ? "" : (": " + definition)) + ": pattern match failure" ) 
-   { }
-};
 
 //---------------------------------------
 // References

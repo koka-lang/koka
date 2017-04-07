@@ -139,7 +139,7 @@ nameTpOptional       = preludeName "optional"
 
 nameTpDelay          = preludeName "delay"
 
-namePatternMatchError = preludeName "error-pattern-match"
+namePatternMatchError = preludeName "error-pattern"
 nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
 nameDec              = preludeName "dec"

@@ -1157,6 +1157,7 @@ reserved
     , "exports"
     , "module"
     , "Date"
+    , "Error"
     ]
 
 block :: Doc -> Doc

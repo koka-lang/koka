@@ -241,7 +241,7 @@ public fun parse( initial : a, flags : list<flag<a>>, args : list<string>, order
     match(opt) {
       Flg(set)   -> (set(o),xs,errs)
       Unknown(e) -> (o,xs,Cons(error-unknown-message(e),errs))
-      Error(e)   -> (o,xs,Cons(e,errs))
+      flags/Error(e)   -> (o,xs,Cons(e,errs))
       Arg(x)     -> (o,Cons(x,xs),errs)
       End        -> (o,xs,errs)
     }

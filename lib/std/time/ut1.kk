@@ -197,7 +197,7 @@ struct dut-table(
 // Calculate &Delta;T from a DUT table.
 // Interpolates linearly between daily entries.
 fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration> {
-  on-exn(Nothing) {
+  try(Nothing) {
     val utci = i.use(ts-utc)
     val mjd = utci.mjd(ts-utc).double
     if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
@@ -419,7 +419,7 @@ val deltat-table-empty = Deltat-table(0.0,0.0,vector(0,0.0))
 // year `y` is outside the bounds of the table, return `Nothing`.
 fun interpolate( dtable : deltat-table, y : double )  : maybe<double> {
   if (y < dtable.start || dtable.end <= y) then Nothing else {
-    on-exn(Nothing) {
+    try(Nothing) {
       val i   = (y - dtable.start)*dtable.entries-per-year
       val idx = i.trunc.int  
       val d0  = dtable.entries[idx]
