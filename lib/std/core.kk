@@ -161,9 +161,7 @@ type open exception-info {
   Error
   Assert
   Todo
-  Nomemory
   Range
-  Reference
   Pattern( location : string, definition : string )
   System( errno : string )   
   Internal( name : string )  
@@ -269,7 +267,6 @@ fun try( action : () -> <exn|e> a ) : e either<exception,a> {
 fun try( value : a , action : () -> <exn|e> a ) : e a {
   catch( action, fun(_) { value })
 }
-
 
 
 // ----------------------------------------------------------------------------
@@ -584,7 +581,7 @@ fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
 
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
-function list( lo : char, hi : char ) : total list<char>
+fun list( lo : char, hi : char ) : total list<char>
 {
   list(lo.int, hi.int).map( char )
 }
@@ -2557,7 +2554,7 @@ private fun show-char( c : char ) : string
 }
 
 // Show a `:char` as a character literal
-function show( c : char ) : string
+fun show( c : char ) : string
 {
   "'" + c.show-char + "'"
 }
@@ -2689,10 +2686,14 @@ fun println(d : double)  { printsln(show(d)) }
 fun println( b : bool )  { printsln(show(b)) }
 
 // Print a character to the console, including a final newline character.
-function println(c : char)    { printsln(c.string) }
+fun println(c : char)    { printsln(c.string) }
 
 // Print a unit value to the console, including a final newline character
 fun println( u : () )  { printsln(show(())) }
+
+// ----------------------------------------------------------------------------
+// Trace, assert, todo
+// ----------------------------------------------------------------------------
 
 
 private extern xtrace : ( message : string ) -> ()  {
@@ -2716,6 +2717,21 @@ public fun trace( message : string ) : () {
 public fun notrace() : st<global> () {
   trace-enabled := False
 }
+
+
+fun assert( message : string, condition : bool ) : () {
+  if (!condition) unsafe-noexn{ throw(message,Assert) }  
+}
+
+fun todo( message : string ) : () {
+  unsafe-noexn{ throw(message,Todo) ) }
+}
+
+
+
+// ----------------------------------------------------------------------------
+// Main
+// ----------------------------------------------------------------------------
 
 // Used by the compiler to wrap main console applications
 extern main-console : forall<a,e> ( main : () -> e a ) -> e a {

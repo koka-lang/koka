@@ -51,3 +51,16 @@ fun log( log-name : string, message : string ) : () {
 fun nolog() : st<global> () {
   log-dict["nolog"] := ""
 }
+
+
+// Log an error (to log `"error"`). This should be used in particular
+// to log errors in pure functions that are otherwise ignored.
+fun log-error( message : string ) : () {
+  log("error", message)
+}
+
+// Log a warning (to log `"warning"`). This should be used in particular
+// to log warnings in pure functions that are otherwise ignored.
+fun log-warning( message : string ) : () {
+  log("warning", message)
+}
