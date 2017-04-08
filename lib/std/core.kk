@@ -2724,7 +2724,7 @@ fun assert( message : string, condition : bool ) : () {
 }
 
 fun todo( message : string ) : () {
-  unsafe-noexn{ throw(message,Todo) ) }
+  unsafe-noexn{ throw(message,Todo) }
 }
 
 

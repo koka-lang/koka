@@ -16,6 +16,33 @@ extern include {
   js file "async-inline.js"
 }
 
+type extend exception-info {
+  Cancel
+}
+
+public fun cancelable( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : <async,exn|e> maybe<a> { 
+  val caction = create-cancelable-prim(action)
+  catch { Just(caction()) } fun(exn) {
+    match(exn.info) {
+      Cancel -> {
+        check-canceled() // will re-throw if action is not the one that was canceled
+        Nothing
+      }
+      _ -> throw(exn)
+    }
+  }
+}
+
+extern create-cancelable-prim( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : (() -> <async,exn|e> a) {
+  js "_create_cancelable"
+}
+
+extern check-canceled() : exn () {
+  js "_check_canceled"
+}
+
+
+
 // ----------------------------------------------------------------------------
 // Asynchronous operations are supported through the `:async` effect.
 // ----------------------------------------------------------------------------
@@ -28,11 +55,11 @@ public fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
 }
 
 
-private extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
+extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
   js inline "$asyncAll(actions,_k)"
 }
 
-private extern async-callback0( action: () -> e (), haserr : bool, nodup : bool ) : (() -> e ()) {
+extern async-callback0( action: () -> e (), haserr : bool, nodup : bool ) : (() -> e ()) {
   js "$asyncCallback"
 }
 
@@ -41,7 +68,7 @@ public fun unsafe-async-yield-err( action : (cc : a -> <async|e> ()) -> <async|e
 }
 
 public extern unsafe-async-yield( action : (cc : a -> <async|e> ()) -> <async|e> (), haserr : bool = False ) : <async|e> a {
-  js inline "(#1)( $asyncCallback(_k,#2), $std_core.async_yield)"
+  js inline "(#1)( $asyncCallback( 2), $std_core.async_yield)"
 }
 
 // Wait (asynchronously) for `secs` seconds. 
@@ -56,7 +83,7 @@ public fun wait( secs : duration ) : async () {
   unsafe-async-yield( fun(cb) { set-timeout( cb, secs.milli-seconds.int32) } )
 }
 
-private extern set-timeout( action : (()) -> e (), ms : int32 ) : () {
+extern set-timeout( action : (()) -> e (), ms : int32 ) : () {
   js "setTimeout"
 }
 
@@ -68,11 +95,11 @@ public fun synchronous( action : () -> <async|e> a ) : e a {
   on-exit(end-synchronous){ unsafe-total(action) }
 }
 
-private extern start-synchronous() : () {
+extern start-synchronous() : () {
   js "$asyncStartSynchronous"
 }
 
-private extern end-synchronous() : () {
+extern end-synchronous() : () {
   js "$asyncEndSynchronous"
 }
 
