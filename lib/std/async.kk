@@ -21,8 +21,14 @@ type extend exception-info {
 }
 
 public fun cancelable( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : <async,exn|e> maybe<a> { 
-  val caction = create-cancelable-prim(action)
-  catch { Just(caction()) } fun(exn) {
+  val (unreg,caction) = create-cancelable-prim(action)
+  catch { 
+    val x = caction()
+    unreg()
+    Just(x) 
+  } 
+  fun(exn) {
+    unreg()
     match(exn.info) {
       Cancel -> {
         check-canceled() // will re-throw if action is not the one that was canceled
@@ -33,7 +39,7 @@ public fun cancelable( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : <as
   }
 }
 
-extern create-cancelable-prim( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : (() -> <async,exn|e> a) {
+extern create-cancelable-prim( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : (() -> exn (), () -> <async,exn|e> a) {
   js "_create_cancelable"
 }
 
