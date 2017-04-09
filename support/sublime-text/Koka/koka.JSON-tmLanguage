@@ -409,7 +409,7 @@
 
 
     "top_type_type": 
-      { "begin": "((?:cotype|type|rectype)(?:\\s+(?:open|extend))?|effect)\\s+([a-z]\\w+|<>|<\\|>|\\(,*\\))"
+      { "begin": "((?:cotype|type|rectype)(?:\\s+(?:open|extend))?|effect)\\s+([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?!\\w))" 
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.type.storage.type.koka" }}

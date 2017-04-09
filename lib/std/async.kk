@@ -41,11 +41,25 @@ extern check-canceled() : exn () {
   js "_check_canceled"
 }
 
+public extern unsafe-register-cancel( cb : a -> <async|e> (), cancel : () -> exn () ) : exn () {
+  js "_register_cancel"
+}
 
+public fun timeout( secs : duration, action : () -> <async,exn|e> a ) : <async,exn|e> maybe<a> {
+  cancelable fun(cancel) {
+    val h = set-timeout( fun(_){ cancel(); }, secs.milli-seconds.int32 )
+    on-exit({ cancel-timeout(h) }, action)
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Asynchronous operations are supported through the `:async` effect.
 // ----------------------------------------------------------------------------
+
+public fun async-fork( action1 : () -> <async|e> a, action2 : () -> <async|e> ()) : <async|e> a {
+  val xs = async-all( [{ Just(action1()) }, { action2(); Nothing }] )
+  unsafe-noexn{ xs.head.unjust.unjust }
+}
 
 // Execute `actions` asynchronously, i.e. interleaved around asynchronous operations.
 // When all operations have terminated (or raised an exception) return the list of
@@ -63,28 +77,40 @@ extern async-callback0( action: () -> e (), haserr : bool, nodup : bool ) : (() 
   js "$asyncCallback"
 }
 
-public fun unsafe-async-yield-err( action : (cc : a -> <async|e> ()) -> <async|e> () ) : <async|e> a {
+public fun unsafe-async-yield-err( action : (cb : a -> <async|e> ()) -> <async|e> () ) : <async|e> a {
   unsafe-async-yield( action, True ) 
 }
 
-public extern unsafe-async-yield( action : (cc : a -> <async|e> ()) -> <async|e> (), haserr : bool = False ) : <async|e> a {
-  js inline "(#1)( $asyncCallback( 2), $std_core.async_yield)"
+public extern unsafe-async-yield( action : (cb : a -> <async|e> ()) -> <async|e> (), haserr : bool = False ) : <async|e> a {
+  js inline "(#1)( $asyncCallback(_k,#2), $std_core.async_yield)"
 }
 
 // Wait (asynchronously) for `secs` seconds. 
 // Use `wait(0)` to yield to other asynchronous operations.
-public fun wait( secs : double ) : async () {
+public fun wait( secs : double ) : <async,exn> () {
   wait(secs.duration)
 }
 
 // Wait (asynchronously) for `secs` seconds duration. 
 // Use `wait(0)` to yield to other asynchronous operations.
-public fun wait( secs : duration ) : async () {
-  unsafe-async-yield( fun(cb) { set-timeout( cb, secs.milli-seconds.int32) } )
+public fun wait( secs : duration ) : <async,exn> () {
+  unsafe-async-yield( fun(cb) { 
+    val msecs = secs.milli-seconds.int32
+    val h = set-timeout( cb, msecs)
+    if (msecs > 100.int32) { 
+      unsafe-register-cancel( cb, fun(){ cancel-timeout(h) } )
+    }
+  })
 }
 
-extern set-timeout( action : (()) -> e (), ms : int32 ) : () {
+type timeout-handle
+
+extern set-timeout( action : (()) -> e (), ms : int32 ) : exn timeout-handle {
   js "setTimeout"
+}
+
+extern cancel-timeout( h : timeout-handle ) : exn () {
+  js "clearTimeout"
 }
 
 

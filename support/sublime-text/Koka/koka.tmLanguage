@@ -1022,7 +1022,7 @@
 		<key>top_type_type</key>
 		<dict>
 			<key>begin</key>
-			<string>((?:cotype|type|rectype)(?:\s+(?:open|extend))?|effect)\s+([a-z]\w+|&lt;&gt;|&lt;\|&gt;|\(,*\))</string>
+			<string>((?:cotype|type|rectype)(?:\s+(?:open|extend))?|effect)\s+([a-z][\w\-]+|&lt;&gt;|&lt;\|&gt;|\(,*\))</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
