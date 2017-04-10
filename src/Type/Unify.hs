@@ -60,6 +60,7 @@ overlaps range free tp1 tp2
              -}
              let (fixed1,optional1) = span (not . isOptional) (map snd targs1)
                  (fixed2,optional2) = span (not . isOptional) (map snd targs2)
+             {-    
                  len1 = length fixed1
                  len2 = length fixed2
              in if ((null optional1 && len1 < len2) || (null optional2 && len1 > len2))
@@ -67,6 +68,14 @@ overlaps range free tp1 tp2
                  else let lo = min len1 len2
                       in do unifies (take lo fixed1) (take lo fixed2) 
                             return () -- todo: this is slightly too strict: if the longest prefix of fixed arguments match, we consider them overlapped
+                      -}
+                 hi  = max (length fixed1) (length fixed2)
+                 fo1 = take hi (fixed1 ++ map unOptional optional1)
+                 fo2 = take hi (fixed2 ++ map unOptional optional2)
+             in if (length fo1 /= length fo2) 
+                 then unifyError NoMatch  -- one has more fixed arguments than the other can ever get
+                 else do unifies fo1 fo2
+                         return ()
                          
         
 
