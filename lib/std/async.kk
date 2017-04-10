@@ -47,14 +47,10 @@ extern check-canceled() : exn () {
   js "_check_canceled"
 }
 
-public extern unsafe-register-cancel( cb : a -> <async|e> (), cancel : () -> exn () ) : exn () {
-  js "_register_cancel"
-}
-
 public fun timeout( secs : duration, action : () -> <async,exn|e> a ) : <async,exn|e> maybe<a> {
   cancelable fun(cancel) {
-    val h = set-timeout( fun(_){ cancel(); }, secs.milli-seconds.int32 )
-    on-exit({ cancel-timeout(h) }, action)
+    val id = set-timeout( fun(_){ cancel(); }, secs.milli-seconds.int32 )
+    on-exit({ clear-timeout(id); () }, action)
   }
 }
 
@@ -97,25 +93,38 @@ public fun wait( secs : double ) : <async,exn> () {
   wait(secs.duration)
 }
 
+public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
+  on-exn(fun(exn) {
+    match(exn.info) {
+      Cancel -> oncancel()
+      _      -> ()
+    }
+  },action)
+}
+
 // Wait (asynchronously) for `secs` seconds duration. 
 // Use `wait(0)` to yield to other asynchronous operations.
 public fun wait( secs : duration ) : <async,exn> () {
-  unsafe-async-yield( fun(cb) { 
-    val msecs = secs.milli-seconds.int32
-    val h = set-timeout( cb, msecs)
-    if (msecs > 100.int32) { 
-      unsafe-register-cancel( cb, fun(){ cancel-timeout(h) } )
+  var mid := Nothing
+  on-cancel {
+    match(mid) {
+      Nothing -> ()
+      Just(id) -> clear-timeout(id)
     }
-  })
+  }
+  { unsafe-async-yield fun(cb) { 
+      mid := Just(set-timeout(cb,secs.milli-seconds.int32))      
+    }
+  }
 }
 
-type timeout-handle
+type timeout-id
 
-extern set-timeout( action : (()) -> e (), ms : int32 ) : exn timeout-handle {
+extern set-timeout( action : (()) -> e (), ms : int32 ) : exn timeout-id {
   js "setTimeout"
 }
 
-extern cancel-timeout( h : timeout-handle ) : exn () {
+extern clear-timeout( h : timeout-id ) : exn () {
   js "clearTimeout"
 }
 

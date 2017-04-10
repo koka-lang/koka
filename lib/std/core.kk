@@ -228,19 +228,19 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
 // Use `on-exn` or `on-fail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
+  js inline "_primcatch(#1, #2, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
 
 // Set a `hndler` that is called when an exception is raised in the `action` block.
-fun on-exn( hndler : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
+fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
 {
-  catch-on-exn( action, fun(exn){ hndler(); throw(exn) })
+  catch-on-exn( action, fun(exn){ hndler(exn); throw(exn) })
 }
 
 private extern catch-on-exn : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
-  cs inline "Primitive.Catch<##2>(#1,#2)"
-  js "_catch"
+  cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
+  js inline "_primcatch(#1, #2, (typeof _k === 'undefined' ? undefined : _k))"
 }
 
 
@@ -3042,7 +3042,7 @@ abstract effect async {
   async-yield() : ()
 }
 
-public fun ".async-handle"(action) {
+fun ".async-handle"(action) {
   handle(action) {
     return x -> x
     async-yield() -> () // todo: do a zero timeout?

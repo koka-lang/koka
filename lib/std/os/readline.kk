@@ -24,16 +24,16 @@ public fun question( query : string ) : <async,console,exn> string {
 
 // Read a line of input from the user.
 public fun readline() : <async,console,exn> string {
-  unsafe-async-yield( fun(cb) {
-    val cancel = prim-readline(cb)
-    unsafe-register-cancel( cb, cancel )
-  })
+  on-cancel( prim-cancel-readline, { unsafe-async-yield( fun(cb) { prim-readline(cb) } ) } )
 }
 
-private extern prim-readline( cb : (string) -> <console|e> () ) : console (() -> exn ()) {
+extern prim-readline( cb : (string) -> <console|e> () ) : console () {
   js "_readline"
 }
 
+extern prim-cancel-readline() : exn () {
+  js "_cancel_readline"
+}
 
 // Read a line of input from the user.
 extern xreadline() : <async,console> string {

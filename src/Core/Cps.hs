@@ -19,7 +19,7 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, 
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
                         nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK )
 import Common.Error
 import Common.Syntax
@@ -158,8 +158,8 @@ cpsExpr' topLevel expr
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
               isCps <- needsCpsType ftp
-              -- cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
-              if (not (isCps || isSpecialCps f))
+              -- cpsTraceDoc $ \env -> text "app" <+> (if isNeverCps f then text "never-cps" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
+              if ((not (isCps || isAlwaysCps f)) || isNeverCps f)
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
@@ -483,11 +483,19 @@ varApplyK k x
 --------------------------------------------------------------------------}  
 
 -- Some expressions always need cps translation
-isSpecialCps :: Expr -> Bool
-isSpecialCps expr
+isAlwaysCps :: Expr -> Bool
+isAlwaysCps expr
   = case expr of
-      TypeApp e _ -> isSpecialCps e
+      TypeApp e _ -> isAlwaysCps e
       Var v _     -> getName v == nameYieldOp || getName v == nameUnsafeTotal
+      _ -> False
+
+-- Some expressions never need cps translation
+isNeverCps :: Expr -> Bool
+isNeverCps expr
+  = case expr of
+      TypeApp e _ -> isNeverCps e
+      Var v _     -> getName v == canonicalName 1 nameDeref 
       _ -> False
 
 -- Does this definition need any cps translation (sometimes deeper inside)
