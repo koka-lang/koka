@@ -13,7 +13,7 @@
 This is an extensive library for managing time and supports advanced features
 as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
 Internally time is represented by a `:ddouble` giving it a very high range and precision 
-(see the [`instant`](std_time_instant.html) module).
+(see the `std/time/instant` module).
 
 Core concepts are:
 
@@ -23,7 +23,7 @@ Core concepts are:
 get the `:duration` between them. Instants are usually represented as the number
 of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),
-standard UTC (`ts-ti`), or astronimical time scales like terrestrial time ([``std/time/astro/ts-tt``](std_time_astro.html#ts_tt)).
+standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`std/time/astro/ts-tt`).
 
 * A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
 in a particular `:calendar` (usually the standard ISO calendar) and time zone. 
@@ -100,13 +100,13 @@ other time irregularties:
 "1582-10-15T00:00:00Z JG"  // transition from Julian (`cal-julian`) to Gregorian (`cal-gregorian`) calendar)
 ```
 
-See the [`std/time/utc`](std_time_utc.html) module for more information on leap seconds. 
+See the `std/time/utc` module for more information on leap seconds. 
 
 ## Time zones
 
 If calculating with timezones besides the UTC (`tz-utc`)
-and local timezone (`tz-local`), one needs to use the [`std/time/timezone`](std_time_timezone.html) 
-modules to load the latest time zone information ([`std/time/timezone/load-timezones`](std_time_timezone.html#load_timezones)).
+and local timezone (`tz-local`), one needs to use the `module std/time/timezone` 
+module to load the latest time zone information (`std/time/timezone/load-timezones`).
 
 ```
 import std/time
@@ -130,7 +130,7 @@ fun test-timezones() {
 ## Intervals
 
 Using the `now` or `time-now` for measuring time intervals is not appropriate since these functions
-are not guaranteed to be monotonic or of sufficiently high precision. For timing, the [`std/time/timer`](std_time_timer.html) module
+are not guaranteed to be monotonic or of sufficiently high precision. For timing, the `module std/time/timer` module
 should be used with functions like `ticks` or `elapsed`:
 ```koka
 import std/time/timer

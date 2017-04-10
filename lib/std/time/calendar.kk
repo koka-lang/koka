@@ -90,7 +90,7 @@ fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone 
 }
 
 // The standard UTC time zone with a 0 delta.
-public val tz-utc : timezone = tz-fixed("UTC",duration0)
+public val tz-utc : timezone = tz-fixed("UTC",zero)
 
 // Return the local timezone on the current system.
 public fun tz-local() : ndet timezone {

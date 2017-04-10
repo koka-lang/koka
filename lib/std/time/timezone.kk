@@ -88,7 +88,7 @@ public struct timezone-period(
 )
 
 // Zero time period
-val timezone-period0 = Timezone-period( Nothing, "UTC", duration0 )
+val timezone-period0 = Timezone-period( Nothing, "UTC", zero )
 
 // The time zone info for the UTC time zone.
 val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fun(){ [] } ) 

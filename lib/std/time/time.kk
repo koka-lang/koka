@@ -28,7 +28,7 @@ abstract struct time (
   public  date    : date,
   public  clock   : clock,
   public  calendar: calendar,
-  public  tzdelta : duration = duration0,
+  public  tzdelta : duration = zero,
   public  tzabbrv : string   = "",
   public  timezone: timezone = tz-utc,
   public  instant : instant

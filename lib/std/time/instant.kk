@@ -262,7 +262,7 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
 // a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2000-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
 // `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
-public fun tai-timescale( name : string, offset : duration = duration0, y2k-epoch : timestamp = timestamp0 ) : timescale {
+public fun tai-timescale( name : string, offset : duration = zero, y2k-epoch : timestamp = timestamp0 ) : timescale {
   val epoch-shift = y2k-epoch.timespan + offset.timespan
   fun from-tai(tai:duration) { tai.timestamp + epoch-shift }
   fun to-tai(ts:timestamp)   { (ts - epoch-shift).unsafe-duration }
@@ -367,7 +367,7 @@ public fun instant-at-mjd( mjd : ddouble, tscale : timescale  ) : instant {
   val sid  = (d - days)*daysecs  // seconds in the day
   val (nlsecs,lsecs) = if (sid >= secs-per-day)
                         then (secs-per-day.dec, sid.inc - secs-per-day)
-                        else (sid,zero)
+                        else (sid,zero:ddouble)
   val ts1  = tscale.y2k-epoch + (days*secs-per-day) + nlsecs
   val ts2  = ts1.adjust-leap-seconds(lsecs)
   unsafe-instant(ts2,tscale) 
