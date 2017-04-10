@@ -263,6 +263,10 @@ showLexemes env kgamma gamma lexs
     fmtQualify [Lexeme r0 (LexKeyword ":" doc), Lexeme r1 (LexSpecial "("), Lexeme r2 (LexSpecial ")")]
       = [Lexeme r0 (LexKeyword ":" doc), Lexeme r1 (LexId (qualify nameSystemCore (newName "()")))]    
 
+    -- module identifier
+    fmtQualify [l0@(Lexeme r0 (LexKeyword "module" doc)), l1@(Lexeme r1 (LexWhite s)), Lexeme r2 (LexId id)]
+      = [l0,l1,Lexeme r2 (LexModule id id)]
+
     -- single typed identifier
     fmtQualify (Lexeme r1 (LexId id) : Lexeme r2 (LexKeyword ":" doc) : lexs)
       = [Lexeme r1 (LexTypedId id (concatMap showLexeme lexs))] -- : Lexeme r2 (LexKeyword ":" doc) : lexs
@@ -282,10 +286,13 @@ showLexemes env kgamma gamma lexs
 
     tryQualify lex name
       = case gammaLookup name gamma of
-          [(_,InfoImport{infoFullName=qname})] -> LexModule name qname
-          [(qname,InfoCon{})]    -> LexCons qname
-          [(qname,_)]            -> lex qname
-          _                      -> lex name
+          [(qname,InfoCon{})]    | nameCaseEqual (unqualify name) (unqualify qname) -> LexCons qname
+          [(qname,_)]            | nameCaseEqual (unqualify name) (unqualify qname) -> lex qname
+          _  -> if (isQualified name)
+                 then case gammaLookup (unsplitModuleName [name]) gamma of
+                        [(_,InfoImport{infoFullName=qname})] -> LexModule name qname
+                        _ -> lex name
+                 else lex name
 
     tryQualifyType lex name
       = case kgammaLookup ctx name kgamma of
@@ -327,7 +334,10 @@ linkFromId env name tp gamma
                  in case filtered of
                       [(qname,info)] -> -- atag (linkFromName env qname (infoType info)) $ span "id" $ fmtName (unqualify qname)
                                         signature env True True "type" qname (mangle qname (infoType info)) (showType env (infoType info)) $ fmtName (unqualify qname) 
-                      _ -> (if (isConstructorName name) then cspan "constructor" else id) (fmtName (unqualify name))
+                      _ -> if (isQualified name) 
+                            then atag (linkFromIdName env name)
+                                  ((if (isConstructorName name) then cspan "constructor" else id) (fmtName name))
+                            else (if (isConstructorName name) then cspan "constructor" else id) (fmtName (unqualify name))
 
 fmtTypeName :: Name -> String
 fmtTypeName name
@@ -370,6 +380,9 @@ linkFromTypeId env name kgamma content
             else content
 
 
+linkFromIdName env qname
+  = linkFromTypeNameX env (if (isConstructorName qname) then mangleConName qname else qname)
+
 linkFromConName env qname
   = linkFromTypeNameX env (mangleConName qname)
 
@@ -408,8 +421,12 @@ fmtComment mbRangeMap env kgamma gamma com
                         Nothing -> fmtLexs lexs
                         Just rm -> concat $ colorizeLexemes True (fmtLiterate mbRangeMap env kgamma gamma) rm env [] CtxNormal lexs
 
-    dropColon (Lexeme _ (LexKeyword ":" _):ls) (fmt:fmts) = drop (length (takeWhile lexemeIsWhite ls)) fmts
-    dropColon _                                fmts       = fmts
+    dropColon (l:ls) (fmt:fmts) | ignore = drop (length (takeWhile lexemeIsWhite ls)) fmts    
+                                where ignore = case l of
+                                                 Lexeme _ (LexKeyword ":" _)      -> True
+                                                 Lexeme _ (LexKeyword "module" _) -> True
+                                                 _ -> False
+    dropColon _      fmts       = fmts
 
 
 removeCommentOpenClose lex
@@ -483,7 +500,7 @@ signature env toLit isLiterate knd qname mname scontent content
               (if (context env == qualifier qname && toLit == isLiterate) 
                     then ""
                     else linkBaseX env (nameModule mname) (if toLit then "" else "-source"))
-              ++ "#" ++ linkEncode (nameId mname)              
+              ++ (if (nameIsNil mname) then "" else "#" ++ linkEncode (nameId mname))
          else ""
 
 linkBase env modname

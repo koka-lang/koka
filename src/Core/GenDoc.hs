@@ -59,6 +59,7 @@ genDoc env kgamma gamma core p
        mapM_ (writeLn p) (map (fmtPublicImport env kgamma gamma) publicImports)
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
        mapM_ (writeLn p) (map (fmtDef env kgamma gamma) otherDefs)
+       writeLn p $ fmtPrivateImports env kgamma gamma privateImports
   where
     table []   = ""
     table [x]  = x
@@ -98,8 +99,8 @@ genDoc env kgamma gamma core p
           _               -> 1
 
 
-    publicImports 
-      = filter (\imp -> importVis imp == Public) (coreProgImports core)
+    (publicImports,privateImports) 
+      = partition (\imp -> importVis imp == Public) (coreProgImports core)
 
     (otherDefs,typeDefsDefs)
       = (sortDefs odefs, map (\(td,tds) -> (td,sortDefs tds)) tdefs) 
@@ -264,8 +265,7 @@ synopsis env kgamma gamma doc
 indent n s
   = span ("nested" ++ show n) s
 
-
-
+      
 --------------------------------------------------------------------------
 --  TOC
 --------------------------------------------------------------------------
@@ -324,22 +324,43 @@ fmtDefTOC nested def
 
 fmtPublicImport :: Env -> KGamma -> Gamma -> Import -> String
 fmtPublicImport env kgamma gamma imp 
-  = doctag "div" ("decl id=\"" ++ linkEncode (nameId (importName imp))) (
+  = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (importName imp))) (
     concat 
       [doctag "div" "header code"$ 
         doctag "span" "def" $
           cspan "keyword" "module" ++ "&nbsp;"
-          ++ (atag (linkFromModName env qname "") $ span "module" $ show qname)
+          ++ fmtModuleName env qname -- (atag (linkFromModName env qname "") $ span "module" $ show qname)
       , synopsis env kgamma gamma (importModDoc imp)
       ]
     )
   where
     qname = importName imp
 
+
+fmtPrivateImports :: Env -> KGamma -> Gamma -> [Import] -> String
+fmtPrivateImports env kgamma gamma [] = ""
+fmtPrivateImports env kgamma gamma imps
+  = doctag "div" ("decl\" id=\"-private-imports") (
+    concat 
+      [doctag "div" "header code"$ 
+        doctag "span" "def" $
+          cspan "keyword" "private import" ++ "&nbsp;"
+          ++ concat (intersperse ", " (map (fmtPrivateImport env kgamma gamma) imps))
+      ]
+    )
+  
+fmtPrivateImport :: Env -> KGamma -> Gamma -> Import -> String
+fmtPrivateImport env kgamma gamma imp
+  = doctag "span" "code" $ fmtModuleName env (importName imp)
+
+fmtModuleName env qname
+  = signature env True True "module" qname (qualify qname nameNil) (span "module" (fmtName qname)) $ cspan "namespace" $ fmtName (unqualify qname)
+  -- atag (linkFromModName env qname "") $ span "module" qname    
+
 fmtTypeDef :: Env -> KGamma -> Gamma -> (TypeDef,[Def]) -> String
 fmtTypeDef env kgamma gamma (Synonym info _, defs)
   = nestedDecl defs $
-    doctag "div" ("decl id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
+    doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
     concat 
       [doctag "div" "header code"$ 
         concat
@@ -387,8 +408,8 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
       [doctag "div" "header code"$ 
         concat
         [ doctag "span" "def" $
-            cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" 
-            ++ cspan "type" (signature env False True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info)) 
+            cspan "keyword" dataInfo ++ "&nbsp;" 
+            ++ cspan "type" (signature env isExtend True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info)) 
                              (cspan "type" (niceTypeName (dataInfoName info))))
         , cspan "type" $ angled (fmtTVars)
         --, "&nbsp;", span "keyword" ":", "&nbsp;", showKind env' (dataInfoKind info)
@@ -400,6 +421,11 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
   where
     env' = niceEnv env (dataInfoParams info)
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
+
+    dataInfo = show (dataInfoSort info) ++
+               (if (isExtend) then "&nbsp;extend" 
+                else if (dataInfoIsOpen info) then "&nbsp;open"
+                else "")
 
     constructors
       = filter (\con -> not (isHiddenName (conInfoName con))) $
