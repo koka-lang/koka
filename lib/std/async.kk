@@ -16,11 +16,98 @@ extern include {
   js file "async-inline.js"
 }
 
-type extend exception-info {
-  Cancel
+// A type alias for asynchronous operations that can raise exceptions non-deterministically.
+// This is common for almost all `:async` operations since `cancelable` and `timeout` can
+// cancel operations non-deterministically which raises the `Cancel` exception and cancels
+// outstanding asynchronous requests. 
+public alias asyncx = <async,exn,ndet>
+
+
+// ----------------------------------------------------------------------------
+// Asynchronous timeout and waiting
+// ----------------------------------------------------------------------------
+
+// Do `action` but cancel it if it is not done within `secs` seconds. 
+// Returns `Nothing` if canceled, and `Just(x)` if successful with a result `x`.
+public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
+  cancelable fun(cancel) {
+    val id = set-timeout( fun(_){ cancel(); }, secs.milli-seconds.int32 )
+    on-exit({ clear-timeout(id); () }, action)
+  }
 }
 
-public fun cancelable( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : <async,exn|e> maybe<a> { 
+// Wait (asynchronously) for `secs` seconds as a `:double`. 
+// Use `wait()` to yield to other asynchronous operations.
+public fun wait( secs : double ) : <asyncx> () {
+  wait(secs.duration)
+}
+
+// Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0s`). 
+// Use `wait()` to yield generally to other asynchronous operations.
+// If the wait time is longer than 200ms the wait can be canceled.
+public fun wait( secs : duration = zero ) : <asyncx> () {
+  if (secs > 200.milli-seconds) then cancelable-wait(secs) 
+  elif (secs <= zero) then yield()
+  else yield(secs)
+}
+
+// Wait for `secs` seconds duration
+public fun cancelable-wait( secs : duration ) : <asyncx> () {
+  if (secs <= zero) then yield() else {
+    var mid := Nothing
+    on-cancel {
+      match(mid) {
+        Nothing -> ()
+        Just(id) -> clear-timeout(id)
+      }
+    }
+    { unsafe-async-yield fun(cb) { 
+        mid := Just(set-timeout(cb,secs.milli-seconds.int32))      
+      }
+    }
+  }
+}
+
+fun yield( secs : duration = zero ) : <asyncx> () {
+  unsafe-async-yield( fun(cb) { set-timeout(cb,max(zero:int32,secs.milli-seconds.int32)); () } )
+}
+
+// abstract id for timeout handlers
+type timeout-id
+
+extern set-timeout( action : (()) -> e (), ms : int32 ) : exn timeout-id {
+  js "setTimeout"
+}
+
+extern clear-timeout( h : timeout-id ) : exn () {
+  js "clearTimeout"
+}
+
+// ----------------------------------------------------------------------------
+// Asynchronous cancelation 
+// ----------------------------------------------------------------------------
+
+// The `Cancel` exception.
+public type extend exception-info {
+  // The `Cancel` exception is thrown when an asynchronous operation is canceled.
+  con Cancel
+}
+
+public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
+  on-exn(fun(exn) {
+    match(exn.info) {
+      Cancel -> oncancel()
+      _      -> ()
+    }
+  },action)
+}
+
+// Execute an asynchronous `action` that gets passed as `cancel` function. If `cancel` is
+// called, it will either raise the `Cancel` exception on the next asynchronous operation,
+// or, if currently in an asynchronous operation, it will cancel the outstanding operation
+// and resume by throwing `Cancel` at that point. If canceled, `cancelable` returns `Nothing`,
+// and on success `Just(x)` where `x` is the result of `action`.
+public fun cancelable( action : (cancel:() -> exn ()) -> <asyncx|e> a ) : <asyncx|e> maybe<a> { 
   val (unreg,caction) = create-cancelable-prim(action)
   catch { 
     val x = caction()
@@ -39,7 +126,7 @@ public fun cancelable( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : <as
   }
 }
 
-extern create-cancelable-prim( action : (cancel:() -> exn ()) -> <async,exn|e> a ) : (() -> exn (), () -> <async,exn|e> a) {
+extern create-cancelable-prim( action : (cancel:() -> exn ()) -> <asyncx|e> a ) : (() -> exn (), () -> <asyncx|e> a) {
   js "_create_cancelable"
 }
 
@@ -47,20 +134,13 @@ extern check-canceled() : exn () {
   js "_check_canceled"
 }
 
-public fun timeout( secs : duration, action : () -> <async,exn|e> a ) : <async,exn|e> maybe<a> {
-  cancelable fun(cancel) {
-    val id = set-timeout( fun(_){ cancel(); }, secs.milli-seconds.int32 )
-    on-exit({ clear-timeout(id); () }, action)
-  }
-}
-
 // ----------------------------------------------------------------------------
 // Asynchronous operations are supported through the `:async` effect.
 // ----------------------------------------------------------------------------
 
 public fun async-fork( action1 : () -> <async|e> a, action2 : () -> <async|e> ()) : <async|e> a {
-  val xs = async-all( [{ Just(action1()) }, { action2(); Nothing }] )
-  unsafe-noexn{ xs.head.unjust.unjust }
+  val xs = async-all-prim( [{ Just(action1()) }, { action2(); Nothing }].vector )
+  unsafe-noexn{ xs[0].unjust }
 }
 
 // Execute `actions` asynchronously, i.e. interleaved around asynchronous operations.
@@ -70,64 +150,23 @@ public fun async-all( actions : list<() -> <async|e> a> ) : <async|e> list<a> {
   async-all-prim( actions.vector ).list;
 }
 
-
 extern async-all-prim( actions : vector<() -> <async|e> a> ) : <async|e> vector<a>  {
-  js inline "$asyncAll(actions,_k)"
+  js inline "_async_all(actions,_k)"
 }
 
-extern async-callback0( action: () -> e (), haserr : bool, nodup : bool ) : (() -> e ()) {
-  js "$asyncCallback"
-}
 
-public fun unsafe-async-yield-err( action : (cb : a -> <async|e> ()) -> <async|e> () ) : <async|e> a {
+public fun unsafe-async-yield-err( action : (cb : a -> <asyncx|e> ()) -> <asyncx|e> () ) : <asyncx|e> a {
   unsafe-async-yield( action, True ) 
 }
 
-public extern unsafe-async-yield( action : (cb : a -> <async|e> ()) -> <async|e> (), haserr : bool = False ) : <async|e> a {
-  js inline "(#1)( $asyncCallback(_k,#2), $std_core.async_yield)"
+public extern unsafe-async-yield( action : (cb : a -> <asyncx|e> ()) -> <asyncx|e> (), haserr : bool = False ) : <asyncx|e> a {
+  js inline "(#1)( _async_callback(_k,#2), $std_core.async_yield)"
 }
 
-// Wait (asynchronously) for `secs` seconds. 
-// Use `wait(0)` to yield to other asynchronous operations.
-public fun wait( secs : double ) : <async,exn> () {
-  wait(secs.duration)
-}
 
-public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
-  on-exn(fun(exn) {
-    match(exn.info) {
-      Cancel -> oncancel()
-      _      -> ()
-    }
-  },action)
-}
-
-// Wait (asynchronously) for `secs` seconds duration. 
-// Use `wait(0)` to yield to other asynchronous operations.
-public fun wait( secs : duration ) : <async,exn> () {
-  var mid := Nothing
-  on-cancel {
-    match(mid) {
-      Nothing -> ()
-      Just(id) -> clear-timeout(id)
-    }
-  }
-  { unsafe-async-yield fun(cb) { 
-      mid := Just(set-timeout(cb,secs.milli-seconds.int32))      
-    }
-  }
-}
-
-type timeout-id
-
-extern set-timeout( action : (()) -> e (), ms : int32 ) : exn timeout-id {
-  js "setTimeout"
-}
-
-extern clear-timeout( h : timeout-id ) : exn () {
-  js "clearTimeout"
-}
-
+// ----------------------------------------------------------------------------
+// Synchronous blocks (uninterleaved sequences of async operations)
+// ----------------------------------------------------------------------------
 
 // Execute any asynchronous actions inside `action` synchronously, ie. 
 // no other actions are interleaved.
@@ -137,10 +176,10 @@ public fun synchronous( action : () -> <async|e> a ) : e a {
 }
 
 extern start-synchronous() : () {
-  js "$asyncStartSynchronous"
+  js "_async_start_synchronous"
 }
 
 extern end-synchronous() : () {
-  js "$asyncEndSynchronous"
+  js "_async_end_synchronous"
 }
 
