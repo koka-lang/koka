@@ -13,7 +13,7 @@ Support packages for the Sublime Text 2 editor.
 Installation
 ------------
 
-- You can install these files by running `jake sublime`
+- You can install these files by running `npm run sublime`
 
 - Or, manually copy both directories to the Packages directory of Sublime,
   and put the Jake-Haskell build file in the Packages/User directory.

@@ -29,8 +29,16 @@
     "colors"     : ">=1.0",
     "diff"       : ">=1.0"
   },
+  "devDependencies": {
+    "jake"  : "^8.0.15",
+    "madoko": "^1.1.0"
+  },
   "scripts": {
-    "preinstall": "npm install -g jake madoko"
+    "build": "jake compiler",
+    "repl": "jake interactive",
+    "sublime": "jake sublime",
+    "test": "jake test",
+    "help": "jake help"
   },
   "repository": {
     "type": "git", 

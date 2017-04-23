@@ -49,19 +49,16 @@ Now we can build Koka itself:
 
        > npm install
 
-   If you are running on MacOSX or Unix, you may have to run this as
-   ``sudo npm install`` so that the ``npm`` package manager has enough
-  permissions to install the ``jake`` and ``madoko`` tools.
-
 4. Finally, build the compiler and run the Koka interactive environment:
-       > jake
 
-   You can type ``jake help`` to see an overview of all make targets.
+       > npm run repl
+
+   You can type ``npm run help`` to see an overview of all make targets.
 
 The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
-    > jake sublime
+    > npm run sublime
 
 After this ``.kk`` files will be properly highlighted. It is also
 recommended to use the newly installed ``snow`` color theme which is
@@ -70,7 +67,7 @@ designed to work well with Koka files.
 
 ## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interactive environment will start:
+After running a plain ``npm run repl`` command, the Koka interactive environment will start:
 ````
 __          _
 | |        | |
