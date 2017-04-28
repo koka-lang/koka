@@ -236,10 +236,11 @@
 }
 
 .madoko .math-rendering {
+  text-align: left;
+  white-space: pre;
   color: gray;
 }
 
-/* Math */
 .madoko .mathdisplay {
   text-align: center;
 }
