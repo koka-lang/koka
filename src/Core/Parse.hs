@@ -34,7 +34,7 @@ import Type.Type
 import Type.TypeVar
 import Core.Core
 
--- import Lib.Trace
+import Lib.Trace
 
 {--------------------------------------------------------------------------
   Parse core interface files
@@ -590,7 +590,8 @@ envQualify (Env _ _ mname imports _) name
   = if isQualified name
      then case (importsExpand name imports) of
             Right (qname,_) -> qname
-            Left amb        -> failure ("Core.Parse.envQualify: unable to expand name: " ++ show name ++ ": " ++ show amb) 
+            Left amb        -> trace ("Core.Parse.envQualify: unable to expand name: " ++ show name ++ ": " ++ show amb) $
+                               name
      else qualify mname name
 
 envExtendSynonym :: Env -> SynInfo -> Env
