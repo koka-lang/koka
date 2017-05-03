@@ -59,34 +59,28 @@ private extern inline unsafe-array  : forall<h,a> (n : int) -> array<h,a> {
   js inline "Array(#1)"
 }
 
-private extern inline array-copy    : forall<h,a> ( src : array<h,a>, dest : array<h,a>, len : int ) -> read<h> ()  { 
-  cs inline "Array.Copy(#1,#2,#3)"
-  js inline "error('arrayCopy')"
-}
-
 private extern inline unsafe-freeze : forall<h,a> ( self : array<h,a> ) -> read<h> vector<a> { 
   cs inline "(#1)"
   js inline "(#1)"
 }
 
 // Copy an array
-fun copy( self : array<h,a> ) : read<h> array<h,a> {
-  val dest = unsafe-array(self.length)
-  array-copy(self,dest,self.length)
-  return dest
+extern inline clone( self : array<h,a> ) : read<h> array<h,a> {
+  cs inline "(#1).Clone()"
+  js inline "(#1).slice(0)"
 }
 
 // Convert an array to a vector (to guarantee safety, a copy is made)
 fun vector( self : array<h,a> ) : read<h> vector<a>
 {
-  copy(self).unsafe-freeze()
+  clone(self).unsafe-freeze()
 }
 
 
 // Convert a vector to an array (by making a copy)
 extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> { 
-  cs inline "(##2[])Array.Clone(#1)";
-  js inline "#1"
+  cs inline "(#1).Clone()"
+  js inline "(#1).slice()"
 }
 
 
