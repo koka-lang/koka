@@ -26,10 +26,17 @@ public fun question( query : string ) : <asyncx,console> string {
 
 // Read a line of input from the user.
 public fun readline() : <asyncx,console> string {
-  on-cancel( prim-cancel-readline, { unsafe-async-yield( fun(cb) { prim-readline(cb) } ) } )
+  on-cancel( {
+    trace("cancel readline")
+    prim-cancel-readline()
+  }, { 
+    await-exn1( fun(resume) { 
+      prim-readline(resume) 
+    }) 
+  })
 }
 
-extern prim-readline( cb : (string) -> <console|e> () ) : console () {
+extern prim-readline( cb : (null<exception>,string) -> io () ) : io () {
   js "_readline"
 }
 
