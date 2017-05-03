@@ -349,7 +349,7 @@ public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io
 
 
 public fun await0( setup : (resume-cb : () -> io () ) -> io (), resumes : int = 1 ) : <async,exn> () {
-  await fun(resume) { setup( fun() { resume(Right(())) } ), resumes }
+  await( fun(resume) { setup( fun() { resume(Right(())) } ) }, resumes )
 }
 
 public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), resumes : int = 1 ) : <async,exn> a {
