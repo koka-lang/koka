@@ -17,7 +17,7 @@ fun test() {
     println("(done waiting)")
     "timing"
   }
-  val xs = async-all( [f,g] )
+  val xs = interleaved( [f,g] )
   println("hi " + xs.join(","))  
 }
 

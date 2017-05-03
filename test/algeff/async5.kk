@@ -32,7 +32,7 @@ fun test() {
     wait(1.seconds)
     if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
-  val xs = async-all( [f,g] )
+  val xs = interleaved( [f,g] )
   println("hi " + xs.join(","))  
 }
 

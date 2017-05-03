@@ -15,7 +15,7 @@ val amb = handler {
 }
 
 fun dowait(s : duration) {
-  val secs = s.show + " seconds"
+  val secs = s.show
   println("and waiting at least " + secs)
   wait(s)
   println("(done waiting " + secs + ")")
@@ -23,23 +23,22 @@ fun dowait(s : duration) {
 }
 
 fun test() {
-  catch {
-    println("starting")
-    fun f() {
-      println("what is your name?")
-      readline()
-      error("ouch")
-    }
-    fun g() {
-      wait(1.seconds)
-      if (flip()) then dowait(2.seconds) else dowait(3.seconds)
-    }
-    val xs = interleaved( [f,g] )
-    println("hi " + xs.join(","))  
-  } 
-  fun(exn) { println("exception thrown: " + exn.show) } 
+  println("starting")
+  fun f() {
+    println("what is your name?")
+    readline()
+  }
+  fun g() {
+    wait(1.seconds)
+    if (flip()) then dowait(2.seconds) else dowait(3.seconds)
+  }
+  fun h() {
+    if (flip()) then dowait(1.seconds) else dowait(1500.milli-seconds)
+  }
+  val xs = interleaved( [f,g,h] )
+  println("hi " + xs.join(","))  
 }
 
 fun main() {
-  amb(test); ()
+  amb(test); () 
 }

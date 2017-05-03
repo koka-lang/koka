@@ -7,7 +7,7 @@ import std/os/readline
 
 fun main() {
   println("starting")
-  val xs = async-all( [
+  val xs = interleaved( [
     { println("what is your name?")
       readline()
     },

@@ -18,7 +18,7 @@ fun test() {
     println("(done reading file)")
     content
   }
-  val xs = async-all( [f,g] )
+  val xs = interleaved( [f,g] )
   println("hi " + xs.join(","))  
 }
 

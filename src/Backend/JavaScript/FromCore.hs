@@ -72,18 +72,21 @@ genModule mbMain core
         decls1 <- genTypeDefs (coreProgTypeDefs core)
         decls2 <- genGroups defs
         let imports = map importName (coreProgImports core)
-            mainEntry = case mbMain of
-                          Nothing -> empty
+            (mainEntry,mainImports) = case mbMain of
+                          Nothing -> (empty,[])
                           Just (name,isAsync) 
-                            -> text " " <-> text "// main entry:" <-> 
-                               (if isAsync
-                                 then text "$std_core._async_handle" <> parens (ppName (unqualify name)) <> semi
-                                 else ppName (unqualify name) <> text "($std_core.id);")  -- pass id for possible cps translated main
+                            -> (if isAsync
+                                 then (text " " <-> text "// main entry:" <-> 
+                                       text "$std_async.async_handle" <> parens (ppName (unqualify name)) <> semi 
+                                      ,[(text "./std_async", text "$std_async")])
+                                 else (text " " <-> text "// main entry:" <-> 
+                                       ppName (unqualify name) <> text "($std_core.id);" -- pass id for possible cps translated main
+                                      ,[]))  
         return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 
-                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <> comma <+>
-                   text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
+                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport (coreProgImports core))) <> comma <+>
+                   text "function" <> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map ppModName imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
                     , text "var" <+> modName <+> text " = {};"

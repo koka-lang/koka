@@ -25,7 +25,7 @@ fun test() {
     fun g() {
       dowait(3.seconds)
     }
-    val xs = async-all( [f,g] )
+    val xs = interleaved( [f,g] )
     println("hi " + xs.join(","))  
   } 
    fun(exn) { 

@@ -185,7 +185,7 @@ nameInCps       = preludeName "incps"
 nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"
-nameTpAsync     = preludeName "async"
+nameTpAsync     = qualify (newName "std/async") (newName "async")
 
 nameYieldOp     = preludeName ".yieldop"
 nameYieldOp1    = preludeName ".yieldop1"

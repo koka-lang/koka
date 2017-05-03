@@ -6,15 +6,15 @@ import std/os/readline
 
 fun test() {
   println("let's start")
-  val xs = async-all( [
+  val (name,age) = interleaved( 
     { println("what is your name?")
       readline()
     },
     { println("what is your age?")
       readline()
     }
-  ])
-  println("hi " + xs.join(","))  
+  )
+  println("hi " + name + ": " + age )
 }
 
 fun main() {
