@@ -258,7 +258,7 @@ fun on-success( hndler : () -> e (), action : () -> e a ) : e a
   return x
 }
 
-// Transform an Exception to an `:either` type.
+// Transform an exception effect to an `:either` type.
 fun try( action : () -> <exn|e> a ) : e either<exception,a> {
   catch({ Right(action()) },Left)
 }
@@ -268,6 +268,13 @@ fun try( value : a , action : () -> <exn|e> a ) : e a {
   catch( action, fun(_) { value })
 }
 
+// Transform an `:either` type back to an `exn` effect by throwing on `Left`.
+fun untry( ex : either<exception,a> ) : exn a {
+  match(ex) {
+    Left(exn) -> throw(exn)
+    Right(x)  -> x
+  }
+}
 
 // ----------------------------------------------------------------------------
 // Internal types
@@ -280,6 +287,27 @@ type optional<a> {
   con Optional(value:a)
   // `None` is used when an optional argument is not provided.
   con None
+}
+
+
+// ----------------------------------------------------------------------------
+// Null is used for external interfaces 
+// ----------------------------------------------------------------------------
+
+// Abstract type used for passing `null` values to external functions
+type null<a> 
+
+// Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
+external null(x : maybe<a>) : null<a> {
+  cs inline "(#1==null ? null : #1.value)"
+  js inline "(#1==null ? null : #1.value)"
+}
+
+// Transform a `:null` type to a `:maybe` type. Note that it is not
+// always the case the `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
+external maybe( n : null<a> ) : maybe<a> {
+  cs inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
+  js inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
 }
 
 
@@ -804,10 +832,10 @@ fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
 fun replicate( x : a, n : int ) : list<a>
 {
   fun enumerate( i : int, acc : list<_a> ) {
-    if (i <= 0) then acc else enumerate(i - 1,Cons(x,acc))
+    if (i <= 0) then acc else enumerate(unsafe-decreasing(i.dec),Cons(x,acc))
   }
 
-  unsafe-nodiv{ enumerate(n,[]) }
+  enumerate(n,[])
 }
 
 // split a list at position `n` 
@@ -1439,7 +1467,7 @@ fun sum( xs : list<int> ) : int
 
 // Type of a 32-bit signed integer. 
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-private type int32
+type int32
 
 // Convert an `:int32` to an `:int`.
 private extern inline int( i : int32 ) : int { 
@@ -2892,11 +2920,11 @@ fun for( start: int, end : int, action : (int) -> e () ) : e ()
 {
   fun rep( i : int ) {
     if (i <= end) {
-      inject-div(action)(i)
-      rep(i.inc)
+      action(i)
+      rep(unsafe-decreasing(i.inc))
     }
   }
-  unsafe-nodiv { rep(start) }
+  rep(start) 
 }
 
 
@@ -2906,11 +2934,11 @@ private fun for32( start: int32, end : int32, action : (int32) -> e () ) : e ()
 {
   fun rep( i : int32 ) {
     if (i <= end) {
-      inject-div(action)(i)
-      rep(i.incr)
+      action(i)
+      rep(unsafe-decreasing(i.incr))
     }
   }
-  unsafe-nodiv { rep(start) }
+  rep(start)
 }
 
 
@@ -2921,14 +2949,14 @@ fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a
 {
   fun rep( i : int ) {
     if (i <= end) {
-      match(inject-div(action)(i)) {
-        Nothing -> rep(i.inc)
+      match(action(i)) {
+        Nothing -> rep(unsafe-decreasing(i.inc))
         Just(x) -> Just(x)
       }
     }
     else Nothing
   }
-  unsafe-nodiv { rep(start) }
+  rep(start) 
 }
 
 
@@ -2939,14 +2967,14 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
 {
   fun rep( i : int32 ) {
     if (i <= end) {
-      match(inject-div(action)(i)) {
-        Nothing -> rep(i.incr)
+      match(action(i)) {
+        Nothing -> rep(unsafe-decreasing(i.incr))
         Just(x) -> Just(x)
       }
     }
     else Nothing
   }
-  unsafe-nodiv { rep(start) }
+  rep(start) 
 }
 
 // Return the host environment: `dotnet`, `browser`, `webworker`, or `node`. 
@@ -3032,30 +3060,22 @@ private fun hfinally( action, fhandler ) {
   }
 }
 
-// ----------------------------------------------------------------------------
-// Asynchronous operations are supported through the `:async` effect.
-// The basic effect is in core since it usually requires some support from the host system.
-// ----------------------------------------------------------------------------
+type handler-context
 
-// Asynchronous operations have the `:async` effect.
-abstract effect async {
-  async-yield() : ()
+extern capture-handler-context(upto:int32) : ndet handler-context {
+  js "_capture_handler_context"
 }
 
-fun ".async-handle"(action) {
-  handle(action) {
-    return x -> x
-    async-yield() -> () // todo: do a zero timeout?
-  }
+extern resume-in-handler-context( context : handler-context, resume : a -> <cps|e> b, arg : a ) : <cps|e> b {
+  js inline "_resume_in_handler_context(#1,#2,#3,_k)"
 }
 
-
-extern ".save-handler-context"() : any {
-  js "$saveHandlerContext"
+extern invoke-in-handler-context( context : handler-context, action : a -> io (), arg : a ) : io () {
+  js "_invoke_in_handler_context"
 }
 
-extern ".restore-handler-context"( context : any, action : a -> (), arg : a ) : () {
-  js "$restoreHandlerContext"
+extern current-handler-top() : ndet int32 {
+  js inline "$htop"
 }
 
 
@@ -3100,6 +3120,11 @@ extern ".htop"() : any {
 extern ".hstack"() : any {
   js inline "$hstack"
 }
+
+extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
+  js "_outer_resume"
+}
+
 
 extern ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>, 
                           ret : a -> <cps|e> b,  
