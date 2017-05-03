@@ -9,9 +9,6 @@
 // Operations on 32-bit signed integers. 
 public module std/num/int32
 
-// Type of a 32-bit signed integer. 
-type int32
-
 // The maximal integer value before overflow happens
 val max-int32 : int = 0x7FFFFFFF
 
