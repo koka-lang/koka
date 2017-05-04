@@ -19,13 +19,13 @@ external include {
 }
 
 // Displays `query` to the user (with a space attached) and issues a `readline` for the user response.
-public fun question( query : string ) : <asyncx,console> string {
+public fun question( query : string ) : <async,exn,console> string {
   print(query + " ")
   readline()
 }
 
 // Read a line of input from the user.
-public fun readline() : <asyncx,console> string {
+public fun readline() : <async,exn,console> string {
   on-cancel( {
     trace("cancel readline")
     prim-cancel-readline()
