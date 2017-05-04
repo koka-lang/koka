@@ -906,6 +906,7 @@ function runTest(n,testMode,testFile,flags,callback) {
             // grey for common parts
             var color = (part.added ? 'green' : (part.removed ? 'red' : 'grey'));
             process.stderr.write(part.value[color]);
+            if (part.removed) process.stderr.write("\n");
           });
           process.stderr.write("\n");
 
