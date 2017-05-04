@@ -35,9 +35,7 @@ Now we can build Koka itself:
 
    `> git clone https://github.com/koka-lang/koka.git`
 
-   <!--
-  You can also use ``-b dev`` to get the latest development version.
-  -->
+  You can also use the flag ``-b dev`` to get the latest development version.
 
 2. Go to the newly created Koka directory:
 
