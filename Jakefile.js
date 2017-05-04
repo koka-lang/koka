@@ -37,8 +37,9 @@ var platformVariantPath = path.join("Platform",platformVariant,"Platform")+path.
 
 var hsCompiler  = "ghc";
 var hsFlags     = "-fwarn-incomplete-patterns";
-var hsLinkFlags = ["base","containers","directory","process","random","mtl","text","parsec"].map(function(p){ return "-package " + p; }).join(" ");
 var hsRunFlags  = "";
+var hsPackages  = ["random","text","parsec"];
+var hsLinkFlags = (["base","containers","directory","process","mtl"].concat(hsPackages)).map(function(p){ return "-package " + p; }).join(" ");
 
 var alexCompiler= "alex";
 var alexFlags   = "--latin1";
@@ -108,17 +109,26 @@ task("ghci", ["compiler"], function(module) {
   jake.exec(cmd + " 2>&1", {interactive: true});  
 });
 
-desc("run 'npm install' to install prerequisites");
+
+desc("run 'cabal install' to install prerequisites");
 task("config", [], function () {
-  if (!fileExist("node_modules")) {
-    var cmd = "npm install";
-    jake.logger.log("> " + cmd);
-    jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
-  }
-  else {
-    complete();
-  }
+  jake.logger.log("check for packages: " + hsPackages.join(" "))
+  child.exec("ghc-pkg list", function (error, stdout, stderr) {
+    if (error) stdout = "";
+    var foundall = hsPackages.every( function(pkg) {
+      return ((new RegExp("\\b" + pkg + "-")).test(stdout));
+    });
+    if (foundall) {
+      complete();
+    }
+    else {
+      var cmd = "cabal install text random parsec"
+      jake.logger.log("> " + cmd)
+      jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
+    }
+  });
 },{async:true});
+
 
 //-----------------------------------------------------
 // Tasks: clean 
@@ -779,14 +789,32 @@ function command(cmds,callback,current) {
   if (typeof cmd === "string") {
     child.exec(cmd, function (error, stdout, stderr) {
       var logout = (error ? console.log : jake.logger.log);
-      var logerr = (error ? console.error : jake.logger.error);
+      function logerr(msg) {
+        if (/^.*\berror:/.test(msg)) { 
+          msg = Colors.bold(Colors.red(msg));
+        }
+        else if (/^.*\bwarning:/.test(msg)) { 
+          msg = Colors.green(msg);
+        }
+        else {
+          msg = Colors.bold(msg);
+        }
+        if (error) console.error(msg); else jake.logger.error(msg);
+      }
       if (error !== null && fullmsg && fullmsg.length > msglen) {
         logout(jake.program.opts.quiet ? fullmsg : fullmsg.substr(msglen)); // show rest of command on error
       }
       if (stdout && stdout.length > 0) logout(stdout.trim());
       if (stderr && stderr.length > 0) logerr(stderr.trim());
       if (error !== null) {
-        logerr("command failed with exit code " + error.code + ".");
+        logerr(("> " + cmd))
+        logerr(("\ncommand failed with exit code " + error.code + "."));
+        if (/error:\s+Failed to load interface for/.test(stderr)) {
+          logerr(["","---------------------------------------------------------------",
+                     "Perhaps you did not install all required Haskell packages?",
+                     "Run  \"jake config\"  first to install required Haskell packages.",
+                     "---------------------------------------------------------------"].join("\n"));
+        }
         process.exit(1);
       }
       command(cmds,callback,current+1);

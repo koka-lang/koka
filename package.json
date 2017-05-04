@@ -4,6 +4,7 @@
   "version"     : "0.8.0-dev",
   "homepage"    : "http://koka.codeplex.com",
   "description" : "Koka is an effectful function-oriented language.",
+  "license"     : "Apache-2.0",
   "licenses": [{
     "type"      : "Apache License 2.0", 
     "url"       : "http://www.apache.org/licenses/LICENSE-2.0.html"
