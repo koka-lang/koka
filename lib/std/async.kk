@@ -28,14 +28,14 @@ public alias asyncx = <async,exn,ndet>
 
 // Wait (asynchronously) for `secs` seconds as a `:double`. 
 // Use `wait()` to yield to other asynchronous operations.
-public fun wait( secs : double ) : <asyncx> () {
+public fun wait( secs : double ) : <async,exn> () {
   wait(secs.duration)
 }
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0s`). 
 // Use `wait()` to yield generally to other asynchronous operations.
 // If the wait time is longer than 200ms the wait can be canceled.
-public fun wait( secs : duration = zero ) : <asyncx> () {
+public fun wait( secs : duration = zero ) : <async,exn> () {
   if (secs > 200.milli-seconds) then cancelable-wait(secs) 
   elif (secs <= zero) then yield()
   else yield(secs)
@@ -43,7 +43,7 @@ public fun wait( secs : duration = zero ) : <asyncx> () {
 
 
 // Wait for `secs` seconds duration
-public fun cancelable-wait( secs : duration ) : <asyncx> () {
+public fun cancelable-wait( secs : duration ) : <async,exn> () {
   if (secs <= zero) then yield() else {
     var vtid := Nothing 
     match(fork-after(secs)) {
@@ -149,8 +149,7 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
         }
         else resume(x)
       }
-      exit(mbexn) -> exit(mbexn)
-      cancel()    -> {
+      cancel() -> {
         canceled := True
         val elems = idmap.elements
         idmap.clear()
@@ -161,6 +160,7 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
         }
         resume(True)
       }
+      exit(mbexn)   -> exit(mbexn)
       outer-async() -> resume( outer-async() )
     }
   }
