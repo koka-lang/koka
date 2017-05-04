@@ -456,6 +456,8 @@ resolvePubImports flags loaded0 mod
       = do mbiface <- liftIO $ searchOutputIface flags (Core.importName imp)
            case mbiface of
              Just iface -> return iface
+             Nothing -> liftError $ 
+                        errorMsg (ErrorGeneral rangeNull (text "Unable to find interface file for:" <+> pretty (Core.importName imp)))
 
     loadPubImport :: (Loaded,[Module],[ErrorMessage]) -> (FilePath,Core.Import) -> (Loaded,[Module],[ErrorMessage])            
     loadPubImport (loaded,imps,errs0) (iface,imp)
