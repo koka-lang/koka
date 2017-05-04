@@ -237,11 +237,11 @@ fun tdb-delta( tt : timestamp ) : timespan {
 
   // First terms of Fairhead et al. model 
   val wf : double
-         =( 1656.6746e-6*sin( 6283.0758*t + 6.2401)
-          +   22.4175e-6*sin( 5753.3859*t + 4.2970)
+         =(1656.6746e-6*sin( 6283.0758*t + 6.2401)
+          + ( 22.4175e-6*sin( 5753.3859*t + 4.2970)
           +   13.8398e-6*sin(12566.1527*t + 6.1969)
           +    4.7701e-6*sin(  529.6910*t + 0.4444)
-          +    4.6767e-6*sin( 6069.7768*t + 4.0212)
+          +    4.6767e-6*sin( 6069.7768*t + 4.0212))
           )
           +
           (    2.2567e-6*sin(  213.2991*t + 5.5431)
@@ -300,11 +300,11 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   // Moyer 1981 and Murray 1983. 
   val wt : double 
          =(  0.00029e-10 * u * sin(tsol + elsun - els)
-          +  0.00100e-10 * u * sin(tsol - 2.0 * emsun)
+          + (0.00100e-10 * u * sin(tsol - 2.0 * emsun)
           +  0.00133e-10 * u * sin(tsol - d)
           +  0.00133e-10 * u * sin(tsol + (elsun - elj))
           -  0.00229e-10 * u * sin(tsol + (2.0 * elsun) + emsun)
-          -  0.02200e-10 * v * cos(elsun + emsun)
+          -  0.02200e-10 * v * cos(elsun + emsun))
           )
           +  
           (  0.05312e-10 * u * sin(tsol - emsun)
