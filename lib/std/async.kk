@@ -58,7 +58,7 @@ public fun cancelable-wait( secs : duration ) : <async,exn> () {
         Nothing -> ()
         Just(tid) -> {
           vtid := Just(tid)
-          exit(Nothing)
+          exit()
         }
       }
     }
@@ -115,7 +115,6 @@ extern clear-timeout( h : timeout-id ) : exn () {
 // ----------------------------------------------------------------------------
 
 
-
 // The `Cancel` exception.
 public type extend exception-info {
   // The `Cancel` exception is thrown when an asynchronous operation is canceled.
@@ -140,12 +139,12 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
   catch { 
     handle(inject-st(action)) {
       return x -> Just(x)
-      awaitx(setup,n) -> {
+      await(setup,n) -> {
         val h = idmap.register(resume,n)
-        val x = awaitx( setup, n )
+        val x = await( setup, n )
         h.unregister
         if (canceled) {
-          exit(Nothing) // callback came back but we canceled already
+          exit() // callback came back but we canceled already
         }
         else resume(x)
       }
@@ -156,7 +155,7 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
         if (elems.length > 0) {
           val i = primforkn(elems.length)
           try{ elems[i](Left(cancel-exn)) }
-          if (i > 0) then exit(Nothing)
+          if (i > 0) then exit()
         }
         resume(True)
       }
@@ -195,14 +194,10 @@ extern end-synchronous() : () {
 
 
 
-
 // ----------------------------------------------------------------------------
 // Asynchronous operations are supported through the `:async` effect.
 // The basic effect is in core since it usually requires some support from the host system.
 // ----------------------------------------------------------------------------
-
-
-
 
 public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
   interleaved(xs.vector).list
@@ -219,7 +214,7 @@ public fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a>
     res[i] := try( inject-st(xs[i]) )
     count := count - 1
     if (count>0) {
-      exit(Nothing)
+      exit()
     }
     else {
       res.vector.map(untry)
@@ -235,14 +230,14 @@ public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyn
     if (forked) then {
       val br = try( inject-st(b) )
       match(ares) {
-        Nothing  -> { bres := Just(br); exit(Nothing) }
+        Nothing  -> { bres := Just(br); exit() }
         Just(ar) -> (ar.untry,br.untry)
       }
     }
     else {
       val ar = try( inject-st(a) )
       match(bres) {
-        Nothing  -> { ares := Just(ar); exit(Nothing) }
+        Nothing  -> { ares := Just(ar); exit() }
         Just(br) -> (ar.untry,br.untry)
       }
     }
@@ -259,9 +254,9 @@ public fun async-handle-interleaved(action : () -> <async,ndet|e> a ) : <async,n
   fun capture() { capture-handler-context(outer-async()) }
   var ctx := capture()
   handle(inject-st(action)) {
-    awaitx(setup, n ) -> {
+    await(setup, n ) -> {
       ctx := capture()
-      val x = awaitx( setup, n )
+      val x = await( setup, n )
       resume-in-handler-context( ctx, resume, x )
     }
     exit(mbexn) -> {
@@ -286,7 +281,7 @@ public fun fork( action ) {
   if (forked) then {
     catch {
       action()
-      exit(Nothing)
+      exit()
     }
     fun(exn) { exit(Just(exn)) }
   }
@@ -322,55 +317,55 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 
 
 // ----------------------------------------------------------------------------
-// Awaitx wrappers
+// Await wrappers
 // ----------------------------------------------------------------------------
 
-public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (), resumes : int = 1 ) : <async,exn> () {
-  await( fun(resume) {
+public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
+  await-throw( fun(resume) {
     setup( fun(nexn) { 
       resume( match(nexn.maybe) {
         Nothing   -> Right(())
         Just(exn) -> Left(exn)
       })
     })
-  }, resumes )
+  }, rcount )
 }
 
-public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io (), resumes : int = 1 ) : <async,exn> a {
-  await( fun(resume) {
+public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  await-throw( fun(resume) {
     setup( fun(nexn,x) { 
       resume( match(nexn.maybe) {
         Nothing   -> Right(x)
         Just(exn) -> Left(exn)
       })
     })
-  }, resumes )
+  }, rcount )
 }
 
 
-public fun await0( setup : (resume-cb : () -> io () ) -> io (), resumes : int = 1 ) : <async,exn> () {
-  await( fun(resume) { setup( fun() { resume(Right(())) } ) }, resumes )
+public fun await0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
+  await-throw( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
 }
 
-public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), resumes : int = 1 ) : <async,exn> a {
-  await( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, resumes )
+public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  await-throw( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
 }
 
 
-public fun await-err0( setup : (resume-cb : () -> io () ) -> io (), resumes : int = 1 ) : <async> maybe<exception> {
-  val res = awaitx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, resumes ) 
+public fun await-err0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
+  val res = await( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
   match(res) {
     Right -> Nothing
     Left(exn) -> Just(exn)
   }
 }
 
-public fun await-err1( setup : (resume-cb : a -> io () ) -> io (), resumes : int = 1 ) : <async> either<exception,a> {
-  awaitx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, resumes )
+public fun await-err1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
+  await( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
 }
 
-public fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resumes : int = 1 ) : <async,exn> a {
-  match(awaitx(setup, resumes )) {
+public fun await-throw( setup : (resume-cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  match(await(setup, rcount )) {
     Left(exn) -> throw(exn)
     Right(x)  -> x
   }
@@ -384,13 +379,16 @@ public fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), 
 
 // Asynchronous operations have the `:async` effect.
 public effect async {
-  fun awaitx( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resumes : int ) : either<exception,a>
-  fun exit( mbexn : maybe<exception> ) : a
+  fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resume-count : int ) : either<exception,a>
   fun cancel() : bool
+  fun exit( mbexn : maybe<exception> ) : a
   fun outer-async() : int32
 }
 
 
+public fun exit() : async a {
+  exit(Nothing)
+}
 
 
 // ----------------------------------------------------------------------------
@@ -398,9 +396,9 @@ public effect async {
 // ----------------------------------------------------------------------------
 
 public val async-handle  = handler {
-  awaitx( setup, n ) -> setup( outer-resume(resume) )  
-  cancel()           -> resume(False)  
-  outer-async()      -> resume( current-handler-top().inc )
+  await( setup, n ) -> setup( outer-resume(resume) )  
+  cancel()          -> resume(False)  
+  outer-async()     -> resume( current-handler-top().inc )
   exit( mbexn ) -> {
     match(mbexn) {
       Nothing   -> ()
@@ -438,21 +436,20 @@ public fun register( idmap : idmap<h,a>, value : a, count : int = 1 ) : st<h> id
   Id(idmap,key)
 }
 
-public fun unregister( id : id<h,a> ) : st<h> () {
+public fun unregister( id : id<h,a>, force : bool = False ) : st<h> () {
   match(id.idmap.values[id.key]) {
     Nothing -> ()
     Just((c,x)) -> {
       if (c > 0) {
         id.idmap.values[id.key] := (c.dec, x)
       }
-      elif (c==0) {          
+      elif (c==0 || force) {          // negative values only unregister if forced
         id.idmap.values.remove(id.key)
         if (id.idmap.values.count==0) {
           val t = id.idmap.top
           t := 0
         } 
       }
-      // if negative, never unregister...
     }
   }
 }
