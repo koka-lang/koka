@@ -22,6 +22,7 @@ println( now().time(tz-local()).show )
 */
 module std/time/timezone
 
+import std/async
 import std/data/dict
 import std/text/regex
 import std/os/path
@@ -58,7 +59,13 @@ public fun load-timezones( fname : path = path(""),
                          ) : <io,async> timezones 
 {
   fun parse(s :string) : maybe<timezones> {
-    try{ parse-packed-zones(s) }.maybe
+    (catch{
+       Just(parse-packed-zones(s))
+     }
+     fun(exn) {
+       trace("failed parse: " + exn.show)
+       Nothing
+     })
   }
   val xfname = (fname || appdir() + path("config/timezones.json"))
   val xurl   = (if (url=="auto") then "https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json" else url)
@@ -167,7 +174,7 @@ public fun parse-packed-zones( s : string ) : exn timezones {
   val ldict = links.map( fun(link) {
     val (key,other) = link
     match(zdict[key.normalize]) {
-      Nothing  -> error("invalid timezone link: unknown time zone: " + key)
+      Nothing  -> error("invalid timezone link: unknown time zone: " + key.normalize + ", to: " + other + ", " + zdict.keys.join("\n"))
       Just(tz) -> (other.normalize,tz(name=other,aliased=True))
     }
   }).dict

@@ -13,6 +13,7 @@
 */
 module std/time/download
 
+import std/async
 import std/os/file
 import std/os/path
 import std/time/duration
