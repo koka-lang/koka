@@ -19,7 +19,7 @@ For more background information, see:
 
 At this point there are no binary releases of Koka and you need to build
 the compiler yourself. Fortunately, Koka has few dependencies and builds
-without problems on most common platforms, &eg; Windows, MacOSX, and
+without problems on most common platforms, e.g. Windows, MacOSX, and
 Unix.
 
 The following programs are required to build Koka:
