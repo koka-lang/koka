@@ -116,13 +116,13 @@ private extern inline unsafe-dict-add( d : dict<a>, key : string, value : a ) : 
 
 private extern inline unsafe-dict-get( d : dict<a>, key : string ) : a {
   cs inline "(#1)[#2]"
-  js inline "(#1)['/' + #2]"
+  js inline "((#1)['/' + #2])"
 }
 
 
 extern inline contains-key( d : dict<a>, key : string ) : bool {
   cs inline "((#1).ContainsKey(#2))"
-  js inline "((#1)[#2]!==undefined)"
+  js inline "((#1)['/' + #2]!==undefined)"
 } 
 
 private extern dict-copy( d : dict<a> ) : dict<a> {
