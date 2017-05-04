@@ -4,5 +4,5 @@
 .tag-Eff-amb: string
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 flip : () -> amb bool
-main : () -> <async,console> ()
-test : () -> <amb,async,console> ()
+main : () -> <exn,std/async/async,console> ()
+test : () -> <amb,exn,std/async/async,console> ()
