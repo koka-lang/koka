@@ -79,7 +79,7 @@ public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> 
 }
 
 fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-id>> {
-  await-err1( fun(resume) {
+  awaitx1( fun(resume) {
     val tid = set-timeout1( resume, max(0.int32,secs.milli-seconds.int32), Nothing )
     resume(Just(tid))
   }, 2 )
@@ -139,9 +139,9 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
   catch { 
     handle(inject-st(action)) {
       return x -> Just(x)
-      await(setup,n) -> {
+      awaitx(setup,n) -> {
         val h = idmap.register(resume,n)
-        val x = await( setup, n )
+        val x = awaitx( setup, n )
         h.unregister
         if (canceled) {
           exit() // callback came back but we canceled already
@@ -176,21 +176,6 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
 // ----------------------------------------------------------------------------
 // Synchronous blocks (uninterleaved sequences of async operations)
 // ----------------------------------------------------------------------------
-
-// Execute any asynchronous actions inside `action` synchronously, ie. 
-// no other actions are interleaved.
-public fun synchronous( action : () -> <async|e> a ) : e a {
-  start-synchronous()
-  on-exit(end-synchronous){ unsafe-total(action) }
-}
-
-extern start-synchronous() : () {
-  js "_async_start_synchronous"
-}
-
-extern end-synchronous() : () {
-  js "_async_end_synchronous"
-}
 
 
 
@@ -254,9 +239,9 @@ public fun async-handle-interleaved(action : () -> <async,ndet|e> a ) : <async,n
   fun capture() { capture-handler-context(outer-async()) }
   var ctx := capture()
   handle(inject-st(action)) {
-    await(setup, n ) -> {
+    awaitx(setup, n ) -> {
       ctx := capture()
-      val x = await( setup, n )
+      val x = awaitx( setup, n )
       resume-in-handler-context( ctx, resume, x )
     }
     exit(mbexn) -> {
@@ -317,11 +302,11 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 
 
 // ----------------------------------------------------------------------------
-// Await wrappers
+// awaitx wrappers
 // ----------------------------------------------------------------------------
 
 public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
-  await-throw( fun(resume) {
+  await( fun(resume) {
     setup( fun(nexn) { 
       resume( match(nexn.maybe) {
         Nothing   -> Right(())
@@ -332,7 +317,7 @@ public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (
 }
 
 public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  await-throw( fun(resume) {
+  await( fun(resume) {
     setup( fun(nexn,x) { 
       resume( match(nexn.maybe) {
         Nothing   -> Right(x)
@@ -344,32 +329,32 @@ public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io
 
 
 public fun await0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
-  await-throw( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
+  await( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
 }
 
 public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  await-throw( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
+  await( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
 }
 
+public fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  match(awaitx(setup, rcount )) {
+    Left(exn) -> throw(exn)
+    Right(x)  -> x
+  }
+}
 
-public fun await-err0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
-  val res = await( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
+public fun awaitx0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
+  val res = awaitx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
   match(res) {
     Right -> Nothing
     Left(exn) -> Just(exn)
   }
 }
 
-public fun await-err1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
-  await( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
+public fun awaitx1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
+  awaitx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
 }
 
-public fun await-throw( setup : (resume-cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  match(await(setup, rcount )) {
-    Left(exn) -> throw(exn)
-    Right(x)  -> x
-  }
-}
 
 
 // ----------------------------------------------------------------------------
@@ -379,7 +364,7 @@ public fun await-throw( setup : (resume-cb : either<exception,a> -> io () ) -> i
 
 // Asynchronous operations have the `:async` effect.
 public effect async {
-  fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resume-count : int ) : either<exception,a>
+  fun awaitx( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resume-count : int ) : either<exception,a>
   fun cancel() : bool
   fun exit( mbexn : maybe<exception> ) : a
   fun outer-async() : int32
@@ -396,7 +381,7 @@ public fun exit() : async a {
 // ----------------------------------------------------------------------------
 
 public val async-handle  = handler {
-  await( setup, n ) -> setup( outer-resume(resume) )  
+  awaitx( setup, n) -> setup( outer-resume(resume) )  
   cancel()          -> resume(False)  
   outer-async()     -> resume( current-handler-top().inc )
   exit( mbexn ) -> {
