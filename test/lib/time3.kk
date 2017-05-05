@@ -26,7 +26,7 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 }
 
 
-fun test-misc() {
+public fun test-misc() {
   // unix 32/64-bit overflow
   check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex  }
   check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex  } // 9223372036854775808

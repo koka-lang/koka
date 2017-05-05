@@ -509,7 +509,11 @@ public fun int( x : ddouble ) : int {
     val i = r.hi.int
     if (i.precise?) then i else {
       // todo: optimize?
-      r.show-fixed().parse-int-default(0)
+      val s = r.show-fixed(20)
+      match(s.find(".")) {
+        Nothing  -> s.parse-int-default(0)
+        Just(sl) -> sl.before.string.parse-int-default(0)
+      }
     }
   }
 }
