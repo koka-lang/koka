@@ -1418,6 +1418,8 @@ ptype :: LexParser UserType
 ptype
   = pquanForall
   <|>
+    pquanSome
+  <|>
     do tqual
   <?> "type"
 

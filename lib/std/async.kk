@@ -25,7 +25,6 @@ public alias asyncx = <async,exn,ndet>
 // Asynchronous timeout and waiting
 // ----------------------------------------------------------------------------
 
-
 // Wait (asynchronously) for `secs` seconds as a `:double`. 
 // Use `wait()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
@@ -159,8 +158,6 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
         }
         resume(True)
       }
-      exit(mbexn)   -> exit(mbexn)
-      outer-async() -> resume( outer-async() )
     }
   }
   fun(exn) {
@@ -176,7 +173,6 @@ public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a>
 // ----------------------------------------------------------------------------
 // Synchronous blocks (uninterleaved sequences of async operations)
 // ----------------------------------------------------------------------------
-
 
 
 // ----------------------------------------------------------------------------
@@ -198,14 +194,11 @@ public fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a>
     val i = primforkn(n)
     res[i] := try( inject-st(xs[i]) )
     count := count - 1
-    if (count>0) {
-      exit()
-    }
-    else {
-      res.vector.map(untry)
-    }
+    if (count>0) { exit() }
+    res.vector.map(untry)
   }
 }
+
 
 public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
   async-handle-interleaved {
@@ -226,33 +219,6 @@ public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyn
         Just(br) -> (ar.untry,br.untry)
       }
     }
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Interleaved async handler
-// ----------------------------------------------------------------------------
-
-
-public fun async-handle-interleaved(action : () -> <async,ndet|e> a ) : <async,ndet|e> a 
-{
-  fun capture() { capture-handler-context(outer-async()) }
-  var ctx := capture()
-  handle(inject-st(action)) {
-    awaitx(setup, n ) -> {
-      ctx := capture()
-      val x = awaitx( setup, n )
-      resume-in-handler-context( ctx, resume, x )
-    }
-    exit(mbexn) -> {
-      ctx := capture()
-      exit(mbexn)
-    }
-    cancel() -> {
-      ctx := capture()
-      resume( cancel() )
-    }
-    outer-async() -> resume( current-handler-top().inc )
   }
 }
 
@@ -298,7 +264,6 @@ extern set-immediate( action : () -> e () ) : exn () {
 extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
   js inline "(typeof setImmediate !== 'undefined' ? setImmediate(#1,#2) : setTimeout(#1,0,#2))"
 }
-
 
 
 // ----------------------------------------------------------------------------
@@ -356,7 +321,6 @@ public fun awaitx1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1
 }
 
 
-
 // ----------------------------------------------------------------------------
 // Async effect
 // ----------------------------------------------------------------------------
@@ -364,15 +328,20 @@ public fun awaitx1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1
 
 // Asynchronous operations have the `:async` effect.
 public effect async {
-  fun awaitx( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resume-count : int ) : either<exception,a>
+  fun awaitx( setup : (resume-cb : either<exception,a> -> io () ) -> io (), 
+              resume-count : int ) : either<exception,a>
   fun cancel() : bool
-  fun exit( mbexn : maybe<exception> ) : a
-  fun outer-async() : int32
 }
 
 
-public fun exit() : async a {
-  exit(Nothing)
+public fun exit( mbexn : maybe<exception> = Nothing ) : <async,exn> a {
+  awaitx( fun(cb) {
+    match(mbexn) {
+      Nothing -> ()
+      Just(exn) -> throw(exn)
+    }
+  }, 0)
+  error("should not happen")
 }
 
 
@@ -380,16 +349,28 @@ public fun exit() : async a {
 // Async handle
 // ----------------------------------------------------------------------------
 
+public fun async-handle-interleaved( action )  {
+  var latest : some<e,a> (either<exception,() -> <async|e> a>) -> io () := fun(x) { () }
+  handle(action) {
+    awaitx(setup,n) {
+      val r = awaitx( fun(cb) {
+        latest := cb
+        setup( fun(x : either<exception,_a>) {
+          latest(Right( { resume(x) } ))
+        })
+      }, n )
+      match(r) {
+        Right(res) -> res()
+        Left(exn)  -> throw(exn)
+      }
+    }
+    cancel() -> resume(False)
+  }
+} 
+
 public val async-handle  = handler {
   awaitx( setup, n) -> setup( outer-resume(resume) )  
   cancel()          -> resume(False)  
-  outer-async()     -> resume( current-handler-top().inc )
-  exit( mbexn ) -> {
-    match(mbexn) {
-      Nothing   -> ()
-      Just(exn) -> throw(exn)
-    }
-  }
 }
 
 
