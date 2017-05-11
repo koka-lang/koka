@@ -304,16 +304,11 @@ public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : 
 }
 
 val cancel-exn = exception("Cancel", Cancel)
+
   
-struct id( :int )
+abstract struct id( :int )
 
 val id-exit = Id(-1)
-
-fun show(id : id ) : string {
-  match(id) {
-    Id(i) -> i.show
-  }
-}
 
 fun (==)(id1 : id, id2 : id ) : bool {
   match(id1) {
@@ -322,19 +317,16 @@ fun (==)(id1 : id, id2 : id ) : bool {
     }
   }
 }
+
 fun (!=)(id1 : id, id2 : id ) : bool {
   !(id1 == id2)
 }
 
-alias ids = list<id>
-
-
-alias callback<a> = (either<exception,a>,bool,id) -> io ()
 
 // Asynchronous operations have the `:async` effect.
 public effect async {
-  fun await-id( setup : (cb : callback<a>) -> io (), id : id ) : (either<exception,a>,bool,id)
-  fun cancel-ids( mids : maybe<ids> ) : ()
+  fun await-id( setup : (cb : (either<exception,a>,bool,id) -> io ()) -> io (), id : id ) : (either<exception,a>,bool,id)
+  fun cancel-ids( mids : maybe<list<id>> ) : ()
   fun fresh-id() : id  
 }
 
@@ -402,21 +394,21 @@ public fun async-handle-interleaved( action : () -> <async,exn|e> a ) : <async,e
 
 public fun async-handle(action : () -> <async,io> () ) : io () 
 {
-  val waiting = idmap()
+  var waiting := []
   
   fun outer-callback( resume, id : id) {
     fun cb(x,done?,id' : id) {
       if (waiting.contains(id')) {
-        if (done?) then waiting.remove(id')
+        if (done?) then waiting := waiting.remove(id')
         outer-resume(resume)((x,done?,id'))
       }
     }
-    if (id!=id-exit) waiting[id] := cb
+    if (id!=id-exit) waiting := Cons((id,cb),waiting)
     cb
   }
 
-  fun cancel-id( id ) {
-    match( waiting[id] ) {
+  fun cancel-id( id : id ) {
+    match( waiting.lookup(id) ) {
       Nothing  -> ()
       Just(cb) -> {
         cb(Left(cancel-exn),True,id)
@@ -426,42 +418,20 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 
   handle(action) {   
     await-id( setup, id ) -> setup( outer-callback(resume,id) )
-    cancel-ids( mids )    -> {
-      resume(mids.default(waiting.ids).foreach( cancel-id ))
-    }
+    cancel-ids( mids )    -> resume(mids.default(waiting.map(fst)).foreach( cancel-id ))
     fresh-id()            -> resume(Id(unique()))
   }
 }
 
 
-//
-
-struct idmap<h,a>( m : mdict<h, callback<a>> ) 
-
-fun idmap() {
-  Idmap(mdict())
+fun remove( xs : list<(id,a)>, id : id ) : list<(id,a)> {
+  xs.remove( fun(x:(id,_)) { x.fst == id })
 }
 
-fun []( idmap : idmap<h,a>, id : id, cb : callback<a>  ) : st<h> () {
-  idmap.m[id.show] := cb
+fun lookup( xs : list<(id,a)>, id : id ) : maybe<a> {
+  xs.lookup( fun(x:id) { x == id })
 }
 
-fun contains( idmap : idmap<h,a>, id : id ) : read<h> bool {
-  idmap.m.contains-key(id.show)
-}
-
-fun remove( idmap : idmap<h,a>, id : id ) : st<h> () {
-  idmap.m.remove(id.show)
-}
-
-fun [](idmap : idmap<h,a>, id : id ) : st<h> maybe<callback<a>> {
-  (idmap.m)[id.show]
-}
-
-fun keys(idmap : idmap<h,a> ) : st<h> list<string> {
-  idmap.m.keys.list
-}
-
-fun ids( idmap: idmap<h,a> ) : st<h> ids {
-  idmap.keys.map( fun(s) { Id(parse-int(s).default(-1)) })
+fun contains( xs : list<(id,a)>, id : id ) : bool {
+  xs.lookup(id).bool
 }
