@@ -87,7 +87,7 @@ public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> 
   }
 }
 
-fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-id>> {
+fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-wid>> {
   awaitx1( fun(resume) {
     val tid = set-timeout1( resume, max(0.int32,secs.milli-seconds.int32), Nothing )
     resume(Just(tid))
@@ -107,18 +107,18 @@ public fun yield( secs : duration = zero ) : <async,exn> () {
   }
 }
 
-// abstract id for timeout handlers
-type timeout-id
+// abstract wid for timeout handlers
+type timeout-wid
 
-extern set-timeout1( cb : a -> io (), ms : int32, arg : a ) : io timeout-id {
+extern set-timeout1( cb : a -> io (), ms : int32, arg : a ) : io timeout-wid {
   js "setTimeout"
 }
 
-extern set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
+extern set-timeout( cb : () -> io (), ms : int32 ) : io timeout-wid {
   js "setTimeout"
 }
 
-extern clear-timeout( tid : timeout-id ) : exn () {
+extern clear-timeout( tid : timeout-wid ) : exn () {
   js "clearTimeout"
 }
 
@@ -285,7 +285,59 @@ public fun awaitx( setup : (cb : (either<exception,a> -> io () ) -> io ()), resu
 
 
 // ----------------------------------------------------------------------------
+// Callback widentifiers
+// ----------------------------------------------------------------------------
+
+  
+abstract struct wid( :int )
+
+val wid-exit = Wid(-1)
+
+fun (==)(wid1 : wid, wid2 : wid ) : bool {
+  match(wid1) {
+    Wid(i1) -> match(wid2) {
+      Wid(i2) -> i1==i2
+    }
+  }
+}
+
+fun (!=)(wid1 : wid, wid2 : wid ) : bool {
+  !(wid1 == wid2)
+}
+
+
+// ----------------------------------------------------------------------------
 // Async effect
+// ----------------------------------------------------------------------------
+
+// Asynchronous operations have the `:async` effect.
+public effect async {
+  fun await-yield( setup : (cb : (either<exception,a>,bool,wid) -> io ()) -> io (), wid : wid ) : (either<exception,a>,bool,wid)
+  fun cancel-awaits( awaits : maybe<list<wid>> ) : ()
+  fun await-id() : wid  
+}
+
+public fun await-done( setup : ((either<exception,a>,bool) -> io ()) -> io () ) : async (either<exception,a>,bool) {
+  val wid = await-id()
+  val (x,done?,_) = await-yield( fun(cb){
+                      setup(fun(x,done?){ cb(x,done?,wid) })
+                    }, wid)
+  (x,done?)
+}
+
+public fun cancel() {
+  cancel-awaits(Nothing)
+}
+
+public fun exit() : <async,exn> a {
+  await-yield( fun(cb) { }, wid-exit ) 
+  error("exit should never resume") 
+  //()
+}
+
+
+// ----------------------------------------------------------------------------
+// Async handlers: cancelable
 // ----------------------------------------------------------------------------
 
 // The `Cancel` exception.
@@ -305,133 +357,94 @@ public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : 
 
 val cancel-exn = exception("Cancel", Cancel)
 
-  
-abstract struct id( :int )
 
-val id-exit = Id(-1)
+public fun cancelable( action : () -> <async|e> a ) : <async|e> a 
+{
+  var awaits := []
 
-fun (==)(id1 : id, id2 : id ) : bool {
-  match(id1) {
-    Id(i1) -> match(id2) {
-      Id(i2) -> i1==i2
+  handle(inject-st(action)) {
+    await-yield(setup,wid) -> {
+      if (wid != wid-exit) awaits := Cons(wid,awaits)
+      val x = await-yield(setup,wid)
+      if (x.snd) awaits := awaits.remove( fun(i) { i == x.thd })
+      resume(x)
+    }    
+    cancel-awaits(wids) -> {
+      resume(cancel-awaits(if (wids.nothing?) then Just(awaits) else wids))
     }
+    await-id() -> resume(await-id())
   }
 }
 
-fun (!=)(id1 : id, id2 : id ) : bool {
-  !(id1 == id2)
-}
+// ----------------------------------------------------------------------------
+// Async handlers: interleaved
+// ----------------------------------------------------------------------------
 
-
-// Asynchronous operations have the `:async` effect.
-public effect async {
-  fun await-id( setup : (cb : (either<exception,a>,bool,id) -> io ()) -> io (), id : id ) : (either<exception,a>,bool,id)
-  fun cancel-ids( mids : maybe<list<id>> ) : ()
-  fun fresh-id() : id  
-}
-
-public fun await-done( setup : ((either<exception,a>,bool) -> io ()) -> io () ) : async (either<exception,a>,bool) {
-  val id = fresh-id()
-  val (x,done?,_) = await-id( fun(cb){
-                      setup(fun(x,done?){ cb(x,done?,id) })
-                    }, id)
-  (x,done?)
-}
-
-public fun cancel() {
-  cancel-ids(Nothing)
-}
-
-public fun exit() : <async,exn> a {
-  await-id( fun(cb) { }, id-exit ) 
-  error("exit should never resume") 
-  //()
-}
-
+public fun async-handle-interleaved( action : () -> <async,exn|e> a ) : <async,exn|e> a  
+{
+  var latest : some<e,a> (either<exception,() -> <async|e> a>, bool,wid) -> io () := fun(_,_,_) { () }
+  
+  handle(inject-st(action)) {
+    await-yield(setup,wid) -> {
+      val r : some<e,a> (either<exception,() -> <async|e> a>,bool,wid) 
+        = await-yield( fun(cb) {
+            latest := cb
+            setup( fun(x : either<exception,_a>,  done?:bool, wid' : wid) {
+              latest( Right( { resume((x,done?,wid')) }), done?, wid' )
+            })
+          },wid)
+      (r.fst.untry)()
+    }
+    cancel-awaits(wids) -> resume(cancel-awaits(wids))
+    await-id()          -> resume(await-id())
+  }
+} 
 
 // ----------------------------------------------------------------------------
 // Async handle
 // ----------------------------------------------------------------------------
 
-
-public fun cancelable( action : () -> <async|e> a ) : <async|e> a 
-{
-  var cids := []
-
-  handle(inject-st(action)) {
-    await-id(setup,id) -> {
-      if (id != id-exit) cids := Cons(id,cids)
-      val x = await-id(setup,id)
-      if (x.snd) cids := cids.remove( fun(i) { i == x.thd })
-      resume(x)
-    }    
-    cancel-ids(mids) -> {
-      resume(cancel-ids(if (mids.nothing?) then Just(cids) else mids))
-    }
-    fresh-id() -> resume(fresh-id())
-  }
-}
-
-public fun async-handle-interleaved( action : () -> <async,exn|e> a ) : <async,exn|e> a  
-{
-  var latest : some<e,a> (either<exception,() -> <async|e> a>, bool,id) -> io () := fun(_,_,_) { () }
-  
-  handle(inject-st(action)) {
-    await-id(setup,id) -> {
-      val r : some<e,a> (either<exception,() -> <async|e> a>,bool,id) 
-        = await-id( fun(cb) {
-            latest := cb
-            setup( fun(x : either<exception,_a>,  done?:bool, id' : id) {
-              latest( Right( { resume((x,done?,id')) }), done?, id' )
-            })
-          },id)
-      (r.fst.untry)()
-    }
-    cancel-ids(ids) -> resume(cancel-ids(ids))
-    fresh-id()      -> resume(fresh-id())
-  }
-} 
-
+// The outer `:async` effect handler
 public fun async-handle(action : () -> <async,io> () ) : io () 
 {
-  var waiting := []
+  var awaits := []
   
-  fun outer-callback( resume, id : id) {
-    fun cb(x,done?,id' : id) {
-      if (waiting.contains(id')) {
-        if (done?) then waiting := waiting.remove(id')
-        outer-resume(resume)((x,done?,id'))
+  fun outer-callback( resume, wid : wid) {
+    fun cb(x,done?,wid' : wid) {
+      if (awaits.contains(wid')) {
+        if (done?) then awaits := awaits.remove(wid')
+        outer-resume(resume)((x,done?,wid'))
       }
     }
-    if (id!=id-exit) waiting := Cons((id,cb),waiting)
+    if (wid!=wid-exit) awaits := Cons((wid,cb),awaits)
     cb
   }
 
-  fun cancel-id( id : id ) {
-    match( waiting.lookup(id) ) {
+  fun cancel-await( wid : wid ) {
+    match( awaits.lookup(wid) ) {
       Nothing  -> ()
       Just(cb) -> {
-        cb(Left(cancel-exn),True,id)
+        cb(Left(cancel-exn),True,wid)
       }
     }
   }
 
   handle(action) {   
-    await-id( setup, id ) -> setup( outer-callback(resume,id) )
-    cancel-ids( mids )    -> resume(mids.default(waiting.map(fst)).foreach( cancel-id ))
-    fresh-id()            -> resume(Id(unique()))
+    await-yield( setup, wid ) -> setup( outer-callback(resume,wid) )
+    cancel-awaits( wids )     -> resume(wids.default(awaits.map(fst)).foreach( cancel-await ))
+    await-id()                -> resume(Wid(unique()))
   }
 }
 
-
-fun remove( xs : list<(id,a)>, id : id ) : list<(id,a)> {
-  xs.remove( fun(x:(id,_)) { x.fst == id })
+// Convenience functions for wid maps
+fun remove( xs : list<(wid,a)>, wid : wid ) : list<(wid,a)> {
+  xs.remove( fun(x:(wid,_)) { x.fst == wid })
 }
 
-fun lookup( xs : list<(id,a)>, id : id ) : maybe<a> {
-  xs.lookup( fun(x:id) { x == id })
+fun lookup( xs : list<(wid,a)>, wid : wid ) : maybe<a> {
+  xs.lookup( fun(x:wid) { x == wid })
 }
 
-fun contains( xs : list<(id,a)>, id : id ) : bool {
-  xs.lookup(id).bool
+fun contains( xs : list<(wid,a)>, wid : wid ) : bool {
+  xs.lookup(wid).bool
 }
