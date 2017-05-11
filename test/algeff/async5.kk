@@ -31,7 +31,7 @@ fun test() {
     if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = interleaved( [f,g] )
-  println("hi " + xs.join(","))  
+  println("** hi " + xs.join(",") + "\n")  
 }
 
 fun main() {

@@ -27,11 +27,11 @@ fun test() {
     dowait(4.seconds)
   }
   fun g() {
-    yield(1.seconds)
-    if (flip()) then dowait(2.seconds) else dowait(3.seconds)
+    if (flip()) then dowait(1.seconds) else dowait(1500.milli-seconds)
   }
   fun h() {
-    if (flip()) then dowait(1.seconds) else dowait(1500.milli-seconds)
+    yield(1.seconds)
+    if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = interleaved( [f,g,h] )
   println("hi " + xs.join(","))  

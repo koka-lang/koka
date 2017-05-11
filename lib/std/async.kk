@@ -21,6 +21,7 @@ import std/time/duration
 public alias asyncx = <async,exn,ndet>
 
 
+
 // ----------------------------------------------------------------------------
 // Asynchronous timeout and waiting
 // ----------------------------------------------------------------------------
@@ -65,7 +66,7 @@ public fun cancelable-wait( secs : duration ) : <async,exn> () {
 }
 
 
-public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
+public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> a {
   cancelable {
     match(fork-after(secs).untry) {
       Nothing -> {
@@ -85,6 +86,10 @@ fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-i
 } 
 
 
+// ----------------------------------------------------------------------------
+// Yield
+// ----------------------------------------------------------------------------
+
 
 public fun yield( secs : duration = zero ) : <async,exn> () {
   await0 fun(cb){ 
@@ -100,11 +105,11 @@ extern set-timeout1( cb : a -> io (), ms : int32, arg : a ) : io timeout-id {
   js "setTimeout"
 }
 
-extern set-timeout( action : () -> e (), ms : int32 ) : exn timeout-id {
+extern set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
   js "setTimeout"
 }
 
-extern clear-timeout( h : timeout-id ) : exn () {
+extern clear-timeout( tid : timeout-id ) : exn () {
   js "clearTimeout"
 }
 
@@ -112,61 +117,6 @@ extern clear-timeout( h : timeout-id ) : exn () {
 // ----------------------------------------------------------------------------
 // Asynchronous cancelation 
 // ----------------------------------------------------------------------------
-
-
-// The `Cancel` exception.
-public type extend exception-info {
-  // The `Cancel` exception is thrown when an asynchronous operation is canceled.
-  con Cancel
-}
-
-public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
-  on-exn(fun(exn) {
-    match(exn.info) {
-      Cancel -> oncancel()
-      _      -> ()
-    }
-  },action)
-}
-
-val cancel-exn = exception("Cancel", Cancel)
-
-public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a> { 
-  var canceled := False
-  val idmap = idmap()
- 
-  catch { 
-    handle(inject-st(action)) {
-      return x -> Just(x)
-      awaitx(setup,n) -> {
-        val h = idmap.register(resume,n)
-        val x = awaitx( setup, n )
-        h.unregister
-        if (canceled) {
-          exit() // callback came back but we canceled already
-        }
-        else resume(x)
-      }
-      cancel() -> {
-        canceled := True
-        val elems = idmap.elements
-        idmap.clear()
-        if (elems.length > 0) {
-          val i = primforkn(elems.length)
-          try{ elems[i](Left(cancel-exn)) }
-          if (i > 0) then exit()
-        }
-        resume(True)
-      }
-    }
-  }
-  fun(exn) {
-    match(exn.info) {
-      Cancel -> Nothing
-      _      -> throw(exn)
-    }
-  }
-}
 
 
 
@@ -188,7 +138,7 @@ public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
 public fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
   async-handle-interleaved {
     val n = xs.length
-    if (n==0) return vector()
+    //if (n==0) return vector()
     val res    = array(n,Left(exception("Interleaved operation was not completed",Internal("std/async/interleaved"))))
     var count := n;
     val i = primforkn(n)
@@ -234,26 +184,27 @@ public fun fork( action ) {
       action()
       exit()
     }
-    fun(exn) { exit(Just(exn)) }
+    fun(exn) { 
+      trace("unhandled fork exception: " + exn.show)
+      exit() 
+    }
   }
   else ()
 }
 
 fun primfork( ) {
-  await1( fun(resume) {
-    set-immediate1( resume, True )
-    resume(False)
-  }, 2 )
+  val i = primforkn(2)
+  (i==0)
 } 
 
-fun primforkn( n : int ) {
+public fun primforkn( n : int ) {
   if (n<=1) then 0 else {
-    await1( fun(resume) {
+    await1( fun(cb) {
       for(1, n - 1) fun(i) {
-        set-immediate1( resume, i )
+        set-immediate1( cb, i )
       }
-      resume( 0 )
-    }, n )
+      cb(0)
+    }, n)
   }
 }
 
@@ -270,45 +221,38 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 // awaitx wrappers
 // ----------------------------------------------------------------------------
 
-public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
+public fun await-exn0( setup : (cb : (null<exception>) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
   await( fun(resume) {
-    setup( fun(nexn) { 
-      resume( match(nexn.maybe) {
-        Nothing   -> Right(())
-        Just(exn) -> Left(exn)
-      })
-    })
+    setup( fun(nexn) { resume(nexn.unnull(())) }) 
   }, rcount )
 }
 
-public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
   await( fun(resume) {
-    setup( fun(nexn,x) { 
-      resume( match(nexn.maybe) {
-        Nothing   -> Right(x)
-        Just(exn) -> Left(exn)
-      })
-    })
+    setup( fun(nexn,x) { resume(nexn.unnull(x)) })
   }, rcount )
 }
 
-
-public fun await0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
-  await( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
-}
-
-public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  await( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
-}
-
-public fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  match(awaitx(setup, rcount )) {
-    Left(exn) -> throw(exn)
-    Right(x)  -> x
+fun unnull( nexn : null<exception>, x : a  ) : either<exception,a> {
+  match(nexn.maybe) {
+    Nothing -> Right(x)
+    Just(exn) -> Left(exn)
   }
 }
 
-public fun awaitx0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
+public fun await0( setup : (cb : () -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
+  await( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
+}
+
+public fun await1( setup : (cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  await( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
+}
+
+public fun await( setup : (cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  awaitx(setup, rcount ).untry
+}
+
+public fun awaitx0( setup : (cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
   val res = awaitx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
   match(res) {
     Right -> Nothing
@@ -316,8 +260,18 @@ public fun awaitx0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 
   }
 }
 
-public fun awaitx1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
+public fun awaitx1( setup : (cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
   awaitx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
+}
+
+public fun awaitx( setup : (cb : (either<exception,a> -> io () ) -> io ()), resume-count : int ) : async either<exception,a> {
+  var count := resume-count
+  await-done( fun(cb) {
+    setup( fun(x) {
+      count := count - 1
+      cb(x, count <= 0)
+    })
+  }).fst
 }
 
 
@@ -325,23 +279,72 @@ public fun awaitx1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1
 // Async effect
 // ----------------------------------------------------------------------------
 
+// The `Cancel` exception.
+public type extend exception-info {
+  // The `Cancel` exception is thrown when an asynchronous operation is canceled.
+  con Cancel
+}
+
+public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
+  on-exn(fun(exn) {
+    match(exn.info) {
+      Cancel -> oncancel()
+      _      -> ()
+    }
+  },action)
+}
+
+val cancel-exn = exception("Cancel", Cancel)
+  
+struct id( :int )
+
+val id-exit = Id(-1)
+
+fun show(id : id ) : string {
+  match(id) {
+    Id(i) -> i.show
+  }
+}
+
+fun (==)(id1 : id, id2 : id ) : bool {
+  match(id1) {
+    Id(i1) -> match(id2) {
+      Id(i2) -> i1==i2
+    }
+  }
+}
+fun (!=)(id1 : id, id2 : id ) : bool {
+  !(id1 == id2)
+}
+
+alias ids = list<id>
+
+
+alias callback<a> = (either<exception,a>,bool,id) -> io ()
 
 // Asynchronous operations have the `:async` effect.
 public effect async {
-  fun awaitx( setup : (resume-cb : either<exception,a> -> io () ) -> io (), 
-              resume-count : int ) : either<exception,a>
-  fun cancel() : bool
+  fun await-id( setup : (cb : callback<a>) -> io (), id : id ) : (either<exception,a>,bool,id)
+  fun cancel-ids( mids : maybe<ids> ) : ()
+  fun fresh-id() : id  
 }
 
+public fun await-done( setup : ((either<exception,a>,bool) -> io ()) -> io () ) : async (either<exception,a>,bool) {
+  val id = fresh-id()
+  val (x,done?,_) = await-id( fun(cb){
+                      setup(fun(x,done?){ cb(x,done?,id) })
+                    }, id)
+  (x,done?)
+}
 
-public fun exit( mbexn : maybe<exception> = Nothing ) : <async,exn> a {
-  awaitx( fun(cb) {
-    match(mbexn) {
-      Nothing -> ()
-      Just(exn) -> throw(exn)
-    }
-  }, 0)
-  error("should not happen")
+public fun cancel() {
+  cancel-ids(Nothing)
+}
+
+public fun exit() : <async,exn> a {
+  await-id( fun(cb) { }, id-exit ) 
+  error("exit should never resume") 
+  //()
 }
 
 
@@ -349,83 +352,106 @@ public fun exit( mbexn : maybe<exception> = Nothing ) : <async,exn> a {
 // Async handle
 // ----------------------------------------------------------------------------
 
-public fun async-handle-interleaved( action )  {
-  var latest : some<e,a> (either<exception,() -> <async|e> a>) -> io () := fun(x) { () }
-  handle(action) {
-    awaitx(setup,n) {
-      val r = awaitx( fun(cb) {
-        latest := cb
-        setup( fun(x : either<exception,_a>) {
-          latest(Right( { resume(x) } ))
-        })
-      }, n )
-      match(r) {
-        Right(res) -> res()
-        Left(exn)  -> throw(exn)
-      }
+
+public fun cancelable( action : () -> <async|e> a ) : <async|e> a 
+{
+  var cids := []
+
+  handle(inject-st(action)) {
+    await-id(setup,id) -> {
+      if (id != id-exit) cids := Cons(id,cids)
+      val x = await-id(setup,id)
+      if (x.snd) cids := cids.remove( fun(i) { i == x.thd })
+      resume(x)
+    }    
+    cancel-ids(mids) -> {
+      resume(cancel-ids(if (mids.nothing?) then Just(cids) else mids))
     }
-    cancel() -> resume(False)
+    fresh-id() -> resume(fresh-id())
+  }
+}
+
+public fun async-handle-interleaved( action : () -> <async,exn|e> a ) : <async,exn|e> a  
+{
+  var latest : some<e,a> (either<exception,() -> <async|e> a>, bool,id) -> io () := fun(_,_,_) { () }
+  
+  handle(inject-st(action)) {
+    await-id(setup,id) -> {
+      val r : some<e,a> (either<exception,() -> <async|e> a>,bool,id) 
+        = await-id( fun(cb) {
+            latest := cb
+            setup( fun(x : either<exception,_a>,  done?:bool, id' : id) {
+              latest( Right( { resume((x,done?,id')) }), done?, id' )
+            })
+          },id)
+      (r.fst.untry)()
+    }
+    cancel-ids(ids) -> resume(cancel-ids(ids))
+    fresh-id()      -> resume(fresh-id())
   }
 } 
 
-public val async-handle  = handler {
-  awaitx( setup, n) -> setup( outer-resume(resume) )  
-  cancel()          -> resume(False)  
-}
-
-
-
-
-// ----------------------------------------------------------------------------
-//  Id maps 
-// ----------------------------------------------------------------------------
-
-abstract struct id<h,a>( 
-  idmap : idmap<h,a>, 
-  key : string
-)
-
-abstract type idmap<h,a> {
-  Idmap( top : ref<h,int>, values : mdict<h,(int,a)> )
-}
-
-public fun idmap() : alloc<h> idmap<h,a> {
-  Idmap( ref(0), mdict() )
-}
-
-public fun register( idmap : idmap<h,a>, value : a, count : int = 1 ) : st<h> id<h,a> {
-  val t = idmap.top
-  val idx = !t
-  t := idx + 1
-  val key = idx.show
-  idmap.values[key] := (count,value)
-  Id(idmap,key)
-}
-
-public fun unregister( id : id<h,a>, force : bool = False ) : st<h> () {
-  match(id.idmap.values[id.key]) {
-    Nothing -> ()
-    Just((c,x)) -> {
-      if (c > 0) {
-        id.idmap.values[id.key] := (c.dec, x)
+public fun async-handle(action : () -> <async,io> () ) : io () 
+{
+  val waiting = idmap()
+  
+  fun outer-callback( resume, id : id) {
+    fun cb(x,done?,id' : id) {
+      if (waiting.contains(id')) {
+        if (done?) then waiting.remove(id')
+        outer-resume(resume)((x,done?,id'))
       }
-      elif (c==0 || force) {          // negative values only unregister if forced
-        id.idmap.values.remove(id.key)
-        if (id.idmap.values.count==0) {
-          val t = id.idmap.top
-          t := 0
-        } 
+    }
+    if (id!=id-exit) waiting[id] := cb
+    cb
+  }
+
+  fun cancel-id( id ) {
+    match( waiting[id] ) {
+      Nothing  -> ()
+      Just(cb) -> {
+        waiting.remove(id)
+        cb(Left(cancel-exn),True,id)
       }
     }
   }
+
+  handle(action) {   
+    await-id( setup, id ) -> setup( outer-callback(resume,id) )
+    cancel-ids( mids )    -> resume(mids.default(waiting.ids).foreach( cancel-id ))
+    fresh-id()            -> resume(Id(unique()))
+  }
 }
 
-public fun elements( idmap : idmap<h,a> ) : st<h> vector<a> {
-  idmap.values.vector.map(fun(x) { x.snd.snd })
+
+//
+
+struct idmap<h,a>( m : mdict<h, callback<a>> ) 
+
+fun idmap() {
+  Idmap(mdict())
 }
 
-public fun clear( idmap : idmap<h,a> ) : st<h> () {
-  idmap.values.clear()
-  val t = idmap.top
-  t := 0
+fun []( idmap : idmap<h,a>, id : id, cb : callback<a>  ) : st<h> () {
+  idmap.m[id.show] := cb
+}
+
+fun contains( idmap : idmap<h,a>, id : id ) : read<h> bool {
+  idmap.m.contains-key(id.show)
+}
+
+fun remove( idmap : idmap<h,a>, id : id ) : st<h> () {
+  idmap.m.remove(id.show)
+}
+
+fun [](idmap : idmap<h,a>, id : id ) : st<h> maybe<callback<a>> {
+  (idmap.m)[id.show]
+}
+
+fun keys(idmap : idmap<h,a> ) : st<h> list<string> {
+  idmap.m.keys.list
+}
+
+fun ids( idmap: idmap<h,a> ) : st<h> ids {
+  idmap.keys.map( fun(s) { Id(parse-int(s).default(-1)) })
 }
