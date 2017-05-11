@@ -66,14 +66,23 @@ public fun cancelable-wait( secs : duration ) : <async,exn> () {
 }
 
 
-public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> a {
-  cancelable {
-    match(fork-after(secs).untry) {
-      Nothing -> {
-        cancel()
-        throw(cancel-exn)
+public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
+  catch {
+    val x = cancelable {
+      match(fork-after(secs).untry) {
+        Nothing -> {
+          cancel()
+          exit()
+        }
+        Just(tid) -> finally(action) { clear-timeout(tid) } 
       }
-      Just(tid) -> finally(action) { clear-timeout(tid) } 
+    }
+    Just(x)
+  }
+  fun(exn) {
+    match(exn.info) {
+      Cancel -> Nothing
+      _      -> throw(exn)
     }
   }
 }
@@ -410,7 +419,6 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
     match( waiting[id] ) {
       Nothing  -> ()
       Just(cb) -> {
-        waiting.remove(id)
         cb(Left(cancel-exn),True,id)
       }
     }
@@ -418,7 +426,9 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 
   handle(action) {   
     await-id( setup, id ) -> setup( outer-callback(resume,id) )
-    cancel-ids( mids )    -> resume(mids.default(waiting.ids).foreach( cancel-id ))
+    cancel-ids( mids )    -> {
+      resume(mids.default(waiting.ids).foreach( cancel-id ))
+    }
     fresh-id()            -> resume(Id(unique()))
   }
 }
