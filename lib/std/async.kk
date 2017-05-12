@@ -26,7 +26,7 @@
   // Asynchronous timeout and waiting
   // ----------------------------------------------------------------------------
 
-  // Wait (asynchronously) for `secs` seconds as a `:double`. 
+  // Wait (asynchronously) for `secs` seconds as a `:double./`. 
   // Use `wait()` to yield to other asynchronous operations.
   public fun wait( secs : double ) : <async,exn> () {
     wait(secs.duration)
@@ -254,7 +254,7 @@
   }
 
   public fun await1( setup : (cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-    awaitx( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, 1 ).untry
+    awaitx( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount ).untry
   }
 
   public fun await( setup : (cb : either<exception,a> -> io () ) -> io () ) : <async,exn> a {
@@ -293,7 +293,7 @@
 
   val wid-exit = Wid(-1)
 
-  fun (==)(wid1 : wid, wid2 : wid ) : bool {
+  public fun (==)(wid1 : wid, wid2 : wid ) : bool {
     match(wid1) {
       Wid(i1) -> match(wid2) {
         Wid(i2) -> i1==i2
@@ -301,7 +301,7 @@
     }
   }
 
-  fun (!=)(wid1 : wid, wid2 : wid ) : bool {
+  public fun (!=)(wid1 : wid, wid2 : wid ) : bool {
     !(wid1 == wid2)
   }
 
