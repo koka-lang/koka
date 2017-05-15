@@ -202,7 +202,7 @@
       },
 
     "number" :
-      { "match": "0[xX][\\da-fA-F]+|\\d+(\\.\\d+([eE][\\-+]?\\d+)?)?|"
+      { "match": "0[xX][\\da-fA-F]+|\\d+(\\.\\d+([eE][\\-+]?\\d+)?)?"
       , "name": "constant.numeric.koka"
       },
 
