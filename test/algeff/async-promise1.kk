@@ -7,7 +7,7 @@ import std/os/readline
 
 fun main() {
   val p = promise()
-  timeout(3.seconds) {
+  val mbx = timeout(3.seconds) {
     interleaved {
       println("what is your name?")
       p.resolve( readline() )
@@ -18,5 +18,5 @@ fun main() {
       println("the name was: " + name)
     }
   }
-  ()
+  println("exited " + (if (mbx.bool) then "normally" else "with timeout"))
 }

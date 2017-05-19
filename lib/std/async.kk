@@ -397,7 +397,7 @@
   }
 
   fun async-io( action : () -> io a ) : <async,exn> a {
-    val r = await( fun(cb) { cb( (try(action), True, wid-exit) ) }, wid-exit )
+    val r = await-done( fun(cb) { cb( try(action), True ) } )
     r.fst.untry
   }
 
