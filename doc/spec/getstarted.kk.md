@@ -1,7 +1,7 @@
 # Getting started
 
 Welcome to the Koka book. This provides an overview and
-formal specification of the language. 
+formal specification of the language.
 For more background information, see:
 
 * The [library documentation][libraries].
@@ -14,7 +14,7 @@ For more background information, see:
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[kokarepo]: https://github.com/koka-lang/koka {target='_top'} 
+[kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
@@ -33,11 +33,11 @@ The following programs are required to build Koka:
 * Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
 
 All these programs are very easy to install on most platforms.
-Now we can build Koka itself: 
+Now we can build Koka itself:
 
 1. First clone the Koka sources with algebraic effects support:
 
-       > git clone https://github.com/koka-lang/koka.git 
+       > git clone https://github.com/koka-lang/koka.git
 
    You can also use the flag ``-b dev`` to get the latest development version.
 
@@ -45,13 +45,13 @@ Now we can build Koka itself:
 
        > cd koka
 
-3. Install any needed Node libraries using the Node package manager: 
+3. Install any needed Node libraries using the Node package manager:
 
        > npm install
 
 4. Finally, build the compiler and run the Koka interactive environment:
 
-       > npm run repl
+       > npm run interactive
 
    You can type ``npm run help`` to see an overview of all make targets.
 
@@ -67,7 +67,7 @@ designed to work well with Koka files.
 
 ## Running the interactive compiler
 
-After running a plain ``npm run repl`` command, the Koka interactive environment will start:
+After running a plain ``npm run interactive`` command, the Koka interactive environment will start:
 ````
 __          _
 | |        | |
@@ -116,9 +116,9 @@ Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 
 ## Algebraic effect handlers
 
-A novel feature of Koka is a compiled and typed implementation of algebraic 
+A novel feature of Koka is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [@Leijen:algeff]).
-In the interactive environment, you can load various demo files with algebraic 
+In the interactive environment, you can load various demo files with algebraic
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly using
 the _load_ (``:l``) command:
@@ -127,13 +127,13 @@ the _load_ (``:l``) command:
 
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``scoped`` demo, we can run it directly from the interpreter:
-    
+
     > :l scoped
     compile: test/algeff/scoped.kk
     check  : scoped
     modules:
       scoped
-    
+
     > main()
     [[3],[2,1],[1,2],[1,1,1]]
     (state=12, [[3],[2,1],[1,2],[1,1,1]])
@@ -168,7 +168,7 @@ and state effect:
     check  : effs2
     modules:
       effs1
-    
+
     > main()
     \(`[False,True,True,False]`\)
     \(`[False,False,True,True,False]`\)
@@ -209,7 +209,7 @@ removes the `amb` effect from its argument, and return a list of results:
     > :t amb
     \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
 
-We can now run the `xor` function using the `amb` handler to 
+We can now run the `xor` function using the `amb` handler to
 handle the `flip` operations:
 
 ```
@@ -237,14 +237,14 @@ Next we define a function that uses both ambiguity and the state
 effect:
 ```
 fun foo() : <amb,state<int>> bool {
-  val p = flip() 
+  val p = flip()
   val i = get()
   set(i+1)
   if (i>0 && p) then xor() else False
 }
 ```
 The handler for the `:state` effect takes a local parameter that
-is propagated through the `resume` function. 
+is propagated through the `resume` function.
 ```
 val state = handler(i) {
   return x -> x
@@ -275,6 +275,6 @@ predict the outcomes of running the tests?
 
     > test2()
     \(`[False,False,True,True,False]`\)
-    
+
     > test3()
     \(`[False,False]`\)

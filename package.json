@@ -6,22 +6,22 @@
   "description" : "Koka is an effectful function-oriented language.",
   "license"     : "Apache-2.0",
   "licenses": [{
-    "type"      : "Apache License 2.0", 
+    "type"      : "Apache License 2.0",
     "url"       : "http://www.apache.org/licenses/LICENSE-2.0.html"
   }],
   "keywords": [
-      "Koka", 
-      "Microsoft", 
-      "compiler", 
-      "language", 
+      "Koka",
+      "Microsoft",
+      "compiler",
+      "language",
       "effect",
       "type inference"
   ],
-  "engines" : { 
-    "node": ">=0.10.0" 
+  "engines" : {
+    "node": ">=0.10.0"
   },
   "dependencies": {
-    "amdefine"   : ">=0.0.4",    
+    "amdefine"   : ">=0.0.4",
     "requirejs"  : ">=2.1",
     "node-static": ">=0.6",
     "ws"         : ">=0.4",
@@ -34,14 +34,21 @@
     "madoko": "^1.1.0"
   },
   "scripts": {
-    "build": "jake compiler",
-    "repl": "jake interactive",
-    "sublime": "jake sublime",
+    "interactive": "jake interactive",
+    "compiler": "jake compiler",
+    "ghci": "jake ghci",
+    "config": "jake config",
+    "clean": "jake clean",
+    "iclean": "jake iclean",
     "test": "jake test",
+    "grammar": "jake grammar",
+    "spec": "jake spec",
+    "guide": "jake guide",
+    "sublime": "jake sublime",
     "help": "jake help"
   },
   "repository": {
-    "type": "git", 
+    "type": "git",
     "url" : "https://github.com/koka-lang/koka.git"
   }
 }
