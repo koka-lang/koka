@@ -71,7 +71,7 @@ extern inline insert : forall<h,a> ( a : array<h,a>, value : a ) -> () {
 // Create a zero length array
 extern inline array : forall<h,a> () -> array<h,a> {
   cs inline "new ##2[0]"
-  js inline "[]"
+  js inline "([])"
 }
 
 private extern inline unsafe-array  : forall<h,a> (n : int) -> array<h,a> { 
