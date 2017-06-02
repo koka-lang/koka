@@ -40,18 +40,38 @@ extern inline length : forall<h,a> ( self : array<h,a> ) -> int {
 }
 
 // Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
+// TODO exception for JavaScript
 extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
   { inline "(#1)[#2] = #3" }
 
 // Create a new array of length `n`  with initial elements `a` .
+// TODO assign default value to array elements
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
   cs inline "Primitive.NewArray<##2>(#1,#2)"
   js inline "Array(#1)"
 }
- 
+
+// TODO exception for JavaScript
+extern inline insert-at : forall<h,a> ( a : array<h,a>, index : int, value : a ) -> () { 
+  cs inline "(#1).Insert(#2, #3)"
+  js inline "(#1).splice(#2, 0, #3)"
+}
+
+// TODO exception for JavaScript
+extern inline remove-at : forall<h,a> ( a : array<h,a>, index : int ) -> () { 
+  cs inline "(#1).RemoveAt(#2, #3)"
+  js inline "(#1).splice(#2, 1)"
+}
+
+extern inline insert : forall<h,a> ( a : array<h,a>, value : a ) -> () { 
+  cs inline "(#1).Add(#2)"
+  js inline "(#1).push(#2)"
+}
+
 // Create a zero length array
 extern inline array : forall<h,a> () -> array<h,a> {
   cs inline "new ##2[0]"
+  js inline "[]"
 }
 
 private extern inline unsafe-array  : forall<h,a> (n : int) -> array<h,a> { 
