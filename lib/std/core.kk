@@ -2218,6 +2218,26 @@ private extern vector-init32(n : int32, f : int32 -> a) : vector<a> {
   js inline "_vector(#1,#2)"
 }
 
+// Returns a new vector which is the same as `v` but with `value` appended to the end
+// TODO function for C#
+extern insert( v : vector<a>, value : a ) : vector<a> {
+  js inline "_vector_insert(#1, #2)"
+}
+
+// Returns a new vector which is the same as `v` but with `value` inserted at `index`
+// Throws an exception if `index` is out of bounds (less than 0, or greater than the length of `v`)
+// TODO function for C#
+extern insert-at( v : vector<a>, index: int, value : a ) : exn vector<a> {
+  js inline "_vector_insert_at(#1, #2, #3)"
+}
+
+// Returns a new vector which is the same as `v` but with `index` removed
+// Throws an exception if `index` is out of bounds (less than 0, or greater than or equal to the length of `v`)
+// TODO function for C#
+extern remove-at( v : vector<a>, index: int ) : exn vector<a> {
+  js inline "_vector_remove_at(#1, #2)"
+}
+
 // Create an empty vector.
 extern inline vector : forall<a> () -> vector<a> {
   cs inline "new ##1[0]"
