@@ -2260,7 +2260,7 @@ extern shuffle( v : vector<a> ) : vector<a> {
 // Throws an exception if `start-index` or `end-index` are out of bounds (less than 0, or greater than the length of `v`)
 // Throws an exception if `start-index` is greater than `end-index`
 // TODO function for C#
-extern slice( v : vector<a>, start-index : int, end-index : int ) : exn vector<a> {
+extern slice( v : vector<a>, start-index : int = 0, end-index : int = v.length ) : exn vector<a> {
   js inline "_vector_slice(#1, #2, #3)"
 }
 
