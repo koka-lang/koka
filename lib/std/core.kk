@@ -2329,6 +2329,13 @@ fun zip-default( left : vector<a>, right : vector<b>, left-default : a, right-de
   zip-with-default( left, right, left-default, right-default, fun(a, b) { (a, b) } )
 }
 
+// Returns a new vector which contains the integers between `start` (inclusive) and `end` (exclusive)
+// TODO function for C#
+// TODO this can throw an exception if given a very large integer (e.g. Infinity)
+extern range( start : int, end: int ) : vector<int> {
+  js inline "_vector_range(#1, #2)"
+}
+
 // Create an empty vector.
 extern inline vector : forall<a> () -> vector<a> {
   cs inline "new ##1[0]"
