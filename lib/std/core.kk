@@ -2218,24 +2218,115 @@ private extern vector-init32(n : int32, f : int32 -> a) : vector<a> {
   js inline "_vector(#1,#2)"
 }
 
-// Returns a new vector which is the same as `v` but with `value` appended to the end
+// Returns a new vector which is the same as `v`, except `value` is inserted at the end of `v`
 // TODO function for C#
 extern insert( v : vector<a>, value : a ) : vector<a> {
   js inline "_vector_insert(#1, #2)"
 }
 
-// Returns a new vector which is the same as `v` but with `value` inserted at `index`
+// Returns a new vector which is the same as `v`, except `value` is inserted at `index`
 // Throws an exception if `index` is out of bounds (less than 0, or greater than the length of `v`)
 // TODO function for C#
-extern insert-at( v : vector<a>, index: int, value : a ) : exn vector<a> {
+extern insert-at( v : vector<a>, index : int, value : a ) : exn vector<a> {
   js inline "_vector_insert_at(#1, #2, #3)"
 }
 
-// Returns a new vector which is the same as `v` but with `index` removed
+// Returns a new vector which is the same as `v`, except `index` is removed
 // Throws an exception if `index` is out of bounds (less than 0, or greater than or equal to the length of `v`)
 // TODO function for C#
-extern remove-at( v : vector<a>, index: int ) : exn vector<a> {
+extern remove-at( v : vector<a>, index : int ) : exn vector<a> {
   js inline "_vector_remove_at(#1, #2)"
+}
+
+// Returns the concatenation of all the child vectors in `v`
+// TODO function for C#
+extern flatten( v : vector<vector<a>> ) : vector<a> {
+  js inline "_vector_flatten(#1)"
+}
+
+// Returns a new vector which contains all of the elements of `left` followed by all of the elements of `right`
+// TODO function for C#
+extern concat( left : vector<a>, right : vector<a> ) : vector<a> {
+  js inline "_vector_concat(#1, #2)"
+}
+
+// Returns a new vector which is the same as `v`, except the elements are in a random order
+// TODO function for C#
+extern shuffle( v : vector<a> ) : vector<a> {
+  js inline "_vector_shuffle(#1)"
+}
+
+// Returns a new vector which is the same as `v`, except it only contains the elements between `start-index` (inclusive) and `end-index` (exclusive)
+// Throws an exception if `start-index` or `end-index` are out of bounds (less than 0, or greater than the length of `v`)
+// Throws an exception if `start-index` is greater than `end-index`
+// TODO function for C#
+extern slice( v : vector<a>, start-index : int, end-index : int ) : exn vector<a> {
+  js inline "_vector_slice(#1, #2, #3)"
+}
+
+// Returns a new vector which partitions `v` into sub-vectors where each sub-vector's length is never greater than `size`
+// Example: `chunks([1, 2, 3, 4, 5, 6, 7], 3)` returns `[[1, 2, 3], [4, 5, 6], [7]]`
+// Throws an exception if `size` is less than 1
+// TODO function for C#
+extern chunks( v : vector<a>, size : int ) : exn vector<vector<a>> {
+  js inline "_vector_chunks(#1, #2)"
+}
+
+// Returns a new vector which transposes the elements in the sub-vectors of `v`
+// If there are too many elements in a sub-vector, the excess elements are discarded
+// Example: `zip-many([[1, 2], [3, 4, 5, 6], [7, 8], [9, 10]])` returns `[[1, 3, 7, 9], [2, 4, 8, 10]]`
+// Example: `zip-many(zip-many(foo))` returns `foo` (except some elements might be missing)
+// TODO function for C#
+extern zip-many( v : vector<vector<a>> ) : vector<vector<a>> {
+  js inline "_vector_zip(#1)"
+}
+
+// Returns a new vector which transposes the elements in the sub-vectors of `v`
+// If there are too few elements in a sub-vector, the missing elements are replaced with `default`
+// Example: `zip-many-default([[1, 2], [3, 4, 5, 6], [7, 8], [9, 10]], 0)` returns `[[1, 3, 7, 9], [2, 4, 8, 10], [0, 5, 0, 0], [0, 6, 0, 0]]`
+// TODO function for C#
+extern zip-many-default( v : vector<vector<a>>, default : a ) : vector<vector<a>> {
+  js inline "_vector_zip_default(#1, #2)"
+}
+
+// Returns a new vector which transposes the elements in `left` and `right`
+// The `f` function is called for each pair of elements in `left` and `right`
+// If `left` has more elements than `right`, the excess elements are discarded
+// If `right` has more elements than `left`, the excess elements are discarded
+// Example: `zip-with([1, 2, 3, 4], [5, 6, 7, 8, 9, 10], fun(a, b) { (a, b) })` returns `[(1, 5), (2, 6), (3, 7), (4, 8)]`
+// TODO function for C#
+// TODO cps version for async effects
+extern zip-with( left : vector<a>, right : vector<b>, f : (a, b) -> e c ) : e vector<c> {
+  js inline "_vector_zip2(#1, #2, #3)"
+}
+
+// Returns a new vector which transposes the elements in `left` and `right`
+// The `f` function is called for each pair of elements in `left` and `right`
+// If `left` has fewer elements than `right`, the missing elements are replaced with `left-default`
+// If `right` has fewer elements than `left`, the missing elements are replaced with `right-default`
+// Example: `zip-with-default([1, 2, 3, 4], [5, 6, 7, 8, 9, 10], 0, 0, fun(a, b) { (a, b) })` returns `[(1, 5), (2, 6), (3, 7), (4, 8), (0, 9), (0, 10)]`
+// TODO function for C#
+// TODO cps version for async effects
+extern zip-with-default( left : vector<a>, right : vector<b>, left-default : a, right-default : b, f : (a, b) -> e c ) : e vector<c> {
+  js inline "_vector_zip2_default(#1, #2, #3, #4, #5)"
+}
+
+// Returns a new vector which transposes the elements in `left` and `right`
+// If `left` has more elements than `right`, the excess elements are discarded
+// If `right` has more elements than `left`, the excess elements are discarded
+// Example: `zip([1, 2, 3, 4], [5, 6, 7, 8, 9, 10])` returns `[(1, 5), (2, 6), (3, 7), (4, 8)]`
+fun zip( left : vector<a>, right : vector<b> ) : vector<(a, b)> {
+  // TODO create a tuple function
+  zip-with( left, right, fun(a, b) { (a, b) } )
+}
+
+// Returns a new vector which transposes the elements in `left` and `right`
+// If `left` has fewer elements than `right`, the missing elements are replaced with `left-default`
+// If `right` has fewer elements than `left`, the missing elements are replaced with `right-default`
+// Example: `zip-with-default([1, 2, 3, 4], [5, 6, 7, 8, 9, 10], 0, 0)` returns `[(1, 5), (2, 6), (3, 7), (4, 8), (0, 9), (0, 10)]`
+fun zip-default( left : vector<a>, right : vector<b>, left-default : a, right-default : b ) : vector<(a, b)> {
+  // TODO create a tuple function
+  zip-with-default( left, right, left-default, right-default, fun(a, b) { (a, b) } )
 }
 
 // Create an empty vector.
