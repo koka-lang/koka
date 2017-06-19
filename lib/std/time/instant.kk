@@ -8,10 +8,10 @@
 
 /* Instants in time.
 
-Instants use `:ddouble` timestamps to represent a `:duration` since the `epoch`.
+Instants use the mighty 128-bit `:ddouble` timestamps to represent a `:duration` since the `epoch`.
 This gives very high range and precision. It spans about 10^300^ years
 into the past and future, well beyond the expected life span of the universe.
-Any time can be expressed up to atto-second (10^-18^) precision up to 300,000 years 
+Any time can be expressed up to atto-second (10^-18^) precision up to about 300,000 years 
 in the past and future, and can express up to pico-second (10^-12^) precision any time 
 since the age of the universe (about 13.8 billion years ago).
 

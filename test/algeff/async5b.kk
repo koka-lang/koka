@@ -6,7 +6,7 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
+
 effect state {
   fun get() : string
   fun append( x : string ) : ()
@@ -25,7 +25,7 @@ fun show-int( i : int ) : string {
 fun dowait(s : duration) {
   val secs = s.show
   println("and waiting at least " + secs)
-  wait(s)
+  yield(s)
   println("(done waiting " + secs + ")")
   "waited " + secs
 }

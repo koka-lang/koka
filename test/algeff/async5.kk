@@ -3,7 +3,6 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
 
 effect amb {
   flip() : bool
@@ -17,7 +16,7 @@ val amb = handler {
 fun dowait(s : duration) {
   val secs = s.show
   println("and waiting at least " + secs)
-  wait(s)
+  yield(s)
   println("(done waiting " + secs + ")")
   "waited " + secs
 }
@@ -25,15 +24,14 @@ fun dowait(s : duration) {
 fun test() {
   println("starting")
   fun f() {
-    println("what is your name?")
-    readline()
+    dowait(1.seconds)
   }
   fun g() {
     wait(1.seconds)
     if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = interleaved( [f,g] )
-  println("hi " + xs.join(","))  
+  println("** hi " + xs.join(",") + "\n")  
 }
 
 fun main() {

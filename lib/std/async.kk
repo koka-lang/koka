@@ -6,7 +6,22 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Asynchronous primitives
+/* Asynchronous primitives
+
+This module is based closely on [@Leijen:async].
+
+
+## References {-}
+
+~ Bibliography { caption:"0" }
+~~ BibItem { #Leijen:async; bibitem-label:"[1]"; searchterm:"Leijen+Daan+Structured+Asynchrony+with+Algebraic+Effects" }
+Daan Leijen.
+_Structured Asynchrony with Algebraic Effects_.
+Microsoft Research technical report MSR-TR-2017-21, May 2017.
+~~
+~
+\/
+*/
 module std/async
 
 import std/data/dict
@@ -21,19 +36,56 @@ import std/time/duration
 public alias asyncx = <async,exn,ndet>
 
 
+abstract struct promise<a>(
+  state : ref<global,either<list<(a -> io ())>,a>>
+)
+
+// ----------------------------------------------------------------------------
+// Promises
+// ----------------------------------------------------------------------------
+
+public fun promise() : <async,exn> promise<a> {
+  async-io{ Promise(ref(Left([]))) }
+}
+
+public fun await( p : promise<a> ) : <async,exn,ndet> a {
+  val r = p.state
+  await1 fun(cb) {
+    match (!r) {
+      Left(listeners) -> r := Left(Cons(cb,listeners))
+      Right(value)    -> cb(value)
+    }
+  }
+}
+
+public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
+  val r = p.state
+  await fun(cb) {
+    match(!r) {
+      Left(listeners) -> {
+        r := Right(value)
+        listeners.foreach fun(cbx) {
+          cbx(value) // set-immediate1( cbx, value )
+        }
+        cb(Right(()))
+      }
+      Right -> cb(Left(exception("promise was already resolved.",Error)))
+    }
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Asynchronous timeout and waiting
 // ----------------------------------------------------------------------------
 
-
 // Wait (asynchronously) for `secs` seconds as a `:double`. 
-// Use `wait()` to yield to other asynchronous operations.
+// Use `yield()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
   wait(secs.duration)
 }
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0s`). 
-// Use `wait()` to yield generally to other asynchronous operations.
+// Use `yield()` to yield generally to other asynchronous operations.
 // If the wait time is longer than 200ms the wait can be canceled.
 public fun wait( secs : duration = zero ) : <async,exn> () {
   if (secs > 200.milli-seconds) then cancelable-wait(secs) 
@@ -42,7 +94,7 @@ public fun wait( secs : duration = zero ) : <async,exn> () {
 }
 
 
-// Wait for `secs` seconds duration
+// Wait for `secs` seconds duration and allow cancelation.
 public fun cancelable-wait( secs : duration ) : <async,exn> () {
   if (secs <= zero) then yield() else {
     var vtid := Nothing 
@@ -54,39 +106,72 @@ public fun cancelable-wait( secs : duration ) : <async,exn> () {
         }
         throw(exn)
       }
-      Right(mbtid) -> match(mbtid) {
-        Nothing -> ()
-        Just(tid) -> {
-          vtid := Just(tid)
-          exit()
-        }
+      Right(mbtid) -> {
+        vtid := mbtid
+        if (mbtid.just?) then exit() else ()          
       }
     }
   }
 }
 
 
-public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
-  cancelable {
-    match(fork-after(secs).untry) {
-      Nothing -> {
-        cancel()
-        throw(cancel-exn)
+fun xtimeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
+  catch {
+    val x = cancelable {
+      match(fork-after(secs).untry) {
+        Nothing -> {
+          cancel()
+          exit()
+        }
+        Just(tid) -> finally(action) { clear-timeout(tid) } // ouch: clear-timeout prevents resuming twice
       }
-      Just(tid) -> finally(action) { clear-timeout(tid) } 
+    }
+    Just(x)
+  }
+  fun(exn) {
+    match(exn.info) {
+      Cancel -> Nothing
+      _      -> throw(exn)
     }
   }
 }
 
 fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-id>> {
-  await-err1( fun(resume) {
+  awaitx1( fun(resume) {
     val tid = set-timeout1( resume, max(0.int32,secs.milli-seconds.int32), Nothing )
     resume(Just(tid))
   }, 2 )
 } 
 
+// Execute `action` but if it is not finished within `secs` seconds duration
+// `cancel` it.
+public fun timeout( secs : duration, action )  {
+  firstof 
+    { wait(secs); Nothing }
+    { Just(action()) }
+}
+
+// Execute `a` and `b` interleaved. As soon as one of them finishes,
+// `cancel` the other one and return the result of the first.
+public fun firstof( a, b ) {
+  cancelable {
+    val (ra,rb) = interleavedx { val x = a(); cancel(); x }
+                               { val x = b(); cancel(); x }
+    match(ra) {
+      Left(exn) | exn.info.cancel? -> rb.untry 
+      _ -> ra.untry
+    }
+  }                              
+} 
 
 
+// ----------------------------------------------------------------------------
+// Yield
+// ----------------------------------------------------------------------------
+
+// Wait for optional `secs` duration (=`0`). Use `yield()` to generally yield
+// to other asynchronous operations. Note that `yield` is not cancelable,
+// use `wait` instead if waiting for more than short durations.
 public fun yield( secs : duration = zero ) : <async,exn> () {
   await0 fun(cb){ 
     set-timeout( cb, max(zero:int32,secs.milli-seconds.int32) )
@@ -94,18 +179,18 @@ public fun yield( secs : duration = zero ) : <async,exn> () {
   }
 }
 
-// abstract id for timeout handlers
+// abstract wid for timeout handlers
 type timeout-id
 
 extern set-timeout1( cb : a -> io (), ms : int32, arg : a ) : io timeout-id {
   js "setTimeout"
 }
 
-extern set-timeout( action : () -> e (), ms : int32 ) : exn timeout-id {
+extern set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
   js "setTimeout"
 }
 
-extern clear-timeout( h : timeout-id ) : exn () {
+extern clear-timeout( tid : timeout-id ) : exn () {
   js "clearTimeout"
 }
 
@@ -114,6 +199,237 @@ extern clear-timeout( h : timeout-id ) : exn () {
 // Asynchronous cancelation 
 // ----------------------------------------------------------------------------
 
+
+
+// ----------------------------------------------------------------------------
+// Synchronous blocks (uninterleaved sequences of async operations)
+// ----------------------------------------------------------------------------
+
+
+// ----------------------------------------------------------------------------
+// Asynchronous operations are supported through the `:async` effect.
+// The basic effect is in core since it usually requires some support from the host system.
+// ----------------------------------------------------------------------------
+
+// Interleave a list of actions.
+public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
+  interleaved(xs.vector).list
+}
+
+fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
+  async-handle-interleaved {
+    val n = xs.length
+    //if (n==0) return vector()
+    val res    = array(n,Left(exception("Interleaved operation was not completed",Internal("std/async/interleaved"))))
+    var count := n;
+    val i = primforkn(n)
+    res[i] := try( inject-st(xs[i]) )
+    count := count - 1
+    if (count>0) { exit() }
+    res.vector.map(untry)
+  }
+}
+
+// Interleave two asynchronous actions.
+public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
+  val (ra,rb) = interleavedx(a,b)
+  (ra.untry,rb.untry)
+}
+
+// Interleave two asynchronous actions and return either their result or their exceptional value.
+public fun interleavedx( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
+  async-handle-interleaved {
+    var ares := Nothing
+    var bres := Nothing
+    val forked = primfork()
+    if (forked) then {
+      val br = try( injectst(b) )
+      match(ares) {
+        Nothing  -> { bres := Just(br); exit() }
+        Just(ar) -> (ar,br)
+      }
+    }
+    else {
+      val ar = try( injectst(a) )
+      match(bres) {
+        Nothing  -> { ares := Just(ar); exit() }
+        Just(br) -> (ar,br)
+      }
+    }
+  }
+}
+
+extern inline injectst(action : () -> <asyncx|e> a) : total (() -> <asyncx,st<h>|e> a) {
+  js inline "(#1)"
+}
+
+// ----------------------------------------------------------------------------
+// Forking
+// ----------------------------------------------------------------------------
+
+public fun fork( action )  {  
+  val forked = primfork()
+  if (forked) then {
+    catch {
+      action()
+      exit()
+    }
+    fun(exn) { 
+      trace("unhandled fork exception: " + exn.show)
+      exit() 
+    }
+  }
+  else ()
+}
+
+fun primfork( ) {
+  val i = primforkn(2)
+  (i==0)
+} 
+
+public fun primforkn( n : int ) : <asyncx> int {
+  if (n<=1) then 0 else {
+    await1( fun(cb) {
+      for(1, n - 1) fun(i) {
+        set-immediate1( cb, i )
+      }
+      cb(0)
+    }, n)
+  }
+}
+
+extern set-immediate( action : () -> e () ) : exn () {
+  js inline "(typeof setImmediate !== 'undefined' ? setImmediate(#1) : setTimeout(#1,0))"
+}
+
+extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
+  js inline "(typeof setImmediate !== 'undefined' ? setImmediate(#1,#2) : setTimeout(#1,0,#2))"
+}
+
+
+// ----------------------------------------------------------------------------
+// awaitx wrappers
+// ----------------------------------------------------------------------------
+
+public fun await-exn0( setup : (cb : (null<exception>) -> io () ) -> io () ) : <async,exn> () {
+  await( fun(resume) {
+    setup( fun(nexn) { resume(nexn.unnull(())) }) 
+  } )
+}
+
+public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io () ) : <async,exn> a {
+  await( fun(resume) {
+    setup( fun(nexn,x) { resume(nexn.unnull(x)) })
+  } )
+}
+
+fun unnull( nexn : null<exception>, x : a  ) : either<exception,a> {
+  match(nexn.maybe) {
+    Nothing -> Right(x)
+    Just(exn) -> Left(exn)
+  }
+}
+
+public fun await0( setup : (cb : () -> io () ) -> io () ) : <async,exn> () {
+  await( fun(resume) { setup( fun() { resume(Right(())) } ) } )
+}
+
+public fun await1( setup : (cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
+  awaitx( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount ).untry
+}
+
+public fun await( setup : (cb : either<exception,a> -> io () ) -> io () ) : <async,exn> a {
+  awaitx(setup, 1 ).untry
+}
+
+public fun awaitx0( setup : (cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
+  val res = awaitx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
+  match(res) {
+    Right -> Nothing
+    Left(exn) -> Just(exn)
+  }
+}
+
+public fun awaitx1( setup : (cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
+  awaitx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
+}
+
+public fun awaitx( setup : (cb : (either<exception,a> -> io () ) -> io ()), resume-count : int ) : async either<exception,a> {
+  var count := resume-count
+  await-done( fun(cb) {
+    setup( fun(x) {
+      count := count - 1
+      cb(x, count <= 0)
+    })
+  }).fst
+}
+
+
+// ----------------------------------------------------------------------------
+// Callback widentifiers
+// ----------------------------------------------------------------------------
+
+  
+private struct wid( :int )
+
+val wid-exit = Wid(-1)
+
+fun (==)(wid1 : wid, wid2 : wid ) : bool {
+  match(wid1) {
+    Wid(i1) -> match(wid2) {
+      Wid(i2) -> i1==i2
+    }
+  }
+}
+
+fun (!=)(wid1 : wid, wid2 : wid ) : bool {
+  !(wid1 == wid2)
+}
+
+
+// ----------------------------------------------------------------------------
+// Async effect
+// ----------------------------------------------------------------------------
+
+alias await-result<a> = (either<exception,a>,bool,wid)
+
+// Asynchronous operations have the `:async` effect.
+abstract effect async {
+  fun await-id() : wid  
+  fun await( setup : (cb : await-result<a> -> io ()) -> io (), wid : wid ) : await-result<a>
+  fun cancel( awaits : maybe<list<wid>> ) : ()
+}
+
+public fun await-done( setup : ((either<exception,a>,bool) -> io ()) -> io () ) : async (either<exception,a>,bool) {
+  val wid = await-id()
+  val (x,done?,_) = await( fun(cb){
+                      setup(fun(x,done?){ cb((x,done? || x.left?, wid)) })
+                    }, wid)
+  (x,done?)
+}
+
+// The `cancel` operations cancels any outstanding asynchronous operation under the innermost
+// `cancelable` handler by returning the `Cancel` exception. The `cancel` operation itself returns normally
+// without raising a `Cancel` exception.
+public fun cancel() : async (){
+  cancel(Nothing)
+}
+
+// Exits the current asynchronous strand of execution without raising an exception.
+public fun exit() : <async,exn> a {
+  await( fun(cb) { }, wid-exit ).fst.untry
+  //error("exit should never resume") 
+  //()
+}
+
+fun async-io( action : () -> io a ) : <async,exn> a {
+  val r = await-done( fun(cb) { cb( try(action), True ) } )
+  r.fst.untry
+}
+
+// ----------------------------------------------------------------------------
+// Async handlers: cancelable
+// ----------------------------------------------------------------------------
 
 // The `Cancel` exception.
 public type extend exception-info {
@@ -132,334 +448,101 @@ public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : 
 
 val cancel-exn = exception("Cancel", Cancel)
 
-public fun cancelable( action ) { //: () -> <asyncx|e> a ) : <asyncx|e> maybe<a> { 
-  var canceled := False
-  val idmap = idmap()
- 
-  catch { 
-    handle(inject-st(action)) {
-      return x -> Just(x)
-      await(setup,n) -> {
-        val h = idmap.register(resume,n)
-        val x = await( setup, n )
-        h.unregister
-        if (canceled) {
-          exit() // callback came back but we canceled already
-        }
-        else resume(x)
-      }
-      cancel() -> {
-        canceled := True
-        val elems = idmap.elements
-        idmap.clear()
-        if (elems.length > 0) {
-          val i = primforkn(elems.length)
-          try{ elems[i](Left(cancel-exn)) }
-          if (i > 0) then exit()
-        }
-        resume(True)
-      }
-      exit(mbexn)   -> exit(mbexn)
-      outer-async() -> resume( outer-async() )
-    }
-  }
-  fun(exn) {
-    match(exn.info) {
-      Cancel -> Nothing
-      _      -> throw(exn)
-    }
-  }
-}
-
-
-
-// ----------------------------------------------------------------------------
-// Synchronous blocks (uninterleaved sequences of async operations)
-// ----------------------------------------------------------------------------
-
-// Execute any asynchronous actions inside `action` synchronously, ie. 
-// no other actions are interleaved.
-public fun synchronous( action : () -> <async|e> a ) : e a {
-  start-synchronous()
-  on-exit(end-synchronous){ unsafe-total(action) }
-}
-
-extern start-synchronous() : () {
-  js "_async_start_synchronous"
-}
-
-extern end-synchronous() : () {
-  js "_async_end_synchronous"
-}
-
-
-
-// ----------------------------------------------------------------------------
-// Asynchronous operations are supported through the `:async` effect.
-// The basic effect is in core since it usually requires some support from the host system.
-// ----------------------------------------------------------------------------
-
-public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
-  interleaved(xs.vector).list
-}
-
-
-public fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
-  async-handle-interleaved {
-    val n = xs.length
-    if (n==0) return vector()
-    val res    = array(n,Left(exception("Interleaved operation was not completed",Internal("std/async/interleaved"))))
-    var count := n;
-    val i = primforkn(n)
-    res[i] := try( inject-st(xs[i]) )
-    count := count - 1
-    if (count>0) {
-      exit()
-    }
-    else {
-      res.vector.map(untry)
-    }
-  }
-}
-
-public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
-  async-handle-interleaved {
-    var ares := Nothing
-    var bres := Nothing
-    val forked = primfork()
-    if (forked) then {
-      val br = try( inject-st(b) )
-      match(ares) {
-        Nothing  -> { bres := Just(br); exit() }
-        Just(ar) -> (ar.untry,br.untry)
-      }
-    }
-    else {
-      val ar = try( inject-st(a) )
-      match(bres) {
-        Nothing  -> { ares := Just(ar); exit() }
-        Just(br) -> (ar.untry,br.untry)
-      }
-    }
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Interleaved async handler
-// ----------------------------------------------------------------------------
-
-
-public fun async-handle-interleaved(action : () -> <async,ndet|e> a ) : <async,ndet|e> a 
+// Execute `action` in a cancelable scope. If `cancel` is called within `action`,
+// any outstanding asynchronous operations started in the cancelable scope are canceled but
+// not outside it.
+public fun cancelable( action : () -> <async|e> a ) : <async|e> a 
 {
-  fun capture() { capture-handler-context(outer-async()) }
-  var ctx := capture()
+  var awaits := []
+
   handle(inject-st(action)) {
-    await(setup, n ) -> {
-      ctx := capture()
-      val x = await( setup, n )
-      resume-in-handler-context( ctx, resume, x )
+    await(setup,wid) -> {
+      if (wid != wid-exit) awaits := Cons(wid,awaits)
+      val res = await(setup,wid)
+      if (res.snd) awaits := awaits.remove( fun(i) { i == res.thd } )
+      resume(res)
+    }    
+    cancel(wids) -> {
+      resume(cancel(if (wids.nothing?) then Just(awaits) else wids))
     }
-    exit(mbexn) -> {
-      ctx := capture()
-      exit(mbexn)
-    }
-    cancel() -> {
-      ctx := capture()
-      resume( cancel() )
-    }
-    outer-async() -> resume( current-handler-top().inc )
+    await-id() -> resume(await-id())
   }
 }
 
-
 // ----------------------------------------------------------------------------
-// Forking
+// Async handlers: interleaved
 // ----------------------------------------------------------------------------
 
-public fun fork( action ) {  
-  val forked = primfork()
-  if (forked) then {
-    catch {
-      action()
-      exit()
-    }
-    fun(exn) { exit(Just(exn)) }
-  }
-  else ()
-}
-
-fun primfork( ) {
-  await1( fun(resume) {
-    set-immediate1( resume, True )
-    resume(False)
-  }, 2 )
-} 
-
-fun primforkn( n : int ) {
-  if (n<=1) then 0 else {
-    await1( fun(resume) {
-      for(1, n - 1) fun(i) {
-        set-immediate1( resume, i )
+public fun async-handle-interleaved( action : () -> <async,exn|e> a ) : <async,exn|e> a  
+{
+  var latest : some<e,a> await-result<() -> <async|e> a> -> io () := fun(_) { () }
+  
+  handle(inject-st(action)) {
+    await(setup,wid) -> {
+      val r : some<e,a> await-result<() -> <async|e> a>
+        = await( fun(cb) {
+            latest := cb
+            setup( fun(x) {
+              latest( (Right({resume(x)}), x.snd, x.thd) ) 
+            })
+          },wid)
+      match(r.fst) {
+        Left(exn) -> resume((Left(exn), r.snd, r.thd)) 
+        Right(f)  -> f()
       }
-      resume( 0 )
-    }, n )
+    }
+    cancel(wids) -> resume(cancel(wids))
+    await-id()   -> resume(await-id())
   }
-}
-
-extern set-immediate( action : () -> e () ) : exn () {
-  js inline "(typeof setImmediate !== 'undefined' ? setImmediate(#1) : setTimeout(#1,0))"
-}
-
-extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
-  js inline "(typeof setImmediate !== 'undefined' ? setImmediate(#1,#2) : setTimeout(#1,0,#2))"
-}
-
-
-
-// ----------------------------------------------------------------------------
-// Await wrappers
-// ----------------------------------------------------------------------------
-
-public fun await-exn0( setup : (resume-cb : (null<exception>) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
-  await-throw( fun(resume) {
-    setup( fun(nexn) { 
-      resume( match(nexn.maybe) {
-        Nothing   -> Right(())
-        Just(exn) -> Left(exn)
-      })
-    })
-  }, rcount )
-}
-
-public fun await-exn1( setup : (resume-cb : (null<exception>,a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  await-throw( fun(resume) {
-    setup( fun(nexn,x) { 
-      resume( match(nexn.maybe) {
-        Nothing   -> Right(x)
-        Just(exn) -> Left(exn)
-      })
-    })
-  }, rcount )
-}
-
-
-public fun await0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async,exn> () {
-  await-throw( fun(resume) { setup( fun() { resume(Right(())) } ) }, rcount )
-}
-
-public fun await1( setup : (resume-cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  await-throw( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount )
-}
-
-
-public fun await-err0( setup : (resume-cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
-  val res = await( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount ) 
-  match(res) {
-    Right -> Nothing
-    Left(exn) -> Just(exn)
-  }
-}
-
-public fun await-err1( setup : (resume-cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
-  await( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
-}
-
-public fun await-throw( setup : (resume-cb : either<exception,a> -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  match(await(setup, rcount )) {
-    Left(exn) -> throw(exn)
-    Right(x)  -> x
-  }
-}
-
-
-// ----------------------------------------------------------------------------
-// Async effect
-// ----------------------------------------------------------------------------
-
-
-// Asynchronous operations have the `:async` effect.
-public effect async {
-  fun await( setup : (resume-cb : either<exception,a> -> io () ) -> io (), resume-count : int ) : either<exception,a>
-  fun cancel() : bool
-  fun exit( mbexn : maybe<exception> ) : a
-  fun outer-async() : int32
-}
-
-
-public fun exit() : async a {
-  exit(Nothing)
-}
-
+} 
 
 // ----------------------------------------------------------------------------
 // Async handle
 // ----------------------------------------------------------------------------
 
-public val async-handle  = handler {
-  await( setup, n ) -> setup( outer-resume(resume) )  
-  cancel()          -> resume(False)  
-  outer-async()     -> resume( current-handler-top().inc )
-  exit( mbexn ) -> {
-    match(mbexn) {
-      Nothing   -> ()
-      Just(exn) -> throw(exn)
-    }
-  }
-}
-
-
-
-
-// ----------------------------------------------------------------------------
-//  Id maps 
-// ----------------------------------------------------------------------------
-
-abstract struct id<h,a>( 
-  idmap : idmap<h,a>, 
-  key : string
-)
-
-abstract type idmap<h,a> {
-  Idmap( top : ref<h,int>, values : mdict<h,(int,a)> )
-}
-
-public fun idmap() : alloc<h> idmap<h,a> {
-  Idmap( ref(0), mdict() )
-}
-
-public fun register( idmap : idmap<h,a>, value : a, count : int = 1 ) : st<h> id<h,a> {
-  val t = idmap.top
-  val idx = !t
-  t := idx + 1
-  val key = idx.show
-  idmap.values[key] := (count,value)
-  Id(idmap,key)
-}
-
-public fun unregister( id : id<h,a>, force : bool = False ) : st<h> () {
-  match(id.idmap.values[id.key]) {
-    Nothing -> ()
-    Just((c,x)) -> {
-      if (c > 0) {
-        id.idmap.values[id.key] := (c.dec, x)
+// The outer `:async` effect handler
+public fun async-handle(action : () -> <async,io> () ) : io () 
+{
+  var awaits := []
+  
+  fun outer-callback( resume, wid : wid) {
+    val oresume = outer-resume(resume)
+    fun cb(res) {
+      val (_,done?,wid' : wid) = res
+      if (awaits.contains(wid')) {
+        if (done?) then awaits := awaits.remove(wid')
+        oresume(res)
       }
-      elif (c==0 || force) {          // negative values only unregister if forced
-        id.idmap.values.remove(id.key)
-        if (id.idmap.values.count==0) {
-          val t = id.idmap.top
-          t := 0
-        } 
+    }
+    if (wid!=wid-exit) awaits := Cons((wid,cb),awaits)
+    cb
+  }
+
+  fun cancel-await( wid : wid ) {
+    match( awaits.lookup(wid) ) {
+      Nothing  -> ()
+      Just(cb) -> {
+        cb((Left(cancel-exn),True,wid))
       }
     }
   }
+
+  handle(action) {   
+    await( setup, wid ) -> setup( outer-callback(resume,wid) )
+    cancel( wids )      -> resume(wids.default(awaits.map(fst)).foreach( cancel-await ))
+    await-id()          -> resume(Wid(unique()))
+  }
 }
 
-public fun elements( idmap : idmap<h,a> ) : st<h> vector<a> {
-  idmap.values.vector.map(fun(x) { x.snd.snd })
+// Convenience functions for wid maps
+fun remove( xs : list<(wid,a)>, wid : wid ) : list<(wid,a)> {
+  xs.remove( fun(x:(wid,_)) { x.fst == wid })
 }
 
-public fun clear( idmap : idmap<h,a> ) : st<h> () {
-  idmap.values.clear()
-  val t = idmap.top
-  t := 0
+fun lookup( xs : list<(wid,a)>, wid : wid ) : maybe<a> {
+  xs.lookup( fun(x:wid) { x == wid })
+}
+
+fun contains( xs : list<(wid,a)>, wid : wid ) : bool {
+  xs.lookup(wid).bool
 }

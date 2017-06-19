@@ -96,13 +96,12 @@ public fun load-leaps-table( fname : path = path(""),
 {
   val xfname = (fname || appdir() + path("config/leap-seconds.list"))
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
-  val leaps  = load-latest( xfname, xurl, parse-leaps-table, fun(lt:leaps-table){ Just(lt.expire) }, 
-                            Just(leaps-table-ti),
-                            download-timeout=download-timeout,download-delay=download-delay,
-                            error-prefix="load IETF leap seconds table",
-                            verbose=verbose
-                          )
-  leaps
+  load-latest( xfname, xurl, parse-leaps-table, fun(lt:leaps-table){ Just(lt.expire) }, 
+               Just(leaps-table-ti),
+               download-timeout=download-timeout,download-delay=download-delay,
+               error-prefix="load IETF leap seconds table",
+               verbose=verbose
+             )
 }
 
 
@@ -132,17 +131,19 @@ public fun load-latest( fname  : path,
   fun full(msg) {
     error-prefix + ": " + msg + ".\n  cached: " + fname.show + "\n  url   : " + url.show
   }
-  fun warn(msg) {    
+  fun warn(msg) : ndet () {    
     if (verbose) then trace("warning: " + msg.full) else ()
   }
 
   // is the current data still valid? 
   val unow  = now()
   match(current) {
-    Just(cur) | cur.expire.default(unow) > unow -> return cur // still valid; don't read from disk
+    Just(cur) | cur.expire.default(unow) > unow -> {
+      warn("current data still valid")
+      return cur // still valid; don't read from disk
+    }
     _ -> ()
   }
-  // trace("read: " + fname.string)
   // try to read a cached local file first
   val mbrecent = match(try{read-text(fname)}) {
     // can't read the file?

@@ -47,7 +47,7 @@ effect input {
 
 fun hello() {
   val name = getstr()
-  println("Hello " + name)
+  println("Hello " + name + ", " + getstr())
 }
 
 val always-there = handler {
