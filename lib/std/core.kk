@@ -2264,6 +2264,14 @@ extern slice( v : vector<a>, start-index : int = 0, end-index : int = v.length )
   js inline "_vector_slice(#1, #2, #3)"
 }
 
+// Returns a pair of vectors:
+// * The left vector contains the elements in `v` from the indexes `0` to `index`
+// * The right vector contains the elements in `v` from the indexes `index` to `v.length`
+// Throws an exception if `index` is out of bounds (less than 0, or greater than the length of `v`)
+fun split-at( v : vector<a>, index : int ) : exn ( vector<a>, vector<a> ) {
+  ( slice( v, 0, index ), slice( v, index ) )
+}
+
 // Returns a new vector which partitions `v` into sub-vectors where each sub-vector's length is never greater than `size`
 // Example: `chunks([1, 2, 3, 4, 5, 6, 7], 3)` returns `[[1, 2, 3], [4, 5, 6], [7]]`
 // Throws an exception if `size` is less than 1
