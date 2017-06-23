@@ -34,7 +34,7 @@
     "madoko": "^1.1.0"
   },
   "scripts": {
-    "prepublish": "jake compiler",
+    "prepublish": "env variant=release jake compiler",
     "interactive": "jake interactive",
     "compiler": "jake compiler",
     "ghci": "jake ghci",
