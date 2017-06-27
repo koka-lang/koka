@@ -102,8 +102,7 @@ extname fname
 
 -- | Return the directory prefix (including last separator if present)
 dirname :: FileName -> FileName
-dirname fname
-  = joinPaths (init (splitPath fname))
+dirname = mapPath init -- TODO use normalizePath ?
 
 -- | Remove the directory prefix
 notdir :: FileName -> FileName
@@ -139,32 +138,49 @@ undelimPaths xs
           (c:cs) | isPathDelimiter c -> normalize (reverse p:ps) "" cs
                  | otherwise         -> normalize ps (c:p) cs
 
+
 -- | Split a path into its directory parts
 splitPath :: FilePath -> [FilePath]
-splitPath fdir
-  = let fs = filter (not . null) $ splitOn isPathSep fdir
-    in if (null fs) then [""] else fs
+splitPath = splitOn isPathSep
+
+
+unsplitPath :: [FilePath] -> FilePath
+unsplitPath = concat . intersperse [pathSep]
+
+
+mapPath :: ([FilePath] -> [FilePath]) -> FilePath -> FilePath
+mapPath f = unsplitPath . f . splitPath
+
+
+joinPath' :: FilePath -> FilePath -> FilePath
+joinPath' "" y               = y
+joinPath' x ""               = x
+joinPath' _ y | isAbsolute y = y
+joinPath' x y                = x ++ [pathSep] ++ y
 
 
 joinPath :: FilePath -> FilePath -> FilePath
-joinPath p1 p2
-  = joinPaths [p1,p2]
+-- TODO maybe this shouldn't normalize
+joinPath x y = normalizePath $ joinPath' x y
+
+
+normalizePath :: FilePath -> FilePath
+normalizePath = mapPath normalizePath'
+  where
+    normalizePath' []           = []
+    normalizePath' ("":"":ps)   = "" : normalizePath' ps
+    normalizePath' ("":"..":ps) = "" : normalizePath' ps -- TODO throw an error instead ?
+    normalizePath' (p:"..":ps)  = normalizePath' ps
+    normalizePath' (".":ps)     = normalizePath' ps
+    normalizePath' (p:ps)       = p : normalizePath' ps
+
 
 -- | Join a list of paths into one path
 joinPaths :: [FilePath] -> FilePath
-joinPaths dirs
-  = concat
-  $ intersperse [pathSep]
-  $ normalize
-  $ filter (not . null)
-  $ concatMap splitPath dirs
-  where
-    normalize []            = []
-    normalize (p:".":ps)    = normalize (p:ps)
-    normalize (p:"..":ps)   | p == "."  = normalize ("..":ps)
-                            | p == ".." = p : normalize ("..":ps)
-                            | otherwise = normalize ps
-    normalize (p:ps)        = p : normalize ps
+-- TODO maybe this shouldn't normalize
+-- TODO use strict foldl ?
+joinPaths = normalizePath . foldl joinPath' ""
+
 
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
@@ -280,17 +296,21 @@ copyTextIfNewerWith always srcName outName transform
         else do return ()
 
 
+getInstallDir' :: FilePath -> FilePath
+getInstallDir' p = mapPath f d
+  where
+    d = dirname p
+    f ds =
+      case reverse ds of
+        ("bin":es)   -> reverse es
+        (_:"out":es) -> reverse es
+        _            -> [d]
+
 getInstallDir :: IO FilePath
 getInstallDir
   = do p <- getProgramPath
-       let d  = dirname p
-           ds = splitPath d
-           result = case reverse ds of
-                      ("bin":es)   -> joinPaths (reverse es)
-                      (_:"out":es) -> joinPaths (reverse es)
-                      _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
-       return result
+       return $ getInstallDir' p
 
 
 
@@ -313,7 +333,7 @@ getProgramPath
 
 commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2
-  = joinPaths $ map fst $ takeWhile (\(c,d) -> c == d) $ zip (splitPath s1) (splitPath s2)
+  = unsplitPath $ map fst $ takeWhile (\(c,d) -> c == d) $ zip (splitPath s1) (splitPath s2)
 
 
 -- | Is a path absolute?
@@ -365,7 +385,8 @@ searchPathsEx path exts name
       = (nname : map (nname++) exts)
 
     nname
-      = joinPaths $ dropWhile (==".") $ splitPath name
+      -- TODO use normalizePath instead ?
+      = mapPath (dropWhile (==".")) name
 
 
 getEnvPaths :: String -> IO [FilePath]
