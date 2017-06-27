@@ -46,8 +46,8 @@ import Type.Pretty(defaultEnv)
 -- Generate CSharp code from System-F 
 --------------------------------------------------------------------------
 
-csharpFromCore :: Int -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore maxStructFields mbMain core
+csharpFromCore :: Int -> Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore maxStructFields useCps mbMain core
   = let body = runAsm initEnv (genProgram maxStructFields core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->  
@@ -69,6 +69,7 @@ csharpFromCore maxStructFields mbMain core
                   , resultKind = ResultReturn True
                   , currentIndent = 0
                   , currentArgs = Nothing
+                  , withCps     = useCps
                   }
 
 includeExternal :: External -> [Doc]
@@ -557,32 +558,37 @@ genExpr expr
 
 genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
- = let (m,n) = getTypeArities (typeOf tname) in
-   if (n > length args)
-    then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
-         do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
-            genExpr eta            
-    else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
-         do argDocs <- genArguments args
-            ctx     <- getModule
-            if (getName tname == nameReturn) 
-             then -- return statements
-                  assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
-                  do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
-                     isret <- isReturnContext
-                     if (isret)
-                      then result argDoc
-                      else do putLn (text "return" <+> argDoc <> semi)
-                              result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
-             else -- general external
-                  do currentDef <- getCurrentDef
-                     let resTp = resultType targs (typeOf tname)
-                         targDocs = map (ppType ctx) targs
-                         extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
-                     if (isTypeUnit resTp)
-                       then do putLn (extDoc <> semi)
-                               result (text "Unit.unit")
-                       else result extDoc
+ = do let (m,n) = getTypeArities (typeOf tname) 
+      cps <- useCps
+      ctx <- getModule                
+      if (n > length args)
+        then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
+             do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
+                genExpr eta            
+       else if (not cps && getName tname == nameYieldOp && length targs == 2) 
+        then do let resTp = targs!!1
+                currentDef <- getCurrentDef
+                result (text "Primitive.UnsupportedExternal<" <> ppType ctx (resTp) <> text ">(" <> ppLit (LitString (show currentDef)) <> text ")")
+        else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
+             do argDocs <- genArguments args
+                if (getName tname == nameReturn) 
+                 then -- return statements
+                      assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
+                      do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
+                         isret <- isReturnContext
+                         if (isret)
+                          then result argDoc
+                          else do putLn (text "return" <+> argDoc <> semi)
+                                  result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
+                 else -- general external
+                      do currentDef <- getCurrentDef
+                         let resTp = resultType targs (typeOf tname)
+                             targDocs = map (ppType ctx) targs
+                             extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
+                         if (isTypeUnit resTp)
+                           then do putLn (extDoc <> semi)
+                                   result (text "Unit.unit")
+                           else result extDoc
 
 resultType targs tp
   = let (vars,preds,rho) = splitPredType tp
@@ -1437,6 +1443,7 @@ data Env = Env { moduleName :: Name      -- | current module
                , currentArgs :: Maybe ([Type],[Name])  -- | current recursive definition argument types and argument names
                , resultKind :: ResultKind
                , currentIndent :: Int
+               , withCps     :: Bool
                }
 
 data ResultKind = ResultReturn Bool -- ^ True if in a tail call context
@@ -1530,6 +1537,11 @@ indented :: Asm a -> Asm a
 indented asm
   = withEnv (\env -> env{ currentIndent = (currentIndent env) + 2 }) asm
 
+
+useCps :: Asm Bool
+useCps 
+  = do env <- getEnv
+       return (withCps env)
 
 getModule :: Asm Name
 getModule

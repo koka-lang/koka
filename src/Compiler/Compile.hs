@@ -872,7 +872,7 @@ codeGenCS term flags modules compileTarget outBase core
     do let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,tp)
                        _ -> Nothing
-           cs  = csharpFromCore (maxStructFields flags) mbEntry core
+           cs  = csharpFromCore (maxStructFields flags) (enableCps flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
