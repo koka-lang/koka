@@ -385,7 +385,21 @@ genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
 genDef :: Bool -> Def -> Asm ()
-genDef isRec (Def name tp expr vis isVal nameRng doc)
+genDef isRec def@(Def name tp expr vis defsort nameRng doc)
+  = if (defIsVal def) 
+     then genDefX isRec def
+     else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
+            TypeLam _ _ -> genDefX isRec def 
+            Lam _ _ _   -> genDefX isRec def
+            _ -> let (n,m) = getTypeArities tp
+                 in if (m <= 0) then genDefX isRec def else
+                     do expr1 <- tetaExpand expr [] n
+                        expr2 <- etaExpand expr1 [] m
+                        genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
+
+
+genDefX :: Bool -> Def -> Asm ()
+genDefX isRec (Def name tp expr vis isVal nameRng doc)
   = trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
@@ -422,6 +436,7 @@ extractArgs name expr
 
 
 etaExpand :: Expr -> [Expr] -> Int -> Asm Expr
+etaExpand fun [] 0 = return fun
 etaExpand fun args n
   = assertion "Backend.CSharp.FromCore.etaExpand" (n > length args || (n == 0 && null args)) $
     do names <- mapM (\i -> newVarName "x") [length args + 1 .. n]
@@ -431,8 +446,9 @@ etaExpand fun args n
        return (Lam tnames typeTotal (App fun (args ++ args')))
 
 tetaExpand :: Expr -> [Type] -> Int -> Asm Expr
+tetaExpand fun [] 0 = return fun
 tetaExpand fun targs m
-  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs) $
+  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs || (m==0 && null targs)) $
     do ids <- uniqueIds ".t" (m - length targs)
        let (vars,_,_) = splitPredType (typeOf fun)
            kinds      = map getKind (drop (length targs) vars)
@@ -546,7 +562,7 @@ genExternal  tname formats targs args
     then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
             genExpr eta            
-    else assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
+    else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
          do argDocs <- genArguments args
             ctx     <- getModule
             if (getName tname == nameReturn) 
@@ -595,7 +611,8 @@ genStatic tname m n targs mbArgs
          do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
             genExpr eta
     else do cdef <- getCurrentDef
-            assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+            -- assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+            trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
              do argDocs <- genArguments args
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
@@ -1170,7 +1187,7 @@ genClass name freeTVars freeVars derives genMore
               [text "public static" <+> ppClassType <+> ppNewName <> ppParams ctx freeVars <+> 
                block (linebreak <> text "return" <+> (if null freeVars then ppSingletonName else ppNewExpr) <> semi)]
               -}
-             ))
+             )) <> linebreak
            )
        withDoc tab genMore
        putLn (text "}")
@@ -1308,6 +1325,8 @@ ppTypeApp ctx t ts
              -> text "System.Text.StringBuilder"
              | typeConName c == nameTpVector && length ts == 1
              -> ppType ctx (head ts) <> text "[]"
+             | typeConName c == nameTpNull && length ts == 1
+             -> ppType ctx (head ts)
              | otherwise
              -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
       _      -> (ppType ctx t) <> angled (map (ppType ctx) ts)
@@ -1490,7 +1509,7 @@ putLineNo range
   = -- return ()
     if (rangeNull == range || posLine (rangeStart range) >= bigLine)
      then putLn (text "#line default")
-     else putLn (text "#line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
+     else putLn (text "// #line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
   
 
 putLn :: Doc -> Asm ()

@@ -18,4 +18,3 @@ val amb = handler {
 fun main() {
   amb(xor).show.println
 }
-
