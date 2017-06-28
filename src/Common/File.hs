@@ -381,12 +381,12 @@ searchPathsEx path exts name
              else search xs
           }
 
+    -- TODO don't do this if it already has an extension ?
     nameext
       = (nname : map (nname++) exts)
 
     nname
-      -- TODO use normalizePath instead ?
-      = mapPath (dropWhile (==".")) name
+      = normalizePath name
 
 
 getEnvPaths :: String -> IO [FilePath]
