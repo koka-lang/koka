@@ -3092,7 +3092,7 @@ type yld<a> {
 }
 
 extern inline ".yieldop"( op : operation<a> ) : b { // , k : cont<a,e,b> ) : e yld<b> {
-  cs inline "new std_core.Yield_<##1,##2>(#1,_k)"
+  cs inline "Primitive.YieldOp<##1,##2>(#1,_k)"
   js inline "$std_core.Yield(#1,_k)" 
 }
 
