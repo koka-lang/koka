@@ -558,34 +558,6 @@ genExpr expr
 
 genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
-<<<<<<< HEAD
- = let (m,n) = getTypeArities (typeOf tname) in
-   if (n > length args)
-    then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
-         do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
-            genExpr eta            
-    else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
-         do argDocs <- genArguments args
-            ctx     <- getModule
-            if (getName tname == nameReturn) 
-             then -- return statements
-                  assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
-                  do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
-                     isret <- isReturnContext
-                     if (isret)
-                      then result argDoc
-                      else do putLn (text "return" <+> argDoc <> semi)
-                              result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
-             else -- general external
-                  do currentDef <- getCurrentDef
-                     let resTp = resultType targs (typeOf tname)
-                         targDocs = map (ppType ctx) targs
-                         extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
-                     if (isTypeUnit resTp)
-                       then do putLn (extDoc <> semi)
-                               result (text "Unit.unit")
-                       else result extDoc
-=======
  = do let (m,n) = getTypeArities (typeOf tname) 
       cps <- useCps
       ctx <- getModule                
@@ -617,7 +589,6 @@ genExternal  tname formats targs args
                            then do putLn (extDoc <> semi)
                                    result (text "Unit.unit")
                            else result extDoc
->>>>>>> 409bb98436eaa1b5a643f17c9705efde85cf120e
 
 resultType targs tp
   = let (vars,preds,rho) = splitPredType tp
@@ -647,12 +618,8 @@ genStatic tname m n targs mbArgs
             genExpr eta
     else do cdef <- getCurrentDef
             -- assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
-<<<<<<< HEAD
-            do  argDocs <- genArguments args
-=======
             trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
              do argDocs <- genArguments args
->>>>>>> 409bb98436eaa1b5a643f17c9705efde85cf120e
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
                 ret <- isTailCallContext

@@ -28,10 +28,4 @@ fun main() {
   val dx  = pow( dx1 / dx2, dx3)
   println("double X       : " + dx.show())
   println("32-bit ieee    : 302.912...")
-  val hi  = pow2(106)
-  println("hi: " + hi.dec.show(32))
-  println("hi: " + hi.show(32))
-  println("hi: " + hi.inc.show(32))
-  println("hi: " + hi.inc.inc.show(32))
-  println("hi: " + hi.inc.inc.inc.show(32))
 }

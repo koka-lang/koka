@@ -78,35 +78,37 @@ and assumes proper 64-bit IEEE `:double`s with correct rounding.
 
 ~ Bibliography { caption:"0" }
 
-~~ BibItem { #Hida:qdlib; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+
+~~ BibItem { #dekker; bibitem-label:"[1]"; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
+T.\ Dekker.
+_A Floating-Point Technique for Extending the Available Precision_.
+Numerische\ Mathematik **18**(3), June 1971, 224--242.
+~~
+
+~~ BibItem { #Hida:qdlib; bibitem-label:"[2]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
 _Library for double-double and quad-double arithmetic._ 
 (2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
-~~ BibItem { #Hida:qd; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
+~~ BibItem { #Hida:qd; bibitem-label:"[3]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
 Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
 Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
-~~ BibItem { #shewchuk; }
-Jonathan\ Richard\ Shewchuk.
-_Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
-Discrete & Computational Geometry **18** 305--363 (1997). [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
-~~
-
-~~ Bibitem { #lin; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
+~~ Bibitem { #lin; bibitem-label:"[4]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
 Seppo\ Linnainmaa.
 _Software for Doubled-Precision Floating-Point Computations_.
 ACM Transactions on Mathematical Software (TOMS), Volume **7** Issue 3, Sept. 1981, 272--283.
 ~~
 
-~~ BibItem { #dekker; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
-T.\ Dekker.
-_A Floating-Point Technique for Extending the Available Precision_.
-Numerische\ Mathematik **18**(3), June 1971, 224--242.
+~~ BibItem { #shewchuk; bibitem-label:"[5]"; }
+Jonathan\ Richard\ Shewchuk.
+_Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
+Discrete & Computational Geometry **18** 305--363 (1997). [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
 ~~
+
 ~
 
 [ddwiki]: https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format#Double-double_arithmetic
