@@ -82,6 +82,10 @@ public static class Primitive
     }
   }
 
+  public static B YieldOp<A,B>( std_core._operation<A> op, Fun1<B,B> _k ) {
+    throw new YieldException<A,B>( op, _k );
+  }
+
   //---------------------------------------
   // Run a stateful action safely
   //---------------------------------------
@@ -603,6 +607,17 @@ public class InfoException : Exception
   }
 };
 
+
+public class YieldException<A,B> : Exception
+{
+  public readonly std_core._operation<A> op;
+  public readonly Fun1<B,B> k;
+
+  public YieldException( std_core._operation<A> op, Fun1<B,B> k ) {
+    this.op = op;
+    this.k = k;
+  }
+};
 
 //---------------------------------------
 // References

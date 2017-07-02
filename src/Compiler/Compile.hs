@@ -746,7 +746,11 @@ inferCheck loaded flags line coreImports program1
 
        -- cps tranform program
        (isCps,coreDefs1)
+<<<<<<< HEAD
            <- if (not (enableCps flags) ) -- || CS `elem` targets flags)
+=======
+           <- if (not (enableCps flags)) -- CS `elem` targets flags || 
+>>>>>>> 409bb98436eaa1b5a643f17c9705efde85cf120e
                then return (False,coreDefs0)
                else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
                        -- recheck cps transformed core
@@ -872,7 +876,7 @@ codeGenCS term flags modules compileTarget outBase core
     do let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,tp)
                        _ -> Nothing
-           cs  = csharpFromCore (maxStructFields flags) mbEntry core
+           cs  = csharpFromCore (maxStructFields flags) (enableCps flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 

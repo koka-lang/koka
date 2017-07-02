@@ -46,8 +46,8 @@ import Type.Pretty(defaultEnv)
 -- Generate CSharp code from System-F 
 --------------------------------------------------------------------------
 
-csharpFromCore :: Int -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore maxStructFields mbMain core
+csharpFromCore :: Int -> Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore maxStructFields useCps mbMain core
   = let body = runAsm initEnv (genProgram maxStructFields core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->  
@@ -69,6 +69,7 @@ csharpFromCore maxStructFields mbMain core
                   , resultKind = ResultReturn True
                   , currentIndent = 0
                   , currentArgs = Nothing
+                  , withCps     = useCps
                   }
 
 includeExternal :: External -> [Doc]
@@ -385,7 +386,21 @@ genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
 genDef :: Bool -> Def -> Asm ()
-genDef isRec (Def name tp expr vis isVal nameRng doc)
+genDef isRec def@(Def name tp expr vis defsort nameRng doc)
+  = if (defIsVal def) 
+     then genDefX isRec def
+     else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
+            TypeLam _ _ -> genDefX isRec def 
+            Lam _ _ _   -> genDefX isRec def
+            _ -> let (n,m) = getTypeArities tp
+                 in if (m <= 0) then genDefX isRec def else
+                     do expr1 <- tetaExpand expr [] n
+                        expr2 <- etaExpand expr1 [] m
+                        genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
+
+
+genDefX :: Bool -> Def -> Asm ()
+genDefX isRec (Def name tp expr vis isVal nameRng doc)
   = trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
@@ -422,6 +437,7 @@ extractArgs name expr
 
 
 etaExpand :: Expr -> [Expr] -> Int -> Asm Expr
+etaExpand fun [] 0 = return fun
 etaExpand fun args n
   = assertion "Backend.CSharp.FromCore.etaExpand" (n > length args || (n == 0 && null args)) $
     do names <- mapM (\i -> newVarName "x") [length args + 1 .. n]
@@ -431,8 +447,9 @@ etaExpand fun args n
        return (Lam tnames typeTotal (App fun (args ++ args')))
 
 tetaExpand :: Expr -> [Type] -> Int -> Asm Expr
+tetaExpand fun [] 0 = return fun
 tetaExpand fun targs m
-  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs) $
+  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs || (m==0 && null targs)) $
     do ids <- uniqueIds ".t" (m - length targs)
        let (vars,_,_) = splitPredType (typeOf fun)
            kinds      = map getKind (drop (length targs) vars)
@@ -541,6 +558,7 @@ genExpr expr
 
 genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
+<<<<<<< HEAD
  = let (m,n) = getTypeArities (typeOf tname) in
    if (n > length args)
     then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
@@ -567,6 +585,39 @@ genExternal  tname formats targs args
                        then do putLn (extDoc <> semi)
                                result (text "Unit.unit")
                        else result extDoc
+=======
+ = do let (m,n) = getTypeArities (typeOf tname) 
+      cps <- useCps
+      ctx <- getModule                
+      if (n > length args)
+        then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
+             do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
+                genExpr eta            
+       else if (not cps && getName tname == nameYieldOp && length targs == 2) 
+        then do let resTp = targs!!1
+                currentDef <- getCurrentDef
+                result (text "Primitive.UnsupportedExternal<" <> ppType ctx (resTp) <> text ">(" <> ppLit (LitString (show currentDef)) <> text ")")
+        else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
+             do argDocs <- genArguments args
+                if (getName tname == nameReturn) 
+                 then -- return statements
+                      assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
+                      do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
+                         isret <- isReturnContext
+                         if (isret)
+                          then result argDoc
+                          else do putLn (text "return" <+> argDoc <> semi)
+                                  result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
+                 else -- general external
+                      do currentDef <- getCurrentDef
+                         let resTp = resultType targs (typeOf tname)
+                             targDocs = map (ppType ctx) targs
+                             extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
+                         if (isTypeUnit resTp)
+                           then do putLn (extDoc <> semi)
+                                   result (text "Unit.unit")
+                           else result extDoc
+>>>>>>> 409bb98436eaa1b5a643f17c9705efde85cf120e
 
 resultType targs tp
   = let (vars,preds,rho) = splitPredType tp
@@ -596,7 +647,12 @@ genStatic tname m n targs mbArgs
             genExpr eta
     else do cdef <- getCurrentDef
             -- assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+<<<<<<< HEAD
             do  argDocs <- genArguments args
+=======
+            trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
+             do argDocs <- genArguments args
+>>>>>>> 409bb98436eaa1b5a643f17c9705efde85cf120e
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
                 ret <- isTailCallContext
@@ -1170,7 +1226,7 @@ genClass name freeTVars freeVars derives genMore
               [text "public static" <+> ppClassType <+> ppNewName <> ppParams ctx freeVars <+> 
                block (linebreak <> text "return" <+> (if null freeVars then ppSingletonName else ppNewExpr) <> semi)]
               -}
-             ))
+             )) <> linebreak
            )
        withDoc tab genMore
        putLn (text "}")
@@ -1308,6 +1364,8 @@ ppTypeApp ctx t ts
              -> text "System.Text.StringBuilder"
              | typeConName c == nameTpVector && length ts == 1
              -> ppType ctx (head ts) <> text "[]"
+             | typeConName c == nameTpNull && length ts == 1
+             -> ppType ctx (head ts)
              | otherwise
              -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
       _      -> (ppType ctx t) <> angled (map (ppType ctx) ts)
@@ -1418,6 +1476,7 @@ data Env = Env { moduleName :: Name      -- | current module
                , currentArgs :: Maybe ([Type],[Name])  -- | current recursive definition argument types and argument names
                , resultKind :: ResultKind
                , currentIndent :: Int
+               , withCps     :: Bool
                }
 
 data ResultKind = ResultReturn Bool -- ^ True if in a tail call context
@@ -1511,6 +1570,11 @@ indented :: Asm a -> Asm a
 indented asm
   = withEnv (\env -> env{ currentIndent = (currentIndent env) + 2 }) asm
 
+
+useCps :: Asm Bool
+useCps 
+  = do env <- getEnv
+       return (withCps env)
 
 getModule :: Asm Name
 getModule

@@ -457,15 +457,17 @@ ensureK tname@(TName name tp) namek body
         def = Def name tp expr Private DefVal rangeNull ""
     in Let [DefNonRec def] body
 
-varK tp effTp resTp    = Var (tnameK tp effTp resTp) (InfoArity 0 1)
+varK tp effTp resTp    = Var (tnameK tp effTp resTp) InfoNone -- (InfoArity 0 1)
 tnameK tp effTp resTp  = tnameKN "" tp effTp resTp
 tnameKN post tp effTp resTp = TName (postpend post nameK) (typeK tp effTp resTp)
 typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing) 
-                           [tp,effTp,resTp]
-                           (TFun [(nameNil,tp)] effTp resTp) 
+                          {- [tp,effTp,resTp]
+                           (TFun [(nameNil,tp)] effTp resTp) -}
+                           [tp, effTp, tp]
+                           (TFun [(nameNil,tp)] effTp tp)
                           -- TFun [(nameNil,tp)] typeTotal typeYld
  
-typeYld   = TCon (TypeCon (nameTpYld) kindStar)
+typeYld   = TCon (TypeCon (nameTpYld) (kindFun kindStar kindStar))
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"

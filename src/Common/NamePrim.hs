@@ -50,6 +50,7 @@ module Common.NamePrim
           , nameTpString
           , nameTpInt32
           , nameTpAny
+          , nameTpNull
           , nameTpException
           , nameTpHandled, nameTpHandled1
           , nameTpOperation, nameYieldOp, nameYieldOp1
@@ -209,6 +210,7 @@ nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"
 nameTpAny       = preludeName "any"
+nameTpNull      = preludeName "null"
 
 nameTpIO        = preludeName "io"
 nameTpUnit      = preludeName "()"
