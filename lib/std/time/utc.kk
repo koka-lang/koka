@@ -212,14 +212,14 @@ is calculated and uses historical data for time steps before 1972.
 
 ~ Bibliography { caption:"9" }
 
-~~ BibItem { #Arias:utc; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
+~~ BibItem { #Arias:utc; bibitem-label:"[1]"; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
 E.F.\ Arias and B.\ Guinot.
 _Coordinated universal time UTC: historical background and perspectives_. 
 Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 2004.
 [pdf][utchistory].
 ~~
 
-~~ BibItem { #Almanac; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
+~~ BibItem { #Almanac; bibitem-label:"[2]"; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
 P.K.\ Seidelmann.
 _Explanatory Supplement to the Astronomical Almanac_. 
 University Science Books, 1992. [pdf][astroa]

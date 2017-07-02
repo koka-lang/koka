@@ -63,16 +63,34 @@ correction to that number. The `show-sum` function shows this internal pair of n
 
 Generally, a `:ddouble` _d_ is represented by a pair of `:double`s, _hi_ and _lo_,
 such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
-
-Using a `:ddouble` often prevents instability in `:double` computations due to 
-rounding errors or combining very large and small numbers. 
-
-
 Note that despite the extra precision, underflow/overflow and machine precision are 
-not as well-defined as with a regular `:double` [@Hida:qd;@Hida:qdlib;@lin;@shewchuk;@Dekker].
-The implementation is based closely on the [QD] C++ library,
-and assumes proper 64-bit IEEE `:double`s with correct rounding.
+not as well-defined as with a regular `:double` [@lin;@shewchuk;@Dekker].
+Nevertheless, using a `:ddouble` often prevents instability in practice over
+`:double` computations due to  rounding errors or combining very large and
+small numbers.
 
+
+Take the following example from Gustafson et al. [@Gustafson:posit] to compute
+the area of a very 'thin' triangle with sides $a$, $b$, and $c$. The short sides
+ $b$ and $c$ are just 3 units in the last place (ulp) shorter than
+the longest side $a$. Using the value $s = (a + b + c)/2$, the area of
+a triangle is $A = \sqrt{s(s-a)(s-b)(s-c)}$. This is troublesome if $s$ is
+close to $a$ since $s-a$ magnifies any rounding error. Let's take $a=7$,
+and $b = c = 7/2 + 3\cdot2^{-111}$; with a unit of light-years this makes
+the short sides only longer than half the long side by $1/200$th the diameter of
+a proton. Using various 128-bit numbers we get:
+````
+exact          : 3.14784204874900425235885265494550774498...e-16
+128-bit ddouble: 3.1478420487490042523588526549455e-16
+128-bit posit  : 3.14784204874900425235885265494550774439e-16
+128-bit ieee   : 3.63481490842332134725920516158057682788e-16
+````
+Here we see that a `:ddouble` has (much much) better precision than a
+regular 128-bit IEEE float since it can better combine very large and
+small values. 
+
+The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
+and assumes proper 64-bit IEEE `:double`s with correct rounding.
 
 ## References {-}
 
@@ -85,10 +103,10 @@ _A Floating-Point Technique for Extending the Available Precision_.
 Numerische\ Mathematik **18**(3), June 1971, 224--242.
 ~~
 
-~~ BibItem { #Hida:qdlib; bibitem-label:"[2]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
-Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
-_Library for double-double and quad-double arithmetic._ 
-(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~ BibItem { #Gustafson:posit; bibitem-label:"[2]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
+John\ L. Gustafson and Isaac\ Yonemoto.
+_Beating Floating Point at its Own Game: Posit Arithmetic_.
+[pdf](http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
 ~~
 
 ~~ BibItem { #Hida:qd; bibitem-label:"[3]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
@@ -97,13 +115,19 @@ _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
 Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
-~~ Bibitem { #lin; bibitem-label:"[4]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
+~~ BibItem { #Hida:qdlib; bibitem-label:"[4]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
+_Library for double-double and quad-double arithmetic._ 
+(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+~~
+
+~~ Bibitem { #lin; bibitem-label:"[5]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
 Seppo\ Linnainmaa.
 _Software for Doubled-Precision Floating-Point Computations_.
 ACM Transactions on Mathematical Software (TOMS), Volume **7** Issue 3, Sept. 1981, 272--283.
 ~~
 
-~~ BibItem { #shewchuk; bibitem-label:"[5]"; }
+~~ BibItem { #shewchuk; bibitem-label:"[6]"; }
 Jonathan\ Richard\ Shewchuk.
 _Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
 Discrete & Computational Geometry **18** 305--363 (1997). [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)

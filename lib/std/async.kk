@@ -18,6 +18,7 @@ This module is based closely on [@Leijen:async].
 Daan Leijen.
 _Structured Asynchrony with Algebraic Effects_.
 Microsoft Research technical report MSR-TR-2017-21, May 2017.
+[pdf](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/05/asynceffects-msr-tr-2017-21.pdf)
 ~~
 ~
 \/

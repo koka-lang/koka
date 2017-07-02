@@ -97,21 +97,21 @@ your own time scale which uses a potentially more precise approximation using
 
 ~ Bibliography { caption:"0" }
 
-~~ BibItem { #Fairhead:tt; searchterm:"Fairhead+Bretagnon+An+analytical+formula+for+the+time+transformation" }
+~~ BibItem { #Fairhead:tt; bibitem-label:"[1]"; searchterm:"Fairhead+Bretagnon+An+analytical+formula+for+the+time+transformation" }
 L.\ Fairhead and P.\ Bretagnon.
 _An analytical formula for the time transformation TB-TT_.
 Astronomy and Astrophysics, vol. 229, no. 1, March 1990, p. 240--247.
 [ADS](http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?1990A%26A...229..240F)
 ~~
 
-~~ BibItem { #Kaplan:circ; searchterm:"Kaplan+The+IAU+Resolutions+on+Astronomical+Reference+Systems" }
+~~ BibItem { #Kaplan:circ; bibitem-label:"[2]"; searchterm:"Kaplan+The+IAU+Resolutions+on+Astronomical+Reference+Systems" }
 George H.\ Kaplan.
 _The IAU Resolutions on Astronomical Reference Systems,
 Time Scales, and Earth Rotation Models -- Explanation and Implementation_.
 USNO Circular [179](http://aa.usno.navy.mil/publications/docs/Circular_179.pdf)
 ~~
 
-~~ BibItem { #Seidelmann:why; searchterm:"Seidelmann+Fukushima+Why+new+time+scales" }
+~~ BibItem { #Seidelmann:why; bibitem-label:"[3]"; searchterm:"Seidelmann+Fukushima+Why+new+time+scales" }
 P.K.\ Seidelmann and T.\ Fukushima.
 _Why new time scales?_ 
 Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
