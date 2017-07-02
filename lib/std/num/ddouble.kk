@@ -1009,6 +1009,11 @@ public fun log2( x : ddouble ) : ddouble {
   return log(x) / dd-log2
 }
 
+// `x` to the power of `y` both as `:ddouble`
+public fun pow( x : ddouble, y : ddouble ) : ddouble {
+  exp(y * log(x))
+}
+
 
 /*------------------------------------------------------
   Trigonometry

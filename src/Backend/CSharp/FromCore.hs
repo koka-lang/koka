@@ -546,7 +546,7 @@ genExternal  tname formats targs args
     then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
             genExpr eta            
-    else assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
+    else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
          do argDocs <- genArguments args
             ctx     <- getModule
             if (getName tname == nameReturn) 
@@ -595,8 +595,8 @@ genStatic tname m n targs mbArgs
          do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
             genExpr eta
     else do cdef <- getCurrentDef
-            assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
-             do argDocs <- genArguments args
+            -- assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+            do  argDocs <- genArguments args
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
                 ret <- isTailCallContext
@@ -1490,7 +1490,7 @@ putLineNo range
   = -- return ()
     if (rangeNull == range || posLine (rangeStart range) >= bigLine)
      then putLn (text "#line default")
-     else putLn (text "#line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
+     else putLn (text "// #line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
   
 
 putLn :: Doc -> Asm ()

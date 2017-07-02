@@ -306,7 +306,7 @@ external null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case the `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 external maybe( n : null<a> ) : maybe<a> {
-  cs inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
+  cs inline "(#1==null ? std_core.Nothing : std_core.Just(#1))"
   js inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
 }
 
@@ -3092,6 +3092,7 @@ type yld<a> {
 }
 
 extern inline ".yieldop"( op : operation<a> ) : a {
+  cs inline "std_core.Yield(#1,_k)"
   js inline "$std_core.Yield(#1,_k)" 
 }
 
