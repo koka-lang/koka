@@ -70,15 +70,18 @@ Nevertheless, using a `:ddouble` often prevents instability in practice over
 small numbers.
 
 
-Take the following example from Gustafson et al. [@Gustafson:posit] to compute
-the area of a very 'thin' triangle with sides $a$, $b$, and $c$. The short sides
+Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle]. 
+The challenge is to compute
+the area of a very thin triangle with sides $a$, $b$, and $c$. The short sides
  $b$ and $c$ are just 3 units in the last place (ulp) shorter than
 the longest side $a$. Using the value $s = (a + b + c)/2$, the area of
 a triangle is $A = \sqrt{s(s-a)(s-b)(s-c)}$. This is troublesome if $s$ is
 close to $a$ since $s-a$ magnifies any rounding error. Let's take $a=7$,
-and $b = c = 7/2 + 3\cdot2^{-111}$; with a unit of light-years this makes
-the short sides only longer than half the long side by $1/200$th the diameter of
-a proton. Using various 128-bit numbers we get:
+and $b = c = 7/2 + 3\cdot2^{-111}$; according to [@gustafson:posit],
+&ldquo;If the units are in light-years, then the short sides are only longer than
+half the long side by $1/200$th the diameter of a proton. Yet that pops the triangle 
+up to about the width of a doorway at the thickest point&rdquo;. Using various 
+128-bit numbers we get:
 ````
 exact          : 3.14784204874900425235885265494550774498...e-16
 128-bit ddouble: 3.1478420487490042523588526549455e-16
@@ -87,7 +90,8 @@ exact          : 3.14784204874900425235885265494550774498...e-16
 ````
 For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can combine very large and
-small values. 
+small values. Kahan [@Kahan:triangle] shows how to rewrite the equations
+to avoid the rounding errors exhibited here for regular floats.
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
@@ -102,38 +106,52 @@ up to 2^106^ - 2).
 ~~ BibItem { #dekker; bibitem-label:"[1]"; searchterm:"Dekker+A+Floating-Point+Technique+for+Extending+the+Available+Precision" }
 T.\ Dekker.
 _A Floating-Point Technique for Extending the Available Precision_.
-Numerische\ Mathematik **18**(3), June 1971, 224--242.
+Numerische\ Mathematik, vol. 18 (3), June 1971, 224--242.
 [pdf](http://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
 ~~
 
-~~ BibItem { #Gustafson:posit; bibitem-label:"[2]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
+~~ BibItem { #Goldberg:float; bibitem-label:"[2]"}
+David Goldberg.
+_What Every Computer Scientist Should Know About Floating-point Arithmetic_.
+ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](http://doi.org/10.1145/103162.103163). 
+[pdf](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
+~~
+
+~~ BibItem { #Gustafson:posit; bibitem-label:"[3]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
 John\ L. Gustafson and Isaac\ Yonemoto.
-_Beating Floating Point at its Own Game: Posit Arithmetic_.
+_Beating Floating Point at its Own Game: Posit Arithmetic_. 2017.
 [pdf](http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
 ~~
 
-~~ BibItem { #Hida:qd; bibitem-label:"[3]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
+~~ BibItem { #Hida:qd; bibitem-label:"[4]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
 Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
-Lawrence Berkeley National Laboratory Technical Report LBNL-46996 (2000). [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
-~~ BibItem { #Hida:qdlib; bibitem-label:"[4]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
+~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
 _Library for double-double and quad-double arithmetic._ 
 (2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
-~~ Bibitem { #lin; bibitem-label:"[5]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
+~~ Bibitem { #lin; bibitem-label:"[6]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
 Seppo\ Linnainmaa.
 _Software for Doubled-Precision Floating-Point Computations_.
-ACM Transactions on Mathematical Software (TOMS), Volume **7** Issue 3, Sept. 1981, 272--283.
+ACM Transactions on Mathematical Software (TOMS), vol. 7 (3), Sept. 1981, 272--283.
 ~~
 
-~~ BibItem { #shewchuk; bibitem-label:"[6]"; }
+~~ Bibitem { #Kahan:triangle; bibitem-label:"[7]"}
+William\ Kahan. 
+_Miscalculating Area and Angles of a Needle-like Triangle_.
+Lecture notes, 2004, [pdf](https://people.eecs.berkeley.edu/~wkahan/Triangle.pdf).
+~~
+
+
+~~ BibItem { #shewchuk; bibitem-label:"[8]"; }
 Jonathan\ Richard\ Shewchuk.
 _Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates_.
-Discrete & Computational Geometry **18** 305--363 (1997). [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
+Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf)
 ~~
 
 ~
