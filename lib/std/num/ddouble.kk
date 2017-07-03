@@ -85,12 +85,14 @@ exact          : 3.14784204874900425235885265494550774498...e-16
 128-bit posit  : 3.14784204874900425235885265494550774439e-16
 128-bit ieee   : 3.63481490842332134725920516158057682788e-16
 ````
-Here we see that a `:ddouble` has (much much) better precision than a
+For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can better combine very large and
 small values. 
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
+Integers can be represented precisely up to 30 decimal digits (and a bit more...
+at least up to 2^105^).
 
 ## References {-}
 

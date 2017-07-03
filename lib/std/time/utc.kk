@@ -10,7 +10,7 @@
 
 # UTC time calculation 
 
-The world's civic time scale is Universal Coordinated Time ([UTC]). 
+The world's standard time scale is Universal Coordinated Time ([UTC]). 
 UTC is directly based on International Atomic Time ([TAI])
 (`ts-tai`) and uses standard SI seconds. The UTC time scale differs from
 TAI in that UTC stays within 1 second of [UT1](std_time_ut1.html); the
