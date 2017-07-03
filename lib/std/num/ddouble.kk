@@ -83,16 +83,16 @@ a proton. Using various 128-bit numbers we get:
 exact          : 3.14784204874900425235885265494550774498...e-16
 128-bit ddouble: 3.1478420487490042523588526549455e-16
 128-bit posit  : 3.14784204874900425235885265494550774439e-16
-128-bit ieee   : 3.63481490842332134725920516158057682788e-16
+128-bit ieee   : 3.63481490842332134725920516158057682878e-16
 ````
 For this kind of example, a `:ddouble` has better precision than a
-regular 128-bit IEEE float since it can better combine very large and
+regular 128-bit IEEE float since it can combine very large and
 small values. 
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
 Integers can be represented precisely up to 30 decimal digits (and a bit more...
-at least up to 2^105^).
+up to 2^106^ - 2).
 
 ## References {-}
 
@@ -103,6 +103,7 @@ at least up to 2^105^).
 T.\ Dekker.
 _A Floating-Point Technique for Extending the Available Precision_.
 Numerische\ Mathematik **18**(3), June 1971, 224--242.
+[pdf](http://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
 ~~
 
 ~~ BibItem { #Gustafson:posit; bibitem-label:"[2]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
