@@ -8,7 +8,7 @@
 
 /* Time scales for astronomy (TT, TCG, TDB, and TCB).
 
-Internally all computations use `:ddouble` numbers with arbitray precision. 
+Internally all computations use high precision `:ddouble` numbers. 
 The different time scales relate as follows:
 
 * **TAI**, `ts-tai`, `cal-tai`: International Atomic Time. The atomic time standard

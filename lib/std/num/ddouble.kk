@@ -85,13 +85,18 @@ up to about the width of a doorway at the thickest point&rdquo;. Using various
 ````
 exact          : 3.14784204874900425235885265494550774498...e-16
 128-bit ddouble: 3.1478420487490042523588526549455e-16
-128-bit posit  : 3.14784204874900425235885265494550774439e-16
-128-bit ieee   : 3.63481490842332134725920516158057682878e-16
+128-bit posit  : 3.147842048749004252358852654945507744\([39]{color:#88F}\)e-16
+128-bit ieee   : 3.\([63481490842332134725920516158057682878]{color:#88F}\)e-16
 ````
 For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can combine very large and
-small values. Kahan [@Kahan:triangle] shows how to rewrite the equations
-to avoid the rounding errors exhibited here for regular floats.
+small values. (Kahan [@Kahan:triangle] shows how to rewrite the equations
+to avoid magnifying rounding errors -- in that case the result for 
+IEEE 128-bit floats becomes:
+````
+128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#88F}\)e-16
+````
+which also gives the required precision.)
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
