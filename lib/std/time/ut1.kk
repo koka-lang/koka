@@ -38,6 +38,7 @@ i.time(cal=cal-ut1).show.println   // in UT1
 */
 module std/time/ut1
 
+import std/num/double
 import std/async
 import std/os/path
 import std/num/ddouble

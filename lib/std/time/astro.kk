@@ -134,6 +134,7 @@ Astronomy and Astrophysics, vol. 265, no. 2, p. 833--838.
 */
 module std/time/astro
 
+import std/num/double
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration

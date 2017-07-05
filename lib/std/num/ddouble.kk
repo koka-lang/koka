@@ -632,12 +632,9 @@ public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
 /*------------------------------------------------------
    Exponents (needed for showing ddouble's)
 ------------------------------------------------------*/
-fun ldexp( x : double, exp : double ) : double {
-  x*pow2(exp)
-}
 
 // 'Load exponent': returns `x`&middot;2^`exp`^.
-public fun ldexp( x : ddouble, exp : double ) : ddouble {
+public fun ldexp( x : ddouble, exp : int ) : ddouble {
   Ddouble(ldexp(x.hi,exp),ldexp(x.lo,exp))
 }
 
@@ -816,7 +813,7 @@ fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   // guess exponential
   val r0 = x.abs
   val r1 = if (e1 < -300) then (r0*pow10(300)) / pow10(e1+300)
-           elif (e1 > 300) then ldexp(ldexp(r0,-53.0) / pow10(e1), 53.0)
+           elif (e1 > 300) then ldexp(ldexp(r0,-53) / pow10(e1), 53)
            else r0 / pow10(e1)
   // fix off by one
   // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
@@ -983,7 +980,7 @@ public fun exp( x : ddouble ) : ddouble {
   elif (x.zero?) then one
   elif (x==one) then dd-e
   else {
-    val m : double = floor( (x.hi / dd-log2.hi) + 0.5 )
+    val m : int = floor( (x.hi / dd-log2.hi) + 0.5 ).int
     val r = mul-pwr2( x - (m.ddouble * dd-log2), inv-k )
     val p = r.sqr
     val t = r + mul-pwr2(p, 0.5)

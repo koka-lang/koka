@@ -6,13 +6,19 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Advanced operations on `:double`
+/* Various operations on a 64-bit IEEE `:double`.
 
 */
 public module std/num/double
 
+
+//-----------------------------------------
+// Constants
+//-----------------------------------------
+
+
 // &pi;
-val pi = 3.141592653589793116
+val pi          = 3.141592653589793116
 
 // 2&pi;
 val dbl-twopi   = 6.283185307179586232
@@ -29,6 +35,129 @@ val dbl-log2    = 0.6931471805599452862
 // The natural logarithm of 10
 val dbl-log10   = 2.302585092994045901
 
+// Maximum double value
+val dbl-max     = 1.79769313486231570815e+308
+                  
+// Smallest positive normalized double value
+val dbl-min     = 2.22507385850720138309e-308
+
+// Smallest positive denormalized value (i.e. ``DBL_TRUE_MIN``)
+val dbl-denorm-min = 4.9406564584124654418e-324
+
+// Machine epsilon: the difference between 1.0 and the next representable `:double` value.
+val dbl-epsilon = 2.2204460492503130808e-16
+
+// maximal precision in decimal digits of a `:double`.
+val dbl-max-prec = 15
+
+//-----------------------------------------
+// Powers
+//-----------------------------------------
+
+
+// Return the `d` raised to the power of `p`. 
+extern inline pow : (d:double, p:double) -> double  { 
+  cs "Math.Pow"
+  js "Math.pow" 
+}
+
+// Return the natural logarithm (in base _e_)  of a `:double` `d` 
+extern inline log : (d:double) -> double  { 
+  cs "Math.Log"
+  js "Math.log" 
+}
+
+// Return the logarithm in base 10 of a `:double` `d`.
+fun log10( d : double ) : double {
+  log(d) / dbl-log10
+}
+
+// Return the logarithm in base 2 of a `:double` `d`.
+fun log2( d : double ) : double {
+  log(d) / dbl-log2
+}
+
+// Return _e_ to the power of `p`.
+extern inline exp( p : double ) : double {
+  js "Math.exp"
+}
+
+// Return the 10 to the power of `p`.
+fun pow10( p : double ) : double {
+  pow(10.0,p)
+}
+
+// Return the 2 to the power of `p`.
+fun pow2( p : double ) : double {
+  pow(2.0,p)
+}
+
+
+// Round a double to a specified precision
+fun round-to-prec( d : double, prec : int  ) : double {
+  if (prec <= 0) then d.round else {
+    val p  = pow10(prec.double)
+    (d * p).round / p
+  }
+}
+
+//-----------------------------------------
+// Other
+//-----------------------------------------
+
+// 'Load exponent': returns `x`&middot;2^`exp`^.
+fun ldexp( x : double, exp : int ) : double {
+  if (!finite?(x)) then x else x*pow2(exp.double)
+}
+
+// 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
+// for a number `x` such that `x == f`&middot;2^`exp`^.
+fun frexp( x : double ) : (double,int) {
+  if (!finite?(x)) then (x,0) else {
+    val exp  = log2(x.abs).trunc.int
+    val frac = if (exp > 1023) 
+                then (x / pow2(1023.0))/pow2(exp.double - 1023.0) // prevent overflow
+                else (x / pow2(exp.double))
+    (frac,exp)
+  }
+}
+
+
+// Return the sum of a list of doubles. 
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements) 
+// to minimize rounding errors. This
+// is more precise as Kahan summation and about as fast.\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
+// Math. Mechanik, 54:39--51, 1974.
+fun sum( xs : list<double> ) : double
+{
+  var total := 0.0
+  var comp  := 0.0
+  xs.foreach fun(x) {
+    val t = total + x
+    val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
+    comp  := comp + c
+    total := t
+  }
+  total + comp;
+}
+
+
+//-----------------------------------------
+// Trigonometry
+//-----------------------------------------
+
+
+// Return the sine of an angle in radians `d`.
+extern inline sin( d : double ) : double {
+  js "Math.sin"
+}
+
+// Return the cosine of an angle in radians `d`.
+extern inline cos( d : double ) : double {
+  js "Math.cos"
+}
 
 // Return the tangent of an angle in radians `d`.
 extern inline tan( d : double ) : double {

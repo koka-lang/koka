@@ -10,6 +10,7 @@
 module std/num/decimal
 
 import std/text/regex
+import std/num/double
 
 // Type of a decimal number. Decimals have arbitrary precision and range and 
 // do exact decimal arithmetic and are well suited for financial calculations for 

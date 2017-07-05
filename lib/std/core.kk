@@ -1585,24 +1585,6 @@ fun (~)(d : double ) : double {
   0.0 - d
 }
 
-/*
-fun (/)(x : double, y : double ) : double {
-  if (y.zero?) then return y
-  val q = cdiv(x,y)
-  val r = cmod(x,y)
-  if (r>=0.0) then q
-  elif (y>0.0) then q - 1.0
-  else q + 1.0
-}
-
-fun (%)(x : double, y : double ) : double {
-  if (y.zero?) then return y
-  val r = cmod(x,y)
-  if (r>=0.0) then r
-  elif (y>0.0) then r + y
-  else r - y
-}
-*/
 
 // Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
 // if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
@@ -1639,6 +1621,7 @@ private extern inline getEpsilon : () -> double {
 }
 
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
+// Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int { 
   cs "Primitive.IntDouble"
   js "$std_core._int_double" 
@@ -1671,20 +1654,20 @@ extern inline nan? : (double) -> bool {
 // Is this value equal to negative or positive infinity ?
 extern inf? : (double) -> bool {
   cs "double.IsInfinity"
-  js inline "((#1) === Number.POSITIVE_INFINITY || (#1) === Number.NEGATIVE_INFINITY)"
+  js inline "((#1) === Infinity || (#1) === -Infinity)"
 }
 
 // Is this value equal to positive infinity ?
 extern inline posinf? : (double) -> bool {
   cs "double.IsPositiveInfinity"
-  js inline "((#1) === Number.POSITIVE_INFINITY)"
+  js inline "((#1) === Infinity)"
 }
 
 
 // Is this value equal to negative infinity ?
 extern inline neginf? : (double) -> bool {
   cs "double.IsNegativeInfinity"
-  js inline "((#1) === Number.NEGATIVE_INFINITY)"
+  js inline "((#1) === -Infinity)"
 }
 
 // Is this a finite number (i.e. not `nan` or infinity)
@@ -1713,6 +1696,14 @@ extern inline abs : (d:double) -> double  {
   js "Math.abs" 
 }
 
+
+// Round a double to its nearest integral value.
+// If the value is halfway between two integers, the value is rounded to the even one.
+extern round : (d:double) -> double {
+  cs "Math.Round"
+  js "_double_round"
+}
+
 // Return the largest integer equal or less than `d` 
 extern inline floor : (d:double) -> double {
   cs "Math.Floor"
@@ -1738,77 +1729,6 @@ extern trunc : (d:double) -> double {
 // `(-2.4).fraction === -0.4`
 fun fraction(d : double) : double {
   d - d.trunc
-}
-
-// Return the `d` raised to the power of `p`. 
-extern inline pow : (d:double, p:double) -> double  { 
-  cs "Math.Pow"
-  js "Math.pow" 
-}
-
-// Return the natural logarithm (in base _e_)  of a `:double` `d` 
-extern inline log : (d:double) -> double  { 
-  cs "Math.Log"
-  js "Math.log" 
-}
-
-// Return the logarithm in base 10 of a `:double` `d`.
-fun log10( d : double ) : double {
-  log(d) / log(10.0)
-}
-
-// Return the logarithm in base 2 of a `:double` `d`.
-fun log2( d : double ) : double {
-  log(d) / log(2.0)
-}
-
-// Return the 10 to the power of `p`.
-fun pow10( p : double ) : double {
-  pow(10.0,p)
-}
-
-// Return the 2 to the power of `p`.
-fun pow2( p : double ) : double {
-  pow(2.0,p)
-}
-
-// Return _e_ to the power of `p`.
-extern inline exp( p : double ) : double {
-  js "Math.exp"
-}
-
-// Return the logarithm in base _e_.
-extern inline ln( d : double ) : double {
-  js "Math.log"
-}
-
-// Round a double to a specified precision
-fun round-to-prec( d : double, prec : int  ) : double {
-  if (prec <= 0) then d.round else {
-    val p  = pow10(prec.double)
-    (d * p).round / p
-  }
-}
-
-extern inline sin( d : double ) : double {
-  js "Math.sin"
-}
-
-extern inline cos( d : double ) : double {
-  js "Math.cos"
-}
-
-// Round a double to its nearest integral value.
-// If the value is halfway between two integers, the value is rounded to the even one.
-extern round : (d:double) -> double {
-  cs "Math.Round"
-  js "_double_round"
-}
-
-// Return the sum of a list of doubles
-fun sum( xs : list<double> ) : double
-{
-  xs.foldl( 0.0, (+))
 }
 
 // Returns the smallest of two doubles
