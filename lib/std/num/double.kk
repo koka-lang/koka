@@ -58,7 +58,7 @@ val dbl-max-prec    = 15
 private val dbl-log2e =  1.442695040888963407359924681001892137
 
 // The base-10 logarithm of _e_.
-private val dbl-log10e = 2.302585092994045684017991454684364208
+private val dbl-log10e = 0.434294481903251827651128918916605082
 
 
 //-----------------------------------------
@@ -80,12 +80,12 @@ extern inline log : (d:double) -> double  {
 
 // Return the logarithm in base 10 of a `:double` `d`.
 fun log10( d : double ) : double {
-  log(d) * dbl-log10e
+  log(d) / dbl-log10
 }
 
 // Return the logarithm in base 2 of a `:double` `d`.
 fun log2( d : double ) : double {
-  log(d) * dbl-log2e
+  log(d) / dbl-log2
 }
 
 // Return _e_ to the power of `p`.
@@ -108,20 +108,24 @@ fun pow2( p : double ) : double {
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.
 fun log1p( x : double ) : double {
-  val y = 1.0 + x
-  val z = y - 1.0
-  if (z==0.0) then x else {
-    log(y) * (x / z)
+  if (x.posinf?) then x else {
+    val y = 1.0 + x
+    val z = y - 1.0
+    if (z==0.0) then x else {
+      log(y) * (x / z)
+    }
   }
 }
 
 // Return `exp(x - 1.0)`.
 // Avoids rounding errors for values of `x` very close to `1.0`.
 fun expm1( x : double ) : double {
-  val y = exp(x)
-  if (y==1.0) then x 
-  elif (y - 1.0 == -1.0) then -1.0
-  else (y - 1.0) * (x / log(y))
+  if (x.posinf?) then x else {
+    val y = exp(x)
+    if (y==1.0) then x 
+    elif (y - 1.0 == -1.0) then -1.0
+    else (y - 1.0) * (x / log(y))
+  }
 }
 
 private fun log2p1( x : double ) : double {
