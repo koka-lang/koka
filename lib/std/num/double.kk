@@ -79,6 +79,7 @@ fun log2( d : double ) : double {
 
 // Return _e_ to the power of `p`.
 extern inline exp( p : double ) : double {
+  cs "Math.Exp"
   js "Math.exp"
 }
 
@@ -143,6 +144,55 @@ fun sum( xs : list<double> ) : double
   total + comp;
 }
 
+// The hypotenuse of `x` and `y`: `sqrt(x*x + y*y)`.
+// Prevents overflow for large numbers.
+fun hypot( x : double, y : double ) : double {
+  val xx = abs(x)
+  val yy = abs(y)
+  val lo = min(xx,yy)
+  val hi = max(xx,yy)
+  if (hi==0.0) then 0.0 else {
+    val z  = lo / hi
+    hi * sqrt( 1.0 + z*z )
+  }
+}
+
+// The square root of the sum of the squares of three doubles.
+// Prevents overflow for large numbers.
+fun hypot( x : double, y : double, z : double ) : double {
+  val xx = abs(x)
+  val yy = abs(y)
+  val zz = abs(z)
+  val hi = max(max(xx,yy),zz)
+  if (hi==0.0) then 0.0 else {
+    hi * sqrt( sqr(xx / hi) + sqr(yy / hi) + sqr(zz / hi) )
+  }
+}
+
+// The square root of the sum of squares of a list of doubles.
+// Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
+// for precision.
+fun hypot( xs : list<double> ) : double {
+  val hi = xs.abs-max
+  if (hi==0) then 0.0 else {
+    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt 
+  }
+}
+
+// The square of a double
+fun sqr(x : double ): double {
+  x*x
+}
+
+// The maximum of the absolute values.
+fun abs-max( x : double, y : double ) : double {
+  max(abs(x),abs(y))
+} 
+
+// The maximum of a list of absolute values.
+fun abs-max( xs : list<double> ) : double {
+  xs.foldr(0.0,fun(x,m){ max(abs(x),m) })
+}
 
 //-----------------------------------------
 // Trigonometry

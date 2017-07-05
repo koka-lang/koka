@@ -1605,21 +1605,6 @@ private extern inline getPosInf : () -> double {
   js inline "Infinity"
 }
 
-private extern inline getMaxDouble : () -> double { 
-  cs inline "double.MaxValue";
-  js inline "(1.7976931348623157e+308)"
-}
-
-private extern inline getMinDouble : () -> double { 
-  cs inline "double.MinValue";
-  js inline "-(1.7976931348623157e+308)"
-}
-
-private extern inline getEpsilon : () -> double { 
-  cs inline "double.Epsilon";
-  js inline "(4.94065645841247e-324)"
-}
-
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int { 
@@ -1635,15 +1620,6 @@ val posinf : double = getPosInf()
 
 // Negative infinity
 val neginf : double = getNegInf()
-
-// The maximal double value
-val max-double : double = getMaxDouble()
-
-// The minimal double value
-val min-double : double = getMinDouble()
-
-// The number of bits in a `:double` (64)
-val bits-double = 64
 
 // Is this value equal to NaN ?
 extern inline nan? : (double) -> bool {
@@ -1663,7 +1639,6 @@ extern inline posinf? : (double) -> bool {
   js inline "((#1) === Infinity)"
 }
 
-
 // Is this value equal to negative infinity ?
 extern inline neginf? : (double) -> bool {
   cs "double.IsNegativeInfinity"
@@ -1672,6 +1647,7 @@ extern inline neginf? : (double) -> bool {
 
 // Is this a finite number (i.e. not `nan` or infinity)
 extern inline finite?( d : double ) : bool {
+  cs inline "(!double.isNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
 
