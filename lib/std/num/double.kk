@@ -18,22 +18,25 @@ public module std/num/double
 
 
 // &pi;
-val pi          = 3.141592653589793116
+val pi          = 3.141592653589793238462643383279502884
 
 // 2&pi;
-val dbl-twopi   = 6.283185307179586232
+val dbl-twopi   = 6.283185307179586476925286766559005768
 
 // &pi;/2
-val dbl-pi2     = 1.570796326794896558
+val dbl-pi2     = 1.570796326794896619231321691639751442
 
 // The _e_ constant.
-val dbl-e       = 2.718281828459045091
+val dbl-e       = 2.718281828459045235360287471352662498
 
 // The natural logarithm of 2
-val dbl-log2    = 0.6931471805599452862
+val dbl-log2    = 0.693147180559945309417232121458176568
+
+// The square-root of 2
+val dbl-sqrt2   = 1.414213562373095048801688724209698079
 
 // The natural logarithm of 10
-val dbl-log10   = 2.302585092994045901
+val dbl-log10   = 2.302585092994045684017991454684364208
 
 // Maximum double value
 val dbl-max     = 1.79769313486231570815e+308
@@ -42,13 +45,21 @@ val dbl-max     = 1.79769313486231570815e+308
 val dbl-min     = 2.22507385850720138309e-308
 
 // Smallest positive denormalized value (i.e. ``DBL_TRUE_MIN``)
-val dbl-denorm-min = 4.9406564584124654418e-324
+val dbl-denorm-min  = 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:double` value.
-val dbl-epsilon = 2.2204460492503130808e-16
+val dbl-epsilon     = 2.2204460492503130808e-16
 
 // maximal precision in decimal digits of a `:double`.
-val dbl-max-prec = 15
+val dbl-max-prec    = 15
+
+
+// The base-2 logarithm of _e_.
+private val dbl-log2e =  1.442695040888963407359924681001892137
+
+// The base-10 logarithm of _e_.
+private val dbl-log10e = 2.302585092994045684017991454684364208
+
 
 //-----------------------------------------
 // Powers
@@ -69,12 +80,12 @@ extern inline log : (d:double) -> double  {
 
 // Return the logarithm in base 10 of a `:double` `d`.
 fun log10( d : double ) : double {
-  log(d) / dbl-log10
+  log(d) * dbl-log10e
 }
 
 // Return the logarithm in base 2 of a `:double` `d`.
 fun log2( d : double ) : double {
-  log(d) / dbl-log2
+  log(d) * dbl-log2e
 }
 
 // Return _e_ to the power of `p`.
@@ -93,6 +104,66 @@ fun pow2( p : double ) : double {
   pow(2.0,p)
 }
 
+// Return `log(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+fun log1p( x : double ) : double {
+  val y = 1.0 + x
+  val z = y - 1.0
+  if (z==0.0) then x else {
+    log(y) * (x / z)
+  }
+}
+
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+fun expm1( x : double ) : double {
+  val y = exp(x)
+  if (y==1.0) then x 
+  elif (y - 1.0 == -1.0) then -1.0
+  else (y - 1.0) * (x / log(y))
+}
+
+private fun log2p1( x : double ) : double {
+  dbl-log2e * log1p(x)
+}
+
+private fun exp2m1( x : double ) : double {
+  expm1(dbl-log2 * x)
+}
+
+// Returns `log(exp(x) + exp(y))`.
+// Avoids overlow/underflow errors.
+fun logaddexp( x : double, y : double ) : double {
+  if (x==y) then x + dbl-log2 else {
+    val z = x - y
+    if (z > 0.0) then x + log1p(exp(~z))
+                 else y + log1p(exp(z))
+  }
+}
+
+// Returns `log2( pow2(x) + pow2(y) )`.
+// Avoids overlow/underflow errors.
+fun logaddexp2( x : double, y : double ) : double {
+  if (x==y) then x + 1.0 else {
+    val z = x - y
+    if (z > 0.0) then x + log2p1(pow2(~z))
+                 else y + log2p1(pow2(z))
+  }
+}
+
+private val rad2deg : double = 180.0/pi
+private val deg2rad : double = pi/180.0
+
+// Convert radians to degrees.
+fun deg( rad : double ) : double {
+  rad * rad2deg
+}
+
+// Convert degrees to radians.
+fun rad( deg : double ) : double {
+  deg * deg2rad
+}
 
 // Round a double to a specified precision
 fun round-to-prec( d : double, prec : int  ) : double {
@@ -174,7 +245,7 @@ fun hypot( x : double, y : double, z : double ) : double {
 // for precision.
 fun hypot( xs : list<double> ) : double {
   val hi = xs.abs-max
-  if (hi==0) then 0.0 else {
+  if (hi==0.0) then 0.0 else {
     hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt 
   }
 }
