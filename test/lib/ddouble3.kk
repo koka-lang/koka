@@ -34,7 +34,7 @@ fun d-area2(a : double, b : double, c : double = b) : (double,double) {
 }
 
 fun main() {
-  val (x1,x2) = dd-area2(7.ddouble, 7.ddouble/2.ddouble + ldexp(3.ddouble,-111.0))
+  val (x1,x2) = dd-area2(7.ddouble, 7.ddouble/2.ddouble + ldexp(3.ddouble,-111))
   println("exact           : 3.14784204874900425235885265494550774498...e-16")
   println("128-bit ddouble : " + x1.show(32))
   println("128-bit ddoublex: " + x2.show(32))
