@@ -50,38 +50,38 @@ static class RegEx
       return 1;
   }
 
-  public static std_regex._matched Matches( string s, Match match ) 
+  public static std_text_regex._matched Matches( string s, Match match ) 
   {
-    if (!match.Success) return new std_regex._matched( std_core._new_sslice(s,0,0), "", new std_regex._groups(null) );    
+    if (!match.Success) return new std_text_regex._matched( std_core._new_sslice(s,0,0), "", new std_text_regex._groups(std_text_regex._groups_Tag.Groups, null) );    
     int next = match.Index + match.Length;
     //if (next<=match.Index) next = match.Index+1;
     var slice = std_core._new_sslice( s, match.Index, next - match.Index );
-    return new std_regex._matched( slice, match.Value, new std_regex._groups(match.Groups) );
+    return new std_text_regex._matched( slice, match.Value, new std_text_regex._groups(std_text_regex._groups_Tag.Groups, match.Groups) );
   }
 
-  public static std_core._maybe<std_regex._matched> MaybeMatches( string s, Match match ) {
+  public static std_core._maybe<std_text_regex._matched> MaybeMatches( string s, Match match ) {
     if (!match.Success)
-      return std_core._maybe<std_regex._matched>.Nothing_;
+      return std_core._maybe<std_text_regex._matched>.Nothing_;
     else 
-      return new std_core._maybe<std_regex._matched>( Matches(s, match) );
+      return new std_core._maybe<std_text_regex._matched>( Matches(s, match) );
   }
   
-  public static std_core._maybe<std_regex._matched> Exec( object r, string s, int start ) {
+  public static std_core._maybe<std_text_regex._matched> Exec( object r, string s, int start ) {
     Regex regex = (Regex)(r);
     return MaybeMatches(s, regex.Match(s,start));
   }  
 
-  public static std_regex._matched[] ExecAll( object r, string s, int start ) {
+  public static std_text_regex._matched[] ExecAll( object r, string s, int start ) {
     Regex regex = (Regex)(r);
     MatchCollection matches = regex.Matches(s,start);
-    std_regex._matched[] result = new std_regex._matched[matches.Count];
+    std_text_regex._matched[] result = new std_text_regex._matched[matches.Count];
     for (int i = 0; i < matches.Count; i++) {
       result[i] = Matches(s, matches[i]);
     }
     return result;
   }  
 
-  public static string ReplaceFun<E>( object r, string s, Fun1<std_regex._matched,string> repl, int all, int start) 
+  public static string ReplaceFun<E>( object r, string s, Fun1<std_text_regex._matched,string> repl, int all, int start) 
   {
     Regex regex = (Regex)(r);
     int count = (all != 0 ? int.MaxValue : 1);

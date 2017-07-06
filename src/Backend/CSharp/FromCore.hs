@@ -385,8 +385,8 @@ genDefGroup (DefRec [def])
 genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
-genDef :: Bool -> Def -> Asm ()
-genDef isRec def@(Def name tp expr vis defsort nameRng doc)
+genDefY :: Bool -> Def -> Asm ()
+genDefY isRec def@(Def name tp expr vis defsort nameRng doc)
   = if (defIsVal def) 
      then genDefX isRec def
      else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
@@ -398,6 +398,8 @@ genDef isRec def@(Def name tp expr vis defsort nameRng doc)
                         expr2 <- etaExpand expr1 [] m
                         genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
 
+genDef :: Bool -> Def -> Asm ()
+genDef isRec def  = genDefX isRec def
 
 genDefX :: Bool -> Def -> Asm ()
 genDefX isRec (Def name tp expr vis isVal nameRng doc)
@@ -458,7 +460,8 @@ tetaExpand fun targs m
 
 genReturnExpr :: Bool -> Expr -> Asm ()
 genReturnExpr tailCall expr
-  = withReturn tailCall $ genExpr expr
+  = trace ("return expr: " ++ show expr ) $
+    withReturn tailCall $ genExpr expr
 
 
 genArguments :: [Expr] -> Asm [Doc]
@@ -489,7 +492,7 @@ isAtomic expr
 
 genExpr :: Expr  -> Asm ()
 genExpr expr 
-  = -- trace ("genExpr: " ++ show funname) $
+  = trace ("genExpr: " ++ show expr) $
     do def <- getCurrentDef
        case expr of
           -- note: values with a generic parameter become functions in the C# translation (i.e. nil)
@@ -606,19 +609,20 @@ kindCast ctx targs tp doc
 
 genStatic :: TName -> Int -> Int -> [Type] -> Maybe [Expr] -> Asm ()
 genStatic tname m n targs mbArgs 
- = let args = case mbArgs of 
+ = -- trace ("genStatic: " ++ show tname ++ show (m,n)) $
+   let args = case mbArgs of 
                 Just xs -> xs
                 Nothing -> []
    in if (null args && m > length targs) 
     then do teta <- tetaExpand (Var tname (InfoArity m n)) targs m
             genExpr teta
-   else if (n > length args || isNothing mbArgs)  
+   else if (n > length args && isNothing mbArgs)  
     then assertion ("CSharp.FromCore.genStatic: m /= targs: " ++ show tname ++ show (m,n)) (m == length targs) $
          do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
             genExpr eta
     else do cdef <- getCurrentDef
-            -- assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
-            trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
+            assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+            -- trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
              do argDocs <- genArguments args
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
@@ -1524,7 +1528,7 @@ putLn doc
   = do env <- getEnv
        let ndoc = indent (currentIndent env) doc
        updateSt (\st -> st{ toplevel = case (toplevel st) of { [] -> [ndoc]; (d:ds) -> ((d <-> ndoc) : ds)}})
-       return ()
+       trace (show doc) $ return ()
 
 put :: Doc -> Asm ()
 put doc

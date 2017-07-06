@@ -106,7 +106,7 @@ extern inline neginf? : (double) -> bool {
 
 // Is this a finite number (i.e. not `nan` or infinity)
 extern inline finite?( d : double ) : bool {
-  cs inline "(!double.isNaN(#1) && !double.IsInfinity(#1))"
+  cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
 
