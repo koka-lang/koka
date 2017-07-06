@@ -238,30 +238,48 @@ fun small-exp( i : int, e : int ) {
 
 
 // &pi; 
-public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
+public val dd-pi      = Ddouble(3.1415926535897931160, 1.2246467991473529607e-16)
+// QD:                        3.141592653589793116e+00,1.224646799147353207e-16)  
 
 // 2&pi;
-public val dd-twopi   = Ddouble(6.283185307179586232e+00,2.449293598294706414e-16)
+public val dd-twopi   = Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
 
 // &pi;/2
-public val dd-pi2     = Ddouble(1.570796326794896558e+00,6.123233995736766036e-17)
+public val dd-pi2     = Ddouble(1.5707963267948965580, 6.1232339957367660359e-17)
 
 // &pi;/4
-public val dd-pi4     = Ddouble(7.853981633974482790e-01,3.061616997868383018e-17)
+public val dd-pi4     = Ddouble(0.78539816339744827900, 3.0616169978683836342e-17)
+// QD:                         7.853981633974482790e-01,3.061616997868383018e-17)
 
 // 3&pi;/4
-public val dd-pi34    = Ddouble(2.356194490192344837e+00,9.1848509936051484375e-17)
+public val dd-pi34    = Ddouble(2.3561944901923448370,  9.1848509936051496701e-17)
+// QD:                          2.356194490192344837e+00,9.1848509936051484375e-17)
 
 // The _e_ constant.
-public val dd-e       = Ddouble(2.718281828459045091e+00,1.445646891729250158e-16)
+public val dd-e       = Ddouble(2.7182818284590450908,  1.4456468917292501578e-16)
 
 // The natural logarithm of 2
-public val dd-log2    = Ddouble(6.931471805599452862e-01,2.319046813846299558e-17)
+public val dd-log2    = Ddouble(0.69314718055994528623, 2.3190468138462995584e-17)
 
 // The natural logarithm of 10
-public val dd-log10   = Ddouble(2.302585092994045901e+00,-2.170756223382249351e-16)
+public val dd-log10   = Ddouble(2.3025850929940459011, -2.1707562233822493508e-16)
 
-// The 'machine epsilon'
+// The base-2 logarithm of _e_.
+public val dd-log2e   = Ddouble(1.4426950408889633870,  2.0355273740931030030e-17)
+
+// The base-10 logarithm of _e_.
+public val dd-log10e = Ddouble(0.4342944819032518167,  1.098319650216765535e-17)
+
+// The square-root of 2
+public val dd-sqrt2  = Ddouble(1.4142135623730951455, -9.6672933134529122185e-17)
+
+// `1.0 / sqrt(2.0)`
+public val dd-sqrt12 = Ddouble(0.70710678118654757274, -4.8336466567264561092e-17)
+
+// [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
+public val dd-euler  = Ddouble(0.57721566490153286555, -4.9429151524306502606e-18)
+
+// The 'machine epsilon': the difference between 1.0 and the next representable `:ddouble` value.
 public val dd-epsilon = ddouble(4.93038065763132e-32)
 
 // The maximum representable `:ddouble`
@@ -274,10 +292,10 @@ public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-10
 public val dd-nan     = Ddouble(nan,0.0)
 
 // Positive infinity
-public val dd-posinf = Ddouble(posinf,0.0)
+public val dd-posinf  = Ddouble(posinf,0.0)
 
 // Negative infinity
-public val dd-neginf = Ddouble(neginf,0.0)
+public val dd-neginf  = Ddouble(neginf,0.0)
 
 // maximal precision in decimal digits of a `:ddouble`.
 public val dd-max-prec = 31
