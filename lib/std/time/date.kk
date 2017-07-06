@@ -13,6 +13,7 @@
 */
 module std/time/date
 
+import std/num/double
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration

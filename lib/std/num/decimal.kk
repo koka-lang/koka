@@ -35,7 +35,7 @@ public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   val x = round-exp(exp)  // always x <= exp
   val diff = exp - x
   //trace("decimal-exp: " + i.show + "x" + exp.show + ", diff: " + diff.show + ", x: " + x.show)
-  if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-pow10(diff),x)
+  if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff),x)
 }
 
 // Create a decimal number with precision `prec` (=`-1`) from a 
@@ -51,7 +51,7 @@ public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
   if (frac.zero? || prec.zero?) then return Decimal(i,0)
   val ds    = frac.count-digits
   val fprec = max(ds,prec) // always > 0
-  decimal-exp( i.mul-pow10(fprec) + frac, ~fprec )
+  decimal-exp( i.mul-exp10(fprec) + frac, ~fprec )
 }
 
 
@@ -72,7 +72,7 @@ public fun decimal( d : double, max-prec : int = 16 ) : decimal {
   val fr = d - fl
   if (fr.zero?) then return decimal(fl.int) 
   val p = fr.show-fixed(max-prec).count - 2
-  decimal(fl.int, (fr * pow10(p.double)).int, p)
+  decimal(fl.int, (fr * exp10(p.double)).int, p)
 }
 
 
@@ -98,17 +98,17 @@ val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(0*([1-9]\d*))?)$")
 fun expand( x : decimal, e : int ) : decimal {
   if (x.exp <= e) then x else {
     //trace("expand: " + x.show + " to exp " + p.show)
-    decimal-exp( x.num.mul-pow10( x.exp - e ), e )
+    decimal-exp( x.num.mul-exp10( x.exp - e ), e )
   }
 }
 
 // Choose an exponent that minimizes memory usage.
 public fun reduce( x : decimal ) : decimal {
-  val p   = x.num.pow10?
+  val p   = x.num.exp10?
   if (!p.pos?) return x
   val expp= x.exp + p
   // trace("reduce: x:" + x.showx + ", p:" + p.show + ", expp:" + expp.show)
-  if (round-exp(expp)==x.exp) then x else decimal-exp(x.num.cdiv-pow10(p), expp)
+  if (round-exp(expp)==x.exp) then x else decimal-exp(x.num.cdiv-exp10(p), expp)
 }
 
 // Add two decimals.
@@ -210,7 +210,7 @@ public type round {
 // Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`Even`).
 public fun int( x : decimal, rnd : round = Even) : int {
   val y = x.round(rnd)  // y.exp >= 0
-  if (y.exp.pos?) then y.num.mul-pow10(y.exp) else y.num
+  if (y.exp.pos?) then y.num.mul-exp10(y.exp) else y.num
 }
 
 // Round a `:decimal` number to a whole number with an optional rounding mode (=`Even`).
@@ -229,10 +229,10 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
   val p  = ~cx.exp - prec
   if (!p.pos?) return cx  // already less than prec precision
 
-  val (q,r) = cx.num.divmod-pow10(p)
+  val (q,r) = cx.num.divmod-exp10(p)
 
   fun round-half( keep-on-eq : bool ) {
-    val half = p.pow10 / 2
+    val half = p.exp10 / 2
     match(compare(r,half)) {
       Eq -> if (keep-on-eq) then q else q.inc
       Gt -> q.inc
@@ -289,12 +289,12 @@ public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   // use double division if within precision bounds..
   if (min-prec <= 15 && e.abs <= 15 && x.num.precise? && y.num.precise?) {
     val r = x.num.double / y.num.double
-    if (e.zero?) then decimal(r) else decimal(r * pow10(e.double))
+    if (e.zero?) then decimal(r) else decimal(r * exp10(e.double))
   }  
   else {
     // otherwise use long integer division
     val mp = max(min-prec,0)
-    val z = decimal-exp( x.num.mul-pow10(mp) / y.num, e - mp ).reduce
+    val z = decimal-exp( x.num.mul-exp10(mp) / y.num, e - mp ).reduce
     // trace("div: " + x.show + " / " + y.show + " = " + z.show)
     z
   }
@@ -368,8 +368,8 @@ public fun double( x : decimal ) : double {
     x.num.double * pow(10.0,x.exp.double)
   }
   else {
-    val (q,r) = x.num.divmod-pow10(~x.exp)
-    q.double + r.double * pow(10.0,x.exp.double)
+    val (q,r) = x.num.divmod-exp10(~x.exp)
+    q.double + r.double * exp10(x.exp.double)
   }
 }
 
@@ -377,7 +377,7 @@ public fun double( x : decimal ) : double {
 // `x.floor.decimal + x.ffraction.decimal == x` 
 public fun ffraction( x : decimal ) : double {
   if (!x.exp.neg?) return 0.0
-  val (_,r) = x.num.divmod-pow10(~x.exp)
+  val (_,r) = x.num.divmod-exp10(~x.exp)
   r.double * pow(10.0,x.exp.double)
   //if (x.frac.zero? || x.prec.zero?) then 0.0 else x.frac.double * pow10(~x.prec.double)
 }

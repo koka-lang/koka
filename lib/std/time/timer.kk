@@ -10,6 +10,7 @@
 */
 module std/time/timer
 
+import std/num/double
 import std/time/timestamp
 import std/time/duration
 import std/time/instant

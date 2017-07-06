@@ -81,7 +81,7 @@ public fun main() {
   test-trig()
   test-atrig()
   check("add1","9007199254740992 vs. 9007199254740993") { (max-int + 2.0).show + " vs. " + (max-int.ddouble + ddouble(2.0)).show }
-  check("pow1","1e+31") { pow(ddouble(10.0),31).show }
+  check("pow1","1e+31") { ddouble-exp(1,31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
   check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show + " vs. " + mx.ddouble.sqr.show }
   check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
@@ -115,23 +115,23 @@ public fun test-show() {
 public fun test-int10() {
   for(2,308) fun(i){
     val expect = "1e+" + i.show
-    check("int" + i.show, expect) { ddouble/pow10(i).show-exp }
+    check("int" + i.show, expect) { ddouble-exp(1,i).show-exp }
   }
 }
 
 public fun test-int99() {
   for(2,30) fun(i) {
     val expect8 = "9." + repeat("9",i - 2) + "8e+" + i.dec.show
-    check-rte("int" + i.show, expect8) { ddouble/pow10(i).dec.dec }    
+    check-rte("int" + i.show, expect8) { ddouble-exp(1,i).dec.dec }    
     val expect9 = "9." + repeat("9",i.dec) + "e+" + i.dec.show
-    check-rte("int" + i.show, expect9) { ddouble/pow10(i).dec }    
+    check-rte("int" + i.show, expect9) { ddouble-exp(1,i).dec }    
     val expect1 = "1." + repeat("0",i.dec) + "1e+" + i.show
-    check-rte("int" + i.show, expect1) { ddouble/pow10(i).inc }    
+    check-rte("int" + i.show, expect1) { ddouble-exp(1,i).inc }    
     val expect2 = "1." + repeat("0",i.dec) + "2e+" + i.show
-    check-rte("int" + i.show, expect2) { ddouble/pow10(i).inc.inc } 
+    check-rte("int" + i.show, expect2) { ddouble-exp(1,i).inc.inc } 
     if (i < 30) {   
       val expect99 = "1" + repeat("9",i)// + "e+" + i.show
-      check("int" + i.show, expect99) { (ddouble/pow10(i) + ddouble/pow10(i).dec).show-fixed() }        
+      check("int" + i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed() }        
     }
   }
 }
@@ -139,7 +139,7 @@ public fun test-int99() {
 
 public fun test-big() {
   val digits= dd-max-prec - 1
-  val pi290 = dd-pi * pow10(290)
+  val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
   //trace( "s: " + s + ", len: " + s.count.show)
   list(0,17).foldl(pi290) fun(x:ddouble,i:int) {
@@ -271,7 +271,7 @@ public fun test-sin() {
     "-0.30561438888825214136091003523250697423185004386181"]
     .map(ddouble)
   exact-sin.foreach-indexed( fun(i : int, esin : ddouble) {
-    val x = ddouble("0.0001") * pow10(i)
+    val x = ddouble("0.0001") * ddouble-exp(1,i)
     val s = sin(x)
     check-prec( "esin" + i.show + ": sin(" + x.show  + "): ", esin, s, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
   })
@@ -291,7 +291,7 @@ public fun test-atan() {
     "1.5706963267952299525626550249873704896065212085332"]
    .map(ddouble)
   exact-atan.foreach-indexed( fun(i : int, eatan : ddouble) {
-    val x = ddouble("0.0001") * pow10(i)
+    val x = ddouble("0.0001") * ddouble-exp(1,i)
     val a = atan(x)
     check-prec( "eatan" + i.show + ": atan(" + x.show  + "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
   })

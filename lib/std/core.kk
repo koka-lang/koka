@@ -1386,12 +1386,12 @@ fun dec( i : int ) : int {
   i - 1
 }
 
-fun pow10( exp : int ) : int {
-  1.mul-pow10(exp)
+fun exp10( exp : int ) : int {
+  1.mul-exp10(exp)
 }
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
-extern pow10?( i : int ) : int {
+extern exp10?( i : int ) : int {
   js "_int_count_pow10"
 }
 
@@ -1400,19 +1400,19 @@ extern count-digits( i : int ) : int {
   js "_int_count_digits"
 }
 
-extern mul-pow10( i : int, n : int ) : int {
+extern mul-exp10( i : int, n : int ) : int {
   js "_int_mul_pow10"
 }
 
-extern cdiv-pow10( i : int, n : int ) : int {
+extern cdiv-exp10( i : int, n : int ) : int {
   js "_int_cdiv_pow10"
 }
 
-fun divmod-pow10( i : int, n : int ) : (int,int) {
+fun divmod-exp10( i : int, n : int ) : (int,int) {
   if (n <= 0) return (i,0)
-  val cq = i.cdiv-pow10(n)
-  val cr = i - cq.mul-pow10(n)
-  if (!cr.neg?) then (cq,cr) else (cq.dec, cr + pow10(n))
+  val cq = i.cdiv-exp10(n)
+  val cr = i - cq.mul-exp10(n)
+  if (!cr.neg?) then (cq,cr) else (cq.dec, cr + exp10(n))
 }
 
 // Is this an even integer?
@@ -1586,25 +1586,6 @@ fun (~)(d : double ) : double {
 }
 
 
-// Convert a `:double` to `:int` using `round` to round the double to its nearest integer.
-// if the double is larger than `maxInt` or smaller than `minInt` just the lower 32 bits are returned.
-// extern inline unsafe-int : (double) -> int { cs inline "(int)(#1)"; js inline "(#1 | 0)" }
-
-private extern inline getNan : () -> double { 
-  cs inline "double.NaN";
-  js inline "NaN"
-}
-
-private extern inline getNegInf : () -> double { 
-  cs inline "double.NegativeInfinity";
-  js inline "(- Infinity)"
-}
-
-private extern inline getPosInf : () -> double { 
-  cs inline "double.PositiveInfinity";
-  js inline "Infinity"
-}
-
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int { 
@@ -1612,99 +1593,17 @@ extern inline int(d : double ) : int {
   js "$std_core._int_double" 
 }
 
-// Represents a value that is _not a number_ (NaN)
-val nan : double = getNan()
-
-// Positive infinity
-val posinf : double = getPosInf()
-
-// Negative infinity
-val neginf : double = getNegInf()
-
-// Is this value equal to NaN ?
-extern inline nan? : (double) -> bool {
-  cs "double.IsNaN"
-  js "isNaN"
-} 
-
-// Is this value equal to negative or positive infinity ?
-extern inf? : (double) -> bool {
-  cs "double.IsInfinity"
-  js inline "((#1) === Infinity || (#1) === -Infinity)"
-}
-
-// Is this value equal to positive infinity ?
-extern inline posinf? : (double) -> bool {
-  cs "double.IsPositiveInfinity"
-  js inline "((#1) === Infinity)"
-}
-
-// Is this value equal to negative infinity ?
-extern inline neginf? : (double) -> bool {
-  cs "double.IsNegativeInfinity"
-  js inline "((#1) === -Infinity)"
-}
-
-// Is this a finite number (i.e. not `nan` or infinity)
-extern inline finite?( d : double ) : bool {
-  cs inline "(!double.isNaN(#1) && !double.IsInfinity(#1))"
-  js "isFinite"
-}
-
 
 // Returns the value `d`  raised to the power `p` .
 extern inline (^) : (d:double,p:double) -> double {
   cs "Math.Pow"
-  js inline "((#1) ^ (#2))"
-}
-
-// Return the square root of a value `d` 
-// Returns `nan` if `d == nan`  or if `d`  is negative.
-// Returns `inf` if `d == inf` .
-extern inline sqrt : (d:double) -> double {
-  cs "Math.Sqrt"
-  js "Math.sqrt"
+  js "Math.pow"
 }
 
 // Return the absolute value of a `:double` `d` 
 extern inline abs : (d:double) -> double  { 
   cs "Math.Abs"
   js "Math.abs" 
-}
-
-
-// Round a double to its nearest integral value.
-// If the value is halfway between two integers, the value is rounded to the even one.
-extern round : (d:double) -> double {
-  cs "Math.Round"
-  js "_double_round"
-}
-
-// Return the largest integer equal or less than `d` 
-extern inline floor : (d:double) -> double {
-  cs "Math.Floor"
-  js "Math.floor"
-}
-
-// Return the smallest integer equal or larger than `d` 
-extern inline ceiling : (d:double) -> double {
-  cs "Math.Ceiling"
-  js "Math.ceil"
-}
-
-// Return the integral part of a `:double` `d` .
-// If `d >= 0.0` , return the largest integer equal or less to `d` ,
-// If `d < 0.0` , return the smallest integer equal or larger to `d` .
-extern trunc : (d:double) -> double {
-  cs "Math.Truncate"
-  js "_double_trunc"
-}
-
-// Return the fractional part of a `:double` `d`.\
-// `d.trunc + d.fraction === d`\
-// `(-2.4).fraction === -0.4`
-fun fraction(d : double) : double {
-  d - d.trunc
 }
 
 // Returns the smallest of two doubles

@@ -214,7 +214,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
     val p    = i.count-digits
     val x    = i
     val px   = p - 15
-    val (hi,y) = x.divmod-pow10(px)
+    val (hi,y) = x.divmod-exp10(px)
     val py   = px - 15
     if (py <= 0) then { 
       // if 30 or less digits we can convert with two doubles
@@ -223,9 +223,9 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
     else {
       // otherwise use 2 initial 15 digits and 1 trailing value but
       // optimize the case of trailing zeros.
-      val (mid,z) = y.divmod-pow10(py)
-      val pz = z.pow10?  // number of trailing zeros
-      val lo = z.cdiv-pow10(pz) 
+      val (mid,z) = y.divmod-exp10(py)
+      val pz = z.exp10?  // number of trailing zeros
+      val lo = z.cdiv-exp10(pz) 
       //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
       (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, pz + e)
     }
@@ -233,7 +233,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
 }
 fun small-exp( i : int, e : int ) {
   val dd = i.double.ddouble
-  if (e.zero?) then dd else dd.mul-pow10(e)
+  if (e.zero?) then dd else dd.mul-exp10(e)
 }
 
 
@@ -446,10 +446,6 @@ public fun dec( x : ddouble ) :ddouble {
 }
 
 
-// The sum of a list of values.
-public fun sum( xs : list<ddouble> ) : ddouble {
-  xs.foldl(zero,(+))
-}
 
 /*------------------------------------------------------
    Multiply and divide
@@ -624,7 +620,7 @@ public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
   if (prec <= 0) then x.round 
   elif (prec > dd-max-prec) then x 
   else {
-    val p : ddouble = pow10(prec)
+    val p : ddouble = powi10(prec)
     (x * p).round / p
   }
 }
@@ -651,35 +647,45 @@ fun npwr( x : ddouble, n : int ) : ddouble {
 }
 
 // Return `x` to the power of `n`.
-public fun pow( x : ddouble, n : int ) : ddouble {
+fun powi( x : ddouble, n : int ) : ddouble {
   val p = npwr(x,n.abs)
   if (n.neg?) then (one / p) else p
 }
 
 // Return 10 to the power of `exp`.
-public fun pow10( exp : int ) : ddouble {
-  pow(ten,exp)
+fun powi10( exp : int ) : ddouble {
+  powi(ten,exp)
+}
+
+// Return 2 to the power of `exp`.
+fun powi2( exp : int ) : ddouble {
+  powi(two,exp)
 }
 
 
+// Return 10 to the power of `exp`.
+public fun exp10( exp : ddouble ) : ddouble {
+  pow(ten,exp)
+}
+
 // Return 2 to the power of `exp`.
-public fun pow2( exp : int ) : ddouble {
+public fun exp2( exp : ddouble ) : ddouble {
   pow(two,exp)
 }
 
 
 // Create a `:ddouble` `x` such that `x` equals `d`&middot;10^`e`^.
 public fun ddouble-exp( d : double, e : int ) {
-  d.ddouble.mul-pow10(e)
+  d.ddouble.mul-exp10(e)
 }
 
 // Create a `:ddouble` `x` such that `x` equals `i`&middot;10^`e`^.
 public fun ddouble-exp( i : int, exp : int ) : ddouble {
-  i.ddouble.mul-pow10(exp)
+  i.ddouble.mul-exp10(exp)
 }
 
-fun mul-pow10( x : ddouble, exp : int ) : ddouble {
-  if (exp.zero?) then x else x * pow10(exp)
+fun mul-exp10( x : ddouble, exp : int ) : ddouble {
+  if (exp.zero?) then x else x * powi10(exp)
 }
 
 /*------------------------------------------------------
@@ -812,9 +818,9 @@ fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   val e1 = x.hi.abs.log10.floor.int  
   // guess exponential
   val r0 = x.abs
-  val r1 = if (e1 < -300) then (r0*pow10(300)) / pow10(e1+300)
-           elif (e1 > 300) then ldexp(ldexp(r0,-53) / pow10(e1), 53)
-           else r0 / pow10(e1)
+  val r1 = if (e1 < -300) then (r0*powi10(300)) / powi10(e1+300)
+           elif (e1 > 300) then ldexp(ldexp(r0,-53) / powi10(e1), 53)
+           else r0 / powi10(e1)
   // fix off by one
   // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
   if (r1 >= ten) then (e1.inc, r1 / ten)
@@ -926,12 +932,14 @@ public fun sqrt( x : ddouble ) : ddouble {
   // From the QD library:
   // Use Karp's strategy: if a is an approximation to sqrt(x), then
   // sqrt(x) = x*a + (x - (x*a)^2) * a/2   
-  if (x.zero?) return zero
-  if (x.neg?)  return dd-nan
-  val a  = 1.0 / sqrt(x.hi)
-  val t1 = x.hi * a
-  val t2 = (x - sqr(t1.ddouble)).hi * a * 0.5
-  dsum(t1,t2)
+  if (x.zero?) then zero
+  elif (x.neg?) then dd-nan
+  else {
+    val a  = 1.0 / sqrt(x.hi)
+    val t1 = x.hi * a
+    val t2 = (x - sqr(t1.ddouble)).hi * a * 0.5
+    dsum(t1,t2)
+  }
 }
 
 // The `n`-th root of a `:ddouble` number `x`.
@@ -945,7 +953,7 @@ public fun nroot( x : ddouble, n : int ) : ddouble {
   else {
     val r = x.abs
     val a0 = exp( ~log(r.hi) / n.double ).ddouble
-    val a1 = a0 + ((a0 * (one - r * pow(a0,n))) / n.ddouble)
+    val a1 = a0 + ((a0 * (one - r * powi(a0,n))) / n.ddouble)
     (if (x.hi.neg?) then ~one else one) / a1
   }
 } 
@@ -954,6 +962,17 @@ public fun nroot( x : ddouble, n : int ) : ddouble {
 fun mul-pwr2( x : ddouble, p : double ) : ddouble {
   Ddouble(x.hi * p, x.lo * p)
 }
+
+val one-half : ddouble = 0.5.ddouble
+
+fun half( x : ddouble ) : ddouble {
+  mul-pwr2( x, 0.5 )
+}
+
+fun twice( x : ddouble ) : ddouble {
+  mul-pwr2( x, 2.0 )
+}
+
 
 
 /*------------------------------------------------------
@@ -983,10 +1002,10 @@ public fun exp( x : ddouble ) : ddouble {
     val m : int = floor( (x.hi / dd-log2.hi) + 0.5 ).int
     val r = mul-pwr2( x - (m.ddouble * dd-log2), inv-k )
     val p = r.sqr
-    val t = r + mul-pwr2(p, 0.5)
+    val t = r + p.half
     var acc := exp-approx( p, t, r, inv-k * dd-epsilon.hi, exp-factors )
     repeat(9) {
-      acc := mul-pwr2(acc,2.0) + acc.sqr
+      acc := acc.twice + acc.sqr
     }
     acc := acc + one
     ldexp( acc, m )
@@ -1037,9 +1056,10 @@ public fun log( x : ddouble ) : ddouble {
      Only one iteration is needed, since Newton's iteration
      approximately doubles the number of digits per iteration. 
   */
-  if (x == one) then zero
-  elif (x <= zero) then dd-nan
+  if (x <= zero) then (if (x==zero) then dd-neginf else dd-nan)
+  elif (x == one) then zero
   elif (x == dd-e) then one
+  elif (x.posinf?) then x
   else {
     val a0 = log(x.hi).ddouble // approximate
     val a1 = a0 + (x * exp(~a0) - one)
@@ -1061,6 +1081,132 @@ public fun log2( x : ddouble ) : ddouble {
 // `x` to the power of `y` both as `:ddouble`
 public fun pow( x : ddouble, y : ddouble ) : ddouble {
   exp(y * log(x))
+}
+
+
+
+// Return `log(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+public fun log1p( x : ddouble ) : ddouble {
+  if (x.posinf?) then x else {
+    val y = one + x
+    val z = y - one
+    if (z.zero?) then x else {
+      log(y) * (x / z)
+    }
+  }
+}
+
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+public fun expm1( x : ddouble ) : ddouble {
+  if (x.posinf?) then x else {
+    val y = exp(x)
+    if (y==one) then x else {
+      val ym = y - one
+      if (ym == ~one) then ~one else ym * (x / log(y))
+    }
+  }
+}
+
+fun log2p1( x : ddouble ) : ddouble {
+  dd-log2 * log1p(x)
+}
+
+fun exp2m1( x : ddouble ) : ddouble {
+  expm1(dd-log2 * x)
+}
+
+// Returns `log(exp(x) + exp(y))`.
+// Avoids overlow/underflow errors.
+public fun logaddexp( x : ddouble, y : ddouble ) : ddouble {
+  if (x==y) then x + dd-log2 else {
+    val z = x - y
+    if (z.pos?) then x + log1p(exp(~z))
+                else y + log1p(exp(z))
+  }
+}
+
+// Returns `log2( exp2(x) + exp2(y) )`.
+// Avoids overlow/underflow errors.
+public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
+  if (x==y) then x + one else {
+    val z = x - y
+    if (z.pos?) then x + log2p1(exp2(~z))
+                else y + log2p1(exp2(z))
+  }
+}
+
+/*------------------------------------------------------
+  Summing
+------------------------------------------------------*/
+
+
+// Return the sum of a list of doubles. 
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements) 
+// to minimize rounding errors. This
+// is more precise as Kahan summation and about as fast.\
+// `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
+// A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
+// Math. Mechanik, 54:39--51, 1974.
+public fun sum( xs : list<ddouble> ) : ddouble
+{
+  var total := zero
+  var comp  := zero
+  xs.foreach fun(x) {
+    val t = total + x
+    val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
+    comp  := comp + c
+    total := t
+  }
+  total + comp;
+}
+
+// The hypotenuse of `x` and `y`: `sqrt(x*x + y*y)`.
+// Prevents overflow for large numbers.
+public fun hypot( x : ddouble, y : ddouble ) : ddouble {
+  val xx = abs(x)
+  val yy = abs(y)
+  val lo = min(xx,yy)
+  val hi = max(xx,yy)
+  if (hi.zero?) then zero else {
+    val z  = lo / hi
+    hi * sqrt( one + z*z )
+  }
+}
+
+// The square root of the sum of the squares of three doubles.
+// Prevents overflow for large numbers.
+public fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble {
+  val xx = abs(x)
+  val yy = abs(y)
+  val zz = abs(z)
+  val hi = max(max(xx,yy),zz)
+  if (hi.zero?) then zero else {
+    hi * sqrt( sqr(xx / hi) + sqr(yy / hi) + sqr(zz / hi) )
+  }
+}
+
+// The square root of the sum of squares of a list of doubles.
+// Prevents overflow for large numbers and uses Kahan-Babu&scaron;kan-Neumaier summation
+// for precision.
+public fun hypot( xs : list<ddouble> ) : ddouble {
+  val hi = xs.abs-max
+  if (hi.zero?) then zero else {
+    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt 
+  }
+}
+
+
+// The maximum of the absolute values.
+fun abs-max( x : ddouble, y : ddouble ) : ddouble {
+  max(abs(x),abs(y))
+} 
+
+// The maximum of a list of absolute values.
+fun abs-max( xs : list<ddouble> ) : ddouble {
+  xs.foldr(zero,fun(x,m){ max(abs(x),m) })
 }
 
 
@@ -1214,7 +1360,7 @@ public fun sinh( x : ddouble ) : ddouble {
   if (x.zero?) then zero
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
-    if (!ex.finite?) then ex else mul-pwr2( ex - (one / ex), 0.5 )
+    if (!ex.finite?) then ex else ( ex - (one / ex)).half
   }
   else {
     // small x so use Taylor series to avoid cancellation 
@@ -1228,7 +1374,7 @@ public fun cosh( x : ddouble ) : ddouble {
   if (x.zero?) then one 
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
-    if (!ex.finite?) then ex else mul-pwr2(ex + (one / ex), 0.5)
+    if (!ex.finite?) then ex else (ex + (one / ex)).half
   }
   else {
     val s = x.sinh
@@ -1263,6 +1409,6 @@ public fun acosh( x : ddouble ) : ddouble {
 
 // The area hyperbolic tangent of `x`.
 public fun atanh( x : ddouble ) : ddouble {
-  if (x.abs >= one) then dd-nan 
-   else mul-pwr2( log((one + x) / (one - x)), 0.5 )
+  if (x.abs > one) then dd-nan 
+   else log((one + x) / (one - x)).half  
 }

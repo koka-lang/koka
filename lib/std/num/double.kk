@@ -19,6 +19,7 @@ public module std/num/double
 
 // &pi;
 val pi          = 3.141592653589793238462643383279502884
+val dbl-pi      = pi
 
 // 2&pi;
 val dbl-twopi   = 6.283185307179586476925286766559005768
@@ -26,17 +27,29 @@ val dbl-twopi   = 6.283185307179586476925286766559005768
 // &pi;/2
 val dbl-pi2     = 1.570796326794896619231321691639751442
 
-// The _e_ constant.
+// The [_e_](https://en.wikipedia.org/wiki/E_(mathematical_constant)) constant.
 val dbl-e       = 2.718281828459045235360287471352662498
 
 // The natural logarithm of 2
 val dbl-log2    = 0.693147180559945309417232121458176568
 
+// The natural logarithm of 10
+val dbl-log10   = 2.302585092994045684017991454684364208
+
+// The base-2 logarithm of _e_.
+val dbl-log2e   =  1.442695040888963407359924681001892137
+
+// The base-10 logarithm of _e_.
+val dbl-log10e  = 0.434294481903251827651128918916605082
+
 // The square-root of 2
 val dbl-sqrt2   = 1.414213562373095048801688724209698079
 
-// The natural logarithm of 10
-val dbl-log10   = 2.302585092994045684017991454684364208
+// `1.0 / sqrt(2.0)`
+val dbld-sqrt12 = 0.707106781186547524400844362104849039
+
+// [Euler's constant](https://en.wikipedia.org/wiki/Euler%E2%80%93Mascheroni_constant)
+val dbl-euler   = 0.577215664901532860606512090082402431
 
 // Maximum double value
 val dbl-max     = 1.79769313486231570815e+308
@@ -45,25 +58,126 @@ val dbl-max     = 1.79769313486231570815e+308
 val dbl-min     = 2.22507385850720138309e-308
 
 // Smallest positive denormalized value (i.e. ``DBL_TRUE_MIN``)
-val dbl-denorm-min  = 4.9406564584124654418e-324
+val dbl-true-min= 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:double` value.
-val dbl-epsilon     = 2.2204460492503130808e-16
+val dbl-epsilon = 2.2204460492503130808e-16
 
 // maximal precision in decimal digits of a `:double`.
-val dbl-max-prec    = 15
+val dbl-max-prec= 15
+
+// Represents a value that is _not a number_ (NaN)
+val nan : double    = 0.0/0.0
+
+// Positive infinity
+val posinf : double = 1.0/0.0
+
+// Negative infinity
+val neginf : double = -1.0/0.0
 
 
-// The base-2 logarithm of _e_.
-private val dbl-log2e =  1.442695040888963407359924681001892137
+//-----------------------------------------
+// NaN, Infinity
+//-----------------------------------------
 
-// The base-10 logarithm of _e_.
-private val dbl-log10e = 0.434294481903251827651128918916605082
+// Is this value equal to NaN ?
+extern inline nan? : (double) -> bool {
+  cs "double.IsNaN"
+  js "isNaN"
+} 
+
+// Is this value equal to negative or positive infinity ?
+extern inf? : (double) -> bool {
+  cs "double.IsInfinity"
+  js inline "((#1) === Infinity || (#1) === -Infinity)"
+}
+
+// Is this value equal to positive infinity ?
+extern inline posinf? : (double) -> bool {
+  cs "double.IsPositiveInfinity"
+  js inline "((#1) === Infinity)"
+}
+
+// Is this value equal to negative infinity ?
+extern inline neginf? : (double) -> bool {
+  cs "double.IsNegativeInfinity"
+  js inline "((#1) === -Infinity)"
+}
+
+// Is this a finite number (i.e. not `nan` or infinity)
+extern inline finite?( d : double ) : bool {
+  cs inline "(!double.isNaN(#1) && !double.IsInfinity(#1))"
+  js "isFinite"
+}
+
+//-----------------------------------------
+// Rounding
+//-----------------------------------------
+
+
+// Round a double to its nearest integral value.
+// If the value is halfway between two integers, the value is rounded to the even one.
+extern round : (d:double) -> double {
+  cs "Math.Round"
+  js "Math.round"
+}
+
+// Return the largest integer equal or less than `d` 
+extern inline floor : (d:double) -> double {
+  cs "Math.Floor"
+  js "Math.floor"
+}
+
+// Return the smallest integer equal or larger than `d` 
+extern inline ceiling : (d:double) -> double {
+  cs "Math.Ceiling"
+  js "Math.ceil"
+}
+
+// Return the integral part of a `:double` `d` .
+// If `d >= 0.0` , return the largest integer equal or less to `d` ,
+// If `d < 0.0` , return the smallest integer equal or larger to `d` .
+fun trunc(d : double) : double {
+  if (d >= 0.0) then floor(d) else ceiling(d)
+}
+
+// Return the fractional part of a `:double` `d`.\
+// `d.trunc + d.fraction === d`\
+// `(-2.4).fraction === -0.4`
+fun fraction(d : double) : double {
+  d - d.trunc
+}
+
+// Return the 'floored' fraction of `d`, always greater or equal to zero.\
+// `d.floor + d.ffraction === d`\
+// `(-2.4).ffraction === 0.6`
+fun ffraction(d : double) : double {
+  d - d.floor
+}
+
+
+// Round a double to a specified precision.\
+// `123.456.round-to-prec(2) == 123.46`\
+// `123.456.round-to-prec(-1) == 120.0`\
+fun round-to-prec( d : double, prec : int  ) : double {
+  if (prec <= 0) then d.round else {
+    val p  = exp10(prec.double)
+    (d * p).round / p
+  }
+}
 
 
 //-----------------------------------------
 // Powers
 //-----------------------------------------
+
+// Return the square root of a value `d` 
+// Returns `nan` if `d == nan`  or if `d`  is negative.
+// Returns `inf` if `d == inf` .
+extern inline sqrt : (d:double) -> double {
+  cs "Math.Sqrt"
+  js "Math.sqrt"
+}
 
 
 // Return the `d` raised to the power of `p`. 
@@ -95,12 +209,12 @@ extern inline exp( p : double ) : double {
 }
 
 // Return the 10 to the power of `p`.
-fun pow10( p : double ) : double {
+fun exp10( p : double ) : double {
   pow(10.0,p)
 }
 
 // Return the 2 to the power of `p`.
-fun pow2( p : double ) : double {
+fun exp2( p : double ) : double {
   pow(2.0,p)
 }
 
@@ -146,55 +260,36 @@ fun logaddexp( x : double, y : double ) : double {
   }
 }
 
-// Returns `log2( pow2(x) + pow2(y) )`.
+// Returns `log2( exp2(x) + exp2(y) )`.
 // Avoids overlow/underflow errors.
 fun logaddexp2( x : double, y : double ) : double {
   if (x==y) then x + 1.0 else {
     val z = x - y
-    if (z > 0.0) then x + log2p1(pow2(~z))
-                 else y + log2p1(pow2(z))
+    if (z > 0.0) then x + log2p1(exp2(~z))
+                 else y + log2p1(exp2(z))
   }
 }
 
-private val rad2deg : double = 180.0/pi
-private val deg2rad : double = pi/180.0
 
-// Convert radians to degrees.
-fun deg( rad : double ) : double {
-  rad * rad2deg
-}
-
-// Convert degrees to radians.
-fun rad( deg : double ) : double {
-  deg * deg2rad
-}
-
-// Round a double to a specified precision
-fun round-to-prec( d : double, prec : int  ) : double {
-  if (prec <= 0) then d.round else {
-    val p  = pow10(prec.double)
-    (d * p).round / p
-  }
-}
 
 //-----------------------------------------
 // Other
 //-----------------------------------------
 
 // 'Load exponent': returns `x`&middot;2^`exp`^.
-fun ldexp( x : double, exp : int ) : double {
-  if (!finite?(x)) then x else x*pow2(exp.double)
+fun ldexp( x : double, e : int ) : double {
+  if (!finite?(x)) then x else x*exp2(e.double)
 }
 
 // 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
 // for a number `x` such that `x == f`&middot;2^`exp`^.
 fun frexp( x : double ) : (double,int) {
   if (!finite?(x)) then (x,0) else {
-    val exp  = log2(x.abs).trunc.int
-    val frac = if (exp > 1023) 
-                then (x / pow2(1023.0))/pow2(exp.double - 1023.0) // prevent overflow
-                else (x / pow2(exp.double))
-    (frac,exp)
+    val e    = log2(x.abs).trunc.int
+    val frac = if (e > 1023) 
+                then (x / exp2(1023.0))/exp2(e.double - 1023.0) // prevent overflow
+                else (x / exp2(e.double))
+    (frac,e)
   }
 }
 
@@ -273,70 +368,124 @@ fun abs-max( xs : list<double> ) : double {
 // Trigonometry
 //-----------------------------------------
 
+private val rad2deg : double = 180.0/pi
+private val deg2rad : double = pi/180.0
+
+// Convert radians to degrees.
+fun deg( rad : double ) : double {
+  rad * rad2deg
+}
+
+// Convert degrees to radians.
+fun rad( deg : double ) : double {
+  deg * deg2rad
+}
 
 // Return the sine of an angle in radians `d`.
 extern inline sin( d : double ) : double {
+  cs "Math.Sin"
   js "Math.sin"
 }
 
 // Return the cosine of an angle in radians `d`.
 extern inline cos( d : double ) : double {
+  cs "Math.Cos"
   js "Math.cos"
 }
 
 // Return the tangent of an angle in radians `d`.
 extern inline tan( d : double ) : double {
+  cs "Math.Tan"
   js "Math.tan"
 }
 // Return the arc-tangent of `d`
 extern inline atan( d : double ) : double {
+  cs "Math.Atan"
   js "Math.atan"
 }
 
 // Return the arc-tangent of a point (`x`,`y`).
 extern inline atan2( x : double, y : double ) : double {
+  cs "Math.Atan2"
   js "Math.atan2"
 }
 
 // Return the arc-cosine of `d`
 extern inline acos( d : double ) : double {
+  cs "Math.Acos"
   js "Math.acos"
 }
 
 // Return the arc-sine of `d`
 extern inline asin( d : double ) : double {
+  cs "Math.Asin"
   js "Math.asin"
 }
 
 
 // The hyperbolic tangent of `d`
 extern inline tanh( d : double ) : double {
+  cs "Math.Tanh"
   js "Math.tanh"
 }
 
 // The hyperbolic cosine of `d`
 extern inline cosh( d : double ) : double {
+  cs "Math.Cosh"
   js "Math.cosh"
 }
 
 // The hyperbolic sine of `d`
 extern inline sinh( d : double ) : double {
+  cs "Math.Sinh"
   js "Math.sinh"
 }
 
 
-// The area hyperbolic tangent of `d`
-extern inline atanh( d : double ) : double {
-  js "Math.atanh"
+// Return `x` with the sign of `y`.
+public fun with-sign-of( x : double, y : double ) : double {
+  if (y < 0.0) then ~(x.abs) else x.abs
 }
 
-// The area hyperbolic cosine of `d`
-extern inline acosh( d : double ) : double {
-  js "Math.acosh"
+
+// The area hyperbolic tangent of `x`
+fun atanh( x : double ) : double {
+  0.5*log( (1.0 + x) / (1.0 - x))
+  /*
+  // 0.5*log( (1.0 + x) / (1.0 - x)) = 0.5*log1p( (2.0*x) / (1-x) )
+  if (x.abs >= 0.5) then 0.5*log1p(2.0*(x/(1.0 - x))) else {
+    val x2 = x + x
+    0.5*log1p(x2 + (x2*x)/(1.0 - x))    
+  }
+  */
 }
 
-// The area hyperbolic sine of `d`
-extern inline asinh( d : double ) : double {
-  js "Math.asinh"
+private val exp2_28 : double = 268435456.0
+
+// The area hyperbolic cosine of `x`
+fun acosh( x : double ) : double {
+  // log(x + sqrt((x - 1.0)*(x + 1.0)));
+  if (x > exp2_28) then dbl-log2 + log(x)
+  elif (x > 2.0) then {
+    log(2.0*x - 1.0/(x + sqrt(x.sqr - 1.0)))
+  }
+  elif (x <= 1.0) then (if (x < 1.0) then nan else 0.0)
+  else {
+    val xm1 = x - 1.0
+    log1p( xm1 + sqrt(2.0*xm1 + xm1*xm1) )
+  }
+}
+
+// The area hyperbolic sine of `x`
+fun asinh( x : double ) : double {
+  //log( x + sqrt(x.sqr + 1.0))
+  val xa = x.abs
+  if (xa > exp2_28) then (log(xa) + dbl-log2).with-sign-of(x) 
+  elif (xa >= 2.0) then (log(2.0*xa + 1.0/(xa + sqrt(xa.sqr + 1.0)))).with-sign-of(x)
+  elif (xa == 0.0) then 0.0
+  else {
+    val xa2 = xa.sqr
+    log1p( xa + xa2/(1.0 + sqrt( xa2 + 1.0 ))).with-sign-of(x)
+  }
 }
 

@@ -240,6 +240,7 @@ University Science Books, 1992. [pdf][astroa]
 module std/time/utc
 
 import std/text/regex
+import std/num/double
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
