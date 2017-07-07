@@ -497,7 +497,7 @@ public static class Primitive
     if (ok && !String.IsNullOrEmpty(mpre.Groups[4].Value)) {
       int exp = 0;
       ok = int.TryParse(mpre.Groups[4].Value, out exp);
-      res = (ok ? res * BigInteger.Pow(10,exp) : 0);
+      res = (ok ? (exp >= 0 ? res * BigInteger.Pow(10,exp) : res / BigInteger.Pow(10,-exp)): 0);
     }
     return (ok ? new std_core._maybe<BigInteger>(res) : std_core._maybe<BigInteger>.Nothing_ );
   }

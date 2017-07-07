@@ -537,7 +537,7 @@ public fun sqr( x : ddouble ) : ddouble {
 // Divide two `:ddouble`s
 public fun (/)( x : ddouble, y : ddouble ) : ddouble {
   val q1 = ddouble(x.hi / y.hi)
-  if (!q1.finite?) return q1
+  if (!q1.finite? || !y.hi.finite?) return q1
   val r1 = x - (y * q1)
   val q2 = ddouble(r1.hi / y.hi)
   val r2 = r1 - (y * q2)
@@ -1267,7 +1267,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // find a, b, and s.
   val z  = (rad / dd-twopi).round
   val r  = rad - (dd-twopi * z)
-  
+
   val qa : double = floor( (r.hi / dd-pi2.hi) + 0.5)
   val a  = qa.trunc.int
   val t  = r - (dd-pi2 * qa.ddouble)
@@ -1278,7 +1278,8 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val s2 = s.sqr
   
   // Use the Chebyshev series for best precision.
-  val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
+  trace("s2: " + s2.show)
+  val sins = if (s2.hi<=1.0e-56) then zero else s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
 
   // sinb = sin(b*pi/16)
@@ -1406,7 +1407,9 @@ public fun tanh( x : ddouble ) : ddouble {
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
     val iex = one / ex
-    ((ex - iex) / (ex + iex))
+    if (ex.zero?) then ~one
+    elif (ex.posinf?) then one
+    else ((ex - iex) / (ex + iex))
   }
   else {
     val s = x.sinh
