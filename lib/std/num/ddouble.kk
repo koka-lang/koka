@@ -743,7 +743,7 @@ public fun show-prec( x : ddouble, prec : int = -1 ) : string {
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
-  if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
+  // if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
   val (ds,e) = digits(x, dd-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 

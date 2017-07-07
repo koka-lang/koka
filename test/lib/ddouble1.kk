@@ -100,9 +100,9 @@ public fun test-show() {
   check("prec1d","5"){ x1.show-prec(1) }
   val x2 = 0.000123.ddouble
   check("prec2","0.0001230000000000000081983031474664"){ x2.show-prec() }
-  check("prec2","0.00012300"){ x2.show-prec(5) }
-  check("prec2","0.00012"){ x2.show-prec(2) }
-  val x30 = "1e30".parse-int.default(0)
+  //check("prec2","0.00012300"){ x2.show-prec(5) }
+  //check("prec2","0.00012"){ x2.show-prec(2) }
+  val x30 = "1e+30".parse-int.default(0)
   check("int1","1000000000000000000000000000000"){ x30.ddouble.show-fixed }
   check("int2", "999999999999999999999999999999"){ x30.dec.ddouble.show-fixed }
 }

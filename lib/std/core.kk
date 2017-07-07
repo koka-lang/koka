@@ -1392,19 +1392,23 @@ fun exp10( exp : int ) : int {
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
 extern exp10?( i : int ) : int {
+  cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
 }
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
 extern count-digits( i : int ) : int {
+  cs "Primitive.IntCountDigits"
   js "_int_count_digits"
 }
 
 extern mul-exp10( i : int, n : int ) : int {
+  cs "Primitive.IntMulPow10"
   js "_int_mul_pow10"
 }
 
 extern cdiv-exp10( i : int, n : int ) : int {
+  cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
 }
 

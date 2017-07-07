@@ -488,14 +488,44 @@ public static class Primitive
   }
 
   public static std_core._maybe<BigInteger> IntParse( string s, bool hex ) {
-    Regex rxpre = new Regex(@"^([\-\+])?(0[xX])?(.*)$");
+    Regex rxpre = new Regex(@"^([\-\+])?(?:(0[xX][\da-fA-F]+)|(\d+)(?:[eE]?([\-\+]?\d+))?)$"); //todo: allow hex
     Match mpre  = rxpre.Match(s);
     string sign = (mpre.Groups[1].Value=="-" ? "-" : "");
-    if (!String.IsNullOrEmpty(mpre.Groups[2].Value)) hex = true;
-    string sdigits = mpre.Groups[3].Value;
-    BigInteger res;
+    string sdigits = (String.IsNullOrEmpty(mpre.Groups[2].Value) ? (hex ? "0x" : "") + mpre.Groups[3].Value : mpre.Groups[2].Value);
+    BigInteger res = 0;
     bool ok = BigInteger.TryParse( sign + sdigits, out res);
+    if (ok && !String.IsNullOrEmpty(mpre.Groups[4].Value)) {
+      int exp = 0;
+      ok = int.TryParse(mpre.Groups[4].Value, out exp);
+      res = (ok ? res * BigInteger.Pow(10,exp) : 0);
+    }
     return (ok ? new std_core._maybe<BigInteger>(res) : std_core._maybe<BigInteger>.Nothing_ );
+  }
+
+  public static BigInteger IntCountDigits( BigInteger i ) {
+    double d = BigInteger.Log10(BigInteger.Abs(i));
+    return new BigInteger(Math.Ceiling(d));
+  }
+
+  public static BigInteger IntCountPow10( BigInteger i ) {
+    BigInteger x = BigInteger.Abs(i);
+    BigInteger r = 0;
+    int n = 0;
+    while(r == 0 && x > 0) {
+      x = BigInteger.DivRem(x,10,out r);
+      if (r==0) n++;
+    }
+    return n;
+  }
+
+  public static BigInteger IntCDivPow10( BigInteger i, BigInteger n ) {
+    if (n < 0) return IntMulPow10(i,-n);
+          else return i / BigInteger.Pow(10,(int)n);
+  }
+
+  public static BigInteger IntMulPow10( BigInteger i, BigInteger n ) {
+    if (n < 0) return IntCDivPow10(i,-n);
+          else return i * BigInteger.Pow(10,(int)n);
   }
 
   public static std_core._maybe<double> DoubleParse( string s ) {
