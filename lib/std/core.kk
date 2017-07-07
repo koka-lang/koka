@@ -1529,6 +1529,7 @@ public fun parse-double( s : string ) : maybe<double> {
 }
 
 private extern xparse-double( s : string ) : maybe<double> {
+  cs "Primitive.DoubleParse"
   js "_double_parse"
 }
 
@@ -2328,7 +2329,7 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string
 private fun show-double( d : double, precision : int, format : string )
 {
   val p = if (precision < 0) then 0 else precision
-  gformat(d,format + show(p))
+  gformat(d,format + (if (precision < 0) then "" else show(p)))
   // if (s.contains(".") || s.contains("e")) then s else s + ".0"
 }
 

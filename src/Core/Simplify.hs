@@ -331,7 +331,14 @@ instance Simplify DefGroup where
 
 instance Simplify Def where
   simplify (Def name tp expr vis isVal nameRng doc) 
-    = do expr' <- simplify expr
+    = do expr' <- case expr of
+                    TypeLam tvs (Lam pars eff body) 
+                      -> do body' <- simplify body
+                            return $ TypeLam tvs (Lam pars eff body')
+                    Lam pars eff body
+                      -> do body' <- simplify body
+                            return $ Lam pars eff body'
+                    _ -> simplify expr
          return $ Def name tp expr' vis isVal nameRng doc
 
 instance Simplify a => Simplify [a] where

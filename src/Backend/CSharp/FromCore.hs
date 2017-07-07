@@ -385,8 +385,8 @@ genDefGroup (DefRec [def])
 genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
-genDefY :: Bool -> Def -> Asm ()
-genDefY isRec def@(Def name tp expr vis defsort nameRng doc)
+genDef :: Bool -> Def -> Asm ()
+genDef isRec def@(Def name tp expr vis defsort nameRng doc)
   = if (defIsVal def) 
      then genDefX isRec def
      else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
@@ -398,8 +398,8 @@ genDefY isRec def@(Def name tp expr vis defsort nameRng doc)
                         expr2 <- etaExpand expr1 [] m
                         genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
 
-genDef :: Bool -> Def -> Asm ()
-genDef isRec def  = genDefX isRec def
+genDefZ :: Bool -> Def -> Asm ()
+genDefZ isRec def  = genDefX isRec def
 
 genDefX :: Bool -> Def -> Asm ()
 genDefX isRec (Def name tp expr vis isVal nameRng doc)
@@ -460,8 +460,7 @@ tetaExpand fun targs m
 
 genReturnExpr :: Bool -> Expr -> Asm ()
 genReturnExpr tailCall expr
-  = trace ("return expr: " ++ show expr ) $
-    withReturn tailCall $ genExpr expr
+  = withReturn tailCall $ genExpr expr
 
 
 genArguments :: [Expr] -> Asm [Doc]
@@ -492,10 +491,14 @@ isAtomic expr
 
 genExpr :: Expr  -> Asm ()
 genExpr expr 
-  = trace ("genExpr: " ++ show expr) $
+  = -- trace ("genExpr: " ++ show expr) $
     do def <- getCurrentDef
        case expr of
           -- note: values with a generic parameter become functions in the C# translation (i.e. nil)
+
+          -- ignore .open function applications
+          App (App (TypeApp var@(Var tname (InfoExternal _)) [from,to]) [arg]) args  | getName tname == nameEffectOpen
+            -> genExpr (App arg args)  
 
           -- function calls     
           TypeApp (Var tname (InfoArity m n)) targs 
@@ -1528,7 +1531,7 @@ putLn doc
   = do env <- getEnv
        let ndoc = indent (currentIndent env) doc
        updateSt (\st -> st{ toplevel = case (toplevel st) of { [] -> [ndoc]; (d:ds) -> ((d <-> ndoc) : ds)}})
-       trace (show doc) $ return ()
+       return ()
 
 put :: Doc -> Asm ()
 put doc

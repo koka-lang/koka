@@ -497,6 +497,12 @@ public static class Primitive
     bool ok = BigInteger.TryParse( sign + sdigits, out res);
     return (ok ? new std_core._maybe<BigInteger>(res) : std_core._maybe<BigInteger>.Nothing_ );
   }
+
+  public static std_core._maybe<double> DoubleParse( string s ) {
+    double res;
+    bool ok = Double.TryParse( s, out res);
+    return (ok ? new std_core._maybe<double>(res) : std_core._maybe<double>.Nothing_ );
+  }
 };
   
 //---------------------------------------

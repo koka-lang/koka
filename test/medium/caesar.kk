@@ -1,5 +1,7 @@
 module caesar
 
+import std/num/double
+
 fun encode( s : string, shift : int = 3 )
 {
   function encode-char(c) {
