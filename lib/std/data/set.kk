@@ -7,6 +7,10 @@
 ---------------------------------------------------------------------------*/
 
 // TODO unit tests
+// TODO disjoint unions
+// TODO power set
+// TODO cartesian product
+// TODO maybe allow for compare functions with effects
 module std/data/set
 
 import red-black-tree
@@ -38,13 +42,11 @@ public fun insert(set: set<a>, value: a): set<a> {
   set(tree = unsafe-insert(set.tree, value, set.compare, True))
 }
 
-// TODO remove the div effect
-public fun remove(set: set<a>, value: a): div set<a> {
+public fun remove(set: set<a>, value: a): set<a> {
   set(tree = unsafe-remove(set.tree, value, set.compare))
 }
 
-// TODO remove the div effect
-public fun exclude(set: set<a>, exclude: set<a>): div set<a> {
+public fun exclude(set: set<a>, exclude: set<a>): set<a> {
   val compare = set.compare
   set(
     tree = exclude.tree.foldl(set.tree) fun(old, value) {
@@ -70,14 +72,12 @@ public fun intersection-left(left: set<a>, right: set<a>): set<a> {
   intersection-right(right, left)
 }
 
-// TODO remove the div effect
-public fun difference-left(left: set<a>, right: set<a>): div set<a> {
+public fun difference-left(left: set<a>, right: set<a>): set<a> {
   // TODO implement this more efficiently
   union-left(exclude(left, right), exclude(right, left))
 }
 
-// TODO remove the div effect
-public fun difference-right(left: set<a>, right: set<a>): div set<a> {
+public fun difference-right(left: set<a>, right: set<a>): set<a> {
   // TODO implement this more efficiently
   union-right(exclude(left, right), exclude(right, left))
 }
@@ -100,4 +100,14 @@ public fun union-right(left: set<a>, right: set<a>): set<a> {
       unsafe-insert(old, value, compare, False)
     }
   )
+}
+
+public fun subset-of?(smaller: set<a>, bigger: set<a>): bool {
+  smaller.tree.find-first fun(value) {
+    if (bigger.has?(value)) {
+      Nothing
+    } else {
+      Just(False)
+    }
+  }.default(True)
 }

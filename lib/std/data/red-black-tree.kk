@@ -21,14 +21,6 @@ abstract type tree<a> {
 }
 
 
-fun color(tree: tree<a>): color {
-  match (tree) {
-    Empty -> Black
-    Node(_, _, _, color) -> color
-  }
-}
-
-
 public val empty: forall<a> tree<a> = Empty
 
 
@@ -38,7 +30,7 @@ public fun single(value: a): tree<a> {
 
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-lookup(tree: tree<a>, key: b, compare: (b, a) -> order): maybe<a> {
+public fun unsafe-lookup(tree: tree<a>, key: b, compare: (b, a) -> e order): e maybe<a> {
   match (tree) {
     Node(left, value, right, _) ->
       match (compare(key, value)) {
@@ -49,6 +41,21 @@ public fun unsafe-lookup(tree: tree<a>, key: b, compare: (b, a) -> order): maybe
 
     Empty ->
       Nothing
+  }
+}
+
+
+// TODO implement this more efficiently
+public fun find-first(tree: tree<a>, fn: (a) -> e maybe<b>): e maybe<b> {
+  match (tree) {
+    Node(left, value, right, _) -> match (find-first(left, fn)) {
+      Nothing -> match (fn(value)) {
+        Nothing -> find-first(right, fn)
+        a -> a
+      }
+      a -> a
+    }
+    Empty -> Nothing
   }
 }
 
@@ -69,13 +76,22 @@ public fun foldr(tree: tree<a>, initial: b, fn: (a, b) -> e b): e b {
 }
 
 
+public fun map(tree: tree<a>, fn: (a) -> e b): e tree<b> {
+  match (tree) {
+    // TODO this can be parallelized
+    Node(left, value, right, color) -> Node(map(left, fn), fn(value), map(right, fn), color)
+    Empty -> empty
+  }
+}
+
+
 public fun to-list(tree: tree<a>): list<a> {
   tree.foldr([], Cons)
 }
 
 
 // TODO should this be called unsafe ?
-public fun from-list(list: list<a>, compare: (a, a) -> order): tree<a> {
+public fun from-list(list: list<a>, compare: (a, a) -> e order): e tree<a> {
   list.foldl(empty) fun(l, r) {
     unsafe-insert(l, r, compare, True)
   }
@@ -186,7 +202,7 @@ fun redden(tree: tree<a>): tree<a> {
 }
 
 
-fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> order, replace: bool): tree<a> {
+fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> e order, replace: bool): e tree<a> {
   match (tree) {
     Node(left, middle, right, color) ->
       match (compare(value, middle)) {
@@ -208,12 +224,12 @@ fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> order, replace: b
 }
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-insert(tree: tree<a>, value: a, compare: (a, a) -> order, replace: bool): tree<a> {
+public fun unsafe-insert(tree: tree<a>, value: a, compare: (a, a) -> e order, replace: bool): e tree<a> {
   blacken(unsafe-insert1(tree, value, compare, replace))
 }
 
 
-fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
+fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> e order): e tree<a> {
   match (tree) {
     Node(left, middle, right, _) ->
       match (compare(value, middle)) {
@@ -235,6 +251,6 @@ fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
 }
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-remove(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
+public fun unsafe-remove(tree: tree<a>, value: a, compare: (a, a) -> e order): e tree<a> {
   blacken(unsafe-remove1(tree, value, compare))
 }
