@@ -53,24 +53,31 @@ public fun unsafe-lookup(tree: tree<a>, key: b, compare: (b, a) -> order): maybe
 }
 
 
-fun to-list1(tree: tree<a>, acc: list<a>): list<a> {
+public fun foldl(tree: tree<a>, initial: b, fn: (b, a) -> e b): e b {
   match (tree) {
-    Node(left, value, right, _) ->
-      to-list1(left, Cons(value, to-list1(right, acc)))
-
-    Empty -> acc
+    Node(left, value, right, _) -> foldl(right, fn(foldl(left, initial, fn), value), fn)
+    Empty -> initial
   }
 }
 
+
+public fun foldr(tree: tree<a>, initial: b, fn: (a, b) -> e b): e b {
+  match (tree) {
+    Node(left, value, right, _) -> foldr(left, fn(value, foldr(right, initial, fn)), fn)
+    Empty -> initial
+  }
+}
+
+
 public fun to-list(tree: tree<a>): list<a> {
-  to-list1(tree, [])
+  tree.foldr([], Cons)
 }
 
 
 // TODO should this be called unsafe ?
 public fun from-list(list: list<a>, compare: (a, a) -> order): tree<a> {
   list.foldl(empty) fun(l, r) {
-    unsafe-insert(l, r, compare)
+    unsafe-insert(l, r, compare, True)
   }
 }
 
@@ -105,7 +112,7 @@ fun balance-left(left: tree<a>, value: a, right: tree<a>): tree<a> {
       Node(Node(a, y, b, Black), z, c, Red) ->
         Node(Node(left, value, a, Black), y, balance(Node(b, z, redden(c), Black)), Red)
 
-      a -> a // TODO This should never happen
+      _ -> unreachable()
     }
   }
 }
@@ -122,37 +129,44 @@ fun balance-right(left: tree<a>, value: a, right: tree<a>): tree<a> {
       Node(a, x, Node(b, y, c, Black), Red) ->
         Node(balance(Node(redden(a), x, b, Black)), y, Node(c, value, right, Black), Red)
 
-      a -> a // TODO This should never happen
+      _ -> unreachable()
     }
   }
 }
 
-// TODO remove the div effect
-fun unsafe-merge(left: tree<a>, right: tree<a>): div tree<a> {
-  // TODO replace this with multi-pattern matching
-  match ((left, right)) {
-    (Empty, _) -> right
-    (_, Empty) -> left
+fun unsafe-merge(left: tree<a>, right: tree<a>): tree<a> {
+  // TODO replace this with multi-pattern matching ?
+  match (left) {
+    Empty -> right
 
-    (Node(a, x, b, Red), Node(c, y, d, Red)) ->
-      match (unsafe-merge(b, c)) {
-        Node(b1, z, c1, Red) -> Node(Node(a, x, b1, Red), z, Node(c1, y, d, Red), Red)
-        bc -> Node(a, x, Node(bc, y, d, Red), Red)
-      }
+    Node(a, x, b, Red) -> match (right) {
+      Empty -> left
 
-    (Node(a, x, b, Black), Node(c, y, d, Black)) ->
-      match (unsafe-merge(b, c)) {
-        Node(b1, z, c1, Red) -> Node(Node(a, x, b1, Black), z, Node(c1, y, d, Black), Red)
-        bc -> balance-left(a, x, Node(bc, y, d, Black))
-      }
+      Node(c, y, d, Red) ->
+        match (unsafe-merge(b, c)) {
+          Node(b1, z, c1, Red) -> Node(Node(a, x, b1, Red), z, Node(c1, y, d, Red), Red)
+          bc -> Node(a, x, Node(bc, y, d, Red), Red)
+        }
 
-    (_, Node(b, x, c, Red)) ->
-      Node(unsafe-merge(left, b), x, c, Red)
+      _ -> Node(a, x, unsafe-merge(b, right), Red)
+    }
 
-    (Node(a, x, b, Red), _) ->
-      Node(a, x, unsafe-merge(b, right), Red)
+    Node(a, x, b, Black) -> match (right) {
+      Empty -> left
 
-    _ -> left // TODO remove this after Koka's exhaustiveness checker is fixed
+      Node(c, y, d, Black) ->
+        match (unsafe-merge(b, c)) {
+          Node(b1, z, c1, Red) -> Node(Node(a, x, b1, Black), z, Node(c1, y, d, Black), Red)
+          bc -> balance-left(a, x, Node(bc, y, d, Black))
+        }
+
+      Node(b1, x1, c, Red) ->
+        Node(unsafe-merge(left, b1), x1, c, Red)
+
+      _ -> unreachable() // TODO remove this after Koka's exhaustiveness checker is fixed
+    }
+
+    _ -> unreachable() // TODO remove this after Koka's exhaustiveness checker is fixed
   }
 }
 
@@ -167,18 +181,26 @@ fun blacken(tree: tree<a>): tree<a> {
 fun redden(tree: tree<a>): tree<a> {
   match (tree) {
     Node(left, value, right, Black) -> Node(left, value, right, Red)
-    a -> a // TODO This should never happen
+    _ -> unreachable()
   }
 }
 
 
-fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
+fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> order, replace: bool): tree<a> {
   match (tree) {
     Node(left, middle, right, color) ->
       match (compare(value, middle)) {
-        Lt -> balance(Node(unsafe-insert1(left, value, compare), middle, right, color))
-        Eq -> Node(left, value, right, color) // TODO return the Node unchanged if value is equal to middle
-        Gt -> balance(Node(left, middle, unsafe-insert1(right, value, compare), color))
+        Lt -> balance(Node(unsafe-insert1(left, value, compare, replace), middle, right, color))
+
+        Gt -> balance(Node(left, middle, unsafe-insert1(right, value, compare, replace), color))
+
+        Eq -> if (replace) {
+          // TODO in this situation we should avoid balancing, because the structure hasn't changed
+          Node(left, value, right, color) // TODO return the Node unchanged if value is equal to middle
+        } else {
+          // TODO in this situation we should immediately return all the way to the root, because nothing has changed
+          tree
+        }
       }
 
     Empty -> Node(empty, value, empty, Red)
@@ -186,13 +208,12 @@ fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
 }
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-insert(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
-  blacken(unsafe-insert1(tree, value, compare))
+public fun unsafe-insert(tree: tree<a>, value: a, compare: (a, a) -> order, replace: bool): tree<a> {
+  blacken(unsafe-insert1(tree, value, compare, replace))
 }
 
 
-// TODO remove the div effect
-fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> order): div tree<a> {
+fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
   match (tree) {
     Node(left, middle, right, _) ->
       match (compare(value, middle)) {
@@ -213,8 +234,7 @@ fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> order): div tree<
   }
 }
 
-// TODO remove the div effect
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-remove(tree: tree<a>, value: a, compare: (a, a) -> order): div tree<a> {
+public fun unsafe-remove(tree: tree<a>, value: a, compare: (a, a) -> order): tree<a> {
   blacken(unsafe-remove1(tree, value, compare))
 }
