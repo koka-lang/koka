@@ -238,8 +238,8 @@ fun small-exp( i : int, e : int ) {
 
 
 // &pi; 
-public val dd-pi      = Ddouble(3.1415926535897931160, 1.2246467991473529607e-16)
-// QD:                        3.141592653589793116e+00,1.224646799147353207e-16)  
+public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
+//                      Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
 
 // 2&pi;
 public val dd-twopi   = Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
@@ -1254,9 +1254,9 @@ val dd-pi16 = Ddouble(1.963495408493620697e-01,7.654042494670957545e-18)
 // Calculate sine and cosine on an angle in radians.
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
-  if (rad.hi.abs < 1.0e-11) then {
-    return (rad, one - 0.5.ddouble*sqr(rad))   
-  }
+  //if (rad.hi.abs < 1.0e-11) then {
+  //  return (rad, one - 0.5.ddouble*sqr(rad))   
+  //}
 
   /*
   To compute sin(x), we choose integers a, b so that
@@ -1278,8 +1278,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val s2 = s.sqr
   
   // Use the Chebyshev series for best precision.
-  trace("s2: " + s2.show)
-  val sins = if (s2.hi<=1.0e-56) then zero else s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
+  val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
 
   // sinb = sin(b*pi/16)

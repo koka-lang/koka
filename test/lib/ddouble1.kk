@@ -80,6 +80,7 @@ public fun main() {
   test-atan()
   test-trig()
   test-atrig()
+  
   check("add1","9.007199254740992e+15 vs. 9.007199254740993e+15") { (max-int + 2.0).show-exp(15) + " vs. " + (max-int.ddouble + ddouble(2.0)).show-exp }
   check("pow1","1e+31") { ddouble-exp(1,31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show-exp(16) + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
