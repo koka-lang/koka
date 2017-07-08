@@ -8,7 +8,7 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
   println(name.pad-right(8,' ') + ": " 
     + (if (got == res) then "ok: " + res 
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
-  if (got != res && host() != "dotnet") then error("failed") else ()
+  if (got != res) then error("failed") else ()
 }
 
 fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {

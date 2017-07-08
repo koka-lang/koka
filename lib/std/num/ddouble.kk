@@ -54,7 +54,7 @@ case the first (_hi_) double is (the inexact) `0.1` while the second one (_lo_) 
 correction to that number. The `show-sum` function shows this internal pair of numbers:
 
 ```
-> ddouble("0.1").show-sum(20)
+> ddouble("0.1").show-sum
 "0.10000000000000000555 + -5.5511151231257830103e-18"
 
 > ddouble("0.1") + ddouble("0.2")
@@ -713,19 +713,19 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble {
 // Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
 // Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
 // i.e. `x == x.show-sum.ddouble`
-public fun show-sum( x : ddouble, prec : int = -1 ) : string {
+public fun show-sum( x : ddouble, prec : int = 17 ) : string {
   if (!x.finite?) 
    then x.hi.show
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
 // Show a `:ddouble` with an optional precision. 
-public fun show( x : ddouble, prec : int = -1 ) : string {
+public fun show( x : ddouble, prec : int = -33 ) : string {
   x.show-prec(prec)
 }
 
 // Show a `:ddouble` with an optional precision. 
-public fun show-prec( x : ddouble, prec : int = -1 ) : string {
+public fun show-prec( x : ddouble, prec : int = -33 ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
   if (x.in-double-range(prec)) then return x.hi.show(prec)
@@ -743,7 +743,7 @@ public fun show-prec( x : ddouble, prec : int = -1 ) : string {
 public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
-  // if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
+  if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
   val (ds,e) = digits(x, dd-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
@@ -757,7 +757,9 @@ fun in-fixed-range( x : ddouble, e : int ) : bool {
 }
 
 fun in-double-range( x : ddouble, prec : int  ) : bool {
-  (x.lo.zero? && prec >= 0 && prec <= 15)
+  if (!x.lo.zero? || prec < -14 || prec > 14) return False
+  val y = x.hi.abs
+  (y >= 1.0e-14 && y < 1.0e15)
 }
 
 fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim-zeros : bool ) : string {
@@ -796,7 +798,7 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
 
 // Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-1`)
 // and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
-public fun show-exp( x : ddouble, prec : int = -1, trim-zeros : bool = prec.neg? ) : string {
+public fun show-exp( x : ddouble, prec : int = -33, trim-zeros : bool = prec.neg? ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   if (x.in-double-range(prec)) then return x.hi.show-exp(prec)

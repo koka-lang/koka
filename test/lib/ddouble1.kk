@@ -8,7 +8,7 @@ public fun check(name : string, res : string, tst : () -> io string ) : io () {
   println(name.pad-right(8,' ') + ": " 
     + (if (got == res) then "ok: " + res 
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
-  if (got != res && host() != "dotnet") then error("failed") else ()
+  if (got != res) then error("failed") else ()
 }
 
 public fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {
@@ -75,7 +75,7 @@ public fun main() {
   test-trig()
   test-atrig()
 
-  check("add1","9.007199254740992e+15 vs. 9.007199254740993e+15") { (max-int + 2.0).show-exp() + " vs. " + (max-int.ddouble + ddouble(2.0)).show-exp }
+  check("add1","9.007199254740992e+15 vs. 9.007199254740993e+15") { (max-int + 2.0).show-exp(15) + " vs. " + (max-int.ddouble + ddouble(2.0)).show-exp }
   check("pow1","1e+31") { ddouble-exp(1,31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.524157875323866912056239902500e+28") { (mx * mx).show-exp(16) + " vs. " + mx.ddouble.sqr.show(dd-max-prec) }
   check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show-exp(16) + " vs. " + mx.ddouble.sqr.show }

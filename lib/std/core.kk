@@ -2338,6 +2338,11 @@ fun show( d : double, precision : int = -17 ) : string {
    else show-exp(d,precision)
 }
 
+// Show a `:double` as a string using full precision so it can round-trip after parsing.
+fun show-full( d : double ) : string {
+  show-exp(d,17)
+}
+
 // Show a `:double` fixed-point notation.
 // The optional `precision` (= `-17`) specifies the maximum precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `17` max).
