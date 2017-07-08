@@ -2330,36 +2330,42 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string
   (if (i<0) then "-" else "") + pre + int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 }
 
-private fun show-double( d : double, precision : int, format : string )
-{
-  val p = if (precision < 0) then 0 else precision
-  gformat(d,format + (if (precision < 0) then "" else show(p)))
-  // if (s.contains(".") || s.contains("e")) then s else s + ".0"
-}
-
 // Show a `:double` as a string.
-// The option `precision` (= `0`) should a number be between 0 and 21. 
-// use `0` to display the number precisely using the least digits necessary.
-// Uses either `showFixed` or `showExp` depending on what is the most compact representation
-fun show( d : double, precision : int = 0 ) : string
-{
-  show-double(d,precision,"g")
+// If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
+fun show( d : double, precision : int = -17 ) : string {
+  if (d >= 1.0e-5 && d < 1.0e+21) 
+   then show-fixed(d,precision)
+   else show-exp(d,precision)
 }
 
-// Show a `:double` as in decimal notation.
-// The optional `precision` (= `0`) and should be between 0 and 21. 
-// Use `0` to display the number precisely using the least digits necessary.
-fun show-fixed( d : double, precision : int = 0 )
-{
-  show-double(d,precision,"F")
+// Show a `:double` fixed-point notation.
+// The optional `precision` (= `-17`) specifies the maximum precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `17` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+// This may still show a number in exponential notation if the it is too small or large,
+// in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15` the `show-exp` routine is used. 
+fun show-fixed( d : double, precision : int = -17 ) : string {
+  if (d < 1.0e-15 || d > 1.0e+21)
+   then show-exp(d,precision)
+   else show-fixedx(d, precision.int32)
+}
+
+private extern show-fixedx( d : double, prec : int32 ) : string {
+  cs "Primitive.DoubleShowFixed"
+  js "_double_show_fixed"
 }
 
 // Show a `:double` in exponential (scientific) notation.
-// The optional `precision` (= `0`) should be between 0 and 21.
-// Use `0` to display the number precisely using the least digits necessary.
-fun show-exp( d : double, precision : int = 0 )
-{
-  show-double(d,precision,"e")
+// The optional `precision` (= `-17`) specifies the precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `17` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+fun show-exp( d : double, precision : int = -17 ) {
+  show-expx(d,precision.int32)
+}
+
+private extern show-expx( d : double, prec : int32 ) : string {
+  cs "Primitive.DoubleShowExp"
+  js "_double_show_exp"
 }
 
 // Show a character as a string

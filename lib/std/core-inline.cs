@@ -533,6 +533,41 @@ public static class Primitive
     bool ok = Double.TryParse( s, out res);
     return (ok ? new std_core._maybe<double>(res) : std_core._maybe<double>.Nothing_ );
   }
+
+  public static bool DoubleIsFinite( double d ) {
+    return (!double.IsNaN(d) && !double.IsInfinity(d));
+  }
+
+  public static string DoubleShowExp( double d, int fractionDigits ) {
+    if (!DoubleIsFinite(d)) {
+      return d.ToString(CultureInfo.InvariantCulture);
+    }
+    else if (fractionDigits < 0) {
+      // use at most |fractionDigits|, as needed
+      fractionDigits = -fractionDigits;
+      if (fractionDigits > 20) fractionDigits = 20;
+      string format = "0." + new String('#',fractionDigits) + "e+0";
+      return d.ToString(format,CultureInfo.InvariantCulture);
+    }
+    else {
+      // use always |fractionDigits|
+      if (fractionDigits > 20) fractionDigits = 20;
+      string format = "0." + new String('0',fractionDigits) + "e+0";
+      return d.ToString(format,CultureInfo.InvariantCulture);
+    }
+  }
+
+  public static string DoubleShowFixed( double d, int fractionDigits ) {
+    if (!DoubleIsFinite(d)) {
+      return d.ToString(CultureInfo.InvariantCulture);
+    }
+    else {
+      if (fractionDigits < 0) fractionDigits = 0;
+      else if (fractionDigits > 20) fractionDigits = 20;
+      string format = "F" + fractionDigits.ToString();
+      return d.ToString(format, CultureInfo.InvariantCulture);
+    }
+  }
 };
   
 //---------------------------------------
