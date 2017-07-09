@@ -545,17 +545,17 @@ public static class Primitive
     else if (fractionDigits < 0 && fractionDigits > -15) {  // .net does not respect more than 15 '#'
       // use at most |fractionDigits|, as needed
       fractionDigits = -fractionDigits;
-      if (fractionDigits > 17) fractionDigits = 17;
+      if (fractionDigits > 20) fractionDigits = 20;
       string format = "0." + new String('#',fractionDigits) + "e+0";
       return d.ToString(format,CultureInfo.InvariantCulture);
     }
     else {
       // use always |fractionDigits|
       if (fractionDigits < 0)  fractionDigits = -fractionDigits;
-      if (fractionDigits > 17) fractionDigits = 17;
+      if (fractionDigits > 20) fractionDigits = 20;
       string format = "E" + fractionDigits.ToString(); // "0." + new String('0',fractionDigits) + "e+0";
       string s = d.ToString(format,CultureInfo.InvariantCulture);
-      return Regex.Replace(s,@"[eE]([\+\-]?)0+(\d+)$","e$1$2");
+      return Regex.Replace(s,@"[eE]([\+\-]?)0+(\d+)$","e$1$2");  // remove zeros from exponent
     }
   }
 
@@ -563,17 +563,20 @@ public static class Primitive
     if (!DoubleIsFinite(d)) {
       return d.ToString(CultureInfo.InvariantCulture);
     }
-    else if (d < 1.0e-15 || d > 1.0e+21 || fractionDigits >= 17) {
+    else if (d < 1.0e-15 || d > 1.0e+21) {  
       return DoubleShowExp(d,fractionDigits);
     }
-    else if (fractionDigits < 0) {
+    else if (fractionDigits < 0 && fractionDigits > -15) {  // .net does not respect more than 15 '#'
+      // use at most |fractionDigits|, as needed
       fractionDigits = -fractionDigits;
-      if (fractionDigits > 17) fractionDigits = 17;
+      if (fractionDigits > 20) fractionDigits = 20;
       string format = "0." + new String('#',fractionDigits);
       return d.ToString(format,CultureInfo.InvariantCulture);
     }
     else {
-      if (fractionDigits > 17) fractionDigits = 17;
+      // use always |fractionDigits|
+      if (fractionDigits < 0) fractionDigits = -fractionDigits;
+      if (fractionDigits > 20) fractionDigits = 20;
       string format = "F" + fractionDigits.ToString();
       return d.ToString(format, CultureInfo.InvariantCulture);
     }

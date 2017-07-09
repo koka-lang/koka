@@ -2332,6 +2332,7 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string
 
 // Show a `:double` as a string.
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
+// Default `precision` is `-17`.
 fun show( d : double, precision : int = -17 ) : string {
   if (d >= 1.0e-5 && d < 1.0e+21) 
    then show-fixed(d,precision)
@@ -2340,17 +2341,18 @@ fun show( d : double, precision : int = -17 ) : string {
 
 // Show a `:double` as a string using full precision so it can round-trip after parsing.
 fun show-full( d : double ) : string {
-  show-exp(d,17)
+  show-exp(d,20)
 }
 
 // Show a `:double` fixed-point notation.
-// The optional `precision` (= `-17`) specifies the maximum precision.
-// If `>=0` it specifies the number of digits behind the dot (up to `17` max).
+// The optional `precision` (= `-2`) specifies the maximum precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `20` max).
 // If negative, then at most the absolute value of `precision` digits behind the dot are used.
 // This may still show a number in exponential notation if the it is too small or large,
-// in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15` the `show-exp` routine is used. 
-fun show-fixed( d : double, precision : int = -17 ) : string {
-  if (d < 1.0e-15 || d > 1.0e+21)
+// in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
+// `precision.abs > 17`, the `show-exp` routine is used. 
+fun show-fixed( d : double, precision : int = -2 ) : string {
+  if (d < 1.0e-15 || d > 1.0e+21 || precision.abs > 17)
    then show-exp(d,precision)
    else show-fixedx(d, precision.int32)
 }

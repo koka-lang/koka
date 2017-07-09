@@ -1,21 +1,21 @@
 "abc" - "abc"
-jaro: 1: success
-jw : 1: success
+jaro: 1.00: success
+jw : 1.00: success
 "" - ""
-jaro: 1: success
-jw : 1: success
+jaro: 1.00: success
+jw : 1.00: success
 "" - "abc"
-jaro: 0: success
-jw : 0: success
+jaro: 0.00: success
+jw : 0.00: success
 "abc" - ""
-jaro: 0: success
-jw : 0: success
+jaro: 0.00: success
+jw : 0.00: success
 "a" - "a"
-jaro: 1: success
-jw : 1: success
+jaro: 1.00: success
+jw : 1.00: success
 "a" - "bc"
-jaro: 0: success
-jw : 0: success
+jaro: 0.00: success
+jw : 0.00: success
 "martha" - "marhta"
 jaro: 0.94: success
 jw : 0.96: success
@@ -32,14 +32,14 @@ jw : 0.96: success
 jaro: 0.91: success
 jw : 0.91: success
 "dunningham" - "cunnigham"
-jaro: 0.9: success
-jw : 0.9: success
+jaro: 0.90: success
+jw : 0.90: success
 "abroms" - "abrams"
 jaro: 0.89: success
 jw : 0.92: success
 "lampley" - "campley"
-jaro: 0.9: success
-jw : 0.9: success
+jaro: 0.90: success
+jw : 0.90: success
 "jonathon" - "jonathan"
 jaro: 0.92: success
 jw : 0.95: success
