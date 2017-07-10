@@ -11,9 +11,9 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
   if (got != res) then error("failed") else ()
 }
 
-fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {
-  check(name,expect) {
-    check-round-trip(name,tst()).show
+fun check-rt( name : string, expect : ddouble, prec : int, tst : () -> io ddouble ) : io () {
+  check(name,expect.show(prec)) {
+    check-round-trip(name,tst()).show(prec)
   }    
 }
 
@@ -84,7 +84,7 @@ public fun test-e(){
        e = 1 + 1 + 1/2! + 1/3! + 1/4! + ...
      To compute e.
   */
-  check-rt("e",dd-e.show) {
+  check-rt("e",dd-e,31) {
       val approx = expand-e()
       val delta  = (approx - dd-e).abs
       val err    = delta / dd-epsilon    
@@ -105,7 +105,7 @@ fun expand-e( approx : ddouble = 2.0.ddouble, t0 : ddouble = one, n0 : ddouble =
 
 
 public fun test-log2() {
-  check-rt("log2",dd-log2.show) {
+  check-rt("log2",dd-log2,31) {
     val approx = log2()
     val delta  = (approx - dd-log2).abs
     val err    = delta / dd-epsilon    
@@ -138,11 +138,11 @@ fun expand-log2( acc : ddouble, t : ddouble, n : ddouble  = one ) : div ddouble 
 //       = exp(-13/4) * exp(-9/4) * exp(-5/4) * exp(-1/4) *
 //          exp(3/4) * exp(7/4) * exp(11/4) * exp(15/4)
 public fun test-exp() {  
-  val expect = (dd-e * dd-e).show
+  val expect = (dd-e * dd-e)
 
-  check-rt("exp1",expect) { dd-e.sqr }
-  check-rt("exp2",expect) { exp(2.ddouble) }
-  check-rt("exp3",expect) {
+  check-rt("exp1",expect,31) { dd-e.sqr }
+  check-rt("exp2",expect,30) { exp(2.ddouble) }
+  check-rt("exp3",expect,30) {
     list(-3,4).map( fun(i) { 
       exp((4*i).dec.ddouble / 4.ddouble)
     }).foldl(one,(*))
@@ -187,7 +187,7 @@ public fun check-sincos( i : int, x : ddouble ) {
 // The arctangent is computed based on the Taylor series expansion
 //   arctan(x) = x - x^3 / 3 + x^5 / 5 - x^7 / 7 + ...
 public fun test-pi-machin() {
-  check-rt("pi-mach", dd-pi.show) {
+  check-rt("pi-mach", dd-pi,30) {
     val approx = 4.ddouble * ((4.ddouble * arctan(one / 5.ddouble )) - arctan( one / 239.ddouble ))
     val delta  = (approx - dd-pi).abs
     val err    = delta / dd-epsilon
@@ -205,7 +205,7 @@ public fun arctan( x : ddouble ) : div ddouble {
 fun expand-arctan( t : ddouble, xsqr : ddouble, n : ddouble = one, acc : ddouble = zero, pos : bool = True ) : div ddouble {
   if (t <= dd-epsilon) then acc else {
     val acc1 = if (pos) then acc + (t / n) else acc - (t / n)
-    val n1 = n + 2.0.ddouble
+    val n1 = n + 2.ddouble
     val t1 = t * xsqr
     expand-arctan( t1, xsqr, n1, acc1, !pos ) 
   }
@@ -216,13 +216,13 @@ fun expand-arctan( t : ddouble, xsqr : ddouble, n : ddouble = one, acc : ddouble
 // Borwein Quartic algorithm for pi
 //
 public fun test-pi-borwein() {
-  check("borwein", dd-pi.show(30)) {
+  check-rt("borwein", dd-pi, 29) {
     val a = 6.ddouble - (4.ddouble * sqrt(2.ddouble))
     val y = sqrt(2.ddouble) - one
     val m = 2.ddouble
     val p = one / a
     val approx = expand-pi-borwein( a, y, m, p )
-    approx.show(30)
+    approx
   }
 }
 
@@ -245,14 +245,14 @@ fun expand-pi-borwein( a : ddouble, y : ddouble, m : ddouble,
 // Salman Brent approximation to pi
 //
 public fun test-pi-salmanbrent() {
-  check-rt("pi-sb",dd-pi.show) {
+  check("pi-sb",dd-pi.show(30)) {
     val a = one
     val b = sqrt(0.5.ddouble)
     val s = 0.5.ddouble
     val m = one
     val p = (2.0.ddouble * sqr(a)) / s
     val approx = expand-pi-sb(a,b,s,m,p)
-    approx
+    approx.show(30)
   }
 }
 

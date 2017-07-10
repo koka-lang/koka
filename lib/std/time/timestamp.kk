@@ -158,13 +158,14 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 
 // Show a time stamp (without the `s` postfix).
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
-  val s = ts.since.show-fixed(max-prec,True)
+  val s = ts.since.show-fixed(~max-prec.abs)
   val l = if (ts.leap-adjust.zero?) then "" else " (+" + ts.leap-adjust.show + " leap)"
   match(s.find(".")) {
     Nothing -> s.pad-left(secs-width,'0') + l
     Just(dot) -> {
       val f = dot.after.string
       val len3 = ((f.count + 2)/3)*3
+      //trace("ts-show: " + s + ", " + len3.show + ", prec: " + max-prec.show + ", " + ts.since.show(-9))
       dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + l
     }
   }

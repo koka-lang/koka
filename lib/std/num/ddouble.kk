@@ -239,7 +239,7 @@ fun small-exp( i : int, e : int ) {
 
 // &pi; 
 public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
-//                      Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
+//public val dd-pi      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
 
 // 2&pi;
 public val dd-twopi   = Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
@@ -719,37 +719,35 @@ public fun show-sum( x : ddouble, prec : int = 17 ) : string {
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
-// Show a `:ddouble` with an optional precision. 
-public fun show( x : ddouble, prec : int = -33 ) : string {
-  x.show-prec(prec)
-}
 
-// Show a `:ddouble` with an optional precision. 
-public fun show-prec( x : ddouble, prec : int = -33 ) : string {
+val dd-default-prec = -31
+
+
+// Show a `:ddouble` with an optional precision (=`-31`). 
+public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
   if (x.in-double-range(prec)) then return x.hi.show(prec)
-  // guess exponent
-  val e = x.hi.abs.log10.floor.int  
-  val p = if (prec.neg?) then dd-max-prec else max(1,prec)
-  if (p > e && e >= -4 && e <= 20 && in-fixed-range(x,e))
-   then show-fixed(x, (p - 1) - e, prec.neg? )
+  val xabs = x.hi.abs
+  if (xabs >= 1.0e-5 && xabs < 1.0e+21) 
+   then show-fixed(x, prec)
    else show-exp(x, prec)
 }
 
-// Show a `:ddouble` as a fixed point number with an optional precision `dprec` (=`0`) that
+// Show a `:ddouble` as a fixed point number with an optional precision `dprec` (=`-31`) that
 // specifies the number of digits after the dot. For some numbers `show-fixed` will still
 // use exponential notation.
-public fun show-fixed( x : ddouble, dprec : int = 0, trim-zeros : bool = False ) : string {
+public fun show-fixed( x : ddouble, dprec : int = dd-default-prec ) : string {
   if (!x.finite?) then return x.hi.show
-  if (x.zero?) then return ("0" + (if (dprec.pos? && !trim-zeros) then "." + repeat("0",dprec) else ""))
+  if (x.zero?) then return ("0" + (if (dprec.pos?) then "." + repeat("0",dprec) else ""))
   if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
   val (ds,e) = digits(x, dd-max-prec + 1 )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
   // don't print too large a number; 10^28 and larger is problematic anyway
-  if (!in-fixed-range(x,e)) return show-exp-digits(x,dd-max-prec,ds,e,trim-zeros)
-  show-fixed-digits(x,dprec,ds,e,trim-zeros)
+  if (!in-fixed-range(x,e)) 
+   then show-exp-digits(x,dprec,ds,e)
+   else show-fixed-digits(x,dprec,ds,e)
 }
 
 fun in-fixed-range( x : ddouble, e : int ) : bool {
@@ -762,9 +760,9 @@ fun in-double-range( x : ddouble, prec : int  ) : bool {
   (y >= 1.0e-14 && y < 1.0e15)
 }
 
-fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim-zeros : bool ) : string {
+fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int ) : string {
   // round
-  val (ds,e) = fixed-round( x.neg?, ds0, e0, dprec )
+  val (ds,e) = fixed-round( x.neg?, ds0, e0, dprec.abs )
   // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
 
   // use fixed
@@ -776,7 +774,7 @@ fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int, trim
              elif (dprec.pos?) then frac.take(dprec) + replicate(0, dprec - frac.length)
              else frac
   val frac1= frac0.map(show).join
-  val frac2= if (trim-zeros) then frac1.trim-right("0") else frac1
+  val frac2= if (dprec.neg?) then frac1.trim-right("0") else frac1
   val post = if (frac2.empty?) then "" else "." + frac2             
   val num  = pre + post
   val sign = if (x.neg? && num!="0") then "-" else ""
@@ -796,21 +794,21 @@ fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>
   }
 }  
 
-// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-1`)
+// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-31`)
 // and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
-public fun show-exp( x : ddouble, prec : int = -33, trim-zeros : bool = prec.neg? ) : string {
+public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   if (x.in-double-range(prec)) then return x.hi.show-exp(prec)
-  val (ds,e) = digits(x, (if (prec.neg?) then dd-max-prec else prec)  )
+  val (ds,e) = digits(x, prec.abs)
   //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
-  show-exp-digits(x,prec,ds,e,trim-zeros)
+  show-exp-digits(x,prec,ds,e)
 }
 
-fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int, trim-zeros : bool = prec.neg? ) : string {    
+fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string {    
   val pre  = ds.head.default(0).show
   val frac0= (if (!prec.zero?) then ds.tail else []).map(show).join
-  val frac = if (trim-zeros) then frac0.trim-right("0") else frac0
+  val frac = if (prec.neg?) then frac0.trim-right("0") else frac0
   val post = if (frac.empty?) then "" else "." + frac
   val sign = if (x.neg?) then "-" else ""
   val exp  = if (e.zero?) then "" else ("e" + (if (e.pos?) then "+" else "") + e.show)
@@ -861,7 +859,7 @@ fun digits-extract( r : ddouble, n : int, acc : list<int> = [] ) : list<int> {
 fun digits-round( rds : list<int> ) : list<int> {
   match(rds) {
     Cons(d0,Cons(d1,rds1) as rds0) 
-      -> if (d0 >= 5) then Cons(d1.inc,rds1) else rds0
+      -> if (d0 >= 5) then Cons(d1.inc,rds1) else rds0  // todo: even rounding?
     _ -> rds
   }
 }

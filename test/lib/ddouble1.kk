@@ -86,17 +86,17 @@ val max-int = 9007199254740991.0
 val mx = 123456789012345.0
 
 public fun test-show() {
-  check("show1","0.1000000000000000055511151231258"){ 0.1.ddouble.show-prec }
-  check("show2","0.1"){ (one / ten).show-prec }
+  check("show1","0.1000000000000000055511151231258"){ 0.1.ddouble.show }
+  check("show2","0.1"){ (one / ten).show }
   val x1 = 5.123456.ddouble
-  check("prec1a","5.123456000000000010174971976085"){ x1.show-prec() }
-  check("prec1b","5.1235"){ x1.show-prec(4) }
-  check("prec1c","5.1"){ x1.show-prec(1) }
-  check("prec1d","5"){ x1.show-prec(0) }
+  check("prec1a","5.1234560000000000101749719760846"){ x1.show() }
+  check("prec1b","5.1235"){ x1.show(4) }
+  check("prec1c","5.1"){ x1.show(1) }
+  check("prec1d","5"){ x1.show(0) }
   val x2 = 0.000123.ddouble
-  check("prec2","0.0001230000000000000081983031474664"){ x2.show-prec() }
-  check("prec2","0.00012300"){ x2.show-prec(8) }
-  check("prec2","0.00012"){ x2.show-prec(5) }
+  check("prec2","0.0001230000000000000081983031475"){ x2.show() }
+  check("prec2","0.00012300"){ x2.show(8) }
+  check("prec2","0.00012"){ x2.show(5) }
   val x30 = "1e+30".parse-int.default(0)
   check("int1","1000000000000000000000000000000"){ x30.ddouble.show-fixed }
   check("int2", "999999999999999999999999999999"){ x30.dec.ddouble.show-fixed }
@@ -126,7 +126,7 @@ public fun test-int99() {
     check-rte("int" + i.show, expect2) { ddouble-exp(1,i).inc.inc } 
     if (i < 30) {   
       val expect99 = "1" + repeat("9",i)// + "e+" + i.show
-      check("int" + i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed() }        
+      check("int" + i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed(-9) }        
     }
   }
 }

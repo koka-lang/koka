@@ -2334,7 +2334,8 @@ fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
 // Default `precision` is `-17`.
 fun show( d : double, precision : int = -17 ) : string {
-  if (d >= 1.0e-5 && d < 1.0e+21) 
+  val dabs = d.abs
+  if (dabs >= 1.0e-5 && dabs < 1.0e+21) 
    then show-fixed(d,precision)
    else show-exp(d,precision)
 }
@@ -2352,7 +2353,8 @@ fun show-full( d : double ) : string {
 // in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
 // `precision.abs > 17`, the `show-exp` routine is used. 
 fun show-fixed( d : double, precision : int = -2 ) : string {
-  if (d < 1.0e-15 || d > 1.0e+21 || precision.abs > 17)
+  val dabs = d.abs
+  if (dabs < 1.0e-15 || dabs > 1.0e+21)
    then show-exp(d,precision)
    else show-fixedx(d, precision.int32)
 }
