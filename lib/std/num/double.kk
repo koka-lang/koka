@@ -11,6 +11,12 @@
 */
 public module std/num/double
 
+import std/num/int32
+
+extern include {
+  js file "double-inline.js"
+}
+
 
 //-----------------------------------------
 // Constants
@@ -270,29 +276,100 @@ fun logaddexp2( x : double, y : double ) : double {
   }
 }
 
+// Return if two doubles are nearly equal with respect to some `epsilon` (=`10*dbl-epsilon`).
+// The epsilon is the nearest difference for numbers around 1.0. The routine automatically
+// scales the epsilon for larger and smaller numbers, and for numbers close to zero.
+fun nearly-eq( x : double, y : double, epsilon : double = 10.0*dbl-epsilon ) : bool {
+  if (x == y) return True
+  val diff = (x - y).abs
+  if (x==0.0 || y==0.0 || diff < dbl-min) {
+    // very close to zero, scale the epsilon for denormalized numbers
+    (2.0*diff < (epsilon * dbl-min))
+  }
+  else {
+    val sum = x.abs + y.abs
+    ((2.0*diff / (if (sum > dbl-max) then dbl-max else sum)) < epsilon)
+  }
+}
 
+// Return if two doubles are nearly equal with respect to an `epsilon` of `10*dbl-epsilon`.
+// See also `nearly-eq` which takes an explicit `epsilon`.
+fun (~=)(x : double, y : double ) : bool {
+  nearly-eq(x,y)
+}
 
 //-----------------------------------------
-// Other
+// Ldexp/Frexp
 //-----------------------------------------
+
+// Low-level: return the `(lo,hi)` bits of a 64-bit double.
+extern double-to-bits( d : double ) : (int32,int32) {
+  cs "Primitive.DoubleToBits"
+  js "_double_to_bits"
+}
+
+// Low-level: create a `:double` from the given `lo` and `hi` 32-bits. 
+extern double-from-bits( lo : int32, hi : int32 ) : double {
+  cs "Primitive.DoubleFromBits"
+  js "_double_from_bits"
+}
+
+private fun ldexpx( x : double, e : int ) : double {
+  x * double-from-bits( zero, (0x3FF + e).int32.shl(20) )
+}
+
+private val one-p1023 = 8.98846567431157953865e+307
+private val one-m1022 = 2.22507385850720138309e-308   // = dbl-min
 
 // 'Load exponent': returns `x`&middot;2^`exp`^.
 fun ldexp( x : double, e : int ) : double {
-  if (!finite?(x)) then x else x*exp2(e.double)
+  if (!finite?(x)) then x
+  elif (e >= -1022) then {
+    if (e <= 1023) then ldexpx(x,e)  // usually this branch
+    elif (e <= 2046) then ldexpx( x*one-p1023, e - 1023 )
+    elif (e <= 3069) then ldexpx( x*one-p1023*one-p1023, e - 2046 )
+    elif (x < 0.0) then neginf else posinf
+  }
+  else {
+    if (e >= -2044) then ldexpx(x*one-m1022, e + 1022)
+    elif (e >= -3066) then ldexpx(x*one-m1022*one-m1022, e + 2044 )
+    elif (x < 0.0) then -0.0 else 0.0
+  }
 }
+
+private val two54 = 18014398509481984.0;
 
 // 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
 // for a number `x` such that `x == f`&middot;2^`exp`^.
 fun frexp( x : double ) : (double,int) {
-  if (!finite?(x)) then (x,0) else {
-    val e    = log2(x.abs).trunc.int
-    val frac = if (e > 1023) 
-                then (x / exp2(1023.0))/exp2(e.double - 1023.0) // prevent overflow
-                else (x / exp2(e.double))
-    (frac,e)
+  val (lo,hi) = x.double-to-bits
+  val e = hi.exponent
+  if (e == 0x7FF || x == 0.0) {  // NaN or zero
+    (x,0)
+  }
+  elif (e == 0) { // denormalized, multiply with 2^54
+    val (ylo,yhi) = (x * two54).double-to-bits
+    ( normalize(ylo,yhi), yhi.exponent - 1022 - 54 )
+  }
+  else {
+    ( normalize(lo,hi), e - 1022 )
   }
 }
 
+private fun exponent( hi : int32 ) : int {
+  (hi.shr(20) & 0x07FF.int32).int
+}
+
+// set the exponent to -1 so the number falls between [0.5 and 1) 
+private fun normalize( lo : int32, hi : int32 ) : double {
+  val hix = (hi & 0x800FFFFF.int32) | 0x3FE00000.int32
+  double-from-bits(lo,hix)
+}
+
+
+//-----------------------------------------
+// Various
+//-----------------------------------------
 
 // Return the sum of a list of doubles. 
 // Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements) 

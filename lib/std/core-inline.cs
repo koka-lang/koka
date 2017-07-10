@@ -581,6 +581,16 @@ public static class Primitive
       return d.ToString(format, CultureInfo.InvariantCulture);
     }
   }
+
+  public static double DoubleFromBits( int lo, int hi ) {
+    ulong l = (((ulong)hi) << 32) | (ulong)lo;
+    return BitConverter.Int64BitsToDouble( (long)l );
+  }
+
+  public static std_core._Tuple2_<int,int> DoubleToBits( double d ) {
+    ulong l = (ulong)BitConverter.DoubleToInt64Bits(d);
+    return new std_core._Tuple2_<int,int>( (int)(l & 0x0000FFFFL), (int)(l >> 32) );
+  }
 };
   
 //---------------------------------------
