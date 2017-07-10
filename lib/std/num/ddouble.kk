@@ -1156,6 +1156,29 @@ public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
   }
 }
 
+// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`10*dd-epsilon`).
+// The epsilon is the nearest difference for numbers around 1.0. The routine automatically
+// scales the epsilon for larger and smaller numbers, and for numbers close to zero.
+public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = ten*dd-epsilon ) : bool {
+  if (x == y) return True
+  val diff = (x - y).abs
+  if (x.zero? || y.zero? || diff < dd-min) {
+    // very close to zero, scale the epsilon for denormalized numbers
+    (two*diff < (epsilon * dd-min))
+  }
+  else {
+    val sum = x.abs + y.abs
+    ((two*diff / (if (sum > dd-max) then dd-max else sum)) < epsilon)
+  }
+}
+
+// Return if two `:ddouble`s are nearly equal with respect to an `epsilon` of `10*dd-epsilon`.
+// See also `nearly-eq` which takes an explicit `epsilon`.
+public fun (~=)(x : ddouble, y : ddouble ) : bool {
+  nearly-eq(x,y)
+}
+
+
 /*------------------------------------------------------
   Summing
 ------------------------------------------------------*/
