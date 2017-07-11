@@ -40,13 +40,19 @@ public fun empty(compare: (k, k) -> order): sorted-dict<k, a> {
   Sorted-dict(from-compare(compare), empty)
 }
 
-public fun get(dict: sorted-dict<k, a>, key: k): maybe<a> {
+public fun [](dict: sorted-dict<k, a>, key: k): maybe<a> {
   unsafe-lookup(dict.tree, key, dict.compare).map(snd)
+}
+
+// TODO inline this
+// TODO maybe it shouldn't include this ?
+public fun [](dict: sorted-dict<k, a>, key: k, value: a): sorted-dict<k, a> {
+  set(dict, key, value)
 }
 
 public fun has?(dict: sorted-dict<k, a>, key: k): bool {
   // TODO this can be implemented faster
-  bool(get(dict, key))
+  bool(dict[key])
 }
 
 public fun set(dict: sorted-dict<k, a>, key: k, value: a): sorted-dict<k, a> {
