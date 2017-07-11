@@ -11,42 +11,42 @@
 // TODO power set
 // TODO cartesian product
 // TODO maybe allow for compare functions with effects
-module std/data/set
+module std/data/sorted-set
 
 import red-black-tree
 
 
-abstract struct set<a>(
+abstract struct sorted-set<a>(
   compare: (a, a) -> order,
   tree: tree<a>
 )
 
-public fun from-list(list: list<a>, compare: (a, a) -> order): set<a> {
+public fun from-list(list: list<a>, compare: (a, a) -> order): sorted-set<a> {
   Set(compare, from-list(list, compare))
 }
 
-public fun to-list(set: set<a>): list<a> {
+public fun to-list(set: sorted-set<a>): list<a> {
   to-list(set.tree)
 }
 
-public fun empty(compare: (a, a) -> order): set<a> {
+public fun empty(compare: (a, a) -> order): sorted-set<a> {
   Set(compare, empty)
 }
 
-public fun has?(set: set<a>, value: a): bool {
+public fun has?(set: sorted-set<a>, value: a): bool {
   // TODO this can be implemented faster
   bool(unsafe-lookup(set.tree, value, set.compare))
 }
 
-public fun insert(set: set<a>, value: a): set<a> {
+public fun insert(set: sorted-set<a>, value: a): sorted-set<a> {
   set(tree = unsafe-insert(set.tree, value, set.compare, True))
 }
 
-public fun remove(set: set<a>, value: a): set<a> {
+public fun remove(set: sorted-set<a>, value: a): sorted-set<a> {
   set(tree = unsafe-remove(set.tree, value, set.compare))
 }
 
-public fun exclude(set: set<a>, exclude: set<a>): set<a> {
+public fun exclude(set: sorted-set<a>, exclude: sorted-set<a>): sorted-set<a> {
   val compare = set.compare
   set(
     tree = exclude.tree.foldl(set.tree) fun(old, value) {
@@ -55,7 +55,7 @@ public fun exclude(set: set<a>, exclude: set<a>): set<a> {
   )
 }
 
-public fun intersection-right(left: set<a>, right: set<a>): set<a> {
+public fun intersection-right(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   val compare = right.compare
   right(
     tree = right.tree.foldl(empty) fun(old, value) {
@@ -68,21 +68,21 @@ public fun intersection-right(left: set<a>, right: set<a>): set<a> {
   )
 }
 
-public fun intersection-left(left: set<a>, right: set<a>): set<a> {
+public fun intersection-left(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   intersection-right(right, left)
 }
 
-public fun difference-left(left: set<a>, right: set<a>): set<a> {
+public fun difference-left(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   // TODO implement this more efficiently
   union-left(exclude(left, right), exclude(right, left))
 }
 
-public fun difference-right(left: set<a>, right: set<a>): set<a> {
+public fun difference-right(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   // TODO implement this more efficiently
   union-right(exclude(left, right), exclude(right, left))
 }
 
-public fun union-left(left: set<a>, right: set<a>): set<a> {
+public fun union-left(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   val compare = left.compare
   left(
     tree = right.tree.foldl(left.tree) fun(old, value) {
@@ -92,7 +92,7 @@ public fun union-left(left: set<a>, right: set<a>): set<a> {
   )
 }
 
-public fun union-right(left: set<a>, right: set<a>): set<a> {
+public fun union-right(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> {
   val compare = right.compare
   right(
     tree = left.tree.foldl(right.tree) fun(old, value) {
@@ -102,7 +102,7 @@ public fun union-right(left: set<a>, right: set<a>): set<a> {
   )
 }
 
-public fun subset-of?(smaller: set<a>, bigger: set<a>): bool {
+public fun subset-of?(smaller: sorted-set<a>, bigger: sorted-set<a>): bool {
   smaller.tree.find-first fun(value) {
     if (bigger.has?(value)) {
       Nothing
