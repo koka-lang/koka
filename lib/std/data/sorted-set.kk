@@ -22,7 +22,7 @@ abstract struct sorted-set<a>(
 )
 
 public fun from-list(list: list<a>, compare: (a, a) -> order): sorted-set<a> {
-  Set(compare, from-list(list, compare))
+  Sorted-set(compare, from-list(list, compare))
 }
 
 public fun to-list(set: sorted-set<a>): list<a> {
@@ -30,7 +30,7 @@ public fun to-list(set: sorted-set<a>): list<a> {
 }
 
 public fun empty(compare: (a, a) -> order): sorted-set<a> {
-  Set(compare, empty)
+  Sorted-set(compare, empty)
 }
 
 public fun has?(set: sorted-set<a>, value: a): bool {
