@@ -22,7 +22,7 @@ abstract struct sorted-set<a>(
 )
 
 public fun from-list(list: list<a>, compare: (a, a) -> order): sorted-set<a> {
-  Sorted-set(compare, from-list(list, compare))
+  Sorted-set(compare, from-list(list, id, compare))
 }
 
 public fun to-list(set: sorted-set<a>): list<a> {
@@ -39,7 +39,7 @@ public fun has?(set: sorted-set<a>, value: a): bool {
 }
 
 public fun insert(set: sorted-set<a>, value: a): sorted-set<a> {
-  set(tree = unsafe-insert(set.tree, value, set.compare, True))
+  set(tree = unsafe-insert(set.tree, value, value, set.compare, True))
 }
 
 public fun remove(set: sorted-set<a>, value: a): sorted-set<a> {
@@ -60,7 +60,7 @@ public fun intersection-right(left: sorted-set<a>, right: sorted-set<a>): sorted
   right(
     tree = right.tree.foldl(empty) fun(old, value) {
       if (left.has?(value)) {
-        unsafe-insert(old, value, compare, True)
+        unsafe-insert(old, value, value, compare, True)
       } else {
         old
       }
@@ -87,7 +87,7 @@ public fun union-left(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a> 
   left(
     tree = right.tree.foldl(left.tree) fun(old, value) {
       // If a value exists in both `left` and `right` it will prefer the value from `left`
-      unsafe-insert(old, value, compare, False)
+      unsafe-insert(old, value, value, compare, False)
     }
   )
 }
@@ -97,7 +97,7 @@ public fun union-right(left: sorted-set<a>, right: sorted-set<a>): sorted-set<a>
   right(
     tree = left.tree.foldl(right.tree) fun(old, value) {
       // If a value exists in both `left` and `right` it will prefer the value from `right`
-      unsafe-insert(old, value, compare, False)
+      unsafe-insert(old, value, value, compare, False)
     }
   )
 }

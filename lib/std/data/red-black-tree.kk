@@ -91,9 +91,9 @@ public fun to-list(tree: tree<a>): list<a> {
 
 
 // TODO should this be called unsafe ?
-public fun from-list(list: list<a>, compare: (a, a) -> e order): e tree<a> {
+public fun from-list(list: list<a>, map: (a) -> e b, compare: (b, a) -> e order): e tree<a> {
   list.foldl(empty) fun(l, r) {
-    unsafe-insert(l, r, compare, True)
+    unsafe-insert(l, map(r), r, compare, True)
   }
 }
 
@@ -202,13 +202,13 @@ fun redden(tree: tree<a>): tree<a> {
 }
 
 
-fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> e order, replace: bool): e tree<a> {
+fun unsafe-insert1(tree: tree<a>, key: b, value: a, compare: (b, a) -> e order, replace: bool): e tree<a> {
   match (tree) {
     Node(left, middle, right, color) ->
-      match (compare(value, middle)) {
-        Lt -> balance(Node(unsafe-insert1(left, value, compare, replace), middle, right, color))
+      match (compare(key, middle)) {
+        Lt -> balance(Node(unsafe-insert1(left, key, value, compare, replace), middle, right, color))
 
-        Gt -> balance(Node(left, middle, unsafe-insert1(right, value, compare, replace), color))
+        Gt -> balance(Node(left, middle, unsafe-insert1(right, key, value, compare, replace), color))
 
         Eq -> if (replace) {
           // TODO in this situation we should avoid balancing, because the structure hasn't changed
@@ -224,25 +224,25 @@ fun unsafe-insert1(tree: tree<a>, value: a, compare: (a, a) -> e order, replace:
 }
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-insert(tree: tree<a>, value: a, compare: (a, a) -> e order, replace: bool): e tree<a> {
-  blacken(unsafe-insert1(tree, value, compare, replace))
+public fun unsafe-insert(tree: tree<a>, key: b, value: a, compare: (b, a) -> e order, replace: bool): e tree<a> {
+  blacken(unsafe-insert1(tree, key, value, compare, replace))
 }
 
 
-fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> e order): e tree<a> {
+fun unsafe-remove1(tree: tree<a>, key: b, compare: (b, a) -> e order): e tree<a> {
   match (tree) {
     Node(left, middle, right, _) ->
-      match (compare(value, middle)) {
+      match (compare(key, middle)) {
         Lt -> match (left) {
-          Node(_, _, _, Black) -> balance-left(unsafe-remove1(left, value, compare), middle, right)
-          _ -> Node(unsafe-remove1(left, value, compare), middle, right, Red)
+          Node(_, _, _, Black) -> balance-left(unsafe-remove1(left, key, compare), middle, right)
+          _ -> Node(unsafe-remove1(left, key, compare), middle, right, Red)
         }
 
         Eq -> unsafe-merge(left, right)
 
         Gt -> match (right) {
-          Node(_, _, _, Black) -> balance-right(left, middle, unsafe-remove1(right, value, compare))
-          _ -> Node(left, middle, unsafe-remove1(right, value, compare), Red)
+          Node(_, _, _, Black) -> balance-right(left, middle, unsafe-remove1(right, key, compare))
+          _ -> Node(left, middle, unsafe-remove1(right, key, compare), Red)
         }
       }
 
@@ -251,6 +251,6 @@ fun unsafe-remove1(tree: tree<a>, value: a, compare: (a, a) -> e order): e tree<
 }
 
 // This is unsafe because it's possible to use different compare functions on the same tree
-public fun unsafe-remove(tree: tree<a>, value: a, compare: (a, a) -> e order): e tree<a> {
-  blacken(unsafe-remove1(tree, value, compare))
+public fun unsafe-remove(tree: tree<a>, key: b, compare: (b, a) -> e order): e tree<a> {
+  blacken(unsafe-remove1(tree, key, compare))
 }
