@@ -380,10 +380,11 @@ public static class Primitive
   //---------------------------------------
   // Trace
   //---------------------------------------
-  public static void Trace( string msg )
+  public static void Trace( Object msg )
   {
-    System.Diagnostics.Debug.Print(msg);
-    Console.Error.WriteLine(msg);
+    string c = msg.ToString();
+    System.Diagnostics.Debug.Print(c);
+    Console.Error.WriteLine(c);
   }
 
   //---------------------------------------
