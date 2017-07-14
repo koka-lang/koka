@@ -2253,7 +2253,7 @@ extern flatten( v : vector<vector<a>> ) : vector<a> {
 
 // Returns a new vector which contains all of the elements of `left` followed by all of the elements of `right`
 // TODO function for C#
-extern concat( left : vector<a>, right : vector<a> ) : vector<a> {
+extern (+)( left : vector<a>, right : vector<a> ) : vector<a> {
   js inline "_vector_concat(#1, #2)"
 }
 
