@@ -2231,6 +2231,13 @@ extern insert-at( v : vector<a>, index : int, value : a ) : exn vector<a> {
   js inline "_vector_insert_at(#1, #2, #3)"
 }
 
+// Returns a new vector which is the same as `v`, except the value at `index` is replaced with `value`
+// Throws an exception if `index` is out of bounds (less than 0, or greater than or equal to the length of `v`)
+// TODO function for C#
+extern replace-at( v : vector<a>, index : int, value : a ) : exn vector<a> {
+  js inline "_vector_replace_at(#1, #2, #3)"
+}
+
 // Returns a new vector which is the same as `v`, except `index` is removed
 // Throws an exception if `index` is out of bounds (less than 0, or greater than or equal to the length of `v`)
 // TODO function for C#
