@@ -1156,10 +1156,12 @@ public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
   }
 }
 
-// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`10*dd-epsilon`).
+val eps8 = 8.ddouble * dd-epsilon
+
+// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8.0*dd-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for numbers close to zero.
-public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = ten*dd-epsilon ) : bool {
+public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = eps8 ) : bool {
   if (x == y) return True
   val diff = (x - y).abs
   if (x.zero? || y.zero? || diff < dd-min) {
@@ -1277,9 +1279,9 @@ val dd-pi16 = Ddouble(1.963495408493620697e-01,7.654042494670957545e-18)
 // Calculate sine and cosine on an angle in radians.
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
-  //if (rad.hi.abs < 1.0e-11) then {
-  //  return (rad, one - 0.5.ddouble*sqr(rad))   
-  //}
+  if (rad.hi.abs < 1.0e-11) then {
+    return (rad, one - 0.5.ddouble*sqr(rad))   
+  }
 
   /*
   To compute sin(x), we choose integers a, b so that
