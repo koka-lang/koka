@@ -2342,7 +2342,7 @@ fun show( d : double, precision : int = -17 ) : string {
 
 // Show a `:double` as a string using full precision so it can round-trip after parsing.
 fun show-full( d : double ) : string {
-  show-exp(d,20)
+  show-exp(d,17)
 }
 
 // Show a `:double` fixed-point notation.

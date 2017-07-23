@@ -484,7 +484,8 @@ public static class Primitive
   }
 
   public static String IntShowHex(BigInteger i, bool useCapitals) {
-    return i.ToString( (useCapitals ? "X" : "x" ));
+    string s = i.ToString( (useCapitals ? "X" : "x" )).TrimStart('0');
+    return (String.IsNullOrEmpty(s) ? "0" : s);
   }
 
   public static std_core._maybe<BigInteger> IntParse( string s, bool hex ) {
@@ -538,24 +539,35 @@ public static class Primitive
     return (!double.IsNaN(d) && !double.IsInfinity(d));
   }
 
+  private static string DoubleNormalizeExp( string s ) {
+    return Regex.Replace(s,@"[eE]([\+\-]?)0*(\d+)$","e$1$2");  // remove zeros from exponent       
+  }
+
   public static string DoubleShowExp( double d, int fractionDigits ) {
     if (!DoubleIsFinite(d)) {
       return d.ToString(CultureInfo.InvariantCulture);
     }
-    else if (fractionDigits < 0 && fractionDigits > -15) {  // .net does not respect more than 15 '#'
+    else if (fractionDigits < 0) {  
       // use at most |fractionDigits|, as needed
-      fractionDigits = -fractionDigits;
-      if (fractionDigits > 20) fractionDigits = 20;
-      string format = "0." + new String('#',fractionDigits) + "e+0";
-      return d.ToString(format,CultureInfo.InvariantCulture);
+      fractionDigits = -fractionDigits;        
+      if (fractionDigits >= 15) {   // .net does not respect more than 15 '#'
+        string s = DoubleNormalizeExp(d.ToString("E",CultureInfo.InvariantCulture));
+        string nozeros = Regex.Replace(s,@"(?:\.0*|(\.\d*[1-9])0+)([eE]|$)","$1$2");
+        return Regex.Replace(nozeros,@"[eE]\+0+$","");
+      }
+      else {
+        if (fractionDigits > 20) fractionDigits = 20;
+        string format = "0." + new String('#',fractionDigits) + "e+0";
+        return DoubleNormalizeExp(d.ToString(format,CultureInfo.InvariantCulture));
+      }
     }
     else {
       // use always |fractionDigits|
       if (fractionDigits < 0)  fractionDigits = -fractionDigits;
-      if (fractionDigits > 20) fractionDigits = 20;
+      if (fractionDigits > 20) fractionDigits = 20;      
       string format = "E" + fractionDigits.ToString(); // "0." + new String('0',fractionDigits) + "e+0";
       string s = d.ToString(format,CultureInfo.InvariantCulture);
-      return Regex.Replace(s,@"[eE]([\+\-]?)0+(\d+)$","e$1$2");  // remove zeros from exponent
+      return DoubleNormalizeExp(s);
     }
   }
 
@@ -563,13 +575,13 @@ public static class Primitive
     if (!DoubleIsFinite(d)) {
       return d.ToString(CultureInfo.InvariantCulture);
     }
-    else if (d < 1.0e-15 || d > 1.0e+21) {  
+    else if (d < 1.0e-15 || d > 1.0e+21) { 
       return DoubleShowExp(d,fractionDigits);
     }
-    else if (fractionDigits < 0 && fractionDigits > -15) {  // .net does not respect more than 15 '#'
+    else if (fractionDigits < 0) {  
       // use at most |fractionDigits|, as needed
       fractionDigits = -fractionDigits;
-      if (fractionDigits > 20) fractionDigits = 20;
+      if (fractionDigits > 15) fractionDigits = 15; // .net does not respect more than 15 '#'
       string format = "0." + new String('#',fractionDigits);
       return d.ToString(format,CultureInfo.InvariantCulture);
     }
@@ -578,7 +590,7 @@ public static class Primitive
       if (fractionDigits < 0) fractionDigits = -fractionDigits;
       if (fractionDigits > 20) fractionDigits = 20;
       string format = "F" + fractionDigits.ToString();
-      return d.ToString(format, CultureInfo.InvariantCulture);
+      return DoubleNormalizeExp(d.ToString(format, CultureInfo.InvariantCulture));
     }
   }
 
@@ -589,7 +601,7 @@ public static class Primitive
 
   public static std_core._Tuple2_<int,int> DoubleToBits( double d ) {
     ulong l = (ulong)BitConverter.DoubleToInt64Bits(d);
-    return new std_core._Tuple2_<int,int>( (int)(l & 0x0000FFFFL), (int)(l >> 32) );
+    return new std_core._Tuple2_<int,int>( (int)(l & 0xFFFFFFFFL), (int)(l >> 32) );
   }
 };
   

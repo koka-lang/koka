@@ -344,6 +344,7 @@ private val two54 = 18014398509481984.0;
 fun frexp( x : double ) : (double,int) {
   val (lo,hi) = x.double-to-bits
   val e = hi.exponent
+  //trace("frex: hi:" + hi.show-hex32 + ", lo: " + lo.show-hex32 + ", e: " + e.show)
   if (e == 0x7FF || x == 0.0) {  // NaN or zero
     (x,0)
   }
@@ -363,6 +364,7 @@ private fun exponent( hi : int32 ) : int {
 // set the exponent to -1 so the number falls between [0.5 and 1) 
 private fun normalize( lo : int32, hi : int32 ) : double {
   val hix = (hi & 0x800FFFFF.uint32) | 0x3FE00000.uint32    
+  //trace("normalize: hix: " + hix.show-hex32 + ", hi: " + hi.show-hex32 + ", lo:" + lo.show-hex32)
   double-from-bits(lo,hix)
 }
 
