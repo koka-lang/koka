@@ -32,7 +32,7 @@ extern inline int32  : (int) -> int32   {
 
 extern inline int32 : (double) -> int32 {
   cs "Primitive.DoubleToInt32"
-  js inline "(#1|0)"
+  js "$std_core._double_to_int32"
 }
 
 // Convert an `:int32` to an `:int`.
@@ -60,6 +60,23 @@ fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : stri
   std/core/show-hex(i.int,width,use-capitals,pre)
 }
 
+// Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
+// `i` is clamped between `0` and `0xFFFFFFFF`.\
+// `0x7FFFFFFF.uint32 == 0x7FFFFFFF.int32 == max-int32`\
+// `0x80000000.uint32 == -1.int32`\
+// `0xFFFFFFFF.uint32 == -0x80000000.int32 == min-int32`\
+fun uint32( i : int ) : int32 {
+  if (i > max-int32) then (i - 0x100000000).int32 else i.int32
+}
+
+// Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
+// The `width`  parameter specifies how wide the hex value is where `'0'`  is used to align.\
+// The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
+// The `pre` (=`"0x"`) is an optional prefix for the number.
+fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : string = "0x" ) : string {
+  val u = if (i.neg?) then 0x100000000 + i.int else i.int
+  std/core/show-hex(u,width,use-capitals,pre)
+}
 
 extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
 extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }

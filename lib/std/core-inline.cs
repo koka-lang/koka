@@ -439,7 +439,7 @@ public static class Primitive
   public static int DoubleToInt32( double d ) {
     if (d > Int32.MaxValue) return Int32.MaxValue;
     if (d < Int32.MinValue) return Int32.MinValue;
-    if (Double.IsNaN(d))  return 0;
+    if (Double.IsNaN(d))    return 0;
     return Convert.ToInt32(d);
   }
 
@@ -583,7 +583,7 @@ public static class Primitive
   }
 
   public static double DoubleFromBits( int lo, int hi ) {
-    ulong l = (((ulong)hi) << 32) | (ulong)lo;
+    ulong l = (((ulong)hi) << 32) | (uint)lo;
     return BitConverter.Int64BitsToDouble( (long)l );
   }
 

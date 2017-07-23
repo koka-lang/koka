@@ -362,7 +362,7 @@ private fun exponent( hi : int32 ) : int {
 
 // set the exponent to -1 so the number falls between [0.5 and 1) 
 private fun normalize( lo : int32, hi : int32 ) : double {
-  val hix = (hi & 0x800FFFFF.int32) | 0x3FE00000.int32
+  val hix = (hi & 0x800FFFFF.uint32) | 0x3FE00000.uint32    
   double-from-bits(lo,hix)
 }
 
