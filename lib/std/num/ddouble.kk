@@ -713,9 +713,11 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble {
 // Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
 // Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
 // i.e. `x == x.show-sum.ddouble`
-public fun show-sum( x : ddouble, prec : int = 17 ) : string {
+public fun show-sum( x : ddouble, prec : int = -17 ) : string {
   if (!x.finite?) 
    then x.hi.show
+  elif (prec.abs >= 17) 
+   then x.hi.show-full + " + " + x.lo.show-full
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
