@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2016 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -12,8 +12,8 @@ module std/num/decimal
 import std/text/regex
 import std/num/double
 
-// Type of a decimal number. Decimals have arbitrary precision and range and 
-// do exact decimal arithmetic and are well suited for financial calculations for 
+// Type of a decimal number. Decimals have arbitrary precision and range and
+// do exact decimal arithmetic and are well suited for financial calculations for
 // example.
 abstract struct decimal (
   num: int,
@@ -38,13 +38,13 @@ public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff),x)
 }
 
-// Create a decimal number with precision `prec` (=`-1`) from a 
+// Create a decimal number with precision `prec` (=`-1`) from a
 // whole part `i` and fractional part `frac`. The result is `i + frac`&times;10^-`prec`^.
 // i.e. `prec` determines how many digits there are behind the dot.
 // `decimal(1,123,4).show == "1.0123"`\
 // `decimal(1,123).show == "1.123"`\
 // `decimal(123).show == "123"`\
-// If `prec` is negative or smaller than the number of digits in `frac`, 
+// If `prec` is negative or smaller than the number of digits in `frac`,
 // the result will take the width of `frac` in digits as its precision.\
 // `decimal(1,123,2).show == "1.123"`
 public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
@@ -56,7 +56,7 @@ public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
 
 
 /* Create a decimal from a `:double` with a specified maximal precision (=`16` which is the maximal precision of a `:double`).
-Note: creating a `:decimal` from a `:double` may loose precision and give surprising results as many decimal 
+Note: creating a `:decimal` from a `:double` may loose precision and give surprising results as many decimal
 fractions cannot be represented precisely by a `:double`. Use `decimal-exp` or `parse-decimal` when exact representations
 are required. For example:
 ```
@@ -67,10 +67,10 @@ are required. For example:
 ```
 */
 public fun decimal( d : double, max-prec : int = 16 ) : decimal {
-  // todo: optimize 
+  // todo: optimize
   val fl = d.floor
   val fr = d - fl
-  if (fr.zero?) then return decimal(fl.int) 
+  if (fr.zero?) then return decimal(fl.int)
   val p = fr.show-fixed(max-prec).count - 2
   decimal(fl.int, (fr * exp10(p.double)).int, p)
 }
@@ -83,7 +83,7 @@ public fun parse-decimal( s : string ) : maybe<decimal> {
     Just(cap) -> {
       val sign  = cap.groups[1]
       val whole = cap.groups[2]
-      val frac  = cap.groups[3] 
+      val frac  = cap.groups[3]
       val fracx = cap.groups[4]
       val prec  = frac.count  // can be zero
       val f = decimal( whole.parse-int-default(0), fracx.parse-int-default(0), prec )
@@ -152,7 +152,7 @@ public fun odd?( x :decimal ) : bool {
 
 // Is this decimal zero?
 public fun zero?( x : decimal ) : bool {
-  x.num.zero? 
+  x.num.zero?
 }
 
 // Is the decimal positive?
@@ -165,7 +165,7 @@ public fun neg?( x : decimal ) : bool {
   x.num.neg?
 }
 
-// Show a decimal to a specified maximum precision (=`-1`). use a negative value to 
+// Show a decimal to a specified maximum precision (=`-1`). use a negative value to
 // use maximum precision required.
 public fun show( x : decimal, max-prec : int = -1 ) : string {
   // trace("show: " + x.num.show + "x" + x.exp.show)
@@ -185,7 +185,7 @@ public fun showx( cx : decimal ) : string {
     val sfrac = s.last(prec)
     val frac  = (repeat("0", prec - sfrac.count ) + sfrac.string).trim-right("0")
     val whole = sfrac.before.string
-    sign + (if (whole.empty?) then "0" else "") + whole 
+    sign + (if (whole.empty?) then "0" else "") + whole
           + (if (frac.empty?) then "" else "." + frac)
   }
 }
@@ -194,6 +194,13 @@ public fun showx( cx : decimal ) : string {
 public fun (*)( x : decimal, y : decimal ) : decimal {
   val z = decimal-exp(x.num * y.num, x.exp + y.exp)
   if (z.exp.neg?) then z.reduce else z
+}
+
+// Decimal to the power of `n`
+public fun pow( x : decimal, n : int  ) : decimal {
+	val m = n.abs
+	val y = decimal-exp(x.num ^ m, x.exp * m )
+	if (n.neg?) then div( 1.decimal, y, 3 + m) else y
 }
 
 // Rounding modes.
@@ -218,7 +225,7 @@ public fun round( x : decimal, rnd : round = Even ) : decimal {
   x.round-to-prec(0,rnd)
 }
 
-// Round the decimal-point number `x` to 
+// Round the decimal-point number `x` to
 // to a specified number of digits behind the dot `prec` (=`0`) with an optional
 // rounding mode `rnd` (=`Even`). The precision can be negative.\
 // `decimal(1,485).round-to-prec(2).show == "1.48"` \
@@ -240,7 +247,7 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
     }
   }
 
-  val q1 = if (r.zero?) then q else match(rnd) {  
+  val q1 = if (r.zero?) then q else match(rnd) {
     Even     -> round-half(q.even?)
     HalfUp   -> round-half(q.neg?)
     HalfDown -> round-half(q.pos?)
@@ -255,7 +262,7 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
 }
 
 // Optimize: Use double division when within precision bounds.
-val maxexp     : int = 308 
+val maxexp     : int = 308
 val maxpd      : double = 1.0e15
 val maxprecise : int = int(maxpd)
 val minprecise : int = ~maxprecise
@@ -266,12 +273,12 @@ fun precise?(i : int ) : bool {
 
 
 /* Divide two decimals with a given extra precision `min-prec` (=`15`).
-The `min-prec` is the number of extra digits used to calculate inexact 
+The `min-prec` is the number of extra digits used to calculate inexact
 divisions.
 
 Note: the division uses up to `min-prec` precision using `Floor` rounding
 for the last digit if the result is  inexact. To round differently, you can
-for example divide with larger precision and use `round-to-prec`. 
+for example divide with larger precision and use `round-to-prec`.
 ```
 > div( decimal(2), decimal(3), 0 )
 0
@@ -290,7 +297,7 @@ public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   if (min-prec <= 15 && e.abs <= 15 && x.num.precise? && y.num.precise?) {
     val r = x.num.double / y.num.double
     if (e.zero?) then decimal(r) else decimal(r * exp10(e.double))
-  }  
+  }
   else {
     // otherwise use long integer division
     val mp = max(min-prec,0)
@@ -374,7 +381,7 @@ public fun double( x : decimal ) : double {
 }
 
 // Return the 'floored' fraction, always in the range [`0`,`1.0`] (can be `1.0` on precision loss):\
-// `x.floor.decimal + x.ffraction.decimal == x` 
+// `x.floor.decimal + x.ffraction.decimal == x`
 public fun ffraction( x : decimal ) : double {
   if (!x.exp.neg?) return 0.0
   val (_,r) = x.num.divmod-exp10(~x.exp)
