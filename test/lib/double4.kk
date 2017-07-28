@@ -19,10 +19,10 @@ fun encode( man : int, exp : int ) : double {
 	ldexp(man.double,exp)
 }
 
-fun decimal-exact( d : double ) : decimal {
+fun decimal-exact( d : double, max-prec : int = 17 ) : decimal {
 	val (man,exp) = d.decode
 	if (exp.neg?)
-		then div( man.decimal, pow(2.decimal, ~exp), ~exp)
+		then div( man.decimal, pow(2.decimal, ~exp), min(max-prec,~exp) )
 		else (man * (2^exp)).decimal
 }
 
@@ -38,4 +38,8 @@ fun main() {
 		val (man,exp) = n.decode
 		println( n.show.pad-left(25) + " = " + decode(n).show + " -> " + encode(man,exp).show + "\n  digits: " + n.decimal-exact.show + "\n")
 	}
+}
+
+fun negzero?( d : double ) : bool {
+	(d==0.0 && neginf?(1.0 / d))
 }

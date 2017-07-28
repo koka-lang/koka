@@ -71,7 +71,7 @@ public fun decimal( d : double, max-prec : int = 16 ) : decimal {
   val fl = d.floor
   val fr = d - fl
   if (fr.zero?) then return decimal(fl.int)
-  val p = fr.show-fixed(max-prec).count - 2
+  val p = fr.show-fixed(~(max-prec.abs)).count - 2
   decimal(fl.int, (fr * exp10(p.double)).int, p)
 }
 
@@ -295,15 +295,17 @@ public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   val e = x.exp - y.exp
   // use double division if within precision bounds..
   if (min-prec <= 15 && e.abs <= 15 && x.num.precise? && y.num.precise?) {
-    val r = x.num.double / y.num.double
-    if (e.zero?) then decimal(r) else decimal(r * exp10(e.double))
+	val r = x.num.double / y.num.double
+  	if (e.zero?) then decimal(r) else decimal(r * exp10(e.double))
   }
   else {
-    // otherwise use long integer division
-    val mp = max(min-prec,0)
-    val z = decimal-exp( x.num.mul-exp10(mp) / y.num, e - mp ).reduce
-    // trace("div: " + x.show + " / " + y.show + " = " + z.show)
-    z
+		// otherwise use long integer division
+		val xdigits	= x.num.count-digits
+		val ydigits	= y.num.count-digits
+		val extra	= max(0,ydigits - xdigits) + min-prec
+		if (extra > 0)
+			then decimal-exp( x.num.mul-exp10(extra) / y.num, e - extra ).reduce
+			else decimal-exp( x.num / y.num, e - extra ).reduce
   }
 }
 
