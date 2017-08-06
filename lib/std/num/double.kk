@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2017 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -59,7 +59,7 @@ val dbl-euler   = 0.577215664901532860606512090082402431
 
 // Maximum double value
 val dbl-max     = 1.79769313486231570815e+308
-                  
+
 // Smallest positive normalized double value
 val dbl-min     = 2.22507385850720138309e-308
 
@@ -90,7 +90,7 @@ val neginf : double = -1.0/0.0
 extern inline nan? : (double) -> bool {
   cs "double.IsNaN"
   js "isNaN"
-} 
+}
 
 // Is this value equal to negative or positive infinity ?
 extern inf? : (double) -> bool {
@@ -128,13 +128,13 @@ extern round : (d:double) -> double {
   js "Math.round"
 }
 
-// Return the largest integer equal or less than `d` 
+// Return the largest integer equal or less than `d`
 extern inline floor : (d:double) -> double {
   cs "Math.Floor"
   js "Math.floor"
 }
 
-// Return the smallest integer equal or larger than `d` 
+// Return the smallest integer equal or larger than `d`
 extern inline ceiling : (d:double) -> double {
   cs "Math.Ceiling"
   js "Math.ceil"
@@ -177,7 +177,7 @@ fun round-to-prec( d : double, prec : int  ) : double {
 // Powers
 //-----------------------------------------
 
-// Return the square root of a value `d` 
+// Return the square root of a value `d`
 // Returns `nan` if `d == nan`  or if `d`  is negative.
 // Returns `inf` if `d == inf` .
 extern inline sqrt : (d:double) -> double {
@@ -186,16 +186,16 @@ extern inline sqrt : (d:double) -> double {
 }
 
 
-// Return the `d` raised to the power of `p`. 
-extern inline pow : (d:double, p:double) -> double  { 
+// Return the `d` raised to the power of `p`.
+extern inline pow : (d:double, p:double) -> double  {
   cs "Math.Pow"
-  js "Math.pow" 
+  js "Math.pow"
 }
 
-// Return the natural logarithm (in base _e_)  of a `:double` `d` 
-extern inline log : (d:double) -> double  { 
+// Return the natural logarithm (in base _e_)  of a `:double` `d`
+extern inline log : (d:double) -> double  {
   cs "Math.Log"
-  js "Math.log" 
+  js "Math.log"
 }
 
 // Return the logarithm in base 10 of a `:double` `d`.
@@ -242,7 +242,7 @@ fun log1p( x : double ) : double {
 fun expm1( x : double ) : double {
   if (x.posinf?) then x else {
     val y = exp(x)
-    if (y==1.0) then x 
+    if (y==1.0) then x
     elif (y - 1.0 == -1.0) then -1.0
     else (y - 1.0) * (x / log(y))
   }
@@ -308,7 +308,7 @@ extern double-to-bits( d : double ) : (int32,int32) {
   js "_double_to_bits"
 }
 
-// Low-level: create a `:double` from the given `lo` and `hi` 32-bits. 
+// Low-level: create a `:double` from the given `lo` and `hi` 32-bits.
 extern double-from-bits( lo : int32, hi : int32 ) : double {
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
@@ -361,11 +361,37 @@ private fun exponent( hi : int32 ) : int {
   (hi.shr(20) & 0x07FF.int32).int
 }
 
-// set the exponent to -1 so the number falls between [0.5 and 1) 
+// set the exponent to -1 so the number falls between [0.5 and 1)
 private fun normalize( lo : int32, hi : int32 ) : double {
-  val hix = (hi & 0x800FFFFF.uint32) | 0x3FE00000.uint32    
+  val hix = (hi & 0x800FFFFF.uint32) | 0x3FE00000.uint32
   //trace("normalize: hix: " + hix.show-hex32 + ", hi: " + hi.show-hex32 + ", lo:" + lo.show-hex32)
   double-from-bits(lo,hix)
+}
+
+//-----------------------------------------
+// TODO: Decode and encode are better primitives than `frexp` and `ldexp`.
+// Try to define both `frexp` and `ldexp` in terms of  `encode`  and `decode`.
+//-----------------------------------------
+
+
+// Decode a double `d` into a tuple `(m,e)` of a mantissa `m` and exponent `e`
+// such that `m`&middot;2^`e`^ =  `d` exactly.
+fun decode( d : double ) : (int,int) {
+	val (lo,hi)	= double-to-bits(d)
+	val sign 	= if (hi.neg?) then -1 else 1
+	val exp0	= (hi.shr(20) & 0x7FF.int32).int
+	val man0	= (hi & 0xFFFFF.int32).int
+	val exp	= if (exp0==0) then -1042 else (exp0  - 1043)
+	val man	= if (exp0==0) then man0 else man0 + 0x100000
+	if (lo != zero)
+		then (sign*(man * 0x100000000 + lo.uint), exp - 32)
+		else (sign*man, exp)
+}
+
+// Create a double `d` given a mantissa `man` and exponent `exp`
+// such that `man`&middot;2^`exp`^ =  `d` exactly.
+fun encode( man : int, exp : int ) : double {
+	ldexp(man.double,exp)
 }
 
 
@@ -373,8 +399,8 @@ private fun normalize( lo : int32, hi : int32 ) : double {
 // Various
 //-----------------------------------------
 
-// Return the sum of a list of doubles. 
-// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements) 
+// Return the sum of a list of doubles.
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)
 // to minimize rounding errors. This
 // is more precise as Kahan summation and about as fast.\
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
@@ -424,7 +450,7 @@ fun hypot( x : double, y : double, z : double ) : double {
 fun hypot( xs : list<double> ) : double {
   val hi = xs.abs-max
   if (hi==0.0) then 0.0 else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt 
+    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -436,7 +462,7 @@ fun sqr(x : double ): double {
 // The maximum of the absolute values.
 fun abs-max( x : double, y : double ) : double {
   max(abs(x),abs(y))
-} 
+}
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<double> ) : double {
@@ -534,7 +560,7 @@ fun atanh( x : double ) : double {
   // 0.5*log( (1.0 + x) / (1.0 - x)) = 0.5*log1p( (2.0*x) / (1-x) )
   if (x.abs >= 0.5) then 0.5*log1p(2.0*(x/(1.0 - x))) else {
     val x2 = x + x
-    0.5*log1p(x2 + (x2*x)/(1.0 - x))    
+    0.5*log1p(x2 + (x2*x)/(1.0 - x))
   }
   */
 }
@@ -559,7 +585,7 @@ fun acosh( x : double ) : double {
 fun asinh( x : double ) : double {
   //log( x + sqrt(x.sqr + 1.0))
   val xa = x.abs
-  if (xa > exp2_28) then (log(xa) + dbl-log2).with-sign-of(x) 
+  if (xa > exp2_28) then (log(xa) + dbl-log2).with-sign-of(x)
   elif (xa >= 2.0) then (log(2.0*xa + 1.0/(xa + sqrt(xa.sqr + 1.0)))).with-sign-of(x)
   elif (xa == 0.0) then 0.0
   else {
@@ -567,4 +593,3 @@ fun asinh( x : double ) : double {
     log1p( xa + xa2/(1.0 + sqrt( xa2 + 1.0 ))).with-sign-of(x)
   }
 }
-

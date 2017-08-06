@@ -30,7 +30,14 @@ fun round-exp( exp : int ) : int {
 
 // Create a decimal from an integer `i` with an optional
 // exponent `exp` (=`0`) such that the result equals `i`&times;10^`exp`^.
-public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
+public fun decimal( i : int, exp : int = 0 ) : decimal {
+	decimal-exp(i,exp)
+}
+
+
+// Create a decimal from an integer `i` with an optional
+// exponent `exp` (=`0`) such that the result equals `i`&times;10^`exp`^.
+fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   // use exponents only at specific intervals to avoid too much re-scaling
   val x = round-exp(exp)  // always x <= exp
   val diff = exp - x
@@ -38,6 +45,7 @@ public fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff),x)
 }
 
+/*
 // Create a decimal number with precision `prec` (=`-1`) from a
 // whole part `i` and fractional part `frac`. The result is `i + frac`&times;10^-`prec`^.
 // i.e. `prec` determines how many digits there are behind the dot.
@@ -53,45 +61,50 @@ public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
   val fprec = max(ds,prec) // always > 0
   decimal-exp( i.mul-exp10(fprec) + frac, ~fprec )
 }
+*/
 
-
-/* Create a decimal from a `:double` with a specified maximal precision (=`16` which is the maximal precision of a `:double`).
-Note: creating a `:decimal` from a `:double` may loose precision and give surprising results as many decimal
-fractions cannot be represented precisely by a `:double`. Use `decimal-exp` or `parse-decimal` when exact representations
+/* Create a decimal from a `:double` with a specified maximal precision (=`-1`).
+Use a negative maximal precision to create a decimal that precisely represents the `:double`.
+Note: creating a `:decimal` from a `:double` may lose precision and give surprising results as many decimal
+fractions cannot be represented precisely by a `:double`.
+Also, `decimal(i,exp)` is more efficient and better when when exact representations
 are required. For example:
 ```
 > decimal(1.1)
-1.1000000000000001
-> decimal(1.2)
-1.2
+1.100000000000000088817841970012523233890533447265625
+
+> decimal(1.1,17)
+1.10000000000000008
+
+> decimal(11,-1)
+1.1
 ```
+.
 */
-public fun decimal( d : double, max-prec : int = 16 ) : decimal {
-  // todo: optimize
-  val fl = d.floor
-  val fr = d - fl
-  if (fr.zero?) then return decimal(fl.int)
-  val p = fr.show-fixed(~(max-prec.abs)).count - 2
-  decimal(fl.int, (fr * exp10(p.double)).int, p)
+public fun decimal( d : double, max-prec : int = -1 ) : decimal {
+	val (man,exp)	= d.decode
+	if (exp >= 0) then (man * (2^exp)).decimal else {
+		val prec = if (max-prec < 0)  then ~exp else min(max-prec,~exp)
+		div( man.decimal, pow(2.decimal, ~exp), prec )
+	}
 }
 
 
 // Parse a `:decimal` number where a dot (`.`) separates the factional part.
 public fun parse-decimal( s : string ) : maybe<decimal> {
-  match(s.find(rx-decimal)) {
-    Nothing -> Nothing
-    Just(cap) -> {
-      val sign  = cap.groups[1]
-      val whole = cap.groups[2]
-      val frac  = cap.groups[3]
-      val fracx = cap.groups[4]
-      val prec  = frac.count  // can be zero
-      val f = decimal( whole.parse-int-default(0), fracx.parse-int-default(0), prec )
-      if (sign=="-") then Just(~f) else Just(f)
-    }
-  }
+	match(s.find(rx-decimal)) {
+		Nothing -> Nothing
+		Just(cap) -> {
+			val sign	= cap.groups[1]
+			val whole	= cap.groups[2]
+			val frac	= cap.groups[3]
+			val exp 	= ~frac.count  // can be zero
+			val f	= decimal-exp( (whole + frac).parse-int-default(0), exp )
+			if (sign=="-") then Just(~f) else Just(f)
+		}
+	}
 }
-val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(0*([1-9]\d*))?)$")
+val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?$")
 
 
 // Ensure a decimal `x` has an exponent such that `x.exp <= e`.
@@ -292,21 +305,22 @@ for example divide with larger precision and use `round-to-prec`.
 */
 public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   if (x.zero? || y.zero?) then return zero
-  val e = x.exp - y.exp
+	val e = x.exp - y.exp
+	/*
   // use double division if within precision bounds..
   if (min-prec <= 15 && e.abs <= 15 && x.num.precise? && y.num.precise?) {
 	val r = x.num.double / y.num.double
   	if (e.zero?) then decimal(r) else decimal(r * exp10(e.double))
   }
   else {
-		// otherwise use long integer division
-		val xdigits	= x.num.count-digits
-		val ydigits	= y.num.count-digits
-		val extra	= max(0,ydigits - xdigits) + min-prec
-		if (extra > 0)
-			then decimal-exp( x.num.mul-exp10(extra) / y.num, e - extra ).reduce
-			else decimal-exp( x.num / y.num, e - extra ).reduce
-  }
+	*/
+	// otherwise use long integer division
+	val xdigits	= x.num.count-digits
+	val ydigits	= y.num.count-digits
+	val extra	= max(0,ydigits - xdigits) + min-prec
+	if (extra > 0)
+		then decimal-exp( x.num.mul-exp10(extra) / y.num, e - extra ).reduce
+		else decimal-exp( x.num / y.num, e - extra ).reduce
 }
 
 // Divide two decimals using 15 digits of extra precision.
