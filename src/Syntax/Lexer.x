@@ -129,8 +129,8 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- literals
+<0> @sign @hexadecimal    { string $ \s -> LexInt (digitsToNum 16 s) s }
 <0> @sign @decimal        { string $ \s -> LexInt (digitsToNum 10 s) s }
-<0> @sign @hexadecimal    { string $ \s -> LexInt (digitsToNum 16 $ drop 2 s) s }
 <0> @sign @float          { string $ \s -> LexFloat (read s) s }
 
 
@@ -287,11 +287,21 @@ isPrefixOp name
   = (name == "!" || name == "~")
 
 digitsToNum :: Num a => a -> String -> a
+digitsToNum base ('0':'X':digits)
+  = digitsToNum 16 digits
+digitsToNum base ('0':'x':digits)
+  = digitsToNum 16 digits
+digitsToNum base ('+':digits)
+  = digitsToNum base digits
 digitsToNum base ('-':digits)
   = negate (digitsToNum base digits)
 digitsToNum base digits
-  = let n = foldl (\x d -> base*x + fromIntegral (digitToInt d)) 0 digits
+  = let n = foldl (\x d -> base*x + fromIntegral (xdigitToInt d)) 0 digits
     in seq n n
+
+xdigitToInt :: Char -> Int
+xdigitToInt c
+  = if (isHexDigit c) then fromIntegral (digitToInt c) else trace ("lexer hex digit: " ++ [c]) (0)
 
 isMalformed :: String -> Bool
 isMalformed s
