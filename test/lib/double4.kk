@@ -3,17 +3,7 @@ public import std/num/double
 public import std/num/decimal
 
 
-fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-	if (!d.finite?) then d.show else {
-		val (m,e)	= d.decode
-		val man	= m.abs.show-hex(1,use-capitals,"")
-		val exp0    	= e + 4*(man.count - 1)
-		val exp	= (if (exp0 >= 0) then "+" else "") + exp0.show
-		val frac	= man.tail.trim-right("0").pad-right(max(1,width),'0')
-		val sign	= if (d.neg? || d.negzero?) then "-" else ""
-		sign + pre + man.head + "." + frac + "p" +  exp
-	}
-}
+
 
 fun show( xy : (int,int) ) : string {
 	xy.fst.show-hex + "p" + xy.snd.show

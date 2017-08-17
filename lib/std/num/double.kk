@@ -395,6 +395,40 @@ fun frexp( x : double ) : (double, int) {
 
 
 //-----------------------------------------
+// Show in hexadecimal
+//-----------------------------------------
+
+/* Show a double in hexadecimal notation. The significant is the fraction in base 16 while the
+exponent after the `p` is the power of 2. For example, ``0xA.1p-3`` = (10 + 1/16)*2&middot;^-3^ = 1.2578125
+```
+> dbl-min.show-hex
+"0x1.0p-1022"
+> 0.1.show-hex
+"0x1.999999999999Ap-4"
+> dbl-max.show-hex
+"0x1.FFFFFFFFFFFFFp+1023"
+> -0.0.show-hex
+"-0x0.0p+0"
+> nan.show-hex
+"NaN"
+> 1.0625.show-hex
+"0x1.1p+0"
+```
+.
+*/
+fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
+	if (!d.finite?) then d.show else {
+		val (m,e)	= d.decode
+		val man	= m.abs.show-hex(1,use-capitals,"")
+		val exp0	= e + 4*(man.count - 1)
+		val exp	= (if (exp0 >= 0) then "+" else "") + exp0.show
+		val frac	= man.tail.trim-right("0").pad-right(max(1,width),'0')
+		val sign	= if (d.neg? || d.negzero?) then "-" else ""
+		sign + pre + man.head + "." + frac + "p" +  exp
+	}
+}
+
+//-----------------------------------------
 // Various
 //-----------------------------------------
 
