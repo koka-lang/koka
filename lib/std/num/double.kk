@@ -63,7 +63,7 @@ val dbl-max     = 1.79769313486231570815e+308
 // Smallest positive normalized double value
 val dbl-min     = 2.22507385850720138309e-308
 
-// Smallest positive denormalized value (i.e. ``DBL_TRUE_MIN``)
+// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](http://en.cppreference.com/w/cpp/types/climits))
 val dbl-true-min= 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:double` value.
@@ -115,6 +115,18 @@ extern inline finite?( d : double ) : bool {
   cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
+
+// Is this a negative zero value?
+fun negzero?( d : double ) : bool {
+	(d==0.0 && neginf?(1.0 / d))
+}
+
+// Is this a [subnormal](https://en.wikipedia.org/wiki/Denormal_number) value?
+// (i.e. `0 < d.abs < dbl-min`)
+fun subnormal?( d :double ) : bool  {
+	(d != 0.0 && d.abs < dbl-min)
+}
+
 
 //-----------------------------------------
 // Rounding
@@ -314,84 +326,71 @@ extern double-from-bits( lo : int32, hi : int32 ) : double {
   js "_double_from_bits"
 }
 
-private fun ldexpx( x : double, e : int ) : double {
-  x * double-from-bits( zero, (0x3FF + e).int32.shl(20) )
+// Calculate 2&middot;^`e`^ for an integer `e`.
+// Uses efficient bit conversion for exponents between  -1022 and 1023 and
+// otherwise falls back to the regular `exp2` function converting `e` to a double.
+fun exp2( e : int ) : double {
+    if (e >= -1022 && e <= 1023)
+     then double-from-bits(zero, (1023 + e).int32.shl(20))
+     else exp2( e.double )
+}
+
+
+// Create a double `d` given a mantissa `man` and exponent `exp`
+// such that `man`&middot;2^`exp`^ =  `d` exactly.
+fun encode( man : int, exp : int ) : double {
+	ldexp(man.double,exp)
 }
 
 private val one-p1023 = 8.98846567431157953865e+307
 private val one-m1022 = 2.22507385850720138309e-308   // = dbl-min
+private fun mul-exp2( x : double, e : int ) : double {  x * exp2(e) }
 
-// 'Load exponent': returns `x`&middot;2^`exp`^.
+// 'Load exponent': returns `x`&middot;2^`exp`^ for a `finite?` `x` and
+// otherwise `x` itself.
 fun ldexp( x : double, e : int ) : double {
   if (!finite?(x)) then x
   elif (e >= -1022) then {
-    if (e <= 1023) then ldexpx(x,e)  // usually this branch
-    elif (e <= 2046) then ldexpx( x*one-p1023, e - 1023 )
-    elif (e <= 3069) then ldexpx( x*one-p1023*one-p1023, e - 2046 )
+    if (e <= 1023) then mul-exp2(x,e)  // usually this branch
+    elif (e <= 2046) then mul-exp2( x*one-p1023, e - 1023 )
+    elif (e <= 3069) then mul-exp2( x*one-p1023*one-p1023, e - 2046 )
     elif (x < 0.0) then neginf else posinf
   }
   else {
-    if (e >= -2044) then ldexpx(x*one-m1022, e + 1022)
-    elif (e >= -3066) then ldexpx(x*one-m1022*one-m1022, e + 2044 )
+    if (e >= -2044) then mul-exp2(x*one-m1022, e + 1022)
+    elif (e >= -3066) then mul-exp2(x*one-m1022*one-m1022, e + 2044 )
     elif (x < 0.0) then -0.0 else 0.0
   }
 }
 
 private val two54 = 18014398509481984.0;
 
-// 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
-// for a number `x` such that `x == f`&middot;2^`exp`^.
-fun frexp( x : double ) : (double,int) {
-  val (lo,hi) = x.double-to-bits
-  val e = hi.exponent
-  //trace("frex: hi:" + hi.show-hex32 + ", lo: " + lo.show-hex32 + ", e: " + e.show)
-  if (e == 0x7FF || x == 0.0) {  // NaN or zero
-    (x,0)
-  }
-  elif (e == 0) { // denormalized, multiply with 2^54
-    val (ylo,yhi) = (x * two54).double-to-bits
-    ( normalize(ylo,yhi), yhi.exponent - 1022 - 54 )
-  }
-  else {
-    ( normalize(lo,hi), e - 1022 )
-  }
-}
-
-private fun exponent( hi : int32 ) : int {
-  (hi.shr(20) & 0x07FF.int32).int
-}
-
-// set the exponent to -1 so the number falls between [0.5 and 1)
-private fun normalize( lo : int32, hi : int32 ) : double {
-  val hix = (hi & 0x800FFFFF.uint32) | 0x3FE00000.uint32
-  //trace("normalize: hix: " + hix.show-hex32 + ", hi: " + hi.show-hex32 + ", lo:" + lo.show-hex32)
-  double-from-bits(lo,hix)
-}
-
-//-----------------------------------------
-// TODO: Decode and encode are better primitives than `frexp` and `ldexp`.
-// Try to define both `frexp` and `ldexp` in terms of  `encode`  and `decode`.
-//-----------------------------------------
-
-
 // Decode a double `d` into a tuple `(m,e)` of a mantissa `m` and exponent `e`
-// such that `m`&middot;2^`e`^ =  `d` exactly.
+// such that `m`&middot;2^`e`^ =  `d` exactly. The mantissa `m` is
+// always either 0 or in the range [2^52^, 2^53^).
 fun decode( d : double ) : (int,int) {
+	if (d==0.0) then (0,0)
+	elif (d.subnormal?) then decode-normalized(d * two54, -54)
+	else decode-normalized(d,0)
+}
+
+// decode a non-subnormal number
+private fun decode-normalized( d : double, e-adjust : int ) : (int,int) {
 	val (lo,hi)	= double-to-bits(d)
 	val sign 	= if (hi.neg?) then -1 else 1
-	val exp0	= (hi.shr(20) & 0x7FF.int32).int
-	val man0	= (hi & 0xFFFFF.int32).int
-	val exp	= if (exp0==0) then -1042 else (exp0  - 1043)
-	val man	= if (exp0==0) then man0 else man0 + 0x100000
-	if (lo != zero)
-		then (sign*(man * 0x100000000 + lo.uint), exp - 32)
-		else (sign*man, exp)
+	val exp	= (hi.shr(20) & 0x7FF.int32).int - 1043
+	val man	= (hi & 0xFFFFF.int32).int + 0x100000
+	(sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
 }
 
-// Create a double `d` given a mantissa `man` and exponent `exp`
-// such that `man`&middot;2^`exp`^ =  `d` exactly.
-fun encode( man : int, exp : int ) : double {
-	ldexp(man.double,exp)
+// 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
+// for a number `x` such that `x == f`&middot;2^`exp`^.
+// The absolute value of the fraction `f` is always in the range [0.5, 1.0), or
+// one of `0.0`, `-0.0`, `neginf`, `posinf`, or `nan`.
+fun frexp( x : double ) : (double, int) {
+	if (!x.finite? || x.negzero?) return (x,0)
+	val (m,e) = x.decode
+	(m.double * exp2(-53), e + 53  )
 }
 
 
