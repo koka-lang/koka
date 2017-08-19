@@ -58,16 +58,16 @@ val dbl-sqrt12 = 0.707106781186547524400844362104849039
 val dbl-euler   = 0.577215664901532860606512090082402431
 
 // Maximum double value
-val dbl-max     = 1.79769313486231570815e+308
+val dbl-max     = 0x1.FFFFFFFFFFFFFp+1023 // 1.79769313486231570815e+308
 
 // Smallest positive normalized double value
-val dbl-min     = 2.22507385850720138309e-308
+val dbl-min     = 0x1.0p-1022 // 2.22507385850720138309e-308
 
 // Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](http://en.cppreference.com/w/cpp/types/climits))
-val dbl-true-min= 4.9406564584124654418e-324
+val dbl-true-min= 0x1.0p-1074 // 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:double` value.
-val dbl-epsilon = 2.2204460492503130808e-16
+val dbl-epsilon = 0x1.0p-52 // 2.2204460492503130808e-16
 
 // maximal precision in decimal digits of a `:double`.
 val dbl-max-prec= 15
@@ -281,16 +281,16 @@ fun logaddexp( x : double, y : double ) : double {
 // Returns `log2( exp2(x) + exp2(y) )`.
 // Avoids overlow/underflow errors.
 fun logaddexp2( x : double, y : double ) : double {
-  if (x==y) then x + 1.0 else {
-    val z = x - y
-    if (z > 0.0) then x + log2p1(exp2(~z))
-                 else y + log2p1(exp2(z))
+	if (x==y) then x + 1.0 else {
+	val z = x - y
+	if (z > 0.0)	then x + log2p1(exp2(~z))
+		else y + log2p1(exp2(z))
   }
 }
 
 // Return if two doubles are nearly equal with respect to some `epsilon` (=`8*dbl-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
-// scales the epsilon for larger and smaller numbers, and for numbers close to zero.
+// scales the epsilon for larger and smaller numbers, and for subnormal numbers..
 fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool {
   if (x == y) return True
   val diff = (x - y).abs
@@ -337,17 +337,18 @@ fun exp2( e : int ) : double {
 
 
 // Create a double `d` given a mantissa `man` and exponent `exp`
-// such that `man`&middot;2^`exp`^ =  `d` exactly.
+// such that `man`&middot;2^`exp`^ =  `d` exactly (if it is representable
+// by a `:double`).
 fun encode( man : int, exp : int ) : double {
 	ldexp(man.double,exp)
 }
 
-private val one-p1023 = 8.98846567431157953865e+307
-private val one-m1022 = 2.22507385850720138309e-308   // = dbl-min
+private val one-p1023 = 0x1.0p1023
+private val one-m1022 = 0x1.0p-1022   // = dbl-min
 private fun mul-exp2( x : double, e : int ) : double {  x * exp2(e) }
 
-// 'Load exponent': returns `x`&middot;2^`exp`^ for a `finite?` `x` and
-// otherwise `x` itself.
+// 'Load exponent': returns `x`&middot;2^`e`^ for a `finite?` `x` and
+// otherwise `x` itself. See also `encode` which loads an integer mantissa.
 fun ldexp( x : double, e : int ) : double {
   if (!finite?(x)) then x
   elif (e >= -1022) then {
@@ -363,19 +364,17 @@ fun ldexp( x : double, e : int ) : double {
   }
 }
 
-private val two54 = 18014398509481984.0;
-
 // Decode a double `d` into a tuple `(m,e)` of a mantissa `m` and exponent `e`
 // such that `m`&middot;2^`e`^ =  `d` exactly. The mantissa `m` is
 // always either 0 or in the range [2^52^, 2^53^).
 fun decode( d : double ) : (int,int) {
 	if (d==0.0) then (0,0)
-	elif (d.subnormal?) then decode-normalized(d * two54, -54)
+	elif (d.subnormal?) then decode-normalized(d * 0x1.0p54, -54)
 	else decode-normalized(d,0)
 }
 
-// decode a non-subnormal number
-private fun decode-normalized( d : double, e-adjust : int ) : (int,int) {
+// decode a normalized double (i.e. not subnormal)
+private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
 	val (lo,hi)	= double-to-bits(d)
 	val sign 	= if (hi.neg?) then -1 else 1
 	val exp	= (hi.shr(20) & 0x7FF.int32).int - 1043
@@ -387,10 +386,11 @@ private fun decode-normalized( d : double, e-adjust : int ) : (int,int) {
 // for a number `x` such that `x == f`&middot;2^`exp`^.
 // The absolute value of the fraction `f` is always in the range [0.5, 1.0), or
 // one of `0.0`, `-0.0`, `neginf`, `posinf`, or `nan`.
+// See also `decode` which  decodes to an integer mantissa.
 fun frexp( x : double ) : (double, int) {
 	if (!x.finite? || x.negzero?) return (x,0)
 	val (m,e) = x.decode
-	(m.double * exp2(-53), e + 53  )
+	(m.double * 0x1.0p-53, e + 53  )
 }
 
 
@@ -398,8 +398,11 @@ fun frexp( x : double ) : (double, int) {
 // Show in hexadecimal
 //-----------------------------------------
 
-/* Show a double in hexadecimal notation. The significant is the fraction in base 16 while the
-exponent after the `p` is the power of 2. For example, ``0xA.1p-3`` = (10 + 1/16)*2&middot;^-3^ = 1.2578125
+/* Show a double in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+The significant is the _hexadecimal_ fraction while the
+exponent after the `p` is the _decimal_ power of 2.
+ For example, ``0xA.Fp-10`` = (10 + 15/16)&middot;2^-10^  (not 2^-16^!) = 0.01068115234375.
+ Equivalently, ``0xA.Fp-10 == 0x5.78p-9``.
 ```
 > dbl-min.show-hex
 "0x1.0p-1022"
@@ -411,8 +414,8 @@ exponent after the `p` is the power of 2. For example, ``0xA.1p-3`` = (10 + 1/16
 "-0x0.0p+0"
 > nan.show-hex
 "NaN"
-> 1.0625.show-hex
-"0x1.1p+0"
+> 0.01068115234375.show-hex
+"0x1.5Ep-7"
 ```
 .
 */
@@ -598,12 +601,10 @@ fun atanh( x : double ) : double {
   */
 }
 
-private val exp2_28 : double = 268435456.0
-
 // The area hyperbolic cosine of `x`
 fun acosh( x : double ) : double {
   // log(x + sqrt((x - 1.0)*(x + 1.0)));
-  if (x > exp2_28) then dbl-log2 + log(x)
+  if (x > 0x1.0p28) then dbl-log2 + log(x)
   elif (x > 2.0) then {
     log(2.0*x - 1.0/(x + sqrt(x.sqr - 1.0)))
   }
@@ -618,7 +619,7 @@ fun acosh( x : double ) : double {
 fun asinh( x : double ) : double {
   //log( x + sqrt(x.sqr + 1.0))
   val xa = x.abs
-  if (xa > exp2_28) then (log(xa) + dbl-log2).with-sign-of(x)
+  if (xa > 0x1.0p28) then (log(xa) + dbl-log2).with-sign-of(x)
   elif (xa >= 2.0) then (log(2.0*xa + 1.0/(xa + sqrt(xa.sqr + 1.0)))).with-sign-of(x)
   elif (xa == 0.0) then 0.0
   else {

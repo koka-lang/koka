@@ -197,7 +197,7 @@ isMalformed s
       c:cs       -> isMalformed cs
       []         -> False
 
-messageMalformed = "malformed identifier: a dash must be preceded and followed by a letter"
+messageMalformed = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
 ------------------------------------------------------------------------------
 -- Lexer state and actions
 ------------------------------------------------------------------------------
