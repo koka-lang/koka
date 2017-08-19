@@ -90,9 +90,12 @@ $charesc  = [nrt\\\'\"]    -- "
 @hexadecimal  = 0[xX]$hexdigit+
 @natural      = @decimal|@hexadecimal
 
-@exponent     = [eE](\-|\+)? @decimal
-@float        = @decimal \. @decimal @exponent?
 @sign         = [\-]?
+@exp          = (\-|\+)? @decimal
+@exp10        = [eE]@exp
+@exp2         = [pP]@exp
+@decfloat     = @sign @decimal (\. @decimal @exp10? | @exp10)
+@hexfloat     = @sign @hexadecimal (\. $hexdigit+)? @exp2
 
 -----------------------------------------------------------
 -- Main tokenizer
@@ -129,9 +132,10 @@ program :-
 <0> $special              { string $ LexSpecial }
 
 -- literals
-<0> @sign @hexadecimal    { string $ \s -> LexInt (digitsToNum 16 s) s }
-<0> @sign @decimal        { string $ \s -> LexInt (digitsToNum 10 s) s }
-<0> @sign @float          { string $ \s -> LexFloat (read s) s }
+<0> @decfloat             { string $ \s -> LexFloat (read s) s }
+<0> @hexfloat             { string $ \s -> LexFloat (parseHexFloat s) s }
+<0> @sign @hexadecimal    { string $ \s -> LexInt (parseNum  s) s }
+<0> @sign @decimal        { string $ \s -> LexInt (parseNum s) s }
 
 
 -- type operators
@@ -286,15 +290,50 @@ isPrefixOp :: String -> Bool
 isPrefixOp name
   = (name == "!" || name == "~")
 
-digitsToNum :: Num a => a -> String -> a
-digitsToNum base ('0':'X':digits)
-  = digitsToNum 16 digits
-digitsToNum base ('0':'x':digits)
-  = digitsToNum 16 digits
-digitsToNum base ('+':digits)
-  = digitsToNum base digits
-digitsToNum base ('-':digits)
-  = negate (digitsToNum base digits)
+
+parseHexFloat :: String -> Double
+parseHexFloat s
+  = parseSign parsePosHexFloat s
+
+parsePosHexFloat :: String -> Double
+parsePosHexFloat s
+  = case s of
+      '0':'x':ds -> parsePosHexFloatX ds
+      '0':'X':ds -> parsePosHexFloatX ds
+      _ -> parsePosHexFloatX s
+
+parsePosHexFloatX :: String -> Double
+parsePosHexFloatX ds
+  = let (man,rest1) = span isHexDigit ds
+        (frac,rest2) = case rest1 of
+                         '.':rest -> span isHexDigit rest
+                         _ -> ("",rest1)
+        exp = case rest2 of
+                'p':rest -> rest
+                'P':rest -> rest
+                _        -> "0"
+        m = digitsToNum 16 (man ++ frac)
+        e = (parseNum exp) - 4*(length frac)
+    in encodeFloat m e
+
+parseNum :: Num a => String -> a
+parseNum s
+  = parseSign parsePosNum s
+
+parseSign :: Num a => (String -> a) -> String -> a
+parseSign f s
+  = case s of
+     '-':xs -> negate (f xs)
+     '+':xs -> f xs
+     _      -> f s
+
+parsePosNum :: Num a => String -> a
+parsePosNum s
+  = case s of
+       '0':'x':digits -> digitsToNum 16 digits
+       '0':'X':digits -> digitsToNum 16 digits
+       _ -> digitsToNum 10 s
+
 digitsToNum base digits
   = let n = foldl (\x d -> base*x + fromIntegral (xdigitToInt d)) 0 digits
     in seq n n
@@ -311,7 +350,7 @@ isMalformed s
       c:cs       -> isMalformed cs
       []         -> False
 
-messageMalformed = "malformed identifier: a dash must be preceded and followed by a letter"
+messageMalformed = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
 ------------------------------------------------------------------------------
 -- Lexer state and actions
 ------------------------------------------------------------------------------
