@@ -533,10 +533,10 @@ public static class Primitive
           else return i * BigInteger.Pow(10,(int)n);
   }
 
-  public static std_core._maybe<double> DoubleParse( string s ) {
+  public static double DoubleParse( string s ) {
     double res;
     bool ok = Double.TryParse( s, out res);
-    return (ok ? new std_core._maybe<double>(res) : std_core._maybe<double>.Nothing_ );
+    return (ok ? res : Double.NaN );
   }
 
   public static bool DoubleIsFinite( double d ) {

@@ -11,6 +11,7 @@
 */
 public module std/num/double
 
+import std/text/regex
 import std/num/int32
 
 extern include {
@@ -399,6 +400,8 @@ fun frexp( x : double ) : (double, int) {
 //-----------------------------------------
 
 /* Show a double in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+An advantage of this format is that it precisely represents the `:double` and can
+reliably (and efficiently) be parsed back, i.e. `d.show-hex.parse-double == Just(d)`.
 The significant is the _hexadecimal_ fraction while the
 exponent after the `p` is the _decimal_ power of 2.
  For example, ``0xA.Fp-10`` = (10 + 15/16)&middot;2^-10^  (not 2^-16^!) = 0.01068115234375.
@@ -430,6 +433,53 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
 		sign + pre + man.head + "." + frac + "p" +  exp
 	}
 }
+
+//-----------------------------------------
+// Parse a double
+//-----------------------------------------
+
+// Parse a double number. Can be "NaN", "Inf(inity)" (case-insensitive),
+// a fix-point number (`1.2`) or in scientific notation (`-2.3e-5`).
+// Also allows floats in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41) (`0xA.Fp-10`) that can
+// be represented precisely (and are the preferred _round trip_ format).
+fun parse-double( s : string ) : maybe<double> {
+	match(s.find(rx-float)) {
+		Just -> {
+			// regular float number
+			val d = prim-parse-double(s)	// regular decimal double
+			if (d.nan?) then Nothing else Just(d)
+		}
+		Nothing -> match (s.find(rx-hexfloat)) {
+			Just(cap) -> {
+				// float in hexadecimal notation
+				val man	= cap.groups[1]
+				val frac	= cap.groups[2]
+				val exp	= cap.groups[3]
+				val m 	= (man + frac).parse-int.maybe(0)
+				val e	= exp.parse-int.maybe(0) - 4*frac.count
+				Just(encode(m,e))
+			}
+			Nothing -> {
+				// special values
+				val t = s.trim.to-lower
+				if (t=="nan") then Just(nan)
+				elif (t=="inf"||t=="infinity") then Just(posinf)
+				elif (t=="-inf"||t=="-infinity") then Just(neginf)
+				else Nothing
+			}
+		}
+	}
+}
+private val rx-float	= regex(@"^[\-\+]?\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?$")
+private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
+
+// Return `nan` on failure
+private extern prim-parse-double( s : string ) : double {
+  cs "Primitive.DoubleParse"
+  js "parseFloat"
+}
+
+
 
 //-----------------------------------------
 // Various

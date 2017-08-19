@@ -1545,19 +1545,6 @@ private extern xparse-int( s : string, hex : bool ) : maybe<int> {
   js "_int_parse"
 }
 
-public fun parse-double( s : string ) : maybe<double> {
-  s.trim.xparse-double
-}
-
-private extern xparse-double( s : string ) : maybe<double> {
-  cs "Primitive.DoubleParse"
-  js "_double_parse"
-}
-
-public fun parse-double-default( s : string, default : double = 0.0 ) : double {
-   if (s.empty?) then default else s.parse-double.maybe(default)
-}
-
 
 // ----------------------------------------------------------------------------
 // Doubles
