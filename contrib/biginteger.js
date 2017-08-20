@@ -1328,16 +1328,18 @@ const bigInt = (function (undefined) {
     BigInteger.prototype.valueOf = function () {
         return NaN; // +this.toString();
     };
-	// DAAN: optimized conversion to double to not go through a text representation
+	// DAAN: optimized conversion to double to not go through a full text representation
     BigInteger.prototype.toJSNumber = function() {
       // return +this.toString();
-      var v = this.value;
-      var l = v.length;
-      var d = 0;
+      var v  = this.value;
+      var hi = v.length - 1;
+      var lo = hi - 3; if (lo < 0) lo = 0; // process at most 4 entries (= at least 21+1 digits)
+      var d  = 0;
       var i;
-      for(i = l-1; i >= 0; i--) {
-          d = d*BASE  + v[i];
+      for(i = hi; i >= lo; i--) {
+        d = d*BASE  + v[i];
       }
+      if (lo > 0) d = d*Math.pow(10,lo*LOG_BASE);
       return d;
     }
 
