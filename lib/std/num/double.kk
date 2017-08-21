@@ -331,9 +331,9 @@ extern double-from-bits( lo : int32, hi : int32 ) : double {
 // Uses efficient bit conversion for exponents between  -1022 and 1023 and
 // otherwise falls back to the regular `exp2` function converting `e` to a double.
 fun exp2( e : int ) : double {
-    if (e >= -1022 && e <= 1023)
-     then double-from-bits(zero, (1023 + e).int32.shl(20))
-     else exp2( e.double )
+	if (e >= -1022 && e <= 1023)
+		then double-from-bits(zero, (1023 + e).int32.shl(20))
+		else exp2( e.double )
 }
 
 

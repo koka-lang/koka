@@ -45,24 +45,6 @@ fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff),x)
 }
 
-/*
-// Create a decimal number with precision `prec` (=`-1`) from a
-// whole part `i` and fractional part `frac`. The result is `i + frac`&times;10^-`prec`^.
-// i.e. `prec` determines how many digits there are behind the dot.
-// `decimal(1,123,4).show == "1.0123"`\
-// `decimal(1,123).show == "1.123"`\
-// `decimal(123).show == "123"`\
-// If `prec` is negative or smaller than the number of digits in `frac`,
-// the result will take the width of `frac` in digits as its precision.\
-// `decimal(1,123,2).show == "1.123"`
-public fun decimal( i : int, frac : int = 0, prec : int = -1 ) : decimal {
-  if (frac.zero? || prec.zero?) then return Decimal(i,0)
-  val ds    = frac.count-digits
-  val fprec = max(ds,prec) // always > 0
-  decimal-exp( i.mul-exp10(fprec) + frac, ~fprec )
-}
-*/
-
 /* Create a decimal from a `:double` with a specified maximal precision (=`-1`).
 Use a negative maximal precision to create a decimal that precisely represents the `:double`.
 Note: creating a `:decimal` from a `:double` may lose precision and give surprising results as many decimal
@@ -72,10 +54,8 @@ are required. For example:
 ```
 > decimal(1.1)
 1.100000000000000088817841970012523233890533447265625
-
 > decimal(1.1,17)
 1.10000000000000008
-
 > decimal(11,-1)
 1.1
 ```
@@ -90,21 +70,21 @@ public fun decimal( d : double, max-prec : int = -1 ) : decimal {
 }
 
 
-// Parse a `:decimal` number where a dot (`.`) separates the fractional part.
+// Parse a `:decimal` number.
 public fun parse-decimal( s : string ) : maybe<decimal> {
-	match(s.find(rx-decimal)) {
+	match(s.trim.find(rx-decimal)) {
 		Nothing -> Nothing
 		Just(cap) -> {
 			val sign	= cap.groups[1]
 			val whole	= cap.groups[2]
 			val frac	= cap.groups[3]
-			val exp 	= ~frac.count  // can be zero
-			val f	= decimal-exp( (whole + frac).parse-int-default(0), exp )
+			val exp 	= ~frac.count + cap.groups[4].parse-int.default(0)
+			val f	= decimal-exp( (whole + frac).parse-int.default(0), exp )
 			if (sign=="-") then Just(~f) else Just(f)
 		}
 	}
 }
-val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?$")
+val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
 
 
 // Ensure a decimal `x` has an exponent such that `x.exp <= e`.
@@ -277,6 +257,7 @@ for example divide with larger precision and use `round-to-prec`.
 > div( decimal(2), decimal(3) ).round-to-prec(6)
 0.666667
 ```
+.
 */
 public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
   if (x.zero? || y.zero?) then return zero
@@ -387,38 +368,46 @@ public fun fraction( x : decimal ) : double {
   if (x.neg? && !f.zero?) then f - 1.0 else f
 }
 
+/* --------------------------------------------------------------------------------------
+    Show
+ -------------------------------------------------------------------------------------- */
 
-
-// Show a decimal to a specified maximum precision (=`-1`). use a negative value to
-// use maximum precision required.
-public fun show( x : decimal, max-prec : int = -1 ) : string {
-  // trace("show: " + x.num.show + "x" + x.exp.show)
-  val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
-  cx.showx()
+// Show a decimal `d` with a given precision `prec` (=`-1`).
+// The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
+// If the precision is negative all significant digits are displayed.
+// This uses `show-fixed` when the exponent of `d` in scientific notation is larger than -5
+// and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
+public fun show( d : decimal, prec : int = -1 ) : string {
+	val exp = d.exponent?
+	if (exp > -5 && exp < (if (prec.neg?) then  15 else prec))
+		then show-fixed( d, prec )
+		else show-exp( d, prec )
 }
 
-public fun showx( cx : decimal ) : string {
-  //trace("showx: " + cx.num.show + "x" + cx.exp.show)
-  val sign = if (cx.num.neg?) then "-" else ""
-  val s    = cx.num.abs.show
-  if (!cx.exp.neg?) then {
-    sign + s + repeat("0",cx.exp)
-  }
-  else {
-    val prec  = ~cx.exp
-    val sfrac = s.last(prec)
-    val frac  = (repeat("0", prec - sfrac.count ) + sfrac.string).trim-right("0")
-    val whole = sfrac.before.string
-    sign + (if (whole.empty?) then "0" else "") + whole
-          + (if (frac.empty?) then "" else "." + frac)
-  }
+// The exponent of a decimal if displayed in scientific notation.\
+// `11.2e-1.decimal.exponent? == 0`
+public fun exponent?( d : decimal ) : int {
+	d.num.count-digits + d.exp - 1
 }
 
+/* Show a decimal `d` with a given precision `prec` (=`-1`) in fixed-point notation.
+The precision specifies the  number of digits after the dot.
+If the precision is negative all significant digits are displayed.
+```
+> decimal(1,-1).show-fixed
+"0.1"
+> 0.1.decimal.show-fixed
+"0.1000000000000000055511151231257827021181583404541015625"
+> 0.1.decimal.show-fixed(17)
+"0.10000000000000001"
+```
+.
+*/
 public fun show-fixed( d : decimal, prec : int = -1 ) : string {
-	val x	= if (prec.neg?) then d.reduce else d.round-to-prec(prec)
+	val x = if (prec.neg?) then d.reduce else d.round-to-prec(prec)
 	if (x.exp >= 0) {
 		val frac = if (prec<=0) then "" else "." + repeat("0",prec)
-		x.show + repeat("0",x.exp) + frac
+		x.num.show + repeat("0",x.exp) + frac
 	}
 	else {
 		val digits	= ~x.exp
@@ -428,8 +417,21 @@ public fun show-fixed( d : decimal, prec : int = -1 ) : string {
 	}
 }
 
+/* Show a decimal `d` with a given precision `prec` (=`-1`) in scientific notation.
+The precision specifies the  number of digits after the dot.
+If the precision is negative all significant digits are displayed.
+```
+> decimal(1,-1).show-exp
+"1e-1"
+> 0.1.decimal.show-exp
+"1.000000000000000055511151231257827021181583404541015625e-1"
+> 0.1.decimal.show-exp(17)
+"1.00000000000000006e-1"
+```
+.
+*/
 public fun show-exp( d : decimal, prec : int = -1 ) : string {
-	val x	= if (prec.neg?) then d.reduce else d.round-to-prec(prec - d.num.count-digits - d.exp + 1)
+	val x = if (prec.neg?) then d.reduce else d.round-to-prec(prec - d.exponent?)
 	val s	= x.num.abs.show
 	val digits	= s.count
 	val exp	= x.exp + digits - 1
@@ -438,7 +440,7 @@ public fun show-exp( d : decimal, prec : int = -1 ) : string {
 	s.head + s.tail.show-frac(prec) + exponent
 }
 
-private fun show-frac( frac : string, prec : int ) : string {
+fun show-frac( frac : string, prec : int ) : string {
 	val frac-trim	= frac.trim-right("0")
 	val frac-full	= if (prec.neg?) then frac-trim else frac-trim.pad-right(prec,'0')
 	if (frac-full.empty?) then "" else "." + frac-full
