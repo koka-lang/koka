@@ -16,8 +16,8 @@ import std/num/double
 // do exact decimal arithmetic and are well suited for financial calculations for
 // example.
 abstract struct decimal (
-  num: int,
-  exp: int
+	num: int,
+	exp: int
 )
 
 // The decimal zero.
@@ -90,7 +90,7 @@ public fun decimal( d : double, max-prec : int = -1 ) : decimal {
 }
 
 
-// Parse a `:decimal` number where a dot (`.`) separates the factional part.
+// Parse a `:decimal` number where a dot (`.`) separates the fractional part.
 public fun parse-decimal( s : string ) : maybe<decimal> {
 	match(s.find(rx-decimal)) {
 		Nothing -> Nothing
@@ -176,31 +176,6 @@ public fun pos?( x : decimal ) : bool {
 // Is the decimal negative?
 public fun neg?( x : decimal ) : bool {
   x.num.neg?
-}
-
-// Show a decimal to a specified maximum precision (=`-1`). use a negative value to
-// use maximum precision required.
-public fun show( x : decimal, max-prec : int = -1 ) : string {
-  // trace("show: " + x.num.show + "x" + x.exp.show)
-  val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
-  cx.showx()
-}
-
-public fun showx( cx : decimal ) : string {
-  //trace("showx: " + cx.num.show + "x" + cx.exp.show)
-  val sign = if (cx.num.neg?) then "-" else ""
-  val s    = cx.num.abs.show
-  if (!cx.exp.neg?) then {
-    sign + s + repeat("0",cx.exp)
-  }
-  else {
-    val prec  = ~cx.exp
-    val sfrac = s.last(prec)
-    val frac  = (repeat("0", prec - sfrac.count ) + sfrac.string).trim-right("0")
-    val whole = sfrac.before.string
-    sign + (if (whole.empty?) then "0" else "") + whole
-          + (if (frac.empty?) then "" else "." + frac)
-  }
 }
 
 // Multiply two decimals with full precision.
@@ -410,4 +385,61 @@ public fun ffraction( x : decimal ) : double {
 public fun fraction( x : decimal ) : double {
   val f = x.ffraction
   if (x.neg? && !f.zero?) then f - 1.0 else f
+}
+
+
+
+// Show a decimal to a specified maximum precision (=`-1`). use a negative value to
+// use maximum precision required.
+public fun show( x : decimal, max-prec : int = -1 ) : string {
+  // trace("show: " + x.num.show + "x" + x.exp.show)
+  val cx   = if (max-prec.neg?) then x.reduce else x.round-to-prec(max-prec)
+  cx.showx()
+}
+
+public fun showx( cx : decimal ) : string {
+  //trace("showx: " + cx.num.show + "x" + cx.exp.show)
+  val sign = if (cx.num.neg?) then "-" else ""
+  val s    = cx.num.abs.show
+  if (!cx.exp.neg?) then {
+    sign + s + repeat("0",cx.exp)
+  }
+  else {
+    val prec  = ~cx.exp
+    val sfrac = s.last(prec)
+    val frac  = (repeat("0", prec - sfrac.count ) + sfrac.string).trim-right("0")
+    val whole = sfrac.before.string
+    sign + (if (whole.empty?) then "0" else "") + whole
+          + (if (frac.empty?) then "" else "." + frac)
+  }
+}
+
+public fun show-fixed( d : decimal, prec : int = -1 ) : string {
+	val x	= if (prec.neg?) then d.reduce else d.round-to-prec(prec)
+	if (x.exp >= 0) {
+		val frac = if (prec<=0) then "" else "." + repeat("0",prec)
+		x.show + repeat("0",x.exp) + frac
+	}
+	else {
+		val digits	= ~x.exp
+		val man	= cdiv-exp10(x.num,digits)
+		val frac	= abs( x.num - mul-exp10(man,digits) )
+		man.show + frac.show.pad-left(digits,'0').show-frac(prec)
+	}
+}
+
+public fun show-exp( d : decimal, prec : int = -1 ) : string {
+	val x	= if (prec.neg?) then d.reduce else d.round-to-prec(prec - d.num.count-digits - d.exp + 1)
+	val s	= x.num.abs.show
+	val digits	= s.count
+	val exp	= x.exp + digits - 1
+	val sign	= if (x.neg?) then "-" else ""
+	val exponent	= if (exp==0) then "" else "e" + (if (exp.pos?) then "+" else "") + exp.show
+	s.head + s.tail.show-frac(prec) + exponent
+}
+
+private fun show-frac( frac : string, prec : int ) : string {
+	val frac-trim	= frac.trim-right("0")
+	val frac-full	= if (prec.neg?) then frac-trim else frac-trim.pad-right(prec,'0')
+	if (frac-full.empty?) then "" else "." + frac-full
 }

@@ -15,7 +15,7 @@ import std/text/regex
 import std/num/int32
 
 extern include {
-  js file "double-inline.js"
+	js file "double-inline.js"
 }
 
 
