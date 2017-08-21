@@ -372,12 +372,13 @@ public fun fraction( x : decimal ) : double {
     Show
  -------------------------------------------------------------------------------------- */
 
-// Show a decimal `d` with a given precision `prec` (=`-1`).
+// Show a decimal `d` with a given precision `prec` (=`-1000`).
 // The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
-// If the precision is negative all significant digits are displayed.
+// If the precision is negative, _at most_ `prec` digits are displayed, while for a positive
+// precision, exactly `prec` digits behind the dot are displayed.
 // This uses `show-fixed` when the exponent of `d` in scientific notation is larger than -5
 // and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
-public fun show( d : decimal, prec : int = -1 ) : string {
+public fun show( d : decimal, prec : int = -1000 ) : string {
 	val exp = d.exponent?
 	if (exp > -5 && exp < (if (prec.neg?) then  15 else prec))
 		then show-fixed( d, prec )
@@ -390,21 +391,26 @@ public fun exponent?( d : decimal ) : int {
 	d.num.count-digits + d.exp - 1
 }
 
-/* Show a decimal `d` with a given precision `prec` (=`-1`) in fixed-point notation.
+/* Show a decimal `d` with a given precision `prec` (=`-1000`) in fixed-point notation.
 The precision specifies the  number of digits after the dot.
-If the precision is negative all significant digits are displayed.
+If the precision is negative, _at most_  `prec` digits after the dot are displayed,
+while for a positive precision, exactly `prec` digits are used.
 ```
 > decimal(1,-1).show-fixed
 "0.1"
 > 0.1.decimal.show-fixed
 "0.1000000000000000055511151231257827021181583404541015625"
-> 0.1.decimal.show-fixed(17)
-"0.10000000000000001"
+> 0.1.decimal.show-fixed(20)
+"0.1000000000000000555"
+> 0.1.decimal.show-fixed(-20)
+"0.1000000000000000555"
+> decimal(1,-1).show-fixed(20)
+"0.1000000000000000000"
 ```
 .
 */
-public fun show-fixed( d : decimal, prec : int = -1 ) : string {
-	val x = if (prec.neg?) then d.reduce else d.round-to-prec(prec)
+public fun show-fixed( d : decimal, prec : int = -1000 ) : string {
+	val x = d.round-to-prec(prec.abs)
 	if (x.exp >= 0) {
 		val frac = if (prec<=0) then "" else "." + repeat("0",prec)
 		x.num.show + repeat("0",x.exp) + frac
@@ -417,21 +423,27 @@ public fun show-fixed( d : decimal, prec : int = -1 ) : string {
 	}
 }
 
-/* Show a decimal `d` with a given precision `prec` (=`-1`) in scientific notation.
-The precision specifies the  number of digits after the dot.
-If the precision is negative all significant digits are displayed.
+/* Show a decimal `d` with a given precision `prec` (=`-1000`) in scientific notation.
+The precision specifies the  number of digits after the dot, i.e.
+the number of significant digits is `prec+1`.
+If the precision is negative, _at most_ `prec` digits are displayed, and if
+it is positive exactly `prec` digits are used.
 ```
 > decimal(1,-1).show-exp
 "1e-1"
-> 0.1.decimal.show-exp
-"1.000000000000000055511151231257827021181583404541015625e-1"
-> 0.1.decimal.show-exp(17)
-"1.00000000000000006e-1"
+> 1.1.decimal.show-exp
+"1.100000000000000088817841970012523233890533447265625"
+> 1.1.decimal.show-exp(-20)
+"1.10000000000000008882"
+> 0.125.decimal.show-exp(-20)
+"1.25e-1"
+> 0.125.decimal.show-exp(20)
+"1.25000000000000000000e-1"
 ```
 .
 */
-public fun show-exp( d : decimal, prec : int = -1 ) : string {
-	val x = if (prec.neg?) then d.reduce else d.round-to-prec(prec - d.exponent?)
+public fun show-exp( d : decimal, prec : int = -1000 ) : string {
+	val x 	= d.round-to-prec(prec.abs - d.exponent?)
 	val s	= x.num.abs.show
 	val digits	= s.count
 	val exp	= x.exp + digits - 1
@@ -442,6 +454,6 @@ public fun show-exp( d : decimal, prec : int = -1 ) : string {
 
 fun show-frac( frac : string, prec : int ) : string {
 	val frac-trim	= frac.trim-right("0")
-	val frac-full	= if (prec.neg?) then frac-trim else frac-trim.pad-right(prec,'0')
+	val frac-full	=if (prec >= 0) then frac-trim.pad-right(prec,'0') else frac-trim
 	if (frac-full.empty?) then "" else "." + frac-full
 }
