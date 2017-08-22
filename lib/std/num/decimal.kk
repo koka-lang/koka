@@ -449,7 +449,7 @@ public fun show-exp( d : decimal, prec : int = -1000 ) : string {
 	val exp	= x.exp + digits - 1
 	val sign	= if (x.neg?) then "-" else ""
 	val exponent	= if (exp==0) then "" else "e" + (if (exp.pos?) then "+" else "") + exp.show
-	s.head + s.tail.show-frac(prec) + exponent
+	sign + s.head + s.tail.show-frac(prec) + exponent
 }
 
 fun show-frac( frac : string, prec : int ) : string {

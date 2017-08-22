@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2017 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -25,7 +25,7 @@ due to decimal fractions that cannot be represented precisely. For example:
 0.30000000000000004
 ```
 
-When we show the `0.1` to 20 digits of precision, we see that it is not precisely 
+When we show the `0.1` to 20 digits of precision, we see that it is not precisely
 represented by a `:double`:
 
 ```
@@ -63,14 +63,14 @@ correction to that number. The `show-sum` function shows this internal pair of n
 
 Generally, a `:ddouble` _d_ is represented by a pair of `:double`s, _hi_ and _lo_,
 such that _d_ equals _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
-Note that despite the extra precision, underflow/overflow and machine precision are 
+Note that despite the extra precision, underflow/overflow and machine precision are
 not as well-defined as with a regular `:double` [@lin;@shewchuk;@Dekker].
 Nevertheless, using a `:ddouble` often prevents instability in practice over
 `:double` computations due to  rounding errors or combining very large and
 small numbers.
 
 
-Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle]. 
+Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle].
 The challenge is to compute
 the area of a very thin triangle with sides $a$, $b$, and $c$. The short sides
  $b$ and $c$ are just 3 units in the last place (ulp) shorter than
@@ -79,8 +79,8 @@ a triangle is $A = \sqrt{s(s-a)(s-b)(s-c)}$. This is troublesome if $s$ is
 close to $a$ since $s-a$ magnifies any rounding error. Let's take $a=7$,
 and $b = c = 7/2 + 3\cdot2^{-111}$; according to [@gustafson:posit],
 &ldquo;If the units are in light-years, then the short sides are only longer than
-half the long side by $1/200$th the diameter of a proton. Yet that pops the triangle 
-up to about the width of a doorway at the thickest point&rdquo;. Using various 
+half the long side by $1/200$th the diameter of a proton. Yet that pops the triangle
+up to about the width of a doorway at the thickest point&rdquo;. Using various
 128-bit numbers we get:
 ````
 exact          : 3.14784204874900425235885265494550774498...e-16
@@ -91,7 +91,7 @@ exact          : 3.14784204874900425235885265494550774498...e-16
 For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can combine very large and
 small values. (Kahan [@Kahan:triangle] shows how to rewrite the equations
-to avoid magnifying rounding errors -- in that case the result for 
+to avoid magnifying rounding errors -- in that case the result for
 IEEE 128-bit floats becomes:
 ````
 128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#88F}\)e-16
@@ -118,7 +118,7 @@ Numerische\ Mathematik, vol. 18 (3), June 1971, 224--242.
 ~~ BibItem { #Goldberg:float; bibitem-label:"[2]"}
 David Goldberg.
 _What Every Computer Scientist Should Know About Floating-point Arithmetic_.
-ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](http://doi.org/10.1145/103162.103163). 
+ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](http://doi.org/10.1145/103162.103163).
 [pdf](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
 ~~
 
@@ -136,7 +136,7 @@ Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](h
 
 ~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
-_Library for double-double and quad-double arithmetic._ 
+_Library for double-double and quad-double arithmetic._
 (2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
@@ -147,7 +147,7 @@ ACM Transactions on Mathematical Software (TOMS), vol. 7 (3), Sept. 1981, 272--2
 ~~
 
 ~~ Bibitem { #Kahan:triangle; bibitem-label:"[7]"}
-William\ Kahan. 
+William\ Kahan.
 _Miscalculating Area and Angles of a Needle-like Triangle_.
 Lecture notes, 2004, [pdf](https://people.eecs.berkeley.edu/~wkahan/Triangle.pdf).
 ~~
@@ -168,7 +168,8 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 */
 module std/num/ddouble
 
-import std/num/double   
+import std/num/double
+import std/num/decimal
 import std/text/regex
 
 /* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
@@ -182,8 +183,8 @@ Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo
 such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
 abstract struct ddouble(
-  hi : double,
-  lo : double
+	hi : double,
+	lo : double
 )
 
 // Create a `:ddouble` from a `:double`.
@@ -201,7 +202,7 @@ fun precise?(i : int ) : bool {
 
 
 
-// Create a `:ddouble` from an `:int`. 
+// Create a `:ddouble` from an `:int`.
 // A `:ddouble` can represent integers precisely up to 30 digits.
 // If an integer is passed that is out of range an infinity is returned.
 public fun ddouble( i : int ) : ddouble {
@@ -216,7 +217,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
     val px   = p - 15
     val (hi,y) = x.divmod-exp10(px)
     val py   = px - 15
-    if (py <= 0) then { 
+    if (py <= 0) then {
       // if 30 or less digits we can convert with two doubles
       small-exp(hi, px + e) + small-exp( y, e)
     }
@@ -225,7 +226,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
       // optimize the case of trailing zeros.
       val (mid,z) = y.divmod-exp10(py)
       val pz = z.exp10?  // number of trailing zeros
-      val lo = z.cdiv-exp10(pz) 
+      val lo = z.cdiv-exp10(pz)
       //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
       (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, pz + e)
     }
@@ -237,8 +238,8 @@ fun small-exp( i : int, e : int ) {
 }
 
 
-// &pi; 
-public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)  
+// &pi;
+public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
 //public val dd-pi      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
 
 // 2&pi;
@@ -395,7 +396,7 @@ public fun max( x : ddouble, y : ddouble ) : ddouble {
 
 struct edouble(
   num : double,
-  err : double              
+  err : double
 )
 
 // often called `twosum` in literature (see [@shewchuk])
@@ -505,7 +506,7 @@ fun prodsqr( x : double ) : edouble {
 }
 
 // `prod` & `prodsqr` can also be implemented using 'fused multiply add'
-/* 
+/*
 fun prod( x : double, y : double ) : edouble {
   val z = x*y
   err = fmadd(x,y,~z)
@@ -601,7 +602,7 @@ public fun round( x : ddouble ) : ddouble {
 // Round to negative infinity.
 public fun floor( x : ddouble ) : ddouble {
   val r = x.hi.floor
-  if (r == x.hi) 
+  if (r == x.hi)
    then dquicksum(r,x.lo.floor)
    else Ddouble(r,0.0)
 }
@@ -610,7 +611,7 @@ public fun floor( x : ddouble ) : ddouble {
 // Round to positive infinity.
 public fun ceiling( x : ddouble ) : ddouble {
   val r = x.hi.ceiling
-  if (r == x.hi) 
+  if (r == x.hi)
    then dquicksum(r,x.lo.ceiling)
    else Ddouble(r,0.0)
 }
@@ -635,8 +636,8 @@ public fun ffraction( x : ddouble ) : ddouble {
 
 // Round a `:ddouble` to a specified precision. Uses `round` if the precision is smaller or equal to zero.
 public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
-  if (prec <= 0) then x.round 
-  elif (prec > dd-max-prec) then x 
+  if (prec <= 0) then x.round
+  elif (prec > dd-max-prec) then x
   else {
     val p : ddouble = powi10(prec)
     (x * p).round / p
@@ -653,7 +654,7 @@ public fun ldexp( x : ddouble, exp : int ) : ddouble {
 }
 
 fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble {
-  if (n <= 0) then acc 
+  if (n <= 0) then acc
   elif (n.even?) then npwr-acc( sqr(x), acc, unsafe-decreasing(n/2) )
   else npwr-acc( x, x*acc, unsafe-decreasing(n.dec))
 }
@@ -710,13 +711,46 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble {
    Show
 ------------------------------------------------------*/
 
+// Decode a `:ddouble` `d` into two doubles `(hi,lo)` such that `d == hi+lo`.
+public fun decode( d : ddouble ) : (double,double) {
+	(d.hi,d.lo)
+}
+
+// Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
+// A negative precision converts precisely.
+public fun decimal( x : ddouble, prec : int = -1 ) : decimal {
+	x.hi.decimal(prec) + x.lo.decimal(prec)
+}
+
+// Show a `:ddouble` `x` as a pair of precise `:double`s
+// in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+// Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
+// i.e. `x == x.show-hex.ddouble`
+public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
+	if (!x.finite?)
+		then x.hi.show
+		else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
+}
+
+public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
+	x.decimal.show(prec)
+}
+
+public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
+	x.decimal.show-exp(prec)
+}
+
+public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
+	x.decimal.show-fixed(prec)
+}
+
 // Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
 // Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
 // i.e. `x == x.show-sum.ddouble`
 public fun show-sum( x : ddouble, prec : int = -17 ) : string {
-  if (!x.finite?) 
+  if (!x.finite?)
    then x.hi.show
-  elif (prec.abs >= 17) 
+  elif (prec.abs >= 17)
    then x.hi.show-full + " + " + x.lo.show-full
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
@@ -724,14 +758,14 @@ public fun show-sum( x : ddouble, prec : int = -17 ) : string {
 
 val dd-default-prec = -31
 
-
-// Show a `:ddouble` with an optional precision (=`-31`). 
+/*
+// Show a `:ddouble` with an optional precision (=`-31`).
 public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
   if (!x.finite?) then return x.hi.show
   if (x.zero?) then return "0"
   if (x.in-double-range(prec)) then return x.hi.show(prec)
   val xabs = x.hi.abs
-  if (xabs >= 1.0e-5 && xabs < 1.0e+21) 
+  if (xabs >= 1.0e-5 && xabs < 1.0e+21)
    then show-fixed(x, prec)
    else show-exp(x, prec)
 }
@@ -744,10 +778,10 @@ public fun show-fixed( x : ddouble, dprec : int = dd-default-prec ) : string {
   if (x.zero?) then return ("0" + (if (dprec.pos?) then "." + repeat("0",dprec) else ""))
   if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
   val (ds,e) = digits(x, dd-max-prec + 1 )
-  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
+  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
 
   // don't print too large a number; 10^28 and larger is problematic anyway
-  if (!in-fixed-range(x,e)) 
+  if (!in-fixed-range(x,e))
    then show-exp-digits(x,dprec,ds,e)
    else show-fixed-digits(x,dprec,ds,e)
 }
@@ -765,7 +799,7 @@ fun in-double-range( x : ddouble, prec : int  ) : bool {
 fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int ) : string {
   // round
   val (ds,e) = fixed-round( x.neg?, ds0, e0, dprec.abs )
-  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
+  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
 
   // use fixed
   val (whole,frac) = if (e.neg?) then ([0], replicate(0, ~e - 1 ) + ds) else ds.split(e+1)
@@ -777,24 +811,24 @@ fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int ) : s
              else frac
   val frac1= frac0.map(show).join
   val frac2= if (dprec.neg?) then frac1.trim-right("0") else frac1
-  val post = if (frac2.empty?) then "" else "." + frac2             
+  val post = if (frac2.empty?) then "" else "." + frac2
   val num  = pre + post
   val sign = if (x.neg? && num!="0") then "-" else ""
   sign + num
 }
 
 fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>,int) {
-  val pred = if (isneg) then odd? else even?
+  val pred : int -> bool = if (isneg) then odd? else even?
   val (pre,post) = ds.split( e + 1 + dprec )
   // trace( " fixed-round: " + pre.show-list(show) + " . " + post.show-list(show))
   match(post) {
     Cons(p) | p > 5 || (p==5 && pre.last.default(0).pred) -> {
-      if (pre.nil?) then ([1],e.inc) 
+      if (pre.nil?) then ([1],e.inc)
       else pre.reverse.digits-carry(e,1)
     }
     _ -> (pre,e)
   }
-}  
+}
 
 // Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-31`)
 // and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
@@ -803,11 +837,11 @@ public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
   if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
   if (x.in-double-range(prec)) then return x.hi.show-exp(prec)
   val (ds,e) = digits(x, prec.abs)
-  //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)  
+  //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
   show-exp-digits(x,prec,ds,e)
 }
 
-fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string {    
+fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string {
   val pre  = ds.head.default(0).show
   val frac0= (if (!prec.zero?) then ds.tail else []).map(show).join
   val frac = if (prec.neg?) then frac0.trim-right("0") else frac0
@@ -835,7 +869,7 @@ fun digits( x : ddouble, prec : int = dd-max-prec ) : (list<int>,int) {
 // Return an exponent and normalized ddouble
 fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   // guess approximate exponent
-  val e1 = x.hi.abs.log10.floor.int  
+  val e1 = x.hi.abs.log10.floor.int
   // guess exponential
   val r0 = x.abs
   val r1 = if (e1 < -300) then (r0*powi10(300)) / powi10(e1+300)
@@ -847,12 +881,12 @@ fun digits-to-exp( x : ddouble ) : (int,ddouble) {
   elif (r1 < one) then (e1.dec, r1 * ten)
   else (e1,r1)
 }
- 
+
 // extract the first n digits from a normalized ddouble (in reverse)
 fun digits-extract( r : ddouble, n : int, acc : list<int> = [] ) : list<int> {
   if (n <= 0) then digits-round(acc) else {
     val d = r.hi.trunc.int
-    digits-extract( (r - ddouble(d))*ten, 
+    digits-extract( (r - ddouble(d))*ten,
                     unsafe-decreasing(n.dec), Cons(d,acc) )
   }
 }
@@ -860,7 +894,7 @@ fun digits-extract( r : ddouble, n : int, acc : list<int> = [] ) : list<int> {
 // round on (and discard) the last digit before doing overflow correction
 fun digits-round( rds : list<int> ) : list<int> {
   match(rds) {
-    Cons(d0,Cons(d1,rds1) as rds0) 
+    Cons(d0,Cons(d1,rds1) as rds0)
       -> if (d0 >= 5) then Cons(d1.inc,rds1) else rds0  // todo: even rounding?
     _ -> rds
   }
@@ -877,22 +911,23 @@ fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [
       else digits-carry( ds, e, 0, Cons(d,acc) )
     }
     Nil -> {
-      (if (carry.pos?) then Cons(1,acc) else acc, e + carry) 
+      (if (carry.pos?) then Cons(1,acc) else acc, e + carry)
     }
   }
 }
+*/
 
 /*------------------------------------------------------
   Parsing
 ------------------------------------------------------*/
 
-// Parse a floating point number with up to 31 digits precision. 
+// Parse a floating point number with up to 31 digits precision.
 // Return `dd-nan` if the string is an invalid number.
 public fun ddouble( s : string ) : ddouble {
   s.parse-ddouble.default(dd-nan)
 }
 
-// Parse a floating point number with up to 31 digits precision. 
+// Parse a floating point number with up to 31 digits precision.
 // Returns `Nothing` on invalid input.
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
   //parse-double(s).map(ddouble)
@@ -908,7 +943,7 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
         }
       }
     }
-    Just(cap) -> 
+    Just(cap) ->
       if (cap.groups[7].empty?) {  // single double-double float
         val sign  = cap.groups[2].parse-int-sign
         val whole = cap.groups[3]
@@ -918,7 +953,7 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
 
         val w = (whole + frac).parse-int-default(0) * sign
         val e = exp - frac.count
-        val x = ddouble-int-exp(w,e) 
+        val x = ddouble-int-exp(w,e)
         // trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
         Just(x)
       }
@@ -951,7 +986,7 @@ val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$")
 public fun sqrt( x : ddouble ) : ddouble {
   // From the QD library:
   // Use Karp's strategy: if a is an approximation to sqrt(x), then
-  // sqrt(x) = x*a + (x - (x*a)^2) * a/2   
+  // sqrt(x) = x*a + (x - (x*a)^2) * a/2
   if (x.zero?) then zero
   elif (x.neg?) then dd-nan
   else {
@@ -976,7 +1011,7 @@ public fun nroot( x : ddouble, n : int ) : ddouble {
     val a1 = a0 + ((a0 * (one - r * powi(a0,n))) / n.ddouble)
     (if (x.hi.neg?) then ~one else one) / a1
   }
-} 
+}
 
 // Multiply `x` by a `:double` `p` where `p` must be a power of 2.
 fun mul-pwr2( x : ddouble, p : double ) : ddouble {
@@ -1003,18 +1038,18 @@ fun twice( x : ddouble ) : ddouble {
 public fun exp( x : ddouble ) : ddouble {
   /* From the QD library:
      Strategy:  We first reduce the size of x by noting that
-     
+
           exp(kr + m * log(2)) = 2^m * exp(r)^k
 
      where m and k are integers.  By choosing m appropriately
-     we can make |kr| <= log(2) / 2 = 0.347.  Then exp(r) is 
-     evaluated using the familiar Taylor series.  Reducing the 
-     argument substantially speeds up the convergence.  
+     we can make |kr| <= log(2) / 2 = 0.347.  Then exp(r) is
+     evaluated using the familiar Taylor series.  Reducing the
+     argument substantially speeds up the convergence.
   */
   val k : double = 512.0
   val inv-k = 1.0 / k
 
-  if (x.hi <= -709.0) then zero 
+  if (x.hi <= -709.0) then zero
   elif (x.hi >= 709.0) then dd-posinf
   elif (x.zero?) then one
   elif (x==one) then dd-e
@@ -1041,7 +1076,7 @@ val exp-factors : list<ddouble> = [
   Ddouble(2.48015873015873016e-05,  2.15119478667758816e-23)
 ]
 
-fun exp-approx( p : ddouble, t : ddouble, 
+fun exp-approx( p : ddouble, t : ddouble,
                 r : ddouble,
                 eps : double,
                 fs : list<ddouble>,
@@ -1052,7 +1087,7 @@ fun exp-approx( p : ddouble, t : ddouble,
       val s1 = s + t
       val p1 = p * r
       val t1 = p1 * f
-      if (t1.double.abs <= eps) 
+      if (t1.double.abs <= eps)
        then s + t
        else exp-approx( p1, t1, r, eps, fs1, s1 )
     }
@@ -1070,11 +1105,11 @@ public fun log( x : ddouble ) : ddouble {
      to determine the root of the function
          f(x) = exp(x) - a
      using Newton iteration.  The iteration is given by
-         x' = x - f(x)/f'(x) 
+         x' = x - f(x)/f'(x)
             = x - (1 - a * exp(-x))
-            = x + a * exp(-x) - 1.         
+            = x + a * exp(-x) - 1.
      Only one iteration is needed, since Newton's iteration
-     approximately doubles the number of digits per iteration. 
+     approximately doubles the number of digits per iteration.
   */
   if (x <= zero) then (if (x==zero) then dd-neginf else dd-nan)
   elif (x == one) then zero
@@ -1188,8 +1223,8 @@ public fun (~=)(x : ddouble, y : ddouble ) : bool {
 ------------------------------------------------------*/
 
 
-// Return the sum of a list of doubles. 
-// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements) 
+// Return the sum of a list of doubles.
+// Uses [Kahan-Babu&scaron;kan-Neumaier summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm#Further_enhancements)
 // to minimize rounding errors. This
 // is more precise as Kahan summation and about as fast.\
 // `[1.0e3,1.0e97,1.0e3,-1.0e97].sum == 2000.0`\
@@ -1239,7 +1274,7 @@ public fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble {
 public fun hypot( xs : list<ddouble> ) : ddouble {
   val hi = xs.abs-max
   if (hi.zero?) then zero else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt 
+    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -1247,7 +1282,7 @@ public fun hypot( xs : list<ddouble> ) : ddouble {
 // The maximum of the absolute values.
 fun abs-max( x : ddouble, y : ddouble ) : ddouble {
   max(abs(x),abs(y))
-} 
+}
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<ddouble> ) : ddouble {
@@ -1282,7 +1317,7 @@ val dd-pi16 = Ddouble(1.963495408493620697e-01,7.654042494670957545e-18)
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
   if (rad.hi.abs < 1.0e-11) then {
-    return (rad, one - 0.5.ddouble*sqr(rad))   
+    return (rad, one - 0.5.ddouble*sqr(rad))
   }
 
   /*
@@ -1300,10 +1335,10 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val t  = r - (dd-pi2 * qa.ddouble)
   val qb : double = floor((t.hi / dd-pi16.hi) + 0.5)
   val b  = qb.trunc.int
-  
+
   val s  = t - (dd-pi16 * qb.ddouble)
   val s2 = s.sqr
-  
+
   // Use the Chebyshev series for best precision.
   val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
@@ -1394,7 +1429,7 @@ public fun atan2( y : ddouble, x : ddouble ) : ddouble {
 
     val z = atan2( y.double, x.double ).ddouble // approximation
     val (sinz,cosz) = sincos(z)
-    if (xr.hi.abs > yr.abs.hi) 
+    if (xr.hi.abs > yr.abs.hi)
      then z + ((yr - sinz) / cosz)
      else z - ((xr - cosz) / sinz)
   }
@@ -1408,15 +1443,15 @@ public fun sinh( x : ddouble ) : ddouble {
     if (!ex.finite?) then ex else ( ex - (one / ex)).half
   }
   else {
-    // small x so use Taylor series to avoid cancellation 
-    val x2 = x.sqr    
+    // small x so use Taylor series to avoid cancellation
+    val x2 = x.sqr
     x*(one + (x2/6.ddouble)*(one + (x2/20.ddouble)*(one + (x2/42.ddouble))))
   }
 }
 
 // The hyperbolic cosine of `x`.
 public fun cosh( x : ddouble ) : ddouble {
-  if (x.zero?) then one 
+  if (x.zero?) then one
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
     if (!ex.finite?) then ex else (ex + (one / ex)).half
@@ -1429,7 +1464,7 @@ public fun cosh( x : ddouble ) : ddouble {
 
 // The hyperbolic tangent of `x`.
 public fun tanh( x : ddouble ) : ddouble {
-  if (x.zero?) then zero 
+  if (x.zero?) then zero
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
     val iex = one / ex
@@ -1456,6 +1491,6 @@ public fun acosh( x : ddouble ) : ddouble {
 
 // The area hyperbolic tangent of `x`.
 public fun atanh( x : ddouble ) : ddouble {
-  if (x.abs > one) then dd-nan 
-   else log((one + x) / (one - x)).half  
+  if (x.abs > one) then dd-nan
+   else log((one + x) / (one - x)).half
 }
