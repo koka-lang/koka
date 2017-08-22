@@ -187,7 +187,7 @@ public fun check-sincos( i : int, x : ddouble ) {
 // The arctangent is computed based on the Taylor series expansion
 //   arctan(x) = x - x^3 / 3 + x^5 / 5 - x^7 / 7 + ...
 public fun test-pi-machin() {
-  check-rt("pi-mach", dd-pi-qd,30) {
+  check-rt("pi-mach", dd-pi,29) {
     val approx = 4.ddouble * ((4.ddouble * arctan(one / 5.ddouble )) - arctan( one / 239.ddouble ))
     val delta  = (approx - dd-pi).abs
     val err    = delta / dd-epsilon
@@ -245,14 +245,14 @@ fun expand-pi-borwein( a : ddouble, y : ddouble, m : ddouble,
 // Salman Brent approximation to pi
 //
 public fun test-pi-salmanbrent() {
-  check("pi-sb",dd-pi-qd.show(30)) {
+  check("pi-sb",dd-pi.show(29)) {
     val a = one
     val b = sqrt(0.5.ddouble)
     val s = 0.5.ddouble
     val m = one
     val p = (2.0.ddouble * sqr(a)) / s
     val approx = expand-pi-sb(a,b,s,m,p)
-    approx.show(30)
+    approx.show(29)
   }
 }
 
