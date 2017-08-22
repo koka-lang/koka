@@ -682,12 +682,6 @@ fun powi10( exp : int ) : ddouble {
   powi(ten,exp)
 }
 
-// Return 2 to the power of `exp`.
-fun powi2( exp : int ) : ddouble {
-  powi(two,exp)
-}
-
-
 // Return 10 to the power of `exp`.
 public fun exp10( exp : ddouble ) : ddouble {
   pow(ten,exp)
@@ -772,167 +766,8 @@ public fun show-sum( x : ddouble, prec : int = -17 ) : string {
    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
-
 val dd-default-prec = -31
 
-/*
-// Show a `:ddouble` with an optional precision (=`-31`).
-public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
-  if (!x.finite?) then return x.hi.show
-  if (x.zero?) then return "0"
-  if (x.in-double-range(prec)) then return x.hi.show(prec)
-  val xabs = x.hi.abs
-  if (xabs >= 1.0e-5 && xabs < 1.0e+21)
-   then show-fixed(x, prec)
-   else show-exp(x, prec)
-}
-
-// Show a `:ddouble` as a fixed point number with an optional precision `dprec` (=`-31`) that
-// specifies the number of digits after the dot. For some numbers `show-fixed` will still
-// use exponential notation.
-public fun show-fixed( x : ddouble, dprec : int = dd-default-prec ) : string {
-  if (!x.finite?) then return x.hi.show
-  if (x.zero?) then return ("0" + (if (dprec.pos?) then "." + repeat("0",dprec) else ""))
-  if (x.in-double-range(dprec)) then return x.hi.show-fixed(dprec)
-  val (ds,e) = digits(x, dd-max-prec + 1 )
-  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
-
-  // don't print too large a number; 10^28 and larger is problematic anyway
-  if (!in-fixed-range(x,e))
-   then show-exp-digits(x,dprec,ds,e)
-   else show-fixed-digits(x,dprec,ds,e)
-}
-
-fun in-fixed-range( x : ddouble, e : int ) : bool {
-  (e.abs <= 27 || (e.abs <= 30 && x.floor == x))
-}
-
-fun in-double-range( x : ddouble, prec : int  ) : bool {
-  if (!x.lo.zero? || prec < -14 || prec > 14) return False
-  val y = x.hi.abs
-  (y >= 1.0e-14 && y < 1.0e15)
-}
-
-fun show-fixed-digits( x : ddouble, dprec : int, ds0 : list<int>, e0 : int ) : string {
-  // round
-  val (ds,e) = fixed-round( x.neg?, ds0, e0, dprec.abs )
-  // trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
-
-  // use fixed
-  val (whole,frac) = if (e.neg?) then ([0], replicate(0, ~e - 1 ) + ds) else ds.split(e+1)
-  val pre0 = (whole + replicate(0,e + 1 - whole.length)).map(show).join
-  val pre1 = pre0.trim-left("0")
-  val pre  = if (pre1.empty?) then "0" else pre1
-  val frac0= if (dprec.zero?) then []
-             elif (dprec.pos?) then frac.take(dprec) + replicate(0, dprec - frac.length)
-             else frac
-  val frac1= frac0.map(show).join
-  val frac2= if (dprec.neg?) then frac1.trim-right("0") else frac1
-  val post = if (frac2.empty?) then "" else "." + frac2
-  val num  = pre + post
-  val sign = if (x.neg? && num!="0") then "-" else ""
-  sign + num
-}
-
-fun fixed-round( isneg : bool, ds : list<int>, e:int, dprec : int ) : (list<int>,int) {
-  val pred : int -> bool = if (isneg) then odd? else even?
-  val (pre,post) = ds.split( e + 1 + dprec )
-  // trace( " fixed-round: " + pre.show-list(show) + " . " + post.show-list(show))
-  match(post) {
-    Cons(p) | p > 5 || (p==5 && pre.last.default(0).pred) -> {
-      if (pre.nil?) then ([1],e.inc)
-      else pre.reverse.digits-carry(e,1)
-    }
-    _ -> (pre,e)
-  }
-}
-
-// Show a `:ddouble` in scientific exponential notation with an optional precision `prec` (=`-31`)
-// and whether to trim trailing zeros (`trim-zeros` = `prec.neg?`).
-public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
-  if (!x.finite?) then return x.hi.show
-  if (x.zero?) then return ("0" + (if (prec.pos?) then "." + repeat("0",prec) else ""))
-  if (x.in-double-range(prec)) then return x.hi.show-exp(prec)
-  val (ds,e) = digits(x, prec.abs)
-  //trace( " digits: " + ds.show-list(show) + ", e:" + e.show + ", len: " + ds.length.show)
-  show-exp-digits(x,prec,ds,e)
-}
-
-fun show-exp-digits( x : ddouble, prec : int, ds : list<int>, e : int ) : string {
-  val pre  = ds.head.default(0).show
-  val frac0= (if (!prec.zero?) then ds.tail else []).map(show).join
-  val frac = if (prec.neg?) then frac0.trim-right("0") else frac0
-  val post = if (frac.empty?) then "" else "." + frac
-  val sign = if (x.neg?) then "-" else ""
-  val exp  = if (e.zero?) then "" else ("e" + (if (e.pos?) then "+" else "") + e.show)
-  sign + pre + post + exp
-}
-
-
-/*------------------------------------------------------
-   Extract digits
-------------------------------------------------------*/
-
-// Extract significant digits and exponent from a `:ddouble`.
-fun digits( x : ddouble, prec : int = dd-max-prec ) : (list<int>,int) {
-  val n = prec + 1  // number of digits
-  val (e0,r) = digits-to-exp(x)
-  //trace(" digits-toexp: e: " + e0.show + ", r: " + r.show-debug )
-  val ds0 = r.digits-extract(n)
-  val (ds1,e1) = ds0.digits-carry(e0)
-  (ds1.take(prec),e1)
-}
-
-// Return an exponent and normalized ddouble
-fun digits-to-exp( x : ddouble ) : (int,ddouble) {
-  // guess approximate exponent
-  val e1 = x.hi.abs.log10.floor.int
-  // guess exponential
-  val r0 = x.abs
-  val r1 = if (e1 < -300) then (r0*powi10(300)) / powi10(e1+300)
-           elif (e1 > 300) then ldexp(ldexp(r0,-53) / powi10(e1), 53)
-           else r0 / powi10(e1)
-  // fix off by one
-  // trace("digits-toexp: r1: " + r1.show-debug + ", r1*10: " + (r1 * ten).show-debug + ", r1/ten: " + (r1 / ten).show-debug)
-  if (r1 >= ten) then (e1.inc, r1 / ten)
-  elif (r1 < one) then (e1.dec, r1 * ten)
-  else (e1,r1)
-}
-
-// extract the first n digits from a normalized ddouble (in reverse)
-fun digits-extract( r : ddouble, n : int, acc : list<int> = [] ) : list<int> {
-  if (n <= 0) then digits-round(acc) else {
-    val d = r.hi.trunc.int
-    digits-extract( (r - ddouble(d))*ten,
-                    unsafe-decreasing(n.dec), Cons(d,acc) )
-  }
-}
-
-// round on (and discard) the last digit before doing overflow correction
-fun digits-round( rds : list<int> ) : list<int> {
-  match(rds) {
-    Cons(d0,Cons(d1,rds1) as rds0)
-      -> if (d0 >= 5) then Cons(d1.inc,rds1) else rds0  // todo: even rounding?
-    _ -> rds
-  }
-}
-
-// adjust overflow digits in a reversed list of digits
-fun digits-carry( rds : list<int>, e : int, carry : int = 0, acc : list<int> = [] ) : (list<int>,int) {
-  match(rds) {
-    Cons(d0,ds) {
-      // propagate carry while adjusting
-      val d = d0 + carry
-      if (d < 0)   then digits-carry( ds, e, -1, Cons(d + 10, acc))
-      elif (d > 9) then digits-carry( ds, e, 1, Cons(d - 10, acc))
-      else digits-carry( ds, e, 0, Cons(d,acc) )
-    }
-    Nil -> {
-      (if (carry.pos?) then Cons(1,acc) else acc, e + carry)
-    }
-  }
-}
-*/
 
 /*------------------------------------------------------
   Parsing
@@ -947,47 +782,44 @@ public fun ddouble( s : string ) : ddouble {
 // Parse a floating point number with up to 31 digits precision.
 // Returns `Nothing` on invalid input.
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
-  //parse-double(s).map(ddouble)
-  match(s.find(rx-ddouble)) {
-    Nothing -> {
-      match(s.find(rx-special)) {
-        Nothing -> Nothing
-        Just(cap) -> {
-          Just( if (!cap.groups[1].empty?) then dd-nan
-                elif (cap.groups[2] == "-") then dd-neginf
-                else dd-posinf
-              )
-        }
-      }
-    }
-    Just(cap) ->
-      if (cap.groups[7].empty?) {  // single double-double float
-        val sign  = cap.groups[2].parse-int-sign
-        val whole = cap.groups[3]
-        val frac  = (cap.groups[4] || "").trim-right("0")
-        val esign = cap.groups[5].parse-int-sign
-        val exp   = cap.groups[6].parse-int-default(0) * esign
-
-        val w = (whole + frac).parse-int-default(0) * sign
-        val e = exp - frac.count
-        val x = ddouble-int-exp(w,e)
-        // trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
-        Just(x)
-      }
-      else { // sum of two double's for precise round trips
-        val d1 = cap.groups[1].parse-double.default(nan)
-        val d2 = cap.groups[7].parse-double.default(nan)
-        Just(d1.ddouble + d2.ddouble)
-      }
-  }
+	val t = s.trim
+	match(t.find(rx-ddouble)) {
+		Just(cap) -> {
+			val whole	= cap.groups[1]
+			val frac	= cap.groups[2].trim-right("0")
+			val exp	= cap.groups[3].parse-int.default(0)
+			val w	= (whole + frac).parse-int.default(0)
+			val e	= exp - frac.count
+			val x	= ddouble-int-exp(w,e)
+			// trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
+			Just(x)
+		}
+		Nothing -> match(t.find(rx-special)) {
+			Just(cap) -> {
+				val special =	if (!cap.groups[1].empty?) then dd-nan
+					elif (cap.groups[2] == "-") then dd-neginf
+					else dd-posinf
+			    Just(special)
+			}
+			Nothing -> match(t.find(rx-double-sum)) {
+				Just(cap) -> {
+					match(cap.groups[1].parse-double) {
+						Just(hi) -> match (cap.groups[2].parse-double) {
+							Just(lo) -> Just( hi.ddouble + lo.ddouble )
+							Nothing -> Nothing
+						}
+						Nothing -> Nothing
+					}
+				}
+				Nothing -> Nothing
+			}
+		}
+	}
 }
 
-fun parse-int-sign( s : string ) : int {
-  if (s=="-") then -1 else 1
-}
-
-val rx-ddouble = regex(@"^(([\+\-])?(\d+)(?:\.(\d*))?(?:[eE]([\+\-])?(\d+))?)(?:\s*\+\s*([\+\-]?\d+(?:\.\d*)?(?:[eE][\+\-]?\d+)?))?$")
-val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$")
+val rx-ddouble = regex(@"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
+val rx-double-sum = regex(@"^(\S*\d) *\+ *(\S+)$")
+val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
 
 /*------------------------------------------------------
   Advanced operations
