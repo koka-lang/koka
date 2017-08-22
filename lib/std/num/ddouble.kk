@@ -227,9 +227,10 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
       val (mid,z) = y.cdivmod-exp10(py)
       val pz = py - 14
 	  val (lo,plo) = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
-      //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
-	  //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
-      (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, plo + e)
+      trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
+	  trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
+	  trace(" low: " + (small-exp( mid, py + e) + small-exp( lo, plo + e)).show-hex )
+      small-exp( hi, px + e) + (small-exp( mid, py + e) + small-exp( lo, plo + e))
     }
   }
 }
@@ -240,25 +241,26 @@ fun small-exp( i : int, e : int ) {
 
 
 // &pi;
-public val dd-pi     = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
-public val dd-pi-qd      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
+public val dd-pi     = Ddouble(0x1.921FB54442D18p+1, 0x1.1A62633145C07p-53)
+// public val dd-pi  = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
+// val dd-pi-qd      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)  // QD's pi constant is one bit off...
 
 // 2&pi;
-public val dd-twopi   = Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
+public val dd-twopi   = Ddouble(0x1.921FB54442D18p+2, 0x1.1A62633145C07p-52) // Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
 
 // &pi;/2
-public val dd-pi2     = Ddouble(1.5707963267948965580, 6.1232339957367660359e-17)
+public val dd-pi2     = Ddouble(0x1.921FB54442D18p+0, 0x1.1A62633145C07p-54) // Ddouble(1.5707963267948965580, 6.1232339957367660359e-17)
 
 // &pi;/4
-public val dd-pi4     = Ddouble(0.78539816339744827900, 3.0616169978683836342e-17)
+public val dd-pi4     = Ddouble(0x1.921FB54442D18p-1, 0x1.1A62633145C07p-55) // Ddouble(0.78539816339744827900, 3.0616169978683836342e-17)
 // QD:                         7.853981633974482790e-01,3.061616997868383018e-17)
 
 // 3&pi;/4
-public val dd-pi34    = Ddouble(2.3561944901923448370,  9.1848509936051496701e-17)
-// QD:                          2.356194490192344837e+00,9.1848509936051484375e-17)
+public val dd-pi34    = Ddouble(0x1.2D97C7F3321D2p+1, 0x1.A79394C9E8A0Bp-54) // Ddouble(2.3561944901923448370,  9.1848509936051496701e-17)
+// QD:                          2.356194490192344837e+00,9.1848509936051484375e-17)  // QD is again one bit off
 
 // The _e_ constant.
-public val dd-e       = Ddouble(2.7182818284590450908,  1.4456468917292501578e-16)
+public val dd-e       = Ddouble(0x1.5BF0A8B145769p+1, 0x1.4D57EE2B1013Ap-53) // Ddouble(2.7182818284590450908,  1.4456468917292501578e-16)
 
 // The natural logarithm of 2
 public val dd-log2    = Ddouble(0.69314718055994528623, 2.3190468138462995584e-17)
@@ -285,10 +287,13 @@ public val dd-euler  = Ddouble(0.57721566490153286555, -4.9429151524306502606e-1
 public val dd-epsilon = ddouble(4.93038065763132e-32)
 
 // The maximum representable `:ddouble`
-public val dd-max     = Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
+public val dd-max     = Ddouble( 0x1.FFFFFFFFFFFFFp+1023, 0x1.FFFFFFFFFFFFFp+969 ) //Ddouble(1.79769313486231570815e+308, 9.97920154767359795037e+291)
 
 // The smallest positive `:ddouble` that is still normalized
-public val dd-min     = ddouble(2.0041683600089728e-292)  // normalized = 2^(-1022 + 53)
+public val dd-min     = Ddouble( dbl-min, 0.0 ) // ddouble(2.0041683600089728e-292)  // normalized = 2^-1022
+
+// The smallest positive `:ddouble` .
+public val dd-true-min     = Ddouble( dbl-true-min, 0.0 )
 
 // Not-A-Number
 public val dd-nan     = Ddouble(nan,0.0)
