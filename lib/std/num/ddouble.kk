@@ -211,24 +211,25 @@ public fun ddouble( i : int ) : ddouble {
 
 fun ddouble-int-exp( i : int, e : int ) : ddouble {
   if (i.precise?) then small-exp( i, e ) else {
-    // ensure we convert at least 31 (and at most 45) digits precisely
+    // ensure we convert at least 31 (and at most 42) digits precisely
     val p    = i.count-digits
     val x    = i
-    val px   = p - 15
-    val (hi,y) = x.divmod-exp10(px)
-    val py   = px - 15
+    val px   = p - 14
+    val (hi,y) = x.cdivmod-exp10(px)
+    val py   = px - 14
     if (py <= 0) then {
-      // if 30 or less digits we can convert with two doubles
+      // if 28 or less digits we can convert with two doubles
+	  // trace("ddouble-i: " + i.show + ", hi:" + hi.show + ",  lo: " + y.show)
       small-exp(hi, px + e) + small-exp( y, e)
     }
     else {
-      // otherwise use 2 initial 15 digits and 1 trailing value but
-      // optimize the case of trailing zeros.
-      val (mid,z) = y.divmod-exp10(py)
-      val pz = z.exp10?  // number of trailing zeros
-      val lo = z.cdiv-exp10(pz)
+      // otherwise use 2 initial 14 digits and a trailing value
+      val (mid,z) = y.cdivmod-exp10(py)
+      val pz = py - 14
+	  val (lo,plo) = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
       //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
-      (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, pz + e)
+	  //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
+      (small-exp( hi, px + e) + small-exp( mid, py + e)) + small-exp( lo, plo + e)
     }
   }
 }
@@ -239,8 +240,8 @@ fun small-exp( i : int, e : int ) {
 
 
 // &pi;
-public val dd-pi      = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
-//public val dd-pi      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
+public val dd-pi     = Ddouble(3.141592653589793116e+00,1.224646799147353207e-16)
+public val dd-pi-qd      = Ddouble(3.1415926535897931160,   1.2246467991473529607e-16)
 
 // 2&pi;
 public val dd-twopi   = Ddouble(6.2831853071795862320, 2.4492935982947064143e-16)
@@ -717,9 +718,11 @@ public fun decode( d : ddouble ) : (double,double) {
 }
 
 // Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
-// A negative precision converts precisely.
+// A negative precision converts precisely. Returns 0 for non-finite `:ddouble`'s.
 public fun decimal( x : ddouble, prec : int = -1 ) : decimal {
-	x.hi.decimal(prec) + x.lo.decimal(prec)
+	if (!x.finite?)
+		then 0.decimal
+		else x.hi.decimal(prec) + x.lo.decimal(prec)
 }
 
 // Show a `:ddouble` `x` as a pair of precise `:double`s
@@ -733,15 +736,21 @@ public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, p
 }
 
 public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
-	x.decimal.show(prec)
+	if (!x.finite?)
+		then x.hi.show
+		else x.decimal.show(prec)
 }
 
 public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
-	x.decimal.show-exp(prec)
+	if (!x.finite?)
+		then x.hi.show
+		else x.decimal.show-exp(prec)
 }
 
 public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
-	x.decimal.show-fixed(prec)
+	if (!x.finite?)
+		then x.hi.show
+		else x.decimal.show-fixed(prec)
 }
 
 // Show a `:ddouble` as a pair of precise `:double`s with an optional precision.

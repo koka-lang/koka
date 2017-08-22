@@ -1429,10 +1429,15 @@ extern cdiv-exp10( i : int, n : int ) : int {
   js "_int_cdiv_pow10"
 }
 
-fun divmod-exp10( i : int, n : int ) : (int,int) {
+fun cdivmod-exp10( i : int, n : int ) : (int,int) {
   if (n <= 0) return (i,0)
   val cq = i.cdiv-exp10(n)
   val cr = i - cq.mul-exp10(n)
+  (cq,cr)
+}
+
+fun divmod-exp10( i : int, n : int ) : (int,int) {
+  val (cq,cr) = cdivmod-exp10(i,n)
   if (!cr.neg?) then (cq,cr) else (cq.dec, cr + exp10(n))
 }
 

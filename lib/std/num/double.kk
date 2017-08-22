@@ -443,13 +443,14 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
 // Also allows floats in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41) (`0xA.Fp-10`) that can
 // be represented precisely (and are the preferred _round trip_ format).
 fun parse-double( s : string ) : maybe<double> {
-	match(s.find(rx-float)) {
+	val st = s.trim
+	match(st.find(rx-float)) {
 		Just -> {
 			// regular float number
-			val d = prim-parse-double(s)	// regular decimal double
+			val d = prim-parse-double(st)	// regular decimal double
 			if (d.nan?) then Nothing else Just(d)
 		}
-		Nothing -> match (s.find(rx-hexfloat)) {
+		Nothing -> match (st.find(rx-hexfloat)) {
 			Just(cap) -> {
 				// float in hexadecimal notation
 				val man	= cap.groups[1]
@@ -461,7 +462,7 @@ fun parse-double( s : string ) : maybe<double> {
 			}
 			Nothing -> {
 				// special values
-				val t = s.trim.to-lower
+				val t = st.to-lower
 				if (t=="nan") then Just(nan)
 				elif (t=="inf"||t=="infinity") then Just(posinf)
 				elif (t=="-inf"||t=="-infinity") then Just(neginf)
