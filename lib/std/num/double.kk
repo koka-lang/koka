@@ -144,7 +144,7 @@ fun subnormal?( d :double ) : bool  {
 // If the value is halfway between two integers, the value is rounded to the even one.
 extern round : (d:double) -> double {
   cs "Math.Round"
-  js "Math.round"
+  js "$std_core._double_round"
 }
 
 // Return the largest integer equal or less than `d`

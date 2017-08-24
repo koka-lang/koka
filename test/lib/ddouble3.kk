@@ -4,6 +4,7 @@
 
 public import std/num/ddouble
 public import std/num/double
+public import std/num/decimal
 
 fun dd-area(a : ddouble, b : ddouble, c : ddouble = b ) : ddouble {
   val s = (a + b + c)/2.ddouble
@@ -11,7 +12,7 @@ fun dd-area(a : ddouble, b : ddouble, c : ddouble = b ) : ddouble {
 }
 
 fun dd-areax(a : ddouble, b : ddouble, c : ddouble = b) : ddouble {
-  val s = (a+(b+c))*(c - (a - b))*(c+(a - b))*(a+(b - c)) 
+  val s = (a+(b+c))*(c - (a - b))*(c+(a - b))*(a+(b - c))
   sqrt(s)/4.ddouble
 }
 
@@ -25,7 +26,7 @@ fun d-area(a : double, b : double, c : double = b) : double {
 }
 
 fun d-areax(a : double, b : double, c : double = b) : double {
-  val s = (a+(b+c))*(c - (a - b))*(c+(a - b))*(a+(b - c)) 
+  val s = (a+(b+c))*(c - (a - b))*(c+(a - b))*(a+(b - c))
   sqrt(s)/4.0
 }
 

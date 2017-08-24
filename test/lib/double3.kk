@@ -6,8 +6,8 @@ public import std/num/double
 public import std/num/int32
 
 fun check(name : string, res : string, got : string ) : io () {
-  println(name.pad-right(7,' ') + ": " 
-    + (if (got == res) then "ok: " + res 
+  println(name.pad-right(7,' ') + ": "
+    + (if (got == res) then "ok: " + res
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
   // if (got != res) then error("failed") else ()
 }
@@ -15,8 +15,8 @@ fun check(name : string, res : string, got : string ) : io () {
 struct ldexp( frac : double, exp : int, exp2 : int, expect : string );
 
 fun main() {
-  val tests = [test-basic, test-zero, test-inf, 
-               test-ovf, test-underfl, test-denormal, 
+  val tests = [test-basic, test-zero, test-inf,
+               test-ovf, test-underfl, test-denormal,
                test-denormal-big].concat
 
   tests.foreach-indexed fun(i,t) {
