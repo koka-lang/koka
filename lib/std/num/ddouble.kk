@@ -572,20 +572,9 @@ public fun double( x : ddouble ) : double {
   x.hi
 }
 
-// Convert a `:ddouble` to an integer (using `round`)
-public fun int( x : ddouble ) : int {
-  val r = x.round
-  if (!r.finite?) then 0 else {
-    val i = r.hi.int
-    if (i.precise?) then i else {
-      // todo: optimize?
-      val s = r.show-fixed(20)
-      match(s.find(".")) {
-        Nothing  -> s.parse-int-default(0)
-        Just(sl) -> sl.before.string.parse-int-default(0)
-      }
-    }
-  }
+// Convert a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie)
+public fun int( x : ddouble, nonfin : int = 0 ) : int {
+	if (!x.finite?) then nonfin else x.round.decimal.int
 }
 
 // Round a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie).

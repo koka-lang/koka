@@ -1600,7 +1600,8 @@ fun (~)(d : double ) : double {
 }
 
 
-// convert a `:double` to an `:int` using `round` to round to its nearest integer.
+// convert a `:double` to an `:int` using `round` to round to its nearest integer. 
+// (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int {
   cs "Primitive.IntDouble"
