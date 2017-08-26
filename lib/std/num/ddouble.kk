@@ -583,15 +583,11 @@ public fun int( x : ddouble, nonfin : int = 0 ) : int {
 // Round a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie).
 public fun round( x : ddouble ) : ddouble {
   val r = x.hi.round
-  if (r == x.hi) {
-    dquicksum(r,x.lo.round)
-  }
-  elif(abs(r - x.hi) == 0.5 && x.lo.neg?) {
-    Ddouble(r - 1.0,0.0)
-  }
-  else {
-    Ddouble(r,0.0)
-  }
+  val diff = r - x.hi
+  if (diff == 0.0) then dquicksum(r,x.lo.round)
+  elif (diff == 0.5 && x.lo.neg?) then ddouble(r - 1.0)
+  elif (diff == -0.5 && x.lo.pos?) then ddouble(r + 1.0)
+  else ddouble(r)
 }
 
 // Round to negative infinity.
