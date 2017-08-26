@@ -173,32 +173,43 @@ public fun pow( x : decimal, n : int  ) : decimal {
 
 // Rounding modes.
 public type round {
-  Even
-  HalfUp
-  HalfDown
-  Floor
-  Ceil
-  Up
-  Down
+  // Round to neareast integer, round to the even number in case of a tie
+  con HalfEven
+  // Round to nearest integer, round towards infinity in case of a tie
+  con HalfCeiling
+  // Round to nearest integer, round towards negative infinity in case of a tie
+  con HalfFloor
+  // Round to nearest integer, round away from zero case of a tie
+  con HalfFromZero
+  // Round to nearest integer, round towards zero in case of a tie (i.e. _truncate_ on a tie)
+  con HalfToZero
+  // Round to the minimum integer that is larger or equal
+  con Ceiling
+  // Round to the maximum integer that is lower or equal
+  con Floor
+  // Round to the nearest integer away from zero
+  con FromZero
+  // Round to the nearest integer towards zero (i.e. _truncate_)
+  con ToZero
 }
 
-// Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`Even`).
-public fun int( x : decimal, rnd : round = Even) : int {
+// Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`HalfEven`).
+public fun int( x : decimal, rnd : round = HalfEven) : int {
   val y = x.round(rnd)  // y.exp >= 0
   if (y.exp.pos?) then y.num.mul-exp10(y.exp) else y.num
 }
 
-// Round a `:decimal` number to a whole number with an optional rounding mode (=`Even`).
-public fun round( x : decimal, rnd : round = Even ) : decimal {
+// Round a `:decimal` number to a whole number with an optional rounding mode (=`HalfEven`).
+public fun round( x : decimal, rnd : round = HalfEven ) : decimal {
   x.round-to-prec(0,rnd)
 }
 
 // Round the decimal-point number `x` to
 // to a specified number of digits behind the dot `prec` (=`0`) with an optional
-// rounding mode `rnd` (=`Even`). The precision can be negative.\
+// rounding mode `rnd` (=`HalfEven`). The precision can be negative.\
 // `decimal(1,485).round-to-prec(2).show == "1.48"` \
 // `decimal(112,49).round-to-prec(-1).show == "110"`
-public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : total decimal {
+public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = HalfEven ) : total decimal {
   if (x.exp >= ~prec) return x
   val cx = x.reduce
   val p  = ~cx.exp - prec
@@ -216,13 +227,15 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Even ) : to
   }
 
   val q1 = if (r.zero?) then q else match(rnd) {
-    Even     -> round-half(q.even?)
-    HalfUp   -> round-half(q.neg?)
-    HalfDown -> round-half(q.pos?)
-    Floor    -> q
-    Ceil     -> q.inc
-    Up       -> if (!q.pos?) then q else q.inc
-    Down     -> if (!q.neg?) then q else q.inc
+	HalfEven	-> round-half(q.even?)
+	HalfFloor	-> round-half(True)
+	HalfCeiling	-> round-half(False)
+	HalfFromZero	-> round-half(q.neg?)
+	HalfToZero	-> round-half(q.pos?)
+	Floor	-> q
+	Ceiling	-> q.inc
+	FromZero	-> if (!q.pos?) then q else q.inc
+	ToZero	-> if (!q.neg?) then q else q.inc
   }
 
   //trace("round: " + x.showx + ", q: " + q.show + ", r: " + r.show + ", q1: " + q1.show + "e-" + prec.show )
@@ -328,15 +341,15 @@ public fun abs( x : decimal ) : decimal {
 }
 
 
-// Round a `:decimal` to an integer using `Floor` (i.e. round to minus infinity)
+// Round a `:decimal` to an integer using `Floor` (i.e. round towards minus infinity)
 public fun floor( x : decimal ) : int {
   x.int(Floor)
 }
 
 
-// Truncate a `:decimal` to an integer using `Down` (i.e. round to zero)
+// Truncate a `:decimal` to an integer using `Down` (i.e. round towards zero)
 public fun trunc( x : decimal ) : int {
-  x.int(Down)
+  x.int(ToZero)
 }
 
 
