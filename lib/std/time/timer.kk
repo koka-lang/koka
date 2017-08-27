@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -24,12 +24,12 @@ extern include {
 // Ticks
 // -----------------------------------------------------------
 
-// Return a high-resolution time stamp in fractional SI seconds. 
+// Return a high-resolution time stamp in fractional SI seconds.
 // The duration is guaranteed to be monotonically increasing
-// and have at least millisecond resolution. 
+// and have at least millisecond resolution.
 public fun ticks() : ndet duration {
   val (secs,frac) = xticks()
-  duration(secs.trunc.int, secs.fraction + frac)
+  duration(secs.truncate.int, secs.fraction + frac)
 }
 
 extern xticks() : ndet (double,double) {
@@ -62,5 +62,4 @@ public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "ela
   val (t,x) = elapsed(action)
   println( msg + " " + t.show(3) )
   x
-} 
-
+}

@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -22,7 +22,7 @@ import std/time/timestamp
 // A duration in time in SI seconds (as measured on the Earth's geoid).\
 // A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
 abstract struct duration(
-  secs : timespan                     
+  secs : timespan
 )
 
 // A zero duration.
@@ -34,11 +34,11 @@ public fun unsafe-duration( t : timespan ) : duration {
   Duration(t)
 }
 
-public fun duration( t : timespan ) : duration { 
-  Duration(t) 
+public fun duration( t : timespan ) : duration {
+  Duration(t)
 }
 
-// Duration since the epoch of the time stamp. 
+// Duration since the epoch of the time stamp.
 // Be careful to only use this on time stamps in SI seconds!
 public fun unsafe-duration( ts : timestamp ) : duration {
   Duration(ts.seconds)
@@ -79,13 +79,13 @@ public fun nano-seconds( d : duration ) : int {
   (d.secs * 1000000000.timespan).int
 }
 
-// The whole seconds (in some time unit) of the duration as `:int``.
-public fun trunc( d : duration ) : int {
-  d.secs.trunc.int
+// The whole seconds (in some time unit) of the duration as `:int``. Rounds towards zero.
+public fun truncate( d : duration ) : int {
+  d.secs.truncate.int
 }
 
 // The fractional seconds of a duration as a `:double`.
-// `d.seconds == d.trunc.fixed + d.fraction.fixed
+// `d.seconds == d.truncate.fixed + d.fraction.fixed
 public fun fraction( d : duration ) : double {
   d.secs.fraction.double
 }

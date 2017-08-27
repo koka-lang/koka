@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -24,7 +24,7 @@ val fmt-iso-timezone   = "Z C"
 // Show a time as a standard ISO string. Will use automatic week date
 // or month date format for the `cal-iso-week` and `cal-iso-month` calendars.
 public fun show-iso( t : time ) : string {
-  t.show-iso-date + "T" + t.format(fmt-iso-time + fmt-iso-timezone) 
+  t.show-iso-date + "T" + t.format(fmt-iso-time + fmt-iso-timezone)
 }
 
 // Show a time as a standard ISO date. Will use automatic week date
@@ -73,7 +73,7 @@ fun format-day( t : time, n : int, locale : time-locale ) : string {
 
 fun format-month( t : time, n : int, locale : time-locale ) : string {
   if (n<=2) then {
-    t.calendar.month-prefix + t.month.showl(n) 
+    t.calendar.month-prefix + t.month.showl(n)
   }
   else {
     val months = if (n==3) then locale.month-names-short else locale.month-names
@@ -103,7 +103,7 @@ fun format-era( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-seconds( t : time, n : int, locale : time-locale ) : string {
-  t.seconds.trunc.int.showl(n)
+  t.seconds.truncate.int.showl(n)
 }
 
 fun format-minutes( t : time, n : int, locale : time-locale ) : string {
@@ -117,13 +117,13 @@ fun format-hours( t : time, n : int, locale : time-locale ) : string {
 fun format-hours12( t : time, n : int, locale : time-locale ) : string {
   val h = t.hours
   if (h==0 || h==12) then "12"
-  elif (h<=11) then h.showl(n) 
+  elif (h<=11) then h.showl(n)
   else (h - 12).showl(n)
 }
 
 fun format-calname( t : time, n : int, locale : time-locale) : string {
   if (t.calendar.month-prefix.notempty?) then ""
-   elif (n==2) then t.calendar.long-name 
+   elif (n==2) then t.calendar.long-name
    else t.calendar.name
 }
 
@@ -181,14 +181,14 @@ val formats : list<(char,int,(time,int,time-locale) -> string)> = [
   ('h', 2, format-hours12),
   ('a', 2, format-ampm),
   ('A', 2, format-upper-ampm),
-  ('x', 1, format-timestamp),  
+  ('x', 1, format-timestamp),
 ]
 
 /* Format a time according to format string `fmt` and using a optional
    time locale (= `time-locale-en-iso`).
 
 Letters (``a`` to ``z``) are always interpreted as a pattern where unknown letter
-patterns are ignored. Any literal text should be quote-escaped i.e. use `"'GMT'ZZ"` 
+patterns are ignored. Any literal text should be quote-escaped i.e. use `"'GMT'ZZ"`
 to display as `"GMT-07:00"` (in the PST time zone). Any characters other then
 an ascii letter are displayed as is.
 
@@ -215,12 +215,12 @@ display as 2 digits. Allowed patterns:
 * ``A``, ``AA``: AM/PM designation in upper-case. (``A``, ``AM``)
 * ``f``,...,``fffffffff``: upto 9 digits of a fraction of a second. Starts with a dot. (``.320``,  ``.000``)
 * ``F``,...,``FFFFFFFFF``: upto 9 digits of a fraction of a second. If not zero, starts with a dot.
-  In contrast to the ``f`` patterns displays the minimal number of required digits 
+  In contrast to the ``f`` patterns displays the minimal number of required digits
   (and is not right-padded with zeros). (``.32``)
 * ``z``: timezone offset in hours and minutes separated by a colon. Use ``+00:00`` for UTC time. (``+01:00``)
 * ``zz``: timezone offset in hours and minutes without a separator. Use ``+0000`` for UTC time. (``-0700``)
-* ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.   
-* ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.   
+* ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.
+* ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.
 * ``x``: fractional seconds since `min-time`. (``63610768799.429``)
 * ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``y``: the absolute value of the year as a number (without zero padding). Useful when
@@ -252,7 +252,7 @@ public fun format( t : time, fmt : string, locale : time-locale = time-locale-en
   format-list( t, fmt.expand-locales(locale).expand-locales(locale).list, locale )
 }
 
-fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {  
+fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
   match(fmt) {
     Nil -> ""
     Cons(c,cs) -> {
@@ -268,7 +268,7 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
     val (quoted,end) = fmt.span( fun(c) { c!=h } )
     match(end) {
       Nil          -> (h.string, fmt)
-      Cons(_,rest) -> (quoted.string, rest)    
+      Cons(_,rest) -> (quoted.string, rest)
     }
   }
   elif(h.alpha?) {

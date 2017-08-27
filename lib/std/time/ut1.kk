@@ -203,7 +203,7 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
     val utci = i.use(ts-utc)
     val mjd = utci.mjd(ts-utc).double
     if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
-      val idx = (mjd - dtt.start).trunc.int
+      val idx = (mjd - dtt.start).truncate.int
       // interpolate
       val dut1= dtt.duts[idx]
       val dut2= if (idx + 1 >= dtt.duts.length) then dut1 else dtt.duts[idx+1]
@@ -423,7 +423,7 @@ fun interpolate( dtable : deltat-table, y : double )  : maybe<double> {
   if (y < dtable.start || dtable.end <= y) then Nothing else {
     try(Nothing) {
       val i   = (y - dtable.start)*dtable.entries-per-year
-      val idx = i.trunc.int
+      val idx = i.truncate.int
       val d0  = dtable.entries[idx]
       val d1  = dtable.entries[idx+1]
       Just( d0 + ((d1 - d0)*i.fraction) )

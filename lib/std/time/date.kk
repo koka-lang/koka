@@ -1,12 +1,12 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Date, clock, and week days support. 
+/* Date, clock, and week days support.
 
    Defines basic types for human readable time. Years, months, days etc. are always 1-based.
    Week dates are absent as they are treated as normal dates, using the `std/time/calendars/cal-iso-week` calendar.
@@ -23,14 +23,14 @@ import std/time/utc
 
 
 /*----------------------------------------------------------------------------
-  
+
 ----------------------------------------------------------------------------*/
 
 // A date consists of a the year, month, and day.
 public struct date(
   year : int,
   month: int,
-  day  : int 
+  day  : int
 )
 
 // Create an ISO weekdate where the "month" is the ISO week number.
@@ -76,7 +76,7 @@ public fun (+)( d1 : date, d2 : date ) : date {
 }
 
 /*----------------------------------------------------------------------------
-  
+
 ----------------------------------------------------------------------------*/
 
 // A clock consists of the hour, minute, second, and fractional second (between ``0.0` and `1.0`).
@@ -86,12 +86,12 @@ public struct clock(
   seconds : ddouble
 )
 
-// Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60. 
+// Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60.
 public fun clock( d : duration ) : clock {
   clock(d.seconds)
 }
 
-// Create a clock from seconds; normalizes the clock with seconds and minutes under 60. 
+// Create a clock from seconds; normalizes the clock with seconds and minutes under 60.
 public fun clock( seconds : ddouble ) : clock {
   val hm     = seconds.floor.int / 60
   val s      = seconds - hm.ddouble
@@ -99,8 +99,8 @@ public fun clock( seconds : ddouble ) : clock {
   Clock(h, m, s)
 }
 
-// Create a clock from a seconds as an `:int` with an optional fraction. 
-// Normalizes the clock with seconds and minutes under 60. 
+// Create a clock from a seconds as an `:int` with an optional fraction.
+// Normalizes the clock with seconds and minutes under 60.
 public fun clock( seconds : int, frac : double = 0.0 ) : clock {
   clock(timespan(seconds,frac))
 }
@@ -114,7 +114,7 @@ public fun zero?( c : clock ) : bool {
   (c.hours.zero? && c.minutes.zero? && c.seconds.zero?)
 }
 
-// Return the total seconds of a `:clock` assuming 60 seconds per 
+// Return the total seconds of a `:clock` assuming 60 seconds per
 // minute and 60 minutes per hour.
 public fun total-seconds( c : clock ) : ddouble {
   ddouble((c.hours*60 + c.minutes)*60) + c.seconds
@@ -122,17 +122,17 @@ public fun total-seconds( c : clock ) : ddouble {
 
 // Return the whole seconds part of a `:clock`.
 public fun whole-seconds( c : clock ) : int {
-  c.seconds.trunc.int
+  c.seconds.truncate.int
 }
 
 // Return the fraction of the seconds as milli-seconds (10^-3^).
 public fun milli-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e3).trunc.int
+  (c.seconds.fraction.double * 1.0e3).truncate.int
 }
 
 // Return the fraction of seconds as nano-seconds ((10^-9^).
 public fun nano-seconds( c : clock ) : int {
-  (c.seconds.fraction.double * 1.0e9).trunc.int
+  (c.seconds.fraction.double * 1.0e9).truncate.int
 }
 
 // Round a clock time to a certain number of digits precision (of the fraction of seconds) (default `9`, nano seconds).
@@ -170,7 +170,7 @@ public fun (+)( c : clock, d : clock ) : clock {
 
 // An ISO day of the week, starting at Monday (=1) up to Sunday (=7).
 public type weekday {
-  Mon 
+  Mon
   Tue
   Wed
   Thu
@@ -193,17 +193,17 @@ public fun int( wd : weekday ) : int {
   }
 }
 
-// Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)). 
+// Convert a weekday number to a `:weekday`(starting at Monday (=1) up to Sunday (=7)).
 // Takes the integer `i - 1` modulo 7, so `0` or `14` also become Sunday etc.
 public fun weekday( i : int ) : weekday {
-  val d = ((i - 1)%7) 
+  val d = ((i - 1)%7)
   if (d==0) then Mon
   elif (d==1) then Tue
   elif (d==2) then Wed
   elif (d==3) then Thu
   elif (d==4) then Fri
   elif (d==5) then Sat
-  else Sun 
+  else Sun
 }
 
 
@@ -279,4 +279,3 @@ public fun easter( year : int ) : date {
   val d  = (l + 28) - 31*(m/4)
   Date(year,m,d)
 }
-

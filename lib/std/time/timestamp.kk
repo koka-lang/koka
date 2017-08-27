@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -9,7 +9,7 @@
 /* Low level time stamps.
 
 These are unit-less and may not necessarily be in (TAI) SI seconds, and
-are used internally to do time scale conversions and calendar calculations. 
+are used internally to do time scale conversions and calendar calculations.
 User code should use `:std/time/duration/duration`s and `:std/time/instant/instant`s instead.
 */
 module std/time/timestamp
@@ -41,10 +41,10 @@ public fun div( x : ddouble, y : ddouble, prec : int = 0) : ddouble {
   Timestamps expose leap seconds (when appropiate for the time scale)
 ----------------------------------------------------------------------------*/
 
-// A time stamp is a `:timespan` since some epoch. Time stamps also keep 
+// A time stamp is a `:timespan` since some epoch. Time stamps also keep
 // track of possible leap seconds when the unit is in [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
 //
-// When using Unix/UTC seconds, the `leap-adjust` field is non-zero if this `:timestamp` is inside a leap 
+// When using Unix/UTC seconds, the `leap-adjust` field is non-zero if this `:timestamp` is inside a leap
 // second. It is _not_ the total number of leap seconds that have occurred up to that time, but is used
 // as an adjustment to signify the time is in a particular leap second. For example, for a regular
 // leap second we have:\
@@ -84,13 +84,13 @@ public fun timespan( ts : timestamp ) : timespan {
 }
 
 // The total seconds (in some time unit) since the epoch of the time stamp.
-// This includes a possible leap adjustment. 
+// This includes a possible leap adjustment.
 public fun seconds( ts : timestamp ) : timespan {
   ts.since + ts.leap-adjust.timespan
 }
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
-public fun round-to-prec(t : timestamp, prec : int ) : timestamp {  
+public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
   Timestamp(t.since.round-to-prec(prec), t.leap-adjust)
 }
 
@@ -102,10 +102,10 @@ public fun unadjusted-seconds( ts : timestamp ) : timespan {
 
 // Add `leaps` leap seconds to the leap adjustment of the timestamp.
 public fun adjust-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
-  if (!leaps.pos?) then ts 
-  elif (leaps < timespan(1.0) && ts.leap-adjust.zero?) 
+  if (!leaps.pos?) then ts
+  elif (leaps < timespan(1.0) && ts.leap-adjust.zero?)
    then Timestamp( (ts.since - 1.timespan) + leaps, 1)
-   else Timestamp( ts.since + leaps.fraction, ts.leap-adjust + leaps.trunc.int )
+   else Timestamp( ts.since + leaps.fraction, ts.leap-adjust + leaps.truncate.int )
 }
 
 
@@ -116,7 +116,7 @@ public fun calendar-seconds( ts : timestamp ) : (int,double,int) {
   (ts.since.floor.int, ts.since.ffraction.double, ts.leap-adjust)
 }
 
-// Compare two `:timestamp`s. 
+// Compare two `:timestamp`s.
 public fun compare( i : timestamp, j : timestamp ) : order {
   match(compare(i.since,j.since)) {  // compare without leap-seconds first!
     Eq  -> compare(i.leap-adjust,j.leap-adjust)
@@ -170,5 +170,3 @@ public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) :
     }
   }
 }
-
-

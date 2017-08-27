@@ -166,7 +166,7 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 
 \/
 */
-module std/num/ddouble
+public module std/num/ddouble
 
 import std/num/double
 import std/num/decimal
@@ -253,6 +253,9 @@ public val dd-pi2     = Ddouble(0x1.921FB54442D18p+0, 0x1.1A62633145C07p-54)
 public val dd-pi4     = Ddouble(0x1.921FB54442D18p-1, 0x1.1A62633145C07p-55)
 // QD:                         7.853981633974482790e-01,3.061616997868383018e-17)
 
+// &pi;/16
+private val dd-pi16 = Ddouble( 0x1.921FB54442D18p+1, 0x1.1A62633145C07p-53)
+
 // 3&pi;/4
 public val dd-pi34    = Ddouble(0x1.2D97C7F3321D2p+1, 0x1.A79394C9E8A0Bp-54)
 // QD:                          2.356194490192344837e+00,9.1848509936051484375e-17)  // QD is again one bit off
@@ -286,6 +289,9 @@ public val dd-euler  = Ddouble(0x1.2788CFC6FB619p-1, -0x1.6CB90701FBFABp-58) //0
 // Instead, we take the square of `dbl-epsilon`, i.e. `0x1.0p-104`.
 public val dd-epsilon = Ddouble(0x1p-104,0.0)
 
+// 8*dd-epsilon
+private val dd-epsilon8 = Ddouble(0x1.0p-101, 0x0.0p+0)
+
 // The maximum representable `:ddouble`
 public val dd-max     = Ddouble( 0x1.FFFFFFFFFFFFFp+1023, 0x1.FFFFFFFFFFFFFp+969 )
 
@@ -307,6 +313,7 @@ public val dd-neginf  = Ddouble(neginf,0.0)
 // maximal precision in decimal digits of a `:ddouble`.
 public val dd-max-prec = 31
 
+private val dd-default-prec = -31
 
 /*------------------------------------------------------
    Compare etc.
@@ -580,7 +587,7 @@ public fun int( x : ddouble, nonfin : int = 0 ) : int {
 	if (!x.finite?) then nonfin else x.round.decimal.int
 }
 
-// Round a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie).
+// Round a `:ddouble` to the nearest integer, rounding to the nearest even number in case of a tie.
 public fun round( x : ddouble ) : ddouble {
   val r = x.hi.round
   val diff = r - x.hi
@@ -608,15 +615,15 @@ public fun ceiling( x : ddouble ) : ddouble {
 }
 
 
-// Round to zero.
-public fun trunc( x : ddouble ) : ddouble {
+// Round towards zero.
+public fun truncate( x : ddouble ) : ddouble {
   if (x.neg?) then x.ceiling else x.floor
 }
 
 
-// The fraction of `x` such that `x.trunc + x.fraction == x`.
+// The fraction of `x` such that `x.truncate + x.fraction == x`.
 public fun fraction( x : ddouble ) : ddouble {
-  x - x.trunc
+  x - x.truncate
 }
 
 // The _floored_ fraction of `x`. This is always positive, such that `x.floor + x.ffraction == x`.
@@ -625,7 +632,8 @@ public fun ffraction( x : ddouble ) : ddouble {
 }
 
 
-// Round a `:ddouble` to a specified precision. Uses `round` if the precision is smaller or equal to zero.
+// Round a `:ddouble` to a specified precision.
+// Uses `round` if the precision is smaller or equal to zero.
 public fun round-to-prec( x : ddouble, prec : int  ) : ddouble {
   if (prec <= 0) then x.round
   elif (prec > dd-max-prec) then x
@@ -800,7 +808,6 @@ public fun show-sum( x : ddouble, prec : int = -17 ) : string {
 		else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
-val dd-default-prec = -31
 
 
 /*------------------------------------------------------
@@ -1076,16 +1083,14 @@ public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
   }
 }
 
-val eps8 = 8.ddouble * dd-epsilon
-
-// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8.0*dd-epsilon`).
+// Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8*dd-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for numbers close to zero.
-public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = eps8 ) : bool {
+public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool {
   if (x == y) return True
   val diff = (x - y).abs
   if (x.zero? || y.zero? || diff < dd-min) {
-    // very close to zero, scale the epsilon for denormalized numbers
+    // very close to zero, scale the epsilon for subnormal numbers
     (two*diff < (epsilon * dd-min))
   }
   else {
@@ -1193,9 +1198,6 @@ public fun tan( rad : ddouble ) : ddouble {
   s / c
 }
 
-val dd-pi16 = Ddouble(1.963495408493620697e-01,7.654042494670957545e-18)
-
-
 // Calculate sine and cosine on an angle in radians.
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
@@ -1214,10 +1216,10 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val r  = rad - (dd-twopi * z)
 
   val qa : double = floor( (r.hi / dd-pi2.hi) + 0.5)
-  val a  = qa.trunc.int
+  val a  = qa.truncate.int
   val t  = r - (dd-pi2 * qa.ddouble)
   val qb : double = floor((t.hi / dd-pi16.hi) + 0.5)
-  val b  = qb.trunc.int
+  val b  = qb.truncate.int
 
   val s  = t - (dd-pi16 * qb.ddouble)
   val s2 = s.sqr

@@ -144,7 +144,7 @@ fun subnormal?( d :double ) : bool  {
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
-extern round : (d:double) -> double {
+extern inline round : (d:double) -> double {
   cs "Math.Round"
   js "$std_core._double_round"
 }
@@ -164,15 +164,15 @@ extern inline ceiling : (d:double) -> double {
 // Return the integral part of a `:double` `d` .
 // If `d >= 0.0` , return the largest integer equal or less to `d` ,
 // If `d < 0.0` , return the smallest integer equal or larger to `d` .
-fun trunc(d : double) : double {
+fun truncate(d : double) : double {
   if (d >= 0.0) then floor(d) else ceiling(d)
 }
 
 // Return the fractional part of a `:double` `d`.\
-// `d.trunc + d.fraction === d`\
+// `d.truncate + d.fraction === d`\
 // `(-2.4).fraction === -0.4`
 fun fraction(d : double) : double {
-  d - d.trunc
+  d - d.truncate
 }
 
 // Return the 'floored' fraction of `d`, always greater or equal to zero.\
@@ -183,7 +183,7 @@ fun ffraction(d : double) : double {
 }
 
 
-// Round a double to a specified precision.\
+// Round a double to a specified precision. Rounds to the  even number in case of a tie.\
 // `123.456.round-to-prec(2) == 123.46`\
 // `123.456.round-to-prec(-1) == 120.0`\
 fun round-to-prec( d : double, prec : int  ) : double {
@@ -347,7 +347,7 @@ fun exp2( e : int ) : double {
 
 // Create a double `d` given a mantissa `man` and exponent `exp`
 // such that `man`&middot;2^`exp`^ =  `d` exactly (if it is representable
-// by a `:double`).
+// by a `:double`). See also `ldexp`.
 fun encode( man : int, exp : int ) : double {
 	ldexp(man.double,exp)
 }
@@ -375,7 +375,7 @@ fun ldexp( x : double, e : int ) : double {
 
 // Decode a double `d` into a tuple `(m,e)` of a mantissa `m` and exponent `e`
 // such that `m`&middot;2^`e`^ =  `d` exactly. The mantissa `m` is
-// always either 0 or in the range [2^52^, 2^53^).
+// always either 0 or in the range [2^52^, 2^53^). See also `frexp`.
 fun decode( d : double ) : (int,int) {
 	if (d==0.0) then (0,0)
 	elif (d.subnormal?) then decode-normalized(d * 0x1.0p54, -54)
