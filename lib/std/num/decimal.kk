@@ -434,7 +434,7 @@ public fun show-fixed( d : decimal, prec : int = -1000 ) : string {
 		val sign	= if (x.neg?) then "-" else ""
 		val i         	= x.num.abs
 		val man	= cdiv-exp10(i,digits)
-		val frac	= abs( i - mul-exp10(i,digits) )
+		val frac	= i - mul-exp10(man,digits)
 		sign + man.show + frac.show.pad-left(digits,'0').show-frac(prec)
 	}
 }
