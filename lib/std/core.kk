@@ -1600,7 +1600,7 @@ fun (~)(d : double ) : double {
 }
 
 
-// convert a `:double` to an `:int` using `round` to round to its nearest integer. 
+// convert a `:double` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int {
@@ -2348,11 +2348,6 @@ fun show( d : double, precision : int = -17 ) : string {
   if (dabs >= 1.0e-5 && dabs < 1.0e+21)
    then show-fixed(d,precision)
    else show-exp(d,precision)
-}
-
-// Show a `:double` as a string using full precision so it can round-trip after parsing.
-fun show-full( d : double ) : string {
-  show-exp(d,17)
 }
 
 // Show a `:double` fixed-point notation.

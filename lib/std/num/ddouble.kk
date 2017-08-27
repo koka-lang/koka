@@ -698,10 +698,13 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble {
 
 // Decode a `:ddouble` `d` into two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`,
 // where `lo` &le; 0.5&middot;ulp(`hi`).
-// There is no corresponding ``encode`` as you can just add two `:double`s
-// as a `:ddouble`, i.e. `d == hi.ddouble + lo.ddouble`.
 public fun decode( d : ddouble ) : (double,double) {
 	(d.hi,d.lo)
+}
+
+// Encode a `:ddouble` `d` from two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`.
+public fun encode( hi : double, lo : double ) : ddouble {
+	hi.ddouble + lo.ddouble
 }
 
 // Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
@@ -712,43 +715,89 @@ public fun decimal( x : ddouble, prec : int = -1 ) : decimal {
 		else x.hi.decimal(prec) + x.lo.decimal(prec)
 }
 
-// Show a `:ddouble` `x` as a pair of precise `:double`s
-// in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
-// Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
-// i.e. `x == x.show-hex.ddouble`
+/* Show a `:ddouble` `x` precisely as the sum of two `:double`s
+in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41).
+Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
+i.e. `x == x.show-hex.ddouble`.
+```
+> 0.1.ddouble.show-hex
+"0x1.999999999999Ap-4 + 0x0.0p+0"
+> dd-pi.show-hex
+"0x1.921FB54442D18p+1 + 0x1.1A62633145C07p-53"
+> dd-max.show-hex
+"0x1.FFFFFFFFFFFFFp+1023 + 0x1.FFFFFFFFFFFFFp+969"
+```
+.
+*/
 public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
 	if (!x.finite?)
 		then x.hi.show
 		else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
 }
 
+// Show a `:ddouble` `x` with a given precision `prec` (=`-31`).
+// The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).
+// If the precision is negative, _at most_ `prec` digits are displayed, while for a positive
+// precision, exactly `prec` digits behind the dot are displayed.
+// This uses `show-fixed` when the exponent of `x` in scientific notation is larger than -5
+// and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
 public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
 	if (!x.finite?)
 		then x.hi.show
 		else x.decimal.show(prec)
 }
 
+/* Show a ddouble `x` with a given precision `prec` (=`-31`) in scientific notation.
+The precision specifies the  number of digits after the dot, i.e.
+the number of significant digits is `prec+1`.
+If the precision is negative, _at most_ `prec` digits are displayed, and if
+it is positive exactly `prec` digits are used.
+```
+> 1.1.ddouble.show-exp
+"1.1000000000000000888178419700125"
+> 1.1.ddouble.show-exp(-100)
+"1.100000000000000088817841970012523233890533447265625"
+> 1.1.ddouble.show-exp(5)
+"1.10000"
+> 1.1.ddouble.show-exp(-5)
+"1.1"
+```
+.
+*/
 public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
 	if (!x.finite?)
 		then x.hi.show
 		else x.decimal.show-exp(prec)
 }
 
+/* Show a ddouble `x` with a given precision `prec` (=`-31`) in fixed-point notation.
+The precision specifies the  number of digits after the dot.
+If the precision is negative, _at most_  `prec` digits after the dot are displayed,
+while for a positive precision, exactly `prec` digits are used.
+```
+> 0.1.ddouble.show-fixed
+"0.1000000000000000055511151231258"
+> 0.1.ddouble.show-fixed(-100)
+"0.1000000000000000055511151231257827021181583404541015625"
+> 0.1.ddouble.show-fixed(5)
+"0.10000"
+> 0.1.ddouble.show-fixed(-5)
+"0.1"
+```
+.
+*/
 public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
 	if (!x.finite?)
 		then x.hi.show
 		else x.decimal.show-fixed(prec)
 }
 
-// Show a `:ddouble` as a pair of precise `:double`s with an optional precision.
-// Use this if you need to guarantee that you can parse back `:ddouble`s exactly,
-// i.e. `x == x.show-sum.ddouble`
+// Show a `:ddouble` as the sum of  `:double`s with an optional precision.
+// Note: use `show-hex` for reliable round-trip parsing.
 public fun show-sum( x : ddouble, prec : int = -17 ) : string {
-  if (!x.finite?)
-   then x.hi.show
-  elif (prec.abs >= 17)
-   then x.hi.show-full + " + " + x.lo.show-full
-   else x.hi.show(prec) + " + " + x.lo.show(prec)
+	if (!x.finite?)
+		then x.hi.show
+		else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
 val dd-default-prec = -31

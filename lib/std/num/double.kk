@@ -26,6 +26,8 @@ extern include {
 
 // &pi;
 val pi          = 0x1.921FB54442D18p+1 //3.141592653589793238462643383279502884
+
+// &pi;
 val dbl-pi      = pi
 
 // 2&pi;
