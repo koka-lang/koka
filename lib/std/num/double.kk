@@ -413,7 +413,7 @@ reliably (and efficiently) be parsed back, i.e. `d.show-hex.parse-double == Just
 The significant is the _hexadecimal_ fraction while the
 exponent after the `p` is the _decimal_ power of 2.
  For example, ``0xA.Fp-10`` = (10 + 15/16)&middot;2^-10^  (not 2^-16^!) = 0.01068115234375.
- Equivalently, ``0xA.Fp-10 == 0x5.78p-9``.
+ Equivalently, ``0xA.Fp-10 == 0x5.78p-9 == 0x2.BCp-8 == 0x1.5Ep-7``.
 ```
 > dbl-min.show-hex
 "0x1.0p-1022"
