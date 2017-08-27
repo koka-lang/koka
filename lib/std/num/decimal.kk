@@ -174,42 +174,42 @@ public fun pow( x : decimal, n : int  ) : decimal {
 // Rounding modes.
 public type round {
   // Round to neareast integer, round to the even number in case of a tie
-  con HalfEven
+  con Half-even
   // Round to nearest integer, round towards infinity in case of a tie
-  con HalfCeiling
+  con Half-ceiling
   // Round to nearest integer, round towards negative infinity in case of a tie
-  con HalfFloor
-  // Round to nearest integer, round away from zero case of a tie
-  con HalfFromZero
-  // Round to nearest integer, round towards zero in case of a tie (i.e. _truncate_ on a tie)
-  con HalfToZero
+  con Half-floor
+  // Round to nearest integer, round towards zero in case of a tie
+  con Half-truncate
+  // Round to nearest integer, round away from zero in case of a tie
+  con Half-away-from-zero
   // Round to the minimum integer that is larger or equal
   con Ceiling
   // Round to the maximum integer that is lower or equal
   con Floor
-  // Round to the nearest integer away from zero
-  con FromZero
   // Round to the nearest integer towards zero (i.e. _truncate_)
-  con ToZero
+  con Truncate
+  // Round to the nearest integer away from zero, i.e. toward negative infinity for negative numbers, and positive infinity for positive numbers.
+  con Away-from-zero
 }
 
-// Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`HalfEven`).
-public fun int( x : decimal, rnd : round = HalfEven) : int {
+// Round a `:decimal` number to an integer an optional rounding mode `rnd` (=`Half-even`).
+public fun int( x : decimal, rnd : round = Half-even) : int {
   val y = x.round(rnd)  // y.exp >= 0
   if (y.exp.pos?) then y.num.mul-exp10(y.exp) else y.num
 }
 
-// Round a `:decimal` number to a whole number with an optional rounding mode (=`HalfEven`).
-public fun round( x : decimal, rnd : round = HalfEven ) : decimal {
+// Round a `:decimal` number to a whole number with an optional rounding mode (=`Half-even`).
+public fun round( x : decimal, rnd : round = Half-even ) : decimal {
   x.round-to-prec(0,rnd)
 }
 
 // Round the decimal-point number `x` to
 // to a specified number of digits behind the dot `prec` (=`0`) with an optional
-// rounding mode `rnd` (=`HalfEven`). The precision can be negative.\
+// rounding mode `rnd` (=`Half-even`). The precision can be negative.\
 // `decimal(1,485).round-to-prec(2).show == "1.48"` \
 // `decimal(112,49).round-to-prec(-1).show == "110"`
-public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = HalfEven ) : total decimal {
+public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = Half-even ) : total decimal {
   if (x.exp >= ~prec) return x
   val cx = x.reduce
   val p  = ~cx.exp - prec
@@ -227,16 +227,16 @@ public fun round-to-prec( x : decimal, prec : int = 0, rnd : round = HalfEven ) 
   }
 
   val q1 = if (r.zero?) then q else match(rnd) {
-	HalfEven	-> round-half(q.even?)
-	HalfFloor	-> round-half(True)
-	HalfCeiling	-> round-half(False)
-	HalfFromZero	-> round-half(q.neg?)
-	HalfToZero	-> round-half(q.pos?)
+	Half-even	-> round-half(q.even?)
+	Half-floor	-> round-half(True)
+	Half-ceiling	-> round-half(False)
+	Half-truncate	-> round-half(q.pos?)
+	Half-away-from-zero	-> round-half(q.neg?)
 	Floor	-> q
 	Ceiling	-> q.inc
-	FromZero	-> if (!q.pos?) then q else q.inc
-	ToZero	-> if (!q.neg?) then q else q.inc
-  }
+	Truncate	-> if (!q.neg?) then q else q.inc
+	Away-from-zero	-> if (!q.pos?) then q else q.inc
+}
 
   //trace("round: " + x.showx + ", q: " + q.show + ", r: " + r.show + ", q1: " + q1.show + "e-" + prec.show )
   decimal-exp(q1,~prec)
@@ -341,15 +341,19 @@ public fun abs( x : decimal ) : decimal {
 }
 
 
-// Round a `:decimal` to an integer using `Floor` (i.e. round towards minus infinity)
-public fun floor( x : decimal ) : int {
-  x.int(Floor)
+// Round a `:decimal` using to the largest integer that is not larger than `x`.
+public fun floor( x : decimal ) : decimal {
+  x.round(Floor)
 }
 
+// Round a `:decimal` to the smallest integer that is not less than `x`.
+public fun ceiling( x : decimal ) : decimal {
+  x.round(Ceiling)
+}
 
-// Truncate a `:decimal` to an integer using `Down` (i.e. round towards zero)
-public fun trunc( x : decimal ) : int {
-  x.int(ToZero)
+// Truncate a `:decimal` to an integer by rounding towards zero.
+public fun truncate( x : decimal ) : decimal {
+  x.round(Truncate)
 }
 
 
@@ -365,21 +369,18 @@ public fun double( x : decimal ) : double {
   }
 }
 
-// Return the 'floored' fraction, always in the range [`0`,`1.0`] (can be `1.0` on precision loss):\
-// `x.floor.decimal + x.ffraction.decimal == x`
-public fun ffraction( x : decimal ) : double {
-  if (!x.exp.neg?) return 0.0
-  val (_,r) = x.num.divmod-exp10(~x.exp)
-  r.double * pow(10.0,x.exp.double)
-  //if (x.frac.zero? || x.prec.zero?) then 0.0 else x.frac.double * pow10(~x.prec.double)
+// Return the 'truncated' fraction, always in the range (`-1.0`,`1.0`).
+// `x.truncate + x.fraction == x`
+public fun fraction( x : decimal ) : decimal {
+  if (!x.exp.neg?) then zero else  (x - x.truncate)
 }
 
-// Return the 'truncated' fraction, always in the range [`-1.0`,`1.0`] (can reach extremes on precision loss):\
-// `x.trunc.decimal + x.fraction.decimal == x`
-public fun fraction( x : decimal ) : double {
-  val f = x.ffraction
-  if (x.neg? && !f.zero?) then f - 1.0 else f
+// Return the 'floored' fraction, always in the range [`0`,`1.0`).
+// `x.floor + x.ffraction == x`
+public fun ffraction( x : decimal ) : decimal {
+  if (!x.exp.neg?) then zero else  (x - x.floor)
 }
+
 
 /* --------------------------------------------------------------------------------------
     Show
@@ -430,9 +431,11 @@ public fun show-fixed( d : decimal, prec : int = -1000 ) : string {
 	}
 	else {
 		val digits	= ~x.exp
-		val man	= cdiv-exp10(x.num,digits)
-		val frac	= abs( x.num - mul-exp10(man,digits) )
-		man.show + frac.show.pad-left(digits,'0').show-frac(prec)
+		val sign	= if (x.neg?) then "-" else ""
+		val i         	= x.num.abs
+		val man	= cdiv-exp10(i,digits)
+		val frac	= abs( i - mul-exp10(i,digits) )
+		sign + man.show + frac.show.pad-left(digits,'0').show-frac(prec)
 	}
 }
 
