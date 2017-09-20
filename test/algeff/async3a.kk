@@ -19,9 +19,9 @@ fun show-int( i : int ) : string {
   show(i)
 }
 
-fun test() : <asyncx,console,state<int>> () {
+fun test() : <asyncx,console,state<int>,div,cps> () {
   println("let's start")
-  val (name,age) = interleaved( 
+  val (name,age) = xinterleaved(
     { put(1)
       yield()
       println("what is your name? state:" + get().show-int)
@@ -30,7 +30,7 @@ fun test() : <asyncx,console,state<int>> () {
       put(3)
       name
     },
-    { 
+    {
       put(2)
       yield()
       println("what is your age? state:" + get().show-int)

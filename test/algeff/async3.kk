@@ -6,7 +6,7 @@ import std/os/readline
 
 fun test() {
   println("let's start")
-  val (name,age) = interleaved( 
+  val (name,age) = xinterleaved( 
     { println("what is your name?")
       readline()
     },
