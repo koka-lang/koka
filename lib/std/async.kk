@@ -283,19 +283,19 @@ extern clear-timeout( tid : timeout-id ) : exn () {
 // Synchronous blocks (uninterleaved sequences of async operations)
 // ----------------------------------------------------------------------------
 
-public fun interleaved( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
-	val (ra,rb) = interleavedx( action1, action2 )
+public fun xinterleaved( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
+	val (ra,rb) = xinterleavedx( action1, action2 )
 	(ra.untry,rb.untry)
 }
 
-public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
-	interleavedx(xs).map(untry)
+public fun xinterleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
+	xinterleavedx(xs).map(untry)
 }
 
-public fun interleavedx( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
+public fun xinterleavedx( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
     fun act1() { Left(action1()) }
     fun act2() { Right(action2()) }
-    match( interleavedx([act1,act2])) {
+    match( xinterleavedx([act1,act2])) {
         Cons(x,Cons(y)) -> (x.map(left),y.map(right))
         _ -> error("xinterleaved")
     }
@@ -313,7 +313,7 @@ fun right( e ) {
 	}
 }
 
-public fun interleavedx( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<either<exception,a>> {
+public fun xinterleavedx( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<either<exception,a>> {
 	(unsafe-no-div { interleaved-div(xs) })()
 }
 
@@ -364,11 +364,11 @@ fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<eithe
 // ----------------------------------------------------------------------------
 
 // Interleave a list of actions.
-public fun xinterleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
-  xinterleaved(xs.vector).list
+public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
+  interleaved(xs.vector).list
 }
 
-fun xinterleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
+fun interleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
   async-handle-interleaved {
     val n = xs.length
     //if (n==0) return vector()
@@ -383,13 +383,13 @@ fun xinterleaved( xs : vector<() -> <asyncx|e> a> ) : <asyncx|e> vector<a> {
 }
 
 // Interleave two asynchronous actions.
-public fun xinterleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
-  val (ra,rb) = xinterleavedx(a,b)
+public fun interleaved( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
+  val (ra,rb) = interleavedx(a,b)
   (ra.untry,rb.untry)
 }
 
 // Interleave two asynchronous actions and return either their result or their exceptional value.
-public fun xinterleavedx( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
+public fun interleavedx( a : () -> <asyncx|e> a, b : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
   async-handle-interleaved {
     var ares := Nothing
     var bres := Nothing
