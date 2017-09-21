@@ -130,8 +130,11 @@ type ui :: X
 // The `:blocking` effect signifies that a function may block
 type blocking :: X
 
-// The `:io` effect is used for funs that perform arbitrary I/O operations.
-alias io = <exn,div,ndet,console,net,file,ui,st<global>>
+// The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
+alias io-noexn = <exn,div,ndet,console,net,file,ui,st<global>>
+
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+alias io = <exn,io-noexn>
 
 // ----------------------------------------------------------------------------
 // Injection
@@ -1600,7 +1603,7 @@ fun (~)(d : double ) : double {
 }
 
 
-// convert a `:double` to an `:int` using `round` to round to its nearest integer. 
+// convert a `:double` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int {
@@ -2350,11 +2353,6 @@ fun show( d : double, precision : int = -17 ) : string {
    else show-exp(d,precision)
 }
 
-// Show a `:double` as a string using full precision so it can round-trip after parsing.
-fun show-full( d : double ) : string {
-  show-exp(d,17)
-}
-
 // Show a `:double` fixed-point notation.
 // The optional `precision` (= `-2`) specifies the maximum precision.
 // If `>=0` it specifies the number of digits behind the dot (up to `20` max).
@@ -2554,6 +2552,10 @@ private extern xtrace : ( message : string ) -> ()  {
   js "_trace"
 }
 
+private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
+  js "_trace_any"
+}
+
 private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 
 // Trace a message used for debug purposes.
@@ -2566,6 +2568,11 @@ public fun trace( message : string ) : () {
   }
 }
 
+public fun trace-any( message : string, x : a ) : () {
+  unsafe-total {
+    if (!trace-enabled) then xtrace-any(message,x)
+  }
+}
 // Disable tracing completely.
 public fun notrace() : st<global> () {
   trace-enabled := False
