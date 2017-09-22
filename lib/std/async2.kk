@@ -23,7 +23,7 @@ Microsoft Research technical report MSR-TR-2017-21, May 2017.
 ~
 \/
 */
-module std/async
+module std/async2
 
 import std/data/dict
 import std/data/array
@@ -44,7 +44,7 @@ abstract struct promise<a>(
 // ----------------------------------------------------------------------------
 // Promises
 // ----------------------------------------------------------------------------
-
+/*
 public fun promise() : <async,exn> promise<a> {
   async-io{ Promise(ref(Left([]))) }
 }
@@ -74,7 +74,7 @@ public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
     }
   }
 }
-
+*/
 
 // ----------------------------------------------------------------------------
 // Channels
@@ -155,7 +155,7 @@ fun emit-io( ch : channel<a>, value : a ) : io () {
 // ----------------------------------------------------------------------------
 // Asynchronous timeout and waiting
 // ----------------------------------------------------------------------------
-
+/*
 // Wait (asynchronously) for `secs` seconds as a `:double`.
 // Use `yield()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
@@ -241,7 +241,7 @@ public fun firstof( a, b ) {
     }
   }
 }
-
+*/
 
 // ----------------------------------------------------------------------------
 // Yield
@@ -323,6 +323,13 @@ extern inline inject-st-div : forall<a,h,e> (() -> e a) -> total (() -> <st<h>,d
 extern inline unsafe-no-cps : forall<a,e> (() -> <cps|e> a) -> (() -> e a) { inline "#1" }
 extern inline unsafe-no-div : forall<a,e> (() -> <div|e> a) -> (() -> e a) { inline "#1" }
 
+fun from-values(vs) {
+	match(vs) {
+		Nil	-> Left([])
+		Cons	-> Right(vs)
+	}
+}
+
 fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<either<exception,a>> {
 	val n	= xs.length
 	var count	:= n
@@ -335,18 +342,26 @@ fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<eithe
 		}
 	val ch	: some<a,e> channel<() -> <asyncx|e> a> = channel()
 	val handle-action = handler {
-		await(setup,wid) -> {
-			await( fun(cb) {
-				setup( fun(res) {
-					trace-any("emit-io: ", res)
-					if (res.snd) then ch.emit-io( unsafe-no-cps { resume(res) } )
-				})
-				cb((Right(()),True,wid)) // immediately return
-			}, wid)
-			() // stop the action
+		awaitx(ev,f) -> {
+			async-io {
+				val r = ev.state
+				fun cb(res) {
+					ch.emit-io( unsafe-no-cps{ resume(res) } )
+				}
+				match(!r) {
+					Right(Cons(v,vs)) -> {
+						r := from-values(vs)
+						cb(v) // should be on timeout?
+					}
+					Left(listeners) -> {
+						r := Left(listeners  + [cb])
+					}
+				}
+			}
+			()  // stop the computation
 		}
+		register(setup) -> resume(register(setup))
 		cancel(wids) -> resume(cancel(wids))
-		await-id() -> resume(await-id())
 	}
 	actions.foreach( fun(action) { handle-action(action) } )
 	while { count > 0 } {
@@ -378,13 +393,13 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 // ----------------------------------------------------------------------------
 
 public fun await-exn0( setup : (cb : (null<exception>) -> io () ) -> io () ) : <async,exn> () {
-  await( fun(resume) {
+  awaite( fun(resume) {
     setup( fun(nexn) { resume(nexn.unnull(())) })
   } )
 }
 
 public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io () ) : <async,exn> a {
-  await( fun(resume) {
+  awaite( fun(resume) {
     setup( fun(nexn,x) { resume(nexn.unnull(x)) })
   } )
 }
@@ -397,19 +412,19 @@ fun unnull( nexn : null<exception>, x : a  ) : either<exception,a> {
 }
 
 public fun await0( setup : (cb : () -> io () ) -> io () ) : <async,exn> () {
-  await( fun(resume) { setup( fun() { resume(Right(())) } ) } )
+  awaite( fun(resume) { setup( fun() { resume(Right(())) } ) } )
 }
 
 public fun await1( setup : (cb : (a) -> io () ) -> io (), rcount : int = 1 ) : <async,exn> a {
-  awaitx( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount ).untry
+  awaitxx( fun(resume) { setup( fun(x) { resume(Right(x)) } ) }, rcount ).untry
 }
 
-public fun await( setup : (cb : either<exception,a> -> io () ) -> io () ) : <async,exn> a {
-  awaitx(setup, 1 ).untry
+public fun awaite( setup : (cb : either<exception,a> -> io () ) -> io () ) : <async,exn> a {
+  awaitxx(setup, 1 ).untry
 }
 
 public fun awaitx0( setup : (cb : () -> io () ) -> io (), rcount : int = 1 ) : <async> maybe<exception> {
-  val res = awaitx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount )
+  val res = awaitxx( fun(resume){ setup( fun(){ resume(Right(())) } ) }, rcount )
   match(res) {
     Right -> Nothing
     Left(exn) -> Just(exn)
@@ -417,10 +432,10 @@ public fun awaitx0( setup : (cb : () -> io () ) -> io (), rcount : int = 1 ) : <
 }
 
 public fun awaitx1( setup : (cb : a -> io () ) -> io (), rcount : int = 1 ) : <async> either<exception,a> {
-  awaitx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
+  awaitxx( fun(resume){ setup( fun(x){ resume(Right(x)) } ) }, rcount )
 }
 
-public fun awaitx( setup : (cb : (either<exception,a> -> io () ) -> io ()), resume-count : int ) : async either<exception,a> {
+public fun awaitxx( setup : (cb : (either<exception,a> -> io () ) -> io ()), resume-count : int ) : async either<exception,a> {
   var count := resume-count
   await-done( fun(cb) {
     setup( fun(x) {
@@ -456,48 +471,48 @@ fun (!=)(wid1 : wid, wid2 : wid ) : bool {
 // ----------------------------------------------------------------------------
 // Async effect
 // ----------------------------------------------------------------------------
+alias await-result<a> = (either<exception,a>,bool)
+alias await-callback<a>  = await-result<a> -> io ()
+alias await-callback-cps<a>  = await-result<a> -> <io,cps> ()
 
-alias await-result<a> = (either<exception,a>,bool,wid)
-alias await-callback<a> = await-result<a> -> io ()
-alias await-callback-cps<a> = await-result<a> -> <io,cps> ()
+abstract struct await-event<a> (
+	wid : wid,
+	state : ref<global,either< list<await-callback<a>>, list<await-result<a> >>>
+)
 
-type resume-kind<a> {
-	Resume
-	NoResume( cb : await-callback-cps<a>)
+fun emit-io( ev : await-event<a>, res : await-result<a> ) : io () {
+	val r = ev.state
+	match(!r) {
+		Right(values) -> r := Right(values + [res])
+		Left([]) -> r := Right([res])
+		Left(Cons(l,ls)) -> {
+			r := Left(ls)
+			l(res)
+		}
+	}
 }
 
 // Asynchronous operations have the `:async` effect.
 abstract effect async {
-  fun await-id() : wid
-  fun await( setup : (cb : await-result<a> -> io ()) -> io (), wid : wid ) : await-result<a>
+  fun register( setup : (cb : await-result<a> -> io ()) -> io () ) : await-event<a>
+  fun awaitx( ev : await-event<a>, f : await-callback-cps<a> -> io await-callback-cps<a> ) : await-result<a>
   fun cancel( awaits : maybe<list<wid>> ) : ()
 }
 
 public fun await-done( setup : ((either<exception,a>,bool) -> io ()) -> io () ) : async (either<exception,a>,bool) {
-  val wid = await-id()
-  val (x,done?,_) = await( fun(cb){
-                      setup(fun(x,done?){ cb((x,done? || x.left?, wid)) })
-                    }, wid)
-  (x,done?)
+	register( fun(cb) { setup(fun(x,done?) { cb((x,done?)) }) } ).awaitx(id)
 }
 
 // The `cancel` operations cancels any outstanding asynchronous operation under the innermost
 // `cancelable` handler by returning the `Cancel` exception. The `cancel` operation itself returns normally
 // without raising a `Cancel` exception.
 public fun cancel() : async (){
-  cancel(Nothing)
-}
-
-// Exits the current asynchronous strand of execution without raising an exception.
-public fun exit() : <async,exn> a {
-  await( fun(cb) { }, wid-exit ).fst.untry
-  //error("exit should never resume")
-  //()
+	cancel(Nothing)
 }
 
 fun async-io( action : () -> io a ) : <async,exn> a {
-  val r = await-done( fun(cb) { cb( try(action), True ) } )  // immediately call the callback to return
-  r.fst.untry
+	val r = await-done( fun(cb) { cb( try(action), True ) } )  // immediately call the callback to return
+	r.fst.untry
 }
 
 // ----------------------------------------------------------------------------
@@ -529,16 +544,19 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
   var awaits := []
 
   handle(inject-st(action)) {
-    await(setup,wid) -> {
-      if (wid != wid-exit) awaits := Cons(wid,awaits)
-      val res = await(setup,wid)
-      if (res.snd) awaits := awaits.remove( fun(i) { i == res.thd } )
+	register(setup) -> {
+		val ev = register(setup)
+		awaits := Cons(ev.wid, awaits)
+		resume(ev)
+	}
+	awaitx(ev,f) -> {
+      val res = awaitx(ev,f)
+      if (res.snd) awaits := awaits.remove( fun(i) { i == ev.wid } )
       resume(res)
     }
     cancel(wids) -> {
       resume(cancel(if (wids.nothing?) then Just(awaits) else wids))
     }
-    await-id() -> resume(await-id())
   }
 }
 
@@ -551,32 +569,44 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 {
 	var awaits := []
 
-	fun outer-callback( resume, wid : wid) {
-		val oresume = outer-resume(resume)
+	fun handle-register( setup ) {
+		val wid = Wid(unique())
+		val ev = Await-event(wid,ref(Left([])))
 		fun cb(res) {
-			val (_,done?,wid' : wid) = res
-			if (awaits.contains(wid')) {
-				if (done?) then awaits := awaits.remove(wid')
-				oresume(res)
+			val (_,done?) = res
+			if (awaits.contains(wid)) {
+				if (done?) then awaits := awaits.remove(wid)
+				ev.emit-io(res)
 			}
 		}
-		if (wid!=wid-exit) awaits := Cons((wid,cb),awaits)
-		cb
+		awaits := Cons((wid,cb),awaits)
+		setup(cb)
+		ev
+	}
+
+	fun handle-await(ev : await-event<_>, resume : await-result<_> -> <io,cps> ()) : <io,cps> () {
+		val r = ev.state
+		match(!r) {
+			Left(listeners) -> r := Left(listeners + [outer-resume(resume)])
+			Right([]) -> r := Left([outer-resume(resume)])
+			Right(Cons(v,vs)) -> {
+				r := Right(vs)
+				resume(v)
+			}
+		}
 	}
 
 	fun cancel-await( wid : wid ) {
 		match( awaits.lookup(wid) ) {
 			Nothing -> ()
-			Just(cb) -> {
-				cb((Left(cancel-exn),True,wid))
-			}
+			Just(cb) -> cb((Left(cancel-exn),True))
 		}
 	}
 
 	handle(action) {
-		await( setup, wid )	-> setup( outer-callback(resume,wid) )
-		cancel( wids )	-> resume(wids.default(awaits.map(fst)).foreach( cancel-await ))
-		await-id()	-> resume(Wid(unique()))
+		awaitx( ev, mlistener ) -> 	handle-await(ev, mlistener(resume))
+		register( setup ) -> handle-register(setup).resume
+		cancel( wids ) -> resume(wids.default(awaits.map(fst)).foreach( cancel-await ))
 	}
 }
 
