@@ -347,10 +347,10 @@ alias await-setup<a> = (cb : (either<exception,a>,bool) -> io ()) -> io maybe<()
 
 // Asynchronous operations have the `:async` effect.
 abstract effect async {
-  fun do-await( setup : await-setup<a>, scope : sid ) : either<exception,a>
-  fun no-await( setup : await-setup<a>, scope : sid, f : either<exception,a> -> io ()  ) : ()
+  fun do-await( setup : await-setup<a>, scope : scope ) : either<exception,a>
+  fun no-await( setup : await-setup<a>, scope : scope, f : either<exception,a> -> io ()  ) : ()
   fun async-io( action : () -> io a ) : a
-  fun cancel( scope : sid ) : ()
+  fun cancel( scope : scope ) : ()
 }
 
 
@@ -397,20 +397,20 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 {
 	val cid = async-io{ unique() }
 
-	handle(inject-st(action)) {
+	fun extend(scope : scope ) {
+		parent-scope(cid,scope)
+	}
+
+	handle(action) {
 		return x -> {
-			cancel(parent-scope(cid,empty-scope))  // cancel any outstanding operations still in our scope
+			// cancel any outstanding operations still in our scope.
+			// this might be needed for `no-await` operations.
+			cancel(empty-scope.extend)
 			x
 		}
-		do-await(setup,scope) -> {
-			resume(do-await(setup,parent-scope(cid,scope)))
-		}
-		no-await(setup,scope,f) -> {
-			resume(no-await(setup,parent-scope(cid,scope),f))
-		}
-		cancel(scope) -> {
-			resume(cancel(parent-scope(cid,scope)))
-		}
+		do-await(setup,scope)	-> resume(do-await(setup,scope.extend))
+		no-await(setup,scope,f)	-> resume(no-await(setup,scope.extend,f))
+		cancel(scope)	-> resume(cancel(scope.extend))
 		async-io(f)	-> resume(async-io(f))
 	}
 }
@@ -426,55 +426,38 @@ fun nodispose() : io () {
 // The outer `:async` effect handler
 public fun async-handle(action : () -> <async,io> () ) : io ()
 {
-	var callbacks := ( [] : list<(sid,_)> )
-	fun handle-do-await( setup, scope, resume ) {
-		val oresume = outer-resume(resume)
-		val sid	= child-scope(unique(),scope)
-		var dispose := nodispose
-		fun cb(res,done?) {
-			if (callbacks.contains(sid)) {  // if not `contains`, the callback was already invoked (with a cancel exception?)
-				callbacks := callbacks.remove(sid)  // ignore `done?` -- always resume at most once
-				if (res.left?) then dispose()
-				oresume(res)
-			}
-		}
-		callbacks := Cons( (sid, { cb(Left(cancel-exn),True) }), callbacks)
-		match(setup(cb)) {
-			Nothing	-> ()
-			Just(d)	-> dispose := d
-		}
-	}
+	var callbacks : list<(scope,() -> io ())>  := []
 
-	fun handle-no-await( setup, scope : sid, f  : either<exception,_> -> io ()) : <io,cps> ()  {
-		val sid = child-scope(unique(),scope)
+	fun handle-await( setup : await-setup<a>, scope : scope, f  : either<exception,a> -> io ()) : <io,cps> () {
+		val cscope = child-scope(unique(),scope)
 		var dispose := nodispose
 		fun cb( res : either<exception,_>, done? : bool ) {
-			if (callbacks.contains(sid)) {
+			if (callbacks.contains(cscope)) {
 				if (done?) then {
-					callbacks := callbacks.remove(sid)
+					callbacks := callbacks.remove(cscope)
 					if (res.left?) then dispose()
 				}
 				f(res)
 			}
 		}
-		callbacks := Cons((sid, { cb(Left(cancel-exn),True) }), callbacks)
+		callbacks := Cons((cscope, { cb(Left(cancel-exn),True) } ), callbacks)
 		match(setup(cb)) {
 			Nothing	-> ()
 			Just(d)	-> dispose := d
 		}
 	}
 
-	fun handle-cancel( scope : sid ) {
+	fun handle-cancel( scope : scope ) {
 		callbacks.foreach fun(entry) {
-			val (sid,cb) = entry
-			if (sid.in-scope-of?(scope)) then cb()
+			val (cscope,cb) = entry
+			if (cscope.in-scope-of?(scope)) then cb()
 		}
 	}
 
 	handle(action) {
-		do-await( setup, scope )	-> handle-do-await(setup,scope,resume)	// returns to outer event loop
-		no-await( setup, scope, f )	-> handle-no-await(setup,scope,f).resume
-		cancel( scope ) 	-> handle-cancel(scope).resume
+		do-await( setup, scope )	-> handle-await(setup,scope,outer-resume(resume))	// returns to outer event loop
+		no-await( setup, scope, f )	-> resume(handle-await(setup,scope,f))
+		cancel( scope ) 	-> resume(handle-cancel(scope))
 		async-io( f )	-> resume(f())
 	}
 }
@@ -484,19 +467,19 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 // Scope identifiers
 // ----------------------------------------------------------------------------
 
-private struct sid( : list<int> )
+private struct scope( : list<int> )
 
-val empty-scope = Sid([])
+val empty-scope = Scope([])
 
-fun parent-scope( cid : int, sid : sid ) : sid {
-	match(sid) {
-		Sid(cids) -> Sid(Cons(cid,cids))
+fun parent-scope( cid : int, scope : scope ) : scope {
+	match(scope) {
+		Scope(cids) -> Scope(Cons(cid,cids))
 	}
 }
 
-fun child-scope( id : int, sid : sid ) : sid {
-	match(sid) {
-		Sid(cids) -> Sid(cids + [id])
+fun child-scope( id : int, scope : scope ) : scope {
+	match(scope) {
+		Scope(cids) -> Scope(cids + [id])
 	}
 }
 
@@ -510,10 +493,10 @@ fun in-scope-of?( child : list<int>, parent : list<int> ) : bool {
 	}
 }
 
-fun in-scope-of?( child : sid, parent : sid ) : bool {
+fun in-scope-of?( child : scope, parent : scope ) : bool {
 	match(parent) {
-		Sid(pids) -> match(child) {
-			Sid(cids) -> in-scope-of?(cids,pids)
+		Scope(pids) -> match(child) {
+			Scope(cids) -> in-scope-of?(cids,pids)
 		}
 	}
 }
@@ -528,28 +511,28 @@ fun (==)( ids1 : list<int>, ids2 : list<int> ) : bool {
 	}
 }
 
-fun (==)(sid1 : sid, sid2 : sid ) : bool {
-	match(sid1) {
-		Sid(ids1) -> match(sid2) {
-			Sid(ids2) -> ids1==ids2
+fun (==)(scope1 : scope, scope2 : scope ) : bool {
+	match(scope1) {
+		Scope(ids1) -> match(scope2) {
+			Scope(ids2) -> ids1==ids2
 		}
 	}
 }
 
-fun (!=)(sid1 : sid, sid2 : sid ) : bool {
-	!(sid1 == sid2)
+fun (!=)(scope1 : scope, scope2 : scope ) : bool {
+	!(scope1 == scope2)
 }
 
 
-// Convenience functions for sid maps
-fun remove( xs : list<(sid,a)>, sid : sid ) : list<(sid,a)> {
-  xs.remove( fun(x:(sid,_)) { x.fst == sid })
+// Convenience functions for scope maps
+fun remove( xs : list<(scope,a)>, scope : scope ) : list<(scope,a)> {
+  xs.remove( fun(x:(scope,_)) { x.fst == scope })
 }
 
-fun lookup( xs : list<(sid,a)>, sid : sid ) : maybe<a> {
-  xs.lookup( fun(x:sid) { x == sid })
+fun lookup( xs : list<(scope,a)>, scope : scope ) : maybe<a> {
+  xs.lookup( fun(x:scope) { x == scope })
 }
 
-fun contains( xs : list<(sid,a)>, sid : sid ) : bool {
-  xs.lookup(sid).bool
+fun contains( xs : list<(scope,a)>, scope : scope ) : bool {
+  xs.lookup(scope).bool
 }

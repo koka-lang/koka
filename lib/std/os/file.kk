@@ -1,13 +1,13 @@
 /*---------------------------------------------------------------------------
     Copyright 2012 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 
-/* File operations. 
+/* File operations.
 */
 module std/os/file
 
@@ -39,29 +39,34 @@ public extern write-text-file-sync( fileName : string, content : string )  : io 
 
 // Set the access time and modification time of a file.
 public fun utimes( fname : path, atime : instant, mtime : instant ) : <asyncx,file> () {
-  await-exn0 fun(cb) { xfile-utimes( fname.string, atime.unix-timestamp*1000.0, mtime.unix-timestamp*1000.0, cb ) }
+  await-exn0 fun(cb) {
+	  xfile-utimes( fname.string, atime.unix-timestamp*1000.0, mtime.unix-timestamp*1000.0, cb )
+	  Nothing
+  }
 }
 
 extern xfile-utimes( fname : string, atime : double, mtime : double, cb : (null<exception>) -> io () ) : io () {
-  js "_file_utimes"  
+  js "_file_utimes"
 }
 
 // Return the modification time of a file.
 public fun mod-time( fname : path ) : <asyncx,file> instant {
-  await-exn1(fun(cb) { 
-    xfile-mod-time( fname.string, cb ) 
+  await-exn1(fun(cb) {
+    xfile-mod-time( fname.string, cb )
+	Nothing
   }).unix-instant
 }
 
 extern xfile-mod-time( fname : string, cb : (null<exception>,double) -> io () ) : io () {
-  js "_file_mod_time" // (#1, function(stats){ return (#2)(stats.mtime.getTime() * 1e-3); })"  
+  js "_file_mod_time" // (#1, function(stats){ return (#2)(stats.mtime.getTime() * 1e-3); })"
 }
 
 
 // Write a text file (using UTF8 encoding) asynchronously
 public fun write-text( fname : path, text : string ) : <asyncx,file> () {
-  await-exn0 fun(cb) { 
-    xwrite-text(fname.string,text, cb) 
+  await-exn0 fun(cb) {
+    xwrite-text(fname.string,text, cb)
+	Nothing
   }
 }
 
@@ -72,8 +77,9 @@ extern xwrite-text( fname : string, text : string, cb : (null<exception>) -> io 
 
 // Read a text file (using UTF8 encoding) asynchronously
 public fun read-text( fname : path ) : <asyncx,file> string {
-  await-exn1 fun(cb) { 
-    xread-text(fname.string,cb) 
+  await-exn1 fun(cb) {
+    xread-text(fname.string,cb)
+	Nothing
   }
 }
 
@@ -83,8 +89,9 @@ extern xread-text( fname : string, cb : (null<exception>,string) -> io ()  ) : i
 
 // Download a text file from `url`, timing out after `timeout` seconds (=`10.seconds`).
 public fun download-text( url : string, timeout : duration = duration(10) ) : <asyncx,net> string {
-  await-exn1 fun(cb) { 
-    xdownload-text(url,timeout.seconds.double*1000.0,cb) 
+  await-exn1 fun(cb) {
+    xdownload-text(url,timeout.seconds.double*1000.0,cb)
+	Nothing
   }
 }
 
