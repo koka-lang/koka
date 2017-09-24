@@ -31,50 +31,67 @@ import std/num/int32
 import std/time/duration
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
-// This is common for almost all `:async` operations since `cancelable` and `timeout` can
+// This is common for almost all `:async` operations since `cancel` and `timeout` can
 // cancel operations non-deterministically which raises the `Cancel` exception and cancels
 // outstanding asynchronous requests.
 public alias asyncx = <async,exn,ndet>
 
 
-abstract struct promise<a>(
-	state : ref<global,either<list<(a -> io ())>,a>>
-)
-
 // ----------------------------------------------------------------------------
 // Promises
 // ----------------------------------------------------------------------------
-/*
-public fun promise() : <async,exn> promise<a> {
-  async-io{ Promise(ref(Left([]))) }
+
+abstract struct promise<a>(
+	state : ref<global,promise-state<a>>
+)
+
+type promise-state<a> {
+	Resolved( value : a )
+	Awaiting( listeners : list<a -> io ()> )
 }
 
-public fun await( p : promise<a> ) : <async,exn,ndet> a {
-  val r = p.state
-  await1 fun(cb) {
-    match (!r) {
-      Left(listeners) -> r := Left(Cons(cb,listeners))
-      Right(value)    -> cb(value)
-    }
-  }
+public fun promise() : <async,exn> promise<a> {
+	async-io{ Promise(ref(Awaiting([]))) }
+}
+
+public fun await( p : promise<a> ) : asyncx a {
+	fun setup(cb) {
+		val r = p.state
+		match (!r) {
+			Awaiting(listeners)	-> r := Awaiting(Cons(cb,listeners))
+			Resolved(value)	-> cb(value) // resume right away; should not happen due to try-await
+		}
+	}
+	match(p.try-await) {
+		Just(v)	-> v
+		Nothing	-> await1(setup)
+	}
+}
+
+public fun try-await( p : promise<a> ) : async maybe<a> {
+	async-io {
+		val r = p.state
+		match(!r) {
+			Resolved(value)	-> Just(value)
+			_	-> Nothing
+		}
+	}
 }
 
 public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
-  val r = p.state
-  await fun(cb) {
-    match(!r) {
-      Left(listeners) -> {
-        r := Right(value)
-        listeners.foreach fun(cbx) {
-          cbx(value) // set-immediate1( cbx, value )
-        }
-        cb(Right(()))
-      }
-      Right -> cb(Left(exception("promise was already resolved.",Error)))
-    }
-  }
+	async-io {
+		val r = p.state
+		match(!r) {
+			Awaiting(listeners) -> {
+				r := Resolved(value)
+				listeners.foreach fun(cbx) {  // todo: through set-immediate?
+					cbx(value) // set-immediate1( cbx, value )
+				}
+			}
+			_ -> error("promise was already resolved.")
+		}
+	}
 }
-*/
 
 // ----------------------------------------------------------------------------
 // Channels
@@ -82,60 +99,76 @@ public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
 
 
 abstract struct channel<a>(
-	state : ref<global,either<list<(a -> io ())>,list<a>>>
+	state : ref<global,channel-state<a>>
 )
 
-public fun channel() : <async,exn> channel<a> {
-  async-io{ Channel(ref(Left([]))) }
+type channel-state<a> {
+	Empty
+	Values( value : a, values : list<a> = [] )
+	Waiting( listener : a -> io (), listeners : list<a -> io ()> = [] )
+}
+
+fun from-values(values : list<a> ) : channel-state<a> {
+	match(values) {
+		Nil	-> Empty
+	 	Cons(v,vs)	-> Values(v,vs)
+	}
+}
+
+fun from-waiting(listeners : list<a -> io ()>) : channel-state<a> {
+	match(listeners) {
+		Nil	-> Empty
+	 	Cons(l,ls)	-> Waiting(l,ls)
+	}
+}
+public fun channel() : async channel<a> {
+  async-io{ Channel(ref(Empty)) }
 }
 
 public fun receive( ch : channel<a> ) : asyncx a {
 	fun setup( cb : _ -> io () ) : io () {
 		val r = ch.state
 		match (!r) {
-			Left(listeners) -> r := Left(listeners + [cb])
-			Right([]) -> r := Left([cb])
-			Right(Cons(v,vs))-> {  // this case should not happen due to `peek?`
-				r := Right(vs)
+			Empty -> r := Waiting(cb)
+			Waiting(l,ls) -> r := Waiting(l,ls + [cb])
+			Values(v,vs)-> {  // this case should not happen due to `peek?`
+				r := from-values(vs)
 				cb(v)
 			}
 		}
 	}
-	match(ch.peek?) {
+	match(ch.try-receive?) {
 		Just(v) -> v
-		Nothing -> {
-			await1(setup)
-		}
+		Nothing -> await1(setup)
 	}
 }
 
-public fun peek?( ch : channel<a> ) : asyncx maybe<a> {
+public fun try-receive?( ch : channel<a> ) : <async,ndet> maybe<a> {
 	async-io {
 		val r = ch.state
 		match (!r) {
-			Left	-> Nothing
-			Right(values)	-> values.head
+			Values(v, vs) -> {
+				r := from-values(vs)
+				Just(v)
+			}
+			_ -> Nothing
 		}
 	}
-}
-
-public fun available?( ch : channel<a> ) : asyncx bool {
-	ch.peek?.bool
 }
 
 fun emit-io( ch : channel<a>, value : a ) : io () {
 	val r = ch.state
 	match(!r) {
-		Right(values) -> r := Right(values + [value])
-		Left([]) -> r := Right([value])
-		Left(Cons(l,ls)) -> {
-            r := Left(ls)
-            l(value)
-        }
+		Empty	-> r := Values(value)
+		Values(v,vs)	-> r := Values(v,vs + [value])
+		Waiting(l,ls) -> {
+			r := from-waiting(ls)
+			l(value)
+		}
 	}
 }
 
-public fun emit( ch : channel<a>, value : a ) : <async,exn> () {
+public fun emit( ch : channel<a>, value : a ) : async () {
 	async-io {
 		emit-io(ch,value)
 	}
