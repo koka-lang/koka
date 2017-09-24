@@ -157,62 +157,13 @@ public fun wait( secs : duration = zero ) : <async,exn> () {
   else yield(secs)
 }
 
-
 // Wait for `secs` seconds duration and allow cancelation.
 public fun cancelable-wait( secs : duration ) : <async,exn> () {
-  if (secs <= zero) then yield() else {
-    var vtid := Nothing
-    match(fork-after(secs)) {
-      Left(exn) -> {
-        match(vtid) {
-          Nothing   -> ()
-          Just(tid) -> clear-timeout(tid)
-        }
-        throw(exn)
-      }
-      Right(mbtid) -> {
-        vtid := mbtid
-        if (mbtid.just?) then exit() else ()
-      }
-    }
-  }
-}
-
-
-// Wait for `secs` seconds duration and allow cancelation.
-public fun cancelable-wait( secs : duration ) : <async,exn> () {
-	await0 fun(cb) {
-		val tid = set-timeout( cb, max(zero:int32,secs.milli-seconds.int32) )
+	do-await( fun(cb) {
+		fun cb0() { cb(Right(()),True) }
+		val tid = set-timeout( cb0, max(zero:int32,secs.milli-seconds.int32) )
 		Just { clear-timeout(tid) }
-    }
-}
-
-fun xtimeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
-  catch {
-    val x = cancelable {
-      match(fork-after(secs).untry) {
-        Nothing -> {
-          cancel()
-          exit()
-        }
-        Just(tid) -> finally(action) { clear-timeout(tid) } // ouch: clear-timeout prevents resuming twice
-      }
-    }
-    Just(x)
-  }
-  fun(exn) {
-    match(exn.info) {
-      Cancel -> Nothing
-      _      -> throw(exn)
-    }
-  }
-}
-
-fun fork-after( secs : duration ) : <async,exn> either<exception,maybe<timeout-id>> {
-  awaitx1( fun(resume) {
-    val tid = set-timeout1( resume, max(0.int32,secs.milli-seconds.int32), Nothing )
-    resume(Just(tid))
-  }, 2 )
+    }, empty-scope ).untry
 }
 
 // Execute `action` but if it is not finished within `secs` seconds duration
@@ -401,7 +352,7 @@ public fun await1( setup : (cb : (a) -> io () ) -> io () ) : <async,exn> a {
 }
 
 public fun awaite( setup : (cb : either<exception,a> -> io () ) -> io () ) : <async,exn> a {
-	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope).untry
+	do-await(fun(cb) { setup(fun(res) { cb(res,True) }); Nothing }, empty-scope).untry
 }
 
 
@@ -488,6 +439,7 @@ fun (!=)(sid1 : sid, sid2 : sid ) : bool {
 // Async effect
 // ----------------------------------------------------------------------------
 alias await-result<a> = either<exception,a>
+alias await-setup<a> = (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>
 
 type await-state<a> {
 	Done
@@ -501,8 +453,8 @@ abstract struct await-event<a> (
 
 // Asynchronous operations have the `:async` effect.
 abstract effect async {
-  fun do-await( setup : (cb : (either<exception,a>,bool) -> io ()) -> io (), scope : sid ) : either<exception,a>
-  fun no-await( setup : (cb : (either<exception,a>,bool) -> io ()) -> io (), scope : sid, f : either<exception,a> -> io ()  ) : ()
+  fun do-await( setup : await-setup<a>, scope : sid ) : either<exception,a>
+  fun no-await( setup : await-setup<a>, scope : sid, f : either<exception,a> -> io ()  ) : ()
   fun async-io( action : () -> io a ) : a
   fun cancel( scope : sid ) : ()
 }
@@ -576,14 +528,19 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	fun handle-do-await( setup, scope, resume ) {
 		val oresume = outer-resume(resume)
 		val sid	= child-scope(unique(),scope)
+		var dispose := fun(){ () }
 		fun cb(res,done?) {
 			if (callbacks.contains(sid)) {  // if not `contains`, the callback was already invoked (with a cancel exception?)
 				callbacks := callbacks.remove(sid)  // ignore `done?` -- always resume at most once
+				if (res.left?) then dispose()
 				oresume(res)
 			}
 		}
-		callbacks := Cons((sid, { cb(Left(cancel-exn),True) }), callbacks)
-		setup(cb)
+		match(setup(cb)) {
+			Nothing	-> ()
+			Just(d)	-> dispose := d
+		}
+		callbacks := Cons( (sid, { cb(Left(cancel-exn),True) }), callbacks)
 	}
 
 	fun handle-no-await( setup, scope : sid, f  : either<exception,_> -> io ())  {
@@ -596,6 +553,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		}
 		callbacks := Cons((sid, { cb(Left(cancel-exn),True) }), callbacks)
 		setup(cb)
+		()
 	}
 
 	fun handle-cancel( scope : sid ) {
