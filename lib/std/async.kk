@@ -97,11 +97,11 @@ public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
 // Channels
 // ----------------------------------------------------------------------------
 
-
 abstract struct channel<a>(
 	state : ref<global,channel-state<a>>
 )
 
+// todo: use queue data type for the values and listeners for better complexity
 type channel-state<a> {
 	Empty
 	Values( value : a, values : list<a> = [] )

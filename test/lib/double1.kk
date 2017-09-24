@@ -7,7 +7,7 @@ public import std/num/double
 
 fun check(name : string, res : string, got : string ) : io () {
 	println(name.pad-right(7,' ') + ": "
-	+ (if	(got == res) then "ok: " + res
+	+ (	if	(got == res) then "ok: " + res
 		else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 	// if (got != res) then error("failed") else ()
 }
