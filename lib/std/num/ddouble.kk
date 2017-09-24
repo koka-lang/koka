@@ -166,7 +166,7 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 
 \/
 */
-public module std/num/ddouble
+module std/num/ddouble
 
 import std/num/double
 import std/num/decimal
@@ -730,6 +730,8 @@ i.e. `x == x.show-hex.ddouble`.
 ```
 > 0.1.ddouble.show-hex
 "0x1.999999999999Ap-4 + 0x0.0p+0"
+> "0.1".ddouble.show-hex
+"0x1.999999999999Ap-4 + -0x1.999999999999Ap-58"
 > dd-pi.show-hex
 "0x1.921FB54442D18p+1 + 0x1.1A62633145C07p-53"
 > dd-max.show-hex

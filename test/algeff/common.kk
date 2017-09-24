@@ -177,7 +177,22 @@ fun test7() {
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
-  println("hello " + name)
+  println("and you age?")
+  val age = readline()
+  println("hello " + name + ", you are " + age)
+}
+
+
+fun ask-age-err() {
+  catch {
+    println("what is your name?")
+    val name = readline()
+    raise("ouch!")
+    println("hello " + name)
+  }
+  fun(err) {
+    println("error: " + err )
+  }
 }
 
 
