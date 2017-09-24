@@ -385,7 +385,7 @@ fun decode( d : double ) : (int,int) {
 // decode a normalized double (i.e. not subnormal)
 private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
 	val (lo,hi)	= double-to-bits(d)
-	val sign 	= if (hi.neg?) then -1 else 1
+	val sign	= if (hi.neg?) then -1 else 1
 	val exp	= (hi.shr(20) & 0x7FF.int32).int - 1043
 	val man	= (hi & 0xFFFFF.int32).int + 0x100000
 	(sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)

@@ -130,8 +130,11 @@ type ui :: X
 // The `:blocking` effect signifies that a function may block
 type blocking :: X
 
-// The `:io` effect is used for funs that perform arbitrary I/O operations.
-alias io = <exn,div,ndet,console,net,file,ui,st<global>>
+// The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
+alias io-noexn = <exn,div,ndet,console,net,file,ui,st<global>>
+
+// The `:io` effect is used for functions that perform arbitrary I/O operations.
+alias io = <exn,io-noexn>
 
 // ----------------------------------------------------------------------------
 // Injection
@@ -2549,6 +2552,10 @@ private extern xtrace : ( message : string ) -> ()  {
   js "_trace"
 }
 
+private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
+  js "_trace_any"
+}
+
 private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 
 // Trace a message used for debug purposes.
@@ -2561,6 +2568,11 @@ public fun trace( message : string ) : () {
   }
 }
 
+public fun trace-any( message : string, x : a ) : () {
+  unsafe-total {
+    if (!trace-enabled) then xtrace-any(message,x)
+  }
+}
 // Disable tracing completely.
 public fun notrace() : st<global> () {
   trace-enabled := False

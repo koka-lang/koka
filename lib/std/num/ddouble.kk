@@ -19,22 +19,20 @@ than arbitrary precision floating point numbers.
 
 If you add two regular 64-bit `:double` values you can quickly notice the imprecision
 due to decimal fractions that cannot be represented precisely. For example:
-
 ```
 > 0.1 + 0.2
 0.30000000000000004
 ```
 
-When we show the `0.1` to 20 digits of precision, we see that it is not precisely
-represented by a `:double`:
-
+This happens because the decimal `0.1` and `0.2` cannot be represented exactly
+by a `:double` which is encoded in base 2. For example, if we show `0.1` to 20 digits, we get:
 ```
 > 0.1.show(20)
 "0.10000000000000000555"
 ```
 
-If we convert this to a `:ddouble` we can see with more precision how 0.1 is
-represented by a `:double`:
+When we convert the constant `0.1` to a `:ddouble` we can see with even more precision how it is
+approximated:
 
 ```
 > 0.1.ddouble
@@ -42,7 +40,7 @@ represented by a `:double`:
 ```
 
 However, if we convert the number `0.1` directly to a `:ddouble` (instead of going through
-a `:double` constant), we get `0.1` (almost) exactly:
+a `:double` constant), we can represent `0.1` (almost) exactly:
 
 ```
 > ddouble("0.1")   // for convenience; using `ddouble-exp(1,-1)` is more efficient
@@ -51,11 +49,11 @@ a `:double` constant), we get `0.1` (almost) exactly:
 
 This is possible because a `:ddouble` uses two `:double`s to represent numbers; in this
 case the first (_hi_) double is (the inexact) `0.1` while the second one (_lo_) is the
-correction to that number. The `show-sum` function shows this internal pair of numbers:
+correction to that number. The `show-sum`  (or `show-hex`) function shows this internal pair of numbers:
 
 ```
-> ddouble("0.1").show-sum
-"0.10000000000000000555 + -5.5511151231257830103e-18"
+> ddouble("0.1").show-sum(20)
+"0.10000000000000000555 + -5.55111512312578301027e-18"
 
 > ddouble("0.1") + ddouble("0.2")
 0.3
@@ -68,7 +66,6 @@ not as well-defined as with a regular `:double` [@lin;@shewchuk;@Dekker].
 Nevertheless, using a `:ddouble` often prevents instability in practice over
 `:double` computations due to  rounding errors or combining very large and
 small numbers.
-
 
 Take the "thin triangle" problem for example [@Goldberg:float;@Kahan:triangle].
 The challenge is to compute
@@ -84,9 +81,9 @@ up to about the width of a doorway at the thickest point&rdquo;. Using various
 128-bit numbers we get:
 ````
 exact          : 3.14784204874900425235885265494550774498...e-16
-128-bit ddouble: 3.1478420487490042523588526549455e-16
-128-bit posit  : 3.147842048749004252358852654945507744\([39]{color:#88F}\)e-16
-128-bit ieee   : 3.\([63481490842332134725920516158057682878]{color:#88F}\)e-16
+128-bit ddouble: 3.147842048749004252358852654945\([47]{color:#F88}\)e-16
+128-bit posit  : 3.147842048749004252358852654945507744\([39]{color:#F88}\)e-16
+128-bit ieee   : 3.\([63481490842332134725920516158057682878]{color:#F88}\)e-16
 ````
 For this kind of example, a `:ddouble` has better precision than a
 regular 128-bit IEEE float since it can combine very large and
@@ -94,9 +91,9 @@ small values. (Kahan [@Kahan:triangle] shows how to rewrite the equations
 to avoid magnifying rounding errors -- in that case the result for
 IEEE 128-bit floats becomes:
 ````
-128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#88F}\)e-16
+128-bit ieee x : 3.147842048749004252358852654945507\([92210]{color:#F88}\)e-16
 ````
-which also gives the required precision.)
+)
 
 The implementation is based closely on the [QD] C++ library [@Hida:qd;@Hida:qdlib],
 and assumes proper 64-bit IEEE `:double`s with correct rounding.
@@ -286,7 +283,7 @@ public val dd-euler  = Ddouble(0x1.2788CFC6FB619p-1, -0x1.6CB90701FBFABp-58) //0
 
 // The 'machine epsilon': this is not well-defined for a `:ddouble` in general since
 // the difference between 1.0 and the next representable `:ddouble` value is `dd-true-min`.
-// Instead, we take the square of `dbl-epsilon`, i.e. `0x1.0p-104`.
+// Instead, we take the square of `dbl-epsilon`, i.e. 2^-104^.
 public val dd-epsilon = Ddouble(0x1p-104,0.0)
 
 // 8*dd-epsilon

@@ -20,17 +20,17 @@ fun test() {
     fun f() {
       println("what is your name?")
       readline()
-      //error("ouch")
+      error("ouch")
     }
     fun g() {
       dowait(3.seconds)
     }
     val xs = interleaved( [f,g] )
-    println("hi " + xs.join(","))  
-  } 
-   fun(exn) { 
-    println("exception thrown: " + exn.show) 
-  } 
+    println("hi " + xs.join(","))
+  }
+   fun(exn) {
+    println("exception thrown: " + exn.show)
+  }
 }
 
 fun main() {
