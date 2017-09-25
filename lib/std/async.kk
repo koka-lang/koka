@@ -8,7 +8,9 @@
 
 /* Asynchronous primitives
 
-This module is based closely on [@Leijen:async].
+This module is based closely on [@Leijen:async] and aims to have robust and composable asynchronous
+primitives. In particular, any outstanding asynchronous operation can be canceled (through `cancel`)
+within a certain scope which allows for composable primitives like `timeout` and `firstof`.
 
 
 ## References {-}
