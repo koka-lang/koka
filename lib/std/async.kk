@@ -41,6 +41,10 @@ public alias asyncx = <async,exn,ndet>
 // Promises
 // ----------------------------------------------------------------------------
 
+// A _promise_ that carries a value of type `:a`. A promise is initially empty
+// but can be `await`ed  asynchronously until it gets `resolve`d unblocking any
+// `await` operations. After that a promise stays resolved and any `await` will
+// return immediately. It is an error to try to resolve a promise more than once.
 abstract struct promise<a>(
 	state : ref<global,promise-state<a>>
 )
@@ -50,10 +54,13 @@ type promise-state<a> {
 	Awaiting( listeners : list<a -> io ()> )
 }
 
-public fun promise() : <async,exn> promise<a> {
+// Create a new promise.
+public fun promise() : async promise<a> {
 	async-io{ Promise(ref(Awaiting([]))) }
 }
 
+// Await a promise; returns immediately if the promise was already resolved and otherwise
+// waits asynchronously.
 public fun await( p : promise<a> ) : asyncx a {
 	fun setup(cb) {
 		val r = p.state
@@ -68,6 +75,7 @@ public fun await( p : promise<a> ) : asyncx a {
 	}
 }
 
+// Returns immediately if the promise was already resolved and otherwise return `Nothing`.
 public fun try-await( p : promise<a> ) : async maybe<a> {
 	async-io {
 		val r = p.state
@@ -78,6 +86,7 @@ public fun try-await( p : promise<a> ) : async maybe<a> {
 	}
 }
 
+// Resolve a promise to `value`. Raises an exception if the promise was already resolved.
 public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
 	async-io {
 		val r = p.state
@@ -97,6 +106,8 @@ public fun resolve( p : promise<a>, value : a ) : <async,exn> () {
 // Channels
 // ----------------------------------------------------------------------------
 
+// A _channel_ of values of type `:a`. Values can be asynchronously `emit`ed into
+// a channel, and asynchronously `receive`d.
 abstract struct channel<a>(
 	state : ref<global,channel-state<a>>
 )
@@ -121,10 +132,14 @@ fun from-waiting(listeners : list<a -> io ()>) : channel-state<a> {
 	 	Cons(l,ls)	-> Waiting(l,ls)
 	}
 }
+
+// Create a new asynchronous channel.
 public fun channel() : async channel<a> {
   async-io{ Channel(ref(Empty)) }
 }
 
+// Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
+// waits asynchronously until a value becomes available.
 public fun receive( ch : channel<a> ) : asyncx a {
 	fun setup( cb : _ -> io () ) : io () {
 		val r = ch.state
@@ -143,6 +158,7 @@ public fun receive( ch : channel<a> ) : asyncx a {
 	}
 }
 
+// Return immediately if a value is available on the channel and otherwise returns `Nothing`.
 public fun try-receive?( ch : channel<a> ) : <async,ndet> maybe<a> {
 	async-io {
 		val r = ch.state
@@ -168,6 +184,7 @@ fun emit-io( ch : channel<a>, value : a ) : io () {
 	}
 }
 
+// Emit a value asynchronously into a channel.
 public fun emit( ch : channel<a>, value : a ) : async () {
 	async-io {
 		emit-io(ch,value)
@@ -180,15 +197,17 @@ public fun emit( ch : channel<a>, value : a ) : async () {
 // ----------------------------------------------------------------------------
 
 // Execute `action` but if it is not finished within `secs` seconds duration
-// `cancel` it.
-public fun timeout( secs : duration, action )  {
+// `cancel` it (and return `Nothing`). Due to the generality of `cancel`, this `timeout`
+// abstraction can reliably time out over any composition of asynchronous operations
+// and is therefore quite expressive.
+public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
 	firstof	{ wait(secs); Nothing }
 		{ Just(action()) }
 }
 
 // Execute `a` and `b` interleaved. As soon as one of them finishes,
 // `cancel` the other one and return the result of the first.
-public fun firstof( a, b ) {
+public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|e> a  {
 	cancelable {
 		val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
 			{ val x = b(); cancel(); x }
@@ -207,7 +226,6 @@ public fun wait( secs : double ) : <async,exn> () {
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0.seconds`).
 // Use `yield()` to yield generally to other asynchronous operations.
-// If the wait time is longer than 200ms the wait can be canceled.
 public fun wait( secs : duration = zero ) : <async,exn> () {
   if (secs <= zero) then return yield()
   val msecs = max(zero:int32,secs.milli-seconds.int32)
@@ -254,15 +272,19 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 // Interleaved strands of execution
 // ----------------------------------------------------------------------------
 
+// Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
 	val (ra,rb) = interleavedx( action1, action2 )
 	(ra.untry,rb.untry)
 }
 
+// Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
 	interleavedx(xs).map(untry)
 }
 
+// Interleave two actions around their asynchronous operations and explicitly returning either
+// their result or their exception.
 public fun interleavedx( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
     fun act1() { Left(action1()) }
     fun act2() { Right(action2()) }
@@ -284,6 +306,8 @@ fun right( e ) {
 	}
 }
 
+// Interleave a list actions around their asynchronous operations and explicitly returning either
+// either their result or their exception.
 public fun interleavedx( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<either<exception,a>> {
 	(unsafe-no-div { interleaved-div(xs) })()
 }
@@ -334,12 +358,15 @@ fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<eithe
 // Await wrappers
 // ----------------------------------------------------------------------------
 
+// Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception.
 public fun await-exn0( setup : (cb : (null<exception>) -> io () ) -> io maybe<() -> io ()> ) : <async,exn> () {
   await( fun(cb) {
     setup( fun(nexn) { cb(nexn.unnull(())) })
   } )
 }
 
+// Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception
+// and the second argument the possible result value.
 public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io maybe<() -> io ()> ) : <async,exn> a {
   await( fun(cb) {
     setup( fun(nexn,x) { cb(nexn.unnull(x)) })
@@ -353,20 +380,23 @@ fun unnull( nexn : null<exception>, x : a  ) : either<exception,a> {
   }
 }
 
+// Convenience function for awaiting a zero argument callback.
 public fun await0( setup : (cb : () -> io () ) -> io () ) : <async,exn> () {
 	await( fun(cb) { setup( fun() { cb(Right(())) } ); Nothing } )
 }
 
+// Convenience function for awaiting a single argument callback.
 public fun await1( setup : (cb : (a) -> io () ) -> io () ) : <async,exn> a {
 	await( fun(cb) { setup( fun(x) { cb(Right(x)) } ); Nothing } )
 }
 
+// Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
+// it takes either an exception or a result `a`. Usually `setup` returns `Nothing` but you can return a `Just(cleanup)`
+// value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
+// The callback should be invoked exactly once -- when that happens `await` is resumed with the result using `untry`
+// either raise an exception or return the plain result.
 public fun await( setup : (cb : either<exception,a> -> io () ) -> io maybe<() -> io ()> ) : <async,exn> a {
 	await-exn(setup).untry
-}
-
-public fun await-exn( setup : (cb : either<exception,a> -> io () ) -> io maybe<() -> io ()> ) : async either<exception,a> {
-	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope )
 }
 
 
@@ -394,11 +424,23 @@ public fun cancel() : async (){
 	cancel(empty-scope)
 }
 
-public fun do-await( setup : await-setup<a> ) : async either<exception,a> {
-	do-await(setup,empty-scope)
+// Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
+// it takes either an exception or a result `a`. Usually `setup` returns `Nothing` but you can return a `Just(cleanup)`
+// value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
+// The callback should be invoked exactly once -- when that happens `await-exn` is resumed with the result.
+public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<() -> io ()> ) : async either<exception,a> {
+	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope )
 }
-public fun no-await( setup : await-setup<a>, f : either<exception,a> -> io ()  ) : async () {
-	no-await(setup,empty-scope,f)
+
+// Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback: it takes either
+// an exception or a result value, together with boolean parameter whether the callback is done.
+// The callback `cb` will eventually emit the result into the given channel `ch` after applying the transformation `f` to the result.\
+// Note: once you exit the `cancelable` scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
+// The channel should always be awaited within the same `cancelable` scope as the `await-to-channel` invokation.
+public fun await-to-channel( setup : (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : either<exception,a> -> b  ) : async () {
+	no-await(setup,empty-scope) fun(res) {
+		ch.emit-io( f(res) )
+	}
 }
 
 
@@ -412,6 +454,7 @@ public type extend exception-info {
   con Cancel
 }
 
+// Execute `oncancel` if `action` raises a `Cancel` exception.
 public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
   on-exn(fun(exn) {
     match(exn.info) {
@@ -424,8 +467,8 @@ public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : 
 val cancel-exn = exception("Cancel", Cancel)
 
 // Execute `action` in a cancelable scope. If `cancel` is called within `action`,
-// any outstanding asynchronous operations started in the cancelable scope are canceled but
-// not outside it.
+// any outstanding asynchronous operations started in the cancelable scope are canceled.
+// (Outstanding operations outside the cancelable scope are not canceled).
 public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 {
 	val cid = async-io{ unique() }
@@ -456,7 +499,8 @@ fun nodispose() : io () {
 	()
 }
 
-// The outer `:async` effect handler
+// The outer `:async` effect handler. This is automatically applied by the compiler
+// around the `main` function if it has an `:async` effect.
 public fun async-handle(action : () -> <async,io> () ) : io ()
 {
 	var callbacks : list<(scope,() -> io ())>  := []
