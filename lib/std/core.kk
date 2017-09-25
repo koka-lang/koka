@@ -758,13 +758,20 @@ fun map-indexed-peek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -
 // Reverse a list.
 fun reverse(xs : list<a>) : list<a>
 {
+  reverse-append( xs, Nil )
+}
+
+// Efficiently reverse a list `xs` and append it to `tl`:\
+// `reverse-append(xs,tl) == reserve(xs) + tl
+fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
+{
   fun reverse-acc(acc : list<a>, ys : list<a> ) : list<a> {
     match(ys) {
       Cons(x,xx) -> reverse-acc(Cons(x,acc),xx)
       _          -> acc
     }
   }
-  reverse-acc(Nil,xs)
+  reverse-acc(tl,xs)
 }
 
 // Append two lists.
@@ -2987,6 +2994,15 @@ extern ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,
                                   loc:d) -> <cps|e> b
                         ) :  total ((loc:d, action: () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler1(optag,false,ret,ops)"
+}
+
+extern ".makeHandler2"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>,
+                          ret : (d1,d2,a) -> <cps|e> b,
+                          ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o,
+                                  resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc1: d1, loc2: d2, x: c) -> <cps|e> b),
+                                  loc1:d1, loc2:d2) -> <cps|e> b
+                        ) :  total ((loc1:d1, loc2:d2, action: () -> e1 a) -> e b) {
+  js inline "$makeGenOptHandler2(optag,false,ret,ops)"
 }
 
 

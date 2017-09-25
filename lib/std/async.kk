@@ -141,20 +141,26 @@ public fun channel() : async channel<a> {
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
 // waits asynchronously until a value becomes available.
 public fun receive( ch : channel<a> ) : asyncx a {
-	fun setup( cb : _ -> io () ) : io () {
+	ch.receivex.untry
+}
+
+fun receivex( ch : channel<a> ) : <async,ndet> either<exception,a> {
+	fun setup( cb : _ -> io () )  {
+		fun cbr(x) { cb(Right(x)) }
 		val r = ch.state
 		match (!r) {
-			Empty -> r := Waiting(cb)
-			Waiting(l,ls) -> r := Waiting(l,ls + [cb])
+			Empty -> r := Waiting(cbr)
+			Waiting(l,ls) -> r := Waiting(l,ls + [cbr])
 			Values(v,vs)-> {  // this case should not happen due to `peek?`
 				r := from-values(vs)
-				cb(v)
+				cbr(v)
 			}
 		}
+		Nothing
 	}
 	match(ch.try-receive?) {
-		Just(v) -> v
-		Nothing -> await1(setup)
+		Just(v)	-> Right(v)
+		Nothing	-> await-exn(setup)
 	}
 }
 
@@ -172,7 +178,7 @@ public fun try-receive?( ch : channel<a> ) : <async,ndet> maybe<a> {
 	}
 }
 
-fun emit-io( ch : channel<a>, value : a ) : io () {
+fun emit-io( ch : channel<a>, value : a ) : io-noexn () {
 	val r = ch.state
 	match(!r) {
 		Empty	-> r := Values(value)
@@ -209,7 +215,7 @@ public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> 
 // `cancel` the other one and return the result of the first.
 public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|e> a  {
 	cancelable {
-		val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
+		val (ra,rb) = interleavedx2	{ val x = a(); cancel(); x }
 			{ val x = b(); cancel(); x }
 		match(ra) {
 			Left(exn) | exn.info.cancel? -> rb.untry
@@ -273,68 +279,110 @@ extern set-immediate1( action : (a) -> e (), arg : a ) : exn () {
 // ----------------------------------------------------------------------------
 
 // Interleave two actions around their asynchronous operations.
-public fun interleaved( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (a,b) {
-	val (ra,rb) = interleavedx( action1, action2 )
+public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
+	val (ra,rb) = interleavedx2( action1, action2 )
 	(ra.untry,rb.untry)
 }
 
 // Interleave a list of actions around their asynchronous operations.
-public fun interleaved( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<a> {
+public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
 	interleavedx(xs).map(untry)
 }
 
 // Interleave two actions around their asynchronous operations and explicitly returning either
 // their result or their exception.
-public fun interleavedx( action1 : () -> <asyncx|e> a, action2 : () -> <asyncx|e> b ) : <asyncx|e> (either<exception,a>,either<exception,b>) {
-    fun act1() { Left(action1()) }
-    fun act2() { Right(action2()) }
-    match( interleavedx([act1,act2])) {
-        Cons(x,Cons(y)) -> (x.map(left),y.map(right))
-        _ -> error("xinterleaved")
+public fun interleavedx2( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async|e> (either<exception,a>,either<exception,b>) {
+	fun act1() { Left(action1()) }
+	fun act2() { Right(action2()) }
+	match( interleavedx([act1,act2])) {
+		Cons(x,Cons(y)) -> (x.unleft,y.unright)
+		_ -> {
+			// this will never happen..
+			val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
+			(Left(exn),Left(exn))
+		}
     }
 }
 
-fun left( e ) {
-	match(e) {
-		Left(x) -> x
+fun unleft( x : either<exception,either<a,b>> ) : either<exception,a> {
+	match(x) {
+		Right(Left(l))	-> Right(l)
+		Left(exn)	-> Left(exn)
+		_	-> Left(exception("invalid left interleaved result",Internal("std/async/interleavedx(action1,action2)")))
+	}
+}
+fun unright( x : either<exception,either<a,b>> ) : either<exception,b> {
+	match(x) {
+		Right(Right(r))	-> Right(r)
+		Left(exn)	-> Left(exn)
+		_	-> Left(exception("invalid right interleaved result",Internal("std/async/interleavedx(action1,action2)")))
 	}
 }
 
-fun right( e ) {
-	match(e) {
-		Right(x) -> x
+// Private effect to keep track of when a strand in an interleaving is done.
+// Preferred over using built-in state as this works well if there is an outer handler
+// over the state that resumes more than once -- redoing part of the interleaving.
+// See `test/algeff/async5.js`
+effect strands<a> {
+	// Are there still strands that need to be resumed?
+	fun strands-busy?() : bool
+	// Call this when a strand is done.
+	fun strand-done(idx : int, result : either<exception,a>) : ()
+}
+
+// Insert in order with an accumulating list.
+fun insert-acc( xs : list<(int,a)>, idx : int, value : a, acc : list<(int,a)> ) : list<(int,a)> {
+	match(xs) {
+		Cons(x,xx) | x.fst < idx -> insert-acc(xx, idx, value, Cons(x,acc))
+		_ -> reverse-append( acc, Cons((idx,value),xs) )
 	}
+}
+
+// Insert in order
+fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int,a)> {
+	if (n > 100)
+		then insert-acc( xs, idx, value, [] )
+		else match(xs) {
+			Cons(x,xx) | x.fst < idx -> Cons(x, insert(xx, idx, value, n + 1))
+			_ -> Cons((idx,value),xs)
+		}
 }
 
 // Interleave a list actions around their asynchronous operations and explicitly returning either
 // either their result or their exception.
-public fun interleavedx( xs : list<() -> <asyncx|e> a> ) : <asyncx|e> list<either<exception,a>> {
-	(unsafe-no-div { interleaved-div(xs) })()
+public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<either<exception,a>> {
+	val n = xs.length
+	if (n==0) then []
+	elif (n==1) then xs.map(try)
+	else {
+		val handle-strands = handler(count, results) {
+			return x	-> (results : list<(_,_)>).map( snd )
+			strands-busy?()	-> resume(count, results, count > 0)
+			strand-done(idx,res)	-> resume(count - 1, results.insert(idx,res), ())
+		}
+		handle-strands( n, [], unsafe-no-ndet-div{ interleaved-div(xs) } )
+	}
 }
 
-// Add the state and div effect to a function effect.
-extern inline inject-st-div : forall<a,h,e> (() -> e a) -> total (() -> <st<h>,div|e> a)   { inline "#1" }
-extern inline unsafe-no-cps : forall<a,e> (() -> <cps|e> a) -> (() -> e a) { inline "#1" }
+extern inline no-cps : forall<a,e> (() -> <cps,async|e> a) -> (() -> <async|e> a) { inline "#1" }
 extern inline unsafe-no-div : forall<a,e> (() -> <div|e> a) -> (() -> e a) { inline "#1" }
+extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
+extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>,ndet,div|e> a)   { inline "#1" }
 
-fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<either<exception,a>> {
-	val n	= xs.length
-	var count	:= n
-	val results	= array(n,Left(exception("Interleaved operation was not completed",Internal("std/async/interleaved"))))
+fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands	= xs.map-indexed fun(i,action) {
 			return fun() {
-				 val res = try( inject-st-div(action) )
-				results[i] := res
-				count := count - 1
+				 val res = (inject-effects(action)).try
+				strand-done(i,res)
 			}
 		}
-	val ch : some<a,e> channel<() -> <asyncx|e> a> = channel()
+	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
 		do-await(setup,scope) -> {
 			no-await( setup, scope ) fun(res) {
 				//trace-any("emit in interleaved channel: ", res )
 				// emit a resumption of this strand into the channel
-				ch.emit-io( unsafe-no-cps{ resume(res) }  )
+				ch.emit-io( no-cps{ resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
@@ -344,12 +392,16 @@ fun interleaved-div( xs : list<() -> <asyncx|e> a> ) : <asyncx,div|e> list<eithe
 		cancel(scope)	-> resume(cancel(scope))
 	}
 	strands.foreach( fun(strand) { handle-strand(strand) } )
-	while { count > 0 } {  // while there are resumptions on the strands..
-		val strand-resume = ch.receive
-		//trace-any("schedule next: ", schedule )
-		strand-resume()
+
+	while { strands-busy?() } {  // while there are resumptions on the strands..
+		// the only way receive can throw is through a cancelation -- but in that case
+		// we should not cancel but instead await all canceled strands; so keep listening on the channel.
+		match(ch.receivex) {
+			Left -> ()  // ignore cancelation on receive
+			Right(strand-resume) -> strand-resume()
+		}
 	}
-	results.list
+	()
 }
 
 
