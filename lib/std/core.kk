@@ -130,8 +130,11 @@ type ui :: X
 // The `:blocking` effect signifies that a function may block
 type blocking :: X
 
+// The `:io-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
+alias io-total = <ndet,console,net,file,ui,st<global>>
+
 // The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
-alias io-noexn = <exn,div,ndet,console,net,file,ui,st<global>>
+alias io-noexn = <div,io-total>
 
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
 alias io = <exn,io-noexn>
@@ -2961,7 +2964,7 @@ extern ".hstack"() : any {
   js inline "$hstack"
 }
 
-extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
+extern outer-resume( resume : a -> <cps,io-noexn> b ) : (a -> io-noexn b) {
   js "_outer_resume"
 }
 

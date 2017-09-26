@@ -28,14 +28,14 @@ public fun question( query : string ) : <async,exn,console> string {
 public fun readline() : <async,exn,console> string {
 	await-exn1 fun(cb) {
 		prim-readline(cb)
-		Just(prim-cancel-readline)	
+		Just(prim-cancel-readline)
 	}
 }
 
-extern prim-readline( cb : (null<exception>,string) -> io () ) : io () {
+extern prim-readline( cb : (null<exception>,string) -> io-noexn () ) : io-noexn () {
 	js "_readline"
 }
 
-extern prim-cancel-readline() : io () {
+extern prim-cancel-readline() : io-noexn () {
 	js "_cancel_readline"
 }
