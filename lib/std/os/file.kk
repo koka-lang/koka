@@ -24,14 +24,14 @@ extern include {
 
 
 // Deprecated: Read a text file synchronously (using UTF8 encoding)
-public extern read-text-file-sync( fileName : string ) : io-noexn string
+public extern read-text-file-sync( fileName : string ) : io string
 {
   cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
   js inline "fs.readFileSync(#1,{encoding: 'utf8'})"
 }
 
 // Deprecated: Write a text file synchronously (using UTF8 encoding)
-public extern write-text-file-sync( fileName : string, content : string )  : io-noexn () {
+public extern write-text-file-sync( fileName : string, content : string )  : io () {
   cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
   js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
 }
@@ -45,7 +45,7 @@ public fun utimes( fname : path, atime : instant, mtime : instant ) : <asyncx,fi
   }
 }
 
-extern xfile-utimes( fname : string, atime : double, mtime : double, cb : (null<exception>) -> io-noexn () ) : io-noexn () {
+extern xfile-utimes( fname : string, atime : double, mtime : double, cb : (null<exception>) -> io () ) : io () {
   js "_file_utimes"
 }
 
@@ -57,7 +57,7 @@ public fun mod-time( fname : path ) : <asyncx,file> instant {
   }).unix-instant
 }
 
-extern xfile-mod-time( fname : string, cb : (null<exception>,double) -> io-noexn () ) : io-noexn () {
+extern xfile-mod-time( fname : string, cb : (null<exception>,double) -> io () ) : io () {
   js "_file_mod_time" // (#1, function(stats){ return (#2)(stats.mtime.getTime() * 1e-3); })"
 }
 
@@ -70,7 +70,7 @@ public fun write-text( fname : path, text : string ) : <asyncx,file> () {
   }
 }
 
-extern xwrite-text( fname : string, text : string, cb : (null<exception>) -> io-noexn () ) : io-noexn () {
+extern xwrite-text( fname : string, text : string, cb : (null<exception>) -> io () ) : io () {
   js "_file_write_text"
 }
 
@@ -83,7 +83,7 @@ public fun read-text( fname : path ) : <asyncx,file> string {
   }
 }
 
-extern xread-text( fname : string, cb : (null<exception>,string) -> io-noexn ()  ) : io-noexn () {
+extern xread-text( fname : string, cb : (null<exception>,string) -> io ()  ) : io () {
   js "_file_read_text"
 }
 
@@ -95,6 +95,6 @@ public fun download-text( url : string, timeout : duration = duration(10) ) : <a
   }
 }
 
-extern xdownload-text( url : string, timeout : double, cb : (null<exception>,string) -> io-noexn () ) : io-noexn () {
+extern xdownload-text( url : string, timeout : double, cb : (null<exception>,string) -> io () ) : io () {
   js "_file_download_text"
 }

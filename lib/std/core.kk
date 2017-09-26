@@ -2964,7 +2964,7 @@ extern ".hstack"() : any {
   js inline "$hstack"
 }
 
-extern outer-resume( resume : a -> <cps,io-noexn> b ) : (a -> io-noexn b) {
+extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
   js "_outer_resume"
 }
 
