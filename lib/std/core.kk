@@ -316,6 +316,20 @@ external maybe( n : null<a> ) : maybe<a> {
   js inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
 }
 
+// Cast a integer that is zero to a null
+fun null( i : int ) : null<int>  {
+    i.maybe.null
+}
+
+// Cast an empty string a null
+fun null( s : string ) : null<string>  {
+    s.maybe.null
+}
+
+// Cast a boolean `False` to null
+fun null( b : bool ) : null<()> {
+    b.maybe.null
+}
 
 // ----------------------------------------------------------------------------
 // Standard functions
@@ -1257,6 +1271,11 @@ fun compare( x : bool, y : bool) : order
   else Eq
 }
 
+// Transform a boolean to a maybe type, using `Nothing` for `False`
+fun maybe( b : bool ) : maybe<()> {
+    if (b) then Just(()) else Nothing
+}
+
 // ----------------------------------------------------------------------------
 // Integers
 // ----------------------------------------------------------------------------
@@ -1496,6 +1515,11 @@ fun maximum( xs : list<int>, default : int = 0 ) : int
 fun sum( xs : list<int> ) : int
 {
   xs.foldl( 0, fun(x,y) { x + y } )
+}
+
+// Transform an integer to a maybe type, using `Nothing` for `0`
+fun maybe( i : int ) : maybe<int> {
+    if (i==0) then Nothing else Just(i)
 }
 
 // ----------------------------------------------------------------------------
@@ -2023,6 +2047,11 @@ fun empty?( s : string ) : bool {
 // Is a string not empty?
 fun notempty?( s : string ) : bool {
   s != ""
+}
+
+// Transform a string to a maybe type, using `Nothing` for an empty string
+fun maybe( s : string ) : maybe<string> {
+    if (s.empty?) then Nothing else Just(s)
 }
 
 

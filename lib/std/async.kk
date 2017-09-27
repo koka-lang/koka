@@ -390,7 +390,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		// the only way receive can throw is through a cancelation -- but in that case
 		// we should not cancel but instead await all canceled strands; so keep listening on the channel.
 		match(ch.receivex) {
-			Left -> ()  // ignore cancelation on receive
+			Left(exn) -> ()  // ignore cancelation on receive
 			Right(strand-resume) -> strand-resume()
 		}
 	}
@@ -482,10 +482,11 @@ public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<
 // The callback `cb` will eventually emit the result into the given channel `ch` after applying the transformation `f` to the result.\
 // Note: once you exit the `cancelable` scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
 // The channel should always be awaited within the same `cancelable` scope as the `await-to-channel` invokation.
-public fun await-to-channel( setup : (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : either<exception,a> -> b  ) : async () {
+public fun await-to-channel( setup : (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : either<exception,a> -> b  ) : async channel<b> {
 	no-await(setup,empty-scope) fun(res) {
 		ch.emit-io( f(res) )
 	}
+	ch
 }
 
 fun async-io-noexn( f : () -> io-noexn a ) : <async,ndet> a {
@@ -518,7 +519,7 @@ public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : 
 	}, action)
 }
 
-val cancel-exn = exception("Cancel", Cancel)
+public val cancel-exn = exception("Cancel", Cancel)
 
 // Execute `action` in a cancelable scope. If `cancel` is called within `action`,
 // any outstanding asynchronous operations started in the cancelable scope are canceled.
@@ -565,6 +566,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		fun cb( res : either<exception,_>, done? : bool ) : io () {
 			if (callbacks.contains(cscope)) {
 				if (done?) then {
+					//trace("remove: " + cscope.show)
 					callbacks := callbacks.remove(cscope)
 					if (res.left?) then try((),dispose)
 				}
@@ -572,6 +574,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 			}
 		}
 
+		// trace("register: " + cscope.show)
 		callbacks := Cons((cscope, { cb(Left(cancel-exn),True) } ), callbacks)
 		catch {
 			// setup the callback which returns a possible dipose function
@@ -674,4 +677,11 @@ fun lookup( xs : list<(scope,a)>, scope : scope ) : maybe<a> {
 
 fun contains( xs : list<(scope,a)>, scope : scope ) : bool {
   xs.lookup(scope).bool
+}
+
+
+fun show( s : scope ) : string {
+	match(s) {
+		Scope(ids) -> ids.map(show).join("-")
+	}
 }

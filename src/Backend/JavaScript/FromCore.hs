@@ -77,8 +77,8 @@ genModule mbMain core
                           Just (name,isAsync)
                             -> (if isAsync
                                  then (text " " <-> text "// main entry:" <->
-                                       text "$std_async.async_handle" <> parens (ppName (unqualify name)) <> semi
-                                      ,[(text "./std_async", text "$std_async")])
+                                       text "$std_async_.async_handle" <> parens (ppName (unqualify name)) <> semi
+                                      ,[(text "./std_async", text "$std_async_")])
                                  else (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <> text "($std_core.id);" -- pass id for possible cps translated main
                                       ,[]))
