@@ -48,7 +48,7 @@ public fun serve-to-channel( server : http-server, port : int = 0, hostname : st
 	fun setup(  cb : (either<exception,(request-object,response-object)>,bool) -> io () ) : io maybe<() -> io ()>  {
 		fun cbx( reqn : null<request-object>, res ) {
 			match(reqn.maybe) {
-				Nothing	-> { println("cancel the channel"); cb(Left(cancel-exn), True) }
+				Nothing	-> { println("close or cancel the http server channel"); cb(Left(cancel-exn), True) }
 				Just(req)	-> cb(Right((req,res)), False)
 			}
 		}
@@ -124,7 +124,7 @@ public fun listen( ch : channel<either<exception,(request-object,response-object
 public fun handle-request( request : (request-object,response-object), action : () -> <asyncx, net, console| e> http-response ) : <asyncx,net,console | e> () {
 	val (_reqobj,resobj) = request
 	val res =	catch(action) fun(exn) {
-			println("throw exn: " + exn.show)
+			println("exn thrown in request handler: " + exn.show)
 			error-response( 500, exn.show )
 		}
 	res.headers.foreach fun(header) {

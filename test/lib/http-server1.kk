@@ -6,13 +6,14 @@ public import std/time/duration
 
 fun main() : <async,io> () {
 	catch {
-		timeout(10.seconds) {
-			http-server(80,"localhost",10) {
+		timeout(5.seconds) {
+			http-server(80,"localhost",3) {
 				println("request received!")
 				error("ouch!")
 				html-response( "<html><body>Hello world!</body></html>" )
 			}
 		}
+		println("end of program")
 		()
 	}
 	fun(exn) {

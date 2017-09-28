@@ -111,6 +111,7 @@ public fun resolve( p : promise<a>, value : a ) : asyncx () {
 // A _channel_ of values of type `:a`. Values can be asynchronously `emit`ed into
 // a channel, and asynchronously `receive`d.
 abstract struct channel<a>(
+	chid : int,
 	state : ref<global,channel-state<a>>
 )
 
@@ -137,7 +138,7 @@ fun from-waiting(listeners : list<a -> io ()>) : channel-state<a> {
 
 // Create a new asynchronous channel.
 public fun channel() : async channel<a> {
-	async-iox{ Channel(ref(Empty)) }
+	async-iox{ Channel(unique(), ref(Empty)) }
 }
 
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
@@ -146,14 +147,14 @@ public fun receive( ch : channel<a> ) : asyncx a {
 	ch.receivex.untry
 }
 
-fun receivex( ch : channel<a> ) : <async,ndet> either<exception,a> {
-	fun setup( cb : _ -> io () )  {
-		fun cbr(x) { cb(Right(x)) }
+fun receivex( ch : channel<a>, cancelable : bool = True ) : <async,ndet> either<exception,a> {
+	fun setup( cb : (_,_) -> io () )  {
+		fun cbr(x) { cb(Right(x),True) }
 		val r = ch.state
 		match (!r) {
-			Empty -> r := Waiting(cbr)
+			Empty -> r := Waiting(cbr,[])
 			Waiting(l,ls) -> r := Waiting(l,ls + [cbr])
-			Values(v,vs)-> {  // this case should not happen due to `peek?`
+			Values(v,vs)-> {  // this case should not happen due to `try-receive?`
 				r := from-values(vs)
 				cbr(v)
 			}
@@ -162,7 +163,7 @@ fun receivex( ch : channel<a> ) : <async,ndet> either<exception,a> {
 	}
 	match(ch.try-receive?) {
 		Just(v)	-> Right(v)
-		Nothing	-> await-exn(setup)
+		Nothing	-> do-await(setup,empty-scope,cancelable)
 	}
 }
 
@@ -183,7 +184,7 @@ public fun try-receive?( ch : channel<a> ) : <async,ndet> maybe<a> {
 fun emit-io( ch : channel<a>, value : a ) : io () {
 	val r = ch.state
 	match(!r) {
-		Empty	-> r := Values(value)
+		Empty	-> r := Values(value, [])
 		Values(v,vs)	-> r := Values(v,vs + [value])
 		Waiting(l,ls) -> {
 			r := from-waiting(ls)
@@ -199,6 +200,25 @@ public fun emit( ch : channel<a>, value : a ) : asyncx () {
 	}
 }
 
+fun trace-channel( msg : string, ch : channel<a> ) : <async,ndet> () {
+	async-io-noexn {
+		trace-channel-io( msg, ch )
+	}
+}
+
+fun trace-channel-io( msg : string, ch : channel<a> ) : io-noexn () {
+	val msgx = msg + ": id=" + ch.chid.show
+	val r = ch.state
+	match(!r) {
+		Empty -> trace(msgx + ", empty")
+		Values(v,vs) -> trace-any(msgx + ", full: " + (1 + vs.length).show + ": ", v )
+		Waiting(_,ls) -> trace(msgx + ", listeners: " + (1 + ls.length).show)
+	}
+}
+
+fun trace-anyx( s : string, x : a ) : async () {
+	trace-any(s,x)
+}
 
 // ----------------------------------------------------------------------------
 // Asynchronous timeout and waiting
@@ -341,6 +361,7 @@ fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int
 		}
 }
 
+
 // Interleave a list actions around their asynchronous operations and explicitly returning either
 // either their result or their exception.
 public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<either<exception,a>> {
@@ -365,32 +386,32 @@ extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strand
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands	= xs.map-indexed fun(i,action) {
 			return fun() {
-				 val res = (inject-effects(action)).try
+				val res = try(inject-effects(action))
 				strand-done(i,res)
 			}
 		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		do-await(setup,scope) -> {
-			no-await( setup, scope ) fun(res) {
-				//trace-any("emit in interleaved channel: ", res )
+		do-await(setup,scope,c) -> {
+			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( no-cps{ resume(res) }  )
+				ch.emit-io( no-cps { resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
+
 		// redirect all other operations
-		no-await(setup,scope,f)	-> resume(no-await(setup,scope,f))
+		no-await(setup,scope,c,f) -> resume(no-await(setup,scope,c,f))
 		async-iox(f)	-> resume(async-iox(f))
 		cancel(scope)	-> resume(cancel(scope))
 	}
-	strands.foreach( fun(strand) { handle-strand(strand) } )
+	strands.foreach( handle-strand )
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
 		// we should not cancel but instead await all canceled strands; so keep listening on the channel.
-		match(ch.receivex) {
-			Left(exn) -> ()  // ignore cancelation on receive
+		match(ch.receivex(False)) {
+			Left(_exn) -> () // ignore cancelation on receive
 			Right(strand-resume) -> strand-resume()
 		}
 	}
@@ -455,8 +476,8 @@ alias await-setup<a> = (cb : (either<exception,a>,bool) -> io ()) -> io maybe<()
 
 // Asynchronous operations have the `:async` effect.
 abstract effect async {
-	fun do-await( setup : await-setup<a>, scope : scope ) : either<exception,a>
-	fun no-await( setup : await-setup<a>, scope : scope, f : either<exception,a> -> io ()  ) : ()
+	fun do-await( setup : await-setup<a>, scope : scope, cancelable : bool ) : either<exception,a>
+	fun no-await( setup : await-setup<a>, scope : scope, cancelable : bool, f : either<exception,a> -> io ()  ) : ()
 	fun async-iox( action : () -> io-noexn a ) : a
 	fun cancel( scope : scope ) : ()
 }
@@ -474,7 +495,7 @@ public fun cancel() : async (){
 // value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
 // The callback should be invoked exactly once -- when that happens `await-exn` is resumed with the result.
 public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<() -> io ()> ) : async either<exception,a> {
-	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope )
+	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope, True )
 }
 
 // Primitive: Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback: it takes either
@@ -483,7 +504,7 @@ public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<
 // Note: once you exit the `cancelable` scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
 // The channel should always be awaited within the same `cancelable` scope as the `await-to-channel` invokation.
 public fun await-to-channel( setup : (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : either<exception,a> -> b  ) : async channel<b> {
-	no-await(setup,empty-scope) fun(res) {
+	no-await(setup,empty-scope,True) fun(res) {
 		ch.emit-io( f(res) )
 	}
 	ch
@@ -539,8 +560,8 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 			cancel(empty-scope.extend)
 			x
 		}
-		do-await(setup,scope)	-> resume(do-await(setup,scope.extend))
-		no-await(setup,scope,f)	-> resume(no-await(setup,scope.extend,f))
+		do-await(setup,scope,c)	-> resume(do-await(setup,scope.extend,c))
+		no-await(setup,scope,c,f)	-> resume(no-await(setup,scope.extend,c,f))
 		cancel(scope)	-> resume(cancel(scope.extend))
 		async-iox(f)	-> resume(async-iox(f))
 	}
@@ -558,7 +579,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 {
 	var callbacks : list<(scope,() -> io ())>  := []
 
-	fun handle-await( setup : await-setup<a>, scope : scope, f  : either<exception,a> -> io ()) : io ()
+	fun handle-await( setup : await-setup<a>, scope : scope, f  : either<exception,a> -> io (), cancelable : bool) : io ()
 	{
 		val cscope = child-scope(unique(),scope)
 		var dispose := nodispose
@@ -566,7 +587,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		fun cb( res : either<exception,_>, done? : bool ) : io () {
 			if (callbacks.contains(cscope)) {
 				if (done?) then {
-					//trace("remove: " + cscope.show)
+					//trace-any("remove: ", cscope.show)
 					callbacks := callbacks.remove(cscope)
 					if (res.left?) then try((),dispose)
 				}
@@ -575,7 +596,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, { cb(Left(cancel-exn),True) } ), callbacks)
+		callbacks := Cons((cscope, if (cancelable) then fun(){ cb(Left(cancel-exn),True) } else nodispose), callbacks)
 		catch {
 			// setup the callback which returns a possible dipose function
 			match(setup(cb)) {
@@ -597,8 +618,8 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		do-await( setup, scope )	-> handle-await(setup,scope,outer-resume(resume))	// returns to outer event loop
-		no-await( setup, scope, f )	-> resume(handle-await(setup,scope,f))
+		do-await( setup, scope, c )	-> handle-await(setup,scope,outer-resume(resume),c)	// returns to outer event loop
+		no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
 		cancel( scope ) 	-> resume(handle-cancel(scope))
 		async-iox( f )	-> resume(f())
 	}
