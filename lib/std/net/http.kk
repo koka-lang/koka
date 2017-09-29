@@ -24,6 +24,149 @@ external include {
 // ----------------------------------------------------------------------------
 //
 // ----------------------------------------------------------------------------
+type status-code {
+	Inform-continue	//100
+	Success-ok	//200
+	Success-created	//201
+	Success-accepted	//202
+	Success-no-content	//204
+	Success-reset-content	//205
+	Success-partial-content	//206
+	Redirect-multiple-choices	//300
+	Redirect-see-other	//303
+	Redirect-not-modified	//304
+	Redirect-temporary	//307
+	Redirect-permanent 	//308
+	Error-bad-request	//400
+	Error-unauthorized	//401
+	Error-payment-required	//402
+	Error-forbidden	//403
+	Error-not-found	//404
+	Error-method-not-allowed	//405
+	Error-not-acceptable	//406
+	Error-proxy-authenticate	//407
+	Error-request-timeout	//408
+	Error-conflict	//409
+	Error-gone	//410
+	Error-length-required	//411
+	Error-precondition	//412
+	Error-payload-too-large	//413
+	Error-uri-too-long	//414
+	Error-unsupported-media	//415
+	Error-range	//416
+	Error-expectation	//417
+	Error-misdirected	//421
+	Error-upgrade	//426
+	Error-too-many-requests	//429
+	Error-legal	//451
+	Server-internal	//500
+	Server-not-implemented	//501
+	Server-bad-gateway	//502
+	Server-unavailable	//503
+	Server-gateway-timeout	//504
+	Server-http-version	//505
+	Server-authentication	//511
+	Status-any( : int )
+}
+
+
+fun int( status-code : status-code ) : int {
+	match(status-code) {
+		Inform-continue	-> 100
+		Success-ok	-> 200
+		Success-created	-> 201
+		Success-accepted	-> 202
+		Success-no-content	-> 204
+		Success-reset-content	-> 205
+		Success-partial-content	-> 206
+		Redirect-multiple-choices	-> 300
+		Redirect-see-other	-> 303
+		Redirect-not-modified	-> 304
+		Redirect-temporary	-> 307
+		Redirect-permanent 	-> 308
+		Error-bad-request	-> 400
+		Error-unauthorized	-> 401
+		Error-payment-required	-> 402
+		Error-forbidden	-> 403
+		Error-not-found	-> 404
+		Error-method-not-allowed	-> 405
+		Error-not-acceptable	-> 406
+		Error-proxy-authenticate	-> 407
+		Error-request-timeout	-> 408
+		Error-conflict	-> 409
+		Error-gone	-> 410
+		Error-length-required	-> 411
+		Error-precondition	-> 412
+		Error-payload-too-large	-> 413
+		Error-uri-too-long	-> 414
+		Error-unsupported-media	-> 415
+		Error-range	-> 416
+		Error-expectation	-> 417
+		Error-misdirected	-> 421
+		Error-upgrade	-> 426
+		Error-too-many-requests	-> 429
+		Error-legal	-> 451
+		Server-internal	-> 500
+		Server-not-implemented	-> 501
+		Server-bad-gateway	-> 502
+		Server-unavailable	-> 503
+		Server-gateway-timeout	-> 504
+		Server-http-version	-> 505
+		Server-authentication	-> 511
+		Status-any( code ) 	-> code
+	}
+}
+
+fun status-code( code : int ) : status-code {
+	match(code) {
+		100	-> Inform-continue
+		200	-> Success-ok
+		201	-> Success-created
+		202	-> Success-accepted
+		204	-> Success-no-content
+		205	-> Success-reset-content
+		206	-> Success-partial-content
+		300	-> Redirect-multiple-choices
+		303	-> Redirect-see-other
+		304	-> Redirect-not-modified
+		307	-> Redirect-temporary
+		308	-> Redirect-permanent
+		400	-> Error-bad-request
+		401	-> Error-unauthorized
+		402	-> Error-payment-required
+		403	-> Error-forbidden
+		404	-> Error-not-found
+		405	-> Error-method-not-allowed
+		406	-> Error-not-acceptable
+		407	-> Error-proxy-authenticate
+		408	-> Error-request-timeout
+		409	-> Error-conflict
+		410	-> Error-gone
+		411	-> Error-length-required
+		412	-> Error-precondition
+		413	-> Error-payload-too-large
+		414	-> Error-uri-too-long
+		415	-> Error-unsupported-media
+		416	-> Error-range
+		417	-> Error-expectation
+		421	-> Error-misdirected
+		426	-> Error-upgrade
+		429	-> Error-too-many-requests
+		451	-> Error-legal
+		500	-> Server-internal
+		501	-> Server-not-implemented
+		502	-> Server-bad-gateway
+		503	-> Server-unavailable
+		504	-> Server-gateway-timeout
+		505	-> Server-http-version
+		511	-> Server-authentication
+		_ 	-> Status-any(code)
+	}
+}
+
+// ----------------------------------------------------------------------------
+//
+// ----------------------------------------------------------------------------
 
 abstract type http-server
 abstract type request-object
@@ -101,17 +244,20 @@ public fun add( res : http-response, extra-headers : list<(string,string)> ) : h
 
 
 public fun listen( ch : channel<either<exception,(request-object,response-object)>>, action : () -> <asyncx, net, div,console|e> http-response, concurrency : int = 100 ) : <asyncx,net,div,console|e> () {
+	var current := 0
 	val strands = list(1,max(1,min(500,concurrency))).map fun(idx) {
 		return fun() {
 			while { True } {
-				match(ch.receive) {
-					Left(exn) -> {
-						println("exn on " + idx.show + ": " + exn.show)
-						throw(exn)
+				val resreq = ch.receive.untry
+				println("request on " + idx.show + ", current concurrency: " + current.show)
+				resreq.handle-request {
+					if (current >= concurrency - 1) {
+						println("request denied, too many connections")
+						error-response(503, "Too many connections")
 					}
-					Right(resreq) -> {
-						println("request on " + idx.show)
-						resreq.handle-request( action )
+					else {
+						current := current + 1
+						finally(inject-st(action)) { current := current - 1 }
 					}
 				}
 			}
@@ -125,7 +271,10 @@ public fun handle-request( request : (request-object,response-object), action : 
 	val (_reqobj,resobj) = request
 	val res =	catch(action) fun(exn) {
 			println("exn thrown in request handler: " + exn.show)
-			error-response( 500, exn.show )
+			match(exn.info) {
+				Cancel -> throw(exn)
+				_ -> error-response( 500, exn.show )
+			}
 		}
 	res.headers.foreach fun(header) {
 		resobj.response-write-header( header.fst, header.snd )

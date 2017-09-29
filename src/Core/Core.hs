@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-{-    System F-like core language. 
+{-    System F-like core language.
 -}
 -----------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ module Core.Core ( -- Data structures
                    , flattenDefGroups
                    , extractSignatures
                    , typeDefIsExtension
-                   
+
                      -- Term substitution
                    , (|~>)
                      -- Core term builders
@@ -32,7 +32,7 @@ module Core.Core ( -- Data structures
                    , addTypeLambdas, addTypeApps, addLambdas, addApps
                    , makeLet
                    , addNonRec, addCoreDef, coreNull
-                   , freshName                   
+                   , freshName
                    , typeOf
                    , HasExpVar, fv, bv
                    , isExprUnit
@@ -96,19 +96,19 @@ patExprBool name tag
 
 makeIfExpr :: Expr -> Expr -> Expr -> Expr
 makeIfExpr pexpr texpr eexpr
-  = Case [pexpr] [Branch [patTrue] [Guard exprTrue texpr], 
+  = Case [pexpr] [Branch [patTrue] [Guard exprTrue texpr],
                   Branch [PatWild] [Guard exprTrue eexpr]]
-           
+
 
 {--------------------------------------------------------------------------
-  Top-level structure 
+  Top-level structure
 --------------------------------------------------------------------------}
 
-data Core = Core{ coreProgName :: Name 
-                , coreProgImports :: Imports 
-                , coreProgFixDefs :: FixDefs 
-                , coreProgTypeDefs :: TypeDefGroups 
-                , coreProgDefs :: DefGroups 
+data Core = Core{ coreProgName :: Name
+                , coreProgImports :: Imports
+                , coreProgFixDefs :: FixDefs
+                , coreProgTypeDefs :: TypeDefGroups
+                , coreProgDefs :: DefGroups
                 , coreProgExternals :: Externals
                 , coreProgDoc :: String
                 }
@@ -118,7 +118,7 @@ type FixDefs
   = [FixDef]
 
 data FixDef
-  = FixDef Name Fixity 
+  = FixDef Name Fixity
 
 
 coreName :: Core -> Name
@@ -131,36 +131,36 @@ coreName (Core name _ _ _ _ _ _) = name
 -- | Core imports
 type Imports = [Import]
 
-data Import  = Import{ importName :: Name 
+data Import  = Import{ importName :: Name
                      , importPackage :: String
                      , importVis  :: Visibility
                      , importModDoc :: String
                      }
 
 {--------------------------------------------------------------------------
-  Externals   
+  Externals
 --------------------------------------------------------------------------}
 
 type Externals = [External]
 
-data External = External{ externalName :: Name 
-                        , externalType :: Scheme 
+data External = External{ externalName :: Name
+                        , externalType :: Scheme
                         , externalFormat :: [(Target,String)]
-                        , externalVis' :: Visibility 
+                        , externalVis' :: Visibility
                         , externalRange :: Range
                         , externalDoc :: String
                         }
               | ExternalInclude{ externalInclude :: [(Target,String)]
-                               , externalRange :: Range } 
+                               , externalRange :: Range }
               | ExternalImport { externalImport :: [(Target,(Name,String))]
-                               , externalRange :: Range } 
+                               , externalRange :: Range }
 
 externalVis :: External -> Visibility
 externalVis (External{ externalVis' = vis }) = vis
 externalVis _ = Private
 
 {--------------------------------------------------------------------------
-  Type definitions 
+  Type definitions
 --------------------------------------------------------------------------}
 
 type TypeDefGroups = [TypeDefGroup]
@@ -191,8 +191,8 @@ data DataRepr = DataEnum            -- only singletons
               | DataAsList          -- one constructor with fields, and one singleton
               | DataSingleNormal    -- one constructor with fields, and possibly singletons
               | DataStruct          -- only one constructor with fields
-              | DataNormal        
-              | DataOpen 
+              | DataNormal
+              | DataOpen
               deriving (Eq,Ord,Show)
 
 data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                     -- part of enumeration (none has fields)
@@ -201,7 +201,7 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                   
               | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
               | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
               | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
-              | ConOpen  { conTypeName :: Name }                                  -- constructor of open data type   
+              | ConOpen  { conTypeName :: Name }                                  -- constructor of open data type
               | ConNormal{ conTypeName :: Name, conTag :: Int }                   -- a regular constructor
               deriving (Eq,Ord,Show)
 
@@ -220,7 +220,7 @@ getDataRepr maxStructFields info
         conInfos = dataInfoConstrs info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
-        (dataRepr,conReprFuns) = 
+        (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
          else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
@@ -229,11 +229,11 @@ getDataRepr maxStructFields info
           then let conInfo = head conInfos
                in (if (length (conInfoParams conInfo) == 1)
                     then DataIso
-                   else if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info)) 
-                    then DataSingleStruct 
+                   else if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info))
+                    then DataSingleStruct
                     else DataSingle
                   ,[if (length (conInfoParams conInfo) == 1) then ConIso typeName
-                    else if length singletons == 1 then ConSingleton typeName 
+                    else if length singletons == 1 then ConSingleton typeName
                     else ConSingle typeName])
          else if (length singletons == length conInfos-1 && length (concatMap conInfoParams conInfos) <= maxStructFields && not (dataInfoIsRec info))
           then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
@@ -241,9 +241,9 @@ getDataRepr maxStructFields info
           then (DataAsList
                ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName
                               else ConAsCons typeName (conInfoName (head singletons))) conInfos)
-         else (if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal 
-               ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -} 
-                              ConNormal typeName) conInfos 
+         else (if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal
+               ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -}
+                              ConNormal typeName) conInfos
                )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
 
@@ -255,7 +255,7 @@ getDataRepr maxStructFields info
 type DefGroups = [DefGroup]
 
 data DefGroup =
-    DefRec Defs 
+    DefRec Defs
   | DefNonRec Def
 
 type Defs = [Def]
@@ -265,9 +265,9 @@ flattenDefGroups defGroups
   = concatMap (\defg -> case defg of { DefRec defs -> defs; DefNonRec def -> [def]}) defGroups
 
 -- | A value definition
-data Def = Def{ defName  :: Name 
-              , defType  :: Scheme 
-              , defExpr  :: Expr 
+data Def = Def{ defName  :: Name
+              , defType  :: Scheme
+              , defExpr  :: Expr
               , defVis   :: Visibility
               , defSort  :: DefSort
               , defNameRange :: Range
@@ -297,14 +297,14 @@ canonicalSplit name
 
 
 {--------------------------------------------------------------------------
-  Expressions 
+  Expressions
 
   Since this is System-F, all binding sites are annotated with their type.
 --------------------------------------------------------------------------}
 
 data Expr =
   -- Core lambda calculus
-    Lam [TName] Effect Expr  
+    Lam [TName] Effect Expr
   | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
   | App Expr [Expr]
   -- Type (universal) abstraction/application
@@ -312,7 +312,7 @@ data Expr =
   | TypeApp Expr [Type]
   -- Literals, constants and labels
   | Con{ conName :: TName, conRepr ::  ConRepr  }          -- ^ typed name and its representation
-  | Lit Lit 
+  | Lit Lit
   -- Let
   | Let DefGroups Expr
   -- Case expressions
@@ -337,8 +337,8 @@ data VarInfo
   deriving Show
 
 data Branch = Branch { branchPatterns :: [Pattern]
-                     , branchGuards   :: [Guard] 
-                     } 
+                     , branchGuards   :: [Guard]
+                     }
 
 data Guard  = Guard { guardTest :: Expr
                     , guardExpr :: Expr
@@ -347,9 +347,10 @@ data Guard  = Guard { guardTest :: Expr
 data Pattern
   = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patTypeRes :: Type, patConInfo :: ConInfo }
   | PatVar{ patName :: TName, patPattern :: Pattern }
+  | PatLit{ patLit :: Lit }
   | PatWild
 
-data Lit = 
+data Lit =
     LitInt    Integer
   | LitFloat  Double
   | LitChar   Char
@@ -362,7 +363,7 @@ isTotal expr
   = case expr of
       Lam _ _ _ -> True
       Var _ _ -> True
-      TypeLam _ _ -> True  
+      TypeLam _ _ -> True
       TypeApp e _ -> isTotal e
       Con _ _ -> True
       Lit _   -> True
@@ -375,7 +376,7 @@ isTotal expr
 
 
 {--------------------------------------------------------------------------
-  Type variables inside core expressions 
+  Type variables inside core expressions
 --------------------------------------------------------------------------}
 
 
@@ -386,13 +387,13 @@ instance HasTypeVar DefGroup where
         DefNonRec def -> DefNonRec (sub `substitute` def)
 
   ftv defGroup
-    = case defGroup of  
-        DefRec defs   -> ftv defs 
-        DefNonRec def -> ftv def 
+    = case defGroup of
+        DefRec defs   -> ftv defs
+        DefNonRec def -> ftv def
 
   btv defGroup
     = case defGroup of
-        DefRec defs   -> btv defs 
+        DefRec defs   -> btv defs
         DefNonRec def -> btv def
 
 
@@ -407,39 +408,39 @@ instance HasTypeVar Def where
     = btv scheme `tvsUnion` btv expr
 
 instance HasTypeVar Expr where
-  sub `substitute` expr 
+  sub `substitute` expr
     = case expr of
         Lam tnames eff expr -> Lam (sub `substitute` tnames) (sub `substitute` eff) (sub `substitute` expr)
         Var tname info    -> Var (sub `substitute` tname) info
         App f args        -> App (sub `substitute` f) (sub `substitute` args)
-        TypeLam tvs expr  -> let sub' = subRemove tvs sub 
+        TypeLam tvs expr  -> let sub' = subRemove tvs sub
                               in TypeLam tvs (sub' |-> expr)
-        TypeApp expr tps   -> TypeApp (sub `substitute` expr) (sub `substitute` tps) 
+        TypeApp expr tps   -> TypeApp (sub `substitute` expr) (sub `substitute` tps)
         Con tname repr     -> Con (sub `substitute` tname) repr
         Lit lit            -> Lit lit
         Let defGroups expr -> Let (sub `substitute` defGroups) (sub `substitute` expr)
-        Case exprs branches -> Case (sub `substitute` exprs) (sub `substitute` branches)  
+        Case exprs branches -> Case (sub `substitute` exprs) (sub `substitute` branches)
 
   ftv expr
     = case expr of
         Lam tname eff expr -> tvsUnions [ftv tname, ftv eff, ftv expr]
         Var tname info     -> ftv tname
         App a b            -> ftv a `tvsUnion` ftv b
-        TypeLam tvs expr   -> tvsRemove tvs (ftv expr) 
-        TypeApp expr tp    -> ftv expr `tvsUnion` ftv tp 
+        TypeLam tvs expr   -> tvsRemove tvs (ftv expr)
+        TypeApp expr tp    -> ftv expr `tvsUnion` ftv tp
         Con tname repr     -> ftv tname
         Lit lit            -> tvsEmpty
         Let defGroups expr -> ftv defGroups `tvsUnion` ftv expr
-        Case exprs branches -> ftv exprs `tvsUnion` ftv branches 
+        Case exprs branches -> ftv exprs `tvsUnion` ftv branches
 
   btv expr
     = case expr of
         Lam tname eff expr -> tvsUnions [btv tname, btv eff, btv expr]
         Var tname info     -> btv tname
         App a b            -> btv a `tvsUnion` btv b
-        TypeLam tvs expr   -> tvsInsertAll tvs (btv expr)  
-        TypeApp expr tp    -> btv expr `tvsUnion` btv tp 
-        Con tname repr     -> btv tname 
+        TypeLam tvs expr   -> tvsInsertAll tvs (btv expr)
+        TypeApp expr tp    -> btv expr `tvsUnion` btv tp
+        Con tname repr     -> btv tname
         Lit lit            -> tvsEmpty
         Let defGroups expr -> btv defGroups `tvsUnion` btv expr
         Case exprs branches -> btv exprs `tvsUnion` btv branches
@@ -447,9 +448,9 @@ instance HasTypeVar Expr where
 
 instance HasTypeVar Branch where
   sub `substitute` (Branch patterns guards)
-    = let sub' = subRemove (tvsList (btv patterns)) sub 
+    = let sub' = subRemove (tvsList (btv patterns)) sub
       in Branch (map ((sub `substitute`)) patterns) (map (sub' `substitute`) guards)
- 
+
   ftv (Branch patterns guards)
     = ftv patterns `tvsUnion` (tvsDiff (ftv guards) (btv patterns))
 
@@ -471,19 +472,22 @@ instance HasTypeVar Pattern where
         PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
         PatCon tname args repr tps restp info -> PatCon (sub `substitute` tname) (sub `substitute` args) repr (sub `substitute` tps) (sub `substitute` restp) info
         PatWild           -> PatWild
+        PatLit lit        -> pat
 
- 
+
   ftv pat
     = case pat of
         PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
         PatCon tname args _ targs tres _ -> tvsUnions [ftv tname,ftv args,ftv targs,ftv tres]
         PatWild             -> tvsEmpty
+        PatLit lit          -> tvsEmpty
 
   btv pat
     = case pat of
         PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
         PatCon tname args _ targs tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres]
         PatWild                 -> tvsEmpty
+        PatLit lit              -> tvsEmpty
 
 
 instance HasTypeVar TName where
@@ -496,17 +500,17 @@ instance HasTypeVar TName where
 
 
 ---------------------------------------------------------------------------
--- 
+--
 ---------------------------------------------------------------------------
 isTopLevel :: Def -> Bool
 isTopLevel (Def name tp expr vis isVal nameRng doc)
   = let freeVar = filter (\(nm) -> not (isQualified nm) && nm /= unqualify name) (map getName (tnamesList (fv expr)))
         freeTVar = ftv expr
         yes = (null freeVar && tvsIsEmpty freeTVar)
-    in -- trace ("isTopLevel " ++ show name ++ ": " ++ show (yes,freeVar,tvsList freeTVar)) $ 
+    in -- trace ("isTopLevel " ++ show name ++ ": " ++ show (yes,freeVar,tvsList freeTVar)) $
         yes
 
-         
+
 type TNames = S.Set TName
 
 tnamesList :: TNames -> [TName]
@@ -517,8 +521,8 @@ instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
 
 instance Ord TName where
-  compare (TName name1 tp1) (TName name2 tp2)  
-    = compare name1 name2 
+  compare (TName name1 tp1) (TName name2 tp2)
+    = compare name1 name2
        {- EQ  -> compare (minCanonical tp1) (minCanonical tp2)
         lgt -> lgt -}
 
@@ -526,17 +530,17 @@ instance Ord TName where
 
 
 instance Show TName where
-  show tname 
+  show tname
     = show (getName tname)
 
 
 class HasExpVar a where
-  -- Return free variables 
+  -- Return free variables
   fv :: a -> TNames
 
   -- Top level bound variables
   bv :: a -> TNames
-  
+
 
 instance HasExpVar a => HasExpVar [a] where
   fv xs
@@ -550,11 +554,11 @@ instance HasExpVar DefGroup where
   fv defGroup
    = case defGroup of
       DefRec defs   -> fv defs `S.difference` bv defs
-      DefNonRec def -> fv def 
+      DefNonRec def -> fv def
 
   bv defGroup
    = case defGroup of
-      DefRec defs   -> bv defs 
+      DefRec defs   -> bv defs
       DefNonRec def -> bv def
 
 instance HasExpVar Def where
@@ -568,7 +572,7 @@ fvDefGroups defGroups expr
 
 instance HasExpVar Expr where
   -- extract free variables from an expression
-  fv (Lam tnames eff expr)= foldr S.delete (fv expr) tnames 
+  fv (Lam tnames eff expr)= foldr S.delete (fv expr) tnames
   fv (Var tname info)     = S.singleton tname
   fv (App e1 e2)          = fv e1 `S.union` fv e2
   fv (TypeLam tyvar expr) = fv expr
@@ -577,7 +581,7 @@ instance HasExpVar Expr where
   fv (Lit i)              = S.empty
   fv (Let dfgrps expr)    = fvDefGroups dfgrps expr
   fv (Case exprs bs)      = fv exprs `S.union` fv bs
-  
+
   bv exp                  = failure "Backend.CSharp.FromCore.bv on expr"
 
 instance HasExpVar Branch where
@@ -592,13 +596,14 @@ instance HasExpVar Pattern where
   fv pat
     = S.empty
   bv pat
-    = case pat of 
+    = case pat of
         PatCon tname args _ _ _ _ -> bv args
         PatVar tname pat         -> S.union (S.singleton tname) (bv pat)
         PatWild                  -> S.empty
+        PatLit lit               -> S.empty
 
 {--------------------------------------------------------------------------
-  Term-substitutions   
+  Term-substitutions
 --------------------------------------------------------------------------}
 
 class HasExprVar a where
@@ -613,22 +618,22 @@ instance (HasExprVar a, HasExprVar b, HasExprVar c) => HasExprVar (a,b,c) where
     = (sub |~> x, sub |~> y, sub |~> z)
 
 instance HasExprVar DefGroup where
-  sub |~> defGroup 
+  sub |~> defGroup
     = case defGroup of
         DefRec    defs -> DefRec (sub |~> defs)
         DefNonRec def  -> DefNonRec (sub |~> def)
 
 
 instance HasExprVar Def where
-  sub |~> (Def dname scheme expr vis isVal nameRng doc) 
+  sub |~> (Def dname scheme expr vis isVal nameRng doc)
     = -- assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
       let sub' = [(name,e) | (name,e) <- sub, getName name /= dname]
       in Def dname scheme (sub' |~> expr) vis isVal nameRng doc
 
 instance HasExprVar Expr where
-  sub |~> expr = 
+  sub |~> expr =
     case expr of
-      Lam tnames eff expr  -> -- assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $ 
+      Lam tnames eff expr  -> -- assertion "Core.HasExprVar.Expr.|~>" (all (\tname -> tname `notIn` sub) tnames) $
                               let sub' = [(name,e) | (name,e) <- sub, all (name /=) tnames]
                               in Lam tnames eff (sub' |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
@@ -641,11 +646,11 @@ instance HasExprVar Expr where
       Let defGroups expr   -> let defnames = map defName (flattenDefGroups defGroups)
                                   sub' = [(name,e) | (name,e) <- sub, all (getName name /=) defnames]
                               in Let (sub |~> defGroups) (sub' |~> expr)
-      Case expr branches   -> Case (sub |~> expr) (sub |~> branches)  
+      Case expr branches   -> Case (sub |~> expr) (sub |~> branches)
 
 
 instance HasExprVar Branch where
-  sub |~> (Branch patterns guards) 
+  sub |~> (Branch patterns guards)
     = let bvpat = bv patterns
           sub' = [(name,expr) | (name,expr) <- sub, not (S.member (name ) bvpat)]
       in Branch patterns (map (sub' |~>) guards)
@@ -659,7 +664,7 @@ notIn :: TName -> [(TName, Expr)] -> Bool
 notIn name subst = not (name `elem` map fst subst)
 
 {--------------------------------------------------------------------------
-  Auxiliary functions to build Core terms 
+  Auxiliary functions to build Core terms
 --------------------------------------------------------------------------}
 
 -- | Create a let expression
@@ -679,7 +684,7 @@ addTypeApps [] e                = e
 addTypeApps ts (TypeApp e args) = TypeApp e (args ++ [TVar t | t <- ts])
 addTypeApps ts e                = TypeApp e [TVar t | t <- ts]
 
--- | Add kind and type lambdas 
+-- | Add kind and type lambdas
 addTypeLambdas :: [TypeVar] -> (Expr -> Expr)
 addTypeLambdas []   e              = e
 addTypeLambdas pars (TypeLam ps e) = TypeLam (pars ++ ps) e
@@ -689,7 +694,7 @@ addTypeLambdas pars e              = TypeLam pars e
 addLambdas :: [(Name, Type)] -> (Type -> Expr -> Expr)
 addLambdas [] eff e              = e
 addLambdas pars eff (Lam ps _ e) = Lam ([TName x tp | (x,tp) <- pars] ++ ps) eff e
-addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e 
+addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e
 
 
 -- | Bind a variable inside a term
@@ -702,7 +707,7 @@ isValueExpr (TypeLam tpars (Lam pars eff e))   = False
 isValueExpr (Lam pars eff e)                   = False
 isValueExpr _                                  = True
 
--- | Add a definition 
+-- | Add a definition
 addCoreDef :: Core -> Def -> Core
 addCoreDef (Core name imports fixdefs typeDefGroups (defGroups) externals doc) def
   = Core name imports fixdefs typeDefGroups (defGroups ++ [DefNonRec def]) externals doc
@@ -713,8 +718,8 @@ coreNull name = Core name [] [] [] [] [] ""
 
 -- | Create a fresh variable name with a particular prefix
 freshName :: HasUnique m => String -> m Name
-freshName prefix 
-  = do id <- unique 
+freshName prefix
+  = do id <- unique
        return (newName $ prefix ++ "." ++ show id)
 
 
@@ -724,10 +729,10 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
   = App (TypeApp varOpen [effFrom,effTo]) [expr]
   where
     varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])
-    tpOpen  = TForall [a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo) 
+    tpOpen  = TForall [a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
     a       = TypeVar (-1) kindEffect Bound
     b       = TypeVar (-2) kindEffect Bound
-    
+
 
 ---------------------------------------------------------------------------
 -- type of a core term
@@ -744,13 +749,13 @@ instance HasType TName where
 instance HasType Expr where
   -- Lambda abstraction
   typeOf (Lam pars eff expr)
-    = typeFun [(name,tp) | TName name tp <- pars] eff (typeOf expr) 
+    = typeFun [(name,tp) | TName name tp <- pars] eff (typeOf expr)
 
   -- Variables
   typeOf (Var tname info)
     = typeOf tname
 
-  -- Constants 
+  -- Constants
   typeOf (Con tname repr)
     = typeOf tname
 
@@ -772,12 +777,12 @@ instance HasType Expr where
          subNew (zip tvs tps) |-> tp1
 
   -- Literals
-  typeOf (Lit l) 
+  typeOf (Lit l)
     = typeOf l
 
   -- Let
-  typeOf (Let defGroups expr) 
-    = typeOf expr 
+  typeOf (Let defGroups expr)
+    = typeOf expr
 
   -- Case
   typeOf (Case exprs branches)
@@ -793,13 +798,13 @@ instance HasType Lit where
         LitString _ -> typeString
 
 {--------------------------------------------------------------------------
-  Type of a branch 
+  Type of a branch
 --------------------------------------------------------------------------}
 instance HasType Branch where
-  typeOf (Branch _ guards) 
+  typeOf (Branch _ guards)
     = case guards of
         (guard:_) -> typeOf guard
-        _         -> failure "Core.Core.HasType Branch: branch without any guards" 
+        _         -> failure "Core.Core.HasType Branch: branch without any guards"
 
 instance HasType Guard where
   typeOf (Guard _ expr)
@@ -807,7 +812,7 @@ instance HasType Guard where
 
 
 {--------------------------------------------------------------------------
-  Extract types 
+  Extract types
 --------------------------------------------------------------------------}
 extractSignatures :: Core -> [Type]
 extractSignatures core
@@ -822,10 +827,10 @@ extractSignatures core
     extractExternal ext@(External{ externalType = tp }) | externalVis ext == Public = [tp]
     extractExternal _ = []
 
-    extractDefs = map defType . filter (\d -> defVis d == Public) . flattenDefGroups 
+    extractDefs = map defType . filter (\d -> defVis d == Public) . flattenDefGroups
 
 {--------------------------------------------------------------------------
-  Decompose types 
+  Decompose types
 --------------------------------------------------------------------------}
 
 splitFun :: Type -> ([(Name,Type)], Type)
@@ -833,8 +838,8 @@ splitFun :: Type -> ([(Name,Type)], Type)
 splitFun tp
   = case expandSyn tp of
       TFun args eff res -> (args,res)
-      _ -> failure ("Core.Core.splitFun: Expected function: " ++ show (pretty tp)) 
-  
+      _ -> failure ("Core.Core.splitFun: Expected function: " ++ show (pretty tp))
+
 splitTForall :: Type -> ([TypeVar], Type)
 splitTForall tp
   = case expandSyn tp of

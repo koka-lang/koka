@@ -523,6 +523,7 @@ genMatch result scrutinees branches
                             ) (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
               PatWild             -> []
+              PatLit lit          -> []
 
     genGuard  :: Bool -> Result -> Guard -> Asm Doc
     genGuard lastBranchLastGuard result (Guard t expr)
@@ -542,6 +543,8 @@ genMatch result scrutinees branches
               PatWild ->  []
               PatVar _ pat
                 -> genTest modName (scrutinee,pat)
+              PatLit lit
+                -> [scrutinee <+> text "===" <+> ppLit lit]
               PatCon tn fields repr _ _ info
                 | getName tn == nameTrue
                 -> [scrutinee]
@@ -722,6 +725,7 @@ isPat :: Bool -> Pattern -> Bool
 isPat b q
   = case q of
       PatWild     -> False
+      PatLit _    -> False
       PatVar _ q' -> isPat b q'
       PatCon {}   -> getName (patConName q) == if b then nameTrue else nameFalse
 
