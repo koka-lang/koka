@@ -45,6 +45,7 @@ module Core.Core ( -- Data structures
                    , tnamesList
                    , TNames
                    , splitFun
+                   , splitTForall
                    , isTopLevel
                    , isTotal
                    -- * Data representation

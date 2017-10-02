@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2017 Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -54,6 +54,7 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.Cps               ( cpsTransform )
+import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -748,9 +749,9 @@ inferCheck loaded flags line coreImports program1
        (isCps,coreDefs1)
            <- if (not (enableCps flags)) -- CS `elem` targets flags || 
                then return (False,coreDefs0)
-               else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
+               else do cdefs <- Core.Monadic.monTransform penv coreDefs0
                        -- recheck cps transformed core
-                       when (False && coreCheck flags) $
+                       when (coreCheck flags) $
                           Core.Check.checkCore True penv unique4 gamma cdefs
                        return (True,cdefs)
 

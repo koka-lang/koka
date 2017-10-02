@@ -17,7 +17,8 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK )
+import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
+                       , nameLift, nameBind )
 import Common.Unique
 import Type.Type
 import Type.TypeVar
@@ -208,6 +209,10 @@ bottomUp (Lam pars eff (App expr args)) | parsMatchArgs
           Var v _  -> v == par
           _ -> False
 -}
+
+-- bind( lift(arg), cont ) -> cont(arg)
+bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
+  = App cont [arg]
 
 -- continuation validation
 bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == nameIsValidK

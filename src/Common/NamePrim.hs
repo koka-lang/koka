@@ -31,6 +31,8 @@ module Common.NamePrim
           , nameToAny
           , nameEnsureK
           , nameIsValidK
+          , nameLift, nameBind
+
           , nameUnsafeTotal
           , nameIntConst, nameInt32
 
@@ -183,7 +185,6 @@ nameTpOperation = preludeName "operation"
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
-nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"
 nameTpAsync     = qualify (newName "std/async") (newName "async")
@@ -197,6 +198,10 @@ nameMakeHandler shallow n
   = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n 
   = preludeName (".makeHandlerRet" ++ show n)
+
+nameLift        = preludeName "lift"
+nameBind        = preludeName "bind"
+nameTpYld       = preludeName "yld"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"

@@ -25,7 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
--- import Core.Cps( cpsType, typeK )
+import Core.Monadic( monType )
 
 import Kind.Kind
 import Type.Type
@@ -40,9 +40,9 @@ import Type.Operations( instantiate )
 import qualified Data.Set as S
 
 checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore cps prettyEnv uniq gamma  defGroups
+checkCore mon prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv cps gamma prettyEnv []) of
+      Check c -> case c uniq (CEnv mon gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
 
@@ -52,7 +52,7 @@ checkCore cps prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ cps :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+data CheckEnv = CEnv{ mon :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
               | Err Doc
@@ -122,7 +122,8 @@ checkTName (TName name tp)
 checkType :: Type -> Check Type
 checkType tp
   = do env <- getEnv
-       return tp -- return (if (cps env) then cpsType tvsEmpty tp else tp)
+       -- return tp 
+       return (if (mon env) then monType tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups
@@ -173,26 +174,6 @@ check expr
         -> do tpRes <- extendGamma (map coreNameInfo pars) (check body)
               pars' <- mapM checkTName pars
               return (typeFun [(name,tp) | TName name tp <- pars'] eff tpRes)
-      App (TypeApp (Var tname info) _) [x,k]
-        | getName tname == nameYieldOp
-        -> -- trace ("found unsafeyield: " ++ show (pretty (typeOf tname)) ++ ", " ++ show (pretty (typeOf k))) $
-           case splitFunType (expandSyn (typeOf k)) of
-            Nothing -> failDoc $ \env -> text "illegal unsafeyield:" <+> prettyExpr expr env
-            Just(_,_,tpYld)
-              -> return tpYld
-                  {-
-                     let (tvars,preds,rho) = splitPredType (typeOf tname)
-                     in case splitFunType rho of
-                      Nothing -> return $ typeOf tname
-                      Just (tpPars,eff,tpRes)
-                        -> trace ("adjust result") $
-                           do tvYld <- freshTypeVar kindStar Meta
-                              let tpYld = TVar tvYld
-                                  tpK   = typeK tpRes eff tpYld
-                              return (tForall (tvars) preds -- should add tvYld but leads to kind error...
-                                        (TFun (tpPars ++ [(nameNil,tpK)]) eff (TVar tvYld)))
-               else return (typeOf tname)
-               -}
       Var tname info
         -> checkType $ typeOf tname
       Con tname info
@@ -293,7 +274,7 @@ match when fdoc a b
          (Right _, subst) -> if subIsNull subst
                               then return ()
                               else do env <- getEnv
-                                      if (cps env) then return ()
+                                      if (mon env) then return ()
                                         else showCheck "non-empty substitution" when a b (\env -> text "")
                                       return ()
 

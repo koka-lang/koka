@@ -2958,16 +2958,16 @@ extern current-handler-top() : ndet int32 {
 
 // The Yield monad
 type yld<a> {
-  Yield<b>( op: operation<b>, cont : b -> yld<a> )
+  Yield( op: operation<a> )
   Result( result: a )
 }
 
-extern inline ".yieldop"( op : operation<a> ) : b { // , k : cont<a,e,b> ) : e yld<b> {
-  cs inline "Primitive.YieldOp<##1,##2>(#1,_k)"
-  js inline "$std_core.Yield(#1,_k)"
+extern inline ".yieldop"( op : operation<a> ) : e a { // , k : cont<a,e,b> ) : e yld<b> {
+  cs "Primitive.YieldOp"
+  js "$std_core.Yield"
 }
 
-extern ".yieldop1"( efftag: string, op : a ) : b {
+extern ".yieldop1"( efftag: string, op : a ) : e a {
   js inline "$yield_linearx(#1,#2)"
 }
 
