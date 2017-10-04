@@ -8,9 +8,9 @@ For more background information, see:
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
-[libraries]: https://koka-lang.github.io/koka/doc/toc.html 
+[libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
-[kokarepo]: https://github.com/koka-lang/koka 
+[kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
@@ -29,7 +29,7 @@ The following programs are required to build Koka:
 * Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
 
 All these programs are very easy to install on most platforms.
-Now we can build Koka itself: 
+Now we can build Koka itself:
 
 1. First clone the Koka sources with algebraic effects support:
 
@@ -41,24 +41,20 @@ Now we can build Koka itself:
 
    `> cd koka`
 
-3. Install any needed Node libraries using the Node package manager: 
+3. Install any needed Node libraries using the Node package manager:
 
    `> npm install`
 
-   If you are running on MacOSX or Unix, you may have to run this as
-   ``sudo npm install`` so that the ``npm`` package manager has enough
-  permissions to install the ``jake`` and ``madoko`` tools.
-
 4. Finally, build the compiler and run the Koka interactive environment:
 
-   `> jake`
+   `> npm run interactive`
 
-   You can type ``jake help`` to see an overview of all make targets.
+   You can type ``npm run help`` to see an overview of all make targets.
 
 The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
-`> jake sublime`
+`> npm run sublime`
 
 After this ``.kk`` files will be properly highlighted. It is also
 recommended to use the newly installed ``snow`` color theme which is
@@ -67,7 +63,7 @@ designed to work well with Koka files.
 
 ## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interactive environment will start:
+After running a plain ``npm run interactive`` command, the Koka interactive environment will start:
 ````
 __          _
 | |        | |
@@ -116,9 +112,9 @@ Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 
 ## Algebraic effect handlers
 
-A novel feature of Koka is a compiled and typed implementation of algebraic 
+A novel feature of Koka is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [[3]](#references)).
-In the interactive environment, you can load various demo files with algebraic 
+In the interactive environment, you can load various demo files with algebraic
 effects which are located in the ``test/algeff`` directory. This is by default
 included in the search path, so we can load them directly using
 the _load_ (``:l``) command:
@@ -127,13 +123,13 @@ the _load_ (``:l``) command:
 
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``scoped`` demo, we can run it directly from the interpreter:
-    
+
     > :l scoped
     compile: test/algeff/scoped.kk
     check  : scoped
     modules:
       scoped
-    
+
     > main()
     [[[3]],[2,1],[1,2],[1,1,1]]
     (state=12, [[[3]],[2,1],[1,2],[1,1,1]])
