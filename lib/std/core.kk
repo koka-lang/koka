@@ -2586,7 +2586,7 @@ fun println( u : () )  { printsln(show(())) }
 // ----------------------------------------------------------------------------
 
 
-private extern xtrace : ( message : string ) -> ()  {
+private extern xtrace : forall<a> ( message : a ) -> ()  {
   cs "Primitive.Trace"
   js "_trace"
 }
@@ -2601,7 +2601,7 @@ private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 // The behaviour is system dependent. On a browser and node it uses
 // `console.log`  by default.
 // Disabled if `notrace` is called.
-public fun trace( message : string ) : () {
+public fun trace( message : a ) : () {
   unsafe-total {
     if (!trace-enabled) then xtrace(message)
   }
