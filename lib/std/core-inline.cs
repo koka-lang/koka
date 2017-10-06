@@ -1,14 +1,17 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012 Microsoft Corporation.
+  Copyright 2012-2017 Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+//using System;
+//using System.Numerics;
 using System.Text;
 using System.Collections.Generic;
 using System.Globalization;             // CultureInfo.InvariantCulture
 using System.Text.RegularExpressions;   // Parsing BigInteger's & showing doubles
+using System.Diagnostics;
 
 public static class Primitive
 {
@@ -504,6 +507,7 @@ public static class Primitive
   }
 
   public static BigInteger IntCountDigits( BigInteger i ) {
+    if (i==0) return 0;
     double d = BigInteger.Log10(BigInteger.Abs(i));
     return new BigInteger(Math.Ceiling(d));
   }
@@ -611,22 +615,93 @@ public static class Primitive
   //-------------------------------------------------
   // Function extensions
   //-------------------------------------------------
+
+  public class FunId<A> : Fun1<A,A>
+  {
+    public object Apply( A x ) {
+      return x;
+    }
+  }
+
   public static A Call<A>(this Fun0<A> f) {
     return (A)f.Apply();
   }
-  public static B Call<A,B>(this Fun1<A,B> f, A x) {
+
+  public static B Call<A, B>(this Fun1<A, B> f, A x) {
     return (B)f.Apply(x);
   }
+
   public static B Call<A1, A2, B>(this Fun2<A1, A2, B> f, A1 x1, A2 x2) {
-    return (B)f.Apply(x1,x2);
+    return (B)f.Apply(x1, x2);
   }
+
   public static B Call<A1, A2, A3, B>(this Fun3<A1, A2, A3, B> f, A1 x1, A2 x2, A3 x3) {
-    return (B)f.Apply(x1,x2,x3);
+    return (B)f.Apply(x1, x2, x3);
   }
+
   public static B Call<A1, A2, A3, A4, B>(this Fun4<A1, A2, A3, A4, B> f, A1 x1, A2 x2, A3 x3, A4 x4) {
-    return (B)f.Apply(x1,x2,x3,x4);
+    return (B)f.Apply(x1, x2, x3, x4);
   }
-}
+
+  public static B Call<A1, A2, A3, A4, A5, B>(this Fun5<A1, A2, A3, A4, A5, B> f, A1 x1, A2 x2, A3 x3, A4 x4, A5 x5) {
+    return (B)f.Apply(x1, x2, x3, x4, x5);
+  }
+
+  public static B Call<A1, A2, A3, A4, A5, A6, B>(this Fun6<A1, A2, A3, A4, A5, A6, B> f, A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6) {
+    return (B)f.Apply(x1, x2, x3, x4, x5, x6);
+  }
+
+  public static B Call<A1, A2, A3, A4, A5, A6, A7, B>(this Fun7<A1, A2, A3, A4, A5, A6, A7, B> f, A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6, A7 x7) {
+    return (B)f.Apply(x1, x2, x3, x4, x5, x6, x7);
+  }
+
+
+  public class FunFunc0<A> : Fun0<A>
+  {
+    Func<A> f;
+    public FunFunc0(Func<A> f) {
+      this.f = f;
+    }
+    public object Apply() {
+      return f();
+    }
+  }
+
+  public class FunFunc1<A, B> : Fun1<A, B>
+  {
+    Func<A, B> f;
+    public FunFunc1(Func<A, B> f) {
+      this.f = f;
+    }
+    public object Apply(A x) {
+      return f(x);
+    }
+  }
+
+  public class FunFunc2<A1, A2, B> : Fun2<A1, A2, B>
+  {
+    Func<A1, A2, B> f;
+    public FunFunc2(Func<A1, A2, B> f) {
+      this.f = f;
+    }
+    public object Apply(A1 x, A2 y) {
+      return f(x, y);
+    }
+  }
+
+
+  public class FunFunc3<A1, A2, A3, B> : Fun3<A1, A2, A3, B>
+  {
+    Func<A1, A2, A3, B> f;
+    public FunFunc3(Func<A1, A2, A3, B> f) {
+      this.f = f;
+    }
+    public object Apply(A1 x, A2 y, A3 z) {
+      return f(x, y, z);
+    }
+  }
+
+};
 
 //---------------------------------------
 // Async
@@ -846,5 +921,3 @@ public interface Fun7<in A1, in A2, in A3, in A4, in A5, in A6, in A7, in B>
 {
   object Apply(A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6, A7 x7);
 }
-
-

@@ -36,6 +36,7 @@ extern include {
 }
 
 extern include {
+  cs file "core-handlers-inline.cs"
   js file "core-handlers-inline.js"
 }
 

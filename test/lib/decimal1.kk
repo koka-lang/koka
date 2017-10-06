@@ -10,6 +10,6 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 }
 
 public fun main() {
-  check("trunc1","0"){ 0.5.decimal.trunc.show }
-  check("round1","1"){ 1.decimal.round(Up).show }
+  check("trunc1","0"){ 0.5.decimal.truncate.show }
+  check("round1","1"){ 1.decimal.round(Away-from-zero).show }
 }

@@ -172,7 +172,8 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                   putLn (text "public enum" <+> ppTagType ctx (unqualify (dataInfoName info)) <+>
                                           block (vcatBreak (punctuate comma (map ppDefName (map conInfoName (dataInfoConstrs info))))))
                                putLn (text "public readonly" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
-                                             text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
+                                             text (if (isDataStruct dataRepr) then "private" else "protected") 
+                                              <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
                                                block (linebreak <> vcat (
                                                  [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
                                                  ++

@@ -53,6 +53,7 @@ module Core.Core ( -- Data structures
                    , isConSingleton
                    , isConNormal
                    , isConIso
+                   , isDataStruct
                    , getDataRepr
                    , VarInfo(..)
 
@@ -214,6 +215,9 @@ isConNormal _  = False
 
 isConIso (ConIso{}) = True
 isConIso _ = False
+
+isDataStruct (DataStruct) = True
+isDataStruct _ = False
 
 getDataRepr :: Int -> DataInfo -> (DataRepr,[ConRepr])
 getDataRepr maxStructFields info
