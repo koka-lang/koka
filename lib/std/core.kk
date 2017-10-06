@@ -305,7 +305,7 @@ type null<a>
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 external null(x : maybe<a>) : null<a> {
-  cs inline "(#1==std_core._maybe<##1>.Nothing_ ? default(##1) : #1.@value)"
+  cs inline "(#1.tag_ == std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }
 

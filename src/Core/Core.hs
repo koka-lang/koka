@@ -191,7 +191,7 @@ data DataRepr = DataEnum            -- only singletons
               | DataSingle          -- only one constructor
               | DataAsList          -- one constructor with fields, and one singleton
               | DataSingleNormal    -- one constructor with fields, and possibly singletons
-              | DataStruct          -- only one constructor with fields
+              | DataStruct          -- one constructor with non-recursive fields <= max-struct fields, and possibly singletons
               | DataNormal
               | DataOpen
               deriving (Eq,Ord,Show)

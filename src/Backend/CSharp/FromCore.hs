@@ -131,7 +131,6 @@ isStruct _                = False
 hasTagField :: DataRepr -> Bool
 hasTagField DataNormal = True
 hasTagField DataStruct = True
-hasTagField DataIso    = True
 hasTagField _          = False
 
 genTypeDef :: Int -> TypeDef -> Asm ()
@@ -167,14 +166,12 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                   ))
                            putLn $ text "{"
                  indented $
-                   do -- generate constructors
-                      mapM_ (genConstructor info dataRepr) (zip (zip (dataInfoConstrs info) conViss) conReprs)
-                      -- tag field
+                   do -- tag field
                       if (hasTagField dataRepr)
                        then do onTopLevel $
                                   putLn (text "public enum" <+> ppTagType ctx (unqualify (dataInfoName info)) <+>
                                           block (vcatBreak (punctuate comma (map ppDefName (map conInfoName (dataInfoConstrs info))))))
-                               putLn (text "public" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
+                               putLn (text "public readonly" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
                                              text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
                                                block (linebreak <> vcat (
                                                  [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
@@ -182,14 +179,15 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                                  (case dataRepr of
                                                     DataStruct -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
                                                                   in map (ppAssignDefault ctx) allfields
-                                                    DataIso    -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
-                                                                  in map (ppAssignDefault ctx) allfields
                                                     _          -> [])
                                                ))
-                                            )
+                                            )                                
                        else if (dataRepr == DataAsList)
                         then putLn (text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> text "() { }")
                         else return ()
+                      -- generate constructors
+                      mapM_ (genConstructor info dataRepr) (zip (zip (dataInfoConstrs info) conViss) conReprs)
+                        
                  if (isExtend) then return () else putLn (text "}")
   where
     ppEnumCon (con,vis)
@@ -202,11 +200,7 @@ genConstructor info dataRepr ((con,vis),conRepr) =
        -> return ()
     ConSingleton typeName _
        -> assertion ("CSharp.FromCore.genTypeDef: singleton constructor with existentials?") (null (conInfoExists con)) $
-          do let ppTpParams = ppTypeParams (dataInfoParams info ++ conInfoExists con)
-                 ppConType  = ppDefName (typeClassName typeName) <> ppTpParams
-             ctx <- getModule
-             putLn (text "public static readonly" <+> ppConType <+> ppDefName (conClassName (conInfoName con)) <+>
-                    text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
+          conSingleton typeName      
 
     ConAsCons typeName nilName _
        -> -- merge it into the type class itself
@@ -241,14 +235,25 @@ genConstructor info dataRepr ((con,vis),conRepr) =
              -- genConCreator con conRepr vis
              -- putLn (linebreak)
   where
+    conStruct typeName  | null (conInfoParams con)
+      = conSingleton typeName
     conStruct typeName
-      = -- merge it into the type class itself
-        do ctx <- getModule
-           let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
-               docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
+        -- merge it into the type class itself
+      = do ctx <- getModule
+           let defaults = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
+               docs = map (ppConField ctx) (conInfoParams con) ++ 
+                      ppConConstructor ctx con conRepr defaults
            if (null docs)
             then return ()
             else putLn (vcat (docs))
+
+    conSingleton typeName        
+      = do let ppTpParams = ppTypeParams (dataInfoParams info ++ conInfoExists con)
+               ppConType  = ppDefName (typeClassName typeName) <> ppTpParams
+           ctx <- getModule
+           putLn (text "public static readonly" <+> ppConType <+> ppDefName (conClassName (conInfoName con)) <+>
+                  text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
+
 
 ppConField :: ModuleName -> (Name,Type) -> Doc
 ppConField ctx (name,tp)
@@ -265,17 +270,13 @@ ppConConstructor ctx con conRepr defaults
               ConStruct typeName _ -> ppDefName (typeClassName typeName)
               ConIso    typeName _ -> ppDefName (typeClassName typeName)
               _                    -> ppDefName (conClassName (conInfoName con))) <>
-           tupled (case conRepr of
-                     ConStruct typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
-                     ConIso    typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
-                     _                    -> map ppParam (conInfoParams con)) <+>
+           tupled (map ppParam (conInfoParams con)) <+>
            (case conRepr of
               ConNormal typeName _ -> text ":" <+> text "base" <> parens (ppTag ctx typeName (conInfoName con)) <> space
               _                    -> empty) <>
            block (linebreak <> vcat (
               (case conRepr of
-                 ConStruct _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
-                 ConIso    _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
+                 ConStruct typeName _ -> [text "this." <> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <> semi]
                  _             -> [])
               ++ map ppAssignConField (conInfoParams con)
               ++ map (ppAssignDefault ctx) defaults
@@ -698,7 +699,7 @@ genCon tname repr targs args
        then assertion "CSharp.FromCore.genCon: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Con tname repr) targs) args n
             genExpr eta
-       else assertion "CShapr.FromCore.genCon: n < args" (n == length args && m == length targs) $
+       else assertion "CSharp.FromCore.genCon: n < args" (n == length args && m == length targs) $
          do argDocs <- genArguments args
             -- let cast  = kindCast ctx targs (typeOf tname)
             ctx <- getModule
@@ -709,16 +710,18 @@ genCon tname repr targs args
                    ppConEnum ctx tname
               ConSingleton typeName _
                 -> ppConSingleton ctx typeName tname targs
+              ConStruct typeName _ | null args 
+                -> ppConSingleton ctx typeName tname targs
               ConStruct typeName _
                 -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
-                   tupled (ppTag ctx typeName (getName tname) : argDocs)
+                   tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
               ConIso typeName _
                 -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
-                   tupled (ppTag ctx typeName (getName tname) : argDocs)
+                   tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
               _ -> text "new" <+>
                    (case repr of
                       ConAsCons typeName _ _
