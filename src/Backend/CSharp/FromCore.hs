@@ -572,7 +572,7 @@ genExternal  tname formats targs args
              do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
                 genExpr eta
        else if (not cps && getName tname == nameYieldOp && length targs == 2)
-        then do let resTp = targs!!1
+        then do let resTp = last (filter (\t -> isKindStar (getKind t)) targs)
                 currentDef <- getCurrentDef
                 result (text "Primitive.UnsupportedExternal<" <> ppType ctx (resTp) <> text ">(" <> ppLit (LitString (show currentDef)) <> text ")")
         else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
@@ -800,7 +800,8 @@ genExprBasic expr
           App e es
             -> do d <- genInline e
                   ds <- genArguments (es)
-                  result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
+                  -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
+                  result (d <> dot <> text "Call" <> tupled ds)
           TypeApp e ts
             -> do d <- genInline e
                   result (parens (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "TypeApply"  <> angled (map (ppType ctx) ts) <> text "()")))

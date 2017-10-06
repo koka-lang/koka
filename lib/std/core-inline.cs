@@ -607,7 +607,26 @@ public static class Primitive
     ulong l = (ulong)BitConverter.DoubleToInt64Bits(d);
     return new std_core._Tuple2_<int,int>( (int)(l & 0xFFFFFFFFL), (int)(l >> 32) );
   }
-};
+
+  //-------------------------------------------------
+  // Function extensions
+  //-------------------------------------------------
+  public static A Call<A>(this Fun0<A> f) {
+    return (A)f.Apply();
+  }
+  public static B Call<A,B>(this Fun1<A,B> f, A x) {
+    return (B)f.Apply(x);
+  }
+  public static B Call<A1, A2, B>(this Fun2<A1, A2, B> f, A1 x1, A2 x2) {
+    return (B)f.Apply(x1,x2);
+  }
+  public static B Call<A1, A2, A3, B>(this Fun3<A1, A2, A3, B> f, A1 x1, A2 x2, A3 x3) {
+    return (B)f.Apply(x1,x2,x3);
+  }
+  public static B Call<A1, A2, A3, A4, B>(this Fun4<A1, A2, A3, A4, B> f, A1 x1, A2 x2, A3 x3, A4 x4) {
+    return (B)f.Apply(x1,x2,x3,x4);
+  }
+}
 
 //---------------------------------------
 // Async
@@ -822,3 +841,10 @@ public interface Fun6<in A1,in A2,in A3,in A4,in A5,in A6, in B>
 {
   object Apply( A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6 );
 }
+
+public interface Fun7<in A1, in A2, in A3, in A4, in A5, in A6, in A7, in B>
+{
+  object Apply(A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6, A7 x7);
+}
+
+
