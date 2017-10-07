@@ -2874,14 +2874,16 @@ type open operation<a>
 // Cps effect. This is used by the compiler internally to ensure certain funs
 // are compiled with a cps translation
 effect cps {
-  cps() : ()
+  fun cps() : ()
 }
 
+/*
 // Handle the `:cps` effect.
 val uncps = handler {
   return x -> x
   cps()    -> resume(())
 }
+*/
 
 // inject the `:cps` effect into a non-cps function
 extern incps( action: () -> e a ) : <cps|e> a {
@@ -2909,9 +2911,10 @@ alias cont<a,e,b> = a -> e b
 // ----------------------------------------------------------------------------
 
 private effect hexn {
-  hthrow(exn : exception) : void  // cannot resume
+  fun hthrow(exn : exception) : void  // cannot resume
 }
 
+/*
 private fun hcatch( action, ehandler ) {
   handle(action) {
     return x    -> x
@@ -2931,6 +2934,7 @@ private fun hfinally( action, fhandler ) {
     }
   }
 }
+*/
 
 type handler-context
 
@@ -2957,14 +2961,15 @@ extern current-handler-top() : ndet int32 {
 // the continuations are not safely typed in plain Koka
 // ----------------------------------------------------------------------------
 
-// The Yield monad
-type yld<a> {
-  Yield( op: operation<a> )
-  Result( result: a )
+// Yield alias
+alias yld<a> = a
+
+extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
+  cs inline "Eff.Op.Bind<##1,##2>(#1,#2)"
 }
 
-extern inline ".yieldop"( op : operation<a> ) : e a { // , k : cont<a,e,b> ) : e yld<b> {
-  cs "Primitive.YieldOp"
+extern inline ".yieldop"( effectTag : string, opTag : string, op : a ) : e yld<b> { 
+  cs inline "Eff.Op<##1,##2>.Yield(#1,#2,#3)"
   js "$std_core.Yield"
 }
 

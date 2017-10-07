@@ -25,7 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
-import Core.Monadic( monType )
+-- import Core.Monadic( monType )
 
 import Kind.Kind
 import Type.Type
@@ -121,9 +121,9 @@ checkTName (TName name tp)
 
 checkType :: Type -> Check Type
 checkType tp
-  = do env <- getEnv
-       -- return tp 
-       return (if (mon env) then monType tp else tp)
+  = return tp
+    --do env <- getEnv
+    --   return (if (mon env) then monType tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups

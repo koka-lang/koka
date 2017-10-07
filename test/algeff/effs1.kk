@@ -1,7 +1,7 @@
 public module effs1
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 fun xor() : amb bool {

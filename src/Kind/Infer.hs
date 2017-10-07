@@ -159,6 +159,11 @@ synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
     (if (dataInfoIsOpen dataInfo)
       then map synConstrTag (zip conviss (dataInfoConstrs dataInfo))
       else [])
+    ++ 
+    (let kind = (dataInfoKind dataInfo) in
+     if (isKindEffect kind || isKindHandled kind || isKindHandled1 kind) 
+      then [synEffectTag (dataInfoName dataInfo) (dataInfoRange dataInfo)]
+      else []) 
 
 
 synCopyCon :: Name -> DataInfo -> Visibility -> ConInfo -> DefGroup Type
@@ -258,6 +263,12 @@ synConstrTag (vis,con)
         expr = Lit (LitString (show (conInfoName con)) rc)
     in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefVal "")
 
+synEffectTag :: Name -> Range -> DefGroup Type
+synEffectTag effName rng
+  = trace ("generate effect tag: " ++ show effName) $
+    let name = toOpenTagName (unqualify effName)
+        expr = Lit (LitString (show effName) rng)
+    in DefNonRec (Def (ValueBinder name () expr rng rng) rng Private DefVal "")
 
 {---------------------------------------------------------------
   Types for constructors

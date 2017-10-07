@@ -416,12 +416,15 @@ appBind tpArg tpEff tpRes arg cont
       _ -> case cont of
             Lam [aname] eff (Var v _) | getName v == getName aname
               -> arg
-            _ -> App (TypeApp (Var (TName nameBind typeBind) (InfoArity 3 2)) [unEff tpArg, unEff tpRes, tpEff]) [arg,cont]
+            _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [arg,cont]
+  where
+    -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
+    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)")]
 
 unEff :: Type -> Type
 unEff tp
   = case tp of
-      TApp (TCon (TypeCon eff _)) [t]  | nameTpYld == eff -> t
+      TSyn (TypeSyn eff _  _ _) [_] t  | nameTpYld == eff -> t
       _ -> tp
 
 typeBind :: Type
@@ -435,16 +438,17 @@ typeBind
 appLift :: Expr -> Expr
 appLift arg
   = let tp = typeOf arg        
-    in App (TypeApp (Var (TName nameLift typeLift) (InfoArity 1 1)) [tp]) [arg]
+        extern = Core.InfoExternal [(Default,"#1")] -- identity
+    in App (TypeApp (Var (TName nameLift typeLift) extern) [tp]) [arg]
 
 
 typeLift :: Type
 typeLift
   = TForall [tvarA] [] (TFun [(nameNil,TVar tvarA)] typeTotal (typeYld (TVar tvarA)))
 
-typeYld :: Type -> Type
+typeYld :: Type -> Type  -- Yld<a> == a
 typeYld tp
-  = TApp (TCon (TypeCon nameTpYld (kindFun kindStar kindStar))) [tp]
+  = TSyn (TypeSyn nameTpYld (kindFun kindStar kindStar) 0 Nothing) [tp] tp
 
 isTypeYld tp
   = case tp of
