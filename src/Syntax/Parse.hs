@@ -669,28 +669,31 @@ effectDecl dvis
            effTpDecl = DataType ename tpars [] rng vis Inductive DataDefNormal False doc
            effTagName = toOpenTagName id
 
-           -- define the effect operations type
-           {-
+           -- define the effect operations type (to be used by the type checker
+           -- to find all operation definitions belonging to an effect)
            opsName   = TypeBinder (toOperationsName id) KindNone irng irng
            opsTp    = -- TpCon (tbinderName tname) (tbinderRange tname)
                       tpCon opsName
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            extendConName = toEffectConName (tbinderName ename)
-           -}
+           
 
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation singleShot defvis tpars effTagName effTp)
+       (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp)
 
        let kindStar = (KindCon nameKindStar rng)
-           (opTpDecls,opDefs) = unzip ops
+           (opsConDefs,opTpDecls,opDefss) = unzip3 ops
+
+           -- declare operations data type (for the type checker)
+           opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
            
-       return $ [DefType effTpDecl] ++
+       return $ [DefType effTpDecl, DefType opsTpDecl] ++
                   map DefType opTpDecls ++
-                  map DefValue opDefs 
+                  map DefValue (concat opDefss) 
 
 
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> LexParser (UserTypeDef, UserDef)
-operation singleShot vis foralls effTagName effTp 
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> LexParser (UserUserCon, UserTypeDef, [UserDef])
+operation singleShot vis foralls effTagName effTp opsTp
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -708,12 +711,9 @@ operation singleShot vis foralls effTagName effTp
            tpVarA   = TpVar nameA idrng
 
            -- Create the constructor
-           opName   = toOperationsName id
+           opName   = toOpTypeName id
            opBinder = TypeBinder opName KindNone idrng idrng
-           opsTp    = tpCon opBinder
-
-           tpConRes = TpApp opsTp [tpVarA] rng
-           -- conDef   = makeUserCon (toConstructorName id) [] tpConRes exists pars idrng rng vis ""
+           
 
            exists   = if (not (null exists0)) then exists0
                        else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
@@ -726,11 +726,25 @@ operation singleShot vis foralls effTagName effTp
            opTpDecl = trace ("declare op type: " ++ show opName) $
                       DataType opBinder foralls [conDef] rng vis Inductive DataDefNormal False doc
 
+           -- Declare the operation constructor for part of the full operations data type
+           tpParams    = [TpVar (tbinderName par) idrng | par <- foralls]
+           opsConTpRes = makeTpApp opsTp tpParams rng
+           opsConTpArg = makeTpApp (tpCon opBinder) tpParams rng
+           opsConArg   = ValueBinder nameNil opsConTpArg Nothing idrng idrng
+           opsConDef = UserCon (toConstructorName id) 
+                          foralls  
+                          [(Private,opsConArg)] idrng rng vis ""
+
+           -- Declare the operation tag name                            
+           opTagName    = toOpenTagName id 
+           opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show id) idrng)) idrng idrng)
+                              idrng vis DefVal ""
+
            -- Declare the yield operation
            opDef  = trace ("create op def: " ++ show id) $
                     let def  = Def binder rng vis DefFun ""
                         nameRng   = idrng
-                        tag       = Lit (LitString (show id) idrng)
+                        tag       = Var opTagName False idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
@@ -754,7 +768,7 @@ operation singleShot vis foralls effTagName effTp
                         isJust (Just{}) = True
                         isJust _        = False
                     in def
-       return (opTpDecl,opDef)
+       return (opsConDef,opTpDecl,[opTagDef,opDef])
 
 
 

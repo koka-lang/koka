@@ -41,6 +41,7 @@ type UserDef     = Def UserType
 type UserDefGroup = DefGroup UserType
 type UserTypeDef = TypeDef UserType UserType UserKind
 type UserTypeDefGroup = TypeDefGroup UserType UserKind
+type UserUserCon = UserCon UserType UserType UserKind
 type UserPattern = Pattern UserType
 type UserBranch  = Branch UserType
 type UserHandlerBranch = HandlerBranch UserType
