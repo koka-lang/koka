@@ -665,15 +665,21 @@ effectDecl dvis
                            [effTpH] irng
            rng     = combineRanges [vrng,erng,irng]
 
+           -- declare the effect tag
+           effTagName = toOpenTagName id 
+           effTagDef  = Def (ValueBinder effTagName () 
+                              (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng)) 
+                              irng irng) irng vis DefVal ""
+
            -- declare the effect type
            effTpDecl = DataType ename tpars [] rng vis Inductive DataDefNormal False doc
-           effTagName = toOpenTagName id
+           
+
 
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
            opsName   = TypeBinder (toOperationsName id) KindNone irng irng
-           opsTp    = -- TpCon (tbinderName tname) (tbinderRange tname)
-                      tpCon opsName
+           opsTp    = tpCon opsName
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            extendConName = toEffectConName (tbinderName ename)
            
@@ -687,7 +693,7 @@ effectDecl dvis
            -- declare operations data type (for the type checker)
            opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
            
-       return $ [DefType effTpDecl, DefType opsTpDecl] ++
+       return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
                   map DefType opTpDecls ++
                   map DefValue (concat opDefss) 
 
@@ -732,7 +738,7 @@ operation singleShot vis foralls effTagName effTp opsTp
            opsConTpArg = makeTpApp (tpCon opBinder) tpParams rng
            opsConArg   = ValueBinder nameNil opsConTpArg Nothing idrng idrng
            opsConDef = UserCon (toConstructorName id) 
-                          foralls  
+                          []  
                           [(Private,opsConArg)] idrng rng vis ""
 
            -- Declare the operation tag name                            
