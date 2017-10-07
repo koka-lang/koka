@@ -3003,7 +3003,22 @@ extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
   js "_outer_resume"
 }
 
+type handler-branch0<a>
 
+extern "makeHandlerBranch0"( resume-kind : int32, op-tag : string,
+                              branch : (resume : a -> <cps|e> b, op : c) -> <cps|e> b ) : total handler-branch0<b> {
+  cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)#1,#2,#3)"
+}
+
+extern ".makeHandler0"( effect-tag : string, 
+                        ret : a -> <cps|e> b,
+                        ops : vector<handler-branch0<b>>
+                      ) : total ((action : () -> e1 a) -> e b) 
+{
+  cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
+}
+
+/*
 extern ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>,
                           ret : a -> <cps|e> b,
                           ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o,
@@ -3042,7 +3057,7 @@ extern ".makeHandler2"( optag : string, // opmatch : operation<c> -> opmatch<e1,
                         ) :  total ((loc1:d1, loc2:d2, action: () -> e1 a) -> e b) {
   js inline "$makeGenOptHandler2(optag,false,ret,ops)"
 }
-
+*/
 
 /*
 // Abstract operation matching

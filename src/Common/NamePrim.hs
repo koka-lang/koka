@@ -58,6 +58,7 @@ module Common.NamePrim
           , nameTpOperation, nameYieldOp, nameYieldOp1
           , nameTpCps, nameTpYld, nameTpCont
           , nameInCps
+          , nameTpHandlerBranch0, nameTpHandlerBranch1
 
           , nameTpAsync
           , nameApplyK
@@ -182,6 +183,9 @@ nameEffectAppend= newName ".<+>"
 nameTpHandled   = preludeName "handled"
 nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
+nameTpHandlerBranch0 = preludeName "handler-branch0"
+nameTpHandlerBranch1 = preludeName "handler-branch1"
+
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"

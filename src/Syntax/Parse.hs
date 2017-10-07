@@ -681,7 +681,7 @@ effectDecl dvis
            opsName   = TypeBinder (toOperationsName id) KindNone irng irng
            opsTp    = tpCon opsName
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
-           extendConName = toEffectConName (tbinderName ename)
+           --extendConName = toEffectConName (tbinderName ename)
            
 
        -- parse the operations and return the constructors and function definitions
@@ -736,13 +736,11 @@ operation singleShot vis foralls effTagName effTp opsTp
            tpParams    = [TpVar (tbinderName par) idrng | par <- foralls]
            opsConTpRes = makeTpApp opsTp tpParams rng
            opsConTpArg = makeTpApp (tpCon opBinder) tpParams rng
-           opsConArg   = ValueBinder nameNil opsConTpArg Nothing idrng idrng
-           opsConDef = UserCon (toConstructorName id) 
-                          []  
-                          [(Private,opsConArg)] idrng rng vis ""
+           opsConArg   = ValueBinder opName opsConTpArg Nothing idrng idrng
+           opsConDef = UserCon (toOpsConName id) [] [(Private,opsConArg)] idrng rng vis ""
 
            -- Declare the operation tag name                            
-           opTagName    = toOpenTagName id 
+           opTagName    = toOpenTagName opName 
            opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show id) idrng)) idrng idrng)
                               idrng vis DefVal ""
 

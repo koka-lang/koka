@@ -9,8 +9,6 @@ fun xor() : amb bool {
   val q = flip()
   (p||q) && not(p&&q)
 }
-
-/*
 val amb = handler {
   return x -> [x]
   flip()   -> resume(False) + resume(True)
@@ -18,4 +16,4 @@ val amb = handler {
 fun main() {
   amb(xor).show.println
 }
-*/
+

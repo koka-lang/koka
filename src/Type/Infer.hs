@@ -59,7 +59,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   -- Lib.Trace.trace s
+   Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -786,7 +786,7 @@ inferHandler propagated expect shallow mbeff pars ret ops hrng rng
        -- trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
        let coreMkHandler = coreExprFromNameInfo mkhQname mkhInfo
-           optagCore   = Core.Lit (Core.LitString (show (toEffectConName hxName)))
+           optagCore   = Core.Lit (Core.LitString (show (toOpsConName hxName)))
            handlerCore = Core.App (mkhCore coreMkHandler)
                                     [optagCore,{- opmatchCore,-} retCore,opsfunCore]
 
@@ -829,6 +829,8 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
        -- build binders for the operator and resumption function
        opsResTp <- Op.freshTVar kindStar Meta
        (opsTp,hxName,opsInfo) <- effectToOperation hxeff opsResTp
+       opConInfos <- getOpConInfos opsInfo
+
        let -- op
            opsEff    = handledToLabel hxeff
            opsBinder = ValueBinder (newHiddenName "op") opsTp () hrng hrng
@@ -853,7 +855,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
        iops  <- extendInfGamma False infgamma $
                 extendInfGamma False opsgamma $
                 mapM (inferHandlerBranch (Just (branchTp,hrng)) Instantiated
-                        opsEff hxName opsInfo (lBinders ++ [contBinder]) resumeBinder) ops
+                        opsEff hxName opConInfos (lBinders ++ [contBinder]) resumeBinder) ops
 
 
        -- unify effects and branches
@@ -867,7 +869,7 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEff) (zip rngs opEffs)
 
        -- check coverage
-       checkCoverage hrng hxeff (map conInfoName (dataInfoConstrs opsInfo)) conNames
+       checkCoverage hrng hxeff (map conInfoName opConInfos) conNames
 
        -- build match for operations
        let matchCore = Core.Case [Core.Var (Core.TName (binderName opsBinder) (binderType opsBinder)) Core.InfoNone] opsCore
@@ -887,7 +889,8 @@ inferHandlerOps shallow hxeff parBinders argPars retInTp retEff branchTp retTp o
 
 checkCoverage :: Range -> Effect -> [Name] -> [Name] -> Inf ()
 checkCoverage rng eff conNames opConNames
-  = case conNames of
+  = trace ("check coverage: " ++ show conNames ++ " vs. " ++ show opConNames) $
+    case conNames of
       [] -> if null opConNames
              then return ()
              -- should not occur if branches typechecked previously
@@ -949,18 +952,18 @@ inferHandledEffect rng mbeff ops
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
-inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> DataInfo
+inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> [ConInfo]
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
-inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resumeBinder (HandlerBranch name pars expr nameRng rng)
+inferHandlerBranch propagated expect opsEffTp hxName opConInfos extraBinders resumeBinder (HandlerBranch name pars expr nameRng rng)
   = do (qname,tp,info) <- resolveFunName (if isQualified name then name else qualify (qualifier hxName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
        -- check if it was part of the handled effect operations
        let fullRng = combineRanged rng expr
            cname = toOpConName qname
-           constrs = dataInfoConstrs opsInfo
+           constrs = opConInfos
 
-       -- traceDoc $ \env -> text ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs))
+       traceDoc $ \env -> text ("cname: " ++ show cname ++ ", constrs: " ++ show (map conInfoName constrs))
        (conname,gconTp,conrepr,coninfo)
            <- case filter (\ci -> cname == conInfoName ci) constrs of
                     [ci] -> resolveConName (conInfoName ci) Nothing nameRng
@@ -1045,6 +1048,18 @@ inferHandlerBranch propagated expect opsEffTp hxName opsInfo extraBinders resume
           TFun targs teff tres -> (map snd targs,teff,tres)
           _ -> ([],typeTotal,rho)
 
+getOpConInfos :: DataInfo -> Inf [ConInfo]
+getOpConInfos opsInfo
+  = do let opconstrs = dataInfoConstrs opsInfo  -- constructors of each operation type
+       mapM getOpConstr opconstrs
+  where
+    getOpConstr :: ConInfo -> Inf ConInfo
+    getOpConstr opConInfo 
+      = case (conInfoParams opConInfo) of
+          [(name,_)] -> do let qname = qualify (qualifier (dataInfoName opsInfo)) name 
+                           opInfo <- findDataInfo qname
+                           return (head (dataInfoConstrs opInfo))
+          _ -> failure $ "Type.getOpConstrs: illegal operation constructor: " ++ show opConInfo                 
 
 inferApp :: Maybe (Type,Range) -> Expect -> Expr Type -> [(Maybe (Name,Range),Expr Type)] -> Range -> Inf (Type,Effect,Core.Expr)
 inferApp propagated expect fun nargs rng

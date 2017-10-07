@@ -5,9 +5,6 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-//using System;
-//using System.Diagnostics;
-//using System.Collections.Generic;
 
 namespace Eff
 {
@@ -528,19 +525,38 @@ namespace Eff
 
   public class Handler0<A, B> : Handler0<B>
   {
-    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> ret, OpBranch[] opBranches) {
-      return Create(effectTag, new Primitive.FunFunc1<A, B>(ret), opBranches);
+    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> ret, OpBranch0<B>[] opBranches) {
+      Handler0<A, B> handler = new Handler0<A, B>(effectTag, new Primitive.FunFunc1<A, B>(ret), opBranches);
+      return (Func<A> action) => handler.Handle(new Primitive.FunFunc0<A>(action));
     }
 
-    public static Func<Func<A>, B> Create(string effectTag, Fun1<A, B> ret, OpBranch[] opBranches) {
+    private class FunHandler : Fun1<Fun0<A>, B>
+    {
+      Handler0<A, B> handler;
+      public FunHandler(Handler0<A, B> handler) {
+        this.handler = handler;
+      }
+      public object Apply( Fun0<A> action ) {
+        return handler.Handle(action);
+      }
+    }
+    public static Fun1<Fun0<A>, B> Create(string effectTag, Fun1<A, B> ret, OpBranch0<B>[] opBranches) {
       Handler0<A, B> handler = new Handler0<A, B>(effectTag, ret, opBranches);
-      return ((action) => handler.Handle(action));
+      return new FunHandler(handler);
     }
 
     private Fun1<A, B> ret;
 
-    public Handler0(string effectTag, Fun1<A, B> ret, OpBranch[] opHandlers) :
-      base(false, effectTag, opHandlers) {
+    private static OpBranch[] DownCast( OpBranch0<B>[] branches ) {
+      OpBranch[] bs = new OpBranch[branches.Length];
+      for(int i = 0; i < branches.Length; i++) {
+        bs[i] = (OpBranch)branches[i];
+      }
+      return bs;
+    }
+
+    public Handler0(string effectTag, Fun1<A, B> ret, OpBranch0<B>[] opHandlers) :
+      base(false, effectTag, DownCast(opHandlers)) {
       this.ret = ret;
     }
 
@@ -555,9 +571,9 @@ namespace Eff
       return HandleYld(result);
     }
 
-    public B Handle(Func<A> action) {
+    public B Handle(Fun0<A> action) {
       Push();
-      A result = action();
+      A result = action.Call();
       Op op;
       while ((op = Op.TailCall) != null) {
         result = op.MakeTailCall<A>();
@@ -593,8 +609,16 @@ namespace Eff
 
   public abstract class Handler1<S, B> : Handler
   {
-    public Handler1(bool isShallow, string effectTag, OpBranch[] opHandlers) :
-      base(isShallow, effectTag, opHandlers) {
+    private static OpBranch[] DownCast(OpBranch1<S, B>[] branches) {
+      OpBranch[] bs = new OpBranch[branches.Length];
+      for (int i = 0; i < branches.Length; i++) {
+        bs[i] = (OpBranch)branches[i];
+      }
+      return bs;
+    }
+
+    public Handler1(bool isShallow, string effectTag, OpBranch1<S,B>[] opHandlers) :
+      base(isShallow, effectTag, DownCast(opHandlers)) {
     }
     public abstract B Resume(Cont cont, S state, object arg);
     public abstract R TailInvoke<O, R>(Fun2<S, O, std_core._Tuple2_<S, R>> branch, O opValue);
@@ -602,15 +626,31 @@ namespace Eff
 
   public class Handler1<S, A, B> : Handler1<S, B>
   {
-    public static Func<S, Func<A>, B> Create(string effectTag, Func<S, A, B> ret, OpBranch[] opBranches) {
+    public static Func<S, Func<A>, B> Create(string effectTag, Func<S, A, B> ret, OpBranch1<S,B>[] opBranches) {
       Handler1<S, A, B> handler = new Handler1<S, A, B>(effectTag, new Primitive.FunFunc2<S, A, B>(ret), opBranches);
-      return ((state, action) => handler.Handle(state, action));
+      return ((S state, Func<A> action) => handler.Handle(state, new Primitive.FunFunc0<A>(action)));
+    }
+
+    private class FunHandler : Fun2<S, Fun0<A>, B>
+    {
+      Handler1<S, A, B> handler;
+      public FunHandler(Handler1<S, A, B> handler) {
+        this.handler = handler;
+      }
+      public object Apply(S state, Fun0<A> action) {
+        return handler.Handle(state,action);
+      }
+    }
+    public static Fun2<S, Fun0<A>, B> Create(string effectTag, Fun2<S, A, B> ret, OpBranch1<S, B>[] opBranches) {
+      Handler1<S, A, B> handler = new Handler1<S, A, B>(effectTag, ret, opBranches);
+      return new FunHandler(handler);
     }
 
     private Fun2<S, A, B> ret;
     private S TailState;
 
-    public Handler1(string effectTag, Fun2<S, A, B> ret, OpBranch[] opHandlers) :
+
+    public Handler1(string effectTag, Fun2<S, A, B> ret, OpBranch1<S,B>[] opHandlers) :
       base(false, effectTag, opHandlers) {
       this.ret = ret;
     }
@@ -643,10 +683,10 @@ namespace Eff
       return HandleYld(result, TailState);
     }
 
-    public B Handle(S state, Func<A> action) {
+    public B Handle(S state, Fun0<A> action) {
       Push();
       TailState = state;
-      A result = action();
+      A result = action.Call();
       Op op;
       while ((op = Op.TailCall) != null) {
         result = op.MakeTailCall<A>();

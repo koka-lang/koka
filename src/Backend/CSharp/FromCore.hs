@@ -1331,6 +1331,10 @@ ppTypeCon ctx c kind
          then text "DateTime"
         else if (name == nameTpException)
          then text "Exception"
+        else if (name == nameTpHandlerBranch0)
+         then text "Eff.OpBranch0"
+        else if (name == nameTpHandlerBranch1)
+         then text "Eff.OpBranch1"
         else if (isKindFun kind)
          then ppQName ctx (typeConClassName name)
          else ppQName ctx (typeClassName name)
