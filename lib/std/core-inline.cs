@@ -701,7 +701,7 @@ public static class Primitive
     }
   }
 
-};
+}
 
 //---------------------------------------
 // Async
@@ -809,7 +809,7 @@ public class InfoException : Exception
   public InfoException( string message, std_core._exception_info info ) : base(message) {
     this.info = info;
   }
-};
+}
 
 
 public class YieldException<A,B> : Exception
@@ -821,7 +821,7 @@ public class YieldException<A,B> : Exception
     this.op = op;
     this.k = k;
   }
-};
+}
 
 //---------------------------------------
 // References

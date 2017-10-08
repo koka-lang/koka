@@ -40,7 +40,7 @@ module Type.Type (-- * Types
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial
-                  , typeList, typeApp, typeRef, typeOptional
+                  , typeList, typeVector, typeApp, typeRef, typeOptional
                   , isOptional, makeOptional, unOptional
 
                   --, handledToLabel
@@ -691,6 +691,11 @@ isTypeBool _         = False
 isTypeUnit (TCon tc) = tc == tconUnit
 isTypeUnit _         = False
 
+
+-- | Type of vectors (@[]@)
+typeVector :: Tau
+typeVector
+  = TCon (TypeCon nameTpVector (kindFun kindStar kindStar))
 
 -- | Type of lists (@[]@)
 typeList :: Tau
