@@ -35,6 +35,7 @@ import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
+import Core.CoreVar
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 cpsTransform penv defs

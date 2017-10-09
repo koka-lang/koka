@@ -39,6 +39,7 @@ import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
+import Core.CoreVar
 
 monTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 monTransform penv defs
@@ -112,7 +113,7 @@ monExpr' topLevel expr
                        f' <- monExpr f
                        return $ \k -> f' (\ff -> k (App eopen [ff]))
               -- lift the function to a monadic function
-               else do monTraceDoc $ \env -> text "open: lift: " <+> prettyExpr env expr
+               else do -- monTraceDoc $ \env -> text "open: lift: " <+> prettyExpr env expr
                        let Just((partps,_,restp)) = splitFunType (typeOf f)
                        pars <- mapM (\(name,partp) ->
                                      do pname <- if (name==nameNil) then uniqueName "x" else return name
@@ -158,14 +159,14 @@ monExpr' topLevel expr
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
               isMonF <- needsMonType ftp
-              monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
+              -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
               if ((not (isMonF || isAlwaysMon f)) || isNeverMon f)
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
                     k (App ff argss)
                 ))
-               else  do monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
+               else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
                         nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
@@ -232,12 +233,20 @@ monExprAsDef tpars pars eff body
        if (monk/=PolyMon)
          then monExpr' True expr 
          else do name <- uniqueName "lam"
-                 let expr = addTypeLambdas tpars (Lam pars eff body)
-                     tp   = typeOf expr
-                     def  = Def name tp expr Private DefFun rangeNull ""
+                 let -- expr = addTypeLambdas tpars (Lam pars eff body)
+                     tvars  = tvsList (ftv expr)
+                     bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]              
+                     bsub  = subNew (zip tvars (map TVar bvars))
+                     expr' = addTypeLambdas bvars (bsub |-> expr)
+
+                     tp   = typeOf expr'
+                     def  = Def name tp expr' Private DefFun rangeNull ""
                      var  = Var (TName name tp) (InfoArity (length tpars) (length pars))
-                 -- monTraceDoc $ \env -> text "mon as expr:" <--> prettyExpr env expr
-                 monExpr (Let [DefNonRec def] var) -- process as let definition
+                     body = addTypeApps tvars var
+
+                 monTraceDoc $ \env -> text "mon as expr: " <+> pretty name  <--> prettyExpr env expr
+                 monExpr (Let [DefNonRec def] body) -- process as let definition
+                 
 
 monBranch :: Branch -> Mon Branch
 monBranch (Branch pat guards)
@@ -269,7 +278,7 @@ monLetDef recursive def
   = withCurrentDef def $
     do monk <- getMonType (defType def)
        -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
-       if ((monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
+       if (False && (monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
         then monLetDefDup monk recursive def 
         else do -- when (monk == PolyMon) $ monTraceDoc $ \env -> text "not a function definition but has mon type" <+> ppType env (defType def)
                 expr' <- monExpr' True (defExpr def) -- don't increase depth

@@ -53,6 +53,7 @@ import Type.TypeVar
 import qualified Type.Operations as Op
 import Type.InferMonad
 
+import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
 
 import Core.Divergent( analyzeDivergence )
@@ -275,7 +276,7 @@ addDivergentEffect coreDefs0
                     -- inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
                     -- fix up the core since the recursive tname still refers to the old type without the 'div' effect
                     -- let name = unqualify (Core.defName def)
-                    --    resCore1 = (Core.|~>) [(name, Core.Var (Core.TName name resTp) Core.InfoNone)] resCore
+                    --    resCore1 = (CoreVar.|~>) [(name, Core.Var (Core.TName name resTp) Core.InfoNone)] resCore
                     return (def{ Core.defType = resTp, Core.defExpr = resCore })
 
 
@@ -302,7 +303,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         (resTp1,resCore1) <- generalize rng nameRng typeTotal resTp0 (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
 
         let name = Core.defName coreDef
-            csort = if (topLevel || Core.isTopLevel coreDef) then Core.defSort coreDef else DefVal
+            csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
             info = coreVarInfoFromNameInfo (createNameInfoX name csort (defRange def) resTp1)
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
@@ -317,7 +318,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                       msub  = subNew (zip tvars (map TVar mvars))
 
 
-                                      resCoreX = (Core.|~>) [(Core.TName ({- unqualify -} name) assumedTpX,
+                                      resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX,
                                                               Core.TypeApp (Core.Var (Core.TName ({- unqualify -} name) (resTp1)) info) (map TVar tvars))] -- TODO: wrong for unannotated polymorphic recursion: see codegen/wrong/rec2
                                                  (msub |-> coreX)
 
@@ -327,7 +328,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                   -- generalize rng nameRng typeTotal resTp0 resCoreX
                                   return (resTp1,resCoreY)
                                {-
-                                  let resCore2 = Core.TypeLam tvars ((Core.|~>) [(Core.TName (unqualify name) resTp1, Core.TypeApp (Core.Var (Core.TName (unqualify name) (resTp1)) Core.InfoNone) (map TVar tvars))] expr)
+                                  let resCore2 = Core.TypeLam tvars ((CoreVar.|~>) [(Core.TName (unqualify name) resTp1, Core.TypeApp (Core.Var (Core.TName (unqualify name) (resTp1)) Core.InfoNone) (map TVar tvars))] expr)
                                   trace ("\n ~> \n" ++ show resCore2) $
                                    return resCore2
                                -}
@@ -335,16 +336,16 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                             -> do assumedTpX <- normalize assumedTp >>= subst -- resTp0
                                   simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
-                                  let resCoreX = (Core.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
+                                  let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize assumedTp >>= subst
                                   simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
-                                  let resCoreX = (Core.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
+                                  let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Nothing,_)
-                            ->    return (resTp1,resCore1) -- (Core.|~>) [(unqualify name, Core.Var (Core.TName (unqualify name) resTp1) Core.InfoNone)] resCore1
+                            ->    return (resTp1,resCore1) -- (CoreVar.|~>) [(unqualify name, Core.Var (Core.TName (unqualify name) resTp1) Core.InfoNone)] resCore1
 
 
         -- coref2      <- checkEmptyPredicates rng
@@ -389,14 +390,14 @@ inferRecDef topLevel infgamma def
                       coreExpr = case resCore1 of
                                    Core.TypeLam tvars expr
                                       -> -- trace ("substitute typeapp" ++ show resCore1) $
-                                          Core.TypeLam tvars ((Core.|~>) [(Core.TName (unqualify name) (Core.defType coreDef), Core.TypeApp (Core.Var (Core.TName (unqualify name) (resTp1)) Core.InfoNone) (map TVar tvars))] expr)
+                                          Core.TypeLam tvars ((CoreVar.|~>) [(Core.TName (unqualify name) (Core.defType coreDef), Core.TypeApp (Core.Var (Core.TName (unqualify name) (resTp1)) Core.InfoNone) (map TVar tvars))] expr)
                                    _  -> resCore1
 
                   coref2      <- checkEmptyPredicates rng
                   resTp2      <- subst resTp1
                   coreDef2    <- subst (Core.Def (Core.defName coreDef) resTp2 (coref2 coreExpr) (Core.defVis coreDef) (Core.defSort coreDef) (Core.defNameRange coreDef) (Core.defDoc coreDef))
 
-                  if (False && not topLevel && not (Core.isTopLevel coreDef2) && not (isRho (Core.typeOf coreDef2)))
+                  if (False && not topLevel && not (CoreVar.isTopLevel coreDef2) && not (isRho (Core.typeOf coreDef2)))
                    then do -- trace ("local rec with free vars: " ++ show coreDef2) $ return ()
                            typeError rng nameRng (text "local recursive definitions with free (type) variables cannot have a polymorphic type" <->
                                                   text " hint: make the function a top-level definition?" ) (Core.typeOf coreDef2) []
@@ -483,7 +484,7 @@ inferExpr propagated expect (Lam binders body rng)
                       | (binder,mbProp) <- zip binders propArgs]
        binders1 <- mapM instantiateBinder binders0
        (infgamma,sub,defs) <- inferOptionals [] binders1
-       let coref c = Core.makeLet (map Core.DefNonRec defs) ((Core.|~>) sub c)
+       let coref c = Core.makeLet (map Core.DefNonRec defs) ((CoreVar.|~>) sub c)
 
        returnTp <- case propBody of
                      Nothing     -> Op.freshTVar kindStar Meta
@@ -1412,8 +1413,8 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
            (btp,beff,bcore) <- inferExpr propagated Instantiated expr
            resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
            -- check for unused pattern variables
-           let defined = Core.bv pcore
-               free    = S.fromList $ map Core.getName $ S.toList $ S.union (Core.fv gcore) (Core.fv bcore)
+           let defined = CoreVar.bv pcore
+               free    = S.fromList $ map Core.getName $ S.toList $ S.union (CoreVar.fv gcore) (CoreVar.fv bcore)
            case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
              [] -> return ()
              (name:_) -> do env <- getPrettyEnv
@@ -1564,11 +1565,11 @@ inferOptionals infgamma (par:pars)
                 def  = Core.Def local partp init Private DefVal (binderNameRange par) ""
                 sub  = [(Core.TName (binderName par) tp, Core.Var (Core.TName local partp) Core.InfoNone)]
                 -- coref core
-                --   = Core.Let [Core.DefNonRec def] ((Core.|~>) sub core)
+                --   = Core.Let [Core.DefNonRec def] ((CoreVar.|~>) sub core)
 
             -- infer the rest
             (infgamma2,sub2,defs2) <- inferOptionals infgamma' pars
-            return (infgamma2,sub ++ sub2,def : ((Core.|~>) sub defs2))
+            return (infgamma2,sub ++ sub2,def : ((CoreVar.|~>) sub defs2))
 
 
 checkFun        = Check "function type does not match the argument types"

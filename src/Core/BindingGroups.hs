@@ -20,6 +20,7 @@ import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Failure(failure)
 import Common.Name
 import Core.Core
+import Core.CoreVar
 
 
 type Deps = M.Map TName TNames

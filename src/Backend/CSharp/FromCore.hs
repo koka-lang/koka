@@ -39,6 +39,7 @@ import Common.File(notdir)
 
 import Core.Core
 import Core.Pretty
+import Core.CoreVar
 import Type.Pretty(defaultEnv)
 -- import Lib.Trace ( trace )
 
@@ -643,8 +644,11 @@ genStatic tname m n targs mbArgs
                           putLn (text "goto recurse;")
                   _ -> result (kindCast ctx targs (typeOf (App (TypeApp (Var tname (InfoArity m n)) targs) args))
                                (hang 2 $ ppQName ctx (getName tname) <>
-                               (if (null targs) then empty else angled (map (ppType ctx) targs)) <//>
-                               ({- if (null args && null targs) then empty else -} tupled argDocs)))
+                                 (if (null targs) then empty else angled (map (ppType ctx) targs)) <//>
+                                 ({- if (null args && null targs) then empty else -} septupled argDocs)))
+
+septupled docs
+  = lparen <> vsep (punctuate (comma) docs) <> rparen
 
 isNothing Nothing = True
 isNothing _       = False

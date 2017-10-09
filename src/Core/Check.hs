@@ -25,6 +25,7 @@ import Common.Range
 import Core.Core hiding (check)
 import qualified Core.Core as Core
 import qualified Core.Pretty as PrettyCore
+import Core.CoreVar
 -- import Core.Monadic( monType )
 
 import Kind.Kind
@@ -45,6 +46,8 @@ checkCore mon prettyEnv uniq gamma  defGroups
       Check c -> case c uniq (CEnv mon gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
+
+
 
 
 {--------------------------------------------------------------------------

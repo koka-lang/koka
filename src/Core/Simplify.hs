@@ -25,6 +25,7 @@ import Type.TypeVar
 import Type.Pretty as Pretty
 import Core.Core
 import Core.Pretty
+import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
@@ -97,20 +98,25 @@ topDown (Let dgs body)
             -> -- trace ("simplify let: " ++ show x) $
                if (isTotalAndCheap se) 
                 then -- inline very small expressions
+                     -- trace (" inline small") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
                 Just (tpars,pars,_,_)  
                   | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
+                     -- trace (" inline once & applied") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body    
                 Just ([],pars,eff,fbody) | isSmall fbody -- App (Var _ _) args)  | all cheap args
                   -> -- inline functions that are direct applications to another function
+                     -- trace (" inline direct app") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- inline small total expressions
+                     -- trace (" inline small total once") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body                     
                 _ -> -- no inlining
+                     -- trace (" don't inline") $
                      topDownLet sub (sdg:acc) dgs body
 
     extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]

@@ -47,6 +47,7 @@ import Type.Type
 import Type.TypeVar
 import Type.Pretty
 import qualified Core.Core as Core
+import qualified Core.CoreVar as CoreVar
 
 -- import Lib.Trace
 
@@ -247,7 +248,7 @@ extractDef isVisible _
 coreDefInfo :: Core.Def -> (Name,NameInfo)
 coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
   = (Core.nonCanonicalName name,
-      createNameInfoX name (if (sort==DefFun && not (Core.isTopLevel def)) then DefVal else sort) nameRng tp)
+      createNameInfoX name (if (sort==DefFun && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
 

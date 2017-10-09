@@ -38,7 +38,8 @@ import Common.Syntax
 
 import Core.Core
 import Core.Pretty ()
-
+import Core.CoreVar
+  
 type CommentDoc   = Doc
 type ConditionDoc = Doc
 

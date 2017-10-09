@@ -407,6 +407,7 @@ var hsModules = [
   "Kind.Newtypes",
   "Kind.Assumption",
   "Core.Pretty",
+  "Core.CoreVar",
   "Type.Assumption",
   "Syntax.RangeMap",
   
