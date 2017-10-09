@@ -69,7 +69,7 @@ module Common.NamePrim
           , nameTpUnit, nameTpVoid
           , nameTpRef, nameRef
           , nameTpOptional
-          , nameTpArray, nameTpVector
+          , nameTpArray, nameTpVector, nameVector
 
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
@@ -158,6 +158,7 @@ nameIndex       = newName "[]"
 
 nameTpArray     = qualify (newName "std/array") (newName "array") 
 nameTpVector    = preludeName "vector"
+nameVector      = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 nameDecreasing  = preludeName "unsafe-decreasing"

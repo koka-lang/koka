@@ -736,7 +736,7 @@ operation singleShot vis foralls effTagName effTp opsTp
            tpParams    = [TpVar (tbinderName par) idrng | par <- foralls]
            opsConTpRes = makeTpApp opsTp tpParams rng
            opsConTpArg = makeTpApp (tpCon opBinder) tpParams rng
-           opsConArg   = ValueBinder opName opsConTpArg Nothing idrng idrng
+           opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
            opsConDef = UserCon (toOpsConName id) [] [(Private,opsConArg)] idrng rng vis ""
 
            -- Declare the operation tag name                            

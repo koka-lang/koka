@@ -2313,6 +2313,7 @@ extern vector( xs : list<a> ) : vector<a> {
 
 
 
+
 // ----------------------------------------------------------------------------
 // Delayed values
 // ----------------------------------------------------------------------------
@@ -2968,12 +2969,12 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   cs inline "Eff.Op.Bind<##1,##2>(#1,#2)"
 }
 
-extern inline ".yieldop"( effectTag : string, opTag : string, op : a ) : e yld<b> { 
+extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : e yld<b> { 
   cs inline "Eff.Op<##1,##2>.Yield(#1,#2,#3)"
   js "$std_core.Yield"
 }
 
-extern ".yieldop1"( efftag: string, op : a ) : e a {
+extern inline ".yieldop1"( efftag: string, op : a ) : e a {
   js inline "$yield_linearx(#1,#2)"
 }
 
@@ -3006,13 +3007,13 @@ extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
 type handler-branch0<a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
-                              branch : (resume : (result : a) -> <cps|e> b, op : c) -> <cps|e> b 
+                              branch : (resume : (result : a) -> e b, op : c) -> e b 
                             ) : total handler-branch0<b> {
   cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
 }
 
 extern ".makeHandler0"( effect-tag : string, 
-                        ret : a -> <cps|e> b,
+                        ret : a -> e b,
                         ops : vector<handler-branch0<b>>
                       ) : total ((action : () -> e1 a) -> e b) 
 {

@@ -441,7 +441,7 @@ extractArgs name expr
 
 
 etaExpand :: Expr -> [Expr] -> Int -> Asm Expr
-etaExpand fun [] 0 = return fun
+-- etaExpand fun [] 0 = return fun
 etaExpand fun args n
   = assertion "Backend.CSharp.FromCore.etaExpand" (n > length args || (n == 0 && null args)) $
     do names <- mapM (\i -> newVarName "x") [length args + 1 .. n]
@@ -614,14 +614,14 @@ kindCast ctx targs tp doc
 
 genStatic :: TName -> Int -> Int -> [Type] -> Maybe [Expr] -> Asm ()
 genStatic tname m n targs mbArgs
- = -- trace ("genStatic: " ++ show tname ++ show (m,n)) $
+ = trace ("genStatic: " ++ show tname ++ show (m,n)) $
    let args = case mbArgs of
                 Just xs -> xs
                 Nothing -> []
    in if (null args && m > length targs)
     then do teta <- tetaExpand (Var tname (InfoArity m n)) targs m
             genExpr teta
-   else if (n > length args && isNothing mbArgs)
+   else if ((n == 0 || n > length args) && isNothing mbArgs)
     then assertion ("CSharp.FromCore.genStatic: m /= targs: " ++ show tname ++ show (m,n)) (m == length targs) $
          do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
             genExpr eta
@@ -805,7 +805,7 @@ genExprBasic expr
             -> do d <- genInline e
                   ds <- genArguments (es)
                   -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
-                  result (d <> dot <> text "Call" <> tupled ds)
+                  result (d <> dot <> text "Call" <> tupled ds) -- sometimes C# cannot infer the types :-( (after a TypeApply)
           TypeApp e ts
             -> do d <- genInline e
                   result (parens (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "TypeApply"  <> angled (map (ppType ctx) ts) <> text "()")))
