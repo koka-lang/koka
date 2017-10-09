@@ -3005,6 +3005,7 @@ extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
 }
 
 type handler-branch0<a>
+type handler-branch1<s,a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b 
@@ -3012,12 +3013,26 @@ extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
   cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
 }
 
+extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
+                              branch : (resume : (state : s, result : a) -> e b, state : s, op : c) -> e b 
+                            ) : total handler-branch1<s,b> {
+  cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
+}
+
 extern ".makeHandler0"( effect-tag : string, 
                         ret : a -> e b,
-                        ops : vector<handler-branch0<b>>
+                        branches : vector<handler-branch0<b>>
                       ) : total ((action : () -> e1 a) -> e b) 
 {
   cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
+}
+
+extern ".makeHandler1"( effect-tag : string, 
+                        ret : (state : s, result : a) -> e b,
+                        branches : vector<handler-branch1<s,b>>
+                      ) : total ((initial-state : s, action : () -> e1 a) -> e b) 
+{
+  cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3)"
 }
 
 /*

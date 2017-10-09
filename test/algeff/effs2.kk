@@ -23,7 +23,6 @@ fun foo() : <amb,state<int>> bool {
 
  
 // handlers
-/*
 fun amb_handle() {
   handler {
     return x -> [x]
@@ -57,4 +56,3 @@ fun main() {
   test2().show.println
   test3().show.println
 }
-*/

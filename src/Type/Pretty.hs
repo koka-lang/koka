@@ -427,7 +427,7 @@ ppTypeVar env (TypeVar id kind flavour)
        (case flavour of 
          Meta   -> text "_" 
          Skolem -> text "$"
-         _      -> empty) <> nicePretty (nice env) id <> text (":" ++ show id)
+         _      -> empty) <> nicePretty (nice env) id -- <> text (":" ++ show id)
 
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)
