@@ -21,15 +21,6 @@ fun foo() : <amb,state<int>> bool {
   if (i>0 && p) then xor() else False
 }         
 
- 
-// handlers
-fun amb_handle() {
-  handler {
-    return x -> [x]
-    flip()   -> resume(False) + resume(True)
-  }
-}
-
 fun state_handle() {
   handler(i) {
     return x -> x
@@ -37,6 +28,14 @@ fun state_handle() {
     set(j)   -> resume(j,()) 
   }
 }
+
+fun amb_handle() {
+  handler {
+    return x -> [x]
+    flip()   -> resume(False) + resume(True)
+  }
+}
+
 
 fun test1() {
   amb_handle()(xor)

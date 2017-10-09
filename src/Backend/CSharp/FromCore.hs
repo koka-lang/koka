@@ -647,6 +647,17 @@ genStatic tname m n targs mbArgs
                                  (if (null targs) then empty else angled (map (ppType ctx) targs)) <//>
                                  ({- if (null args && null targs) then empty else -} septupled argDocs)))
 
+genDynamic :: Expr -> [Expr] -> Asm ()
+genDynamic v@(Var tname (InfoArity m n)) args
+  = genStatic tname m n [] (Just args)
+
+genDynamic f args
+  = do d <- genInline f
+       ds <- genArguments (args)
+       -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
+       trace ("dynamic call: " ++ show f) $
+        result (d <> dot <> text "Call" <> tupled ds) -- sometimes C# cannot infer the types :-( (after a TypeApply)
+
 septupled docs
   = lparen <> vsep (punctuate (comma) docs) <> rparen
 
@@ -806,10 +817,7 @@ genExprBasic expr
           Con tname repr
             -> genCon tname repr [] []
           App e es
-            -> do d <- genInline e
-                  ds <- genArguments (es)
-                  -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
-                  result (d <> dot <> text "Call" <> tupled ds) -- sometimes C# cannot infer the types :-( (after a TypeApply)
+            -> genDynamic e es
           TypeApp e ts
             -> do d <- genInline e
                   result (parens (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "TypeApply"  <> angled (map (ppType ctx) ts) <> text "()")))

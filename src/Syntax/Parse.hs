@@ -725,7 +725,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                        else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
 
            conName  = toOpConName id
-           conParams= [(pvis,par{ binderName = nameNil, binderExpr = Nothing }) | (pvis,par) <- pars]
+           conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
            conDef   = UserCon conName exists conParams idrng rng vis ""
 
            -- Declare the operation as a struct type with one constructor

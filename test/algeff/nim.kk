@@ -36,15 +36,15 @@ fun show(ps : list<player> ) : string {
 // --------------------------------------------------------
 
 effect nim {
-  move(player:player,sticks:int) : int
+  fun move(player:player,sticks:int) : int
 }
 
 
-fun aliceTurn(n) {
+fun aliceTurn(n : int) : <div,nim> player {
   if (n <= 0) then Bob else bobTurn( n - move(Alice,n) )
 }
 
-fun bobTurn(n) {
+fun bobTurn(n : int) : <div,nim> player {
   if (n <= 0) then Alice else aliceTurn( n - move(Bob,n) )
 }
 
@@ -114,7 +114,7 @@ fun testGt() {
 // --------------------------------------------------------
 
 effect cheating {
-  cheat<b>(player:player) : b
+  fun cheat<b>(player:player) : b
 }
 
 val cheatReport = handler {
@@ -165,7 +165,7 @@ fun testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  choose() : bool
+  fun choose() : bool
 }
 
 fun bobChooses(m) {
@@ -196,8 +196,8 @@ fun testCoin() {
 // --------------------------------------------------------
 
 effect state<s> {
-  get() : s;
-  put(x : s) : ()
+  fun get() : s;
+  fun put(x : s) : ()
 }
 
 val state = handler(s) {
@@ -242,7 +242,7 @@ fun testPrint1() {
 
 fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
-    return x -> if (n <= 1) then x else replay(n - 1, { action.incps } )
+    return x -> if (n <= 1) then x else replay(n - 1, action )
   }
 }
 

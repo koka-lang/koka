@@ -291,7 +291,8 @@ prettyPattern env pat
   = case pat of
       PatCon tname args repr targs _ info
                         -> -- pparens (prec env) precApp $
-                           prettyName env (getName tname) <> tupled (map (prettyPatternType (decPrec env)) (zip args targs))
+                           -- prettyName env (getName tname) 
+                           prettyTName env tname <> tupled (map (prettyPatternType (decPrec env)) (zip args targs))
       PatVar tname PatWild  -> prettyName env (getName tname)
       PatVar tname pat      -> pparens (prec env) precApp $
                                prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)

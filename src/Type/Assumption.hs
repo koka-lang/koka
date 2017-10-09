@@ -255,7 +255,7 @@ coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
 createNameInfoX :: Name -> DefSort -> Range -> Type -> NameInfo
 createNameInfoX name sort rng tp
   = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
-     if (sort /= DefFun) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
+    if (sort /= DefFun) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
   = createNameInfoX name (if isVal then DefVal else DefFun) rng tp

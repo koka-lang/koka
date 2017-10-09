@@ -221,10 +221,13 @@ getDataRepr maxStructFields info
         conInfos = dataInfoConstrs info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
+        hasExistentials = any (\con -> not (null (conInfoExists con))) conInfos
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
-         else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con) && null (conInfoExists con)) conInfos)
+         else if (hasExistentials) 
+          then (DataNormal, map (\con -> ConNormal typeName) conInfos)
+         else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos

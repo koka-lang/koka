@@ -3014,8 +3014,8 @@ extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
-                              branch : (resume : (state : s, result : a) -> e b, state : s, op : c) -> e b 
-                            ) : total handler-branch1<s,b> {
+                              branch : (resume : (new-local : l, result : a) -> e b, local : l, op : c) -> e b 
+                            ) : total handler-branch1<l,b> {
   cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
 }
 
@@ -3028,11 +3028,18 @@ extern ".makeHandler0"( effect-tag : string,
 }
 
 extern ".makeHandler1"( effect-tag : string, 
-                        ret : (state : s, result : a) -> e b,
-                        branches : vector<handler-branch1<s,b>>
-                      ) : total ((initial-state : s, action : () -> e1 a) -> e b) 
+                        ret : (local : l, result : a) -> e b,
+                        branches : vector<handler-branch1<l,b>>
+                      ) : total ((initial-local : l, action : () -> e1 a) -> e b) 
 {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3)"
+}
+
+fun ".makeHandlerRet0"( ignored-effect-tag : string,
+                           ret : (result : a) -> e b,
+                           ignored-branches : int
+                         ) : total ((action : () -> e a) -> e b) {
+  return fun(action){ ret(action()) }
 }
 
 /*
