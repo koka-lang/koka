@@ -3005,9 +3005,10 @@ extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
 
 type handler-branch0<a>
 
-extern "makeHandlerBranch0"( resume-kind : int32, op-tag : string,
-                              branch : (resume : a -> <cps|e> b, op : c) -> <cps|e> b ) : total handler-branch0<b> {
-  cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)#1,#2,#3)"
+extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
+                              branch : (resume : (result : a) -> <cps|e> b, op : c) -> <cps|e> b 
+                            ) : total handler-branch0<b> {
+  cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
 }
 
 extern ".makeHandler0"( effect-tag : string, 

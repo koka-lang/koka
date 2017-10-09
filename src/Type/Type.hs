@@ -29,7 +29,7 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
@@ -455,6 +455,10 @@ typeInt
 tconInt = (TypeCon nameTpInt (kindStar))
 isTypeInt (TCon tc) = tc == tconInt
 isTypeInt _         = False
+
+typeInt32 :: Tau
+typeInt32
+  = TCon (TypeCon nameTpInt32 kindStar)
 
 
 -- | Type of floats
