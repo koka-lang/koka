@@ -160,7 +160,12 @@ inferDefGroup topLevel (DefRec defs) cont
        mod <- getModuleName
        mapMDefs_ (\cdef -> addRangeInfoCoreDef topLevel mod (fst (find (Core.defNameRange cdef) coreMap)) cdef) coreGroups2
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
-       let coreGroups3 = coreGroups2
+       let sub = map (\cdef -> let tname    = Core.defTName cdef 
+                                   nameInfo = createNameInfoX (Core.defName cdef) DefFun (Core.defNameRange cdef) (Core.defType cdef)
+                                   varInfo  = coreVarInfoFromNameInfo nameInfo
+                                   var      = Core.Var tname varInfo
+                               in (tname, var)) (Core.flattenDefGroups coreGroups2)
+           coreGroups3 = (CoreVar.|~>) sub coreGroups2
        -- extend gamma
        x <- (if topLevel then extendGammaCore True {- already canonical -} else extendInfGammaCore False {-toplevel -}) coreGroups3 cont
        return (coreGroups3,x)

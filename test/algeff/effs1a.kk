@@ -1,10 +1,10 @@
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 effect state<s> {
-  get()  : s;
-  set(i:s) : ()
+  fun get()  : s
+  fun set(i:s) : ()
 }
 
 fun xor() : amb bool {

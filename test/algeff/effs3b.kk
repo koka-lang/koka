@@ -1,5 +1,5 @@
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 fun mmap( f, xs ) {

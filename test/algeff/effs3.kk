@@ -1,8 +1,8 @@
 // test name-clashes
 
 effect state<s> {
-  get()    : s;
-  set(x:s) : ()
+  fun get()    : s
+  fun set(x:s) : ()
 }
 
 val state = handler(s) {

@@ -1069,7 +1069,9 @@ handlerParams
                                         ++
                                         [(Nothing, (Var (binderName apar) False rng) )]
                                xxpars = [p | p <- xpars, not (isJust (binderExpr p))]
-                               hlam h = Lam (xxpars ++ [apar]) (App h xargs rng) rng
+                               hname  = newHiddenName "handler"
+                               hdef h = Def (ValueBinder hname () h rng rng) rng Private DefVal ""                                  
+                               hlam h = Let (DefNonRec (hdef h)) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
                            in hlam
                       else id
        return (hpars,hlam,rng)
