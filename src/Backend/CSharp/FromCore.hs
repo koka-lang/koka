@@ -1056,14 +1056,14 @@ genPattern doTest dpatterns einfo@(rtypeDoc,freeVars,freeTVars) genBody
            nextPatterns = concat nextPatternss
            ematches = concat ematchess
 
-           genPatBody = do if (null locals) then return () else putLn (vcat locals)
-                           genPattern doTest nextPatterns einfo genBody
+           genPatBody = do genPattern doTest nextPatterns einfo genBody
 
-           genPat = case ematches of
-                      [] -> genPatBody
-                      [(etypeDoc,typeDoc,local,exists)] 
-                        -> genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
-                      _ -> failure ("Backend.CSharp.FromCore.genPattern: sorry can only handle toplevel simple existential pattern matches")
+           genPat = do if (null locals) then return () else putLn (vcat locals)
+                       case ematches of
+                          [] -> genPatBody
+                          [(etypeDoc,typeDoc,local,exists)] 
+                            -> genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
+                          _ -> failure ("Backend.CSharp.FromCore.genPattern: sorry can only handle toplevel simple existential pattern matches")
 
        if (null tests)
         then do genPat
@@ -1168,15 +1168,16 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                           return [(test [ppDefName local <+> text "!= null"],[],next,[])]
                   Just tagDoc
                     -> trace ("make wrapper? " ++ show tname) $
-                       do let ematch
+                       do let localCast
+                                   = -- tests show that a cast is faster than "as" here !?!
+                                     typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi
+                              ematch
                                    = if (null exists) then []
                                         else trace (" use wrapper? " ++ show tname) $ 
                                              let etypeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx (tpars ++ map TVar exists)
                                              in [(etypeDoc,typeDoc,local,exists)]
-                              cast = if (null next)
-                                      then []
-                                           -- tests show that a cast is faster than "as" here !?!
-                                      else [typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi]
+                              cast = if (null next && null ematch)
+                                      then [] else [localCast]
                           return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],cast,next,ematch)]
 
 
