@@ -102,7 +102,7 @@ instance HasExpVar Pattern where
     = S.empty
   bv pat
     = case pat of
-        PatCon tname args _ _ _ _ -> bv args
+        PatCon tname args _ _ _ _ _ -> bv args
         PatVar tname pat         -> S.union (S.singleton tname) (bv pat)
         PatWild                  -> S.empty
         PatLit lit               -> S.empty

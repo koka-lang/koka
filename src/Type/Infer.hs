@@ -290,6 +290,10 @@ addDivergentEffect coreDefs0
 {--------------------------------------------------------------------------
   Definition
 --------------------------------------------------------------------------}
+
+-- TODO: for multiple recursive definitions, the "typeapp" substitution fails; we should
+-- collect all substitions and apply them all definitions afterwards; similarly for the 
+-- VarInfo's that are now done separately
 inferRecDef2 :: Bool -> Core.Def -> Bool -> (Def Type,Maybe (Name,Type)) -> Inf (Core.Def)
 inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
    = -- trace (" infer rec def: " ++ (if divergent then "div " else "") ++ show (defName def) ++ ": " ++ show (Core.defType coreDef)) $
@@ -1419,25 +1423,25 @@ inferVarX propagated expect name rng qname1 tp1 info1
 
 inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf (Type,Effect,Core.Branch)
 inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
-  = do (pcore,infGamma) <- inferPattern matchType matchRange pattern
-       -- infGamma <- extractInfGamma pcore
-       extendInfGamma False infGamma $
-        do -- check guard expression
-           (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange guard)) Instantiated guard
-           inferUnify (checkGuardTotal (getRange branch)) (getRange guard) typeTotal geff
-           inferUnify (checkGuardBool (getRange branch)) (getRange guard) typeBool gtp
-           -- check branch expression
-           (btp,beff,bcore) <- inferExpr propagated Instantiated expr
-           resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
-           -- check for unused pattern variables
-           let defined = CoreVar.bv pcore
-               free    = S.fromList $ map Core.getName $ S.toList $ S.union (CoreVar.fv gcore) (CoreVar.fv bcore)
-           case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
-             [] -> return ()
-             (name:_) -> do env <- getPrettyEnv
-                            infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
-                                                         text " hint: prepend an underscore to make it a wildcard pattern")
-           return (btp,beff,resCore)
+  = inferPattern matchType (getRange branch) pattern $ \pcore infGamma ->
+     -- infGamma <- extractInfGamma pcore
+     extendInfGamma False infGamma $
+      do -- check guard expression
+         (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange guard)) Instantiated guard
+         inferUnify (checkGuardTotal (getRange branch)) (getRange guard) typeTotal geff
+         inferUnify (checkGuardBool (getRange branch)) (getRange guard) typeBool gtp
+         -- check branch expression
+         (btp,beff,bcore) <- inferExpr propagated Instantiated expr
+         resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
+         -- check for unused pattern variables
+         let defined = CoreVar.bv pcore
+             free    = S.fromList $ map Core.getName $ S.toList $ S.union (CoreVar.fv gcore) (CoreVar.fv bcore)
+         case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
+           [] -> return ()
+           (name:_) -> do env <- getPrettyEnv
+                          infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
+                                                       text " hint: prepend an underscore to make it a wildcard pattern")
+         return (btp,beff,resCore)
   where
     extractInfGamma :: Core.Pattern -> Inf [(Name,Type)]
     extractInfGamma pattern
@@ -1445,40 +1449,70 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
           Core.PatVar (Core.TName name tp) pat -> do stp <- subst tp
                                                      xs  <- extractInfGamma pat
                                                      return ((name,stp) : xs)
-          Core.PatCon _ args _ _ _ _       -> do xss <- mapM extractInfGamma args
+          Core.PatCon _ args _ _ _ _ _     -> do xss <- mapM extractInfGamma args
                                                  return (concat xss)
           Core.PatWild                     -> return []
           Core.PatLit _                    -> return []
 
-inferPattern :: Type -> Range -> Pattern Type -> Inf (Core.Pattern,[(Name,NameInfo)])
-inferPattern matchType matchRange (PatCon name patterns0 nameRange range)
+inferPatternX :: Type -> Range -> Pattern Type -> Inf (Core.Pattern,[(Name,NameInfo)])
+inferPatternX matchType branchRange pattern
+  = do (_,_,res) <- inferPattern matchType branchRange pattern $ \pcore infGamma -> return (typeVoid,typeVoid,(pcore,infGamma))
+       return res
+
+inferPattern :: Type -> Range -> Pattern Type -> (Core.Pattern -> [(Name,NameInfo)] -> Inf (Type,Effect,a))
+                  -> Inf (Type,Effect,a)
+inferPattern matchType branchRange (PatCon name patterns0 nameRange range) inferBranchCont
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp) False)
+       traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <> text ":" <+> ppType env gconTp
+       
+       useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->       
+        do -- (conRho,tvars,_) <- instantiate range gconTp
+           let (conParTps,conResTp) = splitConTp conRho
+           inferUnify (checkConMatch range) nameRange conResTp matchType
+           patterns <- matchPatterns range nameRange conRho conParTps patterns0
+                       {-
+                       if (length conParTps < length patterns0)
+                        then do typeError range nameRange (text "constructor has too many arguments") (conTp) []
+                                return (take (length conParTps) patterns0)
+                        else return (patterns0 ++ (replicate (length conParTps - length patterns0) (Nothing,PatWild range)))
+                       -}
+           (cpatterns,infGammas) <- fmap unzip $ mapM (\(parTp,pat) ->
+                                                   do sparTp <- subst parTp
+                                                      inferPatternX sparTp branchRange pat) 
+                                            (zip (map snd conParTps) (patterns))
+                        
+           let pcore     = Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) xvars conResTp coninfo
+               infGamma  = concat infGammas
+           (btp,beff,bcore) <- inferBranchCont pcore infGamma
+           return ((btp,beff,bcore), ftv btp `tvsUnion` ftv beff)
+  where
+    useSkolemizedCon :: ConInfo -> Type -> Range -> Range -> (Rho -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
+    useSkolemizedCon coninfo gconTp range nameRange cont  | null (conInfoExists coninfo)
+      = do (conRho,_,_) <- instantiate nameRange gconTp
+           (res,_) <- cont conRho []
+           return res
 
-       -- let conXTp = TForall (conInfoExists coninfo) [] (TFun (conInfoParams coninfo) (effectFixed [opsEffTp]) conResTp)
-       (conTp,tvars,_) <- instantiate range gconTp
-       let (conParTps,conResTp) = splitConTp conTp
-       inferUnify (checkConMatch range) nameRange conResTp matchType
-       patterns <- matchPatterns range nameRange conTp conParTps patterns0
-                   {-
-                   if (length conParTps < length patterns0)
-                    then do typeError range nameRange (text "constructor has too many arguments") (conTp) []
-                            return (take (length conParTps) patterns0)
-                    else return (patterns0 ++ (replicate (length conParTps - length patterns0) (Nothing,PatWild range)))
-                   -}
-       (cpatterns,infGamma) <- fmap unzip $ mapM (\(parTp,pat) ->
-                                         do sparTp <- subst parTp
-                                            inferPattern sparTp matchRange pat) (zip (map snd conParTps) (patterns))
-       return (Core.PatCon (Core.TName qname conTp) cpatterns repr (map snd conParTps) conResTp coninfo, concat infGamma)
+    useSkolemizedCon coninfo gconTp range nameRange cont  
+      = do conResTp <- Op.freshTVar kindStar Meta
+           let conExistsTp = TForall (conInfoExists coninfo) [] (TFun (conInfoParams coninfo) typeTotal conResTp)
+           withSkolemized range conExistsTp Nothing $ \conXRho0 xvars ->
+            do conXRho <- Op.instantiate nameRange (TForall (conInfoForalls coninfo) [] conXRho0)
+               (iconRho,_,_)  <- instantiate nameRange gconTp
+               traceDoc $ \env -> text " conXRho:" <+> ppType env conXRho <+> text ", versus iconRho:" <+> ppType env iconRho
+               inferUnify (checkOp range) nameRange conXRho iconRho
+               conRho <- subst iconRho
+               cont conRho xvars
 
-inferPattern matchType matchRange (PatVar binder)
+
+inferPattern matchType branchRange (PatVar binder) inferBranchCont
   = do {-
        mb <- lookupConName (binderName binder) (binderType binder) (binderNameRange binder)
        case mb of
          Just (qname,conTp,info)
            -- it is actually a constructor
            -> do checkCasing (binderNameRange binder) (binderName binder) qname info
-                 inferPattern matchType matchRange (PatCon qname [] (binderNameRange binder) (binderNameRange binder))
+                 inferPattern matchType branchRange (PatCon qname [] (binderNameRange binder) (binderNameRange binder))
          Nothing
            -- it is a variable indeed
            -> -}
@@ -1486,29 +1520,30 @@ inferPattern matchType matchRange (PatVar binder)
                  case (binderType binder) of
                    Just tp -> inferUnify (checkAnn (getRange binder)) (binderNameRange binder) matchType tp
                    Nothing -> return ()
-                 (cpat,infGamma) <- inferPattern matchType matchRange (binderExpr binder)
-                 return (Core.PatVar (Core.TName (binderName binder) matchType) cpat, [(binderName binder,(createNameInfoX (binderName binder) DefVal (binderNameRange binder) matchType))] ++ infGamma)
+                 (cpat,infGamma) <- inferPatternX matchType branchRange (binderExpr binder)
+                 inferBranchCont (Core.PatVar (Core.TName (binderName binder) matchType) cpat) 
+                                 ([(binderName binder,(createNameInfoX (binderName binder) DefVal (binderNameRange binder) matchType))] ++ infGamma)
 
-inferPattern matchType matchRange (PatWild range)
-  = return (Core.PatWild,[])
+inferPattern matchType branchRange (PatWild range) inferBranchCont
+  = inferBranchCont Core.PatWild []
 
-inferPattern matchType matchRange (PatAnn pat tp range)
-  = do res <- inferPattern tp range pat
-       inferUnify (checkAnn range) (getRange pat) matchType tp  -- TODO: improve error message
-       return res
+inferPattern matchType branchRange (PatAnn pat tp range) inferBranchCont
+  = inferPattern tp range pat $ \pcore infGamma ->
+      do inferUnify (checkAnn range) (getRange pat) matchType tp  -- TODO: improve error message
+         inferBranchCont pcore infGamma
 
-inferPattern matchType matchRange (PatParens pat range)
-  = inferPattern matchType matchRange pat
+inferPattern matchType branchRange (PatParens pat range) inferBranchCont
+  = inferPattern matchType branchRange pat inferBranchCont
 
-inferPattern matchType matchRange (PatLit lit)
+inferPattern matchType branchRange (PatLit lit) inferBranchCont
   = let pat = case lit of
                 LitInt i _  -> (Core.PatLit (Core.LitInt i))
                 LitChar c _  -> (Core.PatLit (Core.LitChar c))
                 LitFloat f _  -> (Core.PatLit (Core.LitFloat f))
                 LitString s _  -> (Core.PatLit (Core.LitString s))
-    in return (pat,[])
+    in inferBranchCont pat []
 {-
-inferPattern matchType matchRange pattern
+inferPattern matchType branchRange pattern
   = todo ("Type.Infer.inferPattern")
 -}
 
@@ -1573,6 +1608,7 @@ inferOptionals infgamma (par:pars)
                                                     [Core.PatVar tempName Core.PatWild]
                                                     (coreReprOpt)
                                                     [tp]
+                                                    []
                                                     coreResTp
                                                     conInfoOpt
                                       ]

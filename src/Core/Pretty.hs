@@ -289,10 +289,15 @@ prettyPatternType env (pat,tp)
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
   = case pat of
-      PatCon tname args repr targs _ info
+      PatCon tname args repr targs exists _ info
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname) 
-                           prettyTName env tname <> tupled (map (prettyPatternType (decPrec env)) (zip args targs))
+                           let env' = env { nice = niceTypeExtendVars exists (nice env) }
+                           in prettyTName env tname <> 
+                               (if (null exists) then empty 
+                                 else angled (map (ppTypeVar env') exists)) <>
+                               tupled (map (prettyPatternType (decPrec env')) (zip args targs))
+
       PatVar tname PatWild  -> prettyName env (getName tname)
       PatVar tname pat      -> pparens (prec env) precApp $
                                prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)

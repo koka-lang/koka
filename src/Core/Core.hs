@@ -88,7 +88,7 @@ patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool tag
         conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False ""
-        pat = PatCon tname [] conEnum [] typeBool conInfo
+        pat = PatCon tname [] conEnum [] [] typeBool conInfo
         expr = Con tname conEnum
     in (pat,expr)
 
@@ -349,7 +349,7 @@ data Guard  = Guard { guardTest :: Expr
                     }
 
 data Pattern
-  = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patTypeRes :: Type, patConInfo :: ConInfo }
+  = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patExists :: [TypeVar], patTypeRes :: Type, patConInfo :: ConInfo }
   | PatVar{ patName :: TName, patPattern :: Pattern }
   | PatLit{ patLit :: Lit }
   | PatWild
@@ -474,7 +474,9 @@ instance HasTypeVar Pattern where
   sub `substitute` pat
     = case pat of
         PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
-        PatCon tname args repr tps restp info -> PatCon (sub `substitute` tname) (sub `substitute` args) repr (sub `substitute` tps) (sub `substitute` restp) info
+        PatCon tname args repr tps exists restp info 
+          -> let sub' = subRemove exists sub
+             in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info
         PatWild           -> PatWild
         PatLit lit        -> pat
 
@@ -482,14 +484,14 @@ instance HasTypeVar Pattern where
   ftv pat
     = case pat of
         PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
-        PatCon tname args _ targs tres _ -> tvsUnions [ftv tname,ftv args,ftv targs,ftv tres]
+        PatCon tname args _ targs exists tres _ -> tvsRemove exists (tvsUnions [ftv tname,ftv args,ftv targs,ftv tres])
         PatWild             -> tvsEmpty
         PatLit lit          -> tvsEmpty
 
   btv pat
     = case pat of
         PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
-        PatCon tname args _ targs tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres]
+        PatCon tname args _ targs exists tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres,tvsNew exists]
         PatWild                 -> tvsEmpty
         PatLit lit              -> tvsEmpty
 
