@@ -225,6 +225,7 @@ genConstructor info dataRepr ((con,vis),conRepr) =
 
     _  -> onTopLevel $
           do ctx <- getModule
+             conExistsMatch ctx (conInfoExists con)
              let ppConType = ppDefName (conClassName (conInfoName con)) <> ppTypeParams (dataInfoParams info ++ conInfoExists con)
              putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon <+>
                       (ppQName ctx (typeClassName (dataInfoName info))) <> ppTypeParams (dataInfoParams info) <+>
@@ -257,13 +258,28 @@ genConstructor info dataRepr ((con,vis),conRepr) =
                   text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
 
 
+    conExistsMatch ctx [] = return ()
+    conExistsMatch ctx exists
+      = do let ppConType = ppDefName (conClassName (conInfoName con)) <> ppTypeParams (dataInfoParams info)
+           putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon <+>
+                      (ppQName ctx (typeClassName (dataInfoName info))) <> ppTypeParams (dataInfoParams info) <+>
+                   block ( linebreak <> vcat
+                         ( ppConConstructorEx ctx con conRepr [] []
+                         )
+                        )
+                 )
+           
 ppConField :: ModuleName -> (Name,Type) -> Doc
 ppConField ctx (name,tp)
   = text "public readonly" <+> ppType ctx tp <+> ppQName ctx name <> semi
 
 ppConConstructor :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [Doc]
 ppConConstructor ctx con conRepr defaults
-  = if (null (conInfoParams con) && not (isConNormal conRepr))
+  = ppConConstructorEx ctx con conRepr (conInfoParams con) defaults
+
+ppConConstructorEx :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [(Name,Type)] -> [Doc]
+ppConConstructorEx ctx con conRepr conParams defaults
+  = if (null conParams && not (isConNormal conRepr))
      then []
      else [text "public" <+>
            (case conRepr of
@@ -280,7 +296,7 @@ ppConConstructor ctx con conRepr defaults
               (case conRepr of
                  ConStruct typeName _ -> [text "this." <> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <> semi]
                  _             -> [])
-              ++ map ppAssignConField (conInfoParams con)
+              ++ map ppAssignConField conParams
               ++ map (ppAssignDefault ctx) defaults
              )
           )]

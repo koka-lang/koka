@@ -10,8 +10,8 @@ val bexpr : expr<bool> =  App(Lit((pos? : int -> bool)),Lit(42))
 fun eval(expr : expr<a>) : a {
   match(expr) {
     Lit(x)    -> x
-    If(p,t,e) -> if (p.eval) then t.eval else e.eval
     App(f,x)  -> (f.eval)(x.eval)
+    If(p,t,e) -> if (p.eval) then t.eval else e.eval
   }
 }
 
