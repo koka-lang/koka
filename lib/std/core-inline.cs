@@ -921,3 +921,19 @@ public interface Fun7<in A1, in A2, in A3, in A4, in A5, in A6, in A7, in B>
 {
   object Apply(A1 x1, A2 x2, A3 x3, A4 x4, A5 x5, A6 x6, A7 x7);
 }
+
+
+public interface ExistsApply1<in A>
+{
+  object ExistsApply<E>(A x);
+}
+
+public interface ExistsApply2<in A>
+{
+  object ExistsApply<E1,E2>( A x );
+}
+
+public interface ExistsApply3<in A>
+{
+  object ExistsApply<E1,E2,E3>( A x );
+}

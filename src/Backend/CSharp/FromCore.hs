@@ -225,13 +225,14 @@ genConstructor info dataRepr ((con,vis),conRepr) =
 
     _  -> onTopLevel $
           do ctx <- getModule
-             conExistsMatch ctx (conInfoExists con)
+             (ppSuper,matchMethods) <- conExistsMatch ctx (conInfoExists con)
              let ppConType = ppDefName (conClassName (conInfoName con)) <> ppTypeParams (dataInfoParams info ++ conInfoExists con)
-             putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon <+>
-                      (ppQName ctx (typeClassName (dataInfoName info))) <> ppTypeParams (dataInfoParams info) <+>
+             putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon 
+                      <+> ppSuper <> ppTypeParams (dataInfoParams info) <+>
                    block ( linebreak <> vcat
                          (map (ppConField ctx) (conInfoParams con) ++
-                          ppConConstructor ctx con conRepr []
+                          ppConConstructor ctx con conRepr [] ++
+                          matchMethods
                          )
                         )
                  )
@@ -258,16 +259,29 @@ genConstructor info dataRepr ((con,vis),conRepr) =
                   text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
 
 
-    conExistsMatch ctx [] = return ()
     conExistsMatch ctx exists
-      = do let ppConType = ppDefName (conClassName (conInfoName con)) <> ppTypeParams (dataInfoParams info)
-           putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon <+>
-                      (ppQName ctx (typeClassName (dataInfoName info))) <> ppTypeParams (dataInfoParams info) <+>
-                   block ( linebreak <> vcat
-                         ( ppConConstructorEx ctx con conRepr [] []
-                         )
-                        )
-                 )
+      = let super = ppQName ctx (typeClassName (dataInfoName info))
+        in if (null exists)
+            then return (super,[])
+            else do let ppConName = ppDefName (conClassName (conInfoName con))
+                        ppConType = ppConName <> ppTypeParams (dataInfoParams info)  
+                        ppExistsMatchMethodHeader 
+                          = text "object ExistsMatch" <> parens (ppExistsApplyType (length exists) ppConType <+> text "_match")             
+                    putLn (ppVis vis <+> text "abstract class" <+> ppConType <+> colon <+> super <> ppTypeParams (dataInfoParams info) <>                        
+                             block (linebreak <> vcat
+                                    [text "public" <+> ppConName <> parens (ppTagType ctx (dataInfoName info) <+> text "_tag")
+                                        <+> text ": base(_tag) { }"
+                                    ,text "public abstract" <+> ppExistsMatchMethodHeader <> semi
+                                    ]
+                                   )
+                           )
+                    let ppExistsMatchMethod 
+                          = text "public override" <+> ppExistsMatchMethodHeader 
+                              <+> block (linebreak <> text "return _match.ExistsApply" <> ppTypeParams exists <> parens (text "this") <> semi)
+                    return (ppConName, [ppExistsMatchMethod])
+
+ppExistsApplyType :: Int -> Doc -> Doc
+ppExistsApplyType i tp = text ("ExistsApply" ++ show i) <> angled [tp]
            
 ppConField :: ModuleName -> (Name,Type) -> Doc
 ppConField ctx (name,tp)
@@ -1078,7 +1092,7 @@ genPattern doTest dpatterns einfo@(rtypeDoc,freeVars,freeTVars) genBody
                        case ematches of
                           [] -> genPatBody
                           [(etypeDoc,typeDoc,local,exists)] 
-                            -> genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
+                            -> genExistsApply etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
                           _ -> failure ("Backend.CSharp.FromCore.genPattern: sorry can only handle toplevel simple existential pattern matches")
 
        if (null tests)
@@ -1087,13 +1101,13 @@ genPattern doTest dpatterns einfo@(rtypeDoc,freeVars,freeTVars) genBody
                 indented genPat
                 putLn (text "}")
 
-genExistsMatch ::  Doc -> Doc -> Doc -> Name -> [TypeVar] -> [TypeVar] -> [(Name,Type)] -> Asm () -> Asm ()
-genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genRetE
+genExistsApply ::  Doc -> Doc -> Doc -> Name -> [TypeVar] -> [TypeVar] -> [(Name,Type)] -> Asm () -> Asm ()
+genExistsApply etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genRetE
   = do ctx     <- getModule
        funname <- getCurrentDef
        name    <- genName funname
        let newType = ppQName ctx name <> ppTypeParams freeTVars
-       genClass name freeTVars freeVars (text "ExistsMatch" <> pretty (length exists)) 
+       genClass name freeTVars freeVars (ppExistsApplyType (length exists) typeDoc) 
                 (genExistsApplyMethod etypeDoc typeDoc local exists genRetE)
        let inst = if null freeVars
                      then (newType <> dot <> ppSingletonName)
