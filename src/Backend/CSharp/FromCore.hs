@@ -1021,46 +1021,80 @@ genTag (exprDoc,patterns)
     isConMatch _                                  = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
-genBranch mbTagDocs exprDocs doTest (Branch patterns [Guard guard expr]) -- TODO: adapt for multiple guards!
-  = genPattern doTest (zip3 mbTagDocs exprDocs patterns) id (genGuard guard expr)
+genBranch mbTagDocs exprDocs doTest branch@(Branch patterns [g@(Guard guard expr)]) -- TODO: adapt for multiple guards!
+  = do ctx <- getModule
+       let rtypeDoc = ppType ctx (typeOf expr)
+           freeVars = localFv branch -- overestimate..
+           freeTVars= tvsList (ftv branch)
+       genPattern doTest (zip3 mbTagDocs exprDocs patterns) (rtypeDoc,freeVars,freeTVars) (genGuard guard expr)
 genBranch _ _ _ _
   = fail "Backend.CSharp.FromCore.genBranch: multiple guards not implemented"
 
-genGuard guard expr wrapper
+genGuard :: Expr -> Expr -> Asm ()
+genGuard guard expr 
   = case guard of
       Con tname repr | getName tname == nameTrue
-        -> genExpr (wrapper expr)
+        -> genExpr expr
       _ -> do gdoc <- withIdOne $ genExpr guard  -- TODO: wrap the guard for existentials
               do putLn (text "if" <+> parens (gdoc))
-                 genScoped (wrapper expr)
+                 genScoped expr
 
+genScoped :: Expr -> Asm ()
 genScoped expr
   = do putLn (text "{")
        indented (genExpr expr)
        putLn (text "}")
        return ()
 
-genPattern :: Bool -> [(Maybe Doc,Doc,Pattern)] -> (Expr -> Expr) -> ((Expr -> Expr) -> Asm ()) -> Asm ()
-genPattern doTest [] wrapper genBody
-  = genBody wrapper
-genPattern doTest dpatterns wrapper genBody
-  = do (testss,localss,nextPatternss,wrappers) <- fmap (unzip4 . concat) $ mapM (genPatternTest doTest) dpatterns
+genPattern :: Bool -> [(Maybe Doc,Doc,Pattern)] -> (Doc,[(Name,Type)],[TypeVar]) -> Asm () -> Asm ()
+genPattern doTest [] einfo genBody
+  = genBody 
+genPattern doTest dpatterns einfo@(rtypeDoc,freeVars,freeTVars) genBody
+  = do (testss,localss,nextPatternss,ematchess) <- fmap (unzip4 . concat) $ mapM (genPatternTest doTest) dpatterns
        let tests = concat testss
            locals = concat localss
            nextPatterns = concat nextPatternss
-           wrapper' = foldl (.) wrapper wrappers
+           ematches = concat ematchess
 
-           genPat = do if (null locals)
-                        then return ()
-                        else putLn (vcat locals)
-                       genPattern doTest nextPatterns wrapper' genBody
+           genPatBody = do if (null locals) then return () else putLn (vcat locals)
+                           genPattern doTest nextPatterns einfo genBody
+
+           genPat = case ematches of
+                      [] -> genPatBody
+                      [(etypeDoc,typeDoc,local,exists)] 
+                        -> genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
+                      _ -> failure ("Backend.CSharp.FromCore.genPattern: sorry can only handle toplevel simple existential pattern matches")
+
        if (null tests)
         then do genPat
         else do putLn (text "if" <+> parens (hcat (punctuate (text "&&") tests)) <+> text "{")
                 indented genPat
                 putLn (text "}")
 
-genPatternTest :: Bool -> (Maybe Doc,Doc,Pattern) -> Asm [([Doc],[Doc],[(Maybe Doc,Doc,Pattern)],Expr -> Expr)]
+genExistsMatch ::  Doc -> Doc -> Doc -> Name -> [TypeVar] -> [TypeVar] -> [(Name,Type)] -> Asm () -> Asm ()
+genExistsMatch etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genRetE
+  = do ctx     <- getModule
+       funname <- getCurrentDef
+       name    <- genName funname
+       let newType = ppQName ctx name <> ppTypeParams freeTVars
+       genClass name freeTVars freeVars (text "ExistsMatch" <> pretty (length exists)) 
+                (genExistsApplyMethod etypeDoc typeDoc local exists genRetE)
+       let inst = if null freeVars
+                     then (newType <> dot <> ppSingletonName)
+                     else (text "new" <+> newType <> ppArgs (map fst freeVars))
+       result (parens rtypeDoc <> ppDefName local <> dot <> text "ExistsMatch" <> parens inst)
+
+genExistsApplyMethod :: Doc -> Doc -> Name -> [TypeVar] -> Asm() -> Asm ()
+genExistsApplyMethod etypeDoc typeDoc local exists genRetE
+  = do putLn (text "public object ExistsApply" <> ppTypeParams exists <> parens (typeDoc <+> text "_ex"))
+       putLn (text "{")
+       indented $ 
+         do putLn (etypeDoc <+> ppDefName local <+> text "= " <> parens etypeDoc <> text "_ex;")
+            withReturn False $ genRetE
+       putLn (text "}")
+
+
+genPatternTest :: Bool -> (Maybe Doc,Doc,Pattern) -> Asm [([Doc],[Doc],[(Maybe Doc,Doc,Pattern)],[(Doc,Doc,Name,[TypeVar])])]
 genPatternTest doTest (mbTagDoc,exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
@@ -1069,18 +1103,18 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
         -> do ctx <- getModule
               let after = ppType ctx (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <> semi
                   next  = genNextPatterns (ppDefName (getName tname)) (typeOf tname) [pattern]
-              return [([],[after],next,id)]
+              return [([],[after],next,[])]
       PatLit lit
-        -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[],id)]
+        -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[],[])]
       PatCon tname patterns repr targs exists tres info
         -> do ctx <- getModule
               case repr of
                  ConEnum _ _
                   -> assertion "CSharp.FromCore.ppPatternTest.enum with patterns?" (null patterns) $
-                     return [(test [exprDoc <+> text "==" <+> ppConEnum ctx tname],[],[],id)]
+                     return [(test [exprDoc <+> text "==" <+> ppConEnum ctx tname],[],[],[])]
                  ConSingleton typeName _
                   -> assertion "CSharp.FromCore.ppPatternTest.singleton with patterns?" (null patterns) $
-                     return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[],id)]
+                     return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[],[])]
                  ConSingle typeName _
                   -> -- assertion ("CSharp.FromCore.ppPatternTest.single with test? ")  (doTest == False) $
                      -- note: the assertion can happen when a nested singleton is tested
@@ -1089,15 +1123,13 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         -- local <- newVarName (show (unqualify (getName tname)))
                         let next = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [([] -- test [exprDoc <+> text "!=" <+> ppConSingleton ctx typeName (TName nilName (typeOf tname)) targs]
-                                ,[]
-                                ,next,id)]
+                                ,[],next,[])]
 
                  ConAsCons typeName nilName _
                   -> do let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]
-                                ,[]
-                                ,next,id)]
+                                ,[],next,[])]
                  ConStruct typeName _
                   -> testStruct typeName
                  ConIso typeName _
@@ -1113,7 +1145,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                Just tagDoc
                 -> do ctx <- getModule
                       let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
-                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next,id)]
+                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next,[])]
           tpars
             = case expandSyn tres of
                 TApp _ targs -> targs
@@ -1133,20 +1165,19 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                                  (if (doTest)
                                    then parens exprDoc <+> text "as" <+> typeDoc <> semi
                                    else parens typeDoc <> parens exprDoc <> semi))
-                          return [(test [ppDefName local <+> text "!= null"],[],next,id)]
+                          return [(test [ppDefName local <+> text "!= null"],[],next,[])]
                   Just tagDoc
                     -> trace ("make wrapper? " ++ show tname) $
-                       do let wrapper expr 
-                                   = if (null exists) then expr 
+                       do let ematch
+                                   = if (null exists) then []
                                         else trace (" use wrapper? " ++ show tname) $ 
-                                              App (TypeApp (Var (TName (newName ".match") typeVoid) 
-                                                                (InfoExternal [(CS,"(##1)Match(#1)")] )) 
-                                                    [typeOf expr]) [TypeLam exists expr]
+                                             let etypeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx (tpars ++ map TVar exists)
+                                             in [(etypeDoc,typeDoc,local,exists)]
                               cast = if (null next)
                                       then []
                                            -- tests show that a cast is faster than "as" here !?!
                                       else [typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi]
-                          return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],cast,next,wrapper)]
+                          return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],cast,next,ematch)]
 
 
 genNextPatterns :: Doc -> Type -> [Pattern] -> [(Maybe Doc,Doc,Pattern)]
