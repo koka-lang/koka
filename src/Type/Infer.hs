@@ -1021,7 +1021,7 @@ checkCoverage rng effect branches
 
     checkCoverageOf :: Range -> [Name] -> [Name] -> Inf ()
     checkCoverageOf rng opNames branchNames
-      = trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
+      = -- trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
         case opNames of
           [] -> if null branchNames
                  then return ()
@@ -1464,7 +1464,7 @@ inferPattern :: Type -> Range -> Pattern Type -> (Core.Pattern -> [(Name,NameInf
 inferPattern matchType branchRange (PatCon name patterns0 nameRange range) inferBranchCont
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp) False)
-       traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <> text ":" <+> ppType env gconTp
+       -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <> text ":" <+> ppType env gconTp
        
        useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->       
         do -- (conRho,tvars,_) <- instantiate range gconTp
@@ -1495,7 +1495,7 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) infer
 
     useSkolemizedCon coninfo gconTp range nameRange cont  
       = do conResTp <- Op.freshTVar kindStar Meta
-           let conExistsTp = TForall (conInfoExists coninfo) [] (TFun (conInfoParams coninfo) typeTotal conResTp)
+           let conExistsTp = TForall (conInfoExists coninfo) [] (if (null (conInfoParams coninfo)) then conResTp else TFun (conInfoParams coninfo) typeTotal conResTp)
            withSkolemized range conExistsTp Nothing $ \conXRho0 xvars ->
             do conXRho <- Op.instantiate nameRange (TForall (conInfoForalls coninfo) [] conXRho0)
                (iconRho,_,_)  <- instantiate nameRange gconTp

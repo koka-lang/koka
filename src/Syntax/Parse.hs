@@ -729,7 +729,7 @@ operation singleShot vis foralls effTagName effTp opsTp
            conDef   = UserCon conName exists conParams idrng rng vis ""
 
            -- Declare the operation as a struct type with one constructor
-           opTpDecl = trace ("declare op type: " ++ show opName) $
+           opTpDecl = -- trace ("declare op type: " ++ show opName) $
                       DataType opBinder foralls [conDef] rng vis Inductive DataDefNormal False doc
 
            -- Declare the operation constructor for part of the full operations data type
@@ -745,7 +745,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                               idrng vis DefVal ""
 
            -- Declare the yield operation
-           opDef  = trace ("create op def: " ++ show id) $
+           opDef  = -- trace ("create op def: " ++ show id) $
                     let def  = Def binder rng vis DefFun ""
                         nameRng   = idrng
                         tag       = Var opTagName False idrng

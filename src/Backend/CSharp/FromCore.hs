@@ -627,7 +627,7 @@ kindCast ctx targs tp doc
 
 genStatic :: TName -> Int -> Int -> [Type] -> Maybe [Expr] -> Asm ()
 genStatic tname m n targs mbArgs
- = trace ("genStatic: " ++ show tname ++ show (m,n)) $
+ = -- trace ("genStatic: " ++ show tname ++ show (m,n)) $
    let args = case mbArgs of
                 Just xs -> xs
                 Nothing -> []
@@ -668,7 +668,7 @@ genDynamic f args
        ds <- genArguments (args)
        -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
        trace ("dynamic call: " ++ show f) $
-        result (d <> dot <> text "Call" <> tupled ds) -- sometimes C# cannot infer the types :-( (after a TypeApply)
+        result (d <> dot <> text "Call" <> tupled ds) 
 
 septupled docs
   = lparen <> vsep (punctuate (comma) docs) <> rparen
@@ -1197,14 +1197,12 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                                    else parens typeDoc <> parens exprDoc <> semi))
                           return [(test [ppDefName local <+> text "!= null"],[],next,[])]
                   Just tagDoc
-                    -> trace ("make wrapper? " ++ show tname) $
-                       do let localCast
+                    -> do let localCast
                                    = -- tests show that a cast is faster than "as" here !?!
                                      typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi
                               ematch
                                    = if (null exists) then []
-                                        else trace (" use wrapper? " ++ show tname) $ 
-                                             let etypeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx (tpars ++ map TVar exists)
+                                        else let etypeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx (tpars ++ map TVar exists)
                                              in [(etypeDoc,typeDoc,local,exists)]
                               cast = if (null next && null ematch)
                                       then [] else [localCast]
