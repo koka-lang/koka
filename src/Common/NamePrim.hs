@@ -126,7 +126,7 @@ nameTrace  = preludeName "trace"
 nameLog    = preludeName "log"
 
 nameEffectOpen :: Name
-nameEffectOpen = newName ".open"
+nameEffectOpen = preludeName ".open"
 
 {--------------------------------------------------------------------------
   Primitive constructors

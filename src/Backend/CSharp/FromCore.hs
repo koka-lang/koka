@@ -1312,7 +1312,13 @@ ppField ctx (name,tp)
 ppLit :: Lit -> Doc
 ppLit lit
   = case lit of
-      LitInt i  -> if (isSmallInt i) then pretty i else text ("Primitive.IntString(\"" ++ show i ++ "\")")
+      LitInt i  -> if (isSmallInt i) 
+                    then (case i of
+                            -1 -> text "BigInteger.MinusOne"
+                            0  -> text "BigInteger.Zero"
+                            1  -> text "BigInteger.One"
+                            _  -> text "(BigInteger)" <> (if (i < 0) then parens (pretty i) else pretty i))
+                    else text ("Primitive.IntString(\"" ++ show i ++ "\")")
       LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d -> pretty d
       LitString s -> dquotes (hcat (map escape s))

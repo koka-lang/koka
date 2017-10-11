@@ -927,21 +927,38 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
        -- fun( resume : (s,a) -> <cps,state<s>|e> b, current : s, op : .op-set<s> ) { 
        --          match(op) { .Op-set( i : s ) -> <expr> } 
        -- }
-       let opParName = newHiddenName "op"
+       let hasExists = not (null (conInfoExists conInfo))
+           opParName = newHiddenName "op"
            opPar     = ValueBinder opParName Nothing Nothing rng nameRng
            
            resumeName= newName "resume"
            resumeTp  = TFun (locals ++ [(newName "result", resTp)]) resumeEff branchTp
-           resumePar = ValueBinder resumeName Nothing Nothing nameRng nameRng
+           resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
+
+           parResumeName= if (hasExists) then newHiddenName "resume" else resumeName
+           parResTp     = if (hasExists) then typeAny else resTp
+           parResumeTp  = TFun (locals ++ [(newName "result", parResTp)]) resumeEff branchTp
+           parResumeBind= ValueBinder parResumeName Nothing Nothing nameRng nameRng
 
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
+           localExpr = if (not (hasExists)) then expr 
+                        else let resumeArg = newName "result"
+                                 appAny    = [(Nothing, App (Var nameToAny False nameRng) [(Nothing,Var resumeArg False nameRng)] nameRng)]
+                                 resumeFun = Lam (localsPar ++ [ValueBinder resumeArg Nothing Nothing nameRng nameRng])
+                                                 (App (Var parResumeName False nameRng)
+                                                      ([(Nothing,Var arg False nameRng) | arg <- map fst locals] ++ appAny)
+                                                      nameRng)
+                                                 nameRng
+                                 resumeDef = Def (ValueBinder resumeName () resumeFun nameRng nameRng) nameRng Private DefFun ""
+                             in Let (DefNonRec resumeDef) expr nameRng
+
                       
            bodyPat   = PatCon conName [(Nothing,PatVar par{ binderExpr = PatWild nameRng }) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
-           bodyBranch= Branch bodyPat guardTrue expr
+           bodyBranch= Branch bodyPat guardTrue localExpr
            bodyExpr  = Case (Var opParName False nameRng) [bodyBranch] rng
 
-           branchExpr  = Lam ([resumePar] ++ localsPar ++ [opPar])  bodyExpr rng
-           branchExprTp= TFun ([(resumeName,resumeTp)] ++ locals ++ [(newName "op",conResTp)]) resumeEff branchTp
+           branchExpr  = Lam ([parResumeBind] ++ localsPar ++ [opPar])  bodyExpr rng
+           branchExprTp= TFun ([(parResumeName,parResumeTp)] ++ locals ++ [(newName "op",conResTp)]) resumeEff branchTp
 
            handlerBranchTp = TApp (typeHandlerBranch (length locals)) (map snd locals ++ [branchTp])
            makeBranchTp= TFun [(newName "resume-kind",typeInt), (newName "op-tag",typeString), 

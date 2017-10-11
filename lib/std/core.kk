@@ -1209,10 +1209,10 @@ fun compare( x : char, y : char ) : order
 }
 
 // Convert a character to its unicode code point
-extern inline int : (char) -> int { inline "(#1)" }
+extern inline int : (char) -> int { inline "#1"; cs inline "new BigInteger(#1)" }
 
 // Convert a unicode code point to a character
-extern inline char : (int) -> char { inline "(#1)" }
+extern inline char : (int) -> char { inline "(#1)"; cs inline "Primitive.IntToInt32(#1)" }
 
 // Add two character code points
 fun (+)(c : char, d : char) : total char  -> (c.int + d.int).char
@@ -3040,6 +3040,10 @@ fun ".makeHandlerRet0"( ignored-effect-tag : string,
                            ignored-branches : int
                          ) : total ((action : () -> e a) -> e b) {
   return fun(action){ ret(action()) }
+}
+
+extern inline ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
+  inline "#1"
 }
 
 /*

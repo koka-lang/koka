@@ -595,12 +595,14 @@ freshName prefix
 -- | Create a phantom application that opens the effect type of a function
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
 openEffectExpr effFrom effTo tpFrom tpTo expr
-  = App (TypeApp varOpen [effFrom,effTo]) [expr]
+  = App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
     varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])
-    tpOpen  = TForall [a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
-    a       = TypeVar (-1) kindEffect Bound
-    b       = TypeVar (-2) kindEffect Bound
+    tpOpen  = TForall [e1,e2,a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
+    a       = TypeVar (-1) kindStar Bound
+    b       = TypeVar (-2) kindStar Bound
+    e1      = TypeVar (-3) kindEffect Bound
+    e2      = TypeVar (-4) kindEffect Bound
 
 
 ---------------------------------------------------------------------------

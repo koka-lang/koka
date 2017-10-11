@@ -90,14 +90,14 @@ cpsExpr' topLevel expr
       -- open
       -- simplify open away if it is directly applied
         {-
-      App (App (TypeApp (Var open _) [effFrom, effTo]) [f]) args
+      App (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f]) args
         | getName open == nameEffectOpen 
         -> cpsExpr (App f args)
       -}
 
 
       --  lift _open_ applications
-      App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
+      App eopen@(TypeApp (Var open _) [effFrom,effTo, _, _]) [f]
         | getName open == nameEffectOpen         
         -> do cpskFrom <- getCpsType effFrom
               cpskTo   <- getCpsType effTo
@@ -372,7 +372,7 @@ isDupFunctionDef expr
 simplify :: Expr -> Expr
 simplify expr
   = case expr of
-      App (TypeApp (Var openName _) [eff1,eff2]) [arg]  
+      App (TypeApp (Var openName _) [eff1,eff2, _, _]) [arg]  
         | getName openName == nameEffectOpen && matchType eff1 eff2
         -> simplify arg
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
@@ -511,7 +511,7 @@ needsCpsDef def
 needsCpsExpr :: Expr -> Cps Bool
 needsCpsExpr expr
   = case expr of
-      App (TypeApp (Var open _) [_, effTo]) [_] | getName open == nameEffectOpen
+      App (TypeApp (Var open _) [_, effTo, _, _]) [_] | getName open == nameEffectOpen
         -> needsCpsEffect effTo
       App f args 
         -> anyM needsCpsExpr (f:args)

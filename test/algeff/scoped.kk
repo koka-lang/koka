@@ -4,8 +4,8 @@
 // --------------------------------------------------------------
 
 effect nondet {
-  flip() : bool;
-  fail() : a
+  fun flip() : bool
+  fun fail() : a
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -43,8 +43,8 @@ fun test1() {
 // --------------------------------------------------------------
 
 effect state<s> {
-  get()    : s;
-  put(i:s) : ()
+  fun get()    : s
+  fun put(i:s) : ()
 }
 
 val state = handler(i) {
@@ -94,7 +94,7 @@ fun test3() {
 // --------------------------------------------------------------
 
 effect cutfail {
-  cutfail() : a
+  fun cutfail() : a
 }
 
 fun cut() {
@@ -131,7 +131,7 @@ fun test4() {
 // --------------------------------------------------------------
 
 effect symbol {
-  symbol(s : string) : string
+  fun symbol(s : string) : string
 }
 
 val parse = handler(cs:string) {
