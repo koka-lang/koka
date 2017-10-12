@@ -2986,6 +2986,7 @@ extern ".yieldop1"( op : operation<a> ) : a {
 
 extern inline ".toany"( x : a ) : any {
   inline "#1"
+  cs inline "(object)(#1)"
 }
 
 extern inline ".applyK"(k : a -> e b, x : a) : e b {

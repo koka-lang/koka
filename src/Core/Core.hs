@@ -597,7 +597,7 @@ openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
 openEffectExpr effFrom effTo tpFrom tpTo expr
   = App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
-    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])
+    varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
     tpOpen  = TForall [e1,e2,a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
     a       = TypeVar (-1) kindStar Bound
     b       = TypeVar (-2) kindStar Bound
