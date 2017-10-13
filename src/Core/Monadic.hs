@@ -102,7 +102,7 @@ monExpr' topLevel expr
 
       --  lift _open_ applications
       
-      App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
+      App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen         
         -> do monkFrom <- getMonType effFrom
               monkTo   <- getMonType effTo
@@ -113,7 +113,7 @@ monExpr' topLevel expr
                        f' <- monExpr f
                        return $ \k -> f' (\ff -> k (App eopen [ff]))
               -- lift the function to a monadic function
-               else do -- monTraceDoc $ \env -> text "open: lift: " <+> prettyExpr env expr
+               else do monTraceDoc $ \env -> text "open: lift: " <+> prettyExpr env expr
                        let Just((partps,_,restp)) = splitFunType (typeOf f)
                        pars <- mapM (\(name,partp) ->
                                      do pname <- if (name==nameNil) then uniqueName "x" else return name
@@ -158,7 +158,8 @@ monExpr' topLevel expr
               let -- ff  = f' id
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
-              isMonF <- needsMonType ftp
+              monKind <- getMonType ftp
+              let isMonF = monKind /= NoMon
               -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
               if ((not (isMonF || isAlwaysMon f)) || isNeverMon f)
                then return $ \k -> 
@@ -167,6 +168,7 @@ monExpr' topLevel expr
                     k (App ff argss)
                 ))
                else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
+                        let yielding = if (monKind /= AlwaysMon) then yieldingExpr else id
                         nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
@@ -182,7 +184,7 @@ monExpr' topLevel expr
                           in
                           f' (\ff ->
                             applies args' (\argss -> 
-                              appBind resTp feff (typeOf contBody) (App ff argss) cont
+                              appBind resTp feff (typeOf contBody) yielding ff argss cont
                           ))
       Let defgs body 
         -> do defgs' <- monLetGroups defgs
@@ -278,7 +280,7 @@ monLetDef recursive def
   = withCurrentDef def $
     do monk <- getMonType (defType def)
        -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
-       if (False && (monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
+       if ((monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
         then monLetDefDup monk recursive def 
         else do -- when (monk == PolyMon) $ monTraceDoc $ \env -> text "not a function definition but has mon type" <+> ppType env (defType def)
                 expr' <- monExpr' True (defExpr def) -- don't increase depth
@@ -416,16 +418,19 @@ varApplyK k x
                      (Core.InfoExternal [(JS,"(#1||$std_core.id)(#2)")]) -- InfoArity (3,2)
     in App applyK [k,x]
 
-appBind :: Type -> Effect ->  Type -> Expr -> Expr -> Expr
-appBind tpArg tpEff tpRes arg cont
-  = case arg of
+
+appBind :: Type -> Effect ->  Type -> (Expr -> Expr) -> Expr -> [Expr] -> Expr -> Expr
+appBind tpArg tpEff tpRes yielding fun args cont
+  = case (fun,args) of
       -- optimize: bind( lift(argBody), cont ) -> cont(argBody)
-      App (TypeApp (Var v _) [_]) [argBody] | getName v == nameLift
+      (TypeApp (Var v _) [_], [argBody]) | getName v == nameLift
         -> App cont [argBody]
-      _ -> case cont of
-            Lam [aname] eff (Var v _) | getName v == getName aname
-              -> arg
-            _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [arg,cont]
+      (Lam pars eff (App (TypeApp (Var v _) [_]) [App f args0]), _)   | getName v == nameLift -- && length pars == length args && argsMatchPars pars args0 
+        -> App cont [App f args]
+      _ -> let app = App (yielding fun) args
+           in case cont of
+                Lam [aname] eff (Var v _) | getName v == getName aname -> app
+                _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [app,cont]
   where
     -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
     info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)")]
