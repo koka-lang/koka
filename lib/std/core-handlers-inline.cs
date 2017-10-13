@@ -136,6 +136,19 @@ namespace Eff
       }
     }
 
+    private static bool isInBindContext;
+
+    public static bool IsInBindContext() {
+      bool result = isInBindContext;
+      isInBindContext = false;
+      return result;
+    }
+
+    public static Unit InBindContext() {
+      isInBindContext = true;
+      return Unit.unit;
+    }
+
     // --------------------------------------------------
     // Bind
     // --------------------------------------------------

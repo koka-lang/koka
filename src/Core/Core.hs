@@ -52,7 +52,6 @@ module Core.Core ( -- Data structures
                    , isDataStruct
                    , getDataRepr
                    , VarInfo(..)
-                   , yieldingExpr, isYielding, matchYielding
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -66,7 +65,7 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog )
+import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog, nameSystemCore )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -605,23 +604,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e1      = TypeVar (-3) kindEffect Bound
     e2      = TypeVar (-4) kindEffect Bound
 
-nameYielding = newHiddenName "yielding"
 
-yieldingExpr :: Expr -> Expr
-yieldingExpr expr
-  = App (TypeApp varYielding [tp]) [expr]
-  where
-    varYielding = Var (TName nameYielding tpYielding) (InfoExternal [(Default, "#1")]) -- NOTE: quite fragile
-    tpYielding  = TForall [a] [] (TFun [(newName "x", tp)] typeTotal tp)
-    tp          = typeOf expr
-    a           = TypeVar (-1) kindStar Bound
-
-matchYielding :: Expr -> Maybe Expr
-matchYielding (App (TypeApp (Var (TName name _) _) [_]) [expr]) = Just expr
-matchYielding _ = Nothing
-
-isYielding :: Expr -> Bool
-isYielding expr = case matchYielding expr of { Just _ -> True; _ -> False }
 
 ---------------------------------------------------------------------------
 -- type of a core term

@@ -605,7 +605,7 @@ genExternal  tname formats targs args
                       do currentDef <- getCurrentDef
                          let resTp = resultType targs (typeOf tname)
                              targDocs = map (ppType ctx) targs
-                             extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
+                             extDoc = ppExternal currentDef tname formats (ppType ctx resTp) targDocs argDocs
                          if (isTypeUnit resTp)
                            then do putLn (extDoc <> semi)
                                    result (text "Unit.unit")
@@ -776,8 +776,8 @@ ppConSingleton :: ModuleName -> Name -> TName -> [Type] -> Doc
 ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <> ppTypeArgs ctx targs <> text "." <> ppDefName (conClassName (getName tname))
 
-ppExternal :: Name -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
-ppExternal currentDef formats resTp targs args0
+ppExternal :: Name -> TName -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
+ppExternal currentDef extName formats resTp targs args0
   = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
     in case lookup CS formats of
      Nothing -> case lookup Default formats of
@@ -787,28 +787,28 @@ ppExternal currentDef formats resTp targs args0
           resTp <> text ">(\"" <> text (show currentDef) <> text "\")")
       Just s  -> ppExternalF s targs args
      Just s -> ppExternalF s targs args
-
-
-ppExternalF :: String -> [Doc] -> [Doc] -> Doc
-ppExternalF fmt targs args
-  = case fmt of
-      [] -> empty
-      ('#':'#':y:xs) ->
-        if y `elem` ['1'..'9']
-         then (index targs ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-         else char y <> ppExternalF  xs targs args
-      ('#':y:xs) ->
-        if y `elem` ['1'..'9']
-         then (index args ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-         else char y <> ppExternalF  xs targs args
-      (x:xs) ->
-        char x <> ppExternalF  xs targs args
   where
-    index :: [Doc] -> Int -> Doc
-    index xs i
-      = if (i >= 0 && i < length xs)
-         then xs !! i
-         else failure $ "Backend.CSharp.FromCore.ppExternalF: external index out of range: " ++ fmt
+    ppExternalF :: String -> [Doc] -> [Doc] -> Doc
+    ppExternalF fmt targs args
+      = case fmt of
+          [] -> empty
+          ('#':'#':y:xs) ->
+            if y `elem` ['1'..'9']
+             then (index targs ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+             else char y <> ppExternalF  xs targs args
+          ('#':y:xs) ->
+            if y `elem` ['1'..'9']
+             then (index args ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+             else char y <> ppExternalF  xs targs args
+          (x:xs) ->
+            char x <> ppExternalF  xs targs args
+      where
+        index :: [Doc] -> Int -> Doc
+        index xs i
+          = if (i >= 0 && i < length xs)
+             then xs !! i
+             else failure $ "Backend.CSharp.FromCore.ppExternalF: external index out of range: " ++
+                              "in " ++ show currentDef ++ ": " ++ show extName ++ ": " ++ fmt
 
 genExprBasic :: Expr -> Asm ()
 genExprBasic expr

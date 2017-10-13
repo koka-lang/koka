@@ -3047,6 +3047,14 @@ extern inline ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
   inline "#1"
 }
 
+extern inline ".in-bind-context?"() : exn bool {
+  cs inline "Eff.Op.IsInBindContext()"
+}
+
+extern inline ".in-bind-context"() : exn () {
+  cs inline "Eff.Op.InBindContext()"
+}
+
 /*
 extern ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>,
                           ret : a -> <cps|e> b,

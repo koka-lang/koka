@@ -24,7 +24,7 @@ import Common.Range
 import Common.Unique
 import Common.NamePrim( nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
                         nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
-                        nameBind, nameLift, nameTpYld )
+                        nameBind, nameLift, nameTpYld, nameSystemCore )
 import Common.Error
 import Common.Syntax
 
@@ -168,7 +168,6 @@ monExpr' topLevel expr
                     k (App ff argss)
                 ))
                else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
-                        let yielding = if (monKind /= AlwaysMon) then yieldingExpr else id
                         nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
@@ -184,7 +183,7 @@ monExpr' topLevel expr
                           in
                           f' (\ff ->
                             applies args' (\argss -> 
-                              appBind resTp feff (typeOf contBody) yielding ff argss cont
+                              appBind resTp feff (typeOf contBody) ff argss cont
                           ))
       Let defgs body 
         -> do defgs' <- monLetGroups defgs
@@ -297,21 +296,22 @@ monLetDefDup monk recursive def
 
        -- monTraceDoc (\env -> text "mon translation") 
        exprMon'    <- withMonTVars teffs $ monExpr' True (defExpr def)
-       -- monTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
+       monTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
        exprNoMon'  <- withPureTVars teffs $ monExpr' True (defExpr def)
-
+       let (m,n)    = getArity (defType def)                    
+       monTraceDoc $ \env -> text " (m,n) :" <+> pretty (show (m,n)) <+> text "on def type:" <+> ppType env (defType def)
+             
        return $ \k -> 
         exprMon' $ \exprMon -> 
         exprNoMon' $ \exprNoMon ->           
          let createDef name expr
               = let tname    = TName name (defType def)
-                    (n,m)    = getArity (defType def)
-                    var      = Var tname (InfoArity n m)
+                    var      = Var tname (InfoArity m n)
                     expr'    = if (recursive) 
                                  then [(defTName def, var)] |~> expr
                                  else expr
                 in (def{ defName = name, defExpr = expr' }, var)
-             nameMon  = makeHiddenName "mon" (defName def)
+             nameMon  = makeHiddenName "bind" (defName def)
              nameNoMon= makeHiddenName "fast" (defName def)
              (defMon,varMon)   = createDef nameMon (exprMon)     
              (defNoMon,varNoMon) = createDef nameNoMon (exprNoMon)
@@ -320,18 +320,17 @@ monLetDefDup monk recursive def
              exprPick = case simplify (defExpr defMon) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the mon transform..
                           TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
                           Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
-                          _ -> failure $ "Core.Mon.monLetDefDup: illegal mon transformed non-function?: " ++ show (prettyDef defaultEnv def) 
+                          _ -> failure $ "Core.Mon.monLetDefDup: illegal monadic transformed non-function?: " ++ show (prettyDef defaultEnv def) 
 
              bodyPick :: [TypeVar] -> [TName] -> Expr
              bodyPick tpars pars 
-              = let tnameK = head (reverse pars)
-                in makeIfExpr (App (TypeApp varValidK [typeOf tnameK]) [Var tnameK InfoNone])
+              = makeIfExpr (isInBindContextExpr)
                               (callPick varMon tpars pars) 
-                              (callPick varNoMon tpars (init pars))
+                              (callPick varNoMon tpars pars)
              
              callPick :: Expr -> [TypeVar] -> [TName] -> Expr
              callPick var tpars pars
-              = let typeApp e = (if null tpars then e else TypeApp e (map TVar tpars))                    
+              = let typeApp e = trace (" e: " ++ show e) $ (if null tpars then e else TypeApp e (map TVar tpars))                    
                 in App (typeApp var) [Var par InfoNone | par <- pars]
 
          in k ([defMon],[defNoMon],[defPick])
@@ -418,22 +417,40 @@ varApplyK k x
                      (Core.InfoExternal [(JS,"(#1||$std_core.id)(#2)")]) -- InfoArity (3,2)
     in App applyK [k,x]
 
+isInBindContextExpr :: Expr
+isInBindContextExpr
+  = App (Var (TName (qualify nameSystemCore $ newHiddenName "in-bind-context?") tp) info) []
+  where 
+    tp = TFun [] typePartial typeBool
+    info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()")]  -- TODO: super fragile
 
-appBind :: Type -> Effect ->  Type -> (Expr -> Expr) -> Expr -> [Expr] -> Expr -> Expr
-appBind tpArg tpEff tpRes yielding fun args cont
+
+appBind :: Type -> Effect ->  Type -> Expr -> [Expr] -> Expr -> Expr
+appBind tpArg tpEff tpRes fun args cont
   = case (fun,args) of
       -- optimize: bind( lift(argBody), cont ) -> cont(argBody)
       (TypeApp (Var v _) [_], [argBody]) | getName v == nameLift
         -> App cont [argBody]
       (Lam pars eff (App (TypeApp (Var v _) [_]) [App f args0]), _)   | getName v == nameLift -- && length pars == length args && argsMatchPars pars args0 
         -> App cont [App f args]
-      _ -> let app = App (yielding fun) args
+      _ -> let app = applyInBindContext fun args
            in case cont of
                 Lam [aname] eff (Var v _) | getName v == getName aname -> app
                 _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [app,cont]
   where
     -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
     info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)")]
+
+
+applyInBindContext :: Expr -> [Expr] -> Expr
+applyInBindContext fun args
+  = Let [DefNonRec defInBindCtx] (App fun args) 
+    
+defInBindCtx    = Def (newHiddenName "") typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
+varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
+externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()")]
+nameInBindCtx   = qualify nameSystemCore $ newHiddenName "in-bind-context"
+
 
 unEff :: Type -> Type
 unEff tp
