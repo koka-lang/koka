@@ -73,7 +73,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       ]
     )
   where
-    env  = env1{ showKinds = True, expandSynonyms = False }
+    env  = env1{ showKinds = False, expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
 
     importedSyns = extractImportedSynonyms core
@@ -301,7 +301,7 @@ prettyPattern env pat
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname) 
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                           in prettyTName env tname <> 
+                           in prettyConName env tname <> 
                                (if (null exists) then empty 
                                  else angled (map (ppTypeVar env') exists)) <>
                                tupled (map (prettyPatternType (decPrec env')) (zip args targs))
@@ -316,6 +316,9 @@ prettyPattern env pat
     commaSep = hcat . punctuate comma
     prettyArg :: TName -> Doc
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
+
+    prettyConName env tname
+      = pretty (getName tname) -- prettyTName env tname
 
 {--------------------------------------------------------------------------
   Literals
