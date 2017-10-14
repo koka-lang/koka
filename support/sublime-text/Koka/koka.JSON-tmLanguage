@@ -502,7 +502,7 @@
       },
 
     "type_app":
-      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
+      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
       , "end": ">"
       , "beginCaptures": { "0": { "name": "storage.type.punctuation.separator.koka" } }        
       , "endCaptures": { "0": { "name": "storage.type.punctuation.separator.koka" } }        
