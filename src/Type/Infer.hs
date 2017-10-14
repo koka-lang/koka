@@ -161,7 +161,8 @@ inferDefGroup topLevel (DefRec defs) cont
        mapMDefs_ (\cdef -> addRangeInfoCoreDef topLevel mod (fst (find (Core.defNameRange cdef) coreMap)) cdef) coreGroups2
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
        let sub = map (\cdef -> let tname    = Core.defTName cdef 
-                                   nameInfo = createNameInfoX (Core.defName cdef) (Core.makeDefFun (Core.defType cdef)) (Core.defNameRange cdef) (Core.defType cdef)
+                                   nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
+                                              createNameInfoX (Core.defName cdef) (Core.defSortFromTp (Core.defType cdef) (Core.defSort cdef)) (Core.defNameRange cdef) (Core.defType cdef)
                                    varInfo  = coreVarInfoFromNameInfo nameInfo
                                    var      = Core.Var tname varInfo
                                in (tname, var)) (Core.flattenDefGroups coreGroups2)
@@ -433,7 +434,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
            if (verbose penv >= 2)
             then Lib.Trace.trace (show (text " inferred" <+> pretty name <> text ":" <+> niceType penv tp)) $ return ()
             else return ()
-           subst (Core.Def name resTp resCore vis   sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
+           subst (Core.Def name resTp resCore vis sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
@@ -1404,6 +1405,7 @@ inferVar propagated expect name rng isRhs
                  return (tp1,eff1,core1)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
+                 -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <> text ":" <+> ppType env tp
                  addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue tp) False)
                  (itp,coref) <- maybeInstantiate rng expect tp
                  -- trace ("Type.Infer.Var: " ++ show (name,itp)) $ return ()

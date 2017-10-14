@@ -11,12 +11,13 @@
 module std/time/timer
 
 import std/num/double
+import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
 
 extern include {
-  // cs file "time-inline.cs"
+  cs file "timer-inline.cs"
   js file "timer-inline.js"
 }
 
@@ -33,7 +34,7 @@ public fun ticks() : ndet duration {
 }
 
 extern xticks() : ndet (double,double) {
-  cs "_Time.Ticks"
+  cs "_Timer.Ticks"
   js "_ticks"
 }
 
@@ -44,8 +45,8 @@ public fun ticks-resolution() : ndet duration {
 
 // Return the smallest time difference in seconds that `ticks` can measure.
 extern xticks-resolution() : ndet double {
-  cs inline "_Time.TicksResolution"
-  js inline "_ticks_resolution"
+  cs "_Timer.TicksResolution"
+  js "_ticks_resolution"
 }
 
 // Return the number of fractional seconds that it takes to evaluate `action`.

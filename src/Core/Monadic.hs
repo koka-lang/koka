@@ -84,9 +84,6 @@ monDef recursive def
                       monKind <- xgetMonType (defType def)
                       return [def{ defExpr = expr' id, defSort = defSortTo monKind (defSort def) }] -- at top level this should be ok since the type is total
 
-defSortTo monKind (DefFun _) = DefFun monKind
-defSortTo monKind sort       = sort                                   
-
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
 

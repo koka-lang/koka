@@ -57,6 +57,7 @@ module Core.Core ( -- Data structures
                    , getMonType, getMonEffect
                    , getMonTypeX, getMonEffectX, getMonTVarX
                    , makeDefFun
+                   , defSortTo, defSortFromTp
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -392,6 +393,14 @@ isTotal expr
 
 makeDefFun :: Type -> DefSort
 makeDefFun tp = DefFun (getMonType tp)
+
+
+defSortTo :: MonKind -> DefSort -> DefSort
+defSortTo monKind (DefFun _) = DefFun monKind
+defSortTo monKind sort       = sort                                   
+
+defSortFromTp :: Type -> DefSort -> DefSort
+defSortFromTp tp defSort = defSortTo (getMonType tp) defSort
 
 getMonType :: Type -> MonKind
 getMonType tp = getMonTypeX tvsEmpty tvsEmpty tp
