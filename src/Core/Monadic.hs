@@ -165,7 +165,7 @@ monExpr' topLevel expr
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
-                    k (App ff argss)
+                    k (appNoBind ff argss)
                 ))
                else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
                         nameY <- uniqueName "y"
@@ -311,8 +311,8 @@ monLetDefDup monk recursive def
                                  then [(defTName def, var)] |~> expr
                                  else expr
                 in (def{ defName = name, defExpr = expr' }, var)
-             nameMon  = makeHiddenName "bind" (defName def)
-             nameNoMon= makeHiddenName "fast" (defName def)
+             nameMon  = makeMonName (defName def)
+             nameNoMon= makeNoMonName (defName def)
              (defMon,varMon)   = createDef nameMon (exprMon)     
              (defNoMon,varNoMon) = createDef nameNoMon (exprNoMon)
 
@@ -349,6 +349,8 @@ isDupFunctionDef expr
       _ -> False
 
 
+makeNoMonName name = makeHiddenName "fast" name
+makeMonName  name  = makeHiddenName "bind" name
 
 simplify :: Expr -> Expr
 simplify expr
@@ -425,6 +427,16 @@ isInBindContextExpr
     info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()")]  -- TODO: super fragile
 
 
+appNoBind :: Expr -> [Expr] -> Expr
+appNoBind fun args
+  = case fun of
+      TypeApp (Var (TName name tp) info@(InfoArity _ _)) targs 
+        -> let monType = needMonType tvsEmpty tvsEmpty tp
+           in if (monType==PolyMon) 
+               then App (TypeApp (Var (TName (makeNoMonName name) tp) info) targs) args
+               else App fun args
+      _ -> trace ("App no bind: " ++ show fun) $ App fun args
+
 appBind :: Type -> Effect ->  Type -> Expr -> [Expr] -> Expr -> Expr
 appBind tpArg tpEff tpRes fun args cont
   = case (fun,args) of
@@ -446,7 +458,7 @@ applyInBindContext :: Expr -> [Expr] -> Expr
 applyInBindContext fun args
   = Let [DefNonRec defInBindCtx] (App fun args) 
     
-defInBindCtx    = Def (newHiddenName "") typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
+defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
 varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
 externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()")]
 nameInBindCtx   = qualify nameSystemCore $ newHiddenName "in-bind-context"
@@ -594,12 +606,9 @@ data MonTypeKind
 -- Is the type a function with a handled effect?
 getMonType :: Type -> Mon MonTypeKind
 getMonType tp
-  | isKindEffect (getKind tp) = getMonEffect tp
-  | otherwise =
-    case expandSyn tp of
-      TForall vars preds t -> withRemoveTVars vars $ getMonType t
-      TFun pars eff res    -> getMonEffect eff 
-      _ -> return NoMon
+  = do pureTvs <- getPureTVars
+       monTvs <- getMonTVars
+       return (needMonType pureTvs monTvs tp)
 
 
 getMonEffect :: Effect -> Mon MonTypeKind
@@ -615,7 +624,14 @@ getMonTVar tp
        return (needMonTVar pureTvs monTvs tp)
 
 
-
+needMonType :: Tvs -> Tvs -> Type -> MonTypeKind
+needMonType pureTvs monTvs tp
+  | isKindEffect (getKind tp) = needMonEffect pureTvs monTvs tp
+  | otherwise =
+    case expandSyn tp of
+      TForall vars preds t -> let tvs = tvsNew vars in needMonType (tvsDiff pureTvs tvs) (tvsDiff monTvs tvs) t
+      TFun pars eff res    -> needMonEffect pureTvs monTvs eff 
+      _ -> NoMon
 
 needMonEffect :: Tvs -> Tvs -> Effect -> MonTypeKind
 needMonEffect pureTvs monTvs eff

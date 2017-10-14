@@ -961,7 +961,9 @@ genLetDef isRec def@(Def name tp expr vis isVal nameRng doc)
      else do ctx <- getModule
              -- let with gen = (if isSingleRec then withRecDef name (extractArgs name expr) else withDef name) gen
              if (nameIsNil name && isStatement expr)
-              then do withAssign (\_ doc -> doc <> semi) (withDef name (genExpr expr))
+              then do withAssign (\_ doc ->  if (show doc == "Unit.unit") -- prevents empty statement, but it is ugly :-(
+                                               then empty
+                                               else (doc <> semi)) (withDef name (genExpr expr))
               else do name' <- if nameIsNil name
                                 then genName name
                                 else return name

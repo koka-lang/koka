@@ -178,6 +178,8 @@ uniquefyTName tname
        return (TName name1 (typeOf tname))
 
 uniquefyName :: Name -> Un Name
+uniquefyName name | name == nameNil
+  = return name
 uniquefyName name
   = do locals <- getLocals
        if (S.member name locals)
