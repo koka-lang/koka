@@ -86,7 +86,7 @@ val gametree = handler {
   return x  -> Winner(x)
   move(p,n) -> {
     val moves    = validMoves(n)
-    val subgames = moves.map(resume)
+    val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
     Take(p,subtrees)
   }
@@ -218,7 +218,7 @@ val scoreUpdater = handler {
   }
 }
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.map fun(qs) {
+  gs.mymap fun(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
@@ -232,7 +232,7 @@ val printer = handler {
 }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.map( fun(ps) {
+  gs.mymap( fun(ps) {
     ps.fst.show + " -> " + ps.snd.show 
   }).join("\n").println
 }
@@ -266,4 +266,11 @@ fun main() {
   ,""
   ].join("\n-----------\n").print
   testPc1().show.println // raises exception
+}
+
+fun mymap( xs, f ) {
+  match(xs) {
+    Nil -> Nil
+    Cons(x,xx) -> Cons(f(x),mymap(xx,f))
+  }
 }
