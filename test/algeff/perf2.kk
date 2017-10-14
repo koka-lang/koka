@@ -50,8 +50,8 @@ public fun queens( n : int ) : div solutions {
 // -----------------------------------------------------------------
 
 effect choose {
-  pick(n : int) : int;
-  fail<b>()     : b
+  fun pick(n : int) : int
+  fun fail<b>()     : b
 }
 
 fun choose-all( action ) {

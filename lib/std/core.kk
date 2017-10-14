@@ -2969,12 +2969,12 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   cs inline "Eff.Op.Bind<##1,##2>(#1,#2)"
 }
 
-extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : e yld<b> { 
+extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : yld<b> { 
   cs inline "Eff.Op<##1,##2>.Yield(#1,#2,#3)"
   js "$std_core.Yield"
 }
 
-extern inline ".yieldop1"( efftag: string, op : a ) : e a {
+extern inline ".yieldop1"( efftag: string, op : a ) : a {
   js inline "$yield_linearx(#1,#2)"
 }
 

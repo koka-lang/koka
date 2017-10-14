@@ -29,7 +29,7 @@ import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
-import Core.Monadic( makeNoMonName, makeMonName, nameIsInBindCtx)
+import Core.Monadic( makeNoMonName, makeMonName, nameIsInBindCtx, nameInBindCtx )
 
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }

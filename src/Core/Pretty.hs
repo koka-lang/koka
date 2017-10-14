@@ -78,7 +78,9 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
 
     importedSyns = extractImportedSynonyms core
     extraImports = extractImportsFromSynonyms imports importedSyns
-    env1         = env0{ importsMap = extendImportMap extraImports (importsMap env0) }
+    env1         = env0{ importsMap = extendImportMap extraImports (importsMap env0),
+                         showCoreTypes = (showCoreTypes env0 || coreIface env0),
+                         showKinds = (showKinds env0 || coreIface env0) }
 
 prettyImport env imp
   = prettyComment env (importModDoc imp) $
