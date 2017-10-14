@@ -73,7 +73,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       ]
     )
   where
-    env  = env1{ showKinds = False, expandSynonyms = False }
+    env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
 
     importedSyns = extractImportedSynonyms core
@@ -232,15 +232,16 @@ prettyExpr env (App a args)
 -- Type abstraction/application
 prettyExpr env (TypeLam tvs expr)
   = pparens (prec env) precArrow $
-    keyword env "forall" <> tupled [prettyTypeVar env' tv | tv <- tvs] <+> prettyExpr env' expr
+    keyword env "forall" <> angled [prettyTypeVar env' tv | tv <- tvs] <+> prettyExpr env' expr
   where
     env' = env { prec = precTop
                , nice = (if prettyNames then niceTypeExtendVars tvs else id) $ nice env
                }
 
-prettyExpr env (TypeApp expr tps)
-  = pparens (prec env) precApp $
-    prettyExpr (decPrec env') expr <> angled [prettyType env'' tp | tp <- tps]
+prettyExpr env (TypeApp expr tps) 
+  = if (not (showCoreTypes env)) then prettyExpr env expr
+     else pparens (prec env) precApp $
+          prettyExpr (decPrec env') expr <> angled [prettyType env'' tp | tp <- tps]
   where
     env' = env { prec = precApp }
     env'' = env { prec = precTop }
@@ -255,7 +256,9 @@ prettyExpr env (Lit lit)
 
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
-  = vcat [ text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> prettyExpr env e <> semi)
+  = vcat [ let exprDoc = prettyExpr env e <> semi
+           in if (x==nameNil) then exprDoc 
+               else (text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)
@@ -292,7 +295,8 @@ prettyGuard env (Guard test expr)
     )   <+> text "->" <+> prettyExpr env{ prec = precTop } expr
 
 prettyPatternType env (pat,tp)
-  = prettyPattern env pat <+> text ":" <+> prettyType env tp
+  = prettyPattern env pat <>
+    (if (showCoreTypes env) then text " :" <+> prettyType env tp else empty)
 
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
@@ -318,7 +322,7 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = pretty (getName tname) -- prettyTName env tname
+      = if (showCoreTypes env) then prettyTName env tname else pretty (getName tname) 
 
 {--------------------------------------------------------------------------
   Literals
