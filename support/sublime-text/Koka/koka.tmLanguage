@@ -49,6 +49,10 @@
 		</dict>
 		<dict>
 			<key>include</key>
+			<string>#type_app</string>
+		</dict>
+		<dict>
+			<key>include</key>
 			<string>#top_type</string>
 		</dict>
 		<dict>
@@ -1051,6 +1055,38 @@
 				<dict>
 					<key>include</key>
 					<string>#type_content_top</string>
+				</dict>
+			</array>
+		</dict>
+		<key>type_app</key>
+		<dict>
+			<key>begin</key>
+			<string>&lt;(?![$%&amp;\*\+@!/\\\^~=\.:\-\?\|])</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.punctuation.separator.koka</string>
+				</dict>
+			</dict>
+			<key>end</key>
+			<string>&gt;</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>0</key>
+				<dict>
+					<key>name</key>
+					<string>storage.type.punctuation.separator.koka</string>
+				</dict>
+			</dict>
+			<key>name</key>
+			<string>storage.type.koka</string>
+			<key>patterns</key>
+			<array>
+				<dict>
+					<key>include</key>
+					<string>#type_content</string>
 				</dict>
 			</array>
 		</dict>

@@ -20,6 +20,8 @@
 
     { "include": "#characteresc" },
 
+    { "include": "#type_app" },
+
     { "include": "#top_type" },
 
     { "include": "#top_type_type" },
@@ -496,6 +498,17 @@
           { "include": "#type_parameter" },
 
           { "include": "#type_content_top" }
+        ]
+      },
+
+    "type_app":
+      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
+      , "end": ">"
+      , "beginCaptures": { "0": { "name": "storage.type.punctuation.separator.koka" } }        
+      , "endCaptures": { "0": { "name": "storage.type.punctuation.separator.koka" } }        
+      , "name": "storage.type.koka"
+      , "patterns": [
+          { "include": "#type_content" }
         ]
       },
 
