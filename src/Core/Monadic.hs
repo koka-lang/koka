@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2016 Microsoft Corporation, Daan Leijen
+-- Copyright 2016-2017 Microsoft Corporation, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -72,7 +72,7 @@ monDef :: Bool -> Def -> Mon [Def]
 monDef recursive def 
   = do needMon <- needsMonDef def
        if (not (needMon)) -- only translate when necessary
-        then return [def]
+        then return [def{ defSort = defSortTo NoMon (defSort def) }]
         else if (isDupFunctionDef (defExpr def))
               then do defs' <- monLetDef recursive def -- re-use letdef
                       case (defs' (\(xds,yds,nds) -> Let (DefRec xds:DefRec yds:map DefNonRec nds) (Var (defTName def) InfoNone))) of
@@ -81,8 +81,11 @@ monDef recursive def
                                    failure "Core.Mon.monDef: internal failure"
               else withCurrentDef def $
                    do expr' <- monExpr' True (defExpr def)
-                      return [def{ defExpr = expr' id }] -- at top level this should be ok since the type is total
-                                   
+                      monKind <- xgetMonType (defType def)
+                      return [def{ defExpr = expr' id, defSort = defSortTo monKind (defSort def) }] -- at top level this should be ok since the type is total
+
+defSortTo monKind (DefFun _) = DefFun monKind
+defSortTo monKind sort       = sort                                   
 
 type Trans a = TransX a a 
 type TransX a b  = (a -> b) ->b
@@ -137,7 +140,9 @@ monExpr' topLevel expr
               let lift = if (ismon) then appLift else id
               return $ \k -> arg' (\xx -> k (App ret [lift xx]))  
 
+
       -- lift out lambda's into definitions so they can be duplicated if necessary                  
+      -- note: removed for now; this means handlers are always bind-translated      
       {-
       TypeLam tpars (Lam pars eff body) | not topLevel 
         -> monExprAsDef tpars pars eff body
@@ -162,7 +167,10 @@ monExpr' topLevel expr
               args' <- mapM monExpr args
               let -- ff  = f' id
                   ftp = typeOf f -- ff
-                  Just(_,feff,_) = splitFunType ftp
+              feff <- case splitFunType ftp of
+                           Just(_,feff,_) -> return feff
+                           _ -> do monTraceDoc $ \env -> text "Core.Monadic.App: illegal application:" <+> ppType env ftp
+                                   failure ("Core.Monadic.App: illegal application")
               monKind <- xgetMonType ftp
               let isMonF = monKind /= NoMon
               -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
@@ -245,17 +253,15 @@ monExprAsDef tpars pars eff body
                      bsub  = subNew (zip tvars (map TVar bvars))
                      expr' = addTypeLambdas bvars (bsub |-> expr)
                      -}
-                     expr' = Lam pars eff body
-                     tvars = []
-                     
+                     expr' = expr
                      tp   = typeOf expr'
                      def  = Def name tp expr' Public (DefFun monk) rangeNull ""
-                     var  = Var (TName name tp) InfoNone --(InfoArity (length tvars + length tpars) (length pars) monk)
-                     bodyx = var -- addTypeApps (tvars ++ tpars) var
+                     var  = Var (TName name tp) (InfoArity (length tpars) (length pars) monk)
+                     bodyx = var
 
                  monTraceDoc $ \env -> text "mon as expr:" <+> pretty name <> text (show (length tpars, length pars)) <--> prettyExpr env expr
                  letd <- monExpr (Let [DefNonRec def] bodyx) -- process as let definition
-                 return $ \k -> letd (\letd' -> addTypeLambdas tpars (k (letd'))) 
+                 return $ \k -> k (letd id) 
                  
 
 monBranch :: Branch -> Mon Branch
@@ -292,7 +298,7 @@ monLetDef recursive def
         then monLetDefDup monk recursive def 
         else do -- when (monk == PolyMon) $ monTraceDoc $ \env -> text "not a function definition but has mon type" <+> ppType env (defType def)
                 expr' <- monExpr' True (defExpr def) -- don't increase depth
-                return $ \k -> expr' (\xx -> k ([def{defExpr = xx}],[],[]))
+                return $ \k -> expr' (\xx -> k ([def{defExpr = xx, defSort = defSortTo monk (defSort def)}],[],[]))
                          -- \k -> k [def{ defExpr = expr' id}]
 
 monLetDefDup :: MonKind -> Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
@@ -493,7 +499,7 @@ appLift arg
   = let tp = typeOf arg        
         extern = Core.InfoExternal [(Default,"#1")] -- identity
     in App (TypeApp (Var (TName nameLift typeLift) extern) [tp]) [arg]
-
+    
 
 typeLift :: Type
 typeLift

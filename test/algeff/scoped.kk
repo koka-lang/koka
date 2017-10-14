@@ -144,18 +144,18 @@ val parse = handler(cs:string) {
 
 
 fun digit() : <nondet,symbol> string {
-  symbol(select(list(0,9).map(show)))
+  symbol(select(list(0,9).mymap(show)))
 }
 
 fun choice(p1,p2) {
   if (flip()) then p1() else p2()
 }
 
-fun many(p) {
+fun many(p : () -> <nondet,div|e> a) : <nondet,div|e> list<a> {
   choice{ many1(p) }{ [] }
 }
 
-fun many1(p) {
+fun many1(p : () -> <nondet,div|e> a) : <nondet,div|e> list<a> {
   Cons(p(),many(p))
 }
 
@@ -260,4 +260,12 @@ fun main() {
   ,test4().show
   ,test5().show
   ].join("\n").println
+}
+
+
+fun mymap( xs, f ) {
+  match(xs) {
+    Nil -> Nil
+    Cons(x,xx) -> Cons(f(x),mymap(xx,f))
+  }
 }
