@@ -53,6 +53,10 @@ module Core.Core ( -- Data structures
                    , getDataRepr
                    , VarInfo(..)
 
+                   , MonKind(..)
+                   , getMonType, getMonEffect
+                   , getMonTypeX, getMonEffectX, getMonTVarX
+
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
                    ) where
@@ -71,6 +75,7 @@ import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
+import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany) )
 
 isExprUnit (Con tname _)  = getName tname == nameTuple 0
 isExprUnit _              = False
@@ -336,9 +341,11 @@ defTName def
 
 data VarInfo
   = InfoNone
-  | InfoArity Int Int -- #Type parameters, #parameters
+  | InfoArity Int Int MonKind -- #Type parameters, #parameters, monadic info
   | InfoExternal [(Target,String)]  -- inline body
   deriving Show
+
+
 
 data Branch = Branch { branchPatterns :: [Pattern]
                      , branchGuards   :: [Guard]
@@ -361,6 +368,13 @@ data Lit =
   | LitString String
   deriving (Eq)
 
+data MonKind 
+  = NoMon      -- no monadic type
+  | AlwaysMon  -- always monadically translated
+  | PolyMon    -- polymorphic in monad translation: has a fast non-monadic, and a monadic version
+  deriving (Eq,Ord,Show)
+
+
 -- | a core expression is total if it cannot cause non-total evaluation
 isTotal:: Expr -> Bool
 isTotal expr
@@ -378,6 +392,40 @@ isTotal expr
       _       -> False  -- todo: a let or case could be total
 
 
+getMonType :: Type -> MonKind
+getMonType tp = getMonTypeX tvsEmpty tvsEmpty tp
+
+getMonEffect :: Effect -> MonKind
+getMonEffect eff = getMonEffectX tvsEmpty tvsEmpty eff
+
+getMonTypeX :: Tvs -> Tvs -> Type -> MonKind
+getMonTypeX pureTvs monTvs tp
+  | isKindEffect (getKind tp) = getMonEffectX pureTvs monTvs tp
+  | otherwise =
+    case expandSyn tp of
+      TForall vars preds t -> let tvs = tvsNew vars in getMonTypeX (tvsDiff pureTvs tvs) (tvsDiff monTvs tvs) t
+      TFun pars eff res    -> getMonEffectX pureTvs monTvs eff 
+      _ -> NoMon
+
+getMonEffectX :: Tvs -> Tvs -> Effect -> MonKind
+getMonEffectX pureTvs monTvs eff
+  = let (ls,tl) = extractEffectExtend eff 
+    in if (any (\l -> case getHandledEffect l of
+                        Just ResumeMany -> True
+                        _ -> False) ls)
+        then AlwaysMon 
+        else getMonTVarX pureTvs monTvs tl
+
+getMonTVarX :: Tvs -> Tvs -> Type -> MonKind
+getMonTVarX pureTvs monTvs tp
+  = case expandSyn tp of
+      TVar tv | isKindEffect (typevarKind tv) 
+         -> let isPure = tvsMember tv pureTvs
+                isMon  = tvsMember tv monTvs
+            in if (isPure) then NoMon
+                else if (isMon) then AlwaysMon
+                else PolyMon
+      _  -> NoMon
 
 {--------------------------------------------------------------------------
   Type variables inside core expressions

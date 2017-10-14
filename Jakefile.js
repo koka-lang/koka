@@ -423,7 +423,6 @@ var hsModules = [
   
   "Core.AnalysisMatch",
   "Core.Uniquefy",
-  "Core.Simplify",
   "Core.Divergent",
   "Core.BindingGroups",
   
@@ -435,9 +434,9 @@ var hsModules = [
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
-  "Core.Cps",
   "Core.Monadic",
   "Core.Check",
+  "Core.Simplify",
   
   "Compiler.Package",
   "Compiler.Options",

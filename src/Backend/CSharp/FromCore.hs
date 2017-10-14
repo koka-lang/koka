@@ -516,13 +516,13 @@ genExpr expr
             -> genExpr (App arg args)
 
           -- function calls
-          TypeApp (Var tname (InfoArity m n)) targs
+          TypeApp (Var tname (InfoArity m n _)) targs
             -> genStatic tname m n targs Nothing
 
-          App var@(Var tname (InfoArity m n)) args
+          App var@(Var tname (InfoArity m n _)) args
             -> genStatic tname m n [] (Just args)
 
-          App (TypeApp (Var tname (InfoArity m n)) targs) args
+          App (TypeApp (Var tname (InfoArity m n _)) targs) args
             -> genStatic tname m n targs (Just args)
 
           -- possible dynamic tail calls
@@ -632,11 +632,11 @@ genStatic tname m n targs mbArgs
                 Just xs -> xs
                 Nothing -> []
    in if (null args && m > length targs)
-    then do teta <- tetaExpand (Var tname (InfoArity m n)) targs m
+    then do teta <- tetaExpand (Var tname (InfoArity m n NoMon)) targs m
             genExpr teta
    else if ((n == 0 || n > length args) && isNothing mbArgs)
     then assertion ("CSharp.FromCore.genStatic: m /= targs: " ++ show tname ++ show (m,n)) (m == length targs) $
-         do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
+         do eta <- etaExpand (TypeApp (Var tname (InfoArity m n NoMon)) targs) args n
             genExpr eta
     else do cdef <- getCurrentDef
             assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
@@ -654,13 +654,13 @@ genStatic tname m n targs mbArgs
                        assertion ("CSharp.FromCore.genStatic: tail arguments /= arguments") (length args == length parNames) $
                        do assignArguments parNames argDocs args
                           putLn (text "goto recurse;")
-                  _ -> result (kindCast ctx targs (typeOf (App (TypeApp (Var tname (InfoArity m n)) targs) args))
+                  _ -> result (kindCast ctx targs (typeOf (App (TypeApp (Var tname (InfoArity m n NoMon)) targs) args))
                                (hang 2 $ ppQName ctx (getName tname) <>
                                  (if (null targs) then empty else angled (map (ppType ctx) targs)) <//>
                                  ({- if (null args && null targs) then empty else -} septupled argDocs)))
 
 genDynamic :: Expr -> [Expr] -> Asm ()
-genDynamic v@(Var tname (InfoArity m n)) args
+genDynamic v@(Var tname (InfoArity m n _)) args
   = genStatic tname m n [] (Just args)
 
 genDynamic f args
@@ -822,7 +822,7 @@ genExprBasic expr
                          then result (text "this")  -- recursive call to a first-class function: this only works because we disallow polymorphic recursive local definitions
                          else -}
                         result (ppQName ctx (getName tname))
-                 InfoArity m n
+                 InfoArity m n _
                   -> genStatic tname m n [] Nothing
                  InfoExternal format
                   -> genExternal tname format [] []
@@ -937,7 +937,7 @@ genLetDefs isRec defs groups expr
                  let newName = qualify (qualifier defname) newVName -- need to qualify or otherwise its considered local
                      newDef = Def newName tp expr vis isVal nameRng ""
                      (m,n)  = getArity tp
-                 return ([(TName name tp,Var (TName newName (typeOf expr)) (InfoArity m n))], newDef)
+                 return ([(TName name tp,Var (TName newName (typeOf expr)) (InfoArity m n NoMon))], newDef)
 
 liftDefToTopLevel def
   = case (defExpr def) of

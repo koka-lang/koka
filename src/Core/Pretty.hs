@@ -50,6 +50,8 @@ instance Show Expr      where show = show . prettyExpr      defaultEnv
 instance Show Lit       where show = show . prettyLit       defaultEnv
 instance Show Branch    where show = show . prettyBranch    defaultEnv
 instance Show Pattern   where show = show . prettyPattern   defaultEnv
+-- instance Show MonKind   where show = show . prettyMonKind   defaultEnv
+instance Pretty MonKind where pretty = prettyMonKind defaultEnv
 
 {--------------------------------------------------------------------------
   Pretty-printers proper
@@ -185,6 +187,12 @@ prettyKind env prefix kind
      then empty
      else text prefix <+> ppKind (colors env) precTop kind
 
+prettyMonKind env monType
+  = text $ case monType of
+      NoMon     -> "fast"
+      AlwaysMon -> "bind"
+      PolyMon   -> "poly"
+
 {--------------------------------------------------------------------------
   Expressions
 --------------------------------------------------------------------------}
@@ -212,7 +220,7 @@ prettyExpr env (Var tname varInfo)
     prettyInfo
       = case varInfo of
           InfoNone -> empty
-          InfoArity m n -> braces (pretty m <> comma <> pretty n)
+          InfoArity m n mon -> braces (pretty m <> comma <> pretty n <> comma <> pretty mon)
           InfoExternal f -> braces (text"@")
 
 prettyExpr env (App a args)

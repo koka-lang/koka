@@ -29,6 +29,8 @@ import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
+import Core.Monadic( makeNoMonName, makeMonName, nameInBindCtx)
+
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
@@ -159,8 +161,6 @@ topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nam
         else return expr
 
 
-
-
 -- Direct function applications
 topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
   = do newNames <- mapM uniqueTName pars
@@ -214,6 +214,16 @@ bottomUp (Lam pars eff (App expr args)) | parsMatchArgs
       = case arg of
           Var v _  -> v == par
           _ -> False
+-}
+
+{-
+-- Fast & Bind functions
+bottomUp (App (TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs) args)
+  = App (TypeApp (Var (TName (makeNoMonName name) tp) (InfoArity m n NoMon)) targs) args
+
+bottomUp (App (Let [DefNonRec (Def nnil _ (App (Var (TName inBindCtx _) _) []) _ DefVal _ _)] (TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs)) args)
+  | nnil == nameNil && inBindCtx == nameInBindCtx
+  = App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args
 -}
 
 -- bind( lift(arg), cont ) -> cont(arg)

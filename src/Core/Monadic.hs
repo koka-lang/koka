@@ -10,7 +10,10 @@
 -- Transform user-defined effects into monadic bindings.
 -----------------------------------------------------------------------------
 
-module Core.Monadic( monTransform, monType ) where
+module Core.Monadic( monTransform, monType
+                   , makeMonName, makeNoMonName
+                   , nameInBindCtx 
+                   ) where
 
 
 import Lib.Trace 
@@ -104,8 +107,8 @@ monExpr' topLevel expr
       
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen         
-        -> do monkFrom <- getMonType effFrom
-              monkTo   <- getMonType effTo
+        -> do monkFrom <- xgetMonType effFrom
+              monkTo   <- xgetMonType effTo
               if (monkFrom /= NoMon || monkTo == NoMon)
                -- simplify open away if already in cps form, or not in cps at all
                then do monTraceDoc $ \env -> text "open: ignore: " <+> prettyExpr env expr <+> text ": effects" <+> tupled (niceTypes env [effFrom,effTo])
@@ -142,7 +145,7 @@ monExpr' topLevel expr
 
       -- regular cases
       Lam args eff body 
-        -> do monk <- getMonEffect eff
+        -> do monk <- xgetMonEffect eff
               if (monk == NoMon)
                then withMonadic False $
                     do -- monTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
@@ -158,7 +161,7 @@ monExpr' topLevel expr
               let -- ff  = f' id
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
-              monKind <- getMonType ftp
+              monKind <- xgetMonType ftp
               let isMonF = monKind /= NoMon
               -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
               if ((not (isMonF || isAlwaysMon f)) || isNeverMon f)
@@ -230,7 +233,7 @@ monLambda ensure pars eff body
 monExprAsDef :: [TypeVar] -> [TName] -> Effect -> Expr -> Mon (Trans Expr)
 monExprAsDef tpars pars eff body
   = do let expr = addTypeLambdas tpars (Lam pars eff body)
-       monk <- getMonEffect eff
+       monk <- xgetMonEffect eff
        if (monk/=PolyMon)
          then monExpr' True expr 
          else do name <- uniqueName "lam"
@@ -242,7 +245,7 @@ monExprAsDef tpars pars eff body
 
                      tp   = typeOf expr'
                      def  = Def name tp expr' Private DefFun rangeNull ""
-                     var  = Var (TName name tp) (InfoArity (length tpars) (length pars))
+                     var  = Var (TName name tp) (InfoArity (length tpars) (length pars) PolyMon)
                      body = addTypeApps tvars var
 
                  monTraceDoc $ \env -> text "mon as expr: " <+> pretty name  <--> prettyExpr env expr
@@ -277,7 +280,7 @@ monLetGroup dg
 monLetDef :: Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
 monLetDef recursive def
   = withCurrentDef def $
-    do monk <- getMonType (defType def)
+    do monk <- xgetMonType (defType def)
        -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
         then monLetDefDup monk recursive def 
@@ -286,7 +289,7 @@ monLetDef recursive def
                 return $ \k -> expr' (\xx -> k ([def{defExpr = xx}],[],[]))
                          -- \k -> k [def{ defExpr = expr' id}]
 
-monLetDefDup :: MonTypeKind -> Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
+monLetDefDup :: MonKind -> Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
 monLetDefDup monk recursive def
   = do let teffs = let (tvars,_,rho) = splitPredType (defType def)
                    in -- todo: we use all free effect type variables; that seems too much. 
@@ -304,17 +307,17 @@ monLetDefDup monk recursive def
        return $ \k -> 
         exprMon' $ \exprMon -> 
         exprNoMon' $ \exprNoMon ->           
-         let createDef name expr
+         let createDef name monKind expr
               = let tname    = TName name (defType def)
-                    var      = Var tname (InfoArity m n)
+                    var      = Var tname (InfoArity m n monKind)
                     expr'    = if (recursive) 
                                  then [(defTName def, var)] |~> expr
                                  else expr
                 in (def{ defName = name, defExpr = expr' }, var)
              nameMon  = makeMonName (defName def)
              nameNoMon= makeNoMonName (defName def)
-             (defMon,varMon)   = createDef nameMon (exprMon)     
-             (defNoMon,varNoMon) = createDef nameNoMon (exprNoMon)
+             (defMon,varMon)   = createDef nameMon AlwaysMon (exprMon)     
+             (defNoMon,varNoMon) = createDef nameNoMon NoMon (exprNoMon)
 
              defPick  = def{ defExpr = exprPick }
              exprPick = case simplify (defExpr defMon) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the mon transform..
@@ -430,11 +433,8 @@ isInBindContextExpr
 appNoBind :: Expr -> [Expr] -> Expr
 appNoBind fun args
   = case fun of
-      TypeApp (Var (TName name tp) info@(InfoArity _ _)) targs 
-        -> let monType = needMonType tvsEmpty tvsEmpty tp
-           in if (monType==PolyMon) 
-               then App (TypeApp (Var (TName (makeNoMonName name) tp) info) targs) args
-               else App fun args
+      TypeApp (Var (TName name tp) info@(InfoArity m n PolyMon)) targs 
+        -> App (TypeApp (Var (TName (makeNoMonName name) tp) (InfoArity m n NoMon)) targs) args
       _ -> trace ("App no bind: " ++ show fun) $ App fun args
 
 appBind :: Type -> Effect ->  Type -> Expr -> [Expr] -> Expr -> Expr
@@ -445,7 +445,10 @@ appBind tpArg tpEff tpRes fun args cont
         -> App cont [argBody]
       (Lam pars eff (App (TypeApp (Var v _) [_]) [App f args0]), _)   | getName v == nameLift -- && length pars == length args && argsMatchPars pars args0 
         -> App cont [App f args]
-      _ -> let app = applyInBindContext fun args
+      _ -> let app = case fun of
+                      TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs   
+                        -> App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args  
+                      _ -> applyInBindContext fun args
            in case cont of
                 Lam [aname] eff (Var v _) | getName v == getName aname -> app
                 _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [app,cont]
@@ -588,70 +591,31 @@ orM xs
 -- Is the type a function with a handled effect?
 needsMonType :: Type -> Mon Bool
 needsMonType tp
-  = do monk <- getMonType tp 
+  = do monk <- xgetMonType tp 
        return (monk /= NoMon)
 
 needsMonEffect :: Effect -> Mon Bool
 needsMonEffect eff
-  = do monk <- getMonEffect eff 
+  = do monk <- xgetMonEffect eff 
        return (monk /= NoMon)
-
-data MonTypeKind 
-  = NoMon      -- no mon type
-  | AlwaysMon  -- always mon translated
-  | PolyMon    -- polymorphic in mon: needs fast and monadic version
-  deriving (Eq,Ord,Show)
 
 
 -- Is the type a function with a handled effect?
-getMonType :: Type -> Mon MonTypeKind
-getMonType tp
+xgetMonType :: Type -> Mon MonKind
+xgetMonType tp
   = do pureTvs <- getPureTVars
        monTvs <- getMonTVars
-       return (needMonType pureTvs monTvs tp)
+       return (getMonTypeX pureTvs monTvs tp)
 
 
-getMonEffect :: Effect -> Mon MonTypeKind
-getMonEffect eff
+xgetMonEffect :: Effect -> Mon MonKind
+xgetMonEffect eff
   = do pureTvs <- getPureTVars
        monTvs <- getMonTVars
-       return (needMonEffect pureTvs monTvs eff)
-
-getMonTVar :: Type -> Mon MonTypeKind
-getMonTVar tp
-  = do pureTvs <- getPureTVars
-       monTvs <- getMonTVars
-       return (needMonTVar pureTvs monTvs tp)
+       return (getMonEffectX pureTvs monTvs eff)
 
 
-needMonType :: Tvs -> Tvs -> Type -> MonTypeKind
-needMonType pureTvs monTvs tp
-  | isKindEffect (getKind tp) = needMonEffect pureTvs monTvs tp
-  | otherwise =
-    case expandSyn tp of
-      TForall vars preds t -> let tvs = tvsNew vars in needMonType (tvsDiff pureTvs tvs) (tvsDiff monTvs tvs) t
-      TFun pars eff res    -> needMonEffect pureTvs monTvs eff 
-      _ -> NoMon
 
-needMonEffect :: Tvs -> Tvs -> Effect -> MonTypeKind
-needMonEffect pureTvs monTvs eff
-  = let (ls,tl) = extractEffectExtend eff 
-    in if (any (\l -> case getHandledEffect l of
-                        Just ResumeMany -> True
-                        _ -> False) ls)
-        then AlwaysMon 
-        else needMonTVar pureTvs monTvs tl
-
-needMonTVar :: Tvs -> Tvs -> Type -> MonTypeKind
-needMonTVar pureTvs monTvs tp
-  = case expandSyn tp of
-      TVar tv | isKindEffect (typevarKind tv) 
-         -> let isPure = tvsMember tv pureTvs
-                isMon  = tvsMember tv monTvs
-            in if (isPure) then NoMon
-                else if (isMon) then AlwaysMon
-                else PolyMon
-      _  -> NoMon
 
 
 freeEffectTVars :: Type -> [TypeVar]
@@ -781,7 +745,7 @@ monType tp
       TFun pars eff res   -> let pars' = [(name,monType pt) | (name,pt) <- pars]
                                  eff'  = monType eff
                                  res'  = monType res
-                                 res'' = if (needMonEffect tvsEmpty tvsEmpty eff' /= NoMon && not (isTypeYld res'))
+                                 res'' = if (getMonEffect eff' /= NoMon && not (isTypeYld res'))
                                           then typeYld res' else res'
                              in TFun pars' eff' res''
       TApp t ts           -> TApp (monType t) (map monType ts)

@@ -1692,7 +1692,7 @@ coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
 coreVarInfoFromNameInfo info
   = case info of
       InfoVal _ tp _ _           -> Core.InfoNone
-      InfoFun _ tp (m,n) _       -> Core.InfoArity m n
+      InfoFun _ tp (m,n) _       -> Core.InfoArity m n (Core.getMonType tp)
       InfoExternal _ tp format _ -> Core.InfoExternal format
       _                          -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
 
@@ -1700,7 +1700,7 @@ coreExprFromNameInfo qname info
   = -- trace ("create name: " ++ show qname) $
     case info of
       InfoVal cname tp _ _            -> Core.Var (Core.TName cname tp) (Core.InfoNone)
-      InfoFun cname tp ((m,n)) _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
+      InfoFun cname tp ((m,n)) _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n (Core.getMonType tp))
       InfoCon tp repr _ _             -> Core.Con (Core.TName qname tp) repr
       InfoExternal cname tp format _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
       InfoImport _ _ _ _              -> matchFailure "Type.Infer.coreExprFromNameInfo"
