@@ -379,60 +379,60 @@ namespace Eff
 
   public interface OpBranch1<S, B>
   {
-    B Invoke(Handler1<S, B> handler, Cont cont, S state, object opValue);
+    B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state);
   }
 
   public interface OpBranch1<S, O, B> : OpBranch1<S, B>
   {
-    B Invoke(Handler1<S, B> handler, Cont cont, S state, O opValue);
+    B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state);
   }
 
   public class OpBranch1<S, O, R, B> : OpBranch, OpBranch1<S, O, B>
   {
-    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Func<Fun2<S, R, B>, S, O, B> branch) {
-      return Create(resumeKind, opTag, new Primitive.FunFunc3<Fun2<S, R, B>, S, O, B>(branch));
+    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Func<Fun2<S, R, B>, O, S, B> branch) {
+      return Create(resumeKind, opTag, new Primitive.FunFunc3<Fun2<S, R, B>, O, S, B>(branch));
     }
-    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Fun3<Fun2<S, R, B>, S, O, B> branch) {
+    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Fun3<Fun2<S, R, B>, O, S, B> branch) {
       return new OpBranch1<S, O, R, B>(resumeKind, opTag, branch);
     }
 
-    private Fun3<Fun2<S, R, B>, S, O, B> branch;
+    private Fun3<Fun2<S, R, B>, O, S, B> branch;
 
     public OpBranch1(ResumeKind resumeKind, string opTag,
-                Fun3<Fun2<S, R, B>, S, O, B> branch) : base(resumeKind, opTag) {
+                Fun3<Fun2<S, R, B>, O, S, B> branch) : base(resumeKind, opTag) {
       this.branch = branch;
     }
 
-    public B Invoke(Handler1<S, B> handler, Cont cont, S state, object opValue) {
-      return Invoke(handler, cont, state, (O)opValue);
+    public B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state) {
+      return Invoke(handler, cont, (O)opValue, state);
     }
 
-    public B Invoke(Handler1<S, B> handler, Cont cont, S state, O opValue) {
-      return branch.Call(new Resume1<S, R, B>(handler, cont), state, opValue);
+    public B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state) {
+      return branch.Call(new Resume1<S, R, B>(handler, cont), opValue, state);
     }
   }
 
   public class OpTailBranch1<S, O, R, B> : OpTailBranch<O, R>, OpBranch1<S, O, B>
   {
-    public static OpTailBranch1<S, O, R, B> Create(string opTag, Func<S, O, std_core._Tuple2_<S,R>> branch) {
-      return Create(opTag, new Primitive.FunFunc2<S, O, std_core._Tuple2_<S,R>>(branch));
+    public static OpTailBranch1<S, O, R, B> Create(string opTag, Func<O, S, std_core._Tuple2_<S,R>> branch) {
+      return Create(opTag, new Primitive.FunFunc2<O, S, std_core._Tuple2_<S,R>>(branch));
     }
-    public static OpTailBranch1<S, O, R, B> Create(string opTag, Fun2<S, O, std_core._Tuple2_<S,R>> branch) {
+    public static OpTailBranch1<S, O, R, B> Create(string opTag, Fun2<O, S, std_core._Tuple2_<S,R>> branch) {
       return new OpTailBranch1<S, O, R, B>(opTag, branch);
     }
 
-    private Fun2<S, O, std_core._Tuple2_<S, R>> branch;
+    private Fun2<O, S, std_core._Tuple2_<S, R>> branch;
 
-    public OpTailBranch1(string opTag, Fun2<S, O, std_core._Tuple2_<S, R>> branch) : base(opTag) {
+    public OpTailBranch1(string opTag, Fun2<O, S, std_core._Tuple2_<S, R>> branch) : base(opTag) {
       this.branch = branch;
     }
 
-    public B Invoke(Handler1<S, B> handler, Cont cont, S state, object opValue) {
-      return Invoke(handler, cont, state, (O)opValue);
+    public B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state) {
+      return Invoke(handler, cont, (O)opValue, state);
     }
 
-    public B Invoke(Handler1<S, B> handler, Cont cont, S state, O opValue) {
-      std_core._Tuple2_<S, R> res = branch.Call(state, opValue);
+    public B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state) {
+      std_core._Tuple2_<S, R> res = branch.Call(opValue, state);
       return handler.Resume(cont, res.fst, res.snd);
     }
 
@@ -634,7 +634,7 @@ namespace Eff
       base(isShallow, effectTag, DownCast(opHandlers)) {
     }
     public abstract B Resume(Cont cont, S state, object arg);
-    public abstract R TailInvoke<O, R>(Fun2<S, O, std_core._Tuple2_<S, R>> branch, O opValue);
+    public abstract R TailInvoke<O, R>(Fun2<O, S, std_core._Tuple2_<S, R>> branch, O opValue);
   }
 
   public class Handler1<S, A, B> : Handler1<S, B>
@@ -668,8 +668,8 @@ namespace Eff
       this.ret = ret;
     }
 
-    public override R TailInvoke<O, R>(Fun2<S, O, std_core._Tuple2_<S, R>> branch, O opValue) {
-      std_core._Tuple2_<S, R> res = branch.Call(TailState, opValue);
+    public override R TailInvoke<O, R>(Fun2<O, S, std_core._Tuple2_<S, R>> branch, O opValue) {
+      std_core._Tuple2_<S, R> res = branch.Call(opValue, TailState);
       if (Op.Yielding == null) {
         // avoid allocation of the delegate in the common case
         TailState = res.fst;
@@ -723,7 +723,7 @@ namespace Eff
           // Handle the operation
           // No need to optimize tail resumptions; already done in Yield
           Op.Yielding = null;  // stop yielding
-          return ((OpBranch1<S, B>)op.OpBranch).Invoke(this, op.Cont, state, op.OpValue);
+          return ((OpBranch1<S, B>)op.OpBranch).Invoke(this, op.Cont, op.OpValue, state);
         }
       }
       else {

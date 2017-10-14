@@ -2594,6 +2594,7 @@ private extern xtrace : ( message : string ) -> ()  {
 }
 
 private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
+  cs "Primitive.TraceAny"
   js "_trace_any"
 }
 
@@ -2869,42 +2870,6 @@ type handled    :: HX -> X;
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
 type handled1   :: HX1 -> X;
 
-// Effect operations with result type `:a`
-type open operation<a>
-
-// Cps effect. This is used by the compiler internally to ensure certain funs
-// are compiled with a cps translation
-effect cps {
-  fun cps() : ()
-}
-
-/*
-// Handle the `:cps` effect.
-val uncps = handler {
-  return x -> x
-  cps()    -> resume(())
-}
-*/
-
-// inject the `:cps` effect into a non-cps function
-extern incps( action: () -> e a ) : <cps|e> a {
-  js inline "(action.length === 1 ? action(_k) : _k(action()))"
-}
-
-// inject the `:cps` effect into a non-cps function with one argument
-extern incps1( action: a -> e b, x : a ) : <cps|e> b {
-  js inline "(action.length === 2 ? action(x,_k) : _k(action(x)))"
-}
-
-// inject the `:cps` effect into a non-cps function with two arguments
-extern incps2( action: (a,b) -> e c, x : a, y : b ) : <cps|e> c {
-  js inline "(action.length === 3 ? action(x,y,_k) : _k(action(x,y)))"
-}
-
-
-// Continuation alias. Used internally to do special checks on cps converted code.
-alias cont<a,e,b> = a -> e b
-
 
 // ----------------------------------------------------------------------------
 // Handling exceptions when in cps / effect handling mode.
@@ -2913,46 +2878,6 @@ alias cont<a,e,b> = a -> e b
 
 private effect hexn {
   fun hthrow(exn : exception) : void  // cannot resume
-}
-
-/*
-private fun hcatch( action, ehandler ) {
-  handle(action) {
-    return x    -> x
-    hthrow(exn) -> ehandler(exn)
-  }
-}
-
-private fun hfinally( action, fhandler ) {
-  handle(action) {
-    return x    -> {
-      fhandler()
-      x
-    }
-    hthrow(exn) -> {
-      fhandler()
-      throw(exn)
-    }
-  }
-}
-*/
-
-type handler-context
-
-extern capture-handler-context(upto:int32) : ndet handler-context {
-  js "_capture_handler_context"
-}
-
-extern resume-in-handler-context( context : handler-context, resume : a -> <cps|e> b, arg : a ) : <cps|e> b {
-  js inline "_resume_in_handler_context(#1,#2,#3,_k)"
-}
-
-extern invoke-in-handler-context( context : handler-context, action : a -> io (), arg : a ) : io () {
-  js "_invoke_in_handler_context"
-}
-
-extern current-handler-top() : ndet int32 {
-  js inline "$htop"
 }
 
 
@@ -2967,43 +2892,18 @@ alias yld<a> = a
 
 extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   cs inline "Eff.Op.Bind<##1,##2>(#1,#2)"
+  js "$std_core._bind"
 }
 
 extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : yld<b> { 
   cs inline "Eff.Op<##1,##2>.Yield(#1,#2,#3)"
-  js "$std_core.Yield"
+  js "$std_core._yieldop"
 }
 
 extern inline ".yieldop1"( efftag: string, op : a ) : a {
-  js inline "$yield_linearx(#1,#2)"
+  js "$std_core._yieldop_linear"
 }
 
-/*
-extern ".yieldop1"( op : operation<a> ) : a {
-  js inline "$yield_linear(#1)"
-}
-*/
-
-extern inline ".toany"( x : a ) : any {
-  inline "#1"
-  cs inline "(object)(#1)"
-}
-
-extern inline ".applyK"(k : a -> e b, x : a) : e b {
-  js inline "(#1 || $std_core.id)(#2)"
-}
-
-extern ".htop"() : any {
-  js inline "$htop"
-}
-
-extern ".hstack"() : any {
-  js inline "$hstack"
-}
-
-extern outer-resume( resume : a -> <cps,io> b ) : (a -> io b) {
-  js "_outer_resume"
-}
 
 type handler-branch0<a>
 type handler-branch1<s,a>
@@ -3012,30 +2912,33 @@ extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b 
                             ) : total handler-branch0<b> {
   cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
+  js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
-                              branch : (resume : (new-local : l, result : a) -> e b, local : l, op : c) -> e b 
+                              branch : (resume : (new-local : l, result : a) -> e b, op : c, local : l) -> e b 
                             ) : total handler-branch1<l,b> {
   cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
+  js "$std_core._new_branch1"
 }
 
 extern ".makeHandler0"( effect-tag : string, 
                         ret : a -> e b,
                         branches : vector<handler-branch0<b>>
-                      ) : total ((action : () -> e1 a) -> e b) 
-{
+                      ) : total ((action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
+  js "$std_core._new_handler"
 }
 
 extern ".makeHandler1"( effect-tag : string, 
                         ret : (local : l, result : a) -> e b,
                         branches : vector<handler-branch1<l,b>>
-                      ) : total ((initial-local : l, action : () -> e1 a) -> e b) 
-{
+                      ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3)"
+  js "$std_core._new_handler1"
 }
 
+// Used for handlers with just a `return` branch
 fun ".makeHandlerRet0"( ignored-effect-tag : string,
                            ret : (result : a) -> e b,
                            ignored-branches : int
@@ -3043,109 +2946,24 @@ fun ".makeHandlerRet0"( ignored-effect-tag : string,
   return fun(action){ ret(action()) }
 }
 
-extern inline ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
-  inline "#1"
-}
-
 extern inline ".in-bind-context?"() : exn bool {
   cs inline "Eff.Op.IsInBindContext()"
+  js "$std_core._is_in_bind_context"
 }
 
 extern inline ".in-bind-context"() : exn () {
   cs inline "Eff.Op.InBindContext()"
+  js "$std_core._set_in_bind_context"
 }
 
-/*
-extern ".makeHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>,
-                          ret : a -> <cps|e> b,
-                          ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o,
-                                 resume:(l1:any,l2:int, cont:(c) -> yld<a>,c) -> <cps|e> b) -> <cps|e> b
-                        ) : total ((action : () -> e1 a) -> e b) {
-  js inline "$makeGenOptHandler0(optag,false,ret,ops)"
+// .open is used in the compiler to open up closed effects.
+// Usually simplified away but still present if --no-simplify flag is given
+extern inline ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
+  inline "#1"
 }
 
-extern ".makeHandlerRet0"( optag:string, ret : a -> <cps|e> b, ops : int ) : total ((action : () -> e a) -> e b) {
-  js inline "$makeGenOptHandler0(optag,false,ret,ops)"
+// Magic casting to the `:any` type.
+extern inline ".toany"( x : a ) : any {
+  inline "#1"
+  cs inline "(object)(#1)"
 }
-
-extern ".makeShallowHandler0"( optag:string, // opmatch : operation<c> -> opmatch<e1,e,o>,
-                          ret : a -> e b,
-                          ops : (l1:any, l2:int, cont: (c) -> yld<a>, op:o,
-                                resume:(l1:any,l2:int, cont:(c) -> yld<a>, c) -> e a) -> e b
-                        ) : total ((action : () -> e a) -> e b) {
-  js inline "$makeGenOptHandler0(optag,true,ret,ops)"
-}
-
-
-extern ".makeHandler1"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>,
-                          ret : (d,a) -> <cps|e> b,
-                          ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o,
-                                  resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc: d, x: c) -> <cps|e> b),
-                                  loc:d) -> <cps|e> b
-                        ) :  total ((loc:d, action: () -> e1 a) -> e b) {
-  js inline "$makeGenOptHandler1(optag,false,ret,ops)"
-}
-
-extern ".makeHandler2"( optag : string, // opmatch : operation<c> -> opmatch<e1,e,o>,
-                          ret : (d1,d2,a) -> <cps|e> b,
-                          ops : (l1:any, l2:int, cont:(c) -> yld<a>, op:o,
-                                  resume: ((l1:any, l2:int, cont:(c) -> yld<a>, loc1: d1, loc2: d2, x: c) -> <cps|e> b),
-                                  loc1:d1, loc2:d2) -> <cps|e> b
-                        ) :  total ((loc1:d1, loc2:d2, action: () -> e1 a) -> e b) {
-  js inline "$makeGenOptHandler2(optag,false,ret,ops)"
-}
-*/
-
-/*
-// Abstract operation matching
-abstract type opmatch<e1::E,e2::E,a> {
-  OpMatch( : a )
-  OpNoMatch
-}
-
-fun ".conOpMatch"(x)  { OpMatch(x) }
-fun ".conOpNoMatch"() { OpNoMatch  }
-
-fun ".makeHandler0"( optag:string, matchop : operation<c> -> opmatch<e1,e,o>,
-                          res : a -> <cps|e> b, ops : (op:o, resume:(bool,c) -> <cps|e> b) -> <cps|e> b  ) : total ((action : () -> e1 a) -> e b) {
-  fun hndler(yld) {
-    match(yld) {
-      Yield(op,f) -> {
-        match(matchop(op)) {
-          OpMatch(eop) -> ops(eop,fun(_,x) { hndler(f(x))})
-          OpNoMatch    -> reyield(op,fun(x) { hndler(f(x))})
-        }
-      }
-      Result(x) -> res(x)
-    }
-  }
-  unsafeMakeHandler0(hndler)
-}
-
-fun ".makeHandler1"( matchop : operation<c> -> opmatch<e1,e,o>, res : (a,d) -> <cps|e> b, ops : (op:o, cont: ((c,d) -> <cps|e> b), loc:d) -> <cps|e> b  ) :  total ((action: () -> e1 a, loc:d) -> e b) {
-  fun hndler(yld,loc) {
-    match(yld) {
-      Yield(op,f) -> {
-        match(matchop(op)) {
-          OpMatch(eop) -> ops(eop, fun(x,loc0) { hndler(f(x),loc0) }, loc)
-          OpNoMatch    -> reyield(op, fun(x) { hndler(f(x),loc) })
-        }
-      }
-      Result(x) -> res(x,loc)
-    }
-  }
-  unsafeMakeHandler1(hndler)
-}
-
-private extern unsafeMakeHandler0( hndler : yld<a> -> <cps|e> b ) : total ((action : () -> e1 a) -> e b) {
-  js inline "fun(_action,_k){ _k = _k || id; return hndler(_action(Result),_k); }"
-}
-
-private extern unsafeMakeHandler1( hndler : (yld<a>,d) -> <cps|e> b ) : total ((action : () -> e1 a, loc : d) -> e b) {
-  js inline "fun(_action,_loc,_k){ _k = _k || id; return hndler(_action(Result),_loc,_k); }"
-}
-
-private extern reyield( op: operation<b>, f : b -> <cps|e> a ) : <cps|e> a {
-  js inline "Yield(op,fun(_x) { return f(_x,_k); } )"
-}
-*/

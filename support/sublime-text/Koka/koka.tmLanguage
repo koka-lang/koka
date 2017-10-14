@@ -1061,7 +1061,7 @@
 		<key>type_app</key>
 		<dict>
 			<key>begin</key>
-			<string>&lt;(?![$%&amp;\*\+@!/\\\^~=\.:\-\?\|\s\d])</string>
+			<string>&lt;(?![$%&amp;\*\+@!/\\\^~=\.:\-\?\|\s\d()])</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>0</key>

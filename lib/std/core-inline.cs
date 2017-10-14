@@ -85,10 +85,6 @@ public static class Primitive
     }
   }
 
-  public static B YieldOp<A,B>( std_core._operation<A> op, Fun1<B,B> _k ) {
-    throw new YieldException<A,B>( op, _k );
-  }
-
   //---------------------------------------
   // Run a stateful action safely
   //---------------------------------------
@@ -386,6 +382,13 @@ public static class Primitive
   public static void Trace( string msg )
   {
     System.Diagnostics.Debug.Print(msg);
+    Console.Error.WriteLine(msg);
+  }
+
+  public static void TraceAny<A>( string msg, A x )
+  {
+    object obj = (object)x;
+    System.Diagnostics.Debug.Print(msg + (x==null ? "null" : x.ToString()));
     Console.Error.WriteLine(msg);
   }
 
@@ -811,17 +814,6 @@ public class InfoException : Exception
   }
 }
 
-
-public class YieldException<A,B> : Exception
-{
-  public readonly std_core._operation<A> op;
-  public readonly Fun1<B,B> k;
-
-  public YieldException( std_core._operation<A> op, Fun1<B,B> k ) {
-    this.op = op;
-    this.k = k;
-  }
-}
 
 //---------------------------------------
 // References

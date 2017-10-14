@@ -958,8 +958,8 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
            bodyBranch= Branch bodyPat guardTrue localExpr
            bodyExpr  = Case (Var opParName False nameRng) [bodyBranch] rng
 
-           branchExpr  = Lam ([parResumeBind] ++ localsPar ++ [opPar])  bodyExpr rng
-           branchExprTp= TFun ([(parResumeName,parResumeTp)] ++ locals ++ [(newName "op",conResTp)]) resumeEff branchTp
+           branchExpr  = Lam ([parResumeBind,opPar] ++ localsPar)  bodyExpr rng
+           branchExprTp= TFun ([(parResumeName,parResumeTp),(newName "op",conResTp)] ++ locals ) resumeEff branchTp
 
            handlerBranchTp = TApp (typeHandlerBranch (length locals)) (map snd locals ++ [branchTp])
            makeBranchTp= TFun [(newName "resume-kind",typeInt), (newName "op-tag",typeString), 
@@ -979,7 +979,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
        inferUnify (checkMakeHandlerBranch rng) rng mbranchRho makeBranchTp
 
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           branchCore = Core.App mbranchCore [Core.Lit (Core.LitInt 3),coreExprFromNameInfo tagName tagInfo,bexprCore]
+           branchCore = Core.App mbranchCore [Core.Lit (Core.LitInt 4),coreExprFromNameInfo tagName tagInfo,bexprCore]
 
        -- perform eager substitution
        sbranchTp   <- subst branchTp

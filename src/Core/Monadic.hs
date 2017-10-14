@@ -436,7 +436,7 @@ isInBindContextExpr
   = App (Var (TName nameIsInBindCtx tp) info) []
   where 
     tp = TFun [] typePartial typeBool
-    info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()")]  -- TODO: super fragile
+    info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()"),(JS,"$std_core._is_in_bind_context()")]  -- TODO: super fragile
 
 nameIsInBindCtx = qualify nameSystemCore $ newHiddenName "in-bind-context?"
 
@@ -464,7 +464,7 @@ appBind tpArg tpEff tpRes fun args cont
                 _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [app,cont]
   where
     -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
-    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)")]
+    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
 
 
 applyInBindContext :: Expr -> [Expr] -> Expr
@@ -473,7 +473,7 @@ applyInBindContext fun args
     
 defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
 varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
-externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()")]
+externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()"),(JS,"$std_core._set_in_bind_context()")]
 nameInBindCtx   = qualify nameSystemCore $ newHiddenName "in-bind-context"
 
 
