@@ -263,7 +263,7 @@ bottomUp expr@(Case scruts bs)  | commonContinue
 
     findCommonCont bs
       = case bs of
-          (Branch _ (Guard _ (App v@(Var name _) [_]) : _) : _)  
+          (Branch pat (Guard _ (App v@(Var name _) [_]) : _) : _)  | not (S.member name (bv pat))
             -> extractCommonCont v name bs
           _ -> Nothing
 
