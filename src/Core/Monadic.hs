@@ -213,12 +213,13 @@ monExpr' topLevel expr
 
       TypeLam tvars body
         -> do body' <- monExpr' topLevel body
-              return $ \k -> body' (\xx -> k (TypeLam tvars xx))
+              -- return $ \k -> body' (\xx -> k (TypeLam tvars xx))
+              return $ \k -> k (TypeLam tvars (body' id))
       
       TypeApp body tps
         -> do body' <- monExpr' topLevel body
               return $ \k -> body' (\xx -> k (TypeApp xx tps))
-                   
+
       _ -> return (\k -> k expr) -- leave unchanged
 
 
@@ -229,8 +230,7 @@ monLambda ensure pars eff body
          do body' <- monExpr body
             pars' <- mapM monTName pars 
             return $ \k -> 
-              k (Lam pars' eff 
-                  ((body' id)))
+              k (Lam pars' eff (body' id))
 
 monExprAsDef :: [TypeVar] -> [TName] -> Effect -> Expr -> Mon (Trans Expr)
 monExprAsDef tpars pars eff body
