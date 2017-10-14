@@ -158,7 +158,7 @@ expression name
   = interactive $
     do e <- aexpr
        let r = getRange e
-       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public DefFun ""
+       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public defFun ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
@@ -322,7 +322,7 @@ externDecl dvis
 
                          body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                          binder     = ValueBinder name () body nameRng fullRng
-                         extfun     = Def binder fullRng vis DefFun doc
+                         extfun     = Def binder fullRng vis defFun doc
                     return [DefExtern extern, DefValue extfun]
         )
   where
@@ -591,7 +591,7 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
       = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator
       = let name = newCreatorName con
-            def  = Def binder rng vis DefFun doc
+            def  = Def binder rng vis defFun doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
             params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
@@ -746,7 +746,7 @@ operation singleShot vis foralls effTagName effTp opsTp
 
            -- Declare the yield operation
            opDef  = -- trace ("create op def: " ++ show id) $
-                    let def  = Def binder rng vis DefFun ""
+                    let def  = Def binder rng vis defFun ""
                         nameRng   = idrng
                         tag       = Var opTagName False idrng
                         binder    = ValueBinder id () body nameRng nameRng
@@ -818,7 +818,7 @@ funDecl rng doc vis
        body   <- bodyexpr
        let fun = promote spars tpars mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis DefFun doc)
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
 funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType), UserExpr -> UserExpr)

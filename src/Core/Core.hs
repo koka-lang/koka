@@ -23,7 +23,7 @@ module Core.Core ( -- Data structures
                    , flattenDefGroups
                    , extractSignatures
                    , typeDefIsExtension
-
+                   
                      -- Core term builders
                    , defIsVal
                    , defTName
@@ -56,6 +56,7 @@ module Core.Core ( -- Data structures
                    , MonKind(..)
                    , getMonType, getMonEffect
                    , getMonTypeX, getMonEffectX, getMonTVarX
+                   , makeDefFun
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -280,12 +281,15 @@ data Def = Def{ defName  :: Name
               , defVis   :: Visibility
               , defSort  :: DefSort
               , defNameRange :: Range
-              , defDoc  :: String
-              }
+              , defDoc :: String
+              }     
+
 
 defIsVal :: Def -> Bool
 defIsVal def
-  = DefFun /= defSort def
+  = case defSort def of
+      DefFun _ -> False
+      _        -> True
 
 
 canonicalSep = '.'
@@ -368,11 +372,6 @@ data Lit =
   | LitString String
   deriving (Eq)
 
-data MonKind 
-  = NoMon      -- no monadic type
-  | AlwaysMon  -- always monadically translated
-  | PolyMon    -- polymorphic in monad translation: has a fast non-monadic, and a monadic version
-  deriving (Eq,Ord,Show)
 
 
 -- | a core expression is total if it cannot cause non-total evaluation
@@ -391,6 +390,8 @@ isTotal expr
                       _                 -> False
       _       -> False  -- todo: a let or case could be total
 
+makeDefFun :: Type -> DefSort
+makeDefFun tp = DefFun (getMonType tp)
 
 getMonType :: Type -> MonKind
 getMonType tp = getMonTypeX tvsEmpty tvsEmpty tp
@@ -616,7 +617,7 @@ addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
-addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun) rangeNull "")] e'
+addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun (getMonType tp)) rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool

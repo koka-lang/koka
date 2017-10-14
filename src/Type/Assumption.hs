@@ -36,7 +36,7 @@ module Type.Assumption (
 import Lib.Trace
 import Common.Range
 import Common.Failure
-import Common.Syntax( DefSort(..) )
+import Common.Syntax( DefSort(..), isDefFun )
 import qualified Data.List as L
 import Lib.PPrint
 import qualified Common.NameMap as M
@@ -248,17 +248,17 @@ extractDef isVisible _
 coreDefInfo :: Core.Def -> (Name,NameInfo)
 coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
   = (Core.nonCanonicalName name,
-      createNameInfoX name (if (sort==DefFun && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
+      createNameInfoX name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
 
 createNameInfoX :: Name -> DefSort -> Range -> Type -> NameInfo
 createNameInfoX name sort rng tp
   = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
-    if (sort /= DefFun) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
+    if (not (isDefFun sort)) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
-  = createNameInfoX name (if isVal then DefVal else DefFun) rng tp
+  = createNameInfoX name (if isVal then DefVal else DefFun (Core.getMonType tp)) rng tp
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)

@@ -180,7 +180,7 @@ data Def t
 
 
 defIsVal def
-  = (defSort def /= DefFun)
+  = not (isDefFun (defSort def))
 
 
 guardTrue

@@ -182,7 +182,7 @@ genDoc env kgamma gamma core p
       = map toDef (coreProgExternals core)
       where
         toDef ext = Def (externalName ext) (externalType ext) (failure "Core.GenDoc.genDoc: access to expression")
-                        (externalVis ext) DefFun (externalRange ext) (externalDoc ext)
+                        (externalVis ext) (makeDefFun (externalType ext)) (externalRange ext) (externalDoc ext)
 
     htmlBody pre
       = do mapM_ (writeLn p) (htmlHeader env (show (coreProgName core)))

@@ -192,7 +192,7 @@ compileExpression term flags loaded compileTarget program line input
                               [(qnameShow,_)] 
                                 -> do let expression = mkApp (Var (qualify nameSystemCore (newName "println")) False r) 
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public DefFun ""                            
+                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (DefFun PolyMon)  ""                            
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef'
                                       return ld

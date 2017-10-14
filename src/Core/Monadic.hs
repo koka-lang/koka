@@ -12,7 +12,7 @@
 
 module Core.Monadic( monTransform, monType
                    , makeMonName, makeNoMonName
-                   , nameInBindCtx 
+                   , nameInBindCtx, nameIsInBindCtx
                    ) where
 
 
@@ -133,21 +133,23 @@ monExpr' topLevel expr
         -> do -- monTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
               -- monExpr arg
               arg' <- monExpr arg
-              ismon <- isMonadic
+              ismon <- isInBindContext
               let lift = if (ismon) then appLift else id
               return $ \k -> arg' (\xx -> k (App ret [lift xx]))  
 
       -- lift out lambda's into definitions so they can be duplicated if necessary                  
+      {-
       TypeLam tpars (Lam pars eff body) | not topLevel 
         -> monExprAsDef tpars pars eff body
       Lam pars eff body | not topLevel
         -> monExprAsDef [] pars eff body
-
+      -}
+      
       -- regular cases
       Lam args eff body 
         -> do monk <- xgetMonEffect eff
               if (monk == NoMon)
-               then withMonadic False $
+               then withMonadic NoMon $
                     do -- monTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        body' <- monExpr body
                        args' <- mapM monTName args                      
@@ -222,7 +224,7 @@ monExpr' topLevel expr
 
 monLambda :: Bool -> [TName] -> Effect -> Expr -> Mon (Trans Expr)
 monLambda ensure pars eff body 
-  = do withMonadic True $
+  = do withMonadic AlwaysMon $
         withMonTVars (freeEffectTVars eff) $ -- todo: is this correct?
          do body' <- monExpr body
             pars' <- mapM monTName pars 
@@ -237,19 +239,23 @@ monExprAsDef tpars pars eff body
        if (monk/=PolyMon)
          then monExpr' True expr 
          else do name <- uniqueName "lam"
-                 let -- expr = addTypeLambdas tpars (Lam pars eff body)
+                 let {-
                      tvars  = tvsList (ftv expr)
                      bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]              
                      bsub  = subNew (zip tvars (map TVar bvars))
                      expr' = addTypeLambdas bvars (bsub |-> expr)
-
+                     -}
+                     expr' = Lam pars eff body
+                     tvars = []
+                     
                      tp   = typeOf expr'
-                     def  = Def name tp expr' Private DefFun rangeNull ""
-                     var  = Var (TName name tp) (InfoArity (length tpars) (length pars) PolyMon)
-                     body = addTypeApps tvars var
+                     def  = Def name tp expr' Public (DefFun monk) rangeNull ""
+                     var  = Var (TName name tp) InfoNone --(InfoArity (length tvars + length tpars) (length pars) monk)
+                     bodyx = var -- addTypeApps (tvars ++ tpars) var
 
-                 monTraceDoc $ \env -> text "mon as expr: " <+> pretty name  <--> prettyExpr env expr
-                 monExpr (Let [DefNonRec def] body) -- process as let definition
+                 monTraceDoc $ \env -> text "mon as expr:" <+> pretty name <> text (show (length tpars, length pars)) <--> prettyExpr env expr
+                 letd <- monExpr (Let [DefNonRec def] bodyx) -- process as let definition
+                 return $ \k -> letd (\letd' -> addTypeLambdas tpars (k (letd'))) 
                  
 
 monBranch :: Branch -> Mon Branch
@@ -313,7 +319,7 @@ monLetDefDup monk recursive def
                     expr'    = if (recursive) 
                                  then [(defTName def, var)] |~> expr
                                  else expr
-                in (def{ defName = name, defExpr = expr' }, var)
+                in (def{ defName = name, defExpr = expr', defSort = DefFun monKind }, var)
              nameMon  = makeMonName (defName def)
              nameNoMon= makeNoMonName (defName def)
              (defMon,varMon)   = createDef nameMon AlwaysMon (exprMon)     
@@ -424,11 +430,12 @@ varApplyK k x
 
 isInBindContextExpr :: Expr
 isInBindContextExpr
-  = App (Var (TName (qualify nameSystemCore $ newHiddenName "in-bind-context?") tp) info) []
+  = App (Var (TName nameIsInBindCtx tp) info) []
   where 
     tp = TFun [] typePartial typeBool
     info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()")]  -- TODO: super fragile
 
+nameIsInBindCtx = qualify nameSystemCore $ newHiddenName "in-bind-context?"
 
 appNoBind :: Expr -> [Expr] -> Expr
 appNoBind fun args
@@ -627,7 +634,7 @@ freeEffectTVars tp
 --------------------------------------------------------------------------}  
 newtype Mon a = Mon (Env -> State -> Result a)
 
-data Env = Env{ monadic:: Bool, currentDef :: [Def], 
+data Env = Env{ monkind:: MonKind, currentDef :: [Def], 
                 pureTVars :: Tvs, monTVars :: Tvs, 
                 prettyEnv :: Pretty.Env }
 
@@ -637,7 +644,7 @@ data Result a = Ok a State
 
 runMon :: Monad m => Pretty.Env -> Int -> Mon a -> m a
 runMon penv u (Mon c)
-  = case c (Env False [] tvsEmpty tvsEmpty penv) (State u) of
+  = case c (Env PolyMon [] tvsEmpty tvsEmpty penv) (State u) of
       Ok x _ -> return x
 
 instance Functor Mon where
@@ -671,18 +678,25 @@ updateSt f
   = Mon (\env st -> Ok st (f st))
 
 withCurrentDef :: Def -> Mon a -> Mon a
-withCurrentDef def 
+withCurrentDef def action
   = -- trace ("mon def: " ++ show (defName def)) $
-    withEnv (\env -> env{currentDef = def:currentDef env})
+    withEnv (\env -> env{currentDef = def:currentDef env}) $
+    do monKind <- xgetMonType (defType def)
+       withMonadic monKind action
 
-withMonadic :: Bool -> Mon a -> Mon a
+withMonadic :: MonKind -> Mon a -> Mon a
 withMonadic b mon
-  = withEnv (\env -> env{ monadic = b } ) mon
+  = withEnv (\env -> env{ monkind = b } ) mon
 
-isMonadic :: Mon Bool
-isMonadic
+isInBindContext :: Mon Bool
+isInBindContext
   = do env <- getEnv
-       return (monadic env)
+       return (monkind env == AlwaysMon)
+
+isInFastContext :: Mon Bool
+isInFastContext
+  = do env <- getEnv
+       return (monkind env == NoMon)
 
 withRemoveTVars :: [TypeVar] -> Mon a -> Mon a
 withRemoveTVars vs mon
