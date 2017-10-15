@@ -55,6 +55,7 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
+import Core.AnalysisResume( analyzeResume )
 
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
@@ -979,7 +980,9 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
        inferUnify (checkMakeHandlerBranch rng) rng mbranchRho makeBranchTp
 
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           branchCore = Core.App mbranchCore [Core.Lit (Core.LitInt 4),coreExprFromNameInfo tagName tagInfo,bexprCore]
+           rkind       = analyzeResume bexprCore
+           rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind + 1)))
+           branchCore = Core.App mbranchCore [rkindCore,coreExprFromNameInfo tagName tagInfo,bexprCore]
 
        -- perform eager substitution
        sbranchTp   <- subst branchTp
