@@ -364,7 +364,7 @@ extractFlags :: Flags -> [Option] -> Flags
 extractFlags flagsInit options
   = let flags = foldl extract flagsInit options
     in case (JS `elem` targets flags) of  -- the maxStructFields prevents us from generating CS and JS at the same time...
-         -- True -> flags{ maxStructFields = -1 }
+         True -> flags{ maxStructFields = -1 }
          _    -> flags
   where
     extract flags (Flag f)  = f flags
