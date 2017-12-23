@@ -29,7 +29,7 @@ import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
-import Core.Monadic( makeNoMonName, makeMonName, nameIsInBindCtx, nameInBindCtx )
+import Core.Monadic( makeNoMonName, makeMonName ) -- , nameIsInBindCtx, nameInBindCtx )
 
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
@@ -160,9 +160,8 @@ topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nam
         then topDown arg
         else return expr
 
-
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
+topDown (App (Lam pars eff body) args) | length pars == length args  
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
@@ -170,6 +169,7 @@ topDown (App (Lam pars eff body) args) | length pars >= length args  -- continua
   where           
     makeDef (TName npar nparTp) arg 
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+
 
 {-
 
@@ -215,6 +215,16 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
   where
     varEqual (tv,TVar tw) = tv == tw
     varEqual _            = False
+
+-- Direct function applications with arguments that have different free variables than the parameters
+bottomUp (App (Lam pars eff body) args) | length pars == length args  && all free pars
+  = Let (zipWith makeDef pars args) body       
+  where           
+    makeDef (TName npar nparTp) arg 
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+    
+    free parName 
+      = not (parName `S.member` fv args)
 
 -- eta contract
 {-
@@ -385,8 +395,8 @@ instance Simplify Expr where
                      do x <- simplify expr; return $ Lam tnames eff x
                 Var tname info     
                   -> return td
-                App (Var (TName name _) _) []  | name == nameIsInBindCtx && mk /= PolyMon
-                  -> return $ if (mk == NoMon) then exprFalse else exprTrue
+                -- App (Var (TName name _) _) []  | name == nameIsInBindCtx && mk /= PolyMon
+                --  -> return $ if (mk == NoMon) then exprFalse else exprTrue
                 App e1 e2          
                   -> do x1 <- simplify e1
                         x2 <- simplify e2

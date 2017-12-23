@@ -838,11 +838,11 @@ function runTests(test,testMode,flags,callback) {
   flags = "--checkcore " + flags 
   fs.stat(test,function(err,stats) {
     if (err) {
-      jake.logger.error("file or directory does not exist: " + test);
-      process.exit(1);
+      //jake.logger.error("file or directory does not exist: " + test);
+      //process.exit(1);
     }
     var tests = [];
-    if (stats.isDirectory()) {
+    if (!err && stats.isDirectory()) {
       var testList = new jake.FileList();
       testList.include(path.join(test,"*.kk"));
       testList.include(path.join(test,"*","*.kk"));
@@ -850,7 +850,9 @@ function runTests(test,testMode,flags,callback) {
       tests = testList.toArray();  
     }
     else {
-      tests = [test];
+      var testList = new jake.FileList();
+      testList.include(test);
+      tests = testList.toArray();
     }
     // jake.logger.log("run " + (tests.length===1 ? "test" : tests.length + " tests over") + ": " + test);
     console.time(testMessage);

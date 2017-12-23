@@ -15,12 +15,12 @@ effect state {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  append(s')  -> resume(s + ", " + s',())
+  append(s')  -> resume((),s + ", " + s')
 }
 
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 val amb = handler {

@@ -6,7 +6,7 @@ import std/time/duration
 import std/os/readline
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 val amb = handler {

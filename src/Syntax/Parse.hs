@@ -753,12 +753,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
                         innerBody 
-                          = if (singleShot)
-                             then App (Var nameYieldOp1 False nameRng)
-                                      [(Nothing, Var effTagName False idrng),
-                                       (Nothing, tag),
-                                       (Nothing,opCon)] rng
-                             else App (Var (if singleShot then nameYieldOp1 else nameYieldOp) False nameRng)
+                          = App (Var nameYieldOp False nameRng)
                                       [(Nothing, Var effTagName False idrng),
                                        (Nothing, tag),
                                        (Nothing, opCon)] rng

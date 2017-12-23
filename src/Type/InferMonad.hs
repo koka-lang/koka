@@ -74,7 +74,7 @@ import Common.Unique
 import Common.Failure
 import Common.Error
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
 
@@ -380,7 +380,7 @@ normalizeX free tp
 nicefyEffect :: Effect -> Inf Effect
 nicefyEffect eff
   = do let (ls,tl) = extractOrderedEffect eff
-       ls' <- matchAliases [nameTpIO, nameTpST, nameTpPure] ls
+       ls' <- matchAliases [nameTpIO, nameTpST, nameTpPure, nameTpAsyncX] ls
        return (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
   where
     matchAliases :: [Name] -> [Tau] -> Inf [Tau]

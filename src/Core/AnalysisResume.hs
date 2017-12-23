@@ -33,6 +33,7 @@ data ResumeKind
   | ResumeTail
   | ResumeOnce
   | ResumeNormal
+  | ResumeShallow
   deriving (Eq,Ord,Enum)
 
 analyzeResume :: Expr -> ResumeKind

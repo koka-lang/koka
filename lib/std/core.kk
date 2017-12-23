@@ -227,7 +227,7 @@ extern error-pattern(location : string, definition : string) : exn a {
 // Use of `on-exit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Primitive.Finally<##2>(#1,#2)" // todo: handle cps
-  js inline "_primfinally(action,hndl, (typeof _k === 'undefined' ? undefined : _k))"
+  js inline "$std_core._handle_exn(action,null,hndl)"
 }
 
 
@@ -235,7 +235,7 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
 // Use `on-exn` or `on-fail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(#1, #2, (typeof _k === 'undefined' ? undefined : _k))"
+  js inline "$std_core._handle_exn(#1, #2, null)"
 }
 
 
@@ -247,7 +247,7 @@ fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|
 
 private extern catch-on-exn : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
   cs inline "Primitive.Catch<##2>(#1,#2)" // todo: handle cps
-  js inline "_primcatch(#1, #2, (typeof _k === 'undefined' ? undefined : _k))"
+  js inline "_handle_exn(#1, #2, null)"
 }
 
 
@@ -2900,10 +2900,6 @@ extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : yld<b
   js "$std_core._yieldop"
 }
 
-extern inline ".yieldop1"( efftag: string, op : a ) : a {
-  js "$std_core._yieldop_linear"
-}
-
 
 type handler-branch0<a>
 type handler-branch1<s,a>
@@ -2916,7 +2912,7 @@ extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
-                              branch : (resume : (new-local : l, result : a) -> e b, op : c, local : l) -> e b 
+                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
                             ) : total handler-branch1<l,b> {
   cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
@@ -2931,7 +2927,7 @@ extern ".makeHandler0"( effect-tag : string,
 }
 
 extern ".makeHandler1"( effect-tag : string, 
-                        ret : (local : l, result : a) -> e b,
+                        ret : (result : a, local : l) -> e b,
                         branches : vector<handler-branch1<l,b>>
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3)"
@@ -2946,15 +2942,6 @@ fun ".makeHandlerRet0"( ignored-effect-tag : string,
   return fun(action){ ret(action()) }
 }
 
-extern inline ".in-bind-context?"() : exn bool {
-  cs inline "Eff.Op.IsInBindContext()"
-  js "$std_core._is_in_bind_context"
-}
-
-extern inline ".in-bind-context"() : exn () {
-  cs inline "Eff.Op.InBindContext()"
-  js "$std_core._set_in_bind_context"
-}
 
 // .open is used in the compiler to open up closed effects.
 // Usually simplified away but still present if --no-simplify flag is given

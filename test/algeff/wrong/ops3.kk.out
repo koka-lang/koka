@@ -1,6 +1,6 @@
-test/algeff/wrong/ops3.kk(47, 5): error: types do not match
- context : set(j:bool)
- term : set
- inferred type: (bool) -> state ()
- expected type: (i : int) -> state ()
- because : operator type does not match the parameter types
+test/algeff/wrong/ops3.kk(47, 9): error: types do not match
+ context : j:bool
+ term : j
+ inferred type: bool
+ expected type: int
+ because : type cannot be instantiated to match the annotation

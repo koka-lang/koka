@@ -5,7 +5,7 @@ import std/async
 import std/time/duration
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 val amb = handler {

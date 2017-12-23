@@ -7,7 +7,7 @@ effect state<s> {
 
 val state = handler(s) {
   get() -> resume(s,s)
-  set(s') -> resume(s',())
+  set(s') -> resume((),s')
 }
 
 fun incr(i) {

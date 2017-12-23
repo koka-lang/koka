@@ -1,1 +1,1 @@
-main : () -> <exn,std/async/async,console,ndet> ()
+main : () -> <std/async/asyncx,console> ()

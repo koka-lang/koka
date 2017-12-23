@@ -55,12 +55,12 @@ module Common.NamePrim
           , nameTpNull
           , nameTpException
           , nameTpHandled, nameTpHandled1
-          , nameTpOperation, nameYieldOp, nameYieldOp1
+          , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
           , nameInCps
           , nameTpHandlerBranch0, nameTpHandlerBranch1
 
-          , nameTpAsync
+          , nameTpAsync, nameTpAsyncX
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
@@ -193,9 +193,9 @@ nameInCps       = preludeName "incps"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"
 nameTpAsync     = qualify (newName "std/async") (newName "async")
+nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
 nameYieldOp     = preludeName ".yieldop"
-nameYieldOp1    = preludeName ".yieldop1"
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"

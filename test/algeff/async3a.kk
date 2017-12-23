@@ -12,7 +12,7 @@ effect state<s> {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  put(s')  -> resume(s',())
+  put(s')  -> resume((),s')
 }
 
 fun show-int( i : int ) : string {

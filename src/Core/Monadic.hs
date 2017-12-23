@@ -12,11 +12,11 @@
 
 module Core.Monadic( monTransform, monType
                    , makeMonName, makeNoMonName
-                   , nameInBindCtx, nameIsInBindCtx
+                   -- , nameInBindCtx, nameIsInBindCtx
                    ) where
 
 
-import Lib.Trace 
+import qualified Lib.Trace 
 import Control.Monad
 import Control.Applicative
 
@@ -43,6 +43,10 @@ import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
+
+trace s x =
+   -- Lib.Trace.trace s
+    x
 
 monTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 monTransform penv defs
@@ -433,12 +437,11 @@ varApplyK k x
 
 isInBindContextExpr :: Expr
 isInBindContextExpr
-  = App (Var (TName nameIsInBindCtx tp) info) []
+  = exprTrue -- App (Var (TName nameIsInBindCtx tp) info) []
   where 
     tp = TFun [] typePartial typeBool
     info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()"),(JS,"$std_core._is_in_bind_context()")]  -- TODO: super fragile
-
-nameIsInBindCtx = qualify nameSystemCore $ newHiddenName "in-bind-context?"
+    nameIsInBindCtx = qualify nameSystemCore $ newHiddenName "in-bind-context?"
 
 appNoBind :: Expr -> [Expr] -> Expr
 appNoBind fun args
@@ -469,12 +472,14 @@ appBind tpArg tpEff tpRes fun args cont
 
 applyInBindContext :: Expr -> [Expr] -> Expr
 applyInBindContext fun args
-  = Let [DefNonRec defInBindCtx] (App fun args) 
-    
-defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
-varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
-externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()"),(JS,"$std_core._set_in_bind_context()")]
-nameInBindCtx   = qualify nameSystemCore $ newHiddenName "in-bind-context"
+  = -- Let [DefNonRec defInBindCtx] 
+    (App fun args) 
+  where    
+    defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
+      where
+        varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
+        externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()"),(JS,"$std_core._set_in_bind_context()")]
+        nameInBindCtx   = qualify nameSystemCore $ newHiddenName "in-bind-context"
 
 
 unEff :: Type -> Type

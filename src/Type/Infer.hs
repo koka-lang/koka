@@ -64,7 +64,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -750,14 +750,13 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
                         Nothing       -> Op.freshTVar kindStar Meta
                         Just (tp,rng) -> return tp
        let retExpr = case ret of
-                       Lam [arg] body rng -> Lam (propLocals ++ [arg]) body rng
+                       Lam [arg] body rng -> Lam ([arg] ++ propLocals) body rng
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
        (retTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
        addRangeInfo (getRange retExpr) (RM.Id (newName "return") (RM.NIValue retTp) True)
 
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
-           ((_,retInTp):rargPars)        = reverse retArgs
-           localArgs    = reverse rargPars
+           ((_,retInTp):localArgs)       = retArgs
            localTypes   = map snd localArgs
            locals       = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propLocals localTypes]
            branchTp     = if (shallow) then retInTp else retOutTp
@@ -934,21 +933,21 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
            opPar     = ValueBinder opParName Nothing Nothing rng nameRng
            
            resumeName= newName "resume"
-           resumeTp  = TFun (locals ++ [(newName "result", resTp)]) resumeEff branchTp
+           resumeTp  = TFun ([(newName "result", resTp)] ++ locals) resumeEff branchTp
            resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
 
            parResumeName= if (hasExists) then newHiddenName "resume" else resumeName
            parResTp     = if (hasExists) then typeAny else resTp
-           parResumeTp  = TFun (locals ++ [(newName "result", parResTp)]) resumeEff branchTp
+           parResumeTp  = TFun ([(newName "result", parResTp)] ++ locals) resumeEff branchTp
            parResumeBind= ValueBinder parResumeName Nothing Nothing nameRng nameRng
 
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
            localExpr = if (not (hasExists)) then expr 
                         else let resumeArg = newName "result"
                                  appAny    = [(Nothing, App (Var nameToAny False nameRng) [(Nothing,Var resumeArg False nameRng)] nameRng)]
-                                 resumeFun = Lam (localsPar ++ [ValueBinder resumeArg Nothing Nothing nameRng nameRng])
+                                 resumeFun = Lam ([ValueBinder resumeArg Nothing Nothing nameRng nameRng] ++ localsPar)
                                                  (App (Var parResumeName False nameRng)
-                                                      ([(Nothing,Var arg False nameRng) | arg <- map fst locals] ++ appAny)
+                                                      (appAny ++ [(Nothing,Var arg False nameRng) | arg <- map fst locals])
                                                       nameRng)
                                                  nameRng
                                  resumeDef = Def (ValueBinder resumeName () resumeFun nameRng nameRng) nameRng Private (Core.makeDefFun resumeTp) ""
@@ -981,7 +980,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
 
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
            rkind       = analyzeResume bexprCore
-           rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind + 1)))
+           rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            branchCore = Core.App mbranchCore [rkindCore,coreExprFromNameInfo tagName tagInfo,bexprCore]
 
        -- perform eager substitution
@@ -1026,7 +1025,7 @@ checkCoverage rng effect branches
        opsInfo <- findDataInfo (toOperationsName handledEffectName)
        let modName = qualifier (dataInfoName opsInfo)
        opNames <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
-       checkCoverageOf rng opNames (map (qualify modName . hbranchName) branches) 
+       checkCoverageOf rng opNames opNames (map (qualify modName . hbranchName) branches) 
        return handledEffectName
   where
     getOpName :: Name -> ConInfo -> Inf Name
@@ -1040,25 +1039,27 @@ checkCoverage rng effect branches
           _ -> failure $ "Type.getOpConstrs: illegal operation constructor: " ++ show opConInfo                 
 
 
-    checkCoverageOf :: Range -> [Name] -> [Name] -> Inf ()
-    checkCoverageOf rng opNames branchNames
+    checkCoverageOf :: Range -> [Name] -> [Name] -> [Name] -> Inf ()
+    checkCoverageOf rng allOpNames opNames branchNames
       = -- trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
-        case opNames of
-          [] -> if null branchNames
-                 then return ()
-                 -- should not occur if branches typechecked previously
-                 else infError rng (text "some operators are handled multiple times")
-          (opName:opNames')
-            -> do let (matches,branchNames') = partition (==opName) branchNames
-                  env <- getPrettyEnv
-                  case matches of
-                    [m] -> return ()
-                    []  -> infError rng (text "operator" <+> ppOpName env opName <+> text "is not handled")
-                    _   -> infError rng (text "operator" <+> ppOpName env opName <+> text "is handled multiple times")
-                  checkCoverageOf rng opNames' branchNames'
+        do env <- getPrettyEnv
+           case opNames of
+            [] -> if null branchNames
+                   then return ()
+                   -- should not occur if branches typechecked previously
+                   else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
+                          (name:_) -> infError rng (text "operator" <+> ppOpName env name <+> text "is not part of the handled effect")
+                          _        -> infError rng (text "some operators are handled multiple times")
+            (opName:opNames')
+              -> do let (matches,branchNames') = partition (==opName) branchNames
+                    case matches of
+                      [m] -> return ()
+                      []  -> infError rng (text "operator" <+> ppOpName env opName <+> text "is not handled")
+                      _   -> infError rng (text "operator" <+> ppOpName env opName <+> text "is handled multiple times")
+                    checkCoverageOf rng allOpNames opNames' branchNames'
       where
         ppOpName env cname
-          = ppName env (opNameFromCon cname)
+          = ppName env cname -- (opNameFromCon cname)
 
         opNameFromCon name
           = qualify (qualifier name) (newName (drop 4 (show (unqualify name))))

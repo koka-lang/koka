@@ -1,2 +1,2 @@
-main : () -> <exn,std/async/async,console,file,ndet> ()
-test : () -> <exn,std/async/async,console,file,ndet> ()
+main : () -> <std/async/asyncx,console,file> ()
+test : () -> <std/async/asyncx,console,file> ()

@@ -1,7 +1,7 @@
-test/algeff/wrong/type1.kk(10,17): error: types do not match (due to an infinite type)
- context : flip() -> [resume(False)]
- term : [resume(False)]
+test/algeff/wrong/type1.kk(10, 5): error: types do not match (due to an infinite type)
+ context : flip()
+ term : flip()
  inferred type: list<list<_a>>
  expected type: list<_a>
- because : branch has not the same type as previous branches
+ because : function returns values of different types
  hint : annotate the function definition?

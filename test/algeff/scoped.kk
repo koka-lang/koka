@@ -50,7 +50,7 @@ effect state<s> {
 val state = handler(i) {
   return x -> (i,x)
   get()    -> resume(i,i)
-  put(j)   -> resume(j,())
+  put(j)   -> resume((),j)
 }
 
 fun incr(i = 1) : state<int> () {
@@ -111,7 +111,7 @@ val hcutfail = handler{
 val collect = handler(q=fail) {
   return x -> if (flip()) then x else q()
   fail     -> q()
-  flip()   -> resume({resume(q,False)}, True)  
+  flip()   -> resume(True,{resume(False,q)})  
 }
 
 fun call(p) { 

@@ -134,7 +134,7 @@ flagsNull
           False -- library
           [JS]
           Node
-          3     -- simplify passes
+          5     -- simplify passes
           defaultColorScheme
           "."    -- out-dir
           []

@@ -204,7 +204,7 @@ effect state<s> {
 val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  put(t)   -> resume(t,())
+  put(t)   -> resume((),t)
 }
 
 alias gstate = list<(player,int)>

@@ -15,7 +15,7 @@ effect state {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  append(s')  -> resume(s + ", " + s',())
+  append(s')  -> resume((),s + ", " + s')
 }
 
 fun show-int( i : int ) : string {

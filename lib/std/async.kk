@@ -369,33 +369,33 @@ public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<eit
 	if (n==0) then []
 	elif (n==1) then xs.map(try)
 	else {
-		val handle-strands = handler(count, results) {
-			return x	-> (results : list<(_,_)>).map( snd )
-			strands-busy?()	-> resume(count, results, count > 0)
-			strand-done(idx,res)	-> resume(count - 1, results.insert(idx,res), ())
+		val handle-strands = handler(cr : some<a>(int,list<(int,either<exception,a>)>)) {
+			return x            	-> (cr.snd : list<(_,_)>).map( snd )
+			strands-busy?()     	-> resume(cr.fst > 0, cr)
+			strand-done(idx,res)	-> resume((), (cr.fst - 1, cr.snd.insert(idx,res)))
 		}
-		handle-strands( n, [], unsafe-no-ndet-div{ interleaved-div(xs) } )
+		handle-strands( (n, []), unsafe-no-ndet-div{ interleaved-div(xs) } )
 	}
 }
 
-extern inline no-cps : forall<a,e> (() -> <cps,async|e> a) -> (() -> <async|e> a) { inline "#1" }
+//extern inline no-cps : forall<a,e> (() -> <cps,async|e> a) -> (() -> <async|e> a) { inline "#1" }
 extern inline unsafe-no-div : forall<a,e> (() -> <div|e> a) -> (() -> e a) { inline "#1" }
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
 extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>,ndet,div|e> a)   { inline "#1" }
 
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands	= xs.map-indexed fun(i,action) {
-			return fun() {
-				val res = try(inject-effects(action))
-				strand-done(i,res)
-			}
-		}
+	           		return fun() {
+	           			val res = try(inject-effects(action))
+	           			strand-done(i,res)
+	           		}
+	           	}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
 		do-await(setup,scope,c) -> {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( no-cps { resume(res) }  )
+				ch.emit-io( /* no-cps */ { resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
@@ -618,10 +618,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		do-await( setup, scope, c )	-> handle-await(setup,scope,outer-resume(resume),c)	// returns to outer event loop
+		do-await( setup, scope, c )   	-> handle-await(setup,scope,resume /*outer-resume(resume)*/,c)	// returns to outer event loop
 		no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
-		cancel( scope ) 	-> resume(handle-cancel(scope))
-		async-iox( f )	-> resume(f())
+		cancel( scope )               	-> resume(handle-cancel(scope))
+		async-iox( f )                	-> resume(f())
 	}
 }
 
