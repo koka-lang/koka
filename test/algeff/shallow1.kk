@@ -3,11 +3,11 @@
 //-------------------------------------------------------------
 
 effect await<a> {
-  await() : a
+  fun await() : a
 }
 
 effect send<a> {
-  send( x : a ) : ()
+  fun send( x : a ) : ()
 }
 
 fun down(prod : () -> <send<c>,await<c>|e> a, action : () -> <await<c>,send<c>|e> a) : <send<c>,await<c>|e> a {

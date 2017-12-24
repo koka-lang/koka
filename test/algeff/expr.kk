@@ -89,7 +89,7 @@ fun show( r : either<string,(int,int)> ) : total string {
 // --------------------------------------------------------
 
 effect exc {
-  failure(s : string) : a
+  fun failure(s : string) : a
 }
 
 val exc = handler {
@@ -130,12 +130,12 @@ fun show1( x : either<string,int> ) {
 // --------------------------------------------------------
 
 effect state {
-  tick() : ()
+  fun tick() : ()
 }
 
 val state = handler(i) {
   return x -> (x,i)
-  tick()   -> resume(i+1,())
+  tick()   -> resume((),i+1)
 }
 
 fun eval2( e : expr ) : <state,exc> int {
@@ -165,7 +165,7 @@ fun show2( x : (either<string,int>,int) ) : string {
 // --------------------------------------------------------
 
 effect out {
-  line(e:expr) : ()
+  fun line(e:expr) : ()
 }
 
 val out = handler {

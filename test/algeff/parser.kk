@@ -64,7 +64,7 @@ val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
       satisfy(pred) -> {
         match(pred(input)) {
           Nothing          -> fail()
-          Just((res,rest)) -> resume(rest,res)
+          Just((res,rest)) -> resume(res,rest)
         }
       }      
     }

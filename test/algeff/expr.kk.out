@@ -8,18 +8,18 @@ ticks: 2
 3
 ticks: 2
 2
-.Eff-exc : forall<a> (.ops-exc<a>) -> operation<a>
-.Eff-out : forall<a> (.ops-out<a>) -> operation<a>
-.Eff-state : forall<a> (.ops-state<a>) -> operation<a>
-.Op-failure : forall<a,b> (string) -> .ops-exc<a>
-.Op-line : forall<a> (expr) -> .ops-out<a>
-.Op-tick : forall<a> .ops-state<a>
-.copy : forall<a> (.ops-state<a>) -> .ops-state<a>
-.copy : forall<a> (.ops-out<a>, expr) -> .ops-out<a>
-.copy : forall<a,b> (.ops-exc<a>, string) -> .ops-exc<a>
-.tag-Eff-exc: string
-.tag-Eff-out: string
-.tag-Eff-state: string
+.Op-failure : forall<a> (s : string) -> .op-failure
+.Op-line : (e : expr) -> .op-line
+.Op-tick : .op-tick
+.Ops-failure: (failure : .op-failure) -> .ops-exc
+.Ops-line : (line : .op-line) -> .ops-out
+.Ops-tick : (tick : .op-tick) -> .ops-state
+.tag-exc : string
+.tag-op-failure: string
+.tag-op-line: string
+.tag-op-tick: string
+.tag-out : string
+.tag-state : string
 >>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr

@@ -20,36 +20,42 @@ bob
 -----------
 failure while running program:
  node out/test/algeff_nim.js
-.Eff-cheating: forall<a> (.ops-cheating<a>) -> operation<a>
-.Eff-choose : forall<a> (.ops-choose<a>) -> operation<a>
-.Eff-nim : forall<a> (.ops-nim<a>) -> operation<a>
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-cheat : forall<a,b> (player) -> .ops-cheating<a>
-.Op-choose : forall<a> .ops-choose<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-move : forall<a> (player, int) -> .ops-nim<a>
-.Op-put : forall<a,b> (a) -> .ops-state<a,b>
-.copy : forall<a> (.ops-nim<a>, player, int) -> .ops-nim<a>
-.copy : forall<a> (.ops-choose<a>) -> .ops-choose<a>
-.copy : forall<a,b> (.ops-cheating<a>, player) -> .ops-cheating<a>
-.tag-Eff-cheating: string
-.tag-Eff-choose: string
-.tag-Eff-nim: string
-.tag-Eff-state: string
+test/algeff/nim.kk(61, 3): warning: pattern variable p 
+ is unused (or a wrongly spelled constructor?)
+ hint: prepend an underscore to make it a wildcard pattern
+.Op-cheat : (player : player) -> .op-cheat
+.Op-choose : .op-choose
+.Op-get : forall<a> .op-get<a>
+.Op-move : (player : player, sticks : int) -> .op-move
+.Op-put : forall<a> (x : a) -> .op-put<a>
+.Ops-cheat : (cheat : .op-cheat) -> .ops-cheating
+.Ops-choose : (choose : .op-choose) -> .ops-choose
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-move : (move : .op-move) -> .ops-nim
+.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.tag-cheating: string
+.tag-choose : string
+.tag-nim : string
+.tag-op-cheat: string
+.tag-op-choose: string
+.tag-op-get : string
+.tag-op-move: string
+.tag-op-put : string
+.tag-state : string
 == : (p1 : player, p2 : player) -> bool
 Alice : player
 Bob : player
 Take : (player : player, moves : list<(int, gtree)>) -> gtree
 Winner : (player : player) -> gtree
 alice? : (player : player) -> bool
-aliceTurn : (int) -> <nim,div> player
+aliceTurn : (n : int) -> <nim,div> player
 allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 bob? : (player : player) -> bool
 bobChooses : forall<a,e> (m : () -> <nim,choose|e> a) -> <choose|e> a
-bobTurn : (int) -> <nim,div> player
-cheat : forall<a> (player : player) -> cheating a
+bobTurn : (n : int) -> <nim,div> player
+cheat : (player : player) -> cheating ()
 cheatReport : forall<a,e> (action : () -> <cheating,exn|e> a) -> <exn|e> a
-check : forall<a,e> (action : () -> <nim,cheating|e> a) -> <nim,cheating|e> a
+check : forall<a,e> (action : () -> <nim,cheating,exn|e> a) -> <nim,cheating,exn|e> a
 choose : () -> choose bool
 coin : forall<a,e> (action : () -> <choose,ndet|e> a) -> <ndet|e> a
 game : (n : int) -> <nim,div> player
@@ -57,6 +63,7 @@ gametree : forall<e> (action : () -> <nim|e> player) -> e gtree
 get : forall<a> () -> (state<a>) a
 main : () -> <pure,console> ()
 move : (player : player, sticks : int) -> nim int
+mymap : forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
 pc : forall<a,e> (action : () -> <nim|e> a) -> e a
 perfect : forall<a,e> (action : () -> <nim|e> a) -> e a
 player : (gtree : gtree) -> player
@@ -86,6 +93,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- throw exn;
+ throw exn; // rethrow
  ^
 std/core/Error: bob cheated!

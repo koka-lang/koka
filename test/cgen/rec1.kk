@@ -2,7 +2,7 @@ fun foo() {
   42
 }
 
-fun bar( action : () -> e int ) : int {
+fun bar( action : () -> e int ) : e int {
   action()
 }
 

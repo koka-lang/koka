@@ -143,8 +143,10 @@ val parse = handler(cs:string) {
 }
 
 
+val digits = list(0,9).map(show)
+
 fun digit() : <nondet,symbol> string {
-  symbol(select(list(0,9).mymap(show)))
+  symbol(select(digits))
 }
 
 fun choice(p1,p2) {
@@ -258,7 +260,7 @@ fun main() {
   ,test2().show
   ,test3().show
   ,test4().show
-  ,test5().show
+  // ,test5().show
   ].join("\n").println
 }
 
