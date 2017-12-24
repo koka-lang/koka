@@ -2901,26 +2901,26 @@ extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : yld<b
 }
 
 
-type handler-branch0<a>
-type handler-branch1<s,a>
+type handler-branch0<e::E,a>
+type handler-branch1<e::E,a,l>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b 
-                            ) : total handler-branch0<b> {
+                            ) : total handler-branch0<e,b> {
   cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
-                            ) : total handler-branch1<l,b> {
+                            ) : total handler-branch1<e,b,l> {
   cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
 }
 
 extern ".makeHandler0"( effect-tag : string, 
                         ret : a -> e b,
-                        branches : vector<handler-branch0<b>>
+                        branches : vector<handler-branch0<e,b>>
                       ) : total ((action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
   js "$std_core._new_handler"
@@ -2928,7 +2928,7 @@ extern ".makeHandler0"( effect-tag : string,
 
 extern ".makeHandler1"( effect-tag : string, 
                         ret : (result : a, local : l) -> e b,
-                        branches : vector<handler-branch1<l,b>>
+                        branches : vector<handler-branch1<e,b,l>>
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3)"
   js "$std_core._new_handler1"

@@ -680,12 +680,13 @@ effectDecl dvis
            -- to find all operation definitions belonging to an effect)
            opsName   = TypeBinder (toOperationsName id) KindNone irng irng
            opsTp    = tpCon opsName
+           opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            --extendConName = toEffectConName (tbinderName ename)
            
 
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp)
+       (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp )
 
        let kindStar = (KindCon nameKindStar rng)
            (opsConDefs,opTpDecls,opDefss) = unzip3 ops
@@ -699,7 +700,7 @@ effectDecl dvis
 
 
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> LexParser (UserUserCon, UserTypeDef, [UserDef])
-operation singleShot vis foralls effTagName effTp opsTp
+operation singleShot vis foralls effTagName effTp opsTp 
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -716,6 +717,9 @@ operation singleShot vis foralls effTagName effTp opsTp
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
 
+           --nameE    = newName ".e"
+           --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
+
            -- Create the constructor
            opName   = toOpTypeName id
            opBinder = TypeBinder opName KindNone idrng idrng
@@ -730,12 +734,12 @@ operation singleShot vis foralls effTagName effTp opsTp
 
            -- Declare the operation as a struct type with one constructor
            opTpDecl = -- trace ("declare op type: " ++ show opName) $
-                      DataType opBinder foralls [conDef] rng vis Inductive DataDefNormal False doc
+                      DataType opBinder ({-tpBindE:-}foralls) [conDef] rng vis Inductive DataDefNormal False doc
 
            -- Declare the operation constructor for part of the full operations data type
            tpParams    = [TpVar (tbinderName par) idrng | par <- foralls]
            opsConTpRes = makeTpApp opsTp tpParams rng
-           opsConTpArg = makeTpApp (tpCon opBinder) tpParams rng
+           opsConTpArg = makeTpApp (tpCon opBinder) ({-effTp:-}tpParams) rng
            opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
            opsConDef = UserCon (toOpsConName id) [] [(Private,opsConArg)] idrng rng vis ""
 

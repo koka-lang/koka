@@ -8,14 +8,14 @@ effect state<s> {
 val state = handler(s=0) {
   return x -> x
   get()    -> resume(s,s)
-  set(t)   -> resume(t,())
+  set(t)   -> resume((),t)
 }
 
 fun fstate(action) {
   handle(action)(s=0) {
     return x -> x
     get()    -> resume(s,s)
-    set(t)   -> resume(t,())
+    set(t)   -> resume((),t)
   }
 }
 

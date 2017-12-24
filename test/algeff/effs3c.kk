@@ -40,7 +40,7 @@ fun state_handle(i,action) {
   val h = handler(i) {
     return x -> x
     get()    -> resume(i,i)
-    set(j)   -> resume(j,())
+    set(j)   -> resume((),j)
   }
   h(i,action)
 }

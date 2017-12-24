@@ -64,7 +64,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   -- Lib.Trace.trace s
+--   Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -864,11 +864,14 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEf
        
        traceDoc $ \env -> text "inferHandlerBranches:" <+> 
                           text ", branchTp:" <+> ppType env branchTp <+>
-                          text ", handledEffect:" <+> ppType env handledEffect
+                          text ", handledEffect:" <+> ppType env handledEffect <+>
+                          text ", actionEffect:" <+> ppType env actionEffect
+
                           
        -- infer types of branches                          
        ibranches  <- mapM (inferHandlerBranch branchTp Instantiated
-                        locals handledEffect handledEffectName resumeEffect) branches
+                        locals handledEffect handledEffectName resumeEffect
+                        actionEffect) branches
 
 
        -- unify effects and branches
@@ -879,7 +882,7 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEf
        -- TODO: not necessary as we propate the branchTp and later match with the makeHandler ?
        resTp <- inferUnifyTypes checkMatch (zip (branchTp:branchTps) (zip (exprRng:bexprRngs) (exprRng:branchRngs)))
        handlerBranchTp <- inferUnifyTypes checkMatch (zip handlerBranchTps (zip bexprRngs branchRngs))
-       mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng effect retEffect) (zip branchRngs branchEffs)
+       mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEffect) (zip branchRngs branchEffs)
 
 
        -- build vector of branches
@@ -901,9 +904,9 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEf
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, nameMakeHandler shallow (length locals))
 
 
-inferHandlerBranch :: Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect
+inferHandlerBranch :: Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect 
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (HandlerBranch name pars expr nameRng rng)
+inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -919,10 +922,17 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
        -- get operator constructor type: .op-set<s>
        (conTp,tvars,_) <- instantiate rng gconTp
        let (conParTps,conResTp) = splitConTp conTp
+       -- traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <> colon <+> ppType env conTp        
+
+       --inferUnify (checkEffectTp rng) rng effectTp conEffTp
+        
 
        -- get resume argument type = operator result type
        (rho,_,_) <- instantiate rng opTp
        let (parTps,effTp,resTp) = splitOpTp rho
+
+       -- traceDoc $ \env -> text "inferHandlerBranch eff:" <+> pretty opName <> colon <+> ppType env effTp  <+> ppType env actionEffect    
+       inferUnify (checkEffectTp rng) rng effTp actionEffect
 
        -- check branch expression (`bexpr`)
        -- fun( resume : (s,a) -> <cps,state<s>|e> b, current : s, op : .op-set<s> ) { 
@@ -961,7 +971,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
            branchExpr  = Lam ([parResumeBind,opPar] ++ localsPar)  bodyExpr rng
            branchExprTp= TFun ([(parResumeName,parResumeTp),(newName "op",conResTp)] ++ locals ) resumeEff branchTp
 
-           handlerBranchTp = TApp (typeHandlerBranch (length locals)) (map snd locals ++ [branchTp])
+           handlerBranchTp = TApp (typeHandlerBranch (length locals)) ([resumeEff,branchTp] ++ map snd locals)
            makeBranchTp= TFun [(newName "resume-kind",typeInt), (newName "op-tag",typeString), 
                                 (newName "branch", branchExprTp)] typeTotal handlerBranchTp
 
@@ -1009,12 +1019,6 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff (Handle
     nameTpHandlerBranch n
       = qualify nameSystemCore (newName ("handler-branch" ++ show n))
 
-typeHandlerBranch :: [Type] {- local state -} -> Type {- branch tp -} -> Type
-typeHandlerBranch stateTps branchTp
-  = case stateTps of
-      []    -> typeApp (TCon (TypeCon nameTpHandlerBranch0 (kindCon 1))) [branchTp]
-      [sTp] -> typeApp (TCon (TypeCon nameTpHandlerBranch1 (kindCon 2))) [sTp,branchTp]
-      _     -> failure "Type.Infer.typeHandlerBranch: only support up to 1 state parameter in handlers for now"
 
 checkCoverage :: Range -> Effect -> [HandlerBranch Type] -> Inf Name
 checkCoverage rng effect branches
@@ -1669,6 +1673,7 @@ checkReturn        = Check "return type does not match an earlier return type"
 checkOp         = Check "operator type does not match the parameter types"
 checkMakeHandler= Check "handler types do not match the handler maker; please report this as a bug!"
 checkMakeHandlerBranch = Check "handle branch types do not match the handler branch maker; please report this as a bug!"
+checkEffectTp   = Check "operator type does not match the effect type"
 
 isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr

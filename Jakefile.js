@@ -852,7 +852,12 @@ function runTests(test,testMode,flags,callback) {
     else {
       var testList = new jake.FileList();
       testList.include(test);
+      // testList.include(test + ".kk");
       tests = testList.toArray();
+    }
+    if (err && (tests == null || tests == [] )) {
+      jake.logger.error("file or directory does not exist: " + test);
+      process.exit(1);
     }
     // jake.logger.log("run " + (tests.length===1 ? "test" : tests.length + " tests over") + ": " + test);
     console.time(testMessage);
