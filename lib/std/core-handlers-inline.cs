@@ -1,737 +1,1099 @@
 /*---------------------------------------------------------------------------
-  Copyright 2017 Microsoft Corporation.
+  Copyright 2017 Daan Leijen, Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
 namespace Eff
 {
-
+  #region Continuations
   // --------------------------------------------------
   // Continuations
   // --------------------------------------------------
-  public interface Cont : Fun1<object, object>
+
+  // Continuations are dynamically typed object to object.
+  public interface Cont { 
+  }
+  public interface Cont<A> : Cont
   {
+    Cont<C> Compose<C>(Fun1<A, C> f);
+    Cont<C> Compose<C>(Func<A, C> f);
+    Cont<A> Compose(Fun1<Exception, A> onExn, Fun0<Unit> onFinal);
+  }
+
+  public abstract class Cont<A,B> : Cont<B>
+  {
+    public abstract B Resume(A arg, Exception exception = null);
+
+    public Cont<C> Compose<C>(Fun1<B, C> f) {
+      return new ContComposeFun<C>(this, f);
+    }
+    public Cont<C> Compose<C>(Func<B, C> f) {
+      return new ContComposeFunc<C>(this, f);
+    }
+    public Cont<B> Compose(Fun1<Exception, B> onExn, Fun0<Unit> onFinal) {
+      return new ContComposeHandleExn(this, onExn, onFinal);
+    }
+    public Cont<A, B> Compose(Handler<B> h) {
+      return new ContComposeHandler<A>(this, h);
+    }
+    public Cont<A, B> Compose<S>(Handler1<S, B> h, S local) {
+      return new ContComposeHandler1<A, S>(this, h, local);
+    }
+
+    private sealed class ContComposeFun<C> : Cont<A, C>
+    {
+      Cont<A, B> cont;
+      Fun1<B, C> fun;
+
+      public ContComposeFun(Cont<A, B> cont, Fun1<B, C> fun) {
+        this.cont = cont;
+        this.fun = fun;
+      }
+
+      public override C Resume(A arg, Exception exn) {
+        return Op.Bind(cont.Resume(arg, exn), fun);
+      }
+    }
+
+    private sealed class ContComposeFunc<C> : Cont<A, C>
+    {
+      Cont<A, B> cont;
+      Func<B, C> fun;
+
+      public ContComposeFunc(Cont<A, B> cont, Func<B, C> fun) {
+        this.cont = cont;
+        this.fun = fun;
+      }
+
+      public override C Resume(A arg, Exception exn) {
+        return Op.Bind(cont.Resume(arg, exn), fun);
+      }
+    }
+
+    private sealed class ContComposeHandleExn : Cont<A,B>
+    {
+      Cont<A,B> cont;
+      Fun1<Exception,B> onExn;
+      Fun0<Unit> onFinal;
+
+      public ContComposeHandleExn(Cont<A,B> cont, Fun1<Exception,B> onExn, Fun0<Unit> onFinal) {
+        this.cont = cont;
+        this.onExn = onExn;
+        this.onFinal = onFinal;
+      }
+
+      public override B Resume(A arg, Exception exn) {
+        return Op.HandleExn(cont, arg, exn, onExn, onFinal);
+      }
+    }
+
+    private sealed class ContComposeHandler<R> : Cont<R, B>
+    {
+      Cont<R, B> cont;
+      Handler<B> handler;
+
+      public ContComposeHandler(Cont<R, B> cont, Handler<B> handler) {
+        this.cont = cont;
+        this.handler = handler;
+      }
+
+      public override B Resume(R arg, Exception exn) {
+        return handler.HandleResume<R>(cont, arg, exn);
+      }
+    }
+
+    private sealed class ContComposeHandler1<R, S> : Cont<R, B>
+    {
+      Cont<R, B> cont;
+      Handler1<S, B> handler;
+      S local;
+
+      public ContComposeHandler1(Cont<R, B> cont, Handler1<S, B> handler, S local) {
+        this.cont = cont;
+        this.handler = handler;
+        this.local = local;
+      }
+
+      public override B Resume(R arg, Exception exn) {
+        return handler.HandleResume<R>(cont, arg, local, exn);
+      }
+    }
+
+  }
+
+  sealed class ContId<A> : Cont<A,A>
+  {
+    public static ContId<A> id = new ContId<A>();
+
+    public override A Resume(A arg, Exception exception) {
+      if (exception != null) {
+        throw exception;
+      }
+      else {
+        return arg;
+      }
+    }
   }
 
 
-  class ContId : Cont
+  
+  
+  class Id<A> : Fun1<A, A>
   {
-    public static ContId singleton = new ContId();
-
-    public object Apply(object arg) {
+    public static Id<A> singleton = new Id<A>();
+    public object Apply(A arg) {
       return arg;
     }
   }
+  #endregion
 
-  class BindCompose<A, B> : Cont
-  {
-    Cont cont;
-    Fun1<A, B> bind;
-
-    public BindCompose(Fun1<A, B> bind, Cont cont) {
-      this.cont = cont;
-      this.bind = bind;
-    }
-
-    public object Apply(object arg) {
-      return Op.Bind((A)cont.Apply(arg), bind);
-    }
-  }
-
-
-  class HandlerCompose0<B> : Cont
-  {
-    Cont cont;
-    Handler0<B> handler;
-
-    public HandlerCompose0(Handler0<B> handler, Cont cont) {
-      this.cont = cont;
-      this.handler = handler;
-    }
-
-    public object Apply(object arg) {
-      return handler.Resume(cont, arg);
-    }
-  }
-
-  class HandlerCompose1<S, B> : Cont
-  {
-    Cont cont;
-    Handler1<S, B> handler;
-    S state;
-
-    public HandlerCompose1(Handler1<S, B> handler, Cont cont, S state) {
-      this.cont = cont;
-      this.handler = handler;
-      this.state = state;
-    }
-
-    public object Apply(object arg) {
-      return handler.Resume(cont, state, arg);
-    }
-  }
-
-
-  struct Resume0<A, B> : Fun1<A, B>
-  {
-    Cont cont;
-    Handler0<B> handler;
-
-    public Resume0(Handler0<B> handler, Cont cont) {
-      this.cont = cont;
-      this.handler = handler;
-    }
-    public object Apply(A x) {
-      return handler.Resume(cont, x);
-    }
-  }
-
-  struct Resume1<S, A, B> : Fun2<S, A, B>
-  {
-    Cont cont;
-    Handler1<S, B> handler;
-
-    public Resume1(Handler1<S, B> handler, Cont cont) {
-      this.cont = cont;
-      this.handler = handler;
-    }
-    public object Apply(S state, A x) {
-      return handler.Resume(cont, state, x);
-    }
-  }
-
+  #region Bind and Yield
 
   // --------------------------------------------------
-  // Operations
+  // Effect and Operation are just convenience
   // --------------------------------------------------
 
-  public abstract class Op
+  public class Effect
   {
-    public static Op Yielding = null;
-    public Cont Cont;
-    public readonly Handler Handler;
-    public readonly OpBranch OpBranch;
-    public abstract object OpValue { get; }
+    public readonly string EffectTag;
+    private List<Operation> operations;
 
-    public Op(Handler handler, OpBranch opBranch) {
-      Handler = handler;
-      OpBranch = opBranch;
-      Cont = (opBranch == null || opBranch.ResumesNever ? null : ContId.singleton);
+    public Effect(string effectTag) {
+      EffectTag = effectTag;
+      operations = new List<Operation>();
+    }
+    public Operation<A,B> NewOp<A,B>( string opName ) {
+      Operation<A,B> op = new Operation<A,B>( this, opName, operations.Count);
+      operations.Add(op);
+      return op;
+    }
+  }
+
+  public class Operation
+  {
+    public readonly Effect Effect;
+    public readonly int OpTag;
+    public readonly string OpName;
+
+    public Operation(Effect effect, string opName, int opTag) {
+      Effect = effect;
+      OpTag = opTag;
+      OpName = opName;
+    }
+  }
+
+  public class Operation<A,B> : Operation
+  {
+    public Operation(Effect effect, string opName, int opTag) : base(effect,opName,opTag) { }
+    public B Yield(A arg) {
+      return Op.YieldOp<A, B>(Effect.EffectTag, OpName, OpTag, arg);
+    }
+  }
+
+  // --------------------------------------------------
+  // Bind and Yield
+  // --------------------------------------------------
+  public abstract class YieldPoint
+  {
+    private readonly Handler handler;
+
+    public YieldPoint(Handler handler) {
+      this.handler = handler;
     }
 
-    public bool IsTailCall {
-      get { return (this == TailCallOp._tailCallOp); }
+    public bool HandledBy(Handler handler) {
+      return (this.handler == handler);
     }
 
-    public A MakeTailCall<A>() {
-      return TailCallOp._MakeTailCall<A>();
+    public abstract ResumeKind ResumeKind { get; }
+    public abstract bool CallBranch<B>(Handler<B> handler, Cont<B> cont, out B result);
+    public abstract Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont);
+    public abstract B RunFinalizers<B>(Handler<B> handler, Cont<B> cont, FinalizeException<B> exn);
+  }
+
+  // The `YieldPoint` class connects the types at the point of the
+  // yield, namely operation `O` and result `R`, with the type of the branch
+  // with result `B` and the type of the handler. At the `handler.CallBranch`
+  // all types will be resolved.
+  public sealed class YieldPoint<O,R> : YieldPoint
+  {
+    Branch branch;
+    O op;
+    
+    public YieldPoint( Handler handler, Branch branch, O op ) : base(handler) {
+      this.branch = branch;
+      this.op = op;
     }
 
-    public static Op TailCall {
-      get {
-        return (Yielding == TailCallOp._tailCallOp ? Yielding : null);
-      }
+    public override ResumeKind ResumeKind { get { return branch.ResumeKind; } }
+
+    public override bool CallBranch<B>(Handler<B> handler, Cont<B> cont, out B result) {
+      Debug.Assert(HandledBy(handler));
+      return handler.CallBranch<O, R>((IBranch<O,R,B>)branch, (Cont<R,B>)cont, op, out result);
     }
 
-    private static bool isInBindContext;
-
-    public static bool IsInBindContext() {
-      bool result = isInBindContext;
-      isInBindContext = false;
-      return result;
+    public override Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont) {
+      Debug.Assert(!HandledBy(handler));
+      return handler.ContCompose<R>((Cont<R, B>)cont);
     }
 
-    public static Unit InBindContext() {
-      isInBindContext = true;
-      return Unit.unit;
+    public override B RunFinalizers<B>(Handler<B> handler, Cont<B> cont, FinalizeException<B> exn) {
+      Debug.Assert(HandledBy(handler));
+      return handler.RunFinalizers<R>((Cont<R,B>)cont, exn);
     }
+  }
 
-    // --------------------------------------------------
-    // Bind
-    // --------------------------------------------------
+  public static class Op
+  {
+    public static Cont yieldCont = null;
+    public static YieldPoint yieldPoint = null;
+    public static ResumeKind yieldResumeKind = ResumeKind.Never;
+    public static bool yielding = false;
 
     public static B Bind<A, B>(A x, Fun1<A, B> next) {
-      Op op;
-      while ((op = Yielding) != null) {
-        if (op.IsTailCall) {
-          x = op.MakeTailCall<A>();
+      if (yielding) {
+        if (yieldResumeKind != ResumeKind.Never) {
+          yieldCont = ((Cont<A>)yieldCont).Compose<B>(next);
         }
-        else {
-          op.Cont = new BindCompose<A, B>(next, op.Cont);
-          return default(B);
-        }
-      }
-      return next.Call(x);
-    }
-
-    // For convenience
-    public static B Bind<A, B>(A x, Func<A, B> next) {
-      return Bind(x, new Primitive.FunFunc1<A, B>(next));
-    }
-
-#if DEBUG
-    public static string yieldingEffectTag;
-    public static string yieldingOpTag;
-    public static string ShowYieldingOp() {
-      if (Yielding == null) return "<none>";
-      return yieldingEffectTag + "/" + yieldingOpTag;
-    }
-#endif
-  }
-
-  class TailCallOp : Op
-  {
-    private static object TailCallFun = null;
-
-    public TailCallOp() : base(null, null) { }
-    public override object OpValue { get { return TailCallFun; } }
-
-    public static TailCallOp _tailCallOp = new TailCallOp();
-
-    public static A _MakeTailCall<A>() {
-      Yielding = null;
-      Func<A> tailCall = (Func<A>)TailCallFun;
-      TailCallFun = null;
-      return tailCall();
-    }
-    public static A Yield<A>(Func<A> tailCall) {
-      Yielding = _tailCallOp;
-      TailCallFun = tailCall;
-      return default(A);
-    }
-  }
-
-  public class Op<O, R> : Op
-  {
-    private O opValue;
-    public override object OpValue { get { return opValue; } }
-
-    public Op(O opValue, Handler handler, OpBranch opBranch) :
-      base(handler, opBranch) {
-      this.opValue = opValue;
-    }
-
-    public static R Yield(string effectTag, string opTag, O opValue) {
-#if DEBUG
-      // this can happen if you forget "bind"
-      if (Yielding != null) throw new Exception("Should not happen: yielding a new operation while yielding!: " + effectTag + "/" + opTag + ", while yielding " + ShowYieldingOp());
-#endif
-      Handler handler;
-      OpBranch opBranch;
-      int skipped;
-      Handler.FindHandler(effectTag, opTag, out handler, out opBranch, out skipped);
-      if (opBranch.IsTailResume) {
-        // Optimized tail resumptions become a direct method call
-        return TailResume((OpTailBranch<O, R>)opBranch, handler, skipped, opValue);
+        return default(B);
       }
       else {
-        // In all other cases we unwind the stack to the handler
-        Op<O, R> op = new Op<O, R>(opValue, handler, opBranch);
-        op.Cont = (op.OpBranch.ResumesNever ? null : ContId.singleton);
-        Yielding = op;
+        return next.Call(x);
+      }
+    }
+  
+    private static int tailYieldCount = 0;
+    private static int tailYieldMax = 100;
+
+    public static R YieldOp<O, R>(string effectTag, string opName, int opTag, O op) {
+      int skip;
+      Branch branch;
+      Handler handler;
+      Handler.Find(effectTag, opName, opTag, out handler, out branch, out skip);
+      yieldResumeKind = branch.ResumeKind;
+      if (yieldResumeKind == ResumeKind.Tail && (tailYieldCount < tailYieldMax || handler.IsLinear)) {
+        // invoke directly using skip frames; this is the case 95% of the time and should
+        // be optimized well (e.g. there should be no allocation along this path).
+        if (!handler.IsLinear) tailYieldCount++;
+        return handler.HandleTailBranch<O, R>(branch, op, skip);
+      }
+      else {
+        // yield normally 
+        yieldPoint = new YieldPoint<O, R>(handler, branch, op);
+        tailYieldCount = 0;
+        yieldCont = (yieldResumeKind == ResumeKind.Never ? null : ContId<R>.id);
+        yielding = true;
         return default(R);
+      }
+      
+    }
+
+    // Convenience
+    public static B Bind<A, B>(A x, Func<A, B> next) {
+      if (yielding) {
+        if (yieldResumeKind != ResumeKind.Never) {
+          yieldCont = ((Cont<A>)yieldCont).Compose<B>(next);
+        }
+        return default(B);
+      }
+      else {
+        return next(x);
       }
     }
 
-    private static R TailResume(OpTailBranch<O, R> opBranch, Handler handler, int skipped, O opValue) {
-      SkipHandler s = SkipHandler.Create(skipped + 1);
-      s.Push();
-      R result = opBranch.TailInvoke(handler, opValue);
-      Op op;
-      while ((op = TailCall) != null) {
-        result = op.MakeTailCall<R>();
+    public static A HandleExn<A>( Fun0<A> action, Fun1<Exception,A> onExn, Fun0<Unit> onFinal ) {
+      A result;
+      try {
+        result = action.Call();
+        if (yielding) {
+          if (yieldResumeKind != ResumeKind.Never) {
+            yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
+          }
+        }
       }
-      s.Pop();
-      return TailResumeBind(result, s);
-    }
-
-    private static R TailResumeBind(R result, SkipHandler s) {
-      Op op = Yielding;
-      if (op != null) {
-        Debug.Assert(!op.IsTailCall);
-        op.Cont = new SkipCompose(s, op.Cont);
-        return default(R);
+      catch( FinalizeException ) {
+        throw;
+      }
+      catch( Exception exn ) {
+        if (onExn == null) throw;
+        return onExn.Call(exn);
+      }
+      finally {
+        if (onFinal != null) onFinal.Call();
       }
       return result;
     }
 
-    private class SkipCompose : Cont
-    {
-      private Cont cont;
-      private SkipHandler s;
-      public SkipCompose(SkipHandler s, Cont cont) {
-        this.cont = cont;
-        this.s = s;
-      }
-      public object Apply(object arg) {
-        s.Push();
-        R result = (R)cont.Apply(arg);
-        Op op;
-        while ((op = TailCall) != null) {
-          result = op.MakeTailCall<R>();
+    public static A HandleExn<R,A>(Cont<R,A> cont, R arg, Exception exception, Fun1<Exception, A> onExn, Fun0<Unit> onFinal) {
+      A result;
+      try {
+        result = cont.Resume(arg, exception);
+        if (yielding) {
+          if (yieldResumeKind != ResumeKind.Never) {
+            yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
+          }
         }
-        s.Pop();
-        return TailResumeBind(result, s);
       }
+      catch (FinalizeException) {
+        throw;
+      }
+      catch (Exception exn) {
+        if (onExn == null) throw;
+        return onExn.Call(exn);
+      }
+      finally {
+        if (onFinal != null) onFinal.Call();
+      }
+      return result;
+    }
+
+  }
+
+
+  public abstract class FinalizeException : Exception
+  {
+    private readonly Handler handler;
+
+    public bool HandledBy(Handler h) {
+      return (h == handler);
+    }
+
+    public FinalizeException(Handler handler) : base("Internal: operation in a linear handler threw an exception or returned directly") {
+      this.handler = handler;
     }
   }
 
-  
+  public abstract class FinalizeException<B> : FinalizeException 
+  {
+    public FinalizeException(Handler handler) : base(handler) { }
 
+    public abstract B Handle();
+  }
+
+  public class FinalizeReturnException<B> : FinalizeException<B>
+  {
+    private readonly B returnValue;
+
+    public FinalizeReturnException(Handler<B> handler, B returnValue) : base(handler) {
+      this.returnValue = returnValue;
+    }
+
+    public override B Handle() {
+      return returnValue;
+    }
+  }
+
+  public class FinalizeThrowException<B> : FinalizeException<B>
+  {
+    private readonly Exception exception;
+
+    public FinalizeThrowException(Handler handler, Exception exception) : base(handler) {
+      this.exception = exception;
+    }
+
+    public override B Handle() {
+      throw exception;
+    }
+  }
+  #endregion
+
+  #region Branches
   // --------------------------------------------------
-  // Op Handlers
+  // Branches
   // --------------------------------------------------
+
   public enum ResumeKind
   {
-    Never, Tail, Once, Many
+    Never,
+    Tail,
+    Once,
+    Normal,
+    Shallow
   }
 
-  public abstract class OpBranch
+  // Resume functions 
+  public interface Resume<R, B> : Fun1<R, B> {
+    bool HasResumed { get; }
+  }
+
+  public interface Resume1<S, R, B> : Fun2<R, S, B> {
+    bool HasResumed { get; }
+  }
+
+
+  public abstract class Branch
   {
-    public readonly string OpTag;
     public readonly ResumeKind ResumeKind;
-    public bool IsTailResume { get { return ResumeKind == ResumeKind.Tail; } }
-    public bool ResumesNever { get { return ResumeKind == ResumeKind.Never; } }
-    public bool ResumesOnce { get { return ResumeKind != ResumeKind.Many; } }
+    public readonly string OpName;
 
-    public OpBranch(ResumeKind resumeKind, string opTag) {
-      OpTag = opTag;
+    public Branch(ResumeKind resumeKind, string OpName) {
       ResumeKind = resumeKind;
+      this.OpName = OpName;
     }
   }
-
-  public abstract class OpTailBranch<O, R> : OpBranch
+ 
+  // A branch in a handler with result type `B`.
+  public abstract class Branch<B> : Branch
   {
-    public OpTailBranch(string opTag) : base(ResumeKind.Tail, opTag) { }
-    public abstract R TailInvoke(Handler h, O opValue);
+    public Branch(ResumeKind resumeKind, string opName) : base(resumeKind, opName) { }
   }
 
-  public interface OpBranch0<B>
+  public interface IBranch<O, R, B> { }
+
+  // Branches without local state
+  public sealed class Branch<O, R, B> : Branch<B>, IBranch<O,R,B>
   {
-    B Invoke(Handler0<B> handler, Cont cont, object opValue);
-  }
+    Fun2<Resume<R, B>, O, B> branchFun;
 
-  public interface OpBranch0<O, B> : OpBranch0<B>
+    public Branch(ResumeKind resumeKind, string opName,
+                    Fun2<Fun1<R, B>, O, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = branchFun;
+    }
+    
+    public B Call(Resume<R, B> resume, O op) {
+      return branchFun.Call(resume,op);
+    }
+
+    // Convenience: wrap into C# functions
+    public Branch(ResumeKind resumeKind, string opName,
+                    Func<Resume<R, B>, O, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = new Primitive.FunFunc2<Resume<R, B>, O, B>(branchFun);
+    }
+    
+    public Branch(ResumeKind resumeKind, string opName, Func<Func<R, B>, O, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = new Primitive.FunFunc2<Resume<R, B>, O, B>((Resume<R, B> r, O op) => {
+        return branchFun((arg) => r.Call(arg), op);
+      });
+    }
+   
+  }
+  
+
+  // Branches on local state
+  public abstract class Branch1<S, B> : Branch<B>
   {
-    B Invoke(Handler0<B> handler, Cont cont, O opValue);
+    public Branch1(ResumeKind rk, string opName) : base(rk, opName) { }
   }
 
-
-  public class OpBranch0<O, R, B> : OpBranch, OpBranch0<O, B>
+  public sealed class Branch1<S, O, R, B> : Branch1<S, B>, IBranch<O,R,B>
   {
-    public static OpBranch0<O,R,B> Create( ResumeKind resumeKind, string opTag, Func<Fun1<R,B>,O,B> branch ) {
-      return Create(resumeKind, opTag, new Primitive.FunFunc2<Fun1<R, B>, O, B>(branch));  
+    Fun3<Fun2<R, S, B>, O, S, B> branchFun;
+
+    public Branch1(ResumeKind resumeKind, string opName,
+                    Fun3<Fun2<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = branchFun;
     }
-    public static OpBranch0<O, R, B> Create(ResumeKind resumeKind, string opTag, Fun2<Fun1<R, B>, O, B> branch) {
-      return new OpBranch0<O, R, B>(resumeKind, opTag, branch);
+   
+    public B Call(Resume1<S, R, B> resume, O op, S local) {
+      return branchFun.Call(resume, op,local);
     }
 
-    private Fun2<Fun1<R, B>, O, B> branch;
-
-    protected OpBranch0(ResumeKind resumeKind, string opTag,
-                Fun2<Fun1<R, B>, O, B> branch) : base(resumeKind, opTag) {
-      this.branch = branch;
+    // Convenience: wrap into C# functions
+    public Branch1(ResumeKind resumeKind, string opName,
+                    Func<Fun2<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = new Primitive.FunFunc3<Fun2<R, S, B>, O, S, B>(branchFun);
     }
-
-    public OpBranch0(string opTag,
-                      Fun2<Fun1<R, B>, O, B> branch) : base(ResumeKind.Many, opTag) {
-      this.branch = branch;
+   
+    public Branch1(ResumeKind resumeKind, string opName, Func<Func<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
+      this.branchFun = new Primitive.FunFunc3<Fun2<R, S, B>, O, S, B>((Fun2<R, S, B> r, O op, S local) => {
+        return branchFun((R arg, S loc) => r.Call(arg, loc), op, local);
+      });
     }
-
-    public B Invoke(Handler0<B> handler, Cont cont, object opValue) {
-      return Invoke(handler, cont, (O)opValue);
-    }
-    public B Invoke(Handler0<B> handler, Cont cont, O opValue) {
-      return branch.Call(new Resume0<R, B>(handler, cont), opValue);
-    }
+   
   }
+  
+  #endregion
 
-  public class OpTailBranch0<O, R, B> : OpTailBranch<O, R>, OpBranch0<O, B>
-  {
-    public static OpTailBranch0<O, R, B> Create(string opTag, Func<O, R> branch) {
-      return Create(opTag, new Primitive.FunFunc1<O, R>(branch));
-    }
-    public static OpTailBranch0<O, R, B> Create(string opTag, Fun1<O,R> branch) {
-      return new OpTailBranch0<O, R, B>(opTag, branch);
-    }
-
-    private Fun1<O, R> branch;
-
-    public OpTailBranch0(string opTag, Fun1<O, R> branch) : base(opTag) {
-      this.branch = branch;
-    }
-
-    public B Invoke(Handler0<B> handler, Cont cont, object opValue) {
-      return Invoke(handler, cont, (O)opValue);
-    }
-
-    public B Invoke(Handler0<B> handler, Cont cont, O opValue) {
-      return handler.Resume(cont, TailInvoke(handler, opValue));
-    }
-
-    public override R TailInvoke(Handler h, O opValue) {
-      return branch.Call(opValue);
-    }
-  }
-
-  public interface OpBranch1<S, B>
-  {
-    B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state);
-  }
-
-  public interface OpBranch1<S, O, B> : OpBranch1<S, B>
-  {
-    B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state);
-  }
-
-  public class OpBranch1<S, O, R, B> : OpBranch, OpBranch1<S, O, B>
-  {
-    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Func<Fun2<S, R, B>, O, S, B> branch) {
-      return Create(resumeKind, opTag, new Primitive.FunFunc3<Fun2<S, R, B>, O, S, B>(branch));
-    }
-    public static OpBranch1<S, O, R, B> Create(ResumeKind resumeKind, string opTag, Fun3<Fun2<S, R, B>, O, S, B> branch) {
-      return new OpBranch1<S, O, R, B>(resumeKind, opTag, branch);
-    }
-
-    private Fun3<Fun2<S, R, B>, O, S, B> branch;
-
-    public OpBranch1(ResumeKind resumeKind, string opTag,
-                Fun3<Fun2<S, R, B>, O, S, B> branch) : base(resumeKind, opTag) {
-      this.branch = branch;
-    }
-
-    public B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state) {
-      return Invoke(handler, cont, (O)opValue, state);
-    }
-
-    public B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state) {
-      return branch.Call(new Resume1<S, R, B>(handler, cont), opValue, state);
-    }
-  }
-
-  public class OpTailBranch1<S, O, R, B> : OpTailBranch<O, R>, OpBranch1<S, O, B>
-  {
-    public static OpTailBranch1<S, O, R, B> Create(string opTag, Func<O, S, std_core._Tuple2_<S,R>> branch) {
-      return Create(opTag, new Primitive.FunFunc2<O, S, std_core._Tuple2_<S,R>>(branch));
-    }
-    public static OpTailBranch1<S, O, R, B> Create(string opTag, Fun2<O, S, std_core._Tuple2_<S,R>> branch) {
-      return new OpTailBranch1<S, O, R, B>(opTag, branch);
-    }
-
-    private Fun2<O, S, std_core._Tuple2_<S, R>> branch;
-
-    public OpTailBranch1(string opTag, Fun2<O, S, std_core._Tuple2_<S, R>> branch) : base(opTag) {
-      this.branch = branch;
-    }
-
-    public B Invoke(Handler1<S, B> handler, Cont cont, object opValue, S state) {
-      return Invoke(handler, cont, (O)opValue, state);
-    }
-
-    public B Invoke(Handler1<S, B> handler, Cont cont, O opValue, S state) {
-      std_core._Tuple2_<S, R> res = branch.Call(opValue, state);
-      return handler.Resume(cont, res.fst, res.snd);
-    }
-
-    public override R TailInvoke(Handler handler, O opValue) {
-      return ((Handler1<S, B>)handler).TailInvoke<O, R>(branch, opValue);
-    }
-  }
-
+  #region Abstract Handlers
   // --------------------------------------------------
   // Handlers
   // --------------------------------------------------
 
   public abstract class Handler
   {
-    public readonly string EffectTag;
-    public readonly bool IsShallow;     // ToDo: not yet fully implemented
-    public readonly int Skip;
+    private static Handler[] handlers = new Handler[32];
+    private static int top = -1;
 
-    public Handler(bool isShallow, string effectTag, OpBranch[] opBranches) {
-      Skip = 0;
-      IsShallow = isShallow;
-      EffectTag = effectTag;
-      this.opBranches = opBranches;
-    }
+    public readonly string effectTag;
+    protected readonly Branch[] branches;
+    protected int skip = 0;
 
-    public Handler(int skip) {
-      Skip = skip;
-      IsShallow = false;
-      EffectTag = "<skip>";
-      opBranches = null;
-    }
+    protected readonly bool linear;
+    public bool IsLinear { get { return linear; } }
 
-    private OpBranch[] opBranches;
-    private static Stack<Handler> handlers = new Stack<Handler>(100);
+    // Used to directly call a branch if it is tail resumptive.
+    public abstract R HandleTailBranch<O, R>(Branch branch, O op, int skip);
 
-    public void Push() {
-      if (IsShallow) return;
-      handlers.Push(this);
-    }
-
-    public void Pop() {
-      if (IsShallow) return;
-      Handler h = handlers.Pop();
-      Debug.Assert(h == this);
-    }
-
-    public static void FindHandler(string effectTag, string opTag, out Handler handler, out OpBranch branch, out int skipped) {
-      int index = 0;
-      int toSkip = 0;
-      foreach (Handler h in handlers) {
-        index++;
-        if (toSkip > 0) {
-          // skipping
-          toSkip--;
-        }
-        else if (h.EffectTag == effectTag) {
-          // found!
-          skipped = index - 1;
-          handler = h;
-          foreach (OpBranch b in h.opBranches) {
-            if (b.OpTag == opTag) {
-              branch = b;
-              return;
-            }
-          }
-          throw new Exception("Should not happen: operation not handled for effect:" + effectTag + "/" + opTag);
-        }
-        else {
-          // possible skip frames
-          toSkip = h.Skip;
-        }
-      }
-      throw new Exception("Should not happen: unhandled operation: " + effectTag + "/" + opTag);
-    }
-  }
-
-  class SkipHandler : Handler
-  {
-    public SkipHandler(int skip) : base(skip) { }
-
-    private static SkipHandler[] cache = {
-        new SkipHandler(1), new SkipHandler(2), new SkipHandler(3),
-        new SkipHandler(4), new SkipHandler(5), new SkipHandler(6)
-      };
-
-    public static SkipHandler Create(int skip) {
-      if (skip <= 6) {
-        return cache[skip - 1];
+    public Handler(string effectTag, Branch[] branches, bool linear = false) {
+      this.effectTag = effectTag;
+      this.linear = linear;
+      this.branches = branches;
+      /*
+      if (branches == null) {
+        this.branches = null;
       }
       else {
-        return new SkipHandler(skip);
+        // ensure the op tags match their index
+        this.branches = new Branch[branches.Length];
+        foreach (Branch branch in branches) {
+          this.branches[branch.OpTag] = branch;
+        };
+      }
+      */
+    }
+
+    public static Handler Top {
+      get {
+        for (int i = top; i >= 0; i--) {
+          Handler h = handlers[top];
+          if (h.skip == 0) return h;  // never return  skip handlers
+          i -= h.skip;
+        }
+        return null;
+      }
+    }
+
+    protected void Pop() {
+      if (top >= 0) {
+        top--;
+        Debug.Assert(this == handlers[top + 1]);
+      }
+    }
+
+    protected void Push() {
+      top++;
+      if (top >= handlers.Length) {
+        int newlen = (handlers.Length <= 1024 ? handlers.Length * 2 : handlers.Length + 1024);
+        if (newlen > 1024 * 1024 * 1024) throw new Exception("Handler stack has grown too large");
+        Handler[] newHandlers = new Handler[newlen];
+        handlers.CopyTo(newHandlers, 0);
+        handlers = newHandlers;
+      }
+      handlers[top] = this;
+    }
+
+    
+    public static void Find(string effectTag, string opName, int opTag, out Handler handler, out Branch branch, out int skip) {
+      handler = null;
+      branch = null;
+      for(int i = top; i >= 0; i--) {
+        handler = handlers[i];
+        if (handler.effectTag == effectTag) {
+          branch = handler.branches[opTag];
+          skip = (top - i + 1);
+          if (branch == null) throw new Exception("Bad handler: no operation handler for: " + effectTag + "/" + opName);
+          Debug.Assert(branch.OpName == null || branch.OpName == opName);
+          return;
+        }
+        i -= handler.skip;
+      }
+      throw new Exception("No handler found for: " + effectTag + "/" + opName);
+    }
+
+    // Return a new (cached) skip handler
+    public static Handler Skip(int skip) {
+      if (skip <= 1) {
+        Handler h = Top;
+        h.Pop();
+        return h;
+      }
+      else {
+        Handler h = SkipHandler.CreateCached(skip);
+        h.Push();
+        return h;
+      }
+    }
+
+    public void UnSkip(int skip) {
+      if (skip <= 1) {
+        // we saved the top handler, now push it back
+        Push();
+      }
+      else {
+        // we pushed a skip frame, now pop it
+        Debug.Assert(this.skip == skip);
+        Pop();
+      }
+    }
+
+    // Special skip handlers are used for efficient tail resumptions and skip a portion of 
+    // the handler stack
+    private sealed class SkipHandler : Handler
+    {
+      private static SkipHandler Skip1 = new SkipHandler(1);
+      private static SkipHandler Skip2 = new SkipHandler(2);
+      private static SkipHandler Skip3 = new SkipHandler(3);
+      private static SkipHandler Skip4 = new SkipHandler(4);
+
+      public static SkipHandler CreateCached(int skip) {
+        if (skip <= 1) return Skip1;
+        else if (skip == 2) return Skip2;
+        else if (skip == 3) return Skip3;
+        else if (skip == 4) return Skip4;
+        else return new SkipHandler(skip);
+      }
+
+      private SkipHandler(int skip) : base("<skip>", null) {
+        this.skip = skip;
+      }
+
+      public override R HandleTailBranch<O, R>(Branch branch, O op, int skip) {
+        throw new Exception("Internal error: invoking tail branch on a skip handler");
       }
     }
   }
+  #endregion
 
-  public abstract class Handler0<B> : Handler
+  #region Handlers returning a result of type B
+  // Handlers returning a result of type B
+  public abstract class Handler<B> : Handler
   {
-    public Handler0(bool isShallow, string effectTag, OpBranch[] opHandlers) :
-      base(isShallow, effectTag, opHandlers) {
+    public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
+
+    public abstract bool CallBranch<O, R>(IBranch<O,R,B> branch, Cont<R,B> cont, O op, out B result);
+    public abstract bool CallTailBranch<O, R>(IBranch<O, R, B> branch, O op, out B result, out R tailResumeArg);
+    public abstract Cont<R, B> ContCompose<R>(Cont<R, B> cont);
+
+    public B HandleResume<R>(Cont<R, B> cont, R arg, Exception exn = null) {
+      B x = ResumeCont(cont, arg, exn);
+      return HandleYield(x);
     }
-    public abstract B Resume(Cont c, object arg);
+
+    public B ResumeCont<R>(Cont<R, B> cont, R arg, Exception exception = null) {
+      Push();
+      try {
+        return cont.Resume(arg, exception);
+      }
+      catch (FinalizeException<B> exn) {
+        // if a tail operation is optimized, it might yield back to the handler
+        // using a FinalizeException
+        if (!exn.HandledBy(this)) throw;
+        return exn.Handle();
+      }
+      finally {
+        Pop();
+      }
+    }
+
+    public B RunFinalizers<R>(Cont<R, B> cont, FinalizeException<B> exception) {
+      try {
+        // raise the exception at the continuation point to run finalizers
+        return cont.Resume(default(R), exception);
+      }
+      catch (FinalizeException<B> exn) {
+        if (!exn.HandledBy(this)) throw;
+        return exn.Handle();
+      }
+    }
+
+    protected B HandleYield(B result) {
+      bool tailresumed;
+      do {
+        tailresumed = false;
+        if (Op.yielding) {
+          // yielding
+          Cont<B> cont = (Cont<B>)Op.yieldCont;
+          if (!Op.yieldPoint.HandledBy(this)) {
+            // not for us, reyield with an extended continuation
+            if (Op.yieldResumeKind != ResumeKind.Never) {
+              Op.yieldCont = Op.yieldPoint.HandlerCompose<B>(this, cont);
+            }
+          }
+          else {
+            // we handle the operation; reset Op fields for GC
+            Op.yielding = false;
+            Op.yieldCont = null;
+            YieldPoint yieldPoint = Op.yieldPoint;
+            Op.yieldPoint = null;
+
+            // invoke the operation branch
+            ResumeKind rkind = yieldPoint.ResumeKind;
+            bool resumed = false;
+            try {
+              resumed = yieldPoint.CallBranch<B>(this, cont, out result);
+            }
+            catch(Exception exn) {
+              if (resumed) throw;  // rethrow, no need for finalization
+              // we did not resume yet; run finalizers and rethrow
+              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeThrowException<B>(this,exn));
+            }
+            if (!resumed) { // TODO: what about yielding?
+              // we returned without resuming; run finalizers first
+              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeReturnException<B>(this, result));
+            }
+            tailresumed = (resumed && rkind == ResumeKind.Tail);
+          }
+        }
+      }
+      while (tailresumed);
+      return result;
+    }
+
+
+    public override R HandleTailBranch<O, R>(Branch ybranch, O op, int skip) {
+      B result;
+      R tailResumeArg;
+      bool resumed;
+
+      // push skip handler so operations in the tail branch get handled correctly
+      Handler hskip = Handler.Skip(skip); 
+      try {
+        resumed = CallTailBranch<O, R>((IBranch<O,R,B>)ybranch, op, out result, out tailResumeArg);
+      }
+      catch (Exception exn) {
+        // Raised exception in the branch
+        // we finalize back to the handler and rethrow from there.
+        // note: we do this for `FinalizeException`s too.
+        throw new FinalizeThrowException<B>(this, exn);
+      }
+      finally {
+        hskip.UnSkip(skip);
+      }
+
+      if (!resumed) {
+        // Returned directly from the branch; 
+        // we finalize back to the handler and return from there.
+        throw new FinalizeReturnException<B>(this, result);
+      }
+      return tailResumeArg; // TODO: on yielding, extend continuation with skip frame
+    }
+
+  }
+  #endregion
+
+  #region Generic Handler from A to B
+  // --------------------------------------------------
+  // Handlers that take an action returning A to a result B
+  // --------------------------------------------------
+
+  // Handlers from actions of type A to B.
+  public abstract class Handler<A, B> : Handler<B>
+  {
+    public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
+
+    public abstract B CallReturnFun(A arg);
+
+    public B Handle(Fun0<A> action) {
+      B result;
+      Push();
+      try {
+        // todo: slightly wrong as the operations in the return fun are handled by ourselves too
+        result = Op.Bind(action.Call(), (A x) => CallReturnFun(x));
+      }
+      catch (FinalizeException<B> exn) {
+        if (!exn.HandledBy(this)) throw;
+        return exn.Handle();
+      }
+      finally {
+        Pop();
+      }
+      return HandleYield(result); 
+    }
   }
 
-  public class Handler0<A, B> : Handler0<B>
+  #endregion
+
+  #region Concrete Handler without local state
+  // --------------------------------------------------
+  // Concrete Handler without local state (non-parameterized)
+  // --------------------------------------------------
+  public sealed class Handler0<A, B> : Handler<A, B>
   {
-    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> ret, OpBranch0<B>[] opBranches) {
-      Handler0<A, B> handler = new Handler0<A, B>(effectTag, new Primitive.FunFunc1<A, B>(ret), opBranches);
-      return (Func<A> action) => handler.Handle(new Primitive.FunFunc0<A>(action));
+    private Fun1<A, B> returnFun;
+
+    public Handler0(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+      this.returnFun = returnFun;
     }
 
-    private class FunHandler : Fun1<Fun0<A>, B>
+    public override B CallReturnFun(A arg) {
+      return returnFun.Call(arg);
+    }
+
+    public override Cont<R, B> ContCompose<R>(Cont<R, B> cont) {
+      return cont.Compose(this);
+    }
+
+    public override bool CallBranch<O, R>(IBranch<O,R,B> ybranch, Cont<R,B> cont, O op, out B result) {
+      Branch<O,R,B> branch = (Branch<O,R,B>)ybranch;
+      ResumeKind rkind = branch.ResumeKind;
+      if (rkind == ResumeKind.Tail) {
+        R tailResumeArg;
+        bool resumed = CallTailBranch(branch, op, out result, out tailResumeArg);
+        if (resumed) {
+          result = ResumeCont(cont, tailResumeArg);
+        }
+        return resumed;
+      }
+      else {
+        Resume<R, B> resume;
+        if (rkind == ResumeKind.Never) resume = ResumeNever<R>.singleton;
+        else resume = new ResumeNormal<R>(this, cont);
+        result = branch.Call(resume, op);
+        return resume.HasResumed;
+      }
+    }
+
+    public override bool CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out B result, out R tailResumeArg) {
+      Branch<O, R, B> branch = (Branch<O, R, B>)ybranch;
+      Debug.Assert(branch.ResumeKind == ResumeKind.Tail);
+      ResumeTailDirect<R> resume = ResumeTailDirect<R>.singleton;
+      result = branch.Call(resume, op);
+      return resume.GetResumed(out tailResumeArg);
+    }
+      
+    // Convenience
+    public Handler0(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+      this.returnFun = new Primitive.FunFunc1<A, B>(returnFun);
+    }
+
+    public static Fun1<Fun0<A>, B> Create(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, bool linear = false) {
+      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, linear);
+      return new HandlerFun0(h);
+    }
+
+    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, bool linear = false) {
+      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, linear);
+      return (action) => h.Handle(new Primitive.FunFunc0<A>(action));
+    }
+
+    private sealed class HandlerFun0 : Fun1<Fun0<A>, B>
     {
       Handler0<A, B> handler;
-      public FunHandler(Handler0<A, B> handler) {
+      public HandlerFun0(Handler0<A, B> handler) {
         this.handler = handler;
       }
-      public object Apply( Fun0<A> action ) {
+      public object Apply(Fun0<A> action) {
         return handler.Handle(action);
       }
     }
-    public static Fun1<Fun0<A>, B> Create(string effectTag, Fun1<A, B> ret, OpBranch0<B>[] opBranches) {
-      Handler0<A, B> handler = new Handler0<A, B>(effectTag, ret, opBranches);
-      return new FunHandler(handler);
-    }
 
-    private Fun1<A, B> ret;
+    private sealed class ResumeNormal<R> : Resume<R, B>
+    {
+      Handler<B> handler;
+      Cont<R, B> cont;
+      bool resumed = false;
 
-    private static OpBranch[] DownCast( OpBranch0<B>[] branches ) {
-      OpBranch[] bs = new OpBranch[branches.Length];
-      for(int i = 0; i < branches.Length; i++) {
-        bs[i] = (OpBranch)branches[i];
+      public ResumeNormal(Handler<B> h, Cont<R, B> c) {
+        handler = h;
+        cont = c;
       }
-      return bs;
-    }
 
-    public Handler0(string effectTag, Fun1<A, B> ret, OpBranch0<B>[] opHandlers) :
-      base(false, effectTag, DownCast(opHandlers)) {
-      this.ret = ret;
-    }
-
-    public override B Resume(Cont c, object arg) {
-      Push();
-      A result = (A)c.Apply(arg);
-      Op op;
-      while ((op = Op.TailCall) != null) {
-        result = op.MakeTailCall<A>();
+      public bool HasResumed {
+        get { return resumed; }
       }
-      Pop();
-      return HandleYld(result);
-    }
 
-    public B Handle(Fun0<A> action) {
-      Push();
-      A result = action.Call();
-      Op op;
-      while ((op = Op.TailCall) != null) {
-        result = op.MakeTailCall<A>();
+
+      public object Apply(R arg) {
+        resumed = true;
+        return handler.HandleResume<R>(cont, arg);
       }
-      Pop();
-      return HandleYld(result);
     }
 
-    private B HandleYld(A result) {
-      Op op = Op.Yielding;
-      if (op != null) {
-        Debug.Assert(!op.IsTailCall);
-        if (op.Handler != this) {
-          // Re-yield the yielding operation
-          if (!op.OpBranch.ResumesNever) {
-            op.Cont = new HandlerCompose0<B>(this, op.Cont);
-          }
-          return default(B);
+    private sealed class ResumeNever<R> : Resume<R, B>
+    {
+      public static ResumeNever<R> singleton = new ResumeNever<R>();
+      public bool HasResumed {
+        get { return false; }
+      }
+      public object Apply(R arg) {
+        throw new Exception("Trying to resume an operation that was marked as never-resuming");
+      }
+    }
+
+    private sealed class ResumeTailDirect<R> : Resume<R, B>
+    {
+      public static ResumeTailDirect<R> singleton = new ResumeTailDirect<R>();
+      private bool resumed = false;
+      private R resumeArg;
+      public bool HasResumed {
+        get { return resumed; }
+      }
+      public bool GetResumed(out R resumeArg) {
+        bool resumed = this.resumed;
+        this.resumed = false;
+        resumeArg = this.resumeArg;
+        this.resumeArg = default(R);
+        return resumed;
+      }
+      public object Apply(R arg) {
+        Debug.Assert(!resumed);
+        resumed = true;
+        resumeArg = arg;
+        return default(B);
+      }
+    }
+  }
+
+  
+  #endregion
+
+  #region Concrete Handler with local state
+  // --------------------------------------------------
+  // Concrete Handler with local state S (parameterized) going from actions A to a result B
+  // --------------------------------------------------
+  public interface Handler1<S,B>
+  {
+    B HandleResume<R>(Cont<R, B> cont, R arg, S local, Exception exn = null);
+  }
+
+  // Handler with parameterized local state S, going from an action with type A to a result B.
+  public sealed class Handler1<S, A, B> : Handler<A, B>, Handler1<S,B>
+  {
+    private Fun2<A, S, B> returnFun;
+    public S local;
+
+    public Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+      this.returnFun = returnFun;
+      local = default(S);
+    }
+
+    private Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch[] branches, S local, bool linear = false ) : base(effectTag, branches,linear) {
+      this.returnFun = returnFun;
+      this.local = local;
+    }
+
+    public B Handle(Fun0<A> action, S local0) {
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, local0, linear); // copy for identity
+      return h.Handle(action);
+    }
+
+    public override Cont<R, B> ContCompose<R>(Cont<R, B> cont) {
+      return cont.Compose(this, this.local);
+    }
+
+    // called from regular resumption
+    public B HandleResume<R>(Cont<R,B> cont, R arg, S newLocal, Exception exn) {
+      local = newLocal;
+      return HandleResume(cont, arg, exn);
+    }
+
+    public override B CallReturnFun(A arg) {
+      return returnFun.Call(arg, local);
+    }
+
+    public override bool CallBranch<O,R>(IBranch<O,R,B> ybranch, Cont<R,B> cont, O op, out B result) {
+      Branch1<S, O, R, B> branch = (Branch1<S, O, R, B>)ybranch;
+      ResumeKind rkind = branch.ResumeKind;
+      if (rkind == ResumeKind.Tail) {
+        R tailResumeArg;
+        bool resumed = CallTailBranch(branch, op, out result, out tailResumeArg);
+        if (resumed) {
+          result = ResumeCont(cont, tailResumeArg);
         }
-        else {
-          // Handle the operation
-          // No need to optimize tail resumptions; already done in Yield
-          Op.Yielding = null;  // stop yielding
-          return ((OpBranch0<B>)op.OpBranch).Invoke(this, op.Cont, op.OpValue);
-        }
+        return resumed;
       }
       else {
-        // Return regular result
-        return ret.Call(result);
+        Resume1<S, R, B> resume;
+        if (rkind == ResumeKind.Never) resume = ResumeNever1<R>.singleton;
+        else resume = new ResumeNormal1<R>(this, cont);
+        result = branch.Call(resume, op, local);
+        return resume.HasResumed;
       }
     }
-  }
 
-  public abstract class Handler1<S, B> : Handler
-  {
-    private static OpBranch[] DownCast(OpBranch1<S, B>[] branches) {
-      OpBranch[] bs = new OpBranch[branches.Length];
-      for (int i = 0; i < branches.Length; i++) {
-        bs[i] = (OpBranch)branches[i];
-      }
-      return bs;
+
+    public override bool CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out B result, out R tailResumeArg) {
+      Branch1<S, O, R, B> branch = (Branch1<S, O, R, B>)ybranch;
+      Debug.Assert(branch.ResumeKind == ResumeKind.Tail);
+      ResumeTailDirect1<R> resume = ResumeTailDirect1<R>.singleton;
+      result = branch.Call(resume, op, local);
+      return resume.GetResumed(out tailResumeArg, out local);
+    }
+    
+    // Convenience
+    public Handler1(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+      this.returnFun = new Primitive.FunFunc2<A, S, B>(returnFun);
     }
 
-    public Handler1(bool isShallow, string effectTag, OpBranch1<S,B>[] opHandlers) :
-      base(isShallow, effectTag, DownCast(opHandlers)) {
-    }
-    public abstract B Resume(Cont cont, S state, object arg);
-    public abstract R TailInvoke<O, R>(Fun2<O, S, std_core._Tuple2_<S, R>> branch, O opValue);
-  }
-
-  public class Handler1<S, A, B> : Handler1<S, B>
-  {
-    public static Func<S, Func<A>, B> Create(string effectTag, Func<S, A, B> ret, OpBranch1<S,B>[] opBranches) {
-      Handler1<S, A, B> handler = new Handler1<S, A, B>(effectTag, new Primitive.FunFunc2<S, A, B>(ret), opBranches);
-      return ((S state, Func<A> action) => handler.Handle(state, new Primitive.FunFunc0<A>(action)));
+    public static Fun2<S, Fun0<A>, B> Create(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) {
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, linear);
+      return new HandlerFun1(h);
     }
 
-    private class FunHandler : Fun2<S, Fun0<A>, B>
+    public static Func<S, Func<A>, B> Create(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) {
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, linear);
+      return (local, action) => h.Handle(new Primitive.FunFunc0<A>(action), local);
+    }
+
+
+    private sealed class HandlerFun1 : Fun2<S, Fun0<A>, B>
     {
       Handler1<S, A, B> handler;
-      public FunHandler(Handler1<S, A, B> handler) {
+      public HandlerFun1(Handler1<S, A, B> handler) {
         this.handler = handler;
       }
-      public object Apply(S state, Fun0<A> action) {
-        return handler.Handle(state,action);
-      }
-    }
-    public static Fun2<S, Fun0<A>, B> Create(string effectTag, Fun2<S, A, B> ret, OpBranch1<S, B>[] opBranches) {
-      Handler1<S, A, B> handler = new Handler1<S, A, B>(effectTag, ret, opBranches);
-      return new FunHandler(handler);
-    }
-
-    private Fun2<S, A, B> ret;
-    private S TailState;
-
-
-    public Handler1(string effectTag, Fun2<S, A, B> ret, OpBranch1<S,B>[] opHandlers) :
-      base(false, effectTag, opHandlers) {
-      this.ret = ret;
-    }
-
-    public override R TailInvoke<O, R>(Fun2<O, S, std_core._Tuple2_<S, R>> branch, O opValue) {
-      std_core._Tuple2_<S, R> res = branch.Call(opValue, TailState);
-      if (Op.Yielding == null) {
-        // avoid allocation of the delegate in the common case
-        TailState = res.fst;
-        return res.snd;
-      }
-      else {
-        // otherwise use a proper bind
-        return Op.Bind(res, (std_core._Tuple2_<S, R> r) => {
-          TailState = r.fst;
-          return r.snd;
-        });
+      public object Apply(S local, Fun0<A> action) {
+        return handler.Handle(action, local);
       }
     }
 
-    public override B Resume(Cont cont, S state, object arg) {
-      Push();
-      TailState = state;
-      A result = (A)cont.Apply(arg);
-      Op op;
-      while ((op = Op.TailCall) != null) {
-        result = op.MakeTailCall<A>();
+    private sealed class ResumeNormal1<R> : Resume1<S, R, B>
+    {
+      Handler1<S, B> handler;
+      Cont<R, B> cont;
+      bool resumed = false;
+
+      public ResumeNormal1(Handler1<S, B> h, Cont<R, B> c) {
+        handler = h;
+        cont = c;
       }
-      Pop();
-      return HandleYld(result, TailState);
+
+      public bool HasResumed {
+        get { return resumed; }
+      }
+
+      public object Apply(R arg, S local) {
+        resumed = true;
+        return handler.HandleResume(cont, arg, local);
+      }
     }
 
-    public B Handle(S state, Fun0<A> action) {
-      Push();
-      TailState = state;
-      A result = action.Call();
-      Op op;
-      while ((op = Op.TailCall) != null) {
-        result = op.MakeTailCall<A>();
+    private sealed class ResumeNever1<R> : Resume1<S, R, B>
+    {
+      public static ResumeNever1<R> singleton = new ResumeNever1<R>();
+      public bool HasResumed {
+        get { return false; }
       }
-      Pop();
-      return HandleYld(result, TailState);
+      public object Apply(R arg, S local) {
+        throw new Exception("Trying to resume an operation that was marked as never-resuming"); // + ((Handler)h).effectTag);
+      }
     }
 
-    private B HandleYld(A result, S state) {
-      Op op = Op.Yielding;
-      if (op != null) {
-        Debug.Assert(!op.IsTailCall);
-        if (op.Handler != this) {
-          // Re-yield the yielding operation
-          if (!op.OpBranch.ResumesNever) {
-            op.Cont = new HandlerCompose1<S, B>(this, op.Cont, state);
-          }
-          return default(B);
-        }
-        else {
-          // Handle the operation
-          // No need to optimize tail resumptions; already done in Yield
-          Op.Yielding = null;  // stop yielding
-          return ((OpBranch1<S, B>)op.OpBranch).Invoke(this, op.Cont, op.OpValue, state);
-        }
+    private sealed class ResumeTailDirect1<R> : Resume1<S, R, B>
+    {
+      // not safe for multi threading, use thread static if needed.
+      public static ResumeTailDirect1<R> singleton = new ResumeTailDirect1<R>();
+      private bool resumed = false;
+      private R resumeArg = default(R);
+      private S local = default(S);
+
+      public bool HasResumed {
+        get { return resumed; }
       }
-      else {
-        // Return regular result
-        return ret.Call(state, result);
+
+      public bool GetResumed(out R resumeArg, out S local) {
+        bool resumed = this.resumed;
+        this.resumed = false;
+        local = this.local;
+        this.local = default(S);
+        resumeArg = this.resumeArg;
+        this.resumeArg = default(R);
+        return resumed;
+      }
+
+      public object Apply(R arg, S local) {
+        Debug.Assert(!resumed);
+        resumed = true;
+        resumeArg = arg;
+        this.local = local;
+        return default(B);
       }
     }
   }
 
-}
 
+  #endregion
+
+}

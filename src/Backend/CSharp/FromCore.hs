@@ -1403,9 +1403,9 @@ ppTypeCon ctx c kind
         else if (name == nameTpException)
          then text "Exception"
         else if (name == nameTpHandlerBranch0)
-         then text "Eff.OpBranch0"
+         then text "Eff.Branch"
         else if (name == nameTpHandlerBranch1)
-         then text "Eff.OpBranch1"
+         then text "Eff.Branch1"
         else if (isKindFun kind)
          then ppQName ctx (typeConClassName name)
          else ppQName ctx (typeClassName name)
@@ -1421,6 +1421,8 @@ ppTypeApp ctx t ts
              -> ppType ctx (head ts) <> text "[]"
              | typeConName c == nameTpNull && length ts == 1
              -> ppType ctx (head ts)
+             | (typeConName c == nameTpHandlerBranch0 || typeConName c == nameTpHandlerBranch1) && length ts >= 1
+             -> ppTypeCon ctx c (getKind (TApp t ts)) <> angled (map (ppType ctx) (tail ts)) -- discard effect type
              | otherwise
              -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
       _      -> (ppType ctx t) <> angled (map (ppType ctx) ts)

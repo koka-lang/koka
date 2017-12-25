@@ -689,17 +689,18 @@ effectDecl dvis
        (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp )
 
        let kindStar = (KindCon nameKindStar rng)
-           (opsConDefs,opTpDecls,opDefss) = unzip3 ops
+           (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
+           opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
 
            -- declare operations data type (for the type checker)
            opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
            
        return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
                   map DefType opTpDecls ++
-                  map DefValue (concat opDefss) 
+                  map DefValue opDefs
 
 
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> LexParser (UserUserCon, UserTypeDef, [UserDef])
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
 operation singleShot vis foralls effTagName effTp opsTp 
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
@@ -749,7 +750,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                               idrng vis DefVal ""
 
            -- Declare the yield operation
-           opDef  = -- trace ("create op def: " ++ show id) $
+           opDef tagIdx = -- trace ("create op def: " ++ show id) $
                     let def  = Def binder rng vis defFun ""
                         nameRng   = idrng
                         tag       = Var opTagName False idrng
@@ -759,7 +760,8 @@ operation singleShot vis foralls effTagName effTp opsTp
                         innerBody 
                           = App (Var nameYieldOp False nameRng)
                                       [(Nothing, Var effTagName False idrng),
-                                       (Nothing, tag),
+                                       (Nothing, Lit (LitString (show id) idrng)),
+                                       (Nothing, Lit (LitInt tagIdx idrng)),
                                        (Nothing, opCon)] rng
                         conNameVar = Var conName False nameRng
                         params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
@@ -771,7 +773,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                         isJust (Just{}) = True
                         isJust _        = False
                     in def
-       return (opsConDef,opTpDecl,[opTagDef,opDef])
+       return (opsConDef,opTpDecl,opDef)
 
 
 

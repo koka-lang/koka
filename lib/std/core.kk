@@ -2895,26 +2895,26 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   js "$std_core._bind"
 }
 
-extern inline ".yieldop"( effect-tag : string, op-tag : string, op : a ) : yld<b> { 
-  cs inline "Eff.Op<##1,##2>.Yield(#1,#2,#3)"
+extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op : a ) : yld<b> { 
+  cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#3,#4)"
   js "$std_core._yieldop"
 }
 
 
 type handler-branch0<e::E,a>
-type handler-branch1<e::E,a,l>
+type handler-branch1<e::E,l,a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b 
                             ) : total handler-branch0<e,b> {
-  cs inline "Eff.OpBranch0<##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
+  cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
-                            ) : total handler-branch1<e,b,l> {
-  cs inline "Eff.OpBranch1<##5,##3,##1,##2>.Create((Eff.ResumeKind)((int)#1),#2,#3)"
+                            ) : total handler-branch1<e,l,b> {
+  cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
 }
 
@@ -2929,7 +2929,7 @@ extern ".makeHandler0"( effect-tag : string,
 
 extern ".makeHandler1"( effect-tag : string, 
                         ret : (result : a, local : l) -> e b,
-                        branches : vector<handler-branch1<e,b,l>>,
+                        branches : vector<handler-branch1<e,l,b>>,
                         linear? : bool
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,#4)"
