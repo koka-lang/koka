@@ -5,7 +5,7 @@ fun fib(n) {
 }
 
 fun comp() { 
-  fib(5)
+  fib(4)
 }
 
 effect state<s> {
@@ -70,7 +70,7 @@ fun testR(n) {
 }
 
 
-val n = 5000000
+val n = 2000000
 fun main() {
   print-elapsed({testD(n)}, "direct         ")
   print-elapsed({testR(n)}, "recursive      ")

@@ -44,7 +44,7 @@ fun testD(i) {
   if (i==0) then i else testD(i - 1)
 }
 
-val n = 10000000
+val n = 2000000
 fun main() {
   print-elapsed({testD(n)},             "direct")
   print-elapsed({testH(n,count)},       "handler")
