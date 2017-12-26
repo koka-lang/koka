@@ -870,9 +870,9 @@ codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targe
   = return Nothing
 codeGenCS term flags modules compileTarget outBase core
   = compilerCatch "csharp" term Nothing $
-    do let mbEntry = case compileTarget of
-                       Executable name tp -> Just (name,tp)
-                       _ -> Nothing
+    do let (mbEntry,isAsync) = case compileTarget of
+                                 Executable name tp -> (Just (name,tp), isAsyncFunction tp)
+                                 _ -> (Nothing, False)
            cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
@@ -883,7 +883,7 @@ codeGenCS term flags modules compileTarget outBase core
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " " 
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
-                        ++ "-r:System.Numerics.dll "
+                        ++ "-r:System.Numerics.dll " ++ (if isAsync then "-r:" ++ outName flags "std_async.dll " else "")
            targetName = case compileTarget of
                           Executable _ _ -> dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                           _              -> dquote (outBase ++ dllExtension)

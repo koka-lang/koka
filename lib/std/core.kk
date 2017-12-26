@@ -2897,6 +2897,7 @@ type handler-branch1<e::E,l,a>
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b 
                             ) : total handler-branch0<e,b> {
+  // cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }

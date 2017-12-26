@@ -65,6 +65,10 @@ csharpFromCore maxStructFields useCps mbMain core
           Nothing
             -> empty)
   where
+    isAsync = case mbMain of 
+                Just (name,tp) -> isAsyncFunction tp
+                _ -> False
+
     initEnv = Env { moduleName = coreProgName core
                   , currentDef = nameNil
                   , resultKind = ResultReturn True
@@ -94,10 +98,13 @@ ppMain name tp
     classFun = vcat [
                  text "sealed class MainFun : Fun0<Unit> {",
                  indent 2 $ text "public object Apply() {",
-                 indent 4 $ text "return (object)" <> parens (ppName name <> typeArgs <> text "()") <> semi,
+                 indent 4 $ text "return (object)" <> parens callMain <> semi,
                  indent 2 $ text "}",
                  text "}"
                ]
+    callMain    = if (isAsyncFunction tp) then asyncMain else consoleMain
+    asyncMain   = text "std_async.async_handle( new Primitive.FunFunc0<Unit>( () => " <+> consoleMain <+> text "))"
+    consoleMain = ppName name <> typeArgs <> text "()"
     typeArgs = case expandSyn tp of
                  TForall pars _ _ | not (null pars)
                    -> angled (map (\_ -> text "object") pars)
