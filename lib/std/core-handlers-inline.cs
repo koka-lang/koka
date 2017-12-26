@@ -5,6 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
 namespace Eff
 {
   #region Continuations
@@ -152,7 +153,7 @@ namespace Eff
   #region Bind and Yield
 
   // --------------------------------------------------
-  // Effect and Operation are just convenience
+  // (ect and Operation are just convenience
   // --------------------------------------------------
 
   public class Effect
@@ -307,22 +308,26 @@ namespace Eff
       A result;
       try {
         result = action.Call();
-        if (yielding) {
-          if (yieldResumeKind != ResumeKind.Never) {
-            yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
-          }
+        if (yielding && yieldResumeKind != ResumeKind.Never) {
+          // extend continuation, don't finalize on yield
+          yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
+          return result;
         }
       }
-      catch( FinalizeException ) {
+      catch (FinalizeException) {
+        if (onFinal != null) onFinal.Call();
         throw;
       }
-      catch( Exception exn ) {
-        if (onExn == null) throw;
-        return onExn.Call(exn);
+      catch (Exception exn) {
+        if (onExn == null) {
+          if (onFinal != null) onFinal.Call();
+          throw exn;
+        }
+        else {
+          result = onExn.Call(exn);
+        }
       }
-      finally {
-        if (onFinal != null) onFinal.Call();
-      }
+      if (onFinal != null) onFinal.Call();
       return result;
     }
 
@@ -330,22 +335,26 @@ namespace Eff
       A result;
       try {
         result = cont.Resume(arg, exception);
-        if (yielding) {
-          if (yieldResumeKind != ResumeKind.Never) {
-            yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
-          }
+        if (yielding && yieldResumeKind != ResumeKind.Never) {
+          // extend continuation, don't finalize on yield
+          yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
+          return result;
         }
       }
       catch (FinalizeException) {
+        if (onFinal != null) onFinal.Call();
         throw;
       }
       catch (Exception exn) {
-        if (onExn == null) throw;
-        return onExn.Call(exn);
+        if (onExn == null) {
+          if (onFinal != null) onFinal.Call();
+          throw exn;
+        }
+        else {
+          result = onExn.Call(exn);
+        }
       }
-      finally {
-        if (onFinal != null) onFinal.Call();
-      }
+      if (onFinal != null) onFinal.Call();
       return result;
     }
 
@@ -397,6 +406,7 @@ namespace Eff
       throw exception;
     }
   }
+
   #endregion
 
   #region Branches
@@ -715,11 +725,11 @@ namespace Eff
               resumed = yieldPoint.CallBranch<B>(this, cont, out result);
             }
             catch(Exception exn) {
-              if (resumed) throw;  // rethrow, no need for finalization
+              if (resumed || rkind==ResumeKind.Never) throw;  // rethrow, no need for finalization
               // we did not resume yet; run finalizers and rethrow
               result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeThrowException<B>(this,exn));
             }
-            if (!resumed) { // TODO: what about yielding?
+            if (!resumed && !Op.yielding && rkind != ResumeKind.Never) { 
               // we returned without resuming; run finalizers first
               result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeReturnException<B>(this, result));
             }
