@@ -15,6 +15,7 @@ module std/os/readline
 import std/async
 
 external include {
+  cs file "readline-inline.cs"
 	js file "readline-inline.js"
 }
 
@@ -27,15 +28,17 @@ public fun question( query : string ) : <asyncx,console> string {
 // Read a line of input from the user.
 public fun readline() : <asyncx,console> string {
 	await-exn1 fun(cb) {
-		prim-readline(cb)
-		Just(prim-cancel-readline)
+		val id = prim-readline(cb)
+		Just( { prim-cancel-readline(id) })
 	}
 }
 
-extern prim-readline( cb : (null<exception>,string) -> io () ) : io () {
+extern prim-readline( cb : (null<exception>,string) -> io () ) : io any {
+  cs "_Readline.Readline"
 	js "_readline"
 }
 
-extern prim-cancel-readline() : io () {
+extern prim-cancel-readline( id : any ) : io () {
+  cs "_Readline.CancelReadline"
 	js "_cancel_readline"
 }

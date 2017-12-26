@@ -156,7 +156,7 @@ nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
 nameIndex       = newName "[]"
 
-nameTpArray     = qualify (newName "std/array") (newName "array") 
+nameTpArray     = qualify (newName "std/data/array") (newName "array") 
 nameTpVector    = preludeName "vector"
 nameVector      = preludeName "vector"
 
@@ -260,7 +260,7 @@ preludeName s
 
 nameSystemCore  = newName "std/core"
 nameCore        = newName "core"
-nameDict        = newName "std/dict"
+nameDict        = newName "std/data/dict"
 
 toShortModuleName :: Name -> Name
 toShortModuleName name

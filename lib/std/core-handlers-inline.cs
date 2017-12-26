@@ -5,7 +5,6 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
 namespace Eff
 {
   #region Continuations
@@ -20,7 +19,8 @@ namespace Eff
   {
     Cont<C> Compose<C>(Fun1<A, C> f);
     Cont<C> Compose<C>(Func<A, C> f);
-    Cont<A> Compose(Fun1<Exception, A> onExn, Fun0<Unit> onFinal);
+    Cont<A> ComposeFinally(Fun0<Unit> onFinal);
+    Cont<A> ComposeCatch(Fun1<Exception, A> onExn);
   }
 
   public abstract class Cont<A,B> : Cont<B>
@@ -33,13 +33,16 @@ namespace Eff
     public Cont<C> Compose<C>(Func<B, C> f) {
       return new ContComposeFunc<C>(this, f);
     }
-    public Cont<B> Compose(Fun1<Exception, B> onExn, Fun0<Unit> onFinal) {
-      return new ContComposeHandleExn(this, onExn, onFinal);
+    public Cont<B> ComposeFinally(Fun0<Unit> onFinal) {
+      return new ContComposeFinally(this, onFinal);
     }
-    public Cont<A, B> Compose(Handler<B> h) {
+    public Cont<B> ComposeCatch(Fun1<Exception, B> onExn) {
+      return new ContComposeCatch(this, onExn);
+    }
+    public Cont<A, B> ComposeHandler(Handler<B> h) {
       return new ContComposeHandler<A>(this, h);
     }
-    public Cont<A, B> Compose<S>(Handler1<S, B> h, S local) {
+    public Cont<A, B> ComposeHandler1<S>(Handler1<S, B> h, S local) {
       return new ContComposeHandler1<A, S>(this, h, local);
     }
 
@@ -73,20 +76,33 @@ namespace Eff
       }
     }
 
-    private sealed class ContComposeHandleExn : Cont<A,B>
+    private sealed class ContComposeFinally : Cont<A,B>
     {
       Cont<A,B> cont;
-      Fun1<Exception,B> onExn;
       Fun0<Unit> onFinal;
 
-      public ContComposeHandleExn(Cont<A,B> cont, Fun1<Exception,B> onExn, Fun0<Unit> onFinal) {
+      public ContComposeFinally(Cont<A,B> cont, Fun0<Unit> onFinal) {
         this.cont = cont;
-        this.onExn = onExn;
         this.onFinal = onFinal;
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleExn(cont, arg, exn, onExn, onFinal);
+        return Op.HandleFinally<A,B>(cont, arg, exn, onFinal);
+      }
+    }
+
+    private sealed class ContComposeCatch : Cont<A, B>
+    {
+      Cont<A, B> cont;
+      Fun1<Exception, B> onExn;
+
+      public ContComposeCatch(Cont<A, B> cont, Fun1<Exception, B> onExn) {
+        this.cont = cont;
+        this.onExn = onExn;
+      }
+
+      public override B Resume(A arg, Exception exn) {
+        return Op.HandleCatch<A,B>(cont, arg, exn, onExn);
       }
     }
 
@@ -138,9 +154,27 @@ namespace Eff
     }
   }
 
+  sealed class ContAction<A> : Cont<object, A>
+  {
+    private Fun0<A> action;
 
-  
-  
+    public ContAction( Fun0<A> action ) {
+      this.action = action;
+    }
+    public ContAction(Func<A> action) {
+      this.action = new Primitive.FunFunc0<A>(action);
+    }
+    public override A Resume(object arg, Exception exception) {
+      if (exception != null) {
+        throw exception;
+      }
+      else {
+        return action.Call();
+      }
+    }
+  }
+
+
   class Id<A> : Fun1<A, A>
   {
     public static Id<A> singleton = new Id<A>();
@@ -305,56 +339,61 @@ namespace Eff
     }
 
     public static A HandleExn<A>( Fun0<A> action, Fun1<Exception,A> onExn, Fun0<Unit> onFinal ) {
-      A result;
-      try {
-        result = action.Call();
-        if (yielding && yieldResumeKind != ResumeKind.Never) {
-          // extend continuation, don't finalize on yield
-          yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
-          return result;
-        }
+      if (onExn==null) {
+        return HandleFinally<A>(action, onFinal);
       }
-      catch (FinalizeException) {
-        if (onFinal != null) onFinal.Call();
-        throw;
+      else if (onFinal == null) {
+        return HandleCatch<A>(action, onExn);
       }
-      catch (Exception exn) {
-        if (onExn == null) {
-          if (onFinal != null) onFinal.Call();
-          throw exn;
-        }
-        else {
-          result = onExn.Call(exn);
-        }
+      else {
+        return HandleFinally<object,A>(new ContAction<A>(() => {
+          return HandleCatch<A>(action, onExn);
+        }), null, null, onFinal);
       }
-      if (onFinal != null) onFinal.Call();
-      return result;
     }
 
-    public static A HandleExn<R,A>(Cont<R,A> cont, R arg, Exception exception, Fun1<Exception, A> onExn, Fun0<Unit> onFinal) {
+    public static A HandleCatch<A>(Fun0<A> action, Fun1<Exception, A> onExn) {
+      return HandleCatch(new ContAction<A>(action), null, null, onExn);
+    }
+    public static A HandleFinally<A>(Fun0<A> action, Fun0<Unit> onFinal) {
+      return HandleFinally(new ContAction<A>(action), null, null, onFinal);
+    }
+
+    public static A HandleCatch<R, A>(Cont<R, A> cont, R arg, Exception exception, Fun1<Exception, A> onExn) {
       A result;
       try {
         result = cont.Resume(arg, exception);
         if (yielding && yieldResumeKind != ResumeKind.Never) {
-          // extend continuation, don't finalize on yield
-          yieldCont = ((Cont<A>)yieldCont).Compose(onExn, onFinal);
-          return result;
+          // extend continuation to handle exceptions again on the resume
+          yieldCont = ((Cont<A>)yieldCont).ComposeCatch(onExn);
         }
       }
       catch (FinalizeException) {
-        if (onFinal != null) onFinal.Call();
+        // never handle finalize exceptions
         throw;
       }
       catch (Exception exn) {
-        if (onExn == null) {
-          if (onFinal != null) onFinal.Call();
-          throw exn;
-        }
-        else {
-          result = onExn.Call(exn);
+        result = onExn.Call(exn);
+      }
+      return result;
+    }
+
+    public static A HandleFinally<R,A>(Cont<R,A> cont, R arg, Exception exception, Fun0<Unit> onFinal) {
+      A result;
+      try {
+        result = cont.Resume(arg, exception);
+        if (yielding && yieldResumeKind != ResumeKind.Never) {
+          // extend continuation, don't finalize on yield! (which is why we cannot use `finally`)
+          yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal);
+          return result;
         }
       }
-      if (onFinal != null) onFinal.Call();
+      catch (Exception) {
+        // finalize and rethrow
+        onFinal.Call();
+        throw;
+      }
+      onFinal.Call();
       return result;
     }
 
@@ -822,7 +861,7 @@ namespace Eff
     }
 
     public override Cont<R, B> ContCompose<R>(Cont<R, B> cont) {
-      return cont.Compose(this);
+      return cont.ComposeHandler(this);
     }
 
     public override bool CallBranch<O, R>(IBranch<O,R,B> ybranch, Cont<R,B> cont, O op, out B result) {
@@ -970,7 +1009,7 @@ namespace Eff
     }
 
     public override Cont<R, B> ContCompose<R>(Cont<R, B> cont) {
-      return cont.Compose(this, this.local);
+      return cont.ComposeHandler1(this, this.local);
     }
 
     // called from regular resumption

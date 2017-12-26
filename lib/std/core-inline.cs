@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Globalization;             // CultureInfo.InvariantCulture
 using System.Text.RegularExpressions;   // Parsing BigInteger's & showing doubles
 using System.Diagnostics;
+using System.Threading;
 
 public static class Primitive
 {
@@ -50,8 +51,6 @@ public static class Primitive
     return (exn != null ? exn.StackTrace : "");
   }
 
-
-
   public static A Unreachable<A>() {
     throw new InfoException("unreachable code reached", new std_core.Error_());
   }
@@ -59,24 +58,7 @@ public static class Primitive
   public static A UnsupportedExternal<A>(string name) {
     throw new InfoException("external '" + name + "' is not supported on this platform", new std_core.Error_());
   }
-
-  public static A Catch<A>(Fun0<A> action, Fun1<Exception, A> handler) {
-    try {
-      return (A)action.Apply();
-    }
-    catch (Exception exn) {
-      return (A)handler.Apply(exn);
-    }
-  }
-
-  public static A Finally<A>(Fun0<A> action, Fun0<Unit> handler) {
-    try {
-      return (A)action.Apply();
-    }
-    finally {
-      handler.Apply();
-    }
-  }
+  
 
 
   //---------------------------------------
@@ -85,6 +67,7 @@ public static class Primitive
   public static A Run<A>(TypeFun1 action) {
     return (A)(((Fun0<A>)(action.TypeApply<Unit>())).Apply());
   }
+
 
   //---------------------------------------
   // Arrays
@@ -373,22 +356,61 @@ public static class Primitive
     Console.Error.WriteLine(msg);
   }
 
-  public static void TraceAny<A>( string msg, A x )
-  {
+  public static void TraceAny<A>(string msg, A x) {
     object obj = (object)x;
-    System.Diagnostics.Debug.Print(msg + (x==null ? "null" : x.ToString()));
-    Console.Error.WriteLine(msg + (x==null ? "null" : x.ToString()));
+    System.Diagnostics.Debug.Print(msg + (x == null ? "null" : x.ToString()));
+    Console.Error.WriteLine(msg + (x == null ? "null" : x.ToString()));
   }
 
 
   //---------------------------------------
-  // ReadLine
+  // Mini event loop for Console applications
+  // This should be adapted for WinForms or WPF applications
   //---------------------------------------
-  private static Async<string> onReadLine = null;
+  public class EventloopEntry
+  {
+    private bool closed = false;
 
-  public static Async<string> ReadLine() {
-    if (onReadLine == null) onReadLine = new Async<string>();
-    return onReadLine;
+    public void Close() {
+      if (!closed) {
+        if (Interlocked.Decrement(ref activeEntries) <= 0) workEvent.Set();
+      }
+      closed = true;
+    }
+
+    public void Post( Action action, bool closeAfterPost = true ) {
+      if (closed || action==null) return;
+      lock(workMutex) {
+        work.Enqueue(action);
+        if (work.Count == 1) workEvent.Set();
+      }
+      if (closeAfterPost) Close();
+    }
+  }
+
+  private static int activeEntries = 0;
+  private static Mutex workMutex = new Mutex();
+  private static AutoResetEvent workEvent = new AutoResetEvent(false);
+  private static Queue<Action> work = new Queue<Action>();
+
+  public static EventloopEntry GetEventloopEntry() {
+    return new EventloopEntry();
+  }
+
+  public static EventloopEntry RunBlocking<A>( Func<A> blockingAction, Action<Exception,A> onSuccess ) {
+    EventloopEntry entry = GetEventloopEntry();
+    ThreadPool.QueueUserWorkItem( (object info) => {
+      Exception exception = null;
+      A result = default(A);
+      try {
+        result = blockingAction();
+      }
+      catch(Exception exn) {
+        exception = exn;
+      }
+      entry.Post( () => { onSuccess(exception,result); } );
+    });
+    return entry;
   }
 
   // For now, the MainConsole enters an event loop that handles
@@ -397,17 +419,18 @@ public static class Primitive
   // active as long as there are 'on' handlers installed.
   public static A MainConsole<A>(Fun0<A> f) {
     A x = (A)f.Apply();
-    while (!AsyncGlobal.AllDone()) {
-      if (onReadLine != null) {
-        string s = Console.In.ReadLine();
-        Async<string> res = onReadLine;
-        onReadLine = null;
-        res.Supply(s);  // this may set onReadLine again
+    while (activeEntries > 0) {
+      Action action;
+      lock(workMutex) {
+        action = (work.Count > 0 ? work.Dequeue() : null);
+      }
+      if (action != null) {
+        action();
       }
       else {
-        // bad
-        Primitive.Trace("MainConsole: active async's but no readline");
-        break;
+        // wait for new work items
+        // todo: we could implement efficient timers here by using timeouts
+        workEvent.WaitOne();
       }
     }
     return x;
@@ -692,7 +715,7 @@ public static class Primitive
     }
   }
 
-  public class FunFunc4<A1, A2, A3, A4, B> : Fun4<A1, A2, A3,A4, B>
+  public class FunFunc4<A1, A2, A3, A4, B> : Fun4<A1, A2, A3, A4, B>
   {
     Func<A1, A2, A3, A4, B> f;
     public FunFunc4(Func<A1, A2, A3, A4, B> f) {
@@ -710,105 +733,11 @@ public static class Primitive
       this.f = f;
     }
     public object Apply(A1 x1, A2 x2, A3 x3, A4 x4, A5 x5) {
-      return f(x1,x2,x3,x4,x5);
+      return f(x1, x2, x3, x4, x5);
     }
   }
 }
 
-//---------------------------------------
-// Async
-//---------------------------------------
-public class AsyncGlobal
-{
-  protected static int active = 0;
-
-  public static bool AllDone() {
-    return (active <= 0);
-  }
-}
-
-public class Async<A> : AsyncGlobal
-{
-  Action<A> on = null;
-  Action<Exception> onexn = null;
-  bool done = false;
-  Exception exn = null;
-  A value;
-
-
-  public bool IsDone {
-    get { return done; }
-  }
-
-  public Async<B> On<B>(Fun1<A, B> fun) {
-    Async<B> result = new Async<B>();
-    if (done) {
-      if (exn == null) {
-        result.Supply((B)fun.Apply(value));
-      }
-    }
-    else {
-      if (on != null) {
-        Action<A> prev = on;
-        on = delegate (A x) { prev(x); result.Supply((B)fun.Apply(x)); };
-      }
-      else {
-        active++;
-        on = delegate (A x) { result.Supply((B)fun.Apply(x)); };
-      }
-    }
-    return result;
-  }
-
-  public Async<B> OnExn<B>(Fun1<Exception, B> fun) {
-    Async<B> result = new Async<B>();
-    if (done) {
-      if (exn != null) {
-        result.Supply((B)fun.Apply(exn));
-      }
-    }
-    if (onexn != null) {
-      Action<Exception> prev = onexn;
-      onexn = delegate (Exception x) { prev(x); result.Supply((B)fun.Apply(x)); };
-    }
-    else {
-      active++;
-      onexn = delegate (Exception x) { result.Supply((B)fun.Apply(x)); };
-    }
-    return result;
-  }
-
-  public void Supply(A x) {
-    if (done) return;
-    done = true;
-    value = x;
-    if (on != null) {
-      on(x);
-      on = null;
-      active--;
-    }
-    if (onexn != null) {
-      onexn = null;
-      active--;
-    }
-  }
-
-  public void SupplyExn(Exception x) {
-    if (done) return;
-    done = true;
-    exn = x;
-    if (onexn != null) {
-      onexn(exn);
-      onexn = null;
-      active--;
-    }
-    if (on != null) {
-      on = null;
-      active--;
-    }
-  }
-
-}
 
 
 //---------------------------------------

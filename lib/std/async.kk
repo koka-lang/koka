@@ -30,7 +30,12 @@ module std/async
 import std/data/dict
 import std/data/array
 import std/num/int32
+import std/num/ddouble    // for C# backend
 import std/time/duration
+
+extern include {
+  cs file "async-inline.cs"
+}
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
 // This is common for almost all `:async` operations since `cancel` and `timeout` can
@@ -51,7 +56,7 @@ abstract struct promise<a>(
 	state : ref<global,promise-state<a>>
 )
 
-type promise-state<a> {
+abstract type promise-state<a> {
 	Resolved( value : a )
 	Awaiting( listeners : list<a -> io ()> )
 }
@@ -116,7 +121,7 @@ abstract struct channel<a>(
 )
 
 // todo: use queue data type for the values and listeners for better complexity
-type channel-state<a> {
+abstract type channel-state<a> {
 	Empty
 	Values( value : a, values : list<a> = [] )
 	Waiting( listener : a -> io (), listeners : list<a -> io ()> = [] )
@@ -272,17 +277,25 @@ public fun yield() : <async,exn> () {
 }
 
 // abstract wid for timeout handlers
-type timeout-id
+abstract struct timeout-id(
+  timer : any
+)
 
-extern set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
+fun set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
+  Timeout-id(set-timeoutx(cb,max(ms,zero)))
+}
+
+extern set-timeoutx( cb : () -> io (), ms : int32 ) : io any {
+  cs "_Async.SetTimeout"
   js "setTimeout"
 }
 
-extern set-timeout1( cb : a -> io (), ms : int32, arg : a ) : io timeout-id {
-  js "setTimeout"
+fun clear-timeout( tid : timeout-id ) : io () {
+  clear-timeoutx(tid.timer)
 }
 
-extern clear-timeout( tid : timeout-id ) : io () {
+extern clear-timeoutx( tid : any) : io () {
+  cs "_Async.ClearTimeout"
   js "clearTimeout"
 }
 
@@ -630,7 +643,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 // Scope identifiers
 // ----------------------------------------------------------------------------
 
-private struct scope( : list<int> )
+abstract struct scope( : list<int> )
 
 val empty-scope = Scope([])
 

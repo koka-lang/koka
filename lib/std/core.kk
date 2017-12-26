@@ -226,7 +226,7 @@ extern error-pattern(location : string, definition : string) : exn a {
 // Execute a `hndler` no matter what exception was raised in `action`.
 // Use of `on-exit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
-  cs inline "Eff.Op.HandleExn<##2>(#1,null,#2)" 
+  cs inline "Eff.Op.HandleFinally<##2>(#1,#2)" 
   js inline "$std_core._handle_exn(action,null,hndl)"
 }
 
@@ -234,7 +234,7 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
 // Catch an exception raised by `error` and handle it.
 // Use `on-exn` or `on-fail` when appropiate.
 extern catch : forall<e,a> ( action : () -> <exn|e> a, hndl: exception -> e a) -> e a {
-  cs inline "Eff.Op.HandleExn<##2>(#1,#2,null)" 
+  cs inline "Eff.Op.HandleCatch<##2>(#1,#2)" 
   js inline "$std_core._handle_exn(#1, #2, null)"
 }
 
@@ -246,7 +246,7 @@ fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|
 }
 
 private extern catch-on-exn : forall<e,a> ( action : () -> e a, hndler: exception -> e a) -> e a {
-  cs inline "Eff.Op.HandleExn<##2>(#1,#2,null)"
+  cs inline "Eff.Op.HandleCatch<##2>(#1,#2)"
   js inline "_handle_exn(#1, #2, null)"
 }
 
