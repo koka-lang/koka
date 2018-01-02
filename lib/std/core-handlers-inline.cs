@@ -1,10 +1,14 @@
-/*---------------------------------------------------------------------------
+    /*---------------------------------------------------------------------------
   Copyright 2017 Daan Leijen, Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+//using System;
+//using System.Collections.Generic;
+//using System.Diagnostics;
+
 namespace Eff
 {
   #region Continuations
@@ -13,7 +17,8 @@ namespace Eff
   // --------------------------------------------------
 
   // Continuations are dynamically typed object to object.
-  public interface Cont { 
+  public interface Cont
+  {
   }
   public interface Cont<A> : Cont
   {
@@ -23,7 +28,7 @@ namespace Eff
     Cont<A> ComposeCatch(Fun1<Exception, A> onExn);
   }
 
-  public abstract class Cont<A,B> : Cont<B>
+  public abstract class Cont<A, B> : Cont<B>
   {
     public abstract B Resume(A arg, Exception exception = null);
 
@@ -76,18 +81,18 @@ namespace Eff
       }
     }
 
-    private sealed class ContComposeFinally : Cont<A,B>
+    private sealed class ContComposeFinally : Cont<A, B>
     {
-      Cont<A,B> cont;
+      Cont<A, B> cont;
       Fun0<Unit> onFinal;
 
-      public ContComposeFinally(Cont<A,B> cont, Fun0<Unit> onFinal) {
+      public ContComposeFinally(Cont<A, B> cont, Fun0<Unit> onFinal) {
         this.cont = cont;
         this.onFinal = onFinal;
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleFinally<A,B>(cont, arg, exn, onFinal);
+        return Op.HandleFinally<A, B>(cont, arg, exn, onFinal);
       }
     }
 
@@ -102,7 +107,7 @@ namespace Eff
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleCatch<A,B>(cont, arg, exn, onExn);
+        return Op.HandleCatch<A, B>(cont, arg, exn, onExn);
       }
     }
 
@@ -140,7 +145,7 @@ namespace Eff
 
   }
 
-  sealed class ContId<A> : Cont<A,A>
+  sealed class ContId<A> : Cont<A, A>
   {
     public static ContId<A> id = new ContId<A>();
 
@@ -158,7 +163,7 @@ namespace Eff
   {
     private Fun0<A> action;
 
-    public ContAction( Fun0<A> action ) {
+    public ContAction(Fun0<A> action) {
       this.action = action;
     }
     public ContAction(Func<A> action) {
@@ -199,8 +204,8 @@ namespace Eff
       EffectTag = effectTag;
       operations = new List<Operation>();
     }
-    public Operation<A,B> NewOp<A,B>( string opName ) {
-      Operation<A,B> op = new Operation<A,B>( this, opName, operations.Count);
+    public Operation<A, B> NewOp<A, B>(string opName) {
+      Operation<A, B> op = new Operation<A, B>(this, opName, operations.Count);
       operations.Add(op);
       return op;
     }
@@ -219,9 +224,9 @@ namespace Eff
     }
   }
 
-  public class Operation<A,B> : Operation
+  public class Operation<A, B> : Operation
   {
-    public Operation(Effect effect, string opName, int opTag) : base(effect,opName,opTag) { }
+    public Operation(Effect effect, string opName, int opTag) : base(effect, opName, opTag) { }
     public B Yield(A arg) {
       return Op.YieldOp<A, B>(Effect.EffectTag, OpName, OpTag, arg);
     }
@@ -252,12 +257,12 @@ namespace Eff
   // yield, namely operation `O` and result `R`, with the type of the branch
   // with result `B` and the type of the handler. At the `handler.CallBranch`
   // all types will be resolved.
-  public sealed class YieldPoint<O,R> : YieldPoint
+  public sealed class YieldPoint<O, R> : YieldPoint
   {
     Branch branch;
     O op;
-    
-    public YieldPoint( Handler handler, Branch branch, O op ) : base(handler) {
+
+    public YieldPoint(Handler handler, Branch branch, O op) : base(handler) {
       this.branch = branch;
       this.op = op;
     }
@@ -266,7 +271,7 @@ namespace Eff
 
     public override bool CallBranch<B>(Handler<B> handler, Cont<B> cont, out B result) {
       Debug.Assert(HandledBy(handler));
-      return handler.CallBranch<O, R>((IBranch<O,R,B>)branch, (Cont<R,B>)cont, op, out result);
+      return handler.CallBranch<O, R>((IBranch<O, R, B>)branch, (Cont<R, B>)cont, op, out result);
     }
 
     public override Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont) {
@@ -276,7 +281,7 @@ namespace Eff
 
     public override B RunFinalizers<B>(Handler<B> handler, Cont<B> cont, FinalizeException<B> exn) {
       Debug.Assert(HandledBy(handler));
-      return handler.RunFinalizers<R>((Cont<R,B>)cont, exn);
+      return handler.RunFinalizers<R>((Cont<R, B>)cont, exn);
     }
   }
 
@@ -298,7 +303,7 @@ namespace Eff
         return next.Call(x);
       }
     }
-  
+
     private static int tailYieldCount = 0;
     private static int tailYieldMax = 100;
 
@@ -322,7 +327,29 @@ namespace Eff
         yielding = true;
         return default(R);
       }
-      
+    }
+
+    public static R YieldOpX1<O, R, E>(string effectTag, string opName, int opTag, O op) {
+      int skip;
+      Branch branch;
+      Handler handler;
+      Handler.Find(effectTag, opName, opTag, out handler, out branch, out skip);
+      branch = ((IBranchX1)branch).TypeApply<O,R,E>();
+      yieldResumeKind = branch.ResumeKind;
+      if (yieldResumeKind == ResumeKind.Tail && (tailYieldCount < tailYieldMax || handler.IsLinear)) {
+        // invoke directly using skip frames; this is the case 95% of the time and should
+        // be optimized well (e.g. there should be no allocation along this path).
+        if (!handler.IsLinear) tailYieldCount++;
+        return handler.HandleTailBranch<O, R>(branch, op, skip);
+      }
+      else {
+        // yield normally 
+        yieldPoint = new YieldPoint<O, R>(handler, branch, op);
+        tailYieldCount = 0;
+        yieldCont = (yieldResumeKind == ResumeKind.Never ? null : ContId<R>.id);
+        yielding = true;
+        return default(R);
+      }
     }
 
     // Convenience
@@ -338,15 +365,15 @@ namespace Eff
       }
     }
 
-    public static A HandleExn<A>( Fun0<A> action, Fun1<Exception,A> onExn, Fun0<Unit> onFinal ) {
-      if (onExn==null) {
+    public static A HandleExn<A>(Fun0<A> action, Fun1<Exception, A> onExn, Fun0<Unit> onFinal) {
+      if (onExn == null) {
         return HandleFinally<A>(action, onFinal);
       }
       else if (onFinal == null) {
         return HandleCatch<A>(action, onExn);
       }
       else {
-        return HandleFinally<object,A>(new ContAction<A>(() => {
+        return HandleFinally<object, A>(new ContAction<A>(() => {
           return HandleCatch<A>(action, onExn);
         }), null, null, onFinal);
       }
@@ -378,7 +405,7 @@ namespace Eff
       return result;
     }
 
-    public static A HandleFinally<R,A>(Cont<R,A> cont, R arg, Exception exception, Fun0<Unit> onFinal) {
+    public static A HandleFinally<R, A>(Cont<R, A> cont, R arg, Exception exception, Fun0<Unit> onFinal) {
       A result;
       try {
         result = cont.Resume(arg, exception);
@@ -413,7 +440,7 @@ namespace Eff
     }
   }
 
-  public abstract class FinalizeException<B> : FinalizeException 
+  public abstract class FinalizeException<B> : FinalizeException
   {
     public FinalizeException(Handler handler) : base(handler) { }
 
@@ -463,11 +490,13 @@ namespace Eff
   }
 
   // Resume functions 
-  public interface Resume<R, B> : Fun1<R, B> {
+  public interface Resume<in R, in B> : Fun1<R, B>
+  {
     bool HasResumed { get; }
   }
 
-  public interface Resume1<S, R, B> : Fun2<R, S, B> {
+  public interface Resume1<in S, in R, in B> : Fun2<R, S, B>
+  {
     bool HasResumed { get; }
   }
 
@@ -482,7 +511,7 @@ namespace Eff
       this.OpName = OpName;
     }
   }
- 
+
   // A branch in a handler with result type `B`.
   public abstract class Branch<B> : Branch
   {
@@ -492,7 +521,7 @@ namespace Eff
   public interface IBranch<O, R, B> { }
 
   // Branches without local state
-  public sealed class Branch<O, R, B> : Branch<B>, IBranch<O,R,B>
+  public sealed class Branch<O, R, B> : Branch<B>, IBranch<O, R, B>
   {
     Fun2<Resume<R, B>, O, B> branchFun;
 
@@ -500,9 +529,9 @@ namespace Eff
                     Fun2<Fun1<R, B>, O, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = branchFun;
     }
-    
+
     public B Call(Resume<R, B> resume, O op) {
-      return branchFun.Call(resume,op);
+      return branchFun.Call(resume, op);
     }
 
     // Convenience: wrap into C# functions
@@ -510,15 +539,44 @@ namespace Eff
                     Func<Resume<R, B>, O, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = new Primitive.FunFunc2<Resume<R, B>, O, B>(branchFun);
     }
-    
+
     public Branch(ResumeKind resumeKind, string opName, Func<Func<R, B>, O, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = new Primitive.FunFunc2<Resume<R, B>, O, B>((Resume<R, B> r, O op) => {
         return branchFun((arg) => r.Call(arg), op);
       });
     }
-   
+
   }
-  
+
+  public interface IBranchX1
+  {
+    Branch TypeApply<O,R,E>();
+  }
+
+  public sealed class BranchX1<B> : Branch<B>, IBranchX1
+  {
+    TypeFun1 branchFun;
+
+    public BranchX1(ResumeKind resumeKind, string opName, TypeFun1 branchFun) : base(resumeKind,opName) {
+      this.branchFun = branchFun;
+    }
+
+    public Branch TypeApply<O,R,E>() {
+      object ofun = branchFun.TypeApply<E>();
+      Fun2<Fun1<R, B>, O, B> fun = ofun as Fun2<Fun1<R, B>, O, B>;
+      if (fun == null) {
+        // convenience; allow a delegate as a resume function
+        Func<Resume<R, B>, O, B> ffun = ofun as Func<Resume<R, B>, O, B>;
+        if (ffun != null) {
+          return new Branch<O, R, B>(ResumeKind, OpName, ffun);
+        }
+        fun = (Fun2<Fun1<R, B>, O, B>)ofun; // cause an error
+      }
+      return new Branch<O, R, B>(ResumeKind, OpName, fun);
+    }
+
+  }
+
 
   // Branches on local state
   public abstract class Branch1<S, B> : Branch<B>
@@ -526,7 +584,7 @@ namespace Eff
     public Branch1(ResumeKind rk, string opName) : base(rk, opName) { }
   }
 
-  public sealed class Branch1<S, O, R, B> : Branch1<S, B>, IBranch<O,R,B>
+  public sealed class Branch1<S, O, R, B> : Branch1<S, B>, IBranch<O, R, B>
   {
     Fun3<Fun2<R, S, B>, O, S, B> branchFun;
 
@@ -534,9 +592,9 @@ namespace Eff
                     Fun3<Fun2<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = branchFun;
     }
-   
+
     public B Call(Resume1<S, R, B> resume, O op, S local) {
-      return branchFun.Call(resume, op,local);
+      return branchFun.Call(resume, op, local);
     }
 
     // Convenience: wrap into C# functions
@@ -544,15 +602,15 @@ namespace Eff
                     Func<Fun2<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = new Primitive.FunFunc3<Fun2<R, S, B>, O, S, B>(branchFun);
     }
-   
+
     public Branch1(ResumeKind resumeKind, string opName, Func<Func<R, S, B>, O, S, B> branchFun) : base(resumeKind, opName) {
       this.branchFun = new Primitive.FunFunc3<Fun2<R, S, B>, O, S, B>((Fun2<R, S, B> r, O op, S local) => {
         return branchFun((R arg, S loc) => r.Call(arg, loc), op, local);
       });
     }
-   
+
   }
-  
+
   #endregion
 
   #region Abstract Handlers
@@ -623,11 +681,11 @@ namespace Eff
       handlers[top] = this;
     }
 
-    
+
     public static void Find(string effectTag, string opName, int opTag, out Handler handler, out Branch branch, out int skip) {
       handler = null;
       branch = null;
-      for(int i = top; i >= 0; i--) {
+      for (int i = top; i >= 0; i--) {
         handler = handlers[i];
         if (handler.effectTag == effectTag) {
           branch = handler.branches[opTag];
@@ -701,7 +759,7 @@ namespace Eff
   {
     public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
 
-    public abstract bool CallBranch<O, R>(IBranch<O,R,B> branch, Cont<R,B> cont, O op, out B result);
+    public abstract bool CallBranch<O, R>(IBranch<O, R, B> branch, Cont<R, B> cont, O op, out B result);
     public abstract bool CallTailBranch<O, R>(IBranch<O, R, B> branch, O op, out B result, out R tailResumeArg);
     public abstract Cont<R, B> ContCompose<R>(Cont<R, B> cont);
 
@@ -763,12 +821,12 @@ namespace Eff
             try {
               resumed = yieldPoint.CallBranch<B>(this, cont, out result);
             }
-            catch(Exception exn) {
-              if (resumed || rkind==ResumeKind.Never) throw;  // rethrow, no need for finalization
+            catch (Exception exn) {
+              if (resumed || rkind == ResumeKind.Never) throw;  // rethrow, no need for finalization
               // we did not resume yet; run finalizers and rethrow
-              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeThrowException<B>(this,exn));
+              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeThrowException<B>(this, exn));
             }
-            if (!resumed && !Op.yielding && rkind != ResumeKind.Never) { 
+            if (!resumed && !Op.yielding && rkind != ResumeKind.Never) {
               // we returned without resuming; run finalizers first
               result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeReturnException<B>(this, result));
             }
@@ -787,9 +845,9 @@ namespace Eff
       bool resumed;
 
       // push skip handler so operations in the tail branch get handled correctly
-      Handler hskip = Handler.Skip(skip); 
+      Handler hskip = Handler.Skip(skip);
       try {
-        resumed = CallTailBranch<O, R>((IBranch<O,R,B>)ybranch, op, out result, out tailResumeArg);
+        resumed = CallTailBranch<O, R>((IBranch<O, R, B>)ybranch, op, out result, out tailResumeArg);
       }
       catch (Exception exn) {
         // Raised exception in the branch
@@ -838,7 +896,7 @@ namespace Eff
       finally {
         Pop();
       }
-      return HandleYield(result); 
+      return HandleYield(result);
     }
   }
 
@@ -864,8 +922,8 @@ namespace Eff
       return cont.ComposeHandler(this);
     }
 
-    public override bool CallBranch<O, R>(IBranch<O,R,B> ybranch, Cont<R,B> cont, O op, out B result) {
-      Branch<O,R,B> branch = (Branch<O,R,B>)ybranch;
+    public override bool CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R, B> cont, O op, out B result) {
+      Branch<O, R, B> branch = (Branch<O, R, B>)ybranch;
       ResumeKind rkind = branch.ResumeKind;
       if (rkind == ResumeKind.Tail) {
         R tailResumeArg;
@@ -891,7 +949,7 @@ namespace Eff
       result = branch.Call(resume, op);
       return resume.GetResumed(out tailResumeArg);
     }
-      
+
     // Convenience
     public Handler0(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
       this.returnFun = new Primitive.FunFunc1<A, B>(returnFun);
@@ -975,20 +1033,20 @@ namespace Eff
     }
   }
 
-  
+
   #endregion
 
   #region Concrete Handler with local state
   // --------------------------------------------------
   // Concrete Handler with local state S (parameterized) going from actions A to a result B
   // --------------------------------------------------
-  public interface Handler1<S,B>
+  public interface Handler1<S, B>
   {
     B HandleResume<R>(Cont<R, B> cont, R arg, S local, Exception exn = null);
   }
 
   // Handler with parameterized local state S, going from an action with type A to a result B.
-  public sealed class Handler1<S, A, B> : Handler<A, B>, Handler1<S,B>
+  public sealed class Handler1<S, A, B> : Handler<A, B>, Handler1<S, B>
   {
     private Fun2<A, S, B> returnFun;
     public S local;
@@ -998,7 +1056,7 @@ namespace Eff
       local = default(S);
     }
 
-    private Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch[] branches, S local, bool linear = false ) : base(effectTag, branches,linear) {
+    private Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch[] branches, S local, bool linear = false) : base(effectTag, branches, linear) {
       this.returnFun = returnFun;
       this.local = local;
     }
@@ -1013,7 +1071,7 @@ namespace Eff
     }
 
     // called from regular resumption
-    public B HandleResume<R>(Cont<R,B> cont, R arg, S newLocal, Exception exn) {
+    public B HandleResume<R>(Cont<R, B> cont, R arg, S newLocal, Exception exn) {
       local = newLocal;
       return HandleResume(cont, arg, exn);
     }
@@ -1022,7 +1080,7 @@ namespace Eff
       return returnFun.Call(arg, local);
     }
 
-    public override bool CallBranch<O,R>(IBranch<O,R,B> ybranch, Cont<R,B> cont, O op, out B result) {
+    public override bool CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R, B> cont, O op, out B result) {
       Branch1<S, O, R, B> branch = (Branch1<S, O, R, B>)ybranch;
       ResumeKind rkind = branch.ResumeKind;
       if (rkind == ResumeKind.Tail) {
@@ -1050,7 +1108,7 @@ namespace Eff
       result = branch.Call(resume, op, local);
       return resume.GetResumed(out tailResumeArg, out local);
     }
-    
+
     // Convenience
     public Handler1(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
       this.returnFun = new Primitive.FunFunc2<A, S, B>(returnFun);
