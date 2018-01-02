@@ -731,18 +731,18 @@ operation singleShot vis foralls effTagName effTp opsTp
 
            conName  = toOpConName id
            conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
-           conDef   = UserCon conName exists conParams idrng rng vis ""
+           conDef   = UserCon conName [] conParams idrng rng vis ""
 
            -- Declare the operation as a struct type with one constructor
            opTpDecl = -- trace ("declare op type: " ++ show opName) $
-                      DataType opBinder ({-tpBindE:-}foralls) [conDef] rng vis Inductive DataDefNormal False doc
+                      DataType opBinder ({-tpBindE:-}foralls ++ exists) [conDef] rng vis Inductive DataDefNormal False doc
 
            -- Declare the operation constructor for part of the full operations data type
-           tpParams    = [TpVar (tbinderName par) idrng | par <- foralls]
+           tpParams    = [TpVar (tbinderName par) idrng | par <- foralls ++ exists]
            opsConTpRes = makeTpApp opsTp tpParams rng
            opsConTpArg = makeTpApp (tpCon opBinder) ({-effTp:-}tpParams) rng
            opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
-           opsConDef = UserCon (toOpsConName id) [] [(Private,opsConArg)] idrng rng vis ""
+           opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] idrng rng vis ""
 
            -- Declare the operation tag name                            
            opTagName    = toOpenTagName opName 
@@ -758,7 +758,7 @@ operation singleShot vis foralls effTagName effTp opsTp
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
                         innerBody 
-                          = App (Var nameYieldOp False nameRng)
+                          = App (Var (nameYieldOp (length exists)) False nameRng)
                                       [(Nothing, Var effTagName False idrng),
                                        (Nothing, Lit (LitString (show id) idrng)),
                                        (Nothing, Lit (LitInt tagIdx idrng)),

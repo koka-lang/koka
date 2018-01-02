@@ -944,6 +944,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
        --          match(op) { .Op-set( i : s ) -> <expr> } 
        -- }
        let hasExists = not (null (conInfoExists conInfo))
+           exists = conInfoExists conInfo
            opParName = newHiddenName "op"
            opPar     = ValueBinder opParName Nothing Nothing rng nameRng
            

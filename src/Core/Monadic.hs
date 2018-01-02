@@ -535,7 +535,8 @@ isAlwaysMon :: Expr -> Bool
 isAlwaysMon expr
   = case expr of
       TypeApp e _ -> isAlwaysMon e
-      Var v _     -> getName v == nameYieldOp || getName v == nameUnsafeTotal -- TODO: remove these special cases?
+      Var v _     -> -- getName v == nameYieldOp || 
+                     getName v == nameUnsafeTotal -- TODO: remove these special cases?
       _ -> False
 
 -- Some expressions never need mon translation

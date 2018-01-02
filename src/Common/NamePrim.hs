@@ -195,7 +195,7 @@ nameEnsureK     = preludeName "ensureK"
 nameTpAsync     = qualify (newName "std/async") (newName "async")
 nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
-nameYieldOp     = preludeName ".yieldop"
+nameYieldOp n    = preludeName (".yieldop" ++ (if (n == 0) then "" else "-x" ++ show n)) 
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"

@@ -593,10 +593,11 @@ genExternal  tname formats targs args
         then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
              do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
                 genExpr eta
-       else if (not cps && getName tname == nameYieldOp && length targs == 2)
+      {- else if (not cps && getName tname == nameYieldOp && length targs == 2)
         then do let resTp = last (filter (\t -> isKindStar (getKind t)) targs)
                 currentDef <- getCurrentDef
                 result (text "Primitive.UnsupportedExternal<" <> ppType ctx (resTp) <> text ">(" <> ppLit (LitString (show currentDef)) <> text ")")
+                -}
         else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
              do argDocs <- genArguments args
                 if (getName tname == nameReturn)
