@@ -423,7 +423,7 @@ public static class Primitive
   // active as long as there are 'on' handlers installed.
   public static A MainConsole<A>(Fun0<A> f) {
     A x = (A)f.Apply();
-    while (activeEntries > 0) {
+    while (activeEntries > 0 || work.Count > 0) {
       Action action;
       lock(workMutex) {
         action = (work.Count > 0 ? work.Dequeue() : null);
