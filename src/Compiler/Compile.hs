@@ -922,7 +922,7 @@ codeGenCS term flags modules compileTarget outBase core
                  sources    = concat [dquote (outName flags (showModName (modName mod)) ++ ".cs") ++ " " | mod <- modules]
                  targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                  targetFlags= "-t:exe -out:" ++ targetName ++ " "
-                 debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+                 debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
              let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)        
              trace cmd $ return () 
              runSystem cmd

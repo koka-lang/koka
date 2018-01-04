@@ -32,6 +32,7 @@ import std/data/array
 import std/num/int32
 import std/num/ddouble    // for C# backend
 import std/time/duration
+import std/debug
 
 extern include {
   cs file "async-inline.cs"
@@ -143,7 +144,9 @@ fun from-waiting(listeners : list<a -> io ()>) : channel-state<a> {
 
 // Create a new asynchronous channel.
 public fun channel() : async channel<a> {
-	async-iox{ Channel(unique(), ref(Empty)) }
+	async-iox { 
+    Channel(unique(), ref(Empty)) 
+  }
 }
 
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
@@ -242,9 +245,9 @@ public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> 
 // `cancel` the other one and return the result of the first.
 public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|e> a  {
 	cancelable {
-		val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
+    val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
 			{ val x = b(); cancel(); x }
-		match(ra) {
+    match(ra) {
 			Left(exn) | exn.info.cancel? -> rb.untry
 			_ -> ra.untry
 		}
@@ -323,8 +326,8 @@ public fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async
 	match( interleavedx([act1,act2])) {
 		Cons(x,Cons(y)) -> (x.unleft,y.unright)
 		_ -> {
-			// this will never happen..
-			val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
+			// this will never happen.. 
+      val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
 			(Left(exn),Left(exn))
 		}
     }
@@ -382,7 +385,7 @@ public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<eit
 	if (n==0) then []
 	elif (n==1) then xs.map(try)
 	else {
-		val handle-strands = handler(cr : some<a>(int,list<(int,either<exception,a>)>)) {
+    val handle-strands = handler(cr : some<a>(int,list<(int,either<exception,a>)>)) {
 			return x            	-> (cr.snd : list<(_,_)>).map( snd )
 			strands-busy?()     	-> resume(cr.fst > 0, cr)
 			strand-done(idx,res)	-> resume((), (cr.fst - 1, cr.snd.insert(idx,res)))
@@ -399,8 +402,8 @@ extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strand
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands	= xs.map-indexed fun(i,action) {
 	           		return fun() {
-	           			val res = try(inject-effects(action))
-	           			strand-done(i,res)
+                  val res = try(inject-effects(action))
+                  strand-done(i,res)
 	           		}
 	           	}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
@@ -418,7 +421,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		async-iox(f)	-> resume(async-iox(f))
 		cancel(scope)	-> resume(cancel(scope))
 	}
-	strands.foreach( handle-strand )
+  strands.foreach(handle-strand)
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
@@ -600,7 +603,6 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		fun cb( res : either<exception,_>, done? : bool ) : io () {
 			if (callbacks.contains(cscope)) {
 				if (done?) then {
-					//trace-any("remove: ", cscope.show)
 					callbacks := callbacks.remove(cscope)
 					if (res.left?) then try((),dispose)
 				}

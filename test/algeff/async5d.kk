@@ -43,8 +43,14 @@ fun test() {
   interleaved {
     amb{
       println("strand 1")
-      if (flip()) then dowait(1.seconds) else dowait(1500.milli-seconds)
-      append("1")
+      if (flip()) then {
+        dowait(1.seconds)
+        append("1") 
+      }
+      else {
+        dowait(1500.milli-seconds)
+        append("1")
+      }
     }
   } {
     println("strand 2")
@@ -61,6 +67,6 @@ fun test() {
 }
 
 fun main() {
-  launch()
+  //launch()
   state("0",test); () 
 }
