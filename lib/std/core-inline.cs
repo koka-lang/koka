@@ -779,7 +779,7 @@ public enum Unit
   unit
 }
 
-public interface TA<A, B>
+public interface TA<in A, in B>
 {
 }
 

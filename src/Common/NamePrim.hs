@@ -54,6 +54,7 @@ module Common.NamePrim
           , nameTpAny
           , nameTpNull
           , nameTpException
+          , nameTpMaybe
           , nameTpHandled, nameTpHandled1
           , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
@@ -136,6 +137,7 @@ nameFalse       = preludeName "False"
 
 nameJust        = preludeName "Just"
 nameNothing     = preludeName "Nothing"
+nameTpMaybe     = preludeName "maybe"
 
 nameOptional         = preludeName "Optional"
 nameOptionalNone     = preludeName "None"

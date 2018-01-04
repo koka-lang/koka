@@ -756,22 +756,41 @@ operation singleShot vis foralls effTagName effTp opsTp
                         tag       = Var opTagName False idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
-                        opCon     = if null arguments then conNameVar else App conNameVar arguments rng
+                        conNameVar = Var conName False idrng
+                       
+                        hasExists = (length exists==0)
                         innerBody 
-                          = App (Var (nameYieldOp (length exists)) False nameRng)
-                                      [(Nothing, Var effTagName False idrng),
+                          = App yieldOp
+                                     ([(Nothing, Var effTagName False idrng),
                                        (Nothing, Lit (LitString (show id) idrng)),
                                        (Nothing, Lit (LitInt tagIdx idrng)),
-                                       (Nothing, opCon)] rng
-                        conNameVar = Var conName False nameRng
-                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
-                        lparams   = [par{ binderType = Nothing} | par <- params]
+                                       (Nothing, opCon)
+                                      ]
+                                       ++ [(Nothing, Var nameNothing False idrng) | _ <- exists]) rng
+
+                        yieldOp   = Ann (Var (nameYieldOp (length exists)) False nameRng)
+                                        (yieldOpTp) nameRng
+                        yieldOpTp = quantify QSome (foralls ++ exists) (TpFun yieldOpTpParams teff tres rng)
+                        yieldOpTpParams = [(nameNil,typeString),(nameNil,typeString),(nameNil,TpCon nameTpInt tprng),
+                                           (nameNil,opsConTpArg)]
+                                           ++ [(nameNil,tp) | tp <- typesMaybeX]
+                        typesMaybeX  = [TpApp (TpCon nameTpMaybe tprng) [TpVar (tbinderName evar) tprng] tprng | evar <- exists]
+                        typeString = TpCon nameTpString tprng
+                        tprng      = idrng
+
+                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?                                     
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
-                        tpParams  = [(binderName par, binderType par) | par <- params]
+                        opCon     = if null arguments then conNameVar else App conNameVar arguments rng
+                        
+                        lparams   = [par{ binderType = Nothing} | par <- params] -- ++ [ValueBinder dname Nothing (Just dvalue) nameRng nameRng | (dname,dtype,dvalue) <- defaults]
+                        tpParams  = [(binderName par, binderType par) | par <- params] -- ++ [(dname,makeOptional dtype) | (dname,dtype,dvalue) <- defaults]
                         tpFull    = quantify QForall (foralls ++ exists) (TpFun tpParams teff tres rng)
+                       
                         makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
                         isJust (Just{}) = True
                         isJust _        = False
+                        
+                        
                     in def
        return (opsConDef,opTpDecl,opDef)
 

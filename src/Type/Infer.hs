@@ -924,18 +924,21 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
 
        traceDoc $ \env -> text "inferHandlerBranch:" <+> pretty opName <> colon <+> ppType env opTp        
 
+       -- get resume argument type = operator result type
+       (rho,optvars,_) <- instantiate rng opTp
+       let (parTps,effTp,resTp) = splitOpTp rho
+
        -- get operator constructor type: .op-set<s>
        (conTp,ctvars,_) <- instantiate rng gconTp
-       let (conParTps,conResTp) = splitConTp conTp
+       -- assume foralls are in the same order...
+       extendSub (subNew [(tv,TVar ctv) | (tv,ctv) <- zip ctvars optvars] )
+       sconTp <- subst conTp
+       let (conParTps,conResTp) = splitConTp sconTp
        -- traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <> colon <+> ppType env conTp  
 
 
        --inferUnify (checkEffectTp rng) rng effectTp conEffTp
         
-
-       -- get resume argument type = operator result type
-       (rho,optvars,_) <- instantiate rng opTp
-       let (parTps,effTp,resTp) = splitOpTp rho
 
 
        -- get existentials: always the last variables of the operation type
@@ -976,7 +979,10 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
                                resumeEff branchTp 
 
 
-       (bexprTp,bexprEff, bexprCore) <- inferExpr (Just (branchExprTp,rng)) Generalized branchExpr 
+       (bexprTp,bexprEff, bexprCore) <- 
+        if (hasExists)
+         then inferExpr (Just (typeAny,rng)) Instantiated (App (Var nameToAny False nameRng) [(Nothing,Ann branchExpr branchExprTp rng)] rng)
+         else inferExpr (Just (branchExprTp,rng)) Instantiated (Ann branchExpr branchExprTp rng)
 
        -- get the tag value for this operation
        -- (tagName,_,tagInfo) <- resolveName (toOpenTagName (toOpTypeName name)) (Just (typeString,nameRng)) nameRng
@@ -984,7 +990,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
        -- create branch wrapper: .makeBranch1( resume-kind :int, .tag-set : string, <bexpr> )
        let handlerBranchTp = TApp (typeHandlerBranch (length locals)) ([resumeEff] ++ map snd locals ++ [branchTp])
            makeBranchTp= TFun [(newName "resume-kind",typeInt), (newName "op-tag",typeString), 
-                                (newName "branch", if hasExists then typeAny else branchExprTp)] typeTotal handlerBranchTp
+                                (newName "branch", bexprTp)] typeTotal handlerBranchTp
 
        (mbranchName,mbranchTp,mbranchInfo) <- resolveFunName (nameMakeHandlerBranch (length locals) (length exists))
                                                 (CtxFunArgs 3 []) rng nameRng 
@@ -993,14 +999,14 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
        (mbranchRho,_tvars,mbranchInstCore) <- instantiate rng mbranchTp
        inferUnify (checkMakeHandlerBranch rng) rng mbranchRho makeBranchTp
 
-       (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,branchExprTp)] typeTotal typeAny,rng)) expect (Var nameToAny False nameRng)
+       (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,bexprTp)] bexprEff typeAny,rng)) Instantiated (Var nameToAny False nameRng)
 
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
            rkind       = analyzeResume bexprCore
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore
-           branchCore = Core.App mbranchCore [rkindCore,tagCore,bexprCoreX]
+           branchCore = Core.App mbranchCore [rkindCore,tagCore,bexprCore]
 
        -- perform eager substitution
        sbranchTp   <- subst branchTp

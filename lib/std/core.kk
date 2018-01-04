@@ -313,7 +313,7 @@ external null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 external maybe( n : null<a> ) : maybe<a> {
-  cs inline "(#1==null ? std_core._maybe<##1>.Nothing_ : new std_core._maybe<##1>(#1))"
+  cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? std_core._maybe<##1>.Nothing_ : new std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
 }
 
@@ -2890,8 +2890,8 @@ extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op
   js "$std_core._yieldop"
 }
 
-extern ".yieldop-x1"( effect-tag : string, op-tag : string, op-idx : int, op : a<x> ) : yld<b> { 
-  cs inline "Eff.Op.YieldOpX1<TA<##1,##3>,##2,##3>(#1,#2,(int)#3,#4)"
+extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> { 
+  cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
   js "$std_core._yieldop"
 }
 

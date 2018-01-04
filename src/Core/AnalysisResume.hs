@@ -40,7 +40,9 @@ analyzeResume :: Expr -> ResumeKind
 analyzeResume expr
   = case expr of
       Lam pars eff body -> arTailExpr body
-      TypeLam _ (Lam pars eff body) -> arTailExpr body
+      TypeLam _ body    -> analyzeResume body
+      TypeApp body _    -> analyzeResume body
+      App _ [body]      -> analyzeResume body  -- for toAny (...)
       _                 -> failure "Core.AnalysisResume.analyzeResume: invalid branch expression"
 
 arTailExpr expr  = arExpr' ResumeTail expr
