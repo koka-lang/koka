@@ -371,6 +371,10 @@ public static class Primitive
   {
     private bool closed = false;
 
+    public EventloopEntry() {
+      Interlocked.Increment(ref activeEntries);
+    }
+
     public void Close() {
       if (!closed) {
         if (Interlocked.Decrement(ref activeEntries) <= 0) workEvent.Set();

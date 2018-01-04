@@ -2893,7 +2893,7 @@ extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op
 extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> { 
   cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
   js "$std_core._yieldop"
-}
+} 
 
 
 type handler-branch0<e::E,a>
@@ -2906,6 +2906,13 @@ extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
   js "$std_core._new_branch"
 }
 
+extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
+                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
+                            ) : total handler-branch1<e,l,b> {
+  cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
+  js "$std_core._new_branch1"
+}
+
 extern ".makeHandlerBranch0-x1"( resume-kind : int, op-tag : string,
                                 branch : any // forall<x>(resume : (result : a<x>) -> e b, op : c<x>) -> e b 
                               ) : total handler-branch0<e,b> {
@@ -2913,10 +2920,10 @@ extern ".makeHandlerBranch0-x1"( resume-kind : int, op-tag : string,
   js "$std_core._new_branch"
 }
 
-extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
-                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
-                            ) : total handler-branch1<e,l,b> {
-  cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
+extern ".makeHandlerBranch1-x1"( resume-kind : int, op-tag : string,
+                                 branch : any // forall<x>(resume : (result : a<x>, new-local: l) -> e b, op : c<x>, local : l) -> e b 
+                               ) : total handler-branch1<e,l,b> {
+  cs inline "new Eff.Branch1X1<##3,##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch1"
 }
 

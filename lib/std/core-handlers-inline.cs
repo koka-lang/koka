@@ -611,6 +611,30 @@ namespace Eff
 
   }
 
+  public sealed class Branch1X1<S,B> : Branch1<S,B>, IBranchX1
+  {
+    TypeFun1 branchFun;
+
+    public Branch1X1(ResumeKind resumeKind, string opName, TypeFun1 branchFun) : base(resumeKind,opName) {
+      this.branchFun = branchFun;
+    }
+
+    public Branch TypeApply<O,R,E>() {
+      object ofun = branchFun.TypeApply<E>();
+      Fun3<Fun2<R, S, B>, O, S, B> fun = ofun as Fun3<Fun2<R, S, B>, O, S, B>;
+      if (fun == null) {
+        // convenience; allow a delegate as a resume function
+        Func<Fun2<R, S, B>, O, S, B> ffun = ofun as Func<Fun2<R, S, B>, O, S, B>;
+        if (ffun != null) {
+          return new Branch1<S, O, R, B>(ResumeKind, OpName, ffun);
+        }
+        fun = (Fun3<Fun2<R, S, B>, O, S, B>)ofun; // cause an error
+      }
+      return new Branch1<S, O, R, B>(ResumeKind, OpName, fun);
+    }
+
+  }
+
   #endregion
 
   #region Abstract Handlers
