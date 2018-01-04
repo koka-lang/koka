@@ -143,7 +143,7 @@ includeExternal (ExternalInclude includes range)
                     Just s -> s
                     Nothing -> case lookup Default includes of
                                  Just s -> s
-                                 Nothing -> failure ("javascript backend does not support external inline at " ++ show range)
+                                 Nothing -> ""
     in [align $ vcat $! map text (lines content)]
 includeExternal _  = []
 
