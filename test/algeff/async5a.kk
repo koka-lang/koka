@@ -2,6 +2,7 @@
 // Async demo: do concurrently
 // --------------------------------------------------------
 import std/async
+import std/num/ddouble
 import std/time/duration
 
 effect amb {
@@ -30,7 +31,7 @@ fun test() {
     if (flip()) then dowait(1.seconds) else dowait(1500.milli-seconds)
   }
   fun h() {
-    yield(1.seconds)
+    wait(1.seconds)
     if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = interleaved( [f,g,h] )

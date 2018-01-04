@@ -5,6 +5,7 @@
 // inner-async-handler; test should output 0, 2b, 1, 2a, 1  
 // --------------------------------------------------------
 import std/async
+import std/num/ddouble
 import std/time/duration
 import std/os/readline
 effect state {
