@@ -865,10 +865,11 @@ codeGen term flags compileTarget loaded
     backends = [codeGenCS, codeGenJS]
 
 
-codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
-codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
+-- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's 
+codeGenCSDll:: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCSDll term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
   = return Nothing
-codeGenCS term flags modules compileTarget outBase core
+codeGenCSDll term flags modules compileTarget outBase core
   = compilerCatch "csharp" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
@@ -890,11 +891,43 @@ codeGenCS term flags modules compileTarget outBase core
            targetFlags= case compileTarget of
                           Executable _ _ -> "-t:exe -out:" ++ targetName
                           _              -> "-t:library -out:" ++ targetName  
-       let cmd = (csc flags ++ " " ++ targetFlags ++ " -o -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)        
+           debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+       let cmd = (csc flags ++ " " ++ debugFlags ++ targetFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)        
        -- trace cmd $ return () 
        runSystem cmd
        -- run the program
        return (Just (runSystem targetName))
+
+-- Generate C# through CS files without generating dll's
+codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
+  = return Nothing
+codeGenCS term flags modules compileTarget outBase core
+  = compilerCatch "csharp" term Nothing $
+    do let (mbEntry,isAsync) = case compileTarget of
+                                 Executable name tp -> (Just (name,tp), isAsyncFunction tp)
+                                 _ -> (Nothing, False)
+           cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
+           outcs       = outBase ++ ".cs"
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+
+       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry 
+       writeDoc outcs cs
+       when (showAsmCSharp flags) (termDoc term cs)
+
+       case mbEntry of
+         Nothing -> return Nothing
+         Just entry -> 
+          do let linkFlags  = "-r:System.Numerics.dll " -- ++ (if isAsync then "-r:" ++ outName flags "std_async.dll ")
+                 sources    = concat [dquote (outName flags (showModName (modName mod)) ++ ".cs") ++ " " | mod <- modules]
+                 targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+                 targetFlags= "-t:exe -out:" ++ targetName ++ " "
+                 debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+             let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)        
+             trace cmd $ return () 
+             runSystem cmd
+             -- run the program
+             return (Just (runSystem targetName))
 
 
 codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))

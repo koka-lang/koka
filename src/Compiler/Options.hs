@@ -118,6 +118,8 @@ data Flags
          , semiInsert       :: Bool
          , packages         :: Packages
          , forceModule      :: FilePath
+         , optimize         :: Int       -- optimization level; negative is off
+         , debug            :: Bool
          }
 
 flagsNull :: Flags
@@ -159,6 +161,8 @@ flagsNull
           True  -- semi colon insertion
           packagesEmpty -- packages
           "" -- forceModule
+          (-1) -- optimize
+          True -- debug
 
 isHelp Help = True
 isHelp _    = False
@@ -190,6 +194,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
+ , flag   ['O'] ["optimize"]        (\b f -> f{optimize=if b then 1 else -1}) "optimize (off by default)"
+ , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"

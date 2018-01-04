@@ -570,7 +570,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 		return x -> {
 			// cancel any outstanding operations still in our scope.
 			// this might be needed for `no-await` operations.
-			cancel(empty-scope.extend)
+			cancel(empty-scope.extend)  // TODO: assumes return executes not under the handler itself
 			x
 		}
 		do-await(setup,scope,c)	-> resume(do-await(setup,scope.extend,c))

@@ -15,9 +15,15 @@ static class _Async
 
     public ThreadTimer( Fun0<Unit> cb, int ms ) {
       entry = Primitive.GetEventloopEntry();
-      timer = new Timer( (object state0) => { 
-                if (entry != null) entry.Post(() => { cb.Apply(); }); 
-              }, null, ms, Timeout.Infinite );
+      if (ms <= 0) {
+        timer = null;
+        entry.Post(() => { cb.Apply(); });
+      }
+      else {
+        timer = new Timer( (object state0) => { 
+                  if (entry != null) entry.Post(() => { cb.Apply(); }); 
+                }, null, ms, Timeout.Infinite );
+      }
     }
 
     public void Close() {

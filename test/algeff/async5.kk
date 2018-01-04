@@ -2,7 +2,6 @@
 // Async demo: do concurrently
 // --------------------------------------------------------
 import std/async
-import std/num/ddouble
 import std/time/duration
 
 effect amb {
