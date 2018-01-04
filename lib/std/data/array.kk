@@ -30,8 +30,10 @@ private extern inline unsafe-assign : forall<h,a> ( a : array<h,a>, i : int, x :
 }
 
 // Return the `index` element of an array. Raises an exception for out-of-bounds access.
-extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
-  { inline "(#1)[(int)#2]" }
+extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) { 
+  cs inline "(#1)[(int)#2]" 
+  js inline "(#1)[#2]"
+}
 
 // Return the length of an `:array`.
 extern inline length : forall<h,a> ( self : array<h,a> ) -> int { 
