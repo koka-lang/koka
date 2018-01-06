@@ -207,7 +207,17 @@ monExpr' topLevel expr
       Case exprs bs
         -> do exprs' <- monTrans monExpr exprs
               bs'    <- mapM monBranch bs
-              return $ \k -> exprs' (\xxs -> k (Case xxs bs'))
+              needM  <- anyM needsMonBranch bs
+              if (not needM)
+               then return $ \k -> exprs' (\xxs -> k (Case xxs bs'))
+               else do nameC <- uniqueName "c"                      
+                       let resTp = typeOf expr
+                           tnameC = TName nameC resTp                           
+                       return $ \k -> 
+                         let effTp    = typeTotal
+                             contBody = k (Var tnameC InfoNone)
+                             cont = Lam [tnameC] effTp contBody
+                         in  exprs' (\xss -> applyBind resTp effTp (typeOf contBody) (Case xss bs')  cont)
 
       Var (TName name tp) info
         -> do -- tp' <- monTypeX tp
@@ -462,12 +472,15 @@ appBind tpArg tpEff tpRes fun args cont
                       TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs   
                         -> App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args  
                       _ -> applyInBindContext fun args
-           in case cont of
-                Lam [aname] eff (Var v _) | getName v == getName aname -> app
-                _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [app,cont]
+           in applyBind tpArg tpEff tpRes app cont
+
+applyBind tpArg tpEff tpRes expr cont
+  = case cont of
+      Lam [aname] eff (Var v _) | getName v == getName aname -> expr 
+      _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [expr,cont]
   where
     -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
-    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
+    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]           
 
 
 applyInBindContext :: Expr -> [Expr] -> Expr
