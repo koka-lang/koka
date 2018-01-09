@@ -24,9 +24,10 @@ namespace Eff
   {
     Cont<C> Compose<C>(Fun1<A, C> f);
     Cont<C> Compose<C>(Func<A, C> f);
-    Cont<A> ComposeFinally(Fun0<Unit> onFinal);
-    Cont<A> ComposeCatch(Fun1<Exception, A> onExn);
+    Cont<A> ComposeFinally(Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit);
+    Cont<A> ComposeCatch(Fun1<Exception, A> onExn, Fun1<Exception,bool> guard, bool catchAll );
     Cont<R> ComposeTailResume<R,HB>(Handler<HB> handler, TailResume<R> resume, int skip);
+    Cont<A> ComposeRunBranch(Handler<A> handler, YieldPoint yieldPoint, Resume resume);
   }
 
   public abstract class Cont<A, B> : Cont<B>
@@ -39,11 +40,11 @@ namespace Eff
     public Cont<C> Compose<C>(Func<B, C> f) {
       return new ContComposeFunc<C>(this, f);
     }
-    public Cont<B> ComposeFinally(Fun0<Unit> onFinal) {
-      return new ContComposeFinally(this, onFinal);
+    public Cont<B> ComposeFinally(Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit) {
+      return new ContComposeFinally(this, onFinal, guard, reInit);
     }
-    public Cont<B> ComposeCatch(Fun1<Exception, B> onExn) {
-      return new ContComposeCatch(this, onExn);
+    public Cont<B> ComposeCatch(Fun1<Exception, B> onExn, Fun1<Exception, bool> guard, bool catchAll) {
+      return new ContComposeCatch(this, onExn, guard, catchAll);
     }
     public Cont<A, B> ComposeHandler(Handler<B> h) {
       return new ContComposeHandler<A>(this, h);
@@ -53,6 +54,9 @@ namespace Eff
     }
     public Cont<R> ComposeTailResume<R, HB>(Handler<HB> handler, TailResume<R> resume, int skip) {
       return new ContComposeTailResume<R, HB>(this as Cont<A, HB>, handler, resume, skip);
+    }
+    public Cont<B> ComposeRunBranch(Handler<B> handler, YieldPoint yieldPoint, Resume resume) {
+      return new ContComposeRunBranch(this, handler, yieldPoint, resume);
     }
 
 
@@ -90,14 +94,21 @@ namespace Eff
     {
       Cont<A, B> cont;
       Fun0<Unit> onFinal;
+      Fun0<bool> guard;
+      Fun0<Unit> reInit;
+      int resumeCount = 0;
 
-      public ContComposeFinally(Cont<A, B> cont, Fun0<Unit> onFinal) {
+      public ContComposeFinally(Cont<A, B> cont, Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit) {
         this.cont = cont;
         this.onFinal = onFinal;
+        this.guard = guard;
+        this.reInit = reInit;
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleFinally<A, B>(cont, arg, exn, onFinal);
+        if (resumeCount > 0 && reInit != null) reInit.Call();
+        resumeCount++;
+        return Op.HandleFinally<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onFinal, guard, reInit);
       }
     }
 
@@ -105,14 +116,18 @@ namespace Eff
     {
       Cont<A, B> cont;
       Fun1<Exception, B> onExn;
+      Fun1<Exception, bool> guard;
+      bool catchAll;
 
-      public ContComposeCatch(Cont<A, B> cont, Fun1<Exception, B> onExn) {
+      public ContComposeCatch(Cont<A, B> cont, Fun1<Exception, B> onExn, Fun1<Exception, bool> guard, bool catchAll) {
         this.cont = cont;
         this.onExn = onExn;
+        this.guard = guard;
+        this.catchAll = catchAll;
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleCatch<A, B>(cont, arg, exn, onExn);
+        return Op.HandleCatch<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onExn, guard, catchAll);
       }
     }
 
@@ -165,6 +180,25 @@ namespace Eff
 
       public override R Resume(A arg, Exception exn) {
         return handler.HandleTailResume<R, A>(cont, arg, exn, resume, skip);
+      }
+    }
+
+    private sealed class ContComposeRunBranch : Cont<A,B>
+    {
+      Cont<A, B> cont;
+      Handler<B> handler;
+      YieldPoint yieldPoint;
+      Resume resume;
+
+      public ContComposeRunBranch(Cont<A,B> cont, Handler<B> handler, YieldPoint yieldPoint, Resume resume) {
+        this.cont = cont;
+        this.handler = handler;
+        this.yieldPoint = yieldPoint;
+        this.resume = resume;
+      }
+
+      public override B Resume(A arg, Exception exn) {
+        return handler.RunBranch(cont, arg, exn, yieldPoint, resume);
       }
     }
 
@@ -275,7 +309,7 @@ namespace Eff
     public abstract ResumeKind ResumeKind { get; }
     public abstract B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume);
     public abstract Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont);
-    public abstract B RunFinalizers<B>(Handler<B> handler, Cont<B> cont, FinalizeException<B> exn);
+    public abstract B RunFinalizers<B>(Handler<B> handler, Resume resume, FinalizeException<B> exn);
   }
 
   // The `YieldPoint` class connects the types at the point of the
@@ -296,7 +330,7 @@ namespace Eff
 
     public override B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume) {
       Debug.Assert(HandledBy(handler));
-      return handler.CallBranch<O, R>((IBranch<O, R, B>)branch, (Cont<R, B>)cont, op, out resume);
+      return handler.CallBranch<O, R>((IBranch<O, R, B>)branch, (Cont<R,B>)cont, op, out resume);
     }
 
     public override Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont) {
@@ -304,9 +338,9 @@ namespace Eff
       return handler.ContCompose<R>((Cont<R, B>)cont);
     }
 
-    public override B RunFinalizers<B>(Handler<B> handler, Cont<B> cont, FinalizeException<B> exn) {
+    public override B RunFinalizers<B>(Handler<B> handler, Resume resume, FinalizeException<B> exn) {
       Debug.Assert(HandledBy(handler));
-      return handler.RunFinalizers<R>((Cont<R, B>)cont, exn);
+      return ((Resume<R, B>)resume).RunFinalizers(handler, exn);
     }
   }
 
@@ -339,11 +373,11 @@ namespace Eff
       Handler handler;
       Handler.Find(effectTag, opName, opTag, out handler, out branch, out skip);
       yieldResumeKind = branch.ResumeKind;
-      if (yieldResumeKind == ResumeKind.Tail && (tailYieldCount < tailYieldMax || handler.IsLinear)) {
+      if ((yieldResumeKind == ResumeKind.Tail && tailYieldCount < tailYieldMax) || handler.IsLinear) {
         // invoke directly using skip frames; this is the case 95% of the time and should
         // be optimized well (e.g. there should be no allocation along this path).
         if (!handler.IsLinear) tailYieldCount++;
-        return handler.HandleTailBranch<O, R>(branch, op, skip);
+        return handler.HandleTailBranch<O, R>(branch, op, skip);  // works for Never too and thus for linear handlers
       }
       else {
         // yield normally 
@@ -363,7 +397,7 @@ namespace Eff
       Handler.Find(effectTag, opName, opTag, out handler, out branch, out skip);
       branch = ((IBranchX1)branch).TypeApply<O, R, E>();
       yieldResumeKind = branch.ResumeKind;
-      if (yieldResumeKind == ResumeKind.Tail && (tailYieldCount < tailYieldMax || handler.IsLinear)) {
+      if ((yieldResumeKind == ResumeKind.Tail && tailYieldCount < tailYieldMax) || handler.IsLinear) {
         // invoke directly using skip frames; this is the case 95% of the time and should
         // be optimized well (e.g. there should be no allocation along this path).
         if (!handler.IsLinear) tailYieldCount++;
@@ -400,76 +434,88 @@ namespace Eff
         return HandleCatch<A>(action, onExn);
       }
       else {
-        return HandleFinally<object, A>(new ContAction<A>(() => {
+        return HandleFinally<A>(new Primitive.FunFunc0<A>(() => {
           return HandleCatch<A>(action, onExn);
         }), null, null, onFinal);
       }
     }
 
-    public static A HandleCatch<A>(Fun0<A> action, Fun1<Exception, A> onExn) {
-      return HandleCatch(new ContAction<A>(action), null, null, onExn);
-    }
-    public static A HandleFinally<A>(Fun0<A> action, Fun0<Unit> onFinal) {
-      return HandleFinally(new ContAction<A>(action), null, null, onFinal);
-    }
-
-    public static A HandleCatch<R, A>(Cont<R, A> cont, R arg, Exception exception, Fun1<Exception, A> onExn) {
+    public static A HandleCatch<A>(Fun0<A> action, Fun1<Exception, A> onExn, Fun1<Exception,bool> guard = null, bool catchAll = false ) {
       A result;
       try {
-        result = cont.Resume(arg, exception);
+        result = action.Call();
         if (yielding && yieldResumeKind != ResumeKind.Never) {
           // extend continuation to handle exceptions again on the resume
-          yieldCont = ((Cont<A>)yieldCont).ComposeCatch(onExn);
+          yieldCont = ((Cont<A>)yieldCont).ComposeCatch(onExn, guard, catchAll);
         }
       }
-      catch (FinalizeException) {
-        // never handle finalize exceptions
-        throw;
+      catch (FinalizeException exn) {
+        // only handle finalize exceptions if `catchAll` is `true`
+        if (!catchAll) throw;
+        if (guard != null && !guard.Call(exn)) throw;  // rethrow if the guard returns `false`
+        result = onExn.Call(exn);
       }
       catch (Exception exn) {
+        if (guard != null && !guard.Call(exn)) throw;  // rethrow if the guard returns `false`
         result = onExn.Call(exn);
       }
       return result;
     }
 
-    public static A HandleFinally<R, A>(Cont<R, A> cont, R arg, Exception exception, Fun0<Unit> onFinal) {
+    public static A HandleFinally<A>(Fun0<A> action, Fun0<Unit> onFinal, Fun0<bool> guard = null, Fun0<Unit> reInit = null) {
       A result;
       try {
-        result = cont.Resume(arg, exception);
-        if (yielding && yieldResumeKind != ResumeKind.Never) {
-          // extend continuation, don't finalize on yield! (which is why we cannot use `finally`)
-          yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal);
-          return result;
-        }
+        result = action.Call();
       }
       catch (Exception) {
         // finalize and rethrow
-        onFinal.Call();
+        if (guard==null || guard.Call()) onFinal.Call();
         throw;
       }
-      onFinal.Call();
+      if (yielding && yieldResumeKind != ResumeKind.Never) {
+        // extend continuation, don't finalize yet on a yielding operation! (which is why we cannot use `finally`)
+        yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal, guard, reInit);
+      }
+      else {
+        // normal return, or yielding `ResumeKind.Never`
+        if (guard == null || guard.Call()) onFinal.Call();
+      }
       return result;
     }
 
   }
 
-
-  public abstract class FinalizeException : Exception
+  // A guard that ensures that it returns `true` only on the first call.
+  // This can be used to have finalizers that run at most once.
+  public class GuardOnlyOnce : Fun0<bool>
   {
-    private readonly Handler handler;
+    bool called = false;
 
-    public bool HandledBy(Handler h) {
-      return (h == handler);
+    public object Apply() {
+      if (called) return (object)(false);
+      called = true;
+      return (object)(true);
     }
+  }
 
-    public FinalizeException(Handler handler) : base("Internal: operation in a linear handler threw an exception or returned directly") {
-      this.handler = handler;
+  public class FinalizeException : Exception
+  {
+    public FinalizeException(String message) : base(message) 
+    {
     }
   }
 
   public abstract class FinalizeException<B> : FinalizeException
   {
-    public FinalizeException(Handler handler) : base(handler) { }
+    private readonly Handler handler;
+
+    public FinalizeException(Handler handler) : base("internal: this exception is used to run finalizers on operations; do not handle this exception.") {
+      this.handler = handler;
+    }
+
+    public bool HandledBy(Handler h) {
+      return (h == handler);
+    }
 
     public abstract B Handle();
   }
@@ -522,24 +568,45 @@ namespace Eff
     bool HasResumed { get; }
   }
 
-  public abstract class Resume<R,B> : Resume, Fun1<R,B>
+  public abstract class Resume<R, B> : Resume
   {
     protected bool resumed;
-    public bool HasResumed { get { return resumed;  } }
+    public bool HasResumed { get { return resumed; } }
+
+    protected Cont<R, B> cont;
+
+    public B RunFinalizers(Handler<B> handler, FinalizeException<B> exn) {
+      if (!resumed && cont != null) return handler.RunFinalizers<R>(cont, exn);
+      else return default(B); // throw an error?
+    }
+
+    public Resume(Cont<R,B> cont) {
+      resumed = false;
+      this.cont = cont;
+    }
+
+    public void Release() {
+      resumed = true; // pretend to have resumed to prevent running finalizers
+    }
+    
+  }
+
+  public abstract class Resume0<R,B> : Resume<R,B>, Fun1<R,B>
+  {
+    public Resume0(Cont<R,B> cont = null) : base(cont) { }
 
     public abstract B Call(R arg);
-
+    
     public object Apply(R arg) {
       //Debug.Assert(!resumed);
       resumed = true;
       return Call(arg);
-    }
+    }  
   }
 
-  public abstract class Resume1<S, R, B> : Resume, Fun2<R, S, B>
+  public abstract class Resume1<S, R, B> : Resume<R,B>, Fun2<R, S, B>
   {
-    protected bool resumed;
-    public bool HasResumed { get { return resumed; } }
+    public Resume1(Cont<R, B> cont = null) : base(cont) { }
 
     public abstract B Call(R arg, S local);
 
@@ -861,8 +928,8 @@ namespace Eff
   {
     public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
 
-    public abstract B CallBranch<O, R>(IBranch<O, R, B> branch, Cont<R, B> cont, O op, out Resume resume);
-    public abstract B CallTailBranch<O, R>(IBranch<O, R, B> branch, O op, out Resume resume, out TailResume<R> tresume);
+    public abstract B CallBranch<O, R>(IBranch<O, R, B> branch, Cont<R,B> cont, O op, out Resume resume);
+    public abstract B CallTailBranch<O, R>(IBranch<O, R, B> branch, O op, out TailResume<R> tresume);
     public abstract Cont<R, B> ContCompose<R>(Cont<R, B> cont);
 
     public B HandleResume<R>(Cont<R, B> cont, R arg, Exception exn = null) {
@@ -922,17 +989,23 @@ namespace Eff
             Resume resume = null;
             try {
               result = yieldPoint.CallBranch<B>(this, cont, out resume);
-              // todo: use HandleExn so the finalization gets executed properly
             }
             catch (Exception exn) {
-              if (resume.HasResumed || rkind == ResumeKind.Never) throw;  // rethrow, no need for finalization
-              // we did not resume yet; run finalizers and rethrow
-              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeThrowException<B>(this, exn));
+              if (resume.HasResumed || rkind == ResumeKind.Never) throw;
+              yieldPoint.RunFinalizers<B>(this, resume, new FinalizeThrowException<B>(this, exn));
             }
-         
-            if (!resume.HasResumed && !Op.yielding && rkind != ResumeKind.Never) {
-              // we returned without resuming; run finalizers first
-              result = yieldPoint.RunFinalizers<B>(this, cont, new FinalizeReturnException<B>(this, result));
+            // if we exit without resuming..
+            if (!resume.HasResumed && rkind != ResumeKind.Never) {
+              if (Op.yielding) {
+                // extend the continuation in case we are yielding
+                if (Op.yieldResumeKind != ResumeKind.Never) {
+                  Op.yieldCont = ((Cont<B>)Op.yieldCont).ComposeRunBranch(this, yieldPoint, resume);
+                }
+              }
+              else {
+                // we returned without resuming; run finalizers first
+                yieldPoint.RunFinalizers<B>(this, resume, new FinalizeReturnException<B>(this, result));
+              }
             }
             tailresumed = (resume.HasResumed && rkind == ResumeKind.Tail);
           }
@@ -942,20 +1015,43 @@ namespace Eff
       return result;
     }
 
+    public B RunBranch<A>( Cont<A,B> cont, A arg, Exception exnarg, YieldPoint yieldPoint, Resume resume) {
+      B result;
+      try {
+        result = cont.Resume(arg,exnarg);        
+      }
+      catch(Exception exn) {
+        if (resume.HasResumed || yieldPoint.ResumeKind == ResumeKind.Never) throw;
+        result = yieldPoint.RunFinalizers<B>(this, resume, new FinalizeThrowException<B>(this, exn));
+      }
+      // if we exit without resuming
+      if (!resume.HasResumed && yieldPoint.ResumeKind != ResumeKind.Never) {
+        if (Op.yielding) {
+          // extend the continuation in case we are yielding
+          if (Op.yieldResumeKind != ResumeKind.Never) {
+            Op.yieldCont = ((Cont<B>)Op.yieldCont).ComposeRunBranch(this, yieldPoint, resume);
+          }
+        }
+        else {
+          // we returned without resuming; run finalizers first
+          // yieldPoint.RunFinalizers<B>(this, resume, new FinalizeReturnException<B>(this, result));
+        }
+      }
+      return result;
+    }
 
     public override R HandleTailBranch<O, R>(Branch ybranch, O op, int skip) {
       // push skip handler so operations in the tail branch get handled correctly
       Handler hskip = Handler.Skip(skip);
-      Resume _resume;
       TailResume<R> resume;
       B result;
       try {
-        result = CallTailBranch<O, R>((IBranch<O, R, B>)ybranch, op, out _resume, out resume);
+        result = CallTailBranch<O, R>((IBranch<O, R, B>)ybranch, op, out resume);
       }
       catch (Exception exn) {
         // Raised exception in the branch
         // we finalize back to the handler and rethrow from there.
-        // note: we do this for `FinalizeException`s too.
+        // note: this is done for `FinalizeException`s too.
         throw new FinalizeThrowException<B>(this, exn);
       }
       finally {
@@ -965,6 +1061,7 @@ namespace Eff
       // we are yielding; extend the continuation with the skip frame
       if (Op.yielding) {
         if (Op.yieldResumeKind != ResumeKind.Never) {
+          // when the continuation is resumed, it calls `HandleTailResume`
           Op.yieldCont = ((Cont<B>)Op.yieldCont).ComposeTailResume<R,B>(this, resume, skip);
         }
         return default(R);
@@ -1064,36 +1161,23 @@ namespace Eff
       return cont.ComposeHandler(this);
     }
 
-    public override B CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R, B> cont, O op, out Resume resume) {
+    public override B CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R,B> cont, O op, out Resume oresume) {
       Branch<O, R, B> branch = (Branch<O, R, B>)ybranch;
       ResumeKind rkind = branch.ResumeKind;
-      if (rkind == ResumeKind.Tail) {
-        TailResume<R> tresume;
-        return Op.Bind<B,B>(CallTailBranch(branch, op, out resume, out tresume), (B result) => {
-          if (tresume.HasResumed) {
-            return ResumeCont(cont, tresume.GetResumeArg(this));
-          }
-          else {
-            return result;
-          }
-        });
-      }
-      else {
-        Resume<R, B> rresume;
-        if (rkind == ResumeKind.Never) rresume = ResumeNever<R>.singleton;
-        else rresume = new ResumeNormal<R>(this, cont);
-        resume = rresume;
-        return branch.Call(rresume, op);
-      }
+      Resume0<R, B> resume;
+      if (rkind == ResumeKind.Never) resume = ResumeNever<R>.singleton;
+      else if (rkind == ResumeKind.Tail) resume = new ResumeTail<R>(this, cont);
+      else resume = new ResumeNormal<R>(this, cont);
+      oresume = resume;
+      return branch.Call(resume, op);
     }
 
-    public override B CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out Resume resume, out TailResume<R> tresume) {
+    public override B CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out TailResume<R> resume) {
       Branch<O, R, B> branch = (Branch<O, R, B>)ybranch;
       Debug.Assert(branch.ResumeKind == ResumeKind.Tail);
-      ResumeTailDirect<R> tdresume = ResumeTailDirect<R>.Singleton;
-      tresume = tdresume;
-      resume = tdresume;
-      return branch.Call(tdresume, op);
+      ResumeTailDirect<R> tresume = ResumeTailDirect<R>.Singleton;
+      resume = tresume;
+      return branch.Call(tresume, op);
     }
 
     // Convenience
@@ -1122,14 +1206,12 @@ namespace Eff
       }
     }
 
-    private sealed class ResumeNormal<R> : Resume<R, B>
+    private sealed class ResumeNormal<R> : Resume0<R, B>
     {
-      Handler<B> handler;
-      Cont<R, B> cont;
-      
-      public ResumeNormal(Handler<B> h, Cont<R, B> c) {
-        handler = h;
-        cont = c;
+      private Handler<B> handler;
+
+      public ResumeNormal(Handler<B> handler, Cont<R, B> cont) : base(cont) {
+        this.handler = handler;
       }
       
       public override B Call(R arg) {
@@ -1137,7 +1219,21 @@ namespace Eff
       }
     }
 
-    private sealed class ResumeNever<R> : Resume<R, B>
+    private sealed class ResumeTail<R> : Resume0<R, B>
+    {
+      private Handler<B> handler;
+
+      public ResumeTail(Handler<B> h, Cont<R, B> c) : base(c) {
+        handler = h;
+      }
+
+      public override B Call(R arg) {
+        return handler.ResumeCont<R>(cont, arg);  // do not end with HandleYield but return to the while-tailresume loop
+      }
+      
+    }
+
+    private sealed class ResumeNever<R> : Resume0<R, B>
     {
       public static ResumeNever<R> singleton = new ResumeNever<R>();
       
@@ -1146,7 +1242,7 @@ namespace Eff
       }
     }
 
-    private sealed class ResumeTailDirect<R> : Resume<R, B>, TailResume<R>
+    private sealed class ResumeTailDirect<R> : Resume0<R, B>, TailResume<R>
     {
       private static ResumeTailDirect<R> singleton = new ResumeTailDirect<R>();
       public static ResumeTailDirect<R> Singleton {
@@ -1157,7 +1253,7 @@ namespace Eff
       }
 
       private R resumeArg;
-
+      
       public R GetResumeArg(Handler h) {
         R arg = resumeArg;
         resumeArg = default(R);
@@ -1225,37 +1321,24 @@ namespace Eff
       return returnFun.Call(arg, local);
     }
 
-    public override B CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R, B> cont, O op, out Resume resume) {
+    public override B CallBranch<O, R>(IBranch<O, R, B> ybranch, Cont<R, B> cont, O op, out Resume oresume) {
       Branch1<S, O, R, B> branch = (Branch1<S, O, R, B>)ybranch;
       ResumeKind rkind = branch.ResumeKind;
-      if (rkind == ResumeKind.Tail) {
-        TailResume<R> tresume;
-        return Op.Bind<B, B>(CallTailBranch(branch, op, out resume, out tresume), (B result) => {
-          if (tresume.HasResumed) {
-            return ResumeCont(cont, tresume.GetResumeArg(this));
-          }
-          else {
-            return result;
-          }
-        });
-      }
-      else {
-        Resume1<S, R, B> rresume;
-        if (rkind == ResumeKind.Never) rresume = ResumeNever1<R>.singleton;
-        else rresume = new ResumeNormal1<R>(this, cont);
-        resume = rresume;
-        return branch.Call(rresume, op, local);
-      }
+      Resume1<S, R, B> resume;
+      if (rkind == ResumeKind.Never) resume = ResumeNever1<R>.singleton;
+      else if (rkind == ResumeKind.Tail) resume = new ResumeTail1<R>(this, cont);
+      else resume = new ResumeNormal1<R>(this, cont);
+      oresume = resume;
+      return branch.Call(resume, op, local);
     }
 
 
-    public override B CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out Resume resume, out TailResume<R> tresume) {
+    public override B CallTailBranch<O, R>(IBranch<O, R, B> ybranch, O op, out TailResume<R> resume) {
       Branch1<S, O, R, B> branch = (Branch1<S, O, R, B>)ybranch;
       Debug.Assert(branch.ResumeKind == ResumeKind.Tail);
-      ResumeTailDirect1<R> tdresume = ResumeTailDirect1<R>.Singleton;
-      resume = tdresume;
-      tresume = tdresume;
-      return branch.Call(tdresume, op, local);
+      ResumeTailDirect1<R> tresume = ResumeTailDirect1<R>.Singleton;
+      resume = tresume;
+      return branch.Call(tresume, op, local);
     }
 
     // Convenience
@@ -1288,16 +1371,28 @@ namespace Eff
     private sealed class ResumeNormal1<R> : Resume1<S, R, B>
     {
       Handler1<S, A, B> handler;
-      Cont<R, B> cont;
       
-      public ResumeNormal1(Handler1<S, A, B> h, Cont<R, B> c) {
+      public ResumeNormal1(Handler1<S, A, B> h, Cont<R, B> c) : base(c) { 
         handler = h;
-        cont = c;
       }
 
       public override B Call(R arg, S local) {
         handler.SetLocal(local);
         return handler.HandleResume<R>(cont, arg);
+      }
+    }
+
+    private sealed class ResumeTail1<R> : Resume1<S, R, B>
+    {
+      Handler1<S, A, B> handler;
+
+      public ResumeTail1(Handler1<S, A, B> h, Cont<R, B> c) : base(c) {
+        handler = h;
+      }
+
+      public override B Call(R arg, S local) {
+        handler.SetLocal(local);
+        return handler.ResumeCont<R>(cont, arg); // Don't call HandleYield but return to the while-tailresume loop
       }
     }
 
@@ -1323,7 +1418,7 @@ namespace Eff
 
       private R resumeArg = default(R);
       private S local = default(S);
-
+      
       public R GetResumeArg(Handler h) {
         ((Handler1<S, B>)h).SetLocal(local);
         R arg = resumeArg;

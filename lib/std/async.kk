@@ -383,7 +383,7 @@ fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int
 public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<either<exception,a>> {
 	val n = xs.length
 	if (n==0) then []
-	elif (n==1) then xs.map(try)
+	elif (n==1) then xs.map(try-all)
 	else {
     val handle-strands = handler(cr : some<a>(int,list<(int,either<exception,a>)>)) {
 			return x            	-> (cr.snd : list<(_,_)>).map( snd )
@@ -402,7 +402,7 @@ extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strand
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands	= xs.map-indexed fun(i,action) {
 	           		return fun() {
-                  val res = try(inject-effects(action))
+                  val res = try-all(inject-effects(action))
                   strand-done(i,res)
 	           		}
 	           	}
@@ -540,24 +540,6 @@ fun async-io( f : () -> io a ) : asyncx a {
 // Async handlers: cancelable
 // ----------------------------------------------------------------------------
 
-// The `Cancel` exception.
-public type extend exception-info {
-	// The `Cancel` exception is thrown when an asynchronous operation is canceled.
-	con Cancel
-}
-
-// Execute `oncancel` if `action` raises a `Cancel` exception.
-public fun on-cancel( oncancel : () -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
-	on-exn(fun(exn) {
-		match(exn.info) {
-			Cancel	-> oncancel()
-			_	-> ()
-		}
-	}, action)
-}
-
-public val cancel-exn = exception("Cancel", Cancel)
-
 // Execute `action` in a cancelable scope. If `cancel` is called within `action`,
 // any outstanding asynchronous operations started in the cancelable scope are canceled.
 // (Outstanding operations outside the cancelable scope are not canceled).
@@ -604,7 +586,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 			if (callbacks.contains(cscope)) {
 				if (done?) then {
 					callbacks := callbacks.remove(cscope)
-					if (res.left?) then try((),dispose)
+					if (res.left?) then try-all-default((),dispose)
 				}
 				f(res)
 			}

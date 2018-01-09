@@ -29,8 +29,9 @@ public static class Primitive
     throw new InfoException(msg, new std_core.Pattern_(location, definition));
   }
 
-  public static InfoException ExnException(string message, std_core._exception_info info) {
-    return new InfoException(message, info);
+  public static Exception ExnException(string message, std_core._exception_info info) {
+    if (info is std_core.Cancel_) return new InfoFinalizeException(message, info);
+    else return new InfoException(message, info);
   }
 
   public static std_core._exception_info ExnInfo(Exception exn) {
@@ -38,9 +39,11 @@ public static class Primitive
     if (eexn != null) {
       return eexn.info;
     }
-    else {
-      return new std_core.Error_();
+    InfoFinalizeException fexn = exn as InfoFinalizeException;
+    if (fexn != null) {
+      return fexn.info;
     }
+    return new std_core.Error_();
   }
 
   public static string ExnMessage(Exception exn) {
@@ -756,6 +759,14 @@ public class InfoException : Exception
   }
 }
 
+public class InfoFinalizeException : Eff.FinalizeException
+{
+  public readonly std_core._exception_info info;
+
+  public InfoFinalizeException(string message, std_core._exception_info info) : base(message) {
+    this.info = info;
+  }
+}
 
 //---------------------------------------
 // References
