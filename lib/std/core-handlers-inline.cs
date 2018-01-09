@@ -24,10 +24,10 @@ namespace Eff
   {
     Cont<C> Compose<C>(Fun1<A, C> f);
     Cont<C> Compose<C>(Func<A, C> f);
-    Cont<A> ComposeFinally(Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit);
-    Cont<A> ComposeCatch(Fun1<Exception, A> onExn, Fun1<Exception,bool> guard, bool catchAll );
+    Cont<C> ComposeConst<C>(C result);
+    Cont<A> ComposeFinally(Fun0<Unit> onFinal, Fun0<Unit> reInit);
+    Cont<A> ComposeCatch(Fun1<Exception, A> onExn, bool catchAll );
     Cont<R> ComposeTailResume<R,HB>(Handler<HB> handler, TailResume<R> resume, int skip);
-    Cont<A> ComposeRunBranch(Handler<A> handler, YieldPoint yieldPoint, Resume resume);
   }
 
   public abstract class Cont<A, B> : Cont<B>
@@ -40,11 +40,14 @@ namespace Eff
     public Cont<C> Compose<C>(Func<B, C> f) {
       return new ContComposeFunc<C>(this, f);
     }
-    public Cont<B> ComposeFinally(Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit) {
-      return new ContComposeFinally(this, onFinal, guard, reInit);
+    public Cont<C> ComposeConst<C>(C result) {
+      return new ContComposeConst<C>(this,result);
     }
-    public Cont<B> ComposeCatch(Fun1<Exception, B> onExn, Fun1<Exception, bool> guard, bool catchAll) {
-      return new ContComposeCatch(this, onExn, guard, catchAll);
+    public Cont<B> ComposeFinally(Fun0<Unit> onFinal, Fun0<Unit> reInit) {
+      return new ContComposeFinally(this, onFinal, reInit);
+    }
+    public Cont<B> ComposeCatch(Fun1<Exception, B> onExn, bool catchAll) {
+      return new ContComposeCatch(this, onExn, catchAll);
     }
     public Cont<A, B> ComposeHandler(Handler<B> h) {
       return new ContComposeHandler<A>(this, h);
@@ -55,10 +58,6 @@ namespace Eff
     public Cont<R> ComposeTailResume<R, HB>(Handler<HB> handler, TailResume<R> resume, int skip) {
       return new ContComposeTailResume<R, HB>(this as Cont<A, HB>, handler, resume, skip);
     }
-    public Cont<B> ComposeRunBranch(Handler<B> handler, YieldPoint yieldPoint, Resume resume) {
-      return new ContComposeRunBranch(this, handler, yieldPoint, resume);
-    }
-
 
     private sealed class ContComposeFun<C> : Cont<A, C>
     {
@@ -90,25 +89,38 @@ namespace Eff
       }
     }
 
+    private sealed class ContComposeConst<C> : Cont<A, C>
+    {
+      Cont<A, B> cont;
+      C result;
+
+      public ContComposeConst(Cont<A, B> cont, C result) {
+        this.cont = cont;
+        this.result = result;
+      }
+
+      public override C Resume(A arg, Exception exn) {
+        return Op.BindConst(cont.Resume(arg, exn), result);
+      }
+    }
+
     private sealed class ContComposeFinally : Cont<A, B>
     {
       Cont<A, B> cont;
       Fun0<Unit> onFinal;
-      Fun0<bool> guard;
       Fun0<Unit> reInit;
       int resumeCount = 0;
 
-      public ContComposeFinally(Cont<A, B> cont, Fun0<Unit> onFinal, Fun0<bool> guard, Fun0<Unit> reInit) {
+      public ContComposeFinally(Cont<A, B> cont, Fun0<Unit> onFinal, Fun0<Unit> reInit) {
         this.cont = cont;
         this.onFinal = onFinal;
-        this.guard = guard;
         this.reInit = reInit;
       }
 
       public override B Resume(A arg, Exception exn) {
         if (resumeCount > 0 && reInit != null) reInit.Call();
         resumeCount++;
-        return Op.HandleFinally<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onFinal, guard, reInit);
+        return Op.HandleFinally<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onFinal, reInit);
       }
     }
 
@@ -116,18 +128,16 @@ namespace Eff
     {
       Cont<A, B> cont;
       Fun1<Exception, B> onExn;
-      Fun1<Exception, bool> guard;
       bool catchAll;
 
-      public ContComposeCatch(Cont<A, B> cont, Fun1<Exception, B> onExn, Fun1<Exception, bool> guard, bool catchAll) {
+      public ContComposeCatch(Cont<A, B> cont, Fun1<Exception, B> onExn, bool catchAll) {
         this.cont = cont;
         this.onExn = onExn;
-        this.guard = guard;
         this.catchAll = catchAll;
       }
 
       public override B Resume(A arg, Exception exn) {
-        return Op.HandleCatch<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onExn, guard, catchAll);
+        return Op.HandleCatch<B>(new Primitive.FunFunc0<B>(() => cont.Resume(arg, exn)), onExn, catchAll);
       }
     }
 
@@ -182,26 +192,6 @@ namespace Eff
         return handler.HandleTailResume<R, A>(cont, arg, exn, resume, skip);
       }
     }
-
-    private sealed class ContComposeRunBranch : Cont<A,B>
-    {
-      Cont<A, B> cont;
-      Handler<B> handler;
-      YieldPoint yieldPoint;
-      Resume resume;
-
-      public ContComposeRunBranch(Cont<A,B> cont, Handler<B> handler, YieldPoint yieldPoint, Resume resume) {
-        this.cont = cont;
-        this.handler = handler;
-        this.yieldPoint = yieldPoint;
-        this.resume = resume;
-      }
-
-      public override B Resume(A arg, Exception exn) {
-        return handler.RunBranch(cont, arg, exn, yieldPoint, resume);
-      }
-    }
-
   }
 
   sealed class ContId<A> : Cont<A, A>
@@ -309,7 +299,6 @@ namespace Eff
     public abstract ResumeKind ResumeKind { get; }
     public abstract B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume);
     public abstract Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont);
-    public abstract B RunFinalizers<B>(Handler<B> handler, Resume resume, FinalizeException<B> exn);
   }
 
   // The `YieldPoint` class connects the types at the point of the
@@ -337,11 +326,6 @@ namespace Eff
       Debug.Assert(!HandledBy(handler));
       return handler.ContCompose<R>((Cont<R, B>)cont);
     }
-
-    public override B RunFinalizers<B>(Handler<B> handler, Resume resume, FinalizeException<B> exn) {
-      Debug.Assert(HandledBy(handler));
-      return ((Resume<R, B>)resume).RunFinalizers(handler, exn);
-    }
   }
 
   public static class Op
@@ -360,6 +344,18 @@ namespace Eff
       }
       else {
         return next.Call(x);
+      }
+    }
+
+    public static B BindConst<A, B>(A x, B result) {
+      if (yielding) {
+        if (yieldResumeKind != ResumeKind.Never) {
+          yieldCont = ((Cont<A>)yieldCont).ComposeConst<B>(result);
+        }
+        return default(B);
+      }
+      else {
+        return result;
       }
     }
 
@@ -436,51 +432,55 @@ namespace Eff
       else {
         return HandleFinally<A>(new Primitive.FunFunc0<A>(() => {
           return HandleCatch<A>(action, onExn);
-        }), null, null, onFinal);
+        }), onFinal);
       }
     }
 
-    public static A HandleCatch<A>(Fun0<A> action, Fun1<Exception, A> onExn, Fun1<Exception,bool> guard = null, bool catchAll = false ) {
-      A result;
+    public static A HandleCatch<A>(Fun0<A> action, Fun1<Exception, A> onExn, bool catchAll = false ) {
       try {
-        result = action.Call();
+        A result = action.Call();
         if (yielding && yieldResumeKind != ResumeKind.Never) {
           // extend continuation to handle exceptions again on the resume
-          yieldCont = ((Cont<A>)yieldCont).ComposeCatch(onExn, guard, catchAll);
+          yieldCont = ((Cont<A>)yieldCont).ComposeCatch(onExn,catchAll);
         }
+        return result;
+      }
+      catch (LongJumpException) {
+        // never catch long jump exceptions
+        throw;
       }
       catch (FinalizeException exn) {
         // only handle finalize exceptions if `catchAll` is `true`
         if (!catchAll) throw;
-        if (guard != null && !guard.Call(exn)) throw;  // rethrow if the guard returns `false`
-        result = onExn.Call(exn);
+        return onExn.Call(exn.PreserveStackTrace());
       }
       catch (Exception exn) {
-        if (guard != null && !guard.Call(exn)) throw;  // rethrow if the guard returns `false`
-        result = onExn.Call(exn);
+        return onExn.Call(exn.PreserveStackTrace());
       }
-      return result;
     }
 
-    public static A HandleFinally<A>(Fun0<A> action, Fun0<Unit> onFinal, Fun0<bool> guard = null, Fun0<Unit> reInit = null) {
+    public static A HandleFinally<A>(Fun0<A> action, Fun0<Unit> onFinal, Fun0<Unit> reInit = null) {
       A result;
       try {
         result = action.Call();
       }
-      catch (Exception) {
+      catch (LongJumpException) {
+        // never finalize on long jump exceptions
+        throw;
+      }
+      catch (Exception exn) {
         // finalize and rethrow
-        if (guard==null || guard.Call()) onFinal.Call();
+        Unit u = onFinal.Call();
+        // check yielding explicitly to avoid using `PreserveStackTrace` in most cases...
+        if (yielding) return Bind<Unit,A>(u, (_) => { throw exn.PreserveStackTrace(); });
         throw;
       }
       if (yielding && yieldResumeKind != ResumeKind.Never) {
         // extend continuation, don't finalize yet on a yielding operation! (which is why we cannot use `finally`)
-        yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal, guard, reInit);
+        yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal, reInit);
+        return result;
       }
-      else {
-        // normal return, or yielding `ResumeKind.Never`
-        if (guard == null || guard.Call()) onFinal.Call();
-      }
-      return result;
+      else return BindConst(onFinal.Call(), result);
     }
 
   }
@@ -498,6 +498,23 @@ namespace Eff
     }
   }
 
+
+  public static class ExceptionHelper
+  {
+    private static Action<Exception> preserveStackTrace = null;
+
+    static ExceptionHelper() {
+      System.Reflection.MethodInfo preserveInfo = typeof(Exception).GetMethod("InternalPreserveStackTrace", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+      if (preserveInfo != null) preserveStackTrace = (Action<Exception>)Delegate.CreateDelegate(typeof(Action<Exception>), preserveInfo);
+    }
+
+    public static Exception PreserveStackTrace(this Exception ex) {
+      if (preserveStackTrace != null) preserveStackTrace(ex);
+      return ex;
+    }
+  }
+
+
   public class FinalizeException : Exception
   {
     public FinalizeException(String message) : base(message) 
@@ -505,26 +522,39 @@ namespace Eff
     }
   }
 
-  public abstract class FinalizeException<B> : FinalizeException
+
+  public class LongJumpException : Exception
+  {
+    public LongJumpException(string message) : base(message) { }
+  }
+
+  public class JumpToHandlerException : LongJumpException
   {
     private readonly Handler handler;
 
-    public FinalizeException(Handler handler) : base("internal: this exception is used to run finalizers on operations; do not handle this exception.") {
+    public JumpToHandlerException(Handler handler) : base("internal: this exception is used internally for effect handlers; do not handle this exception.") {
       this.handler = handler;
     }
 
     public bool HandledBy(Handler h) {
       return (h == handler);
     }
-
+  }
+  
+  public abstract class JumpToHandlerException<B> : JumpToHandlerException
+  {
+    public JumpToHandlerException(Handler handler) : base(handler) 
+    {
+    }
+    
     public abstract B Handle();
   }
 
-  public class FinalizeReturnException<B> : FinalizeException<B>
+  public class HandlerReturnException<B> : JumpToHandlerException<B>
   {
     private readonly B returnValue;
 
-    public FinalizeReturnException(Handler<B> handler, B returnValue) : base(handler) {
+    public HandlerReturnException(Handler<B> handler, B returnValue) : base(handler) {
       this.returnValue = returnValue;
     }
 
@@ -533,16 +563,16 @@ namespace Eff
     }
   }
 
-  public class FinalizeThrowException<B> : FinalizeException<B>
+  public class HandlerThrowException<B> : JumpToHandlerException<B>
   {
     private readonly Exception exception;
 
-    public FinalizeThrowException(Handler handler, Exception exception) : base(handler) {
+    public HandlerThrowException(Handler handler, Exception exception) : base(handler) {
       this.exception = exception;
     }
 
     public override B Handle() {
-      throw exception;
+      throw exception.PreserveStackTrace();
     }
   }
 
@@ -575,9 +605,14 @@ namespace Eff
 
     protected Cont<R, B> cont;
 
-    public B RunFinalizers(Handler<B> handler, FinalizeException<B> exn) {
-      if (!resumed && cont != null) return handler.RunFinalizers<R>(cont, exn);
-      else return default(B); // throw an error?
+    public B RunFinalizers(B result) {
+      if (resumed || cont == null) return result;
+      Exception exn = new FinalizeException("Internal exception to run finalizers for effect handlers; do not catch this exception.");
+      return Op.HandleCatch<B>(
+        new Primitive.FunFunc0<B>( () => cont.Resume(default(R), exn) ),
+        new Primitive.FunFunc1<Exception,B>( (Exception e) => { if (e == exn) return result; else throw e; }),
+        true  // catch finalize exceptions (to catch our own exception)
+      );
     }
 
     public Resume(Cont<R,B> cont) {
@@ -942,9 +977,9 @@ namespace Eff
       try {
         return cont.Resume(arg, exception);
       }
-      catch (FinalizeException<B> exn) {
+      catch (JumpToHandlerException<B> exn) {
         // if a tail operation is optimized, it might yield back to the handler
-        // using a FinalizeException
+        // using a LongJumpException
         if (!exn.HandledBy(this)) throw;
         return exn.Handle();
       }
@@ -953,12 +988,12 @@ namespace Eff
       }
     }
 
-    public B RunFinalizers<R>(Cont<R, B> cont, FinalizeException<B> exception) {
+    public B RunFinalizers<R>(Cont<R, B> cont, JumpToHandlerException<B> exception) {
       try {
         // raise the exception at the continuation point to run finalizers
         return cont.Resume(default(R), exception);
       }
-      catch (FinalizeException<B> exn) {
+      catch (JumpToHandlerException<B> exn) {
         if (!exn.HandledBy(this)) throw;
         return exn.Handle();
       }
@@ -979,64 +1014,21 @@ namespace Eff
           }
           else {
             // we handle the operation; reset Op fields for GC
+            YieldPoint yieldPoint = Op.yieldPoint;
             Op.yielding = false;
             Op.yieldCont = null;
-            YieldPoint yieldPoint = Op.yieldPoint;
             Op.yieldPoint = null;
 
             // invoke the operation branch
-            ResumeKind rkind = yieldPoint.ResumeKind;
-            Resume resume = null;
-            try {
-              result = yieldPoint.CallBranch<B>(this, cont, out resume);
-            }
-            catch (Exception exn) {
-              if (resume.HasResumed || rkind == ResumeKind.Never) throw;
-              yieldPoint.RunFinalizers<B>(this, resume, new FinalizeThrowException<B>(this, exn));
-            }
-            // if we exit without resuming..
-            if (!resume.HasResumed && rkind != ResumeKind.Never) {
-              if (Op.yielding) {
-                // extend the continuation in case we are yielding
-                if (Op.yieldResumeKind != ResumeKind.Never) {
-                  Op.yieldCont = ((Cont<B>)Op.yieldCont).ComposeRunBranch(this, yieldPoint, resume);
-                }
-              }
-              else {
-                // we returned without resuming; run finalizers first
-                yieldPoint.RunFinalizers<B>(this, resume, new FinalizeReturnException<B>(this, result));
-              }
-            }
-            tailresumed = (resume.HasResumed && rkind == ResumeKind.Tail);
+            // note: if a never returning operation is yielded, or an exception is raised
+            // while not yet resumed, that may mean finalizers are never executed.
+            Resume resume;            
+            result = yieldPoint.CallBranch<B>(this, cont, out resume);
+            tailresumed = (resume.HasResumed && yieldPoint.ResumeKind == ResumeKind.Tail);
           }
         }
       }
       while (tailresumed);
-      return result;
-    }
-
-    public B RunBranch<A>( Cont<A,B> cont, A arg, Exception exnarg, YieldPoint yieldPoint, Resume resume) {
-      B result;
-      try {
-        result = cont.Resume(arg,exnarg);        
-      }
-      catch(Exception exn) {
-        if (resume.HasResumed || yieldPoint.ResumeKind == ResumeKind.Never) throw;
-        result = yieldPoint.RunFinalizers<B>(this, resume, new FinalizeThrowException<B>(this, exn));
-      }
-      // if we exit without resuming
-      if (!resume.HasResumed && yieldPoint.ResumeKind != ResumeKind.Never) {
-        if (Op.yielding) {
-          // extend the continuation in case we are yielding
-          if (Op.yieldResumeKind != ResumeKind.Never) {
-            Op.yieldCont = ((Cont<B>)Op.yieldCont).ComposeRunBranch(this, yieldPoint, resume);
-          }
-        }
-        else {
-          // we returned without resuming; run finalizers first
-          // yieldPoint.RunFinalizers<B>(this, resume, new FinalizeReturnException<B>(this, result));
-        }
-      }
       return result;
     }
 
@@ -1050,9 +1042,9 @@ namespace Eff
       }
       catch (Exception exn) {
         // Raised exception in the branch
-        // we finalize back to the handler and rethrow from there.
-        // note: this is done for `FinalizeException`s too.
-        throw new FinalizeThrowException<B>(this, exn);
+        // we long jump back to the handler and rethrow from there.
+        // note: this is done for `LongJumpException`s too.
+        throw new HandlerThrowException<B>(this, exn);
       }
       finally {
         hskip.UnSkip(skip);
@@ -1069,7 +1061,7 @@ namespace Eff
       else if (!resume.HasResumed) {
         // Returned directly from the branch; 
         // we finalize back to the handler and return from there.
-        throw new FinalizeReturnException<B>(this, result);
+        throw new HandlerReturnException<B>(this, result);
       }
       else return resume.GetResumeArg(this); 
     }
@@ -1085,7 +1077,7 @@ namespace Eff
         // Raised exception in the branch
         // we finalize back to the handler and rethrow from there.
         // note: we do this for `FinalizeException`s too.
-        throw new FinalizeThrowException<B>(this, exn);
+        throw new HandlerThrowException<B>(this, exn);
       }
       finally {
         hskip.UnSkip(skip);
@@ -1101,7 +1093,7 @@ namespace Eff
       else if (!resume.HasResumed) {
         // Returned directly from the branch; 
         // we finalize back to the handler and return from there.
-        throw new FinalizeReturnException<B>(this, result);
+        throw new HandlerReturnException<B>(this, result);
       }
       else return resume.GetResumeArg(this);
     }
@@ -1128,7 +1120,7 @@ namespace Eff
         // todo: slightly wrong as the operations in the return fun are handled by ourselves too
         result = Op.Bind(action.Call(), (A x) => CallReturnFun(x));
       }
-      catch (FinalizeException<B> exn) {
+      catch (JumpToHandlerException<B> exn) {
         if (!exn.HandledBy(this)) throw;
         return exn.Handle();
       }

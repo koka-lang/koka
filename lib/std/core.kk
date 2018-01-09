@@ -234,12 +234,12 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
 
 
 private extern xcatch( action : () -> <exn|e> a, hndl: exception -> e a, all : bool = False ) : e a {
-  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,null,#3)" 
+  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
   js inline "$std_core._handle_exn(#1, #2, null)"
 }
 
-private extern xcatch-some( action : () -> <exn|e> a, hndl: exception -> <exn|e> a, guard : null<exception -> bool> = Nothing.null, all : bool = False) : <exn|e> a {
-  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3,#4)" 
+private extern xcatch-some( action : () -> <exn|e> a, hndl: exception -> <exn|e> a, all : bool = False) : <exn|e> a {
+  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
   js inline "$std_core._handle_exn(#1, #2, null)"
 }
 
@@ -257,7 +257,7 @@ fun catch-all( action : () -> <exn|e> a, hndl: exception -> e a) : e a {
 val cancel-exn = exception("Operation is canceled",Cancel)
 
 fun on-cancel( action : () -> <exn|e> a, hndl: () -> <exn|e> a) : <exn|e> a {
-  xcatch-some( action, fun(exn) { hndl() }, Just(fun(exn) { exn.info.cancel? }).null, True)
+  xcatch-some( action, fun(exn) { if (exn.info.cancel?) then hndl() else throw(exn) }, True)
 }
 
 // Set a `hndler` that is called only when an exception is raised in the `action` block.
