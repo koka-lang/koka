@@ -103,7 +103,7 @@ ppMain name tp
                  text "}"
                ]
     callMain    = if (isAsyncFunction tp) then asyncMain else consoleMain
-    asyncMain   = text "std_async.async_handle( new Primitive.FunFunc0<Unit>( () => " <+> consoleMain <+> text "))"
+    asyncMain   = text "__std_async.async_handle( new Primitive.FunFunc0<Unit>( () => " <+> consoleMain <+> text "))"
     consoleMain = ppName name <> typeArgs <> text "()"
     typeArgs = case expandSyn tp of
                  TForall pars _ _ | not (null pars)
@@ -1775,7 +1775,7 @@ ppName name
 
 ppModName :: Name -> Doc
 ppModName name
-  = encode True name -- (prepend "koka." name)
+  = text "__" <> encode True name
 
 encode :: Bool -> Name -> Doc
 encode isModule name

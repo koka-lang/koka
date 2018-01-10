@@ -114,8 +114,7 @@ fun testGt() {
 // --------------------------------------------------------
 
 effect cheating {
-  // fun cheat<b>(player:player) : b
-  fun cheat(player:player) :()
+  fun cheat(player:player) : a
 }
 
 val cheatReport = handler {
@@ -129,7 +128,7 @@ val check = handler {
     val m = move(p,n)
     if (validMoves(n).find(fun(i) { i == m }).bool)
      then resume(m)
-     else { cheat(p); error("never") }
+     else cheat(p)
   }
 }
 

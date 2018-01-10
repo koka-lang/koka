@@ -26,15 +26,15 @@ public static class Primitive
 
   public static A ExnErrorPattern<A>(string location, string definition) {
     string msg = location + (String.IsNullOrEmpty(definition) ? "" : (": " + definition)) + ": pattern match failure";
-    throw new InfoException(msg, new std_core.Pattern_(location, definition));
+    throw new InfoException(msg, new __std_core.Pattern_(location, definition));
   }
 
-  public static Exception ExnException(string message, std_core._exception_info info) {
-    if (info is std_core.Cancel_) return new InfoFinalizeException(message, info);
+  public static Exception ExnException(string message, __std_core._exception_info info) {
+    if (info is __std_core.Cancel_) return new InfoFinalizeException(message, info);
     else return new InfoException(message, info);
   }
 
-  public static std_core._exception_info ExnInfo(Exception exn) {
+  public static __std_core._exception_info ExnInfo(Exception exn) {
     InfoException eexn = exn as InfoException;
     if (eexn != null) {
       return eexn.info;
@@ -43,7 +43,7 @@ public static class Primitive
     if (fexn != null) {
       return fexn.info;
     }
-    return new std_core.Error_();
+    return new __std_core.Error_();
   }
 
   public static string ExnMessage(Exception exn) {
@@ -55,13 +55,13 @@ public static class Primitive
   }
 
   public static A Unreachable<A>() {
-    throw new InfoException("unreachable code reached", new std_core.Error_());
+    throw new InfoException("unreachable code reached", new __std_core.Error_());
   }
 
   public static A UnsupportedExternal<A>(string name) {
-    throw new InfoException("external '" + name + "' is not supported on this platform", new std_core.Error_());
+    throw new InfoException("external '" + name + "' is not supported on this platform", new __std_core.Error_());
   }
-  
+
 
 
   //---------------------------------------
@@ -89,18 +89,18 @@ public static class Primitive
     return a;
   }
 
-  public static std_core._list<A> VList<A>(A[] v, std_core._list<A> tail) {
-    std_core._list<A> xs = tail;
+  public static __std_core._list<A> VList<A>(A[] v, __std_core._list<A> tail) {
+    __std_core._list<A> xs = tail;
     for (int i = v.Length - 1; i >= 0; i--) {
-      xs = new std_core._list<A>(v[i], xs);
+      xs = new __std_core._list<A>(v[i], xs);
     }
     return xs;
   }
 
-  public static A[] UnVList<A>(std_core._list<A> xs) {
+  public static A[] UnVList<A>(__std_core._list<A> xs) {
     int len = 0;
-    std_core._list<A> acc = xs;
-    while (acc != std_core._list<A>.Nil_) {
+    __std_core._list<A> acc = xs;
+    while (acc != __std_core._list<A>.Nil_) {
       len++;
       acc = acc.tail;
     }
@@ -197,11 +197,11 @@ public static class Primitive
     return sb.ToString();
   }
 
-  public static std_core._list<int> StringToList(string s) {
-    std_core._list<int> xs = std_core._list<int>.Nil_;
+  public static __std_core._list<int> StringToList(string s) {
+    __std_core._list<int> xs = __std_core._list<int>.Nil_;
     for (int i = s.Length - 1; i >= 0; i--) {
       if (Char.IsLowSurrogate(s[i]) && i > 0) i--;
-      xs = new std_core._list<int>(Char.ConvertToUtf32(s, i), xs);
+      xs = new __std_core._list<int>(Char.ConvertToUtf32(s, i), xs);
     }
     return xs;
   }
@@ -236,32 +236,32 @@ public static class Primitive
     return sb.ToString();
   }
 
-  public static string ListToString(std_core._list<int> xs) {
+  public static string ListToString(__std_core._list<int> xs) {
     StringBuilder sb = new StringBuilder();
-    while (xs != std_core._list<int>.Nil_) {
+    while (xs != __std_core._list<int>.Nil_) {
       sb.Append(CharToString(xs.head));
       xs = xs.tail;
     }
     return sb.ToString();
   }
 
-  public static std_core._sslice SliceFirst(string s) {
+  public static __std_core._sslice SliceFirst(string s) {
     if (String.IsNullOrEmpty(s))
-      return new std_core._sslice("", 0, 0);
+      return new __std_core._sslice("", 0, 0);
     else
-      return new std_core._sslice(s, 0, Char.IsHighSurrogate(s[0]) ? 2 : 1);
+      return new __std_core._sslice(s, 0, Char.IsHighSurrogate(s[0]) ? 2 : 1);
   }
 
-  public static std_core._sslice SliceLast(string s) {
+  public static __std_core._sslice SliceLast(string s) {
     if (String.IsNullOrEmpty(s))
-      return new std_core._sslice("", 0, 0);
+      return new __std_core._sslice("", 0, 0);
     else if (Char.IsLowSurrogate(s[s.Length - 1]) && s.Length > 1)
-      return new std_core._sslice(s, s.Length - 2, 2);
+      return new __std_core._sslice(s, s.Length - 2, 2);
     else
-      return new std_core._sslice(s, s.Length - 1, 1);
+      return new __std_core._sslice(s, s.Length - 1, 1);
   }
 
-  public static BigInteger SliceCount(std_core._sslice slice) {
+  public static BigInteger SliceCount(__std_core._sslice slice) {
     int n = 0;
     for (int i = slice.start; i < slice.start + slice.len; i++) {
       n++;
@@ -270,7 +270,7 @@ public static class Primitive
     return new BigInteger(n);
   }
 
-  public static std_core._sslice SliceExtend(std_core._sslice slice, BigInteger bcount) {
+  public static __std_core._sslice SliceExtend(__std_core._sslice slice, BigInteger bcount) {
     int count = IntToInt32(bcount);
     if (count == 0) return slice;
     int i = slice.start + slice.len;
@@ -286,10 +286,10 @@ public static class Primitive
         i -= (Char.IsLowSurrogate(slice.str[i - 1]) && i > slice.start + 1 ? 2 : 1);
       }
     }
-    return new std_core._sslice(slice.str, slice.start, (i > slice.start ? i - slice.start : 0));
+    return new __std_core._sslice(slice.str, slice.start, (i > slice.start ? i - slice.start : 0));
   }
 
-  public static std_core._sslice SliceAdvance(std_core._sslice slice, BigInteger bcount) {
+  public static __std_core._sslice SliceAdvance(__std_core._sslice slice, BigInteger bcount) {
     int count = IntToInt32(bcount);
     if (count == 0) return slice;
     int i = slice.start;
@@ -302,7 +302,7 @@ public static class Primitive
         i += (Char.IsHighSurrogate(slice.str[i]) && i < slice.str.Length - 1 ? 2 : 1);
       }
       if (end > i && sliceCount > extra) {
-        return SliceExtend(new std_core._sslice(slice.str, i, end - i), extra);
+        return SliceExtend(new __std_core._sslice(slice.str, i, end - i), extra);
       }
     }
     else {
@@ -311,19 +311,19 @@ public static class Primitive
         i -= (Char.IsLowSurrogate(slice.str[i - 1]) && i > 1 ? 2 : 1);
       }
       if (sliceCount > extra) {
-        return SliceExtend(new std_core._sslice(slice.str, i, slice.start - i), sliceCount - extra);
+        return SliceExtend(new __std_core._sslice(slice.str, i, slice.start - i), sliceCount - extra);
       }
     }
-    return SliceExtend(new std_core._sslice(slice.str, i, 0), sliceCount);
+    return SliceExtend(new __std_core._sslice(slice.str, i, 0), sliceCount);
   }
 
 
-  public static string SliceToString(std_core._sslice slice) {
+  public static string SliceToString(__std_core._sslice slice) {
     if (slice.start == 0 && slice.len == slice.str.Length) return slice.str;
     return slice.str.Substring(slice.start, slice.len);
   }
 
-  public static std_core._sslice SliceCommonPrefix(string s, string t, BigInteger bupto) {
+  public static __std_core._sslice SliceCommonPrefix(string s, string t, BigInteger bupto) {
     int upto = IntToInt32(bupto);
     int min = Math.Min(s.Length, t.Length);
     int i;
@@ -332,11 +332,11 @@ public static class Primitive
       if (s[i] != t[i]) break;
       if (!Char.IsLowSurrogate(s[i])) upto--;
     }
-    return new std_core._sslice(s, 0, i);
+    return new __std_core._sslice(s, 0, i);
   }
 
-  public static std_core._maybe<std_core._Tuple2_<int, std_core._sslice>> SliceNext(std_core._sslice slice) {
-    if (slice.len <= 0) return std_core._maybe<std_core._Tuple2_<int, std_core._sslice>>.Nothing_;
+  public static __std_core._maybe<__std_core._Tuple2_<int, __std_core._sslice>> SliceNext(__std_core._sslice slice) {
+    if (slice.len <= 0) return __std_core._maybe<__std_core._Tuple2_<int, __std_core._sslice>>.Nothing_;
     char c = slice.str[slice.start];
     int n = 1;
     if (Char.IsHighSurrogate(c) && slice.len > 1) {
@@ -346,9 +346,9 @@ public static class Primitive
         n = 2;
       }
     }
-    return new std_core._maybe<std_core._Tuple2_<int, std_core._sslice>>(
-                  new std_core._Tuple2_<int, std_core._sslice>(
-                    (int)c, new std_core._sslice(slice.str, slice.start + n, slice.len - n)));
+    return new __std_core._maybe<__std_core._Tuple2_<int, __std_core._sslice>>(
+                  new __std_core._Tuple2_<int, __std_core._sslice>(
+                    (int)c, new __std_core._sslice(slice.str, slice.start + n, slice.len - n)));
   }
 
   //---------------------------------------
@@ -385,9 +385,9 @@ public static class Primitive
       closed = true;
     }
 
-    public void Post( Action action, bool closeAfterPost = true ) {
-      if (closed || action==null) return;
-      lock(workMutex) {
+    public void Post(Action action, bool closeAfterPost = true) {
+      if (closed || action == null) return;
+      lock (workMutex) {
         work.Enqueue(action);
         if (work.Count == 1) workEvent.Set();
       }
@@ -404,18 +404,18 @@ public static class Primitive
     return new EventloopEntry();
   }
 
-  public static EventloopEntry RunBlocking<A>( Func<A> blockingAction, Action<Exception,A> onSuccess ) {
+  public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Action<Exception, A> onSuccess) {
     EventloopEntry entry = GetEventloopEntry();
-    ThreadPool.QueueUserWorkItem( (object info) => {
+    ThreadPool.QueueUserWorkItem((object info) => {
       Exception exception = null;
       A result = default(A);
       try {
         result = blockingAction();
       }
-      catch(Exception exn) {
+      catch (Exception exn) {
         exception = exn;
       }
-      entry.Post( () => { onSuccess(exception,result); } );
+      entry.Post(() => { onSuccess(exception, result); });
     });
     return entry;
   }
@@ -428,7 +428,7 @@ public static class Primitive
     A x = (A)f.Apply();
     while (activeEntries > 0 || work.Count > 0) {
       Action action;
-      lock(workMutex) {
+      lock (workMutex) {
         action = (work.Count > 0 ? work.Dequeue() : null);
       }
       if (action != null) {
@@ -473,25 +473,25 @@ public static class Primitive
     return (int)(i);
   }
 
-  public static std_core._order IntCompare(BigInteger i, BigInteger j) {
+  public static __std_core._order IntCompare(BigInteger i, BigInteger j) {
     int s = BigInteger.Compare(i, j);
-    return (s < 0 ? std_core._order.Lt : (s > 0 ? std_core._order.Gt : std_core._order.Eq));
+    return (s < 0 ? __std_core._order.Lt : (s > 0 ? __std_core._order.Gt : __std_core._order.Eq));
   }
 
-  public static std_core._order IntSign(BigInteger i) {
+  public static __std_core._order IntSign(BigInteger i) {
     int s = i.Sign;
-    return (s < 0 ? std_core._order.Lt : (s > 0 ? std_core._order.Gt : std_core._order.Eq));
+    return (s < 0 ? __std_core._order.Lt : (s > 0 ? __std_core._order.Gt : __std_core._order.Eq));
   }
 
-  public static std_core._Tuple2_<BigInteger, BigInteger> IntDivMod(BigInteger i, BigInteger j) {
-    if (j.IsZero) return new std_core._Tuple2_<BigInteger, BigInteger>(BigInteger.Zero, BigInteger.Zero);
+  public static __std_core._Tuple2_<BigInteger, BigInteger> IntDivMod(BigInteger i, BigInteger j) {
+    if (j.IsZero) return new __std_core._Tuple2_<BigInteger, BigInteger>(BigInteger.Zero, BigInteger.Zero);
     BigInteger r;
     BigInteger q = BigInteger.DivRem(i, j, out r);
     if (r.Sign < 0) {
       if (j.Sign > 0) { q = q - 1; r = r + j; }
       else { q = q + 1; r = r - j; }
     }
-    return new std_core._Tuple2_<BigInteger, BigInteger>(q, r);
+    return new __std_core._Tuple2_<BigInteger, BigInteger>(q, r);
   }
 
   public static BigInteger IntDiv(BigInteger i, BigInteger j) {
@@ -512,7 +512,7 @@ public static class Primitive
     return (String.IsNullOrEmpty(s) ? "0" : s);
   }
 
-  public static std_core._maybe<BigInteger> IntParse(string s, bool hex) {
+  public static __std_core._maybe<BigInteger> IntParse(string s, bool hex) {
     Regex rxpre = new Regex(@"^([\-\+])?(?:(0[xX][\da-fA-F]+)|(\d+)(?:[eE]?([\-\+]?\d+))?)$"); //todo: allow hex
     Match mpre = rxpre.Match(s);
     string sign = (mpre.Groups[1].Value == "-" ? "-" : "");
@@ -524,7 +524,7 @@ public static class Primitive
       ok = int.TryParse(mpre.Groups[4].Value, out exp);
       res = (ok ? (exp >= 0 ? res * BigInteger.Pow(10, exp) : res / BigInteger.Pow(10, -exp)) : 0);
     }
-    return (ok ? new std_core._maybe<BigInteger>(res) : std_core._maybe<BigInteger>.Nothing_);
+    return (ok ? new __std_core._maybe<BigInteger>(res) : __std_core._maybe<BigInteger>.Nothing_);
   }
 
   public static BigInteger IntCountDigits(BigInteger i) {
@@ -628,9 +628,9 @@ public static class Primitive
     return BitConverter.Int64BitsToDouble((long)l);
   }
 
-  public static std_core._Tuple2_<int, int> DoubleToBits(double d) {
+  public static __std_core._Tuple2_<int, int> DoubleToBits(double d) {
     ulong l = (ulong)BitConverter.DoubleToInt64Bits(d);
-    return new std_core._Tuple2_<int, int>((int)(l & 0xFFFFFFFFL), (int)(l >> 32));
+    return new __std_core._Tuple2_<int, int>((int)(l & 0xFFFFFFFFL), (int)(l >> 32));
   }
 
   //-------------------------------------------------
@@ -643,27 +643,33 @@ public static class Primitive
       return x;
     }
   }
-
+  
+  [DebuggerStepThrough]
   public static A Call<A>(this Fun0<A> f) {
     return (A)f.Apply();
   }
 
+  [DebuggerStepThrough]
   public static B Call<A, B>(this Fun1<A, B> f, A x) {
     return (B)f.Apply(x);
   }
 
+  [DebuggerStepThrough]
   public static B Call<A1, A2, B>(this Fun2<A1, A2, B> f, A1 x1, A2 x2) {
     return (B)f.Apply(x1, x2);
   }
 
+  [DebuggerStepThrough]
   public static B Call<A1, A2, A3, B>(this Fun3<A1, A2, A3, B> f, A1 x1, A2 x2, A3 x3) {
     return (B)f.Apply(x1, x2, x3);
   }
 
+  [DebuggerStepThrough]
   public static B Call<A1, A2, A3, A4, B>(this Fun4<A1, A2, A3, A4, B> f, A1 x1, A2 x2, A3 x3, A4 x4) {
     return (B)f.Apply(x1, x2, x3, x4);
   }
 
+  [DebuggerStepThrough]
   public static B Call<A1, A2, A3, A4, A5, B>(this Fun5<A1, A2, A3, A4, A5, B> f, A1 x1, A2 x2, A3 x3, A4 x4, A5 x5) {
     return (B)f.Apply(x1, x2, x3, x4, x5);
   }
@@ -683,6 +689,8 @@ public static class Primitive
     public FunFunc0(Func<A> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply() {
       return f();
     }
@@ -694,6 +702,8 @@ public static class Primitive
     public FunFunc1(Func<A, B> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply(A x) {
       return f(x);
     }
@@ -705,6 +715,8 @@ public static class Primitive
     public FunFunc2(Func<A1, A2, B> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply(A1 x, A2 y) {
       return f(x, y);
     }
@@ -717,6 +729,8 @@ public static class Primitive
     public FunFunc3(Func<A1, A2, A3, B> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply(A1 x, A2 y, A3 z) {
       return f(x, y, z);
     }
@@ -728,6 +742,8 @@ public static class Primitive
     public FunFunc4(Func<A1, A2, A3, A4, B> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply(A1 x1, A2 x2, A3 x3, A4 x4) {
       return f(x1, x2, x3, x4);
     }
@@ -739,6 +755,8 @@ public static class Primitive
     public FunFunc5(Func<A1, A2, A3, A4, A5, B> f) {
       this.f = f;
     }
+
+    [DebuggerStepThrough]
     public object Apply(A1 x1, A2 x2, A3 x3, A4 x4, A5 x5) {
       return f(x1, x2, x3, x4, x5);
     }
@@ -752,18 +770,18 @@ public static class Primitive
 //---------------------------------------
 public class InfoException : Exception
 {
-  public readonly std_core._exception_info info;
+  public readonly __std_core._exception_info info;
 
-  public InfoException(string message, std_core._exception_info info) : base(message) {
+  public InfoException(string message, __std_core._exception_info info) : base(message) {
     this.info = info;
   }
 }
 
 public class InfoFinalizeException : Eff.FinalizeException
 {
-  public readonly std_core._exception_info info;
+  public readonly __std_core._exception_info info;
 
-  public InfoFinalizeException(string message, std_core._exception_info info) : base(message) {
+  public InfoFinalizeException(string message, __std_core._exception_info info) : base(message) {
     this.info = info;
   }
 }

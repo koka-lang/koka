@@ -16,7 +16,7 @@ fun main() {
     },
     {
         println("just waiting2..")
-        wait(30.seconds)
+        wait(4.seconds)
         println("done waiting2")
         "waited2"
     },{

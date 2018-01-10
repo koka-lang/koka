@@ -1228,7 +1228,10 @@ namespace Eff
     private sealed class ResumeNever<R> : Resume0<R, B>
     {
       public static ResumeNever<R> singleton = new ResumeNever<R>();
-      
+
+      public override B RunFinalizers(B result) {
+        throw new Exception("Trying to finalize an operation that was marked as never-resuming"); // + ((Handler)h).effectTag);
+      }
       public override B Call(R arg) {
         throw new Exception("Trying to resume an operation that was marked as never-resuming");
       }
@@ -1402,7 +1405,10 @@ namespace Eff
     private sealed class ResumeNever1<R> : Resume1<S, R, B>
     {
       public static ResumeNever1<R> singleton = new ResumeNever1<R>();
-      
+
+      public override B RunFinalizers(B result) {
+        throw new Exception("Trying to finalize an operation that was marked as never-resuming"); // + ((Handler)h).effectTag);
+      }
       public override B Call(R arg, S local) {
         throw new Exception("Trying to resume an operation that was marked as never-resuming"); // + ((Handler)h).effectTag);
       }
