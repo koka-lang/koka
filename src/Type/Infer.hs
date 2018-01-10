@@ -779,7 +779,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
                                    heff hrng (getRange retExpr)
 
                Just hxeff
-                -> inferHandlerBranches shallow hxeff locals localArgs retInTp retEff branchTp retTp
+                -> inferHandlerBranches shallow hxeff locals localArgs retInTp branchTp retTp
                                    branches heff hrng (getRange retExpr)
 
        -- get makeHandlerN and unify
@@ -851,10 +851,10 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
                nameMakeHandlerRet (length locals))
 
 
-inferHandlerBranches :: Bool -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type -> Type       
+inferHandlerBranches :: Bool -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type        
                     -> [HandlerBranch Type] -> Type -> Range -> Range 
                     -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name)
-inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEffect 
+inferHandlerBranches shallow handledEffect unused_localPars locals retInTp 
                       branchTp retTp branches0 effect hrng exprRng
   = do -- check coverage
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
@@ -864,7 +864,7 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEf
            actionEffect   = if shallow then effect else effectExtend handledLabel effect
            
            actionPar      = (newName "action",TFun [] ({-effectExtend typeCps-} actionEffect) retInTp)
-           resumeEffect   = if shallow then actionEffect else retEffect
+           resumeEffect   = if shallow then actionEffect else effect
        
        traceDoc $ \env -> text "inferHandlerBranches:" <+> 
                           text ", branchTp:" <+> ppType env branchTp <+>
@@ -886,7 +886,7 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp retEf
        -- TODO: not necessary as we propate the branchTp and later match with the makeHandler ?
        resTp <- inferUnifyTypes checkMatch (zip (branchTp:branchTps) (zip (exprRng:bexprRngs) (exprRng:branchRngs)))
        handlerBranchTp <- inferUnifyTypes checkMatch (zip handlerBranchTps (zip bexprRngs branchRngs))
-       mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff retEffect) (zip branchRngs branchEffs)
+       mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff effect) (zip branchRngs branchEffs)
 
 
        -- build vector of branches

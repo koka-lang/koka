@@ -297,7 +297,6 @@ namespace Eff
       return (this.handler == handler);
     }
 
-    public abstract ResumeKind ResumeKind { get; }
     public abstract B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume);
     public abstract Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont);
   }
@@ -316,8 +315,6 @@ namespace Eff
       this.op = op;
     }
 
-    public override ResumeKind ResumeKind { get { return branch.ResumeKind; } }
-
     public override B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume) {
       Debug.Assert(HandledBy(handler));
       return handler.CallBranch<O, R>((IBranch<O, R, B>)branch, (Cont<R,B>)cont, op, out resume);
@@ -326,6 +323,26 @@ namespace Eff
     public override Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont) {
       Debug.Assert(!HandledBy(handler));
       return handler.ContCompose<R>((Cont<R, B>)cont);
+    }
+  }
+
+  public sealed class YieldPointReturn<A> : YieldPoint
+  {
+    A result;
+
+    public YieldPointReturn(Handler handler, A result) : base(handler) {
+      this.result = result;
+    }
+
+    public override B CallBranch<B>(Handler<B> handler, Cont<B> cont, out Resume resume) {
+      Debug.Assert(HandledBy(handler));
+      resume = ReturnResume<A,B>.Singleton;
+      return ((Handler<A, B>)handler).CallReturnFun(result);
+    }
+
+    public override Cont<B> HandlerCompose<B>(Handler<B> handler, Cont<B> cont) {
+      Debug.Assert(!HandledBy(handler));
+      return cont;
     }
   }
 
@@ -416,6 +433,14 @@ namespace Eff
         yielding = true;
         return default(R);
       }
+    }
+
+    public static B YieldReturn<A, B>(Handler<A,B> handler, A result) {
+      yieldPoint = new YieldPointReturn<A>(handler, result);
+      yieldResumeKind = ResumeKind.Never;
+      yieldCont = null;
+      yielding = true;
+      return default(B);
     }
 
 
@@ -615,7 +640,8 @@ namespace Eff
     bool HasFinalized { get; }
   }
 
-  public abstract class Resume<R, B> : Resume
+  
+  public class Resume<R, B> : Resume
   {
     protected bool resumed = false;
     protected bool finalized = false;
@@ -640,6 +666,13 @@ namespace Eff
       this.cont = cont;
     }
 
+  }
+
+  public class ReturnResume<R,B> : Resume<R,B>
+  {
+    public static ReturnResume<R, B> Singleton = new ReturnResume<R, B>();
+    public ReturnResume() : base(null) {
+    }
   }
 
   public abstract class Resume0<R,B> : Resume<R,B>, Fun1<R,B>
@@ -1001,6 +1034,7 @@ namespace Eff
           else {
             // we handle the operation; reset Op fields for GC
             YieldPoint yieldPoint = Op.yieldPoint;
+            ResumeKind rkind = Op.yieldResumeKind;
             Op.yielding = false;
             Op.yieldCont = null;
             Op.yieldPoint = null;
@@ -1010,7 +1044,7 @@ namespace Eff
             // while not yet resumed, that may mean finalizers are never executed.
             Resume resume;            
             result = yieldPoint.CallBranch<B>(this, cont, out resume);
-            tailresumed = (resume.HasResumed && yieldPoint.ResumeKind == ResumeKind.Tail);
+            tailresumed = (resume.HasResumed && rkind == ResumeKind.Tail);
           }
         }
       }
@@ -1111,8 +1145,11 @@ namespace Eff
       B result;
       Push();
       try {
-        // todo: slightly wrong as the operations in the return fun are handled by ourselves too
-        result = Op.Bind(action.Call(), (A x) => CallReturnFun(x));
+        // return executed outside the handler (like branches)
+        result = Op.Bind(action.Call(), (A x) => Op.YieldReturn<A,B>(this,x));
+
+        // Or, return executed inside the handler
+        // result = Op.Bind(action.Call(), CallReturnFun);  
       }
       catch (HandlerFinalizeException<B> exn) {
         // if a tail operation finalizes
