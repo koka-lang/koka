@@ -8,6 +8,7 @@ found in the file "license.txt" at the root of this distribution.
 //using System;
 //using System.Collections.Generic;
 //using System.Diagnostics;
+//using System.Reflection;
 
 namespace Eff
 {
@@ -347,6 +348,20 @@ namespace Eff
       }
     }
 
+
+    // Convenience
+    public static B Bind<A, B>(A x, Func<A, B> next) {
+      if (yielding) {
+        if (yieldResumeKind != ResumeKind.Never) {
+          yieldCont = ((Cont<A>)yieldCont).Compose<B>(next);
+        }
+        return default(B);
+      }
+      else {
+        return next(x);
+      }
+    }
+
     public static B BindConst<A, B>(A x, B result) {
       if (yielding) {
         if (yieldResumeKind != ResumeKind.Never) {
@@ -409,18 +424,6 @@ namespace Eff
       }
     }
 
-    // Convenience
-    public static B Bind<A, B>(A x, Func<A, B> next) {
-      if (yielding) {
-        if (yieldResumeKind != ResumeKind.Never) {
-          yieldCont = ((Cont<A>)yieldCont).Compose<B>(next);
-        }
-        return default(B);
-      }
-      else {
-        return next(x);
-      }
-    }
 
     public static A HandleExn<A>(Fun0<A> action, Fun1<Exception, A> onExn, Fun0<Unit> onFinal) {
       if (onExn == null) {
@@ -475,12 +478,24 @@ namespace Eff
         if (yielding) return Bind<Unit,A>(u, (_) => { throw exn.PreserveStackTrace(); });
         throw;
       }
-      if (yielding && yieldResumeKind != ResumeKind.Never) {
+      if (yielding) {
         // extend continuation, don't finalize yet on a yielding operation! (which is why we cannot use `finally`)
-        yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal, reInit);
+        if (yieldResumeKind != ResumeKind.Never) {
+          yieldCont = ((Cont<A>)yieldCont).ComposeFinally(onFinal, reInit);
+        }
         return result;
       }
       else return BindConst(onFinal.Call(), result);
+    }
+
+    public static B RunFinalizers<R, B>(object resume, B result) {
+      Resume<R, B> rresume = resume as Resume<R, B>;
+      if (rresume != null) {
+        return rresume.RunFinalizers(result);
+      }
+      else {
+        return result;
+      }
     }
 
   }

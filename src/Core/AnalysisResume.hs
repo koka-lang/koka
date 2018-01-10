@@ -12,8 +12,8 @@
 module Core.AnalysisResume( ResumeKind(..), analyzeResume ) where
 
 
--- import Lib.Trace
-import Lib.PPrint( Doc, text )
+import Lib.Trace
+import Lib.PPrint
 import qualified Data.Set as S
 import Common.Syntax( Target(..) )
 import Common.Id
@@ -36,13 +36,23 @@ data ResumeKind
   | ResumeShallow
   deriving (Eq,Ord,Enum)
 
-analyzeResume :: Expr -> ResumeKind
-analyzeResume expr
+instance Show ResumeKind where
+  show rk = case rk of 
+              ResumeNever -> "never"
+              ResumeTail  -> "tail"
+              ResumeOnce  -> "once"
+              ResumeNormal -> "normal"
+              ResumeShallow -> "shallow"
+
+analyzeResume :: Name -> Expr -> ResumeKind
+analyzeResume opName expr
   = case expr of
-      Lam pars eff body -> arTailExpr body
-      TypeLam _ body    -> analyzeResume body
-      TypeApp body _    -> analyzeResume body
-      App _ [body]      -> analyzeResume body  -- for toAny (...)
+      Lam pars eff body -> let rk = arTailExpr body 
+                           in traceDoc (text "handler" <+> pretty opName <+> colon <+> text "resume" <+> text (show rk)) $
+                              rk
+      TypeLam _ body    -> analyzeResume opName body
+      TypeApp body _    -> analyzeResume opName body
+      App _ [body]      -> analyzeResume opName body  -- for toAny (...)
       _                 -> failure "Core.AnalysisResume.analyzeResume: invalid branch expression"
 
 arTailExpr expr  = arExpr' ResumeTail expr
@@ -66,6 +76,9 @@ arExpr' appResume expr
         -> ResumeNever
       Lit lit            
         -> ResumeNever
+      Let [DefNonRec def] expr 
+        | defName def == newName "finalize"  -- TODO: too weak a check; improve it
+        -> arExpr' appResume expr 
       Let defGroups expr -- TODO: be more sophisticated here?
         -> if (resumeName `elem` map getName (S.elems (bv defGroups)))
             then ResumeNormal

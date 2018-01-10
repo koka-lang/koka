@@ -231,8 +231,6 @@ extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   js inline "$std_core._handle_exn(action,null,hndl)"
 }
 
-
-
 private extern xcatch( action : () -> <exn|e> a, hndl: exception -> e a, all : bool = False ) : e a {
   cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
   js inline "$std_core._handle_exn(#1, #2, null)"
@@ -2919,6 +2917,12 @@ extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int,
   js "$std_core._yieldop"
 } 
 
+extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
+  cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
+}
+extern ".finalize1"( resume : (a,l) -> e b, result : b ) : e b {
+  cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
+}
 
 type handler-branch0<e::E,a>
 type handler-branch1<e::E,l,a>

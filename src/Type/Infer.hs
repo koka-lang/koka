@@ -961,13 +961,28 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
            resumeTp  = TFun ([(newName "result", resTp)] ++ locals) resumeEff branchTp
            resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
 
+           finalizeName= newName "finalize"
+           finalizeTp  = TFun [(newName "result", branchTp)] resumeEff branchTp
+           fargName    = newName "result"
+           primFinalizeName = qualify nameSystemCore $ newHiddenName ("finalize" ++ (if null locals then "" else show (length locals)))
+           finalizeApp = App (Var primFinalizeName False nameRng)
+                             [(Nothing,Var resumeName False nameRng),
+                              (Nothing,Var fargName False nameRng)] nameRng
+           finalizeLam = Lam [(ValueBinder fargName (Just branchTp) Nothing nameRng nameRng)] 
+                             finalizeApp nameRng
+
+
+           finalizeExpr= Ann finalizeLam finalizeTp nameRng
+           finalizeDef = DefNonRec (Def (ValueBinder finalizeName () finalizeExpr nameRng nameRng)
+                                        nameRng Public (DefFun AlwaysMon) "")
+
            parResumeName= resumeName
            parResTp     = resTp
            parResumeTp  = TFun ([(newName "result", parResTp)] ++ locals) resumeEff branchTp
            parResumeBind= ValueBinder parResumeName Nothing Nothing nameRng nameRng
 
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
-           localExpr = expr          
+           localExpr = Let finalizeDef expr nameRng
                       
            bodyPat   = PatCon conName [(Nothing,PatVar par{ binderExpr = PatWild nameRng }) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
            bodyBranch= Branch bodyPat guardTrue localExpr
@@ -1002,7 +1017,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
        (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,bexprTp)] bexprEff typeAny,rng)) Instantiated (Var nameToAny False nameRng)
 
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = analyzeResume bexprCore
+           rkind       = analyzeResume opName bexprCore
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore
