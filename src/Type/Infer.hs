@@ -1016,8 +1016,9 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
 
        (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,bexprTp)] bexprEff typeAny,rng)) Instantiated (Var nameToAny False nameRng)
 
+       defName <- currentDefName
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = analyzeResume opName bexprCore
+           rkind       = analyzeResume defName (unqualify opName) bexprCore
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore

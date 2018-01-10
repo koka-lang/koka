@@ -425,7 +425,7 @@ genDefZ isRec def  = genDefX isRec def
 
 genDefX :: Bool -> Def -> Asm ()
 genDefX isRec (Def name tp expr vis isVal nameRng doc)
-  = trace ("genDef: " ++ show name) $
+  = -- trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
     do ctx <- getModule
@@ -675,8 +675,8 @@ genDynamic f args
   = do d <- genInline f
        ds <- genArguments (args)
        -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
-       trace ("dynamic call: " ++ show f) $
-        result (d <> dot <> text "Call" <> tupled ds) 
+       -- trace ("dynamic call: " ++ show f) $
+       result (d <> dot <> text "Call" <> tupled ds) 
 
 septupled docs
   = lparen <> vsep (punctuate (comma) docs) <> rparen
