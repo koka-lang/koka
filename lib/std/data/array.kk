@@ -49,7 +49,7 @@ extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <wri
 
 // Create a new array of length `n`  with initial elements `a` .
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
-  cs inline "Primitive.NewArray<##2>(#1,#2)"
+  cs inline "Primitive.NewArray<##2>((int)#1,#2)"
   js inline "Array(#1)"
 }
  

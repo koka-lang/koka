@@ -24,8 +24,8 @@ fun main() {
       Ldexp(frac,exp,exp2,expect) -> {
         val x0 = ldexp(frac,exp)
         val x  = if (exp2==skip) then x0 else ldexp(x0,exp2)
-        val s  = x.show-full
-        val se = expect.parse-double.default(nan).show-full
+        val s  = x.show-hex
+        val se = expect.parse-double.default(nan).show-hex
         check(i.show + ":" + exp.show + "," + exp2.show, s, se);
       }
     }

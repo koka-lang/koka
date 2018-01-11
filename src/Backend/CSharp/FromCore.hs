@@ -1406,8 +1406,6 @@ ppTypeCon ctx c kind
          then text "Primitive.Dict"
         else if (name == nameTpMDict)
          then text "Primitive.MDict"
-        else if (name == nameTpTime)
-         then text "DateTime"
         else if (name == nameTpException)
          then text "Exception"
         else if (name == nameTpHandlerBranch0)

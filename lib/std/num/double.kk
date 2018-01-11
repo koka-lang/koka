@@ -464,7 +464,7 @@ fun parse-double( s : string ) : maybe<double> {
 				val man	= cap.groups[1]
 				val frac	= cap.groups[2]
 				val exp	= cap.groups[3]
-				val m 	= (man + frac).parse-int.maybe(0)
+        val m 	= (man + frac).parse-int.maybe(0)
 				val e	= exp.parse-int.maybe(0) - 4*frac.count
 				Just(encode(m,e))
 			}

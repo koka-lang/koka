@@ -65,7 +65,7 @@ public fun jaro-distance( s : string, t : string ) : double {
 }
 
 fun jaro-match( v : vector<char>, w : vector<char>, lim : int ) : (int,int) {
-  try((0,0)) {
+  try-default((0,0)) {
     val matched = array(w.length,False)
     var transposes := 0
     var matches    := 0

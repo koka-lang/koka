@@ -25,10 +25,10 @@ public fun check-rte( name : string, expect : string, tst : () -> io ddouble ) :
 
 public fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   //val y = x.show(33).parse-ddouble.default(dd-nan)
-  val y = x.show-sum(20).parse-ddouble.default(dd-nan)
+  val y = x.show-hex.parse-ddouble.default(dd-nan)
   if (y==x) then () else {
       println("failed round-trip parse! (" + name + ")\n x : " +
-            x.show-exp + "\n     " + x.show-sum +  "\n y : " + y.show-exp + "\n     " + y.show-sum)
+            x.show-exp + "\n     " + x.show-hex +  "\n y : " + y.show-exp + "\n     " + y.show-hex)
   }
   x
 }

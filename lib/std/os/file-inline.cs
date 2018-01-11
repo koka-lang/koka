@@ -37,7 +37,7 @@ static class _File
       try {
         webClient.DownloadStringCompleted += (object sender, System.Net.DownloadStringCompletedEventArgs e) => {
           if (entry != null) {
-            entry.Post( () => cb.Call(e.Error,e.Result) );
+            entry.Post( () => cb.Call(e.Error,(e.Error != null ? "" : e.Result)) );
             entry = null;
           }
           Dispose();

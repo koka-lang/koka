@@ -25,10 +25,10 @@ fun check-rte( name : string, expect : string, tst : () -> io ddouble ) : io () 
 
 fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   //val y = x.show(33).parse-ddouble.default(dd-nan)
-  val y = x.show-sum(20).parse-ddouble.default(dd-nan)
+  val y = x.show-hex.parse-ddouble.default(dd-nan)
   if (y==x) then () else {
       println("failed round-trip parse! (" + name + ")\n x : " +
-            x.show-exp + "\n     " + x.show-sum +  "\n y : " + y.show-exp + "\n     " + y.show-sum)
+            x.show-exp + "\n     " + x.show-hex +  "\n y : " + y.show-exp + "\n     " + y.show-hex)
   }
   x
 }
@@ -47,7 +47,8 @@ fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = 
         println(pre + "ok: " + res.show + ", derr: " + relerr.show(6)  )
       }
       else {
-        println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show + "\n delta : " + delta.show + "\n error: " + relerr.show )
+        println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
+        println("delta : " + delta.show + "\n error: " + relerr.show + "\n eps   : " + releps.show )
         error("failed " + name)
       }
     }
@@ -169,12 +170,12 @@ public fun check-sincos( i : int, x : ddouble ) {
   val c1 = cos(x)
   val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
   val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
-  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))
-  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-31))
+  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-13))  // -31 for javascript...
+  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-13))
 
   // check not too much error with respect to the double computation
-  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
-  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
+  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-13) )  // -15 for javascript
+  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-13) )
 }
 
 /*-------------------------------------------------------
