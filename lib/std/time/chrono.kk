@@ -17,7 +17,7 @@ import std/time/instant
 import std/time/utc
 
 extern include {
-  // cs file "time-inline.cs"
+  cs file "chrono-inline.cs"
   js file "chrono-inline.js"
 }
 
@@ -28,18 +28,22 @@ public fun now() : ndet instant {
   unix-instant(secs,frac)
 } 
 
-// Returns a unix time stamp; this still needs
-// to be adjusted to our epoch and taking account of leap seconds.
+// Returns a unix time stamp as seconds and fraction of seconds; 
+// The fraction of seconds is for added precision if necessary,
+// and can be larger than one to indicate leap seconds.
+// This still needs to be adjusted to our epoch and taking account of leap seconds.
 extern unix-now() : ndet (double,double) {
+  cs "_Chrono.UnixNow"
   js "_unix_now"
 }
 
-// The resolution in seconds of the system clock.
-public fun now-precision() : ndet duration {
-  duration(xnow-precision())
+// Return the smallest time difference that the system clock can measure.
+public fun now-resolution() : ndet duration {
+  duration(xnow-resolution())
 }
 
-extern xnow-precision() : ndet double {
-  js "_now_precision"
+extern xnow-resolution() : ndet double {
+  cs "_Chrono.NowResolution"
+  js "_now_resolution"
 }
 

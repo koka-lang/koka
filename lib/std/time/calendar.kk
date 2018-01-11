@@ -22,6 +22,7 @@ import std/time/utc
 import std/time/date
 
 extern include {
+  cs file "calendar-inline.cs"
   js file "calendar-inline.js"
 }
 
@@ -94,7 +95,7 @@ public val tz-utc : timezone = tz-fixed("UTC",zero)
 
 // Return the local timezone on the current system.
 public fun tz-local() : ndet timezone {
-  val tz = local-get-timezone()
+  val tz = local-get-timezone()  // get it once so the `Timezone` itself is immutable!
   Timezone(
     "",
     fun(i) {
@@ -105,10 +106,11 @@ public fun tz-local() : ndet timezone {
 }
 
 // A local timezone structure provided by the host system
-type local-timezone
+alias local-timezone = any
 
 // Get the current local timezone structure.
 extern local-get-timezone() : ndet local-timezone {
+  cs "_Calendar.LocalTimeZone"
   js "_local_get_timezone"
 }
 
@@ -116,6 +118,7 @@ extern local-get-timezone() : ndet local-timezone {
 // in fractional seconds since the UNIX epoch (1970-01-01) together with the
 // time zone abbreviation.
 extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
+  cs "_Calendar.LocalUtcDelta"
   js "_local_utc_delta"
 }
 

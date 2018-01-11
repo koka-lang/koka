@@ -19,6 +19,7 @@ import std/time/utc
 import std/async
 
 extern include {
+  cs file "file-inline.cs"
   js file "file-inline.js"
 }
 
@@ -74,16 +75,23 @@ extern xwrite-text( fname : string, text : string, cb : (null<exception>) -> io 
   js "_file_write_text"
 }
 
+alias entry-token = any
+
+extern cancel-entry(token : entry-token) : io () {
+  cs "_File.CancelEntry"
+  js "_cancel_entry"
+}
 
 // Read a text file (using UTF8 encoding) asynchronously
 public fun read-text( fname : path ) : <asyncx,file> string {
   await-exn1 fun(cb) {
-    xread-text(fname.string,cb)
-	Nothing
+    val token = xread-text(fname.string,cb)
+	  Just({cancel-entry(token)})
   }
 }
 
-extern xread-text( fname : string, cb : (null<exception>,string) -> io ()  ) : io () {
+extern xread-text( fname : string, cb : (null<exception>,string) -> io ()  ) : io entry-token {
+  cs "_File.ReadTextFile"
   js "_file_read_text"
 }
 

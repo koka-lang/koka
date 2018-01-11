@@ -377,7 +377,7 @@ abstract struct leaps-table(
 
 // Leap second adjustments. For an instant `i` after `start`:\
 // ``TAI-offset = offset + (delta * days(i - delta-start))``
-struct leap-adjust(
+abstract struct leap-adjust(
   utc-start  : utc-timestamp,  // start time in UTC seconds since 1972-01-01Z
   offset     : timespan,       // base offset
   delta-start: utc-timestamp  = timestamp0,   // start of delta adjustment

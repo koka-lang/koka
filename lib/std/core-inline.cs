@@ -404,20 +404,26 @@ public static class Primitive
     return new EventloopEntry();
   }
 
-  public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Action<Exception, A> onSuccess) {
+  public static EventloopEntry RunBlockingX<A>(Fun0<A> blockingAction, Fun2<Exception, A, Unit> onSuccess) {
     EventloopEntry entry = GetEventloopEntry();
     ThreadPool.QueueUserWorkItem((object info) => {
       Exception exception = null;
       A result = default(A);
       try {
-        result = blockingAction();
+        result = blockingAction.Call();
       }
       catch (Exception exn) {
         exception = exn;
       }
-      entry.Post(() => { onSuccess(exception, result); });
+      entry.Post(() => { onSuccess.Call(exception, result); });
     });
     return entry;
+  }
+  public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Fun2<Exception,A,Unit> onSuccess) {
+    return RunBlockingX<A>( new FunFunc0<A>(blockingAction), onSuccess);
+  }
+  public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Action<Exception, A> onSuccess) {
+    return RunBlockingX<A>( new FunFunc0<A>(blockingAction), new FunAction2<Exception,A>(onSuccess));
   }
 
   // For now, the MainConsole enters an event loop that handles
@@ -761,6 +767,51 @@ public static class Primitive
       return f(x1, x2, x3, x4, x5);
     }
   }
+
+
+  public class FunAction0 : Fun0<Unit>
+  {
+    Action f;
+    public FunAction0(Action f) {
+      this.f = f;
+    }
+
+    [DebuggerStepThrough]
+    public object Apply() {
+      f(); 
+      return Unit.unit;
+    }
+  }
+
+  public class FunAction1<A> : Fun1<A, Unit>
+  {
+    Action<A> f;
+
+    public FunAction1(Action<A> f) {
+      this.f = f;
+    }
+
+    [DebuggerStepThrough]
+    public object Apply(A x) {
+      f(x); 
+      return Unit.unit;
+    }
+  }
+
+  public class FunAction2<A1, A2> : Fun2<A1, A2, Unit>
+  {
+    Action<A1, A2> f;
+    public FunAction2(Action<A1, A2> f) {
+      this.f = f;
+    }
+
+    [DebuggerStepThrough]
+    public object Apply(A1 x, A2 y) {
+      f(x, y);
+      return Unit.unit;
+    }
+  }
+
 }
 
 
