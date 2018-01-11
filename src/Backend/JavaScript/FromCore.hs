@@ -807,8 +807,10 @@ getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
   = case lookup JS formats of
       Nothing -> case lookup Default formats of
-         Nothing -> failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
          Just s  -> s
+         Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+                    trace( "warning: backend does not support external in " ++ show tname ) $
+                      ("__std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
 genDefName :: TName -> Asm Doc
