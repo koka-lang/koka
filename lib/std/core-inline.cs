@@ -547,16 +547,34 @@ public static class Primitive
   }
 
   public static __std_core._maybe<BigInteger> IntParse(string s, bool hex) {
-    Regex rxpre = new Regex(@"^([\-\+])?(?:(0[xX][\da-fA-F]+)|(\d+)(?:[eE]?([\-\+]?\d+))?)$"); //todo: allow hex
+    Regex rxpre = new Regex(@"^([\-\+])?(?:0[xX]([\da-fA-F]+)|(\d+))(?:[eE]?([\-\+]?\d+))?$"); 
     Match mpre = rxpre.Match(s);
-    string sign = (mpre.Groups[1].Value == "-" ? "-" : "");
-    string sdigits = (String.IsNullOrEmpty(mpre.Groups[2].Value) ? (hex ? "0x" : "") + mpre.Groups[3].Value : mpre.Groups[2].Value);
+    string sdigits;
+    if (!String.IsNullOrEmpty(mpre.Groups[2].Value)) {
+      hex = true;
+      sdigits = mpre.Groups[2].Value;
+    }
+    else {
+      sdigits = mpre.Groups[3].Value;
+    }
     BigInteger res = 0;
-    bool ok = BigInteger.TryParse(sign + sdigits, out res);
-    if (ok && !String.IsNullOrEmpty(mpre.Groups[4].Value)) {
-      int exp = 0;
-      ok = int.TryParse(mpre.Groups[4].Value, out exp);
-      res = (ok ? (exp >= 0 ? res * BigInteger.Pow(10, exp) : res / BigInteger.Pow(10, -exp)) : 0);
+    bool ok;
+    if (hex) {
+      ok = BigInteger.TryParse("0" + sdigits, NumberStyles.AllowHexSpecifier, null, out res);
+    } 
+    else {
+      ok = BigInteger.TryParse(sdigits, out res);
+    }
+    if (ok) {
+      if (mpre.Groups[1].Value == "-") res = -res;
+      if (!String.IsNullOrEmpty(mpre.Groups[4].Value)) {
+        int exp = 0;
+        ok = int.TryParse(mpre.Groups[4].Value, out exp);
+        if (ok && exp != 0) {
+          if (exp > 0) res = res * BigInteger.Pow(10, exp);
+                  else res = res / BigInteger.Pow(10, -exp);
+        }
+      }
     }
     return (ok ? new __std_core._maybe<BigInteger>(res) : __std_core._maybe<BigInteger>.Nothing_);
   }
