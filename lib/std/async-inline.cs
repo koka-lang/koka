@@ -9,7 +9,7 @@ using System.Threading;
 
 static class _Async
 {
-  public class ThreadTimer {
+  public class ThreadTimer : IDisposable {
     private Primitive.EventloopEntry entry;
     private Timer timer;
 
@@ -26,11 +26,19 @@ static class _Async
       }
     }
 
-    public void Close() {
-      if (entry != null) entry.Close();
-      if (timer != null) timer.Dispose();
-      entry = null;
-      timer = null;
+    public void Dispose() {
+      Dispose(true);
+    }
+
+    protected virtual void Dispose(bool disposing) {
+      if (entry != null) {
+        entry.Dispose();
+        entry = null;
+      }
+      if (timer != null) {
+        timer.Dispose();
+        timer = null;
+      }
     }
   }
 
@@ -39,8 +47,7 @@ static class _Async
   }
 
   public static void ClearTimeout( object obj ) {
-    if (obj == null) return;
-    ThreadTimer t = (ThreadTimer)obj;
-    t.Close();
+    IDisposable d = obj as IDisposable;
+    if (d != null) d.Dispose();
   }
 }

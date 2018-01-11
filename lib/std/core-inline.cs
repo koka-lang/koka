@@ -370,7 +370,7 @@ public static class Primitive
   // Mini event loop for Console applications
   // This should be adapted for WinForms or WPF applications
   //---------------------------------------
-  public class EventloopEntry
+  public class EventloopEntry : IDisposable
   {
     private bool closed = false;
 
@@ -378,11 +378,16 @@ public static class Primitive
       Interlocked.Increment(ref activeEntries);
     }
 
-    public void Close() {
-      if (!closed) {
+    public void Dispose() {
+      Dispose(true);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+      if (disposing && !closed) {
+        closed = true;
         if (Interlocked.Decrement(ref activeEntries) <= 0) workEvent.Set();
       }
-      closed = true;
     }
 
     public void Post(Action action, bool closeAfterPost = true) {
@@ -391,7 +396,7 @@ public static class Primitive
         work.Enqueue(action);
         if (work.Count == 1) workEvent.Set();
       }
-      if (closeAfterPost) Close();
+      if (closeAfterPost) Dispose();
     }
   }
 
@@ -404,7 +409,7 @@ public static class Primitive
     return new EventloopEntry();
   }
 
-  public static EventloopEntry RunBlockingX<A>(Fun0<A> blockingAction, Fun2<Exception, A, Unit> onSuccess) {
+  public static EventloopEntry RunBlockingPrim<A>(Fun0<A> blockingAction, Fun2<Exception, A, Unit> onSuccess) {
     EventloopEntry entry = GetEventloopEntry();
     ThreadPool.QueueUserWorkItem((object info) => {
       Exception exception = null;
@@ -420,10 +425,14 @@ public static class Primitive
     return entry;
   }
   public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Fun2<Exception,A,Unit> onSuccess) {
-    return RunBlockingX<A>( new FunFunc0<A>(blockingAction), onSuccess);
+    return RunBlockingPrim<A>( new FunFunc0<A>(blockingAction), onSuccess);
   }
   public static EventloopEntry RunBlocking<A>(Func<A> blockingAction, Action<Exception, A> onSuccess) {
-    return RunBlockingX<A>( new FunFunc0<A>(blockingAction), new FunAction2<Exception,A>(onSuccess));
+    return RunBlockingPrim<A>( new FunFunc0<A>(blockingAction), new FunAction2<Exception,A>(onSuccess));
+  }
+    public static EventloopEntry RunBlocking<A>(Action blockingAction, Fun1<Exception,Unit> onSuccess) {
+    return RunBlockingPrim<Unit>( new FunFunc0<Unit>(() => { blockingAction(); return Unit.unit; }), 
+                                  new FunAction2<Exception,Unit>((exn,u) => onSuccess.Call(exn)) );
   }
 
   // For now, the MainConsole enters an event loop that handles
@@ -447,6 +456,25 @@ public static class Primitive
       }
     }
     return x;
+  }
+
+  //---------------------------------------
+  // Time
+  //---------------------------------------
+
+  private static long unixEpochTicks = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+    
+  public static double ToUnixSeconds( this DateTime t ) {
+    long ticks     = t.Ticks - unixEpochTicks;
+    // prevent overflow as much as possible...
+    double seconds = (double)(ticks / TimeSpan.TicksPerSecond);
+    double frac    = (double)(ticks % TimeSpan.TicksPerSecond) / (double)TimeSpan.TicksPerSecond;
+    return seconds + frac;
+  }
+
+  public static DateTime FromUnixSeconds( double secs, double frac = 0.0 ) {
+    long ticks     = (long)(secs + frac) * TimeSpan.TicksPerSecond;
+    return new DateTime(ticks,DateTimeKind.Utc);
   }
 
   //---------------------------------------

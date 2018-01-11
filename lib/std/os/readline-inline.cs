@@ -16,7 +16,7 @@ static class _Readline
   }
 
   public static void CancelReadline( object obj ) {
-    if (obj == null) return;
-    ((Primitive.EventloopEntry)obj).Close();
+    IDisposable d = obj as IDisposable;
+    if (d != null) d.Dispose(); 
   }
 }
