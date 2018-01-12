@@ -482,7 +482,7 @@ public static class Primitive
   //---------------------------------------
   public static BigInteger IntString(string s) {
     BigInteger i;
-    bool ok = BigInteger.TryParse(s, out i);
+    bool ok = BigInteger.TryParse(s, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out i);
     return (ok ? i : BigInteger.Zero);
   }
 
@@ -560,16 +560,16 @@ public static class Primitive
     BigInteger res = 0;
     bool ok;
     if (hex) {
-      ok = BigInteger.TryParse("0" + sdigits, NumberStyles.AllowHexSpecifier, null, out res);
+      ok = BigInteger.TryParse("0" + sdigits, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out res);
     } 
     else {
-      ok = BigInteger.TryParse(sdigits, out res);
+      ok = BigInteger.TryParse(sdigits, NumberStyles.None, CultureInfo.InvariantCulture, out res);
     }
     if (ok) {
       if (mpre.Groups[1].Value == "-") res = -res;
       if (!String.IsNullOrEmpty(mpre.Groups[4].Value)) {
         int exp = 0;
-        ok = int.TryParse(mpre.Groups[4].Value, out exp);
+        ok = int.TryParse(mpre.Groups[4].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exp);
         if (ok && exp != 0) {
           if (exp > 0) res = res * BigInteger.Pow(10, exp);
                   else res = res / BigInteger.Pow(10, -exp);
@@ -612,7 +612,7 @@ public static class Primitive
 
   public static double DoubleParse(string s) {
     double res;
-    bool ok = Double.TryParse(s, out res);
+    bool ok = Double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out res);
     return (ok ? res : Double.NaN);
   }
 
