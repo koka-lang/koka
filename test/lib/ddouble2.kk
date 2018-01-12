@@ -170,12 +170,12 @@ public fun check-sincos( i : int, x : ddouble ) {
   val c1 = cos(x)
   val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
   val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
-  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-13))  // -31 for javascript...
-  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-13))
+  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))  
+  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-31))
 
   // check not too much error with respect to the double computation
-  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-13) )  // -15 for javascript
-  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-13) )
+  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )  
+  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
 }
 
 /*-------------------------------------------------------

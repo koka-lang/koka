@@ -340,7 +340,7 @@ extern double-from-bits( lo : int32, hi : int32 ) : double {
 // otherwise falls back to the regular `exp2` function converting `e` to a double.
 fun exp2( e : int ) : double {
 	if (e >= -1022 && e <= 1023)
-		then double-from-bits(zero, (1023 + e).int32.shl(20))
+		then double-from-bits(zero, (1023 + e).int32.shl(20.int32))
 		else exp2( e.double )
 }
 
@@ -386,7 +386,7 @@ fun decode( d : double ) : (int,int) {
 private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
 	val (lo,hi)	= double-to-bits(d)
 	val sign	= if (hi.neg?) then -1 else 1
-	val exp	= (hi.shr(20) & 0x7FF.int32).int - 1043
+	val exp	= (hi.shr(20.int32) & 0x7FF.int32).int - 1043
 	val man	= (hi & 0xFFFFF.int32).int + 0x100000
 	(sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
 }

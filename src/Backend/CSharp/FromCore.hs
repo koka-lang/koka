@@ -522,6 +522,10 @@ genExpr expr
           App (App (TypeApp var@(Var tname (InfoExternal _)) [from,to]) [arg]) args  | getName tname == nameEffectOpen
             -> genExpr (App arg args)
 
+          -- int32 constants
+          App (Var tname _) [Lit (LitInt i)]  | getName tname == nameInt32 && isSmallInt i
+            -> result (pretty i)
+
           -- function calls
           TypeApp (Var tname (InfoArity m n _)) targs
             -> genStatic tname m n targs Nothing
@@ -1330,7 +1334,7 @@ ppLit lit
                             _  -> text "(BigInteger)" <> (if (i < 0) then parens (pretty i) else pretty i))
                     else text ("Primitive.IntString(\"" ++ show i ++ "\")")
       LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
-      LitFloat d -> pretty d
+      LitFloat d -> text (showsPrec 20 d "")
       LitString s -> dquotes (hcat (map escape s))
   where
     escape c
@@ -1340,8 +1344,8 @@ ppLit lit
          then text ("\\u" ++ showHex 4 (fromEnum c))
          else text ("\\U" ++ showHex 8 (fromEnum c))
 
-    isSmallInt :: Integer -> Bool
-    isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
+isSmallInt :: Integer -> Bool
+isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
 
 ---------------------------------------------------------------------------------
 -- Types

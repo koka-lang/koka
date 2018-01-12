@@ -16,29 +16,19 @@ val max-int32 : int = 0x7FFFFFFF
 val min-int32 : int = ~0x80000000
 
 // The number of bits in an `:int32` (always 32)
-val bits-int32 : int = 32
+val bits-int32 : int32 = 32.int32
 
 // Convert an `:int32` to a string
 fun show( i : int32 ) : string {
   show(i.int)
 }
 
-// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
-// value if it is outside the range of an `:int32`.
-extern inline int32  : (int) -> int32   {
-  cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32"
-}
-
+// Convert a `:double` to an `:int32`. The double is clamped to the
+// minimum or maximum `:int32` value if it is outside the range. A `nan` is 
+// mapped to `0`.
 extern inline int32 : (double) -> int32 {
   cs "Primitive.DoubleToInt32"
   js "$std_core._double_to_int32"
-}
-
-// Convert an `:int32` to an `:int`.
-extern inline int( i : int32 ) : int {
-  cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
 }
 
 // Convert an `:int32` to a boolean.
@@ -90,7 +80,7 @@ extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1
 extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
 
 extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+extern inline (-)  : (int32,int32) -> int32 { cs inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 
 fun pos?( i : int32 ) : bool {
   i>0.int32
@@ -206,42 +196,42 @@ private extern inline prim-sar : (int32,int32) -> int32 {
 
 // Bitwise rotate an `:int32` `n` bits to the left.
 // Does not rotate when `n` is negative.
-fun rotl( i : int32, n : int ) : int32 {
+fun rotl( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shl(i,r) | prim-shr(i,bits-int32.int32 - r))
+  val r = n & bits-int32.dec  // modulo bits in an int32
+  (prim-shl(i,r) | prim-shr(i,bits-int32 - r))
 }
 
 // Bitwise rotate an `:int32` `n` bits to the right.
 // Does not rotate when `n` is negative.
-fun rotr( i : int32, n : int ) : int32 {
+fun rotr( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i;
-  val r = n.int32 & (bits-int32 - 1).int32  // modulo bits in an int32
-  (prim-shr(i,r) | prim-shl(i,bits-int32.int32 - r))
+  val r = n & bits-int32.dec  // modulo bits in an int32
+  (prim-shr(i,r) | prim-shl(i,bits-int32 - r))
 }
 
 // Shift an `:int32` `i` to the left by `n` bits.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shl( i : int32, n : int ) : int32 {
+fun shl( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i
   if (n >= bits-int32) return 0.int32
-  prim-shl(i,n.int32)
+  prim-shl(i,n)
 }
 
 // Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-fun shr( i : int32, n : int ) : int32 {
+fun shr( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i;
   if (n >= bits-int32) return 0.int32;
-  prim-shr(i,n.int32);
+  prim-shr(i,n);
 }
 
 // Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
 // Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
-fun sar( i : int32, n : int ) {
+fun sar( i : int32, n : int32 ) {
   if (n.neg?) return i;
-  if (n >= bits-int32) return (if (i.neg?) then ~1.int32 else 0.int32);
-  prim-sar(i,n.int32);
+  if (n >= bits-int32) return (if (i.neg?) then -1.int32 else 0.int32);
+  prim-sar(i,n);
 }
 
 
