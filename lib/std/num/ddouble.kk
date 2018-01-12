@@ -1201,7 +1201,10 @@ public fun tan( rad : ddouble ) : ddouble {
 public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   // quick approximation for small values
   if (rad.hi.abs < 1.0e-11) then {
-    return (rad, one - 0.5.ddouble*sqr(rad))
+    // return (rad, one - 0.5.ddouble*sqr(rad))
+    val s = rad * (one - (rad.sqr / 3.ddouble))
+    val c = (one - s.sqr).sqrt
+    return (s,c)
   }
 
   /*
@@ -1211,6 +1214,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   Chebyshev series, we can compute very precisely.
   */
   // find a, b, and s.
+  /*
   val z  = (rad / dd-twopi).round
   val r  = rad - (dd-twopi * z)
 
@@ -1221,6 +1225,16 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val b  = qb.truncate.int
 
   val s  = t - (dd-pi16 * qb.ddouble)
+  */
+  
+  val x1 = rad / dd-twopi
+  val x3 = x1 - x1.round
+  // s = x - a*pi/2 - b*pi/16
+  val x32 = x3 + x3
+  val x34 = x32 + x32 // 4.ddouble * x3
+  val a   = x34.int
+  val b   = (8.ddouble * (x34 - a.ddouble)).int
+  val s   = dd-pi * (x32 - ((8*a + b).ddouble / 16.ddouble))
   val s2 = s.sqr
 
   // Use the Chebyshev series for best precision.
