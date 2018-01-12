@@ -41,7 +41,7 @@ fun test-jd(ts-utc) {
   // fraction of a day with a leap second..
   check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show-fixed(15) }
   check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show-fixed(15) }
-  check("jdleap2","57753.999988426059883") { time(2016,12,31,23,59,60).mjd.show-fixed(15) }
+  check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show-fixed(15) }
   check("jdleap-tz1","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(2)).mjd.show-fixed(15) } // across timezone (should *not* be: 57754.083332175925926)
   check("jdleap-tz2","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(~2)).mjd.show-fixed(15) } // across timezone without a leap
   // inverses
