@@ -60,7 +60,8 @@ type int
 // See also the [``std/text/string``](std_text_string.html) module.
 type string
 
-// A 64-bit IEEE 754 floating point value
+// A 64-bit IEEE 754 floating point value.
+// See also `std/num/double` for more operations on `:double`s.
 type double
 
 // An any type. Used for extern calls
@@ -1655,8 +1656,9 @@ fun sign( d : double ) : order {
   if (d<0.0) then Lt elif (d>0.0) then Gt else Eq
 }
 
-fun (~)(d : double ) : double {
-  0.0 - d
+// Negate a `:double`.
+extern inline (~)(d : double ) : double {
+  inline "(-#1)"  // inline so `~0.0` becomes negative zero
 }
 
 

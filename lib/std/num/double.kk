@@ -299,7 +299,7 @@ fun logaddexp2( x : double, y : double ) : double {
 
 // Return if two doubles are nearly equal with respect to some `epsilon` (=`8*dbl-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
-// scales the epsilon for larger and smaller numbers, and for subnormal numbers..
+// scales the epsilon for larger and smaller numbers, and for subnormal numbers.
 fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool {
   if (x == y) return True
   val diff = (x - y).abs
@@ -329,11 +329,33 @@ extern double-to-bits( d : double ) : (int32,int32) {
   js "_double_to_bits"
 }
 
+
 // Low-level: create a `:double` from the given `lo` and `hi` 32-bits.
 extern double-from-bits( lo : int32, hi : int32 ) : double {
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
 }
+
+/*
+// Low-level: create a `:double` from the given `lo` and `hi` 32-bits.
+fun double-from-bits( lo : int32, hi : int32 ) : double {
+  val hifrac = hi & 0xFFFFF.int32
+  val exp  = (hi.shr(20.int32) & 0x07FF.int32)
+  val pos? = hi.shr(31.int32).zero?
+  val p = if (lo.zero? && hifrac.zero?) then {
+            if (exp.zero?) then 0.0 
+            elif (exp==0x7FF.int32) then posinf
+            else exp2( (exp - 1023.int32).double )
+          }
+          else {
+            val frac = lo.double + 0x1.0p32 * hifrac.double
+            if (exp.zero?) then frac * exp2( -1074.0 )  // denormalized number
+            elif (exp==0x7FF.int32) then nan
+            else (1.0 + frac * 0x1.0p-52) * exp2( (exp - 1023.int32).double )
+          }
+  if (pos?) then p else ~p
+}
+*/
 
 // Calculate 2&middot;^`e`^ for an integer `e`.
 // Uses efficient bit conversion for exponents between  -1022 and 1023 and
@@ -453,9 +475,11 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
 fun parse-double( s : string ) : maybe<double> {
 	val st = s.trim
 	match(st.find(rx-float)) {
-		Just -> {
+		Just(cap) -> {
 			// regular float number
-			val d = prim-parse-double(st)	// regular decimal double
+      val p = prim-parse-double(cap.groups[2])	// regular decimal double
+      // do the sign separately as the primitive parse routines not always parse negative zero correctly (e.g. on .net)
+      val d = if (cap.groups[1]=="-") then ~p else p
 			if (d.nan?) then Nothing else Just(d)
 		}
 		Nothing -> match (st.find(rx-hexfloat)) {
@@ -479,7 +503,7 @@ fun parse-double( s : string ) : maybe<double> {
 		}
 	}
 }
-private val rx-float	= regex(@"^[\-\+]?\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?$")
+private val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
 private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
 
 // Return `nan` on failure
