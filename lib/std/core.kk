@@ -23,6 +23,11 @@ infixr 20  (||)
 // prefix     (!), (-)
 
 extern include {
+  cs file "core-handlers-inline.cs"
+  js file "core-handlers-inline.js"
+}
+
+extern include {
   cs file "core-inline.cs"
   js file "core-inline.js"
 }
@@ -35,10 +40,6 @@ extern include {
   js file "core-console-inline.js"
 }
 
-extern include {
-  cs file "core-handlers-inline.cs"
-  js file "core-handlers-inline.js"
-}
 
 extern include {
   js file "contrib/biginteger.js"
@@ -229,17 +230,17 @@ extern error-pattern(location : string, definition : string) : exn a {
 // Use of `on-exit` is preferred (which has its arguments swapped).
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Eff.Op.HandleFinally<##2>(#1,#2)" 
-  js inline "$std_core._handle_exn(action,null,hndl)"
+  js inline "$std_core._handle_finally(#1,#2)"
 }
 
 private extern xcatch( action : () -> <exn|e> a, hndl: exception -> e a, all : bool = False ) : e a {
   cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
-  js inline "$std_core._handle_exn(#1, #2, null)"
+  js inline "$std_core._handle_catch(#1, #2, #3)"
 }
 
 private extern xcatch-some( action : () -> <exn|e> a, hndl: exception -> <exn|e> a, all : bool = False) : <exn|e> a {
   cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
-  js inline "$std_core._handle_exn(#1, #2, null)"
+  js inline "$std_core._handle_catch(#1, #2, #3)"
 }
 
 // Catch an exception raised by `throw` and handle it.
@@ -2911,19 +2912,21 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
 
 extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op : a ) : yld<b> { 
   cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#3,#4)"
-  js "$std_core._yieldop"
+  js inline "$std_core._yieldop(#1,#2,#4,#3)"
 }
 
 extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> { 
   cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
-  js "$std_core._yieldop"
+  js inline "$std_core._yieldop(#1,#2,#4,#3)"
 } 
 
 extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
   cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
+  js "$std_core._run_finalizers"
 }
 extern ".finalize1"( resume : (a,l) -> e b, result : b ) : e b {
   cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
+  js "$std_core._run_finalizers"
 }
 
 type handler-branch0<e::E,a>
