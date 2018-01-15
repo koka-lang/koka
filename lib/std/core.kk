@@ -22,14 +22,19 @@ infixr 20  (||)
 
 // prefix     (!), (-)
 
+
+
 extern include {
-  cs file "core-handlers-inline.cs"
-  js file "core-handlers-inline.js"
+  js file "core-handlers-inline.js" // must come first due to dependencies 
 }
 
 extern include {
   cs file "core-inline.cs"
   js file "core-inline.js"
+}
+
+extern include {
+  cs file "core-handlers-inline.cs"
 }
 
 extern include {
@@ -39,7 +44,6 @@ extern include {
 extern include {
   js file "core-console-inline.js"
 }
-
 
 extern include {
   js file "contrib/biginteger.js"
