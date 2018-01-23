@@ -1,3 +1,13 @@
+[01;30moperator branch (pc) move: resume tail
+[00;39;49m[00m[01;30moperator branch (allResults) choose: resume normal
+[00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
+[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
+[00;39;49m[00m[01;30moperator branch (check) move: resume tail
+[00;39;49m[00m[01;30moperator branch (coin) choose: resume tail
+[00;39;49m[00m[01;30moperator branch (gametree) move: resume normal
+[00;39;49m[00m[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) put: resume tail
+[00;39;49m[00m
 -----------
 alice
 -----------
@@ -20,15 +30,14 @@ bob
 -----------
 failure while running program:
  node out/test/algeff_nim.js
-test/algeff/nim.kk(61, 3): warning: pattern variable p 
- is unused (or a wrongly spelled constructor?)
+test/algeff/nim.kk(61, 3): warning: pattern variable p is unused (or a wrongly spelled constructor?)
  hint: prepend an underscore to make it a wildcard pattern
-.Op-cheat : (player : player) -> .op-cheat
+.Op-cheat : forall<a> (player : player) -> .op-cheat<a>
 .Op-choose : .op-choose
 .Op-get : forall<a> .op-get<a>
 .Op-move : (player : player, sticks : int) -> .op-move
 .Op-put : forall<a> (x : a) -> .op-put<a>
-.Ops-cheat : (cheat : .op-cheat) -> .ops-cheating
+.Ops-cheat : forall<a> (cheat : .op-cheat<a>) -> .ops-cheating
 .Ops-choose : (choose : .op-choose) -> .ops-choose
 .Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
 .Ops-move : (move : .op-move) -> .ops-nim
@@ -36,11 +45,6 @@ test/algeff/nim.kk(61, 3): warning: pattern variable p
 .tag-cheating: string
 .tag-choose : string
 .tag-nim : string
-.tag-op-cheat: string
-.tag-op-choose: string
-.tag-op-get : string
-.tag-op-move: string
-.tag-op-put : string
 .tag-state : string
 == : (p1 : player, p2 : player) -> bool
 Alice : player
@@ -53,9 +57,9 @@ allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 bob? : (player : player) -> bool
 bobChooses : forall<a,e> (m : () -> <nim,choose|e> a) -> <choose|e> a
 bobTurn : (n : int) -> <nim,div> player
-cheat : (player : player) -> cheating ()
+cheat : forall<a> (player : player) -> cheating a
 cheatReport : forall<a,e> (action : () -> <cheating,exn|e> a) -> <exn|e> a
-check : forall<a,e> (action : () -> <nim,cheating,exn|e> a) -> <nim,cheating,exn|e> a
+check : forall<a,e> (action : () -> <nim,cheating|e> a) -> <nim,cheating|e> a
 choose : () -> choose bool
 coin : forall<a,e> (action : () -> <choose,ndet|e> a) -> <ndet|e> a
 game : (n : int) -> <nim,div> player
@@ -93,6 +97,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- throw exn; // rethrow
+ else throw exn; // rethrow
  ^
 std/core/Error: bob cheated!

@@ -1,8 +1,8 @@
-module caesar
+public module caesar
 
 import std/num/double
 
-fun encode( s : string, shift : int = 3 )
+fun encode( s : string, shift : int = 3)
 {
   function encode-char(c) {
     if (c < 'a' || c > 'z') return c
@@ -14,7 +14,7 @@ fun encode( s : string, shift : int = 3 )
   s.map(encode-char)
 }
 
-fun caesar(s) {
+fun caesar(s : string ) : string {
   s.encode(3)
 }
 

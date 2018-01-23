@@ -1,8 +1,13 @@
-42
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-put : forall<a,b> (a) -> .ops-state<a,b>
-.tag-Eff-state: string
+[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) put: resume never
+[00;39;49m[00m42
+test/algeff/linear3.kk(10, 3): warning: pattern variable t is unused (or a wrongly spelled constructor?)
+ hint: prepend an underscore to make it a wildcard pattern
+.Op-get : forall<a> .op-get<a>
+.Op-put : forall<a> (x : a) -> .op-put<a>
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.tag-state : string
 foo : () -> (state<int>) int
 get : forall<a> () -> (state<a>) a
 main : () -> console ()

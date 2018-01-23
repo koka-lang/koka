@@ -1,5 +1,5 @@
 
-effect linear state<s> {
+effect state<s> {
   fun get() : s
   fun put(x : s) : ()
 }

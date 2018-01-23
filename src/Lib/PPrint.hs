@@ -579,5 +579,5 @@ indentation 17 = "                 "
 indentation n  = spaces n
                 
 defaultWidth :: Int
-defaultWidth = 100
+defaultWidth = 160
              

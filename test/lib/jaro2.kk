@@ -31,7 +31,7 @@ fun jaro-distance( s : string, t : string ) : double {
 
 
 fun jaro-match( s : string, t : string, lim : int ) : (int,int) {
-  try((0,0)) {
+  try-default((0,0)) {
     val viewlen   = 2*lim + 1
     val matched   = array(viewlen,False)  // has a character in the view been matched before?
     var view      := t.first.extend(lim)

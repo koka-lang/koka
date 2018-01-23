@@ -1,10 +1,10 @@
-positive
+[01;30moperator branch (state) get: resume normal
+[00;39;49m[00m[01;30moperator branch (state) set: resume normal
+[00;39;49m[00mpositive
 .Op-get : forall<a> .op-get<a>
 .Op-set : forall<a> (x : a) -> .op-set<a>
 .Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
 .Ops-set : forall<a> (set : .op-set<a>) -> .ops-state<a>
-.tag-op-get : string
-.tag-op-set : string
 .tag-state : string
 get : forall<a> () -> (state<a>) a
 main : () -> console ()

@@ -1,10 +1,10 @@
-.Op-get : forall<a> .op-get<a>
+[01;30moperator branch (.handler) get: resume tail
+[00;39;49m[00m[01;30moperator branch (.handler) put: resume tail
+[00;39;49m[00m.Op-get : forall<a> .op-get<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>
 .Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
 .Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
 .extern-direct_count: () -> (state<int>) int
-.tag-op-get : string
-.tag-op-put : string
 .tag-state : string
 comp : () -> div int
 count : () -> <state<int>,div> int

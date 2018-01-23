@@ -1,15 +1,16 @@
-[(7,""),(3,"*3"),(1,"+2*3")]
-test/algeff/parser.kk(64, 7): warning: input shadows an earlier local definition or parameter
-.Op-fail : forall<a> .op-fail
+[01;30moperator branch (eager) flip: resume normal
+[00;39;49m[00m[01;30moperator branch (eager) fail: resume never
+[00;39;49m[00m[01;30moperator branch (parse) satisfy: resume tail
+[00;39;49m[00m[01;30moperator branch (solutions) flip: resume normal
+[00;39;49m[00m[01;30moperator branch (solutions) fail: resume never
+[00;39;49m[00m[(7,""),(3,"*3"),(1,"+2*3")]
+.Op-fail : forall<a> .op-fail<a>
 .Op-flip : .op-flip
-.Op-satisfy : forall<a> (pred : (string) -> maybe<(a, string)>) -> .op-satisfy
-.Ops-fail : (fail : .op-fail) -> .ops-many
+.Op-satisfy : forall<a> (pred : (string) -> maybe<(a, string)>) -> .op-satisfy<a>
+.Ops-fail : forall<a> (fail : .op-fail<a>) -> .ops-many
 .Ops-flip : (flip : .op-flip) -> .ops-many
-.Ops-satisfy: (satisfy : .op-satisfy) -> .ops-parse
+.Ops-satisfy: forall<a> (satisfy : .op-satisfy<a>) -> .ops-parse
 .tag-many : string
-.tag-op-fail: string
-.tag-op-flip: string
-.tag-op-satisfy: string
 .tag-parse : string
 alpha : () -> parse int
 char : (p : (char) -> bool) -> parse char

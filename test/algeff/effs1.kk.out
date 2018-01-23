@@ -1,8 +1,8 @@
-[False,True,True,False]
+[01;30moperator branch (amb) flip: resume normal
+[00;39;49m[00m[False,True,True,False]
 .Op-flip : .op-flip
 .Ops-flip : (flip : .op-flip) -> .ops-amb
 .tag-amb : string
-.tag-op-flip: string
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 flip : () -> amb bool
 main : () -> console ()

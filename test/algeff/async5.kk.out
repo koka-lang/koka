@@ -1,7 +1,7 @@
-.Op-flip : .op-flip
+[01;30moperator branch (amb) flip: resume normal
+[00;39;49m[00m.Op-flip : .op-flip
 .Ops-flip : (flip : .op-flip) -> .ops-amb
 .tag-amb : string
-.tag-op-flip: string
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 dowait : (s : std/time/duration/duration) -> <exn,std/async/async,console> string
 flip : () -> amb bool
