@@ -177,8 +177,8 @@ public fun load-latest( fname  : path,
         val fi = try-default(epoch){ fname.mod-time }
         if (download-delay.pos? && (fi + download-delay > unow)) {
           warn("using cached file since it was recently updated.\n  " + fname.show)
-          // return recent  // expired, but use anyway since we recently updated the file
-          Just(recent)
+          return recent  // expired, but use anyway since we recently updated the file
+          // Just(recent)
         }
         else {
           warn("local cache expired: " + fi.show)

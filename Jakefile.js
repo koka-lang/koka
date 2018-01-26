@@ -425,6 +425,7 @@ var hsModules = [
   "Core.Uniquefy",
   "Core.Divergent",
   "Core.BindingGroups", 
+  "Core.UnReturn",
   "Core.Monadic",
   "Core.AnalysisResume",
 

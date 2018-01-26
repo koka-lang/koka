@@ -53,6 +53,7 @@ import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
+import Core.UnReturn          ( unreturn )
 import Core.Cps               ( cpsTransform )
 import Core.Monadic           ( monTransform )
 
@@ -745,11 +746,14 @@ inferCheck loaded flags line coreImports program1
        if (not (coreCheck flags)) then return () 
         else Core.Check.checkCore False penv unique4 gamma coreDefs0 
 
-       -- cps tranform program
-       (isCps,coreDefs1)
+       -- remove return statements
+       coreDefsUR <- unreturn penv coreDefs0
+
+       -- do monadic effect translation (i.e. insert binds)
+       (isCps,coreDefsMon)
            <- if (not (enableMon flags)) -- CS `elem` targets flags || 
-               then return (False,coreDefs0)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefs0
+               then return (False,coreDefsUR)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core
                        when (coreCheck flags) $
                           Core.Check.checkCore True penv unique4 gamma cdefs
@@ -758,13 +762,13 @@ inferCheck loaded flags line coreImports program1
        
 
        -- simplify coreF if enabled
-       (coreDefs2,unique5)
+       (coreDefsSimp,unique5)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications 
-                      then return (coreDefs1,unique4)
+                      then return (coreDefsMon,unique4)
                       else -- trace "simplify" $ 
                            do let (cdefs,unique4a) -- Core.Simplify.simplify $ 
                                           -- Core.Simplify.simplify 
-                                     = simplifyDefs False (simplify flags) unique4 penv coreDefs1
+                                     = simplifyDefs False (simplify flags) unique4 penv coreDefsMon
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
                                 Core.Check.checkCore isCps penv unique4a gamma cdefs
@@ -775,7 +779,7 @@ inferCheck loaded flags line coreImports program1
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
                           coreProgram1{ Core.coreProgImports = coreImports 
-                                      , Core.coreProgDefs = coreDefs2 
+                                      , Core.coreProgDefs = coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
            loaded4 = loaded3{ loadedGamma = gamma
