@@ -44,48 +44,52 @@ import Core.Pretty
 import Core.CoreVar
 
 trace s x =
-   -- Lib.Trace.trace s
+   Lib.Trace.trace s
     x
 
 unreturn :: Pretty.Env -> DefGroups -> Error DefGroups
 unreturn penv defs
-  = do kdefgs <- runUR penv 0 (urDefGroups defs)
-       case kdefgs of
-         U    -> return defs
-         F f  -> return (f id)
-         R e  -> failure ("Core.UnReturn.unreturn: return occurred in toplevel definition group")
+  = runUR penv 0 (urTopDefGroups defs)
+       
 
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}  
-urDefGroups :: DefGroups -> UR (KDefGroups)
-urDefGroups defgs
-  = do kdefgs <- mapM urDefGroup defgs
-       return (listK combine defgs kdefgs)
-  where
-    combine :: DefGroup -> Expr -> Expr
-    combine dg expr  = makeLet [dg] expr
-    
-urDefGroup :: DefGroup -> UR (KDefGroup)
-urDefGroup (DefRec defs) 
-  = do kdefs <- mapM (urDef True) defs
-       return (mapK DefRec (listK err defs kdefs))
-  where
-    err dg expr = failure ("Core.UnReturn.urDefGroup: return occurred in recursive definition group.")
+urTopDefGroups :: DefGroups -> UR (DefGroups)
+urTopDefGroups defgs
+  = mapM urTopDefGroup defgs
 
-urDefGroup (DefNonRec def)
-  = do kdef <- urDef False def
-       return (mapK DefNonRec kdef)
+urTopDefGroup :: DefGroup -> UR DefGroup
+urTopDefGroup (DefRec defs) 
+  = do defs' <- mapM urTopDef defs
+       return (DefRec defs')
+
+urTopDefGroup (DefNonRec def)
+  = do def' <- urTopDef def
+       return (DefNonRec def')
+
+urTopDef :: Def -> UR Def
+urTopDef def
+  = do (makeDef, kexpr) <- urDef def
+       return (makeDef (toExpr kexpr))
+  where
+    toExpr kexpr 
+      = case kexpr of
+          U org  -> org
+          I e    -> e
+          _      -> failure "Core.UnReturn.urTopDef: should not happen: return inside top level definition"
+
+
 
 
 {--------------------------------------------------------------------------
   transform a definition
 --------------------------------------------------------------------------}  
-urDef :: Bool -> Def -> UR KDef
-urDef recursive def 
+urDef :: Def -> UR (Expr -> Def, KExpr)
+urDef def 
   = withCurrentDef def $
     do kexpr <- urExpr (defExpr def)
-       return (mapK (\e -> def{ defExpr = e }) kexpr)
+       return (\e -> def{ defExpr = e }, kexpr)
 
 urExpr :: Expr -> UR KExpr
 urExpr expr
@@ -93,139 +97,161 @@ urExpr expr
       -- lambdas and type lambdas use UnK to contain returns inside their body
       Lam pars eff body
         -> do kbody <- urExpr body
-              return (emapUnK (Lam pars eff) kbody)
+              return (emapUnK expr (Lam pars eff) kbody)
 
       TypeLam tvars body
         -> do kbody <- urExpr body
-              return (emapUnK (TypeLam tvars) kbody)
+              return (emapUnK expr (TypeLam tvars) kbody)
 
       -- type applications may contain return (? todo check this)
       TypeApp body targs
         -> do kbody <- urExpr body
-              return (emapK (\b -> TypeApp b targs) kbody)
+              return (emapK (Just expr) (\b -> TypeApp b targs) kbody)
 
       -- bindings
       Let defgs body 
-        -> do kdefgs <- urDefGroups defgs
-              kbody  <- urExpr body
-              return (compose Let defgs body kdefgs kbody)
+        -> do kbody <- urExpr body 
+              urLet expr defgs kbody
 
       -- case: scrutinee cannot contain return due to grammar
-      Case scrut branches
-        -> urCase expr scrut branches  
+      Case scruts branches
+        -> urCase expr scruts branches  
       
       -- return
       App ret@(Var v _) [arg] | getName v == nameReturn
         -> return (R arg)
 
       -- pure expressions that do not contain return (as checked by the grammar)
-      _ -> return U
+      _ -> return (U expr)
 
-urCase :: Expr -> Expr -> [Branch] -> UR Expr
-urCase expr scrut branches
-  = do (mkBranches,kexprss) <- mapM urBranch branches
+
+urLet :: Expr -> [DefGroup] -> KExpr -> UR KExpr
+urLet org defgroups kbody 
+  = do kdefgs <- mapM urLetDefGroup defgroups
+       trace ("defgroups: " ++ show (length kdefgs)) $
+        if (all isUnchanged kdefgs) 
+          then return (emapK (Just org) (makeLet defgroups) kbody)
+          else return (fold (reverse kdefgs) kbody)
+  where
+    isUnchanged (Left (_,ks)) = all isU ks
+    isUnchanged (Right (_,k)) = isU k
+
+    fold :: [Either ([Expr] -> DefGroup, [KExpr]) (Expr -> DefGroup, KExpr)] -> KExpr -> KExpr
+    fold [] kexpr  = kexpr
+    fold (Left (makeDefGroup,kexprs) : kdefgs) kexpr
+      = fold kdefgs (emapK Nothing (makeLet [makeDefGroup (map toExpr kexprs)]) kexpr)
+    fold (Right (makeDefGroup,kdefexpr) : kdefgs) kexpr
+      = fold kdefgs (bind Nothing combine kdefexpr kexpr)
+      where
+        combine e1 e2 = trace ("combine: " ++ show (e1,e2)) $
+                        makeLet [makeDefGroup e1] e2
+
+    toExpr :: KExpr -> Expr
+    toExpr kexpr 
+      = case kexpr of 
+          U org -> org
+          I e   -> e
+          _     -> failure ("Core.UnReturn.urLet.toExpr: should not happen: return inside recursive definition group")
+
+
+
+
+
+urLetDefGroup :: DefGroup -> UR (Either ([Expr] -> DefGroup, [KExpr]) (Expr -> DefGroup, KExpr))
+urLetDefGroup (DefRec defs) 
+  = do (mkDefs,kexprs) <- fmap unzip $ mapM urDef defs
+       let make exprs = DefRec (zipApply mkDefs exprs)
+       return (Left (make,kexprs))
+urLetDefGroup (DefNonRec def) 
+  = do (mkDef,kexpr) <- urDef def
+       let make expr = DefNonRec (mkDef expr)
+       return (Right (make,kexpr))
+
+zipApply fs xs = zipWith (\f x -> f x) fs xs       
+
+urCase :: Expr -> [Expr] -> [Branch] -> UR KExpr
+urCase org scruts branches
+  = do (mkBranches,kexprss) <- fmap unzip $ mapM urBranch branches
        if (all isU (concat kexprss))
-        then return U
+        then return (U org) -- todo: handle all I
         else -- todo: dont duplicate code
-             do name <- uniqueName
-                let f c = map mkBranches (zipWith (\kexprs branch -> 
-                                                    zipWith (\kexpr guard -> applyK (guardExpr guard) c kexpr) 
-                                                            kexprs (branchGuards branch)
-                                                  ) 
-                                                  kexprss branches)
+             do name <- uniqueName "cont"
+                let f c = Case scruts $
+                          zipWith (\kexprs mkBranch -> mkBranch $ map (applyK c) kexprs) 
+                                  kexprss mkBranches
                 return (F f)
 
 
-urBranch :: Branch -> UR ([Expr] -> Branch, [K Expr])
+urBranch :: Branch -> UR ([Expr] -> Branch, [KExpr])
 urBranch (Branch pat guards)
-  = do (mkGuards,kexprs) <- fmap unzip (mapM urGuard guard)f
-       return (\exprs -> Branch pat (zipWith apply mkGuards exprs), kexprs)
-  where
-    apply f x = f x
-    
-urGuard :: Guard -> UR (Expr -> Guard, K Expr)
+  = do (mkGuards,kexprs) <- fmap unzip (mapM urGuard guards)
+       return (\exprs -> Branch pat (zipApply mkGuards exprs), kexprs)
+
+urGuard :: Guard -> UR (Expr -> Guard, KExpr)
 urGuard (Guard test expr)
   = do kexpr <- urExpr expr
        return (Guard test, kexpr)
 
-data K a  = U
-           | R Expr
-           | F ((a -> a) -> a)  
+data KExpr  = U Expr
+            | I Expr
+            | R Expr
+            | F ((Expr -> Expr) -> Expr)
 
-type KExpr = K Expr 
-type KDef  = K Def 
-type KDefGroup = K DefGroup
-type KDefGroups =  K DefGroups 
 
-idK :: a -> K a
-idK x 
-  = F (\c -> c x)
 
-applyK :: Expr -> (Expr -> Expr) -> K Expr -> Expr
-applyK org c kexpr
+isU (U _) = True
+isU _     = False
+
+
+applyK ::(Expr -> Expr) -> KExpr -> Expr
+applyK c kexpr
   = case kexpr of
-      U   -> org
+      U org -> c org
+      I e -> c e
       R r -> r
       F f -> f c
 
 
-listK :: (a -> Expr -> Expr) -> [a] -> [K a] -> K [a]
-listK prepend orgs ks 
-  = if (all isU ks) then U else foldr fold (idK []) (zip orgs ks)
-  where
-    isU U = True
-    isU _ = False
-
-    fold (org,kexpr) (k)
-      = case kexpr of
-          U     -> case k of
-                     U     -> failure "Core.UnReturn.listK: should not happen 1"
-                     R r   -> R (prepend org r)
-                     F g   -> F (\c -> org : g c)
-          R e   -> R e
-          F f   -> case k of
-                     U     -> failure "Core.UnReturn.listK: should not happen 2"
-                     R r   -> R (prepend (f id) r)
-                     F g   -> F (\c -> f id : g c)
-
-
-emapUnK :: (Expr -> Expr) -> KExpr -> KExpr
-emapUnK g kexpr
+emapUnK :: Expr -> (Expr -> Expr) -> KExpr -> KExpr
+emapUnK org g kexpr
   = case kexpr of
-      U   -> U
-      R r -> idK (g r)
-      F f -> idK (g (f id))
+      U _ -> U org
+      I e -> I (g e)
+      R r -> I (g r)
+      F f -> I (g (f id))
 
-mapK :: (a -> b) -> K a -> K b 
-mapK g kexpr
+emapK :: Maybe Expr -> (Expr -> Expr) -> KExpr -> KExpr
+emapK mbOrg g kexpr 
   = case kexpr of
-      U   -> U
-      R r -> R r
-      F f -> F (\c -> c (g (f id)))
-
-
-
-emapK :: (Expr -> Expr) -> KExpr -> KExpr
-emapK g kexpr
-  = case kexpr of
-      U   -> U
+      U e -> case mbOrg of
+               Nothing -> I (g e)
+               Just org -> U org
+      I e -> I (g e)
       R r -> R (g r)
-      F f -> -- F (\c -> f (\x -> c (g x)))
-             F (\c -> g (f c)) 
+      F f -> F (\c -> g (f c))
 
 
-compose :: (a -> Expr -> Expr) -> a -> Expr -> K a -> KExpr -> KExpr
-compose combine a b ke1 ke2 
+bind :: Maybe Expr -> (Expr -> Expr -> Expr) -> KExpr -> KExpr -> KExpr
+bind mbOrg combine  ke1 ke2 
   = case (ke1,ke2) of
-      (U, k)   -> case k of 
-                    U   -> U
+      (R r, _) -> R r
+      (U a, k) -> case k of 
+                    U b -> case mbOrg of
+                             Nothing -> I (combine a b)
+                             Just org -> U org
+                    I e -> I (combine a e)
                     R r -> R (combine a r)
                     F g -> F (\c -> combine a (g c))
-      (R r, _) -> R r
+      (I e1, k)-> case k of 
+                    U b -> I (combine e1 b)
+                    I e -> I (combine e1 e)
+                    R r -> R (combine e1 r)
+                    F g -> F (\c -> combine e1 (g c))                   
       (F f, k) -> case k of 
-                    U   -> F (\c -> combine (f id) b)
-                    R r -> R (combine (f id) r)
-                    F g -> F (\c -> combine (f id) (g c))
+                    U b -> F (\c -> f (\e -> combine e (c b)))
+                    I e -> F (\c -> f (\e1 -> combine e1 (c e)))
+                    R r -> R (f (\e -> combine e r))
+                    F g -> F (\c -> f (\e -> combine e (g c)))
 
 
 {--------------------------------------------------------------------------
