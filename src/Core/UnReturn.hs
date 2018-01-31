@@ -8,7 +8,7 @@
 
 {----------------------------------------------------------------------------
  Transform core with return statements into pure core.
- This is necessary for transformations like "URadic" that introduce new
+ This is necessary for transformations like "Monadic" that introduce new
  lambda abstractions over pieces of code; if those would still contain return
  statements, these would now return from the inner function instead of the 
  outer one.
@@ -44,7 +44,7 @@ import Core.Pretty
 import Core.CoreVar
 
 trace s x =
-   Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 unreturn :: Pretty.Env -> DefGroups -> Error DefGroups
@@ -96,7 +96,8 @@ urExpr expr
   = case expr of
       -- lambdas and type lambdas use UnK to contain returns inside their body
       Lam pars eff body
-        -> do kbody <- urExpr body
+        -> withEffect eff $
+           do kbody <- urExpr body
               return (emapUnK expr (Lam pars eff) kbody)
 
       TypeLam tvars body
@@ -154,43 +155,71 @@ urLet org defgroups kbody
           _     -> failure ("Core.UnReturn.urLet.toExpr: should not happen: return inside recursive definition group")
 
 
-
-
-
-urLetDefGroup :: DefGroup -> UR (Either ([Expr] -> DefGroup, [KExpr]) (Expr -> DefGroup, KExpr))
-urLetDefGroup (DefRec defs) 
-  = do (mkDefs,kexprs) <- fmap unzip $ mapM urDef defs
-       let make exprs = DefRec (zipApply mkDefs exprs)
-       return (Left (make,kexprs))
-urLetDefGroup (DefNonRec def) 
-  = do (mkDef,kexpr) <- urDef def
-       let make expr = DefNonRec (mkDef expr)
-       return (Right (make,kexpr))
+    urLetDefGroup :: DefGroup -> UR (Either ([Expr] -> DefGroup, [KExpr]) (Expr -> DefGroup, KExpr))
+    urLetDefGroup (DefRec defs) 
+      = do (mkDefs,kexprs) <- fmap unzip $ mapM urDef defs
+           let make exprs = DefRec (zipApply mkDefs exprs)
+           return (Left (make,kexprs))
+    urLetDefGroup (DefNonRec def) 
+      = do (mkDef,kexpr) <- urDef def
+           let make expr = DefNonRec (mkDef expr)
+           return (Right (make,kexpr))
 
 zipApply fs xs = zipWith (\f x -> f x) fs xs       
+
+
 
 urCase :: Expr -> [Expr] -> [Branch] -> UR KExpr
 urCase org scruts branches
   = do (mkBranches,kexprss) <- fmap unzip $ mapM urBranch branches
-       if (all isU (concat kexprss))
-        then return (U org) -- todo: handle all I
-        else -- todo: dont duplicate code
-             do name <- uniqueName "cont"
-                let f c = Case scruts $
+       let ks = concat kexprss  
+       if (all isU ks)
+        then return (U org) 
+       else if (all isUorI ks)
+        then return (I (Case scruts $ zipWith (\kexprs mkBranch -> mkBranch $ map toExpr kexprs) 
+                                              kexprss mkBranches))
+       else if (length (filter (not . isR) ks) <= 1)
+        then -- directly inline
+             do let f c = Case scruts $
                           zipWith (\kexprs mkBranch -> mkBranch $ map (applyK c) kexprs) 
                                   kexprss mkBranches
                 return (F f)
+        else -- generate a local continuation function
+             do name <- uniqueName "cont"
+                pname <- uniqueName "x"
+                eff   <- getCurrentEffect
+                let tp  = typeOf org
+                    parName = TName pname tp
+                    parVar  = Var (parName) InfoNone
 
+                let f c = let lam    = Lam [parName] eff (c parVar)
+                              defTp  = typeOf lam
+                              def    = Def name defTp lam Private (DefFun NoMon) rangeNull ""
+                              defVar = Var (TName name defTp) (InfoArity 0 1 NoMon)
+                              app e  = App defVar [e] 
+                          in makeLet [DefNonRec def] $ 
+                             Case scruts $
+                             zipWith (\kexprs mkBranch -> mkBranch $ map (applyK app) kexprs) 
+                                      kexprss mkBranches
+                return (F f)
+  where
+    toExpr :: KExpr -> Expr
+    toExpr kexpr 
+      = case kexpr of 
+          U org -> org
+          I e   -> e
+          _     -> failure ("Core.UnReturn.urCase.toExpr: should not happen: return inside branches")
 
-urBranch :: Branch -> UR ([Expr] -> Branch, [KExpr])
-urBranch (Branch pat guards)
-  = do (mkGuards,kexprs) <- fmap unzip (mapM urGuard guards)
-       return (\exprs -> Branch pat (zipApply mkGuards exprs), kexprs)
+    urBranch :: Branch -> UR ([Expr] -> Branch, [KExpr])
+    urBranch (Branch pat guards)
+      = do (mkGuards,kexprs) <- fmap unzip (mapM urGuard guards)
+           return (\exprs -> Branch pat (zipApply mkGuards exprs), kexprs)
 
-urGuard :: Guard -> UR (Expr -> Guard, KExpr)
-urGuard (Guard test expr)
-  = do kexpr <- urExpr expr
-       return (Guard test, kexpr)
+    urGuard :: Guard -> UR (Expr -> Guard, KExpr)
+    urGuard (Guard test expr)
+      = do kexpr <- urExpr expr
+           return (Guard test, kexpr)
+
 
 data KExpr  = U Expr
             | I Expr
@@ -201,6 +230,13 @@ data KExpr  = U Expr
 
 isU (U _) = True
 isU _     = False
+
+isUorI (U _) = True
+isUorI (I _) = True
+isUorI _     = False
+
+isR (R _) = True
+isR _     = False
 
 
 applyK ::(Expr -> Expr) -> KExpr -> Expr
@@ -259,7 +295,7 @@ bind mbOrg combine  ke1 ke2
 --------------------------------------------------------------------------}  
 newtype UR a = UR (Env -> State -> Result a)
 
-data Env = Env{ currentDef :: [Def], prettyEnv :: Pretty.Env }
+data Env = Env{ currentEff :: Effect, currentDef :: [Def], prettyEnv :: Pretty.Env }
 
 data State = State{ uniq :: Int }
 
@@ -267,7 +303,7 @@ data Result a = Ok a State
 
 runUR :: Monad m => Pretty.Env -> Int -> UR a -> m a
 runUR penv u (UR c)
-  = case c (Env [] penv) (State u) of
+  = case c (Env typeTotal [] penv) (State u) of
       Ok x _ -> return x
 
 instance Functor UR where
@@ -304,6 +340,17 @@ withCurrentDef :: Def -> UR a -> UR a
 withCurrentDef def action
   = -- trace ("mon def: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $ action
+
+
+withEffect :: Effect -> UR a -> UR a
+withEffect eff action
+  = -- trace ("mon def: " ++ show (defName def)) $
+    withEnv (\env -> env{currentEff = eff}) $ action
+
+getCurrentEffect :: UR Effect 
+getCurrentEffect
+  = do env <- getEnv
+       return (currentEff env)
 
 
 urTraceDoc :: (Pretty.Env -> Doc) -> UR ()
