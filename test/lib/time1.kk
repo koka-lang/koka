@@ -33,6 +33,19 @@ public fun test-timezones() {
   t1.time(tz=tz2).show.println // "1998-01-01T19:45:00+12:00 (KOST)"
   val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // across DST & leap second
   t2.time(tz=tz2).show.println //
+
+  // from moment-timezones docs: https://github.com/moment/moment-timezone
+  val t3 = instant(2014,6,1,12)
+  t3.time(tz=tz1).show.println
+  t3.time(tz=tzs.timezone("America/Los_Angeles")).show.println
+  t3.time(tz=tzs.timezone("Asia/Tokyo")).show.println
+  t3.time(tz=tzs.timezone("Australia/Sydney")).show.println
+  val t4 = instant(2014,12,1,12)
+  t4.time(tz=tz1).show.println
+  t4.time(tz=tzs.timezone("America/Los_Angeles")).show.println
+  t4.time(tz=tzs.timezone("Asia/Tokyo")).show.println
+  t4.time(tz=tzs.timezone("Australia/Sydney")).show.println
+
 }
 
 fun test-tzs( tzs : timezones ) {
