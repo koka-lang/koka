@@ -597,8 +597,8 @@ instance Show TName where
 -- | Create a let expression
 makeLet :: [DefGroup] -> Expr -> Expr
 makeLet [] expr = expr
-makeLet defs (Let defs' expr) = Let (defs ++ defs') expr
 makeLet defs expr = Let defs expr
+
 
 -- | Add a value application
 addApps :: [Expr] -> (Expr -> Expr)

@@ -45,7 +45,7 @@ import Core.Pretty
 import Core.CoreVar
 
 trace s x =
-   -- Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 monTransform :: Pretty.Env -> DefGroups -> Error DefGroups

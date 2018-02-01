@@ -57,6 +57,7 @@ public fun cal-utc-load( fname : path = path(""),
                          verbose : bool = False
                        ) : <io,async> calendar
 {
+  //val fname1 = fname
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-create(leaps)
 }                       

@@ -54,7 +54,6 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
-import Core.Cps               ( cpsTransform )
 import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )

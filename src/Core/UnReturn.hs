@@ -140,12 +140,16 @@ urLet org defgroups kbody
     fold :: [Either ([Expr] -> DefGroup, [KExpr]) (Expr -> DefGroup, KExpr)] -> KExpr -> KExpr
     fold [] kexpr  = kexpr
     fold (Left (makeDefGroup,kexprs) : kdefgs) kexpr
-      = fold kdefgs (emapK Nothing (makeLet [makeDefGroup (map toExpr kexprs)]) kexpr)
+      = fold kdefgs (emapK Nothing (addDef (makeDefGroup (map toExpr kexprs))) kexpr)
     fold (Right (makeDefGroup,kdefexpr) : kdefgs) kexpr
       = fold kdefgs (bind Nothing combine kdefexpr kexpr)
       where
         combine e1 e2 = trace ("combine: " ++ show (e1,e2)) $
-                        makeLet [makeDefGroup e1] e2
+                        addDef (makeDefGroup e1) e2
+
+    addDef :: DefGroup -> Expr -> Expr
+    addDef def (Let defs expr) = Let (def:defs) expr
+    addDef def expr            = Let [def] expr
 
     toExpr :: KExpr -> Expr
     toExpr kexpr 
@@ -195,7 +199,7 @@ urCase org scruts branches
                 let f c = let lam    = Lam [parName] eff (c parVar)
                               defTp  = typeOf lam
                               def    = Def name defTp lam Private (DefFun NoMon) rangeNull ""
-                              defVar = Var (TName name defTp) (InfoArity 0 1 NoMon)
+                              defVar = Var (TName name defTp) InfoNone -- (InfoArity 0 1 NoMon) -- with arity C# code gets wrong
                               app e  = App defVar [e] 
                           in makeLet [DefNonRec def] $ 
                              Case scruts $

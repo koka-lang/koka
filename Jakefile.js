@@ -428,6 +428,7 @@ var hsModules = [
   "Core.UnReturn",
   "Core.Monadic",
   "Core.AnalysisResume",
+  "Core.Simplify",
 
   "Type.Infer",
   
@@ -438,7 +439,6 @@ var hsModules = [
   "Core.GenDoc",
   "Core.Parse",
   "Core.Check",
-  "Core.Simplify",
   
   "Compiler.Package",
   "Compiler.Options",
