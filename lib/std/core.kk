@@ -2967,7 +2967,7 @@ extern ".makeHandlerBranch1-x1"( resume-kind : int, op-tag : string,
 extern ".makeHandler0"( effect-tag : string, 
                         ret : a -> e b,
                         branches : vector<handler-branch0<e,b>>,
-                        linear? : bool
+                        handler-kind : int
                       ) : total ((action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
   js "$std_core._new_handler"
@@ -2976,7 +2976,7 @@ extern ".makeHandler0"( effect-tag : string,
 extern ".makeHandler1"( effect-tag : string, 
                         ret : (result : a, local : l) -> e b,
                         branches : vector<handler-branch1<e,l,b>>,
-                        linear? : bool
+                        handler-kind : int
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
   cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,#4)"
   js "$std_core._new_handler1"
@@ -2986,7 +2986,7 @@ extern ".makeHandler1"( effect-tag : string,
 fun ".makeHandlerRet0"( ignored-effect-tag : string,
                            ret : (result : a) -> e b,
                            ignored-branches : int,
-                           ignored-linear? : bool
+                           ignored-kind : int
                          ) : total ((action : () -> e a) -> e b) {
   return fun(action){ ret(action()) }
 }

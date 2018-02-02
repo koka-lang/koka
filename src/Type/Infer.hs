@@ -771,7 +771,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
        mbhxeff <- inferHandledEffect hrng mbEffect branches
 
        
-       (handlerTp, branchesCore, makeHandlerTp, effectTagCore, linearCore, makeHandlerName)
+       (handlerTp, branchesCore, makeHandlerTp, effectTagCore, handlerKindCore, makeHandlerName)
           <- case mbhxeff of
                Nothing
                 -> inferHandlerRet locals localArgs
@@ -799,7 +799,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
        -- make Core
        let makeHandlerCore = makeHandlerCoreInst (coreExprFromNameInfo makeHandlerQName makeHandlerInfo)
            -- effectTagCore   = coreExprFromNameInfo effectTagName effectTagInfo
-           handlerCore     = Core.App makeHandlerCore [effectTagCore,retCore,branchesCore,linearCore]
+           handlerCore     = Core.App makeHandlerCore [effectTagCore,retCore,branchesCore,handlerKindCore]
 
        -- generalize the handler type
        (ghandlerTp,ghandlerCore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect shandlerTp handlerCore
@@ -844,10 +844,10 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
            makeHandlerTp  = TFun [(newName "ignored-effect-tag", typeString),
                                   (newName "ret", retTp),
                                   (newName "ignored-branches", typeInt),
-                                  (newName "linear?", typeBool)] typeTotal handlerTp
+                                  (newName "ignored-handler-kind", typeInt)] typeTotal handlerTp
 
        return (handlerTp, branchesCore, makeHandlerTp, 
-               Core.Lit (Core.LitString ""), Core.exprTrue,
+               Core.Lit (Core.LitString ""), Core.Lit (Core.LitInt 0),
                nameMakeHandlerRet (length locals))
 
 
@@ -900,13 +900,14 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp
            makeHandlerTp  = TFun [(newName "effect-tag",typeString),
                                     (newName "ret",retTp),
                                     (newName "branches", branchesTp),
-                                    (newName "linear?", typeBool)] typeTotal handlerTp
+                                    (newName "handler-kind", typeInt)] typeTotal handlerTp
 
        -- build effect tag core
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
-           linearCore    = if (isKindHandled1 (getKind handledEffect)) then Core.exprTrue else Core.exprFalse
-       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, linearCore, nameMakeHandler shallow (length locals))
+           handlerKindCore = Core.Lit $ Core.LitInt $
+                             if (isKindHandled1 (getKind handledEffect)) then 1 else if shallow then 2 else 0
+       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, handlerKindCore, nameMakeHandler shallow (length locals))
 
 
 inferHandlerBranch :: Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect 
