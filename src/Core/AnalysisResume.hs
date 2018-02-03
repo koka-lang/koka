@@ -31,18 +31,20 @@ import Core.CoreVar
 data ResumeKind 
   = ResumeNever
   | ResumeTail
+  | ResumeScopedOnce
+  | ResumeScoped
   | ResumeOnce
   | ResumeNormal
-  | ResumeShallow
   deriving (Eq,Ord,Enum)
 
 instance Show ResumeKind where
   show rk = case rk of 
               ResumeNever -> "never"
               ResumeTail  -> "tail"
+              ResumeScopedOnce -> "scoped once"
+              ResumeScoped -> "scoped"
               ResumeOnce  -> "once"
               ResumeNormal -> "normal"
-              ResumeShallow -> "shallow"
 
 analyzeResume :: Name -> Name -> Expr -> ResumeKind
 analyzeResume defName opName expr
@@ -57,7 +59,7 @@ analyzeResume defName opName expr
 
 
 arTailExpr expr  = arExpr' ResumeTail expr
-arExpr expr      = arExpr' ResumeOnce expr
+arExpr expr      = arExpr' ResumeScopedOnce expr
 
 isResumingElem tnames = S.member resumeName tnames || S.member finalizeName tnames
 isResuming tname = tname == resumeName || tname == finalizeName
@@ -83,9 +85,9 @@ arExpr' appResume expr
       Let [DefNonRec def] expr 
         | defName def == getName finalizeName  -- TODO: too weak a check; improve it
         -> arExpr' appResume expr 
-      Let defGroups expr -- TODO: be more sophisticated here?
+      Let defGroups body -- TODO: be more sophisticated here?
         -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
-            then ResumeNormal else arExpr' appResume expr 
+            then ResumeNormal else arExpr' appResume body
       Case exprs branches 
         -> arExprsAnd exprs `rand` arBranches appResume branches
 
@@ -113,20 +115,45 @@ rors rks
 rands rks
   = foldr rand ResumeNever rks  
 
-rand,ror,rmax :: ResumeKind -> ResumeKind -> ResumeKind
+
+
+{-           
+*and*        never   tail    sonce   scoped  once    normal
+-----------------------------------------------------------
+never        never   tail    sonce   scoped  once    normal
+tail         tail    *scoped scoped  scoped  normal  normal
+sonce        sonce   scoped  scoped  scoped  normal  normal
+scoped       scoped  scoped  scoped  scoped  normal  normal
+once         once    normal  normal  normal  normal  normal
+normal       normal  normal  normal  normal  normal  normal
+
+*or*         never   tail    sonce   scoped  once    normal
+-----------------------------------------------------------
+never        never   tail    sonce   scoped  once    normal
+tail         tail    tail    sonce   scoped  once    normal
+sonce        sonce   sonce   sonce   scoped  once    normal
+scoped       scoped  scoped  scoped  scoped  *normal normal
+once         once    once    once    *normal *normal normal
+normal       normal  normal  normal  normal  normal  normal
+-}
+
+rand,ror :: ResumeKind -> ResumeKind -> ResumeKind
 rand rk1 rk2
   = case (rk1,rk2) of
       (ResumeNever,rk) -> rk
       (rk,ResumeNever) -> rk
-      _                -> ResumeNormal
+      _                -> if (isScoped rk1 && isScoped rk2) then ResumeScoped else ResumeNormal
 
 ror rk1 rk2
-  = rmax rk1 rk2
+  = case (rk1,rk2) of
+      (ResumeOnce,rk) | rk >= ResumeScoped -> ResumeNormal
+      (rk,ResumeOnce) | rk >= ResumeScoped -> ResumeNormal
+      _ -> if (rk1 >= rk2) then rk1 else rk2
 
-rmax rk1 rk2
-  = if (rk1 == ResumeNormal)  -- increase laziness
-     then ResumeNormal
-     else toEnum (max (fromEnum rk1) (fromEnum rk2))
+
+isScoped ResumeNormal = False
+isScoped ResumeOnce   = False
+isScoped _            = True
 
 resumeName = TName (newName "resume") typeVoid
 finalizeName = TName (newName "finalize") typeVoid
