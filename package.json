@@ -1,39 +1,41 @@
 {
-  "name"        : "koka",
-  "author"      : "Daan Leijen, Microsoft Corp.",
-  "version"     : "0.9.0-dev",
-  "homepage"    : "http://koka.codeplex.com",
-  "description" : "Koka is an effectful function-oriented language.",
-  "license"     : "Apache-2.0",
-  "licenses": [{
-    "type"      : "Apache License 2.0", 
-    "url"       : "http://www.apache.org/licenses/LICENSE-2.0.html"
-  }],
-  "keywords": [
-      "Koka", 
-      "Microsoft", 
-      "compiler", 
-      "language", 
-      "effect",
-      "type inference"
+  "name": "koka",
+  "author": "Daan Leijen, Microsoft Corp.",
+  "version": "0.9.0-dev",
+  "homepage": "http://koka.codeplex.com",
+  "description": "Koka is an effectful function-oriented language.",
+  "license": "Apache-2.0",
+  "licenses": [
+    {
+      "type": "Apache License 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
   ],
-  "engines" : { 
-    "node": ">=0.10.0" 
+  "keywords": [
+    "Koka",
+    "Microsoft",
+    "compiler",
+    "language",
+    "effect",
+    "type inference"
+  ],
+  "engines": {
+    "node": ">=0.10.0"
   },
   "dependencies": {
-    "amdefine"   : ">=0.0.4",    
-    "requirejs"  : ">=2.1",
+    "amdefine": ">=0.0.4",
+    "requirejs": ">=2.1",
     "node-static": ">=0.6",
-    "ws"         : ">=0.4",
-    "commander"  : ">=1.1.1",
-    "colors"     : ">=1.0",
-    "diff"       : ">=1.0"
+    "ws": ">=0.4",
+    "commander": ">=1.1.1",
+    "colors": ">=1.0",
+    "diff": ">=1.0"
   },
   "scripts": {
     "preinstall": "npm install -g jake madoko"
   },
   "repository": {
-    "type": "git", 
-    "url" : "https://github.com/koka-lang/koka.git"
+    "type": "git",
+    "url": "https://github.com/koka-lang/koka.git"
   }
 }
