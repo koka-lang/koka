@@ -941,7 +941,7 @@ codeGenJS term flags modules compileTarget outBase core
        let mbEntry = case compileTarget of 
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
-       let js    = javascriptFromCore mbEntry core
+       let js    = javascriptFromCore (maxStructFields flags) mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js 
        when (showAsmJavaScript flags) (termDoc term js)

@@ -56,7 +56,7 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
-import Core.AnalysisResume( analyzeResume )
+import Core.AnalysisResume( analyzeResume, ResumeKind(..) )
 
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
@@ -1019,7 +1019,18 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
 
        defName <- currentDefName
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = analyzeResume defName (unqualify opName) bexprCore
+           rkind       = case analyzeResume defName (unqualify opName) bexprCore of
+                           -- The scoped variants require a bind translation in the branch but currently
+                           -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
+                           -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
+                           -- generated; one way around this is to give the `resume` operation in a scoped handler a special 
+                           -- `resume` effect and remove that in the handler again but that effect might leak out through
+                           -- parameters and thus affect the user experience (who would need to use `inject` operations). 
+                           -- Therefore, we just disable it for now and don't generate scoped branches.  
+                           -- Tested in `algeff/effs1b`                      
+                           ResumeScopedOnce -> ResumeOnce
+                           ResumeScoped     -> ResumeNormal
+                           rk               -> rk
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore

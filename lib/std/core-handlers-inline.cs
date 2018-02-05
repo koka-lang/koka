@@ -628,8 +628,16 @@ namespace Eff
   {
     Never,
     Tail,
+    ScopedOnce,
+    Scoped,
     Once,
-    Normal,
+    Normal
+  }
+
+  public enum HandlerKind
+  {
+    Deep,
+    Linear,
     Shallow
   }
 
@@ -857,15 +865,16 @@ namespace Eff
     protected readonly Branch[] branches;
     protected int skip = 0;
 
-    protected readonly bool linear;
-    public bool IsLinear { get { return linear; } }
+    protected readonly HandlerKind handlerKind;
+    public bool IsLinear { get { return (handlerKind == HandlerKind.Linear); } }
+    public bool IsShallow { get { return (handlerKind == HandlerKind.Shallow); } }
 
     // Used to directly call a branch if it is tail resumptive.
     public abstract R HandleTailBranch<O, R>(Branch branch, O op, int skip);
 
-    public Handler(string effectTag, Branch[] branches, bool linear = false) {
+    public Handler(string effectTag, Branch[] branches, HandlerKind handlerKind = HandlerKind.Deep) {
       this.effectTag = effectTag;
-      this.linear = linear;
+      this.handlerKind = handlerKind;
       this.branches = branches;
       /*
       if (branches == null) {
@@ -987,7 +996,7 @@ namespace Eff
   // Handlers returning a result of type B
   public abstract class Handler<B> : Handler
   {
-    public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
+    public Handler(string effectTag, Branch[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) { }
 
     public abstract B CallBranch<O, R>(IBranch<O, R, B> branch, Cont<R,B> cont, O op, out Resume resume);
     public abstract B CallTailBranch<O, R>(IBranch<O, R, B> branch, O op, out TailResume<R,B> tresume);
@@ -1137,7 +1146,7 @@ namespace Eff
   // Handlers from actions of type A to B.
   public abstract class Handler<A, B> : Handler<B>
   {
-    public Handler(string effectTag, Branch[] branches, bool linear = false) : base(effectTag, branches, linear) { }
+    public Handler(string effectTag, Branch[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) { }
 
     public abstract B CallReturnFun(A arg);
 
@@ -1178,7 +1187,7 @@ namespace Eff
   {
     private Fun1<A, B> returnFun;
 
-    public Handler0(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+    public Handler0(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) {
       this.returnFun = returnFun;
     }
 
@@ -1210,17 +1219,17 @@ namespace Eff
     }
 
     // Convenience
-    public Handler0(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+    public Handler0(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) {
       this.returnFun = new Primitive.FunFunc1<A, B>(returnFun);
     }
 
-    public static Fun1<Fun0<A>, B> Create(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, bool linear = false) {
-      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, linear);
+    public static Fun1<Fun0<A>, B> Create(string effectTag, Fun1<A, B> returnFun, Branch<B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) {
+      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, handlerKind);
       return new HandlerFun0(h);
     }
 
-    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, bool linear = false) {
-      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, linear);
+    public static Func<Func<A>, B> Create(string effectTag, Func<A, B> returnFun, Branch<B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) {
+      Handler0<A, B> h = new Handler0<A, B>(effectTag, returnFun, branches, handlerKind);
       return (action) => h.Handle(new Primitive.FunFunc0<A>(action));
     }
 
@@ -1330,18 +1339,18 @@ namespace Eff
     private Fun2<A, S, B> returnFun;
     public S local;
 
-    public Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+    public Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) {
       this.returnFun = returnFun;
       local = default(S);
     }
 
-    private Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch[] branches, S local, bool linear = false) : base(effectTag, branches, linear) {
+    private Handler1(string effectTag, Fun2<A, S, B> returnFun, Branch[] branches, S local, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches,handlerKind) {
       this.returnFun = returnFun;
       this.local = local;
     }
 
     public B Handle(Fun0<A> action, S local0) {
-      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, local0, linear); // copy for identity
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, local0, handlerKind); // copy for identity
       return h.Handle(action);
     }
 
@@ -1385,17 +1394,17 @@ namespace Eff
     }
 
     // Convenience
-    public Handler1(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) : base(effectTag, branches, linear) {
+    public Handler1(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) : base(effectTag, branches, handlerKind) {
       this.returnFun = new Primitive.FunFunc2<A, S, B>(returnFun);
     }
 
-    public static Fun2<S, Fun0<A>, B> Create(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) {
-      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, linear);
+    public static Fun2<S, Fun0<A>, B> Create(string effectTag, Fun2<A, S, B> returnFun, Branch1<S, B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) {
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, handlerKind);
       return new HandlerFun1(h);
     }
 
-    public static Func<S, Func<A>, B> Create(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, bool linear = false) {
-      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, linear);
+    public static Func<S, Func<A>, B> Create(string effectTag, Func<A, S, B> returnFun, Branch1<S, B>[] branches, HandlerKind handlerKind = HandlerKind.Deep) {
+      Handler1<S, A, B> h = new Handler1<S, A, B>(effectTag, returnFun, branches, handlerKind);
       return (local, action) => h.Handle(new Primitive.FunFunc0<A>(action), local);
     }
 

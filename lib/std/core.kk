@@ -2969,7 +2969,7 @@ extern ".makeHandler0"( effect-tag : string,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int
                       ) : total ((action : () -> e1 a) -> e b) {
-  cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3)"
+  cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
   js "$std_core._new_handler"
 }
 
@@ -2978,7 +2978,7 @@ extern ".makeHandler1"( effect-tag : string,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
-  cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,#4)"
+  cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
   js "$std_core._new_handler1"
 }
 
