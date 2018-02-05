@@ -985,7 +985,9 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
            localExpr = Let finalizeDef expr nameRng
                       
-           bodyPat   = PatCon conName [(Nothing,PatVar par{ binderExpr = PatWild nameRng }) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
+           bodyPat   = PatCon conName [(Nothing,toPattern par) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
+                     where 
+                       toPattern par = if (isWildcard (binderName par)) then PatWild nameRng else PatVar par{ binderExpr = PatWild nameRng }
            bodyBranch= Branch bodyPat guardTrue localExpr
            bodyExpr  = Case (Var opParName False nameRng) [bodyBranch] rng
 

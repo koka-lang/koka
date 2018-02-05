@@ -1115,7 +1115,7 @@ opParams
 
 opParam :: LexParser (ValueBinder (Maybe UserType) ())
 opParam
-  = do (name,rng) <- identifier
+  = do (name,rng) <- paramid
        tp <- optionMaybe typeAnnot
        return (ValueBinder name tp () rng (combineRanged rng tp))
 
