@@ -24,7 +24,9 @@ module Common.Name
           , newHiddenName, isHiddenName
           , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
-          , newCreatorName, toOperationsName, fromOperationsName, toEffectConName, toOpConName
+          , newCreatorName
+          , toOperationsName, fromOperationsName
+          , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , splitModuleName, unsplitModuleName
@@ -257,16 +259,20 @@ fromOperationsName :: Name -> Name
 fromOperationsName name
   = newQualified (nameModule name) (drop 5 (nameId name))
 
-
+-- | Create an operation type name from an operation name.
+toOpTypeName :: Name -> Name
+toOpTypeName name
+  = makeHiddenName "op" name
+  
 -- | Create an operation constructor name from an operation name.
 toOpConName :: Name -> Name
 toOpConName name
   = makeHiddenName "Op" name
   
--- | Create an effects constructor (in the operations type) from an effect type name.
-toEffectConName :: Name -> Name
-toEffectConName name
-  = makeHiddenName "Eff" name
+-- | Create an operations operation constructor.
+toOpsConName :: Name -> Name
+toOpsConName name
+  = makeHiddenName "Ops" name
 
 -- | Create an open tag name from a constructor name in an open type
 toOpenTagName :: Name -> Name

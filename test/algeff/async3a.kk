@@ -12,7 +12,7 @@ effect state<s> {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  put(s')  -> resume(s',())
+  put(s')  -> resume((),s')
 }
 
 fun show-int( i : int ) : string {
@@ -21,7 +21,7 @@ fun show-int( i : int ) : string {
 
 fun test() : <asyncx,console,state<int>> () {
   println("let's start")
-  val (name,age) = interleaved( 
+  val (name,age) = interleaved(
     { put(1)
       yield()
       println("what is your name? state:" + get().show-int)
@@ -30,7 +30,7 @@ fun test() : <asyncx,console,state<int>> () {
       put(3)
       name
     },
-    { 
+    {
       put(2)
       yield()
       println("what is your age? state:" + get().show-int)

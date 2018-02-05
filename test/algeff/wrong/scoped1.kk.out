@@ -1,6 +1,6 @@
-test/algeff/wrong/scoped1.kk(62, 3): error: abstract type(s) escape(s) into the context
- term : choice(xs) -> {
- ...
- }
- inferred type: (list<$a>) -> nondet $a
- hint : perhaps you forgot to apply 'resume'?
+test/algeff/wrong/scoped1.kk(62, 3): error: type is not polymorph enough
+ context : choice(xs)
+ term : choice(xs)
+ inferred type : forall<b,e> (resume : (result : b) -> <nondet,state<int>|e> b, .op-choice<b>) -> <nondet,state<int>|e> b
+ is less polymorph as: forall<_b> (resume : (result : _b) -> <nondet,state<int>|_e> $a, op : .op-choice<_b>) -> <nondet,state<int>|_e> $a
+ because : type cannot be instantiated to match the annotation

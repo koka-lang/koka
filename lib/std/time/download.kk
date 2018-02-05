@@ -57,6 +57,7 @@ public fun cal-utc-load( fname : path = path(""),
                          verbose : bool = False
                        ) : <io,async> calendar
 {
+  //val fname1 = fname
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-create(leaps)
 }                       
@@ -174,10 +175,11 @@ public fun load-latest( fname  : path,
                       }
                     }
         // check file mod time to see if we tried downloading recently
-        val fi = try(epoch){ fname.mod-time }
+        val fi = try-default(epoch){ fname.mod-time }
         if (download-delay.pos? && (fi + download-delay > unow)) {
           warn("using cached file since it was recently updated.\n  " + fname.show)
           return recent  // expired, but use anyway since we recently updated the file
+          // Just(recent)
         }
         else {
           warn("local cache expired: " + fi.show)

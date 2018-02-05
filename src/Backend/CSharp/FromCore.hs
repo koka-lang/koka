@@ -6,12 +6,12 @@
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
--- System F-like core language. 
+-- System F-like core language.
 -----------------------------------------------------------------------------
 
 module Backend.CSharp.FromCore( csharpFromCore
-                              -- , ArityMap, ExtMap 
-                              -- , arityMapInit, externalMapInit 
+                              -- , ArityMap, ExtMap
+                              -- , arityMapInit, externalMapInit
                               ) where
 
 import Platform.Config(version)
@@ -23,34 +23,35 @@ import Data.List( transpose )
 import Lib.PPrint
 
 import Kind.Kind
-import Type.Type 
+import Type.Type
 import Type.TypeVar
 import Type.Kind( getKind )
 import Type.Assumption( getArity )
 import Type.Pretty( niceType )
 
 import Common.Syntax( Target(..) )
-import Common.Name 
+import Common.Name
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
 import Common.Range
 import Common.File(notdir)
 
-import Core.Core  
+import Core.Core
 import Core.Pretty
+import Core.CoreVar
 import Type.Pretty(defaultEnv)
 -- import Lib.Trace ( trace )
 
 --------------------------------------------------------------------------
--- Generate CSharp code from System-F 
+-- Generate CSharp code from System-F
 --------------------------------------------------------------------------
 
-csharpFromCore :: Int -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore maxStructFields mbMain core
+csharpFromCore :: Int -> Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore maxStructFields useCps mbMain core
   = let body = runAsm initEnv (genProgram maxStructFields core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <> text ", koka version:" <+> string version <->
-       text "#pragma warning disable 164 // unused label" <->  
+       text "#pragma warning disable 164 // unused label" <->
        text "#pragma warning disable 162 // unreachable code" <->
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
@@ -61,14 +62,19 @@ csharpFromCore maxStructFields mbMain core
        (case mbMain of
           Just (name,tp)
             -> (text "public static class Program {" <-> indent 2 (ppMain name tp) <-> text "}")
-          Nothing 
+          Nothing
             -> empty)
   where
+    isAsync = case mbMain of 
+                Just (name,tp) -> isAsyncFunction tp
+                _ -> False
+
     initEnv = Env { moduleName = coreProgName core
                   , currentDef = nameNil
                   , resultKind = ResultReturn True
                   , currentIndent = 0
                   , currentArgs = Nothing
+                  , withCps     = useCps
                   }
 
 includeExternal :: External -> [Doc]
@@ -85,28 +91,31 @@ includeExternal _  = []
 ppMain :: Name -> Type -> Doc
 ppMain name tp
   = classFun <->
-    text "static void Main() {" <->     
-     indent 4 (ppName nameMainConsole <> text "<Unit,Unit>( new MainFun() );" ) <-> 
+    text "static void Main() {" <->
+     indent 4 (ppName nameMainConsole <> text "<Unit,Unit>( new MainFun() );" ) <->
     text "}"
   where
     classFun = vcat [
                  text "sealed class MainFun : Fun0<Unit> {",
                  indent 2 $ text "public object Apply() {",
-                 indent 4 $ text "return (object)" <> parens (ppName name <> typeArgs <> text "()") <> semi,
+                 indent 4 $ text "return (object)" <> parens callMain <> semi,
                  indent 2 $ text "}",
                  text "}"
                ]
+    callMain    = if (isAsyncFunction tp) then asyncMain else consoleMain
+    asyncMain   = text "__std_async.async_handle( new Primitive.FunFunc0<Unit>( () => " <+> consoleMain <+> text "))"
+    consoleMain = ppName name <> typeArgs <> text "()"
     typeArgs = case expandSyn tp of
                  TForall pars _ _ | not (null pars)
                    -> angled (map (\_ -> text "object") pars)
                  _ -> empty
-  
+
 genProgram :: Int -> Core -> Asm ()
 genProgram maxStructFields core
   = do mapM_ (genTypeDefGroup maxStructFields) (coreProgTypeDefs core)
        mapM_ genDefGroup (coreProgDefs core)
 
-       
+
 
 
 ---------------------------------------------------------------------------------
@@ -130,7 +139,6 @@ isStruct _                = False
 hasTagField :: DataRepr -> Bool
 hasTagField DataNormal = True
 hasTagField DataStruct = True
-hasTagField DataIso    = True
 hasTagField _          = False
 
 genTypeDef :: Int -> TypeDef -> Asm ()
@@ -142,22 +150,22 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
        ctx <- getModule
        putLn $ text "// type" <+> pretty (dataInfoName info)
        case getDataRepr maxStructFields info of
-         (DataEnum,_) 
-           -> do putLn (ppVis vis <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+> 
+         (DataEnum,_)
+           -> do putLn (ppVis vis <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+>
                       block (vcatBreak (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conViss))))
                      )
-         (dataRepr,conReprs) 
+         (dataRepr,conReprs)
            -> do if (isExtend) then return ()
                   else do  -- generate type parameter constants
                            if (null (dataInfoParams info))
                             then return ()
-                            else putLn (ppVis vis <+> 
+                            else putLn (ppVis vis <+>
                                         text "sealed class" <+>
                                         ppDefName (typeConClassName (dataInfoName info)) <+> text "{ }")
                            -- generate the type
                            let noCons = null conReprs
-                           putLn (ppVis vis <+> (if (noCons && not (dataInfoIsOpen info)) then text "sealed " else empty) <> 
-                                  (if isStruct dataRepr then text "struct" else text "class") <+> 
+                           putLn (ppVis vis <+> (if (noCons && not (dataInfoIsOpen info)) then text "sealed " else empty) <>
+                                  (if isStruct dataRepr then text "struct" else text "class") <+>
                                   ppDefName (typeClassName (dataInfoName info)) <>
                                   ppTypeParams (dataInfoParams info) <>
                                   (if (null (dataInfoParams info))
@@ -166,29 +174,29 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                                   ))
                            putLn $ text "{"
                  indented $
-                   do -- generate constructors
-                      mapM_ (genConstructor info dataRepr) (zip (zip (dataInfoConstrs info) conViss) conReprs)
-                      -- tag field
+                   do -- tag field
                       if (hasTagField dataRepr)
                        then do onTopLevel $
-                                  putLn (text "public enum" <+> ppTagType ctx (unqualify (dataInfoName info)) <+> 
+                                  putLn (text "public enum" <+> ppTagType ctx (unqualify (dataInfoName info)) <+>
                                           block (vcatBreak (punctuate comma (map ppDefName (map conInfoName (dataInfoConstrs info))))))
-                               putLn (text "public" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
-                                             text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
+                               putLn (text "public readonly" <+> ppTagType ctx (dataInfoName info) <+> ppTagName <> semi <->
+                                             text (if (isDataStruct dataRepr) then "private" else "protected") 
+                                              <+> ppDefName (typeClassName (dataInfoName info)) <> parens (ppTagType ctx (dataInfoName info) <+> ppTagName) <>
                                                block (linebreak <> vcat (
                                                  [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
                                                  ++
-                                                 (case dataRepr of 
+                                                 (case dataRepr of
                                                     DataStruct -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
-                                                                  in map (ppAssignDefault ctx) allfields
-                                                    DataIso    -> let allfields = concatMap conInfoParams (dataInfoConstrs info)
                                                                   in map (ppAssignDefault ctx) allfields
                                                     _          -> [])
                                                ))
-                                            )
+                                            )                                
                        else if (dataRepr == DataAsList)
                         then putLn (text "public" <+> ppDefName (typeClassName (dataInfoName info)) <> text "() { }")
                         else return ()
+                      -- generate constructors
+                      mapM_ (genConstructor info dataRepr) (zip (zip (dataInfoConstrs info) conViss) conReprs)
+                        
                  if (isExtend) then return () else putLn (text "}")
   where
     ppEnumCon (con,vis)
@@ -201,12 +209,8 @@ genConstructor info dataRepr ((con,vis),conRepr) =
        -> return ()
     ConSingleton typeName _
        -> assertion ("CSharp.FromCore.genTypeDef: singleton constructor with existentials?") (null (conInfoExists con)) $
-          do let ppTpParams = ppTypeParams (dataInfoParams info ++ conInfoExists con)
-                 ppConType  = ppDefName (typeClassName typeName) <> ppTpParams
-             ctx <- getModule
-             putLn (text "public static readonly" <+> ppConType <+> ppDefName (conClassName (conInfoName con)) <+>
-                    text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
-        
+          conSingleton typeName      
+
     ConAsCons typeName nilName _
        -> -- merge it into the type class itself
           do ctx <- getModule
@@ -228,97 +232,116 @@ genConstructor info dataRepr ((con,vis),conRepr) =
 
     _  -> onTopLevel $
           do ctx <- getModule
+             (ppSuper,matchMethods) <- conExistsMatch ctx (conInfoExists con)
              let ppConType = ppDefName (conClassName (conInfoName con)) <> ppTypeParams (dataInfoParams info ++ conInfoExists con)
-             putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon <+>
-                      (ppQName ctx (typeClassName (dataInfoName info))) <> ppTypeParams (dataInfoParams info) <+>
-                   block ( linebreak <> vcat 
+             putLn (ppVis vis <+> text "sealed class" <+> ppConType <> colon 
+                      <+> ppSuper <> ppTypeParams (dataInfoParams info) <+>
+                   block ( linebreak <> vcat
                          (map (ppConField ctx) (conInfoParams con) ++
-                          ppConConstructor ctx con conRepr [] 
+                          ppConConstructor ctx con conRepr [] ++
+                          matchMethods
                          )
                         )
                  )
              -- genConCreator con conRepr vis
              -- putLn (linebreak)
   where
+    conStruct typeName  | null (conInfoParams con)
+      = conSingleton typeName
     conStruct typeName
-      = -- merge it into the type class itself
-        do ctx <- getModule
-           let others = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
-               docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr others
+        -- merge it into the type class itself
+      = do ctx <- getModule
+           let defaults = concatMap conInfoParams (filter (\ci -> conInfoName ci /= conInfoName con) (dataInfoConstrs info))
+               docs = map (ppConField ctx) (conInfoParams con) ++ 
+                      ppConConstructor ctx con conRepr defaults
            if (null docs)
             then return ()
-            else putLn (vcat (docs))  
+            else putLn (vcat (docs))
 
+    conSingleton typeName        
+      = do let ppTpParams = ppTypeParams (dataInfoParams info ++ conInfoExists con)
+               ppConType  = ppDefName (typeClassName typeName) <> ppTpParams
+           ctx <- getModule
+           putLn (text "public static readonly" <+> ppConType <+> ppDefName (conClassName (conInfoName con)) <+>
+                  text "=" <+> text "new" <+> ppConType <> parens (if (hasTagField dataRepr) then ppTag ctx typeName (conInfoName con) else empty) <> semi)
+
+
+    conExistsMatch ctx exists
+      = let super = ppQName ctx (typeClassName (dataInfoName info))
+        in if (null exists)
+            then return (super,[])
+            else do let ppConName = ppDefName (conClassName (conInfoName con))
+                        ppConType = ppConName <> ppTypeParams (dataInfoParams info)  
+                        ppExistsMatchMethodHeader 
+                          = text "object ExistsMatch" <> parens (ppExistsApplyType (length exists) ppConType <+> text "_match")             
+                    putLn (ppVis vis <+> text "abstract class" <+> ppConType <+> colon <+> super <> ppTypeParams (dataInfoParams info) <>                        
+                             block (linebreak <> vcat
+                                    [text "public" <+> ppConName <> parens (ppTagType ctx (dataInfoName info) <+> text "_tag")
+                                        <+> text ": base(_tag) { }"
+                                    ,text "public abstract" <+> ppExistsMatchMethodHeader <> semi
+                                    ]
+                                   )
+                           )
+                    let ppExistsMatchMethod 
+                          = text "public override" <+> ppExistsMatchMethodHeader 
+                              <+> block (linebreak <> text "return _match.ExistsApply" <> ppTypeParams exists <> parens (text "this") <> semi)
+                    return (ppConName, [ppExistsMatchMethod])
+
+ppExistsApplyType :: Int -> Doc -> Doc
+ppExistsApplyType i tp = text ("ExistsApply" ++ show i) <> angled [tp]
+           
 ppConField :: ModuleName -> (Name,Type) -> Doc
-ppConField ctx (name,tp) 
+ppConField ctx (name,tp)
   = text "public readonly" <+> ppType ctx tp <+> ppQName ctx name <> semi
 
 ppConConstructor :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [Doc]
 ppConConstructor ctx con conRepr defaults
-  = if (null (conInfoParams con) && not (isConNormal conRepr))
+  = ppConConstructorEx ctx con conRepr (conInfoParams con) defaults
+
+ppConConstructorEx :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [(Name,Type)] -> [Doc]
+ppConConstructorEx ctx con conRepr conParams defaults
+  = if (null conParams && not (isConNormal conRepr))
      then []
-     else [text "public" <+> 
+     else [text "public" <+>
            (case conRepr of
               ConAsCons typeName nilName _ -> ppDefName (typeClassName typeName)
               ConSingle typeName _ -> ppDefName (typeClassName typeName)
               ConStruct typeName _ -> ppDefName (typeClassName typeName)
               ConIso    typeName _ -> ppDefName (typeClassName typeName)
-              _                    -> ppDefName (conClassName (conInfoName con))) <> 
-           tupled (case conRepr of
-                     ConStruct typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
-                     ConIso    typeName _ -> (ppTagType ctx typeName <+> ppTagName) : map ppParam (conInfoParams con)
-                     _                    -> map ppParam (conInfoParams con)) <+>
+              _                    -> ppDefName (conClassName (conInfoName con))) <>
+           tupled (map ppParam (conInfoParams con)) <+>
            (case conRepr of
               ConNormal typeName _ -> text ":" <+> text "base" <> parens (ppTag ctx typeName (conInfoName con)) <> space
               _                    -> empty) <>
            block (linebreak <> vcat (
               (case conRepr of
-                 ConStruct _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
-                 ConIso    _ _ -> [text "this." <> ppTagName <+> text "=" <+> ppTagName <> semi]
+                 ConStruct typeName _ -> [text "this." <> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <> semi]
                  _             -> [])
-              ++ map ppAssignConField (conInfoParams con)
+              ++ map ppAssignConField conParams
               ++ map (ppAssignDefault ctx) defaults
              )
           )]
   where
-    ppParam (name,tp)  
+    ppParam (name,tp)
       = ppType ctx tp <+> ppDefName name
-    
+
     ppAssignConField (name,tp)
       = text "this." <> ppDefName name <+> text "=" <+> ppQName ctx name <> semi
 
 ppAssignDefault ctx (name,tp)
   = text "this." <> ppDefName name <+> text "=" <+> text "default" <> parens (ppType ctx tp) <> semi;
 
-genConCreator :: ConInfo -> ConRepr -> Visibility -> Asm ()
-genConCreator con conRepr vis
-  = onTopLevel $
-    do ctx <- getModule
-       let (foralls,preds,tp) = splitPredType (conInfoType con)
-           vars               = foralls ++ conInfoExists con
-           newCall  = text "new" <+> ppQName ctx (conClassName (conInfoName con)) <> ppTypeParams vars <> ppArgs (map fst (conInfoParams con)) <> semi
-       putLn (ppVis vis <+> text "static" <+> 
-            (if (isConSingleton conRepr) -- (null (conInfoParams con))
-              then ppType ctx tp <+> ppDefName (conInfoName con) <> ppTypeParams vars <> 
-                     (if (null vars) 
-                       then text " =" <+> newCall                  
-                       else text "()" <+> block (linebreak <> text "return" <+> ppQName ctx (conClassName (conInfoName con)) <> ppTypeParams vars <> dot <> ppSingletonName <> semi)
-                     )
-              else ppFunctionHeaderGen ctx (conInfoName con) vars preds tp <+> 
-                   block (linebreak <> text "return" <+> newCall)
-            )
-           )
 
 
 ppTag ctx typeName conName
   = ppTagType ctx typeName <> text "." <> ppDefName conName
 
 ppTagType ctx typeName
-  = ppQName ctx (typeClassName typeName) <> text "_Tag" 
+  = ppQName ctx (typeClassName typeName) <> text "_Tag"
 
 ppTagName
   = text tagName
-  
+
 tagName
   = "tag_";
 
@@ -329,11 +352,11 @@ ppSingletonName
 -- Helpers
 ---------------------------------------------------------------------------------
 ppFunctionHeaderGen :: ModuleName -> Name -> [TypeVar] -> [Pred] -> Type -> Doc
-ppFunctionHeaderGen ctx name vars preds tp 
+ppFunctionHeaderGen ctx name vars preds tp
   = case expandSyn tp of
       TForall vars' preds' t -> ppFunctionHeaderGen ctx name (vars' ++ vars) (preds' ++ preds) t
-      TFun pars eff res      
-        -> ppType ctx res <+> ppDefName name <> 
+      TFun pars eff res
+        -> ppType ctx res <+> ppDefName name <>
            ppTypeParams vars <>
            ppParams ctx (map predToParam (zip preds [1..]) ++ pars)
       _ -> matchFailure "Backend.CSharp.FromCore.ppFunctionHeaderGen"
@@ -385,24 +408,40 @@ genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
 genDef :: Bool -> Def -> Asm ()
-genDef isRec (Def name tp expr vis isVal nameRng doc)
-  = trace ("genDef: " ++ show name) $
+genDef isRec def@(Def name tp expr vis defsort nameRng doc)
+  = if (defIsVal def)
+     then genDefX isRec def
+     else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
+            TypeLam _ _ -> genDefX isRec def
+            Lam _ _ _   -> genDefX isRec def
+            _ -> let (n,m) = getTypeArities tp
+                 in if (m <= 0) then genDefX isRec def else
+                     do expr1 <- tetaExpand expr [] n
+                        expr2 <- etaExpand expr1 [] m
+                        genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
+
+genDefZ :: Bool -> Def -> Asm ()
+genDefZ isRec def  = genDefX isRec def
+
+genDefX :: Bool -> Def -> Asm ()
+genDefX isRec (Def name tp expr vis isVal nameRng doc)
+  = -- trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
     do ctx <- getModule
        putLn empty
-       putLineNo nameRng 
+       putLineNo nameRng
        case expr of
          TypeLam tpars (Lam pars eff e)
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppTypeParams tpars <> ppParams ctx (unzipTNames pars))
-                  genBody isRec True e            
+                  genBody isRec True e
 
          Lam pars eff e
             -> do putLn (hang 2 $ ppVis vis <+> text "static" <+> ppType ctx (typeOf e) </> ppDefName name <> ppParams ctx (unzipTNames pars))
-                  genBody isRec True e                       
+                  genBody isRec True e
          Lit lit
             -> do putLn (ppVis vis <+> text constdecl <+> ppType ctx tp <+> ppDefName name <+> text "=" <+> ppLit lit <> semi)
-            where 
+            where
                constdecl = case lit of
                              LitInt _ -> "static readonly"
                              _        -> "const"
@@ -422,6 +461,7 @@ extractArgs name expr
 
 
 etaExpand :: Expr -> [Expr] -> Int -> Asm Expr
+-- etaExpand fun [] 0 = return fun
 etaExpand fun args n
   = assertion "Backend.CSharp.FromCore.etaExpand" (n > length args || (n == 0 && null args)) $
     do names <- mapM (\i -> newVarName "x") [length args + 1 .. n]
@@ -431,8 +471,9 @@ etaExpand fun args n
        return (Lam tnames typeTotal (App fun (args ++ args')))
 
 tetaExpand :: Expr -> [Type] -> Int -> Asm Expr
+tetaExpand fun [] 0 = return fun
 tetaExpand fun targs m
-  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs) $
+  = assertion "Backend.CSharp.FromCore.tetaExpand" (m > length targs || (m==0 && null targs)) $
     do ids <- uniqueIds ".t" (m - length targs)
        let (vars,_,_) = splitPredType (typeOf fun)
            kinds      = map getKind (drop (length targs) vars)
@@ -449,12 +490,12 @@ genArguments exprs
   = if (length (filter (not . isInline) exprs) <= 1)
      then mapM genInline exprs
      else mapM genAtomic exprs
-    
+
 
 
 genInline :: Expr -> Asm Doc
 genInline expr
-  = if isInline expr 
+  = if isInline expr
      then withIdOne (genExpr expr)
      else genAtomic expr
 
@@ -463,7 +504,7 @@ isInline expr
       Case{} -> False
       _      -> True
 
-isAtomic expr 
+isAtomic expr
   = case expr of
       Lit _          -> True
       Var _ InfoNone -> True
@@ -471,30 +512,38 @@ isAtomic expr
       _              -> False
 
 genExpr :: Expr  -> Asm ()
-genExpr expr 
-  = -- trace ("genExpr: " ++ show funname) $
+genExpr expr
+  = -- trace ("genExpr: " ++ show expr) $
     do def <- getCurrentDef
        case expr of
           -- note: values with a generic parameter become functions in the C# translation (i.e. nil)
 
-          -- function calls     
-          TypeApp (Var tname (InfoArity m n)) targs 
+          -- ignore .open function applications
+          App (App (TypeApp var@(Var tname (InfoExternal _)) [from,to]) [arg]) args  | getName tname == nameEffectOpen
+            -> genExpr (App arg args)
+
+          -- int32 constants
+          App (Var tname _) [Lit (LitInt i)]  | getName tname == nameInt32 && isSmallInt i
+            -> result (pretty i)
+
+          -- function calls
+          TypeApp (Var tname (InfoArity m n _)) targs
             -> genStatic tname m n targs Nothing
 
-          App var@(Var tname (InfoArity m n)) args
+          App var@(Var tname (InfoArity m n _)) args
             -> genStatic tname m n [] (Just args)
 
-          App (TypeApp (Var tname (InfoArity m n)) targs) args
+          App (TypeApp (Var tname (InfoArity m n _)) targs) args
             -> genStatic tname m n targs (Just args)
 
-          -- possible dynamic tail calls          
+          -- possible dynamic tail calls
           App (TypeApp (Var tname InfoNone) targs) args | def == getName tname
             -> genTailCall expr tname targs args
 
           App (Var tname InfoNone) args  | def == getName tname
             -> genTailCall expr tname [] args
 
-          -- constructors 
+          -- constructors
           TypeApp (Con tname repr) targs
             -> genCon tname repr targs []
 
@@ -508,7 +557,7 @@ genExpr expr
           TypeApp (Var tname (InfoExternal formats)) targs
             -> genExternal tname formats targs []
 
-          App var@(Var tname (InfoExternal formats)) args 
+          App var@(Var tname (InfoExternal formats)) args
             -> genExternal tname formats [] args
 
           App (TypeApp (Var tname (InfoExternal formats)) targs) args
@@ -528,7 +577,7 @@ genExpr expr
                                          result d
                           _        -> do d <- genInline e
                                          putLn (text "if" <+> parens d <+> text "{")
-                                         indented $ genExpr (guardExpr g1)        
+                                         indented $ genExpr (guardExpr g1)
                                          putLn (text "}")
                                          putLn (text "else {")
                                          indented $ genExpr (guardExpr g2)
@@ -541,36 +590,42 @@ genExpr expr
 
 genExternal :: TName -> [(Target,String)] -> [Type] -> [Expr] -> Asm ()
 genExternal  tname formats targs args
- = let (m,n) = getTypeArities (typeOf tname) in
-   if (n > length args)
-    then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
-         do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
-            genExpr eta            
-    else assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $        
-         do argDocs <- genArguments args
-            ctx     <- getModule
-            if (getName tname == nameReturn) 
-             then -- return statements
-                  assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
-                  do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
-                     isret <- isReturnContext
-                     if (isret)
-                      then result argDoc
-                      else do putLn (text "return" <+> argDoc <> semi)
-                              result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
-             else -- general external
-                  do currentDef <- getCurrentDef
-                     let resTp = resultType targs (typeOf tname)
-                         targDocs = map (ppType ctx) targs
-                         extDoc = ppExternal currentDef formats (ppType ctx resTp) targDocs argDocs
-                     if (isTypeUnit resTp)
-                       then do putLn (extDoc <> semi)
-                               result (text "Unit.unit")
-                       else result extDoc
+ = do let (m,n) = getTypeArities (typeOf tname)
+      cps <- useCps
+      ctx <- getModule
+      if (n > length args)
+        then assertion "CSharp.FromCore.genExternal: m /= targs" (m == length targs) $
+             do eta <- etaExpand (TypeApp (Var tname (InfoExternal formats)) targs) args n
+                genExpr eta
+      {- else if (not cps && getName tname == nameYieldOp && length targs == 2)
+        then do let resTp = last (filter (\t -> isKindStar (getKind t)) targs)
+                currentDef <- getCurrentDef
+                result (text "Primitive.UnsupportedExternal<" <> ppType ctx (resTp) <> text ">(" <> ppLit (LitString (show currentDef)) <> text ")")
+                -}
+        else -- assertion ("CSharp.FromCore.genExternal: " ++ show tname ++ ": n < args: " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+             do argDocs <- genArguments args
+                if (getName tname == nameReturn)
+                 then -- return statements
+                      assertion "CSharp.FromCore.genExternal: return with arguments > 1" (length argDocs <= 1) $
+                      do let argDoc = if (length argDocs == 1) then head argDocs else (text "Unit.unit")
+                         isret <- isReturnContext
+                         if (isret)
+                          then result argDoc
+                          else do putLn (text "return" <+> argDoc <> semi)
+                                  result (text "Primitive.Unreachable<" <> ppType ctx (resultType [] (typeOf tname)) <> text ">()")
+                 else -- general external
+                      do currentDef <- getCurrentDef
+                         let resTp = resultType targs (typeOf tname)
+                             targDocs = map (ppType ctx) targs
+                             extDoc = ppExternal currentDef tname formats (ppType ctx resTp) targDocs argDocs
+                         if (isTypeUnit resTp)
+                           then do putLn (extDoc <> semi)
+                                   result (text "Unit.unit")
+                           else result extDoc
 
 resultType targs tp
   = let (vars,preds,rho) = splitPredType tp
-    in subNew (zip vars targs) |-> 
+    in subNew (zip vars targs) |->
        (case splitFunType rho of
          Just (pars,eff,res) -> res
          Nothing             -> rho)
@@ -583,19 +638,21 @@ kindCast ctx targs tp doc
 
 
 genStatic :: TName -> Int -> Int -> [Type] -> Maybe [Expr] -> Asm ()
-genStatic tname m n targs mbArgs 
- = let args = case mbArgs of 
+genStatic tname m n targs mbArgs
+ = -- trace ("genStatic: " ++ show tname ++ show (m,n)) $
+   let args = case mbArgs of
                 Just xs -> xs
                 Nothing -> []
-   in if (null args && m > length targs) 
-    then do teta <- tetaExpand (Var tname (InfoArity m n)) targs m
+   in if (null args && m > length targs)
+    then do teta <- tetaExpand (Var tname (InfoArity m n NoMon)) targs m
             genExpr teta
-   else if (n > length args || isNothing mbArgs)  
+   else if ((n == 0 || n > length args) && isNothing mbArgs)
     then assertion ("CSharp.FromCore.genStatic: m /= targs: " ++ show tname ++ show (m,n)) (m == length targs) $
-         do eta <- etaExpand (TypeApp (Var tname (InfoArity m n)) targs) args n
+         do eta <- etaExpand (TypeApp (Var tname (InfoArity m n NoMon)) targs) args n
             genExpr eta
     else do cdef <- getCurrentDef
             assertion ("CSharp.FromCore.genApp in: " ++ show cdef ++ ": " ++ show tname ++ " " ++ show (m,n) ++ show (length targs,length args)) (n == length args && m == length targs) $
+            -- trace("genStatic: " ++ show cdef ++ ": " ++ show (m,n) ++ show (length targs, length args)) $
              do argDocs <- genArguments args
                 -- let cast  = kindCast ctx targs (typeOf tname)
                 ctx <- getModule
@@ -609,10 +666,24 @@ genStatic tname m n targs mbArgs
                        assertion ("CSharp.FromCore.genStatic: tail arguments /= arguments") (length args == length parNames) $
                        do assignArguments parNames argDocs args
                           putLn (text "goto recurse;")
-                  _ -> result (kindCast ctx targs (typeOf (App (TypeApp (Var tname (InfoArity m n)) targs) args))
-                               (hang 2 $ ppQName ctx (getName tname) <> 
-                               (if (null targs) then empty else angled (map (ppType ctx) targs)) <//> 
-                               ({- if (null args && null targs) then empty else -} tupled argDocs)))
+                  _ -> result (kindCast ctx targs (typeOf (App (TypeApp (Var tname (InfoArity m n NoMon)) targs) args))
+                               (hang 2 $ ppQName ctx (getName tname) <>
+                                 (if (null targs) then empty else angled (map (ppType ctx) targs)) <//>
+                                 ({- if (null args && null targs) then empty else -} septupled argDocs)))
+
+genDynamic :: Expr -> [Expr] -> Asm ()
+genDynamic v@(Var tname (InfoArity m n _)) args
+  = genStatic tname m n [] (Just args)
+
+genDynamic f args
+  = do d <- genInline f
+       ds <- genArguments (args)
+       -- result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
+       -- trace ("dynamic call: " ++ show f) $
+       result (d <> dot <> text "Call" <> tupled ds) 
+
+septupled docs
+  = lparen <> vsep (punctuate (comma) docs) <> rparen
 
 isNothing Nothing = True
 isNothing _       = False
@@ -626,7 +697,7 @@ genTailCall expr tname targs args
        -- trace ("genTailCall: " ++ show (getName tname, def, ret,mbArgs)) $ return ()
        case (ret,mbArgs) of
          (True,Just (tpars,parNames)) | def == getName tname && targs == tpars
-            -> do argDocs <- genArguments args 
+            -> do argDocs <- genArguments args
                   assignArguments parNames argDocs args
                   putLn (text "goto recurse;")
          _  -> genExprBasic expr
@@ -638,7 +709,7 @@ assignArguments parNames0 argDocs0 args0
               notIdentity (par,argDoc,Var tname _) = getName tname /= par
               notIdentity _                        = True
 
-        fvs = map (map fst . localFv) args 
+        fvs = map (map fst . localFv) args
         independent (par:pars) (fv:fvs)
           = all (not . elem par) fvs  && independent pars fvs
         independent [] []
@@ -668,42 +739,44 @@ genCon tname repr targs args
        then assertion "CSharp.FromCore.genCon: m /= targs" (m == length targs) $
          do eta <- etaExpand (TypeApp (Con tname repr) targs) args n
             genExpr eta
-       else assertion "CShapr.FromCore.genCon: n < args" (n == length args && m == length targs) $
+       else assertion "CSharp.FromCore.genCon: n < args" (n == length args && m == length targs) $
          do argDocs <- genArguments args
             -- let cast  = kindCast ctx targs (typeOf tname)
             ctx <- getModule
             result $ hang 2 $ -- cast $
-             case repr of                
+             case repr of
               ConEnum _ _
                 -> assertion "genCon: ConEnum has type args or args?" (null targs && null args) $
                    ppConEnum ctx tname
               ConSingleton typeName _
-                -> ppConSingleton ctx typeName tname targs 
+                -> ppConSingleton ctx typeName tname targs
+              ConStruct typeName _ | null args 
+                -> ppConSingleton ctx typeName tname targs
               ConStruct typeName _
-                -> text "new" <+> 
+                -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
-                   tupled (ppTag ctx typeName (getName tname) : argDocs)
+                   tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
               ConIso typeName _
-                -> text "new" <+> 
+                -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <>
                    ppTypeArgs ctx targs <//>
-                   tupled (ppTag ctx typeName (getName tname) : argDocs)
-              _ -> text "new" <+> 
+                   tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
+              _ -> text "new" <+>
                    (case repr of
                       ConAsCons typeName _ _
-                         -> ppQName ctx (typeClassName typeName) 
+                         -> ppQName ctx (typeClassName typeName)
                       ConSingle typeName _
-                         -> ppQName ctx (typeClassName typeName) 
-                      _  -> ppQName ctx (conClassName (getName tname))) <> 
-                   (ppTypeArgs ctx targs) <//> 
-                   (-- if (null targs && null args && not (isConNormal repr)) then empty else 
+                         -> ppQName ctx (typeClassName typeName)
+                      _  -> ppQName ctx (conClassName (getName tname))) <>
+                   (ppTypeArgs ctx targs) <//>
+                   (-- if (null targs && null args && not (isConNormal repr)) then empty else
                       tupled argDocs)
 
 ppConEnum :: ModuleName -> TName -> Doc
 ppConEnum ctx tname
   = let name = getName tname in
-     if (name == nameTrue) 
+     if (name == nameTrue)
       then text "true"
      else if (name == nameFalse)
       then text "false"
@@ -715,39 +788,39 @@ ppConSingleton :: ModuleName -> Name -> TName -> [Type] -> Doc
 ppConSingleton ctx typeName tname targs
   = ppQName ctx (typeClassName typeName) <> ppTypeArgs ctx targs <> text "." <> ppDefName (conClassName (getName tname))
 
-ppExternal :: Name -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
-ppExternal currentDef formats resTp targs args0
+ppExternal :: Name -> TName -> [(Target,String)] -> Doc -> [Doc] -> [Doc] -> Doc
+ppExternal currentDef extName formats resTp targs args0
   = let args = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) args0
     in case lookup CS formats of
      Nothing -> case lookup Default formats of
-      Nothing -> 
+      Nothing ->
         trace( "warning: backend does not support external in " ++ show currentDef ) $
         (text "Primitive.UnsupportedExternal<" <>
           resTp <> text ">(\"" <> text (show currentDef) <> text "\")")
       Just s  -> ppExternalF s targs args
      Just s -> ppExternalF s targs args
-
-
-ppExternalF :: String -> [Doc] -> [Doc] -> Doc
-ppExternalF fmt targs args
-  = case fmt of
-      [] -> empty
-      ('#':'#':y:xs) ->
-        if y `elem` ['1'..'9']
-         then (index targs ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-         else char y <> ppExternalF  xs targs args   
-      ('#':y:xs) ->
-        if y `elem` ['1'..'9']
-         then (index args ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
-         else char y <> ppExternalF  xs targs args
-      (x:xs) ->
-        char x <> ppExternalF  xs targs args
   where
-    index :: [Doc] -> Int -> Doc
-    index xs i
-      = if (i >= 0 && i < length xs)
-         then xs !! i
-         else failure $ "Backend.CSharp.FromCore.ppExternalF: external index out of range: " ++ fmt
+    ppExternalF :: String -> [Doc] -> [Doc] -> Doc
+    ppExternalF fmt targs args
+      = case fmt of
+          [] -> empty
+          ('#':'#':y:xs) ->
+            if y `elem` ['1'..'9']
+             then (index targs ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+             else char y <> ppExternalF  xs targs args
+          ('#':y:xs) ->
+            if y `elem` ['1'..'9']
+             then (index args ((fromEnum y) - (fromEnum '1'))) <> ppExternalF xs targs args
+             else char y <> ppExternalF  xs targs args
+          (x:xs) ->
+            char x <> ppExternalF  xs targs args
+      where
+        index :: [Doc] -> Int -> Doc
+        index xs i
+          = if (i >= 0 && i < length xs)
+             then xs !! i
+             else failure $ "Backend.CSharp.FromCore.ppExternalF: external index out of range: " ++
+                              "in " ++ show currentDef ++ ": " ++ show extName ++ ": " ++ fmt
 
 genExprBasic :: Expr -> Asm ()
 genExprBasic expr
@@ -755,28 +828,26 @@ genExprBasic expr
        case expr of
           Var tname info
             -> case info of
-                 InfoNone 
+                 InfoNone
                   -> do defName <- getCurrentDef
                         {- if (getName tname == defName)
                          then result (text "this")  -- recursive call to a first-class function: this only works because we disallow polymorphic recursive local definitions
                          else -}
                         result (ppQName ctx (getName tname))
-                 InfoArity m n
+                 InfoArity m n _
                   -> genStatic tname m n [] Nothing
                  InfoExternal format
                   -> genExternal tname format [] []
-          Con tname repr 
+          Con tname repr
             -> genCon tname repr [] []
-          App e es   
-            -> do d <- genInline e
-                  ds <- genArguments (es)
-                  result (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "Apply" <> tupled ds))
+          App e es
+            -> genDynamic e es
           TypeApp e ts
             -> do d <- genInline e
                   result (parens (parens (ppType ctx (typeOf expr)) <> parens (d <> dot <> text "TypeApply"  <> angled (map (ppType ctx) ts) <> text "()")))
                   -- (foldl typeApp d (zip ts (replicate (length ts-1) (text "TypeFun") ++ [ppType ctx (typeOf e)])))
           TypeLam vars e
-            -> do (newTp,gen) <- genLamOrTypeLam False expr 
+            -> do (newTp,gen) <- genLamOrTypeLam False expr
                   gen
 
           Lam vars eff e
@@ -785,38 +856,38 @@ genExprBasic expr
                   let freeTVars = tvsList (ftv expr)
                       freeVars  = {- filter (\(nm,tp) -> nm /= funname) -} (localFv expr)
                   -- trace ("lift expr: " ++ show funname ++ ": " ++ show (map fst freeVars) ++ "\n" ++ show (prettyExpr defaultEnv expr)) $
-                  genClass name freeTVars freeVars 
+                  genClass name freeTVars freeVars
                       (text "Fun" <> pretty (length vars) <> angled (map (ppType ctx) ([tp | TName _ tp <- vars] ++ [typeOf e])))
                       ((genApplyMethod False vars e))
-                  result (if null freeVars 
+                  result (if null freeVars
                            then (ppQName ctx name <> ppTypeParams freeTVars <> dot <> ppSingletonName)
                            else (text "new" <+> ppQName ctx name <> ppTypeParams freeTVars <> ppArgs (map fst freeVars)))
-          
-          Case exprs branches 
+
+          Case exprs branches
             -> do exprDocs <- mapM genAtomic exprs
                   {-
                   let patternss = transpose (map branchPatterns branches) -- list of list of patterns per expr
-                      tagDoc   = vcat (concat (map ppGetTag (zip exprDocs (zip [1..] patternss))))  
+                      tagDoc   = vcat (concat (map ppGetTag (zip exprDocs (zip [1..] patternss))))
                   putLocal tagDoc
                   -}
                   lab <- genName (newName "label")
-                  genBranches (ppDefName lab) exprDocs branches 
+                  genBranches (ppDefName lab) exprDocs branches
                   -- putLn (text ("throw new Exception(\"" ++ show defName ++ ": pattern match failed.\");"))
                   ctx <- getModule
                   defName <- getCurrentDef
                   -- putLn (text "Primitive.PatternMatchError" <> ppTypeArgs ctx [typeOf expr] <> parens (dquotes (string (show defName))) <> semi)
                   ret <- isReturnContext
-                  if (ret) 
+                  if (ret)
                    then return ()
                    else putLn (ppDefName lab <> text ": ;")
 
           Let defgroups expr
             -> genLetGroups defgroups expr
-  
+
           Lit lit
             -> result (ppLit lit)
           -- _ -> result (text "todo genExpr")
-          
+
 
 genLamOrTypeLam tailCtx expr
   = do ctx     <- getModule
@@ -830,7 +901,7 @@ genLamOrTypeLam tailCtx expr
 
                  genClass name freeTVars freeVars (text "TypeFun" <> pretty (length vars)) ((genTypeApplyMethod vars e))
                  return (newType
-                        ,result (if null freeVars 
+                        ,result (if null freeVars
                            then (newType <> dot <> ppSingletonName)
                            else (text "new" <+> newType <> ppArgs (map fst freeVars)))
                         )
@@ -838,18 +909,18 @@ genLamOrTypeLam tailCtx expr
            -> do let freeTVars = tvsList (ftv expr)
                      freeVars  = {- filter (\(nm,tp) -> nm /= funname) -} (localFv expr)
                      newType   = ppQName ctx name <> ppTypeParams freeTVars
-                 -- trace("lift: " ++ show (map fst freeVars)) $    
-                 genClass name freeTVars freeVars 
+                 -- trace("lift: " ++ show (map fst freeVars)) $
+                 genClass name freeTVars freeVars
                       (text "Fun" <> pretty (length vars) <> angled (map (ppType ctx) ([tp | TName _ tp <- vars] ++ [typeOf e])))
                       ((genApplyMethod tailCtx vars e))
                  return (newType
-                        ,result (if null freeVars 
+                        ,result (if null freeVars
                            then (newType <> dot <> ppSingletonName)
                            else (text "new" <+> newType <> ppArgs (map fst freeVars)))
                         )
-         _ -> matchFailure "Backend.CSharp.FromCore.genLamOrTypeLam" 
+         _ -> matchFailure "Backend.CSharp.FromCore.genLamOrTypeLam"
 
-        
+
 localFv expr
   = filter (not . isQualified . fst) (tnames (fv expr)) -- trick: only local names are not qualified
 
@@ -878,8 +949,8 @@ genLetDefs isRec defs groups expr
                  let newName = qualify (qualifier defname) newVName -- need to qualify or otherwise its considered local
                      newDef = Def newName tp expr vis isVal nameRng ""
                      (m,n)  = getArity tp
-                 return ([(TName name tp,Var (TName newName (typeOf expr)) (InfoArity m n))], newDef)
-      
+                 return ([(TName name tp,Var (TName newName (typeOf expr)) (InfoArity m n NoMon))], newDef)
+
 liftDefToTopLevel def
   = case (defExpr def) of
       TypeLam tpars (Lam pars eff e) -> isTopLevel def
@@ -902,21 +973,23 @@ genLetDef isRec def@(Def name tp expr vis isVal nameRng doc)
      else do ctx <- getModule
              -- let with gen = (if isSingleRec then withRecDef name (extractArgs name expr) else withDef name) gen
              if (nameIsNil name && isStatement expr)
-              then do withAssign (\_ doc -> doc <> semi) (withDef name (genExpr expr))
+              then do withAssign (\_ doc ->  if (show doc == "Unit.unit") -- prevents empty statement, but it is ugly :-(
+                                               then empty
+                                               else (doc <> semi)) (withDef name (genExpr expr))
               else do name' <- if nameIsNil name
                                 then genName name
                                 else return name
                       if (isInline expr)
-                       then do exprDoc <- withDef name' (genInline expr) 
+                       then do exprDoc <- withDef name' (genInline expr)
                                putLn (hang 2 $ ppType ctx tp <+> ppDefName name' </> text "=" <+> exprDoc <> semi)
                        else do putLn (ppLocalVar ctx tp name')
-                               withAssign (\_ doc -> if (isTypeUnit tp) 
+                               withAssign (\_ doc -> if (isTypeUnit tp)
                                                        then if (show doc == "Unit.unit") -- prevents empty statement, but it is ugly :-(
                                                              then empty
                                                              else (doc <> semi)
-                                                       else (ppDefName name' <+> text "=" <+> doc <> semi)) 
+                                                       else (ppDefName name' <+> text "=" <+> doc <> semi))
                                           (withDef name' (genExpr expr))
-               
+
 ppLocalVar ctx tp name
   = ppType ctx tp <+> ppDefName name <>
     (if isTypeUnit tp
@@ -946,12 +1019,12 @@ genAtomic expr
           Var tname InfoNone
             -> do ctx <- getModule
                   return (ppQName ctx (getName tname))
-          Con tname repr 
+          Con tname repr
             -> withIdOne (genCon tname repr [] [])
           Lit lit
             -> return (ppLit lit)
           _ -> do ctx <- getModule
-                  local   <- newVarName "x"  
+                  local   <- newVarName "x"
                   if (isInline expr)
                    then do doc <- genInline expr
                            putLn (ppType ctx (typeOf expr) <+> ppDefName local <+> text "=" <+> doc <> semi)
@@ -959,9 +1032,9 @@ genAtomic expr
                            withAssign (\_ doc -> ppDefName local <+> text "=" <+> doc <> semi) (genExpr expr)
                   return (ppDefName local)
 
-          
+
 genBranches :: Doc -> [Doc] -> [Branch] -> Asm ()
-genBranches lab exprDocs branches 
+genBranches lab exprDocs branches
   = do mbTagDocs <- mapM genTag (zip exprDocs (transpose (map branchPatterns branches)))
        let generate = do mapM_ (genBranch mbTagDocs exprDocs True) (init branches)
                          genBranch mbTagDocs exprDocs False (last branches)
@@ -980,57 +1053,92 @@ genBranches lab exprDocs branches
 
 genTag :: (Doc,[Pattern]) -> Asm (Maybe Doc)
 genTag (exprDoc,patterns)
-  = if (null (filter isConMatch patterns)) -- for two or more, it pays to get a tag 
+  = if (null (filter isConMatch patterns)) -- for two or more, it pays to get a tag
      then return Nothing
      else do -- local <- newVarName "tag"
              -- putLn (text "int" <+> ppDefName local <+> text "=" <+> exprDoc <> text "." <> ppTagName <> semi)
              return (Just (exprDoc <> text "." <> ppTagName))
   where
-    isConMatch (PatCon _ _ (ConNormal _ _) _ _ _) = True
-    isConMatch (PatCon _ _ (ConStruct _ _) _ _ _) = True
-    isConMatch (PatCon _ _ (ConIso _ _) _ _ _)    = True
+    isConMatch (PatCon _ _ (ConNormal _ _) _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConStruct _ _) _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConIso _ _) _ _ _ _)    = True
     isConMatch _                                  = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
-genBranch mbTagDocs exprDocs doTest (Branch patterns [Guard guard expr]) -- TODO: adapt for multiple guards!
-  = genPattern doTest (zip3 mbTagDocs exprDocs patterns) (genGuard guard expr) 
+genBranch mbTagDocs exprDocs doTest branch@(Branch patterns [g@(Guard guard expr)]) -- TODO: adapt for multiple guards!
+  = do ctx <- getModule
+       let rtypeDoc = ppType ctx (typeOf expr)
+           freeVars = localFv branch -- overestimate..
+           freeTVars= tvsList (ftv branch)
+       genPattern doTest (zip3 mbTagDocs exprDocs patterns) (rtypeDoc,freeVars,freeTVars) (genGuard guard expr)
 genBranch _ _ _ _
   = fail "Backend.CSharp.FromCore.genBranch: multiple guards not implemented"
 
-genGuard guard expr
+genGuard :: Expr -> Expr -> Asm ()
+genGuard guard expr 
   = case guard of
       Con tname repr | getName tname == nameTrue
         -> genExpr expr
-      _ -> do gdoc <- withIdOne $ genExpr guard
+      _ -> do gdoc <- withIdOne $ genExpr guard  -- TODO: wrap the guard for existentials
               do putLn (text "if" <+> parens (gdoc))
                  genScoped expr
 
+genScoped :: Expr -> Asm ()
 genScoped expr
-  = do putLn (text "{") 
+  = do putLn (text "{")
        indented (genExpr expr)
        putLn (text "}")
        return ()
 
-genPattern :: Bool -> [(Maybe Doc,Doc,Pattern)] -> Asm () -> Asm ()
-genPattern doTest [] genBody
-  = genBody
-genPattern doTest dpatterns genBody
-  = do (testss,localss,nextPatternss) <- fmap (unzip3 . concat) $ mapM (genPatternTest doTest) dpatterns
+genPattern :: Bool -> [(Maybe Doc,Doc,Pattern)] -> (Doc,[(Name,Type)],[TypeVar]) -> Asm () -> Asm ()
+genPattern doTest [] einfo genBody
+  = genBody 
+genPattern doTest dpatterns einfo@(rtypeDoc,freeVars,freeTVars) genBody
+  = do (testss,localss,nextPatternss,ematchess) <- fmap (unzip4 . concat) $ mapM (genPatternTest doTest) dpatterns
        let tests = concat testss
            locals = concat localss
            nextPatterns = concat nextPatternss
+           ematches = concat ematchess
 
-           genPat = do if (null locals)
-                        then return ()
-                        else putLn (vcat locals) 
-                       genPattern doTest nextPatterns genBody
+           genPatBody = do genPattern doTest nextPatterns einfo genBody
+
+           genPat = do if (null locals) then return () else putLn (vcat locals)
+                       case ematches of
+                          [] -> genPatBody
+                          [(etypeDoc,typeDoc,local,exists)] 
+                            -> genExistsApply etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genPatBody
+                          _ -> failure ("Backend.CSharp.FromCore.genPattern: sorry can only handle toplevel simple existential pattern matches")
+
        if (null tests)
-        then do genPat                
+        then do genPat
         else do putLn (text "if" <+> parens (hcat (punctuate (text "&&") tests)) <+> text "{")
                 indented genPat
                 putLn (text "}")
 
-genPatternTest :: Bool -> (Maybe Doc,Doc,Pattern) -> Asm [([Doc],[Doc],[(Maybe Doc,Doc,Pattern)])]
+genExistsApply ::  Doc -> Doc -> Doc -> Name -> [TypeVar] -> [TypeVar] -> [(Name,Type)] -> Asm () -> Asm ()
+genExistsApply etypeDoc typeDoc rtypeDoc local exists freeTVars freeVars genRetE
+  = do ctx     <- getModule
+       funname <- getCurrentDef
+       name    <- genName funname
+       let newType = ppQName ctx name <> ppTypeParams freeTVars
+       genClass name freeTVars freeVars (ppExistsApplyType (length exists) typeDoc) 
+                (genExistsApplyMethod etypeDoc typeDoc local exists genRetE)
+       let inst = if null freeVars
+                     then (newType <> dot <> ppSingletonName)
+                     else (text "new" <+> newType <> ppArgs (map fst freeVars))
+       result (parens rtypeDoc <> ppDefName local <> dot <> text "ExistsMatch" <> parens inst)
+
+genExistsApplyMethod :: Doc -> Doc -> Name -> [TypeVar] -> Asm() -> Asm ()
+genExistsApplyMethod etypeDoc typeDoc local exists genRetE
+  = do putLn (text "public object ExistsApply" <> ppTypeParams exists <> parens (typeDoc <+> text "_ex"))
+       putLn (text "{")
+       indented $ 
+         do putLn (etypeDoc <+> ppDefName local <+> text "= " <> parens etypeDoc <> text "_ex;")
+            withReturn False $ genRetE
+       putLn (text "}")
+
+
+genPatternTest :: Bool -> (Maybe Doc,Doc,Pattern) -> Asm [([Doc],[Doc],[(Maybe Doc,Doc,Pattern)],[(Doc,Doc,Name,[TypeVar])])]
 genPatternTest doTest (mbTagDoc,exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
@@ -1039,17 +1147,18 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
         -> do ctx <- getModule
               let after = ppType ctx (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <> semi
                   next  = genNextPatterns (ppDefName (getName tname)) (typeOf tname) [pattern]
-              return [([],[after],next)]
-
-      PatCon tname patterns repr targs tres info
+              return [([],[after],next,[])]
+      PatLit lit
+        -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[],[])]
+      PatCon tname patterns repr targs exists tres info
         -> do ctx <- getModule
               case repr of
                  ConEnum _ _
                   -> assertion "CSharp.FromCore.ppPatternTest.enum with patterns?" (null patterns) $
-                     return [(test [exprDoc <+> text "==" <+> ppConEnum ctx tname],[],[])]
+                     return [(test [exprDoc <+> text "==" <+> ppConEnum ctx tname],[],[],[])]
                  ConSingleton typeName _
                   -> assertion "CSharp.FromCore.ppPatternTest.singleton with patterns?" (null patterns) $
-                     return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[])] 
+                     return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[],[])]
                  ConSingle typeName _
                   -> -- assertion ("CSharp.FromCore.ppPatternTest.single with test? ")  (doTest == False) $
                      -- note: the assertion can happen when a nested singleton is tested
@@ -1058,23 +1167,21 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         -- local <- newVarName (show (unqualify (getName tname)))
                         let next = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [([] -- test [exprDoc <+> text "!=" <+> ppConSingleton ctx typeName (TName nilName (typeOf tname)) targs]
-                                ,[]
-                                ,next)] 
+                                ,[],next,[])]
 
                  ConAsCons typeName nilName _
                   -> do let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
-                        return [(test [exprDoc <+> text "!=" <+> 
+                        return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]
-                                ,[]
-                                ,next)] 
+                                ,[],next,[])]
                  ConStruct typeName _
                   -> testStruct typeName
-                 ConIso typeName _ 
-                  -> testStruct typeName 
+                 ConIso typeName _
+                  -> testStruct typeName
                  ConNormal typeName _
-                  -> conTest ctx typeName -- TODO: use tags if available
-                 ConOpen typeName 
-                  -> conTest ctx typeName
+                  -> conTest ctx typeName exists -- TODO: use tags if available
+                 ConOpen typeName
+                  -> conTest ctx typeName exists
         where
           testStruct typeName
             = case mbTagDoc of
@@ -1082,50 +1189,56 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                Just tagDoc
                 -> do ctx <- getModule
                       let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
-                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next)]
-          tpars 
+                      return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],[],next,[])]
+          tpars
             = case expandSyn tres of
                 TApp _ targs -> targs
-                _ -> -- trace ("could not expand to app: " ++ show (niceType defaultEnv tres)) $ 
+                _ -> -- trace ("could not expand to app: " ++ show (niceType defaultEnv tres)) $
                      []
 
-          conTest ctx typeName
+          conTest ctx typeName exists
             =do -- generate local for the test result
                 ctx <- getModule
                 local <- newVarName (show (unqualify (getName tname)))
                 let typeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx tpars
                     next    = genNextPatterns (ppDefName local) (typeOf tname) patterns
                 case mbTagDoc of
-                  Nothing 
-                    -> do putLn (typeDoc <+> ppDefName local <+> text "=" <+> 
+                  Nothing
+                    -> assertion ("Backend.CSharp.FromCore.genPattern: existentials without tag!") (null exists) $
+                       do putLn (typeDoc <+> ppDefName local <+> text "=" <+>
                                  (if (doTest)
                                    then parens exprDoc <+> text "as" <+> typeDoc <> semi
                                    else parens typeDoc <> parens exprDoc <> semi))
-                          return [(test [ppDefName local <+> text "!= null"],[],next)]     
+                          return [(test [ppDefName local <+> text "!= null"],[],next,[])]
                   Just tagDoc
-                    -> do let cast = if (null next)
-                                      then []
-                                           -- tests show that a cast is faster than "as" here !?!
-                                      else [typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi]
-                          return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],cast,next)]
+                    -> do let localCast
+                                   = -- tests show that a cast is faster than "as" here !?!
+                                     typeDoc <+> ppDefName local <+> text "=" <+> parens typeDoc <> parens exprDoc <> semi
+                              ematch
+                                   = if (null exists) then []
+                                        else let etypeDoc = ppQName ctx (conClassName (getName tname)) <> ppTypeArgs ctx (tpars ++ map TVar exists)
+                                             in [(etypeDoc,typeDoc,local,exists)]
+                              cast = if (null next && null ematch)
+                                      then [] else [localCast]
+                          return [(test [tagDoc <+> text "==" <+> ppTag ctx typeName (getName tname)],cast,next,ematch)]
 
 
 genNextPatterns :: Doc -> Type -> [Pattern] -> [(Maybe Doc,Doc,Pattern)]
 genNextPatterns exprDoc tp []
   = []
 genNextPatterns exprDoc tp patterns
-  = let (vars,preds,rho) = splitPredType tp 
+  = let (vars,preds,rho) = splitPredType tp
     in case expandSyn rho of
-         TFun args eff res 
+         TFun args eff res
           -> case patterns of
                [PatWild]  | length args > 1 -> []
                [pat]      | length args == 0 || length args > 1 -> [(Nothing, exprDoc, pat)]
                _          -> assertion ("CSharp.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ show (args,patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
-                             concatMap genNextPattern (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]] 
+                             concatMap genNextPattern (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]]
                                                        patterns)
          _ -> case patterns of
                 [PatWild] -> []
-                [pat]     -> [(Nothing,exprDoc,pat)] 
+                [pat]     -> [(Nothing,exprDoc,pat)]
                 _         -> failure "CSharp.FromCore.genNextPatterns: patterns but not a function"
   where
     genNextPattern (name,pattern)
@@ -1151,13 +1264,13 @@ genClass name freeTVars freeVars derives genMore
     do ctx <- getModule
        let ppClassType = ppDefName name <> ppTypeParams (freeTVars)
            ppNewExpr   = text "new" <+> ppClassType <> ppArgs (map fst freeVars)
-       putLn (text "sealed class" <+> ppClassType <+> colon <+> derives <+> 
-            text "{" <> tab (vcatBreak 
+       putLn (text "sealed class" <+> ppClassType <+> colon <+> derives <+>
+            text "{" <> tab (vcatBreak
              (map (\var -> ppField ctx var) freeVars
               ++
-              (if (null freeVars) 
+              (if (null freeVars)
                 then [text "public readonly static" <+> ppClassType <+> ppSingletonName <+> text "=" <+> ppNewExpr <> semi]
-                else [text "public" <+> ppDefName name <> ppParams ctx freeVars <+> 
+                else [text "public" <+> ppDefName name <> ppParams ctx freeVars <+>
                       block (linebreak <> vcat (map ppAssignField freeVars))])
               {-
               ++
@@ -1167,10 +1280,10 @@ genClass name freeTVars freeVars derives genMore
               -}
               {-
               ++
-              [text "public static" <+> ppClassType <+> ppNewName <> ppParams ctx freeVars <+> 
+              [text "public static" <+> ppClassType <+> ppNewName <> ppParams ctx freeVars <+>
                block (linebreak <> text "return" <+> (if null freeVars then ppSingletonName else ppNewExpr) <> semi)]
               -}
-             ))
+             )) <> linebreak
            )
        withDoc tab genMore
        putLn (text "}")
@@ -1182,26 +1295,26 @@ genTypeApplyMethod tvars expr
   = do putLn (text "public object TypeApply" <> ppTypeParams tvars <> text "()" )
        genBody False False expr
 
-            
+
 genApplyMethod :: Bool -> [TName] -> Expr -> Asm ()
 genApplyMethod tailCtx vars expr
   = do ctx <- getModule
        putLn (text "public" <+> text "object" {- ppType ctx (typeOf expr) -} <+> text "Apply" <> ppParams ctx [(name,tp) | TName name tp <- vars] )
        genBody True tailCtx expr
-        
-            
+
+
 genBody :: Bool -> Bool -> Expr -> Asm ()
 genBody genLabel tailCall expr
   = do putLn (text "{")
-       if (genLabel) 
+       if (genLabel)
         then putLn (text "recurse:")
-        else return ()        
+        else return ()
        indented $ genReturnExpr tailCall expr
        putLn (text "}")
        return ()
 
 ppField ctx (name,tp)
-  = (if (isFunOrForall tp) then text "public" else text "readonly") <+> 
+  = (if (isFunOrForall tp) then text "public" else text "readonly") <+>
     ppType ctx tp <+> ppQName ctx name <> semi
   where
     isFunOrForall tp
@@ -1213,9 +1326,15 @@ ppField ctx (name,tp)
 ppLit :: Lit -> Doc
 ppLit lit
   = case lit of
-      LitInt i  -> if (isSmallInt i) then pretty i else text ("Primitive.IntString(\"" ++ show i ++ "\")")
+      LitInt i  -> if (isSmallInt i) 
+                    then (case i of
+                            -1 -> text "BigInteger.MinusOne"
+                            0  -> text "BigInteger.Zero"
+                            1  -> text "BigInteger.One"
+                            _  -> text "(BigInteger)" <> (if (i < 0) then parens (pretty i) else pretty i))
+                    else text ("Primitive.IntString(\"" ++ show i ++ "\")")
       LitChar c -> text ("0x" ++ showHex 4 (fromEnum c))
-      LitFloat d -> pretty d
+      LitFloat d -> text (showsPrec 20 d "")
       LitString s -> dquotes (hcat (map escape s))
   where
     escape c
@@ -1225,8 +1344,8 @@ ppLit lit
          then text ("\\u" ++ showHex 4 (fromEnum c))
          else text ("\\U" ++ showHex 8 (fromEnum c))
 
-    isSmallInt :: Integer -> Bool
-    isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
+isSmallInt :: Integer -> Bool
+isSmallInt i = (i >= -0x80000000 && i <= 0x7FFFFFFF)
 
 ---------------------------------------------------------------------------------
 -- Types
@@ -1242,7 +1361,7 @@ ppTypeParams tvs
 ppType :: ModuleName -> Type -> Doc
 ppType ctx tp
   = case expandSyn tp of
-      TForall vars preds t  
+      TForall vars preds t
         -> if (not (null vars))
             then primitive ("TypeFun" ++ show (length vars))
             else case expandSyn t of
@@ -1254,8 +1373,8 @@ ppType ctx tp
       TApp t ts
         -> -- case expandSyn t of
            --  TCon c | getKind tp == kindStar -> ppQName ctx (typeClassName (typeConName c)) <> angled (map (ppType ctx) ts)
-           --  _      -> 
-           ppTypeApp ctx t ts 
+           --  _      ->
+           ppTypeApp ctx t ts
       TCon c
         -> ppTypeCon ctx c (getKind tp)
       TVar v
@@ -1291,10 +1410,12 @@ ppTypeCon ctx c kind
          then text "Primitive.Dict"
         else if (name == nameTpMDict)
          then text "Primitive.MDict"
-        else if (name == nameTpTime)
-         then text "DateTime"
-        else if (name == nameTpException)        
+        else if (name == nameTpException)
          then text "Exception"
+        else if (name == nameTpHandlerBranch0)
+         then text "Eff.Branch"
+        else if (name == nameTpHandlerBranch1)
+         then text "Eff.Branch1"
         else if (isKindFun kind)
          then ppQName ctx (typeConClassName name)
          else ppQName ctx (typeClassName name)
@@ -1308,6 +1429,10 @@ ppTypeApp ctx t ts
              -> text "System.Text.StringBuilder"
              | typeConName c == nameTpVector && length ts == 1
              -> ppType ctx (head ts) <> text "[]"
+             | typeConName c == nameTpNull && length ts == 1
+             -> ppType ctx (head ts)
+             | (typeConName c == nameTpHandlerBranch0 || typeConName c == nameTpHandlerBranch1) && length ts >= 1
+             -> ppTypeCon ctx c (getKind (TApp t ts)) <> angled (map (ppType ctx) (tail ts)) -- discard effect type
              | otherwise
              -> (ppTypeCon ctx c (getKind (TApp t ts))) <> angled (map (ppType ctx) ts)
       _      -> (ppType ctx t) <> angled (map (ppType ctx) ts)
@@ -1351,7 +1476,7 @@ ppTypeEx ctx tp targs
 ppTypeSub :: ModuleName -> [(TypeVar,Doc)] -> Type -> Doc
 ppTypeSub ctx sub tp
   = case expandSyn tp of
-      TForall vars preds t  
+      TForall vars preds t
         -> if (not (null vars))
             then primitive ("TypeFun" ++ show (length vars))
             else case expandSyn t of
@@ -1362,7 +1487,7 @@ ppTypeSub ctx sub tp
       TApp t ts
         -> -- case expandSyn t of
            --   TCon c | getKind tp == kindStar -> ppQName ctx (typeClassName (typeConName c)) <> angled (map (ppTypeSub ctx sub) ts)
-           --   _      -> 
+           --   _      ->
            ppTypeAppSub ctx sub t ts
       TVar v
         -> case lookup v sub of
@@ -1402,11 +1527,11 @@ instance Monad Asm where
                                                  Asm b -> b env st1)
 
 runAsm :: Env -> Asm () -> Doc
-runAsm initEnv (Asm asm) 
+runAsm initEnv (Asm asm)
   = case asm initEnv initSt of
       ((),st) -> vcat (reverse (toplevel st))
 
-   
+
 data St  = St  { uniq     :: Int
                , results  :: [Doc]
                , locals   :: [Doc]
@@ -1418,12 +1543,13 @@ data Env = Env { moduleName :: Name      -- | current module
                , currentArgs :: Maybe ([Type],[Name])  -- | current recursive definition argument types and argument names
                , resultKind :: ResultKind
                , currentIndent :: Int
+               , withCps     :: Bool
                }
 
 data ResultKind = ResultReturn Bool -- ^ True if in a tail call context
                 | ResultAssign (Doc -> Doc)
                 | ResultId
-                
+
 
 initSt = St 0 [] [] []
 
@@ -1436,13 +1562,13 @@ instance HasUnique Asm where
 updateSt f
   = Asm (\env st -> (st,f st))
 
-getSt 
+getSt
   = updateSt id
 
 setSt st
   = updateSt (const st)
 
-getEnv 
+getEnv
   = Asm (\env st -> (env, st))
 
 withEnv f (Asm asm)
@@ -1490,8 +1616,8 @@ putLineNo range
   = -- return ()
     if (rangeNull == range || posLine (rangeStart range) >= bigLine)
      then putLn (text "#line default")
-     else putLn (text "#line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
-  
+     else putLn (text "// #line" <+> pretty (posLine (rangeStart range)) <+> dquotes (string (notdir (sourceName (rangeSource range)))))
+
 
 putLn :: Doc -> Asm ()
 putLn doc
@@ -1512,6 +1638,11 @@ indented asm
   = withEnv (\env -> env{ currentIndent = (currentIndent env) + 2 }) asm
 
 
+useCps :: Asm Bool
+useCps
+  = do env <- getEnv
+       return (withCps env)
+
 getModule :: Asm Name
 getModule
   = do env <- getEnv
@@ -1523,7 +1654,7 @@ getCurrentDef
        return (currentDef env)
 
 getCurrentArgs :: Asm (Maybe ([Type],[Name]))
-getCurrentArgs 
+getCurrentArgs
   = do env <- getEnv
        return (currentArgs env)
 
@@ -1578,13 +1709,13 @@ withId asm
        withResult (ResultId) asm
        st1 <- updateSt (\st -> st{ results = results st0 })
        return (reverse (results st1))
-      
+
 withIdOne :: Asm () -> Asm Doc
 withIdOne asm
   = do docs <- withId asm
        assertion "CSharp.FromCore.withIdOne" (length docs == 1) $
         return (head docs)
-        
+
 withAssign :: ((Doc -> Doc) -> Doc -> Doc) -> Asm () -> Asm ()
 withAssign f asm
   = do rk <- getResultKind
@@ -1646,7 +1777,7 @@ ppName name
 
 ppModName :: Name -> Doc
 ppModName name
-  = encode True name -- (prepend "koka." name)
+  = text "__" <> encode True name
 
 encode :: Bool -> Name -> Doc
 encode isModule name
@@ -1662,18 +1793,18 @@ encode isModule name
   where
     s = show name -- (nonCanonicalName name)
 
-    encodeChar c  
+    encodeChar c
       = if (isAlphaNum c)
          then [c]
         else if (c=='.')  -- we use '.' for internal variables
-         then "_"        
+         then "_"
         else  "_" ++ showHex 4 (fromEnum c)
   -}
 
 isReserved :: String -> Bool
 isReserved s
   = case s of
-      ('T':rest)  | all isDigit rest  
+      ('T':rest)  | all isDigit rest
           -> True                 -- type variables
       _   -> s `elem` reserved
 
@@ -1692,27 +1823,27 @@ reserved
     ["Object","String"]
     ++
     -- C# imports
-    ["System"]    
+    ["System"]
     ++
     -- C# pseudo-keywords -- reserved only in certain contexts
     ["add", "alias", "get", "global", "partial", "remove", "set", "value", "where", "yield"]
     ++
     -- C# keywords
-    ["abstract", "as", 
+    ["abstract", "as",
      "base", "bool", "break", "byte",
      "case", "catch", "char", "checked", "class", "const", "continue",
-     "decimal", "default", "delegate", "do", "double", 
-     "else", "enum", "event", "explicit", "extern", 
-     "false", "finally", "fixed", "float", "for", "foreach", 
+     "decimal", "default", "delegate", "do", "double",
+     "else", "enum", "event", "explicit", "extern",
+     "false", "finally", "fixed", "float", "for", "foreach",
      "goto",
-     "if", "implicit", "in", "int", "interface", "internal", "is", 
+     "if", "implicit", "in", "int", "interface", "internal", "is",
      "lock", "long",
-     "namespace", "new", "null", 
+     "namespace", "new", "null",
      "object", "operator", "out", "override",
-     "params", "private", "protected", "public", 
-     "readonly", "ref", "return", 
+     "params", "private", "protected", "public",
+     "readonly", "ref", "return",
      "sbyte", "sealed", "short", "sizeof", "stackalloc", "static", "string", "struct", "switch",
-     "this", "throw", "true", "try", "typeof", 
+     "this", "throw", "true", "try", "typeof",
      "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
      "virtual", "void", "volatile",
      "while"]
@@ -1737,3 +1868,7 @@ xcat []
   = empty
 xcat docs
   = vcat docs <> linebreak
+
+unzip4 xs = unzipx4 [] [] [] [] xs
+unzipx4 acc1 acc2 acc3 acc4 []           = (reverse acc1, reverse acc2, reverse acc3, reverse acc4)
+unzipx4 acc1 acc2 acc3 acc4 ((x,y,z,zz):xs) = unzipx4 (x:acc1) (y:acc2) (z:acc3) (zz:acc4) xs

@@ -1,8 +1,11 @@
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-put : forall<a,b> (a) -> .ops-state<a,b>
+[01;30moperator branch (.handler) get: resume tail
+[00;39;49m[00m[01;30moperator branch (.handler) put: resume tail
+[00;39;49m[00m.Op-get : forall<a> .op-get<a>
+.Op-put : forall<a> (i : a) -> .op-put<a>
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
 .extern-direct_count: () -> (state<int>) int
-.tag-Eff-state: string
+.tag-state : string
 comp : () -> div int
 count : () -> <state<int>,div> int
 direct_count: () -> (state<int>) int

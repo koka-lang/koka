@@ -247,15 +247,15 @@ fun foo() : <amb,state<int>> bool {
 }
 ```
 The handler for the `:state` effect takes a local parameter that
-is propagated through the `resume` function. 
+is propagated through the `resume` function (as its second argument):
 ```
 val state = handler(i) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume(j,())
+  set(j)   -> resume((),j)
 }
 ```
-Type of the `state` handler takes an initial state as an extra argument:
+The type of the `state` handler takes an initial state as an extra argument too: 
 
     > :t state
     \(|`:forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)`\)

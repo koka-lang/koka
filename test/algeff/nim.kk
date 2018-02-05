@@ -36,15 +36,15 @@ fun show(ps : list<player> ) : string {
 // --------------------------------------------------------
 
 effect nim {
-  move(player:player,sticks:int) : int
+  fun move(player:player,sticks:int) : int
 }
 
 
-fun aliceTurn(n) {
+fun aliceTurn(n : int) : <div,nim> player {
   if (n <= 0) then Bob else bobTurn( n - move(Alice,n) )
 }
 
-fun bobTurn(n) {
+fun bobTurn(n : int) : <div,nim> player {
   if (n <= 0) then Alice else aliceTurn( n - move(Bob,n) )
 }
 
@@ -57,8 +57,8 @@ fun game(n) {
 // --------------------------------------------------------
 
 val perfect = handler {
-  return x  -> x
-  move(p,n) -> resume(max(1,n%4))
+  return x   -> x
+  move(_p,n) -> resume(max(1,n%4))
 }
 
 fun testPerfect1() {
@@ -86,7 +86,7 @@ val gametree = handler {
   return x  -> Winner(x)
   move(p,n) -> {
     val moves    = validMoves(n)
-    val subgames = moves.map(resume)
+    val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
     Take(p,subtrees)
   }
@@ -114,7 +114,7 @@ fun testGt() {
 // --------------------------------------------------------
 
 effect cheating {
-  cheat<b>(player:player) : b
+  fun cheat(player:player) : a
 }
 
 val cheatReport = handler {
@@ -165,7 +165,7 @@ fun testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  choose() : bool
+  fun choose() : bool
 }
 
 fun bobChooses(m) {
@@ -196,14 +196,14 @@ fun testCoin() {
 // --------------------------------------------------------
 
 effect state<s> {
-  get() : s;
-  put(x : s) : ()
+  fun get() : s;
+  fun put(x : s) : ()
 }
 
 val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  put(t)   -> resume(t,())
+  put(t)   -> resume((),t)
 }
 
 alias gstate = list<(player,int)>
@@ -217,7 +217,7 @@ val scoreUpdater = handler {
   }
 }
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.map fun(qs) {
+  gs.mymap fun(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
@@ -231,7 +231,7 @@ val printer = handler {
 }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.map( fun(ps) {
+  gs.mymap( fun(ps) {
     ps.fst.show + " -> " + ps.snd.show 
   }).join("\n").println
 }
@@ -242,7 +242,7 @@ fun testPrint1() {
 
 fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
-    return x -> if (n <= 1) then x else replay(n - 1, { action.incps } )
+    return x -> if (n <= 1) then x else replay(n - 1, action )
   }
 }
 
@@ -265,4 +265,11 @@ fun main() {
   ,""
   ].join("\n-----------\n").print
   testPc1().show.println // raises exception
+}
+
+fun mymap( xs, f ) {
+  match(xs) {
+    Nil -> Nil
+    Cons(x,xx) -> Cons(f(x),mymap(xx,f))
+  }
 }

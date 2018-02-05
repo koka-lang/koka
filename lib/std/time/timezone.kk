@@ -374,5 +374,6 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
 }
 
 extern local-timezone-name() : ndet string {
+  cs inline "TimeZoneInfo.Local.DisplayName"
   js "_local_timezone_name"
 }

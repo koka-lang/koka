@@ -1,11 +1,17 @@
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Eff-state1 : forall<a,b> (.ops-state1<b,a>) -> operation<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-get1 : forall<a,b> .ops-state1<a,b>
-.Op-put : forall<a,b> (a) -> .ops-state<a,b>
-.Op-put1 : forall<a,b> (a) -> .ops-state1<a,b>
-.tag-Eff-state: string
-.tag-Eff-state1: string
+[01;30moperator branch (.handler) get: resume tail
+[00;39;49m[00m[01;30moperator branch (.handler) put: resume tail
+[00;39;49m[00m[01;30moperator branch (.handler) get1: resume tail
+[00;39;49m[00m[01;30moperator branch (.handler) put1: resume tail
+[00;39;49m[00m.Op-get : forall<a> .op-get<a>
+.Op-get1 : forall<a> .op-get1<a>
+.Op-put : forall<a> (i : a) -> .op-put<a>
+.Op-put1 : forall<a> (i : a) -> .op-put1<a>
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-get1 : forall<a> (get1 : .op-get1<a>) -> .ops-state1<a>
+.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.Ops-put1 : forall<a> (put1 : .op-put1<a>) -> .ops-state1<a>
+.tag-state : string
+.tag-state1 : string
 comp : () -> div int
 count : () -> <state<int>,div> int
 count1 : () -> <div,state1<int>> int

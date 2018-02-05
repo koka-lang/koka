@@ -7,6 +7,8 @@
 import std/async
 import std/time/duration
 import std/os/readline
+import std/debug
+
 effect state {
   fun get() : string
   fun append( x : string ) : ()
@@ -15,12 +17,12 @@ effect state {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  append(s')  -> resume(s + ", " + s',())
+  append(s')  -> resume((),s + ", " + s')
 }
 
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 val amb = handler {
@@ -59,5 +61,6 @@ fun test() {
 }
 
 fun main() {
+  launch()
   state("0",test); () 
 }

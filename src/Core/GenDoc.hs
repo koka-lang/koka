@@ -182,7 +182,7 @@ genDoc env kgamma gamma core p
       = map toDef (coreProgExternals core)
       where
         toDef ext = Def (externalName ext) (externalType ext) (failure "Core.GenDoc.genDoc: access to expression")
-                        (externalVis ext) DefFun (externalRange ext) (externalDoc ext)
+                        (externalVis ext) (makeDefFun (externalType ext)) (externalRange ext) (externalDoc ext)
 
     htmlBody pre
       = do mapM_ (writeLn p) (htmlHeader env (show (coreProgName core)))
@@ -313,7 +313,7 @@ fmtDefTOC :: Bool -> Def -> String
 fmtDefTOC nested def
   = doctag "li" (if nested then "nested" else "") $
     doctag "a" ("link\" href=\"#" ++ linkEncode (nameId mname)) $
-    cspan "keyword" (show (defSort def)) ++ "&nbsp;" ++ niceNameId (defName def)
+    cspan "keyword" (showDefSort (defSort def)) ++ "&nbsp;" ++ niceNameId (defName def)
   where
     mname = mangle (defName def) (defType def)
   
@@ -467,7 +467,7 @@ fmtDef env kgamma gamma def
       [doctag "div" "header code" $
         concat 
          [ doctag "span" "def" $
-            cspan "keyword" (show (defSort def)) ++ "&nbsp;"
+            cspan "keyword" (showDefSort (defSort def)) ++ "&nbsp;"
             ++ doctag "a" ("link\" href=\"" ++ linkToSource mname) (niceNameId (defName def))
          -- , "&nbsp;"
          -- , span "keyword" ":"
@@ -480,6 +480,7 @@ fmtDef env kgamma gamma def
   where
     mname = mangle (defName def) (defType def)
 
+
     showModule qname
       = cspan "namespace" (escapes (show qname))
 
@@ -487,6 +488,9 @@ fmtDef env kgamma gamma def
       = if (kind == kindLabel || kind == kindEffect)
          then cspan "type effect" 
          else id
+
+showDefSort (DefFun kind) = "fun"
+showDefSort dsort         = show dsort
 
 niceTypeName name
   = fmtTypeName (unqualify name)

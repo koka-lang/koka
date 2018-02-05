@@ -1,4 +1,7 @@
-2
+[01;30moperator branch (exc) failure: resume never
+[00;39;49m[00m[01;30moperator branch (out) line: resume tail
+[00;39;49m[00m[01;30moperator branch (state) tick: resume tail
+[00;39;49m[00m2
 ticks: 2
 2
 ((16/2)/3)
@@ -8,18 +11,15 @@ ticks: 2
 3
 ticks: 2
 2
-.Eff-exc : forall<a> (.ops-exc<a>) -> operation<a>
-.Eff-out : forall<a> (.ops-out<a>) -> operation<a>
-.Eff-state : forall<a> (.ops-state<a>) -> operation<a>
-.Op-failure : forall<a,b> (string) -> .ops-exc<a>
-.Op-line : forall<a> (expr) -> .ops-out<a>
-.Op-tick : forall<a> .ops-state<a>
-.copy : forall<a> (.ops-state<a>) -> .ops-state<a>
-.copy : forall<a> (.ops-out<a>, expr) -> .ops-out<a>
-.copy : forall<a,b> (.ops-exc<a>, string) -> .ops-exc<a>
-.tag-Eff-exc: string
-.tag-Eff-out: string
-.tag-Eff-state: string
+.Op-failure : forall<a> (s : string) -> .op-failure<a>
+.Op-line : (e : expr) -> .op-line
+.Op-tick : .op-tick
+.Ops-failure: forall<a> (failure : .op-failure<a>) -> .ops-exc
+.Ops-line : (line : .op-line) -> .ops-out
+.Ops-tick : (tick : .op-tick) -> .ops-state
+.tag-exc : string
+.tag-out : string
+.tag-state : string
 >>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
 Div : (e1 : expr, e2 : expr) -> expr
 Int : (i : int) -> expr

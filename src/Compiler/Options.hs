@@ -47,6 +47,7 @@ prettyEnvFromFlags flags
                  , TP.htmlCss         = htmlCss flags
                  , TP.htmlJs          = htmlJs flags
                  , TP.verbose         = verbose flags
+                 , TP.showCoreTypes   = showCoreTypes flags
                  }
     
 
@@ -84,6 +85,7 @@ data Flags
          , showKindSigs     :: Bool
          , showSynonyms     :: Bool
          , showCore         :: Bool
+         , showCoreTypes    :: Bool
          , showAsmCSharp    :: Bool
          , showAsmJavaScript :: Bool
          , showTypeSigs     :: Bool
@@ -111,11 +113,13 @@ data Flags
          , rebuild          :: Bool
          , genCore          :: Bool
          , coreCheck        :: Bool
-         , enableCps        :: Bool
+         , enableMon        :: Bool
          -- , installDir       :: FilePath
          , semiInsert       :: Bool
          , packages         :: Packages
          , forceModule      :: FilePath
+         , optimize         :: Int       -- optimization level; negative is off
+         , debug            :: Bool
          }
 
 flagsNull :: Flags
@@ -124,7 +128,7 @@ flagsNull
           True
           -- show
           False False  -- kinds kindsigs
-          False False  -- synonyms core
+          False False False -- synonyms core core-types
           False -- show asmCSharp
           False -- show asmJavaScript
           False -- typesigs 
@@ -132,7 +136,7 @@ flagsNull
           False -- library
           [JS]
           Node
-          3     -- simplify passes
+          5     -- simplify passes
           defaultColorScheme
           "."    -- out-dir
           []
@@ -152,11 +156,13 @@ flagsNull
           False -- rebuild
           False -- genCore
           False -- coreCheck
-          True  -- enableCps
+          True  -- enableMonadic
           -- ""  -- install dir
           True  -- semi colon insertion
           packagesEmpty -- packages
           "" -- forceModule
+          (-1) -- optimize
+          True -- debug
 
 isHelp Help = True
 isHelp _    = False
@@ -188,6 +194,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
+ , flag   ['O'] ["optimize"]        (\b f -> f{optimize=if b then 1 else -1}) "optimize (off by default)"
+ , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
@@ -203,6 +211,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})     "show type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})     "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})         "show core"
+ , flag   []    ["showcoretypes"]       (\b f -> f{showCoreTypes=b})         "show full types in core"
  , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
  , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
@@ -218,7 +227,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
- , hiddenFlag   []    ["cps"]       (\b f -> f{enableCps=b})          "enable cps translation"
+ , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack" 
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
  ]
@@ -362,7 +371,9 @@ extractFlags flagsInit options
   = let flags = foldl extract flagsInit options
     in case (JS `elem` targets flags) of  -- the maxStructFields prevents us from generating CS and JS at the same time...
          True -> flags{ maxStructFields = -1 }
-         _    -> flags
+         _    -> case (CS `elem` targets flags) of
+                   True | maxStructFields flags < 0 -> flags{ maxStructFields = 3 }
+                   _    -> flags                    
   where
     extract flags (Flag f)  = f flags
     extract flags _         = flags

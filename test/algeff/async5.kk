@@ -5,9 +5,9 @@ import std/async
 import std/time/duration
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
- 
+
 val amb = handler {
   return x -> [x]
   flip()   -> resume(False) + resume(True)
@@ -16,7 +16,7 @@ val amb = handler {
 fun dowait(s : duration) {
   val secs = s.show
   println("and waiting at least " + secs)
-  yield(s)
+  wait(s)
   println("(done waiting " + secs + ")")
   "waited " + secs
 }
@@ -31,9 +31,9 @@ fun test() {
     if (flip()) then dowait(2.seconds) else dowait(3.seconds)
   }
   val xs = interleaved( [f,g] )
-  println("** hi " + xs.join(",") + "\n")  
+  println("** hi " + xs.join(",") + "\n")
 }
 
 fun main() {
-  amb(test); () 
+  amb(test); ()
 }

@@ -1,0 +1,569 @@
+{ "name": "Koka",
+  "scopeName": "source.koka",
+  "fileTypes": ["kk","kki"],
+  "author": "Daan Leijen",
+  "firstLineMatch": "\\s*(public|private)?\\s*(module)\\s*((interface)?)\\s*(([a-z]\\w*/)*[a-z]\\w*)",
+  "foldingStartMarker": "{\\s*$",
+  "foldingStopMarker": "^\\s*}",
+  "patterns": [
+    { "include": "#line_comment" },
+
+    { "include": "#line_directive" },
+
+    { "include": "#block_comment" },
+
+    { "include": "#string" },
+
+    { "include": "#litstring" },
+
+    { "include": "#character" },
+
+    { "include": "#characteresc" },
+
+    { "include": "#top_type" },
+
+    { "include": "#top_type_type" },
+
+    { "include": "#top_type_alias" },
+
+    { "include": "#top_type_struct_args" },
+
+    { "include": "#top_type_struct" },
+
+    { "include": "#top_type_interface" },
+
+    { "include": "#top_type_quantifier" },
+
+    { "include": "#decl_function" },
+
+    { "include": "#decl_external" },
+
+    { "include": "#decl_val" },
+
+    { "include": "#decl_var" },
+
+    { "include": "#decl_param" },
+
+    { "include": "#module_id" },
+
+    { "include": "#import_id" },
+
+    { "include": "#import_id2" },
+
+    { "include": "#libraryop" },
+
+    { "include": "#libraryid" },
+
+    { "include": "#dot" },
+
+    { "include": "#reservedid" },
+
+    { "include": "#reservedop" },
+
+    { "include": "#qidentifier" },
+
+    { "include": "#qconstructor" },
+
+    { "include": "#identifier" },
+
+    { "include": "#constructor" },
+
+    { "include": "#special" },
+
+    { "include": "#minus" },
+
+    { "include": "#operator" },
+
+    { "include": "#wildcard" },
+
+    { "include": "#number" },
+
+    { "include": "#inv_character" },
+
+    { "include": "#whitespace" }
+  ],
+  "repository": {
+    "line_comment" :
+      { "begin": "//"
+      , "end": "$"
+      , "name": "comment.line.double-slash.koka"
+      , "beginCaptures": { "0": {"name": "punctuation.definition.comment.koka" }}
+      , "patterns" : [
+          { "match": "\\|(([^\\|]|\\|\\|)*)\\|"
+          , "captures": { "1": { "name": "comment.doc.pre.koka" } }
+          },
+
+          { "match": "\"(([^\"]|\"\")*)\""
+          , "captures": { "1": { "name": "comment.doc.source.koka" } }
+          },
+
+          { "match": "''(.*)''"
+          , "captures": { "1": { "name": "comment.doc.emph.koka" } }
+          }
+        ]
+      },
+
+    "line_directive" :
+      { "match": "^\\s*#.*$"
+      , "name": "meta.preprocessor.koka"
+      },
+
+    "block_comment" :
+      { "begin": "/\\*"
+      , "end": "\\*/"
+      , "name": "comment.block.koka"
+      , "beginCaptures": { "0": {"name": "punctuation.definition.comment.koka" } }
+      , "endCaptures": { "0": {"name": "punctuation.definition.comment.koka" } }
+      , "patterns" : [
+          { "include": "#block_comment" },
+
+          { "match": "\\|(([^\\|]|\\|\\|)*)\\|"
+          , "captures": { "1": { "name": "comment.doc.pre.koka" } }
+          },
+
+          { "match": "\"(([^\"]|\"\")*)\""
+          , "captures": { "1": { "name": "comment.doc.source.koka" } }
+          },
+
+          { "match": "''(.*)''"
+          , "captures": { "1": { "name": "comment.doc.emph.koka" } }
+          },
+
+          { "begin": "^\\s*\"\"?\\s*$"
+          , "end": "^\\s*\"\\s*$"
+          , "contentName": "comment.doc.block.source.koka"
+          },
+
+          { "begin": "^\\s*\\|\\s*$"
+          , "end": "^\\s*\\|\\s*$"
+          , "contentName": "comment.doc.block.pre.koka"
+          }
+        ]
+      },
+
+    "litstring":
+      { "begin": "@\""
+      , "end": "\"(?!\")"
+      , "beginCaptures": { "0": {"name": "punctuation.definition.string.koka" } }
+      , "endCaptures": { "0": {"name": "punctuation.definition.string.koka" } }
+      , "name": "string.quoted.double.koka"
+      , "patterns": [
+           { "match": "[^\"]+"
+           , "name": "string.quoted.double.regular.koka"
+           },
+
+           { "match": "\"\""
+           , "name": "constant.character.escape.koka"
+           }
+      ]},
+
+    "string":
+      { "begin": "\""
+      , "end": "\"|$"
+      , "beginCaptures": { "0": {"name": "punctuation.definition.string.koka" } }
+      , "endCaptures": { "0": {"name": "punctuation.definition.string.koka" } }
+      , "name": "string.quoted.double.koka"
+      , "patterns": [
+           { "match": "([^\"\\\\]|\\\\.)+$"
+           , "name": "invalid.string.quoted.double.koka"
+           },
+
+           { "match": "[^\"\\\\]+"
+           , "name": "string.quoted.double.regular.koka"
+           },
+
+           { "match": "\\\\([abfnrtvz0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6})"
+           , "name": "constant.character.escape.koka"
+           },
+
+           { "match": "."
+           , "name": "invalid.string.quoted.double.koka"
+           }
+      ]},
+
+    "character" :
+      { "match": "'[^\\'\\\\$]'"
+      , "beginCaptures": { "0": {"name": "punctuation.definition.character.koka" } }
+      , "endCaptures": { "0": {"name": "punctuation.definition.character.koka" } }
+      , "name": "string.quoted.single.koka"
+      },
+
+    "whitespace":
+      { "match": "[ \\t]+"
+      , "name": "string.koka"
+      },
+
+    "characteresc" :
+      { "match": "(')(\\\\([abfnrtv0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6}))(')"
+      , "captures": {
+          "1": { "name": "string.quoted.single.koka" },
+          "2": { "name": "constant.character.escape.koka" },
+          "3": { "name": "constant.character.escape.koka" },
+          "4": { "name": "string.quoted.single.koka" }
+        }
+      },
+
+    "inv_character" :
+      { "match": "'([^'\\\\\\n]|\\\\(.|x..|u....|U......))'|'$|''?"
+      , "name": "invalid.string.quoted.single.koka"
+      },
+
+    "number" :
+      { "match": "-?(?:0[xX][\\da-fA-F]+(\\.[\\da-fA-F]+)?([pP][\\-+]?\\d+)?|\\d+(\\.\\d+([eE][\\-+]?\\d+)?)?)"
+      , "name": "constant.numeric.koka"
+      },
+
+    "special" :
+      { "match": "[{}\\(\\)\\[\\];,]"
+      , "name": "punctuation.separator.koka"
+      },
+
+    "libraryop":
+      { "match": "(!)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>])"
+      , "name": "support.function.koka"
+      },
+
+    "libraryid":
+      { "match": "(repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned|resume|cont)(?![\\w\\-?'])"
+      , "name": "support.function.koka"
+      },
+
+    "dot" :
+      { "match": "\\."
+      , "name": "keyword.dot.koka"
+      },
+
+    "reservedop" :
+      { "match": "(=|\\->|:|\\.|:=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>])"
+      , "name": "keyword.koka"
+      },
+
+    "reservedid" :
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\\w\\-?'])"
+      , "name": "keyword.other.koka"
+      },
+
+    "module_id" :
+      { "match": "(module)\\s*((interface)?)\\s*(([a-z]\\w*/)*[a-z]\\w*)"
+      , "captures": {
+          "1": { "name": "keyword.other.koka" },
+          "3": { "name": "keyword.other.koka" },
+          "4": { "name": "entity.name.class.module.koka" }
+        }
+      },
+
+    "import_id" :
+      { "match": "(import)(\\s+(([a-z]\\w*/)*[a-z]\\w*)(\\s+(=)(\\s+(([a-z]\\w*/)*[a-z]\\w*))?))"
+      , "captures": {
+          "1": { "name": "keyword.koka" },
+          "3": { "name": "entity.name.class.module.koka" },
+          "6": { "name": "keyword.koka" },
+          "8": { "name": "entity.name.class.module.koka" }
+        }
+      },
+
+    "import_id2" :
+      { "match": "(import)(\\s+(([a-z]\\w*/)*[a-z]\\w*))"
+      , "captures": {
+          "1": { "name": "keyword.koka" },
+          "3": { "name": "entity.name.class.module.koka" }
+        }
+      },
+
+    "identifier" :
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
+      , "name": "source.koka"
+      },
+
+    "qidentifier" :
+      { "match": "([a-z][\\w\\-]*/)+([a-z][\\w\\-]*[\\'\\?]*)"
+      , "captures": {
+          "1": { "name": "entity.name.class.module.koka"},
+          "2": { "name": "source.koka" }
+        }
+      },
+
+    "constructor":
+      { "match": "[A-Z][\\w\\-]*[\\'\\?]*|\\(,+\\)"
+      , "name": "constant.other.constructor.koka"
+      },
+
+    "qconstructor" :
+      { "match": "([a-z][\\w\\-]*/)([A-Z][\\w\\-]*[\\'\\?]*)"
+      , "captures": {
+          "1": { "name": "entity.name.class.module.koka"},
+          "2": { "name": "constant.other.constructor.koka" }
+        }
+      },
+
+    "operator" :
+      { "match": "[$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+"
+      , "name": "source.operator.koka"
+      },
+
+    "minus" :
+      { "match": "-(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>])"
+      , "name" : "source.operator.minus.koka"
+      },
+
+    "wildcard" :
+      { "match": "_[\\w\\-]*[\\'\\?]*"
+      , "name": "source.wildcard.koka"
+      },
+
+    "type_variable" :
+      { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
+      , "name": "entity.name.class.type.typevar.koka"
+      },
+
+    "type_identifier" :
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
+      , "name": "entity.name.class.type.constant.koka"
+      },
+
+    "type_qidentifier" :
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*/)+"
+      , "name": "entity.name.class.module.koka"
+      },
+
+    "type_parameter" :
+      { "match": "([a-zA-Z][\\w\\-]*[\\'\\?]*)\\s*:(?!:)"
+      , "captures": {
+           "1": { "name" : "source.typeparam.koka" }
+         }
+      },
+
+    "type_kind" :
+      { "match": "[A-Z](?![\\w\\-])"
+      , "name": "entity.name.class.type.kind.koka"
+      },
+
+    "type_interface" :
+      { "match": "[A-Z][\\w\\-]+[\\'\\?]*"
+      , "name": "entity.name.class.type.interface.koka"
+      },
+
+    "decl_function":
+      { "match": "(fun|function|val|var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
+      , "captures": {
+          "1": { "name": "keyword.declaration.function.koka" },
+          "2": { "name": "entity.name.function.koka" }
+        }
+      },
+
+    "param_identifier" :
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=[:,\\)])"
+      , "name" : "entity.name.function.koka"
+      },
+
+    "decl_function0":
+      { "begin": "(fun|function)\\s*(([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]))?\\s*(\\()"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\\w\\-?']))"
+      , "beginCaptures": {
+          "1": { "name": "keyword.declaration.function.koka" },
+          "3": { "name": "entity.name.function.koka" },
+          "4": { "name": "punctuation.separator.koka" }
+        }
+      , "endCaptures": {
+          "0" : { "name": "invalid.keyword.koka" }
+        }
+      , "patterns": [
+          { "include": "#fun_parameters" }
+        ]
+      },
+
+    "decl_external":
+      { "match": "(extern|external)\\s+(include|inline)?\\s*([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])?"
+      , "captures": {
+          "1": { "name": "keyword.declaration.function.koka" },
+          "2": { "name": "support.function.koka" },
+          "3": { "name": "entity.name.function.koka" }
+        }
+      },
+
+    "decl_val":
+      { "match": "(((val)\\s+)?)(([a-z][\\w\\-]*[\\'\\?]*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
+      , "captures": {
+          "3": { "name": "keyword.declaration.val.koka" },
+          "5": { "name": "entity.name.val.koka" },
+          "6": { "name": "keyword.other.koka" }
+        }
+      },
+
+    "decl_var":
+      { "match": "(var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))"
+      , "captures": {
+          "1": { "name": "keyword.declaration.var.koka" },
+          "2": { "name": "entity.name.var.koka" }
+        }
+      },
+
+    "decl_param" :
+      { "match": "([a-z][\\w\\-]*[\\'\\?]*)\\s*(?=:)"
+      , "name" : "entity.name.param.koka"
+      },
+
+    "top_type":
+      { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(with|iff|when)(?![\\w\\-])"
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "entity.name.class.type.koka" },
+                           "2" : { "name": "keyword.koka" } }
+      , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}
+      , "patterns": [
+          {"include": "#type_content_top" }
+        ]
+      },
+
+
+    "top_type_type":
+      { "begin": "((?:cotype|type|rectype)(?:\\s+(?:open|extend))?|effect)\\s+([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
+                         , "2" : { "name": "entity.name.class.type.koka" }}
+      , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
+      , "patterns": [
+          {"include": "#type_content_top" }
+        ]
+      },
+
+    "top_type_alias":
+      { "begin": "(alias)\\s+([a-z]\\w+)"
+      , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|type|cotype|rectype|alias|effect|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
+                         , "2" : { "name": "entity.name.class.type.koka" }}
+      , "endCaptures": { "0": { "name": "invalid.keyword.koka" }}
+      , "patterns": [
+          { "match": "="
+          , "name": "keyword.other.koka"
+          },
+
+          {"include": "#type_content_top" }
+        ]
+      },
+
+    "top_type_struct":
+      { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
+      , "captures": {
+          "1": { "name": "keyword.declaration.type.koka" },
+          "2": { "name": "entity.name.class.type.koka" }
+        }
+      },
+
+    "top_type_struct_args":
+      { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" },
+                           "2" : { "name": "entity.name.class.type.koka"  },
+                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                         "2": {"name": "invalid.keyword.koka" }}
+      , "patterns": [
+          {"include": "#type_content" }
+        ]
+      },
+
+    "top_type_interface":
+      { "begin": "(interface|instance)\\s+([A-Z]\\w+|<>|<\\|>|\\(,*\\))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
+                         , "2" : { "name": "entity.name.class.type.interface.koka" }}
+      , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
+      , "patterns": [
+          {"include": "#type_content_top" }
+        ]
+      },
+
+    "top_type_quantifier":
+      { "begin": "(exists|forall|some)(\\s*)(<)"
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "keyword.koka" },
+                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                         "2": {"name": "invalid.keyword.koka" }}
+      , "patterns": [
+          {"include": "#type_content" }
+        ]
+      },
+
+
+
+    "fun_parameters":
+      { "patterns": [
+          { "include": "#param_identifier" },
+          { "match": "[,]"
+          , "name": "punctuation.separator.koka"
+          },
+          { "include": "#top_type" }
+        ]
+      },
+
+
+    "type_content":
+      { "patterns": [
+          { "include": "#type_parameter" },
+
+          { "include": "#type_content_top" }
+        ]
+      },
+
+    "type_content_top":
+      { "patterns": [
+        { "match": "(forall|exists|some|with|iff|when|is|if)(?![\\w\\-])"
+        , "name": "keyword.other.koka"
+        },
+
+        { "match": "(\\->|::?|\\.)(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\?\\|<>])"
+        , "name": "keyword.entity.name.class.type.koka"
+        },
+
+        { "include": "#type_qidentifier"},
+
+        { "include": "#type_variable"},
+
+        { "include": "#type_identifier"},
+
+        { "include": "#type_kind"},
+
+        { "include": "#type_interface"},
+
+        { "begin": "\\("
+        , "end": "\\)"
+        , "name": "entity.name.class.type.koka"
+        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "patterns": [
+            { "include": "#type_content" }
+          ]
+        },
+
+        { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
+        , "end": ">"
+        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "name": "entity.name.class.type.koka"
+        , "patterns": [
+            { "include": "#type_content" }
+          ]
+        },
+
+        { "begin": "\\["
+        , "end": "\\]"
+        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "name": "entity.name.class.type.koka"
+        , "patterns": [
+            { "include": "#type_content" }
+          ]
+        },
+
+        { "include": "#line_comment" },
+
+        { "include": "#block_comment" },
+
+        { "match": "[;,]|:"
+        , "name": "entity.name.class.type.punctuation.separator.koka"
+        }
+      ]}
+  },
+  "uuid": "c987c4f0-a938-47e3-a371-13d6c7542ed3"
+}

@@ -3,13 +3,13 @@
 // ----------------------------------------------------------------------------
  
 effect state {
-  get() : int; 
-  set(i : int) : ();  
+  fun get() : int
+  fun set(i : int) : ()
 }
 
 val state = handler(i:int) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume(j,())
-  get()    -> resume(0,i)
+  set(j)   -> resume((),j)
+  get()    -> resume(i,0)
 }

@@ -1,0 +1,39 @@
+[01;30moperator branch (eager) flip: resume scoped
+[00;39;49m[00m[01;30moperator branch (eager) fail: resume never
+[00;39;49m[00m[01;30moperator branch (parse) satisfy: resume tail
+[00;39;49m[00m[01;30moperator branch (solutions) flip: resume scoped
+[00;39;49m[00m[01;30moperator branch (solutions) fail: resume never
+[00;39;49m[00m[(7,""),(3,"*3"),(1,"+2*3")]
+.Op-fail : forall<a> .op-fail<a>
+.Op-flip : .op-flip
+.Op-satisfy : forall<a> (pred : (string) -> maybe<(a, string)>) -> .op-satisfy<a>
+.Ops-fail : forall<a> (fail : .op-fail<a>) -> .ops-many
+.Ops-flip : (flip : .op-flip) -> .ops-many
+.Ops-satisfy: forall<a> (satisfy : .op-satisfy<a>) -> .ops-parse
+.tag-many : string
+.tag-parse : string
+alpha : () -> parse int
+char : (p : (char) -> bool) -> parse char
+choice : forall<a,e> (p1 : () -> <many|e> a, p2 : () -> <many|e> a) -> <many|e> a
+digit : () -> parse int
+eager : forall<a,e> (action : () -> <many|e> a) -> e list<a>
+eparse : forall<a,e> (p : () -> <many,parse|e> a, input : string) -> e list<(a, string)>
+expr : () -> <many,parse,div> int
+factor : () -> <many,parse,div> int
+fail : forall<a> () -> many a
+flip : () -> many bool
+main : () -> <div,console> ()
+many : forall<a,e> (p : () -> <many,div|e> a) -> <many,div|e> list<a>
+many1 : forall<a,e> (p : () -> <many,div|e> a) -> <many,div|e> list<a>
+mparse : forall<a,e> (p : () -> <many,parse|e> a, input : string) -> e list<(a, string)>
+number : () -> <many,parse,div> int
+parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a, string)
+satisfy : forall<a> (pred : (string) -> maybe<(a, string)>) -> parse a
+select : forall<a> (list<a>) -> many a
+show-parse : forall<a> (xs : list<(a, string)>, f : (a) -> string) -> string
+show-parse-int: (xs : list<(int, string)>) -> string
+show-parse-ints: (xs : list<(list<int>, string)>) -> string
+solutions : forall<a,e> (action : () -> <many|e> a) -> e list<a>
+symbol : (c : char) -> parse ()
+term : () -> <many,parse,div> int
+test1 : () -> <div,console> ()

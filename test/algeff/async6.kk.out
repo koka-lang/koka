@@ -1,7 +1,7 @@
-.Eff-amb : forall<a> (.ops-amb<a>) -> operation<a>
-.Op-flip : forall<a> .ops-amb<a>
-.copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
-.tag-Eff-amb: string
+[01;30moperator branch (amb) flip: resume scoped
+[00;39;49m[00m.Op-flip : .op-flip
+.Ops-flip : (flip : .op-flip) -> .ops-amb
+.tag-amb : string
 amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 dowait : (s : std/time/duration/duration) -> <exn,std/async/async,console> string
 flip : () -> amb bool

@@ -233,7 +233,7 @@ divPattern size (mbName,pat)
       (Just name, PatVar pname pat)
         -> do f <- divPattern size (mbName,pat)
               return (addRelation size name (getName pname) . f)  
-      (_, PatCon _ patterns _ _ _ info)
+      (_, PatCon _ patterns _ _ _ _ info)
         -> do fs <- mapM (\pat -> divPattern (if conInfoTypeSort info == Inductive then Lt else size) (mbName,pat)) patterns
               return (compose fs)
       (_, _)

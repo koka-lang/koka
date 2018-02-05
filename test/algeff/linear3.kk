@@ -1,7 +1,7 @@
 
 effect linear state<s> {
-  get() : s;
-  put(x : s) : ()
+  fun get() : s
+  fun put(x : s) : ()
 }
 
 val state = handler(s) {

@@ -3,8 +3,8 @@
 // ----------------------------------------------------------------------------
  
 effect state {
-  get() : int; 
-  set(i : int) : ();  
+  fun get() : int
+  fun set(i : int) : ()
 }
 
 val state = handler(i:int) {

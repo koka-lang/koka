@@ -31,7 +31,7 @@ public val sofai = instant(2006,1,15,21,24,37,0.5)
 
 public fun test-ut1(verbose:bool = True) {
   println("load UT1 calendar")
-  val calut1= try(cal-ut1-approx){ cal-ut1-load(verbose=verbose) }
+  val calut1= try-default(cal-ut1-approx){ cal-ut1-load(verbose=verbose) }
   // on 2017-05-03 the IERS data says:
   // 2006-01-15T00:00:00Z  UT1-UTC = 0.3340869
   // 2006-01-16T00:00:00Z  UT1-UTC = 0.3340733

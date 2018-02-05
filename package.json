@@ -1,7 +1,7 @@
 {
   "name"        : "koka",
   "author"      : "Daan Leijen, Microsoft Corp.",
-  "version"     : "0.8.0-dev",
+  "version"     : "0.9.0-dev",
   "homepage"    : "http://koka.codeplex.com",
   "description" : "Koka is an effectful function-oriented language.",
   "license"     : "Apache-2.0",

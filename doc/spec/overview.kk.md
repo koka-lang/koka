@@ -489,7 +489,7 @@ fun freqs( s : string ) : list<double>
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).sum()
+  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
 }
 
 // Crack a Caesar encoded string

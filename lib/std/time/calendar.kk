@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -9,8 +9,8 @@
 /* Calendars.
 
   A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time
-  with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates. 
-  Months, days etc. are always 1-based.  
+  with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates.
+  Months, days etc. are always 1-based.
 */
 module std/time/calendar
 
@@ -22,12 +22,13 @@ import std/time/utc
 import std/time/date
 
 extern include {
+  cs file "calendar-inline.cs"
   js file "calendar-inline.js"
 }
 
-// A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time. 
+// A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time.
 public struct calendar(
-  name        : string,                 
+  name        : string,
   long-name   : string,
   timescale   : timescale,
   month-prefix: string,
@@ -43,18 +44,18 @@ public struct calendar(
   Time zone
 ----------------------------------------------------------------------------*/
 
-// A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For 
+// A `:timezone` determines a time offset with respect to the UTC / GMT timezone. For
 // using general time zones, see the [`std/time/timezone`](std_time_timezone.html) module.\
 // The `tz-utc` and `tz-local` time zones are used for UTC/GMT time and the local system time.\
 // The `name` field contains the time zone name as IANA timezone identifier.
 // The `utc-delta` field returns the time zone offset
-// relative to UTC (for GMT-08:00 it returns a duration of `~8*3600` seconds) and the abbreviated 
+// relative to UTC (for GMT-08:00 it returns a duration of `~8*3600` seconds) and the abbreviated
 // time zone name (``PDT`` for example).\
 // The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
 // By default it returns `Nothing` in which case a generic algorithm is used to determine the
-// inverse.  
+// inverse.
 public struct timezone(
-  name    : string,                      
+  name    : string,
   private utc-delta  : (instant) -> (duration,string),
   private utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
@@ -69,7 +70,7 @@ public fun tz-utc?( tz : timezone ) : bool {
 // The time zone name and abbreviation is optional, and the default name
 // will reflect the offset from UTC, for example `"UTC+1:20"`, or `"UTC-8"`.
 // The default abbreviation is the empty string.
-// The sign of the minutes will be matched to the hours (unless `hours` is `0`). 
+// The sign of the minutes will be matched to the hours (unless `hours` is `0`).
 // Returns `tz-utc` if both `hours` and `mins` are zero.
 public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : string = "", hourwidth : int = 1 ) : timezone {
   if (hours.zero? && mins.zero?) then return tz-utc
@@ -83,9 +84,9 @@ public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : str
 }
 
 fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
-  Timezone( name, 
+  Timezone( name,
     fun(i) { (delta,abbrv) },
-    fun(i) { if (delta.zero?) then Just(i) else Nothing } 
+    fun(i) { if (delta.zero?) then Just(i) else Nothing }
   )
 }
 
@@ -94,21 +95,22 @@ public val tz-utc : timezone = tz-fixed("UTC",zero)
 
 // Return the local timezone on the current system.
 public fun tz-local() : ndet timezone {
-  val tz = local-get-timezone()
-  Timezone( 
+  val tz = local-get-timezone()  // get it once so the `Timezone` itself is immutable!
+  Timezone(
     "",
-    fun(i) { 
-      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double) 
+    fun(i) {
+      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double)
       (duration(ofs.timespan),abbrv)
     }
   )
 }
 
 // A local timezone structure provided by the host system
-type local-timezone
+alias local-timezone = any
 
 // Get the current local timezone structure.
 extern local-get-timezone() : ndet local-timezone {
+  cs "_Calendar.LocalTimeZone"
   js "_local_get_timezone"
 }
 
@@ -116,6 +118,7 @@ extern local-get-timezone() : ndet local-timezone {
 // in fractional seconds since the UNIX epoch (1970-01-01) together with the
 // time zone abbreviation.
 extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
+  cs "_Calendar.LocalUtcDelta"
   js "_local_utc_delta"
 }
 
@@ -124,14 +127,14 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
   Time and instant conversion using a calendar
 ----------------------------------------------------------------------------*/
 
-// Return the instant in time for a given `:date` and `:clock` (= `clock0`) interpreted by 
+// Return the instant in time for a given `:date` and `:clock` (= `clock0`) interpreted by
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
-public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
+public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant
 {
   // the year/month/day is interpreted as if in UTC first.
-  val i = (cal.dc-to-instant)( d, c )   
+  val i = (cal.dc-to-instant)( d, c )
   if (tz.tz-utc?) return i
-  // we need to adjust according to timezone 
+  // we need to adjust according to timezone
   match((tz.utc-inverse)(i)) {
     Just(inv) -> inv
     Nothing -> {
@@ -139,7 +142,7 @@ public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : 
       // do a double pass to accommodate jumping over a DST boundary.
       if (i.timescale.has-leap-seconds) then {
         // If in UTC, we calculate directly on UTC timespan's as to ignore any possible
-        // leap seconds during the timezone offset change. 
+        // leap seconds during the timezone offset change.
         // (for example: instant(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"))
         val utci = i.timestamp(i.timescale)
         val tzd1 = (tz.utc-delta)(i).fst
@@ -163,7 +166,7 @@ public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : 
   }
 }
 
-// Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation, 
+// Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation,
 // for a given timezone `tz` (=`tz-utc` by default) and calendar (=`cal-iso` by default).
 public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-iso ) : (date,clock,duration,string) {
   val (tzdelta,tzabbrv) = (tz.utc-delta)(i)
@@ -171,22 +174,22 @@ public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-
   (d,c,tzdelta,tzabbrv)
 }
 
-/* Return the instant in time for a given date and clock interpreted by 
+/* Return the instant in time for a given date and clock interpreted by
    calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
 
-  The `month`, `day`, `hour`, `minutes` may be outside their usual ranges 
+  The `month`, `day`, `hour`, `minutes` may be outside their usual ranges
   and will be normalized during the conversion. For example, January 33 converts to February 2.
   This makes it very easy to add- or subtract days or months to an existing time.
-  When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are 
+  When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are
   interpreted as leap seconds.
 
   Due to timezone transitions, or leap seconds, it is possible to specify dates that never
   happened (as it was skipped by a timezone change), or ambigious times (as a timezone springs back).
   In such cases, the time is always interpreted in the earlier timezone.
 */
-public fun instant( year : int, month : int = 1, day : int = 1, 
-                    hours : int = 0, minutes : int = 0, seconds : int = 0, 
-                    frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant 
+public fun instant( year : int, month : int = 1, day : int = 1,
+                    hours : int = 0, minutes : int = 0, seconds : int = 0,
+                    frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : instant
 {
   val fsecs = timespan(seconds,frac)
   //trace("instant: " + seconds.show + "+" + frac.show + ", t:" + fsecs.show)
@@ -194,14 +197,14 @@ public fun instant( year : int, month : int = 1, day : int = 1,
 }
 
 /*
-// Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by 
+// Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
-// It is also possible to pass the weekday that determines if 
+// It is also possible to pass the weekday that determines if
 // a week falls in the current year or not (which is Thursday for the ISO definition)
-public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant 
-{  
+public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant
+{
   val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
-  val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)  
+  val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)
   instant( d, c, tz, cal )
 }
 */
@@ -212,7 +215,7 @@ fun weekday( d : date, cal : calendar ) : weekday {
   val i    = instant(d.year,d.month,d.day,cal=cal)
   val days = i.mjd(cal.timescale).floor.int
   val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
-  dow.weekday                  // to ISO week day 
+  dow.weekday                  // to ISO week day
 }
 
 // Return the difference in days between two dates interpreted by calendar `cal`.
@@ -242,7 +245,7 @@ val secs-per-day = 86400
 // a function `days-to-date` to calculate a date given a number of days since the `epoch`,
 // a function `date-to-days` to calculate days since the `epoch` for a given date,
 // and an optional time scale to be used (=`ts-utc`).\
-// `month-prefix` (=`""`) is used when displaying numeric months and is set for 
+// `month-prefix` (=`""`) is used when displaying numeric months and is set for
 // the ISO week dates to `"W"` for example. The `show-era` function can be given
 // to display the era of a date.
 public fun earth-calendar(
@@ -255,12 +258,12 @@ public fun earth-calendar(
               ts   : timescale = ts-ti
             ) : calendar
 {
-  val epoch-shift = ts.timescale-y2k.timespan(ts)  
-  fun instant-to-dc(i : instant, tzdelta : duration) { 
-    earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date ) 
+  val epoch-shift = ts.timescale-y2k.timespan(ts)
+  fun instant-to-dc(i : instant, tzdelta : duration) {
+    earth-timestamp-to-dc( (i.timestamp(ts) - epoch-shift) + tzdelta.timespan, days-to-date )
   }
-  fun dc-to-instant(d : date, c : clock) { 
-    unsafe-instant( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts ) 
+  fun dc-to-instant(d : date, c : clock) {
+    unsafe-instant( earth-dc-to-timestamp( d, c, date-to-days ) + epoch-shift, ts )
   }
   Calendar( name,long-name,ts,month-prefix,show-era,
             instant-to-dc,dc-to-instant,
@@ -270,9 +273,9 @@ public fun earth-calendar(
 
 fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,clock) {
   // get whole seconds and fraction, such that fraction is always positive (into the day)
-  val (nlsecs,nlfrac,leap)  = t.calendar-seconds  
+  val (nlsecs,nlfrac,leap)  = t.calendar-seconds
   //trace("ts-to-dc: " + t.show + ": " + nlsecs.show + ", " + nlfrac.show + ", " + leap.show)
-  // get the date from the whole days; use euclidean division such that daysecs is always positive                                           
+  // get the date from the whole days; use euclidean division such that daysecs is always positive
   val (days,daysecs)   = divmod( nlsecs, secs-per-day)
   val date             = days-to-date(days)
   //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
@@ -285,7 +288,7 @@ fun earth-timestamp-to-dc( t : timestamp, days-to-date: (int) -> date ) : (date,
 
 fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
   // Get seconds and leap seconds (if the clock has seconds > 59)
-  val secs = c.seconds.trunc.int
+  val secs = c.seconds.truncate.int
   val frac = c.seconds.fraction.double
   //trace("dc-to-timestamp: " + c.show + ", secs/frac:" + secs.show + "+" + frac.show)
   val (fsecs,leaps)  = if (secs < 60) then (secs,0) else ( 59, secs - 59 )
@@ -294,7 +297,7 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
   //trace("dc-to-ts: " + d.show + "T" + c.show + ", xdays: " + xdays.show + ", xsecs: " + xsecs.show + ", sdays: " + sdays.show )
   val ssecs = sdays*secs-per-day + xsecs
   // trace( "ssecs: " + ssecs.show )
-  timestamp( ssecs, frac ).adjust-leap-seconds(leaps.timespan)  
+  timestamp( ssecs, frac ).adjust-leap-seconds(leaps.timespan)
 }
 
 
@@ -305,13 +308,13 @@ fun earth-dc-to-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : 
 ----------------------------------------------------------------------------*/
 
 // Create a new calendar from by combining two other calendars. The `switch-date`
-// is in terms of the second calendar (`cal2`) and time after (and including) the switch 
+// is in terms of the second calendar (`cal2`) and time after (and including) the switch
 // date is displayed in `cal2` while times before it in `cal1`. This function is used
 // for example for the Julian Gregorian calendar.
-public fun combine-earth-calendars( name : string, long-name : string, 
+public fun combine-earth-calendars( name : string, long-name : string,
                             switch-date : date, cal1 : calendar, cal2 : calendar,
                             mb-show-era : maybe<(date) -> string> = Nothing
-                          ) : calendar 
+                          ) : calendar
 {
   val switch-days = (cal2.date-to-days)(switch-date) //+ skip
   fun cdays-to-date( days : int ) : date {
@@ -323,7 +326,7 @@ public fun combine-earth-calendars( name : string, long-name : string,
   fun cshow-era(d : date ) : string {
     match(mb-show-era) {
       Just(showera) -> d.showera
-      Nothing -> ((if (d < switch-date) then cal1 else cal2).show-era)(d) 
+      Nothing -> ((if (d < switch-date) then cal1 else cal2).show-era)(d)
     }
   }
   earth-calendar( name, long-name, cdays-to-date, cdate-to-days, show-era = cshow-era, ts = cal2.timescale )
@@ -333,11 +336,11 @@ public fun combine-earth-calendars( name : string, long-name : string,
 // years (`year-shift`). This is used for example to create the Ethiopian calendar
 // from the Coptic calendar, by using:
 // `year-shift-earth-calendar( "EC", "Ethiopian", ~276, cal-coptic )`
-public fun year-shift-earth-calendar( name : string, long-name: string, 
-                                year-shift : int, cal : calendar, 
+public fun year-shift-earth-calendar( name : string, long-name: string,
+                                year-shift : int, cal : calendar,
                                 month-prefix  : string = "",
-                                show-era      : (date)->string = fun(d){ "" }                                
-                             ) : calendar 
+                                show-era      : (date)->string = fun(d){ "" }
+                             ) : calendar
 {
   fun shift-days-to-date( days : int ) : date {
     val d = (cal.days-to-date)(days)
@@ -345,30 +348,30 @@ public fun year-shift-earth-calendar( name : string, long-name: string,
   }
   fun shift-date-to-days( d : date ) : int {
     (cal.date-to-days)( d(year = d.year + year-shift) )
-  }  
-  earth-calendar( 
-    name, long-name, 
+  }
+  earth-calendar(
+    name, long-name,
     shift-days-to-date, shift-date-to-days,
-    month-prefix, show-era 
+    month-prefix, show-era
   )
 }
 
 
 /*----------------------------------------------------------------------------
-  Generic solar calendars: 
+  Generic solar calendars:
   Abstract over almost all calendars that work in terms of months and solar years.
 ----------------------------------------------------------------------------*/
 
 // An abstraction over solar calendars. Almost all calendars can be defined
-// in terms of this function (and `solar-ecalendar`). Given functions to 
+// in terms of this function (and `solar-ecalendar`). Given functions to
 // convert days to and from a year, and day-of-the-year to and from month
 // and month day, this constructs a full calendar.\
 // Also needs an `epoch-shift` that gives the number of days from the
-// calendar epoch to the date ``2000-01-01``. By default this is `730119` 
+// calendar epoch to the date ``2000-01-01``. By default this is `730119`
 // which corresponds to a ``0001-01-01`` ISO calendar epoch. The
-// `has-year-zero?` (=`True`) parameter is used when the calendar has a 
+// `has-year-zero?` (=`True`) parameter is used when the calendar has a
 // year zero. The `month-prefix` (=`""`) is used for displaying numeric
-// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function 
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
 // can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
 // gives the time scale for the calendar.
 public fun solar-calendar( name : string, long-name: string,
@@ -380,11 +383,11 @@ public fun solar-calendar( name : string, long-name: string,
                     has-year-zero?: bool = True,
                     month-prefix  : string = "",
                     show-era      : (date)->string = fun(d){ "" },
-                    ts            : timescale = ts-ti ) : calendar 
+                    ts            : timescale = ts-ti ) : calendar
 {
   fun date-to-days( d : date ) : int {
     val y = if (has-year-zero? || d.year.pos?) then d.year else d.year.inc
-    days-before-year( y ) + days-before-month( y, d.month ) 
+    days-before-year( y ) + days-before-month( y, d.month )
      + d.day.dec - epoch-shift
   }
 
@@ -397,15 +400,15 @@ public fun solar-calendar( name : string, long-name: string,
     Date(year,month,day)
   }
 
-  earth-calendar( 
-    name, long-name, 
-    days-to-date, date-to-days, 
-    month-prefix, show-era, ts 
+  earth-calendar(
+    name, long-name,
+    days-to-date, date-to-days,
+    month-prefix, show-era, ts
   )
 }
 
 // An abstraction over solar calendars. Almost all calendars can be defined
-// in terms of this function (and `solar-calendar`). Given functions to 
+// in terms of this function (and `solar-calendar`). Given functions to
 // convert days to and from a year, and day-of-the-year to and from month
 // and month day, this constructs a full calendar. In contrast to `solar-calendar`
 // this function just needs an estimation function from days to a year -- for most
@@ -415,11 +418,11 @@ public fun solar-calendar( name : string, long-name: string,
 // is surely correct. Otherwise the wrapper will calculate the start day for the next
 // year until the correct year is found.\
 // Also needs an `epoch-shift` that gives the number of days from the
-// calendar epoch to the date ``2000-01-01``. By default this is `730119` 
+// calendar epoch to the date ``2000-01-01``. By default this is `730119`
 // which corresponds to a ``0001-01-01`` ISO calendar epoch. The
-// `has-year-zero?` (=`True`) parameter is used when the calendar has a 
+// `has-year-zero?` (=`True`) parameter is used when the calendar has a
 // year zero. The `month-prefix` (=`""`) is used for displaying numeric
-// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function 
+// months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
 // can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
 // gives the time scale for the calendar.
 public fun solar-ecalendar(  name : string, long-name: string,
@@ -442,7 +445,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
   }
 
   solar-calendar(name,long-name,
-    days-before-year, days-to-yeardoy, 
+    days-before-year, days-to-yeardoy,
     days-before-month, days-to-month,
     epoch-shift, has-year-zero?, month-prefix, show-era, ts
   )
@@ -450,34 +453,34 @@ public fun solar-ecalendar(  name : string, long-name: string,
 
 
 // ----------------------------------------------------
-// ISO calendar: 
+// ISO calendar:
 // We define it here (instead of std/time/calendars) because it is the default calendar.
 // ----------------------------------------------------
 
 
 // Create a standard ISO calendar using a particular time scale
-// and calendar `name` (=`ts.name`). 
+// and calendar `name` (=`ts.name`).
 public fun iso-calendar( ts : timescale, name : string = ts.name, long-name : string = name ) : calendar {
   solar-ecalendar(
-    name, long-name, 
-    iso-days-before-year, iso-estimate-year, 
+    name, long-name,
+    iso-days-before-year, iso-estimate-year,
     iso-days-before-month, iso-doy-to-month,
     ts = ts
   )
 }
 
 // The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// using TI time (`ts-ti`). This is a proleptic Gregorian 
-// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
+// using TI time (`ts-ti`). This is a proleptic Gregorian
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc.
 //
 // This is the default calendar used in the library as it guarantees deterministic
 // date calculations while still taking historical leap seconds into account.
 public val cal-iso = iso-calendar( ts-ti, "", "ISO" )
 
 // Create a standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-// using UTC time (`ts-utc-create`) given a provide leap second table (`:leaps-table`). 
-// This is a proleptic Gregorian 
-// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc. 
+// using UTC time (`ts-utc-create`) given a provide leap second table (`:leaps-table`).
+// This is a proleptic Gregorian
+// calendar except that it uses the year 0 for 1 BCE, -1 for 2 BCE etc.
 //
 // You can create an ISO 8601 UTC calendar using the latest IETF leap
 // second data using [`cal-utc-load`](std_time_download.html#cal_utc_load).
@@ -488,12 +491,12 @@ public fun cal-utc-create( leaps : leaps-table ) : calendar {
 
 
 /* The standard [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) calendar
-but using TI-SLS time (`ts-ti-sls`), i.e. TI with 
+but using TI-SLS time (`ts-ti-sls`), i.e. TI with
 [smoothed leap seconds](https://www.cl.cam.ac.uk/~mgk25/time/utc-sls/).
 
 This calendar is equivalent to the ISO calendar except for the last 1000 seconds of a day where
 a leap second occurs. On such day, the leap second time step (positive or negative)
-is distributed over the last 1000 seconds of the day. On the full hour, ISO and ISO-SLS are equal again. 
+is distributed over the last 1000 seconds of the day. On the full hour, ISO and ISO-SLS are equal again.
 
 This is a recommended calendar to use for
 time stamps or communication with other services since it avoids any potential trouble
@@ -502,7 +505,7 @@ with leap seconds while still being quite precise.
 public val cal-iso-sls = iso-calendar( ts-ti-sls, "", "ISO-SLS" )
 
 // Create a new ISO 8601 calendar based on UTC-SLS time, i.e. UTC with smoothed leap
-// seconds. 
+// seconds.
 public fun cal-utc-sls-create( leaps : leaps-table ) : calendar {
   val ts-utc-sls = ts-utc-sls-create(leaps)
   iso-calendar( ts-utc-sls, "", "ISO-SLS" )
@@ -511,17 +514,17 @@ public fun cal-utc-sls-create( leaps : leaps-table ) : calendar {
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
 // Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
-// we have 1 CE (=`1`). 
+// we have 1 CE (=`1`).
 // The calendar short name is ``GC``.
 public val cal-gregorian = solar-ecalendar(
-  "GC", "Gregorian", 
-  iso-days-before-year, iso-estimate-year, 
+  "GC", "Gregorian",
+  iso-days-before-year, iso-estimate-year,
   iso-days-before-month, iso-doy-to-month,
   has-year-zero? = False,
   show-era = fun(d:date){ if (d.year.neg?) then "BCE" else "CE" }
 )
 
-fun iso-days-before-month( year : int, month : int ) : int { 
+fun iso-days-before-month( year : int, month : int ) : int {
   val adj = iso-adjust( month<=2, year )
   (367*month - 362)/12 - adj
 }
@@ -534,7 +537,7 @@ fun iso-doy-to-month( year : int, doy : int ) : int {
 fun iso-adjust( before-march? : bool, year : int ) : int {
   if (before-march?) then 0 elif (iso-is-leap?(year)) then 1 else 2
 }
-    
+
 fun iso-is-leap?( year : int ) {
   (year%4 == 0) && (year%100 != 0 || year%400 == 0)
 }

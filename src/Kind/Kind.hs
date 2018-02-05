@@ -17,6 +17,7 @@ module Kind.Kind( -- * Kinds
                   , kindHandled, kindHandled1
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
+                  , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
                   , isKindEffect, isKindHandled, isKindHandled1
@@ -100,6 +101,16 @@ kindHandled1
 kindExtend :: Kind 
 kindExtend 
   = kindFun kindLabel (kindFun kindEffect kindEffect)
+
+-- | Kind constructor N from n kind star to kind star
+kindCon :: Int -> Kind
+kindCon n
+  = kindConOver (replicate n kindStar)
+
+kindConOver kinds
+  = foldr kindFun kindStar kinds
+
+
 
 -- | Create a (kind) function from a kind to another kind.
 kindFun :: Kind -> Kind -> Kind

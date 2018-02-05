@@ -1,13 +1,22 @@
-failure while running program:
- node out/test/algeff_exn2.js
-.Eff-amb : forall<a> (.ops-amb<a>) -> operation<a>
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-flip : forall<a> .ops-amb<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-set : forall<a,b> (a) -> .ops-state<a,b>
-.copy : forall<a> (.ops-amb<a>) -> .ops-amb<a>
-.tag-Eff-amb: string
-.tag-Eff-state: string
+[01;30moperator branch (amb_handle) flip: resume scoped
+[00;39;49m[00m[01;30moperator branch (state_handle) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state_handle) set: resume tail
+[00;39;49m[00mexit
+exit
+exit
+exit
+[False,False,True,False]
+exit
+exit
+[False,False]
+.Op-flip : .op-flip
+.Op-get : forall<a> .op-get<a>
+.Op-set : forall<a> (i : a) -> .op-set<a>
+.Ops-flip : (flip : .op-flip) -> .ops-amb
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-set : forall<a> (set : .op-set<a>) -> .ops-state<a>
+.tag-amb : string
+.tag-state : string
 amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
 flip : () -> amb bool
 foo : () -> <io,amb,state<int>> bool
@@ -19,7 +28,3 @@ test1 : () -> exn list<bool>
 test2 : () -> io list<bool>
 test3 : () -> io list<bool>
 xor : () -> <amb,exn> bool
-.../out/test/std_core.js:
- throw exn;
- ^
-std/core/Error: oops

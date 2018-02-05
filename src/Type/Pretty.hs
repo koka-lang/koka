@@ -140,6 +140,7 @@ data Env     = Env{ showKinds      :: Bool
 
                   -- should not be here either: Signifies whether we output core for an interface or not
                   , coreIface :: Bool
+                  , showCoreTypes :: Bool  -- show types in core output
 
                   -- should not be here either: was the verbose flag set?
                   , verbose   :: Int
@@ -154,6 +155,7 @@ defaultEnv
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
+        False -- showCoreTypes
         0     -- verbose
 
 
@@ -427,7 +429,7 @@ ppTypeVar env (TypeVar id kind flavour)
        (case flavour of 
          Meta   -> text "_" 
          Skolem -> text "$"
-         _      -> empty) <> nicePretty (nice env) id
+         _      -> empty) <> nicePretty (nice env) id -- <> text (":" ++ show id)
 
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)

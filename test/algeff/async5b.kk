@@ -1,5 +1,5 @@
 // --------------------------------------------------------
-// Async test: 
+// Async test:
 // tests if nested interleaved operations properly
 // restore only the part of the handler stack up to the next
 // inner-async-handler; test should output 0, 2b, 1, 2a (including 1)
@@ -15,7 +15,7 @@ effect state {
 val state = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  append(s')  -> resume(s + ", " + s',())
+  append(s')  -> resume((),s + ", " + s')
 }
 
 fun show-int( i : int ) : string {
@@ -25,7 +25,7 @@ fun show-int( i : int ) : string {
 fun dowait(s : duration) {
   val secs = s.show
   println("and waiting at least " + secs)
-  yield(s)
+  wait(s)
   println("(done waiting " + secs + ")")
   "waited " + secs
 }
@@ -51,5 +51,5 @@ fun test() {
 }
 
 fun main() {
-  state("0",test); () 
+  state("0",test); ()
 }

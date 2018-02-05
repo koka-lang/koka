@@ -1,6 +1,6 @@
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 

@@ -1,10 +1,13 @@
-positive
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-set : forall<a,b> (a) -> .ops-state<a,b>
-.tag-Eff-state: string
+[01;30moperator branch (state) get: resume normal
+[00;39;49m[00m[01;30moperator branch (state) set: resume normal
+[00;39;49m[00mpositive
+.Op-get : forall<a> .op-get<a>
+.Op-set : forall<a> (x : a) -> .op-set<a>
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-set : forall<a> (set : .op-set<a>) -> .ops-state<a>
+.tag-state : string
 get : forall<a> () -> (state<a>) a
 main : () -> console ()
 set : forall<a> (x : a) -> (state<a>) ()
-state : forall<a,b> (action : () -> (state<a>) b) -> ((s : a) -> cps b)
+state : forall<a,b> (action : () -> (state<a>) b) -> ((s : a) -> b)
 test : () -> (state<int>) string

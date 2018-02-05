@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2017 Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -53,7 +53,8 @@ import Syntax.RangeMap
 import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
-import Core.Cps               ( cpsTransform )
+import Core.UnReturn          ( unreturn )
+import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -191,7 +192,7 @@ compileExpression term flags loaded compileTarget program line input
                               [(qnameShow,_)] 
                                 -> do let expression = mkApp (Var (qualify nameSystemCore (newName "println")) False r) 
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public DefFun ""                            
+                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (DefFun PolyMon)  ""                            
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef'
                                       return ld
@@ -744,26 +745,29 @@ inferCheck loaded flags line coreImports program1
        if (not (coreCheck flags)) then return () 
         else Core.Check.checkCore False penv unique4 gamma coreDefs0 
 
-       -- cps tranform program
-       (isCps,coreDefs1)
-           <- if (CS `elem` targets flags || not (enableCps flags))
-               then return (False,coreDefs0)
-               else do cdefs <- Core.Cps.cpsTransform penv coreDefs0
+       -- remove return statements
+       coreDefsUR <- unreturn penv coreDefs0
+
+       -- do monadic effect translation (i.e. insert binds)
+       (isCps,coreDefsMon)
+           <- if (not (enableMon flags)) -- CS `elem` targets flags || 
+               then return (False,coreDefsUR)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core
-                       when (False && coreCheck flags) $
+                       when (coreCheck flags) $
                           Core.Check.checkCore True penv unique4 gamma cdefs
                        return (True,cdefs)
 
        
 
        -- simplify coreF if enabled
-       (coreDefs2,unique5)
+       (coreDefsSimp,unique5)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications 
-                      then return (coreDefs1,unique4)
+                      then return (coreDefsMon,unique4)
                       else -- trace "simplify" $ 
                            do let (cdefs,unique4a) -- Core.Simplify.simplify $ 
                                           -- Core.Simplify.simplify 
-                                     = simplifyDefs False (simplify flags) unique4 penv coreDefs1
+                                     = simplifyDefs False (simplify flags) unique4 penv coreDefsMon
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
                                 Core.Check.checkCore isCps penv unique4a gamma cdefs
@@ -774,7 +778,7 @@ inferCheck loaded flags line coreImports program1
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
                           coreProgram1{ Core.coreProgImports = coreImports 
-                                      , Core.coreProgDefs = coreDefs2 
+                                      , Core.coreProgDefs = coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
            loaded4 = loaded3{ loadedGamma = gamma
@@ -864,15 +868,16 @@ codeGen term flags compileTarget loaded
     backends = [codeGenCS, codeGenJS]
 
 
-codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
-codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
+-- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's 
+codeGenCSDll:: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCSDll term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
   = return Nothing
-codeGenCS term flags modules compileTarget outBase core
+codeGenCSDll term flags modules compileTarget outBase core
   = compilerCatch "csharp" term Nothing $
-    do let mbEntry = case compileTarget of
-                       Executable name tp -> Just (name,tp)
-                       _ -> Nothing
-           cs  = csharpFromCore (maxStructFields flags) mbEntry core
+    do let (mbEntry,isAsync) = case compileTarget of
+                                 Executable name tp -> (Just (name,tp), isAsyncFunction tp)
+                                 _ -> (Nothing, False)
+           cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
@@ -882,18 +887,50 @@ codeGenCS term flags modules compileTarget outBase core
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " " 
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
-                        ++ "-r:System.Numerics.dll "
+                        ++ "-r:System.Numerics.dll " ++ (if isAsync then "-r:" ++ outName flags "std_async.dll " else "")
            targetName = case compileTarget of
                           Executable _ _ -> dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                           _              -> dquote (outBase ++ dllExtension)
            targetFlags= case compileTarget of
                           Executable _ _ -> "-t:exe -out:" ++ targetName
                           _              -> "-t:library -out:" ++ targetName  
-       let cmd = (csc flags ++ " " ++ targetFlags ++ " -o -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)        
+           debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+       let cmd = (csc flags ++ " " ++ debugFlags ++ targetFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)        
        -- trace cmd $ return () 
        runSystem cmd
        -- run the program
        return (Just (runSystem targetName))
+
+-- Generate C# through CS files without generating dll's
+codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
+  = return Nothing
+codeGenCS term flags modules compileTarget outBase core
+  = compilerCatch "csharp" term Nothing $
+    do let (mbEntry,isAsync) = case compileTarget of
+                                 Executable name tp -> (Just (name,tp), isAsyncFunction tp)
+                                 _ -> (Nothing, False)
+           cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
+           outcs       = outBase ++ ".cs"
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+
+       termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry 
+       writeDoc outcs cs
+       when (showAsmCSharp flags) (termDoc term cs)
+
+       case mbEntry of
+         Nothing -> return Nothing
+         Just entry -> 
+          do let linkFlags  = "-r:System.Numerics.dll " -- ++ (if isAsync then "-r:" ++ outName flags "std_async.dll ")
+                 sources    = concat [dquote (outName flags (showModName (modName mod)) ++ ".cs") ++ " " | mod <- modules]
+                 targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+                 targetFlags= "-t:exe -out:" ++ targetName ++ " "
+                 debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+             let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)        
+             trace cmd $ return () 
+             runSystem cmd
+             -- run the program
+             return (Just (runSystem targetName))
 
 
 codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
@@ -904,7 +941,7 @@ codeGenJS term flags modules compileTarget outBase core
        let mbEntry = case compileTarget of 
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
-       let js    = javascriptFromCore mbEntry core
+       let js    = javascriptFromCore (maxStructFields flags) mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js 
        when (showAsmJavaScript flags) (termDoc term js)

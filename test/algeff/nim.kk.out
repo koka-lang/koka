@@ -1,3 +1,13 @@
+[01;30moperator branch (pc) move: resume tail
+[00;39;49m[00m[01;30moperator branch (allResults) choose: resume scoped
+[00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
+[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
+[00;39;49m[00m[01;30moperator branch (check) move: resume tail
+[00;39;49m[00m[01;30moperator branch (coin) choose: resume tail
+[00;39;49m[00m[01;30moperator branch (gametree) move: resume normal
+[00;39;49m[00m[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) put: resume tail
+[00;39;49m[00m
 -----------
 alice
 -----------
@@ -20,33 +30,31 @@ bob
 -----------
 failure while running program:
  node out/test/algeff_nim.js
-.Eff-cheating: forall<a> (.ops-cheating<a>) -> operation<a>
-.Eff-choose : forall<a> (.ops-choose<a>) -> operation<a>
-.Eff-nim : forall<a> (.ops-nim<a>) -> operation<a>
-.Eff-state : forall<a,b> (.ops-state<b,a>) -> operation<a>
-.Op-cheat : forall<a,b> (player) -> .ops-cheating<a>
-.Op-choose : forall<a> .ops-choose<a>
-.Op-get : forall<a,b> .ops-state<a,b>
-.Op-move : forall<a> (player, int) -> .ops-nim<a>
-.Op-put : forall<a,b> (a) -> .ops-state<a,b>
-.copy : forall<a> (.ops-nim<a>, player, int) -> .ops-nim<a>
-.copy : forall<a> (.ops-choose<a>) -> .ops-choose<a>
-.copy : forall<a,b> (.ops-cheating<a>, player) -> .ops-cheating<a>
-.tag-Eff-cheating: string
-.tag-Eff-choose: string
-.tag-Eff-nim: string
-.tag-Eff-state: string
+.Op-cheat : forall<a> (player : player) -> .op-cheat<a>
+.Op-choose : .op-choose
+.Op-get : forall<a> .op-get<a>
+.Op-move : (player : player, sticks : int) -> .op-move
+.Op-put : forall<a> (x : a) -> .op-put<a>
+.Ops-cheat : forall<a> (cheat : .op-cheat<a>) -> .ops-cheating
+.Ops-choose : (choose : .op-choose) -> .ops-choose
+.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
+.Ops-move : (move : .op-move) -> .ops-nim
+.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.tag-cheating: string
+.tag-choose : string
+.tag-nim : string
+.tag-state : string
 == : (p1 : player, p2 : player) -> bool
 Alice : player
 Bob : player
 Take : (player : player, moves : list<(int, gtree)>) -> gtree
 Winner : (player : player) -> gtree
 alice? : (player : player) -> bool
-aliceTurn : (int) -> <nim,div> player
+aliceTurn : (n : int) -> <nim,div> player
 allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
 bob? : (player : player) -> bool
 bobChooses : forall<a,e> (m : () -> <nim,choose|e> a) -> <choose|e> a
-bobTurn : (int) -> <nim,div> player
+bobTurn : (n : int) -> <nim,div> player
 cheat : forall<a> (player : player) -> cheating a
 cheatReport : forall<a,e> (action : () -> <cheating,exn|e> a) -> <exn|e> a
 check : forall<a,e> (action : () -> <nim,cheating|e> a) -> <nim,cheating|e> a
@@ -57,6 +65,7 @@ gametree : forall<e> (action : () -> <nim|e> player) -> e gtree
 get : forall<a> () -> (state<a>) a
 main : () -> <pure,console> ()
 move : (player : player, sticks : int) -> nim int
+mymap : forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
 pc : forall<a,e> (action : () -> <nim|e> a) -> e a
 perfect : forall<a,e> (action : () -> <nim|e> a) -> e a
 player : (gtree : gtree) -> player
@@ -86,6 +95,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- throw exn;
+ throw result.exn; // rethrow
  ^
 std/core/Error: bob cheated!

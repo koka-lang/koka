@@ -35,6 +35,7 @@ import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
+import Core.CoreVar
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 cpsTransform penv defs
@@ -89,14 +90,14 @@ cpsExpr' topLevel expr
       -- open
       -- simplify open away if it is directly applied
         {-
-      App (App (TypeApp (Var open _) [effFrom, effTo]) [f]) args
+      App (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f]) args
         | getName open == nameEffectOpen 
         -> cpsExpr (App f args)
       -}
 
 
       --  lift _open_ applications
-      App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
+      App eopen@(TypeApp (Var open _) [effFrom,effTo, _, _]) [f]
         | getName open == nameEffectOpen         
         -> do cpskFrom <- getCpsType effFrom
               cpskTo   <- getCpsType effTo
@@ -371,7 +372,7 @@ isDupFunctionDef expr
 simplify :: Expr -> Expr
 simplify expr
   = case expr of
-      App (TypeApp (Var openName _) [eff1,eff2]) [arg]  
+      App (TypeApp (Var openName _) [eff1,eff2, _, _]) [arg]  
         | getName openName == nameEffectOpen && matchType eff1 eff2
         -> simplify arg
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
@@ -457,15 +458,17 @@ ensureK tname@(TName name tp) namek body
         def = Def name tp expr Private DefVal rangeNull ""
     in Let [DefNonRec def] body
 
-varK tp effTp resTp    = Var (tnameK tp effTp resTp) (InfoArity 0 1)
+varK tp effTp resTp    = Var (tnameK tp effTp resTp) InfoNone -- (InfoArity 0 1)
 tnameK tp effTp resTp  = tnameKN "" tp effTp resTp
 tnameKN post tp effTp resTp = TName (postpend post nameK) (typeK tp effTp resTp)
 typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing) 
-                           [tp,effTp,resTp]
-                           (TFun [(nameNil,tp)] effTp resTp) 
+                          {- [tp,effTp,resTp]
+                           (TFun [(nameNil,tp)] effTp resTp) -}
+                           [tp, effTp, tp]
+                           (TFun [(nameNil,tp)] effTp tp)
                           -- TFun [(nameNil,tp)] typeTotal typeYld
  
-typeYld   = TCon (TypeCon (nameTpYld) kindStar)
+typeYld   = TCon (TypeCon (nameTpYld) (kindFun kindStar kindStar))
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
@@ -508,7 +511,7 @@ needsCpsDef def
 needsCpsExpr :: Expr -> Cps Bool
 needsCpsExpr expr
   = case expr of
-      App (TypeApp (Var open _) [_, effTo]) [_] | getName open == nameEffectOpen
+      App (TypeApp (Var open _) [_, effTo, _, _]) [_] | getName open == nameEffectOpen
         -> needsCpsEffect effTo
       App f args 
         -> anyM needsCpsExpr (f:args)

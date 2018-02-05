@@ -55,7 +55,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/lib " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -407,6 +407,7 @@ var hsModules = [
   "Kind.Newtypes",
   "Kind.Assumption",
   "Core.Pretty",
+  "Core.CoreVar",
   "Type.Assumption",
   "Syntax.RangeMap",
   
@@ -422,10 +423,13 @@ var hsModules = [
   
   "Core.AnalysisMatch",
   "Core.Uniquefy",
-  "Core.Simplify",
   "Core.Divergent",
-  "Core.BindingGroups",
-  
+  "Core.BindingGroups", 
+  "Core.UnReturn",
+  "Core.Monadic",
+  "Core.AnalysisResume",
+  "Core.Simplify",
+
   "Type.Infer",
   
   "Backend.CSharp.FromCore",
@@ -434,7 +438,6 @@ var hsModules = [
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
-  "Core.Cps",
   "Core.Check",
   
   "Compiler.Package",
@@ -836,11 +839,11 @@ function runTests(test,testMode,flags,callback) {
   flags = "--checkcore " + flags 
   fs.stat(test,function(err,stats) {
     if (err) {
-      jake.logger.error("file or directory does not exist: " + test);
-      process.exit(1);
+      //jake.logger.error("file or directory does not exist: " + test);
+      //process.exit(1);
     }
     var tests = [];
-    if (stats.isDirectory()) {
+    if (!err && stats.isDirectory()) {
       var testList = new jake.FileList();
       testList.include(path.join(test,"*.kk"));
       testList.include(path.join(test,"*","*.kk"));
@@ -848,7 +851,14 @@ function runTests(test,testMode,flags,callback) {
       tests = testList.toArray();  
     }
     else {
-      tests = [test];
+      var testList = new jake.FileList();
+      testList.include(test);
+      // testList.include(test + ".kk");
+      tests = testList.toArray();
+    }
+    if (err && (tests == null || tests == [] )) {
+      jake.logger.error("file or directory does not exist: " + test);
+      process.exit(1);
     }
     // jake.logger.log("run " + (tests.length===1 ? "test" : tests.length + " tests over") + ": " + test);
     console.time(testMessage);

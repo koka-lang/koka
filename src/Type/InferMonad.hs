@@ -74,7 +74,7 @@ import Common.Unique
 import Common.Failure
 import Common.Error
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
 
@@ -208,7 +208,7 @@ generalize contextRange range eff0 rho0 core0
                  then typeTotal
                  else if (kind == kindStar)
                   then typeVoid
-                  else TCon (TypeCon nameTpVoid kind) -- make something up for now
+                  else TCon (TypeCon nameTpVoid kind) -- TODO: make something up for now
         in if (tvsIsEmpty fvars)
             then core 
             else let sub = subNew [(tv,tcon (getKind tv)) | tv <- tvsList fvars]
@@ -380,7 +380,7 @@ normalizeX free tp
 nicefyEffect :: Effect -> Inf Effect
 nicefyEffect eff
   = do let (ls,tl) = extractOrderedEffect eff
-       ls' <- matchAliases [nameTpIO, nameTpST, nameTpPure] ls
+       ls' <- matchAliases [nameTpIO, nameTpST, nameTpPure, nameTpAsyncX] ls
        return (foldr (\l t -> TApp (TCon tconEffectExtend) [l,t]) tl ls') -- cannot use effectExtends since we want to keep synonyms
   where
     matchAliases :: [Name] -> [Tau] -> Inf [Tau]
@@ -592,10 +592,10 @@ nofailUnify u
           -> do extendSub sub
                 failure ("Type.InferMonad.runUnify: should never fail!")
 
-withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> Inf (a,Tvs)) -> Inf a
+withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
 withSkolemized rng tp mhint action
   = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
-       (x,extraFree) <- action xrho
+       (x,extraFree) <- action xrho xvars
        --sub <- getSub
        free <- freeInGamma
        let allfree = tvsUnion free extraFree
