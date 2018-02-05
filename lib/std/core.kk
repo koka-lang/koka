@@ -235,7 +235,7 @@ extern error-pattern(location : string, definition : string) : exn a {
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
   cs inline "Eff.Op.HandleFinally<##2>(#1,#2)" 
   js inline "$std_core._handle_finally(#1,#2)"
-}
+} 
 
 private extern xcatch( action : () -> <exn|e> a, hndl: exception -> e a, all : bool = False ) : e a {
   cs inline "Eff.Op.HandleCatch<##1>(#1,#2,#3)" 
