@@ -1,4 +1,4 @@
-[01;30moperator branch (h) flip: resume normal
+[01;30moperator branch (h) flip: resume scoped
 [00;39;49m[00m[01;30moperator branch (h) get: resume tail
 [00;39;49m[00m[01;30moperator branch (h) set: resume tail
 [00;39;49m[00mFalse,True,True,False

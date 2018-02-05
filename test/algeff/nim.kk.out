@@ -1,5 +1,5 @@
 [01;30moperator branch (pc) move: resume tail
-[00;39;49m[00m[01;30moperator branch (allResults) choose: resume normal
+[00;39;49m[00m[01;30moperator branch (allResults) choose: resume scoped
 [00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
 [00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
 [00;39;49m[00m[01;30moperator branch (check) move: resume tail
@@ -30,8 +30,6 @@ bob
 -----------
 failure while running program:
  node out/test/algeff_nim.js
-test/algeff/nim.kk(61, 3): warning: pattern variable p is unused (or a wrongly spelled constructor?)
- hint: prepend an underscore to make it a wildcard pattern
 .Op-cheat : forall<a> (player : player) -> .op-cheat<a>
 .Op-choose : .op-choose
 .Op-get : forall<a> .op-get<a>
@@ -97,6 +95,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- else throw exn; // rethrow
+ throw result.exn; // rethrow
  ^
 std/core/Error: bob cheated!

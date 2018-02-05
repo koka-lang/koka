@@ -1,5 +1,5 @@
 [01;30moperator branch (state) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state) put: resume normal
+[00;39;49m[00m[01;30moperator branch (state) put: resume scoped
 [00;39;49m[00m68
 .Op-get : forall<a> .op-get<a>
 .Op-put : forall<a> (x : a) -> .op-put<a>

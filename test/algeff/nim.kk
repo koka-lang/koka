@@ -57,8 +57,8 @@ fun game(n) {
 // --------------------------------------------------------
 
 val perfect = handler {
-  return x  -> x
-  move(p,n) -> resume(max(1,n%4))
+  return x   -> x
+  move(_p,n) -> resume(max(1,n%4))
 }
 
 fun testPerfect1() {

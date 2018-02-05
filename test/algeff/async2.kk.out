@@ -1,4 +1,4 @@
-[01;30moperator branch (amb) flip: resume normal
+[01;30moperator branch (amb) flip: resume scoped
 [00;39;49m[00m.Op-flip : .op-flip
 .Ops-flip : (flip : .op-flip) -> .ops-amb
 .tag-amb : string

@@ -3,7 +3,7 @@
 [00;39;49m[00m[01;30moperator branch (hcutfail) cutfail: resume never
 [00;39;49m[00m[01;30moperator branch (choices) flip: resume tail
 [00;39;49m[00m[01;30moperator branch (choices) fail: resume never
-[00;39;49m[00m[01;30moperator branch (solutions) flip: resume normal
+[00;39;49m[00m[01;30moperator branch (solutions) flip: resume scoped
 [00;39;49m[00m[01;30moperator branch (solutions) fail: resume never
 [00;39;49m[00m[01;30moperator branch (state) get: resume tail
 [00;39;49m[00m[01;30moperator branch (state) put: resume tail
