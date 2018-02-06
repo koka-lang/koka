@@ -7,7 +7,7 @@ public import std/time/duration
 fun main() : <async,io> () {
 	catch {
 		timeout(15.seconds) {
-			http-server(80,"localhost",2) {
+			http-server(80,"localhost",3) {
 				println("request received!")
 				//error("ouch!")
 				wait(4.seconds)
