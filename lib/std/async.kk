@@ -35,7 +35,7 @@ import std/time/duration
 import std/debug
 
 extern include {
-  cs file "async-inline.cs"
+	cs file "async-inline.cs"
 }
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
@@ -237,16 +237,16 @@ fun trace-anyx( s : string, x : a ) : async () {
 // abstraction can reliably time out over any composition of asynchronous operations
 // and is therefore quite expressive.
 public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
-  firstof { wait(secs); Nothing }
-    { Just(action()) }
+  firstof	{ wait(secs); Nothing }
+         	{ Just(action()) }
 }
 
 // Execute `a` and `b` interleaved. As soon as one of them finishes,
 // `cancel` the other one and return the result of the first.
 public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|e> a  {
   cancelable {
-    val (ra,rb) = interleavedx  { val x = a(); cancel(); x }
-      { val x = b(); cancel(); x }
+    val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
+                              	{ val x = b(); cancel(); x }
     match(ra) {
       Exn(exn) | exn.canceled? -> rb.untry
       _  -> ra.untry
