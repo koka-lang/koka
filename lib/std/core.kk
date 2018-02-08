@@ -25,7 +25,7 @@ infixr 20  (||)
 
 
 extern include {
-  js file "core-handlers-inline.js" // must come first due to dependencies 
+  js file "core-handlers-inline.js" // must come first due to dependencies
 }
 
 extern include {
@@ -231,46 +231,39 @@ extern error-pattern(location : string, definition : string) : exn a {
 
 // Execute a `hndler` no matter what exception was raised in `action`.
 extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
-  cs inline "Eff.Op.HandleFinally<##2>(#1,#2)" 
+  cs inline "Eff.Op.HandleFinally<##2>(#1,#2)"
   js inline "$std_core._handle_finally(#1,#2)"
-} 
+}
 
-private extern xcatch( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  cs inline "Eff.Op.HandleCatch<##1>(#1,#2, false)" 
+// Catch any exception raised in `action` and handle it.
+// Use `on-exn` or `on-exit` when appropiate.
+extern try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
+  cs inline "Eff.Op.HandleCatch<##1>(#1,#2, false)"
   js inline "$std_core._handle_catch(#1, #2, false)"
 }
 
-private extern xcatch-some( action : () -> <exn|e> a, hndl: exception -> <exn|e> a) : <exn|e> a {
-  cs inline "Eff.Op.HandleCatch<##1>(#1,#2, false)" 
+private extern prim-try-some( action : () -> <exn|e> a, hndl: exception -> <exn|e> a) : <exn|e> a {
+  cs inline "Eff.Op.HandleCatch<##1>(#1,#2, false)"
   js inline "$std_core._handle_catch(#1, #2, false)"
 }
 
-// Catch an exception raised by `throw` and handle it.
-// Use `on-exn` or `on-fail` when appropiate.
+// _Deprecated_; use `try` instead. Catch an exception raised by `throw` and handle it.
+// Use `on-exn` or `on-exit` when appropiate.
 fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a {
-  xcatch(action,hndl)
+  try(action,hndl)
 }
 
 // Set a `hndler` that is called only when an exception is raised in the `action` block.
-fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a
-{
-  xcatch-some( action, fun(exn){ hndler(exn); throw(exn) })
+fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
+  prim-try-some( action, fun(exn){ hndler(exn); throw(exn) })
 }
 
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
 // Note that `on-exit(handler,action) == finally(action,handler)`.
-fun on-exit( hndler : () -> e (), action : () -> e a ) : e a
-{
+fun on-exit( hndler : () -> e (), action : () -> e a ) : e a {
   finally(action,hndler)
 }
 
-// Set a `hndler` that is called if `action` returns without raising an exception.
-fun on-success( hndler : () -> e (), action : () -> e a ) : e a
-{
-  val x = action()
-  hndler()
-  return x
-}
 
 // A `:try` type represents a first-class exception result.
 type try<a> {
@@ -280,12 +273,12 @@ type try<a> {
 
 // Transform an exception effect to a `:try` type.
 fun try( action : () -> <exn|e> a ) : e try<a> {
-  catch({ Ok(action()) },Exn)
+  try({ Ok(action()) },Exn)
 }
 
 // Return a default value when an exception is raised
 fun try-default( value : a , action : () -> <exn|e> a ) : e a {
-  catch( action, fun(_) { value })
+  try( action, fun(_) { value })
 }
 
 // Transform an `:try` type back to an `exn` effect.
@@ -314,22 +307,22 @@ fun canceled?( exn : exception ) {
 }
 
 // _unsafe_. The cancelation exception. User code should never throw
-// this exception as it cannot be caught (but it is respected by `finally` blocks). 
-// It is used internally to `finalize` effect handlers that do not resume. 
+// this exception as it cannot be caught (but it is respected by `finally` blocks).
+// It is used internally to `finalize` effect handlers that do not resume.
 fun unsafe-cancel-exn() : exception {
   exception("computation is canceled",Cancel)
 }
 
-private extern xcatch-all( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,true)" 
+private extern prim-try-all( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
+  cs inline "Eff.Op.HandleCatch<##1>(#1,#2,true)"
   js inline "$std_core._handle_catch(#1,#2,true)"
 }
 
-// _unsafe_. Catch any exception, including a possible cancelation. 
+// _unsafe_. Catch any exception, including a possible cancelation.
 // Unsafe to use in general as you must guarantee to later use `untry` to re-throw
 // at least a cancelation exception.
 fun unsafe-try-all( action : () -> <exn|e> a) : e try<a> {
-  xcatch-all({Ok(action())},Exn);
+  prim-try-all({Ok(action())},Exn);
 }
 
 
@@ -2937,15 +2930,15 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   js "$std_core._bind"
 }
 
-extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op : a ) : yld<b> { 
+extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op : a ) : yld<b> {
   cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#3,#4)"
   js inline "$std_core._yieldop(#1,#2,#4,#3)"
 }
 
-extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> { 
+extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
   cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
   js inline "$std_core._yieldop(#1,#2,#4,#3)"
-} 
+}
 
 extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
   cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
@@ -2960,34 +2953,34 @@ type handler-branch0<e::E,a>
 type handler-branch1<e::E,l,a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
-                              branch : (resume : (result : a) -> e b, op : c) -> e b 
+                              branch : (resume : (result : a) -> e b, op : c) -> e b
                             ) : total handler-branch0<e,b> {
   cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
-                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b 
+                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b
                             ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
 }
 
 extern ".makeHandlerBranch0-x1"( resume-kind : int, op-tag : string,
-                                branch : any // forall<x>(resume : (result : a<x>) -> e b, op : c<x>) -> e b 
+                                branch : any // forall<x>(resume : (result : a<x>) -> e b, op : c<x>) -> e b
                               ) : total handler-branch0<e,b> {
   cs inline "new Eff.BranchX1<##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1-x1"( resume-kind : int, op-tag : string,
-                                 branch : any // forall<x>(resume : (result : a<x>, new-local: l) -> e b, op : c<x>, local : l) -> e b 
+                                 branch : any // forall<x>(resume : (result : a<x>, new-local: l) -> e b, op : c<x>, local : l) -> e b
                                ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1X1<##3,##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch1"
 }
 
-extern ".makeHandler0"( effect-tag : string, 
+extern ".makeHandler0"( effect-tag : string,
                         ret : a -> e b,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int
@@ -2996,7 +2989,7 @@ extern ".makeHandler0"( effect-tag : string,
   js "$std_core._new_handler"
 }
 
-extern ".makeHandler1"( effect-tag : string, 
+extern ".makeHandler1"( effect-tag : string,
                         ret : (result : a, local : l) -> e b,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int

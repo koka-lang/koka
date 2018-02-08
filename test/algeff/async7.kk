@@ -15,7 +15,7 @@ fun dowait(s : duration) {
 }
 
 fun test() {
-  catch {
+  try {
     println("starting")
     fun f() {
       println("what is your name?")

@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    copyan be found in the file "license.txt" at the root of this distribution.
@@ -47,19 +47,19 @@ extern include {
 // format. Looks by default for the file `fname` (= `"config/timezones.json"` in the application directory).
 // If the file is not present, it will be downloaded from `url`. The default `url` is:\
 // <https://raw.githubusercontent.com/moment/moment-timezone/develop/data/packed/latest.json>\
-// Set the `url` to the empty string to suppress automatic downloading. 
+// Set the `url` to the empty string to suppress automatic downloading.
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`10.seconds`) gives the maximum time for downloading to finish.
 // Set `verbose` to `True` to see trace messages.
-public fun load-timezones( fname : path = path(""), 
+public fun load-timezones( fname : path = path(""),
                            url   : string = "auto",
                            download-delay : duration   = 4.weeks,
                            download-timeout : duration = 10.seconds,
                            verbose : bool = False
-                         ) : <io,async> timezones 
+                         ) : <io,async> timezones
 {
   fun parse(s :string) : maybe<timezones> {
-    (catch{
+    (try{
        Just(parse-packed-zones(s))
      }
      fun(exn) {
@@ -90,7 +90,7 @@ public struct timezone-info(
 // A period in a timezone where a specific time zone offset holds.
 public struct timezone-period(
   start : maybe<instant>, // Nothing = beginning of time
-  abbrv : string,         
+  abbrv : string,
   offset: duration
 )
 
@@ -98,16 +98,16 @@ public struct timezone-period(
 val timezone-period0 = Timezone-period( Nothing, "UTC", zero )
 
 // The time zone info for the UTC time zone.
-val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fun(){ [] } ) 
+val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fun(){ [] } )
 
 // Find the DST offset for a particular instant `i` given a list of time zone periods
 fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-period {
   match(periods) {
     Nil -> timezone-period0
-    Cons(tzp,earlier) -> 
+    Cons(tzp,earlier) ->
       if (i >= tzp.start.default(i)) then {
         //trace("timezone: " + tzp.abbrv + ", start: " + tzp.start.default(i).time.show)
-        tzp 
+        tzp
       } else find-offset(i,earlier)
   }
 }
@@ -118,8 +118,8 @@ public fun timezone( tzi : timezone-info ) : timezone {
     val tzp = find-offset(i.use(ts-unix),(tzi.periods)())
     (tzp.offset,tzp.abbrv)
   }
-  calendar/Timezone( 
-    tzi.name, 
+  calendar/Timezone(
+    tzi.name,
     utc-offset,
     fun(i) { Nothing }
   )
@@ -132,7 +132,7 @@ public fun show( tzp : timezone-period) : string {
 
 // Show time zone information.
 public fun show (tzi : timezone-info, show-periods : bool = False  ) : string {
-  tzi.name + ", population: " + tzi.population.show 
+  tzi.name + ", population: " + tzi.population.show
     + (if (!show-periods) then "" else ":\n  " + (tzi.periods)().map(show : timezone-period -> string).join("\n  "))
 }
 
@@ -202,9 +202,9 @@ fun parse-packed-zone( s : string ) : exn timezone-info {
   Timezone-info( name, population, periods, False )
 }
 
-fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sindices : string, sxdiffs :string ) : list<timezone-period> 
+fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sindices : string, sxdiffs :string ) : list<timezone-period>
 {
-  catch {
+  try {
     val abbrs   = sabbrs.split(" ").filter(notempty?)
     val offsets = soffsets.split(" ").filter(notempty?).map(parse-fixed-base60)
     val indices = sindices.list.map(digit60)
@@ -265,8 +265,8 @@ fun parse-base60( s : string ) : exn int {
 val rxbase60 = regex(@"^([\-\+])?([\da-zA-X]+)$")
 
 fun digit60( d : char ) : exn int {
-  if (d.digit?) then (d - '0').int 
-  elif (d.lower?) then (d - 'a').int + 10 
+  if (d.digit?) then (d - '0').int
+  elif (d.lower?) then (d - 'a').int + 10
   elif (d.upper?) then (d - 'A').int + 36
   else error("invalid digit in base 60: " + d.show)
 }
@@ -281,15 +281,15 @@ abstract struct timezones( tzones : dict<timezone-info> )
 
 // Create time zone information from a list of `:timezone-info`.
 public fun timezones( zones : list<timezone-info> ) {
-  Timezones( zones.map(fun(tzi) { (tzi.name.normalize, tzi) }).dict ) 
+  Timezones( zones.map(fun(tzi) { (tzi.name.normalize, tzi) }).dict )
 }
 
-// Empty `:timezones`. 
+// Empty `:timezones`.
 public val timezones-empty = Timezones([].dict)
 
 // Load time zone information from a [packed json](http://momentjs.com/timezone/docs/#/data-formats/packed-format)
 // file. Looks by default for the file `"config/timezones.json"` in the application directory
-// but an optional file name can be supplied. 
+// but an optional file name can be supplied.
 // The latest version can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
 public fun load-timezones-from( fname : string = "" ) : io timezones {
   val fpath = if (fname.empty?) then appdir() + path("config/timezones.json") else fname.path
@@ -313,7 +313,7 @@ public fun timezone-info( tzs : timezones, tz-name : string  ) : maybe<timezone-
 }
 
 // Return a `:timezone` given a IANA time zone identifier, for example `tzs.timezone("US/Pacific")`
-// `tzs.timezone("Asia/Singapore")`. Return `default` (= `tz-utc`) if the time zone is not found. 
+// `tzs.timezone("Asia/Singapore")`. Return `default` (= `tz-utc`) if the time zone is not found.
 public fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc ) : timezone {
   tzs.timezone-info(tz-name).map(timezone).default(def)
 }
@@ -350,8 +350,8 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
       val year    = now().time.year
       val dates   = sample-dates(year)
       val offsets = dates.sample-offsets(tz-local())
-      val matches = tzs.tzones.list.map(snd).filter( fun(tzi){ 
-        (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone)) 
+      val matches = tzs.tzones.list.map(snd).filter( fun(tzi){
+        (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone))
       })
       // trace("timezone guess matches: " + matches.show-list(fun(tzi){ tzi.show }))
       match(matches) {

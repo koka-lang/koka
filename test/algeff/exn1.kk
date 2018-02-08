@@ -16,16 +16,16 @@ fun xor() : <amb,exn> bool {
 
 
 fun foo() : <amb,state<int>> bool {
-  val p = flip() 
-  catch {
+  val p = flip()
+  try {
     val i = get()
     set(i+1)
     if (i>0 && p) then xor() else False
   }
   fun(exn) { True }
-}         
+}
 
- 
+
 // handlers
 
 val amb_handle = handler {
@@ -36,7 +36,7 @@ val amb_handle = handler {
 val state_handle = handler(i) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume((),j) 
+  set(j)   -> resume((),j)
 }
 
 
