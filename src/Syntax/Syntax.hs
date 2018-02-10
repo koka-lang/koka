@@ -202,6 +202,7 @@ data Expr t
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
   | Handler Bool (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+  | Inject t (Expr t) Range
 
 data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name

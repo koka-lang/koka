@@ -666,14 +666,14 @@ effectDecl dvis
            rng     = combineRanges [vrng,erng,irng]
 
            -- declare the effect tag
-           effTagName = toOpenTagName id 
-           effTagDef  = Def (ValueBinder effTagName () 
-                              (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng)) 
+           effTagName = toOpenTagName id
+           effTagDef  = Def (ValueBinder effTagName ()
+                              (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
                               irng irng) irng vis DefVal ""
 
            -- declare the effect type
            effTpDecl = DataType ename tpars [] rng vis Inductive DataDefNormal False doc
-           
+
 
 
            -- define the effect operations type (to be used by the type checker
@@ -683,7 +683,7 @@ effectDecl dvis
            opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            --extendConName = toEffectConName (tbinderName ename)
-           
+
 
        -- parse the operations and return the constructors and function definitions
        (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp )
@@ -694,14 +694,14 @@ effectDecl dvis
 
            -- declare operations data type (for the type checker)
            opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
-           
+
        return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
                   map DefType opTpDecls ++
                   map DefValue opDefs
 
 
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
-operation singleShot vis foralls effTagName effTp opsTp 
+operation singleShot vis foralls effTagName effTp opsTp
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -724,7 +724,7 @@ operation singleShot vis foralls effTagName effTp opsTp
            -- Create the constructor
            opName   = toOpTypeName id
            opBinder = TypeBinder opName KindNone idrng idrng
-           
+
 
            exists   = if (not (null exists0)) then exists0
                        else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
@@ -744,8 +744,8 @@ operation singleShot vis foralls effTagName effTp opsTp
            opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
            opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] idrng rng vis ""
 
-           -- Declare the operation tag name                            
-           opTagName    = toOpenTagName opName 
+           -- Declare the operation tag name
+           opTagName    = toOpenTagName opName
            opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show id) idrng)) idrng idrng)
                               idrng vis DefVal ""
 
@@ -757,9 +757,9 @@ operation singleShot vis foralls effTagName effTp opsTp
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
                         conNameVar = Var conName False idrng
-                       
+
                         hasExists = (length exists==0)
-                        innerBody 
+                        innerBody
                           = App yieldOp
                                      ([(Nothing, Var effTagName False idrng),
                                        (Nothing, Lit (LitString (show id) idrng)),
@@ -778,19 +778,19 @@ operation singleShot vis foralls effTagName effTp opsTp
                         typeString = TpCon nameTpString tprng
                         tprng      = idrng
 
-                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?                                     
+                        params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params]
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
-                        
+
                         lparams   = [par{ binderType = Nothing} | par <- params] -- ++ [ValueBinder dname Nothing (Just dvalue) nameRng nameRng | (dname,dtype,dvalue) <- defaults]
                         tpParams  = [(binderName par, binderType par) | par <- params] -- ++ [(dname,makeOptional dtype) | (dname,dtype,dvalue) <- defaults]
                         tpFull    = quantify QForall (foralls ++ exists) (TpFun tpParams teff tres rng)
-                       
+
                         makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
                         isJust (Just{}) = True
                         isJust _        = False
-                        
-                        
+
+
                     in def
        return (opsConDef,opTpDecl,opDef)
 
@@ -1090,7 +1090,7 @@ handlerParams
                                         [(Nothing, (Var (binderName apar) False rng) )]
                                xxpars = [p | p <- xpars, not (isJust (binderExpr p))]
                                hname  = newHiddenName "handler"
-                               hdef h = Def (ValueBinder hname () h rng rng) rng Private DefVal ""                                  
+                               hdef h = Def (ValueBinder hname () h rng rng) rng Private DefVal ""
                                hlam h = Let (DefNonRec (hdef h)) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
                            in hlam
                       else id
@@ -1264,6 +1264,8 @@ atom
   <|>
     do lit <- literal
        return (Lit lit)
+  <|>
+    do injectExpr
   <?> "(simple) expression"
 
 literal
@@ -1313,6 +1315,16 @@ listExpr
 
 makeNil rng   = Var nameNull False rng
 makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
+
+
+injectExpr :: LexParser UserExpr
+injectExpr
+  = do rng1 <- keyword "inject"
+       langle
+       tp <- ptype
+       rangle
+       exp <- parens expr <|> funblock
+       return (Inject tp exp (combineRanged rng1 exp))
 
 -----------------------------------------------------------
 -- Patterns (and binders)
