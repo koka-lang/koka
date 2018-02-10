@@ -2922,6 +2922,14 @@ type handled1   :: HX1 -> X;
 // the continuations are not safely typed in plain Koka
 // ----------------------------------------------------------------------------
 
+abstract type resource<eff::X> {
+  Resource( resource-tag : int32 )
+}
+
+extern ".inject"<a::V,e::E,x::X>( effect-name : string, action : () -> e a,  res : resource<x> = Resource(0.int32) ) : a {
+  js inline "$std_core._handle_inject(#1,#3,#2)"
+}
+
 // Yield alias
 alias yld<a> = a
 
@@ -2930,14 +2938,14 @@ extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   js "$std_core._bind"
 }
 
-extern inline ".yieldop"( effect-tag : string, op-tag : string, op-idx : int, op : a ) : yld<b> {
+extern ".yieldop"( effect-name : string, op-name : string, op-idx : int, op : a ) : yld<b> {
   cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#3,#4)"
-  js inline "$std_core._yieldop(#1,#2,#4,#3)"
+  js inline "$std_core._yield_op(#1,#2,#4,#3)"
 }
 
-extern ".yieldop-x1"<a,b,x>( effect-tag : string, op-tag : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
+extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
   cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
-  js inline "$std_core._yieldop(#1,#2,#4,#3)"
+  js inline "$std_core._yield_op(#1,#2,#4,#3)"
 }
 
 extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
@@ -2952,35 +2960,35 @@ extern ".finalize1"( resume : (a,l) -> e b, result : b ) : e b {
 type handler-branch0<e::E,a>
 type handler-branch1<e::E,l,a>
 
-extern ".makeHandlerBranch0"( resume-kind : int, op-tag : string,
+extern ".makeHandlerBranch0"( resume-kind : int, op-name : string,
                               branch : (resume : (result : a) -> e b, op : c) -> e b
                             ) : total handler-branch0<e,b> {
   cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
-extern ".makeHandlerBranch1"( resume-kind : int, op-tag : string,
+extern ".makeHandlerBranch1"( resume-kind : int, op-name : string,
                               branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b
                             ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
 }
 
-extern ".makeHandlerBranch0-x1"( resume-kind : int, op-tag : string,
+extern ".makeHandlerBranch0-x1"( resume-kind : int, op-name : string,
                                 branch : any // forall<x>(resume : (result : a<x>) -> e b, op : c<x>) -> e b
                               ) : total handler-branch0<e,b> {
   cs inline "new Eff.BranchX1<##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch"
 }
 
-extern ".makeHandlerBranch1-x1"( resume-kind : int, op-tag : string,
+extern ".makeHandlerBranch1-x1"( resume-kind : int, op-name : string,
                                  branch : any // forall<x>(resume : (result : a<x>, new-local: l) -> e b, op : c<x>, local : l) -> e b
                                ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1X1<##3,##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch1"
 }
 
-extern ".makeHandler0"( effect-tag : string,
+extern ".makeHandler0"( effect-name : string,
                         ret : a -> e b,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int
@@ -2989,7 +2997,7 @@ extern ".makeHandler0"( effect-tag : string,
   js "$std_core._new_handler"
 }
 
-extern ".makeHandler1"( effect-tag : string,
+extern ".makeHandler1"( effect-name : string,
                         ret : (result : a, local : l) -> e b,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int
@@ -2999,7 +3007,7 @@ extern ".makeHandler1"( effect-tag : string,
 }
 
 // Used for handlers with just a `return` branch
-fun ".makeHandlerRet0"( ignored-effect-tag : string,
+fun ".makeHandlerRet0"( ignored-effect-name : string,
                            ret : (result : a) -> e b,
                            ignored-branches : int,
                            ignored-kind : int
