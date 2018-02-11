@@ -325,6 +325,7 @@ instance Ranged (Expr t) where
         Case   exprs branches range -> range
         Parens expr range      -> range
         Handler shallow eff pars ret ops hrng range -> range
+        Inject tp expr range -> range
 
 instance Ranged Lit where
   getRange lit

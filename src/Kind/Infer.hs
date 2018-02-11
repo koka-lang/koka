@@ -434,6 +434,11 @@ infResolveHX tp ctx
   = do infTp <- infUserType infKindHandled ctx tp
        resolveType M.empty False infTp
 
+infResolveEffectLabel :: UserType -> Context -> KInfer Type
+infResolveEffectLabel tp ctx
+  = do infTp <- infUserType infKindLabel ctx tp
+       resolveType M.empty False infTp
+
 {---------------------------------------------------------------
   Infer kinds of definitions
 ---------------------------------------------------------------}
@@ -523,6 +528,10 @@ infExpr expr
                                    ret' <- infExpr ret
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler shallow meff' pars' ret' ops' hrng rng)
+      Inject tp expr range  -> do expr' <- infExpr expr
+                                  tp'   <- infResolveEffectLabel tp (Check "Can only inject effect constants (of kind X)" range)
+                                  -- trace ("resolve ann: " ++ show (pretty tp')) $
+                                  return (Inject tp' expr' range)
 
 
 infPat pat

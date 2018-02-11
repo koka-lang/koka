@@ -9,13 +9,13 @@
 -----------------------------------------------------------------------------
 
 module Kind.InferKind ( InfKind(..)
-                      , infKindStar, infKindHandled
+                      , infKindStar, infKindHandled, infKindLabel
                       , infKindFun
                       , infKindFunN
                       , ppInfKind, niceInfKinds
 
                       , InfKGamma
-  
+
                       , Kvs
                       , kvsList, kvsMember
 
@@ -50,11 +50,14 @@ data InfKind  = KIVar Id
 type InfKGamma = M.Map Name InfKind
 
 
-infKindStar 
+infKindStar
   = KICon kindStar
 
 infKindHandled
   = KICon kindHandled
+
+infKindLabel
+  = KICon kindLabel
 
 infKindFun k1 k2
   = KIApp (KIApp (KICon kindArrow) k1) k2
@@ -74,7 +77,7 @@ liftKApp infkind
 
 
 {---------------------------------------------------------------
-  Substitution 
+  Substitution
 ---------------------------------------------------------------}
 newtype KSub = KSub (IM.IdMap InfKind)
 newtype Kvs  = Kvs (IS.IdSet)
@@ -162,7 +165,7 @@ ppInfKind colors nice prec kind
                         case collectArgs kind of
                           (k:ks) -> ppInfKind colors nice (precApp-1) k <+> commaParens (ppInfKind colors nice precTop) ks
                           _ -> matchFailure "Kind.InferKind.KIApp"
-      
+
   where
     commaParens f xs
       = tupled (map f xs)
@@ -170,9 +173,9 @@ ppInfKind colors nice prec kind
     collectFunArgs kind
       = case kind of
           KIApp (KIApp (KICon (KCon name)) k1) k2 | name == newName "->"
-            -> k1 : collectFunArgs k2         
+            -> k1 : collectFunArgs k2
           _ -> [kind]
-          
+
     collectArgs kind
       = case kind of
           KIApp k1 k2  -> collectArgs k1 ++ [k2]
@@ -191,4 +194,3 @@ pparens :: Prec -> Prec -> Doc -> Doc
 pparens context prec doc
   | context >= prec = parens doc
   | otherwise       = doc
-
