@@ -920,7 +920,7 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp
 
        -- TODO: not necessary as we propate the branchTp and later match with the makeHandler ?
        resTp <- inferUnifyTypes checkMatch (zip (branchTp:branchTps) (zip (exprRng:bexprRngs) (exprRng:branchRngs)))
-       handlerBranchTp <- inferUnifyTypes checkMatch (zip handlerBranchTps (zip bexprRngs branchRngs))
+       handlerBranchTp <- if (null branches) then Op.freshTVar kindStar Meta else inferUnifyTypes checkMatch (zip handlerBranchTps (zip bexprRngs branchRngs))
        mapM_ (\(rng,eff) -> inferUnify (checkEffectSubsume rng) rng eff effect) (zip branchRngs branchEffs)
 
 

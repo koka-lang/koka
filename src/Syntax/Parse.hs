@@ -686,7 +686,7 @@ effectDecl dvis
 
 
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged1 (operation singleShot vis tpars effTagName effTp opsTp )
+       (ops,xrng) <- semiBracesRanged (operation singleShot vis tpars effTagName effTp opsTp )
 
        let kindStar = (KindCon nameKindStar rng)
            (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
@@ -1084,19 +1084,19 @@ matchexpr
 handlerExpr
   = do rng <- keyword "handler"
        shallow <- do{ specialId "shallow"; return True } <|> return False
-       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
+       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        handlerExprX lparen rng shallow mbEff
   <|>
     do rng <- keyword "handle"
        shallow <- do{ specialId "shallow"; return True } <|> return False
-       mbEff <- do{ eff <- angles ptype; return (Just eff) } <|> return Nothing
+       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        args <- parensCommas lparen argument
        expr <- handlerExprX lparen rng shallow mbEff
        return (App expr args (combineRanged rng expr))
 
 handlerExprX lp rng shallow mbEff
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
-       (retops,rng2)  <- semiBracesRanged1 handlerOp
+       (retops,rng2)  <- semiBracesRanged handlerOp
        let (rets,ops) = partitionEithers retops
        ret <- case rets of
                 [r] -> return r
