@@ -455,7 +455,7 @@ colorByKind env kind defcolor doc
 colorForKind env kind
   = if (kind == kindEffect || kind == kindLabel || kind == kindFun kindHeap kindLabel)
      then Just (colorEffect (colors env))
-    else if (kind == kindHeap)
+    else if (kind == kindHeap || kind == kindScope)
      then Just (colorEffect (colors env))
      else Nothing
 
@@ -478,10 +478,12 @@ niceTypeExtend tvars nice
 niceTypeExtendVars ts nice
   = let (es,ws) = partition (\(TypeVar id kind flavour) -> kind == kindEffect) ts
         (hs,vs) = partition (\(TypeVar id kind flavour) -> kind == kindHeap) ws
-        nice1   = niceExtend (map typeVarId vs) niceTypeVars nice
+        (ss,us) = partition (\(TypeVar id kind flavour) -> kind == kindScope) vs
+        nice1   = niceExtend (map typeVarId us) niceTypeVars nice        
         nice2   = niceExtend (map typeVarId es) niceEffectVars nice1
         nice3   = niceExtend (map typeVarId hs) niceHeapVars nice2
-    in nice3
+        nice4   = niceExtend (map typeVarId ss) niceScopeVars nice3
+    in nice4
 
 niceTypeVars :: [String]
 niceTypeVars
@@ -499,3 +501,8 @@ niceHeapVars :: [String]
 niceHeapVars
   = [ "h" ] ++
     [ (['h'] ++ show i)  | i <- [1..]]
+
+niceScopeVars :: [String]
+niceScopeVars
+  = [ "s" ] ++
+    [ (['s'] ++ show i)  | i <- [1..]]
