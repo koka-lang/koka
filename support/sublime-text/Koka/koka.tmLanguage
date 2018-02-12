@@ -355,7 +355,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(fun|function|val|var)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
+			<string>(fun|function|val|var|use)\s+([a-z][\w\-]*[\'\?]*|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\)|\[\])</string>
 		</dict>
 		<key>decl_function0</key>
 		<dict>
@@ -380,7 +380,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\w\-?']))</string>
+			<string>(?=[\)\{\}\[\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -425,7 +425,7 @@
 				</dict>
 			</dict>
 			<key>match</key>
-			<string>(((val)\s+)?)(([a-z][\w\-]*[\'\?]*)|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))\s*(=)(?![$%&amp;\*\+@!/\\\^~=\.:\-\|&lt;&gt;])</string>
+			<string>(((val|use)\s+)?)(([a-z][\w\-]*[\'\?]*)|\([$%&amp;\*\+@!/\\\^~=\.:\-\?\|&lt;&gt;]+\))\s*(=)(?![$%&amp;\*\+@!/\\\^~=\.:\-\|&lt;&gt;])</string>
 		</dict>
 		<key>decl_var</key>
 		<dict>
@@ -739,7 +739,7 @@
 		<key>reservedid</key>
 		<dict>
 			<key>match</key>
-			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|con|if|then|else|elif|match|inject|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\w\-?'])</string>
+			<string>(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|resource|handle|handler|shallow|return|module|import|as|public|private|abstract|effect|cont)(?![\w\-?'])</string>
 			<key>name</key>
 			<string>keyword.other.koka</string>
 		</dict>
@@ -827,7 +827,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[,\)\{\}\[\]=;"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(?=[,\)\{\}\[\]=;"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -862,7 +862,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[,\)\{\}\[\];"`]|(infix|infixr|infixl|type|cotype|rectype|alias|effect|interface|instance|extern|external|fun|function|val|var|con|if|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(?=[,\)\{\}\[\];"`]|(infix|infixr|infixl|type|cotype|rectype|alias|effect|interface|instance|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -903,7 +903,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>
@@ -938,7 +938,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(&gt;)|(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(&gt;)|(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>1</key>
@@ -1001,7 +1001,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(&gt;)|(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(&gt;)|(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>1</key>
@@ -1041,7 +1041,7 @@
 				</dict>
 			</dict>
 			<key>end</key>
-			<string>(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|con|then|else|elif|match|inject|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
+			<string>(?=[\)\{\}\[\]=;"`]|(infix|infixr|infixl|type|cotype|rectype|effect|alias|interface|instance|extern|external|fun|function|val|var|use|using|con|then|else|elif|match|inject|resource|handle|handler|return|module|import|as|public|private|abstract)(?![\w\-?']))</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>0</key>

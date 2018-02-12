@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-binds -fno-warn-missing-signatures #-}
 {-# LANGUAGE CPP #-}
 {-# LINE 8 "src\Syntax\Lexer.x" #-}
 
@@ -29,12 +30,12 @@ import Data.Word( Word8 )
 #endif
 #if __GLASGOW_HASKELL__ >= 503
 import Data.Array
-import Data.Char (ord)
 import Data.Array.Base (unsafeAt)
 #else
 import Array
-import Char (ord)
 #endif
+alex_tab_size :: Int
+alex_tab_size = 8
 alex_base :: Array Int Int
 alex_base = listArray (0,209) [-8,110,346,582,817,1053,1258,1348,-38,1383,-37,-33,-32,-31,1366,-30,232,1384,318,565,1448,1569,1633,230,1792,189,896,1132,1252,1561,1584,1808,-4,1791,382,1855,629,1919,703,1983,2127,839,2102,2166,2310,2333,2276,2324,2388,2420,2452,2500,2564,2596,2628,2676,2740,2772,2804,2852,2916,2948,3092,3035,3083,3147,3179,3243,3387,3410,3395,-118,3459,-117,3523,-116,3,3587,-114,5,3731,3706,-112,3850,225,244,1022,478,935,-15,9,0,3895,3930,3965,0,0,3995,209,4079,1156,0,4163,4247,4331,4415,1157,4499,4583,4667,4751,4835,4919,221,4997,5087,0,5103,951,1158,5140,5175,5205,5242,5277,0,5312,5347,5382,5442,205,0,0,0,0,0,-20,0,0,5537,-14,11,5750,0,0,0,0,0,1360,5536,5717,5851,5781,5915,12,5054,5979,-105,6162,0,54,0,1759,6161,6247,6295,6359,6391,6455,-7,112,0,0,6638,93,99,0,2070,6637,6723,6771,6835,6867,6931,121,240,7114,0,0,2285,7113,7199,7247,7311,7343,241,7407,125,7590,0,0,3036,7589,7675,7723,7787,7819,251,7883,134]
 
@@ -104,9 +105,9 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "fun", "val", "var"
+    , "fun", "val", "var", "use", "using"
     , "extern"
-    , "effect", "handle", "handler", "inject"
+    , "effect", "handle", "handler", "inject", "resource"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"
@@ -406,6 +407,178 @@ alex_action_50 =  string $ \s -> LexError ("illegal character in line directive:
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
 {-# LINE 1 "<command-line>" #-}
+{-# LINE 9 "<command-line>" #-}
+{-# LINE 1 "G:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 9 "<command-line>" #-}
+{-# LINE 1 "C:\\Users\\randy\\AppData\\Local\\Temp\\ghc7256_0\\ghc_2.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 9 "<command-line>" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -416,19 +589,19 @@ alex_action_50 =  string $ \s -> LexError ("illegal character in line directive:
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
-{-# LINE 35 "templates\\GenericTemplate.hs" #-}
+{-# LINE 21 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 45 "templates\\GenericTemplate.hs" #-}
+{-# LINE 51 "templates\\GenericTemplate.hs" #-}
 
-{-# LINE 66 "templates\\GenericTemplate.hs" #-}
+{-# LINE 72 "templates\\GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-{-# LINE 87 "templates\\GenericTemplate.hs" #-}
+{-# LINE 93 "templates\\GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-{-# LINE 98 "templates\\GenericTemplate.hs" #-}
+{-# LINE 105 "templates\\GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 
@@ -447,30 +620,30 @@ alexScan input (sc)
 
 alexScanUser user input (sc)
   = case alex_scan_tkn user input (0) input sc AlexNone of
-	(AlexNone, input') ->
-		case alexGetByte input of
-			Nothing -> 
+        (AlexNone, input') ->
+                case alexGetByte input of
+                        Nothing -> 
 
 
 
-				   AlexEOF
-			Just _ ->
+                                   AlexEOF
+                        Just _ ->
 
 
 
-				   AlexError input'
+                                   AlexError input'
 
-	(AlexLastSkip input'' len, _) ->
-
-
-
-		AlexSkip input'' len
-
-	(AlexLastAcc k input''' len, _) ->
+        (AlexLastSkip input'' len, _) ->
 
 
 
-		AlexToken input''' len k
+                AlexSkip input'' len
+
+        (AlexLastAcc k input''' len, _) ->
+
+
+
+                AlexToken input''' len k
 
 
 -- Push the input through the DFA, remembering the most recent accepting
@@ -479,7 +652,7 @@ alexScanUser user input (sc)
 alex_scan_tkn user orig_input len input s last_acc =
   input `seq` -- strict in the input
   let 
-	new_acc = (check_accs (alex_accept `quickIndex` (s)))
+        new_acc = (check_accs (alex_accept `quickIndex` (s)))
   in
   new_acc `seq`
   case alexGetByte input of
@@ -493,34 +666,34 @@ alex_scan_tkn user orig_input len input s last_acc =
                 base   = alexIndexInt32OffAddr alex_base s
                 offset = (base + ord_c)
                 check  = alexIndexInt16OffAddr alex_check offset
-		
+                
                 new_s = if (offset >= (0)) && (check == ord_c)
-			  then alexIndexInt16OffAddr alex_table offset
-			  else alexIndexInt16OffAddr alex_deflt s
-	in
+                          then alexIndexInt16OffAddr alex_table offset
+                          else alexIndexInt16OffAddr alex_deflt s
+        in
         case new_s of
-	    (-1) -> (new_acc, input)
-		-- on an error, we want to keep the input *before* the
-		-- character that failed, not after.
-    	    _ -> alex_scan_tkn user orig_input (if c < 0x80 || c >= 0xC0 then (len + (1)) else len)
+            (-1) -> (new_acc, input)
+                -- on an error, we want to keep the input *before* the
+                -- character that failed, not after.
+            _ -> alex_scan_tkn user orig_input (if c < 0x80 || c >= 0xC0 then (len + (1)) else len)
                                                 -- note that the length is increased ONLY if this is the 1st byte in a char encoding)
-			new_input new_s new_acc
+                        new_input new_s new_acc
       }
   where
-	check_accs (AlexAccNone) = last_acc
-	check_accs (AlexAcc a  ) = AlexLastAcc a input (len)
-	check_accs (AlexAccSkip) = AlexLastSkip  input (len)
+        check_accs (AlexAccNone) = last_acc
+        check_accs (AlexAcc a  ) = AlexLastAcc a input (len)
+        check_accs (AlexAccSkip) = AlexLastSkip  input (len)
 
-	check_accs (AlexAccPred a predx rest)
-	   | predx user orig_input (len) input
-	   = AlexLastAcc a input (len)
-	   | otherwise
-	   = check_accs rest
-	check_accs (AlexAccSkipPred predx rest)
-	   | predx user orig_input (len) input
-	   = AlexLastSkip input (len)
-	   | otherwise
-	   = check_accs rest
+        check_accs (AlexAccPred a predx rest)
+           | predx user orig_input (len) input
+           = AlexLastAcc a input (len)
+           | otherwise
+           = check_accs rest
+        check_accs (AlexAccSkipPred predx rest)
+           | predx user orig_input (len) input
+           = AlexLastSkip input (len)
+           | otherwise
+           = check_accs rest
 
 
 data AlexLastAcc a
@@ -529,9 +702,9 @@ data AlexLastAcc a
   | AlexLastSkip  !AlexInput !Int
 
 instance Functor AlexLastAcc where
-    fmap f AlexNone = AlexNone
+    fmap _ AlexNone = AlexNone
     fmap f (AlexLastAcc x y z) = AlexLastAcc (f x) y z
-    fmap f (AlexLastSkip x y) = AlexLastSkip x y
+    fmap _ (AlexLastSkip x y) = AlexLastSkip x y
 
 data AlexAcc a user
   = AlexAccNone
@@ -560,12 +733,8 @@ alexPrevCharIsOneOf arr _ input _ _ = arr ! alexInputPrevChar input
 --alexRightContext :: Int -> AlexAccPred _
 alexRightContext (sc) user _ _ input = 
      case alex_scan_tkn user input (0) input sc AlexNone of
-	  (AlexNone, _) -> False
-	  _ -> True
-	-- TODO: there's no need to find the longest
-	-- match when checking the right context, just
-	-- the first match will do.
-
-
--- used by wrappers
-iUnbox (i) = i
+          (AlexNone, _) -> False
+          _ -> True
+        -- TODO: there's no need to find the longest
+        -- match when checking the right context, just
+        -- the first match will do.

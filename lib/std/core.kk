@@ -2922,10 +2922,6 @@ type handled1   :: HX1 -> X;
 // the continuations are not safely typed in plain Koka
 // ----------------------------------------------------------------------------
 
-abstract type resource<eff::X> {
-  Resource( resource-tag : int32 )
-}
-
 
 extern inject-exn(action : () -> e a) : <exn|e> a {
   js "$std_core._handle_inject_exn"

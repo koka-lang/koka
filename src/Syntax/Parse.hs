@@ -929,7 +929,7 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl
+    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
@@ -971,6 +971,38 @@ localValueDecl
   where
     unParens (PatParens p _) = unParens(p)
     unParens p               = p
+
+localUseDecl
+  = do krng <- keyword "use"
+       par  <- parameter False
+       keyword "="
+       e    <- blockexpr
+       let bindVar body
+            = let fun = Lam [par] body (combineRanged krng body)
+                  funarg = [(Nothing,fun)]
+              in case unParens e of
+                App f args range -> App f (args ++ funarg) (combineRanged krng e)
+                atom             -> App atom funarg (combineRanged krng e)
+       return bindVar 
+  where
+    unParens (Parens p _) = unParens(p)
+    unParens p               = p
+
+localUsingDecl
+  = do krng <- keyword "using"
+       e    <- blockexpr
+       let bindVar body
+            = let fun = Lam [] body (combineRanged krng body)
+                  funarg = [(Nothing,fun)]
+              in case unParens e of
+                App f args range -> App f (args ++ funarg) (combineRanged krng e)
+                atom             -> App atom funarg (combineRanged krng e)
+       return bindVar 
+  where
+    unParens (Parens p _) = unParens(p)
+    unParens p               = p
+
+
 
 typeAnnotation :: LexParser (UserExpr -> UserExpr)
 typeAnnotation
