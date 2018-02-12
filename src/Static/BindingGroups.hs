@@ -271,7 +271,7 @@ group defs deps
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder0 ++ "\n " ++ show defOrder) $
+    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder0 ++ "\n " ++ show defOrder) $
        concatMap makeGroup defOrder
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]

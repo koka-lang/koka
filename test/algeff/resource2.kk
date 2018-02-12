@@ -1,8 +1,14 @@
-effect heap<s::S> { }
+effect heap<s::S> { 
+}
 
-val heap = handler<heap<_s>> { }
+val heap = handler<heap<_s>> { 
+}
 
-fun main() {
+fun foo() {
   using heap
   42
+}
+
+fun main() {
+  println(foo())
 }

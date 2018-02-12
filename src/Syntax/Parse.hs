@@ -1812,6 +1812,9 @@ katom
     do rng <- specialConId "H"
        return (KindCon nameKindHeap rng)
   <|>
+    do rng <- specialConId "S"
+       return (KindCon nameKindScope rng)
+  <|>
     do rng <- specialConId "P"
        return (KindCon nameKindPred rng)
   <|>
@@ -1820,7 +1823,7 @@ katom
   <|>
     do rng <- specialConId "HX1"
        return (KindCon nameKindHandled1 rng)
-  <?> "kind constant (V,E,H,X,HX,HX1, or P)"
+  <?> "kind constant (V,E,H,S,X,HX,HX1, or P)"
 
 -----------------------------------------------------------
 -- Braces and parenthesis

@@ -13,7 +13,7 @@ module Kind.Kind( -- * Kinds
                     Kind(..)
                   , KindCon
                  -- * Standard kinds
-                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap
+                  , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
@@ -86,9 +86,14 @@ kindEffect :: Kind
 kindEffect
   = KCon nameKindEffect
 
+kindScope :: Kind
+kindScope
+  = KCon nameKindScope
+
 kindHeap :: Kind
 kindHeap
   = KCon nameKindHeap
+
 
 kindHandled :: Kind
 kindHandled
@@ -151,6 +156,7 @@ builtinKinds
     ,(nameKindEffect, kindEffect)
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
+    ,(nameKindScope, kindScope)
     ,(nameKindHandled, kindHandled)
     ,(nameKindHandled1, kindHandled1)
     ]

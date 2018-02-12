@@ -1,0 +1,5 @@
+42
+.tag-heap : string
+foo : () -> int
+heap : forall<a,b,e> (action : () -> <heap<a>|e> b) -> e b
+main : () -> console ()
