@@ -2926,8 +2926,13 @@ abstract type resource<eff::X> {
   Resource( resource-tag : int32 )
 }
 
-extern ".inject"<a::V,e::E,x::X>( effect-name : string, action : () -> e a,  res : resource<x> = Resource(0.int32) ) : a {
-  js inline "$std_core._handle_inject(#1,#3,#2)"
+
+extern inject-exn(action : () -> e a) : <exn|e> a {
+  js "$std_core._handle_inject_exn"
+}
+
+extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action : () -> e1 a ) : e2 a {
+  js inline "$std_core._handle_inject(#1,0,#2)"
 }
 
 // Yield alias

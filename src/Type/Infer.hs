@@ -30,6 +30,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameToAny, nameFalse, nameTrue
                       , nameTpYld
                       , nameTpHandlerBranch0, nameTpHandlerBranch1,nameCons,nameNull,nameVector
+                      , nameInject, nameInjectExn, nameTpPartial
                        )
 import Common.Range
 import Common.Unique
@@ -720,16 +721,37 @@ inferExpr propagated expect (Lit lit)
 inferExpr propagated expect (Parens expr rng)
   = inferExpr propagated expect expr
 
-inferExpr propagated expect (Inject tp expr rng)
+inferExpr propagated expect (Inject label expr rng)
   = do eff <- freshEffect
-       let prop = case propagated of
+       res <- Op.freshTVar kindStar Meta
+       let tfun r = typeFun [] eff r
+           prop = case propagated of
                     Nothing  -> Nothing
-                    Just ptp -> case splitPredType ptp of
-                                  (foralls,preds,rho)
-                                    -> Just $
-                                       quantifyType foralls $ qualifyType preds $
-                                       typeFun [(nameNull, typeUnit)] eff rho
+                    Just (ptp,prng) -> case splitPredType ptp of
+                                        (foralls,preds,rho)
+                                          -> Just (quantifyType foralls $ qualifyType preds $ tfun rho, prng)
        (exprTp,exprEff,exprCore) <- inferExpr prop Instantiated expr
+       inferUnify (checkInject rng) rng (tfun res) exprTp
+       resTp <- subst res
+       (coreEffName,isHandled,effName) <- effectNameCore label rng
+       let effTo      = effectExtend label exprEff                            
+       core <- if (isHandled)
+                 -- general handled effects use ".inject-effect"
+                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 2 []) rng rng
+                         let coreInject = coreExprFromNameInfo injectQName injectInfo 
+                             core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo]) [coreEffName,exprCore]
+                         return core
+                else if (effName == nameTpPartial)  -- exception
+                 -- exceptions use "inject-exn"
+                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 1 []) rng rng
+                         let coreInject = coreExprFromNameInfo injectQName injectInfo 
+                             core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [exprCore]
+                         return core
+                 -- for builtin effects, use ".open" to optimize the inject away
+                 else do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
+                             core       = Core.App coreOpen []
+                         return core
+       return (resTp,effTo,core)
        
 
 {-
@@ -1080,10 +1102,7 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
 
 checkCoverage :: Range -> Effect -> [HandlerBranch Type] -> Inf (Name, [HandlerBranch Type])
 checkCoverage rng effect branches
-  = do let handledEffectName = case expandSyn effect of
-                                TCon tc -> typeConName tc
-                                TApp (TCon tc) targs -> typeConName tc
-                                _ -> failure ("Type.Infer.checkCoverage: invalid effect: " ++ show effect)
+  = do let handledEffectName = effectNameFromLabel effect
        opsInfo <- findDataInfo (toOperationsName handledEffectName)
        let modName = qualifier (dataInfoName opsInfo)
        opNames <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
@@ -1137,7 +1156,26 @@ checkCoverage rng effect branches
           = qualify (qualifier name) (newName (drop 4 (show (unqualify name))))
 
 
+effectNameCore :: Effect -> Range -> Inf (Core.Expr,Bool,Name)
+effectNameCore effect range
+  = case expandSyn effect of
+      -- handled effects (from an `effect` declaration)
+      TApp (TCon tc) [hx]
+        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1
+        -> do let effName = effectNameFromLabel hx
+              (effectNameVar,_,effectNameInfo) <- resolveName (toOpenTagName effName) (Just (typeString,range)) range
+              let effectNameCore = coreExprFromNameInfo effectNameVar effectNameInfo
+              return (effectNameCore,True,effName)
+      -- builtin effect
+      _ -> do let effName = effectNameFromLabel effect
+              return (Core.Lit (Core.LitString (show effName)),False,effName)
 
+effectNameFromLabel :: Effect -> Name
+effectNameFromLabel effect
+  = case expandSyn effect of
+      TCon tc -> typeConName tc
+      TApp (TCon tc) targs -> typeConName tc
+      _ -> failure ("Type.Infer.effectName: invalid effect: " ++ show effect)
 {-
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> [ConInfo]
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
@@ -1731,6 +1769,7 @@ checkConMatch   = Check "constructor must have the same the type as the matched 
 checkLit        = Check "literal does not match the expected type"
 checkOptional   = Check "default value does not match the parameter type"
 checkOptionalTotal = Check "default value expression must be total"
+checkInject     = Check "inject expects a parameter-less function argument"
 
 checkEffect        = Infer
 checkEffectSubsume = Check "effect cannot be subsumed"

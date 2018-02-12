@@ -434,10 +434,18 @@ infResolveHX tp ctx
   = do infTp <- infUserType infKindHandled ctx tp
        resolveType M.empty False infTp
 
-infResolveEffectLabel :: UserType -> Context -> KInfer Type
-infResolveEffectLabel tp ctx
-  = do infTp <- infUserType infKindLabel ctx tp
-       resolveType M.empty False infTp
+infResolveEffectLabel :: UserType -> Context -> Range -> KInfer Type
+infResolveEffectLabel tp ctx rng
+  = do ikind <- freshKind 
+       infTp <- infUserType ikind ctx tp
+       skind <- subst ikind
+       effect <- case skind of
+                    KICon kind | kind == kindLabel   -> return infTp
+                    KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
+                    KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
+                    _ -> do unify ctx rng skind infKindLabel
+                            return infTp
+       resolveType M.empty False effect
 
 {---------------------------------------------------------------
   Infer kinds of definitions
@@ -529,7 +537,7 @@ infExpr expr
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler shallow meff' pars' ret' ops' hrng rng)
       Inject tp expr range  -> do expr' <- infExpr expr
-                                  tp'   <- infResolveEffectLabel tp (Check "Can only inject effect constants (of kind X)" range)
+                                  tp'   <- infResolveEffectLabel tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
                                   return (Inject tp' expr' range)
 
@@ -608,10 +616,13 @@ infUserType expected  context userType
   = let range = getRange userType in
     case userType of
       TpQuan quant tname tp rng
-        -> do unify context range expected infKindStar
+        -> do ikind  <- case quant of
+                          QSome -> return expected 
+                          _     -> do unify context range expected infKindStar
+                                      return expected
               tname' <- bindTypeBinder tname
               tp'    <- extendInfGamma [tname'] $
-                        infUserType infKindStar (checkQuant range) tp
+                        infUserType ikind (checkQuant range) tp
               return (TpQuan quant tname' tp' rng)
       TpQual preds tp
         -> do preds' <- mapM (infUserType (KICon kindPred) (checkPred range)) preds
@@ -914,7 +925,7 @@ resolveApp idmap partialSyn (TpCon name r,[fixed,ext]) rng  | name == nameEffect
        let (ls,tl) = extractOrderedEffect fixed'
        if isEffectEmpty tl
         then return ()
-        else addError rng (text "Effects can only have one extension point")
+        else addError rng (text "Effects can only have one extension point (use a `|` instead of a comma in the effect type ?)")
        return (shallowEffectExtend fixed' ext')
 
 resolveApp idmap partialSyn (TpCon name r,args) rng

@@ -1324,7 +1324,7 @@ injectExpr
        tp <- ptype
        rangle
        exp <- parens expr <|> funblock
-       return (Inject tp exp (combineRanged rng1 exp))
+       return (Inject (promoteType tp) exp (combineRanged rng1 exp))
 
 -----------------------------------------------------------
 -- Patterns (and binders)

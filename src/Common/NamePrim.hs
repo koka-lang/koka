@@ -32,6 +32,7 @@ module Common.NamePrim
           , nameEnsureK
           , nameIsValidK
           , nameLift, nameBind
+          , nameInject, nameInjectExn
 
           , nameUnsafeTotal
           , nameIntConst, nameInt32
@@ -209,6 +210,8 @@ nameMakeHandlerRet n
 nameLift        = preludeName "lift"
 nameBind        = preludeName "bind"
 nameTpYld       = preludeName "yld"
+nameInject      = preludeName ".inject-effect"
+nameInjectExn   = preludeName "inject-exn"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
