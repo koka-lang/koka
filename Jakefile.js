@@ -366,6 +366,7 @@ var hsModules = [
   "Common.Failure",
   "Common.ColorScheme",
   "Common.File",
+  "Common.Syntax",
   "Common.Name",
   "Common.NameMap",
   "Common.NameSet",
@@ -379,7 +380,6 @@ var hsModules = [
   "Common.Message",
   "Common.Unique",
   "Common.Error",
-  "Common.Syntax",
   
   "Syntax.Lexeme",
   alexModule("Syntax.Lexer"),

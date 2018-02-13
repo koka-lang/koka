@@ -10,10 +10,16 @@ effect resource file<s::S> in filesys<s> {
   fun read() : string
 }
 
-/*
-fun fake-file(content) {
-  handler {
+
+fun fake-file(content,action) {
+  handle resource (action) {
+    return x -> x
     read() -> resume(content)
   }
 }
-*/
+
+fun main() {
+  using filesys
+  use f = fake-file( "hi" ) 
+  println(f.read.count + 40)
+}

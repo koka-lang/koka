@@ -1,0 +1,24 @@
+[01;30moperator branch (fake-file) read: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) get: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) set: resume tail
+[00;39;49m[00m42
+.Con-File : forall<s> (resource<filesys<s>>) -> file<s>
+.Con-Ref : forall<s,a> (resource<heap<s>>) -> ref<s,a>
+.Op-get : forall<s,a> .op-get<s,a>
+.Op-read : forall<s> .op-read<s>
+.Op-set : forall<s,a> (value : a) -> .op-set<s,a>
+.Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
+.Ops-read : forall<s> (read : .op-read<s>) -> .ops-file<s>
+.Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.tag-file : string
+.tag-filesys: string
+.tag-heap : string
+.tag-ref : string
+fake-file : forall<s,a,e> (content : string, action : (resource : file<s>) -> <filesys<s>|e> a) -> <filesys<s>|e> a
+filesys : forall<a,e> (action : forall<s> () -> <filesys<s>|e> a) -> e a
+get : forall<s,a> (ref<s,a>) -> (heap<s>) a
+heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
+main : () -> console ()
+new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> <heap<s>|e> b) -> <heap<s>|e> b
+read : forall<s> (file<s>) -> (filesys<s>) string
+set : forall<s,a> (ref<s,a>, value : a) -> (heap<s>) ()

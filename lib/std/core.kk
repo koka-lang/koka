@@ -3015,6 +3015,24 @@ extern ".makeHandler1"( effect-name : string,
   js "$std_core._new_handler1"
 }
 
+extern ".makeResourceHandler0"( effect-name : string,
+                        ret : a -> e b,
+                        branches : vector<handler-branch0<e,b>>,
+                        handler-kind : int
+                      ) : total ((action : (c) -> e1 a) -> e b) {
+  cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
+  js "$std_core._new_handler"
+}
+
+extern ".makeResourceHandler1"( effect-name : string,
+                        ret : (result : a, local : l) -> e b,
+                        branches : vector<handler-branch1<e,l,b>>,
+                        handler-kind : int
+                      ) : total ((initial-local : l, action : (c) -> e1 a) -> e b) {
+  cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
+  js "$std_core._new_handler1"
+}
+
 // Used for handlers with just a `return` branch
 fun ".makeHandlerRet0"( ignored-effect-name : string,
                            ret : (result : a) -> e b,

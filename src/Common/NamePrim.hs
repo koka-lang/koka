@@ -96,7 +96,7 @@ module Common.NamePrim
           ) where
 
 import Common.Name
-
+import Common.Syntax
 
 
 {--------------------------------------------------------------------------
@@ -202,8 +202,8 @@ nameYieldOp n    = preludeName (".yieldop" ++ (if (n == 0) then "" else "-x" ++ 
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"
-nameMakeHandler shallow n 
-  = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
+nameMakeHandler handlerSort n 
+  = preludeName (".make" ++ (if (handlerSort/=HandlerDeep) then show handlerSort else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n 
   = preludeName (".makeHandlerRet" ++ show n)
 

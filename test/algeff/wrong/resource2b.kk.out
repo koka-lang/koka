@@ -1,0 +1,6 @@
+test/algeff/wrong/resource2b.kk(22, 3): error: type is not polymorph enough
+ context : using heap
+ term : using heap
+ get-ref()
+ inferred type : forall<s1> () -> (heap<s1>) ref<s1>
+ is less polymorph as: forall<s1> () -> <heap<s1>|_e> ref<$s>

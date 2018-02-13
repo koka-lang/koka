@@ -1,0 +1,15 @@
+[01;30moperator branch (new-ref) get: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) set: resume tail
+[00;39;49m[00m42
+.Con-Ref : forall<s,a> (resource<heap<s>>) -> ref<s,a>
+.Op-get : forall<s,a> .op-get<s,a>
+.Op-set : forall<s,a> (value : a) -> .op-set<s,a>
+.Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
+.Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.tag-heap : string
+.tag-ref : string
+get : forall<s,a> (ref<s,a>) -> (heap<s>) a
+heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
+main : () -> console ()
+new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> <heap<s>|e> b) -> <heap<s>|e> b
+set : forall<s,a> (ref<s,a>, value : a) -> (heap<s>) ()

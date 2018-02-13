@@ -66,7 +66,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -803,7 +803,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
           -- (if shallow then heff else (effectExtend typeCps heff)) retEff
 
        -- infer the handled effect
-       mbhxeff <- inferHandledEffect hrng mbEffect branches
+       mbhxeff <- inferHandledEffect hrng handlerSort mbEffect branches
 
 
        (handlerTp, branchesCore, makeHandlerTp, effectTagCore, handlerKindCore, makeHandlerName)
@@ -814,7 +814,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
                                    heff hrng (getRange retExpr)
 
                Just hxeff
-                -> inferHandlerBranches (handlerSort==HandlerShallow) hxeff locals localArgs retInTp branchTp retTp
+                -> inferHandlerBranches handlerSort hxeff locals localArgs retInTp branchTp retTp
                                    branches heff hrng (getRange retExpr)
 
        -- get makeHandlerN and unify
@@ -866,8 +866,8 @@ wrapScopedHandler _ _ _ handlerTp
   = failure $ "Type.Infer.wrapScopedHandler: invalid scoped handler type: " ++ show handlerTp                   
 -}
 
-inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
-inferHandledEffect rng mbeff ops
+inferHandledEffect :: Range -> HandlerSort -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
+inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
       Nothing  -> case ops of
@@ -876,13 +876,16 @@ inferHandledEffect rng mbeff ops
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
                 case splitFunType rho of
-                  Just(_,eff,_) -> let ([l],_) = extractEffectExtend eff
+                  Just((opname,rtp):_,_,_) | handlerSort==HandlerResource && opname == newHiddenName "resource"
+                                -> return $ Just rtp
+                  Just(_,eff,_) | handlerSort /= HandlerResource
+                                -> let ([l],_) = extractEffectExtend eff
                                    in case expandSyn l of
                                         TApp (TCon tc) [hx]
                                           | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1
                                           -> return (Just hx)
                                         _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
-                  Nothing -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
+                  _ -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
@@ -905,20 +908,23 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
                nameMakeHandlerRet (length locals))
 
 
-inferHandlerBranches :: Bool -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
+inferHandlerBranches :: HandlerSort -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
                     -> [HandlerBranch Type] -> Type -> Range -> Range
                     -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name)
-inferHandlerBranches shallow handledEffect unused_localPars locals retInTp
+inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                       branchTp retTp branches0 effect hrng exprRng
   = do -- check coverage
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
 
        -- build up the type of the action parameter
        let handledLabel   = handledToLabel handledEffect
-           actionEffect   = if shallow then effect else effectExtend handledLabel effect
+           actionEffect   = if (handlerSort/=HandlerDeep) then effect else effectExtend handledLabel effect
 
-           actionPar      = (newName "action",TFun [] ({-effectExtend typeCps-} actionEffect) retInTp)
-           resumeEffect   = if shallow then actionEffect else effect
+           actionPars     = if (handlerSort/=HandlerResource) 
+                             then []
+                             else [(newName "resource", handledEffect)]
+           actionPar      = (newName "action",TFun actionPars ({-effectExtend typeCps-} actionEffect) retInTp)
+           resumeEffect   = if (handlerSort==HandlerResource) then actionEffect else effect
 
        traceDoc $ \env -> text "inferHandlerBranches:" <+>
                           text ", branchTp:" <+> ppType env branchTp <+>
@@ -927,7 +933,7 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp
 
 
        -- infer types of branches
-       ibranches  <- mapM (inferHandlerBranch branchTp Instantiated
+       ibranches  <- mapM (inferHandlerBranch handlerSort branchTp Instantiated
                         locals handledEffect handledEffectName resumeEffect
                         actionEffect) branches
 
@@ -960,13 +966,14 @@ inferHandlerBranches shallow handledEffect unused_localPars locals retInTp
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (isKindHandled1 (getKind handledEffect)) then 1 else if shallow then 2 else 0
-       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, handlerKindCore, nameMakeHandler shallow (length locals))
+                             if (isKindHandled1 (getKind handledEffect)) then 1 else if (handlerSort==HandlerShallow) then 2 else 0
+       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, 
+                handlerKindCore, nameMakeHandler handlerSort (length locals))
 
 
-inferHandlerBranch :: Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
+inferHandlerBranch :: HandlerSort -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -989,10 +996,15 @@ inferHandlerBranch branchTp expect locals effectTp effectName  resumeEff actionE
        extendSub (subNew [(tv,TVar ctv) | (tv,ctv) <- zip ctvars optvars] )
        sconTp <- subst conTp
        let (conParTps,conResTp) = splitConTp sconTp
-       -- traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <> colon <+> ppType env conTp
+       traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <> colon <+> ppType env conTp
 
 
-       --inferUnify (checkEffectTp rng) rng effectTp conEffTp
+       case handlerSort of
+         HandlerResource 
+           -> case parTps of
+                (parTp:_) -> inferUnify (checkEffectTp rng) rng effectTp parTp -- ensure we unify type parameters shared with the action effect
+                _ -> failure $ "Type.Infer.inferHandlerBranch: illegal operator type for a resource: " ++ show (pretty rho)
+         _ -> return ()
 
 
 
@@ -1158,8 +1170,10 @@ checkCoverage rng effect branches
                    then return ()
                    -- should not occur if branches typechecked previously
                    else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
-                          (name:_) -> infError rng (text "operator" <+> ppOpName env name <+> text "is not part of the handled effect")
-                          _        -> infError rng (text "some operators are handled multiple times")
+                          (name:_) -> termError rng (text "operator" <+> ppOpName env name <+> 
+                                                     text "is not part of the handled effect") effect 
+                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <> text "? or use 'handler resource'?")]
+                          _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             (opName:opNames')
               -> do let (matches,branchNames') = partition (==opName) branchNames
                     case matches of

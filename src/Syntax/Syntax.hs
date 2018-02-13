@@ -204,10 +204,6 @@ data Expr t
   | Handler HandlerSort HandlerScope (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
   | Inject t (Expr t) Range
 
-data HandlerSort
-  = HandlerDeep | HandlerShallow 
-  deriving (Eq)
-
 data HandlerScope
   = HandlerNoScope | HandlerScoped
   deriving (Eq)

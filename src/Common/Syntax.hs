@@ -20,6 +20,7 @@ module Common.Syntax( Visibility(..)
                     , isPublic, isPrivate
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen 
+                    , HandlerSort(..)
                     ) where
 
 {--------------------------------------------------------------------------
@@ -50,6 +51,17 @@ isPublic _      = False
 
 isPrivate Private = True
 isPrivate _       = False
+
+
+data HandlerSort
+  = HandlerDeep | HandlerShallow | HandlerResource
+  deriving (Eq)
+
+instance Show HandlerSort where
+  show hsort = case hsort of 
+                 HandlerDeep -> "Deep"
+                 HandlerShallow -> "Shallow"
+                 HandlerResource -> "Resource"
 
 
 {--------------------------------------------------------------------------

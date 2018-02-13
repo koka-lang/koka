@@ -685,7 +685,7 @@ effectDecl dvis
            (effTpCons,mbResourceInt) = case mbResource of
                           Nothing -> ([],Nothing)
                           Just tp -> 
-                            let conName = (makeHiddenName "con" (toConstructorName id))
+                            let conName = (makeHiddenName "Con" (toConstructorName id))
                                 resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
                                 cons = [UserCon conName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] irng irng vis ""]
                                 resourceName = (newHiddenName "resource")
@@ -991,7 +991,7 @@ localValueDecl
        e    <- blockexpr
        let bindVar binder mbTp rng
             = let annexpr = case mbTp of
-                              Just tp -> Ann e tp rng
+                              Just tp -> Ann e (promoteType tp) rng
                               Nothing -> e
                   vbinder = ValueBinder (binderName binder) () annexpr (binderNameRange binder) (binderRange binder)
               in \body -> Bind (Def vbinder rng Private DefVal "") body (combineRanged krng body)
@@ -1012,7 +1012,7 @@ localUseDecl
        keyword "="
        e    <- blockexpr
        let bindVar body
-            = let fun = Lam [par] body (combineRanged krng body)
+            = let fun = Lam [promoteValueBinder par] body (combineRanged krng body)
                   funarg = [(Nothing,fun)]
               in case unParens e of
                 App f args range -> App f (args ++ funarg) (combineRanged krng e)
@@ -1021,6 +1021,11 @@ localUseDecl
   where
     unParens (Parens p _) = unParens(p)
     unParens p               = p
+
+    promoteValueBinder binder 
+      = case binderType binder of
+          Just tp -> binder{ binderType = Just (promoteType tp)}
+          _ -> binder
 
 localUsingDecl
   = do krng <- keyword "using"
@@ -1117,18 +1122,22 @@ matchexpr
 
 handlerExpr
   = do rng <- keyword "handler"
-       shallow <- do{ specialId "shallow"; return HandlerShallow } <|> return HandlerDeep
+       hsort  <- handlerSort
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       handlerExprX lparen rng shallow scoped mbEff
+       handlerExprX lparen rng hsort scoped mbEff
   <|>
     do rng <- keyword "handle"
-       shallow <- do{ specialId "shallow"; return HandlerShallow } <|> return HandlerDeep
+       hsort    <- handlerSort 
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        args <- parensCommas lparen argument
-       expr <- handlerExprX lparen rng shallow scoped mbEff
+       expr <- handlerExprX lparen rng hsort scoped mbEff
        return (App expr args (combineRanged rng expr))
+  where
+    handlerSort =     do specialId "resource"; return HandlerResource
+                  <|> do specialId "shallow"; return HandlerShallow
+                  <|> return HandlerDeep
 
 handlerExprX lp rng shallow scoped mbEff
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
