@@ -1,3 +1,5 @@
+// Test empty effect with rank-2 wrapper
+
 effect heap<s::S> { 
 }
 

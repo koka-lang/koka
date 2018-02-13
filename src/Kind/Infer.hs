@@ -149,7 +149,7 @@ synTypeDef modName (Core.Data dataInfo vis conviss isExtend) | isHiddenName (dat
 synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
   = synAccessors modName dataInfo vis conviss
     ++
-    (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo))
+    (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo) && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo)))))
       then [synCopyCon modName dataInfo (head conviss) (head (dataInfoConstrs dataInfo))]
       else [])
     ++
@@ -527,7 +527,7 @@ infExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- infExpr expr
                                    return (Parens expr' range)
-      Handler shallow meff pars ret ops hrng rng
+      Handler shallow scoped meff pars ret ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
@@ -535,7 +535,7 @@ infExpr expr
                                                              return (Just eff')
                                    ret' <- infExpr ret
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler shallow meff' pars' ret' ops' hrng rng)
+                                   return (Handler shallow scoped meff' pars' ret' ops' hrng rng)
       Inject tp expr range  -> do expr' <- infExpr expr
                                   tp'   <- infResolveEffectLabel tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $

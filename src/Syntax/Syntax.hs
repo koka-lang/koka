@@ -201,8 +201,16 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler Bool (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+  | Handler HandlerSort HandlerScope (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
   | Inject t (Expr t) Range
+
+data HandlerSort
+  = HandlerDeep | HandlerShallow 
+  deriving (Eq)
+
+data HandlerScope
+  = HandlerNoScope | HandlerScoped
+  deriving (Eq)
 
 data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
@@ -324,7 +332,7 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
-        Handler shallow eff pars ret ops hrng range -> range
+        Handler shallow scoped eff pars ret ops hrng range -> range
         Inject tp expr range -> range
 
 instance Ranged Lit where

@@ -66,7 +66,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
---   Lib.Trace.trace s
+   Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -441,7 +441,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
-  = -- trace ("infer bind def: " ++ show name) $
+  = trace ("infer bind def: " ++ show name) $
     do withDefName name $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)
@@ -641,8 +641,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()
        return (resTp,resEff,resCore)
 
-inferExpr propagated expect (Handler shallow mbEff pars ret ops hrng rng)
-  = inferHandler propagated expect shallow mbEff pars ret ops hrng rng
+inferExpr propagated expect (Handler shallow scoped mbEff pars ret ops hrng rng)
+  = inferHandler propagated expect shallow scoped mbEff pars ret ops hrng rng
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -767,8 +767,8 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> Bool -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort -> HandlerScope -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
        let propAction    = last propArgs
@@ -795,7 +795,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
            ((_,retInTp):localArgs)       = retArgs
            localTypes   = map snd localArgs
            locals       = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propLocals localTypes]
-           branchTp     = if (shallow) then retInTp else retOutTp
+           branchTp     = if (handlerSort==HandlerShallow) then retInTp else retOutTp
 
        -- Create effect type variable & unify with the return clause effect
        heff <- freshEffect
@@ -814,7 +814,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
                                    heff hrng (getRange retExpr)
 
                Just hxeff
-                -> inferHandlerBranches shallow hxeff locals localArgs retInTp branchTp retTp
+                -> inferHandlerBranches (handlerSort==HandlerShallow) hxeff locals localArgs retInTp branchTp retTp
                                    branches heff hrng (getRange retExpr)
 
        -- get makeHandlerN and unify
@@ -826,7 +826,7 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
        inferUnify (checkMakeHandler rng) rng makeHandlerRho smakeHandlerTp
 
        shandlerTp <- subst handlerTp
-       -- trace (" result: " ++ show (pretty shandlerTp)) $ return ()
+       trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
         -- get the tag value for this operation
        -- effectTag(effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,rng)) rng
@@ -836,8 +836,11 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
            -- effectTagCore   = coreExprFromNameInfo effectTagName effectTagInfo
            handlerCore     = Core.App makeHandlerCore [effectTagCore,retCore,branchesCore,handlerKindCore]
 
+       -- generate a scoped rank-2 wrapper
+       (xhandlerCore,xhandlerTp) <- return (handlerCore,shandlerTp) -- wrapScopedHandler handlerScoped mbhxeff handlerCore shandlerTp rng
+
        -- generalize the handler type
-       (ghandlerTp,ghandlerCore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect shandlerTp handlerCore
+       (ghandlerTp,ghandlerCore) <- maybeInstantiateOrGeneralize hrng rng typeTotal expect xhandlerTp xhandlerCore
        sghandlerCore  <- subst ghandlerCore
        sghandlerTp    <- subst ghandlerTp
 
@@ -846,6 +849,22 @@ inferHandler propagated expect shallow mbEffect localPars ret branches hrng rng
        geff <- freshEffect
        -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
        return (sghandlerTp,geff,sghandlerCore)
+{-
+wrapScopedHandler :: HandlerScope -> Maybe Effect -> Core.Expr -> Type -> Range -> Inf (Core.Expr,Type)
+wrapScopedHandler HandlerNoScope mbeff hcore htp rng = return (hcore,htp)
+wrapScopedHandler HandlerScoped (Just eff) handlerCore handlerTp@(TFun args heff resTp) rng 
+  = do trace ("  wrap scoped: " ++ (show (pretty eff))) $ return ()
+       do effVar <- case expandSyn eff of
+                      TApp _ (TVar tvar:_) -> return tvar
+                      _ -> Op.freshTVar kindStar Meta
+       trace ("  wrap scoped: " ++ (show (pretty effVar))) $ return ()
+       if (isKindScope (getKind effVar)) then return ()
+        else termError rng (text "a scoped handler must have an effect with a first type argument of kind 'S'") eff []
+
+       return (handlerCore,handlerTp)
+wrapScopedHandler _ _ _ handlerTp 
+  = failure $ "Type.Infer.wrapScopedHandler: invalid scoped handler type: " ++ show handlerTp                   
+-}
 
 inferHandledEffect :: Range -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng mbeff ops

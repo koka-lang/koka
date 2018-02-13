@@ -20,7 +20,7 @@ module Kind.Kind( -- * Kinds
                   , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled, isKindHandled1
+                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope
                   , kindAddArg
                   ) where
 
@@ -146,7 +146,9 @@ isKindHandled k
   = k == kindHandled
 isKindHandled1 k
   = k == kindHandled1
-
+isKindScope k
+  = k == kindScope
+  
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
 builtinKinds

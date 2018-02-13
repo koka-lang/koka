@@ -125,6 +125,9 @@ alias st<h> = <read<h>, write<h>, alloc<h>>
 // The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
 
+// The `:global-scope` is a special type constant to denote the global scope
+type global-scope :: S
+
 // The `:net` effect signifies a function may access the network
 type net :: X
 
@@ -2934,19 +2937,24 @@ extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action :
 // Yield alias
 alias yld<a> = a
 
+type resource<e::HX> {
+  con ".Resource"(:int)
+}
+
+
 extern inline bind( x : yld<a>, next : a -> e yld<b> ) : e yld<b> {
   cs inline "Eff.Op.Bind<##1,##2>(#1,#2)"
   js "$std_core._bind"
 }
 
-extern ".yieldop"( effect-name : string, op-name : string, op-idx : int, op : a ) : yld<b> {
-  cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#3,#4)"
-  js inline "$std_core._yield_op(#1,#2,#4,#3)"
+extern ".yieldop"( effect-name : string, op-name : string, op-resource : int, op-idx : int, op : a ) : yld<b> {
+  cs inline "Eff.Op.YieldOp<##1,##2>(#1,#2,(int)#4,#5)"
+  js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
-extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
-  cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#3,#4)"
-  js inline "$std_core._yield_op(#1,#2,#4,#3)"
+extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-resource : int, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
+  cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#4,#5)"
+  js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
 extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
