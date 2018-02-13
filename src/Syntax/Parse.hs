@@ -736,7 +736,10 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
        keyword ":"
        (mbteff,tres) <- tresult
        teff <- case mbteff of
-                 Nothing  -> return $ makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+                 Nothing  -> return $ makeEffectExtend idrng effTp 
+                              (case mbResourceInt of
+                                 Nothing -> makeEffectEmpty idrng
+                                 Just _  -> makeEffectExtend idrng (TpCon nameTpPartial idrng) (makeEffectEmpty idrng))
                  Just etp -> -- TODO: check if declared effect is part of the effect type
                              -- return etp
                              fail "an explicit effect in result type of an operation is not allowed (yet)"
