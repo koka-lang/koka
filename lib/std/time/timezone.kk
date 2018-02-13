@@ -115,7 +115,7 @@ fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-perio
 // Convert time zone information `:timezone-info` into a `:timezone` structure.
 public fun timezone( tzi : timezone-info ) : timezone {
   fun utc-offset(i : instant) : (duration,string) {
-    val tzp = find-offset(i.use(ts-unix),(tzi.periods)())
+    val tzp = find-offset(i.use-timescale(ts-unix),(tzi.periods)())
     (tzp.offset,tzp.abbrv)
   }
   calendar/Timezone(

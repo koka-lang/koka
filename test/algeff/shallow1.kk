@@ -11,7 +11,7 @@ effect send<a> {
 }
 
 fun down(prod : () -> <send<c>,await<c>|e> a, action : () -> <await<c>,send<c>|e> a) : <send<c>,await<c>|e> a {
-  handle shallow(action) {
+  handle shallow (action) {
     return x -> x
     await()  -> up(resume){ prod() } 
   }
