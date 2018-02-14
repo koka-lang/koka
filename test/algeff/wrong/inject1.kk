@@ -10,14 +10,10 @@ val new-ref = handler(s) {
   set(x) -> resume((),x)
 }
 
-fun test() {
+fun main() {
   new-ref("hi") {
-    new-ref(44) {
-      get() - inject<heap<int>>{(get():string).count}  // 44 - "hi".count
+    new-ref(44) {    
+      get() - inject<int>{(get():string).count}  // 44 - "hi".count
     }
   }
-}
-
-fun main() {
-  println(test())
 }

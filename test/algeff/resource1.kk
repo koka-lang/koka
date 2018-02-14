@@ -16,7 +16,7 @@ effect filesys<s::S> { }
 // is generated anyway if a resource is used outside its handler.
 // todo: add a `scoped` keyword to an effect declaration to do this automatically.
 fun filesys( action : forall<s> () -> <filesys<s>|e> a ) : e a {
-  handle<filesys<_>>(action){ }
+  handle<filesys>(action){ }
 } 
 
 // resources can now be created inside a `:filesys` effect.
@@ -41,7 +41,7 @@ fun fake-file(content,action) {  // fake-file: (string, (file<s>) -> <filesys<s>
 effect heap<s::S> { }
 
 fun heap( action : forall<s> () -> <heap<s>|e> a ) : e a {
-  handle<heap<_>>(action) { }
+  handle<heap>(action) { }
 }
 
 effect resource ref<s::S,a::V> in heap<s> {

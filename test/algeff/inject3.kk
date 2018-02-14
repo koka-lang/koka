@@ -11,5 +11,5 @@ fun foo( action : () -> e int ) : e int {
 }
 
 fun main() {
-  try-default(42){ foo{ error("should throw") }}
+  try-default(42){ foo{ error("should throw") }}.println
 }

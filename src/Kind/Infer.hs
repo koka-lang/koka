@@ -434,31 +434,27 @@ infResolveHX tp ctx
   = do infTp <- infUserType infKindHandled ctx tp
        resolveType M.empty False infTp
 
-infResolveEffectLabel :: UserType -> Context -> Range -> KInfer Type
-infResolveEffectLabel tp ctx rng
-  = do ikind <- freshKind 
-       infTp <- infUserType ikind ctx tp
-       skind <- subst ikind
-       effect <- case skind of
-                    KICon kind | kind == kindLabel   -> return infTp
-                    KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
-                    KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
-                    _ -> do unify ctx rng skind infKindLabel
-                            return infTp
-       resolveType M.empty False effect
-
 infResolveX :: UserType -> Context -> Range -> KInfer Type
 infResolveX tp ctx rng
   = do ikind <- freshKind 
        infTp <- infUserType ikind ctx tp
        skind <- subst ikind
-       effect <- case skind of
-                    KICon kind | kind == kindLabel   -> return infTp
-                    KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
-                    KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
-                    _ -> do unify ctx rng skind infKindLabel
-                            return infTp
-       resolveType M.empty False effect       
+       -- allow also effect label constructors without giving type parameters
+       let (kargs,kres) = infExtractKindFun skind     
+       if (not (null kargs))
+        then let vars     = [(newName ("_" ++ show i)) | (_,i) <- zip kargs [1..]]
+                 quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
+                 tpvars   = map (\(name) -> TpVar name rng) vars
+                 newtp    = foldr (\q t -> TpQuan QSome q t rng) (TpApp tp tpvars rng) quals
+             in infResolveX newtp ctx rng -- recurse..
+       -- auto upgrade bare labels of HX or HX1 to X kind labels.
+        else do effect <- case skind of
+                            KICon kind | kind == kindLabel   -> return infTp
+                            KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
+                            KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
+                            _ -> do unify ctx rng infKindLabel skind  
+                                    return infTp
+                resolveType M.empty False effect       
 
 
 

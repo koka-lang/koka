@@ -13,6 +13,7 @@ module Kind.InferKind ( InfKind(..)
                       , infKindFun
                       , infKindFunN
                       , ppInfKind, niceInfKinds
+                      , infExtractKindFun
 
                       , InfKGamma
 
@@ -75,6 +76,16 @@ liftKApp infkind
       KICon (KCon _)      -> infkind
       KICon (KApp k1 k2)  -> KIApp (liftKApp (KICon k1)) (liftKApp (KICon k2))
 
+-- | extract arguments
+infExtractKindFun :: InfKind -> ([InfKind],InfKind)
+infExtractKindFun infkind
+  = case infkind of
+      KIApp (KIApp (KICon kindArrow) k1) k2 -> inj k1 (infExtractKindFun k2)
+      KIApp (KICon (KApp kindArrow k1)) k2  -> inj (KICon k1) (infExtractKindFun k2)
+      KICon (KApp (KApp kindArrow k1) k2)   -> inj (KICon k1) (infExtractKindFun (KICon k2))
+      _  -> ([],infkind)
+  where
+    inj k1 (ks,k) = (k1:ks,k1)
 
 {---------------------------------------------------------------
   Substitution

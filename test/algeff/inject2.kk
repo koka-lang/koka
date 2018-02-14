@@ -1,6 +1,7 @@
 // Test inject
 fun injectst( action : () -> e a ) : <st<h>|e> a {
-  inject<alloc<_h>>{inject<write<_h>>{inject<some<h>read<h>>(action)}}
+  // we can inject using an explicit `some`, or just underscore, or leave out the parameters
+  inject<alloc>{inject<write<_h>>{inject<some<h>read<h>>(action)}}
 }
 
 fun xforeach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
@@ -18,5 +19,5 @@ fun main() {
   [0,41].xforeach-indexed fun(idx,x) {
     acc := acc + idx + x
   }
-  acc
+  println(acc)
 }

@@ -7,5 +7,5 @@ fun foo(action : () -> e a ) : <ndet|e> a
 }
 
 fun main() {
-  foo{42}
+  foo{42}.println
 }
