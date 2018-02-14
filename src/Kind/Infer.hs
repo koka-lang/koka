@@ -447,6 +447,21 @@ infResolveEffectLabel tp ctx rng
                             return infTp
        resolveType M.empty False effect
 
+infResolveX :: UserType -> Context -> Range -> KInfer Type
+infResolveX tp ctx rng
+  = do ikind <- freshKind 
+       infTp <- infUserType ikind ctx tp
+       skind <- subst ikind
+       effect <- case skind of
+                    KICon kind | kind == kindLabel   -> return infTp
+                    KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
+                    KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
+                    _ -> do unify ctx rng skind infKindLabel
+                            return infTp
+       resolveType M.empty False effect       
+
+
+
 {---------------------------------------------------------------
   Infer kinds of definitions
 ---------------------------------------------------------------}
@@ -531,13 +546,13 @@ infExpr expr
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
-                                              Just eff -> do eff' <- infResolveHX eff (Check "Handler types must be effects" hrng)
+                                              Just eff -> do eff' <- infResolveX eff (Check "Handler types must be effect constants (of kind X)" hrng) hrng
                                                              return (Just eff')
                                    ret' <- infExpr ret
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler shallow scoped meff' pars' ret' ops' hrng rng)
       Inject tp expr range  -> do expr' <- infExpr expr
-                                  tp'   <- infResolveEffectLabel tp (Check "Can only inject effect constants (of kind X)" range) range
+                                  tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
                                   return (Inject tp' expr' range)
 

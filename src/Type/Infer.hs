@@ -882,12 +882,9 @@ inferHandledEffect rng handlerSort mbeff ops
                   Just((opname,rtp):_,_,_) | handlerSort==HandlerResource && opname == newHiddenName "resource"
                                 -> return $ Just rtp
                   Just(_,eff,_) | handlerSort /= HandlerResource
-                                -> let ([l],_) = extractEffectExtend eff
-                                   in case expandSyn l of
-                                        TApp (TCon tc) [hx]
-                                          | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1
-                                          -> return (Just hx)
-                                        _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
+                                -> case extractEffectExtend eff of
+                                    ([l],_) -> return (Just l)
+                                    _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
                   _ -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
@@ -920,8 +917,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
 
        -- build up the type of the action parameter
-       let handledLabel   = handledToLabel handledEffect
-           actionEffect   = if (handlerSort/=HandlerDeep) then effect else effectExtend handledLabel effect
+       let actionEffect   = if (handlerSort/=HandlerDeep) then effect else effectExtend handledEffect effect
 
            actionPars     = if (handlerSort/=HandlerResource) 
                              then []
@@ -1226,9 +1222,11 @@ effectNameCore effect range
 effectNameFromLabel :: Effect -> Name
 effectNameFromLabel effect
   = case expandSyn effect of
+      TApp (TCon tc) [hx]
+        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 -> effectNameFromLabel hx
       TCon tc -> typeConName tc
       TApp (TCon tc) targs -> typeConName tc
-      _ -> failure ("Type.Infer.effectName: invalid effect: " ++ show effect)
+      _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
 {-
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> [ConInfo]
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
