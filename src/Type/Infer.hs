@@ -806,7 +806,8 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        mbhxeff <- inferHandledEffect hrng handlerSort mbEffect branches
 
 
-       (handlerTp, branchesCore, makeHandlerTp, effectTagCore, handlerKindCore, makeHandlerName)
+       (handlerTp, branchesCore, makeHandlerTp, effectTagCore, 
+          handlerKindCore, makeHandlerName, resourceArgs)
           <- case mbhxeff of
                Nothing
                 -> inferHandlerRet locals localArgs
@@ -834,7 +835,9 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        -- make Core
        let makeHandlerCore = makeHandlerCoreInst (coreExprFromNameInfo makeHandlerQName makeHandlerInfo)
            -- effectTagCore   = coreExprFromNameInfo effectTagName effectTagInfo
-           handlerCore     = Core.App makeHandlerCore [effectTagCore,retCore,branchesCore,handlerKindCore]
+           handlerCore     = Core.App makeHandlerCore 
+                                      ([effectTagCore,retCore,branchesCore,handlerKindCore]
+                                        ++ resourceArgs)
 
        -- generate a scoped rank-2 wrapper
        (xhandlerCore,xhandlerTp) <- return (handlerCore,shandlerTp) -- wrapScopedHandler handlerScoped mbhxeff handlerCore shandlerTp rng
@@ -891,7 +894,7 @@ inferHandledEffect rng handlerSort mbeff ops
 
 
 inferHandlerRet :: [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Effect ->  Type -> Type -> Effect -> Range -> Range
-                    -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name)
+                    -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name, [Core.Expr])
 inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprRng
   = do let branchesCore = Core.Lit (Core.LitInt 0) -- ignored
 
@@ -905,12 +908,12 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
 
        return (handlerTp, branchesCore, makeHandlerTp,
                Core.Lit (Core.LitString ""), Core.Lit (Core.LitInt 0),
-               nameMakeHandlerRet (length locals))
+               nameMakeHandlerRet (length locals), [])
 
 
 inferHandlerBranches :: HandlerSort -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
                     -> [HandlerBranch Type] -> Type -> Range -> Range
-                    -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name)
+                    -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name, [Core.Expr])
 inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                       branchTp retTp branches0 effect hrng exprRng
   = do -- check coverage
@@ -923,6 +926,10 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
            actionPars     = if (handlerSort/=HandlerResource) 
                              then []
                              else [(newName "resource", handledEffect)]
+           resourcePars   = if (handlerSort/=HandlerResource) 
+                             then []
+                             else [(newName "resource-tag", typeInt),
+                                   (newName "resource-wrap", typeFun [(nameNil,typeInt)] typeTotal handledEffect)]                             
            actionPar      = (newName "action",TFun actionPars ({-effectExtend typeCps-} actionEffect) retInTp)
            resumeEffect   = if (handlerSort==HandlerResource) then actionEffect else effect
 
@@ -957,10 +964,22 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
        -- build the type of the ops argument and the handler maker
        let branchesTp     = typeApp typeVector [handlerBranchTp]
-           makeHandlerTp  = TFun [(newName "effect-tag",typeString),
+           makeHandlerTp  = TFun ([(newName "effect-tag",typeString),
                                     (newName "ret",retTp),
                                     (newName "branches", branchesTp),
-                                    (newName "handler-kind", typeInt)] typeTotal handlerTp
+                                    (newName "handler-kind", typeInt)]
+                                  ++ resourcePars) typeTotal handlerTp
+
+       -- extra resource arguments
+       resourceArgs <- if (handlerSort/=HandlerResource) then return []
+                        else do (createName,createTp,createInfo) <- resolveFunName (makeHiddenName "create" handledEffectName) 
+                                                                          (CtxFunTypes False [typeInt] []) hrng hrng
+                                
+                                (icreateTp,_,coref) <- instantiate hrng createTp                                                          
+                                inferUnify (Infer hrng) hrng icreateTp (typeFun [(nameNil,typeInt)] typeTotal handledEffect)
+                                return [Core.Lit (Core.LitInt 0),
+                                        coref (coreExprFromNameInfo createName createInfo)]
+    
 
        -- build effect tag core
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
@@ -968,7 +987,8 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
            handlerKindCore = Core.Lit $ Core.LitInt $
                              if (isKindHandled1 (getKind handledEffect)) then 1 else if (handlerSort==HandlerShallow) then 2 else 0
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, 
-                handlerKindCore, nameMakeHandler handlerSort (length locals))
+                handlerKindCore, nameMakeHandler handlerSort (length locals), 
+                resourceArgs)
 
 
 inferHandlerBranch :: HandlerSort -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect

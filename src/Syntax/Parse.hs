@@ -682,27 +682,43 @@ effectDecl dvis
                               irng irng) irng vis DefVal ""
 
            -- declare the effect type (for resources, generate a hidden constructor to check the types)
+           effConName = (makeHiddenName "Con" (toConstructorName id))
+           resName = newHiddenName "res"
+                                
            (effTpCons,mbResourceInt) = case mbResource of
                           Nothing -> ([],Nothing)
                           Just tp -> 
-                            let conName = (makeHiddenName "Con" (toConstructorName id))
-                                resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
-                                cons = [UserCon conName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] irng irng vis ""]
+                            let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
+                                cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] irng irng vis ""]
                                 resourceName = (newHiddenName "resource")
                                 binder = ValueBinder resourceName effTp Nothing irng irng
-                                resname = newName "r"
-                                patvar = ValueBinder resname (Nothing) (PatWild irng) irng irng
+                                patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
                                 match = Case (Var resourceName False irng)
-                                                  [Branch (PatCon conName [(Nothing,PatCon (newQualified "std/core" ".Resource") 
+                                                  [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource") 
                                                                                      [(Nothing,PatVar patvar)] irng irng)] irng irng)
                                                           (guardTrue)
-                                                          (Var resname False irng)] irng
+                                                          (Var resName False irng)] irng
                             in (cons,Just(binder,match))
 
            effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
 
+           -- define resource wrapper
+           effResourceDecls
+            = case mbResource of 
+                Nothing -> []
+                Just tp -> 
+                  let createName = makeHiddenName "create" id
+                      nameResourceCon = newQualified "std/core" ".Resource"
+                      body= App (Var effConName False irng)
+                                [(Nothing,App (Var nameResourceCon False irng ) 
+                                              [(Nothing,Var resName False irng)] irng)]
+                                irng
 
-
+                      fun = Lam [ValueBinder resName (Just (TpCon nameTpInt irng)) Nothing irng irng]
+                                body irng
+                      def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
+                  in [DefValue def]
+                        
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
            opsName   = TypeBinder (toOperationsName id) KindNone irng irng
@@ -723,6 +739,7 @@ effectDecl dvis
            opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
 
        return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
+                  effResourceDecls ++
                   map DefType opTpDecls ++
                   map DefValue opDefs
 
