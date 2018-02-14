@@ -664,7 +664,7 @@ effectDecl dvis
                                     (KindCon (if isResource then nameKindStar else if singleShot then nameKindHandled1 else nameKindHandled) irng)
                                     (map tbinderKind tpars)
                       _ -> kind
-           ename   = TypeBinder id infkind {- KindCon nameKindHandled irng) -} irng irng
+           ename   = TypeBinder id infkind irng irng
            effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
            effTp   = if (isResource) then effTpH 
                       else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
@@ -721,7 +721,7 @@ effectDecl dvis
                         
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
-           opsName   = TypeBinder (toOperationsName id) KindNone irng irng
+           opsName   = TypeBinder (toOperationsName id) infkind irng irng
            opsTp    = tpCon opsName
            opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
@@ -731,8 +731,7 @@ effectDecl dvis
        -- parse the operations and return the constructors and function definitions
        (ops,xrng) <- semiBracesRanged (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt)
 
-       let kindStar = (KindCon nameKindStar rng)
-           (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
+       let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
            opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
 
            -- declare operations data type (for the type checker)
