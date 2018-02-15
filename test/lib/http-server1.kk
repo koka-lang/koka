@@ -5,7 +5,7 @@ public import std/net/http
 public import std/time/duration
 
 fun main() : <async,io> () {
-	catch {
+	try {
 		timeout(15.seconds) {
 			http-server(80,"localhost",3) {
 				println("request received!")
@@ -13,7 +13,7 @@ fun main() : <async,io> () {
 				wait(4.seconds)
 				html-response( "<html><body>Hello world!</body></html>" )
 			}
-		}	
+		}
 		println("end of program")
 		()
 	}
