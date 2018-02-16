@@ -13,6 +13,7 @@ val new-ref = handler(s) {
 fun test() {
   new-ref("hi") {
     new-ref(44) {
+      // heap<int>,heap<string>|e>
       get() - inject<heap<int>>{(get():string).count}  // 44 - "hi".count
     }
   }

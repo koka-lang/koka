@@ -22,7 +22,7 @@ val new-ref = handler resource(s) {
 
 fun foo() {
   using heap
-  use r1 = new-ref(36)
+  use r1 = new-ref(36)  // () -> <heap<s>|e> ref<s,int>
   r1
 }
 

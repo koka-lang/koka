@@ -1,7 +1,7 @@
 // Test inject over exceptions (should insert "inject-exn")
 fun foo( action : () -> e int ) : e int {
   try {
-    inject<exn>(action)
+    inject<exn>(action)  
     error("test")
     60
   }
