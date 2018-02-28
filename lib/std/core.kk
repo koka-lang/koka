@@ -2937,6 +2937,7 @@ extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action :
 // Yield alias
 alias yld<a> = a
 
+// Resources identify specific handlers
 type resource<e::HX> {
   con ".Resource"(:int)
 }

@@ -655,7 +655,7 @@ effectDecl dvis
        isResource <- do{ specialId "resource"; return True} <|> return False
        (id,irng) <- typeid
        (tpars,kind,prng) <- typeKindParams
-       mbResource <- if (not isResource) then return Nothing 
+       mbResource <- if (not isResource) then return Nothing
                       else do specialId "in"
                               tp <- ptype
                               return (Just tp)
@@ -666,7 +666,7 @@ effectDecl dvis
                       _ -> kind
            ename   = TypeBinder id infkind irng irng
            effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
-           effTp   = if (isResource) then effTpH 
+           effTp   = if (isResource) then effTpH
                       else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
                             [effTpH] irng
            rng     = combineRanges [vrng,erng,irng]
@@ -675,7 +675,7 @@ effectDecl dvis
                        Nothing -> effTp
                        Just rtp -> rtp
 
-           -- declare the effect tag 
+           -- declare the effect tag
            effTagName = toOpenTagName id
            effTagDef  = Def (ValueBinder effTagName ()
                               (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
@@ -684,41 +684,50 @@ effectDecl dvis
            -- declare the effect type (for resources, generate a hidden constructor to check the types)
            effConName = (makeHiddenName "Con" (toConstructorName id))
            resName = newHiddenName "res"
-                                
-           (effTpCons,mbResourceInt) = case mbResource of
-                          Nothing -> ([],Nothing)
-                          Just tp -> 
+
+
+           effTpCons = case mbResource of
+                          Nothing -> []
+                          Just tp ->
                             let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
                                 cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] irng irng vis ""]
-                                resourceName = (newHiddenName "resource")
-                                binder = ValueBinder resourceName effTp Nothing irng irng
-                                patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
-                                match = Case (Var resourceName False irng)
-                                                  [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource") 
-                                                                                     [(Nothing,PatVar patvar)] irng irng)] irng irng)
-                                                          (guardTrue)
-                                                          (Var resName False irng)] irng
-                            in (cons,Just(binder,match))
+                            in cons
 
            effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
 
            -- define resource wrapper
-           effResourceDecls
-            = case mbResource of 
-                Nothing -> []
-                Just tp -> 
-                  let createName = makeHiddenName "create" id
-                      nameResourceCon = newQualified "std/core" ".Resource"
-                      body= App (Var effConName False irng)
-                                [(Nothing,App (Var nameResourceCon False irng ) 
-                                              [(Nothing,Var resName False irng)] irng)]
-                                irng
+           (effResourceDecls, mbResourceInt)
+            = case mbResource of
+                Nothing -> ([], Nothing)
+                Just tp ->
+                  let createDef =
+                          let createName = makeHiddenName "create" id
+                              nameCreateResource = newQualified "std/core" ".Resource"
+                              body= App (Var effConName False irng)
+                                        [(Nothing,App (Var nameCreateResource False irng )
+                                                      [(Nothing,Var resName False irng)] irng)]
+                                        irng
 
-                      fun = Lam [ValueBinder resName (Just (TpCon nameTpInt irng)) Nothing irng irng]
-                                body irng
-                      def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
-                  in [DefValue def]
-                        
+                              fun = Lam [ValueBinder resName (Just (TpCon nameTpInt irng)) Nothing irng irng]
+                                        body irng
+                              def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
+                          in def
+                      (resourceDef,resourceBinder,resourceGet) =
+                          let defName = makeHiddenName "resource" id
+                              valName = newHiddenName "resource"
+                              binder = ValueBinder valName effTp Nothing irng irng
+                              rbinder = ValueBinder valName Nothing Nothing irng irng
+                              patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
+                              rmatch = Case (Var valName False irng)
+                                                [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource")
+                                                                                   [(Nothing,PatVar patvar)] irng irng)] irng irng)
+                                                        (guardTrue)
+                                                        (Var resName False irng)] irng
+                              fun = Lam [rbinder] rmatch irng
+                              def = Def (ValueBinder defName () fun irng irng) irng vis (DefFun NoMon) ""
+                          in (def, binder, App (Var defName False irng) [(Nothing,Var valName False irng)] irng)
+                  in ([DefValue createDef, DefValue resourceDef], Just (tp, resourceBinder, resourceGet))
+
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
            opsName   = TypeBinder (toOperationsName id) infkind irng irng
@@ -743,7 +752,7 @@ effectDecl dvis
                   map DefValue opDefs
 
 
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (ValueBinder UserType (Maybe UserExpr),UserExpr) -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
 operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
@@ -752,7 +761,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
        keyword ":"
        (mbteff,tres) <- tresult
        teff <- case mbteff of
-                 Nothing  -> return $ makeEffectExtend idrng effTp 
+                 Nothing  -> return $ makeEffectExtend idrng effTp
                               (case mbResourceInt of
                                  Nothing -> makeEffectEmpty idrng
                                  Just _  -> makeEffectExtend idrng (TpCon nameTpPartial idrng) (makeEffectEmpty idrng))
@@ -764,7 +773,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
 
-           
+
            --nameE    = newName ".e"
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
 
@@ -812,7 +821,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
                                        (Nothing, Lit (LitString (show id) idrng)),
                                        (Nothing, case mbResourceInt of
                                                    Nothing -> Lit (LitInt 0 idrng)
-                                                   Just (binder,expr) -> expr),
+                                                   Just (_,binder,expr) -> expr),
                                        (Nothing, Lit (LitInt tagIdx idrng)),
                                        (Nothing, opCon)
                                       ]
@@ -831,7 +840,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
                         params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
                         params    = (case mbResourceInt of
                                        Nothing -> []
-                                       Just (binder,expr)  -> [binder]) ++ params0                                    
+                                       Just (_,binder,expr)  -> [binder]) ++ params0
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params0]
                         opCon     = if null arguments then conNameVar else App conNameVar arguments rng
 
@@ -1036,12 +1045,12 @@ localUseDecl
               in case unParens e of
                 App f args range -> App f (args ++ funarg) (combineRanged krng e)
                 atom             -> App atom funarg (combineRanged krng e)
-       return bindVar 
+       return bindVar
   where
     unParens (Parens p _) = unParens(p)
     unParens p               = p
 
-    promoteValueBinder binder 
+    promoteValueBinder binder
       = case binderType binder of
           Just tp -> binder{ binderType = Just (promoteType tp)}
           _ -> binder
@@ -1055,7 +1064,7 @@ localUsingDecl
               in case unParens e of
                 App f args range -> App f (args ++ funarg) (combineRanged krng e)
                 atom             -> App atom funarg (combineRanged krng e)
-       return bindVar 
+       return bindVar
   where
     unParens (Parens p _) = unParens(p)
     unParens p               = p
@@ -1147,7 +1156,7 @@ handlerExpr
        handlerExprX lparen rng hsort scoped mbEff
   <|>
     do rng <- keyword "handle"
-       hsort    <- handlerSort 
+       hsort    <- handlerSort
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        args <- parensCommas lparen argument
