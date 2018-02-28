@@ -39,7 +39,7 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty ()
 import Core.CoreVar
-  
+
 type CommentDoc   = Doc
 type ConditionDoc = Doc
 
@@ -619,7 +619,9 @@ genExpr expr
      TypeLam _ e -> genExpr e
 
      -- handle not inlineable cases
-     App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
+     App (TypeApp (Con name repr) _) [arg]  | getName name == nameOptional || isConIso repr
+       -> genExpr arg
+     App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
      App f args
         -- | isFunExpr f
@@ -738,7 +740,9 @@ genInline expr
       _  | isPureExpr expr -> genPure expr
       TypeLam _ e -> genInline e
       TypeApp e _ -> genInline e
-      App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
+      App (TypeApp (Con name repr) _) [arg]  | getName name == nameOptional || isConIso repr
+        -> genInline arg
+      App (Con _ repr) [arg]  | isConIso repr
         -> genInline arg
       App f args
         -> do argDocs <- mapM genInline (trimOptionalArgs args)
