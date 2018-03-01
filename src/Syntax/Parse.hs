@@ -735,14 +735,20 @@ effectDecl dvis
                                         [(Nothing,Var effTagName False irng),
                                          (Nothing,resourceGet),
                                          (Nothing,Var actionName False irng)] irng
-
-                              actionEff = makeEffectExtend irng labelTp (TpVar (newName "_") irng)
+                              tpVarA    = TpVar (newName "a") irng
+                              tpVarE    = TpVar (newName "e") irng
                               typeUnit  = TpCon nameUnit rng
-                              actionTp  = makeTpFun [] actionEff typeUnit irng
-                              fun = promote [] [] Nothing $
+                              actionEff = makeEffectExtend irng labelTp tpVarE
+                              actionTp  = makeTpFun [] actionEff tpVarA irng
+                              fullTp    = promoteType $
+                                           makeTpFun [(newName "resource",effTp),
+                                                      (newName "action",actionTp)] actionEff tpVarA irng
+                              fun = Ann (
                                     Lam [resourceLamBinder,
-                                         ValueBinder actionName (Just actionTp) Nothing irng irng]
-                                        body irng
+                                         ValueBinder actionName Nothing Nothing irng irng]
+                                        body irng)
+                                        fullTp rng
+
                               def = Def (ValueBinder injectName () fun irng irng) irng vis (DefFun NoMon) ""
                           in def
 

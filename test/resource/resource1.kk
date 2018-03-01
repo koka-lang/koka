@@ -15,7 +15,7 @@ effect filesys<s::S> { }
 // scope of the handler. This is not strictly necessary as a runtime exception
 // is generated anyway if a resource is used outside its handler.
 // todo: add a `scoped` keyword to an effect declaration to do this automatically.
-fun filesys( action : forall<s> () -> <filesys<s>|e> a ) : e a {
+fun filesys( action ){ //: forall<s> () -> <filesys<s>|e> a ) : e a {
 	handle<filesys>(action){  }
 }
 
