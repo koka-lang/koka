@@ -2,8 +2,9 @@
 // Async demo: do concurrently
 // --------------------------------------------------------
 import std/async
-import std/time/duration
 import std/os/readline
+import std/os/path
+import std/os/file
 
 fun test() {
   println("starting")
@@ -12,10 +13,10 @@ fun test() {
     readline()
   }
   fun g() {
-    println("and waiting at least 3 secs")
-    wait(3.seconds)
-    println("(done waiting)")
-    "timing"
+    println("and reading a file")
+    val content = read-text("package.json".path)    
+    println("(done reading file)")
+    content
   }
   val xs = interleaved( [f,g] )
   println("hi " + xs.join(","))  
