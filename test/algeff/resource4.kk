@@ -81,6 +81,8 @@ fun alignx(s1,s2,action)
   }
 
   // The resource handlers delegate to the join handler
+  // Here the `handler resource s1` has an extra parameter `s1` and will
+  // not create a fresh resource, but instead handle operations for `s1`.
   val h1 = handler resource s1 {
     push(x) -> left(x)
   }

@@ -34,12 +34,14 @@ fun align( s1 : stream<a>, s2 : stream<b>, action : () -> <corrl,pure|e> () ) : 
   alignx(s1,s2,inject-st(action))
 }
 
-fun alignx(// generative types: s1 : stream<l1,a>, s2 : stream<l2,b>, action : () -> <l1,l2|e> c) : <corrl,exn|e> c
+fun alignx(// generative types: s1 : stream<l1,a>, s2 : stream<l2,b>, action : () -> <l1,l2|e> c) : <l1,l2|e> c
           s1 : stream<a>, s2 : stream<b>, action : () -> <corrl,st<h>,pure|e> () ) : <corrl,st<h>,pure|e> ()
 {
   var st1 := Nothing
   var st2 := Nothing
 
+  // Here the `handler resource s1` has an extra parameter `s1` and will
+  // not create a fresh resource, but instead handle operations for `s1`.
   val h1 = handler resource s1 {
     push(x) -> match(st2) {
       Nothing -> st1 := Just((x,resume))  // and do not resume
