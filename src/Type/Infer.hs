@@ -734,17 +734,17 @@ inferExpr propagated expect (Inject label expr rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
        (coreEffName,isHandled,effName) <- effectNameCore label rng
-       let effTo      = effectExtend label exprEff                            
+       let effTo      = effectExtend label exprEff
        core <- if (isHandled)
                  -- general handled effects use ".inject-effect"
                  then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 2 []) rng rng
-                         let coreInject = coreExprFromNameInfo injectQName injectInfo 
+                         let coreInject = coreExprFromNameInfo injectQName injectInfo
                              core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo]) [coreEffName,exprCore]
                          return core
                 else if (effName == nameTpPartial)  -- exception
                  -- exceptions use "inject-exn"
                  then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 1 []) rng rng
-                         let coreInject = coreExprFromNameInfo injectQName injectInfo 
+                         let coreInject = coreExprFromNameInfo injectQName injectInfo
                              core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [exprCore]
                          return core
                  -- for builtin effects, use ".open" to optimize the inject away
@@ -752,7 +752,7 @@ inferExpr propagated expect (Inject label expr rng)
                              core       = Core.App coreOpen []
                          return core
        return (resTp,effTo,core)
-       
+
 
 {-
 inferExpr propagated expect expr
@@ -767,7 +767,7 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort -> HandlerScope -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
@@ -795,7 +795,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
            ((_,retInTp):localArgs)       = retArgs
            localTypes   = map snd localArgs
            locals       = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propLocals localTypes]
-           branchTp     = if (handlerSort==HandlerShallow) then retInTp else retOutTp
+           branchTp     = if (isHandlerShallow handlerSort) then retInTp else retOutTp
 
        -- Create effect type variable & unify with the return clause effect
        heff <- freshEffect
@@ -806,7 +806,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        mbhxeff <- inferHandledEffect hrng handlerSort mbEffect branches
 
 
-       (handlerTp, branchesCore, makeHandlerTp, effectTagCore, 
+       (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
           handlerKindCore, makeHandlerName, resourceArgs)
           <- case mbhxeff of
                Nothing
@@ -835,7 +835,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        -- make Core
        let makeHandlerCore = makeHandlerCoreInst (coreExprFromNameInfo makeHandlerQName makeHandlerInfo)
            -- effectTagCore   = coreExprFromNameInfo effectTagName effectTagInfo
-           handlerCore     = Core.App makeHandlerCore 
+           handlerCore     = Core.App makeHandlerCore
                                       ([effectTagCore,retCore,branchesCore,handlerKindCore]
                                         ++ resourceArgs)
 
@@ -855,7 +855,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
 {-
 wrapScopedHandler :: HandlerScope -> Maybe Effect -> Core.Expr -> Type -> Range -> Inf (Core.Expr,Type)
 wrapScopedHandler HandlerNoScope mbeff hcore htp rng = return (hcore,htp)
-wrapScopedHandler HandlerScoped (Just eff) handlerCore handlerTp@(TFun args heff resTp) rng 
+wrapScopedHandler HandlerScoped (Just eff) handlerCore handlerTp@(TFun args heff resTp) rng
   = do trace ("  wrap scoped: " ++ (show (pretty eff))) $ return ()
        do effVar <- case expandSyn eff of
                       TApp _ (TVar tvar:_) -> return tvar
@@ -865,11 +865,11 @@ wrapScopedHandler HandlerScoped (Just eff) handlerCore handlerTp@(TFun args heff
         else termError rng (text "a scoped handler must have an effect with a first type argument of kind 'S'") eff []
 
        return (handlerCore,handlerTp)
-wrapScopedHandler _ _ _ handlerTp 
-  = failure $ "Type.Infer.wrapScopedHandler: invalid scoped handler type: " ++ show handlerTp                   
+wrapScopedHandler _ _ _ handlerTp
+  = failure $ "Type.Infer.wrapScopedHandler: invalid scoped handler type: " ++ show handlerTp
 -}
 
-inferHandledEffect :: Range -> HandlerSort -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
+inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
@@ -879,9 +879,9 @@ inferHandledEffect rng handlerSort mbeff ops
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
                 case splitFunType rho of
-                  Just((opname,rtp):_,_,_) | handlerSort==HandlerResource && opname == newHiddenName "resource"
+                  Just((opname,rtp):_,_,_) | isHandlerResource handlerSort && opname == newHiddenName "resource"
                                 -> return $ Just rtp
-                  Just(_,eff,_) | handlerSort /= HandlerResource
+                  Just(_,eff,_) | not (isHandlerResource handlerSort)
                                 -> case extractEffectExtend eff of
                                     ([l],_) -> return (Just l)
                                     _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
@@ -908,7 +908,7 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
                nameMakeHandlerRet (length locals), [])
 
 
-inferHandlerBranches :: HandlerSort -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
+inferHandlerBranches :: HandlerSort (Expr Type) -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
                     -> [HandlerBranch Type] -> Type -> Range -> Range
                     -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name, [Core.Expr])
 inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
@@ -917,17 +917,20 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
 
        -- build up the type of the action parameter
-       let actionEffect   = if (handlerSort/=HandlerDeep) then effect else effectExtend handledEffect effect
+       let actionEffect   = if (not (isHandlerDeep handlerSort)) then effect else effectExtend handledEffect effect
 
-           actionPars     = if (handlerSort/=HandlerResource) 
-                             then []
-                             else [(newName "resource", handledEffect)]
-           resourcePars   = if (handlerSort/=HandlerResource) 
-                             then []
-                             else [(newName "resource-tag", typeInt),
-                                   (newName "resource-wrap", typeFun [(nameNil,typeInt)] typeTotal handledEffect)]                             
+           actionPars     = case handlerSort of
+                              HandlerResource Nothing -> [(newName "resource", handledEffect)]
+                              _ -> []
+           resourcePars   = case handlerSort of
+                              HandlerResource Nothing ->
+                                  [(newName "resource-tag", typeInt),
+                                   (newName "resource-wrap", typeFun [(nameNil,typeInt)] typeTotal handledEffect)]
+                              HandlerResource (Just _) ->
+                                  [(newName "resource-tag", typeInt)]
+                              _ -> []
            actionPar      = (newName "action",TFun actionPars ({-effectExtend typeCps-} actionEffect) retInTp)
-           resumeEffect   = if (handlerSort==HandlerResource) then actionEffect else effect
+           resumeEffect   = if (isHandlerResource handlerSort) then actionEffect else effect
 
        traceDoc $ \env -> text "inferHandlerBranches:" <+>
                           text ", branchTp:" <+> ppType env branchTp <+>
@@ -967,27 +970,37 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                                   ++ resourcePars) typeTotal handlerTp
 
        -- extra resource arguments
-       resourceArgs <- if (handlerSort/=HandlerResource) then return []
-                        else do (createName,createTp,createInfo) <- resolveFunName (makeHiddenName "create" handledEffectName) 
-                                                                          (CtxFunTypes False [typeInt] []) hrng hrng
-                                
-                                (icreateTp,_,coref) <- instantiate hrng createTp                                                          
-                                inferUnify (Infer hrng) hrng icreateTp (typeFun [(nameNil,typeInt)] typeTotal handledEffect)
-                                return [Core.Lit (Core.LitInt 0),
-                                        coref (coreExprFromNameInfo createName createInfo)]
-    
+       resourceArgs <- case handlerSort of
+                         HandlerResource (Just resExpr)
+                           -> do let resourceGetName = makeHiddenName "resource" handledEffectName
+                                     resourceGetExpr = App (Var resourceGetName False hrng)
+                                                          [(Nothing, resExpr)] hrng
+                                 (resourceTp,resourceEff,resourceCore) <- inferExpr Nothing Instantiated resourceGetExpr
+                                 inferUnify (checkEffectSubsume hrng) hrng resourceEff effect
+                                 return [resourceCore]
+
+                         HandlerResource Nothing
+                           ->  do (createName,createTp,createInfo) <- resolveFunName (makeHiddenName "create" handledEffectName)
+                                                                            (CtxFunTypes False [typeInt] []) hrng hrng
+
+                                  (icreateTp,_,coref) <- instantiate hrng createTp
+                                  inferUnify (Infer hrng) hrng icreateTp (typeFun [(nameNil,typeInt)] typeTotal handledEffect)
+                                  return [Core.Lit (Core.LitInt 0),
+                                          coref (coreExprFromNameInfo createName createInfo)]
+                         _ -> return []
+
 
        -- build effect tag core
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (isKindHandled1 (getKind handledEffect)) then 1 else if (handlerSort==HandlerShallow) then 2 else 0
-       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore, 
-                handlerKindCore, nameMakeHandler handlerSort (length locals), 
+                             if (isKindHandled1 (getKind handledEffect)) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
+       return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
+                handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
 
 
-inferHandlerBranch :: HandlerSort -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
+inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
 inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
@@ -1016,7 +1029,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
 
        case handlerSort of
-         HandlerResource 
+         HandlerResource _
            -> case parTps of
                 (parTp:_) -> inferUnify (checkEffectTp rng) rng effectTp parTp -- ensure we unify type parameters shared with the action effect
                 _ -> failure $ "Type.Infer.inferHandlerBranch: illegal operator type for a resource: " ++ show (pretty rho)
@@ -1186,8 +1199,8 @@ checkCoverage rng effect branches
                    then return ()
                    -- should not occur if branches typechecked previously
                    else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
-                          (name:_) -> termError rng (text "operator" <+> ppOpName env name <+> 
-                                                     text "is not part of the handled effect") effect 
+                          (name:_) -> termError rng (text "operator" <+> ppOpName env name <+>
+                                                     text "is not part of the handled effect") effect
                                                       [(text "hint",text "add a branch for" <+> ppOpName env name <> text "? or use 'handler resource'?")]
                           _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             (opName:opNames')

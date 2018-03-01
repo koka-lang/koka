@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Common.NamePrim
-          ( 
+          (
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
@@ -32,7 +32,7 @@ module Common.NamePrim
           , nameEnsureK
           , nameIsValidK
           , nameLift, nameBind
-          , nameInject, nameInjectExn
+          , nameInject, nameInjectExn, nameInjectResource
 
           , nameUnsafeTotal
           , nameIntConst, nameInt32
@@ -78,7 +78,7 @@ module Common.NamePrim
           , nameTpWrite, nameTpRead
           , nameTpIO
           , nameTpAlloc
-          
+
           , nameTuple, isNameTuple
 
           , namePredHeapDiv
@@ -159,7 +159,7 @@ nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
 nameIndex       = newName "[]"
 
-nameTpArray     = qualify (newName "std/data/array") (newName "array") 
+nameTpArray     = qualify (newName "std/data/array") (newName "array")
 nameTpVector    = preludeName "vector"
 nameVector      = preludeName "vector"
 
@@ -198,13 +198,13 @@ nameEnsureK     = preludeName "ensureK"
 nameTpAsync     = qualify (newName "std/async") (newName "async")
 nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
-nameYieldOp n    = preludeName (".yieldop" ++ (if (n == 0) then "" else "-x" ++ show n)) 
+nameYieldOp n    = preludeName (".yieldop" ++ (if (n == 0) then "" else "-x" ++ show n))
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"
-nameMakeHandler handlerSort n 
-  = preludeName (".make" ++ (if (handlerSort/=HandlerDeep) then show handlerSort else "") ++ "Handler" ++ show n)
-nameMakeHandlerRet n 
+nameMakeHandler handlerSort n
+  = preludeName (".make" ++ (if (not (isHandlerDeep handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
+nameMakeHandlerRet n
   = preludeName (".makeHandlerRet" ++ show n)
 
 nameLift        = preludeName "lift"
@@ -212,6 +212,7 @@ nameBind        = preludeName "bind"
 nameTpYld       = preludeName "yld"
 nameInject      = preludeName ".inject-effect"
 nameInjectExn   = preludeName "inject-exn"
+nameInjectResource = preludeName ".inject-resource"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
@@ -270,7 +271,7 @@ toShortModuleName :: Name -> Name
 toShortModuleName name
   = let short = last (splitModuleName name) in
     if (short == nameCore) then nameSystemCore else short  -- so primitives can be qualified correctly
-    
+
 {--------------------------------------------------------------------------
   Primitive kind constructors
 --------------------------------------------------------------------------}

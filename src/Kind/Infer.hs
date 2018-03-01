@@ -436,11 +436,11 @@ infResolveHX tp ctx
 
 infResolveX :: UserType -> Context -> Range -> KInfer Type
 infResolveX tp ctx rng
-  = do ikind <- freshKind 
+  = do ikind <- freshKind
        infTp <- infUserType ikind ctx tp
        skind <- subst ikind
        -- allow also effect label constructors without giving type parameters
-       let (kargs,kres) = infExtractKindFun skind     
+       let (kargs,kres) = infExtractKindFun skind
        if (not (null kargs))
         then let vars     = [(newName ("_" ++ show i)) | (_,i) <- zip kargs [1..]]
                  quals    = map (\(name) -> TypeBinder name KindNone rng rng) vars
@@ -452,9 +452,9 @@ infResolveX tp ctx rng
                             KICon kind | kind == kindLabel   -> return infTp
                             KICon kind | isKindHandled kind  -> return (makeHandled infTp rng)
                             KICon kind | isKindHandled1 kind -> return (makeHandled1 infTp rng)
-                            _ -> do unify ctx rng infKindLabel skind  
+                            _ -> do unify ctx rng infKindLabel skind
                                     return infTp
-                resolveType M.empty False effect       
+                resolveType M.empty False effect
 
 
 
@@ -538,15 +538,22 @@ infExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- infExpr expr
                                    return (Parens expr' range)
-      Handler shallow scoped meff pars ret ops hrng rng
+      Handler hsort scoped meff pars ret ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
                                               Just eff -> do eff' <- infResolveX eff (Check "Handler types must be effect constants (of kind X)" hrng) hrng
                                                              return (Just eff')
+                                   hsort' <- case hsort of
+                                               HandlerResource (Just rexpr)
+                                                -> do rexpr' <- infExpr rexpr
+                                                      return (HandlerResource (Just rexpr'))
+                                               HandlerResource Nothing -> return $ HandlerResource Nothing
+                                               HandlerShallow -> return HandlerShallow
+                                               HandlerDeep -> return HandlerDeep
                                    ret' <- infExpr ret
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler shallow scoped meff' pars' ret' ops' hrng rng)
+                                   return (Handler hsort' scoped meff' pars' ret' ops' hrng rng)
       Inject tp expr range  -> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
@@ -628,7 +635,7 @@ infUserType expected  context userType
     case userType of
       TpQuan quant tname tp rng
         -> do ikind  <- case quant of
-                          QSome -> return expected 
+                          QSome -> return expected
                           _     -> do unify context range expected infKindStar
                                       return expected
               tname' <- bindTypeBinder tname

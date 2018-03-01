@@ -241,7 +241,7 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|handle(?:\\s*(?:resource))?|handler(?:\\s*(?:resource))?|shallow|return|module|import|as|in|public|private|abstract|effect|cont)(?![\\w\\-?'])"
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|instance|with|extern|external|fun|function|val|var|use|using|con|if|then|else|elif|match|inject|handle(?:\\s*(?:resource))?(?:\\s*(?:local))?|handler(?:\\s*(?:resource))?(?:\\s*(?:local))?|shallow|return|module|import|as|in|public|private|abstract|effect|cont)(?![\\w\\-?'])"
       , "name": "keyword.other.koka"
       },
 

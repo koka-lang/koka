@@ -2934,6 +2934,10 @@ extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action :
   js inline "$std_core._handle_inject(#1,0,#2)"
 }
 
+extern inline ".inject-resource"<a::V,e::E>( effect-name : string, resource-tag : int, action : () -> e a ) : e a {
+  js inline "$std_core._handle_inject(#1,#2,#3)"
+}
+
 // Yield alias
 alias yld<a> = a
 
@@ -3020,6 +3024,26 @@ extern ".makeResourceHandler0"( effect-name : string,
                         ret : a -> e b,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int,
+                        resource-tag : int
+                      ) : total ((action : () -> e1 a) -> e b) {
+  cs inline "Eff.Handler0<##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
+  js "$std_core._new_resource_handler"
+}
+
+extern ".makeResourceHandler1"( effect-name : string,
+                        ret : (result : a, local : l) -> e b,
+                        branches : vector<handler-branch1<e,l,b>>,
+                        handler-kind : int,
+                        resource-tag : int
+                      ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
+  cs inline "Eff.Handler1<##4,##1,##2>.Create(#1,#2,#3,(Eff.HandlerKind)((int)#4))"
+  js "$std_core._new_resource_handler1"
+}
+
+extern ".makeFreshResourceHandler0"( effect-name : string,
+                        ret : a -> e b,
+                        branches : vector<handler-branch0<e,b>>,
+                        handler-kind : int,
                         resource-tag : int,
                         resource-wrap: int -> c
                       ) : total ((action : (c) -> e1 a) -> e b) {
@@ -3027,7 +3051,7 @@ extern ".makeResourceHandler0"( effect-name : string,
   js "$std_core._new_resource_handler"
 }
 
-extern ".makeResourceHandler1"( effect-name : string,
+extern ".makeFreshResourceHandler1"( effect-name : string,
                         ret : (result : a, local : l) -> e b,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int,

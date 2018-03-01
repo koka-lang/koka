@@ -699,7 +699,7 @@ effectDecl dvis
            (effResourceDecls, mbResourceInt)
             = case mbResource of
                 Nothing -> ([], Nothing)
-                Just tp ->
+                Just labelTp ->
                   let createDef =
                           let createName = makeHiddenName "create" id
                               nameCreateResource = newQualified "std/core" ".Resource"
@@ -712,8 +712,9 @@ effectDecl dvis
                                         body irng
                               def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
                           in def
-                      (resourceDef,resourceBinder,resourceGet) =
-                          let defName = makeHiddenName "resource" id
+
+                      (resourceDef,resourceBinder,resourceLamBinder,resourceGet) =
+                          let resourceGetName = makeHiddenName "resource" id
                               valName = newHiddenName "resource"
                               binder = ValueBinder valName effTp Nothing irng irng
                               rbinder = ValueBinder valName Nothing Nothing irng irng
@@ -724,9 +725,28 @@ effectDecl dvis
                                                         (guardTrue)
                                                         (Var resName False irng)] irng
                               fun = Lam [rbinder] rmatch irng
-                              def = Def (ValueBinder defName () fun irng irng) irng vis (DefFun NoMon) ""
-                          in (def, binder, App (Var defName False irng) [(Nothing,Var valName False irng)] irng)
-                  in ([DefValue createDef, DefValue resourceDef], Just (tp, resourceBinder, resourceGet))
+                              def = Def (ValueBinder resourceGetName () fun irng irng) irng vis (DefFun NoMon) ""
+                          in (def, binder, rbinder, App (Var resourceGetName False irng) [(Nothing,Var valName False irng)] irng)
+
+                      injectDef =
+                          let injectName = newName "inject-resource"
+                              actionName = newName "action"
+                              body= App (Var nameInjectResource False irng)
+                                        [(Nothing,Var effTagName False irng),
+                                         (Nothing,resourceGet),
+                                         (Nothing,Var actionName False irng)] irng
+
+                              actionEff = makeEffectExtend irng labelTp (TpVar (newName "_") irng)
+                              typeUnit  = TpCon nameUnit rng
+                              actionTp  = makeTpFun [] actionEff typeUnit irng
+                              fun = promote [] [] Nothing $
+                                    Lam [resourceLamBinder,
+                                         ValueBinder actionName (Just actionTp) Nothing irng irng]
+                                        body irng
+                              def = Def (ValueBinder injectName () fun irng irng) irng vis (DefFun NoMon) ""
+                          in def
+
+                  in ([DefValue createDef, DefValue resourceDef, DefValue injectDef], Just (labelTp, resourceBinder, resourceGet))
 
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
@@ -1150,24 +1170,30 @@ matchexpr
 
 handlerExpr
   = do rng <- keyword "handler"
-       hsort  <- handlerSort
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       handlerExprX lparen rng hsort scoped mbEff
+       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       hsort   <- handlerSort
+       handlerExprX rng mbEff scoped hsort
   <|>
     do rng <- keyword "handle"
-       hsort    <- handlerSort
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       hsort   <- handlerSort
        args <- parensCommas lparen argument
-       expr <- handlerExprX lparen rng hsort scoped mbEff
+       expr <- handlerExprX rng mbEff scoped hsort
        return (App expr args (combineRanged rng expr))
   where
-    handlerSort =     do specialId "resource"; return HandlerResource
+    handlerSort =     do specialId "resource"
+                         res <- do (name,rng) <- qidentifier
+                                   return (Just (Var name False rng))
+                                <|> return Nothing
+                         return (HandlerResource res)
                   <|> do specialId "shallow"; return HandlerShallow
                   <|> return HandlerDeep
 
-handlerExprX lp rng shallow scoped mbEff
+
+
+handlerExprX rng mbEff scoped hsort
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        (retops,rng2)  <- semiBracesRanged handlerOp
        let (rets,ops) = partitionEithers retops
@@ -1175,11 +1201,12 @@ handlerExprX lp rng shallow scoped mbEff
                 [r] -> return r
                 []  -> return (handlerReturnDefault rng)
                 _   -> fail "There can be be at most one 'return' clause in a handler body"
-       return (parsLam $ Handler shallow scoped mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+       return (parsLam $ Handler hsort scoped mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
 handlerParams
-  = do (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
+  = do optional (specialId "local")
+       (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
        let hpars  = [p{ binderExpr = () } | p <- pars]
            hlam   = if (any (isJust.binderExpr) pars)
                       then let apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
