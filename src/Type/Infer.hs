@@ -66,7 +66,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   -- Lib.Trace.trace s
+  Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -880,7 +880,8 @@ inferHandledEffect rng handlerSort mbeff ops
                 (rho,_,_) <- instantiate nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerResource handlerSort && opname == newHiddenName "resource"
-                                -> return $ Just rtp
+                                -> do traceDoc $ \env -> text "resource effect: " <+> ppType env rtp
+                                      return $ Just rtp
                   Just(_,eff,_) | not (isHandlerResource handlerSort)
                                 -> case extractEffectExtend eff of
                                     ([l],_) -> return (Just l)
@@ -975,8 +976,12 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                            -> do let resourceGetName = makeHiddenName "resource" handledEffectName
                                      resourceGetExpr = App (Var resourceGetName False hrng)
                                                           [(Nothing, resExpr)] hrng
-                                 (resourceTp,resourceEff,resourceCore) <- inferExpr Nothing Instantiated resourceGetExpr
+                                 (_,resourceEff,resourceCore) <- inferExpr Nothing Instantiated resourceGetExpr
+                                 -- check if the resource effect is handled
                                  inferUnify (checkEffectSubsume hrng) hrng resourceEff effect
+                                 -- check if the type of the resource is the same as handled in the branches
+                                 (resourceTp,_,_) <- inferExpr (Just (handledEffect,hrng)) Instantiated resExpr
+                                 inferUnify (Infer hrng) hrng handledEffect resourceTp
                                  return [resourceCore]
 
                          HandlerResource Nothing
@@ -1017,7 +1022,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        -- get resume argument type = operator result type
        (rho,optvars,_) <- instantiate rng opTp
-       let (parTps,effTp,resTp) = splitOpTp rho
+       let (parTps,effTp0,resTp) = splitOpTp rho
+       -- remove `exn` effect from resource operations in `effTp`
+       effTp <- if (not (isHandlerResource handlerSort)) then return effTp0
+                 else do e <- freshEffect
+                         let etp = effectExtend (TCon (TypeCon nameTpPartial kindEffect)) e
+                         inferUnify (Infer nameRng) nameRng effTp0 etp
+                         subst e
 
        -- get operator constructor type: .op-set<s>
        (conTp,ctvars,_) <- instantiate rng gconTp
