@@ -27,7 +27,7 @@ fun foo()  {
   use r2 = new-ref(False)
   println( r2.get() : bool  )
   println( inject<heap>{r1.get()} : int )
-  val (x,y) = bar(r2,r1)
+  val (x,_) = bar(r2,r1)
   println(x)
   /*
   // but this fails due to effect order :-(

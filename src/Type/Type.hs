@@ -36,7 +36,7 @@ module Type.Type (-- * Types
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
                   , extractOrderedEffect
-                  , orderEffect, labelName
+                  , orderEffect, labelName, labelNameFull, labelNameEx
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial
@@ -515,13 +515,27 @@ extractOrderedEffect tp
 
 labelName :: Tau -> Name
 labelName tp
+  = fst (labelNameEx tp)
+
+labelNameFull :: Tau -> Name
+labelNameFull tp
+  = let (name,i) = labelNameEx tp
+    in postpend ("$" ++ show i) name
+
+
+
+labelNameEx :: Tau -> (Name,Int)
+labelNameEx tp
   = case expandSyn tp of
-      TCon tc -> typeConName tc
+      TCon tc -> (typeConName tc,0)
       TApp (TCon (TypeCon name _)) [htp] | name == nameTpHandled
-        -> labelName htp -- use the handled effect name for handled<htp> types.
+        -> labelNameEx htp -- use the handled effect name for handled<htp> types.
+      TApp (TCon tc) (TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
+        -> (typeConName tc, idNumber id)
       TApp (TCon tc) _  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
-                           typeConName tc
+                           (typeConName tc,0)
       _  -> failure "Type.Unify.labelName: label is not a constant"
+
 
 
 typeCps :: Type
