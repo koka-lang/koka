@@ -7,7 +7,7 @@ effect heap { }
 val heap = handler<heap>{ }
 
 effect resource ref<a> in heap {
-  fun get() : a
+  fun get() : a       // (ref<a>) -> <heap,exn> a
   fun set( value : a ) : ()
 }
 

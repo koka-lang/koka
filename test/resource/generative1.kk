@@ -26,10 +26,15 @@ fun foo()  {
   use r1 = new-ref(50)
   use r2 = new-ref(False)
   println( r2.get() : bool  )
-  println( inject<heap>{r1.get()} : int )
+  println( inject<heap>{r1.get()} : int)
   val (x,_) = bar(r2,r1)
   println(x)
   /*
+  // <heap<$s1,int>|_e> ~ <heap<$s2,bool>, heap<$s1,int>,..>
+
+  // <heap<$s2,bool>, heap<$s1,int>,..>
+  // <heap<$s1,int>, heap<$s2,bool>,..>
+
   // but this fails due to effect order :-(
   val (a,b) = bar(r1,r2)
   println(a)
