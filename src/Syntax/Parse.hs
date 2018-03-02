@@ -735,8 +735,8 @@ effectDecl dvis
                                         [(Nothing,Var effTagName False irng),
                                          (Nothing,resourceGet),
                                          (Nothing,Var actionName False irng)] irng
-                              tpVarA    = TpVar (newName "a") irng
-                              tpVarE    = TpVar (newName "e") irng
+                              tpVarA    = TpVar (newHiddenName "a") irng
+                              tpVarE    = TpVar (newHiddenName "e") irng
                               typeUnit  = TpCon nameUnit rng
                               actionEff = makeEffectExtend irng labelTp tpVarE
                               actionTp  = makeTpFun [] actionEff tpVarA irng
