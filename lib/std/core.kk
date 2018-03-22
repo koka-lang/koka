@@ -351,6 +351,12 @@ type optional<a> {
 // Abstract type used for passing `null` values to external functions
 type null<a>
 
+// Unsafe: transform any type to a `null` type; used internally by the compiler.
+external ".null-any"(x : a) : null<a> {
+  cs inline "#1"
+  js inline "(#1==null ? null : #1)"  // undefined -> null
+}
+
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 external null(x : maybe<a>) : null<a> {
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
@@ -378,6 +384,10 @@ fun null( s : string ) : null<string>  {
 fun null( b : bool ) : null<()> {
     b.maybe.null
 }
+
+val null-const : forall<a> null<a> = null(Nothing)
+
+
 
 // ----------------------------------------------------------------------------
 // Standard functions
@@ -3002,8 +3012,14 @@ extern ".makeHandlerBranch1-x1"( resume-kind : int, op-name : string,
   js "$std_core._new_branch1"
 }
 
+val null-return : forall<a,e> null<a -> e a>    = null-const
+val null-return1 : forall<a,l,e> null<(a,l) -> e a> = null-const
+
+
 extern ".makeHandler0"( effect-name : string,
-                        ret : a -> e b,
+                        reinit : null<() -> e ()>,
+                        ret : null<a -> e b>,
+                        final : null<() -> e ()>,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int
                       ) : total ((action : () -> e1 a) -> e b) {
@@ -3012,7 +3028,9 @@ extern ".makeHandler0"( effect-name : string,
 }
 
 extern ".makeHandler1"( effect-name : string,
-                        ret : (result : a, local : l) -> e b,
+                        reinit : null<() -> e l>,
+                        ret : null<(result : a, local : l) -> e b>,
+                        final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int
                       ) : total ((initial-local : l, action : () -> e1 a) -> e b) {
@@ -3021,7 +3039,9 @@ extern ".makeHandler1"( effect-name : string,
 }
 
 extern ".makeResourceHandler0"( effect-name : string,
-                        ret : a -> e b,
+                        reinit : null<() -> e ()>,
+                        ret : null<a -> e b>,
+                        final : null<() -> e ()>,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int,
                         resource-tag : int
@@ -3031,7 +3051,9 @@ extern ".makeResourceHandler0"( effect-name : string,
 }
 
 extern ".makeResourceHandler1"( effect-name : string,
-                        ret : (result : a, local : l) -> e b,
+                        reinit : null<(local : l) -> e l>, 
+                        ret : null<(result : a, local : l) -> e b>,
+                        final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int,
                         resource-tag : int
@@ -3041,7 +3063,9 @@ extern ".makeResourceHandler1"( effect-name : string,
 }
 
 extern ".makeFreshResourceHandler0"( effect-name : string,
-                        ret : a -> e b,
+                        reinit : null<() -> e ()>,
+                        ret : null<a -> e b>,
+                        final : null<() -> e ()>,
                         branches : vector<handler-branch0<e,b>>,
                         handler-kind : int,
                         resource-tag : int,
@@ -3052,7 +3076,9 @@ extern ".makeFreshResourceHandler0"( effect-name : string,
 }
 
 extern ".makeFreshResourceHandler1"( effect-name : string,
-                        ret : (result : a, local : l) -> e b,
+                        reinit : null<() -> e l>, 
+                        ret : null<(result : a, local : l) -> e b>,
+                        final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
                         handler-kind : int,
                         resource-tag : int,
@@ -3063,12 +3089,14 @@ extern ".makeFreshResourceHandler1"( effect-name : string,
 }
 
 // Used for handlers with just a `return` branch
-fun ".makeHandlerRet0"( ignored-effect-name : string,
-                           ret : (result : a) -> e b,
-                           ignored-branches : int,
-                           ignored-kind : int
-                         ) : total ((action : () -> e a) -> e b) {
-  return fun(action){ ret(action()) }
+extern ".makeHandlerRet0"(  ignored-effect-name : string,
+                         reinit : null<() -> e ()>,
+                         ret : null<(result:a) -> e b>,
+                         final : null<() -> e ()>,
+                         ignored-branches : int,
+                         ignored-kind : int
+                       ) : total ((action : () -> e a) -> e b) {
+  js inline "$std_core._new_empty_handler(#2,#3,#4)"
 }
 
 

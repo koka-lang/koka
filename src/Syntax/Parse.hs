@@ -1204,10 +1204,21 @@ handlerExprX rng mbEff scoped hsort
        (retops,rng2)  <- semiBracesRanged handlerOp
        let (rets,ops) = partitionEithers retops
        ret <- case rets of
-                [r] -> return r
-                []  -> return (handlerReturnDefault rng)
+                [r] -> return (makeNull r)
+                []  -> return (Var (if null pars then nameReturnNull1 else nameReturnNull) False rng)
                 _   -> fail "There can be be at most one 'return' clause in a handler body"
-       return (parsLam $ Handler hsort scoped mbEff pars ret ops (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+       let reinit = constNull rng
+           final  = constNull rng                
+       return (parsLam $ Handler hsort scoped mbEff pars reinit ret final ops 
+                            (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+
+makeNull expr
+  = let rng = getRange expr
+    in App (Var nameMakeNull False rng) [(Nothing,expr)] rng
+
+constNull rng
+  = Var nameConstNull False rng
+
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
 handlerParams

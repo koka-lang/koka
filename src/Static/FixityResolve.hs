@@ -101,10 +101,10 @@ resolveExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- resolveExpr expr
                                    return (Parens expr' range)
-      Handler shallow scoped eff pars ret ops hrng rng
+      Handler shallow scoped eff pars reinit ret final ops hrng rng
                              -> do ret' <- resolveExpr ret
                                    ops' <- mapM resolveHandlerBranch ops
-                                   return (Handler shallow scoped eff pars ret' ops' hrng rng)
+                                   return (Handler shallow scoped eff pars reinit ret' final ops' hrng rng)
       Inject tp expr range   -> do expr' <- resolveExpr expr
                                    return (Inject tp expr range)                                   
 
