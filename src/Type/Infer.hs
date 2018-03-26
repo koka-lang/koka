@@ -841,11 +841,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars rein
        shandlerTp <- subst handlerTp
        trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
-       let finalExpr = case final of
-                        App v@(Var name _ _) [(argname,Lam [] body rng)] arng | name == nameMakeNull  
-                          -> App v [(argname,Lam (propLocals) body rng)] arng                        
-                        Var name _ _ | name == nameConstNull -> final
-                        _ -> failure "Type.Infer.inferHandler: illegal finally clause"                   
+       let finalExpr = final                   
        finalCore <- inferCheckedExpr (typeNull $ typeFun localArgs heff typeUnit) finalExpr
        reinitCore<- inferCheckedExpr (typeNull $ typeFun [] heff (typeMakeTuple localTypes)) reinit
 
@@ -1106,13 +1102,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
            resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
 
            finalizeName= newName "finalize"
-           finalizeTp  = TFun [(newName "result", branchTp)] resumeEff branchTp
-           fargName    = newName "result"
+           finalizeTp  = TFun [(newName "after", typeFun [] resumeEff branchTp)] resumeEff branchTp
+           fargName    = newName "after"
            primFinalizeName = qualify nameSystemCore $ newHiddenName ("finalize" ++ (if null locals then "" else show (length locals)))
            finalizeApp = App (Var primFinalizeName False nameRng)
                              [(Nothing,Var resumeName False nameRng),
                               (Nothing,Var fargName False nameRng)] nameRng
-           finalizeLam = Lam [(ValueBinder fargName (Just branchTp) Nothing nameRng nameRng)]
+           finalizeLam = Lam [(ValueBinder fargName (Just (typeFun [] resumeEff branchTp)) Nothing nameRng nameRng)]
                              finalizeApp nameRng
 
 

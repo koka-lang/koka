@@ -1201,14 +1201,9 @@ handlerExpr
 
 handlerExprX rng mbEff scoped hsort
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
-       (retops,rng2)  <- semiBracesRanged handlerOp
-       let (rets,ops) = partitionEithers retops
-       ret <- case rets of
-                [r] -> return (makeNull r)
-                []  -> return (Var (if null pars then nameReturnNull1 else nameReturnNull) False rng)
-                _   -> fail "There can be be at most one 'return' clause in a handler body"
-       let reinit = constNull rng
-           final  = constNull rng                
+       let xpars = [par{binderExpr = Nothing} | par <- pars]
+       (clauses,rng2)  <- semiBracesRanged (handlerOp xpars)
+       (reinit,ret,final,ops) <- partitionClauses clauses pars rng    
        return (parsLam $ Handler hsort scoped mbEff pars reinit ret final ops 
                             (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
 
@@ -1219,6 +1214,33 @@ makeNull expr
 constNull rng
   = Var nameConstNull False rng
 
+
+data Clause = ClauseRet UserExpr
+            | ClauseFinally UserExpr
+            | ClauseInitially UserExpr
+            | ClauseBranch UserHandlerBranch
+
+partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (UserExpr,UserExpr,UserExpr,[UserHandlerBranch])
+partitionClauses clauses pars rng
+  = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses 
+       ret <- case rets of
+                [r] -> return (makeNull r)
+                []  -> return (Var (if null pars then nameReturnNull else nameReturnNull1) False rng)
+                _   -> fail "There can be be at most one 'return' clause in a handler body"
+       final <- case finals of                
+                [f] -> return (makeNull f)
+                []  -> return (constNull rng)
+                _   -> fail "There can be be at most one 'finally' clause in a handler body"
+       reinit <- return (constNull rng) -- TODO
+       return (reinit,ret,final,reverse ops)
+  where
+    separate acc [] = acc
+    separate (reinits,rets,finals,ops) (clause:clauses)
+      = case clause of
+          ClauseRet r -> separate (reinits,r:rets,finals,ops) clauses
+          ClauseFinally f -> separate (reinits,rets,f:finals,ops) clauses
+          ClauseInitially i -> separate (i:reinits,rets,finals,ops) clauses
+          ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
 handlerParams
@@ -1245,18 +1267,22 @@ handlerParams
                       else id
        return (hpars,hlam,rng)
 
-handlerOp :: LexParser (Either UserExpr UserHandlerBranch)
-handlerOp
+handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser Clause
+handlerOp pars
   = do rng <- keyword "return"
        (name,prng) <- paramid
        tp         <- optionMaybe typeAnnotPar
        expr <- bodyexpr
-       return (Left (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
+       return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
+  <|>
+    do rng <- specialId "finally"
+       expr <- bodyexpr
+       return (ClauseFinally (Lam pars expr (combineRanged rng expr)))    
   <|>
     do (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
        expr <- bodyexpr
-       return (Right (HandlerBranch name pars expr nameRng (combineRanges [nameRng,prng])))
+       return (ClauseBranch (HandlerBranch name pars expr nameRng (combineRanges [nameRng,prng])))
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams

@@ -2972,11 +2972,11 @@ extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-resource
   js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
-extern ".finalize"( resume : (a) -> e b, result : b ) : e b {
+extern ".finalize"( resume : (a) -> e b, after : () -> e b ) : e b {
   cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
   js "$std_core._run_finalizers"
 }
-extern ".finalize1"( resume : (a,l) -> e b, result : b ) : e b {
+extern ".finalize1"( resume : (a,l) -> e b, result : () -> e b ) : e b {
   cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
   js "$std_core._run_finalizers"
 }
