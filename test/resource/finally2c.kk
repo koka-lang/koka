@@ -23,7 +23,7 @@ fun foo() : _ int
     finally  -> {
       println("finally, local: " + i.show)
     }
-    inc() -> resume(i,i+1)
+    inc() -> 43  // no resume or finalize!
   }
 }
 
@@ -32,8 +32,8 @@ fun main() {
     return x -> println( "result: " + (x:int).show )
     raise(msg) -> {
       finalize {
-        println("raised: " + msg)
+        println("raised: " + msg)        
       }
     }
-    finally -> println("exc finalize")  }
+  }
 }
