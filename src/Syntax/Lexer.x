@@ -260,6 +260,7 @@ reservedNames
     , "fun", "val", "var", "use", "using"
     , "extern"
     , "effect", "handle", "handler", "inject"
+    -- , "finally", "initially"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"

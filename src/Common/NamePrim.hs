@@ -61,6 +61,8 @@ module Common.NamePrim
           , nameTpCps, nameTpYld, nameTpCont
           , nameInCps
           , nameTpHandlerBranch0, nameTpHandlerBranch1
+          , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+
 
           , nameTpAsync, nameTpAsyncX
           , nameApplyK
@@ -206,6 +208,11 @@ nameMakeHandler handlerSort n
   = preludeName (".make" ++ (if (not (isHandlerDeep handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n
   = preludeName (".makeHandlerRet" ++ show n)
+
+nameMakeNull    = preludeName ".null-any"
+nameConstNull   = preludeName "null-const"
+nameReturnNull   = preludeName "null-return"
+nameReturnNull1   = preludeName "null-return1"
 
 nameLift        = preludeName "lift"
 nameBind        = preludeName "bind"

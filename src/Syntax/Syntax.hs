@@ -201,7 +201,8 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+  | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()] 
+                  (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
   | Inject t (Expr t) Range
 
 data HandlerScope
@@ -328,7 +329,7 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
-        Handler shallow scoped eff pars ret ops hrng range -> range
+        Handler shallow scoped eff pars reinit ret final ops hrng range -> range
         Inject tp expr range -> range
 
 instance Ranged Lit where

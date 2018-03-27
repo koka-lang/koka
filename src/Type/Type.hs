@@ -40,7 +40,7 @@ module Type.Type (-- * Types
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial
-                  , typeList, typeVector, typeApp, typeRef, typeOptional
+                  , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , isOptional, makeOptional, unOptional
 
                   --, handledToLabel
@@ -724,6 +724,11 @@ tconList :: TypeCon
 tconList
   = TypeCon nameTpList (kindFun kindStar kindStar)
 
+typeNull :: Tau -> Tau
+typeNull tp
+  = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
+
+
 -- | Create a function type. Can have zero arguments.
 typeFun :: [(Name,Tau)] -> Tau -> Tau -> Tau
 typeFun args effect result
@@ -750,6 +755,13 @@ typeVoid
 typeAny :: Tau
 typeAny
   = TCon (TypeCon (nameTpAny) kindStar)
+
+typeMakeTuple :: [Tau] -> Tau
+typeMakeTuple tps
+  = case tps of
+      [] -> typeUnit
+      [tp] -> tp
+      _    -> typeApp (typeTuple (length tps)) tps
 
 typeTuple :: Int -> Tau
 typeTuple n

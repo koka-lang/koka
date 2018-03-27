@@ -31,6 +31,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpYld
                       , nameTpHandlerBranch0, nameTpHandlerBranch1,nameCons,nameNull,nameVector
                       , nameInject, nameInjectExn, nameTpPartial
+                      , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                        )
 import Common.Range
 import Common.Unique
@@ -640,9 +641,10 @@ inferExpr propagated expect (Ann expr annTp rng)
        resCore <- subst (coref core)
        -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()
        return (resTp,resEff,resCore)
+      
 
-inferExpr propagated expect (Handler shallow scoped mbEff pars ret ops hrng rng)
-  = inferHandler propagated expect shallow scoped mbEff pars ret ops hrng rng
+inferExpr propagated expect (Handler shallow scoped mbEff pars reinit ret final ops hrng rng)
+  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final ops hrng rng
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -753,6 +755,9 @@ inferExpr propagated expect (Inject label expr rng)
                          return core
        return (resTp,effTo,core)
 
+inferCheckedExpr expectTp expr
+  = do (_,_,core) <- inferExpr Nothing Instantiated (Ann expr expectTp (getRange expr))
+       return core
 
 {-
 inferExpr propagated expect expr
@@ -767,8 +772,10 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> Maybe Effect -> [ValueBinder (Maybe Type) ()] -> Expr Type -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret branches hrng rng
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> Maybe Effect 
+                      -> [ValueBinder (Maybe Type) ()] -> Expr Type -> Expr Type -> Expr Type
+                      -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect handlerSort handlerScoped mbEffect localPars reinit ret final branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
        let propAction    = last propArgs
@@ -786,9 +793,14 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
                         Nothing       -> Op.freshTVar kindStar Meta
                         Just (tp,rng) -> return tp
        let retExpr = case ret of
-                       Lam [arg] body rng -> Lam ([arg] ++ propLocals) body rng
+                       App v@(Var name _ _) [(argname,Lam [arg] body rng)] arng | name == nameMakeNull  
+                        -> App v [(argname,Lam (arg:propLocals) body rng)] arng                        
+                       Var name _ _ | name == nameReturnNull || name == nameReturnNull1 -> ret
                        _ -> failure "Type.Infer.inferHandler: illegal return clause"
-       (retTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
+       (retNullTp,_,retCore) <- inferExpr Nothing Instantiated retExpr
+       let retTp = case retNullTp of
+                     TApp _ [tp] -> tp
+                     _ -> failure "Type.Infer.inferHandler: illegal return type"
        addRangeInfo (getRange retExpr) (RM.Id (newName "return") (RM.NIValue retTp) True)
 
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
@@ -829,6 +841,10 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        shandlerTp <- subst handlerTp
        trace (" result: " ++ show (pretty shandlerTp)) $ return ()
 
+       let finalExpr = final                   
+       finalCore <- inferCheckedExpr (typeNull $ typeFun localArgs heff typeUnit) finalExpr
+       reinitCore<- inferCheckedExpr (typeNull $ typeFun [] heff (typeMakeTuple localTypes)) reinit
+
         -- get the tag value for this operation
        -- effectTag(effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,rng)) rng
 
@@ -836,7 +852,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars ret 
        let makeHandlerCore = makeHandlerCoreInst (coreExprFromNameInfo makeHandlerQName makeHandlerInfo)
            -- effectTagCore   = coreExprFromNameInfo effectTagName effectTagInfo
            handlerCore     = Core.App makeHandlerCore
-                                      ([effectTagCore,retCore,branchesCore,handlerKindCore]
+                                      ([effectTagCore,reinitCore,retCore,finalCore,branchesCore,handlerKindCore]
                                         ++ resourceArgs)
 
        -- generate a scoped rank-2 wrapper
@@ -869,6 +885,14 @@ wrapScopedHandler _ _ _ handlerTp
   = failure $ "Type.Infer.wrapScopedHandler: invalid scoped handler type: " ++ show handlerTp
 -}
 
+-- default return clause: return x -> x
+handlerReturnDefault :: Range -> [ValueBinder (Maybe Type) (Maybe (Expr Type))] -> Expr Type
+handlerReturnDefault rng propLocals
+  = let xname = newHiddenName "x"
+        xbind = ValueBinder xname Nothing Nothing rng rng
+        xvar  = Var xname False rng
+    in Lam (xbind:propLocals) xvar rng
+
 inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
@@ -897,15 +921,20 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
   = do let branchesCore = Core.Lit (Core.LitInt 0) -- ignored
 
        -- build up the type of the handler (() -> retEff retInTp) -> retEff resTp
-       let actionPar      = (newName "action",TFun [] effect retInTp)
-           handlerTp      = TFun (actionPar:localArgs) effect branchTp
-           makeHandlerTp  = TFun [(newName "ignored-effect-tag", typeString),
-                                  (newName "ret", retTp),
+       let actionPar = (newName "action",TFun [] effect retInTp)
+           handlerTp = TFun (actionPar:localArgs) effect branchTp
+           reinitTp  = TFun [] effect (typeMakeTuple (map snd localArgs))
+           finalTp   = TFun localArgs effect typeUnit
+
+           makeHandlerTp  = TFun [(newName "ignored-effect-name", typeString),
+                                  (newName "reinit", typeNull $ reinitTp),
+                                  (newName "ret", typeNull $ retTp),
+                                  (newName "final", typeNull $ finalTp),
                                   (newName "ignored-branches", typeInt),
-                                  (newName "ignored-handler-kind", typeInt)] typeTotal handlerTp
+                                  (newName "ignored-kind", typeInt)] typeTotal handlerTp
 
        return (handlerTp, branchesCore, makeHandlerTp,
-               Core.Lit (Core.LitString ""), Core.Lit (Core.LitInt 0),
+               Core.Lit (Core.LitString "<>"), Core.Lit (Core.LitInt 0),
                nameMakeHandlerRet (length locals), [])
 
 
@@ -961,11 +990,15 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
        -- build up the type of the handler
        let handlerTp = TFun (locals ++ [actionPar]) effect resTp
+           reinitTp  = TFun [] effect (typeMakeTuple (map snd locals))
+           finalTp   = TFun locals effect typeUnit
 
        -- build the type of the ops argument and the handler maker
        let branchesTp     = typeApp typeVector [handlerBranchTp]
            makeHandlerTp  = TFun ([(newName "effect-tag",typeString),
-                                    (newName "ret",retTp),
+                                    (newName "reinit", typeNull reinitTp),
+                                    (newName "ret",typeNull retTp),
+                                    (newName "final",typeNull finalTp),
                                     (newName "branches", branchesTp),
                                     (newName "handler-kind", typeInt)]
                                   ++ resourcePars) typeTotal handlerTp
@@ -1069,13 +1102,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
            resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
 
            finalizeName= newName "finalize"
-           finalizeTp  = TFun [(newName "result", branchTp)] resumeEff branchTp
-           fargName    = newName "result"
+           finalizeTp  = TFun [(newName "after", typeFun [] resumeEff branchTp)] resumeEff branchTp
+           fargName    = newName "after"
            primFinalizeName = qualify nameSystemCore $ newHiddenName ("finalize" ++ (if null locals then "" else show (length locals)))
            finalizeApp = App (Var primFinalizeName False nameRng)
                              [(Nothing,Var resumeName False nameRng),
                               (Nothing,Var fargName False nameRng)] nameRng
-           finalizeLam = Lam [(ValueBinder fargName (Just branchTp) Nothing nameRng nameRng)]
+           finalizeLam = Lam [(ValueBinder fargName (Just (typeFun [] resumeEff branchTp)) Nothing nameRng nameRng)]
                              finalizeApp nameRng
 
 

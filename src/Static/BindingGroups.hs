@@ -170,11 +170,13 @@ dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
-      Handler shallow scoped eff pars ret ops hrng rng
+      Handler shallow scoped eff pars reinit ret final ops hrng rng
         -> let (depRet,fv1)     = dependencyExpr modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-               fvs              = S.difference (S.union fv1 fv2) (S.fromList (map binderName pars))
-           in (Handler shallow scoped eff pars depRet depBranches hrng rng,fvs)
+               (depReinit,fv3)  = dependencyExpr modName reinit
+               (depFinal,fv4)   = dependencyExpr modName final
+               fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
+           in (Handler shallow scoped eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
       Inject tp body rng   -> let (depBody,fv) = dependencyExpr modName body
                               in (Inject tp depBody rng, fv)
 
