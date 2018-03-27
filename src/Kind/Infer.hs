@@ -791,7 +791,7 @@ occurs :: [Name] -> Bool -> Type -> Bool
 occurs names isNeg tp
   = case tp of
       TForall vars preds tp   -> occurs names isNeg tp
-      TFun args effect result -> any (occurs names (not isNeg)) (map snd args) || occurs names isNeg effect || occurs names isNeg result
+      TFun args effect result -> any (occurs names (not isNeg)) (map snd args) || occurs names (not isNeg) effect || occurs names isNeg result
       TCon tcon               -> if (typeConName tcon `elem` names) then isNeg else False
       TVar tvar               -> False
       TApp tp args            -> any (occurs names isNeg) (tp:args)
