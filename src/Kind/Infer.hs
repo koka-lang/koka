@@ -577,10 +577,10 @@ infPat pat
                                     return (PatParens pat' range)
 
 
-infHandlerBranch (HandlerBranch name pars expr nameRng rng)
+infHandlerBranch (HandlerBranch name pars expr isRaw nameRng rng)
   = do pars' <- mapM infHandlerValueBinder pars
        expr' <- infExpr expr
-       return (HandlerBranch name pars' expr' nameRng rng)
+       return (HandlerBranch name pars' expr' isRaw nameRng rng)
 
 infBranch (Branch pattern guard body)
   = do pattern'<- infPat pattern

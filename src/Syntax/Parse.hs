@@ -1281,8 +1281,11 @@ handlerOp pars
   <|>
     do (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
+       isRaw <- do specialId "raw"
+                   return True
+                <|> return False
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr nameRng (combineRanges [nameRng,prng])))
+       return (ClauseBranch (HandlerBranch name pars expr isRaw nameRng (combineRanges [nameRng,prng])))
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams

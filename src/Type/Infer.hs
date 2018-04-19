@@ -899,7 +899,7 @@ inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
       Nothing  -> case ops of
-        (HandlerBranch name pars expr nameRng rng: _)
+        (HandlerBranch name pars expr isRaw nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
@@ -1041,13 +1041,12 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
        -- check if it was part of the handled effect operations
        let fullRng  = combineRanged rng expr
-       let raw      = False
 
        (conName,gconTp,conRepr,conInfo) <- resolveConName (toOpConName opName) Nothing nameRng
         -- do env <- getPrettyEnv
@@ -1187,7 +1186,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        defName <- currentDefName
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = case analyzeResume defName (unqualify opName) bexprCore of
+           rkind       = let rk = analyzeResume defName (unqualify opName) bexprCore 
                            -- The scoped variants require a bind translation in the branch but currently
                            -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
                            -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
@@ -1196,11 +1195,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
                            -- parameters and thus affect the user experience (who would need to use `inject` operations).
                            -- Therefore, we just disable it for now and don't generate scoped branches.
                            -- Tested in `algeff/effs1b`
-                           ResumeScopedOnce -> ResumeOnce
-                           ResumeScoped     -> ResumeNormal
-                           ResumeOnce        | raw -> ResumeOnceRaw
-                           ResumeNormal      | raw -> ResumeNormalRaw
-                           rk               -> rk
+                         in if (raw) 
+                             then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
+                             else case rk of
+                                    ResumeScopedOnce -> ResumeOnce
+                                    ResumeScoped     -> ResumeNormal                           
+                                    _                -> rk
+                                    
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore

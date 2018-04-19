@@ -213,6 +213,7 @@ data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
+                 , hbranchRaw  :: Bool
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }

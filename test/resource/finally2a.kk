@@ -30,10 +30,7 @@ fun foo() : _ int
 fun main() {
   handle(foo) {
     return x -> println( "result: " + (x:int).show )
-    raise(msg) -> {
-      finalize {
-        println("raised: " + msg)
-      }
-    }
-    finally -> println("exc finalize")  }
+    raise(msg) -> println("raised: " + msg)
+    finally -> println("exc finalize")  
+  }
 }

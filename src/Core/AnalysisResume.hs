@@ -24,9 +24,10 @@ import Common.Unique()
 import Common.NamePrim( namePatternMatchError, nameSystemCore )
 import Kind.Kind( kindStar )
 import Type.Type
-import Type.Pretty ()
+import Type.Pretty (defaultEnv)
 import Core.Core
 import Core.CoreVar
+import Core.Pretty
 
 data ResumeKind
   = ResumeNever
@@ -54,7 +55,7 @@ analyzeResume :: Name -> Name -> Expr -> ResumeKind
 analyzeResume defName opName expr
   = case expr of
       Lam pars eff body -> let rk = arTailExpr body
-                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <> text ": resume" <+> text (show rk)) $
+                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <> text ": resume" <+> text (show rk) </> prettyExpr defaultEnv body) $
                               rk
       TypeLam _ body    -> analyzeResume defName opName body
       TypeApp body _    -> analyzeResume defName opName body
@@ -87,7 +88,7 @@ arExpr' appResume expr
       Lit lit
         -> ResumeNever
       Let [DefNonRec def] expr
-        | defName def == getName finalizeName  -- TODO: too weak a check; improve it
+        | defName def == getName resumeName  -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
         -> arExpr' appResume expr
       Let defGroups body -- TODO: be more sophisticated here?
         -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
