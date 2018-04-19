@@ -67,6 +67,7 @@ module Common.NamePrim
           , nameTpAsync, nameTpAsyncX
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
+          , nameMakeContextTp
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
           , nameTpMDict, nameTpDict, nameTpBuilder
 
@@ -208,6 +209,8 @@ nameMakeHandler handlerSort n
   = preludeName (".make" ++ (if (not (isHandlerDeep handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n
   = preludeName (".makeHandlerRet" ++ show n)
+
+nameMakeContextTp n = preludeName ("resume-context" ++ (if (n==0) then "" else "1"))
 
 nameMakeNull    = preludeName ".null-any"
 nameConstNull   = preludeName "null-const"

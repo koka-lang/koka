@@ -2972,41 +2972,51 @@ extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-resource
   js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
-extern ".finalize"( resume : (a) -> e b, after : () -> e b ) : e b {
-  cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
-  js "$std_core._run_finalizers"
+type resume-context<a,e::E,b>
+type resume-context1<a,e::E,b,l>
+
+extern resume( context : resume-context<a,e,b>, result : a ) : e b {
+  js inline "#1.resume(#2,undefined)"
 }
-extern ".finalize1"( resume : (a,l) -> e b, result : () -> e b ) : e b {
-  cs inline "Eff.Op.RunFinalizers<##1,##2>(#1,#2)"
-  js "$std_core._run_finalizers"
+
+extern resume( context : resume-context1<a,e,b,l>, result : a, local : l ) : e b {
+  js inline "#1.resume(#2,#3)"
+}
+
+extern finalize( context : resume-context<a,e,b>, result : c ) : e c {
+  js inline "#1.finalize(#2)"
+}
+
+extern finalize( context : resume-context1<a,e,b,l>, result : c ) : e c {
+  js inline "#1.finalize(#2)"
 }
 
 type handler-branch0<e::E,a>
 type handler-branch1<e::E,l,a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-name : string,
-                              branch : (resume : (result : a) -> e b, op : c) -> e b
+                              branch : (resume-context<a,e,b>, op : c) -> e b
                             ) : total handler-branch0<e,b> {
   cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-name : string,
-                              branch : (resume : (result : a, new-local: l) -> e b, op : c, local : l) -> e b
+                              branch : (resume-context1<a,e,b,l>, op : c, local : l) -> e b
                             ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
 }
 
 extern ".makeHandlerBranch0-x1"( resume-kind : int, op-name : string,
-                                branch : any // forall<x>(resume : (result : a<x>) -> e b, op : c<x>) -> e b
+                                branch : any // forall<x>(resume-context<a<x>,e,b>, op : c<x>) -> e b
                               ) : total handler-branch0<e,b> {
   cs inline "new Eff.BranchX1<##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1-x1"( resume-kind : int, op-name : string,
-                                 branch : any // forall<x>(resume : (result : a<x>, new-local: l) -> e b, op : c<x>, local : l) -> e b
+                                 branch : any // forall<x>(resume-context1<a<x>,e,b,l>, op : c<x>, local : l) -> e b
                                ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1X1<##3,##1>((Eff.ResumeKind)((int)#1),#2,(TypeFun1)#3)"
   js "$std_core._new_branch1"
@@ -3051,7 +3061,7 @@ extern ".makeResourceHandler0"( effect-name : string,
 }
 
 extern ".makeResourceHandler1"( effect-name : string,
-                        reinit : null<(local : l) -> e l>, 
+                        reinit : null<(local : l) -> e l>,
                         ret : null<(result : a, local : l) -> e b>,
                         final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
@@ -3076,7 +3086,7 @@ extern ".makeFreshResourceHandler0"( effect-name : string,
 }
 
 extern ".makeFreshResourceHandler1"( effect-name : string,
-                        reinit : null<() -> e l>, 
+                        reinit : null<() -> e l>,
                         ret : null<(result : a, local : l) -> e b>,
                         final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,

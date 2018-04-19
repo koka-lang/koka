@@ -28,28 +28,32 @@ import Type.Pretty ()
 import Core.Core
 import Core.CoreVar
 
-data ResumeKind 
+data ResumeKind
   = ResumeNever
   | ResumeTail
   | ResumeScopedOnce
   | ResumeScoped
   | ResumeOnce
   | ResumeNormal
+  | ResumeOnceRaw
+  | ResumeNormalRaw
   deriving (Eq,Ord,Enum)
 
 instance Show ResumeKind where
-  show rk = case rk of 
+  show rk = case rk of
               ResumeNever -> "never"
               ResumeTail  -> "tail"
               ResumeScopedOnce -> "scoped once"
               ResumeScoped -> "scoped"
               ResumeOnce  -> "once"
               ResumeNormal -> "normal"
+              ResumeOnceRaw -> "once (no finalization)"
+              ResumeNormalRaw -> "normal (no finalization)"
 
 analyzeResume :: Name -> Name -> Expr -> ResumeKind
 analyzeResume defName opName expr
   = case expr of
-      Lam pars eff body -> let rk = arTailExpr body 
+      Lam pars eff body -> let rk = arTailExpr body
                            in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <> text ": resume" <+> text (show rk)) $
                               rk
       TypeLam _ body    -> analyzeResume defName opName body
@@ -70,25 +74,25 @@ arExpr' appResume expr
         -> if (isResumingElem (fv expr)) then ResumeNormal else ResumeNever
       App (Var tname info) args  | isResuming tname
         -> appResume `rand` arExprsAnd args
-      App f args        
+      App f args
         -> arExprsAnd (f:args)
-      TypeLam tvs body  
+      TypeLam tvs body
         -> arExpr body
-      TypeApp body tps   
+      TypeApp body tps
         -> arExpr body
-      Var tname info    
+      Var tname info
         -> if (isResuming tname) then ResumeNormal else ResumeNever
-      Con tname repr     
+      Con tname repr
         -> ResumeNever
-      Lit lit            
+      Lit lit
         -> ResumeNever
-      Let [DefNonRec def] expr 
+      Let [DefNonRec def] expr
         | defName def == getName finalizeName  -- TODO: too weak a check; improve it
-        -> arExpr' appResume expr 
+        -> arExpr' appResume expr
       Let defGroups body -- TODO: be more sophisticated here?
         -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
             then ResumeNormal else arExpr' appResume body
-      Case exprs branches 
+      Case exprs branches
         -> arExprsAnd exprs `rand` arBranches appResume branches
 
 arBranches :: ResumeKind -> [Branch] -> ResumeKind
@@ -102,7 +106,7 @@ arBranch appResume (Branch pat guards)
 
 arGuard :: ResumeKind -> Guard -> ResumeKind
 arGuard appResume (Guard guardExpr expr)
-  = arExpr guardExpr `rand` arExpr' appResume expr     
+  = arExpr guardExpr `rand` arExpr' appResume expr
 
 
 arExprsAnd :: [Expr] -> ResumeKind
@@ -113,11 +117,11 @@ rors, rands :: [ResumeKind] -> ResumeKind
 rors rks
   = foldr ror ResumeNever rks
 rands rks
-  = foldr rand ResumeNever rks  
+  = foldr rand ResumeNever rks
 
 
 
-{-           
+{-
 *and*        never   tail    sonce   scoped  once    normal
 -----------------------------------------------------------
 never        never   tail    sonce   scoped  once    normal
