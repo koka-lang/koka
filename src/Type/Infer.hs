@@ -804,11 +804,18 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars rein
                      _ -> failure "Type.Infer.inferHandler: illegal return type"
        addRangeInfo (getRange retExpr) (RM.Id (newName "return") (RM.NIValue retTp) True)
 
+
        let Just(retArgs,retEff,retOutTp) = splitFunType retTp
-           ((_,retInTp):localArgs)       = retArgs
-           localTypes   = map snd localArgs
+           ((_,retInTp):localArgs0)       = retArgs
+           localTypes   = map snd localArgs0
            locals       = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propLocals localTypes]
+           localArgs    = [(binderName b, binderType b) | b <- locals]
            branchTp     = if (isHandlerShallow handlerSort) then retInTp else retOutTp
+
+       traceDoc $ \env -> text "inferHandler: retTp:" <+> ppType env retTp
+                           <+> text ", propLocals: " <+> list (map (pretty . binderName) propLocals)
+                           <+> text ", localTypes: " <+> list (map (ppType env) localTypes)
+                           <+> text ", locals: " <+> list [pretty (binderName l) <> colon <+> ppType env (binderType l) | l <- locals]
 
        -- Create effect type variable & unify with the return clause effect
        heff <- freshEffect
@@ -938,7 +945,6 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
                Core.Lit (Core.LitString "<>"), Core.Lit (Core.LitInt 0),
                nameMakeHandlerRet (length locals), [])
 
-
 inferHandlerBranches :: HandlerSort (Expr Type) -> Type -> [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Type -> Type
                     -> [HandlerBranch Type] -> Type -> Range -> Range
                     -> Inf (Type, Core.Expr, Type, Core.Expr, Core.Expr, Name, [Core.Expr])
@@ -966,7 +972,8 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        traceDoc $ \env -> text "inferHandlerBranches:" <+>
                           text ", branchTp:" <+> ppType env branchTp <+>
                           text ", handledEffect:" <+> ppType env handledEffect <+>
-                          text ", actionEffect:" <+> ppType env actionEffect
+                          text ", actionEffect:" <+> ppType env actionEffect <+>
+                          text ", locals: " <+> list (map (pretty . fst) locals)
 
 
        -- infer types of branches
@@ -1161,6 +1168,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
                          TFun ([(parContextName,parContextTp),(newName "op",conResTp)] ++ locals ) -- todo: don't use `conResTp` as it is wrongly scoped; reconstruct with the same instantiation variables from opTp
                                resumeEff branchTp
 
+       traceDoc $ \env -> text "inferHandlerBranch locals: " <> list (map (pretty . fst) locals)
 
        (bexprTp,bexprEff, bexprCore) <-
         if (hasExists)
@@ -1186,7 +1194,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        defName <- currentDefName
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = let rk = analyzeResume defName (unqualify opName) bexprCore 
+           rkind       = let rk = analyzeResume defName (unqualify opName) bexprCore
                            -- The scoped variants require a bind translation in the branch but currently
                            -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
                            -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
@@ -1195,13 +1203,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
                            -- parameters and thus affect the user experience (who would need to use `inject` operations).
                            -- Therefore, we just disable it for now and don't generate scoped branches.
                            -- Tested in `algeff/effs1b`
-                         in if (raw) 
+                         in if (raw)
                              then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
                              else case rk of
                                     ResumeScopedOnce -> ResumeOnce
-                                    ResumeScoped     -> ResumeNormal                           
+                                    ResumeScoped     -> ResumeNormal
                                     _                -> rk
-                                    
+
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore

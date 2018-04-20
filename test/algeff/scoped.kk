@@ -20,7 +20,7 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 fun select(xs) {
   match(xs) {
     Nil        -> fail()
-    Cons(x,xx) -> if (flip()) then x else select(xx) 
+    Cons(x,xx) -> if (flip()) then x else select(xx)
   }
 }
 
@@ -111,15 +111,15 @@ val hcutfail = handler{
 val collect = handler(q=fail) {
   return x -> if (flip()) then x else q()
   fail     -> q()
-  flip()   -> resume(True,{resume(False,q)})  
+  flip()   -> resume(True,{resume(False,q)})
 }
 
-fun call(p) { 
+fun call(p) {
   hcutfail{ collect(p) }
 }
 
 fun once(p) {
-  call{ val x = p(); cut() x }
+  call{ val x = p(); cut(); x }
 }
 
 fun test4() {
@@ -167,7 +167,7 @@ fun number() {
 }
 
 fun expr() : <div,nondet,symbol> int {
-  choice { 
+  choice {
     val i :int = term()
     symbol("+")
     val j = term()
@@ -221,7 +221,7 @@ fun hbcall(action : () -> <exn,div,cutfail,nondet> _) {
     return x -> x
     bcall()  -> hbcall{ call{ hecall{ uncps{ resume(()) } } }}
     ecall()  -> error("mismatched ecall")
-  } 
+  }
 }
 
 fun hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
@@ -238,11 +238,11 @@ fun runCut(p) {
 
 fun expr3() {
   val i = term()
-  call2{ 
+  call2{
     choice {
       symbol('+')
       val j = expr3()
-      i+j    
+      i+j
     }{ i }
   }
 }
@@ -256,12 +256,11 @@ fun test6() {
 // --------------------------------------------------------------
 
 fun main() {
-  [test1().show
-  ,test2().show
-  ,test3().show
-  ,test4().show
-  // ,test5().show
-  ].join("\n").println
+  test1().show.println
+  test2().show.println
+  test3().show.println
+  test4().show.println
+  //test5().show.println
 }
 
 

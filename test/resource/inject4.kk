@@ -1,11 +1,12 @@
 // Test inject over handled effects
 
 effect heap<a> {
-  fun get() : a 
+  fun get() : a
   fun set(value : a) : ()
 }
 
 val new-ref = handler(s) {
+  // return x -> x
   get() -> resume(s,s)
   set(x) -> resume((),x)
 }
