@@ -1203,8 +1203,8 @@ handlerExprX rng mbEff scoped hsort
   = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        let xpars = [par{binderExpr = Nothing} | par <- pars]
        (clauses,rng2)  <- semiBracesRanged (handlerOp xpars)
-       (reinit,ret,final,ops) <- partitionClauses clauses pars rng    
-       return (parsLam $ Handler hsort scoped mbEff pars reinit ret final ops 
+       (reinit,ret,final,ops) <- partitionClauses clauses pars rng
+       return (parsLam $ Handler hsort scoped mbEff pars reinit ret final ops
                             (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
 
 makeNull expr
@@ -1222,12 +1222,12 @@ data Clause = ClauseRet UserExpr
 
 partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (UserExpr,UserExpr,UserExpr,[UserHandlerBranch])
 partitionClauses clauses pars rng
-  = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses 
+  = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses
        ret <- case rets of
                 [r] -> return (makeNull r)
                 []  -> return (Var (if null pars then nameReturnNull else nameReturnNull1) False rng)
                 _   -> fail "There can be be at most one 'return' clause in a handler body"
-       final <- case finals of                
+       final <- case finals of
                 [f] -> return (makeNull f)
                 []  -> return (constNull rng)
                 _   -> fail "There can be be at most one 'finally' clause in a handler body"
@@ -1277,13 +1277,15 @@ handlerOp pars
   <|>
     do rng <- specialId "finally"
        expr <- bodyexpr
-       return (ClauseFinally (Lam pars expr (combineRanged rng expr)))    
+       return (ClauseFinally (Lam pars expr (combineRanged rng expr)))
   <|>
-    do (name,nameRng) <- qidentifier
+    do isRaw <-  (do keyword "fun"
+                     (do specialId "raw"
+                         return True
+                      <|> return False)
+                  <|> return False)                      
+       (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
-       isRaw <- do specialId "raw"
-                   return True
-                <|> return False
        expr <- bodyexpr
        return (ClauseBranch (HandlerBranch name pars expr isRaw nameRng (combineRanges [nameRng,prng])))
 
