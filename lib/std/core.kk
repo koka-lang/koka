@@ -178,6 +178,7 @@ type open exception-info {
   Assert
   Todo
   Range
+  Finalize
   Pattern( location : string, definition : string )
   System( errno : string )
   Internal( name : string )
