@@ -3039,7 +3039,7 @@ extern ".makeHandler0"( effect-name : string,
 }
 
 extern ".makeHandler1"( effect-name : string,
-                        reinit : null<() -> e l>,
+                        reinit : null<(local : l) -> e l>,
                         ret : null<(result : a, local : l) -> e b>,
                         final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
@@ -3087,7 +3087,7 @@ extern ".makeFreshResourceHandler0"( effect-name : string,
 }
 
 extern ".makeFreshResourceHandler1"( effect-name : string,
-                        reinit : null<() -> e l>,
+                        reinit : null<(local : l) -> e l>,
                         ret : null<(result : a, local : l) -> e b>,
                         final : null<(local : l) -> e ()>,
                         branches : vector<handler-branch1<e,l,b>>,
@@ -3108,6 +3108,17 @@ extern ".makeHandlerRet0"(  ignored-effect-name : string,
                          ignored-kind : int
                        ) : total ((action : () -> e a) -> e b) {
   js inline "$std_core._new_empty_handler(#2,#3,#4)"
+}
+
+// Used for handlers with just a `return` branch
+extern ".makeHandlerRet1"(  ignored-effect-name : string,
+                         reinit : null<(local:l) -> e l>,
+                         ret : null<(result:a, local:l) -> e b>,
+                         final : null<(local:l) -> e ()>,
+                         ignored-branches : int,
+                         ignored-kind : int
+                       ) : total ((local : l, action : () -> e a) -> e b) {
+  js inline "$std_core._new_empty_handler1(#2,#3,#4)"
 }
 
 

@@ -851,7 +851,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars rein
 
        let finalExpr = final
        finalCore <- inferCheckedExpr (typeNull $ typeFun localArgs heff typeUnit) finalExpr
-       reinitCore<- inferCheckedExpr (typeNull $ typeFun [] heff (typeMakeTuple localTypes)) reinit
+       reinitCore<- inferCheckedExpr (typeNull $ typeFun localArgs heff (typeMakeTuple localTypes)) reinit
 
         -- get the tag value for this operation
        -- effectTag(effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,rng)) rng
@@ -931,7 +931,7 @@ inferHandlerRet locals localArgs retInTp retEff branchTp retTp effect hrng exprR
        -- build up the type of the handler (() -> retEff retInTp) -> retEff resTp
        let actionPar = (newName "action",TFun [] effect retInTp)
            handlerTp = TFun (actionPar:localArgs) effect branchTp
-           reinitTp  = TFun [] effect (typeMakeTuple (map snd localArgs))
+           reinitTp  = TFun localArgs effect (typeMakeTuple (map snd localArgs))
            finalTp   = TFun localArgs effect typeUnit
 
            makeHandlerTp  = TFun [(newName "ignored-effect-name", typeString),
@@ -998,7 +998,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
        -- build up the type of the handler
        let handlerTp = TFun (locals ++ [actionPar]) effect resTp
-           reinitTp  = TFun [] effect (typeMakeTuple (map snd locals))
+           reinitTp  = TFun locals effect (typeMakeTuple (map snd locals))
            finalTp   = TFun locals effect typeUnit
 
        -- build the type of the ops argument and the handler maker

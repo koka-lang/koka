@@ -1200,12 +1200,72 @@ handlerExpr
 
 
 handlerExprX rng mbEff scoped hsort
-  = do (pars,parsLam,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
+  = do (pars,dpars,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        let xpars = [par{binderExpr = Nothing} | par <- pars]
        (clauses,rng2)  <- semiBracesRanged (handlerOp xpars)
-       (reinit,ret,final,ops) <- partitionClauses clauses pars rng
-       return (parsLam $ Handler hsort scoped mbEff pars reinit ret final ops
-                            (combineRanged rng pars) (combineRanges [rng,rng1,rng2]))
+       (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
+       let reinitFun = case mbReinit of
+                         Nothing -> constNull rng
+                         Just reinit -> makeNull $
+                           let argName = newHiddenName "local"
+                               rng = getRange reinit
+                               app = App (Var (getName reinit) False rng)
+                                        [(Nothing,App (Var nameJust False rng)
+                                                      [(Nothing,Var argName False rng)] rng)] rng
+                           in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
+           handler = Handler hsort scoped mbEff pars reinitFun ret final ops
+                       (combineRanged rng pars) (combineRanges [rng,rng1,rng2])
+           hasDefaults = any (isJust.binderExpr) dpars
+       case mbReinit of
+         Nothing
+          | hasDefaults -> return $ handlerAddDefaults dpars handler
+          | otherwise   -> return $ handler
+         Just reinit
+          | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
+          | otherwise   -> case pars of
+                             [par] -> return $ handlerAddReinit reinit par handler
+                             []    -> fail "A handler with an 'initially' clause must have local parameters"
+                             _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
+
+handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],[ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
+handlerParams
+  = do optional (specialId "local")
+       (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
+       let hpars  = [p{ binderExpr = () } | p <- pars]
+       return (hpars, pars, rng)
+
+handlerAddReinit :: UserDef -> (ValueBinder (Maybe UserType) ()) -> UserExpr -> UserExpr
+handlerAddReinit reinit par handler
+  =let rng  = getRange par
+       pinit = App (Var (getName reinit) False rng) [(Nothing,Var nameNothing False rng)] rng
+       dpars = [par{ binderExpr = Just(pinit) }]
+       --pdef = Def (ValueBinder (binderName par) () pinit rng rng) rng Private DefVal ""
+       aname = newHiddenName "action"
+   in Let (DefNonRec reinit)
+        (Lam [ValueBinder aname Nothing Nothing rng rng]
+             (App handler [(Nothing, pinit),(Nothing,Var aname False rng)] rng)
+             rng) rng
+
+handlerAddDefaults :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserExpr -> UserExpr
+handlerAddDefaults dpars handler
+  =  let rng    = getRange (head dpars) -- safe as dpars is non-empty
+         apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
+         xpars  = [case binderExpr p of
+                     Nothing -> p{binderName = makeHiddenName "par" (binderName p)}
+                     Just _  -> p
+                  | p <- dpars]
+         xargs  = [(Nothing,
+                    case binderExpr p of
+                      Nothing -> Var (binderName p) False rng
+                      Just e  -> e) |  p <- xpars]
+                  ++
+                  [(Nothing, (Var (binderName apar) False rng) )]
+         xxpars = [p | p <- xpars, not (isJust (binderExpr p))]
+         hname  = newHiddenName "handler"
+         hdef   = Def (ValueBinder hname () handler rng rng) rng Private DefVal ""
+         hlam   = Let (DefNonRec hdef) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
+     in hlam
+
 
 makeNull expr
   = let rng = getRange expr
@@ -1217,10 +1277,10 @@ constNull rng
 
 data Clause = ClauseRet UserExpr
             | ClauseFinally UserExpr
-            | ClauseInitially UserExpr
+            | ClauseInitially UserDef
             | ClauseBranch UserHandlerBranch
 
-partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (UserExpr,UserExpr,UserExpr,[UserHandlerBranch])
+partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (Maybe UserDef,UserExpr,UserExpr,[UserHandlerBranch])
 partitionClauses clauses pars rng
   = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses
        ret <- case rets of
@@ -1231,7 +1291,10 @@ partitionClauses clauses pars rng
                 [f] -> return (makeNull f)
                 []  -> return (constNull rng)
                 _   -> fail "There can be be at most one 'finally' clause in a handler body"
-       reinit <- return (constNull rng) -- TODO
+       reinit <- case reinits of
+                   [i] -> return (Just i)
+                   []  -> return Nothing
+                   _   -> fail "There can be at most one 'initially' clause in a handler body"
        return (reinit,ret,final,reverse ops)
   where
     separate acc [] = acc
@@ -1242,30 +1305,6 @@ partitionClauses clauses pars rng
           ClauseInitially i -> separate (i:reinits,rets,finals,ops) clauses
           ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
 
-handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],UserExpr -> UserExpr,Range)
-handlerParams
-  = do optional (specialId "local")
-       (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
-       let hpars  = [p{ binderExpr = () } | p <- pars]
-           hlam   = if (any (isJust.binderExpr) pars)
-                      then let apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
-                               xpars  = [case binderExpr p of
-                                           Nothing -> p{binderName = makeHiddenName "par" (binderName p)}
-                                           Just _  -> p
-                                        | p <- pars]
-                               xargs  = [(Nothing,
-                                          case binderExpr p of
-                                            Nothing -> Var (binderName p) False rng
-                                            Just e  -> e) |  p <- xpars]
-                                        ++
-                                        [(Nothing, (Var (binderName apar) False rng) )]
-                               xxpars = [p | p <- xpars, not (isJust (binderExpr p))]
-                               hname  = newHiddenName "handler"
-                               hdef h = Def (ValueBinder hname () h rng rng) rng Private DefVal ""
-                               hlam h = Let (DefNonRec (hdef h)) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
-                           in hlam
-                      else id
-       return (hpars,hlam,rng)
 
 handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser Clause
 handlerOp pars
@@ -1279,11 +1318,25 @@ handlerOp pars
        expr <- bodyexpr
        return (ClauseFinally (Lam pars expr (combineRanged rng expr)))
   <|>
+    do rng <- specialId "initially"
+       expr <- bodyexpr
+       let -- locals are passed as a maybe value to initially clauses
+           mpars = [p{binderType = case (binderType p) of
+                                     Nothing -> Nothing
+                                     Just tp -> Just (TpApp (TpCon nameTpMaybe (getRange tp)) [tp] (getRange tp))
+                     }
+                    | p <- pars]
+           drng = combineRanged rng expr
+           lam = Lam mpars expr drng
+           name = newHiddenName "reinit"
+           def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
+       return (ClauseInitially def)
+  <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
                          return True
                       <|> return False)
-                  <|> return False)                      
+                  <|> return False)
        (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
        expr <- bodyexpr
