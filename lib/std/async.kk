@@ -248,7 +248,7 @@ public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|
 		val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
 			{ val x = b(); cancel(); x }
 		match(ra) {
-			Exn(exn) | exn.canceled? -> rb.untry
+			Exn(exn) | exn.cancel? -> rb.untry
 			_  -> ra.untry
 		}
 	}
@@ -310,12 +310,34 @@ extern clear-timeoutx( tid : any) : io () {
 // Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
 	val (ra,rb) = interleavedx( action1, action2 )
+	[ra.maybe,rb.maybe].ordered_throw
 	(ra.untry,rb.untry)
 }
 
 // Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
-	interleavedx(xs).map(untry)
+	val ress = interleavedx(xs)
+	ress.map(maybe).ordered_throw
+	ress.map(untry)
+}
+
+fun ordered_throw( xs : list<maybe<exception>> ) : exn () {
+	var mexn := Nothing
+	xs.foreach fun(x) {
+		match(x) {
+			Nothing -> ()
+			Just(exn) -> match(mexn) {
+				Nothing -> mexn := x
+				Just(exnx) ->
+					if ((exn.finalize? && !exnx.finalize?) || (exnx.cancel? && !exn.cancel?))
+						then mexn := x
+			}
+		}
+	}
+	match(mexn) {
+		Just(exn)	-> throw(exn)
+		Nothing	-> ()
+	}
 }
 
 // Interleave two actions around their asynchronous operations and explicitly returning either
@@ -397,27 +419,42 @@ public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<try
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
 extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>,ndet,div|e> a)   { inline "#1" }
 
+fun finalize?( t : try<a> ) : bool {
+	match(t) {
+		Exn(exn) -> exn.finalize?
+		_ -> False
+	}
+}
+
+fun cancel?( t : try<a> ) : bool {
+	match(t) {
+		Exn(exn) -> exn.cancel?
+		_ -> False
+	}
+}
+
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
 	val strands =	xs.map-indexed fun(i,action) {
 			return fun() {
 				val res = unsafe-try-all(inject-effects(action))
 				strand-done(i,res)
+				if (res.finalize?) then cancel()  // cancel others if finalization happens
 			}
 		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		do-await(setup,scope,c) -> {
+		fun raw do-await(setup,scope,c) -> {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( /* no-cps */ { resume(res) }  )
+				ch.emit-io( /* no-cps */ { context.resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
 
 		// redirect all other operations
-		no-await(setup,scope,c,f)	-> resume(no-await(setup,scope,c,f))
-		async-iox(f)	-> resume(async-iox(f))
-		cancel(scope)	-> resume(cancel(scope))
+		fun no-await(setup,scope,c,f)	-> resume(no-await(setup,scope,c,f))
+		fun async-iox(f)	-> resume(async-iox(f))
+		fun cancel(scope)	-> resume(cancel(scope))
 	}
 	strands.foreach(handle-strand)
 
@@ -575,7 +612,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 {
 	var callbacks : list<(scope,() -> io ())>  := []
 
-	fun handle-await( setup : await-setup<a>, scope : scope, f  : try<a> -> io (), cancelable? : bool) : io ()
+	fun handle-await( setup : await-setup<a>, scope : scope, f : try<a> -> io (), cancelable? : bool) : io ()
 	{
 		val cscope = child-scope(unique(),scope)
 		var dispose := nodispose
@@ -613,10 +650,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		do-await( setup, scope, c )	-> handle-await(setup,scope,resume /*outer-resume(resume)*/,c)  // returns to outer event loop
-		no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
-		cancel( scope )	-> resume(handle-cancel(scope))
-		async-iox( f )	-> resume(f())
+		fun raw do-await( setup, scope, c )	-> handle-await(setup,scope, fun(x){ context.resume(x) }, c)  // returns to outer event loop
+		fun no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
+		fun cancel( scope )	-> resume(handle-cancel(scope))
+		fun async-iox( f )	-> resume(f())
 	}
 }
 

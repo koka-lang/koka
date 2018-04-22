@@ -293,6 +293,13 @@ fun untry( ex : try<a> ) : exn a {
   }
 }
 
+// Transform a `:try` type to a `:maybe` value.
+fun maybe( t : try<a> ) : maybe<exception> {
+    match(t) {
+        Exn(exn) -> Just(exn)
+        Ok -> Nothing
+    }
+}
 // ----------------------------------------------------------------------------
 // Cancelation
 // Internally implemented using an (uncatchable) exception
@@ -303,11 +310,19 @@ type extend exception-info {
 }
 
 // Was this a cancelation exception?
-fun canceled?( exn : exception ) {
+fun cancel?( exn : exception ) {
   match(exn.info) {
     Cancel -> True
     _      -> False
   }
+}
+
+// Was this a finalization exception?
+fun finalize?(exn : exception) {
+    match(exn.info) {
+        Finalize -> True
+        _ -> False
+    }
 }
 
 // _unsafe_. The cancelation exception. User code should never throw
