@@ -38,7 +38,7 @@ var platformVariantPath = path.join("Platform",platformVariant,"Platform")+path.
 var hsCompiler  = "ghc";
 var hsFlags     = "-fwarn-incomplete-patterns";
 var hsRunFlags  = "";
-var hsPackages  = ["random","text","parsec"];
+var hsPackages  = ["text","parsec"];
 var hsLinkFlags = (["base","containers","directory","process","mtl"].concat(hsPackages)).map(function(p){ return "-package " + p; }).join(" ");
 
 var alexCompiler= "alex";

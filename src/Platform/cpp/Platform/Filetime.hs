@@ -7,16 +7,17 @@
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
-    Reading file times 
+    Reading file times
 -}
 -----------------------------------------------------------------------------
 module Platform.Filetime( FileTime
                        , getCurrentTime
-                       , getFileTime                
+                       , getFileTime
                        , getFileTimeOrCurrent
                        , fileTime0
+                       , fileTimeToPicoseconds
                        ) where
-              
+
 import System.Directory( getModificationTime )
 import Platform.Runtime( exCatch )
 
@@ -33,6 +34,10 @@ fileTime0 :: FileTime
 fileTime0
   = T.UTCTime (T.ModifiedJulianDay 0) (T.secondsToDiffTime 0)
 
+fileTimeToPicoseconds :: FileTime -> Integer
+fileTimeToPicoseconds t
+  = T.diffTimeToPicoseconds (T.utctDayTime t)
+
 #else
 import qualified System.Time as T
 
@@ -45,17 +50,23 @@ getCurrentTime
 fileTime0 :: FileTime
 fileTime0
   = T.TOD 0 0
+
+fileTimeToPicoseconds :: FileTime -> Integer
+fileTimeToPicoseconds t
+  case t of
+    T.TOD _ psecs -> psecs
+
 #endif
 
 -- | Returns the file modification time or 0 if it does not exist.
 getFileTime :: FilePath -> IO FileTime
 getFileTime fname
-  = do getModificationTime fname 
+  = do getModificationTime fname
     `exCatch` \_ -> do -- putStrLn $ "filetime: 0 for : " ++ fname
                        return fileTime0
 
 -- | returns the file modification time or the current time if it does not exist.
 getFileTimeOrCurrent :: FilePath -> IO FileTime
 getFileTimeOrCurrent fname
-  = do getModificationTime fname 
+  = do getModificationTime fname
     `exCatch` \_ -> getCurrentTime
