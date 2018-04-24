@@ -395,8 +395,9 @@ externalIncludeEntry
     preadFile :: FilePath -> FilePath -> LexParser String
     preadFile fname currentFile
       = do pos <- getPosition
-           let fpath      = if (null (dirname fname)) then joinPath (dirname currentFile) fname else fname
-               mbContent  = unsafePerformIO $ exCatch (do{ content <- readFile fpath; return (Just content) }) (\exn -> return Nothing)
+           let fpath      = joinPath (dirname currentFile) fname
+               mbContent  = unsafePerformIO $ exCatch (do{ -- putStrLn ("reading: " ++ fpath);
+                                                           content <- readFile fpath; return (Just content) }) (\exn -> return Nothing)
            case mbContent of
              Just content -> return content
              Nothing      -> fail ("unable to read external file: " ++ fpath)

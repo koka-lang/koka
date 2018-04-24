@@ -46,7 +46,7 @@ extern include {
 }
 
 extern include {
-  js file "contrib/biginteger.js"
+  js file "../../contrib/biginteger.js"
 }
 
 
