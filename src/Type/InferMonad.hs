@@ -1125,7 +1125,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                     (CtxFunArgs fixed named, (_:rest))
                       -> do let message = "takes " ++ show (fixed + length named) ++ " argument(s)" ++
                                           (if null named then "" else " with such parameter names")
-                            infError range (text "no function" <+> Pretty.ppName penv name <+> text message <> ppAmbiguous env "" amb)
+                            infError range (text "no function" <+> Pretty.ppName penv name <+> text message <.> ppAmbiguous env "" amb)
                     (CtxFunTypes partial fixed named, (_:rest))
                       -> do let docs = Pretty.niceTypes penv (fixed ++ map snd named)
                                 fdocs = take (length fixed) docs
@@ -1146,14 +1146,14 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                             case amb2 of
                               (_:_)
                                 -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "is undefined") <->
-                                                   (text "perhaps you meant: " <> ppOr penv (map fst amb2)))
+                                                   (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
                               _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "is undefined")
 
         [(qname,info)]
            -> do checkCasing range name qname info
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
-                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <> ppAmbiguous env hintTypeSig matches)
+                 infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintTypeSig matches)
   where
     hintTypeSig = "give a type annotation to the function parameters or arguments"
 
@@ -1194,7 +1194,7 @@ caseOverlaps name qname info
 ppOr :: Pretty.Env -> [Name] -> Doc
 ppOr env []     = Lib.PPrint.empty
 ppOr env [name] = Pretty.ppName env name
-ppOr env names  = hcat (map (\name -> Pretty.ppName env name <> text ", ") (init names)) <+> text "or" <+> Pretty.ppName env (last names)
+ppOr env names  = hcat (map (\name -> Pretty.ppName env name <.> text ", ") (init names)) <+> text "or" <+> Pretty.ppName env (last names)
 
 
 ppAmbiguous :: Env -> String -> [(Name,NameInfo)] -> Doc
@@ -1244,7 +1244,7 @@ lookupConName name mbType range
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
         _    -> do env <- getEnv
-                   infError range (text "constructor" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <> ppAmbiguous env hintQualify matches)
+                   infError range (text "constructor" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
   where
     hintQualify = "qualify the constructor name to disambiguate it"
 
@@ -1255,7 +1255,7 @@ lookupFunName name mbType range
         []   -> return Nothing
         [(name,info)]  -> return (Just (name,infoType info,info))
         _    -> do env <- getEnv
-                   infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <> ppAmbiguous env hintQualify matches)
+                   infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <.> ppAmbiguous env hintQualify matches)
   where
     hintQualify = "qualify the name to disambiguate it"
 
@@ -1271,7 +1271,7 @@ lookupNameN name fixed named range
                            then infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is undefined")
                            else infError range (text "no function" <+> Pretty.ppName (prettyEnv env) name
                                                 <+> text "accepts" <+> (pretty (fixed + length named)) <+> text "arguments"
-                                                <> ppAmbiguous env "" amb)
+                                                <.> ppAmbiguous env "" amb)
                           return []
          _          -> return matches
 -}

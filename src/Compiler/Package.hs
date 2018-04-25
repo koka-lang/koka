@@ -195,8 +195,8 @@ instance Show Package where
   show pkg = show (ppPackage pkg)
 
 ppPackage (Package d n l ps)
-  = text (justify 20 (n ++ ": ") ++ atmost 50 d) <>
-    (if null ps then empty else line <> indent 2 (ppPackages ps))
+  = text (justify 20 (n ++ ": ") ++ atmost 50 d) <.>
+    (if null ps then empty else line <.> indent 2 (ppPackages ps))
   where
     atmost n s
       = if length s > n then "..." ++ drop (length s - n) s else s

@@ -281,7 +281,7 @@ reservedNames
 
 symbols :: [Char]
 symbols
-  = "$%&*+~!/\\^~=.:-?<>|"
+  = "$%&*+~!/\\^~=.:-?<.>|"
 
 isReserved :: String -> Bool
 isReserved name

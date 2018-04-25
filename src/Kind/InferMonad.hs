@@ -282,7 +282,7 @@ findInfKind name0 range
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
                                              addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
-                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> ppType cs name <> text ">") <+> text "?")
+                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k)
                       Ambiguous names  -> do let cs = cscheme env
@@ -292,9 +292,9 @@ findInfKind name0 range
 
 ambiguous :: ColorScheme -> [Name] -> Doc
 ambiguous cs [name1,name2]
-  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text ", or" <+> ppType cs name2
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text ", or" <+> ppType cs name2
 ambiguous cs [name1,name2,name3]
-  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text "," <+> ppType cs name2 <> text ", or" <+> ppType cs name3
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text "," <+> ppType cs name2 <.> text ", or" <+> ppType cs name3
 ambiguous cs names
   = text "is ambiguous and can refer to multiple imports:" <-> indent 1 (list (map (ppType cs) names))
 

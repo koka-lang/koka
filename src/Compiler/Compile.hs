@@ -566,7 +566,7 @@ resolveModule term flags currentDir modules mimp
           do let (pkgQname,pkgLocal) = packageInfoFromDir (packages flags) (dirname iface)
                  loadMessage msg = liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text msg) <+>
                                        color (colorSource (colorScheme flags))
-                                         (pretty (if null pkgQname then "" else pkgQname ++ "/") <>  pretty (name)))
+                                         (pretty (if null pkgQname then "" else pkgQname ++ "/") <.>  pretty (name)))
              mod <- case lookupImport iface modules of
                       Just mod
                        -> do loadMessage "reusing:"

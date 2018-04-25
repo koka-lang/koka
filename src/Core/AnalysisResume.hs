@@ -55,7 +55,7 @@ analyzeResume :: Name -> Name -> Expr -> ResumeKind
 analyzeResume defName opName expr
   = case expr of
       Lam pars eff body -> let rk = arTailExpr body
-                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <> text ": resume" <+> text (show rk)
+                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <.> text ": resume" <+> text (show rk)
                                       --  </> prettyExpr defaultEnv body
                                        ) $
                               rk

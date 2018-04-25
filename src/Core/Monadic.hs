@@ -270,7 +270,7 @@ monExprAsDef tpars pars eff body
                      var  = Var (TName name tp) (InfoArity (length tpars) (length pars) monk)
                      bodyx = var
 
-                 monTraceDoc $ \env -> text "mon as expr:" <+> pretty name <> text (show (length tpars, length pars)) <--> prettyExpr env expr
+                 monTraceDoc $ \env -> text "mon as expr:" <+> pretty name <.> text (show (length tpars, length pars)) <--> prettyExpr env expr
                  letd <- monExpr (Let [DefNonRec def] bodyx) -- process as let definition
                  return $ \k -> k (letd id) 
                  
@@ -304,7 +304,7 @@ monLetDef :: Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
 monLetDef recursive def
   = withCurrentDef def $
     do monk <- xgetMonType (defType def)
-       -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
+       -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <.> text ", result: " <.> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
         then monLetDefDup monk recursive def 
         else do -- when (monk == PolyMon) $ monTraceDoc $ \env -> text "not a function definition but has mon type" <+> ppType env (defType def)

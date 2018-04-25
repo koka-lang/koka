@@ -123,7 +123,7 @@ instance Pretty KGamma where
   
 ppKGamma :: ColorScheme -> Name -> ImportMap -> KGamma -> Doc
 ppKGamma cscheme context imports kgamma
-  = vcat [fill maxwidth (ppName name) <> kindColon cscheme <+> prettyKind cscheme scheme 
+  = vcat [fill maxwidth (ppName name) <.> kindColon cscheme <+> prettyKind cscheme scheme 
           | (name,scheme) <- nameSchemes]
   where
     nameSchemes       = kgammaList kgamma 

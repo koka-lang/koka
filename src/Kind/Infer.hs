@@ -928,7 +928,7 @@ resolveApp idmap partialSyn (TpVar name r,args) rng
                       Nothing   -> do cs <- getColorScheme
                                       -- failure ("Kind.Infer.ResolveApp: cannot find: " ++ show name ++ " at " ++ show rng)
                                       addError rng (text "Type variable" <+> color (colorType cs) (pretty name) <+> text "is undefined" <->
-                                                    text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> pretty name <> text ">"))
+                                                    text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> pretty name <.> text ">"))
                                       id <- uniqueId (show name)
                                       return (TVar (TypeVar id kindStar Bound), kindStar)
 

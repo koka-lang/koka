@@ -290,7 +290,7 @@ instance Pretty Gamma where
     
 ppGamma :: Env -> Gamma -> Doc
 ppGamma env gamma
-    = vcat [fill maxwidth (ppName env name) <> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes]
     where
       nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma]

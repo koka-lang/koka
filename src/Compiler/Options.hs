@@ -444,9 +444,9 @@ commandLineHelp flags
        return $
           vcat
         [ infotext "usage:"
-        , text "  " <> text programName <+> text "<options> files"
+        , text "  " <.> text programName <+> text "<options> files"
         , empty
-        , infotext "options:" <> string (usageInfo "" (fst options))
+        , infotext "options:" <.> string (usageInfo "" (fst options))
         , infotext "remarks:"
         , text "  Boolean options can be negated, as in: --no-compile"
         , text "  The editor <cmd> can contain %f, %l, and %c to substitute the filename"
@@ -485,7 +485,7 @@ environmentInfo colors
       = color (colorInterpreter colors) (text s)
 
     ppEnv (name,val)
-      = fill n (text name) <> text "=" <+> val
+      = fill n (text name) <.> text "=" <+> val
 
     n = maximum [length name | (name,_,_,_) <- environment]
 

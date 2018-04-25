@@ -649,8 +649,8 @@ messageHeader st
        ,text "| |        | |          "
        ,text "| | __ ___ | | __ __ _  "
        ,text $ "| |/ // _ \\| |/ // _` | welcome to the " ++ Config.programName ++ " interpreter"
-       ,text "|   <| (_) |   <| (_| | " <> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <> color (colorSource colors) (text "type :? for help")
+       ,text "|   <| (_) |   <| (_| | " <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <.> color (colorSource colors) (text "type :? for help")
        ]
     headerVersion = text $ "version " ++ version ++ (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " ++ buildDate
 

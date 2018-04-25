@@ -273,12 +273,12 @@ checkAmbigious ops t
 ambigious :: Fixity -> Fixity -> UserExpr -> FixM ()
 ambigious fixCtx fix op
     = emitError (getRange op)
-                (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <> text "in a"
+                (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <.> text "in a"
                   <+> ppFixity fixCtx <+> text "context" <->
                  text " hint: add parenthesis around the sub-expression to disambiguate")
     where
       opText  = case op of
-                  Var name _ _  -> pretty name <> space
+                  Var name _ _  -> pretty name <.> space
                   _             -> Lib.PPrint.empty
 
 ppFixity (FixInfix prec assoc)

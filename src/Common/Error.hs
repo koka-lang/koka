@@ -111,7 +111,7 @@ ppErrorMessage endToo cscheme msg
       ErrorIO doc           -> color (colorError cscheme) doc
       ErrorZero             -> hang 1 (color (colorError cscheme) (text "<unknown error>"))
   where
-    err (r,doc) = hang 1 $ ppRange endToo cscheme r <>
+    err (r,doc) = hang 1 $ ppRange endToo cscheme r <.>
                   color (colorError cscheme) (colon <+> text "error:" <+> doc)
 
 prettyWarnings :: Bool -> ColorScheme -> [(Range,Doc)] -> Doc
@@ -119,7 +119,7 @@ prettyWarnings endToo cscheme warnings
   = vcat (map warn warnings)
   where
     warn (r,doc)
-      = hang 1 $ ppRange endToo cscheme r <> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
+      = hang 1 $ ppRange endToo cscheme r <.> color (colorWarning cscheme) (colon <+> text "warning:" <+> doc)
 
 {--------------------------------------------------------------------------
   instances

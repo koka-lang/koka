@@ -18,7 +18,7 @@ module Interpreter.Command
 
 import Data.Char         ( isSpace, toLower )
 import Data.List         ( isPrefixOf )
-import Lib.PPrint   ( Doc, text,vcat,(<->),hang,empty,fill,(<>),color)
+import Lib.PPrint   ( Doc, text,vcat,(<->),hang,empty,fill,(<.>),color)
 import Common.ColorScheme
 import Common.Name  ( Name, newName )
 -- import Syntax.Lexer ( idchars )
@@ -158,7 +158,7 @@ commandHelp colors
     ]) 
   where
     cmd c arg explain
-      = fill 12 (text c) <> fill 14 (text arg) <> infotext explain
+      = fill 12 (text c) <.> fill 14 (text arg) <.> infotext explain
     
     infotext s
       = color (colorInterpreter colors) (text s)

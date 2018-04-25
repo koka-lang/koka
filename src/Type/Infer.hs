@@ -437,7 +437,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            inferUnify (checkValue rng) nameRng typeTotal eff
            if (verbose penv >= 2)
-            then Lib.Trace.trace (show (text " inferred" <+> pretty name <> text ":" <+> niceType penv tp)) $ return ()
+            then Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
             else return ()
            subst (Core.Def name resTp resCore vis sort nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)
 
@@ -461,7 +461,7 @@ inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
             else if (isTypeUnit (Core.typeOf coreDef))
              then return ()
              else do seff <- subst eff
-                     -- traceDoc $ \env -> text "wildcard definition:" <+> pretty name <> colon <+> niceType env seff
+                     -- traceDoc $ \env -> text "wildcard definition:" <+> pretty name <.> colon <+> niceType env seff
                      let (ls,tl) = extractEffectExtend seff
                      case (ls,tl) of
                        ([],tl) | isTypeTotal tl -> unusedError rng
@@ -815,7 +815,7 @@ inferHandler propagated expect handlerSort handlerScoped mbEffect localPars rein
        traceDoc $ \env -> text "inferHandler: retTp:" <+> ppType env retTp
                            <+> text ", propLocals: " <+> list (map (pretty . binderName) propLocals)
                            <+> text ", localTypes: " <+> list (map (ppType env) localTypes)
-                           <+> text ", locals: " <+> list [pretty (binderName l) <> colon <+> ppType env (binderType l) | l <- locals]
+                           <+> text ", locals: " <+> list [pretty (binderName l) <.> colon <+> ppType env (binderType l) | l <- locals]
 
        -- Create effect type variable & unify with the return clause effect
        heff <- freshEffect
@@ -1059,7 +1059,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
         -- do env <- getPrettyEnv
         --    infError nameRng (text "operator" <+> ppName env qname <+> text "is not defined as part of the handled effect" <+> parens (ppName env hxName))
 
-       traceDoc $ \env -> text "inferHandlerBranch:" <+> pretty opName <> colon <+> ppType env opTp
+       traceDoc $ \env -> text "inferHandlerBranch:" <+> pretty opName <.> colon <+> ppType env opTp
 
        -- get resume argument type = operator result type
        (rho,optvars,_) <- instantiate rng opTp
@@ -1077,7 +1077,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        extendSub (subNew [(tv,TVar ctv) | (tv,ctv) <- zip ctvars optvars] )
        sconTp <- subst conTp
        let (conParTps,conResTp) = splitConTp sconTp
-       traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <> colon <+> ppType env conTp
+       traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <.> colon <+> ppType env conTp
 
 
        case handlerSort of
@@ -1168,7 +1168,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
                          TFun ([(parContextName,parContextTp),(newName "op",conResTp)] ++ locals ) -- todo: don't use `conResTp` as it is wrongly scoped; reconstruct with the same instantiation variables from opTp
                                resumeEff branchTp
 
-       traceDoc $ \env -> text "inferHandlerBranch locals: " <> list (map (pretty . fst) locals)
+       traceDoc $ \env -> text "inferHandlerBranch locals: " <.> list (map (pretty . fst) locals)
 
        (bexprTp,bexprEff, bexprCore) <-
         if (hasExists)
@@ -1287,7 +1287,7 @@ checkCoverage rng effect branches
                    else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
                           (name:_) -> termError rng (text "operator" <+> ppOpName env name <+>
                                                      text "is not part of the handled effect") effect
-                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <> text "? or use 'handler resource'?")]
+                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <.> text "? or use 'handler resource'?")]
                           _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             (opName:opNames')
               -> do let (matches,branchNames') = partition (==opName) branchNames
@@ -1669,7 +1669,7 @@ inferVar propagated expect name rng isRhs
                  return (tp1,eff1,core1)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
-                 -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <> text ":" <+> ppType env tp
+                 -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
                  addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue tp) False)
                  (itp,coref) <- maybeInstantiate rng expect tp
                  -- trace ("Type.Infer.Var: " ++ show (name,itp)) $ return ()
@@ -1747,7 +1747,7 @@ inferPattern :: Type -> Range -> Pattern Type -> (Core.Pattern -> [(Name,NameInf
 inferPattern matchType branchRange (PatCon name patterns0 nameRange range) inferBranchCont
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp) False)
-       -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <> text ":" <+> ppType env gconTp
+       -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
 
        useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->
         do -- (conRho,tvars,_) <- instantiate range gconTp
