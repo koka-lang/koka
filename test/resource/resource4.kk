@@ -46,8 +46,8 @@ private effect join<a,b> {
 
 private type joined<a,b,e> {
   JoinNone
-  JoinLeft(:a, :(()) -> e ())
-  JoinRight(:b, :(()) -> e ())
+  JoinLeft(:a, : resume-context<(),e,()>)
+  JoinRight(:b, : resume-context<(),e,()>)
 }
 
 
@@ -63,20 +63,20 @@ fun alignx(s1,s2,action)
   // the streams are joined by the join handler
   var st := JoinNone
 
-  fun joined( x, y, resumex, resumey ) {
+  fun joined( x, y, contextx, contexty ) {
     s1.push(x)
     s2.push(y)
-    interleaved { resumex(()) } { resumey(()) }
+    interleaved { contextx.resume(()) } { contexty.resume(()) }
   }
 
   val hjoin = handler {
-    left(x) -> match(st) {
-      JoinRight(y,resumey) -> joined(x,y,resume,resumey)
-      _ -> st := JoinLeft(x,resume)
+    fun raw left(x) -> match(st) {
+      JoinRight(y,resumey) -> joined(x,y,context,resumey)
+      _ -> st := JoinLeft(x,context)
     }
-    right(y) -> match(st) {
-      JoinLeft(x,resumex) -> joined(x,y,resumex,resume)
-      _ -> st := JoinRight(y,resume)
+    fun raw right(y) -> match(st) {
+      JoinLeft(x,resumex) -> joined(x,y,resumex,context)
+      _ -> st := JoinRight(y,context)
     }
   }
 

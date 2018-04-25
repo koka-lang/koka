@@ -43,23 +43,23 @@ fun alignx(// generative types: s1 : stream<l1,a>, s2 : stream<l2,b>, action : (
   // Here the `handler resource s1` has an extra parameter `s1` and will
   // not create a fresh resource, but instead handle operations for `s1`.
   val h1 = handler resource s1 {
-    push(x) -> match(st2) {
-      Nothing -> st1 := Just((x,resume))  // and do not resume
-      Just((y,resumey)) -> {
+    fun raw push(x) -> match(st2) {
+      Nothing -> st1 := Just((x,context))  // and do not resume
+      Just((y,contexty)) -> {
         s2.push(y)
         s1.push(x)
-        interleaved { resume(()) } { resumey(()) }  //??
+        interleaved { context.resume(()) } { contexty.resume(()) }  //??
       }
     }
   }
   val h2 = handler resource s2 {
-    push(y) -> match(st1) {
-      Nothing -> st2 := Just((y,resume))
-      Just((x,resumex)) -> {
+    fun raw push(y) -> match(st1) {
+      Nothing -> st2 := Just((y,context))
+      Just((x,contextx)) -> {
         s2.push(y)
         // subtle: skip the outer h1 handler! (`inject-resource` is auto generated)
         s1.inject-resource{ s1.push(x) }
-        interleaved { resumex(()) } { resume(()) }  //??
+        interleaved { contextx.resume(()) } { context.resume(()) }  //??
       }
     }
   }
