@@ -83,7 +83,7 @@ searchPackages pkgs current pkgname name
   = do ccurrent <- canonicalizePath (if null current then "." else current)
        let toSearch = (if null pkgname then id else filter (\pkg -> pkgName pkg == pkgname)) $
                       visiblePackages pkgs ccurrent
-       trace ("search packages for " ++ pkgname ++ "/" ++ name ++ " in " ++ show (map pkgQualName toSearch)) $ return ()
+       -- trace ("search packages for " ++ pkgname ++ "/" ++ name ++ " in " ++ show (map pkgQualName toSearch)) $ return ()
        searchIn toSearch
   where
     searchIn [] = return Nothing
