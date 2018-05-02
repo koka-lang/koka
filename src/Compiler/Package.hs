@@ -28,6 +28,7 @@ import System.Directory ( doesFileExist, doesDirectoryExist
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath
                         , getHomeDirectory )
+import System.Process   ( readProcess )
 import Common.File
 import Lib.Trace
 import Lib.JSON
@@ -83,7 +84,7 @@ searchPackages pkgs current pkgname name
   = do ccurrent <- canonicalizePath (if null current then "." else current)
        let toSearch = (if null pkgname then id else filter (\pkg -> pkgName pkg == pkgname)) $
                       visiblePackages pkgs ccurrent
-       -- trace ("search packages for " ++ pkgname ++ "/" ++ name ++ " in " ++ show (map pkgQualName toSearch)) $ return ()
+       --trace ("search packages for " ++ pkgname ++ "/" ++ name ++ " in " ++ show (map pkgQualName toSearch)) $ return ()
        searchIn toSearch
   where                     
     searchIn [] = return Nothing
@@ -103,7 +104,7 @@ visiblePackages (Packages pkgs _) ccurrent
       = do let isVisible pkg = ccurrent `startsWith` packageBase (pkgDir pkg)               
                isVisibleSubs [] = False
                isVisibleSubs (pkg:_) = isVisible pkg
-               visible = dropWhile (not . isVisible) pkgs
+               visible = dropWhile (not . isVisible) pkgs           
            case filter (isVisibleSubs . pkgSub) visible of
              []      -> visible
              (pkg:_) -> visiblePkgs (pkgSub pkg) ++ visible -- note: _ should always be []   
@@ -111,7 +112,10 @@ visiblePackages (Packages pkgs _) ccurrent
     packageBase :: FilePath -> FilePath
     packageBase pkgpath
       = case dropWhile (/=node_modules) (reverse (splitPath pkgpath)) of
-          (_node_modules:base) -> joinPaths (reverse base)
+          (_node_modules:base) ->
+             case pkgpath of
+               '/' : _ -> "/" ++ (joinPaths (reverse base))
+               _       -> joinPaths (reverse base)
           []                   -> pkgpath -- NOTE: this can happen for roots; leaving as it is is fine    
 
 ---------------------------------------------------------------
@@ -127,7 +131,7 @@ discoverPackages root
        return pkgs  
   where
     walk [] n acc
-      = do eroots  <- getEnvPaths node_path
+      = do eroots  <- getNpmRoot
            homedir <- getHomeDirectory
            let hroots = map (joinPath homedir) [".node_modules",".node_libraries"]
                -- bug: we do not search in $prefix/lib/node since it is deprecated
@@ -173,6 +177,17 @@ joinPkgs ps
   = forwardSlash $ joinPaths ps
   where
     forwardSlash s = map (\c -> if isPathSep c then '/' else c) s
+
+getNpmRoot :: IO [FilePath]
+getNpmRoot
+    = do{ path <- rstrip <$> readProcess "npm" ["root"] ""
+        ; return (splitPath path)
+        }
+    `catchIO` \err -> return []
+  where
+    rstrip = reverse . (dropWhile (`elem` whitespace)) . reverse
+    whitespace = " \n"
+
 
 
 ---------------------------------------------------------------

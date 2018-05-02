@@ -51,6 +51,7 @@ import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
+import System.Info      ( os )
 
 import qualified Platform.Console as C (getProgramPath)
 import Lib.Trace
@@ -152,19 +153,26 @@ joinPath p1 p2
 
 -- | Join a list of paths into one path
 joinPaths :: [FilePath] -> FilePath
-joinPaths dirs
-  = concat 
-  $ intersperse [pathSep] 
-  $ normalize
-  $ filter (not . null) 
-  $ concatMap splitPath dirs
-  where
-    normalize []            = []
-    normalize (p:".":ps)    = normalize (p:ps)
-    normalize (p:"..":ps)   | p == "."  = normalize ("..":ps)
-                            | p == ".." = p : normalize ("..":ps)
-                            | otherwise = normalize ps
-    normalize (p:ps)        = p : normalize ps
+joinPaths dirs = if os == "windows"
+            then joinPaths' dirs
+            else
+              case dirs of
+                ('/':path) : paths -> ("/"++) . joinPaths' $ dirs
+                _ -> joinPaths' dirs
+          where
+            joinPaths' dirs
+              = concat 
+              $ intersperse [pathSep] 
+              $ normalize
+              $ filter (not . null) 
+              $ concatMap splitPath dirs
+              where
+                normalize []            = []
+                normalize (p:".":ps)    = normalize (p:ps)
+                normalize (p:"..":ps)   | p == "."  = normalize ("..":ps)
+                                        | p == ".." = p : normalize ("..":ps)
+                                        | otherwise = normalize ps
+                normalize (p:ps)        = p : normalize ps
 
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
