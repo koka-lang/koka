@@ -28,6 +28,7 @@ import System.Directory ( doesFileExist, doesDirectoryExist
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath
                         , getHomeDirectory )
+import System.Process   ( readProcess )
 import Common.File
 import Lib.Trace
 import Lib.JSON
@@ -130,7 +131,7 @@ discoverPackages root
        return pkgs  
   where
     walk [] n acc
-      = do eroots  <- getEnvPaths node_path
+      = do eroots  <- getNpmRoot
            homedir <- getHomeDirectory
            let hroots = map (joinPath homedir) [".node_modules",".node_libraries"]
                -- bug: we do not search in $prefix/lib/node since it is deprecated
@@ -176,6 +177,17 @@ joinPkgs ps
   = forwardSlash $ joinPaths ps
   where
     forwardSlash s = map (\c -> if isPathSep c then '/' else c) s
+
+getNpmRoot :: IO [FilePath]
+getNpmRoot
+    = do{ path <- rstrip <$> readProcess "npm" ["root"] ""
+        ; return (splitPath path)
+        }
+    `catchIO` \err -> return []
+  where
+    rstrip = reverse . (dropWhile (`elem` whitespace)) . reverse
+    whitespace = " \n"
+
 
 
 ---------------------------------------------------------------
