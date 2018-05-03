@@ -656,7 +656,7 @@ messageHeader st
 
 semiRandom min max
   = do t <- getCurrentTime
-       let i = fileTimeToPicoseconds t `div` 1000000000
+       let i = fileTimeToPicoseconds t `div` 100000000000
        return (fromInteger (min + (i `mod` (max - min))))
 
 putQuote ::  State -> IO ()
@@ -677,6 +677,6 @@ quotes
     ,("The cause ceasing, the effect ceases also.","Edward Coke")
     ,("Logic can often be reversed, but the effect does not precede the cause.","Gregory Bateson")
     -- ,("Most exciting ideas are not important.\nMost important ideas are not exciting.\nNot every problem has a solution.\nEvery solution has side effects.", "Daniel E. Geer Jr.")
-    -- ,("Every cause produces more than one effect.","Herbert Spencer")
-    -- ,("No action is without its side effects.","Barry Commoner")
-     ]
+    ,("Every cause produces more than one effect.","Herbert Spencer")
+    ,("No action is without its side effects.","Barry Commoner")
+    ]
