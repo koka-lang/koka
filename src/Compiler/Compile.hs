@@ -955,7 +955,8 @@ codeGenJS term flags modules compileTarget outBase core
                                 "<!DOCTYPE html>",
                                 "<html>",
                                 "  <head>",
-                                "    <script data-main='" ++ notdir (basename outjs) ++ "' src='require.js'></script>",
+                                "    <meta charset=\"utf-8\">",
+                                "    <script data-main='" ++ notdir (basename outjs) ++ "' src=\"node_modules/requirejs/require.js\"></script>",
                                 "  </head>",
                                 "  <body>",
                                 "  </body>",
@@ -965,10 +966,12 @@ codeGenJS term flags modules compileTarget outBase core
             writeDoc outHtml contentHtml
             -- copy amdefine
             installDir <- getInstallDir
-            copyTextIfNewer (rebuild flags) (joinPath installDir "node_modules/amdefine/amdefine.js") (outName flags "node_modules/amdefine/amdefine.js")
-            copyTextIfNewer (rebuild flags) (joinPath installDir "node_modules/amdefine/package.json") (outName flags "node_modules/amdefine/package.json")
-            copyTextIfNewer (rebuild flags) (joinPath installDir "node_modules/requirejs/require.js") (outName flags "require.js")
-            copyTextIfNewer (rebuild flags) (joinPath installDir "node_modules/requirejs/package.json") (outName flags "package.json")
+            let copyNodeModules fname
+                  = let nname = "node_modules/" ++ fname
+                    in copyTextIfNewer (rebuild flags) (joinPath installDir nname) (outName flags nname)
+            mapM_ copyNodeModules ["amdefine/amdefine.js","amdefine/package.json",
+                                   "requirejs/require.js","requirejs/package.json"]
+
 
             -- try to ensure require.js is there
             -- TODO: we should search along the node_modules search path
