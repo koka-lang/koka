@@ -23,6 +23,7 @@ import Platform.Runtime( exCatch )
 
 #if __GLASGOW_HASKELL__ >= 706
 import qualified Data.Time as T
+import qualified Data.Ratio as R
 
 type FileTime = T.UTCTime
 
@@ -36,7 +37,11 @@ fileTime0
 
 fileTimeToPicoseconds :: FileTime -> Integer
 fileTimeToPicoseconds t
-  = T.diffTimeToPicoseconds (T.utctDayTime t)
+  = diffTimeToPicoseconds (T.utctDayTime t)  -- diffTimeToPicoseconds is not always defined on older installations
+
+diffTimeToPicoseconds :: T.DiffTime -> Integer
+diffTimeToPicoseconds t
+  = R.numerator (toRational t * 1000000000000)  -- convert from pico-second rational
 
 #else
 import qualified System.Time as T
