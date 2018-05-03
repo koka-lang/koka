@@ -51,17 +51,21 @@ instance Show ResumeKind where
               ResumeOnceRaw -> "once (no finalization)"
               ResumeNormalRaw -> "normal (no finalization)"
 
-analyzeResume :: Name -> Name -> Expr -> ResumeKind
-analyzeResume defName opName expr
+analyzeResume :: Name -> Name -> Bool -> Expr -> ResumeKind
+analyzeResume defName opName raw expr
   = case expr of
-      Lam pars eff body -> let rk = arTailExpr body
+      Lam pars eff body -> let rk0 = arTailExpr body
+                               rk  = if (not raw) then rk0
+                                      else ResumeNormalRaw
+                                        {- if (raw && (rk0==ResumeOnce || rk0<=ResumeScopedOnce))
+                                            then ResumeOnceRaw else ResumeNormalRaw -}
                            in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <.> text ": resume" <+> text (show rk)
                                       --  </> prettyExpr defaultEnv body
                                        ) $
                               rk
-      TypeLam _ body    -> analyzeResume defName opName body
-      TypeApp body _    -> analyzeResume defName opName body
-      App _ [body]      -> analyzeResume defName opName body  -- for toAny (...)
+      TypeLam _ body    -> analyzeResume defName opName raw body
+      TypeApp body _    -> analyzeResume defName opName raw body
+      App _ [body]      -> analyzeResume defName opName raw body  -- for toAny (...)
       _                 -> failure "Core.AnalysisResume.analyzeResume: invalid branch expression"
 
 

@@ -13,14 +13,14 @@ effect send<a> {
 fun down(prod : () -> <send<c>,await<c>|e> a, action : () -> <await<c>,send<c>|e> a) : <send<c>,await<c>|e> a {
   handle shallow (action) {
     return x -> x
-    await()  -> up(resume){ prod() } 
+    await()  -> up(resume){ prod() }
   }
 }
 
 fun up(cons : (c) -> <await<c>,send<c>|e> a, action : () -> <send<c>,await<c>|e> a) : <send<c>,await<c>|e> a {
-  handle shallow(action) {
+  handle shallow (action) {
     return x -> x
-    send(x)  -> down{ resume(()) }{ cons(x) } 
+    send(x)  -> down{ resume(()) }{ cons(x) }
   }
 }
 

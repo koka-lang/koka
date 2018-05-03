@@ -3,9 +3,12 @@
 .Con-File : forall<s> (resource<filesys<s>>) -> file<s>
 .Op-read : forall<s> .op-read<s>
 .Ops-read : forall<s> (read : .op-read<s>) -> .ops-file<s>
+.create-file: forall<s> (int) -> file<s>
+.resource-file: forall<s> (file<s>) -> int
 .tag-file : string
 .tag-filesys: string
 fake-file : forall<s,a,e> (content : string, action : (resource : file<s>) -> <filesys<s>|e> a) -> <filesys<s>|e> a
 filesys : forall<a,e> (action : forall<s> () -> <filesys<s>|e> a) -> e a
-main : () -> console ()
-read : forall<s> (file<s>) -> (filesys<s>) string
+inject-resource: forall<s,a,e> (resource : file<s>, action : () -> <filesys<s>|e> a) -> <filesys<s>|e> a
+main : () -> <exn,console> ()
+read : forall<s> (file<s>) -> <filesys<s>,exn> string

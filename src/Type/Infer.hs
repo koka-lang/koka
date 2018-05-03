@@ -1194,7 +1194,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        defName <- currentDefName
        let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = let rk = analyzeResume defName (unqualify opName) bexprCore
+           rkind       = let rk = analyzeResume defName (unqualify opName) raw bexprCore
                            -- The scoped variants require a bind translation in the branch but currently
                            -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
                            -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be

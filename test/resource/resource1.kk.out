@@ -10,15 +10,21 @@
 .Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
 .Ops-read : forall<s> (read : .op-read<s>) -> .ops-file<s>
 .Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.create-file: forall<s> (int) -> file<s>
+.create-ref : forall<s,a> (int) -> ref<s,a>
+.resource-file: forall<s> (file<s>) -> int
+.resource-ref: forall<s,a> (ref<s,a>) -> int
 .tag-file : string
 .tag-filesys: string
 .tag-heap : string
 .tag-ref : string
 fake-file : forall<s,a,e> (content : string, action : (resource : file<s>) -> <filesys<s>|e> a) -> <filesys<s>|e> a
-filesys : forall<a,e> (action : forall<s> () -> <filesys<s>|e> a) -> e a
-get : forall<s,a> (ref<s,a>) -> (heap<s>) a
+filesys : forall<s,a,e> (action : () -> <filesys<s>|e> a) -> e a
+get : forall<s,a> (ref<s,a>) -> <heap<s>,exn> a
 heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
-main : () -> console ()
+inject-resource: forall<a,s,b,e> (resource : ref<s,a>, action : () -> <heap<s>|e> b) -> <heap<s>|e> b
+inject-resource: forall<s,a,e> (resource : file<s>, action : () -> <filesys<s>|e> a) -> <filesys<s>|e> a
+main : () -> <exn,console> ()
 new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> <heap<s>|e> b) -> <heap<s>|e> b
-read : forall<s> (file<s>) -> (filesys<s>) string
-set : forall<s,a> (ref<s,a>, value : a) -> (heap<s>) ()
+read : forall<s> (file<s>) -> <filesys<s>,exn> string
+set : forall<s,a> (ref<s,a>, value : a) -> <heap<s>,exn> ()

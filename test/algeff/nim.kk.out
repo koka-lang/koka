@@ -95,6 +95,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- throw result.exn; // rethrow
+ throw exn;
  ^
 std/core/Error: bob cheated!

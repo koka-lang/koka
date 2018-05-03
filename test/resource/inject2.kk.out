@@ -1,3 +1,4 @@
+42
 injectst : forall<a,e,h> (action : () -> e a) -> <st<h>|e> a
-main : () -> int
+main : () -> console ()
 xforeach-indexed: forall<a,e> (xs : list<a>, action : (int, a) -> e ()) -> e ()

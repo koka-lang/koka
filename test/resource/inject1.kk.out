@@ -1,2 +1,3 @@
+42
 foo : forall<a,e> (action : () -> <div|e> a) -> <div,ndet|e> a
-main : () -> <div,ndet> int
+main : () -> <div,console,ndet> ()

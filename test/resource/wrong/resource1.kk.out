@@ -1,4 +1,4 @@
-test/algeff/wrong/resource1.kk(24, 3): error: type is not polymorph enough
+test/resource/wrong/resource1.kk(24, 3): error: type is not polymorph enough
  context : using heap
  term : using heap
  use r1 = new-ref(36)

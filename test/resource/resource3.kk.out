@@ -6,10 +6,13 @@
 .Op-set : forall<s,a> (value : a) -> .op-set<s,a>
 .Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
 .Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.create-ref : forall<s,a> (int) -> ref<s,a>
+.resource-ref: forall<s,a> (ref<s,a>) -> int
 .tag-heap : string
 .tag-ref : string
-get : forall<s,a> (ref<s,a>) -> (heap<s>) a
+get : forall<s,a> (ref<s,a>) -> <heap<s>,exn> a
 heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
-main : () -> console ()
+inject-resource: forall<a,s,b,e> (resource : ref<s,a>, action : () -> <heap<s>|e> b) -> <heap<s>|e> b
+main : () -> <exn,console> ()
 new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> <heap<s>|e> b) -> <heap<s>|e> b
-set : forall<s,a> (ref<s,a>, value : a) -> (heap<s>) ()
+set : forall<s,a> (ref<s,a>, value : a) -> <heap<s>,exn> ()
