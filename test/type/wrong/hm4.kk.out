@@ -1,0 +1,6 @@
+test/type/wrong/hm4.kk(4,11): error: types do not match
+ context : {}
+ term : {}
+ inferred type: ()
+ expected type: int
+ because : function returns values of different types

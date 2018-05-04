@@ -2268,8 +2268,9 @@ matchFun nArgs mbType
                            Nothing -> return (replicate nArgs Nothing,Nothing,Nothing,Instantiated)
                            Just (args,eff,res)
                             -> let m = length args
-                               in assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
-                                  return (map Just args ++ replicate (nArgs - m) Nothing, Just (eff,rng), Just (res,rng), if isRho res then Instantiated else Generalized)
+                               in -- can happen: see test/type/wrong/hm4 and hm4a
+															    --assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
+                                  return (take nArgs (map Just args ++ replicate (nArgs - m) Nothing), Just (eff,rng), Just (res,rng), if isRho res then Instantiated else Generalized)
 
 monotonic :: [Int] -> Bool
 monotonic []  = True
