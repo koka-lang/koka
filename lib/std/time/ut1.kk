@@ -200,7 +200,7 @@ struct dut-table(
 // Interpolates linearly between daily entries.
 fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<duration> {
   try-default(Nothing) {
-    val utci = i.use(ts-utc)
+    val utci = i.use-timescale(ts-utc)
     val mjd = utci.mjd(ts-utc).double
     if (mjd < dtt.start || mjd >= dtt.end) then Nothing else {
       val idx = (mjd - dtt.start).truncate.int

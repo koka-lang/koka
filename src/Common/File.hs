@@ -9,7 +9,7 @@
     Internal errors and assertions.
 -}
 -----------------------------------------------------------------------------
-module Common.File( 
+module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
@@ -28,7 +28,7 @@ module Common.File(
                   , isAbsolute
                   , commonPathPrefix
                   , normalizeWith
-                  , isLiteralDoc 
+                  , isLiteralDoc
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
@@ -43,7 +43,7 @@ import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile )
 import Common.Failure   ( raiseIO, catchIO )
- 
+
 import System.Process   ( system )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getProgName )
@@ -68,7 +68,7 @@ splitOn pred xs
   = normalize [] xs
   where
     normalize acc [] = reverse acc
-    normalize acc xs 
+    normalize acc xs
       = case (span (not . pred) xs) of
           (pre,post) -> normalize (pre:acc) (dropWhile pred post)
 
@@ -98,7 +98,7 @@ extname fname
   = let (pre,post) = span (/='.') (reverse (notdir fname))
     in if null post
         then ""
-        else ("." ++ reverse pre) 
+        else ("." ++ reverse pre)
 
 -- | Return the directory prefix (including last separator if present)
 dirname :: FileName -> FileName
@@ -113,7 +113,7 @@ notdir fname
 
 notext :: FileName -> FileName
 notext fname
-  = reverse (drop (length (extname fname)) (reverse fname))  
+  = reverse (drop (length (extname fname)) (reverse fname))
 
 noexts :: FileName -> FileName
 noexts fname
@@ -128,7 +128,7 @@ undelimPaths xs
     normalize ps "" (c:cs)  | isSpace c
       = normalize ps "" cs
     -- directory on windows
-    normalize ps "" (c:':':cs)    
+    normalize ps "" (c:':':cs)
       = normalize ps (':':c:[]) cs
     -- normal
     normalize ps p xs
@@ -138,13 +138,15 @@ undelimPaths xs
                      else reverse (reverse p:ps)
           (c:cs) | isPathDelimiter c -> normalize (reverse p:ps) "" cs
                  | otherwise         -> normalize ps (c:p) cs
- 
+
 -- | Split a path into its directory parts
 splitPath :: FilePath -> [FilePath]
 splitPath fdir
   = let fs = filter (not . null) $ splitOn isPathSep fdir
-    in if (null fs) then [""] else fs
-      
+    in case fdir of
+         '/':_ -> "/":fs
+         _ -> if (null fs) then [""] else fs
+
 
 joinPath :: FilePath -> FilePath -> FilePath
 joinPath p1 p2
@@ -153,10 +155,11 @@ joinPath p1 p2
 -- | Join a list of paths into one path
 joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
-  = concat 
-  $ intersperse [pathSep] 
+  = concat
+  $ filterPathSepDup
+  $ intersperse [pathSep]
   $ normalize
-  $ filter (not . null) 
+  $ filter (not . null)
   $ concatMap splitPath dirs
   where
     normalize []            = []
@@ -165,6 +168,11 @@ joinPaths dirs
                             | p == ".." = p : normalize ("..":ps)
                             | otherwise = normalize ps
     normalize (p:ps)        = p : normalize ps
+
+
+    filterPathSepDup (p:q:rest)  | endsWith p "/" && q == "/"  = filterPathSepDup (p : rest)
+    filterPathSepDup (p:ps)      = p : filterPathSepDup ps
+    filterPathSepDup []          = []
 
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
@@ -178,7 +186,7 @@ normalizeWith newSep path
   where
     norm acc "" = reverse acc
     norm acc (c:cs)
-      = if (isPathSep c) 
+      = if (isPathSep c)
          then norm (newSep:acc) (dropWhile isPathSep cs)
          else norm (c:acc) cs
 
@@ -221,7 +229,7 @@ runSystemEx command
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
 fileTimeCompare fname1 fname2
-  = do time1 <- getFileTime fname1 
+  = do time1 <- getFileTime fname1
        time2 <- getFileTime fname2
        return (compare time1 time2)
 
@@ -239,7 +247,7 @@ copyTextFile src dest
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFile src dest) 
+                      copyFile src dest)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
@@ -248,17 +256,17 @@ copyTextFileWith src dest transform
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
                       content <- readFile src
-                      writeFile dest (transform content)) 
+                      writeFile dest (transform content))
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
 copyBinaryFile src dest
-  = if (src == dest) 
+  = if (src == dest)
      then return ()
      else catchIO (B.copyBinaryFile src dest) (\_ -> error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryIfNewer :: Bool -> FilePath -> FilePath -> IO ()
-copyBinaryIfNewer always srcName outName       
+copyBinaryIfNewer always srcName outName
   = do ord <- if always then return GT else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyBinaryFile srcName outName
@@ -266,14 +274,14 @@ copyBinaryIfNewer always srcName outName
                 return ()
 
 copyTextIfNewer :: Bool -> FilePath -> FilePath -> IO ()
-copyTextIfNewer always srcName outName       
+copyTextIfNewer always srcName outName
   = do ord <- if always then return GT else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFile srcName outName
         else do return ()
 
 copyTextIfNewerWith :: Bool -> FilePath -> FilePath -> (String -> String) -> IO ()
-copyTextIfNewerWith always srcName outName transform       
+copyTextIfNewerWith always srcName outName transform
   = do ord <- if always then return GT else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFileWith srcName outName transform
@@ -290,14 +298,14 @@ getInstallDir
                       (_:"out":es) -> joinPaths (reverse es)
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
-       return result               
+       return result
 
-       
+
 
 getProgramPath :: IO FilePath
 getProgramPath
   = do p <- C.getProgramPath  -- works on windows
-       if (not (null p)) 
+       if (not (null p))
         then return p
         else do name <- getProgName
                 if (null name)
@@ -353,7 +361,7 @@ searchPathsEx path exts name
   = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
   where
     search [] = return Nothing  -- notfound envname nameext path
-    search ((dir,fname):xs) 
+    search ((dir,fname):xs)
       = do{ let fullName = joinPath dir fname
           ; exist <- doesFileExist fullName
           ; if exist
@@ -362,12 +370,12 @@ searchPathsEx path exts name
           }
 
     nameext
-      = (nname : map (nname++) exts) 
+      = (nname : map (nname++) exts)
 
-    nname 
-      = joinPaths $ dropWhile (==".") $ splitPath name      
+    nname
+      = joinPaths $ dropWhile (==".") $ splitPath name
 
-      
+
 getEnvPaths :: String -> IO [FilePath]
 getEnvPaths name
   = do{ xs <- getEnvVar name
@@ -382,14 +390,14 @@ getEnvVar name
          Just val -> return val
          Nothing  -> return ""
 
-     
+
 
 {-
 splitPath :: String -> [String]
 splitPath xs
   = normalize [] "" xs
   where
-    normalize ps "" (c:':':cs) 
+    normalize ps "" (c:':':cs)
       = normalize ps (':':c:[]) cs
 
     normalize ps p xs

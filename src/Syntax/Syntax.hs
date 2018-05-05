@@ -137,6 +137,7 @@ data UserCon t u k
   = UserCon { userconName :: Name
             , userconExists :: [TypeBinder k] -- ^ existentials
             , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters
+            , userconResult :: Maybe t -- ^ used internally for limited GADT's (for now)
             , userconNameRange :: Range       --  ^ name range
             , userconRange :: Range           --  ^ total range
             , userconVis :: Visibility     -- ^  visibility
@@ -201,12 +202,19 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler Bool (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+  | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()]
+                  (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
+  | Inject t (Expr t) Range
+
+data HandlerScope
+  = HandlerNoScope | HandlerScoped
+  deriving (Eq)
 
 data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
+                 , hbranchRaw  :: Bool
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }
@@ -296,7 +304,7 @@ instance Ranged (TypeBinder k) where
   getRange (TypeBinder _ _ _ range) = range
 
 instance Ranged (UserCon t u k) where
-  getRange (UserCon _ _ _ _ range _ _) = range
+  getRange (UserCon _ _ _ _ _ range _ _) = range
 
 instance Ranged a => Ranged [a] where
   getRange rs
@@ -323,7 +331,8 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
-        Handler shallow eff pars ret ops hrng range -> range
+        Handler shallow scoped eff pars reinit ret final ops hrng range -> range
+        Inject tp expr range -> range
 
 instance Ranged Lit where
   getRange lit
@@ -375,8 +384,8 @@ instance HasName (TypeBinder k) where
   getNameRange (TypeBinder name kind nameRange range) = nameRange
 
 instance HasName (UserCon t u k) where
-  getName (UserCon name exist params nameRange range _ _) = name
-  getNameRange (UserCon name exist params nameRange range _ _) = nameRange
+  getName (UserCon name exist params result nameRange range _ _) = name
+  getNameRange (UserCon name exist params result nameRange range _ _) = nameRange
 
 instance HasName (TypeDef t u k) where
   getRName typeDef

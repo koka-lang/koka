@@ -1,0 +1,10 @@
+test/algeff/wrong/eff-rec2.kk(35, 1): error: types do not match
+ context : fun main() : <exn,console> int {
+ ...
+ }
+ term : fun main() : <exn,console> int {
+ ...
+ }
+ inferred type: () -> <pure,console> int
+ expected type: () -> <exn,console> int
+ because : type cannot be instantiated to match the annotation

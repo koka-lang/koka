@@ -295,7 +295,7 @@ cpsLetDef :: Bool -> Def -> Cps (TransX ([Def],[Def],[Def]) Expr)
 cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsType (defType def)
-       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def)) -- <--> prettyExpr env (defExpr def)
+       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <.> text ", result: " <.> text (show (cpsk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((cpsk == PolyCps {-|| cpsk == MixedCps-}) && isDupFunctionDef (defExpr def))
         then cpsLetDefDup cpsk recursive def 
         else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" <+> ppType env (defType def)

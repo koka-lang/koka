@@ -5,8 +5,8 @@
 [00;39;49m[00mnegative or zero
 .Op-get : forall<a> .op-get<a>
 .Op-set : forall<a> (x : a) -> .op-set<a>
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-set : forall<a> (set : .op-set<a>) -> .ops-state<a>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
 .tag-state : string
 fstate : forall<a,e> (action : () -> <state<int>|e> a) -> e a
 get : forall<a> () -> (state<a>) a

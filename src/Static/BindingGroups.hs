@@ -66,8 +66,8 @@ instance HasFreeTypes a => HasFreeTypes (Maybe a) where
   freeTypes (Just x) = freeTypes x
 
 instance (HasFreeTypes t) => HasFreeTypes (UserCon t u k) where
-  freeTypes (UserCon name exist params nameRng rng vis doc)
-    = freeTypes (map snd params)
+  freeTypes (UserCon name exist params result nameRng rng vis doc)
+    = freeTypes (map snd params) `S.union` freeTypes result
 
 instance (HasFreeTypes t) => HasFreeTypes (ValueBinder t e) where
   freeTypes vb
@@ -169,12 +169,16 @@ dependencyExpr modName expr
       Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
-      Lit    lit             -> (expr, S.empty)
-      Handler shallow eff pars ret ops hrng rng
+      Lit    lit           -> (expr, S.empty)
+      Handler shallow scoped eff pars reinit ret final ops hrng rng
         -> let (depRet,fv1)     = dependencyExpr modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-           in (Handler shallow eff pars depRet depBranches hrng rng,
-                S.difference (S.union fv1 fv2) (S.fromList (map binderName pars)))
+               (depReinit,fv3)  = dependencyExpr modName reinit
+               (depFinal,fv4)   = dependencyExpr modName final
+               fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
+           in (Handler shallow scoped eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
+      Inject tp body rng   -> let (depBody,fv) = dependencyExpr modName body
+                              in (Inject tp depBody rng, fv)
 
 dependencyBranches f modName branches
   = unzipWith (id,S.unions) (map (f modName) branches)
@@ -251,11 +255,16 @@ group defs deps
         -- determine strongly connected components
         defDeps   = [(id,S.toList fvs) | (id,fvs) <- M.toList defDeps0]
         defOrder0 = scc defDeps
-        defOrder  = let (xs,ys) = partition noDeps defOrder0
+        defOrder  = let (xs,ys) = partition noDeps defOrder0  -- no dependencies first
                         noDeps ids = case ids of
                                        [id] -> S.null (M.find id defDeps0)
                                        _    -> False
-                    in (xs++ys)
+                        (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
+                        isHidden ids = case ids of
+                                         [id] -> isHiddenName id
+                                         _ -> False
+
+                    in (xxs++xys++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
         -- create a definition group from a list of mutual recursive identifiers.
@@ -264,7 +273,7 @@ group defs deps
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder) $
+    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder0 ++ "\n " ++ show defOrder) $
        concatMap makeGroup defOrder
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]
@@ -290,6 +299,13 @@ groupTypeDefs typeDefs deps
         concatMap makeGroup typeOrder
 
 
+orderedPartition pred xs
+  = part xs ([],[])
+  where
+    part [] (ys,zs)
+      = (reverse ys, reverse zs)
+    part (x:xx) (ys,zs)
+      = if (pred x) then part xx (x:ys,zs) else part xx (ys,x:zs)
 
 {-
 

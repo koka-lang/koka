@@ -499,7 +499,7 @@ qualifiedTypeId
   = do (name,_) <- qvarid
        return name
   <|>
-    do (name,_) <- qidop  -- for things like std/core/<>
+    do (name,_) <- qidop  -- for things like std/core/<.>
        return name
   <|> 
     do special "("
@@ -545,7 +545,10 @@ katom
   <|>
     do specialConId "H"
        return kindHeap
-  <|>
+ <|>
+    do specialConId "S"
+       return kindScope
+   <|>
     do specialConId "HX"
        return kindHandled
   <|>

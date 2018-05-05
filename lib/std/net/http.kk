@@ -186,13 +186,13 @@ public fun with-http-server( action : (server : http-server) -> <net,ndet|e> a  
 }
 
 // Listen to an HTTP server on an optional port and hostname.
-public fun serve-to-channel( server : http-server, port : int = 0, hostname : string = "") : <asyncx,net> channel<either<exception,(request-object,response-object)>> {
+public fun serve-to-channel( server : http-server, port : int = 0, hostname : string = "") : <asyncx,net> channel<try<(request-object,response-object)>> {
 	val ch = channel()
-	fun setup(  cb : (either<exception,(request-object,response-object)>,bool) -> io () ) : io maybe<() -> io ()>  {
+	fun setup(  cb : (try<(request-object,response-object)>,bool) -> io () ) : io maybe<() -> io ()>  {
 		fun cbx( reqn : null<request-object>, res ) {
 			match(reqn.maybe) {
-				Nothing	-> { println("close or cancel the http server channel"); cb(Left(cancel-exn), True) }
-				Just(req)	-> cb(Right((req,res)), False)
+				Nothing  	-> { println("close or cancel the http server channel"); cb(Exn(unsafe-cancel-exn()), True) }
+				Just(req)	-> cb(Ok((req,res)), False)
 			}
 		}
 		server-listen( server, port.null, hostname.null, 0.null, cbx )
@@ -243,7 +243,7 @@ public fun add( res : http-response, extra-headers : list<(string,string)> ) : h
 }
 
 
-public fun listen( ch : channel<either<exception,(request-object,response-object)>>, action : () -> <asyncx, net, div,console|e> http-response, concurrency : int = 100 ) : <asyncx,net,div,console|e> () {
+public fun listen( ch : channel<try<(request-object,response-object)>>, action : () -> <asyncx, net, div,console|e> http-response, concurrency : int = 100 ) : <asyncx,net,div,console|e> () {
 	var current := 0
 	val strands = list(1,max(1,min(500,concurrency))).map fun(idx) {
 		return fun() {
@@ -270,12 +270,9 @@ public fun listen( ch : channel<either<exception,(request-object,response-object
 public fun handle-request( request : (request-object,response-object), action : () -> <asyncx, net, console| e> http-response ) : <asyncx,net,console | e> () {
 	val (_reqobj,resobj) = request
 	val res =	catch(action) fun(exn) {
-			println("exn thrown in request handler: " + exn.show)
-			match(exn.info) {
-				Cancel -> throw(exn)
-				_ -> error-response( 500, exn.show )
-			}
-		}
+	         		println("exn thrown in request handler: " + exn.show)
+	         		error-response( 500, exn.show )
+	         	}
 	res.headers.foreach fun(header) {
 		resobj.response-write-header( header.fst, header.snd )
 	}

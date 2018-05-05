@@ -289,8 +289,8 @@ showCheck err when a b fdoc
 showMessage err when a b fdoc env
   = let [docA,docB] = niceTypes env [a,b]
     in align $ vcat [ text err
-                     , text "     " <> docA
-                     , text "  =~ " <> docB
+                     , text "     " <.> docA
+                     , text "  =~ " <.> docB
                      , text "when" <+> text when
                      , indent 2 (fdoc env)
                      ]

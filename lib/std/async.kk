@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2016 Microsoft Corporation.
+	Copyright 2012-2016 Microsoft Corporation.
 
-  This is free software; you can redistribute it and/or modify it under the
-  terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+	This is free software; you can redistribute it and/or modify it under the
+	terms of the Apache License, Version 2.0. A copy of the License can be
+	found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /* Asynchronous primitives
@@ -35,7 +35,7 @@ import std/time/duration
 import std/debug
 
 extern include {
-  cs file "async-inline.cs"
+	cs file "async-inline.cs"
 }
 
 // A type alias for asynchronous operations that can raise exceptions non-deterministically.
@@ -73,13 +73,13 @@ public fun await( p : promise<a> ) : asyncx a {
 	fun setup(cb) {
 		val r = p.state
 		match (!r) {
-			Awaiting(listeners)	-> r := Awaiting(Cons(cb,listeners))
-			Resolved(value)	-> cb(value) // resume right away; should not happen due to try-await
+			Awaiting(listeners) -> r := Awaiting(Cons(cb,listeners))
+			Resolved(value) -> cb(value) // resume right away; should not happen due to try-await
 		}
 	}
 	match(p.try-await) {
-		Just(v)	-> v
-		Nothing	-> await1(setup)
+		Just(v) -> v
+		Nothing -> await1(setup)
 	}
 }
 
@@ -88,8 +88,8 @@ public fun try-await( p : promise<a> ) : <async,ndet> maybe<a> {
 	async-io-noexn {
 		val r = p.state
 		match(!r) {
-			Resolved(value)	-> Just(value)
-			_	-> Nothing
+			Resolved(value) -> Just(value)
+			_ -> Nothing
 		}
 	}
 }
@@ -130,23 +130,23 @@ abstract type channel-state<a> {
 
 fun from-values(values : list<a> ) : channel-state<a> {
 	match(values) {
-		Nil	-> Empty
-	 	Cons(v,vs)	-> Values(v,vs)
+		Nil -> Empty
+		Cons(v,vs)  -> Values(v,vs)
 	}
 }
 
 fun from-waiting(listeners : list<a -> io ()>) : channel-state<a> {
 	match(listeners) {
-		Nil	-> Empty
-	 	Cons(l,ls)	-> Waiting(l,ls)
+		Nil -> Empty
+		Cons(l,ls)  -> Waiting(l,ls)
 	}
 }
 
 // Create a new asynchronous channel.
 public fun channel() : async channel<a> {
-	async-iox { 
-    Channel(unique(), ref(Empty)) 
-  }
+	async-iox {
+		Channel(unique(), ref(Empty))
+	}
 }
 
 // Receive (and remove) a value from the channel: returns immediately if a value is available and otherwise
@@ -155,9 +155,9 @@ public fun receive( ch : channel<a> ) : asyncx a {
 	ch.receivex.untry
 }
 
-fun receivex( ch : channel<a>, cancelable : bool = True ) : <async,ndet> either<exception,a> {
+fun receivex( ch : channel<a>, cancelable? : bool = True ) : <async,ndet> try<a> {
 	fun setup( cb : (_,_) -> io () )  {
-		fun cbr(x) { cb(Right(x),True) }
+		fun cbr(x) { cb(Ok(x),True) }
 		val r = ch.state
 		match (!r) {
 			Empty -> r := Waiting(cbr,[])
@@ -170,8 +170,8 @@ fun receivex( ch : channel<a>, cancelable : bool = True ) : <async,ndet> either<
 		Nothing
 	}
 	match(ch.try-receive?) {
-		Just(v)	-> Right(v)
-		Nothing	-> do-await(setup,empty-scope,cancelable)
+		Just(v) -> Ok(v)
+		Nothing -> do-await(setup,empty-scope,cancelable?)
 	}
 }
 
@@ -192,8 +192,8 @@ public fun try-receive?( ch : channel<a> ) : <async,ndet> maybe<a> {
 fun emit-io( ch : channel<a>, value : a ) : io () {
 	val r = ch.state
 	match(!r) {
-		Empty	-> r := Values(value, [])
-		Values(v,vs)	-> r := Values(v,vs + [value])
+		Empty -> r := Values(value, [])
+		Values(v,vs)  -> r := Values(v,vs + [value])
 		Waiting(l,ls) -> {
 			r := from-waiting(ls)
 			l(value)
@@ -245,11 +245,11 @@ public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> 
 // `cancel` the other one and return the result of the first.
 public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|e> a  {
 	cancelable {
-    val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
+		val (ra,rb) = interleavedx	{ val x = a(); cancel(); x }
 			{ val x = b(); cancel(); x }
-    match(ra) {
-			Left(exn) | exn.info.cancel? -> rb.untry
-			_ -> ra.untry
+		match(ra) {
+			Exn(exn) | exn.cancel? -> rb.untry
+			_  -> ra.untry
 		}
 	}
 }
@@ -257,49 +257,49 @@ public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|
 // Wait (asynchronously) for `secs` seconds as a `:double`.
 // Use `yield()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
-  wait(secs.duration)
+	wait(secs.duration)
 }
 
 // Wait (asynchronously) for optional `secs` seconds `:duration` (`= 0.seconds`).
 // Use `yield()` to yield generally to other asynchronous operations.
 public fun wait( secs : duration = zero ) : <async,exn> () {
-  if (secs <= zero) then return yield()
-  val msecs = max(zero:int32,secs.milli-seconds.int32)
-  await fun(cb) {
-	  val tid = set-timeout( fun(){ cb(Right(())) }, msecs )
-	  Just( { clear-timeout(tid) } )
-  }
+	if (secs <= zero) then return yield()
+	val msecs = max(zero:int32,secs.milli-seconds.int32)
+	await fun(cb) {
+		val tid = set-timeout( fun(){ cb(Ok(())) }, msecs )
+		Just( { clear-timeout(tid) } )
+	}
 }
 
 // Yield to other asynchronous operations. Same as `wait(0)`.
 public fun yield() : <async,exn> () {
-  await0 fun(cb) {
-    set-timeout( cb, zero )
-    ()
-  }
+	await0 fun(cb) {
+		set-timeout( cb, zero )
+		()
+	}
 }
 
 // abstract wid for timeout handlers
 abstract struct timeout-id(
-  timer : any
+	timer : any
 )
 
 fun set-timeout( cb : () -> io (), ms : int32 ) : io timeout-id {
-  Timeout-id(set-timeoutx(cb,max(ms,zero)))
+	Timeout-id(set-timeoutx(cb,max(ms,zero)))
 }
 
 extern set-timeoutx( cb : () -> io (), ms : int32 ) : io any {
-  cs "_Async.SetTimeout"
-  js "setTimeout"
+	cs "_Async.SetTimeout"
+	js "setTimeout"
 }
 
 fun clear-timeout( tid : timeout-id ) : io () {
-  clear-timeoutx(tid.timer)
+	clear-timeoutx(tid.timer)
 }
 
 extern clear-timeoutx( tid : any) : io () {
-  cs "_Async.ClearTimeout"
-  js "clearTimeout"
+	cs "_Async.ClearTimeout"
+	js "clearTimeout"
 }
 
 
@@ -310,41 +310,63 @@ extern clear-timeoutx( tid : any) : io () {
 // Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
 	val (ra,rb) = interleavedx( action1, action2 )
+	[ra.maybe,rb.maybe].ordered_throw
 	(ra.untry,rb.untry)
 }
 
 // Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
-	interleavedx(xs).map(untry)
+	val ress = interleavedx(xs)
+	ress.map(maybe).ordered_throw
+	ress.map(untry)
+}
+
+fun ordered_throw( xs : list<maybe<exception>> ) : exn () {
+	var mexn := Nothing
+	xs.foreach fun(x) {
+		match(x) {
+			Nothing -> ()
+			Just(exn) -> match(mexn) {
+				Nothing -> mexn := x
+				Just(exnx) ->
+					if ((exn.finalize? && !exnx.finalize?) || (exnx.cancel? && !exn.cancel?))
+						then mexn := x
+			}
+		}
+	}
+	match(mexn) {
+		Just(exn)	-> throw(exn)
+		Nothing	-> ()
+	}
 }
 
 // Interleave two actions around their asynchronous operations and explicitly returning either
 // their result or their exception.
-public fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async|e> (either<exception,a>,either<exception,b>) {
+public fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async|e> (try<a>,try<b>) {
 	fun act1() { Left(action1()) }
 	fun act2() { Right(action2()) }
 	match( interleavedx([act1,act2])) {
 		Cons(x,Cons(y)) -> (x.unleft,y.unright)
 		_ -> {
-			// this will never happen.. 
-      val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
-			(Left(exn),Left(exn))
+			// this will never happen..
+			val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
+			(Exn(exn),Exn(exn))
 		}
-    }
-}
-
-fun unleft( x : either<exception,either<a,b>> ) : either<exception,a> {
-	match(x) {
-		Right(Left(l))	-> Right(l)
-		Left(exn)	-> Left(exn)
-		_	-> Left(exception("invalid left interleaved result",Internal("std/async/interleavedx(action1,action2)")))
 	}
 }
-fun unright( x : either<exception,either<a,b>> ) : either<exception,b> {
+
+fun unleft( x : try<either<a,b>> ) : try<a> {
 	match(x) {
-		Right(Right(r))	-> Right(r)
-		Left(exn)	-> Left(exn)
-		_	-> Left(exception("invalid right interleaved result",Internal("std/async/interleavedx(action1,action2)")))
+		Ok(Left(l)) -> Ok(l)
+		Exn(exn)  -> Exn(exn)
+		_ -> Exn(exception("invalid left interleaved result",Internal("std/async/interleavedx(action1,action2)")))
+	}
+}
+fun unright( x : try<either<a,b>> ) : try<b> {
+	match(x) {
+		Ok(Right(r)) -> Ok(r)
+		Exn(exn)     -> Exn(exn)
+		_ -> Exn(exception("invalid right interleaved result",Internal("std/async/interleavedx(action1,action2)")))
 	}
 }
 
@@ -356,7 +378,7 @@ effect strands<a> {
 	// Are there still strands that need to be resumed?
 	fun strands-busy?() : bool
 	// Call this when a strand is done.
-	fun strand-done(idx : int, result : either<exception,a>) : ()
+	fun strand-done(idx : int, result : try<a>) : ()
 }
 
 // Insert in order with an accumulating list.
@@ -380,55 +402,68 @@ fun insert( xs : list<(int,a)>, idx : int, value : a, n : int  = 0 ) : list<(int
 
 // Interleave a list actions around their asynchronous operations and explicitly returning either
 // either their result or their exception.
-public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<either<exception,a>> {
+public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<try<a>> {
 	val n = xs.length
 	if (n==0) then []
-	elif (n==1) then xs.map(try-all)
+	elif (n==1) then xs.map(unsafe-try-all)
 	else {
-    val handle-strands = handler(cr : some<a>(int,list<(int,either<exception,a>)>)) {
-			return x            	-> (cr.snd : list<(_,_)>).map( snd )
-			strands-busy?()     	-> resume(cr.fst > 0, cr)
+		val handle-strands = handler(cr : some<a>(int,list<(int,try<a>)>)) {
+			return x	-> (cr.snd : list<(_,_)>).map( snd )
+			strands-busy?()	-> resume(cr.fst > 0, cr)
 			strand-done(idx,res)	-> resume((), (cr.fst - 1, cr.snd.insert(idx,res)))
 		}
 		handle-strands( (n, []), unsafe-no-ndet-div{ interleaved-div(xs) } )
 	}
 }
 
-//extern inline no-cps : forall<a,e> (() -> <cps,async|e> a) -> (() -> <async|e> a) { inline "#1" }
-extern inline unsafe-no-div : forall<a,e> (() -> <div|e> a) -> (() -> e a) { inline "#1" }
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
 extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strands<a>,ndet,div|e> a)   { inline "#1" }
 
+fun finalize?( t : try<a> ) : bool {
+	match(t) {
+		Exn(exn) -> exn.finalize?
+		_ -> False
+	}
+}
+
+fun cancel?( t : try<a> ) : bool {
+	match(t) {
+		Exn(exn) -> exn.cancel?
+		_ -> False
+	}
+}
+
 fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strands<a>|e> () {
-	val strands	= xs.map-indexed fun(i,action) {
-	           		return fun() {
-                  val res = try-all(inject-effects(action))
-                  strand-done(i,res)
-	           		}
-	           	}
+	val strands =	xs.map-indexed fun(i,action) {
+			return fun() {
+				val res = unsafe-try-all(inject-effects(action))
+				strand-done(i,res)
+				if (res.finalize?) then cancel()  // cancel others if finalization happens
+			}
+		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		do-await(setup,scope,c) -> {
+		fun raw do-await(setup,scope,c) -> {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( /* no-cps */ { resume(res) }  )
+				ch.emit-io( /* no-cps */ { context.resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
 
 		// redirect all other operations
-		no-await(setup,scope,c,f) -> resume(no-await(setup,scope,c,f))
-		async-iox(f)	-> resume(async-iox(f))
-		cancel(scope)	-> resume(cancel(scope))
+		fun no-await(setup,scope,c,f)	-> resume(no-await(setup,scope,c,f))
+		fun async-iox(f)	-> resume(async-iox(f))
+		fun cancel(scope)	-> resume(cancel(scope))
 	}
-  strands.foreach(handle-strand)
+	strands.foreach(handle-strand)
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
 		// we should not cancel but instead await all canceled strands; so keep listening on the channel.
 		match(ch.receivex(False)) {
-			Left(_exn) -> () // ignore cancelation on receive
-			Right(strand-resume) -> strand-resume()
+			Exn(_exn) -> () // ignore cancelation on receive
+			Ok(strand-resume) -> strand-resume()
 		}
 	}
 	()
@@ -442,34 +477,34 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception.
 public fun await-exn0( setup : (cb : (null<exception>) -> io () ) -> io maybe<() -> io ()> ) : <async,exn> () {
-  await( fun(cb) {
-    setup( fun(nexn) { cb(nexn.unnull(())) })
-  } )
+	await( fun(cb) {
+		setup( fun(nexn) { cb(nexn.unnull(())) })
+	} )
 }
 
 // Convenience function for awaiting a NodeJS style callback where the first argument is a possible exception
 // and the second argument the possible result value.
 public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io maybe<() -> io ()> ) : <async,exn> a {
-  await( fun(cb) {
-    setup( fun(nexn,x) { cb(nexn.unnull(x)) })
-  } )
+	await( fun(cb) {
+		setup( fun(nexn,x) { cb(nexn.unnull(x)) })
+	} )
 }
 
-fun unnull( nexn : null<exception>, x : a  ) : either<exception,a> {
-  match(nexn.maybe) {
-    Nothing -> Right(x)
-    Just(exn) -> Left(exn)
-  }
+fun unnull( nexn : null<exception>, x : a  ) : try<a> {
+	match(nexn.maybe) {
+		Nothing -> Ok(x)
+		Just(exn) -> Exn(exn)
+	}
 }
 
 // Convenience function for awaiting a zero argument callback.
 public fun await0( setup : (cb : () -> io () ) -> io () ) : <async,exn> () {
-	await( fun(cb) { setup( fun() { cb(Right(())) } ); Nothing } )
+	await( fun(cb) { setup( fun() { cb(Ok(())) } ); Nothing } )
 }
 
 // Convenience function for awaiting a single argument callback.
 public fun await1( setup : (cb : (a) -> io () ) -> io () ) : <async,exn> a {
-	await( fun(cb) { setup( fun(x) { cb(Right(x)) } ); Nothing } )
+	await( fun(cb) { setup( fun(x) { cb(Ok(x)) } ); Nothing } )
 }
 
 // Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
@@ -477,7 +512,7 @@ public fun await1( setup : (cb : (a) -> io () ) -> io () ) : <async,exn> a {
 // value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
 // The callback should be invoked exactly once -- when that happens `await` is resumed with the result using `untry`
 // either raise an exception or return the plain result.
-public fun await( setup : (cb : either<exception,a> -> io () ) -> io maybe<() -> io ()> ) : <async,exn> a {
+public fun await( setup : (cb : try<a> -> io () ) -> io maybe<() -> io ()> ) : <async,exn> a {
 	await-exn(setup).untry
 }
 
@@ -487,13 +522,13 @@ public fun await( setup : (cb : either<exception,a> -> io () ) -> io maybe<() ->
 // ----------------------------------------------------------------------------
 // Async effect
 // ----------------------------------------------------------------------------
-alias await-result<a> = either<exception,a>
-alias await-setup<a> = (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>
+alias await-result<a> = try<a>
+alias await-setup<a> = (cb : (try<a>,bool) -> io ()) -> io maybe<() -> io ()>
 
 // Asynchronous operations have the `:async` effect.
 abstract effect async {
-	fun do-await( setup : await-setup<a>, scope : scope, cancelable : bool ) : either<exception,a>
-	fun no-await( setup : await-setup<a>, scope : scope, cancelable : bool, f : either<exception,a> -> io ()  ) : ()
+	fun do-await( setup : await-setup<a>, scope : scope, cancelable? : bool ) : try<a>
+	fun no-await( setup : await-setup<a>, scope : scope, cancelable? : bool, f : try<a> -> io ()  ) : ()
 	fun async-iox( action : () -> io-noexn a ) : a
 	fun cancel( scope : scope ) : ()
 }
@@ -510,7 +545,7 @@ public fun cancel() : async (){
 // it takes either an exception or a result `a`. Usually `setup` returns `Nothing` but you can return a `Just(cleanup)`
 // value where the `cleanup` functions is invoked on cancellation to dispose of any resources (see the implementation of `wait`).
 // The callback should be invoked exactly once -- when that happens `await-exn` is resumed with the result.
-public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<() -> io ()> ) : async either<exception,a> {
+public fun await-exn( setup : (cb : (try<a>) -> io ()) -> io maybe<() -> io ()> ) : async try<a> {
 	do-await(fun(cb) { setup(fun(res) { cb(res,True) }) }, empty-scope, True )
 }
 
@@ -519,7 +554,7 @@ public fun await-exn( setup : (cb : (either<exception,a>) -> io ()) -> io maybe<
 // The callback `cb` will eventually emit the result into the given channel `ch` after applying the transformation `f` to the result.\
 // Note: once you exit the `cancelable` scope where `await-to-channel` was called, the callback is invoked with a `Cancel` exception.
 // The channel should always be awaited within the same `cancelable` scope as the `await-to-channel` invokation.
-public fun await-to-channel( setup : (cb : (either<exception,a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : either<exception,a> -> b  ) : async channel<b> {
+public fun await-to-channel( setup : (cb : (try<a>,bool) -> io ()) -> io maybe<() -> io ()>, ch : channel<b>, f : try<a> -> b  ) : async channel<b> {
 	no-await(setup,empty-scope,True) fun(res) {
 		ch.emit-io( f(res) )
 	}
@@ -555,7 +590,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 		return x -> {
 			// cancel any outstanding operations still in our scope.
 			// this might be needed for `no-await` operations.
-			cancel(empty-scope.extend)  
+			cancel(empty-scope.extend)
 			x
 		}
 		do-await(setup,scope,c)	-> resume(do-await(setup,scope.extend,c))
@@ -569,7 +604,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 // Async handle
 // ----------------------------------------------------------------------------
 
-fun nodispose() : io () { 	() }
+fun nodispose() : io () {   () }
 
 // The outer `:async` effect handler. This is automatically applied by the compiler
 // around the `main` function if it has an `:async` effect.
@@ -577,33 +612,33 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 {
 	var callbacks : list<(scope,() -> io ())>  := []
 
-	fun handle-await( setup : await-setup<a>, scope : scope, f  : either<exception,a> -> io (), cancelable : bool) : io ()
+	fun handle-await( setup : await-setup<a>, scope : scope, f : try<a> -> io (), cancelable? : bool) : io ()
 	{
 		val cscope = child-scope(unique(),scope)
 		var dispose := nodispose
 
-		fun cb( res : either<exception,_>, done? : bool ) : io () {
+		fun cb( res : try<_>, done? : bool ) : io () {
 			if (callbacks.contains(cscope)) {
 				if (done?) then {
 					callbacks := callbacks.remove(cscope)
-					if (res.left?) then try-all-default((),dispose)
+					if (res.exn?) then try-default((),dispose)
 				}
 				f(res)
 			}
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, if (cancelable) then fun(){ cb(Left(cancel-exn),True) } else nodispose), callbacks)
-		catch {
+		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), callbacks)
+		try {
 			// setup the callback which returns a possible dipose function
 			match(setup(cb)) {
-				Just(d)	-> dispose := d
-				Nothing	-> ()
+				Just(d) -> dispose := d
+				Nothing -> ()
 			}
 		}
 		fun(exn) {
 			// if setup fails, immediately resume with the exception
-			cb(Left(exn),True)
+			cb(Exn(exn),True)
 		}
 	}
 
@@ -615,10 +650,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		do-await( setup, scope, c )   	-> handle-await(setup,scope,resume /*outer-resume(resume)*/,c)	// returns to outer event loop
-		no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
-		cancel( scope )               	-> resume(handle-cancel(scope))
-		async-iox( f )                	-> resume(f())
+		fun raw do-await( setup, scope, c )	-> handle-await(setup,scope, fun(x){ context.resume(x) }, c)  // returns to outer event loop
+		fun no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
+		fun cancel( scope )	-> resume(handle-cancel(scope))
+		fun async-iox( f )	-> resume(f())
 	}
 }
 
@@ -686,15 +721,15 @@ fun (!=)(scope1 : scope, scope2 : scope ) : bool {
 
 // Convenience functions for scope maps
 fun remove( xs : list<(scope,a)>, scope : scope ) : list<(scope,a)> {
-  xs.remove( fun(x:(scope,_)) { x.fst == scope })
+	xs.remove( fun(x:(scope,_)) { x.fst == scope })
 }
 
 fun lookup( xs : list<(scope,a)>, scope : scope ) : maybe<a> {
-  xs.lookup( fun(x:scope) { x == scope })
+	xs.lookup( fun(x:scope) { x == scope })
 }
 
 fun contains( xs : list<(scope,a)>, scope : scope ) : bool {
-  xs.lookup(scope).bool
+	xs.lookup(scope).bool
 }
 
 

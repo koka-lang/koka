@@ -1,0 +1,8 @@
+[01;30moperator branch (new-ref) get: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) set: resume tail
+[00;39;49m[00mfailure while running program:
+ node out/test/algeff_wrong_resource1a.js
+.../out/test/std_core.js:
+ throw result.exn; // rethrow
+ ^
+Error: there is no handler found for operation ref-resource1a3/get

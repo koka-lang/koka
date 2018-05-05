@@ -19,7 +19,9 @@ module Common.Syntax( Visibility(..)
                     , Host(..)
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen 
+                    , dataDefIsRec, dataDefIsOpen
+                    , HandlerSort(..)
+                    , isHandlerResource, isHandlerDeep, isHandlerShallow
                     ) where
 
 {--------------------------------------------------------------------------
@@ -52,6 +54,26 @@ isPrivate Private = True
 isPrivate _       = False
 
 
+data HandlerSort e
+  = HandlerDeep | HandlerShallow | HandlerResource (Maybe e)
+  deriving (Eq)
+
+instance Show (HandlerSort e) where
+  show hsort = case hsort of
+                 HandlerDeep -> "Deep"
+                 HandlerShallow -> "Shallow"
+                 HandlerResource Nothing -> "FreshResource"
+                 HandlerResource _       -> "Resource"
+
+isHandlerResource (HandlerResource _) = True
+isHandlerResource _ = False
+
+isHandlerDeep (HandlerDeep) = True
+isHandlerDeep _ = False
+
+isHandlerShallow (HandlerShallow) = True
+isHandlerShallow _ = False
+
 {--------------------------------------------------------------------------
   DataKind
 --------------------------------------------------------------------------}
@@ -67,12 +89,12 @@ data DataDef = DataDefNormal | DataDefRec | DataDefOpen
              deriving Eq
 
 
-dataDefIsRec ddef 
+dataDefIsRec ddef
   = case ddef of
       DataDefNormal -> False
       _  -> True
 
-dataDefIsOpen ddef 
+dataDefIsOpen ddef
   = case ddef of
       DataDefOpen -> True
       _ -> False
@@ -97,8 +119,8 @@ instance Show DefSort where
               DefFun kind -> "fun" ++ show kind
               DefVal -> "val"
               DefVar -> "var"
-  
-data MonKind 
+
+data MonKind
   = NoMon      -- no monadic type
   | AlwaysMon  -- always monadically translated
   | PolyMon    -- polymorphic in monad translation: has a fast non-monadic, and a monadic version

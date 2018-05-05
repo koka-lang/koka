@@ -102,8 +102,8 @@ instance Pretty Newtypes where
     = ppNewtypes Type.Pretty.defaultEnv syns
     
 ppNewtypes showOptions (Newtypes m)
-    = vcat [fill 8 (pretty name) <> colon <+>
-            -- text "rank" <+> pretty rank <> colon <+>
+    = vcat [fill 8 (pretty name) <.> colon <+>
+            -- text "rank" <+> pretty rank <.> colon <+>
             ppDataInfo defaultEnv True False dataInfo 
            | (name,dataInfo) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
 

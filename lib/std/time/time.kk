@@ -94,7 +94,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
   if (prec.neg?) then return t
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
-  val ri   = t.instant.use(t.calendar.timescale).round-to-prec(prec)
+  val ri   = t.instant.use-timescale(t.calendar.timescale).round-to-prec(prec)
   // trace("time.round-to-prec: " + t.showx + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
   if (secs.truncate == t.seconds.truncate) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
@@ -155,7 +155,7 @@ fun show0( i : int, width : int = 2) : string {
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
 public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val j = i.use(cal.timescale) // minimize number of conversions
+  val j = i.use-timescale(cal.timescale) // minimize number of conversions
   val (d,c,tzdelta,tzabbrv) = instant-dc(j,tz,cal)
   Time(d,c,cal,tzdelta,tzabbrv,tz,j)
 }

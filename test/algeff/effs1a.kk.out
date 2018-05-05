@@ -7,9 +7,9 @@
 .Op-flip : .op-flip
 .Op-get : forall<a> .op-get<a>
 .Op-set : forall<a> (i : a) -> .op-set<a>
-.Ops-flip : (flip : .op-flip) -> .ops-amb
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-set : forall<a> (set : .op-set<a>) -> .ops-state<a>
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
 .tag-amb : string
 .tag-state : string
 amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>

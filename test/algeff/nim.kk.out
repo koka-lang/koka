@@ -35,11 +35,11 @@ failure while running program:
 .Op-get : forall<a> .op-get<a>
 .Op-move : (player : player, sticks : int) -> .op-move
 .Op-put : forall<a> (x : a) -> .op-put<a>
-.Ops-cheat : forall<a> (cheat : .op-cheat<a>) -> .ops-cheating
-.Ops-choose : (choose : .op-choose) -> .ops-choose
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-move : (move : .op-move) -> .ops-nim
-.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.Ops-cheat : forall<a,b> (cheat : .op-cheat<b>) -> .ops-cheating<b>
+.Ops-choose : forall<a> (choose : .op-choose) -> .ops-choose<bool>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-move : forall<a> (move : .op-move) -> .ops-nim<int>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
 .tag-cheating: string
 .tag-choose : string
 .tag-nim : string
@@ -95,6 +95,6 @@ updateScore : (p : player, gs : gstate) -> gstate
 validMoves : (n : int) -> list<int>
 winner? : (gtree : gtree) -> bool
 .../out/test/std_core.js:
- throw result.exn; // rethrow
+ throw exn;
  ^
 std/core/Error: bob cheated!

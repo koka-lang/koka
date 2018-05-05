@@ -2,7 +2,7 @@
 [00;39;49m[00m[01;30moperator branch (solutions) choice: resume normal
 [00;39;49m[00m[01;30moperator branch (state) get: resume tail
 [00;39;49m[00m[01;30moperator branch (state) put: resume tail
-[00;39;49m[00m[01;30moperator branch (solution) choice: resume normal
+[00;39;49m[00m[01;30moperator branch (solution) choice: resume normal (no finalization)
 [00;39;49m[00m[[3],[2,1],[1,2],[1,1,1]]
 (state=12, [[3],[2,1],[1,2],[1,1,1]])
 [(state=1, [3]),(state=2, [2,1]),(state=2, [1,2]),(state=3, [1,1,1])]
@@ -10,9 +10,9 @@ one: [3]
 .Op-choice : forall<a> (xs : list<a>) -> .op-choice<a>
 .Op-get : forall<a> .op-get<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>
-.Ops-choice : forall<a> (choice : .op-choice<a>) -> .ops-nondet
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.Ops-choice : forall<a,b> (choice : .op-choice<b>) -> .ops-nondet<b>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
 .tag-nondet : string
 .tag-state : string
 choice : forall<a> (xs : list<a>) -> nondet a

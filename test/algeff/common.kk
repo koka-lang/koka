@@ -30,7 +30,7 @@ fun zerodiv(x,y) {
 
 val to-maybe = handler {
   return x -> Just(x)
-  raise(s) -> Nothing
+  raise(_s) -> Nothing
 }
 
 fun test1() {
@@ -112,11 +112,11 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
 }
 
 fun test4() {
-  foreach fun(x:int) { 
+  foreach fun(x:int) {
     println(x)
-    (x<=1) 
+    (x<=1)
   }
-  { [1,2,3].iterate } 
+  { [1,2,3].iterate }
 }
 
 fun test4b() {
@@ -130,9 +130,9 @@ fun test4b() {
 effect amb {
   fun flip() : bool
 }
- 
+
 fun xor() : amb bool {
-  val p = flip() 
+  val p = flip()
   val q = flip()
   (p||q) && not(p&&q)
 }
@@ -156,19 +156,19 @@ fun test5() {
 // --------------------------------------------------------
 
 fun surprising() : <amb,state<int>> bool {
-  val p = flip() 
+  val p = flip()
   val i = get()
   put(i+1)
   if (i>0 && p) then xor() else False
-}        
+}
 
 fun test6() {
   (state(0){amb(surprising)}).show.println
-} 
+}
 
 fun test7() {
   (amb{state(0,surprising)}).show.println
-} 
+}
 
 
 // --------------------------------------------------------

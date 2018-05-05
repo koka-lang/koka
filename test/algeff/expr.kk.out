@@ -14,9 +14,9 @@ ticks: 2
 .Op-failure : forall<a> (s : string) -> .op-failure<a>
 .Op-line : (e : expr) -> .op-line
 .Op-tick : .op-tick
-.Ops-failure: forall<a> (failure : .op-failure<a>) -> .ops-exc
-.Ops-line : (line : .op-line) -> .ops-out
-.Ops-tick : (tick : .op-tick) -> .ops-state
+.Ops-failure: forall<a,b> (failure : .op-failure<b>) -> .ops-exc<b>
+.Ops-line : forall<a> (line : .op-line) -> .ops-out<()>
+.Ops-tick : forall<a> (tick : .op-tick) -> .ops-state<()>
 .tag-exc : string
 .tag-out : string
 .tag-state : string

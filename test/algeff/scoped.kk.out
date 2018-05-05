@@ -18,12 +18,12 @@
 .Op-get : forall<a> .op-get<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>
 .Op-symbol : (s : string) -> .op-symbol
-.Ops-cutfail: forall<a> (cutfail : .op-cutfail<a>) -> .ops-cutfail
-.Ops-fail : forall<a> (fail : .op-fail<a>) -> .ops-nondet
-.Ops-flip : (flip : .op-flip) -> .ops-nondet
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
-.Ops-symbol : (symbol : .op-symbol) -> .ops-symbol
+.Ops-cutfail: forall<a,b> (cutfail : .op-cutfail<b>) -> .ops-cutfail<b>
+.Ops-fail : forall<a,b> (fail : .op-fail<b>) -> .ops-nondet<b>
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-nondet<bool>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
+.Ops-symbol : forall<a> (symbol : .op-symbol) -> .ops-symbol<string>
 .tag-cutfail: string
 .tag-nondet : string
 .tag-state : string

@@ -82,7 +82,7 @@ abstract struct timescale(
 // Only used in special cases for efficiency. For example, when comparing an
 // instant in TAI time to thousands of UTC times, it is more efficient to convert
 // the TAI time to UTC first to avoid converting at each comparision.
-public fun use( i : instant, tscale : timescale ) : instant {
+public fun use-timescale( i : instant, tscale : timescale ) : instant {
   if (i.ts.name == tscale.name) then {
     // already using the right time scale
     i
@@ -166,7 +166,7 @@ public fun round-to-prec(i : instant, prec : int ) : instant {
   elif (i.ts.has-leap-seconds)
    // Round on TAI representation instead; assumes the leap second time scale has SI seconds (which UTC has)
    // TODO: optimize to round first on UTC, and only when necessary convert to TAI
-   then Instant( i.use(ts-tai).since.round-to-prec(prec), ts-tai )
+   then Instant( i.use-timescale(ts-tai).since.round-to-prec(prec), ts-tai )
    else Instant( i.since.round-to-prec(prec), i.ts )
 }
 
@@ -203,7 +203,7 @@ public fun instant-since-epoch( d : duration ) : instant {
 
 // Compare two `:instant`s in time.
 public fun compare( i : instant, j : instant ) : order {
-  compare(i.since, j.use(i.ts).since)
+  compare(i.since, j.use-timescale(i.ts).since)
 }
 
 public fun (<)( i : instant, j : instant )  : bool { compare(i,j) == Lt }
@@ -243,7 +243,7 @@ public fun (-)( i : instant, j : instant ) : duration {
 // Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision.
 // This can be used as an unambigious time stamp.
 public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
-  i.use(ts-tai).show-raw(max-prec,secs-width)
+  i.use-timescale(ts-tai).show-raw(max-prec,secs-width)
 }
 
 // Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name.
