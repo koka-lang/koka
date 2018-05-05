@@ -6,10 +6,10 @@
 .Op-get1 : forall<a> .op-get1<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>
 .Op-put1 : forall<a> (i : a) -> .op-put1<a>
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-get1 : forall<a> (get1 : .op-get1<a>) -> .ops-state1<a>
-.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
-.Ops-put1 : forall<a> (put1 : .op-put1<a>) -> .ops-state1<a>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-get1 : forall<a,b> (get1 : .op-get1<a>) -> .ops-state1<a,a>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
+.Ops-put1 : forall<a,b> (put1 : .op-put1<a>) -> .ops-state1<a,()>
 .tag-state : string
 .tag-state1 : string
 comp : () -> div int

@@ -66,8 +66,8 @@ instance HasFreeTypes a => HasFreeTypes (Maybe a) where
   freeTypes (Just x) = freeTypes x
 
 instance (HasFreeTypes t) => HasFreeTypes (UserCon t u k) where
-  freeTypes (UserCon name exist params nameRng rng vis doc)
-    = freeTypes (map snd params)
+  freeTypes (UserCon name exist params result nameRng rng vis doc)
+    = freeTypes (map snd params) `S.union` freeTypes result
 
 instance (HasFreeTypes t) => HasFreeTypes (ValueBinder t e) where
   freeTypes vb
@@ -299,12 +299,12 @@ groupTypeDefs typeDefs deps
         concatMap makeGroup typeOrder
 
 
-orderedPartition pred xs 
+orderedPartition pred xs
   = part xs ([],[])
   where
     part [] (ys,zs)
       = (reverse ys, reverse zs)
-    part (x:xx) (ys,zs)  
+    part (x:xx) (ys,zs)
       = if (pred x) then part xx (x:ys,zs) else part xx (ys,x:zs)
 
 {-

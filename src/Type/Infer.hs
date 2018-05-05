@@ -916,7 +916,7 @@ inferHandledEffect rng handlerSort mbeff ops
                                       return $ Just rtp
                   Just(_,eff,_) | not (isHandlerResource handlerSort)
                                 -> case extractEffectExtend eff of
-                                    ([l],_) -> return (Just l)
+                                    ((l:_),_) -> return (Just l)  -- TODO: can we assume the effect comes first?
                                     _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
                   _ -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
         _ -> return Nothing

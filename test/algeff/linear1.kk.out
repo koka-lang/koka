@@ -3,8 +3,8 @@
 [00;39;49m[00m42
 .Op-get : forall<a> .op-get<a>
 .Op-put : forall<a> (x : a) -> .op-put<a>
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-state<a>
-.Ops-put : forall<a> (put : .op-put<a>) -> .ops-state<a>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
 .tag-state : string
 foo : () -> (state<int>) int
 get : forall<a> () -> (state<a>) a

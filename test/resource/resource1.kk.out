@@ -7,9 +7,9 @@
 .Op-get : forall<s,a> .op-get<s,a>
 .Op-read : forall<s> .op-read<s>
 .Op-set : forall<s,a> (value : a) -> .op-set<s,a>
-.Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
-.Ops-read : forall<s> (read : .op-read<s>) -> .ops-file<s>
-.Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.Ops-get : forall<s,a,b> (get : .op-get<s,a>) -> .ops-ref<s,a,a>
+.Ops-read : forall<s,a> (read : .op-read<s>) -> .ops-file<s,string>
+.Ops-set : forall<s,a,b> (set : .op-set<s,a>) -> .ops-ref<s,a,()>
 .create-file: forall<s> (int) -> file<s>
 .create-ref : forall<s,a> (int) -> ref<s,a>
 .resource-file: forall<s> (file<s>) -> int

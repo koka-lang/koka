@@ -546,14 +546,17 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do let f kw sort = do (rng,doc) <- dockeyword kw
-                          (ddef,isExtend) <- parseOpenExtend
-                          return (sort,rng,doc,ddef,isExtend)
-       (f "type" (Inductive)
+  = do let f kw  allowRec defsort
+              =do (rng,doc) <- dockeyword kw
+                  sort <- if (allowRec) then do{ keyword "rec"; return Retractive} <|> return defsort
+                           else return defsort
+                  (ddef,isExtend) <- parseOpenExtend
+                  return (sort,rng,doc,ddef,isExtend)
+       (f "type" True (Inductive)
         <|>
-        f "cotype" (CoInductive)
+        f "cotype" False (CoInductive)
         <|>
-        f "rectype" (Retractive))
+        f "rectype" False (Retractive))
 
 parseOpenExtend :: LexParser (DataDef,Bool)
 parseOpenExtend
@@ -585,7 +588,7 @@ constructor defvis foralls resTp
 
 makeUserCon :: Name -> [UserTypeBinder] -> UserType -> [UserTypeBinder] -> [(Visibility,ValueBinder UserType (Maybe UserExpr))] -> Range -> Range -> Visibility -> String -> (UserCon UserType UserType UserKind, [UserDef])
 makeUserCon con foralls resTp exists pars nameRng rng vis doc
-  = (UserCon con exists conParams nameRng rng vis doc
+  = (UserCon con exists conParams Nothing nameRng rng vis doc
     ,if (any (isJust . binderExpr . snd) pars) then [creator] else [])
   where
     conParams
@@ -652,6 +655,7 @@ effectDecl dvis
             do (vis,vrng) <- visibility dvis
                (erng,doc) <- dockeyword "effect"
                return (vis,vis,vrng,erng,doc))
+       sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
        singleShot <- do{ specialId "linear"; return True} <|> return False
        isResource <- do{ specialId "resource"; return True} <|> return False
        (id,irng) <- typeid
@@ -691,7 +695,7 @@ effectDecl dvis
                           Nothing -> []
                           Just tp ->
                             let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
-                                cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] irng irng vis ""]
+                                cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
                             in cons
 
            effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
@@ -757,21 +761,27 @@ effectDecl dvis
 
            -- define the effect operations type (to be used by the type checker
            -- to find all operation definitions belonging to an effect)
-           opsName   = TypeBinder (toOperationsName id) infkind irng irng
+           opsName   = TypeBinder (toOperationsName id) KindNone irng irng
            opsTp    = tpCon opsName
-           opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
+           opsResTpVar = TypeBinder (newHiddenName "r") (KindCon nameKindStar irng) irng irng
+           -- opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
                       --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
            --extendConName = toEffectConName (tbinderName ename)
+           extraEffects = (case mbResourceInt of
+                             Just _  -> [TpCon nameTpPartial irng]
+                             Nothing -> []) ++
+                          (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
 
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt)
+       (ops,xrng) <- semiBracesRanged (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
 
        let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
            opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
 
            -- declare operations data type (for the type checker)
-           opsTpDecl = DataType opsName tpars opsConDefs rng vis Inductive DataDefNormal False "// internal data type to group operations belonging to one effect"
+           opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
+                           rng vis sort DataDefNormal False "// internal data type to group operations belonging to one effect"
 
        return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
                   effResourceDecls ++
@@ -779,8 +789,8 @@ effectDecl dvis
                   map DefValue opDefs
 
 
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
-operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
+operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects
   = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
        (id,idrng)   <- identifier
        exists0      <- typeparams
@@ -788,10 +798,8 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
        keyword ":"
        (mbteff,tres) <- tresult
        teff <- case mbteff of
-                 Nothing  -> return $ makeEffectExtend idrng effTp
-                              (case mbResourceInt of
-                                 Nothing -> makeEffectEmpty idrng
-                                 Just _  -> makeEffectExtend idrng (TpCon nameTpPartial idrng) (makeEffectEmpty idrng))
+                 Nothing  -> return $
+                              foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
                  Just etp -> -- TODO: check if declared effect is part of the effect type
                              -- return etp
                              fail "an explicit effect in result type of an operation is not allowed (yet)"
@@ -814,18 +822,19 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt
 
            conName  = toOpConName id
            conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
-           conDef   = UserCon conName [] conParams idrng rng vis ""
+           conDef   = UserCon conName [] conParams Nothing idrng rng vis ""
 
            -- Declare the operation as a struct type with one constructor
            opTpDecl = -- trace ("declare op type: " ++ show opName) $
                       DataType opBinder ({-tpBindE:-}foralls ++ exists) [conDef] rng vis Inductive DataDefNormal False doc
 
            -- Declare the operation constructor for part of the full operations data type
-           tpParams    = [TpVar (tbinderName par) idrng | par <- foralls ++ exists]
-           opsConTpRes = makeTpApp opsTp tpParams rng
+           forallParams= [TpVar (tbinderName par) idrng | par <- foralls]
+           tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
+           opsConTpRes = makeTpApp opsTp (forallParams ++ [tres]) rng
            opsConTpArg = makeTpApp (tpCon opBinder) ({-effTp:-}tpParams) rng
            opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
-           opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] idrng rng vis ""
+           opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] (Just opsConTpRes) idrng rng vis ""
 
            -- Declare the operation tag name
            opTagName    = toOpenTagName opName

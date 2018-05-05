@@ -8,7 +8,7 @@
 // --------------------------------------------------------
 
 type player {
-  Bob 
+  Bob
   Alice
 }
 
@@ -114,7 +114,7 @@ fun testGt() {
 // --------------------------------------------------------
 
 effect cheating {
-  fun cheat(player:player) : a
+  fun cheat<a>(player:player) : a
 }
 
 val cheatReport = handler {
@@ -132,7 +132,7 @@ val check = handler {
   }
 }
 
-fun testCheck() { 
+fun testCheck() {
   perfect{ cheatReport { check{ game(7) }  } } // alice
 }
 
@@ -149,11 +149,11 @@ val pc = handler {
   }
 }
 
-fun testPc1() { 
+fun testPc1() {
   pc { cheatReport { check{ game(12) } } }  // exn: bob cheats
 }
 
-fun testPc2() { 
+fun testPc2() {
   perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
@@ -232,7 +232,7 @@ val printer = handler {
 
 fun printBoard( gs : gstate ) : io () {
   gs.mymap( fun(ps) {
-    ps.fst.show + " -> " + ps.snd.show 
+    ps.fst.show + " -> " + ps.snd.show
   }).join("\n").println
 }
 
@@ -253,7 +253,7 @@ fun testPrint2() {
 
 fun main() {
   [""
-  ,testPerfect1().show 
+  ,testPerfect1().show
   ,testPerfect2().show
   ,testGt().show
   ,testCheck().show

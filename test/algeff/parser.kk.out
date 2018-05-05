@@ -7,9 +7,9 @@
 .Op-fail : forall<a> .op-fail<a>
 .Op-flip : .op-flip
 .Op-satisfy : forall<a> (pred : (string) -> maybe<(a, string)>) -> .op-satisfy<a>
-.Ops-fail : forall<a> (fail : .op-fail<a>) -> .ops-many
-.Ops-flip : (flip : .op-flip) -> .ops-many
-.Ops-satisfy: forall<a> (satisfy : .op-satisfy<a>) -> .ops-parse
+.Ops-fail : forall<a,b> (fail : .op-fail<b>) -> .ops-many<b>
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-many<bool>
+.Ops-satisfy: forall<a,b> (satisfy : .op-satisfy<b>) -> .ops-parse<b>
 .tag-many : string
 .tag-parse : string
 alpha : () -> parse int

@@ -18,19 +18,19 @@ module Common.Name
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
           , qualify, unqualify, isQualified, qualifier
           , nameId, nameModule
-          
+
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName
           , newHiddenName, isHiddenName
           , makeHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
-          , toOperationsName, fromOperationsName
+          , toOperationsName, fromOperationsName, isOperationsName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , splitModuleName, unsplitModuleName
-          
+
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath
           ) where
@@ -51,7 +51,7 @@ type Names = [Name]
 -- such that they can be compared too. (h1 > h2 => name1 > name2)
 -- The hash is case-insensitive, just like comparisions on names.
 -- Use 'nameCaseEqual' for case-sensitive comparisions.
-data Name  = Name 
+data Name  = Name
              { nameModule :: !String
              , hashModule :: !Int
              , nameId     :: !String
@@ -62,14 +62,14 @@ nameCaseEqual name1 name2 -- (Name m1 _ n1 _) (Name m2 _ n2 _)
   = nameId name1 == nameId name2
     &&
     and (zipWith (==) (reverse (splitModuleName name1)) (reverse (splitModuleName name2)))
-    -- (m1 == m2) && (n1 == n2) 
+    -- (m1 == m2) && (n1 == n2)
 
 nameCaseOverlap :: Name -> Name -> Bool
-nameCaseOverlap name1 name2 
-  = (not (nameCaseEqual name1 name2)) && (isSameNamespace name1 name2)  
+nameCaseOverlap name1 name2
+  = (not (nameCaseEqual name1 name2)) && (isSameNamespace name1 name2)
 
 -- Checks whether both names are in the same namespace, ie. constructors or not
-isSameNamespace name1 name2  
+isSameNamespace name1 name2
   = case (nameId name1, nameId name2) of
       (c:cs, d:ds) -> (isUpper c == isUpper d)
       _            -> True
@@ -79,7 +79,7 @@ lowerCompare (Name m1 _ n1 _) (Name m2 _ n2 _)
       EQ -> lowerCompareS n1 n2
       lg -> lg
   where
-    lowerCompareS (c:cs) (d:ds)  
+    lowerCompareS (c:cs) (d:ds)
       = case compare (toLower c) (toLower d) of
           EQ -> lowerCompareS cs ds
           lg -> lg
@@ -90,7 +90,7 @@ lowerCompare (Name m1 _ n1 _) (Name m2 _ n2 _)
 instance Eq Name where
   n1@(Name _ hm1 _ hn1) == n2@(Name _ hm2 _ hn2)
     = (hn1 == hn2) && (hm1 == hm2) && (lowerCompare n1 n2 == EQ)
-      
+
 instance Ord Name where
   compare n1@(Name _ hm1 _ hn1) n2@(Name _ hm2 _ hn2)
     = case compare hm1 hm2 of
@@ -98,10 +98,10 @@ instance Ord Name where
                 EQ -> lowerCompare n1 n2
                 lg -> lg
         lg -> lg
-      
+
 instance Show Name where
-  show (Name m _ n _) 
-    = if null m 
+  show (Name m _ n _)
+    = if null m
        then n
        else m ++ "/" ++ case n of
                           (c:cs) | not (isAlpha c || c=='_' || c=='(') -> "(" ++ n ++ ")"
@@ -129,7 +129,7 @@ newQualified m n
     --  1) can be compared: h1 < h2  => name1 < name2 && h1 > h2 => name1 > name2
     --  2) assumes 32 bit integers and no characters in strings >= \x128
     --  3) is case in-sensitive (ie. does tolower first)
-    -- The hash is done taking the first 4 characters. This is of course a 
+    -- The hash is done taking the first 4 characters. This is of course a
     -- terrible hash but we use it mostly to speed up *comparisions* for the NameMap
     hash :: String -> Int
     hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 s))
@@ -158,7 +158,7 @@ isQualified (Name m _ _ _)
   = not (null m)
 
 qualifier :: Name -> Name
-qualifier (Name m hm _ _) 
+qualifier (Name m hm _ _)
   = Name "" 0 m hm
 
 
@@ -168,7 +168,7 @@ qualifier (Name m hm _ _)
 splitModuleName :: Name -> [Name]
 splitModuleName name
   = if (isQualified name) then splitModuleName (qualifier name)
-     else map newName $ splitOn (=='/') (show name) 
+     else map newName $ splitOn (=='/') (show name)
 
 unsplitModuleName :: [Name] -> Name
 unsplitModuleName xs
@@ -253,7 +253,12 @@ newCreatorName name
 toOperationsName :: Name -> Name
 toOperationsName name
   = makeHiddenName "ops" name
-  
+
+-- | Is this an operations name?
+isOperationsName :: Name -> Bool
+isOperationsName name
+  = nameId name `startsWith` ".ops-"
+
 -- | Create an effect type name from an operations type name.
 fromOperationsName :: Name -> Name
 fromOperationsName name
@@ -263,12 +268,12 @@ fromOperationsName name
 toOpTypeName :: Name -> Name
 toOpTypeName name
   = makeHiddenName "op" name
-  
+
 -- | Create an operation constructor name from an operation name.
 toOpConName :: Name -> Name
 toOpConName name
   = makeHiddenName "Op" name
-  
+
 -- | Create an operations operation constructor.
 toOpsConName :: Name -> Name
 toOpsConName name
@@ -277,7 +282,7 @@ toOpsConName name
 -- | Create an open tag name from a constructor name in an open type
 toOpenTagName :: Name -> Name
 toOpenTagName name
-  = makeHiddenName "tag" name  
+  = makeHiddenName "tag" name
 
 isOpenTagName :: Name -> Bool
 isOpenTagName name
@@ -285,8 +290,8 @@ isOpenTagName name
 
 prepend :: String -> Name -> Name
 prepend s name
-  = newQualified (nameModule name) 
-    (case nameId name of 
+  = newQualified (nameModule name)
+    (case nameId name of
       ('.':t) -> case s of
                    '.':_ -> s ++ t  -- keep hidden names hidden
                    _     -> '.' : s ++ t
@@ -316,9 +321,9 @@ splitCamel (c:cs)
              in if (null pre2 || (not (null post2) && isBreak (head post2)))
                  then (c:pre2) : splitCamel post2
                  else (c:init pre2) : splitCamel (last pre2 : post2)
-        else (c:pre) : splitCamel post 
+        else (c:pre) : splitCamel post
   where
-    isBreak c = isUpper c || c=='-' 
+    isBreak c = isUpper c || c=='-'
 
 ----------------------------------------------------------------
 -- name to file path
@@ -330,13 +335,13 @@ moduleNameToPath name
 {---------------------------------------------------------------
   Ascii encode a name
   - on module names  '/' becomes '_'
-  - on normal names '-' becomes '_' 
+  - on normal names '-' becomes '_'
 ---------------------------------------------------------------}
 asciiEncode :: Bool -> String -> String
 asciiEncode isModule name
   = case name of
       (c:cs)  | isAlphaNum c -> encodeChars name
-      ""      -> "_null_"       
+      ""      -> "_null_"
       ".<>"   -> "_Total_"
       ".<|>"  -> "_Extend_"
       ".()"   -> "_Unit_"
@@ -365,9 +370,9 @@ asciiEncode isModule name
 
           '_' -> "__"
           '.' -> "_dot_"
-          '-' -> "_dash_"   
+          '-' -> "_dash_"
           '/' -> "_fs_"
-          
+
           '+' -> "_plus_"
           '*' -> "_star_"
           '&' -> "_amp_"
@@ -396,7 +401,7 @@ asciiEncode isModule name
           '{'  -> "_lc_"
           '}'  -> "_rc_"
           '|'  -> "_bar_"
-            
+
           _   -> "_x" ++ showHex 2 (fromEnum c) ++ "_"
 
 
@@ -408,11 +413,10 @@ showHex len i
   where
     showHexChar :: Int -> Char
     showHexChar d  | d <= 9    = toEnum (d + fromEnum '0')
-                   | otherwise = toEnum (d - 10 + fromEnum 'A')  
+                   | otherwise = toEnum (d - 10 + fromEnum 'A')
 
     hexDigits :: Int -> [Int]
     hexDigits i
       = let (d,m) = i `divMod` 16
         in if d == 0 then [m]
                      else m : hexDigits d
-

@@ -3,8 +3,8 @@
 [00;39;49m[00m42
 .Op-get : forall<a> .op-get<a>
 .Op-set : forall<a> (value : a) -> .op-set<a>
-.Ops-get : forall<a> (get : .op-get<a>) -> .ops-heap<a>
-.Ops-set : forall<a> (set : .op-set<a>) -> .ops-heap<a>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-heap<a,a>
+.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-heap<a,()>
 .tag-heap : string
 get : forall<a> () -> (heap<a>) a
 main : () -> console ()

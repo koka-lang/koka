@@ -2,8 +2,8 @@
 [00;39;49m[00m[01;30moperator branch (choose-all) fail: resume never
 [00;39;49m[00m.Op-fail : forall<a> .op-fail<a>
 .Op-pick : (n : int) -> .op-pick
-.Ops-fail : forall<a> (fail : .op-fail<a>) -> .ops-choose
-.Ops-pick : (pick : .op-pick) -> .ops-choose
+.Ops-fail : forall<a,b> (fail : .op-fail<b>) -> .ops-choose<b>
+.Ops-pick : forall<a> (pick : .op-pick) -> .ops-choose<int>
 .tag-choose : string
 append-safe : (queen : int, xs : solution, xss : solutions) -> div solutions
 choose-all : forall<a,e> (action : () -> <choose|e> a) -> e list<a>

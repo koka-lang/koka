@@ -2,7 +2,7 @@
 [00;39;49m[00m42
 .Con-File : forall<s> (resource<filesys<s>>) -> file<s>
 .Op-read : forall<s> .op-read<s>
-.Ops-read : forall<s> (read : .op-read<s>) -> .ops-file<s>
+.Ops-read : forall<s,a> (read : .op-read<s>) -> .ops-file<s,string>
 .create-file: forall<s> (int) -> file<s>
 .resource-file: forall<s> (file<s>) -> int
 .tag-file : string

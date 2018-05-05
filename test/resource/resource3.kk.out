@@ -4,8 +4,8 @@
 .Con-Ref : forall<s,a> (resource<heap<s>>) -> ref<s,a>
 .Op-get : forall<s,a> .op-get<s,a>
 .Op-set : forall<s,a> (value : a) -> .op-set<s,a>
-.Ops-get : forall<s,a> (get : .op-get<s,a>) -> .ops-ref<s,a>
-.Ops-set : forall<s,a> (set : .op-set<s,a>) -> .ops-ref<s,a>
+.Ops-get : forall<s,a,b> (get : .op-get<s,a>) -> .ops-ref<s,a,a>
+.Ops-set : forall<s,a,b> (set : .op-set<s,a>) -> .ops-ref<s,a,()>
 .create-ref : forall<s,a> (int) -> ref<s,a>
 .resource-ref: forall<s,a> (ref<s,a>) -> int
 .tag-heap : string

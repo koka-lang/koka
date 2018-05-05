@@ -54,6 +54,7 @@ import Kind.Synonym
 import Type.Type
 import Type.Assumption
 import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->) )
+import Type.Pretty
 
 import Kind.InferKind
 import Kind.InferMonad
@@ -601,9 +602,8 @@ infTypeDef (tbinder, Synonym syn args tp range vis doc)
        return (Synonym tbinder' infgamma tp' range vis doc)
 
 infTypeDef (tbinder, td@(DataType newtp args constructors range vis sort ddef isExtend doc))
-  = -- trace ("inf datatype: " ++ show (tbinderName newtp)) $
-    do infgamma <- mapM bindTypeBinder args
-       constructors' <- extendInfGamma infgamma (mapM infConstructor constructors)
+  = do infgamma <- mapM bindTypeBinder args
+       constructors' <-  extendInfGamma infgamma (mapM infConstructor constructors)
        -- todo: unify extended datatype kind with original
        reskind <- if dataDefIsOpen ddef then return infKindStar else freshKind
        tbinder' <- unifyBinder tbinder newtp range infgamma reskind
@@ -620,10 +620,14 @@ unifyBinder tbinder defbinder range infgamma reskind
 typeBinderKind (TypeBinder name kind _ _) = kind
 
 infConstructor :: UserCon UserType UserType UserKind -> KInfer (UserCon (KUserType InfKind) UserType InfKind)
-infConstructor (UserCon name exist params rngName rng vis doc)
+infConstructor (UserCon name exist params mbresult rngName rng vis doc)
   = do infgamma <- mapM bindTypeBinder exist
        params'  <- extendInfGamma infgamma (mapM infConValueBinder params)
-       return (UserCon name infgamma params' rngName rng vis doc)
+       result'  <- case mbresult of
+                     Nothing -> return Nothing
+                     Just tp -> do tp' <- extendInfGamma infgamma $ infUserType infKindStar (Check "Constructor results must be values" rng) tp
+                                   return (Just tp')
+       return (UserCon name infgamma params' result' rngName rng vis doc)
 
 infConValueBinder :: (Visibility,ValueBinder UserType (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType)))
 infConValueBinder (vis,ValueBinder name tp mbExpr nameRng rng)
@@ -770,10 +774,12 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        let (constructors',infos) = unzip consinfos
        if (sort == Retractive)
         then return ()
-        else if (any (occursNegative recNames) (concatMap (map snd . conInfoParams) infos))
+        else let effNames = concatMap fromOpsName recNames
+                 fromOpsName nm = if (isOperationsName nm) then [fromOperationsName nm] else []
+             in if (any (occursNegativeCon (recNames ++ effNames)) (infos))
               then do cs <- getColorScheme
                       addError range (text "Type" <+> color (colorType cs) (pretty (unqualify (getName newtp'))) <+> text "is declared as being (co)inductive but it occurs" <-> text " recursively in a negative position." <->
-                                     text " hint: declare it as a 'rectype' to allow negative occurrences")
+                                     text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
@@ -783,7 +789,14 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' doc
        return (Core.Data dataInfo vis (map conVis constructors) isExtend)
   where
-    conVis (UserCon name exist params rngName rng vis _) = vis
+    conVis (UserCon name exist params result rngName rng vis _) = vis
+
+occursNegativeCon :: [Name] -> ConInfo -> Bool
+occursNegativeCon names conInfo
+  = let (_,_,rho) = splitPredType (conInfoType conInfo)
+    in case splitFunType rho of
+         Just (pars,eff,res) -> any (occursNegative names) (map snd pars) || occursNegative names res
+         Nothing -> False
 
 occursNegative :: [Name] -> Type -> Bool
 occursNegative names tp
@@ -793,8 +806,12 @@ occurs :: [Name] -> Bool -> Type -> Bool
 occurs names isNeg tp
   = case tp of
       TForall vars preds tp   -> occurs names isNeg tp
-      TFun args effect result -> any (occurs names (not isNeg)) (map snd args) || occurs names (not isNeg) effect || occurs names isNeg result
-      TCon tcon               -> if (typeConName tcon `elem` names) then isNeg else False
+      TFun args effect result -> any (occurs names (not isNeg)) (map snd args) || occurs names (not isNeg) effect
+                                       || occurs names isNeg result
+      TCon tcon               -> -- trace ("con name: " ++ show (typeConName tcon)) $
+                                 if (typeConName tcon `elem` names) then isNeg
+                                  -- else if (toOperationsName (typeConName tcon) `elem` names) then isNeg
+                                    else False
       TVar tvar               -> False
       TApp tp args            -> any (occurs names isNeg) (tp:args)
       TSyn syn xs tp          -> occurs names isNeg tp
@@ -828,18 +845,19 @@ resolveKind infkind
     resolve (KIApp k1 k2) = KApp (resolve k1) (resolve k2)
 
 resolveConstructor :: Name -> DataKind -> Bool -> Type -> [TypeVar] -> M.NameMap TypeVar -> UserCon (KUserType InfKind) UserType InfKind -> KInfer (UserCon Type Type Kind, ConInfo)
-resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (UserCon name exist params rngName rng vis doc)
+resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (UserCon name exist params mbResult rngName rng vis doc)
   = do qname  <- qualifyDef name
        exist' <- mapM resolveTypeBinder exist
        existVars <- mapM (\ename -> freshTypeVar ename Bound) exist'
        let idmap' = M.union (M.fromList (zip (map getName exist) existVars)) idmap  -- ASSUME: left-biased union
        params' <- mapM (resolveConParam idmap') params -- mapM (resolveType idmap' False) params
-       let result = typeApp typeResult (map TVar typeParams)
-           scheme = quantifyType (typeParams ++ existVars) $
-                    if (null params') then result else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result
-       addRangeInfo rngName (Id qname (NICon scheme) True)
+       result' <- case mbResult of
+                    Nothing -> return $ typeApp typeResult (map TVar typeParams)
+                    Just tp -> resolveType idmap' False tp
+       let scheme = quantifyType (typeParams ++ existVars) $
+                    if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
-       return (UserCon qname exist' params' rngName rng vis doc
+       return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params')))
                   scheme

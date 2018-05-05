@@ -1,7 +1,7 @@
 [01;30moperator branch (amb_handle) flip: resume scoped
 [00;39;49m[00mFalse,True,True,False
 .Op-flip : .op-flip
-.Ops-flip : (flip : .op-flip) -> .ops-amb
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
 .tag-amb : string
 amb_handle : forall<a,e> () -> ((action : () -> <amb|e> a) -> e list<a>)
 flip : () -> amb bool
