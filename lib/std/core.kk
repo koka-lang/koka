@@ -2723,8 +2723,13 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 // The predicate `:hdiv<h,a,e>` signifies that if the type `:a` contains a reference to `:h`,
 // then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
 // when writing to the heap (see `(!)`) and is necessary to catch cases where code can diverge
-// by storing selfReferential funs in the heap.
+// by storing self referential functions in the heap.
 type hdiv :: (H,V,E) -> P
+
+// The predicate `:ediv<x,a,e>` signifies that if the type `:a` contains a reference to effect constant `:x",
+// then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
+// for operations on first-class effects where code can diverge through operations.
+type ediv :: (X,V,E) -> P
 
 // A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 type ref :: (H,V) -> V

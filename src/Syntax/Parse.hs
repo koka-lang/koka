@@ -312,7 +312,7 @@ externDecl dvis
                    (teff,tres)   <- annotResult
                    let tp = typeFromPars nameRng pars teff tres
                    genParArgs tp -- checks the type
-                   return (pars,genArgs pars,tp,\body -> promote [] tpars (Just (Just teff, tres)) body)
+                   return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
            (exprs,rng) <- externalBody
            if (isInline)
             then return [DefExtern (External name tp nameRng (combineRanges [vrng,krng,rng]) exprs vis doc)]
@@ -797,7 +797,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
        (pars,prng)  <- conPars vis
        keyword ":"
        (mbteff,tres) <- tresult
-       teff <- case mbteff of
+       teff0 <- case mbteff of
                  Nothing  -> return $
                               foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
                  Just etp -> -- TODO: check if declared effect is part of the effect type
@@ -818,7 +818,16 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
 
 
            exists   = if (not (null exists0)) then exists0
-                       else promoteFree foralls (map (binderType . snd) pars ++ [teff,tres])
+                       else promoteFree foralls (map (binderType . snd) pars ++ [teff0,tres])
+           -- for now add a divergence effect to named effects/resources when there are type variables...
+           -- this is too conservative though; we should generate the `ediv` constraint instead but
+           -- that is a TODO for now
+           teff     = if (not (null (foralls ++ exists)) && isJust mbResourceInt && all notDiv extraEffects)
+                       then makeEffectExtend idrng (TpCon nameTpDiv idrng) teff0
+                       else teff0
+                    where
+                      notDiv (TpCon name _) = name /= nameTpDiv
+                      notDiv _              = True
 
            conName  = toOpConName id
            conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
@@ -932,20 +941,22 @@ funDecl rng doc vis
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
-       (tpars,pars,parsRng,mbtres,ann) <- funDef
+       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body   <- bodyexpr
-       let fun = promote spars tpars mbtres
+       let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
-funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType), UserExpr -> UserExpr)
+funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
 funDef
   = do tpars  <- typeparams
        (pars,rng) <- parameters True
        resultTp <- annotRes
-       -- todo: qualifiers
-       return (tpars,pars,rng,resultTp,id)
+       preds <- do keyword "with"
+                   parens (many1 predicate)
+                <|> return []
+       return (tpars,pars,rng,resultTp,preds,id)
 
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
@@ -1486,9 +1497,9 @@ funblock
 funexpr
   = do rng <- keyword "fun.anon" <|> keyword "function.anon"
        spars <- squantifier
-       (tpars,pars,parsRng,mbtres,ann) <- funDef
+       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body <- block
-       let fun = promote spars tpars mbtres
+       let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (ann fun)
 

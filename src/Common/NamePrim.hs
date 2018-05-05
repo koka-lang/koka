@@ -84,7 +84,7 @@ module Common.NamePrim
 
           , nameTuple, isNameTuple
 
-          , namePredHeapDiv
+          , namePredHeapDiv, namePredEffDiv
 
           -- * Kind constructors
           , nameKindStar, nameKindFun
@@ -123,6 +123,9 @@ nameUnit        = preludeName "()"
 
 namePredHeapDiv :: Name
 namePredHeapDiv = preludeName "hdiv"
+
+namePredEffDiv :: Name
+namePredEffDiv = preludeName "ediv"
 
 nameReturn :: Name
 nameReturn = preludeName ".return"

@@ -24,7 +24,7 @@ module Syntax.Promote( promote, promoteType, quantify, promoteFree ) where
 
 import Data.List( partition )
 import Common.NamePrim( nameTpOptional, nameEffectEmpty, nameEffectExtend )
-import Common.Name
+import Common.Name hiding (qualify)
 import Common.Range
 import qualified Common.NameSet as S
 import Syntax.Syntax
@@ -52,31 +52,31 @@ promoteFree bound tps
 
   function some(a) forall(b) foo( x : a, y : b, z ) : c { .. }
 
-  ~> 
+  ~>
 
   foo : some(a,a1) forall(b,c) (a,b,a1) -> total c  = fun(x,y,z){ .. }
 --------------------------------------------------------------------------}
 
-promote :: [TypeBinder UserKind] -> [TypeBinder UserKind] -> Maybe (Maybe UserType,UserType) -> UserExpr -> UserExpr
-promote somePars forallPars mbResTp expr
+promote :: [TypeBinder UserKind] -> [TypeBinder UserKind] -> [UserType] -> Maybe (Maybe UserType,UserType) -> UserExpr -> UserExpr
+promote somePars forallPars preds mbResTp expr
   = let (argresTps,expr') = argresTypes expr
     in if (all (isRight . snd) argresTps)
         then -- no annotation, no promotion
              expr
-        else promoteEx somePars forallPars argresTps expr'
-  where 
+        else promoteEx somePars forallPars preds argresTps expr'
+  where
     isRight (Right rng) = True
     isRight (Left tp)   = False
 
     argresTypes :: UserExpr -> ([(Name,Either UserType Range)],UserExpr)
     argresTypes (Parens expr r)     = let (es,expr') = argresTypes expr in (es,Parens expr' r)
     argresTypes (Ann expr tp r)     = let (es,expr') = argresTypes expr in (es,Ann expr' tp r)
-    argresTypes (Lam args expr rng) = let (es,expr') = resType expr 
+    argresTypes (Lam args expr rng) = let (es,expr') = resType expr
                                           (fs,args') = unzip (map (\binder
                                                                       -> case binderType binder of
-                                                                          Nothing -> ((binderName binder, Right rng), binder) 
-                                                                          Just tp -> 
-                                                                            let optTp = case binderExpr binder of 
+                                                                          Nothing -> ((binderName binder, Right rng), binder)
+                                                                          Just tp ->
+                                                                            let optTp = case binderExpr binder of
                                                                                           Nothing -> tp
                                                                                           Just _  -> TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
                                                                             in ((binderName binder, Left optTp), binder{binderType = Nothing})) args)
@@ -87,7 +87,7 @@ promote somePars forallPars mbResTp expr
     resType :: Expr UserType -> ([(Name,Either UserType Range)],Expr UserType)
     resType (Parens expr r)     = let (es,expr') = resType expr in (es,Parens expr' r)
     {-
-    resType (Ann expr tp rng)   = case mbResTp of 
+    resType (Ann expr tp rng)   = case mbResTp of
                                     Just (teff,tres) -> ([Left teff, Left tres], Ann expr tp rng)
                                     Nothing          -> ([Right (getRange tp), Left tp], Ann expr tp rng)
     -}
@@ -96,12 +96,12 @@ promote somePars forallPars mbResTp expr
                                     Nothing            -> ([(nameNil, Right (getRange expr)), (nameNil, Right (getRange expr))],expr)
 
 
-promoteEx :: [TypeBinder UserKind] -> [TypeBinder UserKind] -> [(Name,Either UserType Range)] -> UserExpr -> UserExpr
-promoteEx somePars forallPars argresTypes body
+promoteEx :: [TypeBinder UserKind] -> [TypeBinder UserKind] -> [UserType] -> [(Name,Either UserType Range)] -> UserExpr -> UserExpr
+promoteEx somePars forallPars preds argresTypes body
   = let -- promote quantified variables of TpCon to TpVar
         quantified   = S.fromList (map getName somePars) `S.union` S.fromList (map getName forallPars)
         argresTypes1 = map (promoteTVars quantified) argresTypes
-        
+
         -- create full type by inserting some types if no parameter was annotated
         (namess,argresTypes2) = unzip (map insertSome (zip [1..] argresTypes1))
         (resType:effType:rargTypes) = reverse argresTypes2
@@ -116,8 +116,9 @@ promoteEx somePars forallPars argresTypes body
         (impSome,impForall) = partition isSomeVar implicit
         fullTp = quantify QSome (somePars ++ (map toTypeBinder (names ++ impSome))) $
                  quantify QForall (forallPars ++ (map toTypeBinder impForall)) $
+                 qualify preds $
                  funTp
-     in 
+     in
         Ann body fullTp (combineRanged body fullTp)
 
   where
@@ -157,6 +158,9 @@ extract tp
            in (lab:labs,tl)
       _ -> ([],tp)
 
+qualify [] tp = tp
+qualify preds tp = TpQual preds tp
+
 quantify :: UserQuantifier -> [UserTypeBinder] -> UserType -> UserType
 quantify quan tbinders tp
   = foldr (\tb t -> TpQuan quan tb t (combineRanged tb t)) tp tbinders
@@ -166,7 +170,7 @@ toTypeBinder name
   = TypeBinder name KindNone rangeNull rangeNull
 
 promoteTVars :: S.NameSet -> (Name,Either UserType Range) -> (Name,Either UserType Range)
-promoteTVars vars (name,Right rng) 
+promoteTVars vars (name,Right rng)
   = (name,Right rng)
 promoteTVars vars (name,Left tp)
   = (name, Left (promoteTpVars vars tp))
@@ -182,4 +186,3 @@ promoteTpVars vars tp
      TpCon      name rng            -> if (S.member name vars) then TpVar name rng else TpCon name rng
      TpParens   tp range            -> TpParens (promoteTpVars vars tp) range
      TpAnn      tp kind             -> TpAnn (promoteTpVars vars tp) kind
-  

@@ -3,8 +3,6 @@
 // --------------------------------------------------------
 effect heap { }
 
-// type ediv :: (X,V,E) -> P
-
 val heap = handler<heap>{ }
 
 effect resource ref<a> in heap {
@@ -17,14 +15,13 @@ val new-ref = handler resource (s) {
   set(x) -> resume((),x)
 }
 
-fun bypass( r : ref<int>, action : () -> <heap|e> a ) : <heap|e> a {
-  handle resource r (action) {
-    get() -> resume(42)
-    set(_x) -> resume(())
-  }
+/*
+fun xget( r : ref<a> ) : <heap,exn|e> a  with (ediv<handled<heap>,a,e>) {
+    get(r)
 }
+*/
 
-fun recurse() {
+fun recurse()  {
   use r = new-ref(id)
   fun foo(i : int) {
     println(".")
