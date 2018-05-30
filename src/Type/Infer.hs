@@ -955,7 +955,8 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
 
        -- build up the type of the action parameter
-       let actionEffect   = if (not (isHandlerDeep handlerSort)) then effect else effectExtend handledEffect effect
+       let actionEffect   = if (not (isHandlerDeep handlerSort) || isHandlerResource handlerSort)
+                             then effect else effectExtend handledEffect effect
 
            actionPars     = case handlerSort of
                               HandlerResource Nothing -> [(newName "resource", handledEffect)]
@@ -968,12 +969,13 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                                   [(newName "resource-tag", typeInt)]
                               _ -> []
            actionPar      = (newName "action",TFun actionPars ({-effectExtend typeCps-} actionEffect) retInTp)
-           resumeEffect   = if (isHandlerResource handlerSort) then actionEffect else effect
+           resumeEffect   = effect -- if (isHandlerResource handlerSort) then actionEffect else effect
 
        traceDoc $ \env -> text "inferHandlerBranches:" <+>
                           text ", branchTp:" <+> ppType env branchTp <+>
                           text ", handledEffect:" <+> ppType env handledEffect <+>
                           text ", actionEffect:" <+> ppType env actionEffect <+>
+                          text ", resumeEffect:" <+> ppType env resumeEffect <+>
                           text ", locals: " <+> list (map (pretty . fst) locals)
 
 
@@ -1067,10 +1069,13 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        let (parTps,effTp0,resTp) = splitOpTp rho
        -- remove `exn` effect from resource operations in `effTp`
        effTp <- if (not (isHandlerResource handlerSort)) then return effTp0
-                 else do e <- freshEffect
+                 else freshEffect -- TODO: don't forget about `div`? I think it is ok since only the operations can cause divergence.
+                      {- do e <- freshEffect
                          let etp = effectExtend (TCon (TypeCon nameTpPartial kindEffect)) e
                          inferUnify (Infer nameRng) nameRng effTp0 etp
                          subst e
+                         -}
+
 
        -- get operator constructor type: .op-set<s>
        (conTp,ctvars,_) <- instantiate rng gconTp

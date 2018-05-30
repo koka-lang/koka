@@ -2993,6 +2993,10 @@ extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-resource
   js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
+extern ".yieldop-x2"<a,b,x1,x2>( effect-name : string, op-name : string, op-resource : int, op-idx : int, op : a, def1 : maybe<x1>, def2 : maybe<x2> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
+  js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
+}
+
 type resume-context<a,e::E,b>
 type resume-context1<a,e::E,b,l>
 
