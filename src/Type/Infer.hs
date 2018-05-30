@@ -68,7 +68,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -737,7 +737,8 @@ inferExpr propagated expect (Inject label expr rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
        (coreEffName,isHandled,effName) <- effectNameCore label rng
-       let effTo      = effectExtend label exprEff
+       effTo <- subst (effectExtend label eff)
+       -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff
        core <- if (isHandled)
                  -- general handled effects use ".inject-effect"
                  then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 2 []) rng rng
@@ -2269,7 +2270,7 @@ matchFun nArgs mbType
                            Just (args,eff,res)
                             -> let m = length args
                                in -- can happen: see test/type/wrong/hm4 and hm4a
-															    --assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
+                                  --assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
                                   return (take nArgs (map Just args ++ replicate (nArgs - m) Nothing), Just (eff,rng), Just (res,rng), if isRho res then Instantiated else Generalized)
 
 monotonic :: [Int] -> Bool
