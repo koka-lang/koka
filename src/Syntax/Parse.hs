@@ -708,7 +708,7 @@ effectDecl dvis
                   let createDef =
                           let createName = makeHiddenName "create" id
                               nameCreateResource = newQualified "std/core" ".Resource"
-                              body= App (Var effConName False irng)
+                              body = App (Var effConName False irng)
                                         [(Nothing,App (Var nameCreateResource False irng )
                                                       [(Nothing,Var resName False irng)] irng)]
                                         irng
@@ -774,7 +774,7 @@ effectDecl dvis
 
 
        -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
+       (ops,xrng) <- semiBracesRanged (operation singleShot defvis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
 
        let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
            opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
@@ -787,7 +787,6 @@ effectDecl dvis
                   effResourceDecls ++
                   map DefType opTpDecls ++
                   map DefValue opDefs
-
 
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
 operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects
