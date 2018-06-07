@@ -788,14 +788,22 @@ effectDecl dvis
                   map DefType opTpDecls ++
                   map DefValue opDefs
 
+-- (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+newtype Operation = Operation (String, Name, Range, [TypeBinder UserKind], [(Visibility, ValueBinder UserType (Maybe UserExpr))], Range, (Maybe UserType), UserType)
+
+parseOperation :: Visibility -> LexParser Operation
+parseOperation vis =
+  do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
+     (id,idrng)   <- identifier
+     exists0      <- typeparams
+     (pars,prng)  <- conPars vis
+     keyword ":"
+     (mbteff,tres) <- tresult
+     return $ Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
 operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects
-  = do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
-       (id,idrng)   <- identifier
-       exists0      <- typeparams
-       (pars,prng)  <- conPars vis
-       keyword ":"
-       (mbteff,tres) <- tresult
+  = do Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOperation vis
        teff0 <- case mbteff of
                  Nothing  -> return $
                               foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
