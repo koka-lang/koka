@@ -254,6 +254,8 @@ topdef vis
     do effectDecl vis
   <|>
     do externDecl vis
+  <|>
+    do implicitDecl vis
 
 {---------------------------------------------------------------
   Import declaration
@@ -638,86 +640,44 @@ constructorId
     conid
   <?> "constructor"
 
+  -----------------------------------------------------------
+  -- Implicit Parameter Declarations
+  -----------------------------------------------------------
+  newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range, Maybe UserType, UserType)
 
------------------------------------------------------------
--- Implicit Parameter Declarations
------------------------------------------------------------
-implicitDecl :: Visibility -> LexParser [TopDef]
-implicitDecl dvis =
-    do (vis,defvis,vrng,erng,doc) <-
-          (try $ do
-              (vis,vrng) <- visibility dvis
-              (erng,doc) <- dockeyword "implicit"
-              return (vis,vis,vrng,erng,doc))
-       (id,irng) <- qvarid
-       keyword ":"
-       (mbteff,tres) <- tresult
-       -- TODO actually synthesize operation here.
-       (ops,xrng) <- return ([], irng)
-       return []
+  implicitDecl :: Visibility -> LexParser [TopDef]
+  implicitDecl dvis = do
+    impl <- parseImplicitDecl dvis
+    return $ makeImplicitDecl impl
 
+  parseImplicitDecl :: Visibility -> LexParser ImplicitDecl
+  parseImplicitDecl dvis = do
+    (vis,defvis,vrng,erng,doc) <-
+           (try $ do
+               (vis,vrng) <- visibility dvis
+               (erng,doc) <- dockeyword "implicit"
+               return (vis,vis,vrng,erng,doc))
+    (id,irng) <- qvarid
+    keyword ":"
+    (mbteff,tres) <- tresult
+    return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)
 
---
--- -- (tpars,kind,prng) =  ([],KindNone,rangeNull)
--- let tpars = [] -- TODO add one type parameter here for polymorphic implicits
---     infkind = KindArrow
---     ename   = TypeBinder id infkind irng irng
---     --
---     effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) tpars irng
---     effTp   = TpApp (TpCon nameTpHandled1 (tbinderRange ename)) [effTpH] irng
---     rng     = combineRanges [vrng,erng,irng]
---
---     opEffTp = case mbResource of
---                 Nothing -> effTp
---                 Just rtp -> rtp
---
---     -- declare the effect tag
---     effTagName = toOpenTagName (id ++ "_implicit")
---     effTagDef  = Def (ValueBinder effTagName ()
---                        (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
---                        irng irng) irng vis DefVal ""
---
---     -- declare the effect type (for resources, generate a hidden constructor to check the types)
---     effConName = (makeHiddenName "Con" (toConstructorName id))
---     resName = newHiddenName "res"
---
---
---     effTpCons = case mbResource of
---                    Nothing -> []
---                    Just tp ->
---                      let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
---                          cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
---                      in cons
---
---     effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
---
---     -- define the effect operations type (to be used by the type checker
---     -- to find all operation definitions belonging to an effect)
---     opsName   = TypeBinder (toOperationsName id) KindNone irng irng
---     opsTp    = tpCon opsName
---     opsResTpVar = TypeBinder (newHiddenName "r") (KindCon nameKindStar irng) irng irng
---     -- opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
---                --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
---     --extendConName = toEffectConName (tbinderName ename)
---     extraEffects = (case mbResourceInt of
---                       Just _  -> [TpCon nameTpPartial irng]
---                       Nothing -> [])
---
---
--- -- parse the operations and return the constructors and function definitions
--- (ops,xrng) <- semiBracesRanged (operation True vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
---
--- let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
---     opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
---
---     -- declare operations data type (for the type checker)
---     opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
---                     rng vis False DataDefNormal False "// internal data type to group operations belonging to one effect"
---
--- return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
---            effResourceDecls ++
---            map DefType opTpDecls ++
---            map DefValue opDefs
+  makeImplicitDecl :: ImplicitDecl -> [TopDef]
+  makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
+    let sort = Inductive
+        singleShot = True
+        isResource = False
+        tpars = []
+        kind = KindNone -- TODO is this correct?
+        prng = rangeNull
+        mbResource = Nothing
+        opName = prepend "implicit_" id
+        op = Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
+        decl = EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,id,irng,tpars,kind,prng,mbResource,[op])
+    in makeEffectDecl decl
+
+  implicitVar :: LexParser (Name,Range)
+    = undefined
 
 -----------------------------------------------------------
 -- Effect definitions
