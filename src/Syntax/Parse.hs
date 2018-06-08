@@ -638,158 +638,258 @@ constructorId
     conid
   <?> "constructor"
 
+
+-----------------------------------------------------------
+-- Implicit Parameter Declarations
+-----------------------------------------------------------
+implicitDecl :: Visibility -> LexParser [TopDef]
+implicitDecl dvis =
+    do (vis,defvis,vrng,erng,doc) <-
+          (try $ do
+              (vis,vrng) <- visibility dvis
+              (erng,doc) <- dockeyword "implicit"
+              return (vis,vis,vrng,erng,doc))
+       (id,irng) <- qvarid
+       keyword ":"
+       (mbteff,tres) <- tresult
+       -- TODO actually synthesize operation here.
+       (ops,xrng) <- return ([], irng)
+       return []
+
+
+--
+-- -- (tpars,kind,prng) =  ([],KindNone,rangeNull)
+-- let tpars = [] -- TODO add one type parameter here for polymorphic implicits
+--     infkind = KindArrow
+--     ename   = TypeBinder id infkind irng irng
+--     --
+--     effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) tpars irng
+--     effTp   = TpApp (TpCon nameTpHandled1 (tbinderRange ename)) [effTpH] irng
+--     rng     = combineRanges [vrng,erng,irng]
+--
+--     opEffTp = case mbResource of
+--                 Nothing -> effTp
+--                 Just rtp -> rtp
+--
+--     -- declare the effect tag
+--     effTagName = toOpenTagName (id ++ "_implicit")
+--     effTagDef  = Def (ValueBinder effTagName ()
+--                        (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
+--                        irng irng) irng vis DefVal ""
+--
+--     -- declare the effect type (for resources, generate a hidden constructor to check the types)
+--     effConName = (makeHiddenName "Con" (toConstructorName id))
+--     resName = newHiddenName "res"
+--
+--
+--     effTpCons = case mbResource of
+--                    Nothing -> []
+--                    Just tp ->
+--                      let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
+--                          cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
+--                      in cons
+--
+--     effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
+--
+--     -- define the effect operations type (to be used by the type checker
+--     -- to find all operation definitions belonging to an effect)
+--     opsName   = TypeBinder (toOperationsName id) KindNone irng irng
+--     opsTp    = tpCon opsName
+--     opsResTpVar = TypeBinder (newHiddenName "r") (KindCon nameKindStar irng) irng irng
+--     -- opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
+--                --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
+--     --extendConName = toEffectConName (tbinderName ename)
+--     extraEffects = (case mbResourceInt of
+--                       Just _  -> [TpCon nameTpPartial irng]
+--                       Nothing -> [])
+--
+--
+-- -- parse the operations and return the constructors and function definitions
+-- (ops,xrng) <- semiBracesRanged (operation True vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
+--
+-- let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
+--     opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
+--
+--     -- declare operations data type (for the type checker)
+--     opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
+--                     rng vis False DataDefNormal False "// internal data type to group operations belonging to one effect"
+--
+-- return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
+--            effResourceDecls ++
+--            map DefType opTpDecls ++
+--            map DefValue opDefs
+
 -----------------------------------------------------------
 -- Effect definitions
 --
 -- We don't return a syntactic construction for effects
 -- but immediately build the underlying data structures.
 -----------------------------------------------------------
-effectDecl :: Visibility -> LexParser [TopDef]
-effectDecl dvis
-  = do (vis,defvis,vrng,erng,doc) <-
-          (try $
-            do rng     <- keyword "abstract"
-               (trng,doc) <- dockeyword "effect"
-               return (Public,Private,rng,trng,doc)
-            <|>
-            do (vis,vrng) <- visibility dvis
-               (erng,doc) <- dockeyword "effect"
-               return (vis,vis,vrng,erng,doc))
-       sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
-       singleShot <- do{ specialId "linear"; return True} <|> return False
-       isResource <- do{ specialId "resource"; return True} <|> return False
-       (id,irng) <- typeid
-       (tpars,kind,prng) <- typeKindParams
-       mbResource <- if (not isResource) then return Nothing
-                      else do specialId "in"
-                              tp <- ptype
-                              return (Just tp)
-       let infkind = case kind of
-                      KindNone -> foldr KindArrow
-                                    (KindCon (if isResource then nameKindStar else if singleShot then nameKindHandled1 else nameKindHandled) irng)
-                                    (map tbinderKind tpars)
-                      _ -> kind
-           ename   = TypeBinder id infkind irng irng
-           effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
-           effTp   = if (isResource) then effTpH
-                      else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
-                            [effTpH] irng
-           rng     = combineRanges [vrng,erng,irng]
+-- the following newtypes are used to represent intermediate syntactic
+-- structures
 
-           opEffTp = case mbResource of
-                       Nothing -> effTp
-                       Just rtp -> rtp
+-- Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+newtype Operation = Operation (String, Name, Range, [TypeBinder UserKind],
+                               [(Visibility, ValueBinder UserType (Maybe UserExpr))],
+                               Range, (Maybe UserType), UserType)
 
-           -- declare the effect tag
-           effTagName = toOpenTagName id
-           effTagDef  = Def (ValueBinder effTagName ()
-                              (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
-                              irng irng) irng vis DefVal ""
+-- EffectDeclHeader
+newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
+                                 String, DataKind, Bool, Bool, Name, Range, [TypeBinder UserKind],
+                                 UserKind, Range, Maybe UserType, [Operation])
 
-           -- declare the effect type (for resources, generate a hidden constructor to check the types)
-           effConName = (makeHiddenName "Con" (toConstructorName id))
-           resName = newHiddenName "res"
+parseEffectDecl :: Visibility -> LexParser EffectDecl
+parseEffectDecl dvis =
+  do (vis,defvis,vrng,erng,doc) <-
+        (try $
+          do rng     <- keyword "abstract"
+             (trng,doc) <- dockeyword "effect"
+             return (Public,Private,rng,trng,doc)
+          <|>
+          do (vis,vrng) <- visibility dvis
+             (erng,doc) <- dockeyword "effect"
+             return (vis,vis,vrng,erng,doc))
+     sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
+     singleShot <- do{ specialId "linear"; return True} <|> return False
+     isResource <- do{ specialId "resource"; return True} <|> return False
+     (id,irng) <- typeid
+     (tpars,kind,prng) <- typeKindParams
+     mbResource <- if (not isResource) then return Nothing
+                    else do specialId "in"
+                            tp <- ptype
+                            return (Just tp)
+     (operations, xrng) <- semiBracesRanged (parseOperation defvis)
+     return $ EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)
 
+makeEffectDecl :: EffectDecl -> [TopDef]
+makeEffectDecl decl =
+  let (EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)) = decl
+      infkind = case kind of
+                 KindNone -> foldr KindArrow
+                               (KindCon (if isResource then nameKindStar else if singleShot then nameKindHandled1 else nameKindHandled) irng)
+                               (map tbinderKind tpars)
+                 _ -> kind
+      ename   = TypeBinder id infkind irng irng
+      effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
+      effTp   = if (isResource) then effTpH
+                 else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
+                       [effTpH] irng
+      rng     = combineRanges [vrng,erng,irng]
 
-           effTpCons = case mbResource of
-                          Nothing -> []
-                          Just tp ->
-                            let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
-                                cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
-                            in cons
+      opEffTp = case mbResource of
+                  Nothing -> effTp
+                  Just rtp -> rtp
 
-           effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
+      -- declare the effect tag
+      effTagName = toOpenTagName id
+      effTagDef  = Def (ValueBinder effTagName ()
+                         (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
+                         irng irng) irng vis DefVal ""
 
-           -- define resource wrapper
-           (effResourceDecls, mbResourceInt)
-            = case mbResource of
-                Nothing -> ([], Nothing)
-                Just labelTp ->
-                  let createDef =
-                          let createName = makeHiddenName "create" id
-                              nameCreateResource = newQualified "std/core" ".Resource"
-                              body = App (Var effConName False irng)
-                                        [(Nothing,App (Var nameCreateResource False irng )
-                                                      [(Nothing,Var resName False irng)] irng)]
-                                        irng
+      -- declare the effect type (for resources, generate a hidden constructor to check the types)
+      effConName = (makeHiddenName "Con" (toConstructorName id))
+      resName = newHiddenName "res"
 
-                              fun = Lam [ValueBinder resName (Just (TpCon nameTpInt irng)) Nothing irng irng]
-                                        body irng
-                              def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
-                          in def
+      effTpCons = case mbResource of
+                     Nothing -> []
+                     Just tp ->
+                       let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
+                           cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
+                       in cons
 
-                      (resourceDef,resourceBinder,resourceLamBinder,resourceGet) =
-                          let resourceGetName = makeHiddenName "resource" id
-                              valName = newHiddenName "resource"
-                              binder = ValueBinder valName effTp Nothing irng irng
-                              rbinder = ValueBinder valName Nothing Nothing irng irng
-                              patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
-                              rmatch = Case (Var valName False irng)
-                                                [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource")
-                                                                                   [(Nothing,PatVar patvar)] irng irng)] irng irng)
-                                                        (guardTrue)
-                                                        (Var resName False irng)] irng
-                              fun = Lam [rbinder] rmatch irng
-                              def = Def (ValueBinder resourceGetName () fun irng irng) irng vis (DefFun NoMon) ""
-                          in (def, binder, rbinder, App (Var resourceGetName False irng) [(Nothing,Var valName False irng)] irng)
+      effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
 
-                      injectDef =
-                          let injectName = newName "inject-resource"
-                              actionName = newName "action"
-                              body= App (Var nameInjectResource False irng)
-                                        [(Nothing,Var effTagName False irng),
-                                         (Nothing,resourceGet),
-                                         (Nothing,Var actionName False irng)] irng
-                              tpVarA    = TpVar (newHiddenName "a") irng
-                              tpVarE    = TpVar (newHiddenName "e") irng
-                              typeUnit  = TpCon nameUnit rng
-                              actionEff = makeEffectExtend irng labelTp tpVarE
-                              actionTp  = makeTpFun [] actionEff tpVarA irng
-                              fullTp    = promoteType $
-                                           makeTpFun [(newName "resource",effTp),
-                                                      (newName "action",actionTp)] actionEff tpVarA irng
-                              fun = Ann (
-                                    Lam [resourceLamBinder,
-                                         ValueBinder actionName Nothing Nothing irng irng]
-                                        body irng)
-                                        fullTp rng
+      -- define resource wrapper
+      (effResourceDecls, mbResourceInt)
+       = case mbResource of
+           Nothing -> ([], Nothing)
+           Just labelTp ->
+             let createDef =
+                     let createName = makeHiddenName "create" id
+                         nameCreateResource = newQualified "std/core" ".Resource"
+                         body = App (Var effConName False irng)
+                                   [(Nothing,App (Var nameCreateResource False irng )
+                                                 [(Nothing,Var resName False irng)] irng)]
+                                   irng
 
-                              def = Def (ValueBinder injectName () fun irng irng) irng vis (DefFun NoMon) ""
-                          in def
+                         fun = Lam [ValueBinder resName (Just (TpCon nameTpInt irng)) Nothing irng irng]
+                                   body irng
+                         def = Def (ValueBinder createName () fun irng irng) irng vis (DefFun NoMon) ""
+                     in def
 
-                  in ([DefValue createDef, DefValue resourceDef, DefValue injectDef], Just (labelTp, resourceBinder, resourceGet))
+                 (resourceDef,resourceBinder,resourceLamBinder,resourceGet) =
+                     let resourceGetName = makeHiddenName "resource" id
+                         valName = newHiddenName "resource"
+                         binder = ValueBinder valName effTp Nothing irng irng
+                         rbinder = ValueBinder valName Nothing Nothing irng irng
+                         patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
+                         rmatch = Case (Var valName False irng)
+                                           [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource")
+                                                                              [(Nothing,PatVar patvar)] irng irng)] irng irng)
+                                                   (guardTrue)
+                                                   (Var resName False irng)] irng
+                         fun = Lam [rbinder] rmatch irng
+                         def = Def (ValueBinder resourceGetName () fun irng irng) irng vis (DefFun NoMon) ""
+                     in (def, binder, rbinder, App (Var resourceGetName False irng) [(Nothing,Var valName False irng)] irng)
 
-           -- define the effect operations type (to be used by the type checker
-           -- to find all operation definitions belonging to an effect)
-           opsName   = TypeBinder (toOperationsName id) KindNone irng irng
-           opsTp    = tpCon opsName
-           opsResTpVar = TypeBinder (newHiddenName "r") (KindCon nameKindStar irng) irng irng
-           -- opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
-                      --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
-           --extendConName = toEffectConName (tbinderName ename)
-           extraEffects = (case mbResourceInt of
-                             Just _  -> [TpCon nameTpPartial irng]
-                             Nothing -> []) ++
-                          (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
+                 injectDef =
+                     let injectName = newName "inject-resource"
+                         actionName = newName "action"
+                         body= App (Var nameInjectResource False irng)
+                                   [(Nothing,Var effTagName False irng),
+                                    (Nothing,resourceGet),
+                                    (Nothing,Var actionName False irng)] irng
+                         tpVarA    = TpVar (newHiddenName "a") irng
+                         tpVarE    = TpVar (newHiddenName "e") irng
+                         typeUnit  = TpCon nameUnit rng
+                         actionEff = makeEffectExtend irng labelTp tpVarE
+                         actionTp  = makeTpFun [] actionEff tpVarA irng
+                         fullTp    = promoteType $
+                                      makeTpFun [(newName "resource",effTp),
+                                                 (newName "action",actionTp)] actionEff tpVarA irng
+                         fun = Ann (
+                               Lam [resourceLamBinder,
+                                    ValueBinder actionName Nothing Nothing irng irng]
+                                   body irng)
+                                   fullTp rng
 
+                         def = Def (ValueBinder injectName () fun irng irng) irng vis (DefFun NoMon) ""
+                     in def
 
-       -- parse the operations and return the constructors and function definitions
-       (ops,xrng) <- semiBracesRanged (operation singleShot defvis tpars effTagName opEffTp opsTp mbResourceInt extraEffects)
+             in ([DefValue createDef, DefValue resourceDef, DefValue injectDef], Just (labelTp, resourceBinder, resourceGet))
 
-       let (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
-           opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
+      -- define the effect operations type (to be used by the type checker
+      -- to find all operation definitions belonging to an effect)
+      opsName   = TypeBinder (toOperationsName id) KindNone irng irng
+      opsTp    = tpCon opsName
+      opsResTpVar = TypeBinder (newHiddenName "r") (KindCon nameKindStar irng) irng irng
+      -- opsTpApp = TpApp (opsTp) (map tpVar tpars) (combineRanged irng prng)
+                 --TpApp (tpCon opsName) (map tpVar tpars) (combineRanged irng prng)
+      --extendConName = toEffectConName (tbinderName ename)
+      extraEffects = (case mbResourceInt of
+                        Just _  -> [TpCon nameTpPartial irng]
+                        Nothing -> []) ++
+                     (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
-           -- declare operations data type (for the type checker)
-           opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
+      -- parse the operations and return the constructors and function definitions
+      ops = map (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
+
+      (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
+      opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
+
+      -- declare operations data type (for the type checker)
+      opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
                            rng vis sort DataDefNormal False "// internal data type to group operations belonging to one effect"
 
-       return $ [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
-                  effResourceDecls ++
-                  map DefType opTpDecls ++
-                  map DefValue opDefs
+  in [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
+           effResourceDecls ++
+           map DefType opTpDecls ++
+           map DefValue opDefs
 
--- (doc,id,idrng,exists0,pars,prng,mbteff,tres)
-newtype Operation = Operation (String, Name, Range, [TypeBinder UserKind], [(Visibility, ValueBinder UserType (Maybe UserExpr))], Range, (Maybe UserType), UserType)
+effectDecl :: Visibility -> LexParser [TopDef]
+effectDecl dvis = do
+  decl <- parseEffectDecl dvis
+  return $ makeEffectDecl decl
 
 parseOperation :: Visibility -> LexParser Operation
 parseOperation vis =
@@ -799,18 +899,19 @@ parseOperation vis =
      (pars,prng)  <- conPars vis
      keyword ":"
      (mbteff,tres) <- tresult
+     _ <- case mbteff of
+        Nothing  -> return ()
+        Just etp -> -- TODO: check if declared effect is part of the effect type
+                    -- return etp
+                    fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
 
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> LexParser (UserUserCon, UserTypeDef, Integer -> UserDef)
-operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects
-  = do Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOperation vis
-       teff0 <- case mbteff of
-                 Nothing  -> return $
-                              foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
-                 Just etp -> -- TODO: check if declared effect is part of the effect type
-                             -- return etp
-                             fail "an explicit effect in result type of an operation is not allowed (yet)"
-       let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+-- smart constructor for operations
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> Operation -> (UserUserCon, UserTypeDef, Integer -> UserDef)
+operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
+  = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+           Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) = op
+           teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
@@ -906,7 +1007,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
 
 
                     in def
-       return (opsConDef,opTpDecl,opDef)
+           in (opsConDef,opTpDecl,opDef)
 
 
 
