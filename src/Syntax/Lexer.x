@@ -259,7 +259,7 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "val", "var", "use", "using"
     , "extern"
-    , "effect", "handle", "handler", "inject"
+    , "effect", "handle", "handler", "inject", "implicit"
     -- , "finally", "initially"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
