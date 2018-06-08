@@ -640,44 +640,52 @@ constructorId
     conid
   <?> "constructor"
 
-  -----------------------------------------------------------
-  -- Implicit Parameter Declarations
-  -----------------------------------------------------------
-  newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range, Maybe UserType, UserType)
+-----------------------------------------------------------
+-- Implicit Parameter Declarations
+-----------------------------------------------------------
+newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range, Maybe UserType, UserType)
 
-  implicitDecl :: Visibility -> LexParser [TopDef]
-  implicitDecl dvis = do
-    impl <- parseImplicitDecl dvis
-    return $ makeImplicitDecl impl
+implicitDecl :: Visibility -> LexParser [TopDef]
+implicitDecl dvis = do
+  impl <- parseImplicitDecl dvis
+  return $ makeImplicitDecl impl
 
-  parseImplicitDecl :: Visibility -> LexParser ImplicitDecl
-  parseImplicitDecl dvis = do
-    (vis,defvis,vrng,erng,doc) <-
-           (try $ do
-               (vis,vrng) <- visibility dvis
-               (erng,doc) <- dockeyword "implicit"
-               return (vis,vis,vrng,erng,doc))
-    (id,irng) <- qvarid
-    keyword ":"
-    (mbteff,tres) <- tresult
-    return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)
+parseImplicitDecl :: Visibility -> LexParser ImplicitDecl
+parseImplicitDecl dvis = do
+  (vis,defvis,vrng,erng,doc) <-
+         (try $ do
+             (vis,vrng) <- visibility dvis
+             (erng,doc) <- dockeyword "implicit"
+             return (vis,vis,vrng,erng,doc))
+  (id,irng) <- qvarid
+  keyword ":"
+  (mbteff,tres) <- tresult
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)
 
-  makeImplicitDecl :: ImplicitDecl -> [TopDef]
-  makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
-    let sort = Inductive
-        singleShot = True
-        isResource = False
-        tpars = []
-        kind = KindNone -- TODO is this correct?
-        prng = rangeNull
-        mbResource = Nothing
-        opName = prepend "implicit_" id
-        op = Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
-        decl = EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,id,irng,tpars,kind,prng,mbResource,[op])
-    in makeEffectDecl decl
+makeImplicitDecl :: ImplicitDecl -> [TopDef]
+makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
+  let sort = Inductive
+      singleShot = False -- breaks type inference if set to True
+      isResource = False
+      tpars = []
+      kind = KindNone
+      prng = rangeNull
+      mbResource = Nothing
+      effectName = prepend ".implicit_" id
+      opName = prepend "implicit_" id
+      op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
+             Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
+      decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
+             EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
+  in makeEffectDecl decl
 
-  implicitVar :: LexParser (Name,Range)
-    = undefined
+-- `?x desugars to` `.implicit_x()`
+implicitUse :: LexParser UserExpr
+implicitUse =
+  do specialOp "?" -- TODO prevent whitespaces between ? and identifier
+     (id,rng) <- qvarid
+     return $ App (Var (prepend "implicit_" id) False rng) [] rng
+  <?> "implicit identifier"
 
 -----------------------------------------------------------
 -- Effect definitions
@@ -719,7 +727,8 @@ parseEffectDecl dvis =
                             tp <- ptype
                             return (Just tp)
      (operations, xrng) <- semiBracesRanged (parseOperation defvis)
-     return $ EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)
+     return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+              EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
@@ -864,7 +873,8 @@ parseOperation vis =
         Just etp -> -- TODO: check if declared effect is part of the effect type
                     -- return etp
                     fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+     return $ -- trace ("parsed operation " ++ show id ++ " : (" ++ show tres ++ ") " ++ show exists0 ++ " " ++ show pars ++ " " ++ show mbteff) $
+              Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
 
 -- smart constructor for operations
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> Operation -> (UserUserCon, UserTypeDef, Integer -> UserDef)
@@ -1588,6 +1598,8 @@ atom
        return (Lit lit)
   <|>
     do injectExpr
+  <|>
+    do implicitUse
   <?> "(simple) expression"
 
 literal
