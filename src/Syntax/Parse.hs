@@ -641,7 +641,7 @@ constructorId
   <?> "constructor"
 
 -----------------------------------------------------------
--- Implicit Parameter Declarations
+-- Implicit Parameters
 -----------------------------------------------------------
 newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range, Maybe UserType, UserType)
 
@@ -672,7 +672,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
       prng = rangeNull
       mbResource = Nothing
       effectName = prepend ".implicit_" id
-      opName = prepend "implicit_" id
+      opName = prepend ".implicit_" id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
              Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
       decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
@@ -684,8 +684,41 @@ implicitUse :: LexParser UserExpr
 implicitUse =
   do specialOp "?" -- TODO prevent whitespaces between ? and identifier
      (id,rng) <- qvarid
-     return $ App (Var (prepend "implicit_" id) False rng) [] rng
+     return $ App (Var (prepend ".implicit_" id) False rng) [] rng
   <?> "implicit identifier"
+
+callIfImplicit :: UserExpr -> UserExpr
+callIfImplicit (Var name t rng) =
+    if (startsWith (nameId name) ".implicit_") then
+      App (Var name t rng) [] rng
+    else
+      (Var name t rng)
+callIfImplicit e = e
+
+-- -- implicit val x = 42; body
+-- --   ~should~>
+-- -- val xvalue = 42; (handle(() -> body) { x() -> resume(xvalue) })
+-- --     ^^^^^^^^^^
+-- --    not implemented yet
+--
+-- TODO improve ranges
+-- TODO bind the expression to a value binder to be strict
+-- TODO replace syntax `implicit val x` by `val ?x`. But be careful with patterns like:
+--     val (?x, y) = ...
+localImplicitDecl
+  = do krng <- keyword "implicit"
+       vrng <- keyword "val"
+       (id,irng) <- qvarid
+       keyword "="
+       e <- blockexpr
+       let reinit  = (constNull krng)
+           ret     = (Var nameReturnNull False irng)
+           final   = (constNull krng)
+           opName  = prepend ".implicit_" id
+           opBody  = App (Var (newName "resume") False irng) [(Nothing, e)] irng
+           op      = HandlerBranch opName [] opBody False irng irng
+           handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] irng irng
+       return $ \body -> App handler [(Nothing,  Lam [] body irng)] irng
 
 -----------------------------------------------------------
 -- Effect definitions
@@ -1116,7 +1149,7 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
+    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl <|> localImplicitDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
@@ -1588,7 +1621,7 @@ funexpr
 atom :: LexParser UserExpr
 atom
   = do (name,rng) <- qidentifier <|> qconstructor
-       return (Var name False rng)
+       return $ callIfImplicit (Var name False rng)
   <|>
     do tupleExpr -- must be second due to '(' operator ')'
   <|>
@@ -1598,8 +1631,6 @@ atom
        return (Lit lit)
   <|>
     do injectExpr
-  <|>
-    do implicitUse
   <?> "(simple) expression"
 
 literal
