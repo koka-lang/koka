@@ -643,7 +643,8 @@ constructorId
 -----------------------------------------------------------
 -- Implicit Parameters
 -----------------------------------------------------------
-newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range, Maybe UserType, UserType)
+newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
+                                    [TypeBinder UserKind], UserKind, Range, Maybe UserType, UserType)
 
 implicitDecl :: Visibility -> LexParser [TopDef]
 implicitDecl dvis = do
@@ -658,18 +659,16 @@ parseImplicitDecl dvis = do
              (erng,doc) <- dockeyword "implicit"
              return (vis,vis,vrng,erng,doc))
   (id,irng) <- implicitId
+  (tpars,kind,prng) <- typeKindParams
   keyword ":"
   (mbteff,tres) <- tresult
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)
 
 makeImplicitDecl :: ImplicitDecl -> [TopDef]
-makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
+makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)) =
   let sort = Inductive
       singleShot = False -- breaks type inference if set to True
       isResource = False
-      tpars = []
-      kind = KindNone
-      prng = rangeNull
       mbResource = Nothing
       effectName = id
       opName = id
@@ -703,11 +702,6 @@ implicitId = do
   if (isImplicit name) then return (name, range)
   else fail "expected implicit parameter"
 
-
--- -- val ^x = 42; body
--- --   ~should~>
--- -- val .implicit-^x = 42; (handle(() -> body) { ^x() -> resume(.implicit-^x) })
---
 -- TODO support patterns and type annotations with implicit parameter bindings
 localImplicitDecl
   = do (id,irng) <- try $ do
@@ -717,6 +711,11 @@ localImplicitDecl
        e <- blockexpr
        return $ bindImplicit id irng (combineRanged irng e) e
 
+-- locally binds an implicit variable. Given id, e and body which corresponds to
+--     val ^<id> = <e>; <body>
+-- we generate a syntax tree for
+--     val .implicit-^<id> = <e>;
+--     handle(() -> <body>) { ^<id>() -> resume(.implicit-^<id>) }
 bindImplicit id idrange fullrange e =
   let reinit  = constNull fullrange
       ret     = Var nameReturnNull False fullrange
