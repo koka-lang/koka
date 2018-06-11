@@ -717,19 +717,19 @@ localImplicitDecl
        (id,irng) <- implicitId
        keyword "="
        e <- blockexpr
-       return $ bindImplicit id krng irng e
+       return $ bindImplicit id irng (combineRanged krng e) e
 
-bindImplicit id krng irng e =
-  let reinit  = (constNull krng)
-      ret     = (Var nameReturnNull False irng)
-      final   = (constNull krng)
+bindImplicit id idrange fullrange e =
+  let reinit  = constNull fullrange
+      ret     = Var nameReturnNull False fullrange
+      final   = constNull fullrange
       fresh   = makeHiddenName "implicit" id
       opName  = id
-      opBody  = App (Var (newName "resume") False irng) [(Nothing, (Var fresh False irng))] irng
-      op      = HandlerBranch opName [] opBody False irng irng
-      handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] irng irng
-      app body = App handler [(Nothing,  Lam [] body irng)] irng
-      val body = Bind (Def (ValueBinder fresh () e irng irng) irng Private DefVal "") (app body) irng
+      opBody  = App (Var (newName "resume") False fullrange) [(Nothing, (Var fresh False fullrange))] fullrange
+      op      = HandlerBranch opName [] opBody False fullrange fullrange
+      handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] fullrange fullrange
+      app body = App handler [(Nothing,  Lam [] body (getRange body))] fullrange
+      val body = Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "") (app body) fullrange
   in val
 
 -----------------------------------------------------------
