@@ -712,12 +712,12 @@ implicitId = do
 -- TODO replace syntax `implicit val x` by `val ^x`. But be careful with patterns like:
 --     val (^x, y) = ...
 localImplicitDecl
-  = do krng <- keyword "implicit"
-       keyword "val"
-       (id,irng) <- implicitId
+  = do (id,irng) <- try $ do
+         keyword "val"
+         implicitId
        keyword "="
        e <- blockexpr
-       return $ bindImplicit id irng (combineRanged krng e) e
+       return $ bindImplicit id irng (combineRanged irng e) e
 
 bindImplicit id idrange fullrange e =
   let reinit  = constNull fullrange
@@ -1161,7 +1161,7 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl <|> localImplicitDecl
+    do fun <- localImplicitDecl <|> localValueDecl <|> localUseDecl <|> localUsingDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
