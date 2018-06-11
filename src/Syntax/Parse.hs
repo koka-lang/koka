@@ -711,6 +711,21 @@ localImplicitDecl
        e <- blockexpr
        return $ bindImplicit id irng (combineRanged irng e) e
 
+implicitBinding :: LexParser (Name, Range, UserExpr)
+implicitBinding
+  = do (id,irng) <- implicitId
+       keyword "="
+       e <- blockexpr
+       return (id, irng, e)
+
+-- with (^<x> = <e>, ^<y> = <e>, ...) <body>
+implicitWithExpr
+  = do krng <- keyword "with"
+       (params, prng) <- parensCommasRng lparen implicitBinding
+       body <- blockexpr
+       return $ foldr (\(id, idrng, e) -> \body -> bindImplicit id idrng (combineRanged idrng body) e body) body params
+
+
 -- locally binds an implicit variable. Given id, e and body which corresponds to
 --     val ^<id> = <e>; <body>
 -- we generate a syntax tree for
@@ -1257,7 +1272,7 @@ bodyexpr
 
 expr :: LexParser UserExpr
 expr
-  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
+  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> implicitWithExpr <|> opexpr
   <?> "expression"
 
 blockexpr :: LexParser UserExpr
@@ -1267,7 +1282,7 @@ blockexpr
 
 noifexpr :: LexParser UserExpr
 noifexpr
-  = returnexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
+  = returnexpr <|> matchexpr <|> funexpr <|> implicitWithExpr <|> block <|> opexpr
 
 nofunexpr :: LexParser UserExpr
 nofunexpr
