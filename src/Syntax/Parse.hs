@@ -1286,7 +1286,7 @@ noifexpr
 
 nofunexpr :: LexParser UserExpr
 nofunexpr
-  = ifexpr <|> returnexpr <|> matchexpr <|> opexpr
+  = ifexpr <|> returnexpr <|> matchexpr <|> implicitWithExpr <|> opexpr
   <?> "expression"
 
 
