@@ -1,3 +1,4 @@
 node_modules/
 out/
 src/Syntax/Lexer.hs
+.idea/
