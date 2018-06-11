@@ -679,7 +679,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
              EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
 
--- `?x desugars to` `.implicit_x()`
+-- `^x` desugars to` `^x()`
 implicitUse :: LexParser UserExpr
 implicitUse =
   do (id,rng) <- implicitId
@@ -704,13 +704,11 @@ implicitId = do
   else fail "expected implicit parameter"
 
 
--- -- implicit val ^x = 42; body
+-- -- val ^x = 42; body
 -- --   ~should~>
 -- -- val .implicit-^x = 42; (handle(() -> body) { ^x() -> resume(.implicit-^x) })
 --
--- TODO improve ranges
--- TODO replace syntax `implicit val x` by `val ^x`. But be careful with patterns like:
---     val (^x, y) = ...
+-- TODO support patterns and type annotations with implicit parameter bindings
 localImplicitDecl
   = do (id,irng) <- try $ do
          keyword "val"
