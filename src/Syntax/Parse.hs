@@ -704,14 +704,11 @@ implicitId = do
   else fail "expected implicit parameter"
 
 
--- -- implicit val x = 42; body
+-- -- implicit val ^x = 42; body
 -- --   ~should~>
--- -- val xvalue = 42; (handle(() -> body) { x() -> resume(xvalue) })
--- --     ^^^^^^^^^^
--- --    not implemented yet
+-- -- val .implicit-^x = 42; (handle(() -> body) { ^x() -> resume(.implicit-^x) })
 --
 -- TODO improve ranges
--- TODO bind the expression to a value binder to be strict
 -- TODO replace syntax `implicit val x` by `val ?x`. But be careful with patterns like:
 --     val (?x, y) = ...
 localImplicitDecl
@@ -723,12 +720,14 @@ localImplicitDecl
        let reinit  = (constNull krng)
            ret     = (Var nameReturnNull False irng)
            final   = (constNull krng)
+           fresh   = makeHiddenName "implicit" id
            opName  = id
-           opBody  = App (Var (newName "resume") False irng) [(Nothing, e)] irng
+           opBody  = App (Var (newName "resume") False irng) [(Nothing, (Var fresh False irng))] irng
            op      = HandlerBranch opName [] opBody False irng irng
            handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] irng irng
-       return $ \body -> App handler [(Nothing,  Lam [] body irng)] irng
-
+           app body = App handler [(Nothing,  Lam [] body irng)] irng
+           val body = Bind (Def (ValueBinder fresh () e irng irng) irng Private DefVal "") (app body) irng
+       return $ val
 -----------------------------------------------------------
 -- Effect definitions
 --
