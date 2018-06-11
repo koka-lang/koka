@@ -657,7 +657,7 @@ parseImplicitDecl dvis = do
              (vis,vrng) <- visibility dvis
              (erng,doc) <- dockeyword "implicit"
              return (vis,vis,vrng,erng,doc))
-  (id,irng) <- qvarid
+  (id,irng) <- implicitId
   keyword ":"
   (mbteff,tres) <- tresult
   return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)
@@ -671,8 +671,8 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
       kind = KindNone
       prng = rangeNull
       mbResource = Nothing
-      effectName = prepend ".implicit_" id
-      opName = prepend ".implicit_" id
+      effectName = id
+      opName = id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
              Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
       decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
@@ -682,18 +682,27 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,mbteff,tres)) =
 -- `?x desugars to` `.implicit_x()`
 implicitUse :: LexParser UserExpr
 implicitUse =
-  do specialOp "?" -- TODO prevent whitespaces between ? and identifier
-     (id,rng) <- qvarid
-     return $ App (Var (prepend ".implicit_" id) False rng) [] rng
+  do (id,rng) <- implicitId
+     return $ App (Var id False rng) [] rng
   <?> "implicit identifier"
+
+isImplicit :: Name -> Bool
+isImplicit name = startsWith (nameId name) "^"
 
 callIfImplicit :: UserExpr -> UserExpr
 callIfImplicit (Var name t rng) =
-    if (startsWith (nameId name) ".implicit_") then
+    if (isImplicit name) then
       App (Var name t rng) [] rng
     else
       (Var name t rng)
 callIfImplicit e = e
+
+implicitId :: LexParser (Name, Range)
+implicitId = do
+  (name, range) <- qvarid
+  if (isImplicit name) then return (name, range)
+  else fail "expected implicit parameter"
+
 
 -- -- implicit val x = 42; body
 -- --   ~should~>
@@ -708,13 +717,13 @@ callIfImplicit e = e
 localImplicitDecl
   = do krng <- keyword "implicit"
        vrng <- keyword "val"
-       (id,irng) <- qvarid
+       (id,irng) <- implicitId
        keyword "="
        e <- blockexpr
        let reinit  = (constNull krng)
            ret     = (Var nameReturnNull False irng)
            final   = (constNull krng)
-           opName  = prepend ".implicit_" id
+           opName  = id
            opBody  = App (Var (newName "resume") False irng) [(Nothing, e)] irng
            op      = HandlerBranch opName [] opBody False irng irng
            handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] irng irng
