@@ -76,7 +76,7 @@ $charesc  = [nrt\\\'\"]    -- "
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
 @idchar       = $letter|$digit|_|\-
-@lowerid      = ($lower|\^) @idchar* $finalid*
+@lowerid      = ($lower|\?) @idchar* $finalid*
 @upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
@@ -286,7 +286,7 @@ symbols
   = "$%&*+~!/\\^~=.:-?<>|"
 
 isImplicit :: String -> Bool
-isImplicit name = (head name) == '^'
+isImplicit name = (head name) == '?'
 
 isReserved :: String -> Bool
 isReserved name
