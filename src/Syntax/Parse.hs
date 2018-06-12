@@ -686,7 +686,7 @@ implicitUse =
   <?> "implicit identifier"
 
 isImplicit :: Name -> Bool
-isImplicit name = startsWith (nameId name) "^"
+isImplicit name = startsWith (nameId name) "?"
 
 callIfImplicit :: UserExpr -> UserExpr
 callIfImplicit (Var name t rng) =
@@ -1820,11 +1820,7 @@ typeAnnot
 typeAnnotPar :: LexParser UserType
 typeAnnotPar
   = do keyword ":"
-       (do rng <- specialOp "?"
-           tp <- ptype
-           return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng tp))
-        <|>
-        do rng <- specialOp "$"
+       (do rng <- specialOp "$"
            (eff,res) <- tresultTotal -- todo: use proper result
            return (TpApp (TpCon nameTpDelay rng) [eff,res] (combineRanged rng res))
         <|>
@@ -2011,11 +2007,7 @@ paramTypeX
 
 
 parameterType rng
-  = do rng2 <- specialOp "?"
-       tp <- ptype
-       return (TpApp (TpCon nameTpOptional rng) [tp] (combineRanged rng2 tp))
-    <|>
-    do ptype
+  = ptype
 
 {-      <|>
         do rng2 <- specialOp "$"

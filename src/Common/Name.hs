@@ -104,7 +104,7 @@ instance Show Name where
     = if null m
        then n
        else m ++ "/" ++ case n of
-                          (c:cs) | not (isAlpha c || c=='_' || c=='(') -> "(" ++ n ++ ")"
+                          (c:cs) | not (isAlpha c || c=='_' || c=='(' || c=='?') -> "(" ++ n ++ ")"
                           _      -> n
 
 instance Pretty Name where
@@ -220,8 +220,9 @@ isHiddenName name
       ('.':_) -> True
       _       -> False
 
+-- since ?x is a valid name, but .foo-?x is not -- we replace the ? by implicit-
 makeHiddenName s name
-  = prepend ("." ++ s ++ "-") name
+  = prepend ("." ++ s ++ "-") (replaceHead '?' "implicit-" name)
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -301,6 +302,14 @@ prepend s name
 postpend :: String -> Name -> Name
 postpend s name
   = newQualified (nameModule name) (nameId name ++ s)
+
+replaceHead :: Char -> String -> Name -> Name
+replaceHead head newInit name
+  = newQualified (nameModule name)
+    (case nameId name of
+      (h:t) -> if h == head then newInit ++ t else h:t
+      []    -> ""
+    )
 
 ----------------------------------------------------------------
 -- camel-case to dash-case

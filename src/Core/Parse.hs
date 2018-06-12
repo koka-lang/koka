@@ -296,11 +296,7 @@ parameters env
 parameter :: Env -> LexParser (Name,Type)
 parameter env
   = do name <- try (do{ (name,_) <- paramid; keyword ":"; return name}) <|> return nameNil
-       (do specialOp "?"
-           tp <- ptype env
-           return (name, makeOptional tp)
-        <|>
-        do tp <- ptype env
+       (do tp <- ptype env
            return (name, tp))
  
 
@@ -443,10 +439,6 @@ tatomParamsEx allowParams env
     <|>
      do tp <- teffect env
         return (single tp)
-    <|>
-     do specialOp "?"
-        tp <- tatom env
-        return (single (makeOptional tp))
   where
     single tp   = Right tp
 
