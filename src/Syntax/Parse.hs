@@ -749,12 +749,12 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
       ret     = Var nameReturnNull False fullrange
       final   = constNull fullrange
       opName  = id
-      block   = case eager of True ->
-                               let fresh    = makeFreshHiddenName "implicit" id idrange
-                                   freshVar = (Var fresh False fullrange)
-                               in Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "")
-                                       (handle freshVar) fullrange
-                              False -> handle (App e [] fullrange)
+      block   = if eager then
+                   let fresh    = makeFreshHiddenName "implicit" id idrange
+                       freshVar = (Var fresh False fullrange)
+                   in Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "")
+                           (handle freshVar) fullrange
+                else handle (App e [] fullrange)
                 where resume e = App (Var (newName "resume") False fullrange) [(Nothing, e)] fullrange
                       makeOp e = HandlerBranch opName [] (resume e) False fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
