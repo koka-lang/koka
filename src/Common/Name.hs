@@ -40,8 +40,8 @@ import Lib.PPrint (Pretty(pretty), text )
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith )
+import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse)
-import Common.Range
 
 ----------------------------------------------------------------
 -- Names
