@@ -713,12 +713,12 @@ localImplicitDecl
 
 implicitBinding :: LexParser (Name, Range, UserExpr)
 implicitBinding
-  = do (id,irng) <- implicitId
+  = do (id,irng) <- qvarid
        keyword "="
        e <- blockexpr
        return (id, irng, e)
 
--- with (^<x> = <e>, ^<y> = <e>, ...) <body>
+-- with (?<x> = <e>, ?<y> = <e>, ...) <body>
 implicitWithExpr
   = do krng <- keyword "with"
        (params, prng) <- parensCommasRng lparen implicitBinding
@@ -727,11 +727,27 @@ implicitWithExpr
 
 
 -- locally binds an implicit variable. Given id, e and body which corresponds to
---     val ^<id> = <e>; <body>
+--     val ?<id> = <e>; <body>
 -- we generate a syntax tree for
---     val .implicit-^<id> = <e>;
---     handle(() -> <body>) { ^<id>() -> resume(.implicit-^<id>) }
-bindImplicit id idrange fullrange e =
+--     val .implicit-<id> = <e>;
+--     handle(() -> <body>) { ?<id>() -> resume(.implicit-<id>) }
+bindImplicit id idrange fullrange e body =
+  App (makeImplicitHandler id idrange fullrange e) [(Nothing, Lam [] body fullrange)] fullrange
+
+
+implicitHandler
+  = do krng <- keyword "implicit"
+       (params, prng) <- parensCommasRng lparen implicitBinding
+
+       let arg = makeFreshHiddenName "handled" (newName "e") krng
+           binder (id, idrng, e) body = bindImplicit id idrng (combineRanged idrng body) e body
+           handler = foldr binder (App (Var arg False krng) [] krng) params
+       return $ Lam [ValueBinder arg Nothing Nothing krng krng] handler (combineRange krng prng)
+
+--     implicit (?<id> = <e>)
+-- translates to
+--     ({ val .implicit-<id> = <e>; handler { ?<id>() -> resume(.implicit-<id>) } })()
+makeImplicitHandler id idrange fullrange e =
   let reinit  = constNull fullrange
       ret     = Var nameReturnNull False fullrange
       final   = constNull fullrange
@@ -740,9 +756,8 @@ bindImplicit id idrange fullrange e =
       opBody  = App (Var (newName "resume") False fullrange) [(Nothing, (Var fresh False fullrange))] fullrange
       op      = HandlerBranch opName [] opBody False fullrange fullrange
       handler = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [op] fullrange fullrange
-      app body = App handler [(Nothing,  Lam [] body (getRange body))] fullrange
-      val body = Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "") (app body) fullrange
-  in val
+      block   = Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "") handler fullrange
+  in  App (Lam [] block fullrange) [] fullrange
 
 -----------------------------------------------------------
 -- Effect definitions
@@ -1272,7 +1287,7 @@ bodyexpr
 
 expr :: LexParser UserExpr
 expr
-  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> implicitWithExpr <|> opexpr
+  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> implicitWithExpr <|> implicitHandler <|> opexpr
   <?> "expression"
 
 blockexpr :: LexParser UserExpr
@@ -1282,11 +1297,11 @@ blockexpr
 
 noifexpr :: LexParser UserExpr
 noifexpr
-  = returnexpr <|> matchexpr <|> funexpr <|> implicitWithExpr <|> block <|> opexpr
+  = returnexpr <|> matchexpr <|> funexpr <|> implicitWithExpr <|> implicitHandler <|> block <|> opexpr
 
 nofunexpr :: LexParser UserExpr
 nofunexpr
-  = ifexpr <|> returnexpr <|> matchexpr <|> implicitWithExpr <|> opexpr
+  = ifexpr <|> returnexpr <|> matchexpr <|> implicitWithExpr <|> implicitHandler <|> opexpr
   <?> "expression"
 
 
