@@ -22,7 +22,7 @@ module Common.Name
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName
           , newHiddenName, isHiddenName
-          , makeHiddenName
+          , makeHiddenName, makeFreshHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
           , toOperationsName, fromOperationsName, isOperationsName
@@ -41,6 +41,8 @@ import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith )
 import Data.List(intersperse)
+import Common.Range
+
 ----------------------------------------------------------------
 -- Names
 ----------------------------------------------------------------
@@ -104,7 +106,7 @@ instance Show Name where
     = if null m
        then n
        else m ++ "/" ++ case n of
-                          (c:cs) | not (isAlpha c || c=='_' || c=='(') -> "(" ++ n ++ ")"
+                          (c:cs) | not (isAlpha c || c=='_' || c=='(' || c=='?') -> "(" ++ n ++ ")"
                           _      -> n
 
 instance Pretty Name where
@@ -220,8 +222,13 @@ isHiddenName name
       ('.':_) -> True
       _       -> False
 
+-- since ?x is a valid name, but .foo-?x is not -- we replace the ? by implicit-
 makeHiddenName s name
-  = prepend ("." ++ s ++ "-") name
+  = prepend ("." ++ s ++ "-") (replaceHead '?' "implicit-" name)
+
+makeFreshHiddenName s name range
+  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
+    where idFromPos pos = "-" ++ show (posLine pos) ++ "-" ++ show (posColumn pos)
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -301,6 +308,14 @@ prepend s name
 postpend :: String -> Name -> Name
 postpend s name
   = newQualified (nameModule name) (nameId name ++ s)
+
+replaceHead :: Char -> String -> Name -> Name
+replaceHead head newInit name
+  = newQualified (nameModule name)
+    (case nameId name of
+      (h:t) -> if h == head then newInit ++ t else h:t
+      []    -> ""
+    )
 
 ----------------------------------------------------------------
 -- camel-case to dash-case
