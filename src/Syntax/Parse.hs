@@ -643,6 +643,32 @@ constructorId
 -----------------------------------------------------------
 -- Implicit Parameters
 -----------------------------------------------------------
+
+--
+-- Implicit Parameter Identifiers and Use
+--
+isImplicit :: Name -> Bool
+isImplicit name = startsWith (nameId name) "?"
+
+-- `^x` desugars to` `^x()`
+callIfImplicit :: UserExpr -> UserExpr
+callIfImplicit (Var name t rng) =
+    if (isImplicit name) then
+      App (Var name t rng) [] rng
+    else
+      (Var name t rng)
+callIfImplicit e = e
+
+implicitId :: LexParser (Name, Range)
+implicitId = do
+  (name, range) <- qvarid
+  if (isImplicit name) then return (name, range)
+  else fail "expected implicit parameter"
+
+
+--
+-- Implicit Parameter Declarations
+--
 newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
                                     [TypeBinder UserKind], UserKind, Range, Maybe UserType, UserType)
 
@@ -678,39 +704,26 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng
              EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
 
--- `^x` desugars to` `^x()`
-implicitUse :: LexParser UserExpr
-implicitUse =
-  do (id,rng) <- implicitId
-     return $ App (Var id False rng) [] rng
-  <?> "implicit identifier"
+--
+-- Handling Implicit Parameters
+--
 
-isImplicit :: Name -> Bool
-isImplicit name = startsWith (nameId name) "?"
-
-callIfImplicit :: UserExpr -> UserExpr
-callIfImplicit (Var name t rng) =
-    if (isImplicit name) then
-      App (Var name t rng) [] rng
-    else
-      (Var name t rng)
-callIfImplicit e = e
-
-implicitId :: LexParser (Name, Range)
-implicitId = do
-  (name, range) <- qvarid
-  if (isImplicit name) then return (name, range)
-  else fail "expected implicit parameter"
-
--- TODO support patterns and type annotations with implicit parameter bindings
-localImplicitDecl
-  = do (id,irng) <- try $ do
-         keyword "val"
-         implicitId
-       keyword "="
-       e <- blockexpr
-       return $ bindImplicit (combineRanged irng e) (id, irng, e, True)
-
+-- We support two variants of implicit handlers, eager and lazy ones.
+--
+-- Eager implicit handlers
+--     implicit (?<id> = <e>)
+-- translate to
+--     ({ val .implicit-<id> = <e>; handler { ?<id>() -> resume(.implicit-<id>) } })()
+-- while lazy implicit handlers
+--     implicit (?<id> = <e>)
+-- translate to
+--     handler { ?<id>() -> resume(<e>) }
+implicitHandler
+  = do krng <- keyword "implicit"
+       (params, prng) <- parensCommasRng lparen implicitBinding
+       handler <- return $ makeImplicitHandlers params krng
+       option handler (try $ do e <- expr
+                                return $ App handler [(Nothing, e)] (combineRanged krng e))
 
 implicitBinding :: LexParser (Name, Range, UserExpr, Bool)
 implicitBinding
@@ -719,31 +732,15 @@ implicitBinding
        (e, eager) <- (do e <- funblock; return (e, False)) <|> (do e <- blockexpr; return (e, True))
        return (id, irng, e, eager)
 
--- locally binds an implicit variable. Given id, e and body which corresponds to
---     val ?<id> = <e>; <body>
--- we generate a syntax tree for
---     val .implicit-<id> = <e>;
---     handle(() -> <body>) { ?<id>() -> resume(.implicit-<id>) }
-bindImplicit fullrange p body =
-  App (makeImplicitHandler fullrange p) [(Nothing, Lam [] body fullrange)] fullrange
-
-implicitHandler
-  = do krng <- keyword "implicit"
-       (params, prng) <- parensCommasRng lparen implicitBinding
-       handler <- return $ makeImplicitHandlers params krng
-       option handler (try $ do e <- expr
-                                return $ App handler [(Nothing, e)] (combineRanged krng e))
-
 makeImplicitHandlers bindings range =
   let arg = makeFreshHiddenName "handled" (newName "e") range
       binder p@(id, idrange, e, eager) body = bindImplicit (combineRanged idrange body) p body
       handler = foldr binder (App (Var arg False range) [] range) bindings
   in Lam [ValueBinder arg Nothing Nothing range range] handler range
 
+bindImplicit fullrange p body =
+  App (makeImplicitHandler fullrange p) [(Nothing, Lam [] body fullrange)] fullrange
 
---     implicit (?<id> = <e>)
--- translates to
---     ({ val .implicit-<id> = <e>; handler { ?<id>() -> resume(.implicit-<id>) } })()
 makeImplicitHandler fullrange (id, idrange, e, eager) =
   let reinit  = constNull fullrange
       ret     = Var nameReturnNull False fullrange
@@ -759,6 +756,18 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                       makeOp e = HandlerBranch opName [] (resume e) False fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
+
+--   val ?x = E
+-- is sugar for
+--   using implicit (?x = E)
+-- TODO support patterns and type annotations with implicit parameter bindings
+localImplicitDecl
+  = do (id,irng) <- try $ do
+         keyword "val"
+         implicitId
+       keyword "="
+       e <- blockexpr
+       return $ bindImplicit (combineRanged irng e) (id, irng, e, True)
 
 
 -- Effect definitions
