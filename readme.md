@@ -1,5 +1,7 @@
 # Koka: a function-oriented language with effect inference
 
+[![Join the chat at https://gitter.im/koka-lang/koka](https://badges.gitter.im/koka-lang/koka.svg)](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 For more background information, see:
 
 * The [Koka book][kokabook] for a specification of the Koka language and a primer on algebraic effects.
