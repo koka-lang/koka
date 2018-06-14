@@ -51,7 +51,14 @@ Now we can build Koka itself:
    ``sudo npm install`` so that the ``npm`` package manager has enough
    permissions to install the ``jake`` and ``madoko`` tools.
 
-4. Finally, build the compiler and run the Koka interactive environment:
+4. Install `alex`, a lexer generator used by the Koka compiler:
+
+   ```
+   > cabal update
+   > cabal install alex
+   ```
+
+5. Finally, build the compiler and run the Koka interactive environment:
 
    `> jake`
 
