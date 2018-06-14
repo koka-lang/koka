@@ -81,7 +81,7 @@ else if (variant === "trace") {
 task("default",["interactive"]);
 
 desc("build and run the compiler (default)");
-task("interactive", ["config","compiler"], function(rebuild) {
+task("interactive", ["compiler"], function(rebuild) {
   var libDir = path.join(outputDir,libraryDir);
   jake.mkdirP(libDir);
   var cmd = mainExe + " " + hsRunFlags + " --outdir=" + libDir + " " + kokaFlags;
@@ -92,7 +92,7 @@ task("interactive", ["config","compiler"], function(rebuild) {
 
 desc(["build the compiler (" + mainExe + ")",
       "     compiler[rebuild]  # force a rebuild (where dependencies are ignored)"].join("\n"));
-task("compiler", [], function(rebuild) {
+task("compiler", ["config"], function(rebuild) {
   rebuild = rebuild || false;
   initializeDeps(allItems,false,function(items) {
     build("koka " + version + " (" + variant + " version)",rebuild,items);
@@ -122,7 +122,7 @@ task("config", [], function () {
       complete();
     }
     else {
-      var cmd = "cabal install text random parsec"
+      var cmd = "cabal install text random parsec alex"
       jake.logger.log("> " + cmd)
       jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
     }
