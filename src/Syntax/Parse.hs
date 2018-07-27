@@ -677,6 +677,7 @@ implicitDecl dvis = do
   impl <- parseImplicitDecl dvis
   return $ makeImplicitDecl impl
 
+-- TODO what about existential type params? (exists0 is ignored atm)
 parseImplicitDecl :: Visibility -> LexParser ImplicitDecl
 parseImplicitDecl dvis = do
   (vis,defvis,vrng,erng,doc) <-
@@ -684,11 +685,9 @@ parseImplicitDecl dvis = do
              (vis,vrng) <- visibility dvis
              (erng,doc) <- dockeyword "implicit"
              return (vis,vis,vrng,erng,doc))
-  (id,irng) <- implicitId
   (tpars,kind,prng) <- typeKindParams
-  keyword ":"
-  (mbteff,tres) <- tresult
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)
+  Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOperation vis
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,prng,mbteff,tres)
 
 makeImplicitDecl :: ImplicitDecl -> [TopDef]
 makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)) =
