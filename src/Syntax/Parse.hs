@@ -731,6 +731,12 @@ implicitBinding
        (e, eager) <- (do e <- funblock; return (e, False)) <|> (do e <- blockexpr; return (e, True))
        return (id, irng, e, eager)
 
+-- resumeCall e [params] = "resume(e, params...)"
+resumeCall :: UserExpr -> [ValueBinder t e] -> Range -> UserExpr
+resumeCall expr pars rng
+  = App (Var (newName "resume") False rng) ((Nothing, expr) : (map paramToArg pars)) rng where
+    paramToArg p = (Nothing, Var (binderName p) False rng)
+
 makeImplicitHandlers bindings range =
   let arg = makeFreshHiddenName "handled" (newName "e") range
       binder p@(id, idrange, e, eager) body = bindImplicit (combineRanged idrange body) p body
@@ -751,7 +757,7 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                    in Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "")
                            (handle freshVar) fullrange
                 else handle (App e [] fullrange)
-                where resume e = App (Var (newName "resume") False fullrange) [(Nothing, e)] fullrange
+                where resume e = resumeCall e [] fullrange
                       makeOp e = HandlerBranch opName [] (resume e) False fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
@@ -1530,6 +1536,17 @@ handlerOp pars
            name = newHiddenName "reinit"
            def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
        return (ClauseInitially def)
+  -- TODO is "raw" needed for value definitions?
+  <|>
+    do isRaw <-  (do keyword "val"
+                     (do specialId "raw"
+                         return True
+                      <|> return False)
+                  <|> return False)
+       (name,nameRng) <- qidentifier
+       keyword "="
+       expr <- blockexpr
+       return (ClauseBranch (HandlerBranch name [] (resumeCall expr pars nameRng) isRaw nameRng nameRng))
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
