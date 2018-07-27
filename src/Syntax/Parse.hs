@@ -943,7 +943,25 @@ effectDecl dvis = do
   return $ makeEffectDecl decl
 
 parseOperation :: Visibility -> LexParser Operation
-parseOperation vis =
+parseOperation vis = parseValOperation vis <|> parseFunOperation vis
+
+-- effect NAME { val op = ... }
+-- TODO annotate the operation as "value operation" to
+-- (a) also constrain the definition in the handler to use `val`
+-- (b) constrain the use site to use it as a value
+parseValOperation :: Visibility -> LexParser Operation
+parseValOperation vis =
+  do (rng0,doc)   <- (dockeyword "val")
+     (id,idrng)   <- identifier
+     keyword ":"
+     (mbteff,tres) <- tresult
+     _ <- case mbteff of
+       Nothing  -> return ()
+       Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
+     return $ Operation (doc,id,idrng,[],[],idrng,mbteff,tres)
+
+parseFunOperation :: Visibility -> LexParser Operation
+parseFunOperation vis =
   do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
      (id,idrng)   <- identifier
      exists0      <- typeparams
@@ -957,6 +975,7 @@ parseOperation vis =
                     fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ -- trace ("parsed operation " ++ show id ++ " : (" ++ show tres ++ ") " ++ show exists0 ++ " " ++ show pars ++ " " ++ show mbteff) $
               Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+
 
 -- smart constructor for operations
 operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> Operation -> (UserUserCon, UserTypeDef, Integer -> UserDef)
