@@ -1204,9 +1204,9 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        -- Value effect definitions are generated automatically and are always
        -- tail resumptive. This is a sanity check
-       if (brType==BrValue && rk<=ResumeTail) then
+       if (brType==BrValue && rk>ResumeTail) then
            termError rng (text "operator" <+> text (show opName) <+>
-                          text "Value effect definition need to be tail resumptive.") bexprEff
+                          text ("Value effect definition need to be tail resumptive, but is " ++ show rk)) bexprEff
                           []
        else return ()
 
