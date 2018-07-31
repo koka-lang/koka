@@ -902,12 +902,13 @@ handlerReturnDefault rng propLocals
         xvar  = Var xname False rng
     in Lam (xbind:propLocals) xvar rng
 
+-- TODO check whether branch type fits
 inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
       Nothing  -> case ops of
-        (HandlerBranch name pars expr isRaw nameRng rng: _)
+        (HandlerBranch name pars expr isRaw brType nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
@@ -1051,7 +1052,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw brType nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -1176,7 +1177,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        traceDoc $ \env -> text "inferHandlerBranch locals: " <.> list (map (pretty . fst) locals)
 
-       (bexprTp,bexprEff, bexprCore) <-
+       (bexprTp,bexprEff,bexprCore) <-
         if (hasExists)
          then inferExpr (Just (typeAny,rng)) Instantiated (App (Var nameToAny False nameRng) [(Nothing,Ann branchExpr branchExprTp rng)] rng)
          else inferExpr (Just (branchExprTp,rng)) Instantiated (Ann branchExpr branchExprTp rng)
@@ -1199,23 +1200,32 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,bexprTp)] bexprEff typeAny,rng)) Instantiated (Var nameToAny False nameRng)
 
        defName <- currentDefName
-       let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = let rk = analyzeResume defName (unqualify opName) raw bexprCore
-                           -- The scoped variants require a bind translation in the branch but currently
-                           -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
-                           -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
-                           -- generated; one way around this is to give the `resume` operation in a scoped handler a special
-                           -- `resume` effect and remove that in the handler again but that effect might leak out through
-                           -- parameters and thus affect the user experience (who would need to use `inject` operations).
-                           -- Therefore, we just disable it for now and don't generate scoped branches.
-                           -- Tested in `algeff/effs1b`
-                         in if (raw)
-                             then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
-                             else case rk of
-                                    ResumeScopedOnce -> ResumeOnce
-                                    ResumeScoped     -> ResumeNormal
-                                    _                -> rk
+       let rk = analyzeResume defName (unqualify opName) raw bexprCore
 
+       -- Value effect definitions are generated automatically and are always
+       -- tail resumptive. This is a sanity check
+       if (brType==BrValue && rk<=ResumeTail) then
+           termError rng (text "operator" <+> text (show opName) <+>
+                          text "Value effect definition need to be tail resumptive.") bexprEff
+                          []
+       else return ()
+
+
+       -- The scoped variants require a bind translation in the branch but currently
+       -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
+       -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
+       -- generated; one way around this is to give the `resume` operation in a scoped handler a special
+       -- `resume` effect and remove that in the handler again but that effect might leak out through
+       -- parameters and thus affect the user experience (who would need to use `inject` operations).
+       -- Therefore, we just disable it for now and don't generate scoped branches.
+       -- Tested in `algeff/effs1b`
+       let rkind = if (raw)
+                   then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
+                   else case rk of
+                        ResumeScopedOnce -> ResumeOnce
+                        ResumeScoped     -> ResumeNormal
+                        _                -> rk
+           mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore
@@ -1252,13 +1262,16 @@ makeContextType argTp effTp branchTp locals
         kind = kindFun kindStar (kindFun kindEffect (kindCon (length locals + 1)))
     in TApp (TCon (TypeCon name kind)) ([argTp,effTp,branchTp] ++ map snd locals)
 
+-- if brType==BrFun then toOpsConName  id else toOpsConValueName id
+
 checkCoverage :: Range -> Effect -> [HandlerBranch Type] -> Inf (Name, [HandlerBranch Type])
 checkCoverage rng effect branches
   = do let handledEffectName = effectNameFromLabel effect
        opsInfo <- findDataInfo (toOperationsName handledEffectName)
        let modName = qualifier (dataInfoName opsInfo)
-       opNames <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
-       let branchNames = map (qualify modName . hbranchName) branches
+       trace ("opsinfo" ++ show (dataInfoConstrs opsInfo)) $ return ()
+       opNames     <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
+       branchNames <- mapM (getBranchName modName) branches
        checkCoverageOf rng opNames opNames branchNames
        return (handledEffectName, order opNames branchNames branches)
   where
@@ -1269,6 +1282,14 @@ checkCoverage rng effect branches
                            Just x -> snd x
                            _      -> failure ("Type.Infer.checkCoverage.order: branch name unknown: " ++ show name)
         in map xfind opNames
+
+    getBranchName :: Name -> HandlerBranch Type -> Inf Name
+    getBranchName modName branch =
+        let name   = (hbranchName branch)
+            brtype = (hbranchType branch)
+            -- encode the type into the name
+            brname = if brtype==BrValue then prepend "val-" name else name
+        in return $ qualify modName brname
 
     getOpName :: Name -> ConInfo -> Inf Name
     getOpName modName opConInfo

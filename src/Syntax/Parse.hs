@@ -670,7 +670,7 @@ implicitId = do
 -- Implicit Parameter Declarations
 --
 newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
-                                    [TypeBinder UserKind], UserKind, Range, Maybe UserType, UserType)
+                                    [TypeBinder UserKind], UserKind, Range, BranchType, Maybe UserType, UserType)
 
 implicitDecl :: Visibility -> LexParser [TopDef]
 implicitDecl dvis = do
@@ -686,11 +686,11 @@ parseImplicitDecl dvis = do
              (erng,doc) <- dockeyword "implicit"
              return (vis,vis,vrng,erng,doc))
   (tpars,kind,prng) <- typeKindParams
-  Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOperation vis
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,prng,mbteff,tres)
+  Operation (doc,id,idrng,brtype,exists0,pars,prng,mbteff,tres) <- parseOperation vis
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,prng,brtype,mbteff,tres)
 
 makeImplicitDecl :: ImplicitDecl -> [TopDef]
-makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)) =
+makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,brtype,mbteff,tres)) =
   let sort = Inductive
       singleShot = False -- breaks type inference if set to True
       isResource = False
@@ -698,7 +698,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng
       effectName = id
       opName = id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
-             Operation ("", opName, vrng, [], [], rangeNull, mbteff, tres)
+             Operation ("", opName, vrng, brtype, [], [], rangeNull, mbteff, tres)
       decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
              EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
@@ -758,7 +758,7 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                            (handle freshVar) fullrange
                 else handle (App e [] fullrange)
                 where resume e = resumeCall e [] fullrange
-                      makeOp e = HandlerBranch opName [] (resume e) False fullrange fullrange
+                      makeOp e = HandlerBranch opName [] (resume e) False BrValue fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
 
@@ -784,7 +784,7 @@ localImplicitDecl
 -- structures
 
 -- Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
-newtype Operation = Operation (String, Name, Range, [TypeBinder UserKind],
+newtype Operation = Operation (String, Name, Range, BranchType, [TypeBinder UserKind],
                                [(Visibility, ValueBinder UserType (Maybe UserExpr))],
                                Range, (Maybe UserType), UserType)
 
@@ -963,7 +963,7 @@ parseValOperation vis =
      _ <- case mbteff of
        Nothing  -> return ()
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ Operation (doc,id,idrng,[],[],idrng,mbteff,tres)
+     return $ Operation (doc,id,idrng,BrValue,[],[],idrng,mbteff,tres)
 
 parseFunOperation :: Visibility -> LexParser Operation
 parseFunOperation vis =
@@ -979,14 +979,16 @@ parseFunOperation vis =
                     -- return etp
                     fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ -- trace ("parsed operation " ++ show id ++ " : (" ++ show tres ++ ") " ++ show exists0 ++ " " ++ show pars ++ " " ++ show mbteff) $
-              Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+              Operation (doc,id,idrng,BrFun,exists0,pars,prng,mbteff,tres)
 
 
 -- smart constructor for operations
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType -> Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) -> [UserType] -> Operation -> (UserUserCon, UserTypeDef, Integer -> UserDef)
+operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
+             Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) ->
+             [UserType] -> Operation -> (UserUserCon, UserTypeDef, Integer -> UserDef)
 operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
-           Operation (doc,id,idrng,exists0,pars,prng,mbteff,tres) = op
+           Operation (doc,id,idrng,brType,exists0,pars,prng,mbteff,tres) = op
            teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
@@ -996,8 +998,11 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
            --nameE    = newName ".e"
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
 
+           -- encode the branchtype into the name
+           opId     = if brType==BrFun then id else prepend "val-" id
+
            -- Create the constructor
-           opName   = toOpTypeName id
+           opName   = toOpTypeName opId
            opBinder = TypeBinder opName KindNone idrng idrng
 
 
@@ -1013,7 +1018,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
                       notDiv (TpCon name _) = name /= nameTpDiv
                       notDiv _              = True
 
-           conName  = toOpConName id
+           conName  = toOpConName opId
            conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
            conDef   = UserCon conName [] conParams Nothing idrng rng vis ""
 
@@ -1026,12 +1031,12 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
            tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
            opsConTpRes = makeTpApp opsTp (forallParams ++ [tres]) rng
            opsConTpArg = makeTpApp (tpCon opBinder) ({-effTp:-}tpParams) rng
-           opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
-           opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] (Just opsConTpRes) idrng rng vis ""
+           opsConArg   = ValueBinder opId opsConTpArg Nothing idrng idrng
+           opsConDef = UserCon (toOpsConName opId) exists [(Private,opsConArg)] (Just opsConTpRes) idrng rng vis ""
 
            -- Declare the operation tag name
            opTagName    = toOpenTagName opName
-           opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show id) idrng)) idrng idrng)
+           opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show opId) idrng)) idrng idrng)
                               idrng vis DefVal ""
 
            -- Declare the yield operation
@@ -1047,7 +1052,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
                         innerBody
                           = App yieldOp
                                      ([(Nothing, Var effTagName False idrng),
-                                       (Nothing, Lit (LitString (show id) idrng)),
+                                       (Nothing, Lit (LitString (show opId) idrng)),
                                        (Nothing, case mbResourceInt of
                                                    Nothing -> Lit (LitInt 0 idrng)
                                                    Just (_,binder,expr) -> expr),
@@ -1546,7 +1551,7 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        keyword "="
        expr <- blockexpr
-       return (ClauseBranch (HandlerBranch name [] (resumeCall expr pars nameRng) isRaw nameRng nameRng))
+       return (ClauseBranch (HandlerBranch name [] (resumeCall expr pars nameRng) isRaw BrValue nameRng nameRng))
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
@@ -1556,7 +1561,7 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr isRaw nameRng (combineRanges [nameRng,prng])))
+       return (ClauseBranch (HandlerBranch name pars expr isRaw BrFun nameRng (combineRanges [nameRng,prng])))
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams

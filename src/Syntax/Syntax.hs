@@ -215,9 +215,12 @@ data HandlerBranch t
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
                  , hbranchRaw  :: Bool
+                 , hbranchType :: BranchType
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }
+
+data BranchType = BrValue | BrFun deriving (Eq)
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)
