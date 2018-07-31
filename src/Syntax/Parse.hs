@@ -963,7 +963,7 @@ parseValOperation vis =
      _ <- case mbteff of
        Nothing  -> return ()
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ Operation (doc,id,idrng,BrValue,[],[],idrng,mbteff,tres)
+     return $ Operation (doc,makeHiddenName "val" id,idrng,BrValue,[],[],idrng,mbteff,tres)
 
 parseFunOperation :: Visibility -> LexParser Operation
 parseFunOperation vis =
@@ -999,7 +999,7 @@ operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffec
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
 
            -- encode the branchtype into the name
-           opId     = if brType==BrFun then id else prepend "val-" id
+           opId     = id -- if brType==BrFun then id else prepend "val-" id
 
            -- Create the constructor
            opName   = toOpTypeName opId
@@ -1551,7 +1551,7 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        keyword "="
        expr <- blockexpr
-       return (ClauseBranch (HandlerBranch name [] (resumeCall expr pars nameRng) isRaw BrValue nameRng nameRng))
+       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] (resumeCall expr pars nameRng) isRaw BrValue nameRng nameRng))
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"

@@ -62,6 +62,7 @@ module Common.NamePrim
           , nameInCps
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+          , nameTpValueOp
 
 
           , nameTpAsync, nameTpAsyncX
@@ -195,6 +196,8 @@ nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
 nameTpHandlerBranch0 = preludeName "handler-branch0"
 nameTpHandlerBranch1 = preludeName "handler-branch1"
+
+nameTpValueOp   = preludeName "value"
 
 
 nameTpCps       = preludeName "cps"

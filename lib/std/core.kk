@@ -3157,3 +3157,9 @@ extern inline ".toany"( x : a ) : any {
   inline "#1"
   cs inline "(object)(#1)"
 }
+
+alias value<a> = a
+
+extern phantom<a>() : a {
+  inline "undefined"
+}

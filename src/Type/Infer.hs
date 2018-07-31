@@ -33,6 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
+                      , nameTpValueOp
                        )
 import Common.Range
 import Common.Unique
@@ -1269,7 +1270,7 @@ checkCoverage rng effect branches
   = do let handledEffectName = effectNameFromLabel effect
        opsInfo <- findDataInfo (toOperationsName handledEffectName)
        let modName = qualifier (dataInfoName opsInfo)
-       trace ("opsinfo" ++ show (dataInfoConstrs opsInfo)) $ return ()
+       -- trace ("opsinfo" ++ show (dataInfoConstrs opsInfo)) $ return ()
        opNames     <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
        branchNames <- mapM (getBranchName modName) branches
        checkCoverageOf rng opNames opNames branchNames
@@ -1284,12 +1285,8 @@ checkCoverage rng effect branches
         in map xfind opNames
 
     getBranchName :: Name -> HandlerBranch Type -> Inf Name
-    getBranchName modName branch =
-        let name   = (hbranchName branch)
-            brtype = (hbranchType branch)
-            -- encode the type into the name
-            brname = if brtype==BrValue then prepend "val-" name else name
-        in return $ qualify modName brname
+    getBranchName modName branch
+      = return $ qualify modName (hbranchName branch)
 
     getOpName :: Name -> ConInfo -> Inf Name
     getOpName modName opConInfo
@@ -1694,6 +1691,8 @@ inferVar propagated expect name rng isRhs
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                  return (tp1,eff1,core1)
+         InfoVal{} | isValueOperation tp
+           -> inferExpr propagated expect (App (Var (makeHiddenName "val" qname) False rng) [] rng)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
@@ -1703,6 +1702,10 @@ inferVar propagated expect name rng isRhs
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
 
+isValueOperation tp 
+  = case splitPredType tp of
+      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      _ -> False
 
 {-
 inferVar propagated expect name rng isRhs
