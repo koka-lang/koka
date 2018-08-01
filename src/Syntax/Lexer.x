@@ -266,7 +266,7 @@ reservedNames
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some", "with"
     , "private", "public", "abstract"
-    , "module", "import", "as"
+    , "module", "import", "as", "in"
     , "="
     , "."
     , ":"

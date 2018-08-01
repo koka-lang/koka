@@ -32,7 +32,7 @@ module Syntax.Parse( parseProgramFromFile
 
 import Lib.Trace
 import Data.List (intersperse,unzip4)
-import Data.Maybe (isJust,catMaybes)
+import Data.Maybe (isJust,isNothing,catMaybes)
 import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
@@ -1375,15 +1375,25 @@ handlerExpr
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
-       handlerExprX rng mbEff scoped hsort
+       handlerExprX True rng mbEff scoped hsort
   <|>
+    -- TODO deprecate handle syntax in favor of "with" expression syntax
     do rng <- keyword "handle"
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
        args <- parensCommas lparen argument
-       expr <- handlerExprX rng mbEff scoped hsort
+       expr <- handlerExprX True rng mbEff scoped hsort
        return (App expr args (combineRanged rng expr))
+  <|>
+    do rng     <- keyword "with"
+       handler <- handlerExprX False rng Nothing HandlerNoScope HandlerDeep
+       _       <- keyword "in"
+       action  <- blockexpr
+       let thunked = Lam [] action (getRange action)
+       return (App handler [(Nothing, thunked)] (combineRanged rng action))
+
+
   where
     handlerSort =     do specialId "resource"
                          res <- do (name,rng) <- qidentifier
@@ -1395,10 +1405,13 @@ handlerExpr
 
 
 
-handlerExprX rng mbEff scoped hsort
+handlerExprX braces rng mbEff scoped hsort
   = do (pars,dpars,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
+       -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
-       (clausesAndBinders,rng2)  <- semiBracesRanged (handlerOp xpars)
+           bodyParser = if braces || not (null xpars) then bracedOps else handlerOps
+       (clausesAndBinders,rng2)  <- bodyParser xpars
+       let fullrange = combineRanges [rng,rng1,rng2]
        let (clauses, binders) = extractBinders clausesAndBinders
        (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
        let reinitFun = case mbReinit of
@@ -1411,7 +1424,7 @@ handlerExprX rng mbEff scoped hsort
                                                       [(Nothing,Var argName False rng)] rng)] rng
                            in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
            handler = binders $ Handler hsort scoped mbEff pars reinitFun ret final ops
-                       (combineRanged rng pars) (combineRanges [rng,rng1,rng2])
+                       (combineRanged rng pars) fullrange
            hasDefaults = any (isJust.binderExpr) dpars
        case mbReinit of
          Nothing
@@ -1447,21 +1460,26 @@ handlerAddDefaults :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserExp
 handlerAddDefaults dpars handler
   =  let rng    = getRange (head dpars) -- safe as dpars is non-empty
          apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
+         -- rename parameters without defaults to later rebind them
          xpars  = [case binderExpr p of
-                     Nothing -> p{binderName = makeHiddenName "par" (binderName p)}
+                     --Nothing -> p{binderName = makeHiddenName "par" (binderName p)}
+                     Nothing -> p
                      Just _  -> p
                   | p <- dpars]
+         -- for parameters without defaults, use vars bound in outer function
          xargs  = [(Nothing,
                     case binderExpr p of
                       Nothing -> Var (binderName p) False rng
                       Just e  -> e) |  p <- xpars]
                   ++
                   [(Nothing, (Var (binderName apar) False rng) )]
-         xxpars = [p | p <- xpars, not (isJust (binderExpr p))]
-         hname  = newHiddenName "handler"
-         hdef   = Def (ValueBinder hname () handler rng rng) rng Private DefVal ""
-         hlam   = Let (DefNonRec hdef) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
-     in hlam
+         -- parameters without defaults
+         xxpars = [p | p <- xpars, isNothing (binderExpr p)]
+         -- TODO is there a reason why we evaluate the handler once?
+--          hname  = newHiddenName "handler"
+--          hdef   = Def (ValueBinder hname () handler rng rng) rng Private DefVal ""
+--          hlam   = Let (DefNonRec hdef) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
+     in (Lam (xxpars ++ [apar]) (App handler xargs rng) rng)
 
 -- eta expand to defer initialization of vals to handler usage
 handlerEtaExpand :: [ValueBinder (Maybe UserType) ()] -> UserExpr -> UserExpr
@@ -1490,6 +1508,12 @@ data Clause = ClauseRet UserExpr
             | ClauseFinally UserExpr
             | ClauseInitially UserDef
             | ClauseBranch UserHandlerBranch
+
+instance Ranged Clause where
+  getRange (ClauseRet e) = getRange e
+  getRange (ClauseFinally e) = getRange e
+  getRange (ClauseInitially e) = getRange e
+  getRange (ClauseBranch e) = getRange e
 
 extractBinders :: [(Clause, Maybe (UserExpr -> UserExpr))] -> ([Clause], UserExpr -> UserExpr)
 extractBinders = foldr extractBinder ([], id) where
@@ -1520,6 +1544,14 @@ partitionClauses clauses pars rng
           ClauseFinally f -> separate (reinits,rets,f:finals,ops) clauses
           ClauseInitially i -> separate (i:reinits,rets,finals,ops) clauses
           ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
+
+-- either a single op without braces, or multiple ops within braces
+handlerOps xpars = bracedOps xpars <|> singleOp xpars
+bracedOps xpars = semiBracesRanged (handlerOp xpars)
+singleOp xpars
+  = do (op, bind) <- handlerOp xpars
+       return ([(op, bind)], getRange op)
+
 
 -- returns a clause and potentially a binder as transformation on the handler
 handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))

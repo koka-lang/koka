@@ -6,10 +6,18 @@ effect test {
   val x : int
 }
 
-val h = handler(s) {
-  val x = { println("hello"); s }
+effect foo {
+  fun b(): int
+}
+
+val h = handler(s = 2) {
+  val x = { println("hello"); 3 }
+}
+
+val h3 = handler(s = 3) {
+  fun b() { resume(3, s) }
 }
 
 fun main() {
-  h(42, { x + x })
+  h({ x + x })
 }
