@@ -1405,7 +1405,7 @@ handlerExprX rng mbEff scoped hsort
        case mbReinit of
          Nothing
           | hasDefaults -> return $ handlerAddDefaults dpars handler
-          | otherwise   -> return $ handler
+          | otherwise   -> return $ handlerEtaExpand pars handler
          Just reinit
           | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
           | otherwise   -> case pars of
@@ -1452,6 +1452,19 @@ handlerAddDefaults dpars handler
          hlam   = Let (DefNonRec hdef) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
      in hlam
 
+-- eta expand to defer initialization of vals to handler usage
+handlerEtaExpand :: [ValueBinder (Maybe UserType) ()] -> UserExpr -> UserExpr
+handlerEtaExpand pars handler
+   = let rng      = getRange pars
+         aname    = newHiddenName "action"
+         abinder  = ValueBinder aname Nothing Nothing rng rng
+         avar     = (Nothing, Var aname False rng)
+         pnames   = [makeHiddenName "par" (binderName p) | p <- pars]
+         pbinders = [ValueBinder pname Nothing Nothing rng rng | pname <- pnames]
+         pvars    = [(Nothing, Var pname False rng) | pname <- pnames]
+     in Lam (pbinders ++ [abinder])
+            (App handler (pvars ++ [avar]) rng)
+             rng
 
 makeNull expr
   = let rng = getRange expr
