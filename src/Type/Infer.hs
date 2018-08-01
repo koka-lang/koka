@@ -921,7 +921,7 @@ inferHandledEffect rng handlerSort mbeff ops
                                 -> case extractEffectExtend eff of
                                     ((l:_),_) -> return (Just l)  -- TODO: can we assume the effect comes first?
                                     _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
-                  _ -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
+                  _ -> infError rng (text ("Expected effect operation to be handled but got a function: " ++ show qname ++ " instead"))
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
