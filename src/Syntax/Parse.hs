@@ -740,6 +740,18 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
 
+-- given a name and an expression, this function generates
+-- - a binder for a fresh name (let's say `val x$name$3 = expr; body`), binding the expression
+-- - a tail resuming expression i.e. `resume(x$name$3, params...)`
+-- TODO add parameters to resume (replace UserExpr by [ValueBinder t e] -> UserExpr)
+bindExprToVal :: Name -> Range -> UserExpr -> (UserExpr -> UserExpr, UserExpr)
+bindExprToVal opname oprange expr
+  =  let fresh    = makeFreshHiddenName "value" opname oprange
+         freshVar = (Var fresh False oprange)
+         erange   = (getRange expr)
+         binder   = (Def (ValueBinder fresh () expr oprange erange) oprange Private DefVal "")
+      in (\body -> Bind binder body erange, resumeCall freshVar [] erange)
+
 
 -- Effect definitions
 --
@@ -894,7 +906,7 @@ makeEffectDecl decl =
                      (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
       -- parse the operations and return the constructors and function definitions
-      ops = map (operation singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
+      ops = map (operationDecl singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
 
       (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
       opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
@@ -949,10 +961,10 @@ parseFunOpDecl vis =
 
 
 -- smart constructor for operations
-operation :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
+operationDecl :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
              Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) ->
              [UserType] -> OpDecl -> (UserUserCon, UserTypeDef, Integer -> UserDef)
-operation singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
+operationDecl singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres) = op
            teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
@@ -1375,7 +1387,8 @@ handlerExpr
 handlerExprX rng mbEff scoped hsort
   = do (pars,dpars,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
        let xpars = [par{binderExpr = Nothing} | par <- pars]
-       (clauses,rng2)  <- semiBracesRanged (handlerOp xpars)
+       (clausesAndBinders,rng2)  <- semiBracesRanged (handlerOp xpars)
+       let (clauses, binders) = extractBinders clausesAndBinders
        (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
        let reinitFun = case mbReinit of
                          Nothing -> constNull rng
@@ -1386,7 +1399,7 @@ handlerExprX rng mbEff scoped hsort
                                         [(Nothing,App (Var nameJust False rng)
                                                       [(Nothing,Var argName False rng)] rng)] rng
                            in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
-           handler = Handler hsort scoped mbEff pars reinitFun ret final ops
+           handler = binders $ Handler hsort scoped mbEff pars reinitFun ret final ops
                        (combineRanged rng pars) (combineRanges [rng,rng1,rng2])
            hasDefaults = any (isJust.binderExpr) dpars
        case mbReinit of
@@ -1453,6 +1466,11 @@ data Clause = ClauseRet UserExpr
             | ClauseInitially UserDef
             | ClauseBranch UserHandlerBranch
 
+extractBinders :: [(Clause, Maybe (UserExpr -> UserExpr))] -> ([Clause], UserExpr -> UserExpr)
+extractBinders = foldr extractBinder ([], id) where
+  extractBinder (clause, Nothing) (cs, binders) = (clause : cs, binders)
+  extractBinder (clause, Just binder) (cs, binders) = (clause : cs, binders . binder)
+
 partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (Maybe UserDef,UserExpr,UserExpr,[UserHandlerBranch])
 partitionClauses clauses pars rng
   = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses
@@ -1478,18 +1496,18 @@ partitionClauses clauses pars rng
           ClauseInitially i -> separate (i:reinits,rets,finals,ops) clauses
           ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
 
-
-handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser Clause
+-- returns a clause and potentially a binder as transformation on the handler
+handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp pars
   = do rng <- keyword "return"
        (name,prng) <- paramid
        tp         <- optionMaybe typeAnnotPar
        expr <- bodyexpr
-       return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)))
+       return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)), Nothing)
   <|>
     do rng <- specialId "finally"
        expr <- bodyexpr
-       return (ClauseFinally (Lam pars expr (combineRanged rng expr)))
+       return (ClauseFinally (Lam pars expr (combineRanged rng expr)), Nothing)
   <|>
     do rng <- specialId "initially"
        expr <- bodyexpr
@@ -1503,7 +1521,7 @@ handlerOp pars
            lam = Lam mpars expr drng
            name = newHiddenName "reinit"
            def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
-       return (ClauseInitially def)
+       return (ClauseInitially def, Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>
     do isRaw <-  (do keyword "val"
@@ -1514,7 +1532,8 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        keyword "="
        expr <- blockexpr
-       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] (resumeCall expr pars nameRng) isRaw BrValue nameRng nameRng))
+       let (binder,resumeExpr) = bindExprToVal name nameRng expr
+       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] resumeExpr isRaw BrValue nameRng nameRng), Just binder)
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
@@ -1524,7 +1543,7 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr isRaw BrFun nameRng (combineRanges [nameRng,prng])))
+       return (ClauseBranch (HandlerBranch name pars expr isRaw BrFun nameRng (combineRanges [nameRng,prng])), Nothing)
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
