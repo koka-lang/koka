@@ -16,7 +16,7 @@ val res4 = with height = 5 in
 val res5 = with (s = 7) { val height = 1 + 3 } in height * height
 
 fun res6() {
-  with (s = 7) { val height = { println("foo"); 1 + 3 } } in height * height
+  (with (s = 7) { val height = { println("foo"); 1 + 3 } } in height * height)
 }
 
 effect counter {
@@ -32,4 +32,22 @@ val res7 = with (s = 0) {
   tick()
   tick()
   get()
+}
+
+// with statement syntax
+val res8 = {
+  with { val width = 5 }
+  width + width
+}
+
+val res9 = {
+  with { val width = 5 }
+  with { val height = 9 }
+  width * height
+}
+
+val res10 = {
+  with width = 5
+  with height = 9
+  width * height
 }

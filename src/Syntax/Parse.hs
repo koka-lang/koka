@@ -1213,7 +1213,7 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
+    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl <|> localWithDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
@@ -1272,6 +1272,11 @@ localUsingDecl
   = do krng <- keyword "using"
        e    <- blockexpr
        return $ applyToContinuation krng [] e
+
+localWithDecl
+  = do krng    <- keyword "with"
+       handler <- handlerExprX False krng Nothing HandlerNoScope HandlerDeep
+       return $ applyToContinuation krng [] handler
 
 applyToContinuation rng params expr body
   = let fun = Lam params body (combineRanged rng body)
