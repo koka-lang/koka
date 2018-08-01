@@ -29,6 +29,7 @@ module Common.Name
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
+          , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName
 
           , prepend, postpend
@@ -294,6 +295,21 @@ toOpenTagName name
 isOpenTagName :: Name -> Bool
 isOpenTagName name
   = nameId name `startsWith` ".tag-"
+
+-- | Create a name for a value operation
+toValueOperationName :: Name -> Name
+toValueOperationName name
+  = makeHiddenName "val" name
+
+-- | Is this an name of a value operation?
+isValueOperationName :: Name -> Bool
+isValueOperationName name
+  = nameId name `startsWith` ".val-"
+
+-- | Create an operation name from a value operation name
+fromValueOperationsName :: Name -> Name
+fromValueOperationsName name
+  = newQualified (nameModule name) (drop 5 (nameId name))
 
 prepend :: String -> Name -> Name
 prepend s name

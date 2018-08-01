@@ -31,8 +31,8 @@ module Syntax.Parse( parseProgramFromFile
                    ) where
 
 import Lib.Trace
-import Data.List (intersperse)
-import Data.Maybe( isJust )
+import Data.List (intersperse,unzip4)
+import Data.Maybe (isJust,catMaybes)
 import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
 import qualified Lib.PPrint as PP (string)
@@ -908,7 +908,7 @@ makeEffectDecl decl =
       -- parse the operations and return the constructors and function definitions
       ops = map (operationDecl singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
 
-      (opsConDefs,opTpDecls,mkOpDefs) = unzip3 ops
+      (opsConDefs,opTpDecls,mkOpDefs,opsValDefs) = unzip4 ops
       opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
 
       -- declare operations data type (for the type checker)
@@ -918,7 +918,7 @@ makeEffectDecl decl =
   in [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
            effResourceDecls ++
            map DefType opTpDecls ++
-           map DefValue opDefs
+           map DefValue opDefs ++ map DefValue (catMaybes opsValDefs)
 
 effectDecl :: Visibility -> LexParser [TopDef]
 effectDecl dvis = do
@@ -941,7 +941,7 @@ parseValOpDecl vis =
      _ <- case mbteff of
        Nothing  -> return ()
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ OpDecl (doc,makeHiddenName "val" id,idrng,[],[],idrng,mbteff,tres)
+     return $ OpDecl (doc,toValueOperationName id,idrng,[],[],idrng,mbteff,tres)
 
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
@@ -963,7 +963,7 @@ parseFunOpDecl vis =
 -- smart constructor for operations
 operationDecl :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
              Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) ->
-             [UserType] -> OpDecl -> (UserUserCon, UserTypeDef, Integer -> UserDef)
+             [UserType] -> OpDecl -> (UserUserCon, UserTypeDef, Integer -> UserDef, Maybe UserDef)
 operationDecl singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres) = op
@@ -1014,6 +1014,17 @@ operationDecl singleShot vis foralls effTagName effTp opsTp mbResourceInt extraE
            opTagDef     = Def (ValueBinder opTagName () (Lit (LitString (show id) idrng)) idrng idrng)
                               idrng vis DefVal ""
 
+           -- Declare a value definition for value operations
+           opValDef = if isValueOperationName id then
+                        let opName  = fromValueOperationsName id
+                            qualTpe = promoteType (TpApp (TpCon nameTpValueOp idrng) [tres] idrng)
+                            phantom = App (Var namePhantom False idrng) [] idrng
+                            annot   = Ann phantom qualTpe idrng
+                        in Just $ Def (ValueBinder opName () annot idrng idrng)
+                                      idrng vis DefVal "// dummy definition for value operations"
+
+                      else Nothing
+
            -- Declare the yield operation
            opDef tagIdx = -- trace ("create op def: " ++ show id) $
                     let def  = Def binder rng vis defFun ""
@@ -1063,7 +1074,7 @@ operationDecl singleShot vis foralls effTagName effTp opsTp mbResourceInt extraE
 
 
                     in def
-           in (opsConDef,opTpDecl,opDef)
+           in (opsConDef,opTpDecl,opDef,opValDef)
 
 
 
@@ -1547,7 +1558,7 @@ handlerOp pars
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] (resumeExpr pars) isRaw BrValue nameRng nameRng), Just binder)
+       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw BrValue nameRng nameRng), Just binder)
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"

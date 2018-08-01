@@ -26,7 +26,7 @@ module Common.NamePrim
           , nameDecreasing, nameSubStr1, nameDec
 
           , nameUnit
-          , nameReturn, nameTrace, nameLog
+          , nameReturn, nameTrace, nameLog, namePhantom
           , nameEffectOpen
           , nameToAny
           , nameEnsureK
@@ -131,8 +131,9 @@ namePredEffDiv = preludeName "ediv"
 nameReturn :: Name
 nameReturn = preludeName ".return"
 
-nameTrace  = preludeName "trace"
-nameLog    = preludeName "log"
+nameTrace   = preludeName "trace"
+nameLog     = preludeName "log"
+namePhantom = preludeName "phantom"
 
 nameEffectOpen :: Name
 nameEffectOpen = preludeName ".open"

@@ -1692,7 +1692,7 @@ inferVar propagated expect name rng isRhs
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                  return (tp1,eff1,core1)
          InfoVal{} | isValueOperation tp
-           -> inferExpr propagated expect (App (Var (makeHiddenName "val" qname) False rng) [] rng)
+           -> inferExpr propagated expect (App (Var (toValueOperationName qname) False rng) [] rng)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
