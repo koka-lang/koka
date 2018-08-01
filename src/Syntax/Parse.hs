@@ -744,13 +744,13 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
 -- - a binder for a fresh name (let's say `val x$name$3 = expr; body`), binding the expression
 -- - a tail resuming expression i.e. `resume(x$name$3, params...)`
 -- TODO add parameters to resume (replace UserExpr by [ValueBinder t e] -> UserExpr)
-bindExprToVal :: Name -> Range -> UserExpr -> (UserExpr -> UserExpr, UserExpr)
+bindExprToVal :: Name -> Range -> UserExpr -> (UserExpr -> UserExpr, [ValueBinder t e] -> UserExpr)
 bindExprToVal opname oprange expr
   =  let fresh    = makeFreshHiddenName "value" opname oprange
          freshVar = (Var fresh False oprange)
          erange   = (getRange expr)
          binder   = (Def (ValueBinder fresh () expr oprange erange) oprange Private DefVal "")
-      in (\body -> Bind binder body erange, resumeCall freshVar [] erange)
+      in (\body -> Bind binder body erange, \params -> resumeCall freshVar params erange)
 
 
 -- Effect definitions
@@ -1459,7 +1459,8 @@ handlerEtaExpand pars handler
          aname    = newHiddenName "action"
          abinder  = ValueBinder aname Nothing Nothing rng rng
          avar     = (Nothing, Var aname False rng)
-         pnames   = [makeHiddenName "par" (binderName p) | p <- pars]
+         -- renaming pars here prevents them from being accessible in val-initializations
+         pnames   = map binderName pars -- [makeHiddenName "par" (binderName p) | p <- pars]
          pbinders = [ValueBinder pname Nothing Nothing rng rng | pname <- pnames]
          pvars    = [(Nothing, Var pname False rng) | pname <- pnames]
      in Lam (pbinders ++ [abinder])
@@ -1546,7 +1547,7 @@ handlerOp pars
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] resumeExpr isRaw BrValue nameRng nameRng), Just binder)
+       return (ClauseBranch (HandlerBranch (makeHiddenName "val" name) [] (resumeExpr pars) isRaw BrValue nameRng nameRng), Just binder)
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
