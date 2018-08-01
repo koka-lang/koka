@@ -645,28 +645,6 @@ constructorId
 -----------------------------------------------------------
 
 --
--- Implicit Parameter Identifiers and Use
---
-isImplicit :: Name -> Bool
-isImplicit name = startsWith (nameId name) "?"
-
--- `^x` desugars to` `^x()`
-callIfImplicit :: UserExpr -> UserExpr
-callIfImplicit (Var name t rng) =
-    if (isImplicit name) then
-      App (Var name t rng) [] rng
-    else
-      (Var name t rng)
-callIfImplicit e = e
-
-implicitId :: LexParser (Name, Range)
-implicitId = do
-  (name, range) <- qvarid
-  if (isImplicit name) then return (name, range)
-  else fail "expected implicit parameter"
-
-
---
 -- Implicit Parameter Declarations
 --
 newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
@@ -761,18 +739,6 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                       makeOp e = HandlerBranch opName [] (resume e) False BrValue fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
-
---   val ?x = E
--- is sugar for
---   using implicit (?x = E)
--- TODO support patterns and type annotations with implicit parameter bindings
-localImplicitDecl
-  = do (id,irng) <- try $ do
-         keyword "val"
-         implicitId
-       keyword "="
-       e <- blockexpr
-       return $ bindImplicit (combineRanged irng e) (id, irng, e, True)
 
 
 -- Effect definitions
@@ -1224,7 +1190,7 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localImplicitDecl <|> localValueDecl <|> localUseDecl <|> localUsingDecl
+    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
@@ -1707,7 +1673,7 @@ funexpr
 atom :: LexParser UserExpr
 atom
   = do (name,rng) <- qidentifier <|> qconstructor
-       return $ callIfImplicit (Var name False rng)
+       return $ Var name False rng
   <|>
     do tupleExpr -- must be second due to '(' operator ')'
   <|>
