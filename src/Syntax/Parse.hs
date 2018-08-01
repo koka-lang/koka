@@ -1261,17 +1261,8 @@ localUseDecl
        par  <- parameter False
        keyword "="
        e    <- blockexpr
-       let bindVar body
-            = let fun = Lam [promoteValueBinder par] body (combineRanged krng body)
-                  funarg = [(Nothing,fun)]
-              in case unParens e of
-                App f args range -> App f (args ++ funarg) (combineRanged krng e)
-                atom             -> App atom funarg (combineRanged krng e)
-       return bindVar
+       return $ applyToContinuation krng [promoteValueBinder par] e
   where
-    unParens (Parens p _) = unParens(p)
-    unParens p               = p
-
     promoteValueBinder binder
       = case binderType binder of
           Just tp -> binder{ binderType = Just (promoteType tp)}
@@ -1280,18 +1271,18 @@ localUseDecl
 localUsingDecl
   = do krng <- keyword "using"
        e    <- blockexpr
-       let bindVar body
-            = let fun = Lam [] body (combineRanged krng body)
-                  funarg = [(Nothing,fun)]
-              in case unParens e of
-                App f args range -> App f (args ++ funarg) (combineRanged krng e)
-                atom             -> App atom funarg (combineRanged krng e)
-       return bindVar
+       return $ applyToContinuation krng [] e
+
+applyToContinuation rng params expr body
+  = let fun = Lam params body (combineRanged rng body)
+        funarg = [(Nothing,fun)]
+        fullrange = combineRanged rng expr
+    in case unParens expr of
+      App f args range -> App f (args ++ funarg) fullrange
+      atom             -> App atom funarg fullrange
   where
     unParens (Parens p _) = unParens(p)
     unParens p               = p
-
-
 
 typeAnnotation :: LexParser (UserExpr -> UserExpr)
 typeAnnotation
