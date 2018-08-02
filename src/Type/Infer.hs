@@ -60,8 +60,8 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
-import Core.AnalysisResume( analyzeResume, ResumeKind(..) )
-
+import Common.ResumeKind
+import Core.AnalysisResume
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
 import Core.Simplify( uniqueSimplify )

@@ -380,6 +380,7 @@ var hsModules = [
   "Common.Message",
   "Common.Unique",
   "Common.Error",
+  "Common.ResumeKind",
 
   "Syntax.Lexeme",
   alexModule("Syntax.Lexer"),

@@ -50,14 +50,13 @@ import Platform.Config
 import Platform.Runtime( unsafePerformIO, exCatch )
 import Common.Error
 import Common.Syntax
+import Common.ResumeKind
 
 import Syntax.Syntax
 import Syntax.Lexeme
 import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout )
 import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
-
-import Core.AnalysisResume( ResumeKind(..) )
 
 -----------------------------------------------------------
 -- Parser on token stream

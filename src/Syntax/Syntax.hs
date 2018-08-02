@@ -15,10 +15,11 @@ import Common.NamePrim( nameTrue, nameSystemCore )
 import Common.Name
 import Common.Range
 import Common.Failure( failure )
+import Common.ResumeKind
 import Common.Syntax
 import qualified Common.NameSet as S
 
-import Core.AnalysisResume( ResumeKind(..) )
+
 
 -- | A program
 data Program t k
