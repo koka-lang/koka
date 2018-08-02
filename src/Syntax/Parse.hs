@@ -1577,38 +1577,31 @@ handlerOp pars
            def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
        return (ClauseInitially def, Nothing)
   -- TODO is "raw" needed for value definitions?
-  <|>
-    do isRaw <-  (do keyword "val"
-                     (do specialId "raw"
-                         return True
-                      <|> return False)
-                  <|> return False)
-       (name,nameRng) <- qidentifier
+  <|> try (
+    do (isRaw, name, nameRng) <- parseClauseHeader ["val"]
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw ResumeTail nameRng nameRng), Just binder)
-  <|>
-    do isRaw <-  (do keyword "fun"
-                     (do specialId "raw"
-                         return True
-                      <|> return False)
-                  <|> return False)
-       (name,nameRng) <- qidentifier
+       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw ResumeTail nameRng nameRng), Just binder))
+  <|> try (
+    do (isRaw, name, nameRng) <- parseClauseHeader ["fun"]
+       (pars,prng) <- opParams
+       expr <- block
+       return (ClauseBranch (HandlerBranch name pars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing))
+  <|> try (
+    do (isRaw, name, nameRng) <- parseClauseHeader ["effect", "fun"]
        (pars,prng) <- opParams
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing)
-  <|>
-    do isRaw <-  (do keyword "effect"
-                     keyword "fun"
-                     (do specialId "raw"
-                         return True
-                      <|> return False)
-                  <|> return False)
-       (name,nameRng) <- qidentifier
-       (pars,prng) <- opParams
-       expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr isRaw ResumeNormal nameRng (combineRanges [nameRng,prng])), Nothing)
+       return (ClauseBranch (HandlerBranch name pars expr isRaw ResumeNormal nameRng (combineRanges [nameRng,prng])), Nothing))
+
+parseClauseHeader prelude =
+  do isRaw <- (do (mapM keyword prelude)
+                  (do specialId "raw"
+                      return True
+                   <|> return False)
+               <|> return False)
+     (name,nameRng) <- qidentifier
+     return (isRaw, name, nameRng)
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams

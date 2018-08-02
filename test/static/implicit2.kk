@@ -25,8 +25,8 @@ effect counter {
 }
 
 val res7 = with (s = 0) {
-  fun tick() { resume((), s + 1) }
-  fun get() { resume(s, s) }
+  effect fun tick() { resume((), s + 1) }
+  effect fun get() { resume(s, s) }
 } in {
   tick()
   tick()
