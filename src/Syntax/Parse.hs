@@ -674,7 +674,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng
       singleShot = False -- breaks type inference if set to True
       isResource = False
       mbResource = Nothing
-      effectName = id
+      effectName = if isValueOperationName id then fromValueOperationsName id else id
       opName = id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
              OpDecl ("", opName, vrng, [], [], rangeNull, mbteff, tres)
