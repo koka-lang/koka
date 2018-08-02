@@ -909,7 +909,7 @@ inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
       Nothing  -> case ops of
-        (HandlerBranch name pars expr isRaw brType nameRng rng: _)
+        (HandlerBranch name pars expr isRaw resKind nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
@@ -1053,7 +1053,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw brType nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw resKind nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -1205,7 +1205,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        -- Value effect definitions are generated automatically and are always
        -- tail resumptive. This is a sanity check
-       if (brType==BrValue && rk>ResumeTail) then
+       if rk > resKind then
            termError rng (text "operator" <+> text (show opName) <+>
                           text ("Value effect definition need to be tail resumptive, but is " ++ show rk)) bexprEff
                           []
@@ -1262,8 +1262,6 @@ makeContextType argTp effTp branchTp locals
   = let name = nameMakeContextTp (length locals)
         kind = kindFun kindStar (kindFun kindEffect (kindCon (length locals + 1)))
     in TApp (TCon (TypeCon name kind)) ([argTp,effTp,branchTp] ++ map snd locals)
-
--- if brType==BrFun then toOpsConName  id else toOpsConValueName id
 
 checkCoverage :: Range -> Effect -> [HandlerBranch Type] -> Inf (Name, [HandlerBranch Type])
 checkCoverage rng effect branches

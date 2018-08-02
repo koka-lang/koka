@@ -18,6 +18,8 @@ import Common.Failure( failure )
 import Common.Syntax
 import qualified Common.NameSet as S
 
+import Core.AnalysisResume( ResumeKind(..) )
+
 -- | A program
 data Program t k
   = Program{ programSource :: Source
@@ -215,12 +217,10 @@ data HandlerBranch t
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
                  , hbranchRaw  :: Bool
-                 , hbranchType :: BranchType
+                 , hbranchResumeKind :: ResumeKind
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }
-
-data BranchType = BrValue | BrFun deriving (Eq)
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)

@@ -57,6 +57,7 @@ import Syntax.Lexer   ( lexing )
 import Syntax.Layout  ( layout )
 import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 
+import Core.AnalysisResume( ResumeKind(..) )
 
 -----------------------------------------------------------
 -- Parser on token stream
@@ -736,7 +737,7 @@ makeImplicitHandler fullrange (id, idrange, e, eager) =
                            (handle freshVar) fullrange
                 else handle (App e [] fullrange)
                 where resume e = resumeCall e [] fullrange
-                      makeOp e = HandlerBranch opName [] (resume e) False BrValue fullrange fullrange
+                      makeOp e = HandlerBranch opName [] (resume e) False ResumeTail fullrange fullrange
                       handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
   in  App (Lam [] block fullrange) [] fullrange
 
@@ -1586,7 +1587,7 @@ handlerOp pars
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw BrValue nameRng nameRng), Just binder)
+       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw ResumeTail nameRng nameRng), Just binder)
   <|>
     do isRaw <-  (do keyword "fun"
                      (do specialId "raw"
@@ -1596,7 +1597,18 @@ handlerOp pars
        (name,nameRng) <- qidentifier
        (pars,prng) <- opParams
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr isRaw BrFun nameRng (combineRanges [nameRng,prng])), Nothing)
+       return (ClauseBranch (HandlerBranch name pars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing)
+  <|>
+    do isRaw <-  (do keyword "effect"
+                     keyword "fun"
+                     (do specialId "raw"
+                         return True
+                      <|> return False)
+                  <|> return False)
+       (name,nameRng) <- qidentifier
+       (pars,prng) <- opParams
+       expr <- bodyexpr
+       return (ClauseBranch (HandlerBranch name pars expr isRaw ResumeNormal nameRng (combineRanges [nameRng,prng])), Nothing)
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
