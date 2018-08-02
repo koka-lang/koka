@@ -76,7 +76,7 @@ $charesc  = [nrt\\\'\"]    -- "
 @stringraw    = ([$graphic$space$tab] # [\"])|@newline|@utf8  -- "
 
 @idchar       = $letter|$digit|_|\-
-@lowerid      = ($lower|\^) @idchar* $finalid*
+@lowerid      = $lower @idchar* $finalid*
 @upperid      = $upper @idchar* $finalid*
 @conid        = @upperid
 @modulepath   = (@lowerid\/)+
@@ -122,13 +122,12 @@ program :-
 -- identifiers
 <0> @lowerid              { string $ \s -> if isReserved s
                                                then LexKeyword s ""
-                                           else if isImplicit s
-                                               then LexId (newName s)
                                            else if isMalformed s
                                                then LexError messageMalformed
                                                else LexId (newName s) }
 <0> @conid                { string $ LexCons . newName }
 <0> _@idchar*             { string $ LexWildCard . newName }
+<0> \? @lowerid           { string $ \s -> LexId $ newName $ ".implicit_" ++ (tail s) }
 
 -- specials
 <0> $special              { string $ LexSpecial }
@@ -284,9 +283,6 @@ reservedNames
 symbols :: [Char]
 symbols
   = "$%&*+~!/\\^~=.:-?<>|"
-
-isImplicit :: String -> Bool
-isImplicit name = (head name) == '^'
 
 isReserved :: String -> Bool
 isReserved name
