@@ -789,7 +789,7 @@ parseEffectDecl dvis =
      (id,irng) <- typeid
      (tpars,kind,prng) <- typeKindParams
      mbResource <- if (not isResource) then return Nothing
-                    else do specialId "in"
+                    else do keyword "in"
                             tp <- ptype
                             return (Just tp)
      (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
