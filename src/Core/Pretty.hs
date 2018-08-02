@@ -361,7 +361,7 @@ prettyDefName env name
             s = show name
             pre = case s of
                    ""  -> empty
-                   (c:cs) -> if (isAlphaNum c || c == '_' || c == '(' || c == '[' || c == '?') then text s else parens (text s)
+                   (c:cs) -> if (isAlphaNum c || c == '_' || c == '(' || c == '[') then text s else parens (text s)
         in (if null postfix then pre else (pre <+> text postfix))
 
 ppOperatorName env name
