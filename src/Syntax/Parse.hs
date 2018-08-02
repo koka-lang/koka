@@ -1420,17 +1420,17 @@ handlerExprX braces rng mbEff scoped hsort
                                         [(Nothing,App (Var nameJust False rng)
                                                       [(Nothing,Var argName False rng)] rng)] rng
                            in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
-           handler = binders $ Handler hsort scoped mbEff pars reinitFun ret final ops
+           handler = Handler hsort scoped mbEff pars reinitFun ret final ops
                        (combineRanged rng pars) fullrange
            hasDefaults = any (isJust.binderExpr) dpars
        case mbReinit of
          Nothing
-          | hasDefaults -> return $ handlerAddDefaults dpars handler
-          | otherwise   -> return $ handlerEtaExpand pars handler
+          | hasDefaults -> return $ binders $ handlerAddDefaults dpars handler
+          | otherwise   -> return $ binders $ handler
          Just reinit
           | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
           | otherwise   -> case pars of
-                             [par] -> return $ handlerAddReinit reinit par handler
+                             [par] -> return $ binders $ handlerAddReinit reinit par handler
                              []    -> fail "A handler with an 'initially' clause must have local parameters"
                              _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
 

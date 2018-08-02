@@ -15,3 +15,11 @@ val h2 = handler {
   effect fun op2() -> 1 + resume(41)
   val op3 = 42
 }
+
+fun h3(f) {
+  handler {
+    fun op1() { f() };
+    effect fun op2() -> 1 + resume(41)
+    val op3 = 42
+  }
+}
