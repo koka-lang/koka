@@ -348,6 +348,8 @@ ppType env tp
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
+                    | typeConName con == nameTpOptional
+                    -> text "?" <.> ppType env{prec=precTop} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name) 
