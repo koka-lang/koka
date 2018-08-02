@@ -1207,7 +1207,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        -- tail resumptive. This is a sanity check
        if rk > resKind then
            termError rng (text "operator" <+> text (show opName) <+>
-                          text ("Value effect definition need to be tail resumptive, but is " ++ show rk)) bexprEff
+                          text ("Effect definition needs to be " ++ show resKind ++ " but is " ++ show rk)) bexprEff
                           []
        else return ()
 

@@ -1585,14 +1585,15 @@ handlerOp pars
        return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw ResumeTail nameRng nameRng), Just binder))
   <|> try (
     do (isRaw, name, nameRng) <- parseClauseHeader ["fun"]
-       (pars,prng) <- opParams
+       (oppars,prng) <- opParams
        expr <- block
-       return (ClauseBranch (HandlerBranch name pars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing))
+       return (ClauseBranch (HandlerBranch name oppars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing))
   <|> try (
     do (isRaw, name, nameRng) <- parseClauseHeader ["effect", "fun"]
-       (pars,prng) <- opParams
+       (oppars,prng) <- opParams
        expr <- bodyexpr
-       return (ClauseBranch (HandlerBranch name pars expr isRaw ResumeNormal nameRng (combineRanges [nameRng,prng])), Nothing))
+       let resumeKind = if isRaw then ResumeNormalRaw else ResumeNormal
+       return (ClauseBranch (HandlerBranch name oppars expr isRaw resumeKind nameRng (combineRanges [nameRng,prng])), Nothing))
 
 parseClauseHeader prelude =
   do isRaw <- (do (mapM keyword prelude)
