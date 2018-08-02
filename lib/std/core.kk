@@ -455,7 +455,7 @@ type bool {
 }
 
 
-fun int( b : bool ) : int  -> if (b) then 1 else 0
+fun int( b : bool ) : int  { if (b) then 1 else 0 }
 
 fun mbint( m : maybe<int> ) : int {
   match(m) {
@@ -465,7 +465,7 @@ fun mbint( m : maybe<int> ) : int {
 }
 
 // Convert an int to a boolean, using `False` for 0 and `True` otherwise.
-fun bool( i : int ) : bool  -> (i!=0)
+fun bool( i : int ) : bool { i!=0 }
 
 // Convert a `:maybe` type to a boolean using `False` for `Nothing` and `True` for `Just`.
 fun bool( m : maybe<a> ) : bool {
@@ -476,7 +476,7 @@ fun bool( m : maybe<a> ) : bool {
 }
 
 // Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
-fun bool( s : string ) : bool  -> (s!="")
+fun bool( s : string ) : bool { s!="" }
 
 // The unit type `:()` is inhabited by just a single value, namely `()`.
 // See also the `:void` type and the `:bool` type.
@@ -631,12 +631,12 @@ fun order( i : int ) : order
   else Eq
 }
 
-fun (==)( x : order, y : order ) : bool  -> (x.int == y.int)
-fun (!=)( x : order, y : order ) : bool  -> (x.int != y.int)
-fun (>=)( x : order, y : order ) : bool  -> (x.int >= y.int)
-fun (<=)( x : order, y : order ) : bool  -> (x.int <= y.int)
-fun (>)( x : order, y : order ) : bool   -> (x.int > y.int)
-fun (<)( x : order, y : order ) : bool   -> (x.int < y.int)
+fun (==)( x : order, y : order ) : bool { x.int == y.int }
+fun (!=)( x : order, y : order ) : bool { x.int != y.int }
+fun (>=)( x : order, y : order ) : bool { x.int >= y.int }
+fun (<=)( x : order, y : order ) : bool { x.int <= y.int }
+fun (>)( x : order, y : order ) : bool  { x.int > y.int }
+fun (<)( x : order, y : order ) : bool  { x.int < y.int }
 
 fun map( t : (a,a), f : a -> e b ) : e (b, b) {
   (t.fst.f, t.snd.f)
@@ -1288,28 +1288,28 @@ extern inline int : (char) -> int { inline "#1"; cs inline "new BigInteger(#1)" 
 extern inline char : (int) -> char { inline "(#1)"; cs inline "Primitive.IntToInt32(#1)" }
 
 // Add two character code points
-fun (+)(c : char, d : char) : total char  -> (c.int + d.int).char
+fun (+)(c : char, d : char) : total char { (c.int + d.int).char }
 // Substract two character codePoints
-fun (-)(c : char, d : char) : total char  -> (c.int - d.int).char
+fun (-)(c : char, d : char) : total char { (c.int - d.int).char }
 
 // Is the character a lower-case ASCII character ?
-fun lower?( c : char ) : bool  -> (c >= 'a' && c <= 'z')
+fun lower?( c : char ) : bool { c >= 'a' && c <= 'z' }
 // Is the character an upper-case ASCII character ?
-fun upper?( c : char ) : bool  -> (c >= 'A' && c <= 'Z')
+fun upper?( c : char ) : bool { c >= 'A' && c <= 'Z' }
 // Is the character an ASCII digit ?
-fun digit?( c : char ) : bool  -> (c >= '0' && c <= '9')
+fun digit?( c : char ) : bool { c >= '0' && c <= '9' }
 // Is the character an ASCII hexa-decimal digit ?
-fun hex-digit?( c : char ) : bool  -> (c.digit? || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F'))
+fun hex-digit?( c : char ) : bool { c.digit? || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F') }
 // Is the character an ASCII letter ?
-fun alpha?( c : char ) : bool  -> (c.lower? || c.upper?)
+fun alpha?( c : char ) : bool { c.lower? || c.upper? }
 // Is the character ASCII letter or digit?
-fun alpha-num?( c : char ) : bool  -> (c.alpha? || c.digit?)
+fun alpha-num?( c : char ) : bool { c.alpha? || c.digit? }
 // Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
-fun ascii?( c : char )     : bool  -> (c <= '\x7F')
+fun ascii?( c : char )     : bool { c <= '\x7F' }
 // Is the character an ASCII control character, e.g. `c < ' '`  ?
-fun control?( c : char )   : bool  -> (c < ' ')
+fun control?( c : char )   : bool { c < ' ' }
 // Tests if a character is an element of `" \t\n\r"`
-fun white?( c : char )     : bool  -> (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+fun white?( c : char )     : bool { c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
 
 // ----------------------------------------------------------------------------
@@ -1330,13 +1330,13 @@ extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 extern inline not  : (bool) -> bool  { inline "!(#1)" }
 extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
 
-fun (==)( x : bool, y : bool) : bool  -> if (x) then y else !y
-fun (!=)( x : bool, y : bool) : bool  -> if (x) then !y else y
+fun (==)( x : bool, y : bool) : bool { if (x) then y else !y }
+fun (!=)( x : bool, y : bool) : bool { if (x) then !y else y }
 
-fun (<)( x : bool, y : bool) : bool   -> (!x && y)
-fun (<=)( x : bool, y : bool) : bool  -> !(x > y)
-fun (>)( x : bool, y : bool) : bool   -> (x && !y)
-fun (>=)( x : bool, y : bool) : bool  -> !(x < y)
+fun (<)( x : bool, y : bool) : bool  { (!x && y) }
+fun (<=)( x : bool, y : bool) : bool { !(x > y) }
+fun (>)( x : bool, y : bool) : bool  { (x && !y) }
+fun (>=)( x : bool, y : bool) : bool { !(x < y) }
 
 fun compare( x : bool, y : bool) : order
 {
@@ -1562,10 +1562,10 @@ extern inline sign(i : int ) : order {
 }
 
 // Return the minimum of two integers
-fun min( i : int, j : int ) : int  -> if (i <= j) then i else j
+fun min( i : int, j : int ) : int { if (i <= j) then i else j }
 
 // Return the maximum of two integers
-fun max( i : int, j : int ) : int  -> if (i >= j) then i else j
+fun max( i : int, j : int ) : int { if (i >= j) then i else j }
 
 // Returns the smallest element of a list of integers (or `default` (=`0`) for the empty list)
 fun minimum( xs : list<int>, default : int = 0 ) : int
@@ -1734,10 +1734,10 @@ extern inline abs : (d:double) -> double  {
 }
 
 // Returns the smallest of two doubles
-fun min( x : double, y : double ) : double  -> if (x <= y) then x else y
+fun min( x : double, y : double ) : double { if (x <= y) then x else y }
 
 // Returns the largest of two doubles
-fun max( x : double, y : double ) : double  -> if (x >= y) then x else y
+fun max( x : double, y : double ) : double { if (x >= y) then x else y }
 
 // Returns the smallest element of a list of doubles (or `0` for the empty list)
 fun minimum( xs : list<double> ) : double
@@ -1835,10 +1835,10 @@ fun compare( x : string, y : string) : order
   string-compare(x,y).order;
 }
 
-fun (>=)( x : string, y : string ) : bool  -> compare(x,y) > Lt
-fun (<=)( x : string, y : string ) : bool  -> compare(x,y) < Gt
-fun (>)( x : string, y : string ) : bool   -> compare(x,y) == Gt
-fun (<)( x : string, y : string ) : bool   -> compare(x,y) == Lt
+fun (>=)( x : string, y : string ) : bool { compare(x,y) > Lt }
+fun (<=)( x : string, y : string ) : bool { compare(x,y) < Gt }
+fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
+fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
 extern inline (+) : (string,string) -> string { inline "(#1 + #2)" }
@@ -2533,13 +2533,13 @@ fun show( s : string ) : string
 }
 
 // Convert a `:bool` to a string
-fun show( b : bool ) : string  -> if (b) then "True" else "False"
+fun show( b : bool ) : string { if (b) then "True" else "False" }
 
 // Convert a unit value `()` to a string
-fun show( u : () ) : string  -> "()"
+fun show( u : () ) : string  { "()" }
 
 // Show an `:sslice` as a string literal
-fun show( s : sslice ) : string  -> s.string.show
+fun show( s : sslice ) : string { s.string.show }
 
 // Convert a list to a string
 fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string

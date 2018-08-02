@@ -1118,7 +1118,7 @@ funDecl rng doc vis
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body   <- bodyexpr
+       body   <- block
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun doc)
