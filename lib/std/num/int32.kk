@@ -221,9 +221,9 @@ fun rotr( i : int32, n : int32 ) : int32 {
 
 
 // Return the minimum of two integers
-fun min( i : int32, j : int32 ) : int32  -> if (i <= j) then i else j
+fun min( i : int32, j : int32 ) : int32 { if (i <= j) then i else j }
 // Return the maximum of two integers
-fun max( i : int32, j : int32 ) : int32  -> if (i >= j) then i else j
+fun max( i : int32, j : int32 ) : int32 { if (i >= j) then i else j }
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.

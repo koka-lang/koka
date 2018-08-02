@@ -23,7 +23,7 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 
 val solutions = handler {
   return x   -> [x]
-  fun  choice(xs) -> xs.flatmap(fun(x){ resume(x) })
+  effect fun choice(xs) -> xs.flatmap(fun(x){ resume(x) })
 }
 
 fun show( xss : list<list<int>> ) : string {
@@ -108,7 +108,7 @@ fun untilJust( xs : list<a>, f : a -> e maybe<b> ) : e maybe<b> {
 
 val solution = handler {
   return x   -> Just(x)
-  fun raw choice(xs) -> xs.untilJust( fun(x) { context.resume(x) })
+  effect fun raw choice(xs) { xs.untilJust( fun(x) { context.resume(x) }) }
 }
 
 fun show(m : maybe<list<int>> ) : string {

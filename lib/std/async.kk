@@ -443,7 +443,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		fun raw do-await(setup,scope,c) -> {
+		effect fun raw do-await(setup,scope,c) {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
 				ch.emit-io( /* no-cps */ { context.resume(res) }  )
@@ -452,9 +452,9 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		}
 
 		// redirect all other operations
-		fun no-await(setup,scope,c,f)	-> resume(no-await(setup,scope,c,f))
-		fun async-iox(f)	-> resume(async-iox(f))
-		fun cancel(scope)	-> resume(cancel(scope))
+		fun no-await(setup,scope,c,f)	{ no-await(setup,scope,c,f) }
+		fun async-iox(f) { async-iox(f) }
+		fun cancel(scope)	{ cancel(scope) }
 	}
 	strands.foreach(handle-strand)
 
@@ -650,10 +650,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		fun raw do-await( setup, scope, c )	-> handle-await(setup,scope, fun(x){ context.resume(x) }, c)  // returns to outer event loop
-		fun no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
-		fun cancel( scope )	-> resume(handle-cancel(scope))
-		fun async-iox( f )	-> resume(f())
+		effect fun raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
+    effect fun no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
+		effect fun cancel( scope ) { resume(handle-cancel(scope)) }
+		effect fun async-iox( f ) { resume(f()) }
 	}
 }
 

@@ -5,4 +5,4 @@ type eq<a,b> {
 function idp( x : c<a> ) : c<a> { x }
 function foo( x : eq<int,int> ) { 42 }
 
-function main() -> foo(Eq(id))
+function main() { foo(Eq(id)) }

@@ -1,5 +1,3 @@
-function id(x) -> x
-
 function id2(x) { x }
 
 function id3(x:a) : a { x }

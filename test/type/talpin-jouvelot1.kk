@@ -15,7 +15,7 @@ fun nop(f,x) {
 
 val id1 = { val x = id(1); rid }
 
-fun id2(y) -> rid(id)(y)
+fun id2(y) { rid(id)(y) }
 
 val id3 = nop(rid, id)
 
@@ -41,8 +41,8 @@ fun etaRef(f) {
   if(True) f else (fun(x : ref<_h,_t>){ val s = if(True) r else ref(f); !x})
 }
 
-fun t1() -> id1(id1)
-fun t2() -> id2(id2)
-fun t3() -> id3(id3)
+fun t1() { id1(id1) }
+fun t2() { id2(id2) }
+fun t3() { id3(id3) }
 
 val t4 = if (True) (fun(x){x}) else (fun(x) { !(ref(x)) })
