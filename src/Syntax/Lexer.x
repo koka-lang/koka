@@ -127,7 +127,6 @@ program :-
                                                else LexId (newName s) }
 <0> @conid                { string $ LexCons . newName }
 <0> _@idchar*             { string $ LexWildCard . newName }
-<0> \? @lowerid           { string $ \s -> LexId $ newName $ ".implicit_" ++ (tail s) }
 
 -- specials
 <0> $special              { string $ LexSpecial }
