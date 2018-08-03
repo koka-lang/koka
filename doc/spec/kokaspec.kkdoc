@@ -692,8 +692,8 @@ available. Again, the Bison parser functions
 as _the_ specification of the grammar and this document should always
 be in agreement with that implementation.
 
-  [BisonGrammar]: https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y
-  [FlexLexer]:    https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex
+  [BisonGrammar]: https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/parser.y
+  [FlexLexer]:    https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/lexer.lex
 
 # Appendix {-}
 
