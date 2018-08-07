@@ -156,7 +156,7 @@ dependencyExpr modName expr
       Var name op rng      -> let uname = name -- if (qualifier name == modName) then unqualify name else name
                               in if isConstructorName name
                                   then (expr,S.fromList [uname,newCreatorName uname])
-                                  else (expr,S.singleton uname)
+                                  else (expr,S.fromList [uname,toValueOperationName uname])
       App fun nargs rng    -> let (fun', funvars) = dependencyExpr modName fun
                                   (argNames,args) = unzip nargs
                                   (args', argvars) = unzipWith (id,S.unions) (map (dependencyExpr modName) args)
@@ -262,8 +262,7 @@ group defs deps
                         (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
                         isHidden ids = case ids of
                                          [id] -> isHiddenName id
-                                         _ -> False
-
+                                         _ -> False                        
                     in (xxs++xys++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
