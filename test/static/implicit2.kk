@@ -51,3 +51,31 @@ val res10 = {
   with height = 9
   width * height
 }
+
+effect amb { fun flip(): bool }
+
+val returnClause = {
+  with height = 4
+  with flip() -> (resume(True) : list<_>) + resume(False)
+  with return a -> [a]
+
+  if (flip()) 3 else height
+}
+
+fun evaluationOrderStmt() {
+  with height = { println("height"); 4 }
+  with width  = { println("width"); 7 }
+  height + width
+}
+
+fun evaluationOrderExpr() {
+  (with height = { println("height"); 4 } in
+   with width  = { println("width"); 7 } in
+   height + width)
+}
+
+fun main() {
+  res6()
+  evaluationOrderStmt()
+  evaluationOrderExpr()
+}
