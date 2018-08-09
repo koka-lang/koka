@@ -644,11 +644,13 @@ constructorId
 -- Implicit Parameters
 -----------------------------------------------------------
 
+type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
+
 --
 -- Implicit Parameter Declarations
 --
 newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
-                                    [TypeBinder UserKind], UserKind, Range, Maybe UserType, UserType)
+                                    [TypeBinder UserKind], UserKind, [Param], Range, Maybe UserType, UserType)
 
 implicitDecl :: Visibility -> LexParser [TopDef]
 implicitDecl dvis = do
@@ -665,10 +667,10 @@ parseImplicitDecl dvis = do
              return (vis,vis,vrng,erng,doc))
   (tpars,kind,prng) <- typeKindParams
   OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOpDecl vis
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,prng,mbteff,tres)
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,pars,prng,mbteff,tres)
 
 makeImplicitDecl :: ImplicitDecl -> [TopDef]
-makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng,mbteff,tres)) =
+makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,pars,prng,mbteff,tres)) =
   let sort = Inductive
       singleShot = False -- breaks type inference if set to True
       isResource = False
@@ -676,7 +678,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,prng
       effectName = if isValueOperationName id then fromValueOperationsName id else id
       opName = id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
-             OpDecl ("", opName, vrng, [], [], rangeNull, mbteff, tres)
+             OpDecl ("", opName, vrng, [], pars, rangeNull, mbteff, tres)
       decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
              EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
