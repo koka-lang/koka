@@ -1,2 +1,4 @@
 node_modules/
 out/
+stack.yaml
+.stack-work

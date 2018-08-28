@@ -35,7 +35,9 @@ var exeExt      = (path.sep==="\\" ? ".exe" : "");
 var platformVariant = "cpp"; // other options: hugs and haddock
 var platformVariantPath = path.join("Platform",platformVariant,"Platform")+path.sep;
 
-var hsCompiler  = "ghc";
+var hsStack     = "stack ghc --"
+var hsCompiler  = (process.env.build_with_stack && hsStack || "ghc");
+var useStack    = hsCompiler === hsStack;
 var hsFlags     = "-fwarn-incomplete-patterns";
 var hsRunFlags  = "";
 var hsPackages  = ["text","parsec"];
@@ -113,18 +115,21 @@ task("ghci", ["compiler"], function(module) {
 desc("run 'cabal install' to install prerequisites");
 task("config", [], function () {
   jake.logger.log("check for packages: " + hsPackages.join(" "))
-  child.exec("ghc-pkg list", function (error, stdout, stderr) {
+  var lstCmd = (useStack && "stack exec " || "") + "ghc-pkg list";
+
+  child.exec(lstCmd, function (error, stdout, stderr) {
     if (error) stdout = "";
     var foundall = hsPackages.every( function(pkg) {
       return ((new RegExp("\\b" + pkg + "-")).test(stdout));
     });
     if (foundall) {
       complete();
-    }
-    else {
-      var cmd = "cabal install text random parsec alex"
-      jake.logger.log("> " + cmd)
-      jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
+    } else {
+      var installCmd = useStack
+        && "stack init && stack build --only-snapshot"
+        || "cabal install text random parsec alex";
+      jake.logger.log("> " + installCmd);
+      jake.exec(installCmd + " 2>&1", {interactive: true}, function() { complete(); });
     }
   });
 },{async:true});
@@ -137,6 +142,8 @@ desc("remove all generated files");
 task("clean", function() {
   jake.logger.log("remove all generated files");
   jake.rmRf(outputDir);
+  jake.rmRf(".stack-work/");
+  jake.rmRf("stack.yaml");
 });
 
 desc("remove just koka generated interface files");
