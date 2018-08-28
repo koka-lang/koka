@@ -1,11 +1,17 @@
 language: haskell
-ghc:
-- "8.0.2"
+
+env:
+  global:
+  - GHC_VERSION=8.0.2
+  matrix:
+  - build_with_stack=''
+  - build_with_stack=true
+
 before_install:
-- nvm install node
-- nvm use node
+- export TRAVIS_HASKELL_VERSION=$(travis_ghc_find ${GHC_VERSION})
+- source .travis/setenv.sh
+
 install:
-- cabal install alex
-- npm install
+- source .travis/install.sh
 script:
 - jake test
