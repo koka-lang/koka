@@ -1,10 +1,10 @@
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 effect state<s> {
-  get()  : s;
-  set(i:s) : ()
+  fun get()  : s
+  fun set(i:s) : ()
 }
 
 fun xor() : amb bool {
@@ -32,7 +32,7 @@ val amb_handle = handler {
 val state_handle = handler(i) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume(j,()) 
+  set(j)   -> resume((),j) 
 }
 
 

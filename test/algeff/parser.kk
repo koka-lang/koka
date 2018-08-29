@@ -4,8 +4,8 @@
 
 // First defined the `many` effect to describe multiple of results and failure
 effect many {
-  flip() : bool;
-  fail() : a
+  fun flip() : bool
+  fun fail() : a
 }
 
 fun select(xs) {
@@ -15,7 +15,7 @@ fun select(xs) {
   }
 }
 
-// Return all solutions
+// Return all solutions 
 val solutions = handler {
   return x -> [x]
   fail()   -> []
@@ -39,11 +39,11 @@ fun choice(p1,p2) {
 }
 
 // Basic combinators
-fun many(p) { // : () -> <many,div|e> a ) : <div,many|e> list<a> {
+fun many(p : () -> <many,div|e> a ) : <div,many|e> list<a> {
   choice { many1(p) } { [] } 
 }
 
-fun many1( p ) {
+fun many1(p : () -> <many,div|e> a ) : <div,many|e> list<a> {
   Cons(p(),many(p))
 }
 
@@ -64,7 +64,7 @@ val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
       satisfy(pred) -> {
         match(pred(input)) {
           Nothing          -> fail()
-          Just((res,rest)) -> resume(rest,res)
+          Just((res,rest)) -> resume(res,rest)
         }
       }      
     }

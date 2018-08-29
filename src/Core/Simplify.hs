@@ -17,15 +17,19 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Range
 import Common.Syntax
-import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK )
+import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
+                       , nameLift, nameBind )
 import Common.Unique
 import Type.Type
 import Type.TypeVar
 import Type.Pretty as Pretty
 import Core.Core
 import Core.Pretty
+import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
+
+import Core.Monadic( makeNoMonName, makeMonName ) -- , nameIsInBindCtx, nameInBindCtx )
 
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
@@ -96,20 +100,25 @@ topDown (Let dgs body)
             -> -- trace ("simplify let: " ++ show x) $
                if (isTotalAndCheap se) 
                 then -- inline very small expressions
+                     -- trace (" inline small") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
                 Just (tpars,pars,_,_)  
                   | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
+                     -- trace (" inline once & applied") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body    
                 Just ([],pars,eff,fbody) | isSmall fbody -- App (Var _ _) args)  | all cheap args
                   -> -- inline functions that are direct applications to another function
+                     -- trace (" inline direct app") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- inline small total expressions
+                     -- trace (" inline small total once") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body                     
                 _ -> -- no inlining
+                     -- trace (" don't inline") $
                      topDownLet sub (sdg:acc) dgs body
 
     extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
@@ -151,11 +160,8 @@ topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nam
         then topDown arg
         else return expr
 
-
-
-
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars >= length args  -- continuations can be partly applied..
+topDown (App (Lam pars eff body) args) | length pars == length args  
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
@@ -165,6 +171,19 @@ topDown (App (Lam pars eff body) args) | length pars >= length args  -- continua
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
 
 
+{-
+
+-- Fast & Bind functions
+topDown (App def@(Let [DefNonRec (Def nnil _ (App (Var (TName inBindCtx _) _) []) _ DefVal _ _)] (TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs)) args)
+  | nnil == nameNil && inBindCtx == nameInBindCtx
+  = topDown $ App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args
+  | otherwise
+  = do args' <- mapM topDown args
+       return (App def args')
+
+topDown (App (TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs) args)
+  = topDown $ App (TypeApp (Var (TName (makeNoMonName name) tp) (InfoArity m n NoMon)) targs) args
+-}
 
 -- No optimization applies
 topDown expr
@@ -197,6 +216,16 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
     varEqual (tv,TVar tw) = tv == tw
     varEqual _            = False
 
+-- Direct function applications with arguments that have different free variables than the parameters
+bottomUp (App (Lam pars eff body) args) | length pars == length args  && all free pars
+  = Let (zipWith makeDef pars args) body       
+  where           
+    makeDef (TName npar nparTp) arg 
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+    
+    free parName 
+      = not (parName `S.member` fv args)
+
 -- eta contract
 {-
 bottomUp (Lam pars eff (App expr args)) | parsMatchArgs 
@@ -208,6 +237,13 @@ bottomUp (Lam pars eff (App expr args)) | parsMatchArgs
           Var v _  -> v == par
           _ -> False
 -}
+
+
+
+
+-- bind( lift(arg), cont ) -> cont(arg)
+bottomUp (App (TypeApp (Var bind _) _) [App (TypeApp (Var lift _) _) [arg], cont]) | getName bind == nameBind && getName lift == nameLift
+  = App cont [arg]
 
 -- continuation validation
 bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == nameIsValidK
@@ -237,7 +273,7 @@ bottomUp expr@(Case scruts bs)  | commonContinue
 
     findCommonCont bs
       = case bs of
-          (Branch _ (Guard _ (App v@(Var name _) [_]) : _) : _)  
+          (Branch pat (Guard _ (App v@(Var name _) [_]) : _) : _)  | not (S.member name (bv pat))
             -> extractCommonCont v name bs
           _ -> Nothing
 
@@ -305,7 +341,7 @@ matchBranches scrutinee branches
 matchBranch :: Expr -> Branch -> Match Expr
 matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard 
   = case (scrut,pat) of
-      (Con name _repr, PatCon pname [] _prepr _ _ _info) 
+      (Con name _repr, PatCon pname [] _prepr _ _ _ _info) 
         | name == pname -> Match expr
         | otherwise     -> NoMatch
       (_,PatVar name PatWild) 
@@ -330,9 +366,17 @@ instance Simplify DefGroup where
   simplify (DefNonRec def ) = fmap DefNonRec (simplify def)
 
 instance Simplify Def where
-  simplify (Def name tp expr vis isVal nameRng doc) 
-    = do expr' <- simplify expr
-         return $ Def name tp expr' vis isVal nameRng doc
+  simplify (Def name tp expr vis sort nameRng doc) 
+    = withMonKind (monKindFromSort sort) $
+      do expr' <- case expr of
+                    TypeLam tvs (Lam pars eff body) 
+                      -> do body' <- simplify body
+                            return $ TypeLam tvs (Lam pars eff body')
+                    Lam pars eff body
+                      -> do body' <- simplify body
+                            return $ Lam pars eff body'
+                    _ -> simplify expr
+         return $ Def name tp expr' vis sort nameRng doc
 
 instance Simplify a => Simplify [a] where
   simplify  = mapM simplify
@@ -344,11 +388,15 @@ instance Simplify a => Simplify [a] where
 instance Simplify Expr where
   simplify e 
     = do td <- topDown e
+         mk <- getMonKind
          e' <- case td of
                 Lam tnames eff expr
-                  -> do x <- simplify expr; return $ Lam tnames eff x
+                  -> withMonKind PolyMon $
+                     do x <- simplify expr; return $ Lam tnames eff x
                 Var tname info     
                   -> return td
+                -- App (Var (TName name _) _) []  | name == nameIsInBindCtx && mk /= PolyMon
+                --  -> return $ if (mk == NoMon) then exprFalse else exprTrue
                 App e1 e2          
                   -> do x1 <- simplify e1
                         x2 <- simplify e2
@@ -381,7 +429,8 @@ instance Simplify Guard where
          xe <- simplify expr
          return $ Guard xt xe
 
-
+monKindFromSort (DefFun mk) = mk
+monKindFromSort _           = PolyMon
 
 {--------------------------------------------------------------------------
   Occurrences 
@@ -508,12 +557,12 @@ newtype Simp a = Simplify (Int -> SEnv -> Result a)
 
 runSimplify :: Bool -> Int -> Pretty.Env -> Simp a -> (a,Int)
 runSimplify unsafe uniq penv (Simplify c)
-  = case (c uniq (SEnv unsafe penv [])) of
+  = case (c uniq (SEnv unsafe penv [] PolyMon)) of
       Ok x u' -> (x,u')
 
 
 
-data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def] }
+data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def], monKind :: MonKind }
 
 data Result a = Ok a Int
 
@@ -538,7 +587,21 @@ getEnv :: Simp SEnv
 getEnv 
   = Simplify (\u g -> Ok g u)
 
+withEnv :: SEnv -> Simp a -> Simp a
+withEnv env (Simplify c)
+  = Simplify (\u _ -> c u env)  
+
 getUnsafe :: Simp Bool
 getUnsafe 
   = do env <- getEnv
        return (unsafe env)
+
+getMonKind :: Simp MonKind
+getMonKind
+  = do env <- getEnv
+       return (monKind env)
+
+withMonKind :: MonKind -> Simp a -> Simp a
+withMonKind monKind action
+  = do env <- getEnv
+       withEnv (env{ monKind = monKind }) action

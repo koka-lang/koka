@@ -5,8 +5,8 @@ external include {
 }
 
 effect state<s> {
-  get()      : s;
-  put(i : s) : ()
+  fun get()      : s
+  fun put(i : s) : ()
 }
 
 fun fib(n) {
@@ -34,7 +34,7 @@ fun testH(i0,action) {
   handle(action)(i=i0) {
     return x -> x
     get()    -> resume(i,i)
-    put(j)   -> resume(j,())
+    put(j)   -> resume((),j)
   }
 }
 
@@ -44,9 +44,9 @@ fun testD(i) {
   if (i==0) then i else testD(i - 1)
 }
 
-val n = 10000000
+val n = 2000000
 fun main() {
   print-elapsed({testD(n)},             "direct")
   print-elapsed({testH(n,count)},       "handler")
-  print-elapsed({testH(n,direct_count)},"internal handler")
+  //print-elapsed({testH(n,direct_count)},"internal handler")
 }

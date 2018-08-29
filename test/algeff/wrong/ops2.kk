@@ -24,12 +24,12 @@ fun foos() : <amb,state> string {
 }    
  
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
  
 effect state {
-  get() : int; 
-  set(i : int) : ();  
+  fun get() : int
+  fun set(i : int) : ()
 }
 
 
@@ -44,6 +44,6 @@ fun state_handle() {
   handler(i:int) {
     return x -> x
     get()    -> resume(i,i)
-    set(j,x)   -> resume((),j) 
+    set(j,x) -> resume(j,()) 
   }
 }

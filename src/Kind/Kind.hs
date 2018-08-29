@@ -13,13 +13,14 @@ module Kind.Kind( -- * Kinds
                     Kind(..)
                   , KindCon
                  -- * Standard kinds
-                  , kindStar, kindPred, kindEffect, kindArrow, kindHeap
+                  , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1
                   , kindFun, kindArrowN, kindLabel, extractKindFun
                   , builtinKinds
+                  , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled, isKindHandled1
+                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope
                   , kindAddArg
                   ) where
 
@@ -85,9 +86,14 @@ kindEffect :: Kind
 kindEffect
   = KCon nameKindEffect
 
+kindScope :: Kind
+kindScope
+  = KCon nameKindScope
+
 kindHeap :: Kind
 kindHeap
   = KCon nameKindHeap
+
 
 kindHandled :: Kind
 kindHandled
@@ -100,6 +106,16 @@ kindHandled1
 kindExtend :: Kind 
 kindExtend 
   = kindFun kindLabel (kindFun kindEffect kindEffect)
+
+-- | Kind constructor N from n kind star to kind star
+kindCon :: Int -> Kind
+kindCon n
+  = kindConOver (replicate n kindStar)
+
+kindConOver kinds
+  = foldr kindFun kindStar kinds
+
+
 
 -- | Create a (kind) function from a kind to another kind.
 kindFun :: Kind -> Kind -> Kind
@@ -130,7 +146,9 @@ isKindHandled k
   = k == kindHandled
 isKindHandled1 k
   = k == kindHandled1
-
+isKindScope k
+  = k == kindScope
+  
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
 builtinKinds
@@ -140,6 +158,7 @@ builtinKinds
     ,(nameKindEffect, kindEffect)
     ,(nameKindLabel, kindLabel)
     ,(nameKindHeap, kindHeap)
+    ,(nameKindScope, kindScope)
     ,(nameKindHandled, kindHandled)
     ,(nameKindHandled1, kindHandled1)
     ]

@@ -4,8 +4,8 @@
 // --------------------------------------------------------------
 
 effect nondet {
-  flip() : bool;
-  fail() : a
+  fun flip() : bool
+  fun fail() : a
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -20,7 +20,7 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 fun select(xs) {
   match(xs) {
     Nil        -> fail()
-    Cons(x,xx) -> if (flip()) then x else select(xx) 
+    Cons(x,xx) -> if (flip()) then x else select(xx)
   }
 }
 
@@ -43,14 +43,14 @@ fun test1() {
 // --------------------------------------------------------------
 
 effect state<s> {
-  get()    : s;
-  put(i:s) : ()
+  fun get()    : s
+  fun put(i:s) : ()
 }
 
 val state = handler(i) {
   return x -> (i,x)
   get()    -> resume(i,i)
-  put(j)   -> resume(j,())
+  put(j)   -> resume((),j)
 }
 
 fun incr(i = 1) : state<int> () {
@@ -94,7 +94,7 @@ fun test3() {
 // --------------------------------------------------------------
 
 effect cutfail {
-  cutfail() : a
+  fun cutfail() : a
 }
 
 fun cut() {
@@ -111,15 +111,15 @@ val hcutfail = handler{
 val collect = handler(q=fail) {
   return x -> if (flip()) then x else q()
   fail     -> q()
-  flip()   -> resume({resume(q,False)}, True)  
+  flip()   -> resume(True,{resume(False,q)})
 }
 
-fun call(p) { 
+fun call(p) {
   hcutfail{ collect(p) }
 }
 
 fun once(p) {
-  call{ val x = p(); cut() x }
+  call{ val x = p(); cut(); x }
 }
 
 fun test4() {
@@ -131,7 +131,7 @@ fun test4() {
 // --------------------------------------------------------------
 
 effect symbol {
-  symbol(s : string) : string
+  fun symbol(s : string) : string
 }
 
 val parse = handler(cs:string) {
@@ -143,19 +143,21 @@ val parse = handler(cs:string) {
 }
 
 
+val digits = list(0,9).map(show)
+
 fun digit() : <nondet,symbol> string {
-  symbol(select(list(0,9).map(show)))
+  symbol(select(digits))
 }
 
 fun choice(p1,p2) {
   if (flip()) then p1() else p2()
 }
 
-fun many(p) {
+fun many(p : () -> <nondet,div|e> a) : <nondet,div|e> list<a> {
   choice{ many1(p) }{ [] }
 }
 
-fun many1(p) {
+fun many1(p : () -> <nondet,div|e> a) : <nondet,div|e> list<a> {
   Cons(p(),many(p))
 }
 
@@ -165,7 +167,7 @@ fun number() {
 }
 
 fun expr() : <div,nondet,symbol> int {
-  choice { 
+  choice {
     val i :int = term()
     symbol("+")
     val j = term()
@@ -219,7 +221,7 @@ fun hbcall(action : () -> <exn,div,cutfail,nondet> _) {
     return x -> x
     bcall()  -> hbcall{ call{ hecall{ uncps{ resume(()) } } }}
     ecall()  -> error("mismatched ecall")
-  } 
+  }
 }
 
 fun hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
@@ -236,11 +238,11 @@ fun runCut(p) {
 
 fun expr3() {
   val i = term()
-  call2{ 
+  call2{
     choice {
       symbol('+')
       val j = expr3()
-      i+j    
+      i+j
     }{ i }
   }
 }
@@ -254,10 +256,17 @@ fun test6() {
 // --------------------------------------------------------------
 
 fun main() {
-  [test1().show
-  ,test2().show
-  ,test3().show
-  ,test4().show
-  ,test5().show
-  ].join("\n").println
+  test1().show.println
+  test2().show.println
+  test3().show.println
+  test4().show.println
+  //test5().show.println
+}
+
+
+fun mymap( xs, f ) {
+  match(xs) {
+    Nil -> Nil
+    Cons(x,xx) -> Cons(f(x),mymap(xx,f))
+  }
 }

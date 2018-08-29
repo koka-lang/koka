@@ -9,7 +9,7 @@
 // Test all calendars across many days
 public module time9
 
-public import std/num/fixed 
+public import std/num/ddouble
 public import std/time
 
 
@@ -20,11 +20,11 @@ public import std/time
 val mjd-y2000 = 51544
 
 fun date-at-days( days : int, cal : calendar ) : date {
-  instant-at-mjd( fixed(days + mjd-y2000), ts-utc ).time(cal=cal).date
+  instant-at-mjd( ddouble(days + mjd-y2000), ts-ti ).time(cal=cal).date
 }
 
 fun days-at-date( date : date, cal : calendar ) : int {
-  time(date, cal=cal).mjd.round - mjd-y2000
+  time(date, cal=cal).mjd.int - mjd-y2000
 }
 
 

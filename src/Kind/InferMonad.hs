@@ -71,21 +71,21 @@ runKindInfer cscheme mbRangeMap moduleName imports kgamma syns unique (KInfer ki
 
 
 instance Functor KInfer where
-  fmap f (KInfer ki)  
+  fmap f (KInfer ki)
     = KInfer (\env -> \st -> let r = ki env st in r{ result = f (result r) })
 
 instance Applicative KInfer where
   pure  = return
-  (<*>) = ap    
+  (<*>) = ap
 
 instance Monad KInfer where
   return x  = KInfer (\env -> \st -> KResult x [] [] st)
   (KInfer ki) >>= f
     = KInfer (\env -> \st ->
         case ki env st of
-          KResult x errs1 warns1 st1 
+          KResult x errs1 warns1 st1
             -> case f x of
-                 KInfer kif 
+                 KInfer kif
                   -> case kif env st1 of
                        KResult y errs2 warns2 st2 -> KResult y (errs1++errs2) (warns1 ++ warns2) st2)
 
@@ -117,9 +117,9 @@ extendKSub sub
 
 addRangeInfo :: Range -> RangeInfo -> KInfer ()
 addRangeInfo range info
-  = KInfer (\env -> \st -> KResult () [] [] st{ mbRangeMap = case (mbRangeMap st) of 
+  = KInfer (\env -> \st -> KResult () [] [] st{ mbRangeMap = case (mbRangeMap st) of
                                                               Just rm -> Just (rangeMapInsert range info rm)
-                                                              other   -> other 
+                                                              other   -> other
                                              })
 
 {---------------------------------------------------------------
@@ -139,7 +139,7 @@ freshTypeVar (TypeBinder name kind _ _) flavour
 
 subst :: HasKindVar k => k -> KInfer k
 subst x
-  = do sub <- getKSub 
+  = do sub <- getKSub
        return (sub |=> x)
 
 getKGamma :: KInfer KGamma
@@ -172,7 +172,7 @@ extendInfGamma tbinders ki
                         let cs = cscheme env
                         addError nameRange $ text "Type" <+> ppType cs name <+> text "is already defined"
                         return (M.insert name infkind infgamma) -- replace
-         
+
 
 extendInfGammaUnsafe :: [TypeBinder InfKind] -> KInfer a -> KInfer a
 extendInfGammaUnsafe tbinders (KInfer ki)
@@ -200,19 +200,19 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
                  case kgammaLookupQ name kgamma of
                    Nothing -> return (kgammaExtend name kind kgamma,tdef:tdefs)
                    Just _  -> do env <- getKindEnv
-                                 addError range $ text "Type" <+> ppType (cscheme env) name <+> 
+                                 addError range $ text "Type" <+> ppType (cscheme env) name <+>
                                                   text "is already defined"
                                  return (kgamma,tdefs)
       where
         nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
         nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
-  
+
 
 -- | This extend KGamma does not check for duplicates
 extendKGammaUnsafe :: [Core.TypeDef] -> KInfer a -> KInfer a
-extendKGammaUnsafe (tdefs) (KInfer ki)  
+extendKGammaUnsafe (tdefs) (KInfer ki)
   -- ASSUME: kgamma and synonyms have a right-biased union
-  = KInfer (\env -> \st -> ki (env{ kgamma = -- trace ("extend kgamma:\n" ++ show (kgamma env) ++ "\n with\n " ++ show (kGamma)) $ 
+  = KInfer (\env -> \st -> ki (env{ kgamma = -- trace ("extend kgamma:\n" ++ show (kgamma env) ++ "\n with\n " ++ show (kGamma)) $
                                              kgammaUnion (kgamma env) kGamma
                                   , synonyms = synonymsCompose (synonyms env) kSyns }) st)
   where
@@ -230,33 +230,33 @@ infQualifiedName name range  | not (isQualified name)
 infQualifiedName name range
   = do env <- getKindEnv
        case importsExpand name (imports env) of
-         Right (name',alias) 
+         Right (name',alias)
           -> if (not (nameCaseEqual (qualifier name) alias))
               then do let cs = cscheme env
                       addError range (text "module" <+> ppModule cs name <+> text "should be cased as" <+> color (colorModule cs) (pretty alias))
                       return name'
               else return name'
-         Left [] 
+         Left []
           -> do let cs = cscheme env
                 addError range (text "module" <+> color (colorModule cs) (pretty name) <+> text "is undefined")
                 return name
-         Left aliases 
+         Left aliases
           -> do let cs = cscheme env
                 addError range (text "module" <+> color (colorModule cs) (pretty name) <+> ambiguous cs aliases)
                 return name
-       
+
 ppModule cs name
   = color (colorModule cs) (text (nameModule name))
 
 findInfKind :: Name -> Range -> KInfer (Name,InfKind)
-findInfKind name0 range 
+findInfKind name0 range
   = do env <- getKindEnv
        let (name,mbAlias) = case importsExpand name0 (imports env) of
                               Right (name',alias) -> (name',Just alias)
-                              _                   -> (name0,Nothing) 
+                              _                   -> (name0,Nothing)
            qname          = if isQualified name then name else qualify (currentModule env) name
        -- lookup locally
-       -- note: also lookup qualified since it might be recursive definition 
+       -- note: also lookup qualified since it might be recursive definition
        -- todo: check for the locally inferred names for casing too.
        -- trace("find: " ++ show (name,qname) ++ ": " ++ show (M.elems (infgamma env))) $ return ()
        case M.lookup name (infgamma env)  of
@@ -264,11 +264,11 @@ findInfKind name0 range
          Nothing ->
            case M.lookup qname (infgamma env) of
              Just infkind -> return (qname,infkind)
-             Nothing 
+             Nothing
                  -> case kgammaLookup (currentModule env) name (kgamma env) of
                       Found qname kind -> do let name' = if isQualified name then qname else (unqualify qname)
-                                             if (-- trace ("compare: " ++ show (qname,name,name0)) $ 
-                                                 not (nameCaseEqual name' name)) 
+                                             if (-- trace ("compare: " ++ show (qname,name,name0)) $
+                                                 not (nameCaseEqual name' name))
                                               then do let cs = cscheme env
                                                       addError range (text "type" <+> (ppType cs (unqualify name0)) <+> text "should be cased as" <+> ppType cs (unqualify name'))
                                               else return ()
@@ -281,8 +281,9 @@ findInfKind name0 range
                                               _ -> return ()
                                              return (qname,KICon kind)
                       NotFound         -> do let cs = cscheme env
+                                             -- trace ("cannot find type: " ++ show (ppType cs name)) $
                                              addError range (text "Type" <+> (ppType cs name) <+> text "is not defined" <->
-                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <> ppType cs name <> text ">") <+> text "?")
+                                                             text " hint: bind the variable using" <+> color (colorType cs) (text "forall<" <.> ppType cs name <.> text ">") <+> text "?")
                                              k <- freshKind
                                              return (name,k)
                       Ambiguous names  -> do let cs = cscheme env
@@ -292,9 +293,9 @@ findInfKind name0 range
 
 ambiguous :: ColorScheme -> [Name] -> Doc
 ambiguous cs [name1,name2]
-  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text ", or" <+> ppType cs name2
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text ", or" <+> ppType cs name2
 ambiguous cs [name1,name2,name3]
-  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <> text "," <+> ppType cs name2 <> text ", or" <+> ppType cs name3
+  = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text "," <+> ppType cs name2 <.> text ", or" <+> ppType cs name3
 ambiguous cs names
   = text "is ambiguous and can refer to multiple imports:" <-> indent 1 (list (map (ppType cs) names))
 
@@ -305,7 +306,7 @@ qualifyDef :: Name -> KInfer Name
 qualifyDef name
   = do env <- getKindEnv
        return (qualify (currentModule env) name)
-         
+
 findKind :: Name -> KInfer (Name,Kind)
 findKind name
   = do env <- getKindEnv
@@ -317,4 +318,3 @@ lookupSynInfo :: Name -> KInfer (Maybe SynInfo)
 lookupSynInfo name
   = do env <- getKindEnv
        return (synonymsLookup name (synonyms env))
-         

@@ -13,7 +13,7 @@ module Type.Type (-- * Types
                     Type(..), Scheme, Sigma, Rho, Tau, Effect, InferType, Pred(..)
                   , Flavour(..)
                   , DataInfo(..), DataKind(..), ConInfo(..), SynInfo(..)
-                  , dataInfoIsRec, dataInfoIsOpen
+                  , dataInfoIsRec, dataInfoIsOpen, dataInfoIsLiteral
                   -- Predicates
                   , splitPredType, shallowSplitPreds, shallowSplitVars
                   , predType
@@ -29,18 +29,18 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
                   , extractOrderedEffect
-                  , orderEffect, labelName
+                  , orderEffect, labelName, labelNameFull, labelNameEx
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
-                  , typeDivergent, typeTotal, typePartial 
-                  , typeList, typeApp, typeRef, typeOptional
+                  , typeDivergent, typeTotal, typePartial
+                  , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , isOptional, makeOptional, unOptional
 
                   --, handledToLabel
@@ -56,11 +56,11 @@ module Type.Type (-- * Types
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
                   -- ** Trivial conversion
-                  , IsType( toType) 
+                  , IsType( toType)
                   -- ** Primitive
                   , isFun, splitFunType
                   , getTypeArities
-                  , module Common.Name                
+                  , module Common.Name
                   ) where
 
 -- import Lib.Trace
@@ -99,7 +99,7 @@ data Pred
   | PredIFace Name [Type]
   deriving (Show)
 
--- | Various synonyms of types 
+-- | Various synonyms of types
 type Scheme = Type
 type Sigma  = Type    -- polymorphic type
 type Tau    = Type    -- monomorphic type
@@ -112,7 +112,7 @@ type InferType = Type
 -- | Type variables are variables in a type and contain an identifier and
 -- kind. One can ask for the free type variables in a type, and substitute them with 'Tau' types.
 data TypeVar = TypeVar{ typevarId :: Id
-                      , typevarKind :: Kind 
+                      , typevarKind :: Kind
                       , typevarFlavour :: Flavour
                       }
                       deriving (Show)
@@ -123,14 +123,14 @@ data Flavour = Meta | Skolem | Bound
              deriving (Eq, Ord, Show)
 
 -- | Type constants have a name and a kind
-data TypeCon = TypeCon{ typeconName :: Name 
+data TypeCon = TypeCon{ typeconName :: Name
                       , typeconKind :: Kind
                       }
                       deriving (Show)
-             
+
 -- | Type synonyms have an identifier, kind, and rank (= partial ordering among type synonyms)
-data TypeSyn = TypeSyn{ typesynName ::  Name 
-                      , typesynKind :: Kind 
+data TypeSyn = TypeSyn{ typesynName ::  Name
+                      , typesynKind :: Kind
                       , typesynRank :: SynonymRank
                       , typesynInfo :: Maybe SynInfo
                       }
@@ -162,30 +162,34 @@ maxSynonymRank tp
 --------------------------------------------------------------------------}
 
 -- | Data type information: name, kind, type arguments, and constructors
-data DataInfo = DataInfo{ dataInfoSort :: DataKind 
+data DataInfo = DataInfo{ dataInfoSort :: DataKind
                         , dataInfoName :: Name
-                        , dataInfoKind :: Kind 
-                        , dataInfoParams :: [TypeVar] {- ^ arguments -} 
-                        , dataInfoConstrs :: [ConInfo] 
+                        , dataInfoKind :: Kind
+                        , dataInfoParams :: [TypeVar] {- ^ arguments -}
+                        , dataInfoConstrs :: [ConInfo]
                         , dataInfoRange  :: Range
                         , dataInfoDef    :: DataDef
                         , dataInfoDoc    :: String
                         }
 
-dataInfoIsRec info 
+dataInfoIsRec info
   = dataDefIsRec (dataInfoDef info)
 
-dataInfoIsOpen info 
+dataInfoIsOpen info
   = dataDefIsOpen (dataInfoDef info)
+
+dataInfoIsLiteral info
+  = let name = dataInfoName info
+    in (name == nameTpInt || name == nameTpChar || name == nameTpString || name == nameTpFloat)
 
 -- | Constructor information: constructor name, name of the newtype, field types, and the full type of the constructor
 data ConInfo = ConInfo{ conInfoName :: Name
-                      , conInfoTypeName :: Name 
-                      -- , conInfoTypeSort :: Name 
+                      , conInfoTypeName :: Name
+                      -- , conInfoTypeSort :: Name
                       , conInfoForalls:: [TypeVar] {- ^ quantifiers -}
-                      , conInfoExists :: [TypeVar] {- ^ existentials -} 
-                      , conInfoParams :: [(Name,Type)] {- ^ field types -} 
-                      , conInfoType   :: Scheme  
+                      , conInfoExists :: [TypeVar] {- ^ existentials -}
+                      , conInfoParams :: [(Name,Type)] {- ^ field types -}
+                      , conInfoType   :: Scheme
                       , conInfoTypeSort :: DataKind  -- ^ inductive, coinductive, retractive
                       , conInfoRange :: Range
                       , conInfoParamRanges :: [Range]
@@ -193,21 +197,21 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
                       , conInfoDoc :: String
                       }
-           
+
 instance Show ConInfo where
   show info
     = show (conInfoName info)
 
 -- | A type synonym is quantified by type parameters
-data SynInfo = SynInfo{ synInfoName :: Name 
+data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoKind  :: Kind
-                      , synInfoParams ::  [TypeVar] {- ^ parameters -} 
-                      , synInfoType :: Type {- ^ result type -} 
-                      , synInfoRank :: SynonymRank 
+                      , synInfoParams ::  [TypeVar] {- ^ parameters -}
+                      , synInfoType :: Type {- ^ result type -}
+                      , synInfoRank :: SynonymRank
                       , synInfoRange :: Range
                       , synInfoDoc :: String
                       }
-             deriving Show         
+             deriving Show
 
 
 {--------------------------------------------------------------------------
@@ -289,8 +293,8 @@ splitPredType tp
       otherwise                   -> ([], [], tp)
   where
     -- We must split a synonym if its expansion includes further quantifiers or predicates
-    mustSplit :: Type -> Bool 
-    mustSplit tp 
+    mustSplit :: Type -> Bool
+    mustSplit tp
       = case tp of
           TForall _ _ _ -> True
           TSyn _ _ tp   -> mustSplit tp
@@ -299,7 +303,7 @@ splitPredType tp
 -- Find all quantified type variables, but do not expand synonyms
 shallowSplitVars tp
   = case tp of
-      TForall vars preds rho -> (vars, preds, rho) 
+      TForall vars preds rho -> (vars, preds, rho)
       otherwise              -> ([], [], tp)
 
 -- Find all predicates
@@ -361,9 +365,9 @@ tForall vars preds rho = TForall vars preds rho
 
 applyType tp1 tp2
   = case tp1 of
-      TApp tp tps 
+      TApp tp tps
         -> TApp tp (tps ++ [tp2])
-      TSyn _ _ tp | mustSplit tp 
+      TSyn _ _ tp | mustSplit tp
         -> applyType tp tp2
       _ -> TApp tp1 [tp2]
   where
@@ -401,10 +405,10 @@ isTCon tp
       TSyn _ _ t -> isTCon t
       _          -> False
 
--- | Verify that a type is a rho type 
+-- | Verify that a type is a rho type
 -- (i.e., no outermost quantifiers)
 isRho :: Type -> Bool
-isRho tp 
+isRho tp
   = case tp of
       TForall _ _ _ -> False
       TSyn    _ _ t -> isRho t
@@ -413,14 +417,14 @@ isRho tp
 -- | Verify that a type is a tau type
 -- (i.e., no quantifiers anywhere)
 isTau :: Type -> Bool
-isTau tp 
+isTau tp
   = case tp of
       TForall _ _ _  -> False
       TFun xs e r    -> all (isTau . snd) xs && isTau e && isTau r -- TODO e should always be tau
       TCon    _      -> True
       TVar    _      -> True
       TApp    a b    -> isTau a && all isTau b
-      TSyn    _ ts t -> isTau t 
+      TSyn    _ ts t -> isTau t
 
 -- | is this a function type
 isFun :: Type -> Bool
@@ -451,6 +455,10 @@ typeInt
 tconInt = (TypeCon nameTpInt (kindStar))
 isTypeInt (TCon tc) = tc == tconInt
 isTypeInt _         = False
+
+typeInt32 :: Tau
+typeInt32
+  = TCon (TypeCon nameTpInt32 kindStar)
 
 
 -- | Type of floats
@@ -507,13 +515,27 @@ extractOrderedEffect tp
 
 labelName :: Tau -> Name
 labelName tp
+  = fst (labelNameEx tp)
+
+labelNameFull :: Tau -> Name
+labelNameFull tp
+  = let (name,i) = labelNameEx tp
+    in postpend ("$" ++ show i) name
+
+
+
+labelNameEx :: Tau -> (Name,Int)
+labelNameEx tp
   = case expandSyn tp of
-      TCon tc -> typeConName tc
+      TCon tc -> (typeConName tc,0)
       TApp (TCon (TypeCon name _)) [htp] | name == nameTpHandled
-        -> labelName htp -- use the handled effect name for handled<htp> types.
+        -> labelNameEx htp -- use the handled effect name for handled<htp> types.
+      TApp (TCon tc) (TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
+        -> (typeConName tc, idNumber id)
       TApp (TCon tc) _  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
-                           typeConName tc
+                           (typeConName tc,0)
       _  -> failure "Type.Unify.labelName: label is not a constant"
+
 
 
 typeCps :: Type
@@ -528,27 +550,27 @@ tconHandled = TCon $ TypeCon nameTpHandled kind
 tconHandled1 :: Type
 tconHandled1 = TCon $ TypeCon nameTpHandled1 kind
   where
-    kind = kindFun kindHandled1 kindLabel    
+    kind = kindFun kindHandled1 kindLabel
 
 
 isAsyncFunction tp
   = let (_,_,rho) = splitPredType tp
     in case splitFunType rho of
-         Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff 
+         Just (_,eff,_) -> let (ls,_) = extractEffectExtend eff
                            in any isEffectAsync ls
-         _ -> False    
+         _ -> False
 
 isEffectAsync tp
   = case expandSyn tp of
       TForall _ _ rho -> isEffectAsync rho
       TFun _ eff _    -> isEffectAsync eff
-      TApp (TCon (TypeCon name _)) [t]  
+      TApp (TCon (TypeCon name _)) [t]
         | name == nameTpHandled -> isEffectAsync t
       TCon (TypeCon hxName _)
         -> hxName == nameTpAsync
       _ -> False
 
-isEffectTyVar (TVar v) = isKindEffect $ typevarKind v 
+isEffectTyVar (TVar v) = isKindEffect $ typevarKind v
 isEffectTyVar _        = False
 
 
@@ -568,7 +590,7 @@ effectExtendNoDup label eff
   = let (ls,_) = extractEffectExtend label
     in if null ls
         then let (els,_) = extractEffectExtend eff
-             in if (label `elem` els) 
+             in if (label `elem` els)
                  then eff
                  else TApp (TCon tconEffectExtend) [label,eff]
         else effectExtendNoDups ls eff
@@ -634,8 +656,8 @@ shallowExtractEffectExtend t
 shallowEffectExtend :: Tau -> Tau -> Tau
 shallowEffectExtend label eff
   -- We do not expand type synonyms in the label here by using the 'shallow' version of extract
-  -- this means that type synonyms of kind E (ie. a fixed effect row) could stay around in 
-  -- the label (which should have kind X). 
+  -- this means that type synonyms of kind E (ie. a fixed effect row) could stay around in
+  -- the label (which should have kind X).
   -- We use this to keep type synonyms around longer -- but during unification we got to be
   -- careful to expand such synonyms
   = let (ls,tl) = shallowExtractEffectExtend label
@@ -670,7 +692,7 @@ typePartial
 
 typePure :: Tau
 typePure
-  = effectFixed [typePartial,typeDivergent] 
+  = effectFixed [typePartial,typeDivergent]
 
 
 -- | Type of boolean (@Bool@)
@@ -683,10 +705,15 @@ tconBool
 
 isTypeBool (TCon tc) = tc == tconBool
 isTypeBool _         = False
-  
+
 isTypeUnit (TCon tc) = tc == tconUnit
 isTypeUnit _         = False
 
+
+-- | Type of vectors (@[]@)
+typeVector :: Tau
+typeVector
+  = TCon (TypeCon nameTpVector (kindFun kindStar kindStar))
 
 -- | Type of lists (@[]@)
 typeList :: Tau
@@ -696,6 +723,11 @@ typeList
 tconList :: TypeCon
 tconList
   = TypeCon nameTpList (kindFun kindStar kindStar)
+
+typeNull :: Tau -> Tau
+typeNull tp
+  = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
+
 
 -- | Create a function type. Can have zero arguments.
 typeFun :: [(Name,Tau)] -> Tau -> Tau -> Tau
@@ -710,9 +742,9 @@ typeApp t ts            = TApp t ts
 
 -- | Empty record
 typeUnit :: Tau
-typeUnit 
+typeUnit
   = TCon tconUnit
-  
+
 tconUnit
   = TypeCon nameTpUnit kindStar
 
@@ -724,6 +756,13 @@ typeAny :: Tau
 typeAny
   = TCon (TypeCon (nameTpAny) kindStar)
 
+typeMakeTuple :: [Tau] -> Tau
+typeMakeTuple tps
+  = case tps of
+      [] -> typeUnit
+      [tp] -> tp
+      _    -> typeApp (typeTuple (length tps)) tps
+
 typeTuple :: Int -> Tau
 typeTuple n
   = TCon (TypeCon (nameTuple n) (kindArrowN n))
@@ -731,7 +770,7 @@ typeTuple n
 typeOptional :: Tau
 typeOptional
   = TCon tconOptional
-  
+
 tconOptional :: TypeCon
 tconOptional
   = (TypeCon nameTpOptional (kindFun kindStar kindStar))
@@ -796,7 +835,7 @@ instance Eq Pred where
 matchType :: Type -> Type -> Bool
 matchType tp1 tp2
   = case (expandSyn tp1,expandSyn tp2) of
-      (TForall vs1 ps1 t1, TForall vs2 ps2 t2)  -> (vs1==vs2 && matchPreds ps1 ps2 && matchType t1 t2)                
+      (TForall vs1 ps1 t1, TForall vs2 ps2 t2)  -> (vs1==vs2 && matchPreds ps1 ps2 && matchType t1 t2)
       (TFun pars1 eff1 t1, TFun pars2 eff2 t2)  -> (matchTypes (map snd pars1) (map snd pars2) && matchEffect eff1 eff2 && matchType t1 t2)
       (TCon c1, TCon c2)                        -> c1 == c2
       (TVar v1, TVar v2)                        -> v1 == v2

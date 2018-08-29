@@ -1,0 +1,3 @@
+dowait : (s : std/time/duration/duration) -> <exn,std/async/async,console> string
+main : () -> <std/async/async,console,ndet> ()
+test : () -> <std/async/async,console,ndet> ()

@@ -1,0 +1,5 @@
+42
+.tag-heap : string
+foo : () -> int
+heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
+main : () -> console ()

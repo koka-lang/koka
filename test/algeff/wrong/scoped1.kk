@@ -4,7 +4,7 @@
 //------------------------------------------------
 
 effect nondet {
-  choice(xs : list<a>) : a;
+  fun choice(xs : list<a>) : a;
 }
 
 fun fail() {
@@ -35,14 +35,14 @@ fun test1() {
 
 
 effect state<s> {
-  get()    : s;
-  put(i:s) : ()
+  fun get()    : s
+  fun put(i:s) : ()
 }
 
 val state = handler(i) {
   return x -> (i,x)
   get()    -> resume(i,i)
-  put(j)   -> resume(j,()) 
+  put(j)   -> resume((),j) 
 }
 
 fun incr(i = 1) : state<int> () {

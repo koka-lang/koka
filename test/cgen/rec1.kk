@@ -1,9 +1,11 @@
-function foo(x : int ) : div int {
-  if (x==0) then foo(True) else foo(x - 1);
+fun foo() {
+  42
 }
 
-function foo(b : bool ) : div int {
-  if (b) then 1 else foo(1)
+fun bar( action : () -> e int ) : e int {
+  action()
 }
 
-function main() { foo(10) }
+fun main() {
+  bar(foo)
+}

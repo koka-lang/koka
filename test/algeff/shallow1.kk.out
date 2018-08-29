@@ -1,3 +1,1 @@
-test/algeff/shallow1.kk(14,17): error: invalid syntax
- unexpected "(.("
- expecting "<" or "("
+test/algeff/shallow1.kk(21, 3): error: identifier .makeShallowHandler0 is undefined

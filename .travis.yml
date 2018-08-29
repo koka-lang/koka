@@ -1,0 +1,11 @@
+language: haskell
+ghc:
+- "8.0.2"
+before_install:
+- nvm install node
+- nvm use node
+install:
+- cabal install alex
+- npm install
+script:
+- jake test

@@ -1,0 +1,5 @@
+test/type/wrong/hm4a.kk(4,11): error: types do not match
+ context : f({1})
+ term : {1}
+ inferred type: () -> int
+ expected type: (int) -> int
