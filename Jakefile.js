@@ -278,7 +278,7 @@ task("sublime", function(sversion) {
     sublime = path.join(process.env.APPDATA,"Sublime Text " + sversion);
   }
   else if (process.env.HOME) {
-    if (path.platform === "darwin")
+    if (process.platform === "darwin")
       sublime = path.join(process.env.HOME,"Library","Application Support","Sublime Text " + sversion);
     else
       sublime = path.join(process.env.HOME,".config","sublime-text-" + sversion);
