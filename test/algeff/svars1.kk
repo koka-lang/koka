@@ -18,7 +18,7 @@ fun local( init : a, action : forall<s> (lvar<s,a>) -> <local<s,a>|e> b) : e b {
 
 
 fun test1() {
-  use x = local(42) 
+  use x = local(42)
   x.get
 }
 
@@ -29,7 +29,7 @@ effect tick {
 
 fun ticks(action : () -> <tick|e> a ) : e a {
   use n = local(0)
-  handle(inject<local>(action)) {
+  handle({inject<local>(action)}) {
     tick() -> {
       val x = n.get
       n.set(x + 1)
@@ -44,4 +44,3 @@ fun test-tick() {
   tick()
   tick()
 }
-
