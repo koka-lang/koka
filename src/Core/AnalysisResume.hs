@@ -96,11 +96,20 @@ arExpr' appResume expr
       Let [DefNonRec def] expr
         | defName def == getName resumeName  -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
         -> arExpr' appResume expr
-      Let defGroups body -- TODO: be more sophisticated here?
-        -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
-            then ResumeNormal else arExpr' appResume body
+      Let defs body
+        -> rand (arDefs defs) $ arExpr' appResume body
       Case exprs branches
         -> arExprsAnd exprs `rand` arBranches appResume branches
+
+arDefs :: [DefGroup] -> ResumeKind
+arDefs defs
+  = rands (map arDef defs)
+
+arDef :: DefGroup -> ResumeKind
+arDef (DefRec defs)
+  = arExprsAnd (map defExpr defs)
+arDef (DefNonRec def)
+  = arExpr (defExpr def)
 
 arBranches :: ResumeKind -> [Branch] -> ResumeKind
 arBranches appResume branches
