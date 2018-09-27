@@ -1604,7 +1604,7 @@ fun maybe( i : int ) : maybe<int> {
 
 // Type of a 32-bit signed integer.
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-type int32
+private type int32
 
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int {
