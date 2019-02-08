@@ -236,6 +236,7 @@ fun trace-anyx( s : string, x : a ) : async () {
 // `cancel` it (and return `Nothing`). Due to the generality of `cancel`, this `timeout`
 // abstraction can reliably time out over any composition of asynchronous operations
 // and is therefore quite expressive.
+/*
 public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
 	firstof	{ wait(secs); Nothing }
 		{ Just(action()) }
@@ -253,7 +254,7 @@ public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|
 		}
 	}
 }
-
+*/
 // Wait (asynchronously) for `secs` seconds as a `:double`.
 // Use `yield()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
@@ -309,15 +310,19 @@ extern clear-timeoutx( tid : any) : io () {
 
 // Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
-	val (ra,rb) = interleavedx( action1, action2 )
+	val (ra,rb) = interleavedx( interject-exn(action1), interject-exn(action2) )
 	[ra.maybe,rb.maybe].ordered_throw
 	(ra.untry,rb.untry)
 }
 
+extern interject-exn( action : () -> <exn|e> a ) : total (() -> <exn,exn|e> a)  {
+	inline "#1"
+}
+
 // Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
-	val ress = interleavedx(xs)
-	ress.map(maybe).ordered_throw
+	val ress = xs.map(interject-exn).interleavedx
+	//ress.map(maybe).ordered_throw
 	ress.map(untry)
 }
 
@@ -456,7 +461,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		fun async-iox(f)	-> resume(async-iox(f))
 		fun cancel(scope)	-> resume(cancel(scope))
 	}
-	strands.foreach(handle-strand)
+	strands.foreach fun(strand) { handle-strand(interject-async(strand)) }
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
@@ -575,6 +580,10 @@ fun async-io( f : () -> io a ) : asyncx a {
 // Async handlers: cancelable
 // ----------------------------------------------------------------------------
 
+extern inline interject-async( action : () -> <async|e> a) : total ( () -> <async,async|e> a) {
+	inline "#1"
+}
+
 // Execute `action` in a cancelable scope. If `cancel` is called within `action`,
 // any outstanding asynchronous operations started in the cancelable scope are canceled.
 // (Outstanding operations outside the cancelable scope are not canceled).
@@ -586,7 +595,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 		parent-scope(cid,scope)
 	}
 
-	handle(action) {
+	handle(interject-async(action)) {
 		return x -> {
 			// cancel any outstanding operations still in our scope.
 			// this might be needed for `no-await` operations.

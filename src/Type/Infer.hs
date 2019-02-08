@@ -424,8 +424,7 @@ inferRecDef topLevel infgamma def
 
 inferDef :: Expect -> Def Type -> Inf Core.Def
 inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
- =do
-     penv <- getPrettyEnv
+ =do penv <- getPrettyEnv
      if (verbose penv >= 2)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
@@ -434,7 +433,9 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
 
+           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
+           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
            if (verbose penv >= 2)
             then Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
@@ -629,10 +630,10 @@ inferExpr propagated expect (App fun nargs rng)
   = inferApp propagated expect fun nargs rng
 
 inferExpr propagated expect (Ann expr annTp rng)
-  = -- trace (" inferExpr.Ann: " ++ show (pretty annTp)) $
-    do (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
+  = do traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
+       (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
        sannTp <- subst annTp
-       -- trace (" inferExpr.Ann: subsume annotation: " ++ show (sannTp,tp)) $ return ()
+       traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env tp
        (resTp0,coref) <- -- withGammaType rng sannTp $
                           inferSubsume (checkAnn rng) (getRange expr) sannTp tp
        -- (resTp,resCore) <- maybeInstantiateOrGeneralize expect annTp (coref core)
@@ -640,7 +641,7 @@ inferExpr propagated expect (Ann expr annTp rng)
        resTp  <- subst resTp0
        resEff <- subst eff
        resCore <- subst (coref core)
-       -- trace ("after subsume: " ++ show (pretty resTp)) $ return ()
+       traceDoc $ \env -> text "  subsumed to:" <+> ppType env resTp
        return (resTp,resEff,resCore)
 
 
@@ -1389,7 +1390,8 @@ inferHandlerBranch propagated expect opsEffTp hxName opConInfos extraBinders res
                           Just (targs0,teff,tres)
                             -> case reverse (drop (length extraBinders) targs0) of
                                  ((xname,_):rtargs) ->
-                                   let newargs = reverse ((xname,resTp):rtargs)
+                                   let newargs = reverse
+                                   ((xname,resTp):rtargs)
                                    in (TFun newargs teff tres,
                                         [ValueBinder (makeHiddenName "x" name) (Just tp) Nothing rngx rngx | (name,tp) <- newargs])
                                  _ -> failure $ "Type.Infer.inferHandlerBranch: illegal resume type: " ++ show (pretty (binderType resumeBinder))
@@ -2270,6 +2272,7 @@ matchFun nArgs mbType
   = case mbType of
       Nothing       -> return (replicate nArgs Nothing,Nothing,Nothing,Instantiated)
       Just (tp,rng) -> do (rho,_,_) <- instantiate rng tp
+                          -- rho <- Op.skolemize rng tp
                           case splitFunType rho of
                            Nothing -> return (replicate nArgs Nothing,Nothing,Nothing,Instantiated)
                            Just (args,eff,res)

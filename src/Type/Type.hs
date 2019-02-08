@@ -65,7 +65,7 @@ module Type.Type (-- * Types
 
 -- import Lib.Trace
 import Data.Maybe(isJust)
-import Data.List( nub, sortBy )
+import Data.List( sortBy )
 
 import Common.Name
 import Common.NamePrim
@@ -504,7 +504,7 @@ extractOrderedEffect :: Tau -> ([Tau],Tau)
 extractOrderedEffect tp
   = let (labs,tl) = extractEffectExtend tp
         labss     = concatMap expand labs
-        slabs     = nub $ (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
+        slabs     = (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
     in (slabs,tl)
   where
     expand l

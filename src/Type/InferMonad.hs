@@ -136,14 +136,14 @@ generalize contextRange range eff0 rho0 core0
        score0 <- subst core0
 
        sub <- getSub
-        -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0
+       -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0)
                   {- ++ " and free " ++ show (tvsList free) -}
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
-            -- return ()
+       --       $ return ()
        -- simplify and improve predicates
        (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho)
-       -- trace (" improved to: " ++ show (eff1,rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
+       -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        let -- generalized variables
            tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps1) rho1))
 
@@ -330,6 +330,7 @@ normalizeX free tp
               return (TSyn syn targs t')
       TFun args eff res
         -> do (ls,tl) <- nofailUnify $ extractNormalizeEffect eff
+              -- trace (" normalizeX: " ++ show (map pretty ls,pretty tl)) $ return ()
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type
                           (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
