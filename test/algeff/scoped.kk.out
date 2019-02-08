@@ -28,10 +28,10 @@
 .tag-nondet : string
 .tag-state : string
 .tag-symbol : string
-call : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
+call : forall<a,e> (p : () -> <cutfail,nondet,nondet|e> a) -> <nondet|e> a
 choice : forall<a,e> (p1 : () -> <nondet|e> a, p2 : () -> <nondet|e> a) -> <nondet|e> a
-choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<int>|e> a
-collect : forall<a,e> (() -> <nondet|e> a) -> <nondet|e> a
+choices : forall<a,e> (action : () -> <nondet,nondet,state<int>|e> a) -> <nondet,state<int>|e> a
+collect : forall<a,e> (() -> <nondet,nondet|e> a) -> <nondet|e> a
 cut : () -> <cutfail,nondet> ()
 cutfail : forall<a> () -> cutfail a
 digit : () -> <nondet,symbol> string
@@ -51,7 +51,7 @@ many : forall<a,e> (p : () -> <nondet,div|e> a) -> <nondet,div|e> list<a>
 many1 : forall<a,e> (p : () -> <nondet,div|e> a) -> <nondet,div|e> list<a>
 mymap : forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
 number : () -> <nondet,symbol,div> int
-once : forall<a,e> (p : () -> <cutfail,nondet|e> a) -> <nondet|e> a
+once : forall<a,e> (p : () -> <cutfail,nondet,nondet|e> a) -> <nondet|e> a
 parse : forall<a,e> (cs : string, action : () -> <nondet,symbol|e> a) -> <nondet|e> a
 put : forall<a> (i : a) -> (state<a>) ()
 select : forall<a> (list<a>) -> nondet a

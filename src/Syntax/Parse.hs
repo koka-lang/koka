@@ -1574,11 +1574,12 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 injectExpr :: LexParser UserExpr
 injectExpr
   = do rng1 <- keyword "inject"
+       behind <- do { specialId "tail"; return True } <|> return False
        langle
        tp <- ptype
        rangle
        exp <- parens expr <|> funblock
-       return (Inject (promoteType tp) exp (combineRanged rng1 exp))
+       return (Inject (promoteType tp) exp behind (combineRanged rng1 exp))
 
 -----------------------------------------------------------
 -- Patterns (and binders)

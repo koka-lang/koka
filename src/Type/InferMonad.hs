@@ -237,7 +237,7 @@ improve contextRange range eff0 rho0 core0
 
        (nrho) <- normalizeX free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
-       -- trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
+       -- trace (" improved to: " ++ show (pretty eff1, pretty nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
@@ -266,7 +266,9 @@ isolate free ps eff
           (TApp _ [TVar h] : _)
             -> -- has heap variable 'h' in its effect
                do (polyPs,ps1) <- splitHDiv h ps
-                  if not (tvsMember h free || tvsMember h (ftv ps1))
+                  if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
+                                             -- but if we allow null polyPS, injecting state does not work (see `test/resource/inject2`)
+                          tvsMember h free || tvsMember h (ftv ps1))
                     then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
                             tv <- freshTVar kindEffect Meta
                             (Just syn) <- lookupSynonym nameTpST

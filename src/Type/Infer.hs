@@ -68,7 +68,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   -- Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -433,7 +433,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
 
-           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
+           -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
@@ -514,19 +514,22 @@ inferExpr propagated expect (Lam binders body rng)
 
        inferUnify (checkReturnResult rng) (getRange body) returnTp tp
 
+       traceDoc $ \env -> text "inferExpr.Lam: body tp:" <+> ppType env tp
        topEff <- case propEff of
                    Nothing -> return eff
-                   Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
+                   Just (topEff,r) -> trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
 
+       traceDoc $ \env -> text "inferExpr.Lam: body eff:" <+> ppType env eff <+> text ", topeff: " <+> ppType env topEff
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
        let pars = optPars
+       traceDoc $ \env -> text "inferExpr.Lam: " <+> ppType env (typeFun pars stopEff tp)
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars stopEff tp) bodyCore2
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
@@ -725,7 +728,7 @@ inferExpr propagated expect (Lit lit)
 inferExpr propagated expect (Parens expr rng)
   = inferExpr propagated expect expr
 
-inferExpr propagated expect (Inject label expr rng)
+inferExpr propagated expect (Inject label expr behind rng)
   = do eff <- freshEffect
        res <- Op.freshTVar kindStar Meta
        let tfun r = typeFun [] eff r
@@ -738,9 +741,19 @@ inferExpr propagated expect (Inject label expr rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
        (coreEffName,isHandled,effName) <- effectNameCore label rng
-       effTo <- subst (effectExtend label eff)
-       -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff
-       core <- if (isHandled)
+       effTo <- subst $ if (not behind)
+                         then (effectExtend label eff)
+                         else let (ls,tl) = extractEffectExtend eff
+                              in (effectExtends (ls++[label]) eff)
+
+       sexprTp <- subst exprTp
+       -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff <+> text ", exprTp: " <+> ppType env sexprTp
+       core <- if (behind)
+                 -- insert in tail position; has no runtime effect so use ".open"
+                 then do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
+                             core       = Core.App coreOpen []
+                         return core
+               else if (isHandled)
                  -- general handled effects use ".inject-effect"
                  then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 2 []) rng rng
                          let coreInject = coreExprFromNameInfo injectQName injectInfo

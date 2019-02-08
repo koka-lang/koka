@@ -107,8 +107,8 @@ resolveExpr expr
                                    final' <- resolveExpr final
                                    ops' <- mapM resolveHandlerBranch ops
                                    return (Handler shallow scoped eff pars reinit' ret' final' ops' hrng rng)
-      Inject tp expr range   -> do expr' <- resolveExpr expr
-                                   return (Inject tp expr range)                                   
+      Inject tp expr b range -> do expr' <- resolveExpr expr
+                                   return (Inject tp expr b range)                                   
 
 isJust (Just _) = True
 isJust Nothing  = False

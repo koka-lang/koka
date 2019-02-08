@@ -310,18 +310,14 @@ extern clear-timeoutx( tid : any) : io () {
 
 // Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
-	val (ra,rb) = interleavedx( interject-exn(action1), interject-exn(action2) )
+	val (ra,rb) = interleavedx( {inject tail<exn>(action1)}, {inject tail<exn>(action2)} )
 	[ra.maybe,rb.maybe].ordered_throw
 	(ra.untry,rb.untry)
 }
 
-extern interject-exn( action : () -> <exn|e> a ) : total (() -> <exn,exn|e> a)  {
-	inline "#1"
-}
-
 // Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
-	val ress = xs.map(interject-exn).interleavedx
+	val ress = xs.map( fun(f) { return { inject tail<exn>(f) } } ).interleavedx
 	//ress.map(maybe).ordered_throw
 	ress.map(untry)
 }
@@ -461,7 +457,9 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		fun async-iox(f)	-> resume(async-iox(f))
 		fun cancel(scope)	-> resume(cancel(scope))
 	}
-	strands.foreach fun(strand) { handle-strand(interject-async(strand)) }
+	strands.foreach fun(strand) {
+		handle-strand{inject tail<async>(strand)}
+	}
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
@@ -595,8 +593,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 		parent-scope(cid,scope)
 	}
 
-	handle(interject-async(action)) {
-		return x -> {
+	handle({inject tail<async>(action)}) { return x -> {
 			// cancel any outstanding operations still in our scope.
 			// this might be needed for `no-await` operations.
 			cancel(empty-scope.extend)

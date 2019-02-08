@@ -204,7 +204,7 @@ data Expr t
   | Parens (Expr t)              Range
   | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()]
                   (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
-  | Inject t (Expr t) Range
+  | Inject t (Expr t) Bool {-behind?-} Range
 
 data HandlerScope
   = HandlerNoScope | HandlerScoped
@@ -332,7 +332,7 @@ instance Ranged (Expr t) where
         Case   exprs branches range -> range
         Parens expr range      -> range
         Handler shallow scoped eff pars reinit ret final ops hrng range -> range
-        Inject tp expr range -> range
+        Inject tp expr behind range -> range
 
 instance Ranged Lit where
   getRange lit
