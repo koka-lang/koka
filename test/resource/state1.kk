@@ -4,7 +4,7 @@ effect tick {
 
 fun lticker( action ) { // : () -> <tick|e> a ) : <local<h>|e> a {
   use s = local(0)
-  handle(inject-local(action)) {
+  handle(action) {
     fun tick() {
       s := s + 1
       resume(s)

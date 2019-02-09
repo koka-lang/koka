@@ -33,7 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar
+                      , nameTpLocalVar, nameTpLocal
                        )
 import Common.Range
 import Common.Unique
@@ -985,7 +985,6 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
                               HandlerResource (Just _) ->
                                   [(newName "resource-tag", typeInt)]
                               _ -> []
-           actionPar      = (newName "action",TFun actionPars ({-effectExtend typeCps-} actionEffect) retInTp)
            resumeEffect   = effect -- if (isHandlerResource handlerSort) then actionEffect else effect
 
        traceDoc $ \env -> text "inferHandlerBranches:" <+>
@@ -1017,7 +1016,9 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        branchesCore <- coreVector handlerBranchTp branchCores
 
        -- build up the type of the handler
-       let handlerTp = TFun (locals ++ [actionPar]) effect resTp
+       iactionEffect <- injectLocalEffect actionEffect -- convenience
+       let actionPar = (newName "action",TFun actionPars iactionEffect retInTp)
+           handlerTp = TFun (locals ++ [actionPar]) effect resTp
            reinitTp  = TFun locals effect (typeMakeTuple (map snd locals))
            finalTp   = TFun locals effect typeUnit
 
@@ -1064,6 +1065,12 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
                 handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
+
+injectLocalEffect :: Effect -> Inf Effect
+injectLocalEffect eff
+  = do seff <- subst eff
+       let (ls,tl) = extractOrderedEffect seff
+       return (effectExtends (filter (\l -> labelName l /= nameTpLocal) ls) tl)
 
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect

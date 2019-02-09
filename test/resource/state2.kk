@@ -13,14 +13,15 @@ effect tick {
   fun tick() : int
 }
 
-fun lticker( action : () -> <tick|e> a ) : e a {
-  use s = local(0)  
-  handle(inject-local(action)) {
+fun lticker( action ) { //}: () -> <tick|e> a ) : e a {
+  use s = local(0)
+  handle(action) {
     fun tick() {
       s := s + 1
       resume(s)
     }
   }
+  return ({ s := s + 1; s})
 }
 
 fun rticker( action : () -> <tick|e> a ) : e a {
@@ -52,6 +53,6 @@ fun rtest() {
 }
 
 fun main() {
-  ltest().show-list(show).println   // [2, 2]
+  //ltest().show-list(show).println   // [2, 2]
   rtest().show-list(show).println   // [2, 3]
 }
