@@ -74,7 +74,9 @@ import Common.Unique
 import Common.Failure
 import Common.Error
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
+                       nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
+                       nameTpLocal)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
 
@@ -103,7 +105,7 @@ import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 import qualified Lib.Trace( trace )
 
 trace s x =
-  -- Lib.Trace.trace (" " ++ s)
+  Lib.Trace.trace (" " ++ s)
    x
 
 {--------------------------------------------------------------------------
@@ -262,21 +264,27 @@ isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> C
 isolate free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
-    in case filter (\l -> labelName l `elem` [nameTpRead,nameTpWrite]) ls of
-          (TApp _ [TVar h] : _)
+    in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
+          (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
-               do (polyPs,ps1) <- splitHDiv h ps
+               do trace ("isolate:"  ++ show (pretty eff)) $ return ()
+                  (polyPs,ps1) <- splitHDiv h ps
                   if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
                                              -- but if we allow null polyPS, injecting state does not work (see `test/resource/inject2`)
                           tvsMember h free || tvsMember h (ftv ps1))
                     then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
                             tv <- freshTVar kindEffect Meta
-                            (Just syn) <- lookupSynonym nameTpST
-                            let [bvar] = synInfoParams syn
-                                st     = subNew [(bvar,TVar h)] |-> synInfoType syn
-                            nofailUnify $ unify (effectExtend st tv) eff
+                            case labcon of
+                               TCon (TypeCon name _) | name == nameTpLocal
+                                  -> do trace ("isolate local") $ return ()
+                                        nofailUnify $ unify (effectExtend lab tv) eff
+                               _  -> do (Just syn) <- lookupSynonym nameTpST
+                                        let [bvar] = synInfoParams syn
+                                            st     = subNew [(bvar,TVar h)] |-> synInfoType syn
+                                        nofailUnify $ unify (effectExtend st tv) eff
                             neweff <- subst tv
                             sps    <- subst ps1
+                            trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
                             isolate free sps neweff

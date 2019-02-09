@@ -14,9 +14,8 @@ effect tick {
 }
 
 fun lticker( action : () -> <tick|e> a ) : e a {
-  using run-local
-  use s = local(0)
-  handle({inject<local>(action)}) {
+  use s = local(0)  
+  handle(inject-local(action)) {
     fun tick() {
       s := s + 1
       resume(s)

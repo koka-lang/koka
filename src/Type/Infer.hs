@@ -518,7 +518,7 @@ inferExpr propagated expect (Lam binders body rng)
        traceDoc $ \env -> text "inferExpr.Lam: body tp:" <+> ppType env tp
        topEff <- case propEff of
                    Nothing -> return eff
-                   Just (topEff,r) -> trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
+                   Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff

@@ -2764,6 +2764,8 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e 
 type local :: (H) -> X
 type local-var :: (H,V) -> V
 
+extern inline inject-local( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
+
 // Allocate a fresh local with an initial value.
 extern inline local : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
   js "$std_core._with_local"
