@@ -33,6 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
+                      , nameTpLocalVar
                        )
 import Common.Range
 import Common.Unique
@@ -68,7 +69,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s
+  Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -585,8 +586,10 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiate lrng gtp
-              r <- freshRefType
-              inferUnify (checkAssign rng) lrng r tp
+              if (isTypeLocalVar tp)
+               then return ()
+               else do r <- freshRefType
+                       inferUnify (checkAssign rng) lrng r tp
               inferExpr propagated expect
                         (App (Var nameRefSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
               {-
@@ -1683,7 +1686,13 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
 inferVar propagated expect name rng isRhs
   = -- trace("inferVar; " ++ show name) $
     do (qname,tp,info) <- resolveName name propagated rng
-       case info of
+       traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
+       if (isTypeLocalVar tp && isRhs)
+        then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
+                addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
+                traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
+                return (tp1,eff1,core1)
+        else case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)

@@ -72,7 +72,10 @@ module Common.NamePrim
           , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
+
           , nameTpRef, nameRef
+          , nameTpLocalVar, nameTpLocal
+
           , nameTpOptional
           , nameTpArray, nameTpVector, nameVector
 
@@ -245,6 +248,8 @@ nameTpIO        = preludeName "io"
 nameTpUnit      = preludeName "()"
 nameTpRef       = preludeName "ref"
 nameRef         = preludeName "ref"
+nameTpLocalVar  = preludeName "local-var"
+nameTpLocal     = preludeName "local"
 
 nameTpTotal     = preludeName "total"
 nameTpPartial   = preludeName "exn"

@@ -2731,6 +2731,7 @@ type hdiv :: (H,V,E) -> P
 // for operations on first-class effects where code can diverge through operations.
 type ediv :: (X,V,E) -> P
 
+
 // A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 type ref :: (H,V) -> V
 
@@ -2755,6 +2756,34 @@ extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  {
+  cs inline "Primitive.Run<##2>(#1)";
+  js inline "((#1)())";
+}
+
+// A local variable `:var<s,a>` points to a value of type `:a` in local scope `:s`
+type local :: (H) -> X
+type local-var :: (H,V) -> V
+
+// Allocate a fresh local with an initial value.
+extern inline local : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
+  js "$std_core._with_local"
+}
+
+// Assign a new value to a local variable
+extern inline set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
+  cs inline "#1.Set(#2)";
+  js inline "((#1).value = #2)"
+}
+
+// Read the value of a local variable.
+extern inline (!) : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+  cs inline "#1.Value";
+  js inline "((#1).value)";
+}
+
+// If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
+// See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
+extern inline run-local : forall<e,a> ( action : forall<h> () -> <local<h> | e> a ) -> e a  {
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }

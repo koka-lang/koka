@@ -55,6 +55,8 @@ module Type.Type (-- * Types
                   , isTypeTotal
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
+                  , isTypeLocalVar
+
                   -- ** Trivial conversion
                   , IsType( toType)
                   -- ** Primitive
@@ -491,6 +493,14 @@ typeRef :: Tau
 typeRef
   = TCon (TypeCon nameTpRef (kindFun kindHeap (kindFun kindStar kindStar)))
 
+
+tconLocalVar = TypeCon nameTpLocalVar (kindFun kindHeap (kindFun kindStar kindStar))
+
+isTypeLocalVar :: Tau -> Bool
+isTypeLocalVar tp =
+  case expandSyn tp of
+    TApp (TCon (TypeCon name _)) [_,_]  -> name == nameTpLocalVar
+    _ -> False
 
 orderEffect :: Tau -> Tau
 orderEffect tp
