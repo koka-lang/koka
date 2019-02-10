@@ -153,14 +153,8 @@ alias io = <exn,io-noexn>
 // Injection
 // ----------------------------------------------------------------------------
 
-// Add the divergent effect to a function effect.
-extern inline inject-div : forall<a,e> (() -> e a) -> (() -> <div|e> a) { inline "#1" }
-
-// Add the divergent effect to a function effect.
-extern inline inject-div : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
-
 // Add the state effect to a function effect.
-extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
+// extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
 // Add the state effect to a function effect.
 extern inline inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
@@ -1112,16 +1106,13 @@ fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
   }
 }
 
-private extern inline inject-st : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  { inline "#1" }
-
-private extern inline inject-local : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <local<h>|e> c)  { inline "#1" }
-
 // Invoke `action` for each element of a list, passing also the position of the element.
 fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
   xs.foreach fun(x) {
-    inject-local(action)(i,x)
+    val j = i; // don't dereference `i` inside the inject
+    inject<local>{action(j,x)}
     i := i+1
   }
 }
@@ -2415,7 +2406,7 @@ fun force( delayed : delayed<e,a> ) : e a {
     match(!r) {
       Right(x) -> x
       Left(action) -> {
-        val x = inject-st(inject-div(action))()
+        val x = (inject-st{inject<div>(action)})()
         r := Right(x)
         x
       }

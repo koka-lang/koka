@@ -69,7 +69,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -1697,11 +1697,11 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
 inferVar propagated expect name rng isRhs
   = -- trace("inferVar; " ++ show name) $
     do (qname,tp,info) <- resolveName name propagated rng
-       traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
+       -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
        if (isTypeLocalVar tp && isRhs)
         then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
-                traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
+                -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
         else case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?

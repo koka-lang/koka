@@ -616,25 +616,25 @@ fun nodispose() : io () {   () }
 // around the `main` function if it has an `:async` effect.
 public fun async-handle(action : () -> <async,io> () ) : io ()
 {
-	var callbacks : list<(scope,() -> io ())>  := []
+	val callbacks : ref<global,list<(scope,() -> io ())>> = ref([])
 
 	fun handle-await( setup : await-setup<a>, scope : scope, f : try<a> -> io (), cancelable? : bool) : io ()
 	{
 		val cscope = child-scope(unique(),scope)
-		var dispose := nodispose
+		val dispose = ref(nodispose)
 
 		fun cb( res : try<_>, done? : bool ) : io () {
-			if (callbacks.contains(cscope)) {
+			if ((!callbacks).contains(cscope)) {
 				if (done?) then {
-					callbacks := callbacks.remove(cscope)
-					if (res.exn?) then try-default((),dispose)
+					callbacks := (!callbacks).remove(cscope)
+					if (res.exn?) then try-default((),!dispose)
 				}
 				f(res)
 			}
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), callbacks)
+		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
 		try {
 			// setup the callback which returns a possible dipose function
 			match(setup(cb)) {
@@ -649,7 +649,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	fun handle-cancel( scope : scope ) : io () {
-		callbacks.foreach fun(entry) {
+		(!callbacks).foreach fun(entry) {
 			val (cscope,cb) = entry
 			if (cscope.in-scope-of?(scope)) then cb()
 		}
