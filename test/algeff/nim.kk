@@ -200,10 +200,20 @@ effect state<s> {
   fun put(x : s) : ()
 }
 
-val state = handler(s) {
+/*
+val state-param = handler(s) {
   return x -> x
   get()    -> resume(s,s)
   put(t)   -> resume((),t)
+}
+*/
+
+fun state(init,action) {
+  var s := init
+  handle(action) {
+    get()  -> resume(s)
+    put(x) -> { s := x; resume(()) }
+  }
 }
 
 alias gstate = list<(player,int)>
