@@ -14,14 +14,13 @@ effect tick {
 }
 
 fun lticker( action ) { //}: () -> <tick|e> a ) : e a {
-  use s = local(0)
+  var s := 0
   handle(action) {
     fun tick() {
       s := s + 1
       resume(s)
     }
   }
-  return ({ s := s + 1; s})
 }
 
 fun rticker( action : () -> <tick|e> a ) : e a {

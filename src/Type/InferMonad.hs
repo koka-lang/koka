@@ -264,7 +264,7 @@ isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> C
 isolate free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
-    in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
+    in case filter (\l -> labelName l `elem` [{-nameTpLocal,-}nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
                do trace ("isolate:"  ++ show (pretty eff)) $ return ()

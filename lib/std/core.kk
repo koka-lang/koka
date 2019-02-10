@@ -1114,12 +1114,14 @@ fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 
 private extern inline inject-st : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  { inline "#1" }
 
+private extern inline inject-local : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <local<h>|e> c)  { inline "#1" }
+
 // Invoke `action` for each element of a list, passing also the position of the element.
 fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
   xs.foreach fun(x) {
-    inject-st(action)(i,x)
+    inject-local(action)(i,x)
     i := i+1
   }
 }
@@ -2767,7 +2769,7 @@ type local-var :: (H,V) -> V
 extern inline inject-local( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
 
 // Allocate a fresh local with an initial value.
-extern inline local : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
+extern inline local-var : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
   js "$std_core._with_local"
 }
 
@@ -2785,7 +2787,7 @@ extern inline (!) : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdi
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline run-local : forall<e,a> ( action : forall<h> () -> <local<h> | e> a ) -> e a  {
+extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a ) -> e a  {
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }

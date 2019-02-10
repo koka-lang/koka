@@ -33,7 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar, nameTpLocal
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal
                        )
 import Common.Range
 import Common.Unique
@@ -1475,7 +1475,7 @@ inferApp propagated expect fun nargs rng
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop fixed named
-      = -- trace ("inferAppFunFirst") $
+      = trace ("inferAppFunFirst") $
         do -- infer type of function
            (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated fun
            -- match the type with a function type
@@ -1484,7 +1484,11 @@ inferApp propagated expect fun nargs rng
            -- todo: match propagated type with result type?
            -- subsume arguments
            (effArgs,coreArgs) <- -- withGammaType rng (TFun pars funEff funTp) $ -- ensure the free 'some' types are free in gamma
-                                 inferSubsumeN rng (zip (map snd pars) (map snd iargs))
+                                 let check = case (fun) of
+                                               Var name _ _ | name == nameRunLocal
+                                                 -> checkLocalScope rng
+                                               _ -> Infer rng
+                                 in inferSubsumeN check rng (zip (map snd pars) (map snd iargs))
 
            core <- if (monotonic (map fst iargs) || all Core.isTotal coreArgs)
                     then return (coreApp fcore coreArgs)
@@ -1969,6 +1973,8 @@ checkMakeHandler= Check "handler types do not match the handler maker; please re
 checkMakeHandlerBranch = Check "handle branch types do not match the handler branch maker; please report this as a bug!"
 checkEffectTp   = Check "operator type does not match the effect type"
 
+checkLocalScope = Check "a reference to a local variable escapes it's scope"
+
 isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr
   = case rootExpr expr of
@@ -2015,24 +2021,26 @@ coreExprFromNameInfo qname info
 --------------------------------------------------------------------------}
 
 -- | Infer types of function arguments
-inferSubsumeN :: Range -> [(Type,Expr Type)] -> Inf ([Effect],[Core.Expr])
-inferSubsumeN range parArgs
-  = do res <- inferSubsumeN' range [] (zip [1..] parArgs)
+inferSubsumeN :: Context -> Range -> [(Type,Expr Type)] -> Inf ([Effect],[Core.Expr])
+inferSubsumeN ctx range parArgs
+  = do res <- inferSubsumeN' ctx range [] (zip [1..] parArgs)
        return (unzip res)
 
-inferSubsumeN' range acc []
+inferSubsumeN' ctx range acc []
   = return (map snd (sortBy (\(i,_) (j,_) -> compare i j) acc))
-inferSubsumeN' range acc parArgs
+inferSubsumeN' ctx range acc parArgs
   = do ((i,(tpar,arg)):rest) <- pickArgument parArgs
        (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized) arg
        tpar1  <- subst tpar
        (_,coref)  <- if isAnnot arg
-                      then do inferUnify (Infer range) (getRange arg) tpar1 targ
+                      then do -- traceDoc $ \env -> text "inferSubsumeN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                              inferUnify ctx (getRange arg) tpar1 targ
                               return (tpar1,id)
-                      else inferSubsume (Infer range) (getRange arg) tpar1 targ
+                      else do -- traceDoc $ \env -> text "inferSubsumeN2:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
+                              inferSubsume ctx (getRange arg) tpar1 targ
        rest1 <- mapM (\(j,(tpar,arg)) -> do{ stpar <- subst tpar; return (j,(stpar,arg)) }) rest
        teff1 <- subst teff
-       inferSubsumeN' range ((i,(teff1,coref core)):acc) rest1
+       inferSubsumeN' ctx range ((i,(teff1,coref core)):acc) rest1
 
 -- | Pick an argument that can be subsumed unambigiously..
 -- split arguments on non-ambiguous variables and ambiguous ones
