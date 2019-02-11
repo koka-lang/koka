@@ -837,9 +837,9 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
 		Nothing -> match(t.find(rx-special)) {
 			Just(cap) -> {
 				val special =	if (!cap.groups[1].empty?) then dd-nan
-					elif (cap.groups[2] == "-") then dd-neginf
-					else dd-posinf
-			    Just(special)
+											 elif (cap.groups[2] == "-") then dd-neginf
+											 else dd-posinf
+			  Just(special)
 			}
 			Nothing -> match(t.find(rx-double-sum)) {
 				Just(cap) -> {
@@ -1226,7 +1226,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
 
   val s  = t - (dd-pi16 * qb.ddouble)
   */
-  
+
   val x1 = rad / dd-twopi
   val x3 = x1 - x1.round
   // s = x - a*pi/2 - b*pi/16

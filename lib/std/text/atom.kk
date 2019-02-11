@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -9,7 +9,7 @@
 /* Perfect hashing for strings.
 
    These `:atom`s can be compared very efficiently. If you compare only
-   seldomly, a straight string compare will probably be faster since 
+   seldomly, a straight string compare will probably be faster since
    creating an atom takes some initial work.
 */
 module std/text/atom
@@ -25,7 +25,7 @@ external include {
 public val atom-null = atom("")
 
 // An atom is an abstract representation of a string that can be compared quickly
-abstract struct atom( value: int32 )  
+abstract struct atom( value: int32 )
 
 // Create an `:atom`
 extern atom-create : ( s : string ) -> int32 {
@@ -50,10 +50,14 @@ public fun string( a : atom ) : string {
 }
 
 // Compare two atoms for equality
-public fun (==)(x : atom, y : atom) : bool  -> (x.value == y.value)
+public fun (==)(x : atom, y : atom) : bool {
+  (x.value == y.value)
+}
 
 // Compare if two atoms are not equal.
-public fun (!=)(x : atom, y : atom) : bool  -> (x.value != y.value)
+public fun (!=)(x : atom, y : atom) : bool {
+  (x.value != y.value)
+}
 
 
 extern atom-matcher : ( xs : vector<string>, ignoreCase: int32 ) -> any

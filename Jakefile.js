@@ -193,7 +193,7 @@ task("grammar",[],function(testfile)
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
+var cmdMarkdown = "madoko"; //"node ../../../madoko/lib/cli.js"; // "madoko";
 var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
 var doclocal = (process.env.doclocal || "..\\koka-pages\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
 

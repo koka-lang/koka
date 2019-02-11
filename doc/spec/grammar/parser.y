@@ -5,7 +5,7 @@
 
 %pure_parser
 
-%{ 
+%{
 typedef void*        yyscan_t;
 %}
 
@@ -14,7 +14,7 @@ typedef void*        yyscan_t;
 
 
 /* token structure. The memory for Id and String is kept in a list and deallocated after parsing (in 'doneScanState') */
-%union {  
+%union {
   const char*   Id;      /* used for operators OP too */
   const char*   String;  /* 'modified' UTF-8 string (\0 chars are encoded as \xC0\x80) */
   double        Float;
@@ -38,46 +38,46 @@ void printDecl( const char* sort, const char* name );
 
 
 %token <Id>     ID CONID OP IDOP QID  QCONID QIDOP WILDCARD '(' ')' '[' ']'
-%token <Nat>    NAT 
-%token <Float>  FLOAT 
-%token <String> STRING 
+%token <Nat>    NAT
+%token <Float>  FLOAT
+%token <String> STRING
 %token <Char>   CHAR
 
 %token APP   /* '(' for applications */
 %token IDX   /* '[' for indexing */
 
 %token IF THEN ELSE ELIF
-%token MATCH 
-%token RARROW 
+%token MATCH
+%token RARROW
 
 %token FUN FUNX VAL VAR
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
-%token WITH 
+%token WITH
 
-%token IMPORT AS MODULE 
+%token IMPORT AS MODULE
 %token PUBLIC PRIVATE ABSTRACT
 %token EXTERN
-%token INFIX INFIXL INFIXR 
+%token INFIX INFIXL INFIXR
 
-%token LEX_WHITE LEX_COMMENT 
+%token LEX_WHITE LEX_COMMENT
 %token SEMI
 %token LE ASSIGN DCOLON EXTEND
-%token RETURN 
+%token RETURN
 
-%token HANDLER HANDLE EFFECT
+%token HANDLER HANDLE EFFECT INJECT
 
-%token YIELD REC TRY IFACE INST
+%token REC IFACE INST
 
-%token ID_INLINE ID_INCLUDE 
-%token ID_CS ID_JS ID_FILE 
-%token ID_LINEAR ID_OPEN
+%token ID_INLINE ID_INCLUDE
+%token ID_CS ID_JS ID_FILE
+%token ID_LINEAR ID_OPEN ID_EXTEND ID_TAIL
 
-%type <Id>  varid conid qvarid qconid op  
+%type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
-%type <Id>  funid typeid modulepath binder 
-%type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl 
+%type <Id>  funid typeid modulepath binder
+%type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl
 
 /* these are non-reserved words but have special meaning after
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
@@ -102,7 +102,7 @@ modulebody  : importdecl semis1 modulebody
             ;
 
 importdecl  : visibility IMPORT modulepath
-            | visibility IMPORT modulepath '=' modulepath 
+            | visibility IMPORT modulepath '=' modulepath
             ;
 
 modulepath  : varid                       { $$ = $1; }
@@ -113,15 +113,15 @@ visibility  : PUBLIC
             | PRIVATE
             | /* empty */
             ;
-                
+
 semis1      : semis
             ;
 
 semis       : semis semi
-            | /* empty */   
+            | /* empty */
             ;
 
-semi        : ';' 
+semi        : ';'
             | SEMI
             ;
 
@@ -136,11 +136,11 @@ declarations: fixitydecl semis1 declarations
             | topdecls
             ;
 
-fixitydecl  : visibility fixity oplist1 
+fixitydecl  : visibility fixity oplist1
             ;
 
-fixity      : INFIX NAT 
-            | INFIXR NAT 
+fixity      : INFIX NAT
+            | INFIXR NAT
             | INFIXL NAT
             ;
 
@@ -149,7 +149,7 @@ oplist1     : oplist1 ',' identifier
             ;
 
 
-topdecls    : topdecls1 
+topdecls    : topdecls1
             | /* empty */
             ;
 
@@ -158,7 +158,7 @@ topdecls1   : topdecls1 topdecl semis1
             /* error recovery */
             | topdecls1 error semis1
             | error semis1                                    { yyerror(&@1,scanner,"skipped top-level declaration");  }
-            ; 
+            ;
 
 topdecl     : visibility puredecl                             { printDecl("value",$2); }
             | visibility aliasdecl                            { printDecl("alias",$2); }
@@ -172,13 +172,13 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERN funid externtype externbody               { $$ = $2; }                    
+externdecl  : EXTERN funid externtype externbody               { $$ = $2; }
             | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec "inline"
             | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec "include"
             ;
 
-externtype  : ':' typescheme 
-            | lparen parameters ')' annotres 
+externtype  : ':' typescheme
+            | typeparams lparen parameters ')' annotres
             ;
 
 externbody  : '{' semis externstats1 '}'
@@ -201,12 +201,12 @@ externincs1 : externincs1 externinc semis1
             ;
 
 externinc   : externtarget externfile STRING
-            ;                        
+            ;
 
 externtarget: ID_CS
             | ID_JS
             | /* empty */
-            ;            
+            ;
 
 externfile  : ID_FILE
             | /* empty */
@@ -225,8 +225,9 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
 
 typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
             | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } %prec "open"
+            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; } %prec "extend"
             | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
-            | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; } 
+            | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; }
             | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } %prec "linear"
             ;
 
@@ -241,7 +242,7 @@ typeid      : '(' commas ')'      { $$ = "(,)"; }       /* tuples */
             | '[' ']'             { $$ = "[]"; }        /* lists */
             | '<' '>'             { $$ = "<>"; }        /* total effect */
             | '<' '|' '>'         { $$ = "<|>"; }       /* effect extension */
-            | varid               { $$ = $1; }    
+            | varid               { $$ = $1; }
             ;
 
 commas      : commas1
@@ -256,16 +257,17 @@ constructors: constructors1 semis
             | /* empty */
             ;
 
-constructors1: constructors1 semis1 constructor 
+constructors1: constructors1 semis1 constructor
             | constructor
             ;
 
 constructor : visibility con conid typeparams conparams
+            | visibility con STRING typeparams conparams
             ;
 
 con         : CON
-            | /* empty */ 
-            ; 
+            | /* empty */
+            ;
 
 conparams   : lparen conpars1 ')'
             | lparen ')'
@@ -277,7 +279,7 @@ conpars1    : conpars1 ',' conpar
             ;
 
 conpar      : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr            
+            | paramid ':' paramtype '=' expr
             | ':' paramtype
             | ':' paramtype '=' expr
             ;
@@ -287,7 +289,7 @@ conpar      : paramid ':' paramtype
 ----------------------------------------------------------*/
 
 
-opdecls     : '{' semis operations '}'            
+opdecls     : '{' semis operations '}'
 
 operations  : operations operation semis
             | /* empty */
@@ -298,7 +300,7 @@ operation   : visibility FUN identifier typeparams lparen parameters ')' ':' tat
 
 /* ---------------------------------------------------------
 -- Pure Declarations
-----------------------------------------------------------*/   
+----------------------------------------------------------*/
 puredecl    : VAL valdecl                   { $$ = $2; }
             | FUN fundecl                   { $$ = $2; }
             ;
@@ -331,7 +333,7 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid 
+parameter   : paramid
             | paramid ':' paramtype
             | paramid ':' paramtype '=' expr
             | paramid '=' expr
@@ -356,13 +358,13 @@ annotres    : ':' tresult
 
 block       : '{' semis statements1 '}'    /* must end with an expression statement (and not a declaration) */
             ;
-            
-statements1 : statements1 statement semis1      
+
+statements1 : statements1 statement semis1
             | statement semis1
             | error semis1
             ;
 
-statement   : decl 
+statement   : decl
             | nofunexpr
             ;
 
@@ -402,23 +404,24 @@ nofunexpr   : ifexpr
 /* keyword expressions */
 
 matchexpr   : MATCH atom '{' semis matchrules '}'
-            ; 
+            ;
 
 handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
             | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
-            ;        
+            ;
 
 funexpr     : FUNX fundef block
             | block                    /* zero-argument function */
             ;
 
-returnexpr  : RETURN opexpr          
+returnexpr  : RETURN opexpr
+            | RETURN FUNX fundef block
             ;
 
 ifexpr      : IF atom then elifs else
             ;
 
-then        : THEN noifexpr 
+then        : THEN noifexpr
             | noifexpr                 /* then keyword is optional */
             ;
 
@@ -426,7 +429,7 @@ else        : ELSE noifexpr
             | /* empty */
             ;
 
-elifs       : elifs ELIF atom then 
+elifs       : elifs ELIF atom then
             | /* empty */
             ;
 
@@ -439,20 +442,20 @@ opexpr      : opexpr qoperator prefixexpr
 prefixexpr  : '!' prefixexpr
             | '~' prefixexpr
             | appexpr
-            ;         
+            ;
 
 /*
-fappexpr    : fappexpr funexpr               
+fappexpr    : fappexpr funexpr
             | appexpr
-            ;               
+            ;
 */
 
 appexpr     : appexpr APP arguments ')'       /* application */
             | appexpr IDX arguments ']'       /* index expression */
             | appexpr '.' atom                /* dot application */
-            | appexpr funexpr                 /* trailing function application */  
+            | appexpr funexpr                 /* trailing function application */
             | atom
-            ; 
+            ;
 
 
 /* atomic expressions */
@@ -460,6 +463,7 @@ appexpr     : appexpr APP arguments ')'       /* application */
 atom        : qidentifier
             | qconstructor
             | literal
+            | inject
             | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
@@ -467,11 +471,18 @@ atom        : qidentifier
 literal     : NAT | FLOAT | CHAR | STRING
             ;
 
+inject      : INJECT tail '<' tbasic '>' '(' aexpr')'
+            | INJECT tail '<' tbasic '>' block
+            ;
+
+tail        : ID_TAIL
+            | /* empty */
+            ;
 
 /* arguments: separated by comma */
 
 
-arguments   : arguments1 
+arguments   : arguments1
             | /* empty */
             ;
 
@@ -482,13 +493,13 @@ arguments1  : arguments1 ',' argument
 argument    : expr
             | identifier '=' expr                  /* named arguments */
             ;
- 
+
 
 /* annotated expressions: separated or terminated by comma */
 
-aexprs      : aexprs1                              /* separated by comma */
+aexprs      : aexprs1                               /* separated by comma */
             | /* empty */
-            ;            
+            ;
 
 aexprs1     : aexprs1 ',' aexpr
             | aexpr
@@ -500,7 +511,7 @@ cexprs      : cexprs0                              /* terminated or separated by
 
 cexprs0     : cexprs0 aexpr ','
             | /* empty */
-            ;            
+            ;
 
 aexpr       : expr annot
             ;
@@ -518,12 +529,12 @@ annot       : ':' typescheme
 qoperator   : op
             ;
 
-qidentifier : qvarid 
+qidentifier : qvarid
             | QIDOP
-            | identifier           
+            | identifier
             ;
 
-identifier  : varid  
+identifier  : varid
             | IDOP
             ;
 
@@ -532,28 +543,30 @@ qvarid      : QID
 
 varid       : ID
             | ID_CS           { $$ = "cs"; }
-            | ID_JS           { $$ = "js"; }      
+            | ID_JS           { $$ = "js"; }
             | ID_FILE         { $$ = "file"; }
             | ID_INLINE       { $$ = "inline"; }
             | ID_INCLUDE      { $$ = "include"; }
-            | ID_OPEN         { $$ = "open"; }     
-            | ID_LINEAR       { $$ = "linear"; }   
-            ; 
+            | ID_OPEN         { $$ = "open"; }
+            | ID_EXTEND       { $$ = "extend"; }
+            | ID_LINEAR       { $$ = "linear"; }
+            | ID_TAIL         { $$ = "tail"; }
+            ;
 
-qconstructor: conid 
+qconstructor: conid
             | qconid
             ;
-            
+
 qconid      : QCONID { $$ = $1; }
 conid       : CONID  { $$ = $1; }
             ;
 
-op          : OP 
+op          : OP
             | '>'       { $$ = ">";  }
             | '<'       { $$ = "<";  }
             | '|'       { $$ = "|";  }
             | ASSIGN    { $$ = ":="; }
-            ;            
+            ;
 
 
 /* ---------------------------------------------------------
@@ -570,13 +583,13 @@ matchrules1 : matchrules1 semis1 matchrule
 
 matchrule   : patterns1 '|' expr RARROW blockexpr
             | patterns1 bodyexpr
-            ;            
+            ;
 
 patterns1   : patterns1 ',' pattern
             | pattern
             ;
 
-apatterns   : apatterns1 
+apatterns   : apatterns1
             | /* empty */
             ;
 
@@ -616,7 +629,7 @@ patarg      : identifier '=' apattern            /* named argument */
 
 handlereff  : '<' anntype '>'
             | /* empty */
-            ; 
+            ;
 
 handlerpars : lparen parameters ')'
             | /* empty */
@@ -630,7 +643,7 @@ handlerrule : qidentifier opargs bodyexpr
             | RETURN lparen oparg ')' bodyexpr
             | RETURN paramid bodyexpr
             ;
-                        
+
 opargs      : lparen opargs0 ')'
             | /* empty */
             ;
@@ -643,7 +656,7 @@ opargs1     : opargs1 ',' oparg
             | oparg
             ;
 
-oparg       : paramid 
+oparg       : paramid
             | paramid ':' type
             ;
 
@@ -688,7 +701,7 @@ typeparams  : typeparams1
             ;
 
 typeparams1 : '<' tbinders '>'
-            ;            
+            ;
 
 qualifier   : WITH '(' predicates1 ')'
             | /* empty */
@@ -709,7 +722,7 @@ tarrow      : tatomic RARROW tresult
             ;
 
 tresult     : tatomic tbasic                 /* effect and result type */
-            | tatomic                        /* just a result type (with a default total effect) */ 
+            | tatomic                        /* just a result type (with a default total effect) */
             ;
 
 tatomic     : tbasic
@@ -720,17 +733,17 @@ tatomic     : tbasic
 tbasic      : typeapp
             | '(' tparams ')'                /* unit, parenthesis, tuple, named parameters */
             | '[' anntype ']'                /* list type */
-            ; 
+            ;
 
 typeapp     : typecon
-            | typecon '<' targuments '>' 
+            | typecon '<' targuments '>'
             ;
 
 typecon     : varid | qvarid                 /* type name */
             | WILDCARD                       /* wildcard type variable */
             | '(' commas1 ')'                /* tuple constructor */
             | '[' ']'                        /* list constructor */
-            | '(' RARROW ')'                 /* function constructor */ 
+            | '(' RARROW ')'                 /* function constructor */
             ;
 
 
@@ -745,7 +758,7 @@ tparams1    : tparams1 ',' tparam
 tparam      : identifier ':' anntype              /* named parameter */
             | anntype
             ;
-            
+
 
 targuments  : targuments1
             | /* empty */
@@ -766,7 +779,7 @@ kannot      : DCOLON kind
             | /* empty */
             ;
 
-kind        : '(' kinds1 ')' RARROW katom  
+kind        : '(' kinds1 ')' RARROW katom
             | katom RARROW kind
             | katom
             ;
