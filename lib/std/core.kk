@@ -2765,13 +2765,13 @@ extern inline local-var : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -
 }
 
 // Assign a new value to a local variable
-extern inline set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
+extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
-extern inline (!) : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
   cs inline "#1.Value";
   js inline "((#1).value)";
 }

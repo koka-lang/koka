@@ -33,7 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet
                       , nameTpValueOp
                        )
 import Common.Range
@@ -587,12 +587,13 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiate lrng gtp
-              if (isTypeLocalVar tp)
-               then return ()
-               else do r <- freshRefType
-                       inferUnify (checkAssign rng) lrng r tp
+              nameSet <- if (isTypeLocalVar tp)
+                           then return nameLocalSet
+                           else do r <- freshRefType
+                                   inferUnify (checkAssign rng) lrng r tp
+                                   return nameRefSet
               inferExpr propagated expect
-                        (App (Var nameRefSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
+                        (App (Var nameSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
               {-
               (_,_,info) <- resolveName target Nothing lrng
               case info of
@@ -1715,7 +1716,7 @@ inferVar propagated expect name rng isRhs
     do (qname,tp,info) <- resolveName name propagated rng
        -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
        if (isTypeLocalVar tp && isRhs)
-        then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
+        then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameLocalGet False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)

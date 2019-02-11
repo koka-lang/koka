@@ -1,4 +1,4 @@
-# An overview of Koka 
+# An overview of Koka
 
 This is a short introduction to the Koka programming language meant for
 programmers familiar with languages like C++, C#, or JavaScript.
@@ -20,7 +20,7 @@ fun main() {
 }
 ```
 Koka uses familiar curly-braces syntax where `//` starts a line
-comment. Functions are declared using the `fun` keyword. 
+comment. Functions are declared using the `fun` keyword.
 
 If you are reading this on [Rise4Fun], you can click the _load in editor_
 button in the upper right corner of the example to load it into the
@@ -70,8 +70,8 @@ are equivalent). The dot notation is intu&iuml;tive and quite convenient to
 chain multiple calls together, as in:
 
 ```
-fun showit( s : string ) -> s.encode(3).count.println
-``` 
+fun showit( s : string ) { s.encode(3).count.println }
+```
 
 for example (where the body desugars as `println(length(encode(s,3)))`). An
 advantage of the dot notation as syntactic sugar for function calls is that it
@@ -124,7 +124,7 @@ the function call instead. For example, here is how we can print the numbers
 ```
 fun main() { print10() }
 ////
-fun print10() 
+fun print10()
 {
   for(1,10) fun(i) {
     println(i)
@@ -160,16 +160,16 @@ fun main() { print11() }
 ////
 fun print11() {
   var i := 10
-  while { i >= 0 } { 
+  while { i >= 0 } {
     println(i)
-    i := i - 1 
+    i := i - 1
   }
 }
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
-parenthesis: Koka makes it always explicit whether code is evaluated 
-before a function is called (in between parenthesis), or whether 
+parenthesis: Koka makes it always explicit whether code is evaluated
+before a function is called (in between parenthesis), or whether
 code is evaluated (potentially
 multiple times) by the called function instead (in between braces).
 
@@ -251,7 +251,7 @@ mathematical type signature, we have:
 |&#x301A;`:int -> <st<h>,pure> int `&#x301B; | =             | (_Heap_ &times; &#8484;~32~) &rarr; (_Heap_ &times; (1 + &#8484;~32~))~&#8869;~|
 
 In the above translation, we use _1 + t_ as a sum
-where we have either a unit 1 (i.e. exception) or a type _t_, and we use 
+where we have either a unit 1 (i.e. exception) or a type _t_, and we use
 _Heap &times; t_ for a product consisting of a pair of a
 heap and a type _t_. From the above correspondence, we can immediately see that
 a `:total` function is truly total in the mathematical sense, while a stateful
@@ -273,7 +273,7 @@ etc.
 Often, a function contains multiple effects, for example:
 
 ```
-fun combine-effects() 
+fun combine-effects()
 {
   val i = random-int() // non-deterministic
   error("hi")          // exception raising
@@ -310,8 +310,8 @@ function itself; indeed, this function has no other effect by itself since it
 does not diverge, nor raises exceptions.
 
 We can use the notation `: <l|e>` to extend an effect `:e` with another effect
-`:l`. This is used for example in the `while` function which has type: 
-`while : ( pred : () -> <div|e> bool, action : () -> <div|e> () ) -> <div|e> ()`. 
+`:l`. This is used for example in the `while` function which has type:
+`while : ( pred : () -> <div|e> bool, action : () -> <div|e> () ) -> <div|e> ()`.
 The `while` function takes a
 predicate function and an action to perform, both with effect `: <div|e>`.
 Indeed, since while may diverge depending on the predicate its effect must
@@ -327,9 +327,9 @@ Take for example the following loop
 ```
 fun main() { looptest() }
 ////
-fun looptest() 
+fun looptest()
 {
-  while { odd?(random-int()) } 
+  while { odd?(random-int()) }
   {
     error("<b>")
   }
@@ -337,7 +337,7 @@ fun looptest()
 ```
 
 In the above program, Koka infers that the predicate `odd(random-int())` has
-effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`. 
+effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
 be seen by hovering over the `looptest` identifier)
@@ -362,17 +362,17 @@ fun fib(n : int) : div int
 
 Note that the type inference engine is currently not powerful enough to
 prove that this recursive function always terminates, which leads to
-inclusion of the divergence effect `:div` in the result type. 
+inclusion of the divergence effect `:div` in the result type.
 
 
 Here is another version of the Fibonacci function but this time
-implemented using local state. We use the `repeat` function to 
+implemented using local state. We use the `repeat` function to
 iterate `n` times:
 
 ```
 fun main() { println(fib2(10)) }
 ////
-fun fib2(n) 
+fun fib2(n)
 {
   var x := 0
   var y := 1
@@ -387,7 +387,7 @@ fun fib2(n)
 
 The `var` declaration declares a variable that can be assigned too using the
 `(:=)` operator. In contrast, a regular equality sign, as in `y0 = y`
-introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y` 
+introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y`
 for such declaration too but we usually leave out the `val` keyword.
 
 Local variables declared using `var` are actually syntactic sugar for
@@ -400,7 +400,7 @@ using explicit references as
 ```
 fun main() { println(fib3(10)) }
 ////
-fun fib3(n) 
+fun fib3(n)
 {
   val x = ref(0)
   val y = ref(1)
@@ -425,7 +425,7 @@ type `:int` in some heap `:h`. The effects on heaps are allocation as
 with the alias `:st<h>`.
 
 Clearly, the effect of the body of `fib3` is `:st<h> `; but when we hover over
-`fib3`, we see the type inferred is actually the `:total` effect: `:(n:int) -> int`. 
+`fib3`, we see the type inferred is actually the `:total` effect: `:(n:int) -> int`.
 Indeed, even though `fib3` is stateful inside, its side-effects can
 never be observed. It turns out that we can safely discard the `:st<h> `
 effect whenever the heap type `:h` cannot be referenced outside this function,
@@ -443,7 +443,7 @@ final algorithm itself behaves like a pure function, see the
 
 ## A larger example: cracking Caesar encoding
 
-Enough about effects and imperative updates. Let's look at some more functional examples :-) 
+Enough about effects and imperative updates. Let's look at some more functional examples :-)
 For example, cracking Caesar encoded strings:
 
 ```
@@ -485,7 +485,7 @@ fun freqs( s : string ) : list<double>
   occurs.map( fun(i){ percent(i,total) } )
 }
 
-// Calculate how well two frequency tables match according 
+// Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
@@ -497,13 +497,13 @@ fun uncaesar( s : string ) : string
 {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
-                  chisqr( table.rotate(n), english ) 
+                  chisqr( table.rotate(n), english )
                })
   val min    = chitab.minimum()           // find the mininal element
   val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )
 }
-  
+
 fun test-uncaesar() {
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
@@ -522,13 +522,13 @@ it out in the editor!
 
 Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function `replace-all` takes a string, a ``pattern`` pattern, and 
+function `replace-all` takes a string, a ``pattern`` pattern, and
 a replacement string ``repl``:
 
 ```
 fun main() { println(world()) }
 ////
-fun world() 
+fun world()
 {
   replace-all("hi there", "there", "world")  // returns "hi world"
 }
@@ -539,7 +539,7 @@ Using named parameters, we can also write the function call as:
 ```
 fun main() { println(world2()) }
 ////
-fun world2() 
+fun world2()
 {
   return "hi there".replace-all( repl="world", pattern="there" )
 }
@@ -629,9 +629,9 @@ struct person( age : int, name : string, realname : string = name )
 val gaga = Person( 25, "Lady Gaga" )
 ////
 fun copy( p, age = p.age, name = p.name,
-               rname = p.realname ) 
+               rname = p.realname )
 {
-  return Person(age, name, rname) 
+  return Person(age, name, rname)
 }
 ```
 
@@ -674,7 +674,7 @@ Constructors can have parameters. For example, here is how to create a
 `:number` type which is either an integer or the infinity value:
 
 ```unchecked
-type number { 
+type number {
   Infinity
   Integer( i : int )
 }
@@ -707,8 +707,8 @@ struct person( age : int, name : string,
 desugars to:
 
 ```unchecked
-type person { 
-  Person( age : int, name : string, realname : string = name ) 
+type person {
+  Person( age : int, name : string, realname : string = name )
 }
 ```
 
@@ -722,4 +722,3 @@ For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
 declarations, namely `cotype` and `rectype` that allow for co-inductive types,
 and arbitrary recursive types respectively.
-

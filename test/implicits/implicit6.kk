@@ -9,8 +9,8 @@ fun home?() {
 }
 
 fun cd(path : string, action : () -> <cwd|e> a) : <cwd|e> a {
-  with val cwd = cwd + path + "/"
-  action()
+  with val cwd = cwd + path + "/" 
+  inject tail<cwd>(action)
 }
 
 fun ex1() {

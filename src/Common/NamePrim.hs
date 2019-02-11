@@ -76,7 +76,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocal, nameRunLocal
+          , nameLocal, nameRunLocal, nameLocalSet, nameLocalGet
 
 
           , nameTpOptional
@@ -167,6 +167,9 @@ nameDec              = preludeName "dec"
 nameAssign      = preludeName ":="
 nameAssigned    = newName "assigned"
 nameRefSet      = preludeName "set"
+
+nameLocalSet    = preludeName "local-set"
+nameLocalGet    = preludeName "local-get"
 
 nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
