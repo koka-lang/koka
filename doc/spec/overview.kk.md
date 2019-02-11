@@ -374,7 +374,7 @@ fun main() { println(fib2(10)) }
 ////
 fun fib2(n)
 {
-  var x := 0
+  var x : int := 0
   var y := 1
   repeat(n) {
     val y0 = y
