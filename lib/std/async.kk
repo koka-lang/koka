@@ -236,6 +236,7 @@ fun trace-anyx( s : string, x : a ) : async () {
 // `cancel` it (and return `Nothing`). Due to the generality of `cancel`, this `timeout`
 // abstraction can reliably time out over any composition of asynchronous operations
 // and is therefore quite expressive.
+/*
 public fun timeout( secs : duration, action : () -> <asyncx|e> a ) : <asyncx|e> maybe<a> {
 	firstof	{ wait(secs); Nothing }
 		{ Just(action()) }
@@ -253,7 +254,7 @@ public fun firstof( a : () -> <asyncx|e> a, b : () -> <asyncx|e> a  ) : <asyncx|
 		}
 	}
 }
-
+*/
 // Wait (asynchronously) for `secs` seconds as a `:double`.
 // Use `yield()` to yield to other asynchronous operations.
 public fun wait( secs : double ) : <async,exn> () {
@@ -309,15 +310,15 @@ extern clear-timeoutx( tid : any) : io () {
 
 // Interleave two actions around their asynchronous operations.
 public fun interleaved( action1 : () -> <async,exn|e> a, action2 : () -> <async,exn|e> b ) : <async,exn|e> (a,b) {
-	val (ra,rb) = interleavedx( action1, action2 )
+	val (ra,rb) = interleavedx( {inject tail<exn>(action1)}, {inject tail<exn>(action2)} )
 	[ra.maybe,rb.maybe].ordered_throw
 	(ra.untry,rb.untry)
 }
 
 // Interleave a list of actions around their asynchronous operations.
 public fun interleaved( xs : list<() -> <async,exn|e> a> ) : <async,exn|e> list<a> {
-	val ress = interleavedx(xs)
-	ress.map(maybe).ordered_throw
+	val ress = xs.map( fun(f) { return { inject tail<exn>(f) } } ).interleavedx
+	//ress.map(maybe).ordered_throw
 	ress.map(untry)
 }
 
@@ -456,7 +457,9 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		fun async-iox(f) { async-iox(f) }
 		fun cancel(scope)	{ cancel(scope) }
 	}
-	strands.foreach(handle-strand)
+	strands.foreach fun(strand) {
+		handle-strand{inject tail<async>(strand)}
+	}
 
 	while { strands-busy?() } {  // while there are resumptions on the strands..
 		// the only way receive can throw is through a cancelation -- but in that case
@@ -575,6 +578,10 @@ fun async-io( f : () -> io a ) : asyncx a {
 // Async handlers: cancelable
 // ----------------------------------------------------------------------------
 
+extern inline interject-async( action : () -> <async|e> a) : total ( () -> <async,async|e> a) {
+	inline "#1"
+}
+
 // Execute `action` in a cancelable scope. If `cancel` is called within `action`,
 // any outstanding asynchronous operations started in the cancelable scope are canceled.
 // (Outstanding operations outside the cancelable scope are not canceled).
@@ -586,8 +593,7 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 		parent-scope(cid,scope)
 	}
 
-	handle(action) {
-		return x -> {
+	handle({inject tail<async>(action)}) { return x -> {
 			// cancel any outstanding operations still in our scope.
 			// this might be needed for `no-await` operations.
 			cancel(empty-scope.extend)
@@ -610,25 +616,25 @@ fun nodispose() : io () {   () }
 // around the `main` function if it has an `:async` effect.
 public fun async-handle(action : () -> <async,io> () ) : io ()
 {
-	var callbacks : list<(scope,() -> io ())>  := []
+	val callbacks : ref<global,list<(scope,() -> io ())>> = ref([])
 
 	fun handle-await( setup : await-setup<a>, scope : scope, f : try<a> -> io (), cancelable? : bool) : io ()
 	{
 		val cscope = child-scope(unique(),scope)
-		var dispose := nodispose
+		val dispose = ref(nodispose)
 
 		fun cb( res : try<_>, done? : bool ) : io () {
-			if (callbacks.contains(cscope)) {
+			if ((!callbacks).contains(cscope)) {
 				if (done?) then {
-					callbacks := callbacks.remove(cscope)
-					if (res.exn?) then try-default((),dispose)
+					callbacks := (!callbacks).remove(cscope)
+					if (res.exn?) then try-default((),!dispose)
 				}
 				f(res)
 			}
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), callbacks)
+		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
 		try {
 			// setup the callback which returns a possible dipose function
 			match(setup(cb)) {
@@ -643,7 +649,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	fun handle-cancel( scope : scope ) : io () {
-		callbacks.foreach fun(entry) {
+		(!callbacks).foreach fun(entry) {
 			val (cscope,cb) = entry
 			if (cscope.in-scope-of?(scope)) then cb()
 		}

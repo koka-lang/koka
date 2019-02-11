@@ -76,6 +76,6 @@ fun evaluationOrderExpr() {
 
 fun main() {
   res6()
-  evaluationOrderStmt()
-  evaluationOrderExpr()
+  evaluationOrderStmt().println
+  evaluationOrderExpr().println
 }

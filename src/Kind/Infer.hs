@@ -557,10 +557,10 @@ infExpr expr
                                    final'  <- infExpr final
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler hsort' scoped meff' pars' reinit' ret' final' ops' hrng rng)
-      Inject tp expr range  -> do expr' <- infExpr expr
+      Inject tp expr b range-> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
-                                  return (Inject tp' expr' range)
+                                  return (Inject tp' expr' b range)
 
 
 infPat pat

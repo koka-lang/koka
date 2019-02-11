@@ -14,5 +14,5 @@ get : forall<s,a> (ref<s,a>) -> <div,heap<s>,exn> a
 heap : forall<a,e> (action : forall<s> () -> <heap<s>|e> a) -> e a
 inject-resource: forall<a,s,b,e> (resource : ref<s,a>, action : () -> <heap<s>|e> b) -> <heap<s>|e> b
 main : () -> <pure,console> ()
-new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> <heap<s>,div|e> b) -> <heap<s>,div|e> b
+new-ref : forall<a,s,b,e> (s : a, action : (resource : ref<s,a>) -> e b) -> e b
 set : forall<s,a> (ref<s,a>, value : a) -> <div,heap<s>,exn> ()

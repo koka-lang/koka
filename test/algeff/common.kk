@@ -77,10 +77,19 @@ fun counter() {
   }
 }
 
-val state = handler(s) {
+val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
+}
+
+fun state(init, action) {
+  var s := init
+  handle(action) {
+    return x -> (x,s)
+    get()    -> { val x = s; s := s+1; resume(x) }
+    put(x)   -> { s := x; resume(()) }
+  }
 }
 
 fun test3() {

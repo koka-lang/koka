@@ -177,8 +177,8 @@ dependencyExpr modName expr
                (depFinal,fv4)   = dependencyExpr modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
            in (Handler shallow scoped eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
-      Inject tp body rng   -> let (depBody,fv) = dependencyExpr modName body
-                              in (Inject tp depBody rng, fv)
+      Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
+                              in (Inject tp depBody b rng, fv)
 
 dependencyBranches f modName branches
   = unzipWith (id,S.unions) (map (f modName) branches)

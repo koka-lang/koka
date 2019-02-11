@@ -257,7 +257,7 @@ public fun listen( ch : channel<try<(request-object,response-object)>>, action :
 					}
 					else {
 						current := current + 1
-						finally(inject-st(action)) { current := current - 1 }
+						finally({inject<local>(action)}) { current := current - 1 }
 					}
 				}
 			}
