@@ -17146,7 +17146,7 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "val", "var", "use", "using"
     , "extern"
-    , "dynamic", "with"
+    , "dynamic", "with", "do"
     , "effect", "handler"
 
     -- deprecate?

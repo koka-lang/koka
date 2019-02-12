@@ -1243,12 +1243,14 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl <|> localWithDecl
+    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
     do var <- varDecl
        return (StatVar var) -- (StatFun (\body -> Bind var body (combineRanged var body)))
+  <|>
+    do localWithDecl
   <|>
     do exp <- nofunexpr
        return (StatExpr exp)
@@ -1309,10 +1311,18 @@ localWithDecl
                             keyword "="
                             return p
            e    <- blockexpr
-           return $ applyToContinuation krng [promoteValueBinder par] e
+           return (StatFun (applyToContinuation krng [promoteValueBinder par] e))
         <|>
-        do e <- withexpr <|> handlerExprX False krng Nothing HandlerNoScope HandlerDeep
-           return $ applyToContinuation krng [] e)
+        do e <- withexpr
+           return (StatFun (applyToContinuation krng [] e))
+        <|>
+        do handler <- handlerExprX False krng Nothing HandlerNoScope HandlerDeep
+           (do keyword "do"
+               e <- blockexpr
+               let thunked = Lam [] e (getRange e)
+               return (StatExpr (App handler [(Nothing, thunked)] (combineRanged krng e)))
+            <|>
+             return (StatFun (applyToContinuation krng [] handler))))
   where
      promoteValueBinder binder
        = case binderType binder of
@@ -1433,7 +1443,7 @@ handlerExpr
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
        handler <- handlerExprX False rng mbEff scoped hsort
-       (do keyword "in"
+       (do keyword "do"
            action  <- blockexpr
            let thunked = Lam [] action (getRange action)
            return (App handler [(Nothing, thunked)] (combineRanged rng action))
