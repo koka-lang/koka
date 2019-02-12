@@ -2981,16 +2981,16 @@ type handled1   :: HX1 -> X;
 // ----------------------------------------------------------------------------
 
 
-extern inject-exn(action : () -> e a) : <exn|e> a {
+extern inject-exn(level : int, action : () -> e a) : <exn|e> a {
   js "$std_core._handle_inject_exn"
 }
 
-extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action : () -> e1 a ) : e2 a {
-  js inline "$std_core._handle_inject(#1,0,#2)"
+extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : int, action : () -> e1 a ) : e2 a {
+  js inline "$std_core._handle_inject(#1,0,#2,#3)"
 }
 
 extern inline ".inject-resource"<a::V,e::E>( effect-name : string, resource-tag : int, action : () -> e a ) : e a {
-  js inline "$std_core._handle_inject(#1,#2,#3)"
+  js inline "$std_core._handle_inject(#1,#2,0,#3)"
 }
 
 // Yield alias

@@ -1591,7 +1591,7 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 injectExpr :: LexParser UserExpr
 injectExpr
   = do rng1 <- keyword "inject"
-       behind <- do { specialId "tail"; return True } <|> return False
+       behind <- do { specialId "behind"; return True } <|> return False
        langle
        tp <- ptype
        rangle
