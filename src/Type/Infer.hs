@@ -734,7 +734,9 @@ inferExpr propagated expect (Parens expr rng)
   = inferExpr propagated expect expr
 
 inferExpr propagated expect (Inject label expr behind rng)
-  = do eff <- freshEffect
+  = do eff0 <- freshEffect
+       let eff = if (not behind) then eff0 else (effectExtend label eff0)
+
        res <- Op.freshTVar kindStar Meta
        let tfun r = typeFun [] eff r
            prop = case propagated of
@@ -746,29 +748,23 @@ inferExpr propagated expect (Inject label expr behind rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
        (coreEffName,isHandled,effName) <- effectNameCore label rng
-       effTo <- subst $ if (not behind)
-                         then (effectExtend label eff)
-                         else let (ls,tl) = extractEffectExtend eff
-                              in (effectExtends (ls++[label]) eff)
+       effTo <- subst $ effectExtend label eff
 
        sexprTp <- subst exprTp
        -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff <+> text ", exprTp: " <+> ppType env sexprTp
-       core <- if (behind)
-                 -- insert in tail position; has no runtime effect so use ".open"
-                 then do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
-                             core       = Core.App coreOpen []
-                         return core
-               else if (isHandled)
+       let coreLevel  = Core.Lit (Core.LitInt (if behind then 1 else 0))
+       core <- if (isHandled)
                  -- general handled effects use ".inject-effect"
-                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 2 []) rng rng
+                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 3 []) rng rng
                          let coreInject = coreExprFromNameInfo injectQName injectInfo
-                             core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo]) [coreEffName,exprCore]
+                             core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo])
+                                             [coreEffName,coreLevel,exprCore]
                          return core
                 else if (effName == nameTpPartial)  -- exception
                  -- exceptions use "inject-exn"
-                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 1 []) rng rng
+                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 2 []) rng rng
                          let coreInject = coreExprFromNameInfo injectQName injectInfo
-                             core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [exprCore]
+                             core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [coreLevel,exprCore]
                          return core
                  -- for builtin effects, use ".open" to optimize the inject away
                  else do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
