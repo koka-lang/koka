@@ -38,7 +38,7 @@ import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,r
 import qualified Lib.PPrint as PP (string)
 
 import Control.Monad (mzero)
-import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName)
+import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
 import Text.Parsec.Pos           (newPos)
 
@@ -72,6 +72,9 @@ parseLex lex
     posFromTok (Lexeme range _)  = newPos "" (posLine (rangeStart range)) (posColumn (rangeStart range))
     testTok l@(Lexeme _ lex')    | sameLex lex lex'  = Just l
                                  | otherwise         = Nothing
+
+
+optional p  = do { p; return True } <|> return False
 
 -----------------------------------------------------------
 -- Parse varieties
@@ -1302,8 +1305,19 @@ localUsingDecl
 
 localWithDecl
   = do krng    <- keyword "with"
-       handler <- handlerExprX False krng Nothing HandlerNoScope HandlerDeep
-       return $ applyToContinuation krng [] handler
+       (do par  <- try $ do p <- parameter False
+                            keyword "="
+                            return p
+           e    <- blockexpr
+           return $ applyToContinuation krng [promoteValueBinder par] e
+        <|>
+        do e <- withexpr <|> handlerExprX False krng Nothing HandlerNoScope HandlerDeep
+           return $ applyToContinuation krng [] e)
+  where
+     promoteValueBinder binder
+       = case binderType binder of
+           Just tp -> binder{ binderType = Just (promoteType tp)}
+           _ -> binder
 
 applyToContinuation rng params expr body
   = let fun = Lam params body (combineRanged rng body)
@@ -1335,7 +1349,7 @@ bodyexpr
 
 expr :: LexParser UserExpr
 expr
-  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> implicitHandler <|> opexpr
+  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
   <?> "expression"
 
 blockexpr :: LexParser UserExpr
@@ -1345,11 +1359,16 @@ blockexpr
 
 noifexpr :: LexParser UserExpr
 noifexpr
-  = returnexpr <|> matchexpr <|> funexpr <|> implicitHandler <|> block <|> opexpr
+  = returnexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
 
 nofunexpr :: LexParser UserExpr
 nofunexpr
-  = ifexpr <|> returnexpr <|> matchexpr <|> implicitHandler <|> opexpr
+  = ifexpr <|> returnexpr <|> matchexpr <|> opexpr
+  <?> "expression"
+
+withexpr :: LexParser UserExpr
+withexpr
+  = ifexpr <|> matchexpr <|> opexpr
   <?> "expression"
 
 
@@ -1434,7 +1453,7 @@ handlerExpr
 
 
 handlerExprX braces rng mbEff scoped hsort
-  = do (pars,dpars,rng1) <- handlerParams  -- parensCommas lp handlerPar <|> return []
+  = do (pars,dpars,rng1) <- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
        -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
            bodyParser = if braces || not (null xpars) then bracedOps else handlerOps
@@ -1590,8 +1609,14 @@ singleOp defaultResumeKind xpars
 handlerOp :: ResumeKind -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp defaultResumeKind pars
   = do rng <- keyword "return"
-       (name,prng) <- paramid
-       tp         <- optionMaybe typeAnnotPar
+       (name,prng,tp) <- do (name,prng) <- paramid
+                            tp         <- optionMaybe typeAnnotPar
+                            return (name,prng,tp)
+                        <|>
+                        (parens $
+                         do (name,prng) <- paramid
+                            tp         <- optionMaybe typeAnnotPar
+                            return (name,prng,tp))
        expr <- bodyexpr
        return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)), Nothing)
   <|>
@@ -1622,12 +1647,15 @@ handlerOp defaultResumeKind pars
        return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
   <|>
     do resumeKind <- do keyword "effect"
-                        isRaw <- do{ specialId "raw"; return True } <|> return False
+                        isRaw <- optional (specialId "raw")
                         return (if isRaw then ResumeNormalRaw else ResumeNormal)
                      <|>
-                     do hasFun <- do{ keyword "fun"; return True } <|> return False
-                        isRaw <- do{ specialId "raw"; return True } <|> return False
-                        return (if isRaw then ResumeNormalRaw else if hasFun then ResumeTail else defaultResumeKind)
+                     if (defaultResumeKind==ResumeTail)
+                      then do keyword "fun"
+                              return ResumeTail
+                      else do hasFun <- optional (keyword "fun")
+                              isRaw <- optional (specialId "raw")
+                              return (if isRaw then ResumeNormalRaw else if hasFun then ResumeTail else defaultResumeKind)
 
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams
