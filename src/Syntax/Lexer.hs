@@ -17146,10 +17146,16 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "val", "var", "use", "using"
     , "extern"
-    , "effect", "handle", "handler", "inject", "implicit"
+    , "dynamic", "with"
+    , "effect", "handler"
+
+    -- deprecate?
+    , "handle", "implicit"
+
     -- , "finally", "initially"
+    , "inject"
     , "if", "then", "else", "elif", "return", "match"
-    , "forall", "exists", "some", "with"
+    , "forall", "exists", "some"
     , "private", "public", "abstract"
     , "module", "import", "as", "in"
     , "="
@@ -17383,66 +17389,66 @@ linecom = 2
 linedir = 3
 stringlit = 4
 stringraw = 5
-alex_action_0 =  string $ LexWhite
-alex_action_1 =  string $ LexWhite
-alex_action_2 =  constant $ LexWhite "\n"
-alex_action_3 =  next comment $ more id
-alex_action_4 =  next linecom $ more id
-alex_action_5 =  next linedir $ more id
-alex_action_6 =  less 3 $ constant $ LexKeyword "fun.anon" ""
-alex_action_7 =  less 7 $ constant $ LexKeyword "function.anon" ""
-alex_action_8 =  string $ LexCons . newQName
-alex_action_9 =  string $ LexId . newQName
-alex_action_10 =  string $ LexIdOp . newQName . stripParens
+alex_action_0 =  string $ LexWhite 
+alex_action_1 =  string $ LexWhite 
+alex_action_2 =  constant $ LexWhite "\n" 
+alex_action_3 =  next comment $ more id 
+alex_action_4 =  next linecom $ more id 
+alex_action_5 =  next linedir $ more id 
+alex_action_6 =  less 3 $ constant $ LexKeyword "fun.anon" "" 
+alex_action_7 =  less 7 $ constant $ LexKeyword "function.anon" "" 
+alex_action_8 =  string $ LexCons . newQName 
+alex_action_9 =  string $ LexId . newQName 
+alex_action_10 =  string $ LexIdOp . newQName . stripParens 
 alex_action_11 =  string $ \s -> if isReserved s
                                                then LexKeyword s ""
                                            else if isMalformed s
                                                then LexError messageMalformed
-                                               else LexId (newName s)
-alex_action_12 =  string $ LexCons . newName
-alex_action_13 =  string $ LexWildCard . newName
-alex_action_14 =  string $ LexSpecial
-alex_action_15 =  string $ \s -> LexFloat (read s) s
-alex_action_16 =  string $ \s -> LexFloat (parseHexFloat s) s
-alex_action_17 =  string $ \s -> LexInt (parseNum  s) s
-alex_action_18 =  string $ \s -> LexInt (parseNum s) s
-alex_action_19 =  string $ LexOp . newName
-alex_action_20 =  less 1 $ string $ LexOp . newName
-alex_action_21 =  string $ LexIdOp . newName . stripParens
+                                               else LexId (newName s) 
+alex_action_12 =  string $ LexCons . newName 
+alex_action_13 =  string $ LexWildCard . newName 
+alex_action_14 =  string $ LexSpecial 
+alex_action_15 =  string $ \s -> LexFloat (read s) s 
+alex_action_16 =  string $ \s -> LexFloat (parseHexFloat s) s 
+alex_action_17 =  string $ \s -> LexInt (parseNum  s) s 
+alex_action_18 =  string $ \s -> LexInt (parseNum s) s 
+alex_action_19 =  string $ LexOp . newName 
+alex_action_20 =  less 1 $ string $ LexOp . newName 
+alex_action_21 =  string $ LexIdOp . newName . stripParens 
 alex_action_22 =  string $ \s -> if isReserved s
                                              then LexKeyword s ""
                                            else if isPrefixOp s
                                              then LexPrefix (newName s)
-                                             else LexOp (newName s)
-alex_action_23 =  next stringlit $ more (const B.empty)
-alex_action_24 =  next stringraw $ more (const B.empty)
-alex_action_25 =  string $ LexChar . fromCharEsc . head . drop 2
-alex_action_26 =  string $ LexChar . fromHexEsc . init . drop 3
-alex_action_27 =  string $ LexChar . head . tail
-alex_action_28 =  string $ \s -> LexError ("illegal character literal: " ++ show (head (tail s)))
-alex_action_29 =  string $ \s -> LexError ("illegal character: " ++ show s ++ (if (s=="\t") then " (replace tabs with spaces)" else ""))
-alex_action_30 =  more id
-alex_action_31 =  more fromCharEscB
-alex_action_32 =  more fromHexEscB
-alex_action_33 =  pop $ \_ -> withmore (string LexString . B.init)
-alex_action_34 =  pop $ \_ -> constant (LexError "string literal ended by a new line")
-alex_action_35 =  string $ \s -> LexError ("illegal character in string: " ++ show s)
-alex_action_36 =  more id
-alex_action_37 =  more B.tail
-alex_action_38 =  pop $ \_ -> withmore (string LexString . B.init)
-alex_action_39 =  string $ \s -> LexError ("illegal character in raw string: " ++ show s)
+                                             else LexOp (newName s) 
+alex_action_23 =  next stringlit $ more (const B.empty) 
+alex_action_24 =  next stringraw $ more (const B.empty) 
+alex_action_25 =  string $ LexChar . fromCharEsc . head . drop 2 
+alex_action_26 =  string $ LexChar . fromHexEsc . init . drop 3 
+alex_action_27 =  string $ LexChar . head . tail 
+alex_action_28 =  string $ \s -> LexError ("illegal character literal: " ++ show (head (tail s))) 
+alex_action_29 =  string $ \s -> LexError ("illegal character: " ++ show s ++ (if (s=="\t") then " (replace tabs with spaces)" else "")) 
+alex_action_30 =  more id 
+alex_action_31 =  more fromCharEscB 
+alex_action_32 =  more fromHexEscB 
+alex_action_33 =  pop $ \_ -> withmore (string LexString . B.init) 
+alex_action_34 =  pop $ \_ -> constant (LexError "string literal ended by a new line") 
+alex_action_35 =  string $ \s -> LexError ("illegal character in string: " ++ show s) 
+alex_action_36 =  more id 
+alex_action_37 =  more B.tail 
+alex_action_38 =  pop $ \_ -> withmore (string LexString . B.init) 
+alex_action_39 =  string $ \s -> LexError ("illegal character in raw string: " ++ show s) 
 alex_action_40 =  pop $ \state -> if state==comment then more id
-                                             else withmore (string $ LexComment . filter (/='\r'))
-alex_action_41 =  push $ more id
-alex_action_42 =  more id
-alex_action_43 =  more id
-alex_action_44 =  string $ \s -> LexError ("illegal character in comment: " ++ show s)
-alex_action_45 =  more id
-alex_action_46 =  pop $ \_ -> withmore (string $ LexComment . filter (/='\r'))
-alex_action_47 =  string $ \s -> LexError ("illegal character in line comment: " ++ show s)
-alex_action_48 =  more id
-alex_action_49 =  pop $ \_ -> withmore (string $ LexComment . filter (/='\r'))
-alex_action_50 =  string $ \s -> LexError ("illegal character in line directive: " ++ show s)
+                                             else withmore (string $ LexComment . filter (/='\r')) 
+alex_action_41 =  push $ more id 
+alex_action_42 =  more id 
+alex_action_43 =  more id 
+alex_action_44 =  string $ \s -> LexError ("illegal character in comment: " ++ show s) 
+alex_action_45 =  more id 
+alex_action_46 =  pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) 
+alex_action_47 =  string $ \s -> LexError ("illegal character in line comment: " ++ show s) 
+alex_action_48 =  more id 
+alex_action_49 =  pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) 
+alex_action_50 =  string $ \s -> LexError ("illegal character in line directive: " ++ show s) 
 {-# LINE 1 "templates/GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
@@ -17679,3 +17685,4 @@ alexRightContext (sc) user__ _ _ input__ =
         -- TODO: there's no need to find the longest
         -- match when checking the right context, just
         -- the first match will do.
+

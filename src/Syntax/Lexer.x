@@ -259,10 +259,16 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "val", "var", "use", "using"
     , "extern"
-    , "effect", "handle", "handler", "inject", "implicit"
+    , "dynamic", "with"
+    , "effect", "handler"
+
+    -- deprecate?
+    , "handle", "implicit"
+
     -- , "finally", "initially"
+    , "inject"
     , "if", "then", "else", "elif", "return", "match"
-    , "forall", "exists", "some", "with"
+    , "forall", "exists", "some"
     , "private", "public", "abstract"
     , "module", "import", "as", "in"
     , "="

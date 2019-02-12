@@ -778,24 +778,32 @@ parseEffectDecl dvis =
   do (vis,defvis,vrng,erng,doc) <-
         (try $
           do rng     <- keyword "abstract"
-             (trng,doc) <- dockeyword "effect"
+             (trng,doc) <- dockeyword "dynamic" <|> dockeyword "effect"
              return (Public,Private,rng,trng,doc)
           <|>
           do (vis,vrng) <- visibility dvis
-             (erng,doc) <- dockeyword "effect"
+             (erng,doc) <- dockeyword "dynamic" <|> dockeyword "effect"
              return (vis,vis,vrng,erng,doc))
      sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
      singleShot <- do{ specialId "linear"; return True} <|> return False
-     isResource <- do{ specialId "resource"; return True} <|> return False
-     (id,irng) <- typeid
-     (tpars,kind,prng) <- typeKindParams
-     mbResource <- if (not isResource) then return Nothing
-                    else do keyword "in"
-                            tp <- ptype
-                            return (Just tp)
-     (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
-     return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
-              EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)
+     (do isResource <- do{ specialId "resource"; return True} <|> return False
+         (effectId,irng) <- typeid
+         (tpars,kind,prng) <- typeKindParams
+         mbResource <- if (not isResource) then return Nothing
+                        else do keyword "in"
+                                tp <- ptype
+                                return (Just tp)
+         (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
+         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
+      <|>
+      do (tpars,kind,prng) <- typeKindParams
+         op@(OpDecl (doc,opId,idrng,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
+         let mbResource = Nothing
+             effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
+         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
+      )
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
@@ -1402,11 +1410,16 @@ handlerExpr
        return (App expr args (combineRanged rng expr))
   <|>
     do rng     <- keyword "with"
-       handler <- handlerExprX False rng Nothing HandlerNoScope HandlerDeep
-       _       <- keyword "in"
-       action  <- blockexpr
-       let thunked = Lam [] action (getRange action)
-       return (App handler [(Nothing, thunked)] (combineRanged rng action))
+       mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       hsort   <- handlerSort
+       handler <- handlerExprX False rng mbEff scoped hsort
+       (do keyword "in"
+           action  <- blockexpr
+           let thunked = Lam [] action (getRange action)
+           return (App handler [(Nothing, thunked)] (combineRanged rng action))
+        <|>
+        return handler)
 
 
   where
@@ -1561,16 +1574,21 @@ partitionClauses clauses pars rng
           ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
 
 -- either a single op without braces, or multiple ops within braces
-handlerOps xpars = bracedOps xpars <|> singleOp xpars
-bracedOps xpars = semiBracesRanged (handlerOp xpars)
-singleOp xpars
-  = do (op, bind) <- handlerOp xpars
+handlerOps xpars
+  =   semiBracesRanged (handlerOp  ResumeTail xpars)
+  <|> singleOp ResumeTail xpars
+
+bracedOps xpars
+  = semiBracesRanged (handlerOp ResumeNormal xpars)
+
+singleOp defaultResumeKind xpars
+  = do (op, bind) <- handlerOp defaultResumeKind xpars
        return ([(op, bind)], getRange op)
 
 
 -- returns a clause and potentially a binder as transformation on the handler
-handlerOp :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))
-handlerOp pars
+handlerOp :: ResumeKind -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))
+handlerOp defaultResumeKind pars
   = do rng <- keyword "return"
        (name,prng) <- paramid
        tp         <- optionMaybe typeAnnotPar
@@ -1595,32 +1613,27 @@ handlerOp pars
            def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
        return (ClauseInitially def, Nothing)
   -- TODO is "raw" needed for value definitions?
-  <|> try (
-    do (isRaw, name, nameRng) <- parseClauseHeader ["val"]
+  <|>
+    do keyword "val"
+       (name, nameRng) <- qidentifier
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) isRaw ResumeTail nameRng nameRng), Just binder))
-  <|> try (
-    do (isRaw, name, nameRng) <- parseClauseHeader ["fun"]
-       (oppars,prng) <- opParams
-       expr <- block
-       return (ClauseBranch (HandlerBranch name oppars (resumeCall expr pars nameRng) isRaw ResumeTail nameRng (combineRanges [nameRng,prng])), Nothing))
-  <|> try (
-    do (isRaw, name, nameRng) <- parseClauseHeader ["effect", "fun"]
+       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
+  <|>
+    do resumeKind <- do keyword "effect"
+                        isRaw <- do{ specialId "raw"; return True } <|> return False
+                        return (if isRaw then ResumeNormalRaw else ResumeNormal)
+                     <|>
+                     do hasFun <- do{ keyword "fun"; return True } <|> return False
+                        isRaw <- do{ specialId "raw"; return True } <|> return False
+                        return (if isRaw then ResumeNormalRaw else if hasFun then ResumeTail else defaultResumeKind)
+
+       (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams
        expr <- bodyexpr
-       let resumeKind = if isRaw then ResumeNormalRaw else ResumeNormal
-       return (ClauseBranch (HandlerBranch name oppars expr isRaw resumeKind nameRng (combineRanges [nameRng,prng])), Nothing))
-
-parseClauseHeader prelude =
-  do isRaw <- (do (mapM keyword prelude)
-                  (do specialId "raw"
-                      return True
-                   <|> return False)
-               <|> return False)
-     (name,nameRng) <- qidentifier
-     return (isRaw, name, nameRng)
+       let rexpr  = if (resumeKind /= ResumeTail) then expr else resumeCall expr pars nameRng
+       return (ClauseBranch (HandlerBranch name oppars rexpr (resumeKind == ResumeNormalRaw) resumeKind nameRng (combineRanges [nameRng,prng])), Nothing)
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
