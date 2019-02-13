@@ -35,7 +35,7 @@ fun show(ps : list<player> ) : string {
 // Game of Nim
 // --------------------------------------------------------
 
-dynamic fun move(player:player,sticks:int) : int
+implicit fun move(player:player,sticks:int) : int
 
 
 fun aliceTurn(n : int) : <div,move> player {
@@ -111,7 +111,7 @@ fun testGt() {
 // Cheating
 // --------------------------------------------------------
 
-dynamic fun cheat(player:player) : a
+implicit fun cheat(player:player) : a
 
 val cheatReport =  with effect cheat(p) { error(p.show + " cheated!") }
 
@@ -146,13 +146,22 @@ val pc = with fun move(p,n) {
 }
 
 fun testPc1() {
-  pc { cheatReport { check{ game(12) } } }  // exn: bob cheats
+  //  pc { cheatReport { check{ game(12) } } }  // exn: bob cheats
+  with pc
+  with cheatReport
+  with check
+  game(12)
 }
 
 fun testPc2() {
-  perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
+  // perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
+  with perfect
+  with cheatReport
+  with check
+  with pc
+  game(12)
 }
 
 
@@ -161,14 +170,14 @@ fun testPc2() {
 // Choosing a strategy
 // --------------------------------------------------------
 
-dynamic fun choose() : bool
+implicit fun choose() : bool
 
 fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
 val allResults = with {
-  return x -> [x]
+  return(x)       { [x] }
   effect choose() { resume(True) + resume(False) }
 }
 
@@ -181,7 +190,7 @@ fun testChoose()  {
 val coin = with fun choose() { random() > 0.5 }
 
 fun testCoin() {
-  with coin
+  with fun choose() { random() > 0.5 }
   with bobChooses
   game(7)
 }
@@ -191,14 +200,13 @@ fun testCoin() {
 // Scoreboard
 // --------------------------------------------------------
 
-dynamic state<s> {
+implicit state<s> {
   fun get() : s;
   fun put(x : s) : ()
 }
 
 
 val state-param = handler(s) {
-  return x -> x
   get()    -> resume(s,s)
   put(t)   -> resume((),t)
 }
@@ -244,7 +252,7 @@ fun testPrint1() {
 }
 
 fun replay(n : int, action : () -> <div|e> a) : <div|e> a {
-  with return x { if (n <= 1) then x else replay(n - 1, action ) }
+  with return(x) { if (n <= 1) then x else replay(n - 1, action ) }
   action()
 }
 

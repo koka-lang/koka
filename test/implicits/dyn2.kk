@@ -9,7 +9,7 @@ import std/os/readline
 //  Exceptions
 // --------------------------------------------------------
 
-dynamic fun raise(s : string ) : a
+implicit fun raise(s : string ) : a
 
 fun safe-div(x,y) {
   if (y==0) then raise("division by zero") else x / y
@@ -38,7 +38,7 @@ fun test1() {
 //  Input
 // --------------------------------------------------------
 
-dynamic fun input() : string
+implicit fun input() : string
 
 fun hello() {
   val name = input()
@@ -54,7 +54,7 @@ fun test2() {
 //  State
 // --------------------------------------------------------
 
-dynamic state<s> {
+implicit state<s> {
   fun get() : s
   fun put( x : s ) : ()
 }
@@ -93,7 +93,7 @@ fun test3() {
 //  Iterators
 // --------------------------------------------------------
 
-dynamic<a> fun yield( item : a ) : ()
+implicit<a> fun yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () {
   match(xs) {
@@ -117,8 +117,8 @@ fun test4() {
 
 fun test4b() {
   with return x { () }
-  using amb
-  using foreach( fun(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
+  with amb
+  with foreach( fun(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
   [1,2,3].iterate
 }
 
@@ -126,7 +126,7 @@ fun test4b() {
 //  Resume more than once
 // --------------------------------------------------------
 
-dynamic fun flip() : bool
+implicit fun flip() : bool
 
 fun xor() : flip bool {
   val p = flip()

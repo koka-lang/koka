@@ -1,6 +1,6 @@
 
 // Implicit Value Bindings
-dynamic val cwd : string
+implicit val cwd : string
 
 fun home?() {
   // println(cwd)

@@ -781,11 +781,11 @@ parseEffectDecl dvis =
   do (vis,defvis,vrng,erng,doc) <-
         (try $
           do rng     <- keyword "abstract"
-             (trng,doc) <- dockeyword "dynamic" <|> dockeyword "effect"
+             (trng,doc) <- dockeyword "implicit" <|> dockeyword "effect"
              return (Public,Private,rng,trng,doc)
           <|>
           do (vis,vrng) <- visibility dvis
-             (erng,doc) <- dockeyword "dynamic" <|> dockeyword "effect"
+             (erng,doc) <- dockeyword "implicit" <|> dockeyword "effect"
              return (vis,vis,vrng,erng,doc))
      sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
      singleShot <- do{ specialId "linear"; return True} <|> return False
