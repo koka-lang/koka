@@ -2,4 +2,4 @@
 [00;39;49m[00mtest/algeff/wrong/ops1.kk(44, 3): error: operator flip is not part of the handled effect
  term : handler(i:int
  inferred type: state
- hint : add a branch for flip? or use 'handler resource'?
+ hint : add a branch for flip? or use 'with named'?

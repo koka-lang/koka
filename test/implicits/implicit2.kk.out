@@ -1,6 +1,62 @@
-foo
-height
-width
+[01;30moperator branch (evaluationOrderExpr) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (evaluationOrderExpr) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (evaluationOrderStmt) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (evaluationOrderStmt) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (res6) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res7) tick: resume tail
+[00;39;49m[00m[01;30moperator branch (res7) get: resume tail
+[00;39;49m[00m[01;30moperator branch (res1) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res10) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (res10) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res2) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res3) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res4) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (res4) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (res8) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (res9) .val-width: resume tail
+[00;39;49m[00m[01;30moperator branch (res9) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (returnClause) .val-height: resume tail
+[00;39;49m[00m[01;30moperator branch (returnClause) flip: resume scoped
+[00;39;49m[00mfoo
+16
+3
 height
 width
 11
+height
+width
+11
+.Op-flip : .op-flip
+.Op-get : .op-get
+.Op-tick : .op-tick
+.Op-val-height: .op-val-height
+.Op-val-width: .op-val-width
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
+.Ops-get : forall<a> (get : .op-get) -> .ops-counter<int>
+.Ops-tick : forall<a> (tick : .op-tick) -> .ops-counter<()>
+.Ops-val-height: forall<a> (.op-val-height) -> .ops-height<int>
+.Ops-val-width: forall<a> (.op-val-width) -> .ops-width<int>
+.tag-amb : string
+.tag-counter: string
+.tag-height : string
+.tag-width : string
+.val-height : () -> height int
+.val-width : () -> width int
+evaluationOrderExpr: () -> console int
+evaluationOrderStmt: () -> console int
+flip : () -> amb bool
+get : () -> counter int
+height : value<int>
+main : () -> console ()
+res1 : int
+res10 : int
+res2 : int
+res3 : int
+res4 : int
+res6 : () -> console int
+res7 : () -> int
+res8 : int
+res9 : int
+returnClause: list<int>
+tick : () -> counter ()
+width : value<int>

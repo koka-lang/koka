@@ -1331,7 +1331,7 @@ checkCoverage rng effect branches
                    else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
                           (name:_) -> termError rng (text "operator" <+> ppOpName env name <+>
                                                      text "is not part of the handled effect") effect
-                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <.> text "? or use 'handler resource'?")]
+                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <.> text "? or use 'with named'?")]
                           _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             (opName:opNames')
               -> do let (matches,branchNames') = partition (==opName) branchNames

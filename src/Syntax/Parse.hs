@@ -1322,8 +1322,8 @@ localWithDecl
         do handler <- handlerExprX False krng
            (do keyword "in"
                e <- blockexpr
-               -- let thunked = Lam [] e (getRange e)
-               return (StatExpr (App handler [(Nothing, e)] (combineRanged krng e)))
+               let thunked = Lam [] e (getRange e)
+               return (StatExpr (App handler [(Nothing, thunked)] (combineRanged krng e)))
             <|>
              return (StatFun (applyToContinuation krng [] handler))))
   where
@@ -1444,9 +1444,9 @@ handlerExpr
                            return (rng,handler)
 
        (do keyword "in"
-           action  <- expr
-           -- let thunked = Lam [] action (getRange action)
-           return (App handler [(Nothing, action)] (combineRanged rng action))
+           action  <- blockexpr
+           let thunked = Lam [] action (getRange action)
+           return (App handler [(Nothing, thunked)] (combineRanged rng action))
         <|>
         return handler)
 

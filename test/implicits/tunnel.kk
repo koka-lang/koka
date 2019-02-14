@@ -97,7 +97,7 @@ fun fiterate1(t,f) {
 // is again polymorpic in `e`.
 fun fsize1(t,f) {
   var count := 0
-  val _ = with fun yield(x) { count := count + 1 } do fiterate(t,f)
+  (with fun yield(x) { count := count + 1 } in fiterate(t,f))
   count
 }
 

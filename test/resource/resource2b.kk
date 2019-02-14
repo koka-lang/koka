@@ -11,12 +11,12 @@ effect named file<s::S> in filesys<s> {
 }
 
 fun fake-file(content,action) {
-  with named f = fun read() { content }  // ~> (with named { fun read() {..} })(fun(f) { ... })
-  action
+  with f = named fun read() { content }  // ~> (with named { fun read() {..} })(fun(f) { ... })
+  action(f)
 }
 
 fun main() {
-  with<filesys>                    // ~> with with<filesys> { }
+  with<filesys> { }                // ~> with with<filesys> { }
   with f = fake-file( "hi" )       // ~> fake-file("hi", fun(f) { ... } }
   println(f.read.count + 40)
 }

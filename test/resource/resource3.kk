@@ -3,7 +3,8 @@
 effect heap<s::S> { }
 
 fun heap( action: forall<s> () -> <heap<s>|e> a ) : e a {
-  with<heap> {} in action()
+  with<heap> {}
+  action()
 }
 
 effect named ref<s::S,a::V> in heap<s> {
