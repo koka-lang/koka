@@ -268,7 +268,7 @@ task("guide", ["compiler"], function(publish) {
 });
 
 desc(["install Sublime Text 3 support files for Koka",
-     "     sublime[<version>]  # install for <version> instead (2 or 3)"].join("\n")
+     "     sublime[<version>] # install for <version> instead (2 or 3)"].join("\n")
     );
 task("sublime", function(sversion) {
   jake.logger.log("install Sublime Text support");
@@ -298,6 +298,24 @@ task("sublime", function(sversion) {
     jake.cpR(path.join("support","sublime-text","Jake-Haskell.sublime-build"),path.join(sublime,"User"));
   }
 });
+
+desc("install Atom support files for Koka");
+task("atom", function() {
+  var packages =　path.join(process.env.HOME || process.env.USERPROFILE || "~",".atom","packages");
+  jake.logger.log("install Atom support to: " + packages);
+
+  if (!fileExist(packages)) {
+    jake.logger.error("error: cannot find atom package directory: " + packages);
+  }
+  else {
+    var pkg = path.join(packages,"language-koka");
+    jake.mkdirP(pkg);
+    jake.cpR(path.join("support","atom","package.json"),pkg);
+    jake.cpR(path.join("support","atom","grammars"),pkg);
+    jake.cpR(path.join("support","atom","styles"),pkg);
+  }
+});
+
 
 // Help
 var usageInfo = [
