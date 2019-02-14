@@ -2,23 +2,27 @@
 
 effect heap<s::S> { }
 
-fun heap( action : forall<s> () -> <heap<s>|e> a ) : e a {
-  handle<heap<_>>(action) { }
+fun heap( action: forall<s> () -> <heap<s>|e> a ) : e a {
+  with<heap> {} in action()
 }
 
-effect resource ref<s::S,a::V> in heap<s> {
+effect named ref<s::S,a::V> in heap<s> {
   fun get() : a
   fun set( value : a ) : ()
 }
 
-val new-ref = handler resource(s) {
-  get() -> resume(s,s)
-  set(x) -> resume((),x)
+fun new-ref(init,action) {
+  var s := init
+  with r = named {
+    fun get()  { s }
+    fun set(x) { s := x }
+  }
+  action(r)
 }
 
 fun main() {
-  using heap
-  use r1 = new-ref(40)
-  use r2 : ref<_,string> = new-ref("hi")
+  with heap
+  with r1 = new-ref(40)
+  with r2 : ref<_,string> = new-ref("hi")
   println(r1.get + r2.get.count)
 }

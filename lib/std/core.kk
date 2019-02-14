@@ -2715,7 +2715,7 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 
 // The predicate `:hdiv<h,a,e>` signifies that if the type `:a` contains a reference to `:h`,
 // then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
-// when writing to the heap (see `(!)`) and is necessary to catch cases where code can diverge
+// when reading from the heap (see `(!)`) and is necessary to catch cases where code can diverge
 // by storing self referential functions in the heap.
 type hdiv :: (H,V,E) -> P
 
@@ -2778,7 +2778,7 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a ) -> e a  {
+extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }

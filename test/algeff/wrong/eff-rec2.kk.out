@@ -1,4 +1,6 @@
-test/algeff/wrong/eff-rec2.kk(35, 1): error: types do not match
+[01;30moperator branch (new-ref) get: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) set: resume tail
+[00;39;49m[00mtest/algeff/wrong/eff-rec2.kk(39, 1): error: types do not match
  context : fun main() : <exn,console> int {
  ...
  }

@@ -1,4 +1,6 @@
-test/algeff/wrong/ops3.kk(47, 9): error: types do not match
+[01;30moperator branch (amb_handle) flip: resume scoped
+[00;39;49m[00m[01;30moperator branch (state_handle) get: resume tail
+[00;39;49m[00mtest/algeff/wrong/ops3.kk(47, 9): error: types do not match
  context : j:bool
  term : j
  inferred type: bool

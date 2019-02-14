@@ -259,11 +259,12 @@ reservedNames
     , "struct", "enum", "con"
     , "fun", "val", "var", "use", "using"
     , "extern"
-    , "dynamic", "with", "do"
-    , "effect", "handler"
+
+    , "effect", "implicit"
+    , "handler", "with"
 
     -- deprecate?
-    , "handle", "implicit"
+    , "handle"
 
     -- , "finally", "initially"
     , "inject"

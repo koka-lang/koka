@@ -1,1 +1,2 @@
-test/algeff/shallow1.kk(21, 3): error: identifier .makeShallowHandler0 is undefined
+[01;30moperator branch (up) send: resume normal
+[00;39;49m[00mtest/algeff/shallow1.kk(21, 3): error: identifier .makeShallowHandler0 is undefined

@@ -1,5 +1,5 @@
-[01;30moperator branch (.handler) flip: resume normal
-[00;39;49m[00m[01;30moperator branch (.handler) fail: resume never
+[01;30moperator branch (collect) flip: resume normal
+[00;39;49m[00m[01;30moperator branch (collect) fail: resume never
 [00;39;49m[00m[01;30moperator branch (hcutfail) cutfail: resume never
 [00;39;49m[00m[01;30moperator branch (choices) flip: resume tail
 [00;39;49m[00m[01;30moperator branch (choices) fail: resume never

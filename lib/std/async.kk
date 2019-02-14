@@ -407,14 +407,17 @@ public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<try
 	val n = xs.length
 	if (n==0) then []
 	elif (n==1) then xs.map(unsafe-try-all)
-	else {
-		val handle-strands = handler(cr : some<a>(int,list<(int,try<a>)>)) {
-			return x	-> (cr.snd : list<(_,_)>).map( snd )
-			strands-busy?()	-> resume(cr.fst > 0, cr)
-			strand-done(idx,res)	-> resume((), (cr.fst - 1, cr.snd.insert(idx,res)))
-		}
-		handle-strands( (n, []), unsafe-no-ndet-div{ interleaved-div(xs) } )
+	else interleavedn(n,xs)
+}
+
+fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<try<a>> {
+	var cr : some<a> (int,list<(int,try<a>)>) := (n,[])
+	with {
+		return(x)	{ cr.snd.map( snd ) }
+		fun strands-busy?()	     { cr.fst > 0 }
+		fun strand-done(idx,res) { cr := (cr.fst - 1, cr.snd.insert(idx,res)) }
 	}
+	(unsafe-no-ndet-div{ interleaved-div(xs) })()	
 }
 
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }

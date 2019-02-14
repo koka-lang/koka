@@ -787,9 +787,9 @@ parseEffectDecl dvis =
           do (vis,vrng) <- visibility dvis
              (erng,doc) <- dockeyword "implicit" <|> dockeyword "effect"
              return (vis,vis,vrng,erng,doc))
-     sort <- do{ keyword"rec"; return Retractive} <|> return Inductive
+     sort <- do{ keyword "rec"; return Retractive} <|> return Inductive
      singleShot <- do{ specialId "linear"; return True} <|> return False
-     (do isResource <- do{ specialId "resource"; return True} <|> return False
+     (do isResource <- do{ specialId "named"; return True} <|> return False
          (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
          mbResource <- if (not isResource) then return Nothing
@@ -1204,7 +1204,7 @@ block
                  <|>
                     return []
        rng2 <- rcurly
-       let localize = if (any isStatVar stmts1) then [StatFun localScope] else []
+       let localize = [] -- if (any isStatVar stmts1) then [StatFun localScope] else []
            stats = localize ++ stmts1 ++ stmts2
        case (reverse stats) of
          (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
@@ -1310,17 +1310,20 @@ localWithDecl
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e    <- blockexpr
+           e   <- (do try (lookAhead (specialId "named"))
+                      handlerExprX False krng
+                   <|>
+                   blockexpr)
            return (StatFun (applyToContinuation krng [promoteValueBinder par] e))
         <|>
         do e <- withexpr
            return (StatFun (applyToContinuation krng [] e))
         <|>
-        do handler <- handlerExprX False krng Nothing HandlerNoScope HandlerDeep
-           (do keyword "do"
+        do handler <- handlerExprX False krng
+           (do keyword "in"
                e <- blockexpr
-               let thunked = Lam [] e (getRange e)
-               return (StatExpr (App handler [(Nothing, thunked)] (combineRanged krng e)))
+               -- let thunked = Lam [] e (getRange e)
+               return (StatExpr (App handler [(Nothing, e)] (combineRanged krng e)))
             <|>
              return (StatFun (applyToContinuation krng [] handler))))
   where
@@ -1423,46 +1426,47 @@ matchexpr
   <|> handlerExpr
 
 handlerExpr
-  = do rng <- keyword "handler"
-       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       hsort   <- handlerSort
-       handlerExprX True rng mbEff scoped hsort
-  <|>
-    -- TODO deprecate handle syntax in favor of "with" expression syntax
+  = -- TODO deprecate handle syntax in favor of "with" expression syntax
     do rng <- keyword "handle"
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
        args <- parensCommas lparen argument
-       expr <- handlerExprX True rng mbEff scoped hsort
+       expr <- handlerExprXX True rng mbEff scoped hsort
        return (App expr args (combineRanged rng expr))
   <|>
-    do rng     <- keyword "with"
-       mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       hsort   <- handlerSort
-       handler <- handlerExprX False rng mbEff scoped hsort
-       (do keyword "do"
-           action  <- blockexpr
-           let thunked = Lam [] action (getRange action)
-           return (App handler [(Nothing, thunked)] (combineRanged rng action))
+    do (rng,handler) <- do rng <- keyword "with"
+                           handler <- handlerExprX False rng
+                           return (rng,handler)
+                        <|>
+                        do rng <- keyword "handler"
+                           handler <- handlerExprX True rng
+                           return (rng,handler)
+
+       (do keyword "in"
+           action  <- expr
+           -- let thunked = Lam [] action (getRange action)
+           return (App handler [(Nothing, action)] (combineRanged rng action))
         <|>
         return handler)
 
+handlerExprX braces rng
+  = do mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       hsort   <- handlerSort
+       handlerExprXX braces rng mbEff scoped hsort
 
-  where
-    handlerSort =     do specialId "resource"
-                         res <- do (name,rng) <- qidentifier
-                                   return (Just (Var name False rng))
-                                <|> return Nothing
-                         return (HandlerResource res)
-                  <|> do specialId "shallow"; return HandlerShallow
-                  <|> return HandlerDeep
+handlerSort =     do specialId "named"
+                     res <- do (name,rng) <- qidentifier
+                               return (Just (Var name False rng))
+                            <|> return Nothing
+                     return (HandlerResource res)
+              <|> do specialId "shallow"; return HandlerShallow
+              <|> return HandlerDeep
 
 
 
-handlerExprX braces rng mbEff scoped hsort
+handlerExprXX braces rng mbEff scoped hsort
   = do (pars,dpars,rng1) <- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
        -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
@@ -1657,6 +1661,7 @@ handlerOp defaultResumeKind pars
        return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
   <|>
     do resumeKind <- do keyword "effect"
+                        optional (keyword "fun")
                         isRaw <- optional (specialId "raw")
                         return (if isRaw then ResumeNormalRaw else ResumeNormal)
                      <|>

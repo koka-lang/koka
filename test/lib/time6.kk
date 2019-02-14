@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -17,7 +17,7 @@ public import std/time
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, t1 : time, t2: time, tst : () -> io bool ) : io () {
+fun check(name : string, t1 : time, t2: time, tst : () -> <io,local<h>> bool ) : <io,local<h>> () {
   if (tst()) then () else {
     println( name + ":failed!\n t1: " + t1.show + "\n t2: " + t2.show )
     error("quit")

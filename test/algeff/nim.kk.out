@@ -79,7 +79,7 @@ show : (gt : gtree) -> div string
 show : (ps : list<player>) -> string
 show : (p : player) -> string
 showGt : (gt : gtree, indent : int) -> div string
-state : forall<a,b,e> (s : a, action : () -> <state<a>|e> b) -> e b
+state : forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
 take? : (gtree : gtree) -> bool
 testCheck : () -> pure player
 testChoose : () -> div list<player>

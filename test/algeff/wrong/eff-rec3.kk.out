@@ -1,4 +1,6 @@
-test/algeff/wrong/eff-rec3.kk(15, 5): error: types do not match (due to an infinite type)
+[01;30moperator branch (new-ref) get: resume tail
+[00;39;49m[00m[01;30moperator branch (new-ref) set: resume tail
+[00;39;49m[00mtest/algeff/wrong/eff-rec3.kk(15, 5): error: types do not match (due to an infinite type)
  context : get()(i)
  term : get()
  inferred effect: <state<(int) -> _e1 _a>|_e>

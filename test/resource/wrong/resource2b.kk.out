@@ -1,4 +1,5 @@
-test/resource/wrong/resource2b.kk(22, 3): error: type is not polymorph enough
+[01;30moperator branch (heap) get-ref: resume tail
+[00;39;49m[00mtest/resource/wrong/resource2b.kk(22, 3): error: type is not polymorph enough
  context : using heap
  term : using heap
  get-ref()

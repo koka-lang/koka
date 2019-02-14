@@ -1,7 +1,7 @@
-[01;30moperator branch (.handler) get: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) put: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) get1: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) put1: resume tail
+[01;30moperator branch (testH) get: resume tail
+[00;39;49m[00m[01;30moperator branch (testH) put: resume tail
+[00;39;49m[00m[01;30moperator branch (testH1) get1: resume tail
+[00;39;49m[00m[01;30moperator branch (testH1) put1: resume tail
 [00;39;49m[00m.Op-get : forall<a> .op-get<a>
 .Op-get1 : forall<a> .op-get1<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>

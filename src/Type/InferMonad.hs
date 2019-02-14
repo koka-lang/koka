@@ -34,6 +34,7 @@ module Type.InferMonad( Inf, InfGamma
                       , findDataInfo
                       , withDefName
                       , currentDefName
+                      , isNamedLam
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
@@ -264,30 +265,34 @@ isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> C
 isolate free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
-    in case filter (\l -> labelName l `elem` [{-nameTpLocal,-}nameTpRead,nameTpWrite]) ls of
+    in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
                do trace ("isolate:"  ++ show (pretty eff)) $ return ()
                   (polyPs,ps1) <- splitHDiv h ps
+                  let isLocal = (labelName lab == nameTpLocal)
                   if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
                                              -- but if we allow null polyPS, injecting state does not work (see `test/resource/inject2`)
                           tvsMember h free || tvsMember h (ftv ps1))
                     then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
                             tv <- freshTVar kindEffect Meta
-                            case labcon of
-                               TCon (TypeCon name _) | name == nameTpLocal
-                                  -> do trace ("isolate local") $ return ()
-                                        nofailUnify $ unify (effectExtend lab tv) eff
-                               _  -> do (Just syn) <- lookupSynonym nameTpST
-                                        let [bvar] = synInfoParams syn
-                                            st     = subNew [(bvar,TVar h)] |-> synInfoType syn
-                                        nofailUnify $ unify (effectExtend st tv) eff
+                            if isLocal
+                             then do trace ("isolate local") $ return ()
+                                     nofailUnify $ unify (effectExtend lab tv) eff
+                             else do (Just syn) <- lookupSynonym nameTpST
+                                     let [bvar] = synInfoParams syn
+                                         st     = subNew [(bvar,TVar h)] |-> synInfoType syn
+                                     nofailUnify $ unify (effectExtend st tv) eff
                             neweff <- subst tv
                             sps    <- subst ps1
                             trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
-                            isolate free sps neweff
+                            (sps',eff',coref) <- isolate free sps neweff
+                            let coreRun cexpr = if (isLocal)
+                                                 then cexpr
+                                                 else cexpr  -- TODO: apply runST?
+                            return (sps',eff',coreRun . coref)
                      else return (ps,eff,id)
           _ -> return (ps,eff,id)
 
@@ -766,6 +771,7 @@ data Res a  = Ok !a !St ![(Range,Doc)]
 data Env    = Env{ prettyEnv :: !Pretty.Env
                  , context  :: !Name  -- | current module name
                  , currentDef :: !Name
+                 , namedLam :: !Bool
                  , types :: !Newtypes
                  , synonyms :: !Synonyms
                  , gamma :: !Gamma
@@ -779,7 +785,7 @@ data St     = St{ uniq :: !Int, sub :: !Sub, preds :: ![Evidence], mbRangeMap ::
 
 runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap -> Gamma -> Name -> Int -> Inf a -> Error (a,Int,Maybe RangeMap)
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
-  = case f (Env env context (newName "") newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
+  = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
       Ok x st warnings -> addWarnings warnings (ok (x,uniq st, (sub st) |-> mbRangeMap st))
 
@@ -883,6 +889,8 @@ isReturnAllowed :: Inf Bool
 isReturnAllowed
   = do env <- getEnv
        return (returnAllowed env)
+
+
 
 getSub :: Inf Sub
 getSub
@@ -1034,7 +1042,12 @@ currentDefName
 
 withDefName :: Name -> Inf a -> Inf a
 withDefName name inf
-  = withEnv (\env -> env{ currentDef = name }) inf
+  = withEnv (\env -> env{ currentDef = name, namedLam = True }) inf
+
+isNamedLam :: (Bool -> Inf a) -> Inf a
+isNamedLam action
+    = do env <- getEnv
+         withEnv (\env -> env{ namedLam = False }) (action (namedLam env))
 
 qualifyName :: Name -> Inf Name
 qualifyName name
