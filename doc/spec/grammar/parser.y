@@ -636,31 +636,36 @@ patarg      : identifier '=' apattern            /* named argument */
 ----------------------------------------------------------*/
 withstat    : WITH noretfunexpr
             | WITH binder '=' noretfunexpr
-            | WITH witheff opclauses
-            | WITH binder '=' NAMED witheff opclauses
-            | WITH override opclauses
+            | WITH withbind
             ;
 
-withexpr    : WITH withfollow
-            | HANDLER witheff opclauses
-            | HANDLE witheff lparen arguments1 ')' handlerpars opclauses
+withexpr    : WITH withnobind
+            | WITH NAMED witheff opclauses
+            | WITH withbind IN expr
+            /* deprecated */
+            | HANDLER withhandle opclauses
+            /* deprecated */
+            | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
             ;
 
-withfollow  : witheff opclauses
-            | witheff opclauses IN expr
-            | NAMED witheff opclauses
-            | binder '=' NAMED witheff opclauses IN expr
-            | override opclauses
-            | override opclauses IN expr
+withbind    : binder '=' NAMED witheff opclauses
+            | withnobind
             ;
 
+withnobind  : witheff opclauses
+            | NAMED witheff APP qidentifier ')' opclauses
+            ;
+
+/* deprecated */
+withhandle  : witheff
+            | NAMED witheff APP qidentifier ')'
+            | NAMED witheff
+            ;
 
 witheff     : '<' anntype '>'
             | /* empty */
             ;
 
-override    : NAMED witheff lparen qidentifier ')'
-            ;
 
 handlerpars : lparen parameters ')'
             | /* empty */
