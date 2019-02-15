@@ -66,13 +66,13 @@ void printDecl( const char* sort, const char* name );
 %token RETURN
 
 %token HANDLER HANDLE EFFECT INJECT
-%token WITH IN
+%token WITH IN NEW OVERRIDE
 
 %token REC IFACE INST
 
 %token ID_INLINE ID_INCLUDE
 %token ID_CS ID_JS ID_FILE
-%token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND ID_NAMED
+%token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND
 
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -82,7 +82,7 @@ void printDecl( const char* sort, const char* name );
 /* these are non-reserved words but have special meaning after
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
    The following declaration make Bison prefer a shift in those situations */
-%nonassoc "inline" "include" "open" "linear"
+/* %nonassoc ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR */
 %%
 
 
@@ -173,8 +173,8 @@ topdecl     : visibility puredecl                             { printDecl("value
 ----------------------------------------------------------*/
 
 externdecl  : EXTERN funid externtype externbody               { $$ = $2; }
-            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec "inline"
-            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec "include"
+            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec ID_INLINE
+            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec ID_INCLUDE
             ;
 
 externtype  : ':' typescheme
@@ -224,11 +224,11 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
 typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
-            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } %prec "open"
-            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; } %prec "extend"
+            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; }  %prec ID_OPEN
+            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; }  %prec ID_EXTEND
             | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
             | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; }
-            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } %prec "linear"
+            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; }  %prec ID_LINEAR
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
@@ -406,9 +406,10 @@ nofunexpr   : ifexpr
             | opexpr
             ;
 
-condexpr    : ifexpr
+noretfunexpr: ifexpr
             | matchexpr
             | opexpr
+            | withexpr
             ;
 
 /* keyword expressions */
@@ -633,23 +634,32 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-withstat    : WITH condexpr
+withstat    : WITH noretfunexpr
+            | WITH binder '=' noretfunexpr
             | WITH witheff opclauses
-            | WITH witheff ID_NAMED lparen identifier ')' clauses
-            | WITH witheff binder '=' condexpr
-            | WITH witheff binder '=' ID_NAMED opclauses
+            | WITH binder '=' NEW witheff opclauses
+            | WITH override opclauses
             ;
 
-withexpr    : WITH witheff opclauses
-            | WITH witheff opclauses IN expr
-            | WITH witheff ID_NAMED opclauses
-            | WITH witheff ID_NAMED lparen identifier ')' opclauses
+withexpr    : WITH withfollow
             | HANDLER witheff opclauses
             | HANDLE witheff lparen arguments1 ')' handlerpars opclauses
             ;
 
+withfollow  : witheff opclauses
+            | witheff opclauses IN expr
+            | NEW witheff opclauses
+            | binder '=' NEW witheff opclauses IN expr
+            | override opclauses
+            | override opclauses IN expr
+            ;
+
+
 witheff     : '<' anntype '>'
             | /* empty */
+            ;
+
+override    : OVERRIDE witheff lparen qidentifier ')'
             ;
 
 handlerpars : lparen parameters ')'

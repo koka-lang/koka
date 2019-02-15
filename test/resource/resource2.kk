@@ -1,11 +1,11 @@
-effect heap<s::S> { 
+effect heap<s::S> {
 }
 
-val heap = handler<heap<_s>> { 
+val heap = handler<heap<_s>> {
 }
 
 fun foo() {
-  using heap
+  with heap
   42
 }
 

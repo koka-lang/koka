@@ -175,7 +175,7 @@ task("grammar",[],function(testfile)
   var gdir = path.join("doc","spec","grammar");
   jake.cpR(gdir,outputDir);
 
-  command("cd " + outdir + " && bison -vd -W parser.y 2>&1", function() {
+  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -v8 lexer.lex 2>&1", function() {
       command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();

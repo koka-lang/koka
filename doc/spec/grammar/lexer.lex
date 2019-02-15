@@ -167,7 +167,6 @@ open                      { return ID_OPEN; }
 behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
-named                     { return ID_NAMED; }
 
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
@@ -176,6 +175,8 @@ inject                    { return INJECT; }
 
 with                      { return WITH; }
 in                        { return IN; }
+new                       { return NEW; }
+override                  { return OVERRIDE; }
 
   /* unused reserved identifiers */
 rec                       { return REC; }

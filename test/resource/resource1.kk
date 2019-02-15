@@ -25,14 +25,14 @@ fun filesys( action ){ //: forall<s> () -> <filesys<s>|e> a ) : e a {
 // The `:exn` is added since we cannot statically guarantee (without adding more
 // phantom rank-2 types) that a `:file` resource is accessed within the scope
 // of its handler. If it is accessed outside the scope an exception is raised.
-effect named file<s::S> in filesys<s> {
+effect dynamic file<s::S> in filesys<s> {
 	fun read() : string
 }
 
 
 // Each individual resource can have a custom handler
 fun fake-file(content,action) {  // fake-file: (string, (file<s>) -> <filesys<s>|e> a ) -> <filesys<s>|e> a
-	with f = named fun read() { content }
+	with f = new fun read() { content }
 	action(f)
 }
 
@@ -44,7 +44,7 @@ fun heap( action : forall<s> () -> <heap<s>|e> a ) : e a {
 	action()
 }
 
-effect named ref<s::S,a::V> in heap<s> {
+effect dynamic ref<s::S,a::V> in heap<s> {
 	fun get() : a
 	fun set( value : a ) : ()
 }
@@ -54,7 +54,7 @@ effect named ref<s::S,a::V> in heap<s> {
 // under a handler now: you cannot access the reference outside the `new-ref` scope.
 fun new-ref(init,action) {
 	var s := init
-	with r = named {
+	with r = new {
 		fun get()  { s }
 		fun set(x) { s := x }
 	}

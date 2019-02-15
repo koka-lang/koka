@@ -4,28 +4,33 @@
 // --------------------------------------------------------
 effect heap { }
 
-val heap = handler<heap>{ }
+val heap = with<heap>{ }
 
-effect resource ref<a> in heap {
+effect dynamic ref<a> in heap {
   fun get() : a       // (ref<a>) -> <heap,exn> a
   fun set( value : a ) : ()
 }
 
-val new-ref = handler resource (s) {
-  get() -> resume(s,s)
-  set(x) -> resume((),x)
+fun new-ref(init,action) {
+  var s := init
+  with r = new {
+    fun get()   { s }
+    fun set(x)  { s := x }
+  }
+  action(r)
 }
 
 fun bypass( r : ref<int>, action : () -> <heap|e> a ) : <heap|e> a {
-  handle resource r (action) {
-    get() -> resume(42)
-    set(_x) -> resume(())
+  with override r {
+    fun get() { 42 }
+    fun set(_x) { () }
   }
+  action()
 }
 
 fun main() {
-  using heap
-  use r = new-ref(50)
-  using bypass(r)
+  with heap
+  with r = new-ref(50)
+  with bypass(r)
   println( r.get() )
 }

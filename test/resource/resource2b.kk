@@ -3,15 +3,16 @@
 effect filesys<s::S> { }
 
 fun filesys( action : forall<s> () -> <filesys<s>|e> a ) : e a {
-  handle<filesys<_>>(action){ }
+  with<filesys<_>> { }
+  action()
 }
 
-effect named file<s::S> in filesys<s> {
+effect dynamic file<s::S> in filesys<s> {
   fun read() : string
 }
 
 fun fake-file(content,action) {
-  with f = named fun read() { content }  // ~> (with named { fun read() {..} })(fun(f) { ... })
+  with f = new fun read() { content }  // ~> (with new { fun read() {..} })(fun(f) { ... })
   action(f)
 }
 

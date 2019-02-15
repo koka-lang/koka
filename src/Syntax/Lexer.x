@@ -262,6 +262,7 @@ reservedNames
 
     , "effect", "implicit"
     , "handler", "with"
+    , "new", "override"
 
     -- deprecate?
     , "handle"
