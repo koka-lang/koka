@@ -406,10 +406,6 @@ nofunexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
-handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
-            | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
-            ;
-
 funexpr     : FUNX fundef block
             | block                    /* zero-argument function */
             ;
@@ -464,6 +460,7 @@ atom        : qidentifier
             | qconstructor
             | literal
             | inject
+            | handleexpr
             | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
@@ -626,6 +623,11 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
+
+handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
+            | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
+            ;
+
 
 handlereff  : '<' anntype '>'
             | /* empty */

@@ -132,8 +132,6 @@ forall                    { return FORALL; }
 exists                    { return EXISTS; }
 some                      { return SOME; }
 
-with                      { return WITH; }
-
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
 external                  { return EXTERN; }
@@ -174,6 +172,9 @@ handler                   { return HANDLER; }
 handle                    { return HANDLE; }
 effect                    { return EFFECT; }
 inject                    { return INJECT; }
+
+with                      { return WITH; }
+in                        { return IN; }
 
   /* unused reserved identifiers */
 rec                       { return REC; }
