@@ -164,9 +164,10 @@ inline                    { return ID_INLINE;  }
 include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
-tail                      { return ID_TAIL; }
+behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
+named                     { return ID_NAMED; }
 
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
@@ -540,6 +541,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner );
       *loc = updateLoc(scanner);
     }
+
 
 #ifdef CHECK_BALANCED
     // check balanced braces

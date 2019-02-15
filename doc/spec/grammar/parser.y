@@ -72,7 +72,7 @@ void printDecl( const char* sort, const char* name );
 
 %token ID_INLINE ID_INCLUDE
 %token ID_CS ID_JS ID_FILE
-%token ID_LINEAR ID_OPEN ID_EXTEND ID_TAIL
+%token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND ID_NAMED
 
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -82,7 +82,7 @@ void printDecl( const char* sort, const char* name );
 /* these are non-reserved words but have special meaning after
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
    The following declaration make Bison prefer a shift in those situations */
-%nonassoc "inline" "include" "open" "linear" IN
+%nonassoc "inline" "include" "open" "linear"
 %%
 
 
@@ -365,6 +365,7 @@ statements1 : statements1 statement semis1
             ;
 
 statement   : decl
+            | withstat
             | nofunexpr
             ;
 
@@ -403,7 +404,11 @@ nofunexpr   : ifexpr
             | returnexpr
             | matchexpr
             | opexpr
-            | withexpr
+            ;
+
+condexpr    : ifexpr
+            | matchexpr
+            | opexpr
             ;
 
 /* keyword expressions */
@@ -472,11 +477,11 @@ atom        : qidentifier
 literal     : NAT | FLOAT | CHAR | STRING
             ;
 
-inject      : INJECT tail '<' tbasic '>' '(' aexpr')'
-            | INJECT tail '<' tbasic '>' block
+inject      : INJECT behind '<' tbasic '>' '(' aexpr')'
+            | INJECT behind '<' tbasic '>' block
             ;
 
-tail        : ID_TAIL
+behind      : ID_BEHIND
             | /* empty */
             ;
 
@@ -551,7 +556,8 @@ varid       : ID
             | ID_OPEN         { $$ = "open"; }
             | ID_EXTEND       { $$ = "extend"; }
             | ID_LINEAR       { $$ = "linear"; }
-            | ID_TAIL         { $$ = "tail"; }
+            | ID_BEHIND       { $$ = "behind"; }
+            /* | ID_NAMED        { $$ = "named"; } */
             ;
 
 qconstructor: conid
@@ -627,9 +633,17 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
+withstat    : WITH condexpr
+            | WITH witheff opclauses
+            | WITH witheff ID_NAMED lparen identifier ')' clauses
+            | WITH witheff binder '=' condexpr
+            | WITH witheff binder '=' ID_NAMED opclauses
+            ;
 
 withexpr    : WITH witheff opclauses
-            | WITH witheff opclauses IN nowithexpr
+            | WITH witheff opclauses IN expr
+            | WITH witheff ID_NAMED opclauses
+            | WITH witheff ID_NAMED lparen identifier ')' opclauses
             | HANDLER witheff opclauses
             | HANDLE witheff lparen arguments1 ')' handlerpars opclauses
             ;
@@ -651,11 +665,15 @@ opclauses1  : opclauses1 semis1 opclause
             | opclause
             ;
 
-opclause    : VAL qidentifier '=' bodyexpr
-            | VAL qidentifier ':' type '=' bodyexpr
-            | FUN qidentifier opargs bodyexpr
-            | RETURN lparen oparg ')' bodyexpr
-            | RETURN paramid bodyexpr
+opclause    : VAL qidentifier '=' nowithexpr
+            | VAL qidentifier ':' type '=' nowithexpr
+            | FUN qidentifier opargs nowithbody
+            | RETURN lparen oparg ')' nowithbody
+            | RETURN paramid nowithbody
+            ;
+
+nowithbody  : RARROW nowithexpr
+            | block
             ;
 
 opargs      : lparen opargs0 ')'
