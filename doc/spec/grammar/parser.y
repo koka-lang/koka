@@ -54,7 +54,6 @@ void printDecl( const char* sort, const char* name );
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
-%token WITH
 
 %token IMPORT AS MODULE
 %token PUBLIC PRIVATE ABSTRACT
@@ -67,6 +66,7 @@ void printDecl( const char* sort, const char* name );
 %token RETURN
 
 %token HANDLER HANDLE EFFECT INJECT
+%token WITH IN
 
 %token REC IFACE INST
 
@@ -82,7 +82,7 @@ void printDecl( const char* sort, const char* name );
 /* these are non-reserved words but have special meaning after
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
    The following declaration make Bison prefer a shift in those situations */
-%nonassoc "inline" "include" "open" "linear"
+%nonassoc "inline" "include" "open" "linear" IN
 %%
 
 
@@ -386,11 +386,15 @@ blockexpr   : expr              /* a block is not interpreted as an anonymous fu
 
 expr        : ifexpr
             | noifexpr
+            | withexpr
+            ;
+
+nowithexpr  : ifexpr
+            | noifexpr
             ;
 
 noifexpr    : returnexpr
             | matchexpr
-            | handleexpr
             | funexpr
             | opexpr
             ;
@@ -398,8 +402,9 @@ noifexpr    : returnexpr
 nofunexpr   : ifexpr
             | returnexpr
             | matchexpr
-            | handleexpr
             | opexpr
+            | withexpr
+            ;
 
 /* keyword expressions */
 
@@ -460,7 +465,6 @@ atom        : qidentifier
             | qconstructor
             | literal
             | inject
-            | handleexpr
             | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
@@ -624,12 +628,13 @@ patarg      : identifier '=' apattern            /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 
-handleexpr  : HANDLER handlereff handlerpars '{' semis handlerrules1 semis '}'
-            | HANDLE handlereff lparen arguments1 ')' handlerpars '{' semis handlerrules1 semis '}'
+withexpr    : WITH witheff opclauses
+            | WITH witheff opclauses IN nowithexpr
+            | HANDLER witheff opclauses
+            | HANDLE witheff lparen arguments1 ')' handlerpars opclauses
             ;
 
-
-handlereff  : '<' anntype '>'
+witheff     : '<' anntype '>'
             | /* empty */
             ;
 
@@ -637,11 +642,18 @@ handlerpars : lparen parameters ')'
             | /* empty */
             ;
 
-handlerrules1: handlerrules1 semis1 handlerrule
-            | handlerrule
+opclauses   : opclause
+            | '{' semis opclauses1 semis '}'
+            | '{' semis '}'
             ;
 
-handlerrule : qidentifier opargs bodyexpr
+opclauses1  : opclauses1 semis1 opclause
+            | opclause
+            ;
+
+opclause    : VAL qidentifier '=' bodyexpr
+            | VAL qidentifier ':' type '=' bodyexpr
+            | FUN qidentifier opargs bodyexpr
             | RETURN lparen oparg ')' bodyexpr
             | RETURN paramid bodyexpr
             ;
