@@ -2,5 +2,5 @@
   "homepage": "https://github.com/koka-lang",
   "name": "language-koka",
   "description": "Koka language highlighting",
-  "version": "1.0"
+  "version": "1.0.0"
 }
