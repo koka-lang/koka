@@ -14,7 +14,7 @@ fun corrl( action : () -> <corrl|e> a ) : e a {
 // operations in one common effect and thus operations might escape their
 // particular handler scope. However, if we reflect every resource in its own
 // generative type, we might get effects types that become too cumbersome...
-effect dynamic stream<a> in corrl {
+effect named stream<a> in corrl {
   fun push( value : a ) : ()   // introduces `push : (stream<l,a>, a) -> <l|e> ()`
 }
 
@@ -26,7 +26,7 @@ effect dynamic stream<a> in corrl {
 // if we would have generative effect, the type could be:
 //  new-stream : forall<a,b,e> fresh<l> ((stream<l,a> -> <l|e> b)) -> e b
 fun new-stream(init,action) {
-  (with new fun push(_x) { () })(action) // dummy implementation
+  (with named fun push(_x) { () })(action) // dummy implementation
 }
 
 fun interleaved(action1,action2) {
@@ -82,10 +82,10 @@ fun alignx(s1,s2,action)
   // The resource handlers delegate to the join handler
   // Here the `handler resource s1` has an extra parameter `s1` and will
   // not create a fresh resource, but instead handle operations for `s1`.
-  val h1 = handler override s1 {
+  val h1 = handler named(s1) {
     push(x) -> left(x)
   }
-  val h2 = handler override s2 {
+  val h2 = handler named(s2) {
     push(y) -> right(y)
   }
 

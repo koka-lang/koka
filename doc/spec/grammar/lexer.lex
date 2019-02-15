@@ -175,8 +175,7 @@ inject                    { return INJECT; }
 
 with                      { return WITH; }
 in                        { return IN; }
-new                       { return NEW; }
-override                  { return OVERRIDE; }
+named                     { return NAMED; }
 
   /* unused reserved identifiers */
 rec                       { return REC; }

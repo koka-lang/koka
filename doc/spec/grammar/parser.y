@@ -66,7 +66,7 @@ void printDecl( const char* sort, const char* name );
 %token RETURN
 
 %token HANDLER HANDLE EFFECT INJECT
-%token WITH IN NEW OVERRIDE
+%token WITH IN NAMED
 
 %token REC IFACE INST
 
@@ -637,7 +637,7 @@ patarg      : identifier '=' apattern            /* named argument */
 withstat    : WITH noretfunexpr
             | WITH binder '=' noretfunexpr
             | WITH witheff opclauses
-            | WITH binder '=' NEW witheff opclauses
+            | WITH binder '=' NAMED witheff opclauses
             | WITH override opclauses
             ;
 
@@ -648,8 +648,8 @@ withexpr    : WITH withfollow
 
 withfollow  : witheff opclauses
             | witheff opclauses IN expr
-            | NEW witheff opclauses
-            | binder '=' NEW witheff opclauses IN expr
+            | NAMED witheff opclauses
+            | binder '=' NAMED witheff opclauses IN expr
             | override opclauses
             | override opclauses IN expr
             ;
@@ -659,7 +659,7 @@ witheff     : '<' anntype '>'
             | /* empty */
             ;
 
-override    : OVERRIDE witheff lparen qidentifier ')'
+override    : NAMED witheff lparen qidentifier ')'
             ;
 
 handlerpars : lparen parameters ')'

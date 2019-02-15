@@ -789,7 +789,7 @@ parseEffectDecl dvis =
              return (vis,vis,vrng,erng,doc))
      sort <- do{ keyword "rec"; return Retractive} <|> return Inductive
      singleShot <- do{ specialId "linear"; return True} <|> return False
-     (do isResource <- do{ specialId "dynamic"; return True} <|> return False
+     (do isResource <- do{ keyword "named"; return True} <|> return False
          (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
          mbResource <- if (not isResource) then return Nothing
@@ -1310,7 +1310,7 @@ localWithDecl
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e   <- (do try (lookAhead (keyword "new"))
+           e   <- (do try (lookAhead (keyword "named"))
                       handlerExprX False krng
                    <|>
                    blockexpr)
@@ -1456,11 +1456,13 @@ handlerExprX braces rng
        hsort   <- handlerSort
        handlerExprXX braces rng mbEff scoped hsort
 
-handlerSort =     do keyword "new"
-                     return (HandlerResource Nothing)
-              <|> do keyword "override"
-                     (name,rng) <- qidentifier
-                     return (HandlerResource (Just (Var name False rng)))
+handlerSort =     do keyword "named"
+                     override <- do lapp
+                                    (name,rng) <- qidentifier
+                                    rparen
+                                    return (Just (Var name False rng))
+                                 <|> return Nothing
+                     return (HandlerResource override)
               <|> do specialId "shallow"; return HandlerShallow
               <|> return HandlerDeep
 
