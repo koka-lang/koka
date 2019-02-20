@@ -299,7 +299,8 @@ compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
 compileModule term flags modules name  -- todo: take force into account
   = runIOErr $ -- trace ("compileModule: " ++ show name) $
     do let imp = ImpProgram (Import name name rangeNull Private)
-       (loaded,((mod:_):_)) <- resolveImports term flags "" initialLoaded{ loadedModules = modules } [imp]
+       imports <- resolveImports term flags "" initialLoaded{ loadedModules = modules } [imp]
+       let (loaded,((mod:_):_)) = imports
        return loaded{ loadedModule = mod }
 
 {---------------------------------------------------------------
