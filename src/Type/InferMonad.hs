@@ -279,8 +279,9 @@ isolate free ps eff
                             if isLocal
                              then do trace ("isolate local") $ return ()
                                      nofailUnify $ unify (effectExtend lab tv) eff
-                             else do (Just syn) <- lookupSynonym nameTpST
-                                     let [bvar] = synInfoParams syn
+                             else do mbSyn <- lookupSynonym nameTpST
+                                     let (Just syn) = mbSyn
+                                         [bvar] = synInfoParams syn
                                          st     = subNew [(bvar,TVar h)] |-> synInfoType syn
                                      nofailUnify $ unify (effectExtend st tv) eff
                             neweff <- subst tv

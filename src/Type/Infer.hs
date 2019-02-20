@@ -2052,8 +2052,8 @@ inferSubsumeN ctx range parArgs
 inferSubsumeN' ctx range acc []
   = return (map snd (sortBy (\(i,_) (j,_) -> compare i j) acc))
 inferSubsumeN' ctx range acc parArgs
-  = do ((i,(tpar,arg)):rest) <- pickArgument parArgs
-       traceDoc $ \env -> text "infer parameter type: " <+> ppType env tpar
+  = do lsArgs <- pickArgument parArgs
+       let ((i,(tpar,arg)):rest) = lsArgs
        (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized) arg
        tpar1  <- subst tpar
        (_,coref)  <- if isAnnot arg

@@ -637,7 +637,8 @@ genExpr expr
                      then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
                      else return (vcat (decls ++ edecls), doc)
              Nothing
-              -> do (decls,fdoc:docs) <- genExprs (f:trimOptionalArgs args)
+              -> do lsDecls <- genExprs (f:trimOptionalArgs args)
+                    let (decls,fdoc:docs) = lsDecls
                     return (vcat decls, fdoc <.> tupled docs)
 
      Let groups body
