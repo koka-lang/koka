@@ -74,7 +74,9 @@ import Common.Unique
 import Common.Failure
 import Common.Error
 import Common.Name
-import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn)
+import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
+                       nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
+                       nameTpLocal)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
 
@@ -136,14 +138,14 @@ generalize contextRange range eff0 rho0 core0
        score0 <- subst core0
 
        sub <- getSub
-        -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0
+       -- trace ("generalize: " ++ show (pretty seff,pretty srho) ++ " with " ++ show ps0)
                   {- ++ " and free " ++ show (tvsList free) -}
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
-            -- return ()
+       --       $ return ()
        -- simplify and improve predicates
        (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho)
-       -- trace (" improved to: " ++ show (eff1,rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
+       -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        let -- generalized variables
            tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps1) rho1))
 
@@ -237,7 +239,7 @@ improve contextRange range eff0 rho0 core0
 
        (nrho) <- normalizeX free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
-       -- trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
+       -- trace (" improved to: " ++ show (pretty eff1, pretty nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
@@ -262,19 +264,28 @@ isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> C
 isolate free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
-    in case filter (\l -> labelName l `elem` [nameTpRead,nameTpWrite]) ls of
-          (TApp _ [TVar h] : _)
+    in case filter (\l -> labelName l `elem` [{-nameTpLocal,-}nameTpRead,nameTpWrite]) ls of
+          (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
-               do (polyPs,ps1) <- splitHDiv h ps
-                  if not (tvsMember h free || tvsMember h (ftv ps1))
+               do trace ("isolate:"  ++ show (pretty eff)) $ return ()
+                  (polyPs,ps1) <- splitHDiv h ps
+                  if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
+                                             -- but if we allow null polyPS, injecting state does not work (see `test/resource/inject2`)
+                          tvsMember h free || tvsMember h (ftv ps1))
                     then do -- yeah, we can isolate, and discharge the polyPs hdiv predicates
                             tv <- freshTVar kindEffect Meta
-                            (Just syn) <- lookupSynonym nameTpST
-                            let [bvar] = synInfoParams syn
-                                st     = subNew [(bvar,TVar h)] |-> synInfoType syn
-                            nofailUnify $ unify (effectExtend st tv) eff
+                            case labcon of
+                               TCon (TypeCon name _) | name == nameTpLocal
+                                  -> do trace ("isolate local") $ return ()
+                                        nofailUnify $ unify (effectExtend lab tv) eff
+                               _  -> do mbSyn <- lookupSynonym nameTpST
+                                        let (Just syn) = mbSyn
+                                        let [bvar] = synInfoParams syn
+                                            st     = subNew [(bvar,TVar h)] |-> synInfoType syn
+                                        nofailUnify $ unify (effectExtend st tv) eff
                             neweff <- subst tv
                             sps    <- subst ps1
+                            trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
                             isolate free sps neweff
@@ -330,6 +341,7 @@ normalizeX free tp
               return (TSyn syn targs t')
       TFun args eff res
         -> do (ls,tl) <- nofailUnify $ extractNormalizeEffect eff
+              -- trace (" normalizeX: " ++ show (map pretty ls,pretty tl)) $ return ()
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type
                           (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))

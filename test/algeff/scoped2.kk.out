@@ -16,7 +16,7 @@ one: [3]
 .tag-nondet : string
 .tag-state : string
 choice : forall<a> (xs : list<a>) -> nondet a
-choices : forall<a,e> (action : () -> <nondet,state<int>|e> a) -> <nondet,state<int>|e> a
+choices : forall<a,e> (action : () -> <nondet,nondet,state<int>|e> a) -> <nondet,state<int>|e> a
 fail : forall<a> () -> nondet a
 get : forall<a> () -> (state<a>) a
 global : forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e (a, list<b>)

@@ -360,13 +360,13 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
           Just(tz) -> tz
         }
         Cons(tz1,rest) -> {
-          var pick := tz1
+          val pick = ref(tz1)
           rest.foreach fun(tz) {
-            if (tz.population == 0 || (tz.population > pick.population && pick.population > 0)) {
+            if (tz.population == 0 || (tz.population > (!pick).population && (!pick).population > 0)) {
               pick := tz
             }
           }
-          pick.timezone
+          (!pick).timezone
         }
       }
     }

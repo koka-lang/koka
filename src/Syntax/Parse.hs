@@ -931,6 +931,7 @@ varDecl
        body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar doc)
 
+
 valDecl rng doc vis
   = do bind <- binder
        keyword "="
@@ -1015,16 +1016,31 @@ block
                  <|>
                     return []
        rng2 <- rcurly
-       let stats = stmts1 ++ stmts2
+       let localize = if (any isStatVar stmts1) then [StatFun localScope] else []
+           stats = localize ++ stmts1 ++ stmts2
        case (reverse stats) of
          (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) (combineRange rng1 rng2))
          []               -> return (Var nameUnit False (combineRange rng1 rng2))
          _                -> fail "Last statement in a block must be an expression"
   where
+    isStatVar (StatVar _) = True
+    isStatVar _           = False
+
+    localScope :: UserExpr -> UserExpr
+    localScope exp = let rng = getRange exp
+                     in App (Var nameRunLocal False rng)
+                            [(Nothing,Lam [] exp rng)]
+                            rng
+
     combine :: Statement -> UserExpr -> UserExpr
     combine (StatFun f) exp   = f exp
     combine (StatExpr e) exp  = let r = getRange e
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal "") exp r
+    combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
+                                in  App (Var nameLocal False nameRng)
+                                        [(Nothing, expr),
+                                         (Nothing,Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp))]
+                                         (defRange def)
 
 makeReturn r0 e
   = let r = getRange e
@@ -1032,6 +1048,7 @@ makeReturn r0 e
 
 data Statement = StatFun (UserExpr -> UserExpr)
                | StatExpr UserExpr
+               | StatVar UserDef
 
 statement :: LexParser Statement
 statement
@@ -1043,7 +1060,7 @@ statement
                             --              Bind val body (combineRanged val body)  ))
   <|>
     do var <- varDecl
-       return (StatFun (\body -> Bind var body (combineRanged var body)))
+       return (StatVar var) -- (StatFun (\body -> Bind var body (combineRanged var body)))
   <|>
     do exp <- nofunexpr
        return (StatExpr exp)
@@ -1574,11 +1591,12 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 injectExpr :: LexParser UserExpr
 injectExpr
   = do rng1 <- keyword "inject"
+       behind <- do { specialId "behind"; return True } <|> return False
        langle
        tp <- ptype
        rangle
        exp <- parens expr <|> funblock
-       return (Inject (promoteType tp) exp (combineRanged rng1 exp))
+       return (Inject (promoteType tp) exp behind (combineRanged rng1 exp))
 
 -----------------------------------------------------------
 -- Patterns (and binders)

@@ -55,6 +55,8 @@ module Type.Type (-- * Types
                   , isTypeTotal
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
+                  , isTypeLocalVar
+
                   -- ** Trivial conversion
                   , IsType( toType)
                   -- ** Primitive
@@ -65,7 +67,7 @@ module Type.Type (-- * Types
 
 -- import Lib.Trace
 import Data.Maybe(isJust)
-import Data.List( nub, sortBy )
+import Data.List( sortBy )
 
 import Common.Name
 import Common.NamePrim
@@ -492,6 +494,14 @@ typeRef
   = TCon (TypeCon nameTpRef (kindFun kindHeap (kindFun kindStar kindStar)))
 
 
+tconLocalVar = TypeCon nameTpLocalVar (kindFun kindHeap (kindFun kindStar kindStar))
+
+isTypeLocalVar :: Tau -> Bool
+isTypeLocalVar tp =
+  case expandSyn tp of
+    TApp (TCon (TypeCon name _)) [_,_]  -> name == nameTpLocalVar
+    _ -> False
+
 orderEffect :: Tau -> Tau
 orderEffect tp
   = let (ls,tl) = extractOrderedEffect tp
@@ -504,7 +514,7 @@ extractOrderedEffect :: Tau -> ([Tau],Tau)
 extractOrderedEffect tp
   = let (labs,tl) = extractEffectExtend tp
         labss     = concatMap expand labs
-        slabs     = nub $ (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
+        slabs     = (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
     in (slabs,tl)
   where
     expand l

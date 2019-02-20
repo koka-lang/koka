@@ -7,7 +7,7 @@
 .resource-file: forall<s> (file<s>) -> int
 .tag-file : string
 .tag-filesys: string
-fake-file : forall<s,a,e> (content : string, action : (resource : file<s>) -> <filesys<s>,div|e> a) -> <filesys<s>,div|e> a
+fake-file : forall<s,a,e> (content : string, action : (resource : file<s>) -> e a) -> e a
 filesys : forall<a,e> (action : forall<s> () -> <filesys<s>|e> a) -> e a
 inject-resource: forall<s,a,e> (resource : file<s>, action : () -> <filesys<s>|e> a) -> <filesys<s>|e> a
 main : () -> <pure,console> ()

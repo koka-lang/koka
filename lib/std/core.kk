@@ -153,14 +153,8 @@ alias io = <exn,io-noexn>
 // Injection
 // ----------------------------------------------------------------------------
 
-// Add the divergent effect to a function effect.
-extern inline inject-div : forall<a,e> (() -> e a) -> (() -> <div|e> a) { inline "#1" }
-
-// Add the divergent effect to a function effect.
-extern inline inject-div : forall<a,b,e> (a -> e b) -> (a -> <div|e> b) { inline "#1" }
-
 // Add the state effect to a function effect.
-extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
+// extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
 // Add the state effect to a function effect.
 extern inline inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
@@ -1112,14 +1106,13 @@ fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
   }
 }
 
-private extern inline inject-st : forall<a,b,c,h,e> ((a,b) -> e c) -> total ((a,b) -> <st<h>|e> c)  { inline "#1" }
-
 // Invoke `action` for each element of a list, passing also the position of the element.
 fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
   xs.foreach fun(x) {
-    inject-st(action)(i,x)
+    val j = i; // don't dereference `i` inside the inject
+    inject<local>{action(j,x)}
     i := i+1
   }
 }
@@ -2413,7 +2406,7 @@ fun force( delayed : delayed<e,a> ) : e a {
     match(!r) {
       Right(x) -> x
       Left(action) -> {
-        val x = inject-st(inject-div(action))()
+        val x = (inject-st{inject<div>(action)})()
         r := Right(x)
         x
       }
@@ -2731,6 +2724,7 @@ type hdiv :: (H,V,E) -> P
 // for operations on first-class effects where code can diverge through operations.
 type ediv :: (X,V,E) -> P
 
+
 // A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
 type ref :: (H,V) -> V
 
@@ -2755,6 +2749,36 @@ extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  {
+  cs inline "Primitive.Run<##2>(#1)";
+  js inline "((#1)())";
+}
+
+// A local variable `:var<s,a>` points to a value of type `:a` in local scope `:s`
+type local :: (H) -> X
+type local-var :: (H,V) -> V
+
+extern inline inject-local( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
+
+// Allocate a fresh local with an initial value.
+extern inline local-var : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
+  js "$std_core._with_local"
+}
+
+// Assign a new value to a local variable
+extern inline set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
+  cs inline "#1.Set(#2)";
+  js inline "((#1).value = #2)"
+}
+
+// Read the value of a local variable.
+extern inline (!) : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+  cs inline "#1.Value";
+  js inline "((#1).value)";
+}
+
+// If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
+// See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
+extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a ) -> e a  {
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }
@@ -2957,16 +2981,16 @@ type handled1   :: HX1 -> X;
 // ----------------------------------------------------------------------------
 
 
-extern inject-exn(action : () -> e a) : <exn|e> a {
+extern inject-exn(level : int, action : () -> e a) : <exn|e> a {
   js "$std_core._handle_inject_exn"
 }
 
-extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, action : () -> e1 a ) : e2 a {
-  js inline "$std_core._handle_inject(#1,0,#2)"
+extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : int, action : () -> e1 a ) : e2 a {
+  js inline "$std_core._handle_inject(#1,0,#2,#3)"
 }
 
 extern inline ".inject-resource"<a::V,e::E>( effect-name : string, resource-tag : int, action : () -> e a ) : e a {
-  js inline "$std_core._handle_inject(#1,#2,#3)"
+  js inline "$std_core._handle_inject(#1,#2,0,#3)"
 }
 
 // Yield alias
@@ -2990,6 +3014,10 @@ extern ".yieldop"( effect-name : string, op-name : string, op-resource : int, op
 
 extern ".yieldop-x1"<a,b,x>( effect-name : string, op-name : string, op-resource : int, op-idx : int, op : a, def : maybe<x> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
   cs inline "Eff.Op.YieldOpX1<##1,##2,##3>(#1,#2,(int)#4,#5)"
+  js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
+}
+
+extern ".yieldop-x2"<a,b,x1,x2>( effect-name : string, op-name : string, op-resource : int, op-idx : int, op : a, def1 : maybe<x1>, def2 : maybe<x2> /* just to ensure `x` is passed as a type parameter */) : yld<b> {
   js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 

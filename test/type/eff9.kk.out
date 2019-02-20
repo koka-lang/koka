@@ -1,2 +1,2 @@
-f : () -> foo ()
+f : () -> <foo,foo> ()
 onevent : forall<e> (() -> e ()) -> <foo|e> ()
