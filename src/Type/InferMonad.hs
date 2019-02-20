@@ -278,7 +278,8 @@ isolate free ps eff
                                TCon (TypeCon name _) | name == nameTpLocal
                                   -> do trace ("isolate local") $ return ()
                                         nofailUnify $ unify (effectExtend lab tv) eff
-                               _  -> do (Just syn) <- lookupSynonym nameTpST
+                               _  -> do mbSyn <- lookupSynonym nameTpST
+                                        let (Just syn) = mbSyn
                                         let [bvar] = synInfoParams syn
                                             st     = subNew [(bvar,TVar h)] |-> synInfoType syn
                                         nofailUnify $ unify (effectExtend st tv) eff
