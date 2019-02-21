@@ -33,7 +33,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocal
                       , nameTpValueOp
                        )
 import Common.Range
@@ -485,10 +485,29 @@ data Expect = Generalized
             | Instantiated
             deriving (Show,Eq)
 
-inferIsolated :: Range -> Range -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
-inferIsolated contextRange range inf
+inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
+inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
-       improve contextRange range eff tp  core
+       res@(itp,ieff,icore) <- improve contextRange range eff tp  core
+       case hasVarDecl body of
+         Nothing   -> return res
+         Just vrng -> do seff <- subst ieff
+                         let (ls,tl) = extractOrderedEffect seff
+                         case filter (\l -> labelName l == nameTpLocal) ls of
+                           (_:_) -> typeError contextRange vrng
+                                      (text "reference to a local variable escapes its lexical scope") seff []
+                           _ -> return ()
+                         return (itp,seff,icore)
+   where
+     hasVarDecl expr
+       = case expr of
+           Parens x _ -> hasVarDecl x
+           Let _ x _  -> hasVarDecl x
+           Bind _ x _ -> hasVarDecl x
+           Ann x _ _  -> hasVarDecl x
+           Inject _ x _ _ -> hasVarDecl x
+           App (Var name _ rng) _ _ | name == nameLocal -> Just rng
+           _ -> Nothing
 
 -- | @inferExpr propagated expect expr@ takes a potential propagated type, whether the result is expected to be generalized or instantiated,
 -- and the expression. It returns its type, effect, and core expression. Note that the resulting type is not necessarily checked that it matches
@@ -512,7 +531,8 @@ inferExpr propagated expect (Lam binders body rng)
 
        (tp,eff,core) <- extendInfGamma False infgamma  $
                         extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
-                        (if (isNamed) then inferIsolated rng (getRange body) else id) $
+                        (if (isNamed) then inferIsolated rng (getRange body) body else id) $
+                        -- inferIsolated rng (getRange body) body $
                         inferExpr propBody expectBody body
 
        inferUnify (checkReturnResult rng) (getRange body) returnTp tp

@@ -1114,14 +1114,14 @@ functionDecl vrng vis
 
 varDecl
   = do (vrng,doc) <- dockeyword "var"
-       bind <- binder
+       bind <- binder vrng
        keyword ":="
        body <- blockexpr
        return (Def (bind body) (combineRanged vrng body) Private DefVar doc)
 
 
 valDecl rng doc vis
-  = do bind <- binder
+  = do bind <- binder rng
        keyword "="
        body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal doc)
@@ -1225,7 +1225,7 @@ block
     combine (StatExpr e) exp  = let r = getRange e
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
-                                in  App (Var nameLocal False nameRng)
+                                in  App (Var nameLocal False rng)
                                         [(Nothing, expr),
                                          (Nothing,Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp))]
                                          (defRange def)
@@ -1901,11 +1901,11 @@ injectExpr
 -----------------------------------------------------------
 -- Patterns (and binders)
 -----------------------------------------------------------
-binder :: LexParser (UserExpr -> ValueBinder () UserExpr)
-binder
+binder :: Range -> LexParser (UserExpr -> ValueBinder () UserExpr)
+binder preRange
   = do (name,range) <- identifier
        ann <- typeAnnotation
-       return (\expr -> ValueBinder name () (ann expr) range range)
+       return (\expr -> ValueBinder name () (ann expr) range (combineRange preRange range))
 
 funid
   = identifier
