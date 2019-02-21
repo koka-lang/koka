@@ -73,10 +73,10 @@ ppKind cscheme prec kind
                         case collectFunArgs k2 of
                           [res] -> ppKind cscheme precArrow k1 <+> text "->" <+> ppKind cscheme (precArrow-1) res
                           (args) -> commaParens (ppKind cscheme precTop) (k1:init args) <+> text "->" <+> ppKind cscheme (precArrow-1) (last args)
-                          
+
       KApp k1 k2     -> pparens prec precApp $
                         case collectArgs kind of
-                          (k:ks) -> ppKind cscheme (precApp-1) k <> commaParens (ppKind cscheme precTop) ks
+                          (k:ks) -> ppKind cscheme (precApp-1) k <.> commaParens (ppKind cscheme precTop) ks
                           _     -> matchFailure "Kind.Pretty.ppKind.KApp"
 
   where
@@ -88,7 +88,7 @@ ppKind cscheme prec kind
           KApp (KApp (KCon name) k1) k2 | name == newName "->"
             -> k1 : collectFunArgs k2
           _ -> [kind]
-          
+
     collectArgs kind
       = case kind of
           KApp k1 k2  -> collectArgs k1 ++ [k2]

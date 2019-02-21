@@ -59,7 +59,7 @@ infgammaSingle name tp
 
 infgammaNew :: [(Name,Scheme)] -> InfGamma
 infgammaNew xs
-  = infgammaExtends xs infgammaEmpty 
+  = infgammaExtends xs infgammaEmpty
 
 infgammaExtend :: Name -> NameInfo -> InfGamma -> InfGamma
 infgammaExtend name info (InfGamma infgamma)
@@ -71,7 +71,7 @@ infgammaExtendTp name cname tp infgamma
 
 infgammaExtendX :: Name -> Name -> Scheme -> Range -> Bool -> InfGamma -> InfGamma
 infgammaExtendX name cname tp rng isVar infgamma
-  = infgammaExtend name (InfoVal cname tp rng isVar) infgamma 
+  = infgammaExtend name (InfoVal cname tp rng isVar) infgamma
 
 infgammaExtends :: [(Name,Scheme)] -> InfGamma -> InfGamma
 infgammaExtends tnames ig
@@ -81,10 +81,10 @@ infgammaLookup :: Name -> InfGamma -> Maybe (Name,Type)
 infgammaLookup name infgamma
   = fmap (\info -> (infoCName info, infoType info)) (infgammaLookupX name infgamma)
 
- 
+
 infgammaLookupX :: Name -> InfGamma -> Maybe NameInfo
 infgammaLookupX name (InfGamma infgamma)
-  = M.lookup name infgamma 
+  = M.lookup name infgamma
 
 infgammaMap :: (Scheme -> Scheme) -> InfGamma -> InfGamma
 infgammaMap f (InfGamma infgamma)
@@ -112,11 +112,11 @@ instance Show InfGamma where
 instance Pretty InfGamma where
   pretty g
     = ppInfGamma Type.Pretty.defaultEnv g
-    
-    
+
+
 ppInfGamma :: Env -> InfGamma -> Doc
 ppInfGamma env infgamma
-    = vcat [fill maxwidth (ppName env name) <> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes]
     where
       nameSchemes   = infgammaList infgamma

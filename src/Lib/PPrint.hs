@@ -20,7 +20,7 @@ module Lib.PPrint
 
         , show, putDoc, hPutDoc
 
-        , (<>)
+        , (<.>)
         , (<+>)
         , (</>), (<//>)
         , (<->), (<-->)
@@ -60,7 +60,7 @@ module Lib.PPrint
         ) where
 
 import System.IO           -- (Handle,hPutStr,hPutChar,stdout,openFile,hClose)
-import Lib.Printer  
+import Lib.Printer
 import Platform.Runtime( finally )
 
 import qualified Data.Text    as T
@@ -70,7 +70,7 @@ import qualified Data.Text.Lazy.IO as TL
 import Data.Monoid (mempty, mappend)
 
 infixr 5 </>,<//>,<->,<-->
-infixr 6 <>,<+>
+infixr 6 <.>,<+>
 
 isEmptyDoc :: Doc -> Bool
 isEmptyDoc doc
@@ -89,17 +89,17 @@ angled          = encloseSep langle   rangle  comma
 
 encloseSep left right sep ds
     = case ds of
-        []  -> left <> right
-        [d] -> left <> d <> right
-        _   -> align (cat (zipWith (<>) (left : repeat sep) ds) <> right)
+        []  -> left <.> right
+        [d] -> left <.> d <.> right
+        _   -> align (cat (zipWith (<.>) (left : repeat sep) ds) <.> right)
 
 
 -----------------------------------------------------------
--- punctuate p [d1,d2,...,dn] => [d1 <> p,d2 <> p, ... ,dn]
+-- punctuate p [d1,d2,...,dn] => [d1 <.> p,d2 <.> p, ... ,dn]
 -----------------------------------------------------------
 punctuate p []      = []
 punctuate p [d]     = [d]
-punctuate p (d:ds)  = (d <> p) : punctuate p ds
+punctuate p (d:ds)  = (d <.> p) : punctuate p ds
 
 
 -----------------------------------------------------------
@@ -112,26 +112,26 @@ vsep            = fold (<->) . filter (not . isEmpty)
 
 cat             = group . vcat
 fillCat         = fold (<//>)
-hcat            = fold (<>) 
+hcat            = fold (<.>)
 vcat            = fold (<-->) . filter (not . isEmpty)
 
 fold f []       = empty
 fold f ds       = foldr1 f ds
 
-x <> y          = x `beside` y
-x <+> y         = x <> space <> y
+x <.> y          = x `beside` y
+x <+> y         = x <.> space <.> y
 
 Empty </> x     = x
 x </> Empty     = x
-x </> y         = x <> softline <> y
+x </> y         = x <.> softline <.> y
 
-x <//> y        = x <> softbreak <> y
+x <//> y        = x <.> softbreak <.> y
 
 Empty <-> x     = x
 x <-> Empty     = x
-x <-> y         = x <> line <> y
+x <-> y         = x <.> line <.> y
 
-x <--> y        = x <> linebreak <> y
+x <--> y        = x <.> linebreak <.> y
 
 softline        = group line
 softbreak       = group linebreak
@@ -142,7 +142,7 @@ braces          = enclose lbrace rbrace
 parens          = enclose lparen rparen
 angles          = enclose langle rangle
 brackets        = enclose lbracket rbracket
-enclose l r x   = l <> x <> r
+enclose l r x   = l <.> x <.> r
 
 lparen          = char '('
 rparen          = char ')'
@@ -170,9 +170,9 @@ equals          = char '='
 
 -- string is like "text" but replaces '\n' by "line"
 string ""       = empty
-string ('\n':s) = line <> string s
+string ('\n':s) = line <.> string s
 string s        = case (span (/='\n') s) of
-                    (xs,ys) -> text xs <> string ys
+                    (xs,ys) -> text xs <.> string ys
 
 bool :: Bool -> Doc
 bool b          = text (show b)
@@ -260,13 +260,13 @@ fill f d        = width d (\w ->
                   if (w >= f) then empty
                               else text' (spaces (f - w)))
 
-width d f       = column (\k1 -> d <> column (\k2 -> f (k2 - k1)))
+width d f       = column (\k1 -> d <.> column (\k2 -> f (k2 - k1)))
 
 
 -----------------------------------------------------------
 -- semi primitive: Alignment and indentation
 -----------------------------------------------------------
-indent i d      = hang i (text' (spaces i) <> d)
+indent i d      = hang i (text' (spaces i) <.> d)
 
 hang i d        = align (nest i d)
 
@@ -296,7 +296,7 @@ data SimpleDoc  = SEmpty
                 | SChar Int Char SimpleDoc
                 | SText Int T.Text SimpleDoc
                 | SLine Int SimpleDoc
-                | SColorOpen Bool Color SimpleDoc 
+                | SColorOpen Bool Color SimpleDoc
                 | SColorClose SimpleDoc
 
 
@@ -369,7 +369,7 @@ renderPrettyB rfrac w x
       --         n = indentation of current line
       --         k = current column
       --        (ie. (k >= n) && (k - n == count of inserted characters)
-      best b n k []      
+      best b n k []
         = mempty
       best b n k ((i,d):ds)
         = case d of
@@ -459,7 +459,7 @@ renderCompact x
                         Union x y   -> scan k (y:ds)
                         Column f    -> scan k (f k:ds)
                         Nesting f   -> scan k (f 0:ds)
-                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))  
+                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))
                         ColoredEnd   -> SColorClose (scan k ds)
 
 -----------------------------------------------------------
@@ -508,7 +508,7 @@ writePretty p doc
 
 writePrettyLn :: Printer p => p -> Doc -> IO ()
 writePrettyLn p doc
-  = writePretty p (doc <> linebreak)
+  = writePretty p (doc <.> linebreak)
 
 -----------------------------------------------------------
 -- default pretty printers: show, putDoc and hPutDoc
@@ -518,12 +518,12 @@ instance Show Doc where
 
 putDoc :: Doc -> IO ()
 putDoc doc              = hPutDoc stdout doc
-                             
+
 
 hPutDoc :: Handle -> Doc -> IO ()
-hPutDoc handle doc      
+hPutDoc handle doc
   = hPutDocW defaultWidth handle doc
-    
+
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
   = TL.hPutStr handle (B.toLazyText $ renderPrettyB 0.5 width doc)
@@ -564,7 +564,7 @@ indentation 15 = "               "
 indentation 16 = "                "
 indentation 17 = "                 "
 indentation n  = spaces n
-                
+
 defaultWidth :: Int
 defaultWidth = 200
-             
+

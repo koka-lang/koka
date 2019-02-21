@@ -33,7 +33,7 @@ import Kind.Pretty    ( kindColon )
 import Type.Type
 import Type.Pretty
 import qualified Core.Core as Core
-  
+
 {--------------------------------------------------------------------------
    Newtype map
 --------------------------------------------------------------------------}
@@ -87,9 +87,9 @@ instance Show Constructors where
 instance Pretty Constructors where
   pretty syns
     = ppConstructors Type.Pretty.defaultEnv syns
-    
+
 ppConstructors showOptions (Constructors m)
-    = vcat [fill 8 (pretty name) <> kindColon (colors showOptions) <+>
+    = vcat [fill 8 (pretty name) <.> kindColon (colors showOptions) <+>
             ppType showOptions (conInfoType conInfo)
            | (name,conInfo) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
 

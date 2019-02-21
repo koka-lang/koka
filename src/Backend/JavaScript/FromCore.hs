@@ -6,7 +6,7 @@
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
 
-module Backend.JavaScript.FromCore 
+module Backend.JavaScript.FromCore
       ( javascriptFromCore )
  where
 
@@ -19,22 +19,22 @@ import Data.Char
 import qualified Data.Set as S
 
 -- import Kind.Kind
-import Type.Type 
+import Type.Type
 -- import Type.TypeVar
 -- import Type.Kind( getKind )
 -- import Type.Assumption( getArity )
 import qualified Type.Pretty as Pretty
 
-import Lib.PPrint                
+import Lib.PPrint
 -- import qualified Lib.PPrint
-import Common.Name 
+import Common.Name
 -- import Common.Range
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
 import Common.Syntax
 
-import Core.Core  
+import Core.Core
 import Core.Pretty ()
 
 type CommentDoc   = Doc
@@ -52,7 +52,7 @@ externalNames
     ]
 
 --------------------------------------------------------------------------
--- Generate JavaScript code from System-F core language 
+-- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
 javascriptFromCore :: Maybe (Name) -> Core -> Doc
@@ -62,46 +62,46 @@ javascriptFromCore mbMain core
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name) -> Core -> Asm Doc 
+genModule :: Maybe (Name) -> Core -> Asm Doc
 genModule mbMain core
-  =  do let externs = vcat (concatMap includeExternal (coreProgExternals core)) 
+  =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
         decls1 <- genTypeDefs (coreProgTypeDefs core)
         decls2 <- genGroups   (coreProgDefs core) -- (removeTypeLamApp $ coreProgDefs core)
         let imports = map importName (coreProgImports core)
             mainEntry = case mbMain of
                           Nothing -> empty
-                          Just (name) -> text " " <-> text "// koka main entry:" <-> 
-                                           ppName (unqualify name) <> text "();"
-        return $  text "// koka generated module: " <> string (showName (coreProgName core)) 
+                          Just (name) -> text " " <-> text "// koka main entry:" <->
+                                           ppName (unqualify name) <.> text "();"
+        return $  text "// koka generated module: " <.> string (showName (coreProgName core))
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
-              <-> text "define(" <> ( -- (squotes $ ppModFileName $ coreProgName core) <> comma <-> 
-                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <> comma <+>
-                   text "function" <> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
+              <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
+                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst externalImports) ++ map moduleImport (coreProgImports core))) <.> comma <+>
+                   text "function" <.> tupled ( {- (text "_external"): -} (map snd externalImports ++ map ppModName imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
                     , text " "
                     , text "// koka declarations:"
-                    , externs 
-                    , decls1  
-                    , decls2  
+                    , externs
+                    , decls1
+                    , decls2
                     , mainEntry
                     , text " "
                     , text "// koka exports:"
                     , text "return" <+> encloseSep (text "{ ")
                                                    (text " }")
                                                    (text ", ")
-                                                   (map 
-                                                     (\n-> squotes (ppName n) <> text ":" <+> ppName n) 
+                                                   (map
+                                                     (\n-> squotes (ppName n) <.> text ":" <+> ppName n)
                                                      ( exportedConstrs ++ exportedValues )
                                                    )
-                                     <> semi 
+                                     <.> semi
                     ])
-                 ) 
+                 )
               <-> text "});"
   where
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
-                      in map unqualify $ concatMap f (coreProgDefs core) 
+                      in map unqualify $ concatMap f (coreProgDefs core)
     exportedConstrs = let f (Synonym _ _)    = []
                           f (Data info _ vs) = let xs = zip vs $ map conInfoName (dataInfoConstrs info)
                                                in  map snd $ filter (\(v,_)-> v == Public) xs
@@ -110,11 +110,11 @@ genModule mbMain core
 
     externalImports :: [(Doc,Doc)]
     externalImports
-      = concatMap importExternal (coreProgExternals core)                      
+      = concatMap importExternal (coreProgExternals core)
 
 moduleImport :: Import -> Doc
 moduleImport imp
-  = squotes (text (if null (importPackage imp) then "." else importPackage imp) <> text "/" <> text (moduleNameToPath  (importName imp)))
+  = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
 
 includeExternal :: External -> [Doc]
 includeExternal (ExternalInclude includes range)
@@ -124,7 +124,7 @@ includeExternal (ExternalInclude includes range)
                                  Just s -> s
                                  Nothing -> failure ("javascript backend does not support external inline at " ++ show range)
     in [align $ vcat $! map text (lines content)]
-includeExternal _  = []  
+includeExternal _  = []
 
 
 importExternal :: External -> [(Doc,Doc)]
@@ -136,11 +136,11 @@ importExternal (ExternalImport imports range)
                                  Nothing -> failure ("javascript backend does not support external import at " ++ show range)
     in [(text s,pretty nm)]
 importExternal _
-  = []                                 
+  = []
 
 ---------------------------------------------------------------------------------
 -- Generate javascript statements for value definitions
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 
 genGroups :: [DefGroup] -> Asm Doc
 genGroups groups
@@ -163,8 +163,8 @@ genDef def@(Def name tp expr vis sort rng comm)
                     case mdoc of
                       Just doc -> return doc
                       Nothing  -> genStat (ResultAssign name Nothing) expr
-       return $ vcat [ if null comm 
-                         then empty 
+       return $ vcat [ if null comm
+                         then empty
                          else align (vcat (space : map text (lines (trim comm)))) {- already a valid javascript comment -}
                      , defDoc
                      ]
@@ -173,14 +173,14 @@ genDef def@(Def name tp expr vis sort rng comm)
     trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
 
 tryFunDef :: Name -> CommentDoc -> Expr -> Asm (Maybe Doc)
-tryFunDef name comment expr 
+tryFunDef name comment expr
   = case expr of
-      TypeApp e _   ->             tryFunDef  name comment e 
+      TypeApp e _   ->             tryFunDef  name comment e
       TypeLam _ e   ->             tryFunDef  name comment e
       Lam args body -> do inStat <- getInStatement
                           if (inStat)
                            then return Nothing
-                           else do fun <- genFunDef' name args comment body 
+                           else do fun <- genFunDef' name args comment body
                                    return (Just fun)
       _             -> return Nothing
   where
@@ -188,20 +188,20 @@ tryFunDef name comment expr
     genFunDef' name params comm body
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
-           bodyDoc <- (if isTailCall then withStatement else id) 
+           bodyDoc <- (if isTailCall then withStatement else id)
                       (genStat (ResultReturn (Just name) params) body)
-           return   $ text "function" <+> ppName (unqualify name) 
-                                       <> tupled args 
+           return   $ text "function" <+> ppName (unqualify name)
+                                       <.> tupled args
                                       <+> comm
                                       <+> ( if isTailCall
                                               then tcoBlock bodyDoc
-                                              else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found") 
-                                                <> block bodyDoc
+                                              else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
+                                                <.> block bodyDoc
                                           )
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 
 genTypeDefs :: TypeDefGroups -> Asm Doc
 genTypeDefs groups
@@ -222,18 +222,18 @@ genTypeDef (Data info _ _)
                                        name <- genName (conInfoName c)
                                        penv <- getPrettyEnv
                                        if (conInfoName c == nameTrue)
-                                        then return (text "var" <+> name <+> text "=" <+> text "true" <> semi)
+                                        then return (text "var" <+> name <+> text "=" <+> text "true" <.> semi)
                                         else if (conInfoName c == nameFalse)
-                                        then return (text "var" <+> name <+> text "=" <+> text "false" <> semi)
+                                        then return (text "var" <+> name <+> text "=" <+> text "false" <.> semi)
                                         else return $ case repr of
-                                          ConEnum{}   
-                                             -> text "var" <+> name <+> text "=" <+> int (conTag repr) <> semi <+> comment (Pretty.ppType penv (conInfoType c))
-                                          ConSingleton{}                                             
-                                             -> text "var" <+> name <+> text "=" <+> 
+                                          ConEnum{}
+                                             -> text "var" <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                                          ConSingleton{}
+                                             -> text "var" <+> name <+> text "=" <+>
                                                   text (if conInfoName c == nameOptionalNone then "undefined" else "null")
-                                                   <> semi <+> comment (Pretty.ppType penv (conInfoType c))
+                                                   <.> semi <+> comment (Pretty.ppType penv (conInfoType c))
                                           -- tagless
-                                          ConSingle{}  -> genConstr penv c repr name args [] 
+                                          ConSingle{}  -> genConstr penv c repr name args []
                                           ConAsCons{}  -> genConstr penv c repr name args []
                                           _            -> genConstr penv c repr name args [(tagField, int (conTag repr))]
 
@@ -244,15 +244,15 @@ genTypeDef (Data info _ _)
     genConstr penv c repr name args tagFields
       = if null args
          then debugWrap "genConstr: null fields"
-            $ text "var" <+> name <+> text "=" <+> object tagFields <> semi <+> comment (Pretty.ppType penv (conInfoType c)) 
+            $ text "var" <+> name <+> text "=" <+> object tagFields <.> semi <+> comment (Pretty.ppType penv (conInfoType c))
          else debugWrap "genConstr: with fields"
-            $ text "function" <+> name <> tupled args <+> comment (Pretty.ppType penv (conInfoType c)) 
-          <+> block ( text "return" <+> 
-                      (if conInfoName c == nameOptional then head args 
-                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <> semi )
+            $ text "function" <+> name <.> tupled args <+> comment (Pretty.ppType penv (conInfoType c))
+          <+> block ( text "return" <+>
+                      (if conInfoName c == nameOptional then head args
+                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
 
 ---------------------------------------------------------------------------------
--- Statements 
+-- Statements
 ---------------------------------------------------------------------------------
 
 -- | Applies a return context
@@ -261,20 +261,20 @@ getResult result doc
   = if isEmptyDoc doc
       then text ""
       else case result of
-             ResultReturn _ _  -> text "return" <+> doc <> semi
+             ResultReturn _ _  -> text "return" <+> doc <.> semi
              ResultAssign n ml -> ( if isWildcard n
-                                      then doc <> semi
-                                      else text "var" <+> ppName (unqualify n) <+> text "=" <+> doc <> semi
+                                      then doc <.> semi
+                                      else text "var" <+> ppName (unqualify n) <+> text "=" <+> doc <.> semi
                                   ) <-> case ml of
-                                          Nothing -> empty 
-                                          Just l  -> text "break" <+> ppName l <> semi 
+                                          Nothing -> empty
+                                          Just l  -> text "break" <+> ppName l <.> semi
 
 tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
 tryTailCall result expr
   = case expr of
      -- Tailcall case 1
      App (Var n _) args | ( case result of
-                              ResultReturn (Just m) _ -> m == getName n 
+                              ResultReturn (Just m) _ -> m == getName n
                               _                       -> False
                           )
        -> do let (ResultReturn _ params) = result
@@ -283,7 +283,7 @@ tryTailCall result expr
 
      -- Tailcall case 2
      App (TypeApp (Var n _) _) args | ( case result of
-                                        ResultReturn (Just m) _ -> m == getName n 
+                                        ResultReturn (Just m) _ -> m == getName n
                                         _                       -> False
                                       )
        -> do let (ResultReturn _ params) = result
@@ -301,7 +301,7 @@ tryTailCall result expr
            docs2             <- mapM genTName varNames
            let assigns    = map (\(p,a)-> if p == a
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
-                                            else debugComment ("genOverride: preparing tailcall") <> p <+> text "=" <+> a <> semi
+                                            else debugComment ("genOverride: preparing tailcall") <.> p <+> text "=" <+> a <.> semi
                                 ) (zip docs1 docs2)
            return $ vcat stmts <-> vcat assigns
 
@@ -311,14 +311,14 @@ genStat result expr
   = fmap (debugWrap "genStat") $
     case extractExternal expr of
       Just (tn,fs,es)
-        -> do (statDoc, exprDoc) <- genExternalExpr tn fs es 
+        -> do (statDoc, exprDoc) <- genExternalExpr tn fs es
               return (statDoc <-> getResult result exprDoc)
       Nothing
-        -> do mdoc <- tryTailCall result expr 
+        -> do mdoc <- tryTailCall result expr
               case mdoc of
                 Just doc
                   -> return doc
-                Nothing 
+                Nothing
                   -> case expr of
                         -- If expression is inlineable, inline it
                         _  | isInlineableExpr expr
@@ -329,7 +329,7 @@ genStat result expr
                            -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
                                                                                  then do d       <- genInline e
                                                                                          return (text "", d)
-                                                                                 else do (sd,vn) <- genVarBinding e 
+                                                                                 else do (sd,vn) <- genVarBinding e
                                                                                          vd      <- genTName vn
                                                                                          return (sd, vd)
                                                                          ) exprs
@@ -362,13 +362,13 @@ genMatch result scrutinees branches
                    -> do (stmts1, expr1) <- genExpr r1
                          (stmts2, expr2) <- genExpr r2
                          tnameDocs       <- mapM genTName tnames
-                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts1 <-> text "return" <+> expr1 <> semi)
-                                                        <-> text "else" <+> block (stmts2 <-> text "return" <+> expr2 <> semi)
+                         return $ text "if" <.> parens (head tnameDocs ) <+> block (stmts1 <-> text "return" <+> expr1 <.> semi)
+                                                        <-> text "else" <+> block (stmts2 <-> text "return" <+> expr2 <.> semi)
                  Con tn _
                     | getName tn == nameTuple 0
                    -> do (stmts, expr) <- genExpr r1
                          tnameDocs     <- mapM genTName tnames
-                         return $ text "if" <> parens (head tnameDocs ) <+> block (stmts <-> text "return" <+> expr <> semi)
+                         return $ text "if" <.> parens (head tnameDocs ) <+> block (stmts <-> text "return" <+> expr <.> semi)
                  _ -> fail "Backend.JavaScript.genMatch: found something different than () or return in explicit return"
 -}
         [Branch [p1] [Guard t1 e1], Branch [p2] [Guard t2 e2]]
@@ -377,17 +377,17 @@ genMatch result scrutinees branches
           && isInlineableExpr e1
           && isInlineableExpr e2
           -> do let nameDoc = head scrutinees
-                let test    = genTest  (nameDoc, p1) 
+                let test    = genTest  (nameDoc, p1)
                 if (isExprTrue e1 && isExprFalse e2)
                   then return $ getResult result $ parens (conjunction test)
                   else do doc1 <- withNameSubstitutions (getSubstitutions nameDoc p1) (genInline e1)
                           doc2 <- withNameSubstitutions (getSubstitutions nameDoc p2) (genInline e2)
                           return $ debugWrap "genMatch: conditional expression"
                                  $ getResult result
-                                 $ parens (conjunction test) <+> text "?" <+> doc1 <+> text ":" <+> doc2 
+                                 $ parens (conjunction test) <+> text "?" <+> doc1 <+> text ":" <+> doc2
 
         bs
-           | all (\b-> length (branchGuards   b) == 1) bs 
+           | all (\b-> length (branchGuards   b) == 1) bs
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
           -> do xs <- mapM (withStatement . genBranch True result scrutinees) bs
                 return $  debugWrap "genMatch: guard-free case"
@@ -395,23 +395,23 @@ genMatch result scrutinees branches
                                                              <+> block d <-> text "else "
                                       ) (init xs)
                                 )
-                      <> block (snd (last xs))
+                      <.> block (snd (last xs))
 
         _ -> do (labelF, result') <- case result of
                       ResultReturn _ _        -> return (id, result)
                       ResultAssign n (Just _) -> return (id, result) -- wohoo, we can jump out from deep in!
-                      ResultAssign n Nothing  -> return ( \d-> text "match: " <> block d
+                      ResultAssign n Nothing  -> return ( \d-> text "match: " <.> block d
                                                         , ResultAssign n (Just $ newName "match")
                                                         )
                 bs <- mapM (withStatement . genBranch False result' scrutinees) (init branches)
-                b  <-      (withStatement . genBranch True  result' scrutinees) (last branches) 
+                b  <-      (withStatement . genBranch True  result' scrutinees) (last branches)
                 let ds = map (\(cds,stmts)-> if null cds
                                                   then stmts
                                                   else text "if" <+> parens (conjunction cds)
                                                                 <+> block stmts
                              ) bs
                 let d  = snd b
-                return $ debugWrap "genMatch: regular case" 
+                return $ debugWrap "genMatch: regular case"
                        $ labelF (vcat ds <-> d)
   where
     -- | Generates a statement for a branch with given return context
@@ -425,17 +425,17 @@ genMatch result scrutinees branches
            gs <- mapM (se . genGuard False      result) (init guards)
            g  <-      (se . genGuard lastBranch result) (last guards)
            return (conditions, debugWrap "genBranch" $ vcat gs <-> g)
-    
+
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
-              PatCon tn args _ _ info 
-                -> concatMap (\(pat',fn)-> getSubstitutions 
-                                             (nameDoc <> (if (getName tn == nameOptional) then empty else (text "."  <> fn)))
+              PatCon tn args _ _ info
+                -> concatMap (\(pat',fn)-> getSubstitutions
+                                             (nameDoc <.> (if (getName tn == nameOptional) then empty else (text "."  <.> fn)))
                                              pat'
                             ) (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
-              PatWild             -> [] 
+              PatWild             -> []
 
     genGuard  :: Bool -> Result -> Guard -> Asm Doc
     genGuard lastBranchLastGuard result (Guard t expr)
@@ -446,20 +446,20 @@ genMatch result scrutinees branches
            exprSt          <- genStat result' expr
            return $ if isExprTrue t
                       then exprSt
-                      else testSt <-> text "if" <+> parens testE <> block exprSt
+                      else testSt <-> text "if" <+> parens testE <.> block exprSt
 
     -- | Generates a list of boolish expression for matching the pattern
     genTest :: (Doc, Pattern) -> [Doc]
     genTest (scrutinee,pattern)
       = case pattern of
               PatWild ->  []
-              PatVar _ pat 
+              PatVar _ pat
                 -> genTest (scrutinee,pat)
               PatCon tn fields repr _ info
                 | getName tn == nameTrue
                 -> [scrutinee]
                 | getName tn == nameFalse
-                -> [text "!" <> scrutinee]
+                -> [text "!" <.> scrutinee]
                 | otherwise
                 -> case repr of
                      ConEnum _ tag
@@ -476,13 +476,13 @@ genMatch result scrutinees branches
                        | otherwise
                        -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use === instead of == since undefined == null (for optional arguments)
                               fieldTests = concatMap
-                                             (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
+                                             (\(field,fieldName) -> genTest (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
                      ConNormal{}
-                       -> let conTest    = debugWrap "genTest: normal" $ scrutinee <> dot <> tagField <+> text "===" <+> int (conTag repr)
+                       -> let conTest    = debugWrap "genTest: normal" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int (conTag repr)
                               fieldTests  =  concatMap
-                                             (\(field,fieldName) -> genTest (scrutinee <> dot <> fieldName, field) ) 
+                                             (\(field,fieldName) -> genTest (scrutinee <.> dot <.> fieldName, field) )
                                              ( zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
 
@@ -494,14 +494,14 @@ genMatch result scrutinees branches
       where
         f s pattern
           = case pattern of
-              PatWild 
+              PatWild
                 -> do return []
               PatVar tname pat
-                -> do let doc = text "var" <+> ppName (getName tname) <+> text "=" <+> s <> semi
+                -> do let doc = text "var" <+> ppName (getName tname) <+> text "=" <+> s <.> semi
                       docs <- f (ppName (getName tname)) pat -- avoid mutiple a.b.c.d call
                       return (doc:docs)
-              PatCon _ fields _ _ info 
-                -> do fmap concat $ mapM (\(field,fn) -> f (s <> text "." <> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1. WTF?
+              PatCon _ fields _ _ info
+                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1. WTF?
 -}
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [Doc] -> Doc
@@ -510,38 +510,38 @@ genMatch result scrutinees branches
 
 ---------------------------------------------------------------------------------
 -- Expressions that produce statements on their way
----------------------------------------------------------------------------------       
+---------------------------------------------------------------------------------
 
 -- | Generates javascript statements and a javascript expression from core expression
-genExpr :: Expr -> Asm (Doc,Doc)       
+genExpr :: Expr -> Asm (Doc,Doc)
 genExpr expr
   = case extractExternal expr of
       Just (tn,fs,es)
-        -> genExternalExpr tn fs es 
+        -> genExternalExpr tn fs es
       Nothing
         -> case expr of
              -- check whether the expression is pure an can be inlined
              _  | isInlineableExpr expr
                -> do doc <- genInline expr
                      return (empty,doc)
-             
+
              TypeApp e _ -> genExpr e
              TypeLam _ e -> genExpr e
-             
+
              -- handle not inlineable cases
              App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
                -> genExpr arg
-             App f args 
+             App f args
                 -- | isFunExpr f
-               -- -> 
+               -- ->
                --  | otherwise
                -> case extractList expr of
                     Just (xs,tl) -> genList xs tl
-                    Nothing  
-                      -> do (decls,fdoc:docs) <- genExprs (f:args) 
-                            return (vcat decls, fdoc <> tupled docs <> debugComment "genExpr: App")
+                    Nothing
+                      -> do (decls,fdoc:docs) <- genExprs (f:args)
+                            return (vcat decls, fdoc <.> tupled docs <.> debugComment "genExpr: App")
 
-             Let groups body 
+             Let groups body
                -> do decls1       <- genGroups groups
                      (decls2,doc) <- genExpr body
                      return (decls1 <-> decls2, doc)
@@ -557,7 +557,7 @@ extractList :: Expr -> Maybe ([Expr],Expr)
 extractList e
   = let (elems,tl) = extract [] e
     in if (length elems > 10) -- only use inlined array for larger lists
-        then Just (elems,tl) 
+        then Just (elems,tl)
         else Nothing
   where
     extract acc expr
@@ -570,20 +570,20 @@ genList :: [Expr] -> Expr -> Asm (Doc,Doc)
 genList elems tl
   = do (decls,docs) <- genExprs elems
        (tdecl,tdoc) <- genExpr tl
-       return (vcat (decls ++ [tdecl]), text "$std_core.conslist" <> tupled [list docs, tdoc])
+       return (vcat (decls ++ [tdecl]), text "$std_core.conslist" <.> tupled [list docs, tdoc])
 
 
 genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
-genExternalExpr tname format args 
+genExternalExpr tname format args
   | getName tname == nameReturn
   = do (statDoc,exprDoc) <- genExpr (head args)
-       return (statDoc <-> text "return" <+> exprDoc <> semi <> debugComment "premature return statement (2)"
+       return (statDoc <-> text "return" <+> exprDoc <.> semi <.> debugComment "premature return statement (2)"
               , text "") -- emptyness of doc is important! no other way to tell to not generate assignment/return/whatever!
   | otherwise
   = do (statDocs,argDocs) <- genExprs args
        doc <- genExternal tname format argDocs
-       return ( debugComment "<genExternalExpr.stmt>" <> vcat statDocs <> debugComment "</genExternalExpr.stmt>"
-              , debugComment "<genExternalExpr.expr>" <> doc           <> debugComment "</genExternalExpr.expr>"
+       return ( debugComment "<genExternalExpr.stmt>" <.> vcat statDocs <.> debugComment "</genExternalExpr.stmt>"
+              , debugComment "<genExternalExpr.expr>" <.> doc           <.> debugComment "</genExternalExpr.expr>"
               )
 
 genExprs :: [Expr] -> Asm ([Doc],[Doc])
@@ -603,7 +603,7 @@ genVarBinding expr
 
 ---------------------------------------------------------------------------------
 -- Pure expressions
---------------------------------------------------------------------------------- 
+---------------------------------------------------------------------------------
 
 genPure   :: Expr -> Asm Doc
 genPure expr
@@ -611,7 +611,7 @@ genPure expr
       Just (tn,fs,es)
         -> do vs  <- genVarNames (countExternalArguments tn fs)
               doc <- genExternal tn fs vs
-              return $ text "function" <> tupled vs <+> block ( text "return" <+> doc <> semi )
+              return $ text "function" <.> tupled vs <+> block ( text "return" <+> doc <.> semi )
       Nothing
         -> case expr of
              TypeApp e _ -> genPure e
@@ -619,7 +619,7 @@ genPure expr
              Var name info
                -> do doc <- genTName name
                      return $ debugComment (show name)
-                           <> doc
+                           <.> doc
              Con name repr
                -> genTName name
              Lit l
@@ -627,7 +627,7 @@ genPure expr
              Lam params body
                -> do args    <- mapM genCommentTName params
                      bodyDoc <- genStat (ResultReturn Nothing params) body
-                     return (text "function" <> tupled args <+> block bodyDoc)
+                     return (text "function" <.> tupled args <+> block bodyDoc)
              _ -> failure ("JavaScript.FromCore.genPure: invalid expression:\n" ++ show expr)
 
 isPat :: Bool -> Pattern -> Bool
@@ -636,7 +636,7 @@ isPat b q
       PatWild     -> False
       PatVar _ q' -> isPat b q'
       PatCon {}   -> getName (patConName q) == if b then nameTrue else nameFalse
-  
+
 -- | Generates an effect-free javasript expression
 --   NOTE: Throws an error if expression is not guaranteed to be effectfree
 genInline :: Expr -> Asm Doc
@@ -648,21 +648,21 @@ genInline expr
         -> case expr of
             _  | isPureExpr expr
               -> genPure expr
-            TypeLam _ e -> genInline e 
+            TypeLam _ e -> genInline e
             TypeApp e _ -> genInline e
             App (TypeApp (Con name info) _) [arg]  | getName name == nameOptional
               -> genInline arg
-            App f args     
+            App f args
               -> do fdoc    <- genInline f
                     argDocs <- mapM genInline args
-                    return (fdoc <> tupled argDocs <> debugComment "genInline: App")
+                    return (fdoc <.> tupled argDocs <.> debugComment "genInline: App")
             _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
   where
     genExternalInline :: TName -> String -> [Expr] -> Asm Doc
-    genExternalInline tname format args 
+    genExternalInline tname format args
       = do argDocs <- mapM genInline args
            genExternal tname format argDocs
-                       
+
 countExternalArguments :: TName -> String -> Int
 countExternalArguments tname format
   = let name = getName tname
@@ -671,13 +671,13 @@ countExternalArguments tname format
 genExternal :: TName -> String -> [Doc] -> Asm Doc
 genExternal tname format argDocs
   = do let name = getName tname
-       return (debugComment ("<genExternal format='" ++ format ++ "'>") <> ppExternalF name format argDocs <> debugComment "</genExternal>")
+       return (debugComment ("<genExternal format='" ++ format ++ "'>") <.> ppExternalF name format argDocs <.> debugComment "</genExternal>")
   where
     ppExternalF :: Name -> String -> [Doc] -> Doc
     ppExternalF name []  args
      = empty
     ppExternalF name k@('\\':'#':xs) args
-     = char '#' <> ppExternalF name xs args
+     = char '#' <.> ppExternalF name xs args
     ppExternalF name k@('#':'#':xs) args
      = failure ("Backend.JavaScript.FromCore: type arguments in javascript external in: " ++ show tname)
     ppExternalF name k@('#':y:xs)  args
@@ -685,10 +685,10 @@ genExternal tname format argDocs
         then (let n = length args
                   i = fromEnum y - fromEnum '1'
               in assertion ("illegal index in external: " ++ show tname ++ "("++k++"): index: " ++ show i) (i < n) $
-                 args!!i <> ppExternalF name xs args)
-        else char y <> ppExternalF name xs args
+                 args!!i <.> ppExternalF name xs args)
+        else char y <.> ppExternalF name xs args
     ppExternalF name (x:xs)  args
-     = char x <> ppExternalF name xs args
+     = char x <.> ppExternalF name xs args
 
 genDefName :: TName -> Asm Doc
 genDefName tname
@@ -723,7 +723,7 @@ genVarNames i = do ns <- newVarNames i
 genCommentTName :: TName -> Asm Doc
 genCommentTName (TName n t)
   = do env <- getPrettyEnv
-       return $ ppName n <+> comment (Pretty.ppType env t ) 
+       return $ ppName n <+> comment (Pretty.ppType env t )
 
 ---------------------------------------------------------------------------------
 -- Classification
@@ -737,8 +737,8 @@ extractExternal expr
       App var@(Var tname (InfoExternal formats)) args
         -> Just (tname, format tname formats, args)
       _ -> Nothing
-  where 
-    format tn fs 
+  where
+    format tn fs
       = case lookup JS fs of
           Nothing -> case lookup Default fs of
                        Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
@@ -750,7 +750,7 @@ isFunExpr expr
   = case expr of
       TypeApp e _   -> isFunExpr e
       TypeLam _ e   -> isFunExpr e
-      Lam args body -> True 
+      Lam args body -> True
       _             -> False
 
 isInlineableExpr :: Expr -> Bool
@@ -763,15 +763,15 @@ isInlineableExpr expr
 
 isPureExpr :: Expr -> Bool
 isPureExpr expr
-  = case expr of  
+  = case expr of
       TypeApp expr _  -> isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
       Var n _  | getName n == nameReturn -> False -- make sure return will never be inlined
                | otherwise               -> True
       Con _ _ -> True
-      Lit _   -> True      
+      Lit _   -> True
       Lam _ _ -> True
-      _       -> False             
+      _       -> False
 
 
 isTailCalling :: Expr -> Name -> Bool
@@ -792,7 +792,7 @@ isTailCalling expr n
       App _ _           -> False                      -- other applications don't apply
       Let _ e           -> e `isTailCalling` n        -- tail calls can only happen in the actual body
       Case _ bs         -> any f1 bs                  -- match statement get analyzed in depth
-  where                  
+  where
     f1 (Branch _ gs) = any f2 gs                      -- does any of the guards tailcall?
     f2 (Guard _ e)   = e `isTailCalling` n            -- does the guarded expression tailcall?
 
@@ -817,11 +817,11 @@ instance Monad Asm where
                                                  Asm b -> b env st1)
 
 runAsm :: Env -> Asm Doc -> Doc
-runAsm initEnv (Asm asm) 
+runAsm initEnv (Asm asm)
   = case asm initEnv initSt of
       (doc,st) -> doc
 
-data St  = St  { uniq     :: Int             
+data St  = St  { uniq     :: Int
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
@@ -833,7 +833,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign Name (Maybe Name)    -- variable name and optional label to break
 
-initSt = St 0 
+initSt = St 0
 
 instance HasUnique Asm where
   updateUnique f
@@ -842,13 +842,13 @@ instance HasUnique Asm where
 updateSt f
   = Asm (\env st -> (st,f st))
 
-getSt 
+getSt
   = updateSt id
 
 setSt st
   = updateSt (const st)
 
-getEnv 
+getEnv
   = Asm (\env st -> (env, st))
 
 withEnv f (Asm asm)
@@ -859,7 +859,7 @@ localUnique asm
        x <- asm
        setUnique u
        return x
-  
+
 newVarName :: String -> Asm Name
 newVarName s
   = do u <- unique
@@ -895,7 +895,7 @@ withStatement asm
   = withEnv (\env -> env{ inStatement = True }) asm
 
 getInStatement :: Asm Bool
-getInStatement 
+getInStatement
   = do env <- getEnv
        return (inStatement env)
 
@@ -913,24 +913,24 @@ ppLit lit
       LitString s -> dquotes (hcat (map escape s))
     where
       escape c
-        = if (c < ' ') 
+        = if (c < ' ')
            then (if (c=='\n') then text "\\n"
                  else if (c == '\r') then text "\\r"
                  else if (c == '\t') then text "\\t"
-                 else text "\\u" <> text (showHex 4 (fromEnum c)))
+                 else text "\\u" <.> text (showHex 4 (fromEnum c)))
           else if (c <= '~')
            then (if (c == '\"') then text "\\\""
-                 else if (c=='\'') then text "\\'" 
+                 else if (c=='\'') then text "\\'"
                  else if (c=='\\') then text "\\\\"
                  else char c)
           else if (fromEnum c <= 0xFFFF)
-           then text "\\u" <> text (showHex 4 (fromEnum c))
-           else text "\\U" <> text (showHex 8 (fromEnum c))
+           then text "\\u" <.> text (showHex 4 (fromEnum c))
+           else text "\\U" <.> text (showHex 8 (fromEnum c))
 
 ppName :: Name -> Doc
 ppName name
   = if isQualified name
-     then ppModName (qualifier name) <> dot <> encode False (unqualify name)
+     then ppModName (qualifier name) <.> dot <.> encode False (unqualify name)
      else encode False name
 
 ppQName :: Name -> Name -> Doc
@@ -941,12 +941,12 @@ ppQName modName name
 
 ppModName :: Name -> Doc
 ppModName name
-  = text "$" <> encode True (name)
+  = text "$" <.> encode True (name)
 
 encode :: Bool -> Name -> Doc
 encode isModule name
-  = let s = show name       
-    in if (isReserved s) 
+  = let s = show name
+    in if (isReserved s)
          then text ('$' : s)
          else text ( (asciiEncode isModule s))
 
@@ -967,7 +967,7 @@ reserved
     ++ -- word literals
     [ "null"
     , "Infinity"
-    , "NaN" 
+    , "NaN"
     ]
     ++ -- JavaScript keywords
     [ "break"
@@ -1016,22 +1016,22 @@ reserved
 
 block :: Doc -> Doc
 block doc
-  = text "{" <--> tab doc <--> text "}"        
+  = text "{" <--> tab doc <--> text "}"
 
 
 tcoBlock :: Doc -> Doc
 tcoBlock doc
-  = text "{ tailcall: while(1)" <-> 
-    text "{" <--> tab ( doc ) <--> text "}}" 
+  = text "{ tailcall: while(1)" <->
+    text "{" <--> tab ( doc ) <--> text "}}"
 
 tailcall :: Doc
-tailcall  = text "continue tailcall;" 
+tailcall  = text "continue tailcall;"
 
 object :: [(Doc, Doc)] -> Doc
 object xs
-  = text "{" <+> hcat ( punctuate (comma <> space) (map f xs) ) <+> text "}"
+  = text "{" <+> hcat ( punctuate (comma <.> space) (map f xs) ) <+> text "}"
   where
-    f (d1, d2) = d1 <> colon <+> d2
+    f (d1, d2) = d1 <.> colon <+> d2
 
 tab :: Doc -> Doc
 tab doc
@@ -1051,7 +1051,7 @@ debugComment s
 
 debugWrap     :: String -> Doc -> Doc
 debugWrap s d
-  = if debug 
+  = if debug
       then debugComment ("<" ++ s ++ ">") <-> tab d <-> debugComment ("</" ++ s ++ ">")
       else d
 

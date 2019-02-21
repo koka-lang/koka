@@ -18,7 +18,7 @@ module Interpreter.Command
 
 import Data.Char         ( isSpace, toLower )
 import Data.List         ( isPrefixOf )
-import Lib.PPrint   ( Doc, text,vcat,(<->),hang,empty,fill,(<>),color)
+import Lib.PPrint   ( Doc, text,vcat,(<->),hang,empty,fill,(<.>),color)
 import Common.ColorScheme
 import Common.Name  ( Name, newName )
 -- import Syntax.Lexer ( idchars )
@@ -34,7 +34,7 @@ type Parser a = Parsec String () a
 data Command  = Quit
               | Error    String
               | Load     [FilePath]
-              | Reload 
+              | Reload
               | Eval     String
               | TypeOf   String
               | KindOf   String
@@ -46,7 +46,7 @@ data Command  = Quit
               | ChangeDir FilePath
               | Show     ShowCommand
               | None
-              
+
 -- | A /show/ command -- @?@.
 data ShowCommand
               = ShowSource
@@ -88,7 +88,7 @@ parseCommand input
       Right cmd -> cmd
 
 command :: Parser Command
-command 
+command
   =   do{ special ":"; cmdeval }
   <|> do{ expression }
   <|> return None
@@ -106,14 +106,14 @@ cmdeval
   -- help
   <|> do{ special "?" <|> symbol "h" <|> symbol "help"; return (Show ShowHelp) }
   -- complex
-  <|> do{ symbol "t" <|> symbol "type" <|> symbol "b" <|> symbol "browse"; 
+  <|> do{ symbol "t" <|> symbol "type" <|> symbol "b" <|> symbol "browse";
         (do p <- getPosition; x <- expr; return (TypeOf (replicate (sourceColumn p-1) ' ' ++ x))
          <|>
          return (Show ShowTypeSigs))}
   <|> do{ symbol "set"; opts <- commandLine; return (Options opts) }
   <|> do{ symbol "s" <|> symbol "source"
         ; return (Show (ShowSource))}
-  <|> do{ symbol "k" <|> symbol "kind";   
+  <|> do{ symbol "k" <|> symbol "kind";
           (do p <- getPosition; x <- expr; return (KindOf (replicate (sourceColumn p-1) ' ' ++ x))
            <|>
            return (Show ShowKindSigs))}
@@ -125,7 +125,7 @@ cmdeval
 
 commandHelp :: ColorScheme -> Doc
 commandHelp colors
-  = hang 2 (infotext "commands:" <-> vcat 
+  = hang 2 (infotext "commands:" <-> vcat
     [cmd "<expression>" ""          "evaluate the given expression"
     ,cmd "val"      "<definition>"  "add a value definition"
     ,cmd "fun"      "<definition>"  "add a function definition"
@@ -135,7 +135,7 @@ commandHelp colors
     ,cmd ":l[oad]"  "{modulename}"  "load module(s)"
     ,cmd ":r[eload]" ""             "reload the current module(s)"
 --    ,cmd ":f[ind]" "<identifier>"   "edit file containing the identifier"
-    ,cmd ":e[dit]" "[filename]"     "edit file (and jump to error location)"   
+    ,cmd ":e[dit]" "[filename]"     "edit file (and jump to error location)"
     ,cmd ":set"    "<options>"      "set (command line) options"
     ,empty
     ,cmd ":t[ype]" "[expression]"   "show type signature(s) (of a given expression)"
@@ -154,11 +154,11 @@ commandHelp colors
     hang 2 (infotext "remarks:" <-> vcat
     [text "The type command can also be cotype, rectype, or struct."
     ,text "Use :set -? to see help on command line flags."
-    ]) 
+    ])
   where
     cmd c arg explain
-      = fill 12 (text c) <> fill 14 (text arg) <> infotext explain
-    
+      = fill 12 (text c) <.> fill 14 (text arg) <.> infotext explain
+
     infotext s
       = color (colorInterpreter colors) (text s)
 
@@ -181,7 +181,7 @@ expression
         else if (isPrefixOf "struct" src)
          then return (TypeDef src)
         else if (isPrefixOf "enum" src)
-         then return (TypeDef src)      
+         then return (TypeDef src)
          else return (Eval src)
 
 expr :: Parser String
@@ -208,7 +208,7 @@ identifier
        return (newName (c:cs))
     <?> "identifier")
 
-{-    
+{-
 nat :: Parser Int
 nat
   = lexeme (
@@ -237,7 +237,7 @@ filename
 
 {--------------------------------------------------------------------------
   Whitespace and lexemes
---------------------------------------------------------------------------}    
+--------------------------------------------------------------------------}
 special :: String -> Parser ()
 special name
   = lexeme (do{ string name; return () })
@@ -252,7 +252,7 @@ istring s
     <?> s
 
 
-lexeme p       
+lexeme p
     = do{ x <- p; whiteSpace; return x  }
 
 wrap p
@@ -261,25 +261,25 @@ wrap p
       ; eof
       ; return x
       }
-  
---whiteSpace    
-whiteSpace 
+
+--whiteSpace
+whiteSpace
   = skipMany white
-  
+
 white
   = simpleSpace <|> {- oneLineComment <|> -} multiLineComment <?> ""
-      
-simpleSpace 
-  = skipMany1 (satisfy isSpace)    
-    
+
+simpleSpace
+  = skipMany1 (satisfy isSpace)
+
 oneLineComment :: Parser ()
-oneLineComment 
+oneLineComment
   = do{ try (string "--")
       ; skipMany (satisfy (/= '\n'))
       ; return ()
       }
 
-multiLineComment 
+multiLineComment
   = do { try (string "{-")
        ; inComment
        }
@@ -289,7 +289,7 @@ inComment
     <|> do{ multiLineComment             ; inComment}
     <|> do{ skipMany1 (noneOf startEnd)  ; inComment}
     <|> do{ oneOf startEnd               ; inComment}
-    <?> "end of comment"  
+    <?> "end of comment"
     where
       startEnd   = "{-}"
 
@@ -307,7 +307,7 @@ idchar :: Parser String
 idchar
   = do c <- alphanum <|> oneOf "_"
        return [c]
-  <|> 
+  <|>
     try (do char '-'
             c <- letter
             return ['-',c])

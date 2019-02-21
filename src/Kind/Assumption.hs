@@ -13,7 +13,7 @@
 module Kind.Assumption (
                     -- * Kindothesis
                       KGamma
-                    , kgammaInit 
+                    , kgammaInit
                     , kgammaNew, kgammaNewNub
                     , kgammaEmpty, kgammaIsEmpty
                     , kgammaExtend
@@ -23,7 +23,7 @@ module Kind.Assumption (
                     , ppKGamma
                     , kgammaFilter
                     -- * Extraction from Core
-                    , extractKGamma 
+                    , extractKGamma
                     ) where
 
 import qualified Data.List as L
@@ -33,7 +33,7 @@ import Common.ColorScheme
 import Common.QNameMap
 import Common.Name
 import Kind.Kind
-import Kind.Pretty( prettyKind, kindColon )  
+import Kind.Pretty( prettyKind, kindColon )
 import Kind.ImportMap
 
 import Type.Type
@@ -81,12 +81,12 @@ kgammaExtend name scheme (KGamma kgamma)
   = KGamma (insert name scheme kgamma)
 
 kgammaLookup :: Name -> Name -> KGamma -> Lookup Kind
-kgammaLookup context name (KGamma kgamma) 
+kgammaLookup context name (KGamma kgamma)
   = lookup context name kgamma
-      
+
 -- | Lookup a fully qualified name
 kgammaLookupQ :: Name -> KGamma -> Maybe Kind
-kgammaLookupQ name (KGamma kgamma) 
+kgammaLookupQ name (KGamma kgamma)
   = lookupQ name kgamma
 
 kgammaFind :: Name -> Name -> KGamma -> (Name,Kind)
@@ -100,7 +100,7 @@ kgammaList (KGamma kgamma)
   = L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) (toAscList kgamma)
 
 kgammaFilter :: Name -> KGamma -> KGamma
-kgammaFilter modName (KGamma kgamma) 
+kgammaFilter modName (KGamma kgamma)
   = KGamma (filterNames (\name -> qualifier name == modName) kgamma)
 
 -- | kind gamma union; error on duplicates
@@ -119,19 +119,19 @@ instance Show KGamma where
 instance Pretty KGamma where
   pretty kgamma
     = ppKGamma defaultColorScheme nameNil importsEmpty kgamma
-  
-  
+
+
 ppKGamma :: ColorScheme -> Name -> ImportMap -> KGamma -> Doc
 ppKGamma cscheme context imports kgamma
-  = vcat [fill maxwidth (ppName name) <> kindColon cscheme <+> prettyKind cscheme scheme 
+  = vcat [fill maxwidth (ppName name) <.> kindColon cscheme <+> prettyKind cscheme scheme
           | (name,scheme) <- nameSchemes]
   where
-    nameSchemes       = kgammaList kgamma 
+    nameSchemes       = kgammaList kgamma
     maxwidth          = 12 `min` foldl max 0 [length (show name) | (name,_) <- nameSchemes]
     (KGamma builtins) = kgammaInit
 
-    ppName name = if (qualifier name == context) 
-                    then pretty (unqualify name) 
+    ppName name = if (qualifier name == context)
+                    then pretty (unqualify name)
                     else pretty (importsAlias name imports)
 
 -- | Extract a KGamma from a Core module
@@ -145,7 +145,7 @@ extractTypeDefGroup (Core.TypeDefGroup tdefs)
 extractTypeDef :: Core.TypeDef -> KGamma
 extractTypeDef tdef
   = case tdef of
-      Core.Synonym synInfo Core.Public 
+      Core.Synonym synInfo Core.Public
         -> kgammaSingle (synInfoName synInfo) (synInfoKind synInfo)
       Core.Data dataInfo Core.Public conviss
         -> kgammaSingle (dataInfoName dataInfo) (dataInfoKind dataInfo)

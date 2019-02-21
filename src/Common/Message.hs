@@ -17,7 +17,7 @@ module Common.Message(
                      ) where
 
 import Data.Char      ( isSpace )
-import Lib.PPrint     
+import Lib.PPrint
 import Common.Failure (failure)
 import Common.Range
 import Common.ColorScheme
@@ -38,7 +38,7 @@ tablex n xs
     in indent n $
        if (headerwidth <= 0)
         then vcat (map snd xs)
-        else vcat [fill headerwidth header <> colon <+> align doc
+        else vcat [fill headerwidth header <.> colon <+> align doc
                   | (header,doc) <- xs]
 
 {--------------------------------------------------------------------------

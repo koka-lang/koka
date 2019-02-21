@@ -21,7 +21,7 @@ module Static.FixityResolve( fixityResolve
 import Control.Applicative
 import Control.Monad
 import qualified Common.NameMap as M
-import Lib.PPrint       
+import Lib.PPrint
 import Common.Failure( failure )
 import Common.NamePrim( nameOpExpr )
 import Common.Name
@@ -100,8 +100,8 @@ resolveExpr expr
                                    brs'   <- mapM resolveBranch brs
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- resolveExpr expr
-                                   return (Parens expr' range)    
-      
+                                   return (Parens expr' range)
+
 isJust (Just _) = True
 isJust Nothing  = False
 
@@ -154,12 +154,12 @@ instance Functor FixM where
 
 instance Applicative FixM where
   pure  = return
-  (<*>) = ap      
+  (<*>) = ap
 
 instance Monad FixM where
   return x          = FixM (\fixmap -> Res x [])
   (FixM fm) >>= f   = FixM (\fixmap -> case fm fixmap of
-                                         Res x errs1 -> case f x of 
+                                         Res x errs1 -> case f x of
                                                           FixM fm' -> case fm' fixmap of
                                                                         Res y errs2 -> Res y (errs1 ++ errs2))
 getFixities :: FixM Fixities
@@ -176,7 +176,7 @@ emitError range doc
   to prefix, postfix, and distfix operators.
 --------------------------------------------------------------------------}
 
-data Op             = Op UserExpr Fixity 
+data Op             = Op UserExpr Fixity
 
 data Term           = Term UserExpr
                     | Oper Op
@@ -188,7 +188,7 @@ resolve :: [UserExpr] -> FixM UserExpr
 resolve exprs
   = do fixMap <- getFixities
        let terms = map (toTerm fixMap) exprs
-       resolveTerms [] [] terms 
+       resolveTerms [] [] terms
 
 
 -- Find out if this is an operator
@@ -207,19 +207,19 @@ resolveTerms [x] [] []
   = return x
 
 -- cleanup stage, apply all ops
-resolveTerms xs ops@(op:_) []     
+resolveTerms xs ops@(op:_) []
   = apply xs ops []
 
--- always push terms    
-resolveTerms xs ops (Term t:tt)   
-  = resolveTerms (t:xs) ops tt   
+-- always push terms
+resolveTerms xs ops (Term t:tt)
+  = resolveTerms (t:xs) ops tt
 
 {-
 -- prefix operator
-resolveTerms xs ops (Oper t@(Op (Var name _ _) FixPrefix):tt)  
+resolveTerms xs ops (Oper t@(Op (Var name _ _) FixPrefix):tt)
   = push xs ops tt t
 -- postfix operator
-resolveTerms xs ops ts@(Oper t@(Op op FixPostfix):tt)  
+resolveTerms xs ops ts@(Oper t@(Op op FixPostfix):tt)
   = push xs ops tt t
 -}
 
@@ -233,18 +233,18 @@ resolveTerms xs ops ts@(Oper t@(Op op (FixInfix prec assoc)):tt)
                               then push xs ops tt t
                               else apply xs ops ts
                            }
-    where 
+    where
       prec      = precedenceOp t
       precCtx   | null ops  = 0
-                | otherwise = precedenceOp (head ops)          
+                | otherwise = precedenceOp (head ops)
 
 
 resolveTerms [] [] []
     = failure "Static.FixityResolve.resolveTerms: no term: fix parser"
-resolveTerms xs ops ts       
+resolveTerms xs ops ts
     = failure "Static.FixityResolve.resolveTerms: fixity resolver error"
 
- 
+
 precedenceOp (Op op fix)            = precedence fix
 precedence (FixInfix prec assoc)    = prec
 precedence (FixPrefix )             = 102
@@ -253,20 +253,20 @@ precedence (FixPostfix )            = 101
 
 
 checkAmbigious (Op opCtx fixCtx@(FixInfix _ assocCtx):ops) (Op op fix@(FixInfix _ assoc))
-    | assocCtx == AssocNone || assocCtx /= assoc 
-    = ambigious fixCtx fix op   
+    | assocCtx == AssocNone || assocCtx /= assoc
+    = ambigious fixCtx fix op
 checkAmbigious ops t
     = return ()
 
 ambigious :: Fixity -> Fixity -> UserExpr -> FixM ()
 ambigious fixCtx fix op
-    = emitError (getRange op) 
-                (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <> text "in a" 
+    = emitError (getRange op)
+                (text "Ambigious" <+> ppFixity fix <+> text "operator" <+> opText <.> text "in a"
                   <+> ppFixity fixCtx <+> text "context" <->
-                 text " hint: add parenthesis around the sub-expression to disambiguate")        
+                 text " hint: add parenthesis around the sub-expression to disambiguate")
     where
       opText  = case op of
-                  Var name _ _  -> pretty name <> space
+                  Var name _ _  -> pretty name <.> space
                   _             -> Lib.PPrint.empty
 
 ppFixity (FixInfix prec assoc)
@@ -281,22 +281,22 @@ ppFixity (FixPostfix)
 
 -----------------------------------------------------------
 -- Helper operations: push & apply
------------------------------------------------------------      
+-----------------------------------------------------------
 push xs ops ts t@(Op op fix)
     = resolveTerms xs (t:ops) ts
 
 apply xs (Op op FixPostfix:ops) ts
-    = do{ ys <- applyUnaryOp op xs                  
+    = do{ ys <- applyUnaryOp op xs
         ; resolveTerms ys ops ts
         }
 
 apply xs (Op op FixPrefix:ops) ts
-    = do{ ys <- applyUnaryOp op xs                  
+    = do{ ys <- applyUnaryOp op xs
         ; resolveTerms ys ops ts
         }
-    
+
 apply xs (Op op (FixInfix _ _):ops) ts
-    = do{ ys <- applyInfixOp op xs                  
+    = do{ ys <- applyInfixOp op xs
         ; resolveTerms ys ops ts
         }
 apply xs ops ts
@@ -309,16 +309,16 @@ applyUnaryOp op ts
   = do{ emitError (getRange op)
           (text "Unary operator has not enough arguments")
       ; return ts
-      }             
+      }
 
 applyInfixOp op (t1:t2:ts)
-    = return ((makeApp op t2 t1 (combineRanged t1 t2)):ts)   
+    = return ((makeApp op t2 t1 (combineRanged t1 t2)):ts)
 applyInfixOp op ts
     = do{ emitError (getRange op)
                     (text "Infix operator has not enough arguments")
         ; return ts
-        }             
-          
+        }
+
 makeApp op e1 e2 r
     = App op [(Nothing,e1),(Nothing,e2)] r
-        
+
