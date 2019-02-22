@@ -1662,7 +1662,7 @@ handlerOp defaultResumeKind pars
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
        return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
   <|>
-    do resumeKind <- do keyword "effect"
+    do resumeKind <- do keyword "effect" <|> keyword "control"
                         optional (keyword "fun")
                         isRaw <- optional (specialId "raw")
                         return (if isRaw then ResumeNormalRaw else ResumeNormal)

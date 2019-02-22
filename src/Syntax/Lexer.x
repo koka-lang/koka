@@ -260,7 +260,7 @@ reservedNames
     , "fun", "val", "var", "use", "using"
     , "extern"
 
-    , "effect", "implicit"
+    , "effect", "implicit", "control"
     , "handler", "with"
     , "named"
 

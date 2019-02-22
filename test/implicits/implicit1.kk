@@ -1,3 +1,4 @@
+
 implicit val width : int
 
 fun f() {
@@ -13,6 +14,7 @@ fun half(action) {
   action()
 }
 
+
 implicit val emitx : ((s:string) -> io ())
 
 fun emit1(action) {
@@ -22,27 +24,80 @@ fun emit1(action) {
 
 implicit fun emit( s : string ) : ()
 
-fun emit2(action) {
+fun pretty-emit1(action) {
   try {
     with fun emit(s) { s.println }
     action()
   }
 }
 
-fun emit3(action) {
+// dynamic binding with local reasoning
+fun pretty-emit2(action) {
+  with fun emit(s) { s.truncate(width).println }
+  action()
+}
+
+// with lexically scoped state
+fun pretty-emit(action) {
   var out := ""
   with fun emit(s) { out := out + s + "\n" } in action()
   out
 }
 
+implicit state<s> {
+  fun get()      : s
+  fun set(x : s) : ()
+}
+
+fun state1(action) {
+  var s := 0
+  with {
+    fun get()  { s }
+    fun set(x) { s := x }
+  }
+  action()
+}
+
+
 implicit fun total() : int
 
 fun emit4(action) {
   var out := ""
-  with fun emit(s) { out := out + s + "\n" } in
-   with fun total() { out.count } in action()
-  out
+  with return(x) { out }
+  with fun emit(s) { out := out + s + "\n" }
+  with fun total() { out.count }
+  action()
 }
+
+implicit fun abort() : ()
+
+fun pretty-abort(action) {
+  with pretty-emit
+  with control abort() { () }
+  action()
+}
+
+implicit fun choice() : bool
+
+fun pretty-all(action) {
+  with control choice() { resume(True) + (resume(False) : list<string>) }
+  [pretty-abort(action)]
+}
+
+fun pretty-all2(action) {
+  with control choice() { resume(True) + (resume(False) : list<string>) }
+  with return(x) { [x] }
+  pretty-abort(action)
+}
+
+fun state2(init,action) {
+  (with {
+    return(x)      { (fun(s) { x }) }
+    control get()  { (fun(s) { resume(s)(s) }) }
+    control set(x) { (fun(s) { resume(())(x) }) }
+  } in action())(init)
+}
+
 
 implicit val cwd : string
 
@@ -54,6 +109,7 @@ fun test1() {
   with val cwd = "/"
   is-home()
 }
+
 
 
 
