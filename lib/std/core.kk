@@ -2776,6 +2776,12 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
   js inline "((#1).value)";
 }
 
+// Assign to an entry in a local `:vector` variable.
+extern inline [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
+  cs inline "(#1)[(int)#2] = #3"
+  js inline "(#1)[#2] = #3"
+}
+
 // If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {

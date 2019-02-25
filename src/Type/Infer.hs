@@ -603,8 +603,16 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
 -- | Assign expression
 inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of
-      App fun args lrng
-        -> inferExpr propagated expect (App fun (args ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
+      App fun args lrng  -- array[i] := e
+          -> do xargs <- case args of
+                          ((mbName,arg@(Var target _ vrng)) : rest)  -- var_vec[i] := e   TODO: perhaps unsafe for general use?
+                            -> do (_,gtp,_) <- resolveName target Nothing vrng
+                                  (tp,_,_) <- instantiate vrng gtp
+                                  if (isTypeLocalVar tp)
+                                   then return ((mbName,App (Var nameByref False vrng) [(Nothing, arg)] lrng) : rest)
+                                   else return args
+                          _ -> return args
+                inferExpr propagated expect (App fun (xargs ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiate lrng gtp

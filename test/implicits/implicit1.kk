@@ -91,11 +91,14 @@ fun pretty-all2(action) {
 }
 
 fun state2(init,action) {
-  (with {
-    return(x)      { (fun(s) { x }) }
-    control get()  { (fun(s) { resume(s)(s) }) }
-    control set(x) { (fun(s) { resume(())(x) }) }
-  } in action())(init)
+  val f = with {
+            control get()  { (fun(s) { resume(s)(s) }) }
+            control set(x) { (fun(s) { resume(())(x) }) }
+          } in {
+            val x = action()
+            (fun(s) { x })
+          }
+  f(init)
 }
 
 
@@ -111,7 +114,42 @@ fun test1() {
 }
 
 
+fun gchildren( g : graph, v : vertex ) : list<vertex> {
+  []
+}
 
+fun bound( g : graph ) {
+  10
+}
+
+alias vertex = int;
+struct graph()
+struct rose(v : vertex, sub : list<rose> )
+
+
+implicit fun marked( v : vertex ) : bool
+implicit fun mark( v : vertex ) : ()
+implicit fun children( v : vertex ) : list<vertex>
+
+fun dfs( g : graph, vs : list<vertex> ) : pure list<rose> {
+  var visited := vector(g.bound,False)
+  with fun children(v) { g.gchildren(v) }
+  with fun marked(v)   { visited[v] }
+  with fun mark(v)     { visited[v] := True }
+  dfs-loop(vs)
+}
+
+fun dfs-loop( vs : list<vertex> ) {
+  match(vs) {
+    Nil -> Nil
+    Cons(v,vv) ->
+      if (marked(v)) then dfs-loop(vv) else {
+        mark(v)
+        val sub = dfs-loop( children(v) )
+        Cons( Rose(v,sub), dfs-loop(vv) )
+      }
+  }
+}
 
 fun main() {
   (with val width = 78 in f().println)
