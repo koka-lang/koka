@@ -84,6 +84,7 @@ fun pretty-all(action) {
   [pretty-abort(action)]
 }
 
+
 fun pretty-all2(action) {
   with control choice() { resume(True) + (resume(False) : list<string>) }
   with return(x) { [x] }
