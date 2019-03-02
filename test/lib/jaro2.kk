@@ -39,8 +39,9 @@ fun jaro-match( s : string, t : string, lim : int ) : (int,int) {
     var transposes:= 0;
     var lastmatch := 0;
     var i := 0;                   // character index of `c`
+    var j := 0;                   // character index of `d`
     s.foreach fun(c) {
-      var j := max(0, i - lim)    // character index of `d`
+      j := max(0, i - lim)        
       view.foreach-while fun(d) {
         if (c != d || matched[j % viewlen]) {
           j := j + 1

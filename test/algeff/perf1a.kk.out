@@ -14,7 +14,7 @@
 .tag-state1 : string
 comp : () -> div int
 count : () -> <state<int>,div> int
-count1 : () -> <div,state1<int>> int
+count1 : () -> <state1<int>,div> int
 fib : (int) -> div int
 get : forall<a> () -> (state<a>) a
 get1 : forall<a> () -> (state1<a>) a
