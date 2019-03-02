@@ -652,7 +652,7 @@ type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
 --
 -- Implicit Parameter Declarations
 --
-newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,
+newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,Bool,
                                     [TypeBinder UserKind], UserKind, [Param], Range, Maybe UserType, UserType)
 
 implicitDecl :: Visibility -> LexParser [TopDef]
@@ -669,21 +669,21 @@ parseImplicitDecl dvis = do
              (erng,doc) <- dockeyword "implicit"
              return (vis,vis,vrng,erng,doc))
   (tpars,kind,prng) <- typeKindParams
-  OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres) <- parseOpDecl vis
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,tpars,kind,pars,prng,mbteff,tres)
+  OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) <- parseOpDecl vis
+  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,linear,tpars,kind,pars,prng,mbteff,tres)
 
 makeImplicitDecl :: ImplicitDecl -> [TopDef]
-makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,tpars,kind,pars,prng,mbteff,tres)) =
+makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,kind,pars,prng,mbteff,tres)) =
   let sort = Inductive
-      singleShot = False -- breaks type inference if set to True
       isResource = False
       mbResource = Nothing
       effectName = if isValueOperationName id then fromValueOperationsName id else id
       opName = id
       op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
-             OpDecl ("", opName, vrng, [], pars, rangeNull, mbteff, tres)
+             OpDecl ("", opName, vrng, linear, [], pars, rangeNull, mbteff, tres)
       decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
-             EffectDecl (vis,defvis,vrng,erng,doc,sort,singleShot,isResource,effectName,irng,tpars,kind,prng,mbResource,[op])
+             EffectDecl (vis,defvis,vrng,erng,doc,sort,linear,isResource,
+                          effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
 
 --
@@ -767,7 +767,7 @@ bindExprToVal opname oprange expr
 -- structures
 
 -- OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres)
-newtype OpDecl = OpDecl (String, Name, Range, [TypeBinder UserKind],
+newtype OpDecl = OpDecl (String, Name, Range, Bool {-linear-},[TypeBinder UserKind],
                                [(Visibility, ValueBinder UserType (Maybe UserExpr))],
                                Range, (Maybe UserType), UserType)
 
@@ -801,11 +801,11 @@ parseEffectDecl dvis =
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
-         op@(OpDecl (doc,opId,idrng,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
+         op@(OpDecl (doc,opId,idrng,linear,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
          let mbResource = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
          return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
-          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
+          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
       )
 
 makeEffectDecl :: EffectDecl -> [TopDef]
@@ -813,7 +813,9 @@ makeEffectDecl decl =
   let (EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, id, irng, tpars, kind, prng, mbResource, operations)) = decl
       infkind = case kind of
                  KindNone -> foldr KindArrow
-                               (KindCon (if isResource then nameKindStar else if singleShot then nameKindHandled1 else nameKindHandled) irng)
+                               (KindCon (if isResource then nameKindStar else
+                                         if singleShot then nameKindHandled1
+                                                       else nameKindHandled) irng)
                                (map tbinderKind tpars)
                  _ -> kind
       ename   = TypeBinder id infkind irng irng
@@ -919,7 +921,7 @@ makeEffectDecl decl =
                      (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
       -- parse the operations and return the constructors and function definitions
-      ops = map (operationDecl singleShot vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
+      ops = map (operationDecl vis tpars effTagName opEffTp opsTp mbResourceInt extraEffects) operations
 
       (opsConDefs,opTpDecls,mkOpDefs,opsValDefs) = unzip4 ops
       opDefs = map (\(mkOpDef,idx) -> mkOpDef idx) (zip mkOpDefs [0..])
@@ -954,11 +956,15 @@ parseValOpDecl vis =
      _ <- case mbteff of
        Nothing  -> return ()
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ OpDecl (doc,toValueOperationName id,idrng,[],[],idrng,mbteff,tres)
+     return $ OpDecl (doc,toValueOperationName id,idrng,True,[],[],idrng,mbteff,tres)
 
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
-  do (rng0,doc)   <- (dockeyword "function" <|> dockeyword "fun")
+  do ((rng0,doc),linear) <- do rdoc <- (dockeyword "function" <|> dockeyword "fun")
+                               return (rdoc,True)
+                            <|>
+                            do rdoc <- dockeyword "control"
+                               return (rdoc,False)
      (id,idrng)   <- identifier
      exists0      <- typeparams
      (pars,prng)  <- conPars vis
@@ -970,16 +976,16 @@ parseFunOpDecl vis =
                     -- return etp
                     fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ -- trace ("parsed operation " ++ show id ++ " : (" ++ show tres ++ ") " ++ show exists0 ++ " " ++ show pars ++ " " ++ show mbteff) $
-              OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres)
+              OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres)
 
 
 -- smart constructor for operations
-operationDecl :: Bool -> Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
+operationDecl :: Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
              Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) ->
              [UserType] -> OpDecl -> (UserUserCon, UserTypeDef, Integer -> UserDef, Maybe UserDef)
-operationDecl singleShot vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
+operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
-           OpDecl (doc,id,idrng,exists0,pars,prng,mbteff,tres) = op
+           OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) = op
            teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"

@@ -7,7 +7,7 @@
 // --------------------------------------------------------------
 
 implicit<s> val get : s
-implicit<s> fun set(x : s) : ()
+implicit<s> control set(x : s) : ()
 
 fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with val get = init

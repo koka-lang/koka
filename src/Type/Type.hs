@@ -538,7 +538,7 @@ labelNameEx :: Tau -> (Name,Int)
 labelNameEx tp
   = case expandSyn tp of
       TCon tc -> (typeConName tc,0)
-      TApp (TCon (TypeCon name _)) [htp] | name == nameTpHandled
+      TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
         -> labelNameEx htp -- use the handled effect name for handled<htp> types.
       TApp (TCon tc) (TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
         -> (typeConName tc, idNumber id)
