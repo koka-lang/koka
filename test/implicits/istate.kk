@@ -13,6 +13,8 @@ fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with val get = init
   with control set(x){
     with val get = x
+    // change effect of `resume(())` from `<get<a>|e>` to `<get<a>,get<c>|e>`.
+    // this has no runtime effect but is needed for type inference.
     inject behind<get>{resume(())}
   }
   action()
