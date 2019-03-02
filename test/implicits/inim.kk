@@ -35,7 +35,7 @@ fun show(ps : list<player> ) : string {
 // Game of Nim
 // --------------------------------------------------------
 
-implicit fun move(player:player,sticks:int) : int
+implicit control move(player:player,sticks:int) : int
 
 
 fun aliceTurn(n : int) : <div,move> player {
@@ -81,7 +81,7 @@ fun validMoves(n) {
 
 val gametree = with {
   return x  { Winner(x) }
-  effect move(p,n) {
+  control move(p,n) {
     val moves    = validMoves(n)
     val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
@@ -170,7 +170,7 @@ fun testPc2() {
 // Choosing a strategy
 // --------------------------------------------------------
 
-implicit fun choose() : bool
+implicit control choose() : bool
 
 fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)

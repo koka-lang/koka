@@ -48,9 +48,8 @@ fun server() {
 
 
 fun serverInfo(action : () -> routes ()) : list<string> {
-  with (rs = []) {
+  handle(action)(rs = []) {
     return a -> rs
-    effect fun registerRoute(r, m, a) -> resume((), [r] + rs)
-  };
-  action()
+    control registerRoute(r, _m, _a) -> resume((), [r] + rs)
+  }
 }

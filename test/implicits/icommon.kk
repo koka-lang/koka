@@ -126,7 +126,7 @@ fun test4b() {
 //  Resume more than once
 // --------------------------------------------------------
 
-implicit fun flip() : bool
+implicit control flip() : bool
 
 fun xor() : flip bool {
   val p = flip()

@@ -18,7 +18,7 @@ val tdToWrite = handler { fun mkTd(v) { write(v) } }
 fun table(action: () -> tr ()) : table () {
   with return a -> mkTable(a)
   using listWriter
-  with mkTr(v) { write(v) }
+  with fun mkTr(v) { write(v) }
   action()
 }
 fun tr(action: () -> td ()) : tr () {
