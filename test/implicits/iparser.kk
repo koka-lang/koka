@@ -3,8 +3,8 @@
 // --------------------------------------------------------------
 
 // First defined the `many` effect to describe multiple of results and failure
-implicit fun choice() : bool
-implicit fun fail() : a
+implicit control choice() : bool
+implicit control fail() : a
 
 fun select(xs) {
   match(xs) {

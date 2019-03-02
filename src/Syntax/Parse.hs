@@ -690,60 +690,12 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,ki
 -- Handling Implicit Parameters
 --
 
--- We support two variants of implicit handlers, eager and lazy ones.
---
--- Eager implicit handlers
---     implicit (?<id> = <e>)
--- translate to
---     ({ val .implicit-<id> = <e>; handler { ?<id>() -> resume(.implicit-<id>) } })()
--- while lazy implicit handlers
---     implicit (?<id> = <e>)
--- translate to
---     handler { ?<id>() -> resume(<e>) }
-implicitHandler
-  = do krng <- keyword "implicit"
-       (params, prng) <- parensCommasRng lparen implicitBinding
-       handler <- return $ makeImplicitHandlers params krng
-       option handler (try $ do e <- expr
-                                return $ App handler [(Nothing, e)] (combineRanged krng e))
-
-implicitBinding :: LexParser (Name, Range, UserExpr, Bool)
-implicitBinding
-  = do (id,irng) <- qvarid
-       keyword "="
-       (e, eager) <- (do e <- funblock; return (e, False)) <|> (do e <- blockexpr; return (e, True))
-       return (id, irng, e, eager)
-
 -- resumeCall e [params] = "resume(e, params...)"
 resumeCall :: UserExpr -> [ValueBinder t e] -> Range -> UserExpr
 resumeCall expr pars rng
   = App (Var (newName "resume") False rng) ((Nothing, expr) : (map paramToArg pars)) rng where
     paramToArg p = (Nothing, Var (binderName p) False rng)
 
-makeImplicitHandlers bindings range =
-  let arg = makeFreshHiddenName "handled" (newName "e") range
-      binder p@(id, idrange, e, eager) body = bindImplicit (combineRanged idrange body) p body
-      handler = foldr binder (App (Var arg False range) [] range) bindings
-  in Lam [ValueBinder arg Nothing Nothing range range] handler range
-
-bindImplicit fullrange p body =
-  App (makeImplicitHandler fullrange p) [(Nothing, Lam [] body fullrange)] fullrange
-
-makeImplicitHandler fullrange (id, idrange, e, eager) =
-  let reinit  = constNull fullrange
-      ret     = Var nameReturnNull False fullrange
-      final   = constNull fullrange
-      opName  = id
-      block   = if eager then
-                   let fresh    = makeFreshHiddenName "implicit" id idrange
-                       freshVar = (Var fresh False fullrange)
-                   in Bind (Def (ValueBinder fresh () e idrange (getRange e)) fullrange Private DefVal "")
-                           (handle freshVar) fullrange
-                else handle (App e [] fullrange)
-                where resume e = resumeCall e [] fullrange
-                      makeOp e = HandlerBranch opName [] (resume e) False ResumeTail fullrange fullrange
-                      handle e = Handler HandlerDeep HandlerNoScope Nothing [] reinit ret final [makeOp e] fullrange fullrange
-  in  App (Lam [] block fullrange) [] fullrange
 
 -- given a name and an expression, this function generates
 -- - a binder for a fresh name (let's say `val x$name$3 = expr; body`), binding the expression

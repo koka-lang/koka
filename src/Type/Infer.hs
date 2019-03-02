@@ -70,7 +70,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -515,7 +515,7 @@ inferIsolated contextRange range body inf
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
   = isNamedLam $ \isNamed ->
-    do traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
+    do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
        (propArgs,propEff,propBody,expectBody) <- matchFun (length binders) propagated
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
@@ -552,7 +552,7 @@ inferExpr propagated expect (Lam binders body rng)
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
        let pars = optPars
-       traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env (typeFun pars stopEff tp)
+       -- traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env (typeFun pars stopEff tp)
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars stopEff tp) bodyCore2
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
@@ -667,7 +667,7 @@ inferExpr propagated expect (App fun nargs rng)
   = inferApp propagated expect fun nargs rng
 
 inferExpr propagated expect (Ann expr annTp rng)
-  = do traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
+  = do -- traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
        (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
        sannTp <- subst annTp
        -- traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env tp
@@ -1103,7 +1103,7 @@ injectLocalEffect eff
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw resKind nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  resumeEff actionEffect (HandlerBranch name pars expr raw resKind nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -1141,7 +1141,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        case handlerSort of
          HandlerResource _
            -> case parTps of
-                (parTp:_) -> inferUnify (checkEffectTp rng) rng effectTp parTp -- ensure we unify type parameters shared with the action effect
+                (parTp:_) -> inferUnify (checkEffectTp rng) rng handledEffect parTp -- ensure we unify type parameters shared with the action effect
                 _ -> failure $ "Type.Infer.inferHandlerBranch: illegal operator type for a resource: " ++ show (pretty rho)
          _ -> return ()
 
@@ -1255,12 +1255,18 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        -- Value effect definitions are generated automatically and are always
        -- tail resumptive. This is a sanity check
-       if rk > resKind then
-           termError rng (text "operator" <+> text (show opName) <+>
-                          text ("Effect definition needs to be " ++ show resKind ++ " but is " ++ show rk)) bexprEff
+       if rk > resKind
+        then termError rng (text "operator" <+> text (show opName) <+>
+                          text ("Effect definition needs to be " ++ show resKind ++ " but is " ++ show rk)) handledEffect
                           []
-       else return ()
+        else return ()
 
+       -- check operations of lineas effect behave as expected
+       if (effectIsLinear handledEffect && rk > ResumeTail)
+        then termError rng (text "operation" <+> text (show opName) <+>
+                        text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
+                        [(text "hint",text "Redefine the effect as 'control' or ensure the resumption is used linearly")]
+        else return ()
 
        -- The scoped variants require a bind translation in the branch but currently
        -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
@@ -1291,7 +1297,8 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        traceDoc $ \env -> text "inferHandlerBranch: name:" <+> pretty name <+>
                           text ", branch type:" <+> ppType env sbranchTp <+>
-                          text ", make branch type:" <+> ppType env smbranchRho
+                          text ", make branch type:" <+> ppType env smbranchRho <+>
+                          text ", resume kind:" <+> pretty (show (rk,resKind))
        return (sbranchTp,shandlerBranchTp,sbranchEff,sbranchCore)
 
   where
@@ -1381,7 +1388,7 @@ effectNameCore effect range
   = case expandSyn effect of
       -- handled effects (from an `effect` declaration)
       TApp (TCon tc) [hx]
-        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1)
         -> do let effName = effectNameFromLabel hx
               (effectNameVar,_,effectNameInfo) <- resolveName (toOpenTagName effName) (Just (typeString,range)) range
               let effectNameCore = coreExprFromNameInfo effectNameVar effectNameInfo
@@ -1394,10 +1401,18 @@ effectNameFromLabel :: Effect -> Name
 effectNameFromLabel effect
   = case expandSyn effect of
       TApp (TCon tc) [hx]
-        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 -> effectNameFromLabel hx
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1) -> effectNameFromLabel hx
       TCon tc -> typeConName tc
       TApp (TCon tc) targs -> typeConName tc
       _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
+
+effectIsLinear :: Effect -> Bool
+effectIsLinear effect
+  = case expandSyn effect of
+      TApp (TCon tc) [hx]
+        | (typeConName tc == nameTpHandled1) -> True
+      _ -> False
+
 {-
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> [ConInfo]
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
@@ -1517,7 +1532,7 @@ inferApp propagated expect fun nargs rng
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop fixed named
-      = trace (" inferAppFunFirst") $
+      = -- trace (" inferAppFunFirst") $
         do -- infer type of function
            (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated fun
            -- match the type with a function type

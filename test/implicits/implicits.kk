@@ -77,7 +77,7 @@ fun pretty-abort(action) {
   action()
 }
 
-implicit fun choice() : bool
+implicit control choice() : bool
 
 fun pretty-all(action) {
   with control choice() { resume(True) + (resume(False) : list<string>) }
