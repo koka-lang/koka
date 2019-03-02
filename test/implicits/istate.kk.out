@@ -1,0 +1,20 @@
+[01;30moperator branch (local) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local) set: resume normal
+[00;39;49m[00m5
+4
+3
+2
+1
+.Op-set : forall<a> (x : a) -> .op-set<a>
+.Op-val-get : forall<a> .op-val-get<a>
+.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-set<a,()>
+.Ops-val-get: forall<a,b> (.op-val-get<a>) -> .ops-get<a,a>
+.tag-get : string
+.tag-set : string
+.val-get : forall<a> () -> (get<a>) a
+get : forall<a> value<a>
+local : forall<a,b,e> (init : a, action : () -> <get<a>,set<a>|e> b) -> e b
+main : () -> <div,console> ()
+printn : () -> <get<int>,set<int>,div,console> ()
+set : forall<a> (x : a) -> (set<a>) ()

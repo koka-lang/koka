@@ -1,0 +1,106 @@
+[01;30moperator branch (pc) move: resume tail
+[00;39;49m[00m[01;30moperator branch (allResults) choose: resume scoped
+[00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
+[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
+[00;39;49m[00m[01;30moperator branch (check) move: resume tail
+[00;39;49m[00m[01;30moperator branch (coin) choose: resume tail
+[00;39;49m[00m[01;30moperator branch (gametree) move: resume normal
+[00;39;49m[00m[01;30moperator branch (testChoose) choose: resume scoped
+[00;39;49m[00m[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) put: resume tail
+[00;39;49m[00m[01;30moperator branch (state-param) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state-param) put: resume tail
+[00;39;49m[00m[01;30moperator branch (testCoin) choose: resume tail
+[00;39;49m[00m
+-----------
+alice
+-----------
+bob
+-----------
+alice[
+ 1 -> bob[
+ 1 -> alice[
+ 1 -> alice wins],
+ 2 -> bob wins],
+ 2 -> bob[
+ 1 -> bob wins],
+ 3 -> alice wins]
+-----------
+alice
+-----------
+bob
+-----------
+[bob,alice]
+-----------
+failure while running program:
+ node out/test/implicits_inim.js
+.Op-cheat : forall<a> (player : player) -> .op-cheat<a>
+.Op-choose : .op-choose
+.Op-get : forall<a> .op-get<a>
+.Op-move : (player : player, sticks : int) -> .op-move
+.Op-put : forall<a> (x : a) -> .op-put<a>
+.Ops-cheat : forall<a,b> (cheat : .op-cheat<b>) -> .ops-cheat<b>
+.Ops-choose : forall<a> (choose : .op-choose) -> .ops-choose<bool>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-move : forall<a> (move : .op-move) -> .ops-move<int>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
+.tag-cheat : string
+.tag-choose : string
+.tag-move : string
+.tag-state : string
+== : (p1 : player, p2 : player) -> bool
+Alice : player
+Bob : player
+Take : (player : player, moves : list<(int, gtree)>) -> gtree
+Winner : (player : player) -> gtree
+alice? : (player : player) -> bool
+aliceTurn : (n : int) -> <move,div> player
+allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
+bob? : (player : player) -> bool
+bobChooses : forall<a,e> (m : () -> <choose,move|e> a) -> <choose|e> a
+bobTurn : (n : int) -> <move,div> player
+cheat : forall<a> (player : player) -> cheat a
+cheatReport : forall<a,e> (action : () -> <cheat,exn|e> a) -> <exn|e> a
+check : forall<a,e> (action : () -> <cheat,move,move|e> a) -> <cheat,move|e> a
+choose : () -> choose bool
+coin : forall<a,e> (action : () -> <choose,ndet|e> a) -> <ndet|e> a
+game : (n : int) -> <move,div> player
+gametree : forall<e> (action : () -> <move|e> player) -> e gtree
+get : forall<a> () -> (state<a>) a
+main : () -> <pure,console> ()
+move : (player : player, sticks : int) -> move int
+mymap : forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
+pc : forall<a,e> (action : () -> <move|e> a) -> e a
+perfect : forall<a,e> (action : () -> <move|e> a) -> e a
+player : (gtree : gtree) -> player
+printBoard : (gs : gstate) -> io ()
+printer : forall<a,e> (action : () -> <io,state<gstate>|e> a) -> <io,state<gstate>|e> a
+put : forall<a> (x : a) -> (state<a>) ()
+replay : forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
+s0 : list<(player, int)>
+scoreUpdater: forall<e> (action : () -> <state<gstate>|e> player) -> <state<gstate>|e> player
+show : (gt : gtree) -> div string
+show : (ps : list<player>) -> string
+show : (p : player) -> string
+showGt : (gt : gtree, indent : int) -> div string
+state : forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
+state-param : forall<a,b,e> (s : a, action : () -> <state<a>|e> b) -> e b
+take? : (gtree : gtree) -> bool
+testCheck : () -> pure player
+testChoose : () -> div list<player>
+testCoin : () -> <div,ndet> player
+testGt : () -> div gtree
+testPc1 : () -> pure player
+testPc2 : () -> pure player
+testPerfect1: () -> div player
+testPerfect2: () -> div player
+testPrint1 : () -> io player
+testPrint2 : () -> io player
+testuse : () -> list<int>
+updateScore : (p : player, gs : gstate) -> gstate
+validMoves : (n : int) -> list<int>
+winner? : (gtree : gtree) -> bool
+.../out/test/std_core.js:
+ throw exn;
+ ^
+std/core/Error: bob cheated!

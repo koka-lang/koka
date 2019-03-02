@@ -1,0 +1,28 @@
+[01;30moperator branch (_) yield: resume tail
+[00;39;49m[00m[01;30moperator branch (test3a) yield: resume tail
+[00;39;49m[00m[01;30moperator branch (test3b) yield: resume tail
+[00;39;49m[00m[01;30moperator branch (print4) yield: resume tail
+[00;39;49m[00m[01;30moperator branch (test1) yield: resume tail
+[00;39;49m[00m12345, even count a: 2
+13542, even count b: 2
+.Op-yield : forall<a> (value : a) -> .op-yield<a>
+.Ops-yield : forall<a,b> (yield : .op-yield<a>) -> .ops-yield<a,()>
+.tag-yield : string
+Bin : forall<a> (value : a, left : tree<a>, right : tree<a>) -> tree<a>
+Leaf : forall<a> tree<a>
+bin? : forall<a> (tree : tree<a>) -> bool
+fiterate : forall<a,e> (tree<a>, (a) -> e bool) -> <yield<a>|e> ()
+fiterate1 : forall<a,e> (tree<a>, (a) -> <yield<a>|e> bool) -> <yield<a>|e> ()
+fsize1 : forall<a,e> (t : tree<a>, f : (a) -> e bool) -> e int
+fsize2 : forall<a,e> (tree<a>, (a) -> e bool) -> e int
+iterate : forall<a> (tree<a>) -> (yield<a>) ()
+leaf? : forall<a> (tree : tree<a>) -> bool
+main : () -> console ()
+print4 : forall<e> (action : () -> <yield<int>,console|e> ()) -> <console|e> ()
+test1 : () -> console ()
+test2 : () -> console ()
+test3a : () -> console int
+test3b : () -> console int
+tip : forall<a> (x : a) -> tree<a>
+tree5 : tree<int>
+yield : forall<a> (value : a) -> (yield<a>) ()
