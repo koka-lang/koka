@@ -14,7 +14,11 @@ fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with control set(x){
     with val get = x
     // change effect of `resume(())` from `<get<a>|e>` to `<get<a>,get<c>|e>`.
-    // this has no runtime effect but is needed for type inference.
+    // the runtime effect of `inject behind<get>` is to `inject` every
+    // `get` effect after the outer one.
+    // This is needed to have action to be truly polymorphic in the other
+    // effects `e`. For example, if we pass an action that has an `inject<get>`
+    // expression in it, we expect it *not* to be handled by us. See `test2`.
     inject behind<get>{resume(())}
   }
   action()
@@ -27,7 +31,43 @@ fun printn() {
   }
 }
 
-fun main() {
+fun test1() {
   with local(5)
   printn()
+}
+
+fun test2() : int {
+  // this tests if the inject behind is working correctly:
+  with val get = 41
+  with local(0)
+  set(get + 1)
+  (0 + get + inject<get>{get})  // = 42!
+}
+
+// If we make the effect row closed, we can guarantee absence of
+// `inject<get>` expressions in the action and thus make it safe
+// without using the `inject behind` primitive.
+fun local-closed1( init : s, action : () -> <get<s>,get<s>,set<s>> a ) : <get<s>> a {
+  with val get = init
+  with control set(x) {
+    with val get = x
+    fun k() : <get<_>,get<_>> _ { resume(()) } // help type inference... :-(
+    k()
+  }
+  action()
+}
+
+fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
+  with val get = init
+  with control set(x) {
+    with val get = x
+    fun k() : <get<_>> _ { resume(()) }  // help type inference ... :-(
+    k()
+  }
+  action()
+}
+
+fun main() {
+  test1()
+  test2().println
 }
