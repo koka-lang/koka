@@ -1,0 +1,10 @@
+caught on inner level: injected
+caught on outer level: injected
+caught on outer level: injected
+bar : forall<a,e> (f : (a) -> <exn,exn,console|e> (), action : a) -> <console|e> ()
+foo : forall<a,e> (action : () -> <exn,exn,console|e> a) -> <exn,console|e> a
+foo1 : forall<a,e> (action : () -> <exn,console|e> a) -> <exn,console|e> a
+foo2 : forall<a,e> (action : () -> <exn,console|e> a) -> <exn,console|e> a
+inject-tail-exn: forall<a,e> (action : () -> <exn|e> a) -> <exn,exn|e> a
+main : () -> console ()
+test : forall<a,e,e1> (f : (() -> <exn,exn|e> a) -> <exn,exn,console|e1> ()) -> <console|e1> ()
