@@ -1,6 +1,6 @@
 val wrong : int = recursive()
 
-function recursive()  {
+fun recursive()  {
   recursive()
   return wrong
 }

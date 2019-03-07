@@ -1,11 +1,19 @@
 [01;30moperator branch (local) .val-get: resume tail
 [00;39;49m[00m[01;30moperator branch (local) .val-get: resume tail
 [00;39;49m[00m[01;30moperator branch (local) set: resume normal
+[00;39;49m[00m[01;30moperator branch (local-closed1) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local-closed1) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local-closed1) set: resume normal
+[00;39;49m[00m[01;30moperator branch (local-closed2) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local-closed2) .val-get: resume tail
+[00;39;49m[00m[01;30moperator branch (local-closed2) set: resume normal
+[00;39;49m[00m[01;30moperator branch (test2) .val-get: resume tail
 [00;39;49m[00m5
 4
 3
 2
 1
+42
 .Op-set : forall<a> (x : a) -> .op-set<a>
 .Op-val-get : forall<a> .op-val-get<a>
 .Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-set<a,()>
@@ -15,6 +23,10 @@
 .val-get : forall<a> () -> (get<a>) a
 get : forall<a> value<a>
 local : forall<a,b,e> (init : a, action : () -> <get<a>,set<a>|e> b) -> e b
+local-closed1: forall<a,b> (init : b, action : () -> <get<b>,get<b>,set<b>> a) -> (get<b>) a
+local-closed2: forall<a,b> (init : b, action : () -> <get<b>,set<b>> a) -> a
 main : () -> <div,console> ()
 printn : () -> <get<int>,set<int>,div,console> ()
 set : forall<a> (x : a) -> (set<a>) ()
+test1 : () -> <div,console> ()
+test2 : () -> int

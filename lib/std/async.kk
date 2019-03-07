@@ -417,7 +417,7 @@ fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<t
 		fun strands-busy?()	     { cr.fst > 0 }
 		fun strand-done(idx,res) { cr := (cr.fst - 1, cr.snd.insert(idx,res)) }
 	}
-	(unsafe-no-ndet-div{ interleaved-div(xs) })()	
+	(unsafe-no-ndet-div{ interleaved-div(xs) })()
 }
 
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
@@ -447,7 +447,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		effect raw do-await(setup,scope,c) {
+		control raw do-await(setup,scope,c) {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
 				ch.emit-io( /* no-cps */ { context.resume(res) }  )
@@ -659,10 +659,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		effect raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
-    effect no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
-		effect cancel( scope ) { resume(handle-cancel(scope)) }
-		effect async-iox( f ) { resume(f()) }
+		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
+    control no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
+		control cancel( scope ) { resume(handle-cancel(scope)) }
+		control async-iox( f ) { resume(f()) }
 	}
 }
 

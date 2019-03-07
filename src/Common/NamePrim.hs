@@ -33,6 +33,7 @@ module Common.NamePrim
           , nameIsValidK
           , nameLift, nameBind
           , nameInject, nameInjectExn, nameInjectResource
+          , nameTpResourceTag, nameConResourceTag
 
           , nameUnsafeTotal
           , nameIntConst, nameInt32
@@ -238,6 +239,8 @@ nameTpYld       = preludeName "yld"
 nameInject      = preludeName ".inject-effect"
 nameInjectExn   = preludeName "inject-exn"
 nameInjectResource = preludeName ".inject-resource"
+nameTpResourceTag = preludeName "resource-tag"
+nameConResourceTag = preludeName ".Resource-tag"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"

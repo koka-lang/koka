@@ -733,15 +733,15 @@ parseEffectDecl dvis =
   do (vis,defvis,vrng,erng,doc) <-
         (try $
           do rng     <- keyword "abstract"
-             (trng,doc) <- dockeyword "implicit" <|> dockeyword "effect"
+             (trng,doc) <- dockeywordEffect
              return (Public,Private,rng,trng,doc)
           <|>
           do (vis,vrng) <- visibility dvis
-             (erng,doc) <- dockeyword "implicit" <|> dockeyword "effect"
+             (erng,doc) <- dockeywordEffect
              return (vis,vis,vrng,erng,doc))
      sort <- do{ keyword "rec"; return Retractive} <|> return Inductive
      singleShot <- do{ specialId "linear"; return True} <|> return False
-     (do isResource <- do{ keyword "named"; return True} <|> return False
+     (do isResource <- do{ keywordResource; return True} <|> return False
          (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
          mbResource <- if (not isResource) then return Nothing
@@ -759,6 +759,22 @@ parseEffectDecl dvis =
          return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
       )
+
+dockeywordEffect
+  = dockeyword "effect" <|> dockeyword "implicit" <|> dockeyword "ambient"
+
+keywordResource
+  = keywordOr "resource" ["dynamic"] <|> keyword "instance" <|> keyword "named"
+
+keywordFun
+  = keywordOr "fun" ["function"]
+
+dockeywordFun
+  = dockeywordOr "fun" ["function"]
+
+keywordExtern
+  = keywordOr "extern" ["external"]
+
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
@@ -794,7 +810,7 @@ makeEffectDecl decl =
       effTpCons = case mbResource of
                      Nothing -> []
                      Just tp ->
-                       let resourceTp = TpApp (TpCon (newQualified "std/core" "resource") irng) [tp] irng
+                       let resourceTp = TpApp (TpCon nameTpResourceTag irng) [tp] irng
                            cons = [UserCon effConName [] [(Public,ValueBinder nameNil resourceTp Nothing irng irng)] Nothing irng irng vis ""]
                        in cons
 
@@ -807,7 +823,7 @@ makeEffectDecl decl =
            Just labelTp ->
              let createDef =
                      let createName = makeHiddenName "create" id
-                         nameCreateResource = newQualified "std/core" ".Resource"
+                         nameCreateResource = nameConResourceTag
                          body = App (Var effConName False irng)
                                    [(Nothing,App (Var nameCreateResource False irng )
                                                  [(Nothing,Var resName False irng)] irng)]
@@ -825,7 +841,7 @@ makeEffectDecl decl =
                          rbinder = ValueBinder valName Nothing Nothing irng irng
                          patvar = ValueBinder resName (Nothing) (PatWild irng) irng irng
                          rmatch = Case (Var valName False irng)
-                                           [Branch (PatCon effConName [(Nothing,PatCon (newQualified "std/core" ".Resource")
+                                           [Branch (PatCon effConName [(Nothing,PatCon nameConResourceTag
                                                                               [(Nothing,PatVar patvar)] irng irng)] irng irng)
                                                    (guardTrue)
                                                    (Var resName False irng)] irng
@@ -912,7 +928,7 @@ parseValOpDecl vis =
 
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
-  do ((rng0,doc),linear) <- do rdoc <- (dockeyword "function" <|> dockeyword "fun")
+  do ((rng0,doc),linear) <- do rdoc <- dockeywordFun
                                return (rdoc,True)
                             <|>
                             do rdoc <- dockeyword "control"
@@ -1056,7 +1072,7 @@ operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
   = do (vis,vrng,rng,doc,isVal) <- try $ do (vis,vrng) <- visibility dvis
-                                            (do (rng,doc) <- (dockeyword "function" <|> dockeyword "fun"); return (vis,vrng,rng,doc,False)
+                                            (do (rng,doc) <- dockeywordFun; return (vis,vrng,rng,doc,False)
                                              <|>
                                              do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,True))
        (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis
@@ -1067,7 +1083,7 @@ valueDecl vrng vis
        valDecl (combineRange vrng rng) doc vis
 
 functionDecl vrng vis
-  = do (rng,doc) <- dockeyword "fun" <|> dockeyword "function"
+  = do (rng,doc) <- dockeywordFun
        funDecl (combineRange vrng rng) doc vis
 
 varDecl
@@ -1248,6 +1264,7 @@ localValueDecl
 
 localUseDecl
   = do krng <- keyword "use"
+       warnDeprecated "use" "with"
        par  <- parameter False
        keyword "="
        e    <- blockexpr
@@ -1260,6 +1277,7 @@ localUseDecl
 
 localUsingDecl
   = do krng <- keyword "using"
+       warnDeprecated "using" "with"
        e    <- blockexpr
        return $ applyToContinuation krng [] e
 
@@ -1268,7 +1286,7 @@ localWithDecl
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e   <- (do try (lookAhead (keyword "named"))
+           e   <- (do try (lookAhead (keywordResource))
                       handlerExprX False krng
                    <|>
                    blockexpr)
@@ -1414,7 +1432,7 @@ handlerExprX braces rng
        hsort   <- handlerSort
        handlerExprXX braces rng mbEff scoped hsort
 
-handlerSort =     do keyword "named"
+handlerSort =     do keywordResource
                      override <- do lapp
                                     (name,rng) <- qidentifier
                                     rparen
@@ -1620,7 +1638,7 @@ handlerOp defaultResumeKind pars
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
        return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
   <|>
-    do resumeKind <- do keyword "effect" <|> keyword "control"
+    do resumeKind <- do keyword "control"
                         optional (keyword "fun")
                         isRaw <- optional (specialId "raw")
                         return (if isRaw then ResumeNormalRaw else ResumeNormal)
@@ -2606,6 +2624,25 @@ special s
 
 
 
+keywordOr :: String -> [String] -> LexParser Range
+keywordOr kw [] = keyword kw
+keywordOr kw deprecated
+  = choice (keyword kw : map deprecate deprecated)
+  where
+    deprecate  k = do rng <- keyword k
+                      warnDeprecated k kw
+                      return rng
+
+dockeywordOr :: String -> [String] -> LexParser (Range,String)
+dockeywordOr kw [] = dockeyword kw
+dockeywordOr kw deprecated
+  = choice (dockeyword kw : map deprecate deprecated)
+  where
+    deprecate k  = do x <- dockeyword k
+                      warnDeprecated k kw
+                      return x
+
+
 keyword :: String -> LexParser Range
 keyword s
   = do (Lexeme rng _) <- parseLex (LexKeyword s "")
@@ -2617,6 +2654,16 @@ dockeyword s
   = do (Lexeme rng (LexKeyword _ doc)) <- parseLex (LexKeyword s "")
        return (rng,doc)
   <?> show s
+
+
+warnDeprecated dep new
+  = do pos <- getPosition
+       pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
+
+pwarning :: String -> LexParser ()
+pwarning msg
+    = trace msg (return ())   -- hmm, hacky trace...
+
 
 
 {--------------------------------------------------------------------------

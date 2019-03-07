@@ -19,7 +19,7 @@ fun res6() {
   (with { val height = { println("foo"); 1 + 3 } } in height * height)
 }
 
-effect counter {
+implicit counter {
   fun tick(): ()
   fun get(): int
 }
@@ -54,11 +54,11 @@ val res10 = {
   width * height
 }
 
-effect amb { fun flip(): bool }
+implicit amb { control flip(): bool }
 
 val returnClause = {
   with val height = 4
-  with effect flip() { (resume(True) : list<_>) + resume(False) }
+  with control flip() { (resume(True) : list<_>) + resume(False) }
   with return a -> [a]
 
   if (flip()) 3 else height

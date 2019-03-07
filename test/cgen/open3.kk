@@ -6,12 +6,12 @@ type extend test {
   Y
 }
 
-function test(x) {
+fun test(x) {
   match(x) {
     Y -> println("its a Y")
   }
 }      
 
-function main() {
+fun main() {
   test(Y).print
 }

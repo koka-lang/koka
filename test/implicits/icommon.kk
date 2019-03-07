@@ -9,14 +9,14 @@ import std/os/readline
 //  Exceptions
 // --------------------------------------------------------
 
-implicit fun raise(s : string ) : a
+implicit control raise(s : string ) : a
 
 fun safe-div(x,y) {
   if (y==0) then raise("division by zero") else x / y
 }
 
 fun rcatch(action,h) {
-  with effect raise(s) { h(s) }
+  with control raise(s) { h(s) }
   action()
 }
 
@@ -25,7 +25,7 @@ fun zerodiv(x,y) {
 }
 
 fun to-maybe(action) {
-  with effect raise(_s) { Nothing }
+  with control raise(_s) { Nothing }
   Just(action())
 }
 
@@ -93,7 +93,7 @@ fun test3() {
 //  Iterators
 // --------------------------------------------------------
 
-implicit<a> fun yield( item : a ) : ()
+implicit<a> control yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () {
   match(xs) {
@@ -103,7 +103,7 @@ fun iterate(xs : list<a> ) : yield<a> () {
 }
 
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
-  with effect yield(x) { if (f(x)) then resume(()) else () }
+  with control yield(x) { if (f(x)) then resume(()) else () }
   action()
 }
 
@@ -138,7 +138,7 @@ val coinflip = with fun flip() { random-bool() }
 
 val amb = with {
   return x      { [x] }
-  effect flip() { resume(False) + resume(True) }
+  control flip() { resume(False) + resume(True) }
 }
 
 fun test5() {

@@ -1,4 +1,4 @@
-function forever(f) {
+fun forever(f) {
   f();
   forever(f);
 }

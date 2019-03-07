@@ -5,14 +5,14 @@ effect heap { }
 
 val heap = handler<heap>{ }
 
-effect named ref<a> in heap {
+effect resource ref<a> in heap {
   fun get() : a       // (ref<a>) -> <heap,exn|e> a  with ediv(heap,a,e)
   fun set( value : a ) : ()
 }
 
 fun new-ref(init,action) {
   var s := init
-  with r = named {
+  with r = resource {
     fun get()  { s }
     fun set(x) { s := x }
   }
@@ -37,6 +37,6 @@ fun recurse()  {
 }
 
 fun main() : <exn,console> int {
-  using heap
+  with heap
   recurse()(1)
 }

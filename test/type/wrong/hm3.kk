@@ -1,3 +1,3 @@
-function wrong(f) {
+fun wrong(f) {
   (f(1),f(True))
 }

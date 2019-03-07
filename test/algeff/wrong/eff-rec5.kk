@@ -13,7 +13,7 @@ val new-ref = handler(s) {
 }
 
 fun recurse() {
-  using new-ref(Hide(id))
+  with new-ref(Hide(id))
   fun foo(i : int) {
     (get().unhide)(i)
   }

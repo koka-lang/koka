@@ -1,7 +1,7 @@
-function test() {
+fun test() {
   choose( ref(1), error("hi") )
 }
 
-function test2() {
+fun test2() {
   choose( const((),ref(1)), ref(2).set(3))
 }

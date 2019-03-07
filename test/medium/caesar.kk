@@ -4,7 +4,7 @@ import std/num/double
 
 fun encode( s : string, shift : int = 3)
 {
-  function encode-char(c) {
+  fun encode-char(c) {
     if (c < 'a' || c > 'z') return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26

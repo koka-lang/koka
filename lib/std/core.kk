@@ -3003,8 +3003,8 @@ extern inline ".inject-resource"<a::V,e::E>( effect-name : string, resource-tag 
 alias yld<a> = a
 
 // Resources identify specific handlers
-type resource<e::HX> {
-  con ".Resource"(:int)
+type resource-tag<e::HX> {
+  con ".Resource-tag"(:int)
 }
 
 

@@ -1,9 +1,9 @@
 
-function foo() {
+fun foo() {
   if (True && False) return 1
   42
 }
 
-function main() {
+fun main() {
   foo().print
 }

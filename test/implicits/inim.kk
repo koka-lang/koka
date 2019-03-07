@@ -113,9 +113,9 @@ fun testGt() {
 
 implicit fun cheat(player:player) : a
 
-val cheatReport =  with effect cheat(p) { error(p.show + " cheated!") }
+val cheatReport =  with fun cheat(p) { error(p.show + " cheated!") }
 
-val check = with effect move(p,n) {
+val check = with control move(p,n) {
   val m = move(p,n)
   if (validMoves(n).find(fun(i) { i == m }).bool)
    then resume(m)
@@ -178,11 +178,11 @@ fun bobChooses(m) {
 
 val allResults = with {
   return(x)       { [x] }
-  effect choose() { resume(True) + resume(False) }
+  control choose() { resume(True) + resume(False) }
 }
 
 fun testChoose()  {
-  with effect choose() { resume(True) + (resume(False) : list<_>) }  // TODO: improve inference
+  with control choose() { resume(True) + (resume(False) : list<_>) }  // TODO: improve inference
   with bobChooses
   [game(7)]   // [bob,alice]
 }
@@ -257,12 +257,12 @@ fun replay(n : int, action : () -> <div|e> a) : <div|e> a {
 }
 
 fun testPrint2() {
-  using state(s0)
-  using printer
-  using replay(10)
-  using coin
-  using bobChooses
-  using scoreUpdater
+  with state(s0)
+  with printer
+  with replay(10)
+  with coin
+  with bobChooses
+  with scoreUpdater
   game(7)
 }
 

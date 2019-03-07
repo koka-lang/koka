@@ -1,7 +1,7 @@
 [01;30moperator branch (pc) move: resume tail
 [00;39;49m[00m[01;30moperator branch (allResults) choose: resume scoped
 [00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
-[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
+[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume tail
 [00;39;49m[00m[01;30moperator branch (check) move: resume tail
 [00;39;49m[00m[01;30moperator branch (coin) choose: resume tail
 [00;39;49m[00m[01;30moperator branch (gametree) move: resume normal

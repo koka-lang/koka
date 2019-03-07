@@ -17,7 +17,7 @@ fun new-ref( init : hide, action : () -> state a) : a {
 }
 
 fun recurse() {
-  using new-ref(Hide(id))
+  with new-ref(Hide(id))
   fun foo(i : int) {
     (get().unhide)(i)
   }

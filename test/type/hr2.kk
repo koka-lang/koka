@@ -1,5 +1,5 @@
-function runST( action : forall<h> () -> <st<h>,exn> a ) : exn a  { error("runST") }
+fun runST( action : forall<h> () -> <st<h>,exn> a ) : exn a  { error("runST") }
 
-function ok() {
+fun ok() {
   runST( fun() { 1 } )
 }

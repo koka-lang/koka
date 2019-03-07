@@ -1,8 +1,8 @@
 // test subtyping etc
-function ioapp( f ) : io () {
+fun ioapp( f ) : io () {
   return f()
 }
 
-function test() {
+fun test() {
   ioapp(fun(){ () })
 }

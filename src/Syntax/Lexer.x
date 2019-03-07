@@ -257,18 +257,28 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "fun", "val", "var", "use", "using"
+    , "fun", "val", "var"
     , "extern"
 
-    , "effect", "implicit", "control"
-    , "handler", "with"
-    , "named"
+    -- effect handlers
+    , "implicit", "ambient" {- alternative name for implicit -}
+    , "control"
+    , "with"
+    , "resource", "instance", "named" {- alternative names for resource -}
+    , "mask"
 
-    -- deprecate?
-    , "handle"
+    -- deprecated
+    -- alternative names for backwards paper compatability
+    , "effect"              -- use implicit
+    , "handle", "handler"   -- use with instead
+    , "inject"              -- use mask
+    , "use", "using"        -- use with instead
+    , "function"            -- use fun
+    , "external"            -- use extern
+    , "dynamic"             -- use resource
+
 
     -- , "finally", "initially"
-    , "inject"
     , "if", "then", "else", "elif", "return", "match"
     , "forall", "exists", "some"
     , "private", "public", "abstract"
@@ -278,13 +288,11 @@ reservedNames
     , ":"
     , "->"
     , ":="
-    -- backward compatibility
-    , "function","external"
+
     -- for core interfaces
     , "rec"
     -- future reserved
-    -- , "try", "yield"
-    , "interface", "instance"
+    , "interface"
     ]
 
 symbols :: [Char]

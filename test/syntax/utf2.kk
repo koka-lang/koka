@@ -1,4 +1,4 @@
 // Jean-Christophe Filli�tre:
-function foo() { 
+fun foo() { 
   return 0; 
 }

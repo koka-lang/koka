@@ -1,7 +1,7 @@
 // documentation
-function main() {
+fun main() {
   var i := 2
-  using while{i >= 0}
+  with while{i >= 0}
   println(i)
   i := i - 1
 }

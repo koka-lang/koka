@@ -1,6 +1,6 @@
 // Test scoped handlers
 
-effect heap<s::S> { 
+effect heap<s::S> {
   fun get-ref() : ref<s>
 }
 
@@ -13,18 +13,18 @@ fun get( r : ref<s> ) : heap<s> int {
 }
 
 fun heap( action : forall<s> () -> <heap<s>|e> a) : e a {
-  handle(action) { 
+  handle(action) {
     get-ref() -> resume(Ref)
   }
 }
 
 fun foo() {
-  using heap
+  with heap
   get-ref()
 }
 
 fun bar() {
-  using heap
+  with heap
   foo().get   // wrong: trying to access reference out of scope
 }
 

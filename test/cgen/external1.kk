@@ -3,6 +3,6 @@ external inline foo( x : int ) : int {
   inline "#1"
 }
 
-function main() {
+fun main() {
   apply(foo,42)
 }

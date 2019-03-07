@@ -1,4 +1,4 @@
 
-function main() {
+fun main() {
   print("hi");  
 }

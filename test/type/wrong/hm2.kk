@@ -1,1 +1,1 @@
-function selfapp(x) { x(x) }
+fun selfapp(x) { x(x) }

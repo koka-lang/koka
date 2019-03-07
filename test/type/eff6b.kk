@@ -1,3 +1,3 @@
-function remote( f : () -> exn () ) : exn () { () }
+fun remote( f : () -> exn () ) : exn () { () }
 
-function test(f) { remote(f); f();  }
+fun test(f) { remote(f); f();  }

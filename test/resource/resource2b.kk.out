@@ -1,6 +1,6 @@
 [01;30moperator branch (fake-file) read: resume tail
 [00;39;49m[00m42
-.Con-File : forall<s> (resource<filesys<s>>) -> file<s>
+.Con-File : forall<s> (resource-tag<filesys<s>>) -> file<s>
 .Op-read : forall<s> .op-read<s>
 .Ops-read : forall<s,a> (read : .op-read<s>) -> .ops-file<s,string>
 .create-file: forall<s> (int) -> file<s>

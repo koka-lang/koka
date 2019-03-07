@@ -8,7 +8,7 @@ type tree<a> {
   con Leaf
 }
 
-implicit<a> fun yield(value:a) : ()
+implicit<a> control yield(value:a) : ()
 
 // An in-order iterator for trees
 fun iterate(t) {
@@ -35,7 +35,7 @@ fun test1() {
 // print at most 4 elements
 fun print4(action) {
   var count := 0
-  with effect yield(x:int) {
+  with control yield(x:int) {
     if (count >= 4) then () else {
       count := count + 1
       print(x)
@@ -52,7 +52,7 @@ fun test2() {
 
 /* Iterator that takes a predicate `f` (Page 4)
 Note: we inject here to not handle a possible `:yield` effect in the predicate `f`.
-In `fiterate1` we left out the `inject`. Notice that each function has a *different* type:
+In `fiterate1` we left out the `inject`. Notice that each fun has a *different* type:
 ```
   fun fiterate( tree<a>, f : (a) -> e bool ) : <yield<a>|e> ()
   fun fiterate1( tree<a>, f : (a) -> <yield<a>|e> bool ) : <yield<a>|e> ()
@@ -60,7 +60,7 @@ In `fiterate1` we left out the `inject`. Notice that each function has a *differ
 The type reflects that `fiterate1` may handle the `:yield` effect of the predicate,
 while `fiterate` encapsulates the predicate and is polymorphic it the effect of
 the predicate. In the paper, the encapsulation is done by default which is often
-what we want (but not always!! (like writing a `catch` function for example)).
+what we want (but not always!! (like writing a `catch` fun for example)).
 
 Note 1. We need to use `inject` now but perhaps it is
 possible to reverse this behaviour and use it by default, with an `uninject` if
