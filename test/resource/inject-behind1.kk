@@ -1,26 +1,30 @@
 //fun try( action : () -> <exn|e> a ) : e try<a>
 //fun untry( x : try<a> ) : <exn|e> a
 
-fun foo( action ) {
+fun foo0( action ) {
   val x = try(action)
-  println("tried: exn: " + x.maybe.bool.show )
+  println("tried0: exn: " + x.maybe.bool.show )
   x.untry
 }
 
 
 fun foo1( action ) {
-  val x = try{ inject<exn>(action) }
+  val x = try{ mask<exn>(action) }
   println("tried1: exn: " + x.maybe.bool.show )
   x.untry
 }
 
-fun inject-tail-exn( action ) { // : () -> <exn|e> a ) : <exn,exn|e> a {
-  inject behind<exn>(action)
+fun foo2( action ) {
+  val x = try{ mask behind<exn>(action) }   // inject behind the outer exn, i.e. inject the injects in action
+  println("tried2: exn: " + x.maybe.bool.show )
+  x.untry
 }
 
-fun foo2( action ) {
-  val x = try{ inject-tail-exn(action) }
-  println("tried2: exn: " + x.maybe.bool.show )
+
+// equivalent to foo2
+fun foo3( action ) {
+  val x = mask<exn>{ try{ action() } }
+  println("tried3: exn: " + x.maybe.bool.show )
   x.untry
 }
 
@@ -38,17 +42,26 @@ fun bar(f,action) {
   }
 }
 
-fun test(f) {
+fun test(f,err) {
   bar(f) {
-    //error("outer")
-    inject<exn>{error("injected")}
-    error("outer")
+    err()
+    mask<exn>{error("masked")}
+    error("outer2")
   }
   println("")
 }
 
 fun main() {
-  test(foo)   // unifies: should catch on inner level
-  test(foo2)  // abstracts: should catch on outer level
-  test(foo1)  // identity: should catch on outer level
+  fun err(){ error("outer1") }
+  fun noerr(){ () }
+
+  test(foo0,noerr)   // unifies: should catch on inner level
+  test(foo2,noerr)  // abstracts: should catch on outer level
+  test(foo3,noerr)  // abstracts: should catch on outer level
+  test(foo1,noerr)  // identity: should catch on outer level
+
+  test(foo0,err)   // unifies: should catch on inner level
+  test(foo2,err)  // abstracts: should catch on outer level
+  test(foo3,err)  // abstracts: should catch on outer level
+  test(foo1,err)  // identity: should catch on outer level
 }

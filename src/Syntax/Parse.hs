@@ -775,6 +775,8 @@ dockeywordFun
 keywordExtern
   = keywordOr "extern" ["external"]
 
+keywordInject
+  = keyword "mask" <|> keyword "inject"
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
@@ -1866,7 +1868,7 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
 injectExpr :: LexParser UserExpr
 injectExpr
-  = do rng1 <- keyword "inject"
+  = do rng1 <- keywordInject
        behind <- do { specialId "behind"; return True } <|> return False
        langle
        tp <- ptype
