@@ -171,11 +171,13 @@ linear                    { return ID_LINEAR;  }
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
 effect                    { return EFFECT; }
-inject                    { return INJECT; }
+ambient                   { return EFFECT; }
+mask                      { return MASK; }
 
 with                      { return WITH; }
 in                        { return IN; }
-named                     { return NAMED; }
+resource                  { return RESOURCE; }
+override                  { return OVERRIDE; }
 
   /* unused reserved identifiers */
 rec                       { return REC; }

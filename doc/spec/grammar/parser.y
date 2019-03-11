@@ -3,7 +3,7 @@
    terms of the Apache License, Version 2.0.
 */
 
-%pure_parser
+%pure-parser
 
 %{
 typedef void*        yyscan_t;
@@ -65,8 +65,8 @@ void printDecl( const char* sort, const char* name );
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
-%token HANDLER HANDLE EFFECT INJECT
-%token WITH IN NAMED
+%token HANDLER HANDLE EFFECT MASK
+%token WITH IN RESOURCE OVERRIDE
 
 %token REC IFACE INST
 
@@ -83,8 +83,13 @@ void printDecl( const char* sort, const char* name );
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
    The following declaration make Bison prefer a shift in those situations */
 /* %nonassoc ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR */
-%%
 
+/* sr conflict on mask: parse as longest */
+%precedence MASK
+%precedence APP '{'
+
+
+%%
 
 /* ---------------------------------------------------------
 -- Program
@@ -457,10 +462,10 @@ fappexpr    : fappexpr funexpr
             ;
 */
 
-appexpr     : appexpr APP arguments ')'       /* application */
-            | appexpr IDX arguments ']'       /* index expression */
-            | appexpr '.' atom                /* dot application */
-            | appexpr funexpr                 /* trailing function application */
+appexpr     : appexpr APP arguments ')'             /* application */
+            | appexpr IDX arguments ']'             /* index expression */
+            | appexpr '.' atom                      /* dot application */
+            | appexpr funexpr                       /* trailing function application */
             | atom
             ;
 
@@ -470,7 +475,7 @@ appexpr     : appexpr APP arguments ')'       /* application */
 atom        : qidentifier
             | qconstructor
             | literal
-            | inject
+            | mask
             | '(' aexprs ')'             /* unit, parenthesized (possibly annotated) expression, tuple expression */
             | '[' cexprs ']'             /* list expression (elements may be terminated with comma instead of separated) */
             ;
@@ -478,8 +483,9 @@ atom        : qidentifier
 literal     : NAT | FLOAT | CHAR | STRING
             ;
 
-inject      : INJECT behind '<' tbasic '>' '(' aexpr')'
-            | INJECT behind '<' tbasic '>' block
+mask        : MASK behind '<' tbasic '>' APP aexpr')'
+            | MASK behind '<' tbasic '>' block
+            | MASK behind '<' tbasic '>'                 %prec MASK
             ;
 
 behind      : ID_BEHIND
@@ -640,7 +646,7 @@ withstat    : WITH noretfunexpr
             ;
 
 withexpr    : WITH withnobind
-            | WITH NAMED witheff opclauses
+            | WITH RESOURCE witheff opclauses
             | WITH withbind IN expr
             /* deprecated */
             | HANDLER withhandle opclauses
@@ -648,18 +654,18 @@ withexpr    : WITH withnobind
             | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
             ;
 
-withbind    : binder '=' NAMED witheff opclauses
+withbind    : binder '=' RESOURCE witheff opclauses
             | withnobind
             ;
 
 withnobind  : witheff opclauses
-            | NAMED witheff APP qidentifier ')' opclauses
+            | RESOURCE witheff APP qidentifier ')' opclauses
             ;
 
 /* deprecated */
 withhandle  : witheff
-            | NAMED witheff APP qidentifier ')'
-            | NAMED witheff
+            | RESOURCE witheff APP qidentifier ')'
+            | RESOURCE witheff
             ;
 
 witheff     : '<' anntype '>'
