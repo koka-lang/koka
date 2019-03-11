@@ -682,12 +682,21 @@ inferExpr propagated expect (Ann expr annTp rng)
        return (resTp,resEff,resCore)
 
 
-inferExpr propagated expect (Handler shallow scoped override mbEff pars reinit ret final ops hrng rng)
-  = do (tp,eff,core,heff) <- inferHandler propagated expect shallow scoped override mbEff pars reinit ret final ops hrng rng
-       case override of
-         HandlerNoOverride -> return (tp,eff,core)
-         HandlerOverride
-          -> do return (tp,eff,core)
+inferExpr propagated expect (Handler shallow scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final branches hrng rng
+inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pars reinit ret final branches hrng rng)
+  = do mbhxeff <- inferHandledEffect hrng handlerSort mbEff branches
+       case mbhxeff of
+         Nothing
+          -> do termError rng (text "cannot determine the effect type for the override") typeTotal []
+                inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
+         Just heff
+          -> let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+                 name = newHiddenName "override-action"
+                 binder = ValueBinder name Nothing Nothing rng rng
+                 var    = Var name False rng
+                 lam    = Lam [binder] (Inject heff (Lam [] (App h [(Nothing,var)] rng) rng) False rng) rng
+             in inferExpr propagated expect lam
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -777,11 +786,8 @@ inferExpr propagated expect (Inject label expr behind rng)
                                         (foralls,preds,rho)
                                           -> Just (quantifyType foralls $ qualifyType preds $ tfun rho, prng)
        (exprTp,exprEff,exprCore) <- inferExpr prop Instantiated expr
-       inferInject label behind rng eff exprTp exprEff exprCore
 
-inferInject label behind rng eff exprTp exprEff exprCore
-  = do res <- Op.freshTVar kindStar Meta
-       let tfun r = typeFun [] eff r
+       res <- Op.freshTVar kindStar Meta
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
 
@@ -827,11 +833,11 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> HandlerOverride
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope
                       -> Maybe Effect
                       -> [ValueBinder (Maybe Type) ()] -> Expr Type -> Expr Type -> Expr Type
-                      -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr,Maybe Effect)
-inferHandler propagated expect handlerSort handlerScoped handlerOverride
+                      -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+inferHandler propagated expect handlerSort handlerScoped
             mbEffect localPars reinit ret final branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
@@ -931,7 +937,7 @@ inferHandler propagated expect handlerSort handlerScoped handlerOverride
 
        geff <- freshEffect
        -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
-       return (sghandlerTp,geff,sghandlerCore,mbhxeff)
+       return (sghandlerTp,geff,sghandlerCore)
 {-
 wrapScopedHandler :: HandlerScope -> Maybe Effect -> Core.Expr -> Type -> Range -> Inf (Core.Expr,Type)
 wrapScopedHandler HandlerNoScope mbeff hcore htp rng = return (hcore,htp)

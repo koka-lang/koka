@@ -1294,10 +1294,6 @@ localWithDecl
                    blockexpr)
            return (StatFun (applyToContinuation krng [promoteValueBinder par] e))
         <|>
-        {- do mkInj <- injectType
-           return (StatFun mkInj)
-        <|>
-        -}
         do e <- withexpr
            return (StatFun (applyToContinuation krng [] e))
         <|>
@@ -1435,7 +1431,7 @@ handlerExpr
 handlerExprX braces rng
   = do mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       override<- do{ specialId "override"; return HandlerOverride } <|> return HandlerNoOverride
+       override<- do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
        hsort   <- handlerSort
        handlerExprXX braces rng mbEff scoped override hsort
 

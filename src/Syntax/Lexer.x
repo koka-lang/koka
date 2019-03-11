@@ -265,7 +265,7 @@ reservedNames
     , "control"
     , "with"
     , "resource", "instance", "named" {- alternative names for resource -}
-    , "mask"
+    , "mask", "override"
 
     -- deprecated
     -- alternative names for backwards paper compatability

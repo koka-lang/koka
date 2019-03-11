@@ -13,9 +13,10 @@ fun cd(path,action) {
   action()
 }
 
+// cd2 a, b, and c are equivalent
 fun cd2a(path,action) {
-  with val cwd = cwd + path + "/"
-  mask behind<cwd>(action)
+  with override val cwd = cwd + path + "/"
+  action()
 }
 
 fun cd2b(path,action) {
@@ -27,8 +28,10 @@ fun cd2b(path,action) {
 
 fun cd2c(path,action) {
   with val cwd = cwd + path + "/"
-  action()
+  mask behind<cwd>(action)
 }
+
+
 
 fun ex1() {
   with val cwd = "/"
