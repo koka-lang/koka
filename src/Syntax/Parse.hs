@@ -1414,7 +1414,7 @@ handlerExpr
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
        args <- parensCommas lparen argument
-       expr <- handlerExprXX True rng mbEff scoped hsort
+       expr <- handlerExprXX True rng mbEff scoped HandlerNoOverride hsort
        return (App expr args (combineRanged rng expr))
   <|>
     do (rng,handler) <- do rng <- keyword "with"
@@ -1435,8 +1435,9 @@ handlerExpr
 handlerExprX braces rng
   = do mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       override<- do{ specialId "override"; return HandlerOverride } <|> return HandlerNoOverride
        hsort   <- handlerSort
-       handlerExprXX braces rng mbEff scoped hsort
+       handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort =     do keywordResource
                      override <- do lapp
@@ -1450,7 +1451,7 @@ handlerSort =     do keywordResource
 
 
 
-handlerExprXX braces rng mbEff scoped hsort
+handlerExprXX braces rng mbEff scoped override hsort
   = do (pars,dpars,rng1) <- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
        -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
@@ -1468,7 +1469,7 @@ handlerExprXX braces rng mbEff scoped hsort
                                         [(Nothing,App (Var nameJust False rng)
                                                       [(Nothing,Var argName False rng)] rng)] rng
                            in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
-           handler = Handler hsort scoped mbEff pars reinitFun ret final ops
+           handler = Handler hsort scoped override mbEff pars reinitFun ret final ops
                        (combineRanged rng pars) fullrange
            hasDefaults = any (isJust.binderExpr) dpars
        case mbReinit of

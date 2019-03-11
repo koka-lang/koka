@@ -682,8 +682,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        return (resTp,resEff,resCore)
 
 
-inferExpr propagated expect (Handler shallow scoped mbEff pars reinit ret final ops hrng rng)
-  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final ops hrng rng
+inferExpr propagated expect (Handler shallow scoped override mbEff pars reinit ret final ops hrng rng)
+  = inferHandler propagated expect shallow scoped override mbEff pars reinit ret final ops hrng rng
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -818,10 +818,12 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> Maybe Effect
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> HandlerOverride
+                      -> Maybe Effect
                       -> [ValueBinder (Maybe Type) ()] -> Expr Type -> Expr Type -> Expr Type
                       -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect handlerSort handlerScoped mbEffect localPars reinit ret final branches hrng rng
+inferHandler propagated expect handlerSort handlerScoped handlerOverride
+            mbEffect localPars reinit ret final branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
        let propAction    = last propArgs

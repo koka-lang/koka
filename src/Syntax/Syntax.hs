@@ -205,9 +205,15 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()]
+  | Handler (HandlerSort (Expr t)) HandlerScope HandlerOverride
+                  (Maybe t) [ValueBinder (Maybe t) ()]
                   (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
   | Inject t (Expr t) Bool {-behind?-} Range
+
+
+data HandlerOverride
+  = HandlerNoOverride | HandlerOverride
+  deriving (Eq,Show)
 
 data HandlerScope
   = HandlerNoScope | HandlerScoped
@@ -335,7 +341,7 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
-        Handler shallow scoped eff pars reinit ret final ops hrng range -> range
+        Handler shallow scoped override eff pars reinit ret final ops hrng range -> range
         Inject tp expr behind range -> range
 
 instance Ranged Lit where

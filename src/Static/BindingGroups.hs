@@ -170,13 +170,13 @@ dependencyExpr modName expr
                               in (Parens depExpr rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
-      Handler shallow scoped eff pars reinit ret final ops hrng rng
+      Handler shallow scoped override eff pars reinit ret final ops hrng rng
         -> let (depRet,fv1)     = dependencyExpr modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
                (depReinit,fv3)  = dependencyExpr modName reinit
                (depFinal,fv4)   = dependencyExpr modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
-           in (Handler shallow scoped eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
+           in (Handler shallow scoped override eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
       Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
                               in (Inject tp depBody b rng, fv)
 
@@ -262,7 +262,7 @@ group defs deps
                         (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
                         isHidden ids = case ids of
                                          [id] -> isHiddenName id
-                                         _ -> False                        
+                                         _ -> False
                     in (xxs++xys++ys)
         -- create a map from definition id's to definitions.
         defMap   = M.fromListWith (\xs ys -> ys ++ xs) [(defName def,[def]) | def <- defs]
