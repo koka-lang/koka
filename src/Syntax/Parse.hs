@@ -1294,6 +1294,10 @@ localWithDecl
                    blockexpr)
            return (StatFun (applyToContinuation krng [promoteValueBinder par] e))
         <|>
+        {- do mkInj <- injectType
+           return (StatFun mkInj)
+        <|>
+        -}
         do e <- withexpr
            return (StatFun (applyToContinuation krng [] e))
         <|>
@@ -1868,13 +1872,21 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 
 injectExpr :: LexParser UserExpr
 injectExpr
-  = do rng1 <- keywordInject
-       behind <- do { specialId "behind"; return True } <|> return False
-       langle
-       tp <- ptype
-       rangle
-       exp <- parens expr <|> funblock
-       return (Inject (promoteType tp) exp behind (combineRanged rng1 exp))
+  = do (rng, mkInj) <- injectType
+       (do exp <- parens expr <|> funblock
+           return (mkInj exp)
+        <|>
+        do let name = newHiddenName "mask-action"
+           return $ Lam [ValueBinder name Nothing Nothing rng rng] (mkInj (Var name False rng)) rng)
+
+injectType :: LexParser (Range, UserExpr -> UserExpr)
+injectType
+ = do rng1 <- keywordInject
+      behind <- do { specialId "behind"; return True } <|> return False
+      langle
+      tp <- ptype
+      rangle
+      return (rng1, \exp -> Inject (promoteType tp) exp behind (combineRanged rng1 exp))
 
 -----------------------------------------------------------
 -- Patterns (and binders)

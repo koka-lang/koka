@@ -1,16 +1,33 @@
 import std/text/regex
 
-// Implicit Value Bindings
-implicit val cwd : string
+// ambient Value Bindings
+ambient val cwd : string
 
 fun home?() {
   // println(cwd)
   cwd.starts-with?("/home/")
 }
 
-fun cd(path : string, action : () -> <cwd|e> a) : <cwd|e> a {
+fun cd(path,action) {
   with val cwd = cwd + path + "/"
-  inject behind<cwd>(action)
+  action()
+}
+
+fun cd2a(path,action) {
+  with val cwd = cwd + path + "/"
+  mask behind<cwd>(action)
+}
+
+fun cd2b(path,action) {
+  val cur = cwd
+  with mask<cwd>
+  with val cwd = cur + path + "/"
+  action()
+}
+
+fun cd2c(path,action) {
+  with val cwd = cwd + path + "/"
+  action()
 }
 
 fun ex1() {
@@ -27,8 +44,8 @@ fun ex2() {
 }
 
 
-// Implicit Function Bindings
-implicit fun log(msg : string) : ()
+// ambient Function Bindings
+ambient fun log(msg : string) : ()
 
 fun log-working-dir() : <cwd, log> () {
   log("current working dir is: " + cwd)
@@ -40,8 +57,8 @@ fun ex3() {
   cd("var") { cd("lib") { log-working-dir() } }
 }
 
-// Implicit Control Bindings
-implicit control read-file(filename : string) : string
+// ambient Control Bindings
+ambient control read-file(filename : string) : string
 
 fun cat(name) {
   read-file(cwd + name)
@@ -49,7 +66,7 @@ fun cat(name) {
 
 fun ex4() {
   with val cwd = "/var/lib"
-  with control fun read-file(f) { read-async(f, resume) }
+  with control read-file(f) { read-async(f, resume) }
   cd("var") {
     cd("lib") {
       println(cat("file.txt"))
@@ -61,7 +78,7 @@ fun ex4() {
 
 fun ex5() {
   with val cwd = "/var/lib"
-  with effect fun read-file(f) { resume("dummy contents for " + f) }
+  with control read-file(f) { resume("dummy contents for " + f) }
   cd("var") {
     cd("lib") {
       println(cat("file.txt"))
