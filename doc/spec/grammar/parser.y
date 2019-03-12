@@ -66,9 +66,9 @@ void printDecl( const char* sort, const char* name );
 %token RETURN
 
 %token HANDLER HANDLE EFFECT MASK
-%token WITH IN RESOURCE OVERRIDE
+%token WITH IN CONTROL OVERRIDE
 
-%token REC IFACE INST
+%token REC IFACE INSTANCE
 
 %token ID_INLINE ID_INCLUDE
 %token ID_CS ID_JS ID_FILE
@@ -84,10 +84,13 @@ void printDecl( const char* sort, const char* name );
    The following declaration make Bison prefer a shift in those situations */
 /* %nonassoc ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR */
 
-/* sr conflict on mask: parse as longest */
-%precedence MASK
-%precedence APP '{'
+/* precedence is in increasing order,
+   e.g. the last precedence declaration have the highest precedence.
+*/
 
+/* resolve s/r conflict by shifting on IN so the IN binds to the closest WITH.*/
+%precedence WITH
+%precedence IN
 
 %%
 
@@ -395,10 +398,6 @@ expr        : ifexpr
             | withexpr
             ;
 
-nowithexpr  : ifexpr
-            | noifexpr
-            ;
-
 noifexpr    : returnexpr
             | matchexpr
             | funexpr
@@ -483,9 +482,7 @@ atom        : qidentifier
 literal     : NAT | FLOAT | CHAR | STRING
             ;
 
-mask        : MASK behind '<' tbasic '>' APP aexpr')'
-            | MASK behind '<' tbasic '>' block
-            | MASK behind '<' tbasic '>'                 %prec MASK
+mask        : MASK behind '<' tbasic '>'
             ;
 
 behind      : ID_BEHIND
@@ -640,32 +637,33 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-withstat    : WITH noretfunexpr
-            | WITH binder '=' noretfunexpr
-            | WITH withbind
+withstat    : WITH noretfunexpr                /* application to anonymous fun */
+            | WITH binder '=' noretfunexpr     /* application to fun */
+            | WITH withbind                    /* bind ambient */
             ;
 
-withexpr    : WITH withnobind
-            | WITH RESOURCE witheff opclauses
-            | WITH withbind IN expr
+withexpr    : WITH withnobind IN expr          /* bind ambient */
+            | WITH withnobind      %prec WITH  /* bind as function if not followed by IN */
+            | WITH binder '=' INSTANCE witheff opclauses IN expr  /* bind instance */
+            | WITH INSTANCE witheff opclauses  /* fresh ambient as function */
             /* deprecated */
             | HANDLER withhandle opclauses
             /* deprecated */
             | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
             ;
 
-withbind    : binder '=' RESOURCE witheff opclauses
+withbind    : binder '=' INSTANCE witheff opclauses
             | withnobind
             ;
 
 withnobind  : witheff opclauses
-            | RESOURCE witheff APP qidentifier ')' opclauses
+            | INSTANCE witheff APP qidentifier ')' opclauses
             ;
 
 /* deprecated */
 withhandle  : witheff
-            | RESOURCE witheff APP qidentifier ')'
-            | RESOURCE witheff
+            | INSTANCE witheff APP qidentifier ')'
+            | INSTANCE witheff
             ;
 
 witheff     : '<' anntype '>'
@@ -686,15 +684,12 @@ opclauses1  : opclauses1 semis1 opclause
             | opclause
             ;
 
-opclause    : VAL qidentifier '=' nowithexpr
-            | VAL qidentifier ':' type '=' nowithexpr
-            | FUN qidentifier opargs nowithbody
-            | RETURN lparen oparg ')' nowithbody
-            | RETURN paramid nowithbody
-            ;
-
-nowithbody  : RARROW nowithexpr
-            | block
+opclause    : VAL qidentifier '=' expr
+            | VAL qidentifier ':' type '=' expr
+            | FUN qidentifier opargs bodyexpr
+            | CONTROL qidentifier opargs bodyexpr
+            | RETURN lparen oparg ')' bodyexpr
+            | RETURN paramid bodyexpr
             ;
 
 opargs      : lparen opargs0 ')'

@@ -176,14 +176,14 @@ mask                      { return MASK; }
 
 with                      { return WITH; }
 in                        { return IN; }
-resource                  { return RESOURCE; }
+control                   { return CONTROL; }
 override                  { return OVERRIDE; }
 
   /* unused reserved identifiers */
 rec                       { return REC; }
 
 interface                 { return IFACE; }
-instance                  { return INST; }
+instance                  { return INSTANCE; }
 
   /* reserved operators */
 :                         { return ':';    }
@@ -462,7 +462,7 @@ static bool contains( Token tokens[], Token token ) {
   return (find(tokens,token) >= 0);
 }
 
-static Token appTokens[] = { ')', ']', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
+static Token appTokens[] = { ')', ']', '>', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
 
 static bool isAppToken( Token token ) {
   return contains(appTokens, token );
