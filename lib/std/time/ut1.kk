@@ -1,4 +1,4 @@
-  /*----------------------------------------------------------------------------
+/*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
@@ -60,12 +60,12 @@ import std/time/time
 public val cal-ut1-approx = cal-ut1-create()
 
 // Create a UT1 (Universal time 1) calendar.
-// Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
-// more precisely. The `override` functions should return `Nothing` for instants
+// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely. The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`).
 // (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
-public fun cal-ut1-create( override : (i : instant) -> maybe<duration> = deltat-none ) {
-  iso-calendar( ts-ut1(override) )
+public fun cal-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) {
+  iso-calendar( ts-ut1(dt) )
 }
 
 val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
@@ -112,7 +112,7 @@ public fun load-iersA( basename : string = "finals2000A",
   val fname-all    = basename + ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all,
                                      duration(download-delay.seconds * 8.ddouble),
-                                     duration(download-timeout.seconds * 4.ddouble), verbose )
+                                     duration(download-timeout.seconds * 8.ddouble), verbose )
   val fname-daily  = basename + ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
                                        download-delay, download-timeout, verbose )
@@ -138,7 +138,7 @@ public fun load-iersA( basename : string = "finals2000A",
 public fun load-iersA-all( fname : string = "",
                           url   : string = "auto",
                           download-delay : duration   = 8.weeks,
-                          download-timeout : duration = 20.seconds,  // 3mb file!
+                          download-timeout : duration = 30.seconds,  // 3mb file!
                           verbose : bool = True
                          ) : <io,async> ((i:instant) -> maybe<duration>)
 {
@@ -212,10 +212,10 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
                 elif (dut1 - 0.5 > dut2 && dut1 - 1.5 < dut2) then dut2 + 1.0 // a leap second was subtracted
                 else dut1 // a jump outside a reasonable range; don't interpolate
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
-      // trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
+      //val _ = trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
       val dt  = (i.timestamp(ts-tt) - dut.ddouble) - utci.timestamp(ts-utc).seconds // include leap seconds!
-      // trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
+      //val _ = trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
   }
@@ -238,9 +238,9 @@ fun parse-iersA( s : string ) : maybe<dut-table> {
                   Just(cap) -> cap.groups[1].parse-double.maybe(end - 365.0)
                   Nothing   -> end - 365.0  // guess one year early
                 }).instant-at-mjd(ts-ti)
-  // trace("finals200A expire: " + expire.time.show)
-  // trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
-  // trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
+  //trace("finals2000A expire: " + expire.time.show)
+  //trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
+  //trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
   Just(Dut-table(expire,start,end,entries))
 }
 val rx-finals-dut = regex(@"^.{57}[IP]([\-\+ ]\d+(?:\.\d+))", multiline=True)
@@ -261,28 +261,28 @@ private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut( tai : duration, override : (i:instant) -> maybe<duration> ) : timestamp {
+fun tai-to-ut( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
   val i  = tai.instant-since-epoch
-  val dt = deltat(i,override)
+  val dt = deltat(i,dt-override)
   // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp(ts-tt)
 }
 
-fun ut-to-tai( t : timestamp, override : (i : instant) -> maybe<duration> ) : duration {
+fun ut-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
   val i   = unsafe-instant(t,ts-tt)   // approximately tt
-  val i1  = i + deltat(i,override)
-  val i2  = i + deltat(i1,override)
+  val i1  = i + deltat(i,dt-override)
+  val i2  = i + deltat(i1,dt-override)
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
   i2.since-epoch
 }
 
-// Takes an optional `override` parameter to calculate &Delta;T (=TT - UT1)
-// more precisely. The `override` functions should return `Nothing` for instants
+// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely. The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`)
-fun ts-ut1( override : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+fun ts-ut1( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1",
-    fun(i) { tai-to-ut(i,override) },
-    fun(t) { ut-to-tai(t,override) }
+    fun(i) { tai-to-ut(i,dt) },
+    fun(t) { ut-to-tai(t,dt) }
   )
 }
 
@@ -296,7 +296,7 @@ fun deltat-none(i : instant) : maybe<duration> {
 }
 
 /* Calculate &Delta;T (= TT - UT1);
-If the `override` function returns `Nothing`, it tries in order:
+If the `dt-override` function returns `Nothing`, it tries in order:
 
 * monthly determined tables for any observed date (usually > 1973 up to now (2016))
 * quarterly prediction tables for dates > now (2016) up to about 10 years (2025)
@@ -305,8 +305,8 @@ If the `override` function returns `Nothing`, it tries in order:
 * generic parabolic approximation for dates < -500 and dates > 2150 (Morrison and Stephenson, 2004.)
 
 */
-public fun deltat( i : instant, override : (i : instant) -> maybe<duration> = deltat-none ) : duration {
-  val dt = match(override(i)) {
+public fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> = deltat-none ) : duration {
+  val dt = match(dt-override(i)) {
             Just(dt) -> dt
             Nothing  -> {
               val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
