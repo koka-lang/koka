@@ -84,13 +84,17 @@ void printDecl( const char* sort, const char* name );
    The following declaration make Bison prefer a shift in those situations */
 /* %nonassoc ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR */
 
-/* precedence is in increasing order,
+/* precedence declarations are in increasing order,
    e.g. the last precedence declaration have the highest precedence.
 */
 
 /* resolve s/r conflict by shifting on IN so the IN binds to the closest WITH.*/
 %precedence WITH
 %precedence IN
+
+/* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
+%precedence THEN
+%precedence ELSE ELIF
 
 %%
 
@@ -374,7 +378,7 @@ statements1 : statements1 statement semis1
 
 statement   : decl
             | withstat
-            | nofunexpr
+            | statexpr
             ;
 
 decl        : FUN fundecl
@@ -393,27 +397,21 @@ bodyexpr    : RARROW blockexpr
 blockexpr   : expr              /* a block is not interpreted as an anonymous function but as grouping */
             ;
 
-expr        : ifexpr
-            | noifexpr
-            | withexpr
-            ;
-
-noifexpr    : returnexpr
-            | matchexpr
+expr        : withexpr
             | funexpr
-            | opexpr
+            | statexpr
             ;
 
-nofunexpr   : ifexpr
-            | returnexpr
+statexpr    : ifexpr
             | matchexpr
             | opexpr
+            | returnexpr
             ;
 
 noretfunexpr: ifexpr
             | matchexpr
-            | opexpr
             | withexpr
+            | opexpr
             ;
 
 /* keyword expressions */
@@ -425,23 +423,19 @@ funexpr     : FUNX fundef block
             | block                    /* zero-argument function */
             ;
 
-returnexpr  : RETURN opexpr
-            | RETURN FUNX fundef block
+returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF atom then elifs else
+ifexpr      : IF atom then elifs ELSE expr  %prec THEN
+            | IF atom then elifs            %prec THEN
             ;
 
-then        : THEN noifexpr
-            | noifexpr                 /* then keyword is optional */
-            ;
-
-else        : ELSE noifexpr
-            | /* empty */
+then        : THEN expr
+            | expr           /* then keyword is optional */
             ;
 
 elifs       : elifs ELIF atom then
-            | /* empty */
+            | %empty /* empty */
             ;
 
 /* operator expression */
