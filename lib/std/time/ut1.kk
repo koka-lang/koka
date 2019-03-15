@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* The UT1 time scale and calendar.
+/* The UT1 (and UT2) time scale and calendar.
 
 The UT1 time scale is based on the rotation of the earth where one rotation is 86400 seconds.
 The exact UT1 time can only be determined by measuring the Earth's rotation angle very precisely.
@@ -306,7 +306,14 @@ fun ts-ut1( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
 // -----------------------------------------------------------
 
 fun ut2-offset( i : instant ) : timespan {
-  val t     = 1900.0 + ((i.j2000.double - 2415020.31352) / 356.242198781)
+  // UT2 definition from:
+  //   McCarthy, Dennis D. (July 1991). "Astronomical Time".
+  //   Proceedings of the IEEE. 79 (7): 915–920. doi:10.1109/5.84967.
+  //   <http://www.cl.cam.ac.uk/~mgk25/volatile/astronomical-time.pdf>
+  // Note: Wikipedia gives a slightly different formula (but agrees on the periodic adjustment):
+  //   val t = 1900.0 + ((i.j2000.double - 2415020.31352) / 356.242198781)
+  // but we prefer the published version.
+  val t     = 2000.0 + ((i.mjd(ts-tt).double - 51544.03) / 356.2422)  // Besselian years
   val tp2   = dbl-twopi*t
   val tp4   = 2.0*tp2
   val ofs   = 0.022*sin(tp2) - 0.012*cos(tp2) - 0.006*sin(tp4) + 0.007*cos(tp4)
