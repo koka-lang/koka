@@ -287,7 +287,7 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  unsafe-instant( timestamp( timespan(secs.truncate.int, secs.fraction + frac.fraction), frac.truncate.int), ts-unix ) 
+  unsafe-instant( timestamp( timespan(secs.truncate.int, secs.fraction + frac.fraction), frac.truncate.int), ts-unix )
 }
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).

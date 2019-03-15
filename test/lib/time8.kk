@@ -14,6 +14,7 @@ import std/os/file
 public import std/num/decimal
 public import std/time
 public import std/time/ut1
+public import std/time/astro
 
 /*----------------------------------------------------------------------------
   Testing
@@ -28,6 +29,23 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 
 
 public val sofai = instant(2006,1,15,21,24,37,0.5)
+
+// TAI start at 0 on `1958-01-01Z`
+// TT is TAI + 32.184, so was `1958-01-01T00:00:32.184 TT`
+// At that time, delta-T (=TT - UT1) was 32.166s (see: http://maia.usno.navy.mil/ser7/historic_deltat.data)
+// so UT1 was `1958-01-01T00:00:00.018 UT1`
+// Also, TAI was at that time defined equal to UT2, but when applying
+// the defined adjustment from UT1:
+//  UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
+// where `t` the fraction of the Besselian year, we are off by 0.01s.
+// I guess this is due to UT2 being now approximated from UT1.
+public fun test-ut2() {
+  val i = instant(1958,1,1,cal=cal-tai)
+  check("utc at tai epoch", "1958-01-01T00:00:00Z"){ i.time(cal=cal-iso).show }
+  check("tt  at tai epoch", "1958-01-01T00:00:32.184Z TT") { i.time(cal=cal-tt).show }
+  check("ut1 at tai epoch", "1958-01-01T00:00:00.018Z UT1"){ i.time(cal=cal-ut1-approx).show }
+  check("ut2 at tai epoch", "1957-12-31T23:59:59.990143331Z UT2"){ i.time(cal=cal-ut2-approx).show }
+}
 
 public fun test-ut1(verbose:bool = True) {
   println("load UT1 calendar")
@@ -60,4 +78,5 @@ public fun test-ut1(verbose:bool = True) {
 
 public fun main() {
   test-ut1(verbose=False)
+  test-ut2()
 }

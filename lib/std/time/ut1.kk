@@ -59,6 +59,11 @@ import std/time/time
 // To calculate UT1 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
 public val cal-ut1-approx = cal-ut1-create()
 
+// The default UT2 (Universal time 2) calendar.
+// Uses builtin approximation of UT2 time as described in `deltat`.
+// To calculate UT2 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
+public val cal-ut2-approx = cal-ut2-create()
+
 // Create a UT1 (Universal time 1) calendar.
 // Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
 // more precisely. The `dt` functions should return `Nothing` for instants
@@ -66,6 +71,15 @@ public val cal-ut1-approx = cal-ut1-create()
 // (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
 public fun cal-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) {
   iso-calendar( ts-ut1(dt) )
+}
+
+// Create a UT2 (Universal time 2) calendar.
+// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely. The `dt` functions should return `Nothing` for instants
+// outside its range so the builtin methods can be used in that case (see `deltat`).
+// (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
+public fun cal-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) {
+  iso-calendar( ts-ut2(dt) )
 }
 
 val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
@@ -261,17 +275,17 @@ private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
+fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
   val i  = tai.instant-since-epoch
   val dt = deltat(i,dt-override)
   // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).timestamp(ts-tt)
 }
 
-fun ut-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
-  val i   = unsafe-instant(t,ts-tt)   // approximately tt
-  val i1  = i + deltat(i,dt-override)
-  val i2  = i + deltat(i1,dt-override)
+fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+  val i   = unsafe-instant(t,ts-tt)      // approximately tt
+  val i1  = i + deltat(i,dt-override)    // approximate tai
+  val i2  = i + deltat(i1,dt-override)   // improve over previous approximation
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
   i2.since-epoch
 }
@@ -281,11 +295,46 @@ fun ut-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) :
 // outside its range so the builtin methods can be used in that case (see `deltat`)
 fun ts-ut1( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1",
-    fun(i) { tai-to-ut(i,dt) },
-    fun(t) { ut-to-tai(t,dt) }
+    fun(i) { tai-to-ut1(i,dt) },
+    fun(t) { ut1-to-tai(t,dt) }
   )
 }
 
+// -----------------------------------------------------------
+// UT2 timescale.
+// UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
+// -----------------------------------------------------------
+
+fun ut2-offset( i : instant ) : timespan {
+  val t     = 1900.0 + ((i.j2000.double - 2415020.31352) / 356.242198781)
+  val tp2   = dbl-twopi*t
+  val tp4   = 2.0*tp2
+  val ofs   = 0.022*sin(tp2) - 0.012*cos(tp2) - 0.006*sin(tp4) + 0.007*cos(tp4)
+  ofs.timespan
+}
+
+fun tai-to-ut2( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
+  val i   = tai.instant-since-epoch
+  val ut1 = tai.tai-to-ut1(dt-override)
+  (ut1 + i.ut2-offset)
+}
+
+fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+  val i = unsafe-instant(t,ts-tt)
+  val ut1 = t - i.ut2-offset          // approximate ut1
+  ut1.ut1-to-tai(dt-override)
+}
+
+// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
+// more precisely (since UT2 is derived from UT1).
+// The `dt` functions should return `Nothing` for instants
+// outside its range so the builtin methods can be used in that case (see `deltat`)
+fun ts-ut2( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+  timescale("UT2",
+    fun(i) { tai-to-ut2(i,dt) },
+    fun(t) { ut2-to-tai(t,dt) }
+  )
+}
 
 // -----------------------------------------------------------
 // Calculate delta-t
@@ -485,7 +534,7 @@ val rxcomment = regex(@"//.*")
 //-----------------------------------------------------------------
 
 // Half-yearly history delta-t values from 1750 up to 1987
-// From: http://maia.usno.navy.mil/ser7/historic_deltat.data
+  // From: http://maia.usno.navy.mil/ser7/historic_deltat.data
 // Note: values before 1750 are excluded as the Espenak & Meeus (2006) estimates are more
 // precise. The values in the original table are from McCarthy and Babcock (1986).
 // Table runs from 1750 to 1987 (excluded) for each half year.
@@ -513,10 +562,26 @@ val deltat-table-historic : () -> deltat-table = once{ parse-historic(1750.0,@"
 24.04,23.98,23.91,23.89,23.95,23.93,23.92,23.88,23.94,23.91,23.82,23.76,23.87,23.91,23.95,23.96,
 24.00,24.04,24.20,24.35,24.61,24.82,25.09,25.30,25.56,25.77,26.05,26.27,26.54,26.76,27.04,27.27,
 27.55,27.77,28.03,28.25,28.50,28.70,28.95,29.15,29.38,29.57,29.80,29.97,30.19,30.36,30.57,30.72,
-30.93,31.07,31.24,31.349,31.516,31.677,31.923,32.166,32.449,32.671,32.919,33.150,33.397,33.584,
-33.804,33.992,34.240,34.466,34.731,35.030,35.400,35.738,36.147,36.546,36.995,37.429,37.879,38.291,
-38.753,39.204,39.707,40.182,40.706,41.170,41.686,42.227,42.825,43.373,43.959,
-// 1974
+30.93,31.07,31.24,31.349,31.516,31.677,31.923,
+//1958
+32.166,32.449,
+32.671,32.919,
+//1960
+33.150,33.397,
+33.584,33.804,
+33.992,34.240,
+34.466,34.731,
+35.030,35.400,
+35.738,36.147,
+36.546,36.995,
+37.429,37.879,
+38.291,38.753,
+39.204,39.707,
+//1970
+40.182,40.706,
+41.170,41.686,
+42.227,42.825,
+43.373,43.959,
 44.486,44.997,
 45.477,45.983,
 46.458,46.997,
