@@ -62,7 +62,7 @@ that matches exactly UTC up to some date but with no further leap seconds
 added  after that -- which makes time calculations robust and deterministic
 with regard to future dates. For this reason, this library defaults to using
 TI instead of UTC. The TI time scale (`ts-ti`) is defined
-to exactly match UTC before the compiler release date (currently 2017) but
+to exactly match UTC before the compiler release date (currently 2019) but
 ignores any future leap seconds.
 
 
@@ -106,7 +106,7 @@ Here are some interesting time steps that occurred in this time frame:
 ## UTC before 1961
 
 The TAI timescale was officially established on 1958-01-01Z, and at that
-time the difference (TAI - UT1) was approximately zero.
+time the difference (TAI - UT1) was approximately zero (about 0.008s).
 In the time frame 1958 up to 1961 the relation between TAI and UTC is not
 well defined, as UTC was only officially established in 1960 (Arias
 and Guinot [@Arias:utc]).
@@ -376,27 +376,27 @@ abstract struct leaps-table(
 )
 
 // Leap second adjustments. For an instant `i` after `start`:\
-// ``TAI-offset = offset + (delta * days(i - delta-start))``
+// ``TAI-offset = offset + (drift * days(i - drift-start))``
 abstract struct leap-adjust(
-  utc-start  : utc-timestamp,  // start time in UTC seconds since 1972-01-01Z
+  utc-start  : utc-timestamp,  // start time in UTC seconds since `epoch`
   offset     : timespan,       // base offset
-  delta-start: utc-timestamp  = timestamp0,   // start of delta adjustment
-  delta      : ddouble = zero
+  drift-start: utc-timestamp  = timestamp0,   // start of drift adjustment
+  drift      : ddouble = zero
 )
 
 val leaps-table0 = Leaps-table(epoch,[])
 val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 
 fun zero?( la : leap-adjust ) : bool {
-  la.offset.zero? && la.delta.zero?
+  la.offset.zero? && la.drift.zero?
 }
 
 // Get the leap-second adjustment
-fun tai-offset( la : leap-adjust, utc-i : utc-timestamp ) : timespan {
-  if (la.delta.zero?) then la.offset else {
+fun tai-offset( la : leap-adjust, utc : utc-timestamp ) : timespan {
+  if (la.drift.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = div((utc-i.timespan - la.delta-start.timespan), secs-per-day, 3)
-    la.offset + (la.delta * days)
+    val days = div((utc.timespan - la.drift-start.timespan), secs-per-day, 3)
+    la.offset + (la.drift * days)
   }
 }
 
@@ -414,14 +414,14 @@ private fun upto( lt : leaps-table, end : timestamp ) : leaps-table {
 
 
 // Get a list of leap second steps in a triple, UTC time, offset just before, and the new offset at that time,
-// the base offset, the delta start date and the delta rate.
+// the base offset, the drift start date and the drift rate.
 public fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(timestamp,timespan,timespan,(timespan,timestamp,ddouble))> {
   val adjusts = table.adjusts.reverse
   zip(Cons(zero,adjusts),adjusts).map( fun(las) {
     val ts = las.snd.utc-start
     val ofs1 = las.fst.tai-offset(ts)
     val ofs2 = las.snd.tai-offset(ts)
-    (ts,ofs1,ofs2,(las.snd.offset,las.snd.delta-start,las.snd.delta))
+    (ts,ofs1,ofs2,(las.snd.offset,las.snd.drift-start,las.snd.drift))
   })
 }
 
@@ -546,39 +546,49 @@ fun tai-to-utc( leaps : leaps-table, d : duration ) : timestamp {
   //trace("utc-from-tai: " + i.show)
   if (d < tai1958) then d.timestamp else find-utc-from-tai( d.timestamp, leaps.adjusts )
 }
-val tai1958 = duration(~1325376000)  // 1958-01-01Z in seconds since epoch
+val tai1958 = duration(-1325376000)  // 1958-01-01Z in seconds since epoch
 val utc1958 = tai1958.timestamp
 
-fun find-utc-from-tai( i : timestamp, leaps : list<leap-adjust> ) : timestamp {
+// Convert a TAI duration since `epoch` and after 1958-01-01 to a UTC duration since `epoch`.
+// This is more tricky as we have only UTC start times and need to guess at first
+// and later adjust for possible leap seconds and period cross-overs.
+fun find-utc-from-tai( tai : timestamp, leaps : list<leap-adjust> ) : timestamp {
   match(leaps) {
-    Nil -> i // should never happen
+    Nil -> tai // should never happen
     Cons(la,earlier) -> {
-      val ofs   = la.tai-offset(i)
-      val utc-i = i - ofs
-      val max   = if (ofs.neg?) then utc-i else i
-      // trace("check: utc-i: " + utc-i.show + ", start: " + la.utc-start.show + ", ofs: " + ofs.show + ", i: " + i.show)
-      if (la.utc-start > max) then find-utc-from-tai(i,earlier) else {
-        if (la.utc-start <= utc-i) then {
-          // in the time frame
-          // trace(" utc-from-tai: found: utc: " + utc-i.show + ", tai-ofs: " + ofs.ts-show )
-          utc-i
+      val ofs = la.tai-offset(tai)  // guess it's ok to use `tai` as a `utc` timestamp at first
+      val utc = tai - ofs
+      val max = if (ofs.neg?) then utc else tai
+      // trace("check: utc: " + utc.show + ", start: " + la.utc-start.show + ", ofs: " + ofs.show + ", i: " + i.show)
+      if (la.utc-start > max) then {
+        // Either one does not fall in this period, try an earlier period
+        find-utc-from-tai(tai,earlier)
+      }
+      else {
+        if (la.utc-start <= utc) then {
+          // The adjusted `utc` falls in this period, we can use it.
+          // trace(" utc-from-tai: found: utc: " + utc.show + ", tai-ofs: " + ofs.ts-show )
+          utc
         }
         else {
-          // leap-second crosses-over into other time frame
-          // get adjustment using the earlier frame too
-          // trace("found crossover: " + utc-i.show + ", ofs: " + ofs.ts-show + ", i: " + i.show )
+          // We have `utc < la.utc-start`, we need to use the period before this one
+          // trace("found crossover: " + utc.show + ", ofs: " + ofs.ts-show + ", tai: " + tai.show )
           val la-before = earlier.head.default(zero)
-          val ofs-before= la-before.tai-offset(i)
-          val utc-prev  = i - ofs-before
+          val ofs-before= la-before.tai-offset(tai)
+          val utc-prev  = tai - ofs-before
           if (la.utc-start > utc-prev) then {
-            // use previous leap-second offset
+            // Use the previous period to adjust as it gives correct results
             // trace(" use previous: " + utc-prev.show + ", ofs-before: " + ofs-before.ts-show )
             utc-prev
           }
           else {
-            // this is inside an added leap-second, use `add-leap-seconds`.
+            // We have `utc < la.utc-start <= utc-prev` !
+            // This means that `tai` (and `utc-prev`) is inside the last leap second of `la-before`
+            // So we cannot use `utc-prev` directly, but create a timestamp with added leap
+            // seconds from `utc`.
+            // (note: `diff` is always positive in this case)
             val diff     = ofs - ofs-before
-            val utc-leap = utc-i.adjust-leap-seconds(diff)
+            val utc-leap = utc.adjust-leap-seconds(diff)
             // trace(" in a leap second: " + utc-leap.show + ", diff: " + diff.ts-show + ", ofs: " + ofs.ts-show + ", ofs-before: " + ofs-before.ts-show )
             utc-leap
           }
@@ -598,7 +608,7 @@ public fun utc-secs-in-day( leaps : leaps-table, t : timestamp ) : timespan {
     _ -> secs-per-day
   }
 }
-val utc1972 = timestamp(~883612800)  // instant-at(1972).timestamp(ts-utc)
+val utc1972 = timestamp(-883612800)  // instant-at(1972).timestamp(ts-utc)
 
 fun long-day?( leaps : list<leap-adjust>, t : timestamp ) : maybe<ddouble> {
   match(leaps) {
@@ -707,11 +717,11 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     val mjd    = cap.groups[1].parse-ddouble.default(jd-epoch-shift) - jd-epoch-shift
     val ofs    = cap.groups[2].parse-ddouble.default(zero)
     val dmjd   = cap.groups[3].parse-ddouble.default(zero)
-    val delta  = cap.groups[4].parse-ddouble.default(zero)
+    val drift  = cap.groups[4].parse-ddouble.default(zero)
     val start  = timestamp(mjd*secs-per-day - mjd-epoch-shift)  //instant(1858,11,17 + mjd.int)
     val dstart = timestamp(dmjd*secs-per-day - mjd-epoch-shift) //instant(1858,11,17 + dmjd.int)
-    // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", delta: " + delta.show )
-    Leap-adjust( start, ofs, dstart, delta )
+    // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
+    Leap-adjust( start, ofs, dstart, drift )
   }).reverse
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
