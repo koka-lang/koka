@@ -18,7 +18,7 @@ import std/num/ddouble
 import std/time/timespan
 import std/time/duration
 import std/time/instant
-//import std/time/utc
+import std/time/utc
 import std/time/date
 
 extern include {
@@ -34,7 +34,7 @@ public struct calendar(
   month-prefix: string,
   show-era    : (date) -> string,
   private instant-to-dc : (i:instant,tzdelta:duration) -> (date,clock),
-  private dc-to-instant : (date,clock,timezone,timescale) -> instant,
+  private dc-to-instant : (date,clock,timezone) -> instant,
   private days-to-date  : (days:int) -> date,
   private date-to-days  : (date:date) -> int
 )
@@ -99,7 +99,7 @@ public fun tz-local() : ndet timezone {
   Timezone(
     "",
     fun(i) {
-      val (ofs,abbrv) = local-utc-delta(tz, i.timestamp(ts-unix).seconds.double)
+      val (ofs,abbrv) = local-utc-delta(tz, i.since-in(ts-unix).double)
       (duration(ofs.timespan),abbrv)
     }
   )
@@ -225,7 +225,7 @@ public fun earth-calendar(
             ) : calendar
 {
   fun instant-to-dc(i : instant, tzdelta : duration) {
-    earth-dayspan-to-dc( i.dayspan-since-y2k, tzdelta.timespan, days-to-date )
+    earth-dayspan-to-dc( i.dayspan-since-y2k.fst, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
     earth-dc-to-instant( d, c, date-to-days, tz, ts)
@@ -238,12 +238,12 @@ public fun earth-calendar(
 
 fun earth-dayspan-to-dc( ds : dayspan, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
   // check if we are in a leap second (and remember the leap seconds in `leap`)
-  val (secs,leap)    = if (ds.secs < 60.ddouble) then (ds.secs) else {
-                         val leap = ds.secs.floor.int - 59
+  val (dsecs,leap)   = if (ds.secs < solar-secs-per-day) then (ds.secs, 0) else {
+                         val leap = ds.secs.floor.int - isolar-secs-per-day + 1
                          (ds.secs - leap.ddouble, leap)
                        }
   // adjust for timezone now disregarding leap seconds (possibly going into the next or previous day)
-  val sd               = solar-dayspan(ds.days, secs + tzdelta)
+  val sd               = solar-dayspan(ds.days, dsecs + tzdelta)
   val date             = days-to-date(sd.days)
   //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
 
@@ -278,9 +278,9 @@ fun earth-dc-to-instant( d : date, c : clock, date-to-days: (date) -> int, tz : 
                    // in UTC:  instant(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"
                    // and TAI: time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI"
                    val tzd1 = (tz.utc-delta)(i).fst
-                   val tzi1 = ts.instant-from-dayspan( solar-dayspan(days,secs - tzd1) )
+                   val tzi1 = ts.instant-from-dayspan( solar-dayspan(days,secs - tzd1.timespan) )
                    val tzd2 = (tz.utc-delta)(tzi1).fst
-                   if (tzd1==tzd2) then tzi1 else ts.instant-from-dayspan( solar-dayspan(days,secs - tzd2) )
+                   if (tzd1==tzd2) then tzi1 else ts.instant-from-dayspan( solar-dayspan(days,secs - tzd2.timespan) )
                  }
                }
              }
@@ -489,6 +489,7 @@ This is a recommended calendar to use for
 time stamps or communication with other services since it avoids any potential trouble
 with leap seconds while still being quite precise.
 */
+/*
 public val cal-iso-sls = iso-calendar( ts-ti-sls, "", "ISO-SLS" )
 
 // Create a new ISO 8601 calendar based on UTC-SLS time, i.e. UTC with smoothed leap
@@ -497,7 +498,7 @@ public fun cal-utc-sls-create( leaps : leaps-table ) : calendar {
   val ts-utc-sls = ts-utc-sls-create(leaps)
   iso-calendar( ts-utc-sls, "", "ISO-SLS" )
 }
-
+*/
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
 // Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)

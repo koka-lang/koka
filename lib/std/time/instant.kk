@@ -194,7 +194,7 @@ public fun dayspan-since-y2k( i : instant ) : (dayspan,timespan) {
 
 // Given a `:dayspan` since 2000-01-01 in the given time scale `ts`,
 // return the instant in time.
-public fun instance-from-dayspan( ts : timescale, ds : dayspan ) : instant {
+public fun instant-from-dayspan( ts : timescale, ds : dayspan ) : instant {
   Instant( (ts.from-dayspan)(ds) + ts.epoch-y2k, ts )
 }
 

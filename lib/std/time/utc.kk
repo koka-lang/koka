@@ -525,7 +525,7 @@ fun find-adjust( leaps : list<leap-adjust>, t : timestamp, previous : leap-adjus
 ----------------------------------------------------------------------------*/
 fun utc-to-dayspan( leaps : leaps-table, utc : timespan ) : (dayspan,timespan) {
   val (ofs,leap,dayextra) = utc-to-tai-offset(leaps,utc)
-  val tspan = (utc - ofs - leap)
+  val tspan = (utc - leap)
   val tsecs = tspan.floor
   val tfrac = tspan - tsecs
   val (days,dsecs) = divmod( tsecs.int, isolar-secs-per-day )
@@ -579,7 +579,7 @@ fun find-utc-to-tai-offset( utc : utc-timespan, mbafter : maybe<leap-adjust>, le
           val diff = after.offset - la.offset
           val leap = if (utc >= after.utc-start - diff) then diff else timespan0
           val daysecs = if (utc >= after.utc-start - solar-secs-per-day - diff) then diff else timespan0
-          (ofs,leap,daysecs)
+          (ofs, leap, daysecs)
         }
         _ -> (ofs,timespan0,timespan0)
       }
@@ -640,7 +640,7 @@ fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (times
             // seconds from `utc`.
             // (note: `diff` is always positive in this case)
             val diff     = ofs - ofs-before
-            (~ofs-before,diff)
+            (~ofs, diff)
             /*
             val utc-leap = utc.adjust-leap-seconds(diff)
             // trace(" in a leap second: " + utc-leap.show + ", diff: " + diff.ts-show + ", ofs: " + ofs.ts-show + ", ofs-before: " + ofs-before.ts-show )
