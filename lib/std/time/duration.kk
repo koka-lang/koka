@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -8,18 +8,18 @@
 
 /* Time durations in SI seconds.
 
-   Durations use SI seconds as measured on the Earth's geoid (i.e. [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) SI seconds).
+   Durations use SI seconds.
 */
 module std/time/duration
 
 import std/num/ddouble
-import std/time/timestamp
+import std/time/timespan
 
 /*----------------------------------------------------------------------------
   Durations
 ----------------------------------------------------------------------------*/
 
-// A duration in time in SI seconds (as measured on the Earth's geoid).\
+// A duration in time in (TAI) SI seconds (as measured on the earth's geoid).\
 // A duration is represented by a `:ddouble` giving it a high range and precision (see the [`instant`](std_time_instant.html) module)
 abstract struct duration(
   secs : timespan
@@ -38,20 +38,9 @@ public fun duration( t : timespan ) : duration {
   Duration(t)
 }
 
-// Duration since the epoch of the time stamp.
-// Be careful to only use this on time stamps in SI seconds!
-public fun unsafe-duration( ts : timestamp ) : duration {
-  Duration(ts.seconds)
-}
-
 // Convert a duration to a `:timespan`.
 public fun timespan( d : duration ) : timespan {
   d.secs
-}
-
-// Create a time stamp from a `:duration` since some epoch.
-public fun timestamp( d : duration ) : timestamp {
-  timestamp(d.timespan)
 }
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
