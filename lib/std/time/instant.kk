@@ -65,16 +65,14 @@ abstract struct timescale(
   unit        : string,   // SI seconds: usually "TAI", but could be "TCG", "TCB", "TDB" etc.
   from-tai    : duration -> timespan,   // from duration since `epoch` to timespan since timescale-epoch
   to-tai      : timespan -> duration,   // from timespan since timescale-epoch to duration since `epoch`
-  // from timespan since `epoch-y2k` to dayspan since `epoch-y2k`
-  to-dayspan  : (maybe<timespan>,timespan) -> dayspan,
+  // from timespan since timescale epoch to dayspan since `epoch-y2k` and total seconds in that day
+  to-dayspan  : (timespan) -> (dayspan,timespan),
+  // from dayspan since `epoch-y2k` to timespan since timescale epoch
+  from-dayspan: (dayspan) -> timespan,
   // The epoch-y2k states at what timespan  _in this timescale_ is the date 2000-01-01.
   // `epoch-y2k == instant(2000,1,1,cal=cal-iso,ts=ts).since-in(ts)` with `ts` this timescale
   epoch-y2k   : timespan,
-  /*
-  // The `epoch-delta` states the difference of `epoch-y2k` with the TAI 2000-01-01 `epoch` _in this timescale_.
-  // `epoch.since-in(ts) == epoch-y2k + epoch-delta`
-  epoch-delta : timespan,
-  */
+  // Just if all days have the same number of seconds, Nothing otherwise
   fixed-secs-per-day: maybe<timespan>
 )
 
@@ -111,12 +109,6 @@ fun convert( t : timespan, from : timescale, to : timescale ) : timespan {
     // already using the right time scale
     t
   }
-  elif (!from.unit.empty? && from.unit == to.unit) then {
-    // just an epoch shift
-    // important optimization as it allows GPS timestamp to TT conversion without going through TAI for example
-    // trace( "instant use: shift: " + from.name + " -> " + to.name + ", " + from.epoch-y2k.ts-show + " vs. " + to.epoch-y2k.ts-show + ", t: " + t.show )
-    (t - from.epoch-y2k) + to.epoch-y2k
-  }
   else {
     // transform through TAI
     // trace( "convert: " + from.name + " -> " + to.name +  ", t: " + t.show )
@@ -129,7 +121,7 @@ public fun to-tai(  ts : timescale, t : timespan ) : duration {
   t.convert(ts,ts-tai).unsafe-duration
 }
 
-// Given a `:duration` since the `epoch`, return a `:timestamp` for that instant in time scale `ts`.
+// Given a `:duration` since the `epoch`, return a `:timespan` for that instant in time scale `ts`.
 public fun from-tai(ts : timescale, d : duration ) : timespan {
   d.timespan.convert(ts-tai,ts)
 }
@@ -148,7 +140,7 @@ public fun unsafe-instant( t : timespan, ts : timescale ) : instant {
 // Create an instant from a time span in `seconds` interpreted in time scale `ts`.\
 // Be careful to ensure that `secs` should indeed be interpreted in the given time scale.
 public fun unsafe-instant( secs : int, ts : timescale ) : instant {
-  unsafe-instant(secs.timespan, ts)
+  Instant(secs.timespan, ts)
 }
 
 
@@ -182,7 +174,7 @@ public fun has-leap-seconds(ts : timescale) : bool {
 // Given these issues, we fixed the epoch at 2000-01-01T00:00:00 TAI instead.
 //
 // [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
-public val epoch : instant = Instant(timestamp0,ts-tai)
+public val epoch : instant = Instant(timespan0,ts-tai)
 
 // Return the (TAI) SI second duration since the `epoch` at this instant.
 public fun since-epoch( i : instant ) : duration {
@@ -194,9 +186,16 @@ public fun instant-since-epoch( d : duration ) : instant {
   unsafe-instant(d.timespan, ts-tai)
 }
 
-// Return `:dayspan` since 2000-01-01 in the time scale of the instant.
-public fun dayspan-since-y2k( i : instant ) : dayspan {
-  i.ts.to-dayspan(i.ts.fixed-secs-per-day, i.since - i.epoch-y2k)
+// Return `:dayspan` since 2000-01-01 in the time scale of the instant,
+// and the total number of seconds in that day.
+public fun dayspan-since-y2k( i : instant ) : (dayspan,timespan) {
+  (i.ts.to-dayspan)(i.since - i.ts.epoch-y2k)
+}
+
+// Given a `:dayspan` since 2000-01-01 in the given time scale `ts`,
+// return the instant in time.
+public fun instance-from-dayspan( ts : timescale, ds : dayspan ) : instant {
+  Instant( (ts.from-dayspan)(ds) + ts.epoch-y2k, ts )
 }
 
 // Compare two `:instant`s in time.
@@ -264,11 +263,11 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
 
 // Create a new time scale based on SI seconds (as measured on the Earth's geoid) with a given
 //  `name`, a fixed `offset` (=`duration0`) from TAI (e.g. GPS = TAI - 19), and
-// a `y2k-epoch` (= `timestamp0`) which is the timestamp of the 2000-01-01 date in that timescale
+// a `epoch-y2k` (= `timestamp0`) which is the timestamp of the 2000-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
-// `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).since-in(ts)`
-public fun tai-timescale( name : string, offset : duration = zero, y2k-epoch : timespan = timestamp0 ) : timescale {
-  val epoch-shift = y2k-epoch + offset
+// `epoch-y2k = instant(2000,1,1,cal=iso-calendar(ts)).since-in(ts)`
+public fun tai-timescale( name : string, offset : duration = zero, epoch-y2k : timespan = timespan0 ) : timescale {
+  val epoch-shift = epoch-y2k + offset.timespan
   fun from-tai(tai:duration)     { tai.timespan + epoch-shift  }
   fun to-tai(tspan:timespan)     { (tspan - epoch-shift).unsafe-duration }
   Timescale(
@@ -276,21 +275,22 @@ public fun tai-timescale( name : string, offset : duration = zero, y2k-epoch : t
     "TAI",
     from-tai,
     to-tai,
-    fixed-to-dayspan,
-    y2k-epoch,
+    solar-to-dayspan,
+    solar-from-dayspan,
+    epoch-y2k,
     Just(solar-secs-per-day)
   )
 }
 
-val solar-secs-per-day = 86400.timespan
-
-fun fixed-to-dayspan( fixed-secs-per-day : maybe<timespan>, t : timespan ) : dayspan {
-  val secs-per-day = fixed-secs-per-day.default(solar-secs-per-day)
-  val days = (t / secs-per-day).floor
+fun solar-to-dayspan( t : timespan ) : (dayspan,timespan) {
+  val days = (t / solar-secs-per-day).floor
   val secs = t - days
-  Dayspan(days.int, secs, secs-per-day)
+  (Dayspan(days.int, secs), solar-secs-per-day)
 }
 
+fun solar-from-dayspan( ds : dayspan ) : timespan {
+  (ds.days.ddouble*solar-secs-per-day + ds.secs)
+}
 
 
 // Create a new time scale given `name`, two inverse function `from-tai` and `to-tai`,
@@ -301,17 +301,19 @@ fun fixed-to-dayspan( fixed-secs-per-day : maybe<timespan>, t : timespan ) : day
 public fun timescale( name : string,
                       from-tai : duration -> timespan,
                       to-tai   : timespan -> duration,
-                      y2k-epoch : timespan = timespan0,
+                      epoch-y2k : timespan = timespan0,
                       unit : string = name,
-                      to-dayspan : maybe<(maybe<timespan>,timespan) -> dayspan> = Nothing
+                      to-dayspan : maybe<(timespan) -> (dayspan,timespan)> = Nothing,
+                      from-dayspan : maybe<(dayspan) -> timespan> = Nothing
                     ) : timescale {
   Timescale(
     name,
     unit,
     from-tai,
     to-tai,
-    to-dayspan.default(fixed-to-dayspan),
-    y2k-epoch,
+    to-dayspan.default(solar-to-dayspan),
+    from-dayspan.default(solar-from-dayspan),
+    epoch-y2k,
     if (to-dayspan.bool) then Nothing else Just(solar-secs-per-day)
   )
 }
@@ -328,19 +330,19 @@ public val ts-gps : timescale = tai-timescale( "GPS", -19.seconds, timespan(6307
 
 // Return the epoch of a certain time scale.
 public fun timescale-epoch( ts : timescale ) : instant {
-  unsafe-instant(timestamp0,ts)
+  unsafe-instant(timespan0,ts)
 }
 
 // Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar).\
 // `timescale-y2k(ts) == instant(2000,1,1,cal=iso-calendar(ts))`
 public fun timescale-y2k( ts : timescale ) : instant {
-  unsafe-instant(ts.y2k-epoch,ts)
+  unsafe-instant(ts.epoch-y2k,ts)
 }
 
-// Show a time stamp with an optional maximum precision (`max-prec` (=`9`)) and
+// Show a timespan with an optional maximum precision (`max-prec` (=`9`)) and
 // minimum width for the seconds (=`1`).
-public fun show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
-  ts.ts-show(max-prec,secs-width)
+public fun show( tspan : timespan, max-prec : int = 9, secs-width : int = 1 ) : string {
+  tspan.ts-show(max-prec,secs-width)
 }
 
 
@@ -387,12 +389,12 @@ public fun instant-at-mjd( mjd : ddouble, tscale : timescale  ) : instant {
       //  which will be the case as this is the reason for leap seconds in the first place.)
       val days = d.floor
       val frac = d - days
-      val itai = instant-since-epoch( days*solar-secs-per-day )
+      val itai = instant-since-epoch( duration(days*solar-secs-per-day) )
       val i    = itai.use-timescale(tscale)  // start of day in target time scale
-      val ds   = i.dayspan-since-y2k
+      val (_ds,secs-in-day) = i.dayspan-since-y2k
       // assert(ds.days == days && ds.secs == zero)
-      val secs = frac * ds.secs-in-day       // fraction of the seconds in this day
-      unsafe-add(i,secs)
+      val secs = frac * secs-in-day       // fraction of the seconds in this day
+      i.unsafe-add(secs)
     }
   }
 }
@@ -425,8 +427,8 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 // before conversion (used in `std/time/time` to take timezones into account)
 public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) : ddouble {
   val j   = i.use-timescale(tscale)
-  val ds0 = j.dayspan-since-y2k
-  val ds  = if (delta.zero?) then ds0 else j.unsafe-add(delta).dayspan-since-y2k
-  val secs= ds.secs / ds0.secs-in-day
-  (mjd-epoch-delta + (ds.days.ddouble + secs))
+  val (ds0,secs-in-day) = j.dayspan-since-y2k
+  val ds  = if (delta.zero?) then ds0 else j.unsafe-add(delta).dayspan-since-y2k.fst
+  val secs= ds.secs / secs-in-day
+  (mjd-epoch-delta + ds.days.ddouble + secs)
 }
