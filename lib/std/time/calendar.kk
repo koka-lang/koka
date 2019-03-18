@@ -259,7 +259,7 @@ fun earth-dayspan-to-dc( ds : dayspan, tzdelta: timespan, days-to-date: (int) ->
 fun earth-dc-to-instant( d : date, c : clock, date-to-days: (date) -> int, tz : timezone, ts : timescale ) : instant {
   // check if we are in a leap second and remember
   val (xsecs,leap)  = if (c.seconds < 60.ddouble) then (c.seconds,0) else {
-                        val leap = c.seconds.floor.int - 60
+                        val leap = c.seconds.floor.int - 59
                         (c.seconds - leap.ddouble, leap)
                       }
   val secs =  (((c.hours*60) + c.minutes)*60).ddouble + xsecs

@@ -284,7 +284,7 @@ public fun tai-timescale( name : string, offset : duration = zero, epoch-y2k : t
 
 fun solar-to-dayspan( t : timespan ) : (dayspan,timespan) {
   val days = (t / solar-secs-per-day).floor
-  val secs = t - days
+  val secs = t - (days * solar-secs-per-day)
   (Dayspan(days.int, secs), solar-secs-per-day)
 }
 

@@ -304,8 +304,8 @@ public fun unix-timestamp( i :instant ) : double {
 // e.g. for a timescale `ts`:\
 // `y2k-epoch = instant-at(2000,1,1,cal=iso-calender(ts)).timestamp(ts)`.
 public fun utc-timescale( name : string, leaps : leaps-table, epoch-y2k : timespan = timespan0 ) : timescale {
-  fun from-tai(tai:duration)  { tai-to-utc(leaps, tai) + epoch-y2k }
-  fun to-tai(utc:timespan)    { utc-to-tai(leaps, utc - epoch-y2k) }
+  fun from-tai(tai:duration)    { tai.timespan + epoch-y2k }
+  fun to-tai(utc:timespan)      { unsafe-duration(utc - epoch-y2k) }
   fun to-dayspan(utc:timespan)  { utc-to-dayspan(leaps,utc) }
   fun from-dayspan(utc:dayspan) { dayspan-to-utc(leaps,utc) }
   timescale(
@@ -313,7 +313,7 @@ public fun utc-timescale( name : string, leaps : leaps-table, epoch-y2k : timesp
     from-tai,
     to-tai,
     epoch-y2k,
-    "UTC",
+    "TAI",
     Just(to-dayspan),
     Just(from-dayspan)
   )
@@ -523,9 +523,9 @@ fun find-adjust( leaps : list<leap-adjust>, t : timestamp, previous : leap-adjus
 /*----------------------------------------------------------------------------
   UTC to dayspan conversion
 ----------------------------------------------------------------------------*/
-fun utc-to-dayspan( leaps : leaps-table, utc : timespan ) : (dayspan,timespan) {
-  val (ofs,leap,dayextra) = utc-to-tai-offset(leaps,utc)
-  val tspan = (utc - leap)
+fun utc-to-dayspan( leaps : leaps-table, tai : timespan ) : (dayspan,timespan) {
+  val (ofs,leap,dayextra) = tai-to-utc-offset(leaps,tai.duration)
+  val tspan = tai - ofs - leap
   val tsecs = tspan.floor
   val tfrac = tspan - tsecs
   val (days,dsecs) = divmod( tsecs.int, isolar-secs-per-day )
@@ -534,19 +534,9 @@ fun utc-to-dayspan( leaps : leaps-table, utc : timespan ) : (dayspan,timespan) {
 }
 
 fun dayspan-to-utc( leaps : leaps-table, ds : dayspan ) : utc-timespan {
-  // first estimate, too low
-  val utc0 = ((ds.days * isolar-secs-per-day).timespan + ds.secs)
+  val utc0 = ((ds.days * isolar-secs-per-day).timespan)
   val ofs0 = utc-to-tai-offset(leaps,utc0).fst
-  // second improved estimate
-  val utc1 = utc0 + ofs0
-  val ofs1 = utc-to-tai-offset(leaps,utc1).fst
-  val utc2 = utc0 + ofs1
-  /*
-  // a third should not be necessary?
-  val ofs2 = utc-to-tai-offset(leaps,utc2).fst
-  assert(ofs1 == ofs2)
-  */
-  utc2
+  utc0 + ofs0 + ds.secs
 }
 
 /*----------------------------------------------------------------------------
@@ -592,21 +582,21 @@ fun find-utc-to-tai-offset( utc : utc-timespan, mbafter : maybe<leap-adjust>, le
 // Convert a TAI duration since `epoch` to a UTC duration since `epoch`.
 fun tai-to-utc( leaps : leaps-table, d : duration ) : utc-timespan {
   //trace("utc-from-tai: " + i.show)
-  d.timespan + tai-to-utc-offset(leaps,d)
+  d.timespan - tai-to-utc-offset(leaps,d).fst
 }
 
-fun tai-to-utc-offset(leaps : leaps-table, tai : duration ) : utc-timespan {
+fun tai-to-utc-offset(leaps : leaps-table, tai : duration ) : (utc-timespan,timespan,timespan) {
   if (tai < tai1958)
-   then tai.timespan
-   else find-tai-to-utc-offset( tai.timespan, leaps.adjusts ).fst
+   then (tai.timespan,timespan0,timespan0)
+   else find-tai-to-utc-offset( tai.timespan, leaps.adjusts )
 }
 
 // Convert a TAI duration since `epoch` and after 1958-01-01 to a UTC duration since `epoch`.
 // This is more tricky as we have only UTC start times and need to guess at first
 // and later adjust for possible leap seconds and period cross-overs.
-fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (timespan,timespan) {
+fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (utc-timespan,timespan,timespan) {
   match(leaps) {
-    Nil -> (timespan0,timespan0) // should never happen
+    Nil -> (timespan0,timespan0,timespan0) // should never happen
     Cons(la,earlier) -> {
       val ofs = la.tai-offset(tai)  // guess it's ok to use `tai` as a `utc` timestamp at first
       val utc = tai - ofs
@@ -620,7 +610,7 @@ fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (times
         if (la.utc-start <= utc) then {
           // The adjusted `utc` falls in this period, we can use it.
           // trace(" utc-from-tai: found: utc: " + utc.show + ", tai-ofs: " + ofs.ts-show )
-          (~ofs,timespan0)
+          (ofs,timespan0,timespan0)
         }
         else {
           // We have `utc < la.utc-start`, we need to use the period before this one
@@ -628,10 +618,11 @@ fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (times
           val la-before = earlier.head.default(zero)
           val ofs-before= la-before.tai-offset(tai)
           val utc-prev  = tai - ofs-before
+          val diff      = ofs - ofs-before
           if (la.utc-start > utc-prev) then {
             // Use the previous period to adjust as it gives correct results
             // trace(" use previous: " + utc-prev.show + ", ofs-before: " + ofs-before.ts-show )
-            (~ofs-before,timespan0)
+            (ofs-before,timespan0,diff)
           }
           else {
             // We have `utc < la.utc-start <= utc-prev` !
@@ -639,8 +630,7 @@ fun find-tai-to-utc-offset( tai : timespan, leaps : list<leap-adjust> ) : (times
             // So we cannot use `utc-prev` directly, but create a timestamp with added leap
             // seconds from `utc`.
             // (note: `diff` is always positive in this case)
-            val diff     = ofs - ofs-before
-            (~ofs, diff)
+            (ofs-before,diff,diff)
             /*
             val utc-leap = utc.adjust-leap-seconds(diff)
             // trace(" in a leap second: " + utc-leap.show + ", diff: " + diff.ts-show + ", ofs: " + ofs.ts-show + ", ofs-before: " + ofs-before.ts-show )
