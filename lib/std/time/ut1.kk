@@ -228,7 +228,7 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
       //val _ = trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
-      val dt  = (i.since-in(ts-tt) - dut.ddouble) - utci.since-in(ts-utc) // include leap seconds!
+      val dt  = (i.since-in(ts-tt) - dut.ddouble) - ntp2k-from-dayspan(utci.dayspan-since-y2k) // include leap seconds!
       //val _ = trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
