@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -10,7 +10,6 @@ module time3
 
 public import std/num/ddouble
 public import std/time
-public import std/time/timestamp
 public import std/time/astro
 public import std/time/ut1
 
@@ -20,20 +19,20 @@ public import std/time/ut1
 
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
-  println(name.pad-right(14,' ') + ": " 
-    + (if (got == res) then "ok: " + res 
+  println(name.pad-right(14,' ') + ": "
+    + (if (got == res) then "ok: " + res
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
 
 public fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).timestamp(ts-unix).seconds.int.show-hex  }
-  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).timestamp(ts-unix).seconds.int.show-hex  } // 9223372036854775808
+  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).since-in(ts-unix).int.show-hex  }
+  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).since-in(ts-unix).int.show-hex  } // 9223372036854775808
 }
 
 fun test-jd(ts-utc) {
-  check("jd0","2451545"){  instant(2000,1,1,12,0,0).jd(ts-utc).show  }
+  check("jd0","2451545"){  instant(2000,1,1,12,0,0).jd(ts-utc).show-fixed  }
   check("jd1","2456293.520833333"){  instant(2013,1,1,0,30,0).jd(ts-utc).show-fixed(9)  }
   check("jd2","-04713-11-24T12:00:00Z"){  instant-at-jd(0.0,ts-utc).time.show  }
   check("jd3","-04713-01-01T12:00:00Z JC"){  instant-at-jd(0.0,ts-utc).time(cal=cal-julian).show  }
@@ -52,7 +51,7 @@ fun test-jd(ts-utc) {
 }
 
 fun test-astro() {
-  // check("astro1"){ instant(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds } 
+  // check("astro1"){ instant(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds }
   check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).time(cal=cal-tai).show  }
 }
 
@@ -76,9 +75,9 @@ fun test-sofa(ts-utc) {
   // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
   check("skyfield-tt","2453751.392855138889") { i.jd(ts-tt).show-fixed(12) }  // skyfield: 2453751.392855139
   check("skyfield-tdb","2453751.392855143207"){  i.jd(ts-tdb).show-fixed(12)  }  // skyfield: 2453751.3928551432
-  check("skyfield-tai1","2456658.500405092593"){  instant(2014,1,1).jd(ts-tai).show-fixed(12)  } // skyfield: 2456658.5004050927 
-  check("skyfield-tt1", "2456658.500777592593") { instant(2014,1,1).jd(ts-tt).show-fixed(12) } // skyfield: 2456658.5007775929  
-  check("skyfield-tdb1","2456658.500777591821"){  instant(2014,1,1).jd(ts-tdb).show-fixed(12)  } // skyfield: 2456658.500777592  
+  check("skyfield-tai1","2456658.500405092593"){  instant(2014,1,1).jd(ts-tai).show-fixed(12)  } // skyfield: 2456658.5004050927
+  check("skyfield-tt1", "2456658.500777592593") { instant(2014,1,1).jd(ts-tt).show-fixed(12) } // skyfield: 2456658.5007775929
+  check("skyfield-tdb1","2456658.500777591821"){  instant(2014,1,1).jd(ts-tdb).show-fixed(12)  } // skyfield: 2456658.500777592
 }
 
 public fun main() {
