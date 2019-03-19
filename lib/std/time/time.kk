@@ -400,7 +400,14 @@ public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
+  /*
+  val ds = cal-dayspan(t.calendar, t.date, t.clock)
+  val secs-in-day = t.instant.seconds-in-day
+  val frac = (ds.secs + ds.leap.ddouble) / secs-in-day
+  mjd-epoch-delta + ds.days.ddouble + frac
+  */
 }
+val mjd-epoch-delta = timespan(51544)
 
 /* Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day))
 number for a given `:time` `t`. This interprets the Julian date in the calendar of `t` with

@@ -41,8 +41,10 @@ fun test-jd(ts-utc) {
   check("jdleap0","57753.999976852119767") { time(2016,12,31,23,59,59).mjd.show-fixed(15) }
   check("jdleap1","57753.999987268665872") { time(2016,12,31,23,59,59,0.9).mjd.show-fixed(15) }
   check("jdleap2","57753.999988426059884") { time(2016,12,31,23,59,60).mjd.show-fixed(15) }
-  check("jdleap-tz1","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(2)).mjd.show-fixed(15) } // across timezone (should *not* be: 57754.083332175925926)
-  check("jdleap-tz2","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(~2)).mjd.show-fixed(15) } // across timezone without a leap
+  check("jdleap-tz1a","57753.083331211444312") { time(2017,1,0,1,59,59,0.9).mjd.show-fixed(15) } // across timezone (should *not* be: 57754.083332175925926)
+  check("jdleap-tz1b","57754.083331211444312") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(2)).mjd.show-fixed(15) } // across timezone (should *not* be: 57754.083332175925926)
+  check("jdleap-tz2a","57755.083332175925926") { time(2017,1,2,1,59,59,0.9).mjd.show-fixed(15) } // across timezone without a leap
+  check("jdleap-tz2b","57754.083332175925926") { time(2017,1,1,1,59,59,0.9,tz=tz-fixed(~2)).mjd.show-fixed(15) } // across timezone without a leap
   // inverses
   check("jdleapx0","2016-12-31T23:59:59Z")  { time(2016,12,31,23,59,59).mjd.instant-at-mjd(ts-utc).time.show }
   check("jdleapx1","2016-12-31T23:59:59.900Z")  { time(2016,12,31,23,59,59,0.9).mjd.instant-at-mjd(ts-utc).time.show }

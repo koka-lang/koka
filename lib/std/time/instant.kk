@@ -424,9 +424,13 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion (used in `std/time/time` to take timezones into account)
 public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) : ddouble {
-  val j   = i.use-timescale(tscale)
+  val j = i.use-timescale(tscale)
+  // get dayspan and seconds-in-the-day of the original instant
   val (ds0,secs-in-day) = j.dayspan-since-y2k-ex
-  val ds  = if (delta.zero?) then ds0 else j.unsafe-add(delta).dayspan-since-y2k
-  val secs= ds.secs / secs-in-day
-  (mjd-epoch-delta + ds.days.ddouble + secs)
+  // then adjust to the dayspan in the timezone, ignoring a possible leap second
+  val ds  = solar-dayspan(ds0.days,ds0.secs + delta)
+  // calculate fraction in the timezone seconds, with the original leap second and seconds in the day
+  val frac= (ds.secs + ds0.leap.ddouble) / secs-in-day
+  // and add it together
+  (mjd-epoch-delta + ds.days.ddouble + frac)
 }
