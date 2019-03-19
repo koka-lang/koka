@@ -225,7 +225,7 @@ public fun earth-calendar(
             ) : calendar
 {
   fun instant-to-dc(i : instant, tzdelta : duration) {
-    earth-dayspan-to-dc( i.dayspan-since-y2k.fst, tzdelta.timespan, days-to-date )
+    earth-dayspan-to-dc( i.dayspan-since-y2k, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
     earth-dc-to-instant( d, c, date-to-days, tz, ts)

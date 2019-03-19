@@ -54,9 +54,9 @@ public fun ts-show( ts : timespan, max-prec : int = 9, secs-width : int = 1 ) : 
 
 
 public struct dayspan(
-  days: int,               // days since epoch
-  secs: timespan,          // seconds into this day
-  leap: int = 0            // and extra leap seconds (to provide for leap seconds at other times than the end of day)
+  days: int,                  // days since epoch
+  secs: timespan = timespan0, // seconds into this day
+  leap: int = 0               // and extra leap seconds (to provide for leap seconds at other times than the end of day)
 )
 
 public val isolar-secs-per-day = 86400
@@ -72,4 +72,15 @@ public fun solar-dayspan( days : int, secs : timespan ) : dayspan {
     val (xdays,xsecs) = divmod(dsecs.int, isolar-secs-per-day)
     Dayspan(days + xdays, xsecs.ddouble + frac, 0)
   }
+}
+
+
+public fun ntp2k-to-dayspan( t : timespan ) : dayspan {
+  val days = (t / solar-secs-per-day).floor
+  val secs = t - (days * solar-secs-per-day)
+  Dayspan(days.int, secs, 0)
+}
+
+public fun ntp2k-from-dayspan( ds : dayspan ) : timespan {
+  (ds.days.ddouble*solar-secs-per-day + ds.secs + ds.leap.timespan)
 }
