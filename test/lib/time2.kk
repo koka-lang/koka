@@ -54,8 +54,12 @@ fun test-leap() {
   check("leap-neg1", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai).show(6)  }
   check("leap-neg2", "1968-02-01T00:00:06.235682Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show(6)  }  // (invalid time) overflow of leap seconds
   check("leap-neg3", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,2,1).time(cal=cal-tai).show  }
-  //check("leap-neg4", "1968-02-01T00:00:00Z"){ instant(1968,2,1,0,0,6,0.1856821856,cal=cal-tai).time.show }
-  //check("leap-neg5", "1968-01-31T23:59:59.900Z"){ instant(1968,2,1,0,0,6,0.1856821855,cal=cal-tai).time.show }
+
+  // check drift and leap second at 19:00h
+  check("leap-drift1", "1959-01-28T19:00:00.512134Z TAI") { instant(1959,1,28,19).time(cal=cal-tai).show(6) }
+  check("leap-drift2", "1959-01-28T19:00:00.512134Z TAI") { instant(1959,1,28,18,59,60,0.02).time(cal=cal-tai).show(6) }
+  check("leap-drift3", "1959-01-28T19:00:00.492134Z TAI") { instant(1959,1,28,18,59,60).time(cal=cal-tai).show(6) }
+
   // durations over leap seconds
   check("leap-sub1","1.5s") { (time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show }
   check("leap-sub2","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show }

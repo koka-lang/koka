@@ -680,8 +680,9 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     val ofs    = cap.groups[2].parse-ddouble.default(zero)
     val dmjd   = cap.groups[3].parse-ddouble.default(zero)
     val drift  = cap.groups[4].parse-ddouble.default(zero)
-    val start  = mjd*solar-secs-per-day - mjd-epoch-shift + ntp2000
-    val dstart = dmjd*solar-secs-per-day - mjd-epoch-shift + ntp2000
+    // round to always start on a whole second
+    val start  = (mjd*solar-secs-per-day - mjd-epoch-shift + ntp2000).round
+    val dstart = (dmjd*solar-secs-per-day - mjd-epoch-shift + ntp2000).round
     // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
     Leap-adjust( start, ofs, dstart, drift )
   }).reverse
