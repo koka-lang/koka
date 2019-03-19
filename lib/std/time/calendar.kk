@@ -237,13 +237,8 @@ public fun earth-calendar(
 
 
 fun earth-dayspan-to-dc( ds : dayspan, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
-  // check if we are in a leap second (and remember the leap seconds in `leap`)
-  val (dsecs,leap)   = if (ds.secs < solar-secs-per-day) then (ds.secs, 0) else {
-                         val leap = ds.secs.floor.int - isolar-secs-per-day + 1
-                         (ds.secs - leap.ddouble, leap)
-                       }
-  // adjust for timezone now disregarding leap seconds (possibly going into the next or previous day)
-  val sd               = solar-dayspan(ds.days, dsecs + tzdelta)
+  // adjust for timezone (disregarding leap seconds for now) (and possibly going into the next or previous day)
+  val sd               = solar-dayspan(ds.days, ds.secs + tzdelta)
   val date             = days-to-date(sd.days)
   //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
 
@@ -252,7 +247,7 @@ fun earth-dayspan-to-dc( ds : dayspan, tzdelta: timespan, days-to-date: (int) ->
   val frac             = sd.secs.ffraction.double
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = timespan(xsecs + leap, frac)  // and adjust for leap seconds
+  val tsecs            = timespan(xsecs + ds.leap, frac)  // and adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
@@ -266,7 +261,7 @@ fun earth-dc-to-instant( d : date, c : clock, date-to-days: (date) -> int, tz : 
   val days = date-to-days( d )
 
   // do timezone adjustment ignoring leap seconds
-  val i    = ts.instant-from-dayspan( solar-dayspan(days,secs) )
+  val i    = ts.instant-from-dayspan( Dayspan(days,secs,leap) )
   val iz   = if (tz.tz-utc?) then i else {
                match((tz.utc-inverse)(i)) {
                  Just(inv) -> inv
@@ -285,7 +280,7 @@ fun earth-dc-to-instant( d : date, c : clock, date-to-days: (date) -> int, tz : 
                }
              }
    // and add back leap seconds again after the timezone adjustment
-   iz.unsafe-add(leap.timespan)
+   iz // .unsafe-add(leap.timespan)
 }
 
 
