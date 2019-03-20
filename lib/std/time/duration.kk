@@ -13,7 +13,7 @@
 module std/time/duration
 
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 
 /*----------------------------------------------------------------------------
   Durations
@@ -34,13 +34,23 @@ public fun unsafe-duration( t : timespan ) : duration {
   Duration(t)
 }
 
+public fun unsafe-duration( t : timestamp ) : duration {
+  Duration(t.timespan)
+}
+
 public fun duration( t : timespan ) : duration {
   Duration(t)
 }
 
+
 // Convert a duration to a `:timespan`.
 public fun timespan( d : duration ) : timespan {
   d.secs
+}
+
+// Convert a duration to a `:timespan`.
+public fun timestamp( d : duration ) : timestamp {
+  d.secs.timestamp
 }
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.

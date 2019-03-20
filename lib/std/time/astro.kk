@@ -160,11 +160,6 @@ public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
 
 
-// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time)
-// time scale is based on SI seconds with a 2000-01-01 TAI `epoch`. It is the
-// continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time). TT
-// is defined as: TT = TAI + 32.184s.
-public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 
 val secs-per-day    = ddouble(86400)
