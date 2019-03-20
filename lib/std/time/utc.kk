@@ -287,7 +287,7 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  unsafe-instant( timestamp(secs.truncate.int, secs.fraction + frac.fraction, frac.truncate.int), ts-unix )
+  ts-unix.instant( timestamp(secs.truncate.int, secs.fraction + frac.fraction, frac.truncate.int) )
 }
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
@@ -312,7 +312,7 @@ public fun utc-timescale( name : string, leaps : leaps-table, epoch-y2k : timesp
     from-tai,
     to-tai,
     epoch-y2k,
-    "TAI",
+    "UTC",
     Just(seconds-in-day)
   )
 }
@@ -407,7 +407,7 @@ public val leaps-table-y2017 : leaps-table = leaps-table-ti.upto(536544000.times
 
 private fun upto( lt : leaps-table, end : ntp-timestamp ) : leaps-table {
   lt( adjusts = lt.adjusts.drop-while(fun(la) { la.ntp-start > end }),
-      expire  = unsafe-instant(end,ts-ti))
+      expire  = ts-ti.instant(end))
 }
 
 
@@ -525,7 +525,7 @@ public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
     timestamp(ntpex.timespan - ntp2000)
   }.default(la-final.ntp-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
   // trace("expire: " + utc-expire.ts-show)
-  val expire = unsafe-instant( utc-expire - ntp2000 + la-final.offset, ts-tai ) // interpret as TAI to avoid recursion.
+  val expire = ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 
   val adjusts = adjusts72 + leap-seconds-pre72()  // add pre 1972 adjustments
   val table = Leaps-table(expire,adjusts)

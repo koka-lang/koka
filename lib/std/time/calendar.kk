@@ -252,7 +252,7 @@ fun earth-timestamp-to-dc( t : timestamp, tzdelta: timespan, days-to-date: (int)
 
 fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) : instant {
   // do timezone adjustment ignoring leap seconds (TODO: check correctness)
-  val i    = t.unsafe-instant-since-y2k( ts )
+  val i    = ts.instant(t)
   val iz   = if (tz.tz-utc?) then i else {
                match((tz.utc-inverse)(i)) {
                  Just(inv) -> inv
@@ -265,11 +265,11 @@ fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) :
                    // and TAI: time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI"
                    val tzd1 = (tz.utc-delta)(i).fst
                    //val tzi1 = ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd1.timespan) )
-                   val tzi1 = (t - tzd1.timespan).unsafe-instant-since-y2k(ts)
+                   val tzi1 = ts.instant(t - tzd1.timespan)
                    val tzd2 = (tz.utc-delta)(tzi1).fst
                    if (tzd1==tzd2) then tzi1
                     // else ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd2.timespan) )
-                    else (t - tzd2.timespan).unsafe-instant-since-y2k(ts)
+                    else ts.instant(t - tzd2.timespan)
                  }
                }
              }

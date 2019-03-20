@@ -28,7 +28,7 @@ import std/text/regex
 import std/os/path
 import std/os/file
 
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -219,7 +219,7 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
     val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
                     val iu = acc.fst + diff*60.0
-                    val i = unsafe-instant(timespan(iu),ts-unix)
+                    val i = ts-unix.instant-since-epoch(timestamp(iu))
                     (iu,Cons(Just(i),acc.snd))
                   }).snd
     val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )

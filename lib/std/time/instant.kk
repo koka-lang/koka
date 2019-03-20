@@ -103,6 +103,12 @@ public fun since-in( i : instant, tscale : timescale = ts-tai ) : timestamp {
   i.since.convert(i.ts,tscale)
 }
 
+// Return a `:timespan` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
+// since the epoch of that `tscale`.
+public fun since-epoch-of( i : instant, tscale : timescale = ts-tai ) : timespan {
+  (since-in(i,tscale) + tscale.epoch-y2k).timespan
+}
+
 
 // Convert a timespan between time scales
 fun convert( t : timestamp, from : timescale, to : timescale ) : timestamp {
@@ -134,21 +140,16 @@ public fun timescale( i : instant ) : timescale {
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
 // Be careful to ensure that `t` should indeed be interpreted in the given time scale.
-public fun unsafe-instant-since-y2k( t : timestamp, ts : timescale ) : instant {
+public fun instant( ts : timescale, t : timestamp ) : instant {
   Instant(t, ts)
 }
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
 // Be careful to ensure that `t` should indeed be interpreted in the given time scale.
-public fun unsafe-instant( t : timestamp, ts : timescale ) : instant {
+public fun instant-since-epoch( ts : timescale, t : timestamp ) : instant {
   Instant(t - ts.epoch-y2k, ts)
 }
 
-// Given a `:dayspan` since 2000-01-01 in the given time scale `ts`,
-// return the instant in time.
-public fun unsafe-instant( ds : dayspan, ts : timescale ) : instant {
-  unsafe-instant(ds.timestamp,ts)
-}
 
 
 // Round an instant to a certain precision (`prec` is number of digits of the fraction of the second).\
@@ -191,7 +192,7 @@ public fun since-epoch( i : instant ) : duration {
 
 // Return the instant at (TAI) SI seconds duration since the `epoch`.
 public fun instant-since-epoch( d : duration ) : instant {
-  unsafe-instant(d.timespan.timestamp, ts-tai)
+  ts-tai.instant(d.timespan.timestamp)
 }
 
 // Return `:dayspan` since 2000-01-01 in the time scale of the instant
@@ -343,13 +344,13 @@ public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 
 // Return the epoch of a certain time scale.
 public fun timescale-epoch( ts : timescale ) : instant {
-  unsafe-instant(timestamp0,ts)
+  ts.instant-since-epoch(timestamp0)
 }
 
 // Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar).\
 // `timescale-y2k(ts) == instant(2000,1,1,cal=iso-calendar(ts))`
 public fun timescale-y2k( ts : timescale ) : instant {
-  unsafe-instant(ts.epoch-y2k.timestamp,ts)
+  ts.instant(timestamp0)
 }
 
 // Show a timespan with an optional maximum precision (`max-prec` (=`9`)) and
@@ -392,8 +393,8 @@ public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
   val days  = d.floor
   val frac  = d - days
   val idays = days.int
-  val secs-in-day = unsafe-instant(Dayspan(idays),ts).seconds-in-day
-  unsafe-instant(Dayspan(idays, frac*secs-in-day),ts)
+  val secs-in-day = ts.instant(Dayspan(idays).timestamp).seconds-in-day
+  ts.instant(Dayspan(idays, frac*secs-in-day).timestamp)
 }
 
 /* Return the julian day in a given time scale `ts` for an instant `i`.

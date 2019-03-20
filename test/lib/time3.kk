@@ -9,6 +9,7 @@
 module time3
 
 public import std/num/ddouble
+public import std/time/timestamp
 public import std/time
 public import std/time/astro
 public import std/time/ut1
@@ -27,8 +28,8 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 
 public fun test-misc() {
   // unix 32/64-bit overflow
-  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).since-in(ts-unix).int.show-hex  }
-  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).since-in(ts-unix).int.show-hex  } // 9223372036854775808
+  check("misc0","0x80000000"){  instant(2038,1,19,3,14,8).since-epoch-of(ts-unix).int.show-hex  }
+  check("misc1","0x8000000000000000"){  instant(292277026596,12,4,15,30,8).since-epoch-of(ts-unix).int.show-hex  } // 9223372036854775808
 }
 
 fun test-jd(ts-utc) {

@@ -44,7 +44,7 @@ import std/os/path
 import std/num/ddouble
 import std/text/regex
 
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -52,6 +52,7 @@ import std/time/download
 
 import std/time/astro
 import std/time/calendar
+import std/time/calendars
 import std/time/time
 
 // The default UT1 (Universal time 1) calendar.
@@ -228,7 +229,7 @@ fun dut-deltat( ts-utc : timescale, dtt : dut-table, i : instant ) : maybe<durat
       val dut = dut1 + ((dut3 - dut1) * mjd.fraction)
       //val _ = trace("dut interpolate: " + dut1.show + ", and " + dut3.show + ", to " + dut.show)
       // calculate deltaT (TT - UT1) from DUT (=UT1 - UTC)
-      val dt  = (i.since-in(ts-tt) - dut.ddouble) - ntp2k-from-dayspan(utci.dayspan-since-y2k) // include leap seconds!
+      val dt  = (i.since-in(ts-tt) - dut.ddouble) - utci.since-y2k.timespan // include leap seconds!
       //val _ = trace("dut found: mjd: " + mjd.show + ", dut: " + dut.show + ", dt: " + dt.show)
       Just( unsafe-duration(dt) )
     }
@@ -275,15 +276,15 @@ private fun map-acc(xs : list<a>, f : a -> b, acc : list<b> = []) : list<b> {
 // UT1 timescale; UT1 = TT - DeltaT
 // -----------------------------------------------------------
 
-fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timespan {
+fun tai-to-ut1( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
   val i  = tai.instant-since-epoch
   val dt = deltat(i,dt-override)
   // trace("tai-to-ut: dt: " + dt.show )
   (i - dt).since-in(ts-tt)
 }
 
-fun ut1-to-tai( t : timespan, dt-override : (i : instant) -> maybe<duration> ) : duration {
-  val i   = unsafe-instant(t,ts-tt)      // approximately tt
+fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+  val i   = ts-tt.instant(t)             // approximately tt
   val i1  = i + deltat(i,dt-override)    // approximate tai
   val i2  = i + deltat(i1,dt-override)   // improve over previous approximation
   // trace("ut-to-tai: dt1: " + deltat(i0).show + ", dt2: " + deltat(i1).show)
@@ -320,14 +321,14 @@ fun ut2-offset( i : instant ) : timespan {
   ofs.timespan
 }
 
-fun tai-to-ut2( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timespan {
+fun tai-to-ut2( tai : duration, dt-override : (i:instant) -> maybe<duration> ) : timestamp {
   val i   = tai.instant-since-epoch
   val ut1 = tai.tai-to-ut1(dt-override)
   (ut1 + i.ut2-offset)
 }
 
-fun ut2-to-tai( t : timespan, dt-override : (i : instant) -> maybe<duration> ) : duration {
-  val i = unsafe-instant(t,ts-tt)
+fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) : duration {
+  val i = ts-tt.instant(t)
   val ut1 = t - i.ut2-offset          // approximate ut1
   ut1.ut1-to-tai(dt-override)
 }

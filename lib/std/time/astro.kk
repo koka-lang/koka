@@ -136,7 +136,7 @@ module std/time/astro
 
 import std/num/double
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/calendar
@@ -172,7 +172,7 @@ public val epoch-j2000 = instant-at-j2000(zero)
 // `instant(2000,1,1,12,0,0).j2000.show == "0.00074287037037"`\
 // `instant(2000,1,1,12,0,0,cal=cal-tt).j2000.show == "0"`
 public fun j2000( i : instant ) : ddouble {
-  div( (i.since-in(ts-tt) - offset-j2000), secs-per-day, 18 )  // atto-second precision
+  div( (i.since-in(ts-tt).timespan - offset-j2000), secs-per-day, 18 )  // atto-second precision
 }
 
 // Return the instant corresponding to a J2000 julian date: this is the number of days, and
@@ -180,7 +180,7 @@ public fun j2000( i : instant ) : ddouble {
 // `instant-at-j2000(zero).time.show == "2000-01-01T11:58:55.816Z"`\
 // `instant-at-j2000(zero).time(cal=cal-tt).show == "2000-01-01T12:00:00Z TT"`
 public fun instant-at-j2000( jd : ddouble ) : instant {
-  unsafe-instant( (jd * secs-per-day) + offset-j2000, ts-tt )
+  ts-tt.instant( timestamp((jd * secs-per-day) + offset-j2000) )
 }
 
 
@@ -195,17 +195,17 @@ val tcg-epoch-delta = ddouble-exp(~725759967816,~3) // 1977-01-01T00:00:32.184 T
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
 // TCG = TT + Lg*(TT - TCG~epoch~)
-fun tcg-from-tai( tai : duration ) : timespan {
+fun tcg-from-tai( tai : duration ) : timestamp {
   val tt = ts-tt.from-tai(tai)
-  tt + (lg*(tt - tcg-epoch-delta))
+  tt + (lg*(tt - tcg-epoch-delta).timespan)
 }
 
 // IAU 1991 recommendation [IV](https://www.iers.org/IERS/EN/Science/Recommendations/recommendation4.html?nn=12932):\
 // TCG - TT = L~g~&times;(JD~TT~ - TCG~epoch~)
 // =>
 // TT = TCG - Lg*(TCG - TCG~epoch~)
-fun tcg-to-tai( t : timespan ) : duration {
-  val tt = t - (lg*(t - tcg-epoch-delta))
+fun tcg-to-tai( t : timestamp ) : duration {
+  val tt = t - (lg*(t - tcg-epoch-delta).timespan)
   ts-tt.to-tai(tt)
 }
 
@@ -217,7 +217,7 @@ public val ts-tcg : timescale = timescale( "TCG", tcg-from-tai, tcg-to-tai )
 /*----------------------------------------------------------------------------
   TDB: Barycentric dynamical time
 ----------------------------------------------------------------------------*/
-val j2k-epoch = ddouble(43200)       // 2000-01-01T12:00:00 TT
+val j2k-epoch = timespan(43200)       // 2000-01-01T12:00:00 TT
 val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 
 // Compute tdb-delta(TT) = TDB - TT. This is the default function used for `ts-tdb`.
@@ -225,8 +225,8 @@ val secs-per-julian-year = 31557600.0  // 365.25 * 86400.0
 // See also USNO circular 179 ([@Kaplan:circ], section 2.6).
 // The error in this approximation is a maximum of 10 micro-seconds in the time period 1600 to 2200.
 // (and probably less as we expanded to more terms and do JPL planetary mass adjustment)
-fun tdb-delta( tt : timespan ) : timespan {
-  val t = (tt - j2k-epoch).double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
+fun tdb-delta( tt : timestamp ) : timespan {
+  val t = (tt - j2k-epoch).timespan.double / (secs-per-julian-year * 1000.0) // fraction of Julian millenia since J2000
 
   // First terms of Fairhead et al. model
   val wf : double
@@ -308,12 +308,12 @@ fun tdb-topocentric(  t : double,        // fractional julian millennia
   wt
 }
 
-fun tai-to-tdb( tai : duration, delta : timespan -> timespan = tdb-delta ) : timespan {
+fun tai-to-tdb( tai : duration, delta : timestamp -> timespan = tdb-delta ) : timestamp {
   val tt = ts-tt.from-tai(tai)
   tt + delta(tt)
 }
 
-fun tdb-to-tai( tdb : timespan, delta : timespan -> timespan = tdb-delta ) : duration {
+fun tdb-to-tai( tdb : timestamp, delta : timestamp -> timespan = tdb-delta ) : duration {
   ts-tt.to-tai( tdb - delta(tdb) )
 }
 
@@ -330,10 +330,10 @@ public val ts-tdb : timescale = ts-tdb-create(tdb-delta)
 // The default function used for `ts-tdb` uses the Fairhead &amp; Bretagnon approximation
 // corrected for JPL planetary masses but assumes the geo center. Use this function
 // to create a new TDB timescale if you need more precision.
-public fun ts-tdb-create( tdb-minus-tt : timespan -> timespan ) : timescale {
+public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
   timescale("TDB",
-    fun(tai:duration) { tai-to-tdb(tai,tdb-minus-tt) },
-    fun(tdb:timespan) { tdb-to-tai(tdb,tdb-minus-tt) }
+    fun(tai:duration)  { tai-to-tdb(tai,tdb-minus-tt) },
+    fun(tdb:timestamp) { tdb-to-tai(tdb,tdb-minus-tt) }
   )
 }
 
@@ -345,14 +345,14 @@ public fun ts-tdb-create( tdb-minus-tt : timespan -> timespan ) : timescale {
 val lb   : ddouble = ddouble-exp(155051976772,~19) // 1.55051976772e-8
 val tdb0 : ddouble = ddouble-exp(~655,~7) // ~6.55e-5
 
-fun tai-to-tcb( tai : duration, tstdb : timescale ) : timespan {
+fun tai-to-tcb( tai : duration, tstdb : timescale ) : timestamp {
   val tdb = tstdb.from-tai(tai)
-  val adj = lb*(tdb - tcg-epoch-delta)
+  val adj = lb*(tdb - tcg-epoch-delta).timespan
   tdb + (adj - tdb0)
 }
 
-fun tcb-to-tai( tcb : timespan, tstdb : timescale ) : duration {
-  val adj = lb*(tcb - tcg-epoch-delta)
+fun tcb-to-tai( tcb : timestamp, tstdb : timescale ) : duration {
+  val adj = lb*(tcb - tcg-epoch-delta).timespan
   val tdb = tcb - (adj - tdb0)
   tstdb.to-tai(tdb)
 }
@@ -374,7 +374,7 @@ public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
 // -6.55&times;10^-5^.
 public fun ts-tcb-create( tstdb : timescale ) : timescale {
   timescale( "TCB",
-    fun(tai:duration) { tai-to-tcb(tai, tstdb) },
-    fun(tcb:timespan) { tcb-to-tai(tcb, tstdb) }
+    fun(tai:duration)  { tai-to-tcb(tai, tstdb) },
+    fun(tcb:timestamp) { tcb-to-tai(tcb, tstdb) }
   )
 }
