@@ -146,9 +146,6 @@ import std/time/utc        // ts-ti
 import std/time/calendars  // cal-tai, cal-gps
 import std/time/download   // cal-utc-load
 
-// The Terrestrial (or Ephemeris) time calendar, i.e. an ISO calendar but using the `ts-tt` time scale.
-// TT is always `TAI + 32.184`
-public val cal-tt  = iso-calendar( ts-tt )//, fixed(32184,3) )
 
 // The TCG (Geometric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcg` time scale.
 public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )

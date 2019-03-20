@@ -14,7 +14,7 @@
 module std/time/time
 
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc

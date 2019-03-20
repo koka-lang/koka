@@ -15,7 +15,7 @@ module std/time/date
 
 import std/num/double
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 
@@ -141,7 +141,7 @@ public fun round-to-prec( c : clock, prec : int = 9) : clock {
 // `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
 // `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
 public fun show( c : clock, prec : int = 9 ) : string {
-  c.hours.show0 + ":" + c.minutes.show0 + ":" + ts-show(c.seconds,prec,2)
+  c.hours.show0 + ":" + c.minutes.show0 + ":" + ts-show(c.seconds.timestamp,prec,2)
 }
 
 // Compare two clocks as by their total seconds.

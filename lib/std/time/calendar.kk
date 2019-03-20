@@ -15,7 +15,7 @@
 module std/time/calendar
 
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -99,7 +99,7 @@ public fun tz-local() : ndet timezone {
   Timezone(
     "",
     fun(i) {
-      val (ofs,abbrv) = local-utc-delta(tz, i.since-in(ts-unix).double)
+      val (ofs,abbrv) = local-utc-delta(tz, i.since-in(ts-unix).timespan.double)
       (duration(ofs.timespan),abbrv)
     }
   )
@@ -224,10 +224,10 @@ public fun earth-calendar(
             ) : calendar
 {
   fun instant-to-dc(i : instant, tzdelta : duration) {
-    earth-dayspan-to-dc( i.dayspan-since-y2k, tzdelta.timespan, days-to-date )
+    earth-timestamp-to-dc( i.since-y2k, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
-    earth-dayspan-to-instant( dc-dayspan(d, c, date-to-days), tz, ts)
+    earth-timestamp-to-instant( dc-dayspan(d, c, date-to-days).timestamp, tz, ts)
   }
   Calendar( name,long-name,ts,month-prefix,show-era,
             instant-to-dc,dc-to-instant,
@@ -235,24 +235,24 @@ public fun earth-calendar(
 }
 
 
-fun earth-dayspan-to-dc( ds : dayspan, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
+fun earth-timestamp-to-dc( t : timestamp, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
   // adjust for timezone (disregarding leap seconds for now) (and possibly going into the next or previous day)
-  val sd               = solar-dayspan(ds.days, ds.secs + tzdelta)
-  val date             = days-to-date(sd.days)
+  val ds               = (t + tzdelta).dayspan
+  val date             = days-to-date(ds.days)
   //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
 
   // Finally set the clock remembering to adjust the leap seconds
-  val daysecs          = sd.secs.floor.int
-  val frac             = sd.secs.ffraction.double
+  val daysecs          = ds.secs.floor.int
+  val frac             = ds.secs.ffraction.double
   val (hours,minsecs)  = divmod(daysecs,3600)
   val (mins,xsecs)     = divmod(minsecs,60)
   val tsecs            = timespan(xsecs + ds.leap, frac)  // and adjust for leap seconds
   (date, Clock(hours,mins,tsecs))
 }
 
-fun earth-dayspan-to-instant( ds : dayspan, tz : timezone, ts : timescale ) : instant {
+fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) : instant {
   // do timezone adjustment ignoring leap seconds (TODO: check correctness)
-  val i    = ts.instant-from-dayspan( ds )
+  val i    = t.unsafe-instant-since-y2k( ts )
   val iz   = if (tz.tz-utc?) then i else {
                match((tz.utc-inverse)(i)) {
                  Just(inv) -> inv
@@ -264,14 +264,16 @@ fun earth-dayspan-to-instant( ds : dayspan, tz : timezone, ts : timescale ) : in
                    // in UTC:  instant(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"
                    // and TAI: time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI"
                    val tzd1 = (tz.utc-delta)(i).fst
-                   val tzi1 = ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd1.timespan) )
+                   //val tzi1 = ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd1.timespan) )
+                   val tzi1 = (t - tzd1.timespan).unsafe-instant-since-y2k(ts)
                    val tzd2 = (tz.utc-delta)(tzi1).fst
-                   if (tzd1==tzd2) then tzi1 else ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd2.timespan) )
+                   if (tzd1==tzd2) then tzi1
+                    // else ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd2.timespan) )
+                    else (t - tzd2.timespan).unsafe-instant-since-y2k(ts)
                  }
                }
              }
-   // and add back leap seconds again after the timezone adjustment
-   iz // .unsafe-add(leap.timespan)
+   iz
 }
 
 public fun cal-dayspan( cal : calendar, d : date, c : clock ) : dayspan {

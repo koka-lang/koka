@@ -134,6 +134,12 @@ public fun timescale( i : instant ) : timescale {
 
 // Create an instant from a time stamp `t` interpreted in time scale `ts`.\
 // Be careful to ensure that `t` should indeed be interpreted in the given time scale.
+public fun unsafe-instant-since-y2k( t : timestamp, ts : timescale ) : instant {
+  Instant(t, ts)
+}
+
+// Create an instant from a time stamp `t` interpreted in time scale `ts`.\
+// Be careful to ensure that `t` should indeed be interpreted in the given time scale.
 public fun unsafe-instant( t : timestamp, ts : timescale ) : instant {
   Instant(t - ts.epoch-y2k, ts)
 }
@@ -182,6 +188,7 @@ public fun since-epoch( i : instant ) : duration {
   i.since-in(ts-tai).unsafe-duration
 }
 
+
 // Return the instant at (TAI) SI seconds duration since the `epoch`.
 public fun instant-since-epoch( d : duration ) : instant {
   unsafe-instant(d.timespan.timestamp, ts-tai)
@@ -191,6 +198,12 @@ public fun instant-since-epoch( d : duration ) : instant {
 public fun dayspan-since-y2k( i : instant ) : dayspan {
   i.since.dayspan
 }
+
+// Return the timestamp since 2000-01-01 in this timescale
+public fun since-y2k( i : instant ) : timestamp {
+  i.since
+}
+
 
 fun seconds-in-day(i : instant) : timespan {
   match(i.ts.get-seconds-in-day) {
