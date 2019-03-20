@@ -361,7 +361,7 @@ public fun year-shift-earth-calendar( name : string, long-name: string,
 // `has-year-zero?` (=`True`) parameter is used when the calendar has a
 // year zero. The `month-prefix` (=`""`) is used for displaying numeric
 // months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
-// can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
+// can be given to display an era for a given date. Finally the `ts` (=`ts-ti`)
 // gives the time scale for the calendar.
 public fun solar-calendar( name : string, long-name: string,
                     days-before-year : (year:int) -> int,

@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -68,8 +68,8 @@ ignores any future leap seconds.
 
 ## UTC between 1961 and 1972
 
-UTC is only well defined after 1972-01-01Z where it got integral leap
-seconds. Before 1972, the UTC time was broadcast using a combination of
+UTC only got integral leap seconds after 1972-01-01Z.
+Before 1972, the UTC time was broadcast using a combination of
 fixed time steps (i.e. _mini leap seconds_) and an offset from the atomic
 clock frequency. By adjusting the frequency, UTC time was effectively
 running at a linearly adjusted rate relative to TAI. We call this
@@ -107,8 +107,8 @@ Here are some interesting time steps that occurred in this time frame:
 
 The TAI timescale was officially established on 1958-01-01Z, and at that
 time the difference (TAI - UT1) was approximately zero (about 0.008s).
-In the time frame 1958 up to 1961 the relation between TAI and UTC is not
-well defined, as UTC was only officially established in 1960 (Arias
+In the time frame 1958 up to 1961 the relation between TAI and UTC
+is not formally defined, as UTC was only officially established in 1960 (Arias
 and Guinot [@Arias:utc]).
 
 We can however use the time steps and frequency adjustments as broadcast by
@@ -122,6 +122,17 @@ order to have a zero difference from TAI at exactly 1958-01-01Z.
 In the library, this makes UTC coincide with TAI up to 1958-01-01,
 interpolated with 'drift' up to 1972-01-01, and using integral leap-seconds
 after that.
+
+Interestingy, in the time before 1961, most leap steps occurred at 19:00h
+instead of at the last second of the day, for example, on 1959-01-28
+there was a 0.02s leap step:
+```
+instant(1959,1,28,19,0,0,0.50,cal=cal-tai).time.show == "1959-01-28T18:59:60.007866Z"
+instant(1959,1,28,19,0,0,0.52,cal=cal-tai).time.show == "1959-01-28T19:00:00.007866Z"
+```
+showing the seconds at 60 just before 19:00h.
+
+## All historical leap second adjustments
 
 Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
 is calculated and uses historical data for time steps before 1972.
@@ -287,12 +298,12 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
 public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  ts-unix.instant( timestamp(secs.truncate.int, secs.fraction + frac.fraction, frac.truncate.int) )
+  ts-unix.instant-since-epoch( timestamp(secs.truncate.int, secs.fraction + frac.fraction, frac.truncate.int) )
 }
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
 public fun unix-timestamp( i :instant ) : double {
-  i.since-in(ts-unix).timespan.double
+  i.since-epoch-of(ts-unix).double
 }
 
 /*----------------------------------------------------------------------------
