@@ -26,31 +26,20 @@ abstract struct duration(
 )
 
 // A zero duration.
-public val zero : duration = Duration(zero:timespan)
+public val zero : duration = Duration(timespan0)
+public val duration0 : duration = Duration(timespan0)
 
 // Convert a `:timespan` to a `:duration`. Be careful to only use
-// use this on timespan's that are in SI time units!
-public fun unsafe-duration( t : timespan ) : duration {
-  Duration(t)
-}
-
-public fun unsafe-duration( t : timestamp ) : duration {
-  Duration(t.timespan)
-}
-
+// use this on timespan's that are in TAI SI seconds!
 public fun duration( t : timespan ) : duration {
   Duration(t)
 }
 
-
-// Convert a duration to a `:timespan`.
-public fun timespan( d : duration ) : timespan {
-  d.secs
-}
-
-// Convert a duration to a `:timespan`.
-public fun timestamp( d : duration ) : timestamp {
-  d.secs.timestamp
+// Convert a `:timestamp` to a `:duration`. Be careful to only use
+// use this on timestamp's that are in TAI SI seconds and do not
+// contain leap seconds!
+public fun unsafe-duration( t : timestamp ) : duration {
+  Duration(t.timespan-withleap)
 }
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
@@ -61,6 +50,16 @@ public fun duration( secs : int, frac : double = 0.0 ) : duration {
 // Create a duration from seconds as a `:double`.
 public fun duration( secs : double ) : duration {
   Duration(timespan(secs))
+}
+
+// Convert a duration to a `:timespan`.
+public fun timespan( d : duration ) : timespan {
+  d.seconds
+}
+
+// Convert a duration to a `:timespan`.
+public fun timestamp( d : duration ) : timestamp {
+  d.seconds.timestamp
 }
 
 // Return the duration in SI seconds.
@@ -128,12 +127,12 @@ public fun max( i : duration, j : duration ) : duration {
 
 // Add two durations.
 public fun (+)( d : duration, e : duration ) : duration {
-  duration(d.secs + e.secs)
+  Duration(d.secs + e.secs)
 }
 
 // Negate a duration.
 public fun (~)( d : duration ) : duration {
-  duration(~d.secs)
+  Duration(~d.secs)
 }
 
 // Subtract a duration from a duration.
@@ -147,7 +146,7 @@ public fun show( d : duration, max-prec : int = 9 ) : string {
 }
 
 // Create a `:duration` of `n` milli-seconds.
-public fun milli-seconds( n : int ) : duration { duration(n.timespan / 1000.timespan) }
+public fun milli-seconds( n : int ) : duration { Duration(n.timespan / 1000.timespan) }
 
 // Create a `:duration` of `n` seconds.
 public fun seconds( n : int ) : duration { duration(n) }
@@ -158,11 +157,11 @@ public fun minutes( n : int ) : duration { duration(n*60) }
 // Create a `:duration` of `n` hours.
 public fun hours( n : int )   : duration { duration(n*3600) }
 
-// Create a `:duration` of `n` days (assuming 86400s in a day).
-public fun days( n : int )    : duration { duration(n*86400) }
+// Create a `:duration` of `n` "days" (assuming 86400s in a day).
+public fun days( n : int )    : duration { duration(n*isolar-secs-per-day) }
 
-// Create a `:duration` of `n` weeks (assuming 7 days of 86400s).
-public fun weeks( n : int )   : duration { duration(n*7*86400) }
+// Create a `:duration` of `n` "weeks" (assuming 7 days of 86400s).
+public fun weeks( n : int )   : duration { duration(n*7*isolar-secs-per-day) }
 
-// Create a `:duration` of `n` years (assuming 365 days of 86400s).
-public fun years( n : int )   : duration { duration(n*365*86400) }
+// Create a `:duration` of `n` "years" (assuming 365 days of 86400s).
+public fun years( n : int )   : duration { duration(n*365*isolar-secs-per-day) }

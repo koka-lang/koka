@@ -10,6 +10,7 @@
 module time2
 
 public import std/num/ddouble
+public import std/time/timestamp
 public import std/time
 
 /*----------------------------------------------------------------------------
@@ -66,6 +67,14 @@ fun test-leap() {
   check("leap-sub3","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3))).show }
   check("add-days1","2017-01-01T12:00:00Z") { time(2016,12,31,12).add-days(1).show }
   check("add-days2","1582-10-15T00:00:00Z JG") { time(1582,10,4,cal=cal-jg).add-days(1).show}
+
+  // unix timestamps
+  check("unix1", "1972-12-31T23:59:59Z") { unix-instant(94694399.0).time.show }
+  check("unix2", "1972-12-31T23:59:60Z") { unix-instant(94694399.0,1.0).time.show }
+  check("unix3", "1973-01-01T00:00:00Z") { unix-instant(94694400.0).time.show }
+  check("unix4", "94694399") { instant(1972,12,31,23,59,59).unix-timestamp.show }
+  check("unix5", "94694400") { instant(1972,12,31,23,59,60).unix-timestamp.show }
+  check("unix6", "94694400") { instant(1973,1,1).unix-timestamp.show }
 }
 
 public fun main() {

@@ -273,13 +273,13 @@ will look as the first second of the next day. For example, here is how the time
 around the leap second of ``1973-01-01Z``:
 ````
 > instant(1972,12,31,23,59,59).unix-timestamp
-94694399.0
+94694399
 
 > instant(1972,12,31,23,59,60).unix-timestamp
-94694400.0
+94694400
 
 > instant(1973,1,1).unix-timestamp
-94694400.0
+94694400
 ````
 
 Internally, this library uses proper `:timestamp`s that _can_ keep track of leap seconds.
@@ -297,14 +297,33 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
-public fun unix-instant( secs : double, frac : double = 0.0 ) : instant {
-  ts-unix.instant-since-epoch( timestamp(secs.truncate.int, secs.fraction + frac.fraction, frac.truncate.int) )
+public fun unix-instant( u : double, frac : double = 0.0 ) : instant {
+  val t    = u.ddouble + frac.fraction.ddouble
+  val leap = frac.truncate.int
+  unix-instant(t,leap)
 }
 
-// Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
-public fun unix-timestamp( i :instant ) : double {
-  i.since-epoch-of(ts-unix).double
+// Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
+public fun unix-instant( u : int, frac : double = 0.0 ) : instant {
+  val t    = u.ddouble + frac.fraction.ddouble
+  val leap = frac.truncate.int
+  unix-instant(t,leap)
 }
+
+// Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
+public fun unix-instant( t : timespan, leap : int ) : instant {
+  ts-unix.instant( timestamp(t - unix2000, leap) )
+}
+
+
+// Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
+public fun unix-timestamp( i :instant ) : ddouble {
+  (unix2000 + i.timespan-in(ts-unix))
+}
+
+val unix2000 = timespan(946684800)
+
+
 
 /*----------------------------------------------------------------------------
   Timescale creation
@@ -314,7 +333,7 @@ public fun unix-timestamp( i :instant ) : double {
 // `y2k-epoch` (=`timestamp0`) which is the timestamp of the 2001-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
 // `y2k-epoch = instant-at(2000,1,1,cal=iso-calender(ts)).timestamp(ts)`.
-public fun utc-timescale( name : string, leaps : leaps-table, epoch-y2k : timespan = timespan0 ) : timescale {
+public fun utc-timescale( name : string, leaps : leaps-table ) : timescale {
   fun from-tai(tai:duration)       { tai-to-utc(leaps,tai) }
   fun to-tai(utc:timestamp)        { utc-to-tai(leaps,utc) }
   fun seconds-in-day(utc:timestamp){ utc-seconds-in-day(leaps,utc) }
@@ -322,7 +341,6 @@ public fun utc-timescale( name : string, leaps : leaps-table, epoch-y2k : timesp
     name,
     from-tai,
     to-tai,
-    epoch-y2k,
     "UTC",
     Just(seconds-in-day)
   )
@@ -337,13 +355,25 @@ public fun ts-utc-create( leaps : leaps-table ) : timescale {
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds but with 1970-01-01 epoch.
 public fun ts-unix-create( leaps : leaps-table ) : timescale {
-  utc-timescale( "UNIX", leaps, timespan(946684800) )
+  utc-timescale( "UNIX", leaps )
 }
+
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal to the UTC time scale (`ts-utc`) but
 // with a 1900-01-01Z epoch.
 public fun ts-ntp-create( leaps : leaps-table ) : timescale {
-  utc-timescale( "NTP", leaps, timespan(3155673600) )
+  utc-timescale( "NTP", leaps )
+}
+
+// Convert an NTP time in seconds since the NTP epoch (1900-01-01Z) to an instant.
+// Also takes an optional `leap` argument if the NTP time is _in_ a leap seconds.
+public fun ntp-instant( ntp : ddouble, leap : int = 0 ) : instant {
+  ts-ntp.instant( timestamp(ntp,leap) - ntp2000 )
+}
+
+// Return the NTP time of an instant since the NTP epoch (1900-01-01)
+public fun ntp-timestamp( i : instant ) : ddouble {
+  ntp2000 + i.timespan-in(ts-ntp)
 }
 
 /* The [TI] (_International Time_) time scale with a 2000-01-01Z UTC epoch.
@@ -358,9 +388,12 @@ future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 3
 public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
-// It equals the `ts-ti` time scale except with a 1970-01-01 epoch.
-public val ts-unix : timescale = ts-unix-create( leaps-table-ti )
+// It equals the `ts-ti` time scale.
+public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
 
+// [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
+// It equal the `ts-ti` time scale.
+public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 // -----------------------------------------------------------
 // UTC calendar leap second calculation
@@ -404,7 +437,7 @@ fun zero?( la : leap-adjust ) : bool {
 fun delta-tai( la : leap-adjust, ntp : ntp-timestamp ) : timespan {
   if (la.drift.zero?) then la.offset else {
     // pre 1972 is a rubber leap second
-    val days = diff(ntp,la.drift-start) / solar-secs-per-day
+    val days = (ntp.timespan-noleap - la.drift-start.timespan-noleap) / solar-secs-per-day
     la.offset + (la.drift * days)
   }
 }
@@ -473,7 +506,7 @@ fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
 fun utc-to-tai( leaps : leaps-table, utc : timestamp ) : duration {
   val ntp  = utc-to-ntp(utc)
   val dtai = ntp-to-delta-tai(leaps,ntp)
-  (utc.timespan + dtai).duration
+  (utc + dtai).unsafe-duration
 }
 
 fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {

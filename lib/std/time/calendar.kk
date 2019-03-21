@@ -99,8 +99,8 @@ public fun tz-local() : ndet timezone {
   Timezone(
     "",
     fun(i) {
-      val (ofs,abbrv) = local-utc-delta(tz, i.since-in(ts-unix).timespan.double)
-      (duration(ofs.timespan),abbrv)
+      val (ofs,abbrv) = local-utc-delta(tz, i.unix-timestamp.double)
+      (duration(ofs),abbrv)
     }
   )
 }
@@ -115,8 +115,8 @@ extern local-get-timezone() : ndet local-timezone {
 }
 
 // Return the utc delta in fractional seconds given a local timezone structure
-// in fractional seconds since the UNIX epoch (1970-01-01) together with the
-// time zone abbreviation.
+// and time `i` in fractional seconds since the UNIX epoch (1970-01-01).
+// Also returns time zone abbreviation.
 extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
   cs "_Calendar.LocalUtcDelta"
   js "_local_utc_delta"
@@ -224,7 +224,7 @@ public fun earth-calendar(
             ) : calendar
 {
   fun instant-to-dc(i : instant, tzdelta : duration) {
-    earth-timestamp-to-dc( i.since-y2k, tzdelta.timespan, days-to-date )
+    earth-timestamp-to-dc( i.timestamp, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
     earth-timestamp-to-instant( dc-dayspan(d, c, date-to-days).timestamp, tz, ts)

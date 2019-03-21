@@ -17,7 +17,8 @@ module std/time/timestamp
 import std/text/regex
 import std/num/ddouble
 
-// Time spans are just a `:ddouble`; this gives it very high precision
+// Time spans are a time duration represented as a `:ddouble`;
+// this gives it very high precision
 // and range to represent time very precisely. (see the [`instant`](std_time_instant.html) module)
 public alias timespan = ddouble
 
@@ -32,12 +33,36 @@ public fun timespan( secs : double ) : timespan {
   ddouble(secs)
 }
 
-public fun div( x : ddouble, y : ddouble, prec : int = 0) : ddouble {
+// Timespan from a `:ddouble`. Just for convenience as `:timespan` is an alias
+public fun timespan( secs : ddouble ) : timespan {
+  secs
+}
+
+// Divide using `div` to allow for different timespan representations
+public fun div( x : timespan, y : timespan, prec : int = 0) : timespan {
   x / y
 }
 
+/*----------------------------------------------------------------------------
+  Day span
+----------------------------------------------------------------------------*/
+
+// A _day span_ is a time given as days, seconds, and leap seconds
+// from 2000-01-01 (in some timescale). It takes the `days` since
+// 2000-01-01, the fractional `secs` seconds into that day, and
+// potential (whole) `leap` seconds. The `leap` seconds are used
+// for times that are _in_ a leap second in that timescale and are
+// only used by UTC based timescales.
+//
+// We need a separate field `leap`
+// since some leap steps between 1958 and 1960 occurred at 19:00h
+// instead of the last second of the day. For example,
+// ```
+// time(1959,1,28,18,59,60,0.01).instant.dayspan-since-y2k == "-14948d 68399.010s (+1 leap)"
+// ```
+// See `std/time/utc` for more information on leap seconds.
 public struct dayspan(
-  days: int,                  // days since epoch
+  days: int,                  // days since 2000-01-01
   secs: timespan = timespan0, // seconds into this day
   leap: int = 0               // and extra leap seconds (to provide for leap seconds at other times than the end of day)
 )
@@ -45,6 +70,7 @@ public struct dayspan(
 public val isolar-secs-per-day = 86400
 public val solar-secs-per-day = isolar-secs-per-day.timespan
 
+// Create a normalized dayspan assuming 86400 seconds in a day.
 public fun solar-dayspan( days : int, secs : timespan = timespan0, leap : int = 0 ) {
   val fsecs = secs.floor
   val frac  = secs - fsecs
@@ -52,55 +78,58 @@ public fun solar-dayspan( days : int, secs : timespan = timespan0, leap : int = 
   Dayspan(days + ddays, dsecs.ddouble + frac, leap)
 }
 
+// Show a day span
+public fun show( ds : dayspan, prec : int = 9 ) : string {
+  ds.days.show + "d " + ts-show(timestamp(ds.secs,ds.leap),prec,unit="s")
+}
+
 /*----------------------------------------------------------------------------
-  Timestamps are timespan's since some epoch in some time unit.
-  Timestamps expose leap seconds (when appropiate for the time scale)
+  Timestamps
 ----------------------------------------------------------------------------*/
 
-// A time stamp is a `:timespan` since some epoch. Time stamps also keep
-// track of possible leap seconds when the unit is in [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
-//
-// When using Unix/UTC seconds, the `leap-adjust` field is non-zero if this `:timestamp` is inside a leap
-// second. It is _not_ the total number of leap seconds that have occurred up to that time, but is used
-// as an adjustment to signify the time is in a particular leap second. For example, for a regular
-// leap second we have:\
-// ``2016-12-31T23:59:59Z`` = 536543999 with a `leap-adjust` of 0.\
-// ``2016-12-31T23:59:60Z`` = 536543999 with a `leap-adjust` of 1.\
-// ``2017-01-01Z`` = 536544000 with a `leap-adjust` of 0 again.
+/* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
+Time stamps also keep track of possible leap seconds for UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
+
+There are various representation possible. One way is as a duration TAI SI seconds
+but that would lead to many conversions (and loss of precision), for example for
+unix timestamps that need adjustments for leap seconds. To avoid conversions,
+it is better to represent as days plus the seconds into that day. Furthermore,
+to avoid normalization and to make it easier to add/substract time spans,
+we write this as a single timespan `since` where `days == floor(since / 86400)`
+and `seconds == since - days`. This is essentially the representation that
+unix timestamps use too. However, we also need a separate `leap` seconds field
+too that is positive if this time is in a leap step. This allows us also to
+represent time in a leap step unambigiously, and also at any time during the day.
+
+Here is the representation of the leap second just before 2006-01-01:
+```
+time(2005,12,31,23,59,60,0.5).instant.since-y2k.ts-show == "189388799.500 (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.dayspan-since-y2k.show == "2191d 86399.500s (+1 leap)"
+```
+*/
 abstract struct timestamp(
-  since : timespan,
-  // the extra leap seconds; zero for any time scale except non-monotonic ones like Unix time.
+  since : timespan,  // days+seconds since 2000-01-01 in the time scale
+  // the extra leap seconds; always zero for any time scale except UTC based ones.
   public leap : int
 )
 
-// The time stamp at its epoch.
+// The time stamp at 2000-01-01
 public val timestamp0 : timestamp = Timestamp(zero,0)
 
 
-// Create a time stamp from a `:timespan` since some epoch.
+// Create a time stamp from a `:timespan` since 2000-01-01 and possible leap seconds.
 public fun timestamp( t : timespan, leap : int = 0 ) : timestamp {
   Timestamp(t,leap)
 }
 
-// Create a time stamp in seconds and fraction of seconds since its epoch.
-// Can also pass possible `leap-adjust` (=`0`). If the unit is in Unix seconds
-// (where a day is always 86400 seconds) this is used to indicate extra leap seconds in that day.
-public fun timestamp( secs : int, frac : double = 0.0, leap : int = 0 ) : timestamp {
-  timestamp(timespan(secs,frac), leap)
+// Create a time stamp from an integer timespan since 2000-01-01 and possible leap seconds.
+public fun timestamp( t : int, frac : double = 0.0, leap : int = 0 ) : timestamp {
+  timestamp(t.ddouble + frac.ddouble,leap)
 }
 
-// Create a time stamp in seconds since its epoch
-public fun timestamp( secs : double, leap : int = 0 ) : timestamp {
-  timestamp(timespan(secs),leap)
-}
-
-// Timestamp from dayspan
+// Timestamp from dayspan.
 public fun timestamp( ds : dayspan ) : timestamp {
-  val (dsecs,dleap) = if (ds.secs < solar-secs-per-day) then (ds.secs,0) else {
-                        val leap = ds.secs.floor.int - isolar-secs-per-day + 1
-                        (ds.secs - leap.timespan, leap)
-                      }
-  Timestamp( (ds.days * isolar-secs-per-day).timespan + dsecs, ds.leap + dleap)
+  Timestamp( (ds.days * isolar-secs-per-day).timespan + ds.secs, ds.leap)
 }
 
 // Dayspan from a timestamp
@@ -111,21 +140,24 @@ public fun dayspan( ts : timestamp ) : dayspan {
   Dayspan(days, dsecs.ddouble + frac, ts.leap)
 }
 
-// The time span since the epoch of the time stamp. (including leap seconds)
-public fun timespan( ts : timestamp ) : timespan {
+// The time span since 2000-01-01. (including leap seconds).
+// Note: this loses information about the leap seconds.
+public fun timespan-withleap( ts : timestamp ) : timespan {
   ts.since + ts.leap.timespan
 }
 
-// The time span since the epoch of the time stamp. (including leap seconds)
+
+// The time span since 2000-01-01 ignoring leap seconds.
 public fun timespan-noleap( ts : timestamp ) : timespan {
   ts.since
 }
+
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
 public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
   Timestamp(t.since.round-to-prec(prec), t.leap)
 }
 
-// Add `leaps` leap seconds to the leap adjustment of the timestamp.
+// Add `leaps` leap seconds to the timestamp.
 public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
   if (!leaps.pos?) then ts
   elif (leaps < 1.timespan && ts.leap.zero?)
@@ -168,12 +200,8 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
   Timestamp(ts.since - t, ts.leap)
 }
 
-// Subtract a time span from a time stamp.
-public fun diff( t1 : timestamp, t2 : timestamp ) : timespan {
-  t1.timespan - t2.timespan
-}
 // Show a time stamp (without the `s` postfix).
-public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) : string {
+public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
   val s = ts.since.show-fixed(~max-prec.abs)
   val l = if (ts.leap.zero?) then "" else " (+" + ts.leap.show + " leap)"
   match(s.find(".")) {
@@ -182,7 +210,7 @@ public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1 ) :
       val f = dot.after.string
       val len3 = ((f.count + 2)/3)*3
       //trace("ts-show: " + s + ", " + len3.show + ", prec: " + max-prec.show + ", " + ts.since.show(-9))
-      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + l
+      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + unit + l
     }
   }
 }
