@@ -165,6 +165,11 @@ public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
    else Timestamp( ts.since + leaps.fraction, ts.leap + leaps.truncate.int )
 }
 
+// Add `days` days to a timestamp
+public fun add-days( ts : timestamp, days : int ) : timestamp {
+  ts + (days * isolar-secs-per-day).timespan
+}
+
 // Compare two `:timestamp`s.
 public fun compare( i : timestamp, j : timestamp ) : order {
   match(compare(i.since,j.since)) {  // compare without leap-seconds first!
