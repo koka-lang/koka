@@ -14,8 +14,9 @@ User code should use `:std/time/duration/duration`s and `:std/time/instant/insta
 */
 module std/time/timestamp
 
-import std/text/regex
+//import std/text/regex
 import std/num/ddouble
+import std/time/date
 
 // Time spans are a time duration in some time scale represented as a `:ddouble`;
 // this gives it very high precision and range to represent time very precisely.
@@ -64,27 +65,12 @@ public fun div( x : timespan, y : timespan, prec : int = 0) : timespan {
 // time(1959,1,28,19, 0, 0,0.01).instant.dayspan.show == "-14948d 68400.010s"
 // ```
 // See `std/time/utc` for more information on leap seconds.
-public struct dayspan(
-  days: int,                  // days since 2000-01-01
-  secs: timespan = timespan0, // seconds into this day
-  leap: int = 0               // and extra leap seconds (to provide for leap seconds at other times than the end of day)
-)
 
+// Seconds in a solar day, 86400.
 public val isolar-secs-per-day = 86400
 public val solar-secs-per-day = isolar-secs-per-day.timespan
 
-// Create a normalized dayspan assuming 86400 seconds in a day.
-public fun solar-dayspan( days : int, secs : timespan = timespan0, leap : int = 0 ) {
-  val fsecs = secs.floor
-  val frac  = secs - fsecs
-  val (ddays,dsecs) = divmod(fsecs.int, isolar-secs-per-day)
-  Dayspan(days + ddays, dsecs.ddouble + frac, leap)
-}
 
-// Show a day span
-public fun show( ds : dayspan, prec : int = 9 ) : string {
-  ds.days.show + "d " + ts-show(timestamp(ds.secs,ds.leap),prec,unit="s")
-}
 
 /*----------------------------------------------------------------------------
   Timestamps
@@ -130,18 +116,33 @@ public fun timestamp( t : int, frac : double = 0.0, leap : int = 0 ) : timestamp
   timestamp(t.ddouble + frac.ddouble,leap)
 }
 
-// Timestamp from dayspan.
-public fun timestamp( ds : dayspan ) : timestamp {
-  Timestamp( (ds.days * isolar-secs-per-day).timespan + ds.secs, ds.leap)
+// Timestamp from days, seconds into the day and possible leap second.
+public fun timestamp-days( days : int, secs : timespan = timespan0, leap : int = 0  ) : timestamp {
+  timestamp( (days * isolar-secs-per-day).timespan + secs, leap)
 }
 
-// Dayspan from a timestamp
-public fun dayspan( ts : timestamp ) : dayspan {
+
+fun daystamp( ts : timestamp ) : (int,ddouble) {
   val secs = ts.since.floor
   val frac = ts.since - secs
   val (days,dsecs) = divmod(secs.int, isolar-secs-per-day)
-  Dayspan(days, dsecs.ddouble + frac, ts.leap)
+  (days, dsecs.ddouble + frac)
 }
+
+// Daystamp from a timestamp
+public fun dayclock( ts : timestamp ) : (int,clock) {
+  val (days,secs) = ts.daystamp
+  (days, clock(secs,ts.leap))
+}
+
+public fun days( ts : timestamp ) : int {
+  ts.daystamp.fst
+}
+
+public fun seconds-into-day( ts : timestamp ) : ddouble {
+  ts.daystamp.snd + ts.leap.ddouble
+}
+
 
 // The time span since 2000-01-01 including time inside a possible leap second.
 // Note: using this only makes sense in timescales without leap
@@ -212,17 +213,14 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
   Timestamp(ts.since - t, ts.leap)
 }
 
-// Show a time stamp (without the `s` postfix).
+// Show a time stamp.
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
-  val s = ts.since.show-fixed(~max-prec.abs)
   val l = if (ts.leap.zero?) then "" else " (+" + ts.leap.show + " leap)"
-  match(s.find(".")) {
-    Nothing -> s.pad-left(secs-width,'0') + l
-    Just(dot) -> {
-      val f = dot.after.string
-      val len3 = ((f.count + 2)/3)*3
-      //trace("ts-show: " + s + ", " + len3.show + ", prec: " + max-prec.show + ", " + ts.since.show(-9))
-      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + unit + l
-    }
-  }
+  ts.since.show-seconds(max-prec,secs-width,unit) + l
+}
+
+// Show a day stamp
+public fun ts-show-days( ts : timestamp, prec : int = 9 ) : string {
+  val (days,secs) = ts.daystamp
+  days.show + "d " + ts-show(timestamp(secs,ts.leap),prec,unit="s")
 }

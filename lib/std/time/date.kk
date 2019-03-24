@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -15,9 +15,6 @@ module std/time/date
 
 import std/num/double
 import std/num/ddouble
-import std/time/timestamp
-import std/time/duration
-import std/time/instant
 
 /*----------------------------------------------------------------------------
 
@@ -84,22 +81,35 @@ public struct clock(
 )
 
 // Create a clock from a `:duration`; normalizes the clock with seconds and minutes under 60.
-public fun clock( d : duration ) : clock {
-  clock(d.seconds)
-}
+//public fun clock( d : duration ) : clock {
+//  clock(d.seconds)
+//}
 
 // Create a clock from seconds; normalizes the clock with seconds and minutes under 60.
 public fun clock( seconds : ddouble ) : clock {
-  val hm     = seconds.floor.int / 60
-  val s      = seconds - hm.ddouble
-  val (h,m)  = divmod(hm,60)
-  Clock(h, m, s)
+  clock(seconds.floor.int,seconds.ffraction)
 }
 
 // Create a clock from a seconds as an `:int` with an optional fraction.
-// Normalizes the clock with seconds and minutes under 60.
-public fun clock( seconds : int, frac : double = 0.0 ) : clock {
-  clock(timespan(seconds,frac))
+// Normalizes the clock with seconds and minutes under 60 but
+// adds the fraction as is to the final seconds, so that might
+// be `>= 60` if the fraction `>= 1.0`;
+public fun clock( seconds : int, frac : double ) : clock {
+  clock(seconds,frac.ddouble)
+}
+
+// Create a clock from a seconds as an `:int` with an optional fraction.
+// Normalizes the clock with seconds and minutes under 60 but
+// adds the fraction as is to the final seconds, so that might
+// be `>= 60` if the fraction `>= 1.0`;
+public fun clock( seconds : int, frac : ddouble = zero) : clock {
+  val (hm,s) = divmod(seconds,60)
+  val (h,m)  = divmod(hm,60)
+  Clock(h,m,s.ddouble + frac)
+}
+
+public fun clock( seconds : ddouble, leap : int) : clock {
+  clock(seconds.floor.int, seconds.ffraction + leap.ddouble)
 }
 
 
@@ -141,8 +151,23 @@ public fun round-to-prec( c : clock, prec : int = 9) : clock {
 // `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
 // `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
 public fun show( c : clock, prec : int = 9 ) : string {
-  c.hours.show0 + ":" + c.minutes.show0 + ":" + ts-show(c.seconds.timestamp,prec,2)
+  c.hours.show0 + ":" + c.minutes.show0 + ":" + c.seconds.show-seconds(prec,2)
 }
+
+// Show seconds
+public fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
+  val s = secs.show-fixed(~max-prec.abs)
+  match(s.find(".")) {
+    Nothing -> s.pad-left(secs-width,'0')
+    Just(dot) -> {
+      val f = dot.after.string
+      val len3 = ((f.count + 2)/3)*3
+      //trace("ts-show: " + s + ", " + len3.show + ", prec: " + max-prec.show + ", " + ts.since.show(-9))
+      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + unit
+    }
+  }
+}
+
 
 // Compare two clocks as by their total seconds.
 public fun compare( c : clock, d : clock ) : order {

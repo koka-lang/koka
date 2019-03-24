@@ -227,7 +227,7 @@ public fun earth-calendar(
     earth-timestamp-to-dc( i.timestamp, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
-    earth-timestamp-to-instant( dc-dayspan(d, c, date-to-days).timestamp, tz, ts)
+    earth-timestamp-to-instant( dc-timestamp(d, c, date-to-days), tz, ts)
   }
   Calendar( name,long-name,ts,month-prefix,show-era,
             instant-to-dc,dc-to-instant,
@@ -237,17 +237,8 @@ public fun earth-calendar(
 
 fun earth-timestamp-to-dc( t : timestamp, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
   // adjust for timezone (disregarding leap seconds for now) (and possibly going into the next or previous day)
-  val ds               = (t + tzdelta).dayspan
-  val date             = days-to-date(ds.days)
-  //trace("        : " + days.show + ": " + daysecs.show + ": " + date.show)
-
-  // Finally set the clock remembering to adjust the leap seconds
-  val daysecs          = ds.secs.floor.int
-  val frac             = ds.secs.ffraction.double
-  val (hours,minsecs)  = divmod(daysecs,3600)
-  val (mins,xsecs)     = divmod(minsecs,60)
-  val tsecs            = timespan(xsecs + ds.leap, frac)  // and adjust for leap seconds
-  (date, Clock(hours,mins,tsecs))
+  val (days,clock)     = (t + tzdelta).dayclock
+  (days-to-date(days),clock)
 }
 
 fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) : instant {
@@ -276,11 +267,11 @@ fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) :
    iz
 }
 
-public fun cal-dayspan( cal : calendar, d : date, c : clock ) : dayspan {
-  dc-dayspan(d,c,cal.date-to-days)
+public fun cal-timestamp( cal : calendar, d : date, c : clock ) : timestamp {
+  dc-timestamp(d,c,cal.date-to-days)
 }
 
-fun dc-dayspan( d : date, c : clock, date-to-days: (date) -> int ) : dayspan {
+fun dc-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
   // check if we are in a leap second and remember
   val (xsecs,leap)  = if (c.seconds < 60.ddouble) then (c.seconds,0) else {
                         val leap = c.seconds.floor.int - 59
@@ -288,7 +279,7 @@ fun dc-dayspan( d : date, c : clock, date-to-days: (date) -> int ) : dayspan {
                       }
   val secs = (((c.hours*60) + c.minutes)*60).ddouble + xsecs
   val days = date-to-days( d )
-  Dayspan(days,secs,leap)
+  timestamp-days(days,secs,leap)
 }
 
 

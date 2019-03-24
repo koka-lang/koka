@@ -39,7 +39,7 @@ module std/time/instant
 import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
-
+import std/time/date
 
 /*----------------------------------------------------------------------------
   Timescale
@@ -127,9 +127,14 @@ public fun timestamp( i : instant ) : timestamp {
   i.since
 }
 
-// Return `:dayspan` since 2000-01-01 in the time scale of the instant
-public fun dayspan( i : instant ) : dayspan {
-  i.since.dayspan
+// Return days since 2000-01-01 in the time scale of the instant
+public fun days( i : instant ) : int {
+  i.since.days
+}
+
+// Return days since 2000-01-01 in the time scale of the instant
+public fun dayclock( i : instant ) : (int,clock) {
+  i.since.dayclock
 }
 
 
@@ -139,15 +144,13 @@ public fun instant( ts : timescale, t : timestamp ) : instant {
   Instant(t, ts)
 }
 
-// Create an instant from a dayspan `ds` interpreted in time scale `ts`.\
-// Be careful to ensure that `ds` should indeed be interpreted in the given time scale.
-public fun instant( ts : timescale, ds : dayspan ) : instant {
-  instant(ts, ds.timestamp)
-}
-
 // Return the instant at (TAI) SI seconds duration since the `epoch`.
 public fun instant( d : duration ) : instant {
   instant(ts-tai, d.timestamp)
+}
+
+public fun instant( ts : timescale, days : int, secs : timespan, leap : int = 0) : instant {
+  ts.instant(timestamp-days(days,secs,leap))
 }
 
 // Return a `:timestamp` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
@@ -155,10 +158,6 @@ public fun timestamp-in( i : instant, tscale : timescale = ts-tai ) : timestamp 
   i.since.convert(i.ts,tscale)
 }
 
-// Return a `:dayspan` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
-public fun dayspan-in( i : instant, tscale : timescale = ts-tai ) : dayspan {
-  i.timestamp-in(tscale).dayspan
-}
 
 // Return the (TAI) SI second duration since the `epoch` at this instant.
 public fun duration( i : instant ) : duration {
@@ -415,7 +414,7 @@ public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
   val days  = d.floor
   val frac  = d - days
   val idays = days.int
-  val secs-in-day = ts.instant(Dayspan(idays)).seconds-in-day
+  val secs-in-day = ts.instant(idays,zero).seconds-in-day
   val secs  = frac*secs-in-day
   // if this is a day with a leap second, the seconds may come out
   // larger than 86400, if so, we interpret that as a leap second.
@@ -425,7 +424,7 @@ public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
                        val leap = secs.floor.int - isolar-secs-per-day + 1
                        (secs - leap.ddouble, leap)
                      }
-  ts.instant(Dayspan(idays, dsecs, leap))
+  ts.instant(idays, dsecs, leap)
 }
 
 /* Return the julian day in a given time scale `ts` for an instant `i`.
@@ -456,13 +455,12 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 // before conversion (used in `std/time/time` to take timezones into account)
 public fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 ) : ddouble {
   val j = i.use-timescale(tscale)
-  // get dayspan and seconds-in-the-day of the original instant
-  val ds0 = j.dayspan
+  // get seconds-in-the-day of the original instant
   val secs-in-day = j.seconds-in-day
-  // then adjust to the dayspan in the timezone, ignoring a possible leap second
-  val ds  = solar-dayspan(ds0.days,ds0.secs + tzdelta)
+  // then adjust to the timezone
+  val h = j.add-duration-in(tscale,tzdelta)
   // calculate fraction in the timezone seconds, with the original leap second and seconds in the day
-  val frac= (ds.secs + ds0.leap.ddouble) / secs-in-day
+  val frac= h.since.seconds-into-day / j.seconds-in-day
   // and add it together
-  (mjd-epoch-delta + ds.days.ddouble + frac)
+  (mjd-epoch-delta + h.days.ddouble + frac)
 }
