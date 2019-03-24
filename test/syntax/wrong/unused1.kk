@@ -1,3 +1,3 @@
-function main() {
+fun main() {
   1 2 + 3
 }

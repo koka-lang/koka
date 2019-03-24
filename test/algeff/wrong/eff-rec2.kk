@@ -10,9 +10,13 @@ effect resource ref<a> in heap {
   fun set( value : a ) : ()
 }
 
-val new-ref = handler resource (s) {
-  get() -> resume(s,s)
-  set(x) -> resume((),x)
+fun new-ref(init,action) {
+  var s := init
+  with r = resource {
+    fun get()  { s }
+    fun set(x) { s := x }
+  }
+  action(r)
 }
 
 /*
@@ -22,7 +26,7 @@ fun xget( r : ref<a> ) : <heap,exn|e> a  with (ediv<handled<heap>,a,e>) {
 */
 
 fun recurse()  {
-  use r = new-ref(id)
+  with r = new-ref(id)
   fun foo(i : int) {
     println(".")
     (r.get)(i)
@@ -33,6 +37,6 @@ fun recurse()  {
 }
 
 fun main() : <exn,console> int {
-  using heap
+  with heap
   recurse()(1)
 }

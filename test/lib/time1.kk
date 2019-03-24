@@ -30,9 +30,9 @@ public fun test-timezones() {
   val tz1 = tzs.timezone("America/New_York")
   val tz2 = tzs.timezone("Pacific/Kosrae")
   val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
-  t1.time(tz=tz2).show.println // "1998-01-01T19:45:00+12:00 (KOST)"
+  t1.time(tz=tz2).show.println // 1998-01-01T17:31:00+12:00
   val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // across DST & leap second
-  t2.time(tz=tz2).show.println //
+  t2.time(tz=tz2).show.println // 1999-01-01T16:30:59+11:00
 
   // from moment-timezones docs: https://github.com/moment/moment-timezone
   val t3 = instant(2014,6,1,12)
@@ -98,7 +98,7 @@ public fun test() {
             load-timezones(verbose=True) //}
   println( "US/Pacific: " + now().time(tz=tzs.timezone("US/Pacific")).show )
   val zlocal = tzs.guess-local-timezone()
-  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")            
+  println( "gues local: " + now().time(tz=zlocal).show + " (" + zlocal.name + ")")
   test-tzs(tzs)
 }
 

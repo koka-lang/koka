@@ -1,4 +1,4 @@
 // documentation
-function foo() {
+fun foo() {
   return 0;
 }

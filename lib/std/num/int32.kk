@@ -24,7 +24,7 @@ fun show( i : int32 ) : string {
 }
 
 // Convert a `:double` to an `:int32`. The double is clamped to the
-// minimum or maximum `:int32` value if it is outside the range. A `nan` is 
+// minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
 extern inline int32 : (double) -> int32 {
   cs "Primitive.DoubleToInt32"
@@ -32,12 +32,12 @@ extern inline int32 : (double) -> int32 {
 }
 
 // Convert an `:int32` to a boolean.
-function bool( i : int32 ) : bool {
+fun bool( i : int32 ) : bool {
   (i!=zero)
 }
 
 // Convert a boolean to an `:int32`.
-function int32( b : bool ) : int32 {
+fun int32( b : bool ) : int32 {
   if (b) then one else zero
 }
 
@@ -88,11 +88,11 @@ extern inline neg?( i : int32 ) : bool {
 
 extern inline pos?( i : int32 ) : bool {
   inline "0<=#1"
-} 
+}
 
 extern inline zero?( i : int32 ) : bool {
   inline "0==#1"
-} 
+}
 
 val zero = 0.int32
 val one  = 1.int32
@@ -221,9 +221,9 @@ fun rotr( i : int32, n : int32 ) : int32 {
 
 
 // Return the minimum of two integers
-fun min( i : int32, j : int32 ) : int32  -> if (i <= j) then i else j
+fun min( i : int32, j : int32 ) : int32 { if (i <= j) then i else j }
 // Return the maximum of two integers
-fun max( i : int32, j : int32 ) : int32  -> if (i >= j) then i else j
+fun max( i : int32, j : int32 ) : int32 { if (i >= j) then i else j }
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.

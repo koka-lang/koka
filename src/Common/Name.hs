@@ -22,13 +22,14 @@ module Common.Name
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName
           , newHiddenName, isHiddenName
-          , makeHiddenName
+          , makeHiddenName, makeFreshHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
           , toOperationsName, fromOperationsName, isOperationsName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
+          , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName
 
           , prepend, postpend
@@ -40,7 +41,9 @@ import Lib.PPrint (Pretty(pretty), text )
 import Data.Char(isUpper,toLower,toUpper,isAlphaNum,isDigit,isAlpha)
 import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith )
+import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse)
+
 ----------------------------------------------------------------
 -- Names
 ----------------------------------------------------------------
@@ -223,6 +226,10 @@ isHiddenName name
 makeHiddenName s name
   = prepend ("." ++ s ++ "-") name
 
+makeFreshHiddenName s name range
+  = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
+    where idFromPos pos = "-" ++ show (posLine pos) ++ "-" ++ show (posColumn pos)
+
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
@@ -287,6 +294,21 @@ toOpenTagName name
 isOpenTagName :: Name -> Bool
 isOpenTagName name
   = nameId name `startsWith` ".tag-"
+
+-- | Create a name for a value operation
+toValueOperationName :: Name -> Name
+toValueOperationName name
+  = makeHiddenName "val" name
+
+-- | Is this an name of a value operation?
+isValueOperationName :: Name -> Bool
+isValueOperationName name
+  = nameId name `startsWith` ".val-"
+
+-- | Create an operation name from a value operation name
+fromValueOperationsName :: Name -> Name
+fromValueOperationsName name
+  = newQualified (nameModule name) (drop 5 (nameId name))
 
 prepend :: String -> Name -> Name
 prepend s name

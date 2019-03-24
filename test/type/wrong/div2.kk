@@ -1,5 +1,5 @@
 val wrong : int = recursive()
 
-function recursive(x) : div int  {
+fun recursive(x) : div int  {
   recursive(wrong)
 }

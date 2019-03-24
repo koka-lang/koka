@@ -1,7 +1,7 @@
-[01;30moperator branch (.handler) get: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) put: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) get1: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) put1: resume tail
+[01;30moperator branch (testH) get: resume tail
+[00;39;49m[00m[01;30moperator branch (testH) put: resume tail
+[00;39;49m[00m[01;30moperator branch (testH1) get1: resume tail
+[00;39;49m[00m[01;30moperator branch (testH1) put1: resume tail
 [00;39;49m[00m.Op-get : forall<a> .op-get<a>
 .Op-get1 : forall<a> .op-get1<a>
 .Op-put : forall<a> (i : a) -> .op-put<a>
@@ -14,7 +14,7 @@
 .tag-state1 : string
 comp : () -> div int
 count : () -> <state<int>,div> int
-count1 : () -> <div,state1<int>> int
+count1 : () -> <state1<int>,div> int
 fib : (int) -> div int
 get : forall<a> () -> (state<a>) a
 get1 : forall<a> () -> (state1<a>) a

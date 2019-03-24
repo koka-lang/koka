@@ -17144,26 +17144,42 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "rectype", "alias"
     , "struct", "enum", "con"
-    , "fun", "val", "var", "use", "using"
+    , "fun", "val", "var"
     , "extern"
-    , "effect", "handle", "handler", "inject"
+
+    -- effect handlers
+    , "implicit", "ambient" {- alternative name for implicit -}
+    , "control"
+    , "with"
+    , "resource", "instance", "named" {- alternative names for resource -}
+    , "mask", "override"
+
+    -- deprecated
+    -- alternative names for backwards paper compatability
+    , "effect"              -- use implicit
+    , "handle", "handler"   -- use with instead
+    , "inject"              -- use mask
+    , "use", "using"        -- use with instead
+    , "function"            -- use fun
+    , "external"            -- use extern
+    , "dynamic"             -- use resource
+
+
     -- , "finally", "initially"
     , "if", "then", "else", "elif", "return", "match"
-    , "forall", "exists", "some", "with"
+    , "forall", "exists", "some"
     , "private", "public", "abstract"
-    , "module", "import", "as"
+    , "module", "import", "as", "in"
     , "="
     , "."
     , ":"
     , "->"
     , ":="
-    -- backward compatibility
-    , "function","external"
+
     -- for core interfaces
     , "rec"
     -- future reserved
-    -- , "try", "yield"
-    , "interface", "instance"
+    , "interface"
     ]
 
 symbols :: [Char]
@@ -17443,7 +17459,187 @@ alex_action_47 =  string $ \s -> LexError ("illegal character in line comment: "
 alex_action_48 =  more id 
 alex_action_49 =  pop $ \_ -> withmore (string $ LexComment . filter (/='\r')) 
 alex_action_50 =  string $ \s -> LexError ("illegal character in line directive: " ++ show s) 
-{-# LINE 1 "templates/GenericTemplate.hs" #-}
+{-# LINE 1 "templates\GenericTemplate.hs" #-}
+{-# LINE 1 "templates\\GenericTemplate.hs" #-}
+{-# LINE 1 "<built-in>" #-}
+{-# LINE 1 "<command-line>" #-}
+{-# LINE 8 "<command-line>" #-}
+{-# LINE 1 "D:\\GitHub\\haskell-platform\\build\\ghc-bindist\\local\\lib/include\\ghcversion.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 8 "<command-line>" #-}
+{-# LINE 1 "C:\\Users\\randy\\AppData\\Local\\Temp\\ghc4708_0\\ghc_2.h" #-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{-# LINE 8 "<command-line>" #-}
+{-# LINE 1 "templates\\GenericTemplate.hs" #-}
 -- -----------------------------------------------------------------------------
 -- ALEX TEMPLATE
 --
@@ -17453,101 +17649,19 @@ alex_action_50 =  string $ \s -> LexError ("illegal character in line directive:
 -- -----------------------------------------------------------------------------
 -- INTERNALS and main scanner engine
 
+{-# LINE 21 "templates\\GenericTemplate.hs" #-}
 
+{-# LINE 51 "templates\\GenericTemplate.hs" #-}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+{-# LINE 72 "templates\\GenericTemplate.hs" #-}
 alexIndexInt16OffAddr arr off = arr ! off
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+{-# LINE 93 "templates\\GenericTemplate.hs" #-}
 alexIndexInt32OffAddr arr off = arr ! off
 
 
-
-
-
-
-
-
-
-
-
+{-# LINE 105 "templates\\GenericTemplate.hs" #-}
 quickIndex arr i = arr ! i
 
 
@@ -17679,4 +17793,3 @@ alexRightContext (sc) user__ _ _ input__ =
         -- TODO: there's no need to find the longest
         -- match when checking the right context, just
         -- the first match will do.
-

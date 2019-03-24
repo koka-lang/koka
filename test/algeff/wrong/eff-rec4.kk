@@ -1,4 +1,4 @@
- 
+
 effect state {
   fun get() : (int -> state int)
   fun set(x : int -> state int) : ()
@@ -10,7 +10,7 @@ val new-ref = handler(s) {
 }
 
 fun recurse() {
-  using new-ref(id)
+  with new-ref(id)
   fun foo(i : int) {
     get()(i)
   }

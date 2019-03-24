@@ -4,7 +4,7 @@ type nat {
 }
 
 
-function h(x,y) {
+fun h(x,y) {
   match(x) {
     Zero -> match(y) {
              Zero -> Zero

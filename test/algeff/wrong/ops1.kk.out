@@ -1,4 +1,5 @@
-test/algeff/wrong/ops1.kk(44, 3): error: operator flip is not part of the handled effect
+[01;30moperator branch (amb_handle) flip: resume scoped
+[00;39;49m[00mtest/algeff/wrong/ops1.kk(44, 3): error: operator flip is not part of the handled effect
  term : handler(i:int
  inferred type: state
- hint : add a branch for flip? or use 'handler resource'?
+ hint : add a branch for flip? or use 'with named'?

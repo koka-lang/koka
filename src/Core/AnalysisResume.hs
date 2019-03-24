@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.AnalysisResume( ResumeKind(..), analyzeResume ) where
+module Core.AnalysisResume( analyzeResume ) where
 
 
 import Lib.Trace
@@ -22,34 +22,13 @@ import Common.Range
 import Common.Failure
 import Common.Unique()
 import Common.NamePrim( namePatternMatchError, nameSystemCore )
+import Common.ResumeKind( ResumeKind(..) )
 import Kind.Kind( kindStar )
 import Type.Type
 import Type.Pretty (defaultEnv)
 import Core.Core
 import Core.CoreVar
 import Core.Pretty
-
-data ResumeKind
-  = ResumeNever
-  | ResumeTail
-  | ResumeScopedOnce
-  | ResumeScoped
-  | ResumeOnce
-  | ResumeNormal
-  | ResumeOnceRaw
-  | ResumeNormalRaw
-  deriving (Eq,Ord,Enum)
-
-instance Show ResumeKind where
-  show rk = case rk of
-              ResumeNever -> "never"
-              ResumeTail  -> "tail"
-              ResumeScopedOnce -> "scoped once"
-              ResumeScoped -> "scoped"
-              ResumeOnce  -> "once"
-              ResumeNormal -> "normal"
-              ResumeOnceRaw -> "once (no finalization)"
-              ResumeNormalRaw -> "normal (no finalization)"
 
 analyzeResume :: Name -> Name -> Bool -> Expr -> ResumeKind
 analyzeResume defName opName raw expr

@@ -26,13 +26,14 @@ module Common.NamePrim
           , nameDecreasing, nameSubStr1, nameDec
 
           , nameUnit
-          , nameReturn, nameTrace, nameLog
+          , nameReturn, nameTrace, nameLog, namePhantom
           , nameEffectOpen
           , nameToAny
           , nameEnsureK
           , nameIsValidK
           , nameLift, nameBind
           , nameInject, nameInjectExn, nameInjectResource
+          , nameTpResourceTag, nameConResourceTag
 
           , nameUnsafeTotal
           , nameIntConst, nameInt32
@@ -62,6 +63,7 @@ module Common.NamePrim
           , nameInCps
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
+          , nameTpValueOp
 
 
           , nameTpAsync, nameTpAsyncX
@@ -75,7 +77,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocal, nameRunLocal
+          , nameLocal, nameRunLocal, nameLocalSet, nameLocalGet
 
 
           , nameTpOptional
@@ -135,8 +137,9 @@ namePredEffDiv = preludeName "ediv"
 nameReturn :: Name
 nameReturn = preludeName ".return"
 
-nameTrace  = preludeName "trace"
-nameLog    = preludeName "log"
+nameTrace   = preludeName "trace"
+nameLog     = preludeName "log"
+namePhantom = preludeName "phantom"
 
 nameEffectOpen :: Name
 nameEffectOpen = preludeName ".open"
@@ -165,6 +168,9 @@ nameDec              = preludeName "dec"
 nameAssign      = preludeName ":="
 nameAssigned    = newName "assigned"
 nameRefSet      = preludeName "set"
+
+nameLocalSet    = preludeName "local-set"
+nameLocalGet    = preludeName "local-get"
 
 nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
@@ -201,6 +207,8 @@ nameTpOperation = preludeName "operation"
 nameTpHandlerBranch0 = preludeName "handler-branch0"
 nameTpHandlerBranch1 = preludeName "handler-branch1"
 
+nameTpValueOp   = preludeName "value"
+
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
@@ -231,6 +239,8 @@ nameTpYld       = preludeName "yld"
 nameInject      = preludeName ".inject-effect"
 nameInjectExn   = preludeName "inject-exn"
 nameInjectResource = preludeName ".inject-resource"
+nameTpResourceTag = preludeName "resource-tag"
+nameConResourceTag = preludeName ".Resource-tag"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"

@@ -33,7 +33,8 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameInject, nameInjectExn, nameTpPartial
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
-                      , nameTpLocalVar, nameTpLocal, nameRunLocal
+                      , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocal
+                      , nameTpValueOp
                        )
 import Common.Range
 import Common.Unique
@@ -60,8 +61,8 @@ import Type.InferMonad
 
 import qualified Core.CoreVar as CoreVar
 import Core.AnalysisMatch( analyzeBranches )
-import Core.AnalysisResume( analyzeResume, ResumeKind(..) )
-
+import Common.ResumeKind
+import Core.AnalysisResume
 import Core.Divergent( analyzeDivergence )
 import Core.BindingGroups( regroup )
 import Core.Simplify( uniqueSimplify )
@@ -69,7 +70,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -484,18 +485,38 @@ data Expect = Generalized
             | Instantiated
             deriving (Show,Eq)
 
-inferIsolated :: Range -> Range -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
-inferIsolated contextRange range inf
+inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
+inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
-       improve contextRange range eff tp  core
+       res@(itp,ieff,icore) <- improve contextRange range eff tp  core
+       case hasVarDecl body of
+         Nothing   -> return res
+         Just vrng -> do seff <- subst ieff
+                         let (ls,tl) = extractOrderedEffect seff
+                         case filter (\l -> labelName l == nameTpLocal) ls of
+                           (_:_) -> typeError contextRange vrng
+                                      (text "reference to a local variable escapes its lexical scope") seff []
+                           _ -> return ()
+                         return (itp,seff,icore)
+   where
+     hasVarDecl expr
+       = case expr of
+           Parens x _ -> hasVarDecl x
+           Let _ x _  -> hasVarDecl x
+           Bind _ x _ -> hasVarDecl x
+           Ann x _ _  -> hasVarDecl x
+           Inject _ x _ _ -> hasVarDecl x
+           App (Var name _ rng) _ _ | name == nameLocal -> Just rng
+           _ -> Nothing
 
 -- | @inferExpr propagated expect expr@ takes a potential propagated type, whether the result is expected to be generalized or instantiated,
 -- and the expression. It returns its type, effect, and core expression. Note that the resulting type is not necessarily checked that it matches
 -- the propagated type: the propagated type is just a hint (used for example to resolve overloaded names).
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
-  = -- trace (" inferExpr.Lam: " ++ show propagated ++ ", " ++ show expect) $
-    do (propArgs,propEff,propBody,expectBody) <- matchFun (length binders) propagated
+  = isNamedLam $ \isNamed ->
+    do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
+       (propArgs,propEff,propBody,expectBody) <- matchFun (length binders) propagated
        let binders0 = [case binderType binder of
                          Nothing -> binder{ binderType = fmap snd mbProp }
                          Just _  -> binder
@@ -510,12 +531,13 @@ inferExpr propagated expect (Lam binders body rng)
 
        (tp,eff,core) <- extendInfGamma False infgamma  $
                         extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
-                        inferIsolated rng (getRange body) $
+                        (if (isNamed) then inferIsolated rng (getRange body) body else id) $
+                        -- inferIsolated rng (getRange body) body $
                         inferExpr propBody expectBody body
 
        inferUnify (checkReturnResult rng) (getRange body) returnTp tp
 
-       traceDoc $ \env -> text "inferExpr.Lam: body tp:" <+> ppType env tp
+       -- traceDoc $ \env -> text " inferExpr.Lam: body tp:" <+> ppType env tp
        topEff <- case propEff of
                    Nothing -> return eff
                    Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
@@ -523,14 +545,14 @@ inferExpr propagated expect (Lam binders body rng)
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
 
-       traceDoc $ \env -> text "inferExpr.Lam: body eff:" <+> ppType env eff <+> text ", topeff: " <+> ppType env topEff
+       -- traceDoc $ \env -> text " inferExpr.Lam: body eff:" <+> ppType env eff <+> text ", topeff: " <+> ppType env topEff
        parTypes2 <- subst (map binderType binders1)
        let optPars   = zip (map binderName binders1) parTypes2
            bodyCore1 = Core.addLambdas optPars topEff (Core.Lam [] topEff (coref core))
        bodyCore2 <- subst bodyCore1
        stopEff <- subst topEff
        let pars = optPars
-       traceDoc $ \env -> text "inferExpr.Lam: " <+> ppType env (typeFun pars stopEff tp)
+       -- traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env (typeFun pars stopEff tp)
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars stopEff tp) bodyCore2
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
@@ -581,17 +603,26 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
 -- | Assign expression
 inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of
-      App fun args lrng
-        -> inferExpr propagated expect (App fun (args ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
+      App fun args lrng  -- array[i] := e
+          -> do xargs <- case args of
+                          ((mbName,arg@(Var target _ vrng)) : rest)  -- var_vec[i] := e   TODO: perhaps unsafe for general use?
+                            -> do (_,gtp,_) <- resolveName target Nothing vrng
+                                  (tp,_,_) <- instantiate vrng gtp
+                                  if (isTypeLocalVar tp)
+                                   then return ((mbName,App (Var nameByref False vrng) [(Nothing, arg)] lrng) : rest)
+                                   else return args
+                          _ -> return args
+                inferExpr propagated expect (App fun (xargs ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
               (tp,_,_) <- instantiate lrng gtp
-              if (isTypeLocalVar tp)
-               then return ()
-               else do r <- freshRefType
-                       inferUnify (checkAssign rng) lrng r tp
+              nameSet <- if (isTypeLocalVar tp)
+                           then return nameLocalSet
+                           else do r <- freshRefType
+                                   inferUnify (checkAssign rng) lrng r tp
+                                   return nameRefSet
               inferExpr propagated expect
-                        (App (Var nameRefSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
+                        (App (Var nameSet False arng) [(Nothing,App (Var nameByref False (before lrng)) [lhs] lrng), rhs] rng)
               {-
               (_,_,info) <- resolveName target Nothing lrng
               case info of
@@ -636,10 +667,10 @@ inferExpr propagated expect (App fun nargs rng)
   = inferApp propagated expect fun nargs rng
 
 inferExpr propagated expect (Ann expr annTp rng)
-  = do traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
+  = do -- traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
        (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
        sannTp <- subst annTp
-       traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env tp
+       -- traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env tp
        (resTp0,coref) <- -- withGammaType rng sannTp $
                           inferSubsume (checkAnn rng) (getRange expr) sannTp tp
        -- (resTp,resCore) <- maybeInstantiateOrGeneralize expect annTp (coref core)
@@ -647,12 +678,25 @@ inferExpr propagated expect (Ann expr annTp rng)
        resTp  <- subst resTp0
        resEff <- subst eff
        resCore <- subst (coref core)
-       traceDoc $ \env -> text "  subsumed to:" <+> ppType env resTp
+       -- traceDoc $ \env -> text "  subsumed to:" <+> ppType env resTp
        return (resTp,resEff,resCore)
 
 
-inferExpr propagated expect (Handler shallow scoped mbEff pars reinit ret final ops hrng rng)
-  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final ops hrng rng
+inferExpr propagated expect (Handler shallow scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final branches hrng rng
+inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pars reinit ret final branches hrng rng)
+  = do mbhxeff <- inferHandledEffect hrng handlerSort mbEff branches
+       case mbhxeff of
+         Nothing
+          -> do termError rng (text "cannot determine the effect type for the override") typeTotal []
+                inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
+         Just heff
+          -> let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+                 name = newHiddenName "override-action"
+                 binder = ValueBinder name Nothing Nothing rng rng
+                 var    = Var name False rng
+                 lam    = Lam [binder] (Inject heff (Lam [] (App h [(Nothing,var)] rng) rng) False rng) rng
+             in inferExpr propagated expect lam
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -735,7 +779,6 @@ inferExpr propagated expect (Inject label expr behind rng)
   = do eff0 <- freshEffect
        let eff = if (not behind) then eff0 else (effectExtend label eff0)
 
-       res <- Op.freshTVar kindStar Meta
        let tfun r = typeFun [] eff r
            prop = case propagated of
                     Nothing  -> Nothing
@@ -743,8 +786,11 @@ inferExpr propagated expect (Inject label expr behind rng)
                                         (foralls,preds,rho)
                                           -> Just (quantifyType foralls $ qualifyType preds $ tfun rho, prng)
        (exprTp,exprEff,exprCore) <- inferExpr prop Instantiated expr
+
+       res <- Op.freshTVar kindStar Meta
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
+
        (coreEffName,isHandled,effName) <- effectNameCore label rng
        effTo <- subst $ effectExtend label eff
 
@@ -787,10 +833,12 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 
 
-inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope -> Maybe Effect
+inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope
+                      -> Maybe Effect
                       -> [ValueBinder (Maybe Type) ()] -> Expr Type -> Expr Type -> Expr Type
                       -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
-inferHandler propagated expect handlerSort handlerScoped mbEffect localPars reinit ret final branches hrng rng
+inferHandler propagated expect handlerSort handlerScoped
+            mbEffect localPars reinit ret final branches hrng rng
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
        let propAction    = last propArgs
@@ -915,12 +963,13 @@ handlerReturnDefault rng propLocals
         xvar  = Var xname False rng
     in Lam (xbind:propLocals) xvar rng
 
+-- TODO check whether branch type fits
 inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
 inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
       Just eff -> return (Just eff)
       Nothing  -> case ops of
-        (HandlerBranch name pars expr isRaw nameRng rng: _)
+        (HandlerBranch name pars expr isRaw resKind nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
@@ -932,7 +981,7 @@ inferHandledEffect rng handlerSort mbeff ops
                                 -> case extractEffectExtend eff of
                                     ((l:_),_) -> return (Just l)  -- TODO: can we assume the effect comes first?
                                     _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
-                  _ -> failure $ "Type.Infer.inferHandledEffect: invalid function: " ++ show rho
+                  _ -> infError rng (text ("Expected effect operation to be handled but got a function: " ++ show qname ++ " instead"))
         _ -> return Nothing
               -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
@@ -1071,7 +1120,7 @@ injectLocalEffect eff
 
 inferHandlerBranch :: HandlerSort (Expr Type) -> Type -> Expect -> [(Name,Type)] -> Type -> Name -> Effect -> Effect
                       -> HandlerBranch Type -> Inf (Type,Type,Effect,Core.Expr)
-inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resumeEff actionEffect (HandlerBranch name pars expr raw nameRng rng)
+inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  resumeEff actionEffect (HandlerBranch name pars expr raw resKind nameRng rng)
   = do (opName,opTp,_info) <- resolveFunName (if isQualified name then name else qualify (qualifier effectName) name)
                             (CtxFunArgs (length pars) []) rng nameRng -- todo: resolve more specific with known types?
 
@@ -1109,7 +1158,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        case handlerSort of
          HandlerResource _
            -> case parTps of
-                (parTp:_) -> inferUnify (checkEffectTp rng) rng effectTp parTp -- ensure we unify type parameters shared with the action effect
+                (parTp:_) -> inferUnify (checkEffectTp rng) rng handledEffect parTp -- ensure we unify type parameters shared with the action effect
                 _ -> failure $ "Type.Infer.inferHandlerBranch: illegal operator type for a resource: " ++ show (pretty rho)
          _ -> return ()
 
@@ -1196,7 +1245,7 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        traceDoc $ \env -> text "inferHandlerBranch locals: " <.> list (map (pretty . fst) locals)
 
-       (bexprTp,bexprEff, bexprCore) <-
+       (bexprTp,bexprEff,bexprCore) <-
         if (hasExists)
          then inferExpr (Just (typeAny,rng)) Instantiated (App (Var nameToAny False nameRng) [(Nothing,Ann branchExpr branchExprTp rng)] rng)
          else inferExpr (Just (branchExprTp,rng)) Instantiated (Ann branchExpr branchExprTp rng)
@@ -1219,23 +1268,38 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
        (_,_,toAnyCore) <- inferExpr (Just (TFun [(nameNull,bexprTp)] bexprEff typeAny,rng)) Instantiated (Var nameToAny False nameRng)
 
        defName <- currentDefName
-       let mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
-           rkind       = let rk = analyzeResume defName (unqualify opName) raw bexprCore
-                           -- The scoped variants require a bind translation in the branch but currently
-                           -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
-                           -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
-                           -- generated; one way around this is to give the `resume` operation in a scoped handler a special
-                           -- `resume` effect and remove that in the handler again but that effect might leak out through
-                           -- parameters and thus affect the user experience (who would need to use `inject` operations).
-                           -- Therefore, we just disable it for now and don't generate scoped branches.
-                           -- Tested in `algeff/effs1b`
-                         in if (raw)
-                             then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
-                             else case rk of
-                                    ResumeScopedOnce -> ResumeOnce
-                                    ResumeScoped     -> ResumeNormal
-                                    _                -> rk
+       let rk = analyzeResume defName (unqualify opName) raw bexprCore
 
+       -- Value effect definitions are generated automatically and are always
+       -- tail resumptive. This is a sanity check
+       if rk > resKind
+        then termError rng (text "operator" <+> text (show opName) <+>
+                          text ("Effect definition needs to be " ++ show resKind ++ " but is " ++ show rk)) handledEffect
+                          []
+        else return ()
+
+       -- check operations of lineas effect behave as expected
+       if (effectIsLinear handledEffect && rk > ResumeTail)
+        then termError rng (text "operation" <+> text (show opName) <+>
+                        text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
+                        [(text "hint",text "Redefine the effect as 'control' or ensure the resumption is used linearly")]
+        else return ()
+
+       -- The scoped variants require a bind translation in the branch but currently
+       -- the `Monadic` transformation does not guarantee that since the type of `resume` does not include
+       -- the effect itself (as it is handled) it might be free of handled effects and thus no bind will be
+       -- generated; one way around this is to give the `resume` operation in a scoped handler a special
+       -- `resume` effect and remove that in the handler again but that effect might leak out through
+       -- parameters and thus affect the user experience (who would need to use `inject` operations).
+       -- Therefore, we just disable it for now and don't generate scoped branches.
+       -- Tested in `algeff/effs1b`
+       let rkind = if (raw)
+                   then (if (rk==ResumeOnce || rk<=ResumeScopedOnce) then ResumeOnceRaw else ResumeNormalRaw)
+                   else case rk of
+                        ResumeScopedOnce -> ResumeOnce
+                        ResumeScoped     -> ResumeNormal
+                        _                -> rk
+           mbranchCore = mbranchInstCore (coreExprFromNameInfo  mbranchName mbranchInfo)
            rkindCore   = Core.Lit (Core.LitInt (toInteger (fromEnum rkind)))
            tagCore     = Core.Lit (Core.LitString (show (unqualify opName))) -- coreExprFromNameInfo tagName tagInfo
            bexprCoreX  = if hasExists then Core.App toAnyCore [bexprCore] else bexprCore
@@ -1250,7 +1314,8 @@ inferHandlerBranch handlerSort branchTp expect locals effectTp effectName  resum
 
        traceDoc $ \env -> text "inferHandlerBranch: name:" <+> pretty name <+>
                           text ", branch type:" <+> ppType env sbranchTp <+>
-                          text ", make branch type:" <+> ppType env smbranchRho
+                          text ", make branch type:" <+> ppType env smbranchRho <+>
+                          text ", resume kind:" <+> pretty (show (rk,resKind))
        return (sbranchTp,shandlerBranchTp,sbranchEff,sbranchCore)
 
   where
@@ -1277,8 +1342,9 @@ checkCoverage rng effect branches
   = do let handledEffectName = effectNameFromLabel effect
        opsInfo <- findDataInfo (toOperationsName handledEffectName)
        let modName = qualifier (dataInfoName opsInfo)
-       opNames <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
-       let branchNames = map (qualify modName . hbranchName) branches
+       -- trace ("opsinfo" ++ show (dataInfoConstrs opsInfo)) $ return ()
+       opNames     <- mapM (getOpName modName) (dataInfoConstrs opsInfo)
+       branchNames <- mapM (getBranchName modName) branches
        checkCoverageOf rng opNames opNames branchNames
        return (handledEffectName, order opNames branchNames branches)
   where
@@ -1289,6 +1355,10 @@ checkCoverage rng effect branches
                            Just x -> snd x
                            _      -> failure ("Type.Infer.checkCoverage.order: branch name unknown: " ++ show name)
         in map xfind opNames
+
+    getBranchName :: Name -> HandlerBranch Type -> Inf Name
+    getBranchName modName branch
+      = return $ qualify modName (hbranchName branch)
 
     getOpName :: Name -> ConInfo -> Inf Name
     getOpName modName opConInfo
@@ -1313,7 +1383,7 @@ checkCoverage rng effect branches
                    else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
                           (name:_) -> termError rng (text "operator" <+> ppOpName env name <+>
                                                      text "is not part of the handled effect") effect
-                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <.> text "? or use 'handler resource'?")]
+                                                      [(text "hint",text "add a branch for" <+> ppOpName env name <.> text "? or use 'with named'?")]
                           _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
             (opName:opNames')
               -> do let (matches,branchNames') = partition (==opName) branchNames
@@ -1335,7 +1405,7 @@ effectNameCore effect range
   = case expandSyn effect of
       -- handled effects (from an `effect` declaration)
       TApp (TCon tc) [hx]
-        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1)
         -> do let effName = effectNameFromLabel hx
               (effectNameVar,_,effectNameInfo) <- resolveName (toOpenTagName effName) (Just (typeString,range)) range
               let effectNameCore = coreExprFromNameInfo effectNameVar effectNameInfo
@@ -1348,10 +1418,18 @@ effectNameFromLabel :: Effect -> Name
 effectNameFromLabel effect
   = case expandSyn effect of
       TApp (TCon tc) [hx]
-        | typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1 -> effectNameFromLabel hx
+        | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1) -> effectNameFromLabel hx
       TCon tc -> typeConName tc
       TApp (TCon tc) targs -> typeConName tc
       _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
+
+effectIsLinear :: Effect -> Bool
+effectIsLinear effect
+  = case expandSyn effect of
+      TApp (TCon tc) [hx]
+        | (typeConName tc == nameTpHandled1) -> True
+      _ -> False
+
 {-
 inferHandlerBranch :: Maybe (Type,Range) -> Expect -> Type -> Name -> [ConInfo]
                           -> [ValueBinder Type ()] -> (ValueBinder Type ()) -> HandlerBranch Type -> Inf (Type,Effect,(Name,Core.Branch))
@@ -1471,7 +1549,7 @@ inferApp propagated expect fun nargs rng
     -- (names,args) = unzip nargs
     inferAppFunFirst :: Maybe (Type,Range) -> [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
     inferAppFunFirst prop fixed named
-      = trace ("inferAppFunFirst") $
+      = -- trace (" inferAppFunFirst") $
         do -- infer type of function
            (ftp,eff1,fcore)     <- allowReturn False $ inferExpr prop Instantiated fun
            -- match the type with a function type
@@ -1509,7 +1587,9 @@ inferApp propagated expect fun nargs rng
 
            -- instantiate or generalize result type
            funTp1         <- subst funTp
+           -- traceDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1
            (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
+           -- traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp
            return (resTp,topEff,resCore )
 
     inferAppFromArgs :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
@@ -1695,7 +1775,7 @@ inferVar propagated expect name rng isRhs
     do (qname,tp,info) <- resolveName name propagated rng
        -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
        if (isTypeLocalVar tp && isRhs)
-        then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
+        then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameLocalGet False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
@@ -1704,6 +1784,8 @@ inferVar propagated expect name rng isRhs
            -> do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameDeref False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                  return (tp1,eff1,core1)
+         InfoVal{} | isValueOperation tp
+           -> inferExpr propagated expect (App (Var (toValueOperationName qname) False rng) [] rng)
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
@@ -1713,6 +1795,10 @@ inferVar propagated expect name rng isRhs
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
 
+isValueOperation tp
+  = case splitPredType tp of
+      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      _ -> False
 
 {-
 inferVar propagated expect name rng isRhs
@@ -1751,7 +1837,8 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
          inferUnify (checkGuardTotal (getRange branch)) (getRange guard) typeTotal geff
          inferUnify (checkGuardBool (getRange branch)) (getRange guard) typeBool gtp
          -- check branch expression
-         (btp,beff,bcore) <- inferExpr propagated Instantiated expr
+         (btp,beff,bcore) <- -- inferIsolated matchRange (getRange expr) $
+                             inferExpr propagated Instantiated expr
          resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
          -- check for unused pattern variables
          let defined = CoreVar.bv pcore
@@ -2349,3 +2436,6 @@ coreList tp cs
 unzip4 xs = unzipx4 [] [] [] [] xs
 unzipx4 acc1 acc2 acc3 acc4 []           = (reverse acc1, reverse acc2, reverse acc3, reverse acc4)
 unzipx4 acc1 acc2 acc3 acc4 ((x,y,z,zz):xs) = unzipx4 (x:acc1) (y:acc2) (z:acc3) (zz:acc4) xs
+
+ppProp env Nothing = text "(nothing)"
+ppProp env (Just (tp,_))  = ppType env tp

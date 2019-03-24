@@ -1,4 +1,4 @@
-test/type/wrong/div1.kk(3,10): error: effects do not match
+test/type/wrong/div1.kk(3, 5): error: effects do not match
  context : recursive
  term : recursive
  inferred effect: total

@@ -1,11 +1,11 @@
 
 fun xforeach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
-  var i := 0
+  val i = ref(0)
   xs.foreach fun(x) {
-    val j = i;
+    val j = !i;
     (inject-st{action(j,x)})()
-    i := i+1
+    i := !i+1
   }
 }
 

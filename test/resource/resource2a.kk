@@ -1,6 +1,6 @@
 // Test empty effect with rank-2 wrapper
 
-effect heap<s::S> { 
+effect heap<s::S> {
 }
 
 val heap = fun(action:forall<s> () -> <heap<s>|_e> _a) {
@@ -9,7 +9,7 @@ val heap = fun(action:forall<s> () -> <heap<s>|_e> _a) {
 
 
 fun foo() {
-  using heap
+  with heap
   42
 }
 

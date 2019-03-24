@@ -2,10 +2,10 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
-/* Requires at least Flex 2.5.37; you can get a version for windows from 
+/* Requires at least Flex 2.5.37; you can get a version for windows from
    https://sourceforge.net/projects/winflexbison
 */
-%option 8bit noyywrap bison-bridge bison-locations reentrant 
+%option 8bit noyywrap bison-bridge bison-locations reentrant
 
 /* Exlusive Lexer states */
 %x comment
@@ -39,8 +39,8 @@ void  illegal( char* s, yyscan_t scanner );
 void  illegalchar( char c, char* s, yyscan_t scanner );
 
 /* Comments */
-void  commentNestingInc(yyscan_t scanner); 
-int   commentNestingDec(yyscan_t scanner);   
+void  commentNestingInc(yyscan_t scanner);
+int   commentNestingDec(yyscan_t scanner);
 
 /*  Allocation of identifiers and string literals */
 char* identifier( const char* s, yyscan_t scanner, bool wellformedCheck );
@@ -73,13 +73,14 @@ Symbols         {Symbol}+|[/]
 Symbol          [\$\%\&\*\+\@!\\\^\~=\.\-\:\?\|\<\>]
 AngleBar        [\<\>\|]
 Angle           [\<\>]
+Sign            [\-]?
 
 ConId           {Upper}{IdChar}*{Final}*
 Id              {Lower}{IdChar}*{Final}*
 IdChar          {Letter}|{Digit}|[_\-]
 
-HexEsc          x{Hex}{Hex}|u{Hex}{Hex}{Hex}{Hex}|U{Hex}{Hex}{Hex}{Hex}{Hex}{Hex}  
-CharEsc         [nrt\\\"\']                         
+HexEsc          x{Hex}{Hex}|u{Hex}{Hex}{Hex}{Hex}|U{Hex}{Hex}{Hex}{Hex}{Hex}{Hex}
+CharEsc         [nrt\\\"\']
 /* for editor highlighting " */
 
 LineChar        {GraphicLine}|{Utf8}
@@ -92,7 +93,7 @@ Digit           [0-9]
 Hex             [0-9a-fA-F]
 Space           [ \t]
 Newline         [\r]?[\n]
-Final           [\'\?]              
+Final           [\'\?]
 /* for editor highlighting ' */
 
 GraphicChar     [ \x21-\x26\x28-\[\]-\x7E]
@@ -101,14 +102,14 @@ GraphicRaw      [\t \n\r\x21\x23-\x7E]
 GraphicLine     [\t \x21-\x7E]
 GraphicBlock    [\t \x21-\)\+-\.0-\x7E]
 
- /* Valid UTF-8 sequences. Based on http://www.w3.org/2005/03/23-lex-U 
+ /* Valid UTF-8 sequences. Based on http://www.w3.org/2005/03/23-lex-U
     Added \xC0\x80 as a valid sequence to represent 0 (also called 'modified' utf-8)
  */
 UC              [\x80-\xBF]
 U0              [\xC0][\x80]
-U2              [\xC2-\xDF]{UC} 
-U3              [\xE0][\xA0-\xBF]{UC}|[\xE1-\xEC]{UC}{UC}|[\xED][\x80-\x9F]{UC}|[\xEE-\xEF]{UC}{UC} 
-U4              [\xF0][\x90-\xBF]{UC}{UC}|[\xF1-\xF3]{UC}{UC}{UC}|[\xF4][\x80-\x8F]{UC}{UC} 
+U2              [\xC2-\xDF]{UC}
+U3              [\xE0][\xA0-\xBF]{UC}|[\xE1-\xEC]{UC}{UC}|[\xED][\x80-\x9F]{UC}|[\xEE-\xEF]{UC}{UC}
+U4              [\xF0][\x90-\xBF]{UC}{UC}|[\xF1-\xF3]{UC}{UC}{UC}|[\xF4][\x80-\x8F]{UC}{UC}
 Utf8            {U0}|{U2}|{U3}|{U4}
 
 
@@ -130,8 +131,6 @@ struct                    { return STRUCT; }
 forall                    { return FORALL; }
 exists                    { return EXISTS; }
 some                      { return SOME; }
-
-with                      { return WITH; }
 
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
@@ -165,18 +164,26 @@ inline                    { return ID_INLINE;  }
 include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
+behind                    { return ID_BEHIND; }
+extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 
 handler                   { return HANDLER; }
 handle                    { return HANDLE; }
-effect                    { return EFFECT; } 
+effect                    { return EFFECT; }
+ambient                   { return EFFECT; }
+mask                      { return MASK; }
+
+with                      { return WITH; }
+in                        { return IN; }
+control                   { return CONTROL; }
+override                  { return OVERRIDE; }
 
   /* unused reserved identifiers */
-yield                     { return YIELD;}
 rec                       { return REC; }
-try                       { return TRY; }
+
 interface                 { return IFACE; }
-instance                  { return INST; }
+instance                  { return INSTANCE; }
 
   /* reserved operators */
 :                         { return ':';    }
@@ -191,7 +198,7 @@ instance                  { return INST; }
 \<                        { return '<';    }
 \>                        { return '>';    }
 !                         { return '!';    }
-\~                        { return '~';    }
+~                         { return '~';    }
 
 file                      { return ID_FILE;    }
 cs                        { return ID_CS;      }
@@ -210,14 +217,14 @@ js                        { return ID_JS;      }
 
   /* Comments */
 \/\/                      { BEGIN(linecomment); yymore(); }
-\/\*                      { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); } 
+\/\*                      { BEGIN(comment); commentNestingInc(yyscanner); yyless(2); yymore(); }
 
   /* Type operators: these are all illegal operators and should be parsed as single characters
      For example, in types, we can have sequences like "<<exn>|<div|e>>" where "<<", ">|<", and ">>"
      should not be parsed as operator tokens. */
 \|\|                      { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
 {AngleBar}{AngleBar}+     { yyless(1); return yytext[0]; }
-  /*     
+  /*
   \<{AngleBar}+            { yyless(1); return '<'; }
   \>{AngleBar}+            { yyless(1); return '>'; }
   \|{Angle}{Symbol}*       { yyless(1); return '|'; }
@@ -227,9 +234,22 @@ js                        { return ID_JS;      }
 
   /* Non escaped string literal start */
 @\"                      { BEGIN(litstring);          /* " for editor highlighting */
-                           stringStart(yyscanner); 
+                           stringStart(yyscanner);
                            yymore();
                          }
+
+  /* Numbers */
+{Sign}{Digit}+\.{Digit}+[eE][\-\+]?{Digit}+  { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}{Digit}+[eE][\-\+]?{Digit}+            { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}{Digit}+\.{Digit}+                    { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+
+{Sign}0[xX]{Hex}+\.{Hex}+[pP][\-\+]?{Digit}+ { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+{Sign}0[xX]{Hex}+[pP][\-\+]?{Digit}+         { yylval->Float = strtod(yytext,NULL); return FLOAT; }
+
+{Sign}0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
+{Sign}{Digit}+                  { yylval->Nat = strtol(yytext,NULL,10); return NAT; }
+
+
 
   /* Identifiers and operators */
 ({Id}\/)+{ConId}          { yylval->Id = identifier(yytext,yyscanner,true); return QCONID; }
@@ -242,31 +262,23 @@ js                        { return ID_JS;      }
 {Symbols}                 { yylval->Id = identifier(yytext,yyscanner,false); return OP; }
 _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); return WILDCARD; }
 
-  /* Numbers */
-0[xX]{Hex}+               { yylval->Nat = strtol(yytext+2,NULL,16); return NAT; }
-{Digit}+                  { yylval->Nat = strtol(yytext,NULL,10); return NAT; }
-
-{Digit}+\.{Digit}+                    { yylval->Float = strtod(yytext,NULL); return FLOAT; }          
-{Digit}+\.{Digit}+[eE]{Digit}+        { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-{Digit}+\.{Digit}+[eE][\-\+]{Digit}+  { yylval->Float = strtod(yytext,NULL); return FLOAT; }
-
   /* Character literals */
-\'{GraphicChar}\'         { yylval->Char = yytext[1]; return CHAR; }   
+\'{GraphicChar}\'         { yylval->Char = yytext[1]; return CHAR; }
 \'\\{HexEsc}\'            { yylval->Char = strtol(yytext+3,NULL,16); return CHAR; }
 \'\\{CharEsc}\'           { yylval->Char = escapeToChar(yytext[2],yyscanner); return CHAR; }
 \'{Utf8}\'                { yylval->Char = utfDecode(yytext+1,yyleng-2,yyscanner); return CHAR; }
 \'.\'                     { illegalchar(yytext[1],"character literal",yyscanner);
-                            yylval->Char = ' '; 
+                            yylval->Char = ' ';
                             return CHAR;
                           }
 \'.                       { illegal("illegal character literal",yyscanner);  // '
-                            yylval->Char = ' '; 
+                            yylval->Char = ' ';
                             return CHAR;
                           }
 
   /* String literal start  */
 \"                        { BEGIN(string);  // "
-                            stringStart(yyscanner); 
+                            stringStart(yyscanner);
                             yymore();
                           }
 
@@ -279,11 +291,11 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
 
   /* --------- Non escaped string literals --------- */
 <litstring>\"\"           { stringAdd('"',yyscanner); yymore(); }
-<litstring>\"             { BEGIN(INITIAL);  // ' 
-                            yylval->String = stringEnd(yyscanner); 
-                            return STRING; 
+<litstring>\"             { BEGIN(INITIAL);  // '
+                            yylval->String = stringEnd(yyscanner);
+                            return STRING;
                           }
-<litstring>{GraphicRaw}+  { char* p = yytext + YY_MORE_ADJ; 
+<litstring>{GraphicRaw}+  { char* p = yytext + YY_MORE_ADJ;
                             while (*p) {
                               stringAdd( *p++, yyscanner);
                             }
@@ -297,10 +309,10 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
 
   /* --------- String literals --------- */
 <string>\"                { BEGIN(INITIAL); // "
-                            yylval->String = stringEnd(yyscanner); 
-                            return STRING; 
+                            yylval->String = stringEnd(yyscanner);
+                            return STRING;
                           }
-<string>{GraphicStr}+     { char* p = yytext + YY_MORE_ADJ; 
+<string>{GraphicStr}+     { char* p = yytext + YY_MORE_ADJ;
                             while (*p) {
                               stringAdd( *p++, yyscanner);
                             }
@@ -310,10 +322,10 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
 <string>\\{CharEsc}       { stringAdd(escapeToChar(yytext[1+YY_MORE_ADJ],yyscanner),yyscanner); yymore(); }
 <string>{Utf8}            { stringAdd(utfDecode(yytext+YY_MORE_ADJ,yyleng-YY_MORE_ADJ,yyscanner),yyscanner); yymore(); }
 
-<string>{Newline}         { BEGIN(INITIAL); 
+<string>{Newline}         { BEGIN(INITIAL);
                             illegal( "illegal newline ends string", yyscanner );
-                            yylval->String = stringEnd(yyscanner); 
-                            return STRING; 
+                            yylval->String = stringEnd(yyscanner);
+                            return STRING;
                           }
 <string>.                 { illegalchar(yytext[yyleng-1],"string", yyscanner);
                             yymore();
@@ -345,10 +357,10 @@ _{IdChar}*                { yylval->Id = identifier(yytext,yyscanner,true); retu
 %%
 
 /* Enable the use of regular Flex macros (like yyextra) inside user defined functions */
-#define EnableMacros(s)  yyget_extra(s); struct yyguts_t* yyg = (struct yyguts_t*)(s); 
+#define EnableMacros(s)  yyget_extra(s); struct yyguts_t* yyg = (struct yyguts_t*)(s);
 
 
-/* Keep a list of allocated memory 
+/* Keep a list of allocated memory
   in order to free all allocated identifiers and string literals afterwards*/
 typedef struct _allocList* allocList;
 
@@ -362,9 +374,9 @@ char* showString( const char* s, yyscan_t scanner );
 /*---------------------------------------------------------
    The extra state
    This is used to maintain:
-   - nesting level of comments 
+   - nesting level of comments
    - the precise position
-   - the previous token 
+   - the previous token
    - the layout stack for semicolon insertion
    - the saved token when a semicolon was inserted
    - a buffer for string literals
@@ -389,9 +401,9 @@ typedef struct _ExtraState {
 #ifdef INDENT_LAYOUT
   int         layoutTop;
   int         layout[layoutMax];
-  
+
   /* location of the last seen comment -- used to prevent comments in indentation */
-  YYLTYPE     commentLoc;              
+  YYLTYPE     commentLoc;
 #endif
 
 #ifdef CHECK_BALANCED
@@ -450,7 +462,7 @@ static bool contains( Token tokens[], Token token ) {
   return (find(tokens,token) >= 0);
 }
 
-static Token appTokens[] = { ')', ']', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
+static Token appTokens[] = { ')', ']', '>', ID, CONID, IDOP, QID, QCONID, QIDOP, 0 };
 
 static bool isAppToken( Token token ) {
   return contains(appTokens, token );
@@ -512,9 +524,9 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 
   // if not, scan ahead
   else {
-    token = yylex( lval, loc, scanner ); 
+    token = yylex( lval, loc, scanner );
     *loc = updateLoc( scanner );
-    
+
     // this is to avoid needing semicolons
     if (token=='(' && isAppToken(yyextra->previous)) token = APP;
     if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
@@ -524,13 +536,14 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 #ifdef INDENT_LAYOUT
       // save last comment location (to check later if it was not part of indentation)
       if (token == LEX_COMMENT) {
-        yyextra->commentLoc = *loc;      
+        yyextra->commentLoc = *loc;
       }
 #endif
       // scan again
-      token = yylex( lval, loc, scanner ); 
+      token = yylex( lval, loc, scanner );
       *loc = updateLoc(scanner);
     }
+
 
 #ifdef CHECK_BALANCED
     // check balanced braces
@@ -538,7 +551,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     //fprintf(stderr,"scan: %d, %d, (%d,%d)\n", token, closeBrace, loc->first_line, loc->first_column);
     if (closeBrace>=0) {
       if (yyextra->braceTop >= (braceMax-1)) {
-        yyerror(loc,scanner, "maximal nesting level of braces reached");        
+        yyerror(loc,scanner, "maximal nesting level of braces reached");
       }
       else {
         // push the close brace
@@ -560,12 +573,12 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         if (top >= 0) {
           // there is a matching open brace on the stack
           yyerror(&openLoc, scanner, "unbalanced braces: '%c' is not closed", isCloseBrace(yyextra->braces[yyextra->braceTop]) );
-          yyextra->braceTop = top-1; // pop to matching one          
+          yyextra->braceTop = top-1; // pop to matching one
         }
         else {
           // no matching brace
           yyerror(loc, scanner, "unbalanced braces: '%c' is not opened", token ); //, yyextra->braces[yyextra->braceTop],openLoc.first_line,openLoc.first_column);
-        }       
+        }
       }
       else {
         // pop
@@ -575,10 +588,10 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 #endif
 
     // Do layout ?
-    if (!yyextra->noLayout) 
+    if (!yyextra->noLayout)
     {
 #ifdef INDENT_LAYOUT
-      // set a new layout context? 
+      // set a new layout context?
       if (yyextra->previous == '{') {
         if (token != '}' && loc->first_column <= yyextra->layout[yyextra->layoutTop]) {
           yyerror(loc,scanner,"illegal layout start; the line must be indented at least as much as its enclosing layout context (column %d)", yyextra->layout[yyextra->layoutTop-1]);
@@ -592,7 +605,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
         else {
           yyextra->layoutTop++;
-          yyextra->layout[yyextra->layoutTop] = loc->first_column; 
+          yyextra->layout[yyextra->layoutTop] = loc->first_column;
         }
       }
 
@@ -609,7 +622,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
       }
 
-      bool newline = (yyextra->previousLoc.last_line < loc->first_line);     
+      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
       int layoutColumn = yyextra->layout[yyextra->layoutTop];
 
       if (newline) {
@@ -622,10 +635,10 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
           yyerror(loc,scanner,"illegal layout: the line must be indented at least as much as its enclosing layout context (column %d)", layoutColumn);
         }
       }
-       
-      // insert a semi colon?      
+
+      // insert a semi colon?
       if ((newline && loc->first_column == layoutColumn && !continuationToken(token))
-          || token == '}' || token == 0) 
+          || token == '}' || token == 0)
       {
         // save the currently scanned token
         yyextra->savedToken = token;
@@ -636,12 +649,12 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         loc->first_line = loc->last_line;
         loc->first_column = loc->last_column;
         loc->last_column++;
-        token = SEMI;    
+        token = SEMI;
       }
 #endif
-#ifdef LINE_LAYOUT // simple semicolon insertion     
-      bool newline = (yyextra->previousLoc.last_line < loc->first_line);     
-      if ((newline && endingToken(yyextra->previous) && !continueToken(token)) || 
+#ifdef LINE_LAYOUT // simple semicolon insertion
+      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
+      if ((newline && endingToken(yyextra->previous) && !continueToken(token)) ||
           ((token == '}' || token == 0) && yyextra->previous != SEMI) )  // always insert before a '}' and eof
       {
         // save the currently scanned token
@@ -653,7 +666,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         loc->first_line = loc->last_line;
         loc->first_column = loc->last_column;
         loc->last_column++;
-        token = SEMI;    
+        token = SEMI;
       }
 #endif
     } // do layout?
@@ -663,7 +676,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   yyextra->previous = token;
   yyextra->previousLoc = *loc;
 
-  // debug output  
+  // debug output
   if (yyextra->verbose) {
     printToken(token,startState,scanner);
   }
@@ -691,9 +704,9 @@ void initScanState( ExtraState* st )
   st->noLayout = false;
 #ifdef INDENT_LAYOUT
   st->layoutTop = 0;
-  st->layout[0] = 0;  
+  st->layout[0] = 0;
   initLoc(&st->commentLoc, 0);
-#endif  
+#endif
 
 #ifdef CHECK_BALANCED
   st->braceTop = -1;
@@ -701,10 +714,10 @@ void initScanState( ExtraState* st )
 
   st->column = 1;
   st->line = 1;
-  
+
   st->previous = '{';   // so the layout context starts at the first token
   initLoc(&st->previousLoc, 1);
-  
+
   st->savedToken = -1;
   initLoc(&st->savedLoc, 1);
 
@@ -719,7 +732,7 @@ void initScanState( ExtraState* st )
 }
 
 void doneScanState( ExtraState* st )
-{    
+{
   /* free temporary string literal buffer */
   if (st->stringBuf != NULL) {
     free(st->stringBuf);
@@ -735,13 +748,13 @@ void doneScanState( ExtraState* st )
 /*----------------------------------------------------
    Maintain the location
 ----------------------------------------------------*/
-YYLTYPE updateLoc( yyscan_t scanner ) 
+YYLTYPE updateLoc( yyscan_t scanner )
 {
   EnableMacros(scanner);
   YYLTYPE loc;
   int line   = loc.first_line = loc.last_line = yyextra->line;
   int column = loc.first_column = loc.last_column = yyextra->column;
-  
+
   int i;
   for(i = 0; i < yyleng; i++) {
     loc.last_line = line;
@@ -753,7 +766,7 @@ YYLTYPE updateLoc( yyscan_t scanner )
     }
     else if (yytext[i] == '\t') {
       int tab = yyextra->tab;
-      column = (((column+tab-1)/tab)*tab)+1;  
+      column = (((column+tab-1)/tab)*tab)+1;
       loc.last_column = column-1; // adjust in case of tabs
     }
     else {
@@ -782,7 +795,7 @@ YYLTYPE currentLoc( const yyscan_t scanner )
 /*----------------------------------------------------
    Comment nesting
 ----------------------------------------------------*/
-void commentNestingInc(yyscan_t scanner) 
+void commentNestingInc(yyscan_t scanner)
 {
   EnableMacros(scanner);
   yyextra->commentNesting++;
@@ -817,6 +830,9 @@ char* stringDup( const char* s, yyscan_t scanner )
 bool isLetter(char c) {
   return ((c>='a' && c <= 'z') || (c>='A' && c<='Z') || c=='\0' || c==' ');
 }
+bool isDigit(char c) {
+  return (c>='0' && c <= '9');
+}
 
 bool wellformed( const char* s ) {
   char prev = '\0';
@@ -824,7 +840,7 @@ bool wellformed( const char* s ) {
   const char* c;
   for(c = s; *c != 0; c++) {
     next = *(c+1);
-    if (*c=='-' && (!isLetter(prev) || !isLetter(next))) return false;
+    if (*c=='-' && !((isLetter(prev) || isDigit(prev)) && isLetter(next))) return false;
     if (*c=='(') return true; // qualified operator, or operator name
     prev = *c;
   }
@@ -848,7 +864,7 @@ void stringStart( yyscan_t scanner )
   yyextra->stringLen = 0;
 }
 
-void stringAdd( unsigned int c, yyscan_t scanner) 
+void stringAdd( unsigned int c, yyscan_t scanner)
 {
   EnableMacros(scanner);
   /* reallocate if necessary (always 5 more to accomodate any UTF-8 encoding + \0 char) */
@@ -879,17 +895,17 @@ void stringAdd( unsigned int c, yyscan_t scanner)
   }
   else if (c <= 0x7FF) {
     yyextra->stringBuf[len++] = (0xC0 | (c >> 6));
-    yyextra->stringBuf[len++] = (0x80 | (c & 0x3F));   
+    yyextra->stringBuf[len++] = (0x80 | (c & 0x3F));
   }
   else if (c <= 0xFFFF) {
     yyextra->stringBuf[len++] = 0xE0 | (c >> 12);
-    yyextra->stringBuf[len++] = 0x80 | ((c >> 6) & 0x3F);   
-    yyextra->stringBuf[len++] = 0x80 | (c & 0x3F);   
+    yyextra->stringBuf[len++] = 0x80 | ((c >> 6) & 0x3F);
+    yyextra->stringBuf[len++] = 0x80 | (c & 0x3F);
   }
   else if (c <= 0x10FFFF) {
     yyextra->stringBuf[len++] = 0xF0 | (c >> 18);
-    yyextra->stringBuf[len++] = 0x80 | ((c >> 12) & 0x3F);   
-    yyextra->stringBuf[len++] = 0x80 | ((c >> 6) & 0x3F);   
+    yyextra->stringBuf[len++] = 0x80 | ((c >> 12) & 0x3F);
+    yyextra->stringBuf[len++] = 0x80 | ((c >> 6) & 0x3F);
     yyextra->stringBuf[len++] = 0x80 | (c & 0x3F);
   }
   else {
@@ -900,7 +916,7 @@ void stringAdd( unsigned int c, yyscan_t scanner)
   yyextra->stringLen = len;
 }
 
-char* stringEnd( yyscan_t scanner ) 
+char* stringEnd( yyscan_t scanner )
 {
   EnableMacros(scanner);
 
@@ -919,7 +935,7 @@ char* stringEnd( yyscan_t scanner )
   return buf;
 }
 
-/* Decode a UTF8 encoded character. 
+/* Decode a UTF8 encoded character.
    "len" should be 1 or larger, and gets set to the actual number of bytes read (<= len)
    For an invalid UTF8 sequence, return the replacement character and set len to 0. */
 unsigned int utfDecode1( const char* buf, int* len )
@@ -960,11 +976,11 @@ unsigned int utfDecode( const char* buf, int len, yyscan_t scanner )
   unsigned int c = utfDecode1( buf, &scanned );
   if (scanned != len || len == 0) {
     YYLTYPE loc = currentLoc(scanner);
-    yyerror( &loc, scanner, "illegal UTF-8 character sequence encountered: %s", buf );    
+    yyerror( &loc, scanner, "illegal UTF-8 character sequence encountered: %s", buf );
   }
   return c;
 }
- 
+
 
 /*----------------------------------------------------
    Errors
@@ -983,7 +999,7 @@ void illegalchar( char c, char* s, yyscan_t scanner )
     s = "(replace tabs with spaces)";
   }
   if (s == NULL || strlen(s) == 0) {
-    yyerror(&loc,scanner, "illegal character '%s'", schar); 
+    yyerror(&loc,scanner, "illegal character '%s'", schar);
   }
   else {
     yyerror(&loc,scanner, "illegal character '%s' %s", schar, s );
@@ -998,7 +1014,7 @@ void yyerror( YYLTYPE* loc, yyscan_t scanner, char* s, ... )
 
   // print location
   if (loc->first_line >= 1) {
-    fprintf(stderr,"(%d,%2d)-(%d,%2d): ", loc->first_line, loc->first_column, 
+    fprintf(stderr,"(%d,%2d)-(%d,%2d): ", loc->first_line, loc->first_column,
                                           loc->last_line, loc->last_column);
   }
 
@@ -1034,7 +1050,7 @@ int main( int argc, char** argv )
 {
   /* initialize */
   yyscan_t scanner;
-  yylex_init( &scanner ); 
+  yylex_init( &scanner );
   EnableMacros(scanner);
 
   ExtraState st;
@@ -1066,7 +1082,7 @@ int main( int argc, char** argv )
       exit(1);
     }
     else {
-      yyin = fopen(argv[arg], "r"); 
+      yyin = fopen(argv[arg], "r");
       if (!yyin) {
        fprintf(stderr,"couldn't open file: %s\n", argv[arg]);
        exit(1);
@@ -1090,7 +1106,7 @@ int main( int argc, char** argv )
   }
   else {
     yyparse(scanner);
-    
+
     /* destroy */
     int errorCount = st.errorCount;
     yylex_destroy(scanner);
@@ -1140,9 +1156,9 @@ char* showChar( unsigned int c, yyscan_t scanner )
   return stringDup(buf,scanner);
 }
 
-char* showString( const char* s, yyscan_t scanner ) 
+char* showString( const char* s, yyscan_t scanner )
 {
-  if (s==NULL) return ""; 
+  if (s==NULL) return "";
 
   const int max = 60;
   char buf[max + 10 + 3 + 1];  // max + maximal character width + " .." 0
@@ -1172,10 +1188,10 @@ char* showString( const char* s, yyscan_t scanner )
 }
 
 void printToken( int token, int state, yyscan_t scanner )
-{ 
+{
   EnableMacros(scanner);
 
-  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) <%d>: ", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, state ); 
+  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) <%d>: ", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, state );
   switch(token) {
     case ID:        fprintf(stderr,"ID    = '%s'", yylval->Id); break;
     case CONID:     fprintf(stderr,"CONID = '%s'", yylval->Id); break;
@@ -1189,11 +1205,11 @@ void printToken( int token, int state, yyscan_t scanner )
     case SEMI:      fprintf(stderr,";     = (inserted)"); break;
     case STRING:    fprintf(stderr,"STRING(%u) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
     default: {
-      if (token >= ' ' && token <= '~') 
+      if (token >= ' ' && token <= '~')
         fprintf(stderr,"%c", token);
-      else if (token < ' ') 
+      else if (token < ' ')
         fprintf(stderr,"0x%x", token );
-      else 
+      else
         fprintf(stderr,"%s", yytext);
     }
   }
@@ -1203,7 +1219,7 @@ void printToken( int token, int state, yyscan_t scanner )
 
 
 /*---------------------------------------------------------
-   The allocation list 
+   The allocation list
    Used to free memory allocted of identifiers and
    string literals.
 ---------------------------------------------------------*/

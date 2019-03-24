@@ -3,6 +3,6 @@ external inline foo( x : int ) : exn int {
   inline "#1"
 }
 
-function main() {
+fun main() {
   [42].map(foo).head
 }

@@ -1,6 +1,6 @@
 // test shadow warnings
-function f(xs) {
-  function len(xs) {
+fun f(xs) {
+  fun len(xs) {
     match(xs) {
       Cons(_,xs) -> len(xs)
       _ -> 0

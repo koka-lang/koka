@@ -101,14 +101,14 @@ resolveExpr expr
                                    return (Case expr' brs' range)
       Parens expr range      -> do expr' <- resolveExpr expr
                                    return (Parens expr' range)
-      Handler shallow scoped eff pars reinit ret final ops hrng rng
+      Handler shallow scoped override eff pars reinit ret final ops hrng rng
                              -> do ret' <- resolveExpr ret
                                    reinit' <- resolveExpr reinit
                                    final' <- resolveExpr final
                                    ops' <- mapM resolveHandlerBranch ops
-                                   return (Handler shallow scoped eff pars reinit' ret' final' ops' hrng rng)
+                                   return (Handler shallow scoped override eff pars reinit' ret' final' ops' hrng rng)
       Inject tp expr b range -> do expr' <- resolveExpr expr
-                                   return (Inject tp expr b range)                                   
+                                   return (Inject tp expr' b range)
 
 isJust (Just _) = True
 isJust Nothing  = False

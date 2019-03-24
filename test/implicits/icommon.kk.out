@@ -1,0 +1,68 @@
+[01;30moperator branch (amb) flip: resume scoped
+[00;39;49m[00m[01;30moperator branch (rcatch) raise: resume never
+[00;39;49m[00m[01;30moperator branch (coinflip) flip: resume tail
+[00;39;49m[00m[01;30moperator branch (foreach) yield: resume tail
+[00;39;49m[00m[01;30moperator branch (test2) input: resume tail
+[00;39;49m[00m[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) put: resume tail
+[00;39;49m[00m[01;30moperator branch (state-param) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state-param) put: resume tail
+[00;39;49m[00m[01;30moperator branch (to-maybe) raise: resume never
+[00;39;49m[00m0
+Hello there, there
+hi
+1
+2
+[False,True,True,False]
+([False,False,True,True,False],2)
+[(False,1),(False,1)]
+.Op-flip : .op-flip
+.Op-get : forall<a> .op-get<a>
+.Op-input : .op-input
+.Op-put : forall<a> (x : a) -> .op-put<a>
+.Op-raise : forall<a> (s : string) -> .op-raise<a>
+.Op-yield : forall<a> (item : a) -> .op-yield<a>
+.Ops-flip : forall<a> (flip : .op-flip) -> .ops-flip<bool>
+.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
+.Ops-input : forall<a> (input : .op-input) -> .ops-input<string>
+.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
+.Ops-raise : forall<a,b> (raise : .op-raise<b>) -> .ops-raise<b>
+.Ops-yield : forall<a,b> (yield : .op-yield<a>) -> .ops-yield<a,()>
+.tag-flip : string
+.tag-input : string
+.tag-raise : string
+.tag-state : string
+.tag-yield : string
+amb : forall<a,e> (action : () -> <flip|e> a) -> e list<a>
+ask-age : () -> <exn,std/async/async,console,ndet> ()
+ask-age-err : () -> <exn,std/async/async,console,ndet> ()
+coinflip : forall<a,e> (action : () -> <flip,ndet|e> a) -> <ndet|e> a
+counter : () -> <state<int>,div,console> ()
+flip : () -> flip bool
+foreach : forall<a,e> (f : (a) -> e bool, action : () -> <yield<a>|e> ()) -> e ()
+get : forall<a> () -> (state<a>) a
+hello : () -> <input,console> ()
+input : () -> input string
+iterate : forall<a> (xs : list<a>) -> (yield<a>) ()
+main : () -> <div,console> ()
+put : forall<a> (x : a) -> (state<a>) ()
+raise : forall<a> (s : string) -> raise a
+rcatch : forall<a,e> (action : () -> <raise|e> a, h : (string) -> e a) -> e a
+safe-div : (x : int, y : int) -> raise int
+show : (x : (list<bool>, int)) -> string
+show : (xs : list<(bool, int)>) -> string
+state : forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e (b, a)
+state-param : forall<a,b,e> (s : a, action : () -> <state<a>|e> b) -> e (b, a)
+surprising : () -> <flip,state<int>> bool
+test1 : () -> console ()
+test2 : () -> console ()
+test3 : () -> <div,console> int
+test4 : () -> console ()
+test4b : () -> console ()
+test5 : () -> console ()
+test6 : () -> console ()
+test7 : () -> console ()
+to-maybe : forall<a,e> (action : () -> <raise|e> a) -> e maybe<a>
+xor : () -> flip bool
+yield : forall<a> (item : a) -> (yield<a>) ()
+zerodiv : (x : int, y : int) -> int

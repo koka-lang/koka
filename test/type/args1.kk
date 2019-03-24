@@ -1,5 +1,5 @@
 struct test( x : int, y : int = 0 )
 
-function foo() {
+fun foo() {
   Test(1)
 }

@@ -1,5 +1,5 @@
 val ids = [id : forall<a> a -> a]
 
-function test1() {
+fun test1() {
   (head(ids).unjust)(1)
 }

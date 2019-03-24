@@ -407,14 +407,17 @@ public fun interleavedx( xs : list<() -> <async,exn|e> a> ) : <async|e> list<try
 	val n = xs.length
 	if (n==0) then []
 	elif (n==1) then xs.map(unsafe-try-all)
-	else {
-		val handle-strands = handler(cr : some<a>(int,list<(int,try<a>)>)) {
-			return x	-> (cr.snd : list<(_,_)>).map( snd )
-			strands-busy?()	-> resume(cr.fst > 0, cr)
-			strand-done(idx,res)	-> resume((), (cr.fst - 1, cr.snd.insert(idx,res)))
-		}
-		handle-strands( (n, []), unsafe-no-ndet-div{ interleaved-div(xs) } )
+	else interleavedn(n,xs)
+}
+
+fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<try<a>> {
+	var cr : some<a> (int,list<(int,try<a>)>) := (n,[])
+	with {
+		return(x)	{ cr.snd.map( snd ) }
+		fun strands-busy?()	     { cr.fst > 0 }
+		fun strand-done(idx,res) { cr := (cr.fst - 1, cr.snd.insert(idx,res)) }
 	}
+	(unsafe-no-ndet-div{ interleaved-div(xs) })()
 }
 
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }
@@ -444,7 +447,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		}
 	val ch : some<a,e> channel<() -> <async|e> a> = channel()
 	val handle-strand = handler {
-		fun raw do-await(setup,scope,c) -> {
+		control raw do-await(setup,scope,c) {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
 				ch.emit-io( /* no-cps */ { context.resume(res) }  )
@@ -453,9 +456,9 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		}
 
 		// redirect all other operations
-		fun no-await(setup,scope,c,f)	-> resume(no-await(setup,scope,c,f))
-		fun async-iox(f)	-> resume(async-iox(f))
-		fun cancel(scope)	-> resume(cancel(scope))
+		fun no-await(setup,scope,c,f)	{ no-await(setup,scope,c,f) }
+		fun async-iox(f)   { async-iox(f) }
+		fun cancel(scope)	 { cancel(scope) }
 	}
 	strands.foreach fun(strand) {
 		handle-strand{inject behind<async>(strand)}
@@ -656,10 +659,10 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		fun raw do-await( setup, scope, c )	-> handle-await(setup,scope, fun(x){ context.resume(x) }, c)  // returns to outer event loop
-		fun no-await( setup, scope, c, f )	-> resume(handle-await(setup,scope,f,c))
-		fun cancel( scope )	-> resume(handle-cancel(scope))
-		fun async-iox( f )	-> resume(f())
+		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
+    control no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
+		control cancel( scope ) { resume(handle-cancel(scope)) }
+		control async-iox( f ) { resume(f()) }
 	}
 }
 

@@ -1,7 +1,7 @@
-[01;30moperator branch (.handler) get: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) set: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) get: resume tail
-[00;39;49m[00m[01;30moperator branch (.handler) set: resume tail
+[01;30moperator branch (fstate) get: resume tail
+[00;39;49m[00m[01;30moperator branch (fstate) set: resume tail
+[00;39;49m[00m[01;30moperator branch (state) get: resume tail
+[00;39;49m[00m[01;30moperator branch (state) set: resume tail
 [00;39;49m[00mnegative or zero
 .Op-get : forall<a> .op-get<a>
 .Op-set : forall<a> (x : a) -> .op-set<a>

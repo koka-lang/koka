@@ -1,5 +1,5 @@
-function auto(f : forall<a> a -> a)  -> f(f)
+fun auto(f : forall<a> a -> a) { f(f) }
 
-function ok(f : forall<a> a -> a ) {
+fun ok(f : forall<a> a -> a ) {
   (auto(f))
 }

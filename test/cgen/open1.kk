@@ -10,13 +10,13 @@ type extend test {
   C(j : int)
 }
 
-function foo(t) {
+fun foo(t) {
   match(t) {
     B(i) -> i
     _    -> 42
   }
 }
 
-function main() {
+fun main() {
   foo(C(2)).print
 }

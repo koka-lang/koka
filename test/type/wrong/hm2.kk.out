@@ -1,4 +1,4 @@
-test/type/wrong/hm2.kk(1,27): error: types do not match (due to an infinite type)
+test/type/wrong/hm2.kk(1,20): error: types do not match (due to an infinite type)
  context : x(x)
  term : x
  inferred type: (_a) -> _e _b

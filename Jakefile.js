@@ -57,7 +57,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/async -itest/resource -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/implicits -itest/resource -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -182,8 +182,9 @@ task("grammar",[],function(testfile)
   var gdir = path.join("doc","spec","grammar");
   jake.cpR(gdir,outputDir);
 
-  command("cd " + outdir + " && bison -vd -W parser.y 2>&1", function() {
-    command("cd " + outdir + " && flex -v8 lexer.lex 2>&1", function() {
+  // command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
+  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule parser.y 2>&1", function() {
+    command("cd " + outdir + " && flex -8 lexer.lex 2>&1", function() {
       command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();
          else {
@@ -200,7 +201,7 @@ task("grammar",[],function(testfile)
 //-----------------------------------------------------
 // Tasks: documentation generation & editor support
 //-----------------------------------------------------
-var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
+var cmdMarkdown = "madoko"; //"node ../../../madoko/lib/cli.js"; // "madoko";
 var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
 var doclocal = (process.env.doclocal || "..\\koka-pages\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
 
@@ -275,7 +276,7 @@ task("guide", ["compiler"], function(publish) {
 });
 
 desc(["install Sublime Text 3 support files for Koka",
-     "     sublime[<version>]  # install for <version> instead (2 or 3)"].join("\n")
+     "     sublime[<version>] # install for <version> instead (2 or 3)"].join("\n")
     );
 task("sublime", function(sversion) {
   jake.logger.log("install Sublime Text support");
@@ -305,6 +306,24 @@ task("sublime", function(sversion) {
     jake.cpR(path.join("support","sublime-text","Jake-Haskell.sublime-build"),path.join(sublime,"User"));
   }
 });
+
+desc("install Atom support files for Koka");
+task("atom", function() {
+  var packages =　path.join(process.env.HOME || process.env.USERPROFILE || "~",".atom","packages");
+  jake.logger.log("install Atom support to: " + packages);
+
+  if (!fileExist(packages)) {
+    jake.logger.error("error: cannot find atom package directory: " + packages);
+  }
+  else {
+    var pkg = path.join(packages,"language-koka");
+    jake.mkdirP(pkg);
+    jake.cpR(path.join("support","atom","package.json"),pkg);
+    jake.cpR(path.join("support","atom","grammars"),pkg);
+    jake.cpR(path.join("support","atom","styles"),pkg);
+  }
+});
+
 
 // Help
 var usageInfo = [
@@ -374,6 +393,7 @@ var hsModules = [
   "Common.ColorScheme",
   "Common.File",
   "Common.Syntax",
+  "Common.Range",
   "Common.Name",
   "Common.NameMap",
   "Common.NameSet",
@@ -383,10 +403,10 @@ var hsModules = [
   "Common.IdMap",
   "Common.IdSet",
   "Common.IdNice",
-  "Common.Range",
   "Common.Message",
   "Common.Unique",
   "Common.Error",
+  "Common.ResumeKind",
 
   "Syntax.Lexeme",
   alexModule("Syntax.Lexer"),

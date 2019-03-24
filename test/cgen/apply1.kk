@@ -1,4 +1,4 @@
-// tests codegeneration for parametersless function (needs eta expansion in c# backend)
+// tests codegeneration for parametersless fun (needs eta expansion in c# backend)
 fun foo() {
   42
 }

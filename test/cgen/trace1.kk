@@ -1,5 +1,5 @@
 
-function main() {
+fun main() {
   trace("hi")
   println("done")
 }
