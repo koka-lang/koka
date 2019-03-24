@@ -39,7 +39,7 @@ public fun duration( t : timespan ) : duration {
 // use this on timestamp's that are in TAI SI seconds and do not
 // contain leap seconds!
 public fun unsafe-duration( t : timestamp ) : duration {
-  Duration(t.timespan-withleap)
+  Duration(t.unsafe-timespan-withleap)
 }
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.

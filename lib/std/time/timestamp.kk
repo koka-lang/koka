@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Low level time stamps.
+/* Low level time spans and time stamps.
 
 These are unit-less and may not necessarily be in (TAI) SI seconds, and
 are used internally to do time scale conversions and calendar calculations.
@@ -17,9 +17,9 @@ module std/time/timestamp
 import std/text/regex
 import std/num/ddouble
 
-// Time spans are a time duration represented as a `:ddouble`;
-// this gives it very high precision
-// and range to represent time very precisely. (see the [`instant`](std_time_instant.html) module)
+// Time spans are a time duration in some time scale represented as a `:ddouble`;
+// this gives it very high precision and range to represent time very precisely.
+// (see the [`instant`](std_time_instant.html) module)
 public alias timespan = ddouble
 
 // A zero-valued timespan.
@@ -47,18 +47,21 @@ public fun div( x : timespan, y : timespan, prec : int = 0) : timespan {
   Day span
 ----------------------------------------------------------------------------*/
 
-// A _day span_ is a time given as days, seconds, and leap seconds
+// A _day span_ is a time instant given as days, seconds, and leap seconds
 // from 2000-01-01 (in some timescale). It takes the `days` since
 // 2000-01-01, the fractional `secs` seconds into that day, and
 // potential (whole) `leap` seconds. The `leap` seconds are used
-// for times that are _in_ a leap second in that timescale and are
+// for times that are _inside_ a leap second period in that timescale and are
 // only used by UTC based timescales.
 //
-// We need a separate field `leap`
-// since some leap steps between 1958 and 1960 occurred at 19:00h
+// We use a separate field for time inside leap seconds to be able to
+// designate leap times anywhere in a day;
+// some leap steps between 1958 and 1960 occurred at 19:00h
 // instead of the last second of the day. For example,
 // ```
-// time(1959,1,28,18,59,60,0.01).instant.dayspan-since-y2k == "-14948d 68399.010s (+1 leap)"
+// time(1959,1,28,18,59,59,0.01).instant.dayspan.show == "-14948d 68399.010s"
+// time(1959,1,28,18,59,60,0.01).instant.dayspan.show == "-14948d 68399.010s (+1 leap)"
+// time(1959,1,28,19, 0, 0,0.01).instant.dayspan.show == "-14948d 68400.010s"
 // ```
 // See `std/time/utc` for more information on leap seconds.
 public struct dayspan(
@@ -90,21 +93,21 @@ public fun show( ds : dayspan, prec : int = 9 ) : string {
 /* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
 Time stamps also keep track of possible leap seconds for UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
 
-There are various representation possible. One way is as a duration TAI SI seconds
-but that would lead to many conversions (and loss of precision), for example for
+There are various representation possible. One way is as a duration in TAI SI seconds
+but that would lead to many unnecessary conversions (and loss of precision), for example for
 unix timestamps that need adjustments for leap seconds. To avoid conversions,
 it is better to represent as days plus the seconds into that day. Furthermore,
 to avoid normalization and to make it easier to add/substract time spans,
 we write this as a single timespan `since` where `days == floor(since / 86400)`
 and `seconds == since - days`. This is essentially the representation that
 unix timestamps use too. However, we also need a separate `leap` seconds field
-too that is positive if this time is in a leap step. This allows us also to
-represent time in a leap step unambigiously, and also at any time during the day.
+too, that is positive if this time is in a leap step. This allows us also to
+represent time in a leap step unambigiously (and also at any time during the day).
 
-Here is the representation of the leap second just before 2006-01-01:
+Here is the representation of a time in the leap second just before 2006-01-01:
 ```
-time(2005,12,31,23,59,60,0.5).instant.since-y2k.ts-show == "189388799.500 (+1 leap)"
-time(2005,12,31,23,59,60,0.5).instant.dayspan-since-y2k.show == "2191d 86399.500s (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show == "189388799.500 (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.dayspan.show == "2191d 86399.500s (+1 leap)"
 ```
 */
 abstract struct timestamp(
@@ -140,14 +143,18 @@ public fun dayspan( ts : timestamp ) : dayspan {
   Dayspan(days, dsecs.ddouble + frac, ts.leap)
 }
 
-// The time span since 2000-01-01. (including leap seconds).
-// Note: this loses information about the leap seconds.
-public fun timespan-withleap( ts : timestamp ) : timespan {
+// The time span since 2000-01-01 including time inside a possible leap second.
+// Note: using this only makes sense in timescales without leap
+// seconds as the returned time span is not a proper duration if the days
+// are not 86400s long.
+public fun unsafe-timespan-withleap( ts : timestamp ) : timespan {
   ts.since + ts.leap.timespan
 }
 
 
-// The time span since 2000-01-01 ignoring leap seconds.
+// The time span since 2000-01-01 for time scales that do not have
+// leap seconds and where every day is 86400s. For time scales
+// with leap seconds, this effectively ignores any leap seconds.
 public fun timespan-noleap( ts : timestamp ) : timespan {
   ts.since
 }

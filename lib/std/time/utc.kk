@@ -319,8 +319,10 @@ public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
 
 
 // Get a standard Unix timestamp in fractional seconds since the Unix epoch (1970-01-01Z).
+// Since Unix time stamps are ambigioous,
+// instants inside a leap seconds show as occurring in the second after that.
 public fun unix-timestamp( i :instant ) : ddouble {
-  (unix2000 + i.timespan-in(ts-unix))
+  (unix2000 + i.timestamp-in(ts-unix).unsafe-timespan-withleap)
 }
 
 val unix2000 = timespan(946684800)
@@ -333,8 +335,10 @@ public fun ntp-instant( ntp : ddouble, leap : int = 0 ) : instant {
 }
 
 // Return the NTP time of an instant since the NTP epoch (1900-01-01)
+// Since NTP time stamps are ambigious, times inside a leap second show
+// as occurring in the second after the leap second.
 public fun ntp-timestamp( i : instant ) : ddouble {
-  ntp2000 + i.timespan-in(ts-ntp)
+  ntp2000 + i.timestamp-in(ts-ntp).unsafe-timespan-withleap
 }
 
 val ntp2000 = timespan(3155673600)   // 2000-01-01 - 1900-01-01 in NTP seconds; = (100*365 + 24)*(24*3600)  (24 leap days)

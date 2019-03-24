@@ -155,16 +155,14 @@ public fun timestamp-in( i : instant, tscale : timescale = ts-tai ) : timestamp 
   i.since.convert(i.ts,tscale)
 }
 
-// Return a `:timespan` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
-// since the 2000-01-01 date in that timescale.
-// This can potentially lose leap seconds.
-public fun timespan-in( i : instant, tscale : timescale = ts-tai ) : timespan {
-  i.timestamp-in(tscale).timespan-withleap
+// Return a `:dayspan` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
+public fun dayspan-in( i : instant, tscale : timescale = ts-tai ) : dayspan {
+  i.timestamp-in(tscale).dayspan
 }
 
 // Return the (TAI) SI second duration since the `epoch` at this instant.
 public fun duration( i : instant ) : duration {
-  i.timespan-in(ts-tai).duration
+  i.timestamp-in(ts-tai).unsafe-duration // ok, because SI seconds
 }
 
 
@@ -217,10 +215,35 @@ public fun max( i : instant, j : instant ) : instant {
 }
 
 // Add a duration to an instant in time.
+// Note: this generally entails conversion to TAI time (`ts-tai`).
+// See also `add-duration-in` and `add-days` to add
+// in direct time scale units.
 public fun (+)( i : instant, d : duration ) : instant {
   if (i.ts.unit=="TAI")
    then unsafe-add( i, d.timespan )
    else i.use-timescale(ts-tai).unsafe-add( d.timespan )
+}
+
+// Add `days` days to the instant.
+public fun add-days( i : instant,  days : int) : instant {
+  Instant(i.since.add-days(days), i.ts)
+}
+
+
+/* Add a duration of `t` seconds of time scale `tscale`.
+This can for example be used to add Unix or NTP seconds where leap seconds
+are ignored (allthough it is recommended in that case to use
+`:time` and add logical days etc).
+```
+> instant(2005,12,31).add-duration-in( ts-unix, (24*3600).timespan ).time
+2006-01-01T00:00:00Z
+
+> (instant(2005,12,31) + 24.hours).time
+2005-12-31T23:59:60Z
+```
+*/
+public fun add-duration-in( i : instant,  tscale : timescale, t : timespan) : instant {
+  i.use-timescale(tscale).unsafe-add( t )
 }
 
 // Add a time span to an instant in time.
