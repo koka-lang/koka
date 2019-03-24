@@ -499,7 +499,7 @@ fun zero?( la : leap-adjust ) : bool {
   delta-TAI == TAI - UTC
 ----------------------------------------------------------------------------*/
 
-val utc1958 = timestamp(-1325376000.timespan) // 2000-01-01 - 1958-01-01 in NTP seconds
+val utc1958 = timestamp(-1325376000) // 2000-01-01 - 1958-01-01 in NTP seconds
 
 fun utc-to-delta-tai( leaps : leaps-table, utc : utc-timestamp ) : timespan {
   if (utc < utc1958)

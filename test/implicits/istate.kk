@@ -67,6 +67,7 @@ fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
   action()
 }
 
+
 fun main() {
   test1()
   test2().println
