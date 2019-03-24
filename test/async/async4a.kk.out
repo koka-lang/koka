@@ -1,0 +1,1 @@
+main : () -> <std/async/asyncx,console> ()

@@ -20,13 +20,13 @@ import qualified Common.NameSet as S
 
 -- | A program
 data Program t k
-  = Program{ programSource :: Source 
-           , programName   :: Name 
+  = Program{ programSource :: Source
+           , programName   :: Name
            , programNameRange :: Range
-           , programTypeDefs :: [TypeDefGroup t k] 
+           , programTypeDefs :: [TypeDefGroup t k]
            , programDefs      :: (DefGroups t)
-           , programImports  :: Imports 
-           , programExternals :: Externals 
+           , programImports  :: Imports
+           , programExternals :: Externals
            , programFixDefs :: FixDefs
            , programDoc :: String
            }
@@ -41,6 +41,7 @@ type UserDef     = Def UserType
 type UserDefGroup = DefGroup UserType
 type UserTypeDef = TypeDef UserType UserType UserKind
 type UserTypeDefGroup = TypeDefGroup UserType UserKind
+type UserUserCon = UserCon UserType UserType UserKind
 type UserPattern = Pattern UserType
 type UserBranch  = Branch UserType
 type UserHandlerBranch = HandlerBranch UserType
@@ -57,16 +58,16 @@ data External
   = External{ extName :: Name
             , extType :: UserType
             , extNameRange :: Range
-            , extRange :: Range 
+            , extRange :: Range
             , extInline :: [(Target,ExternalCall)]  -- map: target inline
-            , extVis  :: Visibility 
+            , extVis  :: Visibility
             , extDoc :: String
             }
   | ExternalInclude{ extInclude :: [(Target,String)]
                    , extRange :: Range
                    }
   | ExternalImport{ extImport :: [(Target,(Name,String))]
-                  , extRange :: Range }                   
+                  , extRange :: Range }
 
 data ExternalCall
   = ExternalInline String  -- inline everywhere
@@ -85,7 +86,7 @@ type Imports  = [Import]
 
 -- | Import declaration
 data Import
-  = Import{ importName ::  Name    -- ^ module name 
+  = Import{ importName ::  Name    -- ^ module name
           , importFullName :: Name     -- ^ fully qualified module name
           , importRange :: Range   -- ^ range of the import declaration
           , importVis   :: Visibility  -- ^ visibility of the module
@@ -106,20 +107,20 @@ data TypeDefGroup t k
 
 -- | type definitions.
 data TypeDef t u k
-  = Synonym { typeDefBinder :: (TypeBinder k) 
-            , typeDefParams :: [TypeBinder k] 
-            , typeDefSynonym :: t 
-            , typeDefRange :: Range 
+  = Synonym { typeDefBinder :: (TypeBinder k)
+            , typeDefParams :: [TypeBinder k]
+            , typeDefSynonym :: t
+            , typeDefRange :: Range
             , typeDefVis :: Visibility
             , typeDefDoc :: String
             }
   | DataType{ typeDefBinder :: (TypeBinder k)
-            , typeDefParams :: [TypeBinder k] 
-            , typeDefConstrs :: [UserCon t u k] 
-            , typeDefRange :: Range 
-            , typeDefVis :: Visibility 
+            , typeDefParams :: [TypeBinder k]
+            , typeDefConstrs :: [UserCon t u k]
+            , typeDefRange :: Range
+            , typeDefVis :: Visibility
             , typeDefSort :: DataKind
-            , typeDefDef  :: DataDef  
+            , typeDefDef  :: DataDef
             , typeDefIsExtend :: Bool -- ^ True if this is an extension; the binder contains a qualified id (and is not a declaration)
             , typeDefDoc  :: String
             }
@@ -133,11 +134,12 @@ data TypeBinder k
 
 -- | Constructor: name, existentials, type parameters, name range, total range, and visibility
 data UserCon t u k
-  = UserCon { userconName :: Name 
-            , userconExists :: [TypeBinder k] -- ^ existentials 
-            , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters 
-            , userconNameRange :: Range       --  ^ name range 
-            , userconRange :: Range           --  ^ total range 
+  = UserCon { userconName :: Name
+            , userconExists :: [TypeBinder k] -- ^ existentials
+            , userconParams :: [(Visibility,ValueBinder t (Maybe (Expr u)))]            -- ^ parameters
+            , userconResult :: Maybe t -- ^ used internally for limited GADT's (for now)
+            , userconNameRange :: Range       --  ^ name range
+            , userconRange :: Range           --  ^ total range
             , userconVis :: Visibility     -- ^  visibility
             , userconDoc :: String
             }
@@ -150,7 +152,7 @@ type DefGroups t
   = [DefGroup t]
 
 -- | Value definitions, either recursive or a single non-recursive binding
-data DefGroup t 
+data DefGroup t
   = DefRec    [Def t]
   | DefNonRec (Def t)
 
@@ -171,15 +173,15 @@ data ValueBinder t e
 --  | A value or function definition
 data Def t
   = Def{ defBinder :: ValueBinder () (Expr t)  -- a type on the definition goes into an outer Ann node on the expression
-       , defRange  :: Range 
-       , defVis    :: Visibility 
+       , defRange  :: Range
+       , defVis    :: Visibility
        , defSort   :: DefSort
        , defDoc    :: String
        }
 
 
 defIsVal def
-  = (defSort def /= DefFun)
+  = not (isDefFun (defSort def))
 
 
 guardTrue
@@ -195,24 +197,31 @@ data Expr t
   | Let    (DefGroup t) (Expr t)    Range
   | Bind   (Def t) (Expr t)         Range
   | App    (Expr t) [(Maybe (Name,Range),Expr t)] Range
-  | Var    Name Bool Range 
+  | Var    Name Bool Range
   | Lit    Lit
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler Bool (Maybe t) [ValueBinder (Maybe t) ()] (Expr t) [HandlerBranch t] Range Range
+  | Handler (HandlerSort (Expr t)) HandlerScope (Maybe t) [ValueBinder (Maybe t) ()]
+                  (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
+  | Inject t (Expr t) Bool {-behind?-} Range
+
+data HandlerScope
+  = HandlerNoScope | HandlerScoped
+  deriving (Eq)
 
 data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
+                 , hbranchRaw  :: Bool
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t)
-          , branchGuard :: (Expr t) 
+          , branchGuard :: (Expr t)
           , branchExpr   :: (Expr t)
           }
 
@@ -223,6 +232,7 @@ data Pattern t
   | PatAnn    (Pattern t) t Range
   | PatCon    Name    [(Maybe (Name,Range), Pattern t)] Range Range  -- name range and full range
   | PatParens (Pattern t) Range
+  | PatLit    Lit
 
 -- | Literals
 data Lit
@@ -249,7 +259,7 @@ data KUserType k
   | TpCon      Name                  Range
   | TpParens   (KUserType k)         Range
   | TpAnn      (KUserType k)  k
-  
+
 type UserType
   = KUserType UserKind
 
@@ -276,7 +286,7 @@ instance Ranged t => Ranged (Def t) where
 
 instance Ranged (ValueBinder t e) where
   getRange vb = binderRange vb
-    
+
 
 instance Ranged k => Ranged (KUserType k) where
   getRange tp
@@ -294,7 +304,7 @@ instance Ranged (TypeBinder k) where
   getRange (TypeBinder _ _ _ range) = range
 
 instance Ranged (UserCon t u k) where
-  getRange (UserCon _ _ _ _ range _ _) = range
+  getRange (UserCon _ _ _ _ _ range _ _) = range
 
 instance Ranged a => Ranged [a] where
   getRange rs
@@ -321,7 +331,8 @@ instance Ranged (Expr t) where
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
         Parens expr range      -> range
-        Handler shallow eff pars ret ops hrng range -> range
+        Handler shallow scoped eff pars reinit ret final ops hrng range -> range
+        Inject tp expr behind range -> range
 
 instance Ranged Lit where
   getRange lit
@@ -339,6 +350,7 @@ instance Ranged (Pattern t) where
         PatAnn  pat tp range    -> range
         PatCon  name args nameRng range -> range
         PatParens pat range     -> range
+        PatLit lit              -> getRange lit
 
 instance Ranged (Branch t) where
   getRange (Branch patterns guard body)
@@ -372,8 +384,8 @@ instance HasName (TypeBinder k) where
   getNameRange (TypeBinder name kind nameRange range) = nameRange
 
 instance HasName (UserCon t u k) where
-  getName (UserCon name exist params nameRange range _ _) = name
-  getNameRange (UserCon name exist params nameRange range _ _) = nameRange
+  getName (UserCon name exist params result nameRange range _ _) = name
+  getNameRange (UserCon name exist params result nameRange range _ _) = nameRange
 
 instance HasName (TypeDef t u k) where
   getRName typeDef
@@ -404,7 +416,7 @@ instance HasFreeTypeVar a => HasFreeTypeVar [a] where
 instance HasFreeTypeVar (KUserType k) where
   freeTypeVars tp
     = case tp of
-       TpQuan quant (TypeBinder name k _ _) tp _ 
+       TpQuan quant (TypeBinder name k _ _) tp _
                                       -> S.delete name (freeTypeVars tp)
        TpQual     preds tp            -> freeTypeVars (tp:preds)
        TpFun      args effect tp rng  -> freeTypeVars (tp:effect:map snd args)
@@ -432,7 +444,7 @@ defType def
   = case binderExpr (defBinder def) of
       Ann _ tp _ -> Just tp
       _          -> Nothing
-      
+
 
 typeDefName typeDef
   = tbinderName (typeDefBinder typeDef)
@@ -450,7 +462,7 @@ preludeImport
   = Import nameSystemCore nameSystemCore rangeNull Private
 
 makeProgram :: Name -> [TypeDef t t k] -> (Defs t) -> Program t k
-makeProgram name typedefs defs 
+makeProgram name typedefs defs
   = Program sourceNull name rangeNull [TypeDefRec typedefs] [DefRec defs] [] [] [] ""
 
 programAddImports :: Program t k -> [Import] -> Program t k
@@ -496,18 +508,18 @@ programRemoveDef name (Program source modName nameRange tdefs defs imports ext f
   where
     filterTDef  (TypeDefRec ts)    = TypeDefRec (filter (neqName . typeDefName) ts)
     filterTDef  (TypeDefNonRec t)  = if (neqName (typeDefName t)) then TypeDefNonRec t else TypeDefRec []
-    
+
     filterDef   (DefRec ds)        = DefRec (filter (neqName . defName) ds)
     filterDef   (DefNonRec d)      = if neqName (defName d)
                                       then DefNonRec d
                                       else DefRec []
 
-    neqName n  = (n /= name)     
+    neqName n  = (n /= name)
 
 
 programFind :: Ranged t => Name -> Program t k -> Maybe Range
 programFind name (Program source modName nameRange tdefs defs imports ext fixDefs doc)
-  = lookup name (concatMap trange tdefs ++ concatMap drange defs) 
+  = lookup name (concatMap trange tdefs ++ concatMap drange defs)
   where
     trange (TypeDefRec ts)    = [(typeDefName t, getRange t) | t <- ts]
     trange (TypeDefNonRec td) = [(typeDefName t, getRange t) | t <- [td]]

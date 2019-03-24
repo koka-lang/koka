@@ -1,24 +1,25 @@
 /*---------------------------------------------------------------------------
     Copyright 2012 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 
-/* File operations. 
+/* File operations.
 */
 module std/os/file
 
 import std/os/path
-import std/num/fixed
+import std/num/ddouble
 import std/time/duration
 import std/time/instant
 import std/time/utc
 import std/async
 
 extern include {
+  cs file "file-inline.cs"
   js file "file-inline.js"
 }
 
@@ -38,48 +39,75 @@ public extern write-text-file-sync( fileName : string, content : string )  : io 
 
 
 // Set the access time and modification time of a file.
-public fun utimes( fname : path, atime : instant, mtime : instant ) : <async,file,exn> () {
-  unsafe-async-yield-err( fun(cb) { xfile-utimes( fname.string, atime.unix-timestamp*1000.0, mtime.unix-timestamp*1000.0, { cb(()) } ) } )
+public fun utimes( fname : path, atime : instant, mtime : instant ) : <asyncx,file> () {
+  await-exn0 fun(cb) {
+	  val token = xfile-utimes( fname.string, atime.unix-timestamp, mtime.unix-timestamp, cb )
+	  Just({cancel-entry(token)})
+  }
 }
 
-extern xfile-utimes( fname : string, atime : double, mtime : double, cb : () -> <async,file,exn> () ) : () {
-  js "_file_utimes"  
+extern xfile-utimes( fname : string, atime : double, mtime : double, cb : (null<exception>) -> io () ) : io entry-token {
+  cs "_File.SetAccessModTime"
+  js "_file_utimes"
 }
 
 // Return the modification time of a file.
-public fun mod-time( fname : path ) : <async,file,exn> instant {
-  unsafe-async-yield-err( fun(cb) { xfile-mod-time( fname.string, cb ) } ).unix-instant
+public fun mod-time( fname : path ) : <asyncx,file> instant {
+  await-exn1(fun(cb) {
+    val token = xfile-mod-time( fname.string, cb )
+	  Just({cancel-entry(token)})
+  }).unix-instant
 }
 
-extern xfile-mod-time( fname : string, cb : (double) -> <async,file,exn> () ) : () {
-  js "_file_mod_time" // (#1, function(stats){ return (#2)(stats.mtime.getTime() * 1e-3); })"  
+extern xfile-mod-time( fname : string, cb : (null<exception>,double) -> io () ) : io entry-token {
+  cs "_File.GetModTime"
+  js "_file_mod_time" // (#1, function(stats){ return (#2)(stats.mtime.getTime() * 1e-3); })"
 }
 
 
 // Write a text file (using UTF8 encoding) asynchronously
-public fun write-text( fname : path, text : string ) : <async,file,exn> () {
-  unsafe-async-yield-err( fun(cb) { xwrite-text(fname.string,text, { cb(()) }) } )
+public fun write-text( fname : path, text : string ) : <asyncx,file> () {
+  await-exn0 fun(cb) {
+    val token = xwrite-text(fname.string,text, cb)
+	  Just({cancel-entry(token)})
+  }
 }
 
-extern xwrite-text( fname : string, text : string, cb : () -> <async,file,exn> () ) : () {
+extern xwrite-text( fname : string, text : string, cb : (null<exception>) -> io () ) : io entry-token {
+  cs "_File.WriteTextFile"
   js "_file_write_text"
 }
 
-
 // Read a text file (using UTF8 encoding) asynchronously
-public fun read-text( fname : path ) : <async,file,exn> string {
-  unsafe-async-yield-err( fun(cb) { xread-text(fname.string,cb) } )
+public fun read-text( fname : path ) : <asyncx,file> string {
+  await-exn1 fun(cb) {
+    val token = xread-text(fname.string,cb)
+	  Just({cancel-entry(token)})
+  }
 }
 
-extern xread-text( fname : string, cb : string -> <async,file,exn> ()  ) : () {
+extern xread-text( fname : string, cb : (null<exception>,string) -> io ()  ) : io entry-token {
+  cs "_File.ReadTextFile"
   js "_file_read_text"
 }
 
 // Download a text file from `url`, timing out after `timeout` seconds (=`10.seconds`).
-public fun download-text( url : string, timeout : duration = duration(10) ) : <async,net,exn> string {
-  unsafe-async-yield-err( fun(cb) { xdownload-text(url,timeout.seconds.double*1000.0,cb) } )
+public fun download-text( url : string, timeout : duration = duration(10) ) : <asyncx,net> string {
+  await-exn1 fun(cb) {
+    val token = xdownload-text(url,timeout.seconds.double,cb)
+	  Just({cancel-entry(token)})
+  }
 }
 
-extern xdownload-text( url : string, timeout : double, cb : string -> <async,net,exn> () ) : () {
+extern xdownload-text( url : string, timeout : double, cb : (null<exception>,string) -> io () ) : io entry-token {
+  cs "_File.DownloadText"
   js "_file_download_text"
+}
+
+
+alias entry-token = any
+
+extern cancel-entry(token : entry-token) : io () {
+  cs "_File.CancelEntry"
+  js "_cancel_entry"
 }

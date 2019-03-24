@@ -1152,14 +1152,14 @@ const bigInt = (function (undefined) {
         }
         var sign = this.sign ? "-" : "";
         return sign + str;
-    };    
+    };
     SmallInteger.prototype.toString = function (radix) {
         if (radix === undefined) radix = 10;
         if (radix != 10) return toBase(this, radix);
         return String(this.value);
     };
 
-    // DAAN: additions for fast fixed-point arithmetic    
+    // DAAN: additions for fast fixed-point arithmetic
     function _count_pow10( x ) {
         var j = 0;
         while(x!==0) {
@@ -1168,14 +1168,14 @@ const bigInt = (function (undefined) {
                 else break;
           x = x/10;
         }
-        return j;        
+        return j;
     }
     BigInteger.prototype.count_pow10 = function() {
         var v = this.value;
         var l = v.length;
         var i;
         for(i = 0; i < l-1; i++) {
-            if (v[i]!==0) break; 
+            if (v[i]!==0) break;
         }
         return (_count_pow10(v[i]) + LOG_BASE*i);
     }
@@ -1191,7 +1191,7 @@ const bigInt = (function (undefined) {
         }
         else { // 5 - 8
             if (x < 1e6) return (x < 1e5 ? 5 : 6);
-                    else return (x < 1e7 ? 7 : 8);            
+                    else return (x < 1e7 ? 7 : 8);
         }
     }
     function _count_digits( x ) {
@@ -1211,12 +1211,12 @@ const bigInt = (function (undefined) {
 
     BigInteger.prototype.mul_pow10 = function(n) {
         var i = parseValue(n);
-        //console.log(" mul_pow10, big: " + this.toString() + ", i: " + i.toString() + ", n: " + n.toString());        
-        if (i.isZero())     return this;
-        if (i.isNegative()) return this.div_pow10(i.negate())           
+        //console.log(" mul_pow10, big: " + this.toString() + ", i: " + i.toString() + ", n: " + n.toString());
+        if (this.isZero() || i.isZero())     return this;
+        if (i.isNegative()) return this.div_pow10(i.negate())
         if (!i.isSmall)     return this.multiply( Integer[10].pow(i) );
         var large = Math.floor(i.value / LOG_BASE);
-        var small = i.value - LOG_BASE*large;        
+        var small = i.value - LOG_BASE*large;
         var a = (small===0 ? this.value.slice(0) : multiplySmall(this.value,Math.pow(10,small)) );
         if (large > 10) {
             var b = new Array(large);
@@ -1226,11 +1226,11 @@ const bigInt = (function (undefined) {
         else {
             while(--large >= 0) { a.unshift(0); }
         }
-        var res = new BigInteger( a, this.sign );   
+        var res = new BigInteger( a, this.sign );
         //console.log("  result: " + res.toString());
         return res;
     }
-    
+
     SmallInteger.prototype.toBig = function() {
         return new BigInteger( smallToArray(Math.abs(this.value)), this.sign );
     }
@@ -1238,19 +1238,19 @@ const bigInt = (function (undefined) {
     SmallInteger.prototype.mul_pow10 = function(n) {
         var i = parseValue(n);
         //console.log("mul_pow10, small: " + this.toString() + ", i: " + i.toString() + ", n: " + n.toString() + ", ");
-        if (i.isZero())     return this;
-        if (i.isNegative()) return this.div_pow10(i.negate())           
+        if (this.isZero() || i.isZero())     return this;
+        if (i.isNegative()) return this.div_pow10(i.negate())
         if (i.isSmall && i.value <= 2*LOG_BASE) return this.multiply(Math.pow(10,i.value));
         return this.toBig().mul_pow10(i);
     }
 
     BigInteger.prototype.div_pow10 = function(n) {
         var i = parseValue(n);
-        if (i.isZero())     return this;
-        if (i.isNegative()) return this.mul_pow10(i.negate())           
+        if (this.isZero() || i.isZero())     return this;
+        if (i.isNegative()) return this.mul_pow10(i.negate())
         if (!i.isSmall)     return this.divide( Integer[10].pow(i) );
         var large = Math.floor(i.value / LOG_BASE);
-        var small = i.value - LOG_BASE*large;        
+        var small = i.value - LOG_BASE*large;
         if (large >= this.value.length) return Integer[0];
         //console.log("div-pow10: " + n.toString() + ", " + this.toString() + ", " + large.toString() + ", " + small.toString());
         var x  = (large===0 ? this : new BigInteger(this.value.slice(large),this.sign)); // copy & shift out the lower digits
@@ -1260,8 +1260,8 @@ const bigInt = (function (undefined) {
     }
     SmallInteger.prototype.div_pow10 = function(n) {
         var i = parseValue(n);
-        if (i.isZero())     return this;
-        if (i.isNegative()) return this.mul_pow10(i.negate())           
+        if (this.isZero() || i.isZero())     return this;
+        if (i.isNegative()) return this.mul_pow10(i.negate())
         if (i.isSmall && i.value <= 2*LOG_BASE) return this.divide( Math.pow(10,i.value) );
         //console.log("small div pow10: " + this.value.toString() + ", " + n.toString());
         return this.toBig().div_pow10(i);
@@ -1324,12 +1324,23 @@ const bigInt = (function (undefined) {
         return v;
     }
 
-    // DAAN: Very important that `valueOf` returns NaN 
+    // DAAN: Very important that `valueOf` returns NaN
     BigInteger.prototype.valueOf = function () {
         return NaN; // +this.toString();
     };
+	// DAAN: optimized conversion to double to not go through a full text representation
     BigInteger.prototype.toJSNumber = function() {
-      return +this.toString();
+      // return +this.toString();
+      var v  = this.value;
+      var hi = v.length - 1;
+      var lo = hi - 3; if (lo < 0) lo = 0; // process at most 4 entries (= at least 21+1 digits)
+      var d  = 0;
+      var i;
+      for(i = hi; i >= lo; i--) {
+        d = d*BASE  + v[i];
+      }
+      if (lo > 0) d = d*Math.pow(10,lo*LOG_BASE);
+      return d;
     }
 
     SmallInteger.prototype.valueOf = function () {

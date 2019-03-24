@@ -34,7 +34,7 @@ import Type.Type
 import Type.TypeVar
 import Core.Core
 
--- import Lib.Trace
+import Lib.Trace
 
 {--------------------------------------------------------------------------
   Parse core interface files
@@ -217,7 +217,12 @@ canonical p
 
 pdefSort
   = do (_,doc) <- dockeyword "fun" 
-       return (DefFun,doc)
+       monKind <- do { specialOp "**"; return PolyMon }
+                  <|>
+                  do { specialOp "*"; return AlwaysMon }
+                  <|>
+                  return NoMon
+       return (DefFun monKind,doc)
   <|>
     do (_,doc) <- dockeyword "val"
        return (DefVal,doc)
@@ -494,7 +499,7 @@ qualifiedTypeId
   = do (name,_) <- qvarid
        return name
   <|>
-    do (name,_) <- qidop  -- for things like std/core/<>
+    do (name,_) <- qidop  -- for things like std/core/<.>
        return name
   <|> 
     do special "("
@@ -540,7 +545,10 @@ katom
   <|>
     do specialConId "H"
        return kindHeap
-  <|>
+ <|>
+    do specialConId "S"
+       return kindScope
+   <|>
     do specialConId "HX"
        return kindHandled
   <|>
@@ -590,7 +598,8 @@ envQualify (Env _ _ mname imports _) name
   = if isQualified name
      then case (importsExpand name imports) of
             Right (qname,_) -> qname
-            Left amb        -> failure ("Core.Parse.envQualify: unable to expand name: " ++ show name ++ ": " ++ show amb) 
+            Left amb        -> trace ("Core.Parse.envQualify: unable to expand name: " ++ show name ++ ": " ++ show amb) $
+                               name
      else qualify mname name
 
 envExtendSynonym :: Env -> SynInfo -> Env

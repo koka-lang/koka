@@ -30,24 +30,25 @@ fun zerodiv(x,y) {
 
 val to-maybe = handler {
   return x -> Just(x)
-  raise(s) -> Nothing
+  raise(_s) -> Nothing
 }
 
 fun test1() {
   zerodiv(10,0).println
 }
 
+
 // --------------------------------------------------------
 //  Input
 // --------------------------------------------------------
 
 effect input {
-  getstr() : string
+  fun getstr() : string
 }
 
 fun hello() {
   val name = getstr()
-  println("Hello " + name)
+  println("Hello " + name + ", " + getstr())
 }
 
 val always-there = handler {
@@ -76,10 +77,19 @@ fun counter() {
   }
 }
 
-val state = handler(s) {
+val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
-  put(s')  -> resume(s',())
+  put(s')  -> resume((),s')
+}
+
+fun state(init, action) {
+  var s := init
+  handle(action) {
+    return x -> (x,s)
+    get()    -> { val x = s; s := s+1; resume(x) }
+    put(x)   -> { s := x; resume(()) }
+  }
 }
 
 fun test3() {
@@ -106,16 +116,16 @@ fun iterate(xs : list<a> ) : yield<a> () {
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   handle(action) {
     return x -> ()
-    yield(x) -> if (incps1(f,x)) then resume(()) else ()
+    yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
   }
 }
 
 fun test4() {
-  foreach fun(x:int) { 
+  foreach fun(x:int) {
     println(x)
-    (x<=1) 
+    (x<=1)
   }
-  { [1,2,3].iterate } 
+  { [1,2,3].iterate }
 }
 
 fun test4b() {
@@ -129,9 +139,9 @@ fun test4b() {
 effect amb {
   fun flip() : bool
 }
- 
+
 fun xor() : amb bool {
-  val p = flip() 
+  val p = flip()
   val q = flip()
   (p||q) && not(p&&q)
 }
@@ -155,19 +165,19 @@ fun test5() {
 // --------------------------------------------------------
 
 fun surprising() : <amb,state<int>> bool {
-  val p = flip() 
+  val p = flip()
   val i = get()
   put(i+1)
   if (i>0 && p) then xor() else False
-}        
+}
 
 fun test6() {
   (state(0){amb(surprising)}).show.println
-} 
+}
 
 fun test7() {
   (amb{state(0,surprising)}).show.println
-} 
+}
 
 
 // --------------------------------------------------------
@@ -176,7 +186,22 @@ fun test7() {
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
-  println("hello " + name)
+  println("and you age?")
+  val age = readline()
+  println("hello " + name + ", you are " + age)
+}
+
+
+fun ask-age-err() {
+  catch {
+    println("what is your name?")
+    val name = readline()
+    raise("ouch!")
+    println("hello " + name)
+  }
+  fun(err) {
+    println("error: " + err )
+  }
 }
 
 

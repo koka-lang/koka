@@ -1,10 +1,10 @@
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 effect state<s> {
-  get()  : s;
-  set(i:s) : ()
+  fun get()  : s;
+  fun set(i:s) : ()
 }
 
 fun xor() : amb bool {
@@ -21,8 +21,13 @@ fun foo() : <amb,state<int>> bool {
   if (i>0 && p) then xor() else False
 }         
 
- 
-// handlers
+fun state_handle() {
+  handler(i) {
+    return x -> x
+    get()    -> resume(i,i)
+    set(j)   -> resume((),j) 
+  }
+}
 
 fun amb_handle() {
   handler {
@@ -31,13 +36,6 @@ fun amb_handle() {
   }
 }
 
-fun state_handle() {
-  handler(i) {
-    return x -> x
-    get()    -> resume(i,i)
-    set(j)   -> resume(j,()) 
-  }
-}
 
 fun test1() {
   amb_handle()(xor)

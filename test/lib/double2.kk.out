@@ -1,0 +1,96 @@
+logp 1 : ok: 0.69314718055994529, 0.69314718055994529, 0.69314718055994529
+logp 2 : ok: 1.332267629550187e-15, 1.2344999999999995e-15, 1.2344999999999993e-15
+logp 3 : ok: 2.2204460492503128e-16, 1.2344999999999996e-16, 1.2345e-16
+logp 4 : ok: 0, 1.2345e-32, 1.2345e-32
+logp 5 : ok: 0, 1.2345e-64, 1.2345e-64
+logp 6 : ok: 709.7827128933839731, 709.7827128933839731, 709.7827128933839731
+atanh: 0: ok: 0.00000000000000
+atanh: 1.23e-16: FAILED!:
+ expect: 2.22044604925031e-16
+ gotten: 1.23000000000000e-16
+atanh: 1.23e-15: FAILED!:
+ expect: 1.33226762955019e-15
+ gotten: 1.23000000000000e-15
+atanh: 0.00123: ok: 0.00123000062029
+atanh: 0.123: ok: 0.12362598118313
+atanh: 0.5: ok: 0.54930614433405
+atanh: 0.69314718055994529: ok: 0.85398804799752
+atanh: 1: ok: Infinity
+atanh: 2: ok: NaN
+atanh: Infinity: ok: NaN
+atanh: NaN: ok: NaN
+atanh: 0: ok: 0.00000000000000
+atanh: -1.23e-16: FAILED!:
+ expect: -1.66533453693774e-16
+ gotten: -1.23000000000000e-16
+atanh: -1.23e-15: FAILED!:
+ expect: -1.27675647831893e-15
+ gotten: -1.23000000000000e-15
+atanh: -0.00123: ok: -0.00123000062029
+atanh: -0.123: ok: -0.12362598118313
+atanh: -0.5: ok: -0.54930614433405
+atanh: -0.69314718055994529: ok: -0.85398804799752
+atanh: -1: ok: -Infinity
+atanh: -2: ok: NaN
+atanh: -Infinity: ok: NaN
+atanh: NaN: ok: NaN
+asinh: 0: ok: 0.00000000000000
+asinh: 1.23e-16: ok: 1.23000000000000e-16
+asinh: 1.23e-15: ok: 1.23000000000000e-15
+asinh: 0.00123: ok: 0.00122999968986
+asinh: 0.122: ok: 0.12169936791920
+asinh: 0.5: ok: 0.48121182505960
+asinh: 0.69314718055994529: ok: 0.64704348108319
+asinh: 1: ok: 0.88137358701954
+asinh: 2: ok: 1.44363547517881
+asinh: 1230: ok: 7.80791679417192
+asinh: 123000000: ok: 19.32084209389664
+asinh: 1230000000000000: ok: 35.43893774485496
+asinh: 12300000000000000: ok: 37.74152283784900
+asinh: Infinity: ok: Infinity
+asinh: NaN: ok: NaN
+asinh: 0: ok: 0.00000000000000
+asinh: -1.23e-16: ok: -1.23000000000000e-16
+asinh: -1.23e-15: ok: -1.23000000000000e-15
+asinh: -0.00123: ok: -0.00122999968986
+asinh: -0.122: ok: -0.12169936791920
+asinh: -0.5: ok: -0.48121182505960
+asinh: -0.69314718055994529: ok: -0.64704348108319
+asinh: -1: ok: -0.88137358701954
+asinh: -2: ok: -1.44363547517881
+asinh: -1230: ok: -7.80791679417192
+asinh: -123000000: ok: -19.32084209389664
+asinh: -1230000000000000: ok: -35.43893774485496
+asinh: -12300000000000000: ok: -37.74152283784900
+asinh: -Infinity: ok: -Infinity
+asinh: NaN: ok: NaN
+acosh: 0: ok: NaN
+acosh: 1.23e-16: ok: NaN
+acosh: 1.23e-15: ok: NaN
+acosh: 0.00123: ok: NaN
+acosh: 0.122: ok: NaN
+acosh: 0.5: ok: NaN
+acosh: 0.69314718055994529: ok: NaN
+acosh: 1: ok: 0.00000000000000
+acosh: 2: ok: 1.31695789692482
+acosh: 1230: ok: 7.80791646368081
+acosh: 123000000: ok: 19.32084209389664
+acosh: 1230000000000000: ok: 35.43893774485496
+acosh: 12300000000000000: ok: 37.74152283784900
+acosh: Infinity: ok: Infinity
+acosh: NaN: ok: NaN
+acosh: 0: ok: NaN
+acosh: -1.23e-16: ok: NaN
+acosh: -1.23e-15: ok: NaN
+acosh: -0.00123: ok: NaN
+acosh: -0.122: ok: NaN
+acosh: -0.5: ok: NaN
+acosh: -0.69314718055994529: ok: NaN
+acosh: -1: ok: NaN
+acosh: -2: ok: NaN
+acosh: -1230: ok: NaN
+acosh: -123000000: ok: NaN
+acosh: -1230000000000000: ok: NaN
+acosh: -12300000000000000: ok: NaN
+acosh: -Infinity: ok: NaN
+acosh: NaN: ok: NaN

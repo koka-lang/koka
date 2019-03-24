@@ -1,0 +1,6 @@
+test/algeff/wrong/inject1.kk(16,15): error: Invalid type
+ type context : inject<int>{(get():string).count}
+ type : inject<int>{(get():string).count}
+ inferred kind: V
+ expected kind: X
+ because : Can only inject effect constants (of kind X)

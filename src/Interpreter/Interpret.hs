@@ -13,8 +13,7 @@ module Interpreter.Interpret( interpret ) where
 
 import Lib.Trace
 
-
-import System.Random              
+import Platform.Filetime
 import System.Directory            ( getCurrentDirectory, setCurrentDirectory )
 import Data.List                   ( isPrefixOf )
 import Data.Char                   ( isSpace )
@@ -24,17 +23,17 @@ import Platform.Config hiding (programName)
 import qualified Platform.Config as Config
 import Platform.ReadLine      ( withReadLine, readLineEx, addHistory )
 import Lib.PPrint
-import Lib.Printer       
+import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep ) 
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore, toShortModuleName )
-import Common.Range     
+import Common.Range
 import Common.Error
 
 import Common.Syntax
-import Syntax.Syntax          
+import Syntax.Syntax
 
 import Syntax.Highlight       ( highlightPrint )
 import Kind.Synonym           ( synonymsIsEmpty,synonymsDiff, ppSynonyms )
@@ -44,8 +43,8 @@ import Type.Type              ( Scheme )
 import Type.Pretty            ( ppScheme, ppSchemeEffect, Env(context,importsMap))
 import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
-import Compiler.Options       
-import Compiler.Compile       
+import Compiler.Options
+import Compiler.Compile
 import Interpreter.Command
 
 {---------------------------------------------------------------
@@ -72,21 +71,21 @@ data State = State{  printer    :: ColorPrinter
 interpret ::  ColorPrinter -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 files
   = withReadLine $
-    do{ let st0 = (State printer flags0 False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded) 
-      ; messageHeader st0 
+    do{ let st0 = (State printer flags0 False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
+      ; messageHeader st0
       ; let st2 = st0
-      -- ; st2 <- findBackend st0  
+      -- ; st2 <- findBackend st0
       -- ; st2 <- loadPrimitives st1
    {-
       ; let preludeSt = st2
       ; if (null files)
          then interpreterEx preludeSt
-         else command preludeSt (Load files)  
+         else command preludeSt (Load files)
    -}
       -- ; interpreterEx st2
-  
-      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c) 
-                  `catchIO` (\msg -> do messageError st2 msg; 
+
+      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
+                  `catchIO` (\msg -> do messageError st2 msg;
                                         return (errorMsg (ErrorGeneral rangeNull (text msg))))
       ; case checkError err of
           Left msg    -> do messageInfoLn st2 ("unable to load the " ++ show nameSystemCore ++ " module; standard functions are not available")
@@ -96,8 +95,8 @@ interpret printer flags0 files
           Right (preludeSt,warnings)
                       -> if (null files)
                              then interpreterEx preludeSt{ lastLoad = [] }
-                             else command preludeSt (Load files False)  
-  
+                             else command preludeSt (Load files False)
+
       }
 
 messageEvaluation st
@@ -125,8 +124,8 @@ command st cmd
   = let term = terminal st
     in do{ case cmd of
   Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
-                   ; checkInfer st True err $ \ld -> 
-                     do if (not (evaluate (flags st))) 
+                   ; checkInfer st True err $ \ld ->
+                     do if (not (evaluate (flags st)))
                          then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                               in messageSchemeEffect st tp
                          else messageLn st ""
@@ -153,7 +152,7 @@ command st cmd
                          ; interpreter st{ loaded = ld } -- (loaded st){ loadedModules  = loadedModules ld }}
                          }
 
-  KindOf line -> do err <- compileType term (flags st) (loaded st) (program st) bigLine line 
+  KindOf line -> do err <- compileType term (flags st) (loaded st) (program st) bigLine line
                     checkInfer st True err $ \ld ->
                        do{ let kind = kgammaFind (getName (program st)) nameType (loadedKGamma ld)
                          ; messagePrettyLnLn st (prettyKind (colorSchemeFromFlags (flags st)) (snd kind))
@@ -163,45 +162,45 @@ command st cmd
   TypeDef line-> -- trace ("modules: " ++ show (map (show . modName . loadedModule) (loadedModules st))) $
                  do err <- compileTypeDef term (flags st) (loaded st) (program st) (lineNo st) line
                     checkInfer2 st True err $ \(defName, ld) ->
-                     do{ let (qname,kind) = kgammaFind (getName (program st)) defName (loadedKGamma ld)                           
+                     do{ let (qname,kind) = kgammaFind (getName (program st)) defName (loadedKGamma ld)
                        ; messagePrettyLnLn st (text (show defName) <+> text "::" <+> pretty kind)
                        ; interpreter st{ program  = maybe (program st) id $ modProgram (loadedModule ld)
                                        , loaded   = ld
                                        , defines  = filter (\(name,_) -> defName /= name) (defines st)
-                                                    ++ [(defName,[line,""])] 
+                                                    ++ [(defName,[line,""])]
                                        }
                        }
 
-  Load fnames force 
-              -> do{ let st' = st{ lastLoad = fnames } 
+  Load fnames force
+              -> do{ let st' = st{ lastLoad = fnames }
                    ; loadFiles term st' (reset True st') fnames force
                    }
 
   Reload      -> do{ loadFiles term st (reset True st) (lastLoad st) True {- (map (modPath . loadedModule) (tail (loadedModules st))) -} }
 
-  
+
   Edit []     -> do{ let fpath = lastFilePath st
                    ; if (null fpath)
                       then do remark st "nothing to edit"
                               interpreterEx st
                       else do runEditor st fpath
-                              command st Reload 
+                              command st Reload
                    }
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
-                      Nothing    
+                      Nothing
                         -> do messageErrorMsgLnLn st (errorFileNotFound (flags st) fname)
                               interpreter st
-                      Just (root,fname) 
+                      Just (root,fname)
                         -> do runEditor st (joinPath root fname)
-                              command st Reload 
+                              command st Reload
                    }
-  
-  Shell cmd   -> do{ runSystem cmd 
+
+  Shell cmd   -> do{ runSystem cmd
                    ; messageLn st ""
                    ; interpreterEx st
                    }
-  
+
   ChangeDir d -> do{ if (null d)
                       then do{ fpath <- getCurrentDirectory
                              ; messageInfoLnLn st fpath
@@ -224,7 +223,7 @@ command st cmd
                                           messageLn st ""
                                           interpreter st
                        ModeCompiler files     -> setFlags files
-                       ModeInteractive files  -> setFlags files            
+                       ModeInteractive files  -> setFlags files
                        -- ModeDoc files          -> setFlags files
                    }
 
@@ -237,7 +236,7 @@ command st cmd
   Show showcmd-> do{ showCommand st showcmd
                    ; interpreterEx st
                    }
-  
+
   Quit        -> do{ putQuote st
                    }
 
@@ -258,7 +257,7 @@ loadFiles term originalSt startSt files force
   = do err <- loadFilesErr term startSt files force
        case checkError err of
          Left msg -> interpreterEx originalSt{ errorRange = Just (getRange msg) }
-         Right (st,warnings) -> interpreterEx st 
+         Right (st,warnings) -> interpreterEx st
 
 
 loadFilesErr term startSt fileNames force
@@ -269,25 +268,25 @@ loadFilesErr term startSt fileNames force
       = case files of
           []  -> do if (not (null imports))
                       then do messageInfoLn st "modules:"
-                              sequence_ [messageLn st ("  " ++ show (modName mod) {- ++ ": " ++ show (modTime mod) -}) 
+                              sequence_ [messageLn st ("  " ++ show (modName mod) {- ++ ": " ++ show (modTime mod) -})
                                         | mod <- imports {- loadedModules (loaded0 st) -} ]
 
-                      else return () -- remark st "nothing to load"                      
+                      else return () -- remark st "nothing to load"
                     messageLn st ""
                     let st' = st{ program = programAddImports (program st) (map toImport imports) }
                         toImport mod
                             = Import (modName mod) (modName mod) rangeNull Private
                     return (return st')
           (fname:fnames)
-              -> do{ err <- {- if (False) -- any isPathSep fname) 
+              -> do{ err <- {- if (False) -- any isPathSep fname)
                              then compileFile term (flags st) (loadedModules (loaded0 st)) Object fname
                              else compileModule term (flags st) (loadedModules (loaded0 st)) (newName fname)
                              -}
                              compileModuleOrFile term (flags st) (loadedModules (loaded0 st)) fname force
-                   ; case checkError err of 
-                       Left msg 
+                   ; case checkError err of
+                       Left msg
                           -> do messageErrorMsgLnLn st msg
-                                return (errorMsg msg) 
+                                return (errorMsg msg)
                        Right (ld,warnings)
                           -> do{ -- let warnings = modWarnings (loadedModule ld)
                                ; err <- if not (null warnings)
@@ -299,7 +298,7 @@ loadFilesErr term startSt fileNames force
                                                , loaded0       = ld
                                                -- , modules       = modules st ++ [(fname,loadedModule ld)]
                                                , errorRange    = err
-                                               , loadedPrelude = if (modName (loadedModule ld) == nameSystemCore ) 
+                                               , loadedPrelude = if (modName (loadedModule ld) == nameSystemCore )
                                                                   then ld else loadedPrelude st
                                                }
                                ; let mod = loadedModule ld
@@ -310,10 +309,10 @@ loadFilesErr term startSt fileNames force
 reset :: Bool -> State -> State
 reset full st
   =  st{ program       = programNull nameInteractiveModule
-       , defines       = [] 
-       , loaded        = loadedPrelude st -- initialLoaded 
+       , defines       = []
+       , loaded        = loadedPrelude st -- initialLoaded
        -- , modules       = []
-       -- , loaded0       = loadedPrelude st -- initialLoaded 
+       -- , loaded0       = loadedPrelude st -- initialLoaded
        , loaded0       = if (full || rebuild (flags st)) then initialLoaded else loaded0 st
        , errorRange    = Nothing
        }
@@ -327,7 +326,7 @@ findPath cscheme path ext name
          Nothing    -> raiseIO (show (docNotFound cscheme path name))
 
 
-errorFileNotFound :: Flags -> FilePath -> ErrorMessage 
+errorFileNotFound :: Flags -> FilePath -> ErrorMessage
 errorFileNotFound flags name
   = ErrorIO (docNotFound (colorSchemeFromFlags flags) (includePath flags) name)
 
@@ -335,7 +334,7 @@ docNotFound cscheme path name
   = text "could not find:" <+> ppPath name <->
     if (null path)
      then text ("search path empty. (use the \"-i\" flag at command line?)")
-     else text "search path   :" <+> align (cat (punctuate comma (map ppPath path))) 
+     else text "search path   :" <+> align (cat (punctuate comma (map ppPath path)))
   where
     ppPath p
       = color (colorSource cscheme) (text p)
@@ -357,7 +356,7 @@ checkInferWith st getLoaded showMarker err f
                       messageErrorMsgLnLn st msg
                       interpreterEx st{ errorRange = Just (getRange msg) }
       Right (x,ws)
-                -> do let ld = getLoaded x 
+                -> do let ld = getLoaded x
                           warnings = ws -- modWarnings (loadedModule ld)
                       when (not (null warnings))
                         (do let msg = ErrorWarning warnings ErrorZero
@@ -375,11 +374,11 @@ lineNo st
   = bigLine + (length (defines st) + 1)
 
 dropLet s
-  = if isPrefixOf "let" s 
+  = if isPrefixOf "let" s
      then dropEndWhile (\c -> isSpace c || c == '}') (dropWhile (\c -> isSpace c || c == '{') (drop 3 s))
      else s
   where
-    dropEndWhile p 
+    dropEndWhile p
       = reverse . dropWhile p . reverse
 
 messageScheme ::  State -> Scheme -> IO ()
@@ -403,7 +402,7 @@ lastSource st
         -- fsource = Source (modSourcePath (last (loadedModules (loaded0 st)))) bstringEmpty
         source  = case errorRange st of
                     Just rng -> let src = rangeSource rng
-                                in if isSourceNull src 
+                                in if isSourceNull src
                                     then fsource
                                     else src
                     Nothing  -> fsource
@@ -440,7 +439,7 @@ loadedDiff diff get st
 
 
 prettyEnv st
-  = (prettyEnvFromFlags (flags st)){ context = loadedName (loaded st), importsMap = loadedImportMap (loaded st) } 
+  = (prettyEnvFromFlags (flags st)){ context = loadedName (loaded st), importsMap = loadedImportMap (loaded st) }
 
 showCommand ::  State -> ShowCommand -> IO ()
 showCommand st cmd
@@ -448,7 +447,7 @@ showCommand st cmd
       ShowHelp         -> do messagePrettyLn st (commandHelp (colorSchemeFromFlags (flags st)))
                              showEnv (flags st) (printer st)
 
-      ShowVersion      -> do showVersion (printer st) 
+      ShowVersion      -> do showVersion (printer st)
                              messageLn st ""
 
       ShowKindSigs     -> let kgamma = {- loadedDiff kgammaDiff -} loadedKGamma (loaded st)
@@ -457,14 +456,14 @@ showCommand st cmd
                            else messagePrettyLnLn st (ppKGamma colors (loadedName (loaded st)) (loadedImportMap (loaded st)) kgamma)
 
       ShowTypeSigs     -> let gamma = gammaFilter (modName (loadedModule (loaded st))) $ loadedGamma (loaded st)
-                          in if (gammaIsEmpty gamma) 
+                          in if (gammaIsEmpty gamma)
                            then remark st "no types to show"
                            else messagePrettyLnLn st (ppGamma (prettyEnv st) gamma)
 
       ShowSynonyms     -> let syns = loadedDiff synonymsDiff loadedSynonyms st
                           in if (synonymsIsEmpty syns)
                            then remark st "no synonyms to show"
-                           else messagePrettyLnLn st 
+                           else messagePrettyLnLn st
                                   (ppSynonyms (prettyEnv st) syns)
 
       ShowSource       -> do source <- lastSourceFull st
@@ -493,7 +492,7 @@ showCommand st cmd
 
     syntaxColor source
       = do highlightPrint colors (sourceName source) 1 (sourceBString source) (printer st)
-           
+
 
 
 interactiveSource str
@@ -512,16 +511,16 @@ runEditor st fpath
 
 runEditorAt ::  State -> FilePath -> Int -> Int -> IO ()
 runEditorAt st fpath line col
-  = let command  = replace line col (editor (flags st)) fpath 
+  = let command  = replace line col (editor (flags st)) fpath
     in if null (editor (flags st))
         then raiseIO ("no editor specified. (use the \"koka-editor\" environment variable?)")
         else runSystem command
-        
+
 replace :: Int -> Int -> FilePath -> String -> String
 replace line col s fpath
   = walk True s
   where
-    qfpath  = fpath 
+    qfpath  = fpath
     walk add s
       = let (pre,post) = span (/='%') s
         in case post of
@@ -547,7 +546,7 @@ getCommand st
        case cmd of
          Quit     -> return ()
          Error _  -> return ()
-         _        | null input -> return () 
+         _        | null input -> return ()
                   | otherwise  -> addHistory input
        return cmd
 
@@ -563,9 +562,9 @@ remark st s
 
 terminal :: State -> Terminal
 terminal st
-  = Terminal (messageErrorMsgLn st) 
+  = Terminal (messageErrorMsgLn st)
              (if (verbose (flags st) > 0) then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
-             (messagePrettyLn st)  -- (\_ -> return ()) -- 
+             (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)
 
@@ -589,8 +588,8 @@ messageInfoLnLn st s
 messageInfoLn ::  State -> String -> IO ()
 messageInfoLn st s
   = do messageInfo st s
-       messageLn st ""     
-       
+       messageLn st ""
+
 messageInfo ::  State -> String -> IO ()
 messageInfo st s
   = withColor (printer st) (colorInterpreter colors) (message st s)
@@ -650,20 +649,25 @@ messageHeader st
        ,text "| |        | |          "
        ,text "| | __ ___ | | __ __ _  "
        ,text $ "| |/ // _ \\| |/ // _` | welcome to the " ++ Config.programName ++ " interpreter"
-       ,text "|   <| (_) |   <| (_| | " <> headerVersion  
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <> color (colorSource colors) (text "type :? for help") 
+       ,text "|   <| (_) |   <| (_| | " <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <.> color (colorSource colors) (text "type :? for help")
        ]
-    headerVersion = text $ "version " ++ version ++ (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " ++ buildDate   
+    headerVersion = text $ "version " ++ version ++ (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " ++ buildDate
+
+semiRandom min max
+  = do t <- getCurrentTime
+       let i = fileTimeToPicoseconds t `div` 100000000000
+       return (fromInteger (min + (i `mod` (max - min))))
 
 putQuote ::  State -> IO ()
 putQuote st
-  = do idx <- randomRIO (0,length quotes-1)
+  = do idx <- semiRandom 0 (toInteger (length quotes-1))
        let (quote,author) = quotes!!idx
        messageInfoLnLn st ("\n" ++ quote ++ "\n -- " ++ author)
 
 quotes :: [(String,String)]
 quotes
-  = [("The cause is hidden. The effect is visible to all.","Ovid (43 BC - 17 AD)") 
+  = [("The cause is hidden. The effect is visible to all.","Ovid (43 BC - 17 AD)")
     ,("I think of my body as a side effect of my mind.", "Carrie Fisher (1956)")
     ,("Laughter is a tranquilizer with no side effects.", "Arnold H. Glasgow")
     ,("To the extent this helps us in any sort of competition, that's great,\nbut that's actually a side effect. It's a happy side effect, nonetheless.", "Gary Flake")
@@ -673,6 +677,6 @@ quotes
     ,("The cause ceasing, the effect ceases also.","Edward Coke")
     ,("Logic can often be reversed, but the effect does not precede the cause.","Gregory Bateson")
     -- ,("Most exciting ideas are not important.\nMost important ideas are not exciting.\nNot every problem has a solution.\nEvery solution has side effects.", "Daniel E. Geer Jr.")
-    -- ,("Every cause produces more than one effect.","Herbert Spencer")
-    -- ,("No action is without its side effects.","Barry Commoner")
-     ]
+    ,("Every cause produces more than one effect.","Herbert Spencer")
+    ,("No action is without its side effects.","Barry Commoner")
+    ]

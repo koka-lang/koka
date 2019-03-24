@@ -1,0 +1,18 @@
+
+fun xforeach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
+{
+  var i := 0
+  xs.foreach fun(x) {
+    val j = i;
+    (inject-st{action(j,x)})()
+    i := i+1
+  }
+}
+
+fun main() {
+  var acc := 0
+  [0,41].xforeach-indexed fun(idx,x) {
+    acc := acc + idx + x
+  }
+  println(acc)
+}

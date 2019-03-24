@@ -31,8 +31,9 @@ import std/text/string
 import std/text/unicode
 
 import std/num/decimal
+import std/num/ddouble
+import std/num/double
 import std/num/int32
-import std/num/fixed
 
 import std/time
 import std/time/astro

@@ -1,7 +1,7 @@
 public module wrong/linear2
 
 effect amb {
-  flip() : bool
+  fun flip() : bool
 }
 
 val amb = handler {
@@ -10,14 +10,14 @@ val amb = handler {
 }
 
 effect linear state<s> {
-  get() : s;
-  put(x : s) : ()
+  fun get() : s
+  fun put(x : s) : ()
 }
 
 val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  put(t)   -> if (flip()) then resume(t,()) else resume(s,()) 
+  put(t)   -> if (flip()) then resume((),t) else resume((),s) 
 }
 
 fun foo() {

@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Common.NamePrim
-          ( 
+          (
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
@@ -23,7 +23,7 @@ module Common.NamePrim
           , nameCopy
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
-          , nameDecreasing, nameSubStr1
+          , nameDecreasing, nameSubStr1, nameDec
 
           , nameUnit
           , nameReturn, nameTrace, nameLog
@@ -31,6 +31,9 @@ module Common.NamePrim
           , nameToAny
           , nameEnsureK
           , nameIsValidK
+          , nameLift, nameBind
+          , nameInject, nameInjectExn, nameInjectResource
+
           , nameUnsafeTotal
           , nameIntConst, nameInt32
 
@@ -50,38 +53,49 @@ module Common.NamePrim
           , nameTpString
           , nameTpInt32
           , nameTpAny
+          , nameTpNull
           , nameTpException
+          , nameTpMaybe
           , nameTpHandled, nameTpHandled1
-          , nameTpOperation, nameYieldOp, nameYieldOp1
+          , nameTpOperation, nameYieldOp
           , nameTpCps, nameTpYld, nameTpCont
           , nameInCps
+          , nameTpHandlerBranch0, nameTpHandlerBranch1
+          , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
 
-          , nameTpAsync
+
+          , nameTpAsync, nameTpAsyncX
           , nameApplyK
           , nameMakeHandler, nameMakeHandlerRet
+          , nameMakeContextTp
           , nameTpOpMatch, nameOpMatch, nameOpNoMatch
-          , nameTpMDict, nameTpDict, nameTpBuilder, nameTpTime
+          , nameTpMDict, nameTpDict, nameTpBuilder
 
           , nameTpUnit, nameTpVoid
+
           , nameTpRef, nameRef
+          , nameTpLocalVar, nameTpLocal
+          , nameLocal, nameRunLocal
+
+
           , nameTpOptional
-          , nameTpArray, nameTpVector
+          , nameTpArray, nameTpVector, nameVector
 
           , nameTpTotal, nameTpDiv, nameTpPartial, nameTpPure
           , nameTpST
           , nameTpWrite, nameTpRead
           , nameTpIO
           , nameTpAlloc
-          
+
           , nameTuple, isNameTuple
 
-          , namePredHeapDiv
+          , namePredHeapDiv, namePredEffDiv
 
           -- * Kind constructors
           , nameKindStar, nameKindFun
           , nameKindLabel
           , nameKindPred, nameKindEffect
-          , nameKindHeap
+          , nameKindHeap, nameKindScope
           , nameKindHandled1, nameKindHandled
 
           , toShortModuleName
@@ -90,7 +104,7 @@ module Common.NamePrim
           ) where
 
 import Common.Name
-
+import Common.Syntax
 
 
 {--------------------------------------------------------------------------
@@ -115,6 +129,9 @@ nameUnit        = preludeName "()"
 namePredHeapDiv :: Name
 namePredHeapDiv = preludeName "hdiv"
 
+namePredEffDiv :: Name
+namePredEffDiv = preludeName "ediv"
+
 nameReturn :: Name
 nameReturn = preludeName ".return"
 
@@ -122,7 +139,7 @@ nameTrace  = preludeName "trace"
 nameLog    = preludeName "log"
 
 nameEffectOpen :: Name
-nameEffectOpen = newName ".open"
+nameEffectOpen = preludeName ".open"
 
 {--------------------------------------------------------------------------
   Primitive constructors
@@ -132,6 +149,7 @@ nameFalse       = preludeName "False"
 
 nameJust        = preludeName "Just"
 nameNothing     = preludeName "Nothing"
+nameTpMaybe     = preludeName "maybe"
 
 nameOptional         = preludeName "Optional"
 nameOptionalNone     = preludeName "None"
@@ -139,9 +157,10 @@ nameTpOptional       = preludeName "optional"
 
 nameTpDelay          = preludeName "delay"
 
-namePatternMatchError = preludeName "error-pattern-match"
+namePatternMatchError = preludeName "error-pattern"
 nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
+nameDec              = preludeName "dec"
 
 nameAssign      = preludeName ":="
 nameAssigned    = newName "assigned"
@@ -151,8 +170,9 @@ nameDeref       = preludeName "!"
 nameByref       = preludeName ".&"
 nameIndex       = newName "[]"
 
-nameTpArray     = qualify (newName "std/array") (newName "array") 
+nameTpArray     = qualify (newName "std/data/array") (newName "array")
 nameTpVector    = preludeName "vector"
+nameVector      = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 nameDecreasing  = preludeName "unsafe-decreasing"
@@ -178,23 +198,39 @@ nameEffectAppend= newName ".<+>"
 nameTpHandled   = preludeName "handled"
 nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
+nameTpHandlerBranch0 = preludeName "handler-branch0"
+nameTpHandlerBranch1 = preludeName "handler-branch1"
+
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
-nameTpYld       = preludeName "yld"
 nameTpCont      = preludeName "cont"
 nameEnsureK     = preludeName "ensureK"
-nameTpAsync     = preludeName "async"
+nameTpAsync     = qualify (newName "std/async") (newName "async")
+nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
-nameYieldOp     = preludeName ".yieldop"
-nameYieldOp1    = preludeName ".yieldop1"
+nameYieldOp n    = preludeName (".yieldop" ++ (if (n == 0) then "" else "-x" ++ show n))
 nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"
-nameMakeHandler shallow n 
-  = preludeName (".make" ++ (if shallow then "Shallow" else "") ++ "Handler" ++ show n)
-nameMakeHandlerRet n 
+nameMakeHandler handlerSort n
+  = preludeName (".make" ++ (if (not (isHandlerDeep handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
+nameMakeHandlerRet n
   = preludeName (".makeHandlerRet" ++ show n)
+
+nameMakeContextTp n = preludeName ("resume-context" ++ (if (n==0) then "" else "1"))
+
+nameMakeNull    = preludeName ".null-any"
+nameConstNull   = preludeName "null-const"
+nameReturnNull   = preludeName "null-return"
+nameReturnNull1   = preludeName "null-return1"
+
+nameLift        = preludeName "lift"
+nameBind        = preludeName "bind"
+nameTpYld       = preludeName "yld"
+nameInject      = preludeName ".inject-effect"
+nameInjectExn   = preludeName "inject-exn"
+nameInjectResource = preludeName ".inject-resource"
 
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
@@ -208,11 +244,16 @@ nameTpFloat     = preludeName "double"
 nameTpChar      = preludeName "char"
 nameTpString    = preludeName "string"
 nameTpAny       = preludeName "any"
+nameTpNull      = preludeName "null"
 
 nameTpIO        = preludeName "io"
 nameTpUnit      = preludeName "()"
 nameTpRef       = preludeName "ref"
 nameRef         = preludeName "ref"
+nameTpLocalVar  = preludeName "local-var"
+nameTpLocal     = preludeName "local"
+nameLocal       = preludeName "local-var"
+nameRunLocal    = preludeName "local-scope"
 
 nameTpTotal     = preludeName "total"
 nameTpPartial   = preludeName "exn"
@@ -230,8 +271,7 @@ nameTpException  = preludeName "exception"
 
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
-nameTpBuilder   = qualify (newName "std/string") (newName "builder")
-nameTpTime      = qualify (newName "std/time") (newName "time")
+nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
 nameTuple :: Int -> Name
 nameTuple n     = preludeName ("(" ++ (replicate (n-1) ',') ++ ")")
@@ -247,13 +287,13 @@ preludeName s
 
 nameSystemCore  = newName "std/core"
 nameCore        = newName "core"
-nameDict        = newName "std/dict"
+nameDict        = newName "std/data/dict"
 
 toShortModuleName :: Name -> Name
 toShortModuleName name
   = let short = last (splitModuleName name) in
     if (short == nameCore) then nameSystemCore else short  -- so primitives can be qualified correctly
-    
+
 {--------------------------------------------------------------------------
   Primitive kind constructors
 --------------------------------------------------------------------------}
@@ -263,5 +303,6 @@ nameKindFun     = newName "->"
 nameKindPred    = newName "P"
 nameKindEffect  = newName "E"
 nameKindHeap    = newName "H"
+nameKindScope   = newName "S"
 nameKindHandled = newName "HX"
 nameKindHandled1 = newName "HX1"

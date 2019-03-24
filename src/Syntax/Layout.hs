@@ -253,7 +253,7 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexIdOp _   -> True
           LexCons _   -> True
           LexInt _ _  -> True
-          LexFloat _  -> True
+          LexFloat _ _-> True
           LexChar _   -> True
           LexString _ -> True
           LexSpecial s -> s `elem` ["}",")","]"]

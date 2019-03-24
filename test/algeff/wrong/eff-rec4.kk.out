@@ -1,0 +1,3 @@
+test/algeff/wrong/eff-rec4.kk(2, 1): error: Type .ops-state is declared as being (co)inductive but it occurs
+ recursively in a negative position.
+ hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences

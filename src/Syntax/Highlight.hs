@@ -20,7 +20,7 @@ module Syntax.Highlight( Context(..), Nesting(..), Token(..), TokenComment(..)
                        , isKeywordOp
                        ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.Char( isAlpha, isSpace, isAlphaNum, toLower )
 import Lib.Printer
 import Common.ColorScheme
@@ -86,7 +86,7 @@ showLexeme :: Lexeme -> String
 showLexeme (Lexeme _ lex)
   = case lex of
       LexInt _ _    -> show lex
-      LexFloat d    -> show d
+      LexFloat _ _  -> show lex
       LexString s   -> show s
       LexChar c     -> show c
       LexId id      -> show id
@@ -221,8 +221,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
             LexIdOp id    -> fmt (TokOp id "") (showId (unqualify id))
-            LexInt i isHex-> fmt TokNumber (show lex)
-            LexFloat d    -> fmt TokNumber (show d)
+            LexInt _ _    -> fmt TokNumber (show lex)
+            LexFloat _ _  -> fmt TokNumber (show lex)
             LexString s   -> fmt TokString (show s)
             LexChar c     -> fmt TokString (show c)
             
@@ -336,7 +336,7 @@ adjustContext ctx lex lexs
 
 lexComment :: FilePath -> Int -> String -> [TokenComment Lexeme]
 lexComment sourceName lineNo content
-  = -- trace "lex comment: " $
+  = -- trace ("lex comment:\n" ++ content ++ "\n\n")  $
     scan lineNo [] [] (filter (/= '\r') content)  
   where
     -- Top level
@@ -443,7 +443,8 @@ lexComment sourceName lineNo content
 
     endCodeBlock n com m lacc pre acc rest      = let src     = dropLine (reverse acc)
                                                       lexemes = lexer sourceName m (stringToBString src) 
-                                                  in scan n (com (lexemes) (if null pre then src else (pre ++ "\n" ++ src)) : lacc) [] rest
+                                                  in -- trace("code block:\n" ++ src ++ "\n\n") $
+                                                     scan n (com (lexemes) (if null pre then src else (pre ++ "\n" ++ src)) : lacc) [] rest
 
 
     onLine pre post

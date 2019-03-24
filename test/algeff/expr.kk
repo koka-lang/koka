@@ -89,12 +89,12 @@ fun show( r : either<string,(int,int)> ) : total string {
 // --------------------------------------------------------
 
 effect exc {
-  fail(s : string) : a
+  fun failure(s : string) : a
 }
 
 val exc = handler {
-  return x -> Right(x)
-  fail(s)  -> Left(s)
+  return x   -> Right(x)
+  failure(s) -> Left(s)
 }
 
 fun eval1( e : expr ) : exc int {
@@ -103,7 +103,7 @@ fun eval1( e : expr ) : exc int {
     Div(e1,e2) -> {
       val x = eval1(e1)
       val y = eval1(e2)
-      if (y==0) then fail("divide by zero") else x / y
+      if (y==0) then failure("divide by zero") else x / y
     }
   }
 }
@@ -130,12 +130,12 @@ fun show1( x : either<string,int> ) {
 // --------------------------------------------------------
 
 effect state {
-  tick() : ()
+  fun tick() : ()
 }
 
 val state = handler(i) {
   return x -> (x,i)
-  tick()   -> resume(i+1,())
+  tick()   -> resume((),i+1)
 }
 
 fun eval2( e : expr ) : <state,exc> int {
@@ -145,7 +145,7 @@ fun eval2( e : expr ) : <state,exc> int {
       val x = eval2(e1)
       val y = eval2(e2)
       tick()
-      if (y==0) then fail("divide by zero") else x / y
+      if (y==0) then failure("divide by zero") else x / y
     }
   }
 }
@@ -165,7 +165,7 @@ fun show2( x : (either<string,int>,int) ) : string {
 // --------------------------------------------------------
 
 effect out {
-  line(e:expr) : ()
+  fun line(e:expr) : ()
 }
 
 val out = handler {
@@ -184,7 +184,7 @@ fun eval3( e : expr ) : <out,state,exc> int {
       val x = eval3(e1)
       val y = eval3(e2)
       tick()
-      if (y==0) then fail("divide by zero") else x / y
+      if (y==0) then failure("divide by zero") else x / y
     }
   }
 }

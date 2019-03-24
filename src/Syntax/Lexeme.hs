@@ -36,8 +36,8 @@ data Lexeme = Lexeme !Range !Lex
             deriving Eq
 
 -- | A lexical token.
-data Lex    = LexInt     !Integer !String {- orginal number, used for documentation -}
-            | LexFloat   !Double
+data Lex    = LexInt     !Integer !String {- original number, used for documentation -}
+            | LexFloat   !Double !String {- original number, used for documentation -}
             | LexChar    !Char
             | LexString   !String
             | LexId       !Name
@@ -93,7 +93,7 @@ instance Enum Lex where
   fromEnum lex
     = case lex of
         LexInt _ _      -> 0
-        LexFloat _      -> 1
+        LexFloat _ _    -> 1
         LexChar _       -> 2
         LexString _     -> 3
         LexId  _        -> 4
@@ -135,7 +135,7 @@ showLex lex
   = -- showSpaces $
     case lex of
       LexInt i s    -> s -- if isHex then ("0x" ++ map toUpper (showHex i "")) else show i
-      LexFloat f    -> show f
+      LexFloat f s  -> s -- show f
       LexChar c     -> show c
       LexString s   -> show s
       LexId  id     -> "identifier \"" ++ show id ++ "\""

@@ -1,3 +1,0 @@
-dowait : (s : std/time/duration/duration) -> <async,console> string
-main : () -> <async,console> ()
-test : () -> <async,console> ()

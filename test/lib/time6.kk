@@ -8,8 +8,9 @@
 
 module time6
 
-public import std/num/fixed
+
 public import std/time
+
 
 /*----------------------------------------------------------------------------
   Testing
@@ -23,7 +24,7 @@ fun check(name : string, t1 : time, t2: time, tst : () -> io bool ) : io () {
   }
 }
 
-fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, print-every : int = 10) {
+public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, print-every : int = 10) {
   var prevt  := time(starty,1,0,tz=tz,cal=cal)
   var prevwd := prevt.weekday
   for(starty,endy) fun(y:int){
@@ -57,4 +58,8 @@ public fun main() {
   test-dates(tz=tz-fixed(~1),cal=cal-julian)
   test-dates(tz=tz-fixed(~1),cal=cal-tai)
   test-dates(tz=tz-fixed(1) ,cal=cal-gps)
+}
+
+public fun benchmark() {
+  print-elapsed(main)
 }

@@ -20,18 +20,20 @@ type array :: (H,V) -> V
 
 // used internally to have non-bound-checked access
 private extern inline unsafe-idx : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>|e> a with(hdiv<h,a,e>) {
-  cs inline "(#1)[#2]";
+  cs inline "(#1)[(int)#2]";
   js inline "(#1)[#2]";
 }
 
 private extern inline unsafe-assign : forall<h,a> ( a : array<h,a>, i : int, x : a ) -> write<h> () {
-  cs inline "(#1)[#2] = #3";
+  cs inline "(#1)[(int)#2] = #3";
   js inline "(#1)[#2] = #3";
 }
 
 // Return the `index` element of an array. Raises an exception for out-of-bounds access.
-extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) 
-  { inline "(#1)[#2]" }
+extern inline [] : forall<h,a,e> ( self : array<h,a>, index : int ) -> <read<h>,exn|e> a with(hdiv<h,a,e>) { 
+  cs inline "(#1)[(int)#2]" 
+  js inline "(#1)[#2]"
+}
 
 // Return the length of an `:array`.
 extern inline length : forall<h,a> ( self : array<h,a> ) -> int { 
@@ -40,28 +42,27 @@ extern inline length : forall<h,a> ( self : array<h,a> ) -> int {
 }
 
 // Assign to element `i`  in an array `a` . May raise an out-of-bounds exception
-extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  
-  { inline "(#1)[#2] = #3" }
+extern inline [] : forall<h,a> ( a : array<h,a>, i : int, assigned : a ) -> <write<h>,exn> ()  { 
+  cs inline "(#1)[(int)#2] = #3" 
+  js inline "(#1)[#2] = #3" 
+}
 
 // Create a new array of length `n`  with initial elements `a` .
 extern inline array  : forall<h,a> (n : int, default : a) -> array<h,a> { 
-  cs inline "Primitive.NewArray<##2>(#1,#2)"
+  cs inline "Primitive.NewArray<##2>((int)#1,#2)"
   js inline "Array(#1)"
 }
  
 // Create a zero length array
+/*
 extern inline array : forall<h,a> () -> array<h,a> {
   cs inline "new ##2[0]"
 }
+*/
 
 private extern inline unsafe-array  : forall<h,a> (n : int) -> array<h,a> { 
-  cs inline "new ##2[#1]"
+  cs inline "new ##2[(int)#1]"
   js inline "Array(#1)"
-}
-
-private extern inline array-copy    : forall<h,a> ( src : array<h,a>, dest : array<h,a>, len : int ) -> read<h> ()  { 
-  cs inline "Array.Copy(#1,#2,#3)"
-  js inline "error('arrayCopy')"
 }
 
 private extern inline unsafe-freeze : forall<h,a> ( self : array<h,a> ) -> read<h> vector<a> { 
@@ -70,23 +71,22 @@ private extern inline unsafe-freeze : forall<h,a> ( self : array<h,a> ) -> read<
 }
 
 // Copy an array
-fun copy( self : array<h,a> ) : read<h> array<h,a> {
-  val dest = unsafe-array(self.length)
-  array-copy(self,dest,self.length)
-  return dest
+extern inline clone( self : array<h,a> ) : read<h> array<h,a> {
+  cs inline "(##1[])(#1).Clone()"
+  js inline "(#1).slice(0)"
 }
 
 // Convert an array to a vector (to guarantee safety, a copy is made)
 fun vector( self : array<h,a> ) : read<h> vector<a>
 {
-  copy(self).unsafe-freeze()
+  clone(self).unsafe-freeze()
 }
 
 
 // Convert a vector to an array (by making a copy)
 extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> { 
-  cs inline "(##2[])Array.Clone(#1)";
-  js inline "#1"
+  cs inline "(##1[])(#1).Clone()"
+  js inline "(#1).slice()"
 }
 
 

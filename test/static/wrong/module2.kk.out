@@ -1,2 +1,2 @@
 test/static/wrong/module2.kk(2, 3): error: could not find module: static/doesNotExist
- search path: lib,test
+ search path: .../lib,lib,test

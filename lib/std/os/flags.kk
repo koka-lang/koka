@@ -159,7 +159,7 @@ public type flag-parser<a> {
 
 // Return a nicely formatted string describing the usage of a command,
 // consisting of a `header` followed by the descriptions of the `flags`.
-// The default header is `"usage:\n program [flags] arguments\n\nflags:"`.
+// The default header is ``"usage:\n program [flags] arguments\n\nflags:"``.
 public fun usage( flags : list<flag<a>>, header : string = "usage:\n program [flags] arguments\n\nflags:" ) : string
 {
   fun align-left( xs : list<string> )
@@ -241,7 +241,7 @@ public fun parse( initial : a, flags : list<flag<a>>, args : list<string>, order
     match(opt) {
       Flg(set)   -> (set(o),xs,errs)
       Unknown(e) -> (o,xs,Cons(error-unknown-message(e),errs))
-      Error(e)   -> (o,xs,Cons(e,errs))
+      flags/Error(e)   -> (o,xs,Cons(e,errs))
       Arg(x)     -> (o,Cons(x,xs),errs)
       End        -> (o,xs,errs)
     }

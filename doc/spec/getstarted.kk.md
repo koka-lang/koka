@@ -39,9 +39,7 @@ Now we can build Koka itself:
 
        > git clone https://github.com/koka-lang/koka.git 
 
-   <!--
-  You can also use ``-b dev`` to get the latest development version.
-  -->
+   You can also use the flag ``-b dev`` to get the latest development version.
 
 2. Go to the newly created Koka directory:
 
@@ -249,15 +247,15 @@ fun foo() : <amb,state<int>> bool {
 }
 ```
 The handler for the `:state` effect takes a local parameter that
-is propagated through the `resume` function. 
+is propagated through the `resume` function (as its second argument):
 ```
 val state = handler(i) {
   return x -> x
   get()    -> resume(i,i)
-  set(j)   -> resume(j,())
+  set(j)   -> resume((),j)
 }
 ```
-Type of the `state` handler takes an initial state as an extra argument:
+The type of the `state` handler takes an initial state as an extra argument too: 
 
     > :t state
     \(|`:forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)`\)

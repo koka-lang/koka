@@ -19,7 +19,7 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, 
+import Common.NamePrim( nameTpYld, nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
                         nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK )
 import Common.Error
 import Common.Syntax
@@ -35,6 +35,7 @@ import Type.Operations( freshTVar )
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
+import Core.CoreVar
 
 cpsTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 cpsTransform penv defs
@@ -89,14 +90,14 @@ cpsExpr' topLevel expr
       -- open
       -- simplify open away if it is directly applied
         {-
-      App (App (TypeApp (Var open _) [effFrom, effTo]) [f]) args
+      App (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f]) args
         | getName open == nameEffectOpen 
         -> cpsExpr (App f args)
       -}
 
 
       --  lift _open_ applications
-      App eopen@(TypeApp (Var open _) [effFrom,effTo]) [f]
+      App eopen@(TypeApp (Var open _) [effFrom,effTo, _, _]) [f]
         | getName open == nameEffectOpen         
         -> do cpskFrom <- getCpsType effFrom
               cpskTo   <- getCpsType effTo
@@ -158,8 +159,8 @@ cpsExpr' topLevel expr
                   ftp = typeOf f -- ff
                   Just(_,feff,_) = splitFunType ftp
               isCps <- needsCpsType ftp
-              -- cpsTraceDoc $ \env -> text "app" <+> (if isCps then text "cps" else text "") <+> text "tp:" <+> niceType env (typeOf f)
-              if (not (isCps || isSpecialCps f))
+              -- cpsTraceDoc $ \env -> text "app" <+> (if isNeverCps f then text "never-cps" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
+              if ((not (isCps || isAlwaysCps f)) || isNeverCps f)
                then return $ \k -> 
                 f' (\ff -> 
                   applies args' (\argss -> 
@@ -294,7 +295,7 @@ cpsLetDef :: Bool -> Def -> Cps (TransX ([Def],[Def],[Def]) Expr)
 cpsLetDef recursive def
   = withCurrentDef def $
     do cpsk <- getCpsType (defType def)
-       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <> text ", result: " <> text (show (cpsk,defSort def)) -- <--> prettyExpr env (defExpr def)
+       -- cpsTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <.> text ", result: " <.> text (show (cpsk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((cpsk == PolyCps {-|| cpsk == MixedCps-}) && isDupFunctionDef (defExpr def))
         then cpsLetDefDup cpsk recursive def 
         else do -- when (cpsk == PolyCps) $ cpsTraceDoc $ \env -> text "not a function definition but has cps type" <+> ppType env (defType def)
@@ -371,7 +372,7 @@ isDupFunctionDef expr
 simplify :: Expr -> Expr
 simplify expr
   = case expr of
-      App (TypeApp (Var openName _) [eff1,eff2]) [arg]  
+      App (TypeApp (Var openName _) [eff1,eff2, _, _]) [arg]  
         | getName openName == nameEffectOpen && matchType eff1 eff2
         -> simplify arg
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
@@ -457,15 +458,17 @@ ensureK tname@(TName name tp) namek body
         def = Def name tp expr Private DefVal rangeNull ""
     in Let [DefNonRec def] body
 
-varK tp effTp resTp    = Var (tnameK tp effTp resTp) (InfoArity 0 1)
+varK tp effTp resTp    = Var (tnameK tp effTp resTp) InfoNone -- (InfoArity 0 1)
 tnameK tp effTp resTp  = tnameKN "" tp effTp resTp
 tnameKN post tp effTp resTp = TName (postpend post nameK) (typeK tp effTp resTp)
 typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing) 
-                           [tp,effTp,resTp]
-                           (TFun [(nameNil,tp)] effTp resTp) 
+                          {- [tp,effTp,resTp]
+                           (TFun [(nameNil,tp)] effTp resTp) -}
+                           [tp, effTp, tp]
+                           (TFun [(nameNil,tp)] effTp tp)
                           -- TFun [(nameNil,tp)] typeTotal typeYld
  
-typeYld   = TCon (TypeCon (nameTpYld) kindStar)
+typeYld   = TCon (TypeCon (nameTpYld) (kindFun kindStar kindStar))
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
@@ -483,11 +486,19 @@ varApplyK k x
 --------------------------------------------------------------------------}  
 
 -- Some expressions always need cps translation
-isSpecialCps :: Expr -> Bool
-isSpecialCps expr
+isAlwaysCps :: Expr -> Bool
+isAlwaysCps expr
   = case expr of
-      TypeApp e _ -> isSpecialCps e
+      TypeApp e _ -> isAlwaysCps e
       Var v _     -> getName v == nameYieldOp || getName v == nameUnsafeTotal
+      _ -> False
+
+-- Some expressions never need cps translation
+isNeverCps :: Expr -> Bool
+isNeverCps expr
+  = case expr of
+      TypeApp e _ -> isNeverCps e
+      Var v _     -> getName v == canonicalName 1 nameDeref 
       _ -> False
 
 -- Does this definition need any cps translation (sometimes deeper inside)
@@ -500,7 +511,7 @@ needsCpsDef def
 needsCpsExpr :: Expr -> Cps Bool
 needsCpsExpr expr
   = case expr of
-      App (TypeApp (Var open _) [_, effTo]) [_] | getName open == nameEffectOpen
+      App (TypeApp (Var open _) [_, effTo, _, _]) [_] | getName open == nameEffectOpen
         -> needsCpsEffect effTo
       App f args 
         -> anyM needsCpsExpr (f:args)

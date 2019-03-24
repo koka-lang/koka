@@ -116,7 +116,7 @@ instance Pretty InfGamma where
     
 ppInfGamma :: Env -> InfGamma -> Doc
 ppInfGamma env infgamma
-    = vcat [fill maxwidth (ppName env name) <> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes]
     where
       nameSchemes   = infgammaList infgamma

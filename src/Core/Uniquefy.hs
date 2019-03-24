@@ -78,11 +78,11 @@ uniquefy core
        return (core{coreProgDefs = defGroups})
   where
     uniquefyDG (DefNonRec def)
-      = fmap DefNonRec $ 
+      = fmap DefNonRec $
         do expr <- uniquefyExpr (defExpr def)
            return def{ defExpr = expr }
     uniquefyDG (DefRec defs)
-      = fmap DefRec $ 
+      = fmap DefRec $
         do exprs <- mapM (uniquefyExpr . defExpr) defs
            return [def{ defExpr = expr } | (def,expr) <- zip defs exprs]
 
@@ -94,7 +94,7 @@ uniquefyDefGroup defgroup
       DefNonRec def
         -> fmap DefNonRec $ uniquefyDef def
       DefRec defs
-        -> fmap DefRec $ 
+        -> fmap DefRec $
            do locals <- getLocals
               setLocals (foldr (\name locs -> S.insert name locs) locals (map defName defs))
               exprs <- localized $ mapM (uniquefyExpr . defExpr) defs
@@ -105,9 +105,9 @@ uniquefyDefGroup defgroup
 uniquefyInnerDefGroup :: DefGroup -> Un DefGroup
 uniquefyInnerDefGroup dg
   = case dg of
-      DefNonRec def 
+      DefNonRec def
         -> fmap DefNonRec $ uniquefyDef def
-      DefRec defs   
+      DefRec defs
         -> fmap DefRec $ uniquefyRecDefs defs
 
 uniquefyRecDefs :: [Def] -> Un [Def]
@@ -127,7 +127,7 @@ uniquefyExpr expr
   = case expr of
       Lam tnames eff expr-> localized $
                             do tnames1 <- mapM uniquefyTName tnames
-                               expr1   <- uniquefyExpr expr                               
+                               expr1   <- uniquefyExpr expr
                                return (Lam tnames1 eff expr1)
       Var tname info    -> do renaming <- getRenaming
                               case M.lookup (getName tname) renaming of
@@ -145,8 +145,8 @@ uniquefyExpr expr
       Let defGroups expr  -> do defGroups1 <- mapM uniquefyInnerDefGroup defGroups
                                 expr1 <- uniquefyExpr expr
                                 return (Let defGroups1 expr1)
-      Case exprs branches 
-        -> do exprs1 <- mapM uniquefyExpr exprs 
+      Case exprs branches
+        -> do exprs1 <- mapM uniquefyExpr exprs
               branches1 <- localized $ mapM uniquefyBranch branches
               return (Case exprs1 branches1 )
 
@@ -164,6 +164,7 @@ uniquefyGuard (Guard test expr)
 uniquefyPattern pattern
   = case pattern of
       PatWild -> return pattern
+      PatLit _ -> return pattern
       PatVar tname pat -> do tname' <- uniquefyTName tname
                              pat'   <- uniquefyPattern pat
                              return (PatVar tname' pat')
@@ -177,6 +178,8 @@ uniquefyTName tname
        return (TName name1 (typeOf tname))
 
 uniquefyName :: Name -> Un Name
+uniquefyName name | name == nameNil
+  = return name
 uniquefyName name
   = do locals <- getLocals
        if (S.member name locals)

@@ -1,14 +1,14 @@
 module wrong/linear1
 
 effect linear state<s> {
-  get() : s;
-  put(x : s) : ()
+  fun get() : s
+  fun put(x : s) : ()
 }
 
 val state = handler(s) {
   return x -> x
   get()    -> resume(s,s)
-  put(t)   -> 20 + resume(t,()) + resume(t,()) 
+  put(t)   -> 20 + resume((),t) + resume((),t) 
 }
 
 fun foo() {

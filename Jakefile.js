@@ -10,6 +10,8 @@ var fs = require("fs");
 var path = require("path");
 var child = require("child_process");
 
+var Colors = require("colors");
+var Diff   = require("diff");
 
 //-----------------------------------------------------
 // Get the version from the package.json file
@@ -22,7 +24,7 @@ function setVersion() {
     var matches = content.match(/"version"\s*\:\s*"([\w\.\-]+)"/);
     if (matches && matches.length >= 2) version = matches[1];
   }
-} 
+}
 setVersion();
 
 //-----------------------------------------------------
@@ -33,10 +35,13 @@ var exeExt      = (path.sep==="\\" ? ".exe" : "");
 var platformVariant = "cpp"; // other options: hugs and haddock
 var platformVariantPath = path.join("Platform",platformVariant,"Platform")+path.sep;
 
-var hsCompiler  = "ghc";
+var hsStack     = "stack ghc --"
+var hsCompiler  = (process.env.build_with_stack && hsStack || "ghc");
+var useStack    = hsCompiler === hsStack;
 var hsFlags     = "-fwarn-incomplete-patterns";
-var hsLinkFlags = ["base","containers","directory","process","random","mtl","text","parsec"].map(function(p){ return "-package " + p; }).join(" ");
 var hsRunFlags  = "";
+var hsPackages  = ["text","parsec"];
+var hsLinkFlags = (["base","containers","directory","process","mtl"].concat(hsPackages)).map(function(p){ return "-package " + p; }).join(" ");
 
 var alexCompiler= "alex";
 var alexFlags   = "--latin1";
@@ -52,7 +57,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/lib " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/async -itest/resource -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   hsFlags += " -prof -fprof-auto -O2";
@@ -73,12 +78,12 @@ else if (variant === "trace") {
 
 
 //-----------------------------------------------------
-// Tasks: compilation 
+// Tasks: compilation
 //-----------------------------------------------------
 task("default",["interactive"]);
 
 desc("build and run the compiler (default)");
-task("interactive", ["config","compiler"], function(rebuild) {
+task("interactive", ["compiler"], function(rebuild) {
   var libDir = path.join(outputDir,libraryDir);
   jake.mkdirP(libDir);
   var cmd = mainExe + " " + hsRunFlags + " --outdir=" + libDir + " " + kokaFlags;
@@ -89,7 +94,7 @@ task("interactive", ["config","compiler"], function(rebuild) {
 
 desc(["build the compiler (" + mainExe + ")",
       "     compiler[rebuild]  # force a rebuild (where dependencies are ignored)"].join("\n"));
-task("compiler", [], function(rebuild) {
+task("compiler", ["config"], function(rebuild) {
   rebuild = rebuild || false;
   initializeDeps(allItems,false,function(items) {
     build("koka " + version + " (" + variant + " version)",rebuild,items);
@@ -99,32 +104,46 @@ task("compiler", [], function(rebuild) {
 
 desc("load the compiler in ghci");
 task("ghci", ["compiler"], function(module) {
-  var cmd = "ghci " + path.join(outputDir,variant,"Platform","cconsole.o") + hsRunFlags 
-                + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp") 
+  var cmd = "ghci " + path.join(outputDir,variant,"Platform","cconsole.o") + hsRunFlags
+                + " -i" + sourceDir + " -i" + path.join(sourceDir,"Platform","cpp")
                   + " " + path.join(sourceDir,(module ? module + ".hs" : "Main.hs"));
   jake.logger.log("> " + cmd);
-  jake.exec(cmd + " 2>&1", {interactive: true});  
+  jake.exec(cmd + " 2>&1", {interactive: true});
 });
 
-desc("run 'npm install' to install prerequisites");
+
+desc("run 'cabal install' to install prerequisites");
 task("config", [], function () {
-  if (!fileExist("node_modules")) {
-    var cmd = "npm install";
-    jake.logger.log("> " + cmd);
-    jake.exec(cmd + " 2>&1", {interactive: true}, function() { complete(); });
-  }
-  else {
-    complete();
-  }
+  jake.logger.log("check for packages: " + hsPackages.join(" "))
+  var lstCmd = (useStack && "stack exec " || "") + "ghc-pkg list";
+
+  child.exec(lstCmd, function (error, stdout, stderr) {
+    if (error) stdout = "";
+    var foundall = hsPackages.every( function(pkg) {
+      return ((new RegExp("\\b" + pkg + "-")).test(stdout));
+    });
+    if (foundall) {
+      complete();
+    } else {
+      var installCmd = useStack
+        && "stack init && stack build --only-snapshot"
+        || "cabal install text random parsec alex";
+      jake.logger.log("> " + installCmd);
+      jake.exec(installCmd + " 2>&1", {interactive: true}, function() { complete(); });
+    }
+  });
 },{async:true});
 
+
 //-----------------------------------------------------
-// Tasks: clean 
+// Tasks: clean
 //-----------------------------------------------------
 desc("remove all generated files");
 task("clean", function() {
   jake.logger.log("remove all generated files");
   jake.rmRf(outputDir);
+  jake.rmRf(".stack-work/");
+  jake.rmRf("stack.yaml");
 });
 
 desc("remove just koka generated interface files");
@@ -139,7 +158,7 @@ task("iclean", function() {
 
 
 //-----------------------------------------------------
-// Tasks: test 
+// Tasks: test
 //-----------------------------------------------------
 desc(["run tests.",
       "     test[<dir|file>,<mode>]  # use <dir|file> to run the tests ('test')",
@@ -184,15 +203,15 @@ task("grammar",[],function(testfile)
 var cmdMarkdown = "node ../../../madoko/lib/cli.js"; // "madoko";
 var docsite  = (process.env.docsite || "https://koka-lang.github.io/koka/doc/"); // http://research.microsoft.com/en-us/um/people/daan/koka/doc/");
 var doclocal = (process.env.doclocal || "..\\koka-pages\\doc"); // \\\\research\\root\\web\\external\\en-us\\UM\\People\\daan\\koka\\doc");
-          
-desc("generate the language specification")  
+
+desc("generate the language specification")
 task("spec", ["compiler"], function(mode) {
   jake.logger.log("build language specification");
   var outspec   = path.join(outputDir,"spec");
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
   var specdir   = path.join("doc","spec");
-  var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");  
+  var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");
   var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
@@ -211,7 +230,7 @@ task("spec", ["compiler"], function(mode) {
       copyFiles(specdir,files,outspec);
       files = new jake.FileList().include(path.join(specdir,"*.bib"))
                                  .toArray();
-      copyFiles(specdir,files,outspec);      
+      copyFiles(specdir,files,outspec);
       // copy images
       var imgs1 = new jake.FileList().include("lib/std/time/*.png").toArray();
       copyFiles("lib/std/time",imgs1,outspec);
@@ -219,9 +238,9 @@ task("spec", ["compiler"], function(mode) {
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"kokaspec.md"))
                                         .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
-      console.log(xmpFiles)                                        
+      console.log(xmpFiles)
       command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
-        jake.cpR(path.join(outspec,"madoko.css"),outstyles);      
+        jake.cpR(path.join(outspec,"madoko.css"),outstyles);
         if (mode === "publish") {
           // copy to website
           files = new jake.FileList().include(path.join(outspec,"*.html"))
@@ -242,7 +261,7 @@ task("guide", ["compiler"], function(publish) {
   var outguide  = path.join(outputDir,"guide");
   var outstyles = path.join(outguide,"styles");
   var guidedir  = path.join("doc","rise4fun");
-  var docflags  = publish ? "--htmlbases=" + docsite + " " : "";  
+  var docflags  = publish ? "--htmlbases=" + docsite + " " : "";
   var cmd = mainExe + " -c -l --outdir=" + outguide + " -i" + guidedir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "guide.kk.md", function() {
     // convert markdown
@@ -264,11 +283,11 @@ task("sublime", function(sversion) {
   var sversion = sversion || "3"
   if (process.env.APPDATA) {
     sublime = path.join(process.env.APPDATA,"Sublime Text " + sversion);
-  } 
+  }
   else if (process.env.HOME) {
-    if (path.platform === "darwin") 
+    if (process.platform === "darwin")
       sublime = path.join(process.env.HOME,"Library","Application Support","Sublime Text " + sversion);
-    else 
+    else
       sublime = path.join(process.env.HOME,".config","sublime-text-" + sversion);
   }
   sublime = path.join(sublime,"Packages");
@@ -282,8 +301,8 @@ task("sublime", function(sversion) {
 
     jake.mkdirP(sublimeCS);
     jake.cpR(path.join("support","sublime-text","Koka"),sublime);
-    jake.cpR(path.join("support","sublime-text",dirCS,"Snow.tmTheme"),sublimeCS);    
-    jake.cpR(path.join("support","sublime-text","Jake-Haskell.sublime-build"),path.join(sublime,"User"));    
+    jake.cpR(path.join("support","sublime-text",dirCS,"Snow.tmTheme"),sublimeCS);
+    jake.cpR(path.join("support","sublime-text","Jake-Haskell.sublime-build"),path.join(sublime,"User"));
   }
 });
 
@@ -297,7 +316,7 @@ var usageInfo = [
 function showHelp() {
   jake.logger.log(usageInfo);
   jake.showAllTaskDescriptions(jake.program.opts.tasks);
-  process.exit();  
+  process.exit();
 }
 
 desc("show this information");
@@ -320,7 +339,7 @@ else if (jake.program.opts.tasks) {
 // Note: the sources must be given in a canonical build order.
 //-----------------------------------------------------
 var cSources = [
-  cSource("Platform/cconsole.c",[sourcePath("Platform/cconsole.h")],"-fPIC"), 
+  cSource("Platform/cconsole.c",[sourcePath("Platform/cconsole.h")],"-fPIC"),
 ];
 
 // small helper to quote pre-processor define options in Platform.Config
@@ -328,11 +347,11 @@ function defD(name,val) { return ("-D" + name + (val ? "=\\\"" + val + "\\\" " :
 
 var defWindows = (/^win.*$/.test(process.platform) ? " -DWINDOWS" : "");
 
-var hsModules = [ 
-  { name: "Platform.Config", 
+var hsModules = [
+  { name: "Platform.Config",
       flags: defD("MAIN",main) + defD("VERSION",version) + defD("VARIANT",variant) + defWindows,
       deps: ["package.json"] }, // dependent on this build file (due to version)
-  "Platform.Runtime",  
+  "Platform.Runtime",
   "Platform.Var",
   { name: "Platform.Console", deps: [sourcePath("Platform/cconsole.c")] },
   "Platform.ReadLine",
@@ -354,6 +373,7 @@ var hsModules = [
   "Common.Failure",
   "Common.ColorScheme",
   "Common.File",
+  "Common.Syntax",
   "Common.Name",
   "Common.NameMap",
   "Common.NameSet",
@@ -367,8 +387,7 @@ var hsModules = [
   "Common.Message",
   "Common.Unique",
   "Common.Error",
-  "Common.Syntax",
-  
+
   "Syntax.Lexeme",
   alexModule("Syntax.Lexer"),
   { name: "Syntax.Lexer", deps: [sourcePath("Syntax/Lexer.x")] },
@@ -377,7 +396,7 @@ var hsModules = [
   "Syntax.Syntax",
   "Syntax.Promote",
   "Syntax.Parse",
-  
+
   "Kind.ImportMap",
   "Kind.Kind",
   "Kind.Pretty",
@@ -387,48 +406,51 @@ var hsModules = [
   "Type.Pretty",
 
   "Static.FixityResolve",
-  "Static.BindingGroups",  
+  "Static.BindingGroups",
   "Core.Core",
-  
+
   "Kind.Synonym",
   "Kind.Constructors",
   "Kind.Newtypes",
   "Kind.Assumption",
   "Core.Pretty",
+  "Core.CoreVar",
   "Type.Assumption",
   "Syntax.RangeMap",
-  
+
   "Kind.InferKind",
   "Kind.InferMonad",
   "Kind.Unify",
   "Kind.Infer",
-  
+
   "Type.Operations",
   "Type.Unify",
   "Type.InfGamma",
   "Type.InferMonad",
-  
+
   "Core.AnalysisMatch",
   "Core.Uniquefy",
-  "Core.Simplify",
   "Core.Divergent",
   "Core.BindingGroups",
-  
+  "Core.UnReturn",
+  "Core.Monadic",
+  "Core.AnalysisResume",
+  "Core.Simplify",
+
   "Type.Infer",
-  
+
   "Backend.CSharp.FromCore",
   "Backend.JavaScript.FromCore",
-  
+
   "Syntax.Colorize",
   "Core.GenDoc",
   "Core.Parse",
-  "Core.Cps",
   "Core.Check",
-  
+
   "Compiler.Package",
   "Compiler.Options",
   "Compiler.Module",
-  "Compiler.Compile",        
+  "Compiler.Compile",
   "Interpreter.Command",
   "Interpreter.Interpret",
   "Main",
@@ -448,27 +470,27 @@ var allItems = allSources.concat(exeItems);
 // Action items
 //-----------------------------------------------------
 
-function hsModule(mod,deps) {  
-  var src = (typeof mod === "string" ? src = { name: mod } : src = mod);  
+function hsModule(mod,deps) {
+  var src = (typeof mod === "string" ? src = { name: mod } : src = mod);
   if (src.cmds) return src; // already fully initialized (like alexModule)
-  
+
   src.source = sourcePathFromModule(src.name,".hs");
   src.deps = src.deps || [];
   src.deps.unshift(src.source);
   src.outputs = [objectFile(src.source),objectFile(src.source,".hi")];
   src.cmds = hsCompile(src.source,src.outputs[0],src.flags);
   src.infdeps = null;
-  src.infdepsUpdate = function(callback) { hsUpdateDeps(src.source,src,callback); }; 
+  src.infdepsUpdate = function(callback) { hsUpdateDeps(src.source,src,callback); };
   return src;
 }
 
 function alexModule(modName,deps,flags) {
   var src = { name: modName + ".x", source: sourcePathFromModule(modName,".x"), deps: deps || [] };
   src.deps.unshift(src.source);
-  src.outputs = [sourcePathFromModule(modName,".hs")];  
+  src.outputs = [sourcePathFromModule(modName,".hs")];
   src.cmds = alexCompile(src.source,src.outputs[0],flags);
   src.infdeps = []; // do not infer
-  //src.infdepsUpdate = null; // function(callback) { hsUpdateDeps(src.source,src,callback); }; 
+  //src.infdepsUpdate = null; // function(callback) { hsUpdateDeps(src.source,src,callback); };
   return src;
 }
 
@@ -504,7 +526,7 @@ function ghcCompile(filename,targetName,flags) {
 function cCompile(filename,targetName,flags) {
   flags = flags || "";
   var ensureDir = function(callback) { jake.mkdirP(path.dirname(targetName)); callback(); };
-  ensureDir.msg = "mkdir -p " + path.dirname(targetName); 
+  ensureDir.msg = "mkdir -p " + path.dirname(targetName);
   return [ensureDir, [hsCompiler,"-c " + filename,hsFlags,"-i" + buildDir,"-o " + targetName,flags].join(" ") ];
 }
 
@@ -542,7 +564,7 @@ function objectFile(fname,extension) {
   if (/\.h$/.test(fname)) {
     return fname;
   }
-  var filename = fname.replace(platformVariantPath, "Platform" + path.sep);  
+  var filename = fname.replace(platformVariantPath, "Platform" + path.sep);
   // otherwise return the corresponding object file
   extension = extension || ".o";
   return filename.replace(sourceDir,buildDir).replace(/\.[a-z]+$/,extension);
@@ -551,7 +573,7 @@ function objectFile(fname,extension) {
 function objectsFromSources(sources) {
   var objs = [];
   sources.forEach(function(src) {
-    src.outputs.forEach(function(out){ 
+    src.outputs.forEach(function(out){
       if (path.extname(out) === ".o") objs.push(out);
     });
   });
@@ -561,7 +583,7 @@ function objectsFromSources(sources) {
 function fileExist(fileName) {
   var stats = null;
   try {
-    stats = fs.statSync(fileName);    
+    stats = fs.statSync(fileName);
   }
   catch(e) {};
   return (stats != null);
@@ -580,15 +602,15 @@ function copyFiles(rootdir,files,destdir) {
     filename = normalize(filename);
     // make relative
     var destname = path.join(destdir,(rootdir && filename.lastIndexOf(rootdir,0)===0 ? filename.substr(rootdir.length) : filename));
-    var logfilename = (filename.length > 30 ? "..." + filename.substr(filename.length-30) : filename);    
-    var logdestname = (destname.length > 30 ? "..." + destname.substr(destname.length-30) : destname);    
+    var logfilename = (filename.length > 30 ? "..." + filename.substr(filename.length-30) : filename);
+    var logdestname = (destname.length > 30 ? "..." + destname.substr(destname.length-30) : destname);
     jake.logger.log("cp -r " + logfilename + " " + logdestname);
     jake.cpR(filename,path.dirname(destname));
   })
 }
 
 //-----------------------------------------------------
-// Manage inferred depencies: 
+// Manage inferred depencies:
 // usually calculated when an source is compiled
 //-----------------------------------------------------
 
@@ -601,7 +623,7 @@ function hsUpdateDeps(sourceName,item,callback) {
 
 
 // Return the imported module names from a haskell (or alex) file
-function importDeps(fileName, callback) {  
+function importDeps(fileName, callback) {
   var src = fs.readFileSync(fileName,{encoding:"utf8"}); // somehow must be synchronous or interactive processes afterwards read the console wrongly :-(
   var imports = [];
   var r   = /^\s*import\s+(qualified\s+)?([\w\'\.]+)/gm;
@@ -610,8 +632,8 @@ function importDeps(fileName, callback) {
     var mod = matches[2];
     if (findItem(hsModules,mod)) {
       imports.push(mod);
-    }    
-  }  
+    }
+  }
   callback(imports);
 }
 
@@ -621,14 +643,14 @@ function updateDeps(item,infdeps,callback) {
     callback();
   }
   else {
-    //jake.logger.log("deps: " + targetName + ": " + infdeps.join(","));  
+    //jake.logger.log("deps: " + targetName + ": " + infdeps.join(","));
     item.infdeps = infdeps;
     saveDeps(allItems,callback);  // hack: since the global allItems is updated in-place we can save from here
   }
 }
 
 function saveDeps(items,callback) {
-  var content = items.map( function(item) { 
+  var content = items.map( function(item) {
     if (item.infdeps) {
       return item.outputs[0] + ":" + item.infdeps.join(",");
     }
@@ -636,12 +658,12 @@ function saveDeps(items,callback) {
   }).join("\n");
   //jake.logger.log("write: " + depFile);
   fs.writeFileSync(depFile,content,{encoding: "utf8"}); // again, must be synchronous :-(
-  callback();                                                                                         
+  callback();
 }
 
 function initializeDeps(items,nodepend,callback) {
   if (nodepend) {
-    if (callback) callback(items);    
+    if (callback) callback(items);
   }
   else {
     var content = null;
@@ -695,7 +717,7 @@ function shouldRun(outputs,inputs,infdeps) {
   // if no inferred depencies, we must run too
   // note: null = no inferred depencies yet. undefined = we never infer for this kind of target
   if (infdeps===null) return true;
-  
+
   // find oldest output
   var outTime = null;
   var i;
@@ -704,10 +726,10 @@ function shouldRun(outputs,inputs,infdeps) {
     if (tm===null) {
       // jake.logger.log("output does not exist: " + outputs[i]);
       return true;
-    }  
+    }
     if (outTime===null) outTime = tm; // only first entry determines, this is for .hi files
   }
-  
+
   // check all inputs
   if (infdeps)  inputs = inputs.concat(infdeps);
   for (i=0; i<inputs.length; i++) {
@@ -742,9 +764,9 @@ function build( msg, rebuild, srcs, callback, current ) {
     var buildrest = function(){ build(msg,rebuild,srcs,callback,current+1); }
     if (rebuild || shouldRun(src.outputs,src.deps,src.infdeps)) {
       var run = function() { command(src.cmds, buildrest ); };
-      if (src.infdepsUpdate) 
+      if (src.infdepsUpdate)
         src.infdepsUpdate(run);
-      else 
+      else
         run();
     }
     else {
@@ -773,18 +795,36 @@ function command(cmds,callback,current) {
   if (msg && msg.length > msglen) {
     msg = msg.substr(0,msglen) + "..."
   }
-  if (msg) jake.logger.log("> " + msg);  
+  if (msg) jake.logger.log("> " + msg);
   if (typeof cmd === "string") {
     child.exec(cmd, function (error, stdout, stderr) {
       var logout = (error ? console.log : jake.logger.log);
-      var logerr = (error ? console.error : jake.logger.error);
+      function logerr(msg) {
+        if (/^.*\berror:/.test(msg)) {
+          msg = Colors.bold(Colors.red(msg));
+        }
+        else if (/^.*\bwarning:/.test(msg)) {
+          msg = Colors.green(msg);
+        }
+        else {
+          msg = Colors.bold(msg);
+        }
+        if (error) console.error(msg); else jake.logger.error(msg);
+      }
       if (error !== null && fullmsg && fullmsg.length > msglen) {
         logout(jake.program.opts.quiet ? fullmsg : fullmsg.substr(msglen)); // show rest of command on error
       }
       if (stdout && stdout.length > 0) logout(stdout.trim());
       if (stderr && stderr.length > 0) logerr(stderr.trim());
       if (error !== null) {
-        logerr("command failed with exit code " + error.code + ".");
+        logerr(("> " + cmd))
+        logerr(("\ncommand failed with exit code " + error.code + "."));
+        if (/error:\s+Failed to load interface for/.test(stderr)) {
+          logerr(["","---------------------------------------------------------------",
+                     "Perhaps you did not install all required Haskell packages?",
+                     "Run  \"jake config\"  first to install required Haskell packages.",
+                     "---------------------------------------------------------------"].join("\n"));
+        }
         process.exit(1);
       }
       command(cmds,callback,current+1);
@@ -803,26 +843,33 @@ var testMessage = "total time ";
 function runTests(test,testMode,flags,callback) {
   testMode = testMode||"";
   flags = flags || ("-i" + libraryDir + " -i" + testDir + " --outdir=" + path.join(outputDir,"test"));
-  flags = "--checkcore " + flags 
+  flags = "--checkcore " + flags
   fs.stat(test,function(err,stats) {
     if (err) {
-      jake.logger.error("file or directory does not exist: " + test);
-      process.exit(1);
+      //jake.logger.error("file or directory does not exist: " + test);
+      //process.exit(1);
     }
     var tests = [];
-    if (stats.isDirectory()) {
+    if (!err && stats.isDirectory()) {
       var testList = new jake.FileList();
       testList.include(path.join(test,"*.kk"));
       testList.include(path.join(test,"*","*.kk"));
       testList.include(path.join(test,"*","*","*.kk"));
-      tests = testList.toArray();  
+      tests = testList.toArray();
     }
     else {
-      tests = [test];
+      var testList = new jake.FileList();
+      testList.include(test);
+      // testList.include(test + ".kk");
+      tests = testList.toArray();
+    }
+    if (err && (tests == null || tests == [] )) {
+      jake.logger.error("file or directory does not exist: " + test);
+      process.exit(1);
     }
     // jake.logger.log("run " + (tests.length===1 ? "test" : tests.length + " tests over") + ": " + test);
     console.time(testMessage);
-    runTestList(tests.length,testMode,tests,flags,callback);      
+    runTestList(tests.length,testMode,tests,flags,callback);
   })
 }
 
@@ -838,7 +885,7 @@ function runTestList(n,testMode,tests,flags,callback,nooutCount,failedCount) {
     console.timeEnd(testMessage);
     if (callback) callback();
              else complete();
-  }  
+  }
   else {
     runTest(n,testMode,tests[tests.length - n],flags,function(status) {
       if (status === 2) failedCount++;
@@ -858,8 +905,8 @@ function runTest(n,testMode,testFile,flags,callback) {
         if (testMode==="new") {
           fs.writeFile(expectFile,output,{encoding: "utf8"},function(errout) {
             jake.logger.log( n + ": " + (errout ? errout.message : "wrote output file.") );
-            callback(1);  
-          });  
+            callback(1);
+          });
         }
         else {
           if (testMode==="verbose") {
@@ -872,8 +919,8 @@ function runTest(n,testMode,testFile,flags,callback) {
       else if (testMode==="update") {
         fs.writeFile(expectFile,output,{encoding: "utf8"},function(errout) {
           jake.logger.log( n + ": " + (errout ? errout.message : "updated output file.") );
-          callback(1);  
-        });          
+          callback(1);
+        });
       }
       else {
         if (testMode==="new") {
@@ -890,11 +937,24 @@ function runTest(n,testMode,testFile,flags,callback) {
         }
         else {
           //jake.logger.log( n + ": failed!" );
-          var msg = "----- expected output -----\n" + content 
+          /*
+          var msg = "----- expected output -----\n" + content
                       + "\n----- actual output -----\n" + output
                       + "\n-------------------------";
           msg = msg.split("\n").map(function(line) { return "    " + line }).join("\n");
           jake.logger.log( msg );
+          */
+          process.stderr.write("----- difference -----\n");
+          var diff = Diff.diffTrimmedLines(content,output);
+          diff.forEach(function(part){
+            // green for additions, red for deletions
+            // grey for common parts
+            var color = (part.added ? 'green' : (part.removed ? 'red' : 'grey'));
+            process.stderr.write(part.value[color]);
+            if (part.removed) process.stderr.write("\n");
+          });
+          process.stderr.write("\n");
+
           jake.logger.log( n + ": " + testFile + " failed.\n" );
           callback(2);
         }
@@ -909,7 +969,7 @@ function runTestFile(n,testFile,testMode,flags,callback) {
   fs.readFile(path.join(testDir,".flags"), { encoding: "utf8" }, function(err,content) {
     if (!err) flags += " " + content.trim().replace("\n"," ");
     fs.readFile(testFile + ".flags", { encoding: "utf8" }, function(err,content) {
-      if (!err) flags += " " + content.trim().replace("\n"," ");      
+      if (!err) flags += " " + content.trim().replace("\n"," ");
       var cmd = [mainExe,hsRunFlags," -c --console=raw",flags,testFile].join(" ");
       jake.logger.log(n + ": " + testFile);
       if (testMode==="verbose") jake.logger.log("> " + cmd);
@@ -921,7 +981,7 @@ function runTestFile(n,testFile,testMode,flags,callback) {
           // output += "command failed with exit code " + error.code + ".";
         }
         if (testMode) jake.logger.log(output);
-        output = testSanitize(output);      
+        output = testSanitize(output);
         if (callback) {
           callback(output);
         }
@@ -930,7 +990,7 @@ function runTestFile(n,testFile,testMode,flags,callback) {
           complete();
         }
       });
-    });    
+    });
   });
 }
 
@@ -946,5 +1006,6 @@ function testSanitize(s) {
           .replace(/[ \t]+/g, " ")   // compress whitespace
           .replace(/[\r\n]+/g, "\n") // compress newlines sequences
           .replace(/(std_core\.js\:)\d+/, "$1" )  // hide line number of an exception
-          .trim();                   // and trim
+          .replace(/\n\s+at .*/g, "") // hide stack trace in exceptions
+          .trim();                     // and trim
 }

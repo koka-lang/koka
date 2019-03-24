@@ -76,7 +76,7 @@ ppKind cscheme prec kind
                           
       KApp k1 k2     -> pparens prec precApp $
                         case collectArgs kind of
-                          (k:ks) -> ppKind cscheme (precApp-1) k <> commaParens (ppKind cscheme precTop) ks
+                          (k:ks) -> ppKind cscheme (precApp-1) k <.> commaParens (ppKind cscheme precTop) ks
                           _     -> matchFailure "Kind.Pretty.ppKind.KApp"
 
   where

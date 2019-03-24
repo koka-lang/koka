@@ -1,18 +1,22 @@
-tz1: ok
-tz2: ok
-tz3a: ok
-tz3b: ok
-tz3c: ok
-tz4a: ok
-tz4b: ok
-tz4c: ok
-tz4d: ok
-tz4e: ok
-tzleap1: ok
-tzleap2: ok
-tzleap3: ok
-tzround1: ok
-tzround2: ok
-tzroundleap1: ok
-tzroundleap2: ok
-julian1: ok
+tz1 : ok: 1998-01-01T19:45:00+12:00
+tz2 : ok: 1999-01-01T18:44:59+11:00
+tz3 : ok: 1979-01-01T11:14:59+03:30
+tz3a : ok: 2011-03-13T01:15:00-05:00 (EST)
+tz3b : ok: 2011-03-13T01:15:00-05:00 (EST)
+tz3c : ok: 2011-03-13T03:15:00-04:00 (EDT)
+tz4a : ok: 2011-11-06T00:15:00-04:00 (EDT)
+tz4b : ok: 2011-11-06T01:15:00-04:00 (EDT)
+tz4c : ok: 2011-11-06T02:15:00-05:00 (EST)
+tz4d : ok: 2011-11-06T01:15:00-04:00 (EDT)
+tz4e : ok: 2011-11-06T01:15:00-05:00 (EST)
+tzleap1 : ok: 2016-12-31T15:59:60.500-08:00 (PST)
+tzleap2 : ok: 1999-01-01T10:59:60.500+11:00
+tzleap3 : ok: 1979-01-01T03:29:60.500+03:30
+tzleap4 : ok: 1978-12-31T23:59:59Z
+tzround1 : ok: 2011-03-13T01:59:59.999900-05:00 (EST)
+tzround2 : ok: 2011-03-13T03:00:00-04:00 (EDT)
+tzroundleap1 : ok: 1998-12-31T23:59:60Z
+tzroundleap2 : ok: 1978-12-31T23:59:60Z
+tzroundleap3 : ok: 1999-01-01T10:59:60+11:00
+tzroundleap4 : ok: 1979-01-01T03:29:60+03:30
+julian1 : ok: 1900-02-29T00:00:00Z JC

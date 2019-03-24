@@ -24,17 +24,17 @@ type mdict<h::H,a>
 // Create a mutable string dictionary
 extern mdict : forall<h,a> () -> alloc<h> mdict<h,a> {
   cs inline "new Primitive.MDict<##1,##2>()"
-  js inline "{}"
+  js inline "{ _count: 0 }"
 }
 
 private extern inline unsafe-index( md : mdict<h,a>, s : string ) : read<h> a {
   cs inline "((#1)[#2])"
-  js inline "((#1)[#2])"  
+  js inline "((#1)['/' + #2])"  
 }
 
 extern inline contains-key( md : mdict<h,a>, s : string ) : read<h> bool {
   cs inline "((#1).ContainsKey(#2))"
-  js inline "((#1)[#2]!==undefined)"
+  js inline "((#1)['/' + #2]!==undefined)"
 } 
 
 // Index into a string dictionary
@@ -46,7 +46,7 @@ fun []( md : mdict<h,a>, s : string ) : read<h> maybe<a> {
 // Return the keys in a dictionary
 extern keys( d : mdict<h,a> ) : read<h> vector<string> {
   cs inline "Primitive.DictKeys(#1)"
-  js inline "$dictKeys(#1)"
+  js inline "_dict_keys(#1)"
 }
 
 // Convert a dictionary to a vector of key/value pairs
@@ -62,23 +62,37 @@ fun list( d : mdict<h,a> ) : read<h> list<(string,a)> {
 }
 
 // Assign to a string dictionary
-extern inline []( md : mdict<h,a>, s : string, assigned : a ) : write<h> () {
+extern []( md : mdict<h,a>, s : string, assigned : a ) : write<h> () {
   cs inline "(#1)[#2] = #3"
-  js inline "(#1)[#2] = #3"
+  js "_dict_assign"
 }
 
 extern copy : forall<h,a> ( md : mdict<h,a> ) -> <alloc<h>,read<h>> mdict<h,a> {
   cs inline "new Primitive.MDict<##1,##2>(#1)"
-  js "$dictCopy"
+  js "_dict_copy"
 }
 
 // Freeze a mutable dictionary into a `:dict`
 extern freeze : forall<h,a> ( md : mdict<h,a> ) -> <alloc<h>,read<h>> dict<a> {
   cs inline "new Primitive.Dict<##2>(#1)"
-  js "$dictCopy"
+  js "_dict_copy"
 }
 
 
+extern clear( md : mdict<h,a> ) : write<h> () {
+  cs inline "(#1).Clear()"
+  js "_dict_clear"
+}
+
+extern remove( md : mdict<h,a>, s : string ) : <read<h>,write<h>> () {
+  cs inline "(#1).Remove(#2)"
+  js inline "delete #1['/'+#2]"
+}
+
+extern count( md : mdict<h,a> ) : int {
+  cs inline "(#1).Count"
+  js inline "#1._count"
+}
 
 // ----------------------------------------------------------------------------
 // Dictionaries
@@ -92,26 +106,28 @@ private extern inline null?( x : a) : bool  { inline "(#1 == null)" }
 // Create a new empty dictionary
 extern dict() : dict<a> {
   cs inline "new Primitive.Dict<##1>()"
-  js inline "{}"
+  js inline "{ _count: 0 }"
 }  
 
 private extern inline unsafe-dict-add( d : dict<a>, key : string, value : a ) : () {
-  inline "(#1)[#2] = (#3)"
+  cs inline "(#1)[#2] = (#3)"
+  js "_dict_assign"
 }
 
 private extern inline unsafe-dict-get( d : dict<a>, key : string ) : a {
-  inline "(#1)[#2]"
+  cs inline "(#1)[#2]"
+  js inline "((#1)['/' + #2])"
 }
 
 
 extern inline contains-key( d : dict<a>, key : string ) : bool {
   cs inline "((#1).ContainsKey(#2))"
-  js inline "((#1)[#2]!==undefined)"
+  js inline "((#1)['/' + #2]!==undefined)"
 } 
 
 private extern dict-copy( d : dict<a> ) : dict<a> {
   cs inline "new Primitive.Dict<##1>(#1)"
-  js inline "$dictCopy(#1)"
+  js "_dict_copy"
 }
 
 // Convert a dictionary to a vector of key/value pairs
@@ -129,7 +145,7 @@ fun list( d : dict<a> ) : list<(string,a)> {
 // Return the keys in a
 extern keys( d : dict<a> ) : vector<string> {
   cs inline "Primitive.DictKeys(#1)"
-  js inline "$dictKeys(#1)"
+  js "_dict_keys"
 }
 
 // Index into a string dictionary

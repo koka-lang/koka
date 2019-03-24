@@ -9,7 +9,7 @@
 // Testing leap seconds
 module time2
 
-public import std/num/fixed
+public import std/num/ddouble
 public import std/time
 
 /*----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ fun test-leap() {
   check("leap7", "1972-01-01T00:00:00Z" ) {  instant(1972,1,1,0,0,10,cal=cal-tai).time.show  }
   // discontinuity 1961-08-01 of 0.05s
   check("leap8", "1961-07-31T23:59:59.902430Z" ) {  instant(1961,8,1,0,0,1,0.6,cal=cal-tai).time.show(6)  }
-  check("leap9", "1961-08-01T00:00:00.052430Z" ) {  instant(1961,8,1,0,0,1,0.7,cal=cal-tai).time.show(6)  }
+  check("leap9", "1961-08-01T00:00:00.062430Z" ) {  instant(1961,8,1,0,0,1,0.71,cal=cal-tai).time.show(6)  }
   // initial 0.005 leap second on 1961-01-01
   check("leap10", "1960-12-31T23:59:60.005Z") {  instant(1961,1,1,0,0,1,0.4228179,cal=cal-tai).time.show(3)  }
   check("leap11", "1961-01-01T00:00:00Z") {  instant(1961,1,1,0,0,1,0.4228181,cal=cal-tai).time.show(6)  }  
@@ -52,11 +52,17 @@ fun test-leap() {
   check("leap-ovf4", "2017-01-01T00:00:37Z TAI" ) {  instant(2017,1,1).time(cal=cal-tai).show  }
   // a negative leap second of 1968-02-01
   check("leap-neg1", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,1,31,23,59,59,0.9).time(cal=cal-tai).show(6)  }
-  check("leap-neg2", "1968-02-01T00:00:06.235681999Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show  }  // overflow of leap seconds
+  check("leap-neg2", "1968-02-01T00:00:06.235682Z TAI" ) {  instant(1968,1,31,23,59,59,0.95).time(cal=cal-tai).show(6)  }  // overflow of leap seconds
   check("leap-neg3", "1968-02-01T00:00:06.185682Z TAI" ) {  instant(1968,2,1).time(cal=cal-tai).show  }
+  // durations over leap seconds
+  check("leap-sub1","1.5s") { (time(2016,1,1,0,0,0,0.5) - time(2015,12,31,23,59,59)).show }
+  check("leap-sub2","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show }
+  check("leap-sub3","2.5s") { (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3))).show }
+  check("add-days1","2017-01-01T12:00:00Z") { time(2016,12,31,12).add-days(1).show }
+  check("add-days2","1582-10-15T00:00:00Z JG") { time(1582,10,4,cal=cal-jg).add-days(1).show}
 }
 
 public fun main() {
-  update-leaps-table(verbose=True)
+  //update-leaps-table(verbose=True)
   test-leap()
 }

@@ -1,0 +1,7 @@
+test/algeff/wrong/eff-rec3.kk(15, 5): error: types do not match (due to an infinite type)
+ context : get()(i)
+ term : get()
+ inferred effect: <state<(int) -> _e1 _a>|_e>
+ expected effect: _e1
+ because : effect cannot be subsumed
+ hint : annotate the function definition?

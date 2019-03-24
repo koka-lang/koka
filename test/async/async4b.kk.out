@@ -1,0 +1,2 @@
+main : () -> <std/async/asyncx,console,file> ()
+test : () -> <std/async/asyncx,console,file> ()
