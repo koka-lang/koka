@@ -6,20 +6,16 @@
 // stack space. Paper is forthcoming...
 // --------------------------------------------------------------
 
-implicit<s> val get : s
-implicit<s> control set(x : s) : ()
+ambient<s> val get : s
+ambient<s> control set(x : s) : ()
 
 fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with val get = init
   with control set(x){
-    with val get = x
-    // change effect of `resume(())` from `<get<a>|e>` to `<get<a>,get<c>|e>`.
-    // the runtime effect of `inject behind<get>` is to `inject` every
-    // `get` effect after the outer one.
-    // This is needed to have action to be truly polymorphic in the other
-    // effects `e`. For example, if we pass an action that has an `inject<get>`
-    // expression in it, we expect it *not* to be handled by us. See `test2`.
-    inject behind<get>{resume(())}
+    mask<get> {
+      with val get = x
+      resume(())
+    }
   }
   action()
 }
