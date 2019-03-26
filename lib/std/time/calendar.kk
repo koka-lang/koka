@@ -181,8 +181,7 @@ public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, c
 fun weekday( d : date, cal : calendar ) : weekday {
   // Generic algorithm for any calendar
   val i    = instant(d.year,d.month,d.day,cal=cal)
-  val days = i.mjd(cal.timescale).floor.int
-  val dow  = (days+3)%7        // plus 3 since MJD epoch was a wednesday  (note: 0 = sunday, 1 = monday, ..)
+  val dow  = (i.days+6)%7      // plus 6 since 2000-01-01 epoch was a Saturday  (note: 0 = sunday, 1 = monday, ..)
   dow.weekday                  // to ISO week day
 }
 
@@ -249,16 +248,10 @@ fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) :
                  Nothing -> {
                    // no explicit inverse,
                    // do a double pass to accommodate jumping over a DST boundary.
-
-                   // We need to ignore leap seconds during the timezone offset change.
-                   // in UTC:  instant(1979,1,1,3,29,59,tz=timezone("Asia/Tehran")).time.show == "1978-12-31T23:59:59Z"
-                   // and TAI: time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show == "1973-01-01T00:00:11-01:00 TAI"
                    val tzd1 = (tz.utc-delta)(i).fst
-                   //val tzi1 = ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd1.timespan) )
                    val tzi1 = ts.instant(t - tzd1.timespan)
                    val tzd2 = (tz.utc-delta)(tzi1).fst
                    if (tzd1==tzd2) then tzi1
-                    // else ts.instant-from-dayspan( solar-dayspan(ds.days,ds.secs - tzd2.timespan) )
                     else ts.instant(t - tzd2.timespan)
                  }
                }
