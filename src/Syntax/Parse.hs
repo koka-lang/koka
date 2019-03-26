@@ -764,7 +764,7 @@ dockeywordEffect
   = dockeyword "effect" <|> dockeyword "implicit" <|> dockeyword "ambient"
 
 keywordResource
-  = keywordOr "resource" ["dynamic"] <|> keyword "instance" <|> keyword "named"
+  = keyword "instance" <|> keyword "named" <|> keyword "dynamic"
 
 keywordFun
   = keywordOr "fun" ["function"]
@@ -1436,7 +1436,7 @@ handlerExprX braces rng
        handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort =     do keywordResource
-                     override <- do lapp
+                     override <- do lparen
                                     (name,rng) <- qidentifier
                                     rparen
                                     return (Just (Var name False rng))

@@ -9,7 +9,7 @@ import std/os/readline
 //  Exceptions
 // --------------------------------------------------------
 
-implicit control raise(s : string ) : a
+ambient control raise(s : string ) : a
 
 fun safe-div(x,y) {
   if (y==0) then raise("division by zero") else x / y
@@ -38,7 +38,7 @@ fun test1() {
 //  Input
 // --------------------------------------------------------
 
-implicit fun input() : string
+ambient fun input() : string
 
 fun hello() {
   val name = input()
@@ -54,7 +54,7 @@ fun test2() {
 //  State
 // --------------------------------------------------------
 
-implicit state<s> {
+ambient state<s> {
   fun get() : s
   fun put( x : s ) : ()
 }
@@ -93,7 +93,7 @@ fun test3() {
 //  Iterators
 // --------------------------------------------------------
 
-implicit<a> control yield( item : a ) : ()
+ambient<a> control yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () {
   match(xs) {
@@ -126,7 +126,7 @@ fun test4b() {
 //  Resume more than once
 // --------------------------------------------------------
 
-implicit control flip() : bool
+ambient control flip() : bool
 
 fun xor() : flip bool {
   val p = flip()

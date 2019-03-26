@@ -264,7 +264,7 @@ reservedNames
     , "implicit", "ambient" {- alternative name for implicit -}
     , "control"
     , "with"
-    , "resource", "instance", "named" {- alternative names for resource -}
+    , "instance", "named" {- alternative names for resource -}
     , "mask", "override"
 
     -- deprecated
