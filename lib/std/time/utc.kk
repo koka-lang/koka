@@ -354,12 +354,16 @@ public fun utc-timescale( name : string, leaps : leaps-table ) : timescale {
   fun from-tai(tai:duration)       { tai-to-utc(leaps,tai) }
   fun to-tai(utc:timestamp)        { utc-to-tai(leaps,utc) }
   fun seconds-in-day(utc:timestamp){ utc-seconds-in-day(leaps,utc) }
+  fun to-mjd(utc:timestamp,tzdelta:timespan){ utc-to-mjd(leaps,utc,tzdelta) }
+  fun from-mjd(days:int,frac:ddouble){ utc-from-mjd(leaps,days,frac) }
   timescale(
     name,
     from-tai,
     to-tai,
     "UTC",
-    Just(seconds-in-day)
+    Just(seconds-in-day),
+    Just(to-mjd),
+    Just(from-mjd)
   )
 }
 
@@ -417,6 +421,44 @@ fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
   val dtai1 = utc-to-delta-tai(leaps,timestamp-days(d + 1))
   solar-secs-per-day + (dtai1 - dtai0)
 }
+
+fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) : ddouble {
+  // calculate SI seconds of the day
+  val days0 = utc.days
+  val utc0  = timestamp-days(days0)
+  val utc1  = timestamp-days(days0 + 1)
+  val la0   = utc-to-leap-adjust(leaps,utc0)
+  val la1   = utc-to-leap-adjust(leaps,utc1)
+  val dtai0 = la0.delta-tai(utc0)
+  val dtai1 = la1.delta-tai(utc1)
+  val diff  = (dtai1 - dtai0).round-to-prec(3)  // round to not take drift into account
+  val secs-in-day = solar-secs-per-day + diff
+  // and calculate the fraction -- adjusted with the timezone delta!
+  val (days1,secs1) = (utc + tzdelta).days-seconds
+  val secs = if (utc < la1.utc-start) then secs1 + utc.leap.ddouble else secs1 + diff
+  (days1.ddouble + (secs / secs-in-day))
+}
+
+fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
+  // calculate SI seconds into the day
+  val utc0  = timestamp-days(days)
+  val utc1  = timestamp-days(days + 1)
+  val la0   = utc-to-leap-adjust(leaps,utc0)
+  val la1   = utc-to-leap-adjust(leaps,utc1)
+  val dtai0 = la0.delta-tai(utc0)
+  val dtai1 = la1.delta-tai(utc1)
+  val diff  = (dtai1 - dtai0).round-to-prec(3)  // round to not take drift into account
+  val secs-in-day = solar-secs-per-day + diff
+
+  // now adjust for time inside a leap second
+  val secs = secs-in-day * frac
+  val utc = timestamp-days(days,secs)
+  if (utc < la1.utc-start) then utc
+  elif (utc > la1.utc-start + diff) then utc - diff
+  else (utc - diff).add-leap-seconds(diff)
+}
+
+
 
 /* Converting TAI time back to UTC is not straigtforward as
 we need to estimate UTC at first as the leap table goes from UTC-to-TAI.
@@ -502,18 +544,22 @@ fun zero?( la : leap-adjust ) : bool {
 val utc1958 = timestamp(-1325376000) // 2000-01-01 - 1958-01-01 in NTP seconds
 
 fun utc-to-delta-tai( leaps : leaps-table, utc : utc-timestamp ) : timespan {
-  if (utc < utc1958)
-   then timespan0
-   else find-delta-tai(utc,leaps.adjusts)
+  utc-to-leap-adjust(leaps,utc).delta-tai(utc)
 }
 
-fun find-delta-tai( utc : utc-timestamp, leaps : list<leap-adjust> ) : timespan {
+fun utc-to-leap-adjust( leaps : leaps-table, utc : utc-timestamp ) : leap-adjust {
+  if (utc < utc1958)
+   then zero
+   else find-leap-adjust(utc,leaps.adjusts)
+}
+
+fun find-leap-adjust( utc : utc-timestamp, leaps : list<leap-adjust> ) : leap-adjust {
   match(leaps) {
-    Nil -> timespan0 // should never happen
+    Nil -> zero // should never happen
     Cons(la,earlier) {
       if (la.utc-start > utc)
-       then find-delta-tai(utc,earlier)
-       else la.delta-tai(utc)
+       then find-leap-adjust(utc,earlier)
+       else la
     }
   }
 }

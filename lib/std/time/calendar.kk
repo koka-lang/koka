@@ -190,8 +190,7 @@ fun weekday( d : date, cal : calendar ) : weekday {
 public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
   val i1 = instant(d1,cal=cal)
   val i2 = instant(d2,cal=cal)
-  val ts = cal.timescale
-  (i1.mjd(ts) - i2.mjd(ts)).floor.int
+  i1.days - i2.days
 }
 
 

@@ -114,7 +114,7 @@ public fun timestamp-days( days : int, secs : timespan = timespan0, leap : int =
 
 
 // Return days and seconds into the day, disregarding leap seconds.
-private fun days-seconds( ts : timestamp ) : (int,ddouble) {
+public fun days-seconds( ts : timestamp ) : (int,ddouble) {
   val secs = ts.since.floor
   val frac = ts.since - secs
   val (days,dsecs) = divmod(secs.int, isolar-secs-per-day)

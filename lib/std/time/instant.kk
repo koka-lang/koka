@@ -61,12 +61,14 @@ abstract struct timescale(
   to-tai      : timestamp -> duration,
   // `Nothing` for fixed 86400s days, or
   // a function to return the seconds in the day of the given `:dayspan` (for leap seconds timescales).
-  get-seconds-in-day : maybe<(timestamp) -> timespan>
+  mb-seconds-in-day : maybe<(t:timestamp) -> timespan> = Nothing,
+  mb-to-mjd2000 : maybe<(t:timestamp,tzdelta:timespan) -> ddouble> = Nothing,
+  mb-from-mjd2000 : maybe<(days:int,frac:ddouble) -> timestamp> = Nothing
 )
 
 // Does this timescale have leap seconds?
 public fun has-leap-seconds(ts : timescale) : bool {
-  ts.get-seconds-in-day.bool
+  ts.mb-seconds-in-day.bool
 }
 
 
@@ -116,7 +118,7 @@ public fun timescale( i : instant ) : timescale {
 
 // The seconds in the day of instant `i` (in its time scale).
 public fun seconds-in-day(i : instant) : timespan {
-  match(i.ts.get-seconds-in-day) {
+  match(i.ts.mb-seconds-in-day) {
     Nothing -> solar-secs-per-day
     Just(f) -> f(i.since)
   }
@@ -320,14 +322,18 @@ public fun timescale( name : string,
                       from-tai : duration -> timestamp,
                       to-tai   : timestamp -> duration,
                       unit : string = name,
-                      seconds-in-day : maybe<(timestamp) -> timespan> = Nothing
+                      seconds-in-day : maybe<(timestamp) -> timespan> = Nothing,
+                      to-mjd2000 : maybe<(t:timestamp,tzdelta:timespan) -> ddouble> = Nothing,
+                      from-mjd2000 : maybe<(days:int,frac:ddouble) -> timestamp> = Nothing
                     ) : timescale {
   Timescale(
     name,
     unit,
     from-tai,
     to-tai,
-    seconds-in-day
+    seconds-in-day,
+    to-mjd2000,
+    from-mjd2000
   )
 }
 
@@ -414,6 +420,11 @@ public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
   val days  = d.floor
   val frac  = d - days
   val idays = days.int
+  match(ts.mb-from-mjd2000) {
+    Nothing            -> ts.instant( idays, frac*solar-secs-per-day )
+    Just(from-mjd2000) -> ts.instant( from-mjd2000(idays,frac) )
+  }
+/*
   val secs-in-day = ts.instant(idays,zero).seconds-in-day
   val secs  = frac*secs-in-day
   // if this is a day with a leap second, the seconds may come out
@@ -425,6 +436,7 @@ public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
                        (secs - leap.ddouble, leap)
                      }
   ts.instant(idays, dsecs, leap)
+*/
 }
 
 /* Return the julian day in a given time scale `ts` for an instant `i`.
@@ -454,7 +466,20 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion (used in `std/time/time` to take timezones into account)
 public fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 ) : ddouble {
-  val j = i.use-timescale(tscale)
+  val i0 = i.use-timescale(tscale)
+  val mjd = match(tscale.mb-to-mjd2000) {
+              Nothing {
+                val i1   = i0.add-duration-in(tscale,tzdelta)
+                val days = i1.days.ddouble
+                val frac = i1.since.seconds-into-day / solar-secs-per-day
+                (days + frac)
+              }
+              Just(to-mjd) {
+                to-mjd( i0.since, tzdelta )
+              }
+            }
+  (mjd + mjd-epoch-delta)
+  /*
   // get seconds-in-the-day of the original instant
   val secs-in-day = j.seconds-in-day
   // then adjust to the timezone
@@ -463,4 +488,5 @@ public fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 
   val frac= h.since.seconds-into-day / j.seconds-in-day
   // and add it together
   (mjd-epoch-delta + h.days.ddouble + frac)
+  */
 }

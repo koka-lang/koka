@@ -9,7 +9,7 @@ leap8 : ok: 1961-07-31T23:59:59.902430Z
 leap9 : ok: 1961-08-01T00:00:00.062430Z
 leap10 : ok: 1960-12-31T23:59:60.005Z
 leap11 : ok: 1961-01-01T00:00:00Z
-leap12 : ok: -1325376000s
+leap12 : ok: -1325376000
 gps1 : ok: 1980-01-06T00:00:00Z
 gps2 : ok: 1980-01-06T00:00:19Z TAI
 gps3 : ok: 2017-01-01T00:00:00Z
@@ -20,8 +20,17 @@ leap-ovf4 : ok: 2017-01-01T00:00:37Z TAI
 leap-neg1 : ok: 1968-02-01T00:00:06.185682Z TAI
 leap-neg2 : ok: 1968-02-01T00:00:06.235682Z TAI
 leap-neg3 : ok: 1968-02-01T00:00:06.185682Z TAI
+leap-drift1 : ok: 1959-01-28T19:00:00.512134Z TAI
+leap-drift2 : ok: 1959-01-28T19:00:00.512134Z TAI
+leap-drift3 : ok: 1959-01-28T19:00:00.492134Z TAI
 leap-sub1 : ok: 1.5s
 leap-sub2 : ok: 2.5s
 leap-sub3 : ok: 2.5s
 add-days1 : ok: 2017-01-01T12:00:00Z
 add-days2 : ok: 1582-10-15T00:00:00Z JG
+unix1 : ok: 1972-12-31T23:59:59Z
+unix2 : ok: 1972-12-31T23:59:60Z
+unix3 : ok: 1973-01-01T00:00:00Z
+unix4 : ok: 94694399
+unix5 : ok: 94694400
+unix6 : ok: 94694400

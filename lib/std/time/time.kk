@@ -394,7 +394,7 @@ public fun days-in-year( t : time) : int {
 //
 // Also takes leap seconds into account:\
 // `time(2015,12,31,12,0,0).mjd.show == "57387.5"` &quad; (exactly mid-day)\
-// `time(2016,12,31,12,0,0).mjd.show == "57753.499994213029942"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
+// `time(2016,12,31,12,0,0).mjd.show(9) == "57753.499994213"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
 // `time(2016,12,31,12,0,0,0.5).mjd.show == "57753.5"` &quad; (real middle of the day)\
 public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
@@ -412,9 +412,9 @@ val mjd-epoch-delta = timespan(51544)
 /* Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day))
 number for a given `:time` `t`. This interprets the Julian date in the calendar of `t` with
 the timezone of `t` applied.\
-`time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
+`time(-4713,11,24,12,cal=cal-tt).jd == "0"`\
 `time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`\
-`time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-utc).show == "2441318.458333335"`
+`time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-ti).show(9) == "2441318.458333333"`
 
 Takes leap seconds into account when calculating the fraction of the day,
 see `mjd` for examples.
