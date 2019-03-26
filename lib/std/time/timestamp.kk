@@ -44,32 +44,10 @@ public fun div( x : timespan, y : timespan, prec : int = 0) : timespan {
   x / y
 }
 
-/*----------------------------------------------------------------------------
-  Day span
-----------------------------------------------------------------------------*/
-
-// A _day span_ is a time instant given as days, seconds, and leap seconds
-// from 2000-01-01 (in some timescale). It takes the `days` since
-// 2000-01-01, the fractional `secs` seconds into that day, and
-// potential (whole) `leap` seconds. The `leap` seconds are used
-// for times that are _inside_ a leap second period in that timescale and are
-// only used by UTC based timescales.
-//
-// We use a separate field for time inside leap seconds to be able to
-// designate leap times anywhere in a day;
-// some leap steps between 1958 and 1960 occurred at 19:00h
-// instead of the last second of the day. For example,
-// ```
-// time(1959,1,28,18,59,59,0.01).instant.dayspan.show == "-14948d 68399.010s"
-// time(1959,1,28,18,59,60,0.01).instant.dayspan.show == "-14948d 68399.010s (+1 leap)"
-// time(1959,1,28,19, 0, 0,0.01).instant.dayspan.show == "-14948d 68400.010s"
-// ```
-// See `std/time/utc` for more information on leap seconds.
 
 // Seconds in a solar day, 86400.
 public val isolar-secs-per-day = 86400
 public val solar-secs-per-day = isolar-secs-per-day.timespan
-
 
 
 /*----------------------------------------------------------------------------
@@ -77,24 +55,37 @@ public val solar-secs-per-day = isolar-secs-per-day.timespan
 ----------------------------------------------------------------------------*/
 
 /* A time stamp denotes an instant in time since 2000-01-01 in some time scale.
-Time stamps also keep track of possible leap seconds for UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
+Time stamps also keep track of possible leap seconds for
+UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time).
 
-There are various representation possible. One way is as a duration in TAI SI seconds
-but that would lead to many unnecessary conversions (and loss of precision), for example for
-unix timestamps that need adjustments for leap seconds. To avoid conversions,
-it is better to represent as days plus the seconds into that day. Furthermore,
-to avoid normalization and to make it easier to add/substract time spans,
-we write this as a single timespan `since` where `days == floor(since / 86400)`
-and `seconds == since - days`. This is essentially the representation that
-unix timestamps use too. However, we also need a separate `leap` seconds field
-too, that is positive if this time is in a leap step. This allows us also to
-represent time in a leap step unambigiously (and also at any time during the day).
+
+- One way is as a duration in TAI SI seconds
+  but that would lead to many unnecessary conversions (and loss of precision),
+  for example for unix timestamps that need adjustments for leap seconds.
+- To avoid conversions, it is better to represent as days plus the seconds
+  into that day. However, that means that adding or subtracting seconds
+  always needs normalization.
+- To make it easier to add/substract time spans, can represent it as single
+  timespan `since` where `days == floor(since / 86400)` and `seconds == since - days`.
+  This is essentially the representation that Unix/Posic timestamps use too.
+- Finally, we add a separate `leap` seconds field
+  to represent time in a leap step unambigiously (and also at any time during the day).
+  The `leap` field is positive if this time is in a leap step.
 
 Here is the representation of a time in the leap second just before 2006-01-01:
 ```
 time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show == "189388799.500 (+1 leap)"
 time(2005,12,31,23,59,60,0.5).instant.dayspan.show == "2191d 86399.500s (+1 leap)"
 ```
+The `leap` field also lets us represent leap times that occurred at another
+time than the last second of the day:
+```
+time(1959,1,28,18,59,59,0.01).instant.dayspan.show == "-14948d 68399.010s"
+time(1959,1,28,18,59,60,0.01).instant.dayspan.show == "-14948d 68399.010s (+1 leap)"
+time(1959,1,28,19, 0, 0,0.01).instant.dayspan.show == "-14948d 68400.010s"
+```
+See `std/time/utc` for more information on leap seconds.
+
 */
 abstract struct timestamp(
   since : timespan,  // days+seconds since 2000-01-01 in the time scale
@@ -122,32 +113,30 @@ public fun timestamp-days( days : int, secs : timespan = timespan0, leap : int =
 }
 
 
-fun daystamp( ts : timestamp ) : (int,ddouble) {
+// Return days and seconds into the day, disregarding leap seconds.
+private fun days-seconds( ts : timestamp ) : (int,ddouble) {
   val secs = ts.since.floor
   val frac = ts.since - secs
   val (days,dsecs) = divmod(secs.int, isolar-secs-per-day)
   (days, dsecs.ddouble + frac)
 }
 
-// Daystamp from a timestamp
-public fun dayclock( ts : timestamp ) : (int,clock) {
-  val (days,secs) = ts.daystamp
+// Return days and clock into the day, handling possible leap seconds.
+public fun days-clock( ts : timestamp ) : (int,clock) {
+  val (days,secs) = ts.days-seconds
   (days, clock(secs,ts.leap))
 }
 
 public fun days( ts : timestamp ) : int {
-  ts.daystamp.fst
+  ts.days-seconds.fst
 }
 
 public fun seconds-into-day( ts : timestamp ) : ddouble {
-  ts.daystamp.snd + ts.leap.ddouble
+  ts.days-seconds.snd + ts.leap.ddouble
 }
 
 
 // The time span since 2000-01-01 including time inside a possible leap second.
-// Note: using this only makes sense in timescales without leap
-// seconds as the returned time span is not a proper duration if the days
-// are not 86400s long.
 public fun unsafe-timespan-withleap( ts : timestamp ) : timespan {
   ts.since + ts.leap.timespan
 }
@@ -221,6 +210,6 @@ public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, un
 
 // Show a day stamp
 public fun ts-show-days( ts : timestamp, prec : int = 9 ) : string {
-  val (days,secs) = ts.daystamp
+  val (days,secs) = ts.days-seconds
   days.show + "d " + ts-show(timestamp(secs,ts.leap),prec,unit="s")
 }

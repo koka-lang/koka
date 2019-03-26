@@ -237,7 +237,7 @@ public fun earth-calendar(
 
 fun earth-timestamp-to-dc( t : timestamp, tzdelta: timespan, days-to-date: (int) -> date ) : (date,clock) {
   // adjust for timezone (disregarding leap seconds for now) (and possibly going into the next or previous day)
-  val (days,clock)     = (t + tzdelta).dayclock
+  val (days,clock)     = (t + tzdelta).days-clock
   (days-to-date(days),clock)
 }
 

@@ -412,9 +412,9 @@ fun utc-to-tai( leaps : leaps-table, utc : timestamp ) : duration {
 }
 
 fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
-  val utc1  = utc.add-days(1)
-  val dtai0 = utc-to-delta-tai(leaps,utc)
-  val dtai1 = utc-to-delta-tai(leaps,utc1)
+  val d     = utc.days
+  val dtai0 = utc-to-delta-tai(leaps,timestamp-days(d))
+  val dtai1 = utc-to-delta-tai(leaps,timestamp-days(d + 1))
   solar-secs-per-day + (dtai1 - dtai0)
 }
 

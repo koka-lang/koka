@@ -35,12 +35,14 @@ public fun duration( t : timespan ) : duration {
   Duration(t)
 }
 
+
 // Convert a `:timestamp` to a `:duration`. Be careful to only use
 // use this on timestamp's that are in TAI SI seconds and do not
 // contain leap seconds!
 public fun unsafe-duration( t : timestamp ) : duration {
   Duration(t.unsafe-timespan-withleap)
 }
+
 
 // Create a duration from whole seconds `secs` and a fraction of seconds `frac`.
 public fun duration( secs : int, frac : double = 0.0 ) : duration {

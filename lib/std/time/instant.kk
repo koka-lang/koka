@@ -133,8 +133,8 @@ public fun days( i : instant ) : int {
 }
 
 // Return days since 2000-01-01 in the time scale of the instant
-public fun dayclock( i : instant ) : (int,clock) {
-  i.since.dayclock
+public fun days-clock( i : instant ) : (int,clock) {
+  i.since.days-clock
 }
 
 
@@ -345,8 +345,8 @@ public val ts-gps : timescale = tai-timescale( "GPS", -19.duration)
 val gps2000  = duration(630720000)
 
 // Get the GPS time in SI seconds since the GPS epoch (1980-01-06Z)
-public fun gps-instant(i : instant ) {
-  gps2000 + i.timestamp-in(ts-gps).unsafe-duration
+public fun gps-timestamp(i : instant ) : duration {
+  i.timestamp-in(ts-gps).unsafe-duration + gps2000
 }
 
 // Create an instant from a raw GPS time since the GPS epoch (1980-01-06Z)
@@ -363,8 +363,8 @@ public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
 val tt2000 = duration(630720000)
 
 // Get the TT time in SI seconds since the GPS epoch (1977-01-01)
-public fun tt-instant(i : instant ) {
-  tt2000 + i.timestamp-in(ts-tt).unsafe-duration
+public fun tt-instant(i : instant ) : duration {
+  i.timestamp-in(ts-tt).unsafe-duration + tt2000
 }
 
 // Create an instant from a raw TT time since the TT epoch (1977-01-01 TAI)
