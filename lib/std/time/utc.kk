@@ -415,50 +415,6 @@ fun utc-to-tai( leaps : leaps-table, utc : timestamp ) : duration {
   (utc + dtai).unsafe-duration  // ok, because TAI seconds now
 }
 
-fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
-  val d     = utc.days
-  val dtai0 = utc-to-delta-tai(leaps,timestamp-days(d))
-  val dtai1 = utc-to-delta-tai(leaps,timestamp-days(d + 1))
-  solar-secs-per-day + (dtai1 - dtai0)
-}
-
-fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) : ddouble {
-  // calculate SI seconds of the day
-  val days0 = utc.days
-  val utc0  = timestamp-days(days0)
-  val utc1  = timestamp-days(days0 + 1)
-  val la0   = utc-to-leap-adjust(leaps,utc0)
-  val la1   = utc-to-leap-adjust(leaps,utc1)
-  val dtai0 = la0.delta-tai(utc0)
-  val dtai1 = la1.delta-tai(utc1)
-  val diff  = (dtai1 - dtai0).round-to-prec(3)  // round to not take drift into account
-  val secs-in-day = solar-secs-per-day + diff
-  // and calculate the fraction -- adjusted with the timezone delta!
-  val (days1,secs1) = (utc + tzdelta).days-seconds
-  val secs = if (utc < la1.utc-start) then secs1 + utc.leap.ddouble else secs1 + diff
-  (days1.ddouble + (secs / secs-in-day))
-}
-
-fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
-  // calculate SI seconds into the day
-  val utc0  = timestamp-days(days)
-  val utc1  = timestamp-days(days + 1)
-  val la0   = utc-to-leap-adjust(leaps,utc0)
-  val la1   = utc-to-leap-adjust(leaps,utc1)
-  val dtai0 = la0.delta-tai(utc0)
-  val dtai1 = la1.delta-tai(utc1)
-  val diff  = (dtai1 - dtai0).round-to-prec(3)  // round to not take drift into account
-  val secs-in-day = solar-secs-per-day + diff
-
-  // now adjust for time inside a leap second
-  val secs = secs-in-day * frac
-  val utc = timestamp-days(days,secs)
-  if (utc < la1.utc-start) then utc
-  elif (utc > la1.utc-start + diff) then utc - diff
-  else (utc - diff).add-leap-seconds(diff)
-}
-
-
 
 /* Converting TAI time back to UTC is not straigtforward as
 we need to estimate UTC at first as the leap table goes from UTC-to-TAI.
@@ -504,6 +460,56 @@ fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
 
   if (!inleap) then utc0 + diff else utc0.add-leap-seconds(diff)
 }
+
+fun utc-leap-in-day( leaps : leaps-table, days : int ) : maybe<(timestamp,timespan)> {
+  // check if there is a leap second in the day
+  val utc0  = timestamp-days(days)
+  val utc1  = timestamp-days(days + 1)
+  val la1   = utc-to-leap-adjust(leaps,utc1)
+  if (la1.utc-start < utc0) then return Nothing
+
+  // if so, find the start and the timespan of the leap second
+  val dtai0 = utc-to-delta-tai(leaps,utc0)
+  val dtai1 = la1.delta-tai(utc1)
+  val diff  = (dtai1 - dtai0).round-to-prec(3)  // round to not take drift into account
+  Just((la1.utc-start, diff))
+}
+
+fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
+  match(utc-leap-in-day(leaps,utc.days)) {
+    Nothing -> solar-secs-per-day
+    Just((_,diff)) -> solar-secs-per-day + diff
+  }
+}
+
+fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) : ddouble {
+  val (days1,secs1) = (utc + tzdelta).days-seconds
+  val frac = match(utc-leap-in-day(leaps,utc.days)) {
+               Nothing -> (secs1 + utc.leap.ddouble) / solar-secs-per-day
+               Just((start,diff)) {
+                 val secs-in-day = solar-secs-per-day + diff
+                 val secs = if (utc < start) then secs1 + utc.leap.ddouble
+                                             else secs1 + diff
+                 (secs / secs-in-day)
+               }
+             }
+  (days1.ddouble + frac)
+}
+
+fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
+  match(utc-leap-in-day(leaps,days)) {
+    Nothing -> timestamp-days( days, frac*solar-secs-per-day)
+    Just((start,diff)) {
+      val secs = frac*(solar-secs-per-day + diff)
+      val utc  = timestamp-days(days,secs)
+      if (utc < start) then utc
+      elif (utc > start + diff) then utc - diff
+      else (utc - diff).add-leap-seconds(diff)
+    }
+  }
+}
+
+
 
 // -----------------------------------------------------------
 // Leap second table
