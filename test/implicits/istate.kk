@@ -63,6 +63,15 @@ fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
   action()
 }
 
+ambient<s> control read() : s
+ambient<s> control write( x : s ) : ()
+
+fun localm( init : s, action : () -> <read<s>,write<s>|e> a ) : e a {
+  (with control read()   -> fun(s){ resume(s)(s) } in
+   with control write(x) -> fun(s){ resume(())(x) } in
+   action())(init)
+}
+
 
 fun main() {
   test1()

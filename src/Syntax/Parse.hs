@@ -725,7 +725,7 @@ newtype OpDecl = OpDecl (String, Name, Range, Bool {-linear-},[TypeBinder UserKi
 
 -- EffectDeclHeader
 newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
-                                 String, DataKind, Bool, Bool, Name, Range, [TypeBinder UserKind],
+                                 String, DataKind, Bool {-linear-}, Bool {-resource-}, Name, Range, [TypeBinder UserKind],
                                  UserKind, Range, Maybe UserType, [OpDecl])
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
@@ -756,7 +756,7 @@ parseEffectDecl dvis =
          op@(OpDecl (doc,opId,idrng,linear,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
          let mbResource = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
-         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+         return $ trace ("parsed effect decl " ++ show opId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show linear ) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
       )
 

@@ -682,8 +682,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        return (resTp,resEff,resCore)
 
 
-inferExpr propagated expect (Handler shallow scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
-  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final branches hrng rng
+inferExpr propagated expect (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+  = inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
 inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pars reinit ret final branches hrng rng)
   = do mbhxeff <- inferHandledEffect hrng handlerSort mbEff branches
        case mbhxeff of
@@ -1106,7 +1106,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (isKindHandled1 (getKind handledEffect)) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
+                             if (effectIsLinear handledEffect) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
                 handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
