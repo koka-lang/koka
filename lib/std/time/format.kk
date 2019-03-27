@@ -159,7 +159,7 @@ fun format-utc-timezone( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-timestamp( t : time, n : int, locale : time-locale ) : string {
-  t.instant.timestamp.show(3)
+  t.instant.show-raw(3)
 }
 
 

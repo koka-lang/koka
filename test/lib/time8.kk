@@ -67,8 +67,8 @@ public fun test-ut1(verbose:bool = True) {
   // on 2019-03-22 the IERS data says:
   //   2012-06-30T00:00:00Z  UT1-UTC = -0.5868367
   //   2012-07-01T00:00:00Z  UT1-UTC =  0.4132375
-  check("leap-ut1a","2012-06-30T23:59:57.413237498Z UT1"){ instant(2012,6,30,23,59,58).time(cal=calut1).show }
-  check("leap-ut1b","2012-06-30T23:59:58.413237499Z UT1"){ instant(2012,6,30,23,59,59).time(cal=calut1).show }
+  check("leap-ut1a","2012-06-30T23:59:57.413237497Z UT1"){ instant(2012,6,30,23,59,58).time(cal=calut1).show }
+  check("leap-ut1b","2012-06-30T23:59:58.413237498Z UT1"){ instant(2012,6,30,23,59,59).time(cal=calut1).show }
   check("leap-ut1c","2012-06-30T23:59:59.413237499Z UT1"){ instant(2012,6,30,23,59,60).time(cal=calut1).show }
   check("leap-ut1d","2012-07-01T00:00:00.412237500Z UT1"){ instant(2012,6,30,23,59,60,0.999).time(cal=calut1).show }
   check("leap-ut1e","2012-07-01T00:00:00.413237500Z UT1"){ instant(2012,7,1,0,0,0).time(cal=calut1).show }

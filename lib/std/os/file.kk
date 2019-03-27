@@ -41,7 +41,7 @@ public extern write-text-file-sync( fileName : string, content : string )  : io 
 // Set the access time and modification time of a file.
 public fun utimes( fname : path, atime : instant, mtime : instant ) : <asyncx,file> () {
   await-exn0 fun(cb) {
-	  val token = xfile-utimes( fname.string, atime.unix-timestamp, mtime.unix-timestamp, cb )
+	  val token = xfile-utimes( fname.string, atime.unix-timestamp.double, mtime.unix-timestamp.double, cb )
 	  Just({cancel-entry(token)})
   }
 }

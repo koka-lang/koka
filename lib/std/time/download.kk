@@ -22,6 +22,7 @@ import std/time/utc
 import std/time/chrono
 import std/time/calendar
 
+/*
 // Construct a smoothed UTC-SLS based ISO calendar (see `ts-utc-sls-create`),
 // using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
@@ -41,6 +42,7 @@ public fun cal-utc-sls-load( fname : path = path(""),
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-sls-create(leaps)
 }
+*/
 
 // Construct a UTC based ISO calendar using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
