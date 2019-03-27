@@ -748,6 +748,8 @@ parseEffectDecl dvis =
                         else do keyword "in"
                                 tp <- ptype
                                 return (Just tp)
+                             <|>
+                                return (Just (TpCon nameTpInst irng))
          (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
          return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
