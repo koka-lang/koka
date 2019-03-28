@@ -8,7 +8,7 @@ type tree<a> {
   con Leaf
 }
 
-implicit<a> control yield(value:a) : ()
+ambient<a> control yield(value:a) : ()
 
 // An in-order iterator for trees
 fun iterate(t) {
@@ -51,8 +51,8 @@ fun test2() {
 }
 
 /* Iterator that takes a predicate `f` (Page 4)
-Note: we inject here to not handle a possible `:yield` effect in the predicate `f`.
-In `fiterate1` we left out the `inject`. Notice that each fun has a *different* type:
+Note: we mask here to not handle a possible `:yield` effect in the predicate `f`.
+In `fiterate1` we left out the `mask`. Notice that each fun has a *different* type:
 ```
   fun fiterate( tree<a>, f : (a) -> e bool ) : <yield<a>|e> ()
   fun fiterate1( tree<a>, f : (a) -> <yield<a>|e> bool ) : <yield<a>|e> ()
@@ -62,8 +62,8 @@ while `fiterate` encapsulates the predicate and is polymorphic it the effect of
 the predicate. In the paper, the encapsulation is done by default which is often
 what we want (but not always!! (like writing a `catch` fun for example)).
 
-Note 1. We need to use `inject` now but perhaps it is
-possible to reverse this behaviour and use it by default, with an `uninject` if
+Note 1. We need to use `mask` now but perhaps it is
+possible to reverse this behaviour and use it by default, with an `unmask` if
 we want the other behaviour? This would mimic the tunneling solution.
 
 Note 2: In contrast as claimed in the paper, Reynold's parametricity *does* hold as
@@ -74,7 +74,7 @@ fun fiterate(t,f) {
     Leaf -> ()
     Bin(x,l,r) {
       l.fiterate(f)
-      if (inject<yield>{f(x)}) then yield(x)
+      if (mask<yield>{f(x)}) then yield(x)
       r.fiterate(f)
     }
   }

@@ -1,5 +1,5 @@
 
-implicit val width : int
+ambient val width : int
 
 fun f() {
   //with val width = 78
@@ -15,14 +15,14 @@ fun half(action) {
 }
 
 
-implicit val emitx : ((s:string) -> io ())
+ambient val emitx : ((s:string) -> io ())
 
 fun emit1(action) {
   with val emitx = fun( s : string ){ s.println }
   action()
 }
 
-implicit fun emit( s : string ) : ()
+ambient fun emit( s : string ) : ()
 
 fun pretty-emit1(action) {
   try {
@@ -44,7 +44,7 @@ fun pretty-emit(action) {
   out
 }
 
-implicit state<s> {
+ambient state<s> {
   fun get()      : s
   fun set(x : s) : ()
 }
@@ -59,7 +59,7 @@ fun state1(action) {
 }
 
 
-implicit fun total() : int
+ambient fun total() : int
 
 fun emit4(action) {
   var out := ""
@@ -69,7 +69,7 @@ fun emit4(action) {
   action()
 }
 
-implicit fun abort() : ()
+ambient fun abort() : ()
 
 fun pretty-abort(action) {
   with pretty-emit
@@ -77,7 +77,7 @@ fun pretty-abort(action) {
   action()
 }
 
-implicit control choice() : bool
+ambient control choice() : bool
 
 fun pretty-all(action) {
   with control choice() { resume(True) + (resume(False) : list<string>) }
@@ -103,7 +103,7 @@ fun state2(init,action) {
 }
 
 
-implicit val cwd : string
+ambient val cwd : string
 
 fun is-home() {
   cwd == "/home"
@@ -128,9 +128,9 @@ struct graph()
 struct rose(v : vertex, sub : list<rose> )
 
 
-implicit fun marked( v : vertex ) : bool
-implicit fun mark( v : vertex ) : ()
-implicit fun children( v : vertex ) : list<vertex>
+ambient fun marked( v : vertex ) : bool
+ambient fun mark( v : vertex ) : ()
+ambient fun children( v : vertex ) : list<vertex>
 
 fun dfs( g : graph, vs : list<vertex> ) : pure list<rose> {
   var visited := vector(g.bound,False)

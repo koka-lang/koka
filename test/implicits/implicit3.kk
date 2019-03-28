@@ -14,6 +14,7 @@ fun cd(path,action) {
 }
 
 // cd2 a, b, and c are equivalent
+// avoid using `mask` through the `override` keyword
 fun cd2a(path,action) {
   with override val cwd = cwd + path + "/"
   action()

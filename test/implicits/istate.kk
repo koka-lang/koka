@@ -1,9 +1,9 @@
 // --------------------------------------------------------------
-// Local mutable state defined as implicit control.
+// Local mutable state defined as ambient control.
 // This is a much nicer way to give semantics to state
 // versus the state-monad encoding. However, implementations
 // need to support frame "smashing" to implement this in constant
-// stack space. Paper is forthcoming...
+// stack space. 
 // --------------------------------------------------------------
 
 ambient<s> val get : s
@@ -61,15 +61,6 @@ fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
     k()
   }
   action()
-}
-
-ambient<s> control read() : s
-ambient<s> control write( x : s ) : ()
-
-fun localm( init : s, action : () -> <read<s>,write<s>|e> a ) : e a {
-  (with control read()   -> fun(s){ resume(s)(s) } in
-   with control write(x) -> fun(s){ resume(())(x) } in
-   action())(init)
 }
 
 

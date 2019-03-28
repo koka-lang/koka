@@ -35,7 +35,7 @@ fun show(ps : list<player> ) : string {
 // Game of Nim
 // --------------------------------------------------------
 
-implicit control move(player:player,sticks:int) : int
+ambient control move(player:player,sticks:int) : int
 
 
 fun aliceTurn(n : int) : <div,move> player {
@@ -111,7 +111,7 @@ fun testGt() {
 // Cheating
 // --------------------------------------------------------
 
-implicit fun cheat(player:player) : a
+ambient fun cheat(player:player) : a
 
 val cheatReport =  with fun cheat(p) { error(p.show + " cheated!") }
 
@@ -170,7 +170,7 @@ fun testPc2() {
 // Choosing a strategy
 // --------------------------------------------------------
 
-implicit control choose() : bool
+ambient control choose() : bool
 
 fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
@@ -200,7 +200,7 @@ fun testCoin() {
 // Scoreboard
 // --------------------------------------------------------
 
-implicit state<s> {
+ambient state<s> {
   fun get() : s;
   fun put(x : s) : ()
 }

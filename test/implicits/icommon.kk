@@ -1,5 +1,5 @@
 // --------------------------------------------------------
-//  Examples of common effects using dynamic and with
+//  Examples of common effects
 // --------------------------------------------------------
 // public module common
 
@@ -68,12 +68,14 @@ fun counter() {
   }
 }
 
+// using parameterized state
 val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
 }
 
+// using builtin local variables
 fun state(init, action) {
   var s := init
   with {

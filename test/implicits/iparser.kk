@@ -3,8 +3,8 @@
 // --------------------------------------------------------------
 
 // First defined the `many` effect to describe multiple of results and failure
-implicit control choice() : bool
-implicit control fail() : a
+ambient control choice() : bool
+ambient control fail() : a
 
 fun select(xs) {
   match(xs) {
@@ -51,7 +51,7 @@ fun many1(p : () -> <choice,div|e> a ) : <choice,div|e> list<a> {
 //---------------------------------------------------------------
 // Now define the parse effect
 
-implicit fun next() : char
+ambient fun next() : char
 
 alias parse = <next,choice,fail>
 alias parser<a> = () -> parse a

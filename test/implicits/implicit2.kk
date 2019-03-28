@@ -1,6 +1,6 @@
 // with expression syntax
-implicit val width: int
-implicit val height: int
+ambient val width: int
+ambient val height: int
 
 val res1 = with { val height = 5 } in { height + height }
 
@@ -19,7 +19,7 @@ fun res6() {
   (with { val height = { println("foo"); 1 + 3 } } in height * height)
 }
 
-implicit counter {
+ambient counter {
   fun tick(): ()
   fun get(): int
 }
@@ -54,7 +54,7 @@ val res10 = {
   width * height
 }
 
-implicit amb { control flip(): bool }
+ambient amb { control flip(): bool }
 
 val returnClause = {
   with val height = 4
