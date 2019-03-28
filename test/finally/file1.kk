@@ -1,5 +1,4 @@
 // File handling with initially and finally
-
 ambient control flip() : bool
 
 // files are named handlers (and thus scoped)
@@ -8,12 +7,14 @@ ambient instance file {
 }
 
 fun message() : <flip> string {
-  if (flip()) then "hi" else "bye"
+  if (flip()) then "bye" else "hi"
 }
 
 fun foo() {
   with f = open-file("foo")
+  with g = open-file("bar")
   f.write(message())
+  g.write(message())
 }
 
 fun open-file(fname,action) {
