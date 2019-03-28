@@ -1,11 +1,10 @@
-// Test resource handler
-
 
 // Some overall effect in which all the resource operations take place
-effect corrl { }
+ambient corrl { }
 
 fun corrl( action : () -> <corrl|e> a ) : e a {
-  handle<corrl>(action) { }
+  with<corrl> { }
+  action()
 }
 
 // The streams are resources, i.e. identifiable handlers (as generative effects)
@@ -14,8 +13,8 @@ fun corrl( action : () -> <corrl|e> a ) : e a {
 // operations in one common effect and thus operations might escape their
 // particular handler scope. However, if we reflect every resource in its own
 // generative type, we might get effects types that become too cumbersome...
-effect named stream<a> in corrl {
-  fun push( value : a ) : ()   // introduces `push : (stream<l,a>, a) -> <l|e> ()`
+ambient instance stream<a> in corrl {
+  control push( value : a ) : ()   // introduces `push : (stream<l,a>, a) -> <l|e> ()`
 }
 
 // The type of new-stream is:
@@ -26,7 +25,7 @@ effect named stream<a> in corrl {
 // if we would have generative effect, the type could be:
 //  new-stream : forall<a,b,e> fresh<l> ((stream<l,a> -> <l|e> b)) -> e b
 fun new-stream(init,action) {
-  (with named fun push(_x) { () })(action) // dummy implementation
+  (with instance fun push(_x) { () })(action) // dummy implementation
 }
 
 fun interleaved(action1,action2) {
@@ -38,9 +37,9 @@ fun interleaved(action1,action2) {
 
 
 // Private effect and data type to handle stream alignment
-private effect join<a,b> {
-  fun left( x : a ) : ()
-  fun right( x : b ) : ()
+private ambient join<a,b> {
+  control left( x : a ) : ()
+  control right( x : b ) : ()
 }
 
 private type joined<a,b,e> {
@@ -68,12 +67,12 @@ fun alignx(s1,s2,action)
     interleaved { contextx.resume(()) } { contexty.resume(()) }
   }
 
-  val hjoin = handler {
-    fun raw left(x) -> match(st) {
+  val hjoin = with {
+    control raw left(x) -> match(st) {
       JoinRight(y,resumey) -> joined(x,y,context,resumey)
       _ -> st := JoinLeft(x,context)
     }
-    fun raw right(y) -> match(st) {
+    control raw right(y) -> match(st) {
       JoinLeft(x,resumex) -> joined(x,y,resumex,context)
       _ -> st := JoinRight(y,context)
     }
@@ -82,23 +81,23 @@ fun alignx(s1,s2,action)
   // The resource handlers delegate to the join handler
   // Here the `handler resource s1` has an extra parameter `s1` and will
   // not create a fresh resource, but instead handle operations for `s1`.
-  val h1 = handler named(s1) {
-    push(x) -> left(x)
+  val h1 = with instance(s1) {
+    control push(x) -> left(x)
   }
-  val h2 = handler named(s2) {
-    push(y) -> right(y)
+  val h2 = with instance(s2) {
+    control push(y) -> right(y)
   }
 
-  // we inject `join` so we are properly composed, anyone inside `action`
+  // we mask `join` so we are properly composed, anyone inside `action`
   // should not be able to access our join handler!
-  hjoin{ h1{ h2{ inject<join>(action) } } }
+  hjoin{ h1{ h2{ mask<join>(action) } } }
 }
 
 fun main() {
-  using corrl
-  use s1 = new-stream(0)
-  use s2 : stream<bool> = new-stream(True)  // stream<_l,bool> with generative types
-  using align(s1,s2)
+  with corrl
+  with s1 = new-stream(0)
+  with s2 : stream<bool> = new-stream(True)  // stream<_l,bool> with generative types
+  with align(s1,s2)
   interleaved {
     s1.push(1)
     s1.push(2)

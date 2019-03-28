@@ -1,10 +1,8 @@
 // --------------------------------------------------------
-// resources
+// Named instances
 // test with safe resources using rank-2 types to prevent
 // escaping the correct scope
 // --------------------------------------------------------
-
-// Test resource handler
 
 // We use `:filesys` to scope file operations. Here the effect
 // is empty but in general there might be operations; for example

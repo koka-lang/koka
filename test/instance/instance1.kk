@@ -1,5 +1,5 @@
 // --------------------------------------------------------
-// resources
+// named instances
 // check handling of a specific resource
 // --------------------------------------------------------
 ambient heap { }

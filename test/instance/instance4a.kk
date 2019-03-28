@@ -1,10 +1,11 @@
 // Test empty effect with rank-2 wrapper
 
-effect heap<s::S> {
+ambient heap<s::S> {
 }
 
 val heap = fun(action:forall<s> () -> <heap<s>|_e> _a) {
-  handle<heap<_s>>(action) { }
+  with<heap<_s>> { }
+  action()
 }
 
 

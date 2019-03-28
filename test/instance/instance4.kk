@@ -1,8 +1,6 @@
-effect heap<s::S> {
-}
+ambient heap<s::S> { }
 
-val heap = handler<heap<_s>> {
-}
+val heap = with<heap<_s>> { }
 
 fun foo() {
   with heap

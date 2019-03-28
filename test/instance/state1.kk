@@ -1,30 +1,22 @@
-effect tick {
-  fun tick() : int
-}
+ambient fun tick() : int
+
 
 fun lticker( action ) { // : () -> <tick|e> a ) : <local<h>|e> a {
   var s := 0
-  handle(action) {
-    fun tick() {
-      s := s + 1
-      resume(s)
-    }
-  }
+  with fun tick() { s := s + 1; s } in action()
   return ({ s := s + 1; s})
 }
 
 fun ticker( action : () -> <tick|e> a ) : e a {
   var s := 0
-  handle(inject-st(action)) {
-    fun tick() {
+  with fun tick() {
       s := s + 1
-      resume(s)
+      s
     }
-  }
+  mask<tick>(action)
 }
 
 fun test() {
-  ticker {
-    print( tick() + tick() )
-  }
+  with ticker
+  print( tick() + tick() )
 }
