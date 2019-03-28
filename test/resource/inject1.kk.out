@@ -1,3 +1,0 @@
-42
-foo : forall<a,e> (action : () -> <div|e> a) -> <div,ndet|e> a
-main : () -> <div,console,ndet> ()

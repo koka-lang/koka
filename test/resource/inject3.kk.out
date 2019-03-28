@@ -1,3 +1,0 @@
-42
-foo : forall<e> (action : () -> e int) -> e int
-main : () -> console ()
