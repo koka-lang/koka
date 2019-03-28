@@ -17,10 +17,12 @@ fun foo() {
 }
 
 fun open-file(fname,action) {
-  var h := 0                                      // low-level file handle
-  with initially { h := fopen(fname) }
-  with finally   { fclose(h); h := 0 }
-  with f = instance fun write(s) { fwrite(h,s) }  // files as a named instance
+  var h := 0                               // file handle
+  with f = instance {                      // file as a named handler instance
+    initially     { h := fopen(fname) }
+    finally       { fclose(h); h := 0 }
+    fun write(s)  { fwrite(h,s) }
+  }
   action(f)  // note: name `f` stays stable unlike `h` which gets re-initialized
 }
 
