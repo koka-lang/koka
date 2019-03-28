@@ -6,15 +6,11 @@ fun bar() {
   42
 }
 
-fun foo() 
+fun foo()
 {
-  handle(bar) {
-    return x -> { 
-      println("return")
-      x
-    }
-    finally  -> println("finally")
-  }
+  with return(x) { println("return"); x }
+  with finally   { println("finally") }
+  bar()
 }
 
 fun main() {

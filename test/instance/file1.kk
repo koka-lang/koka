@@ -1,18 +1,18 @@
-// Test resource handler
+// Test instance handler
 
-effect filesys<s::S> { }
+ambient filesys<s::S> { }
 
 fun filesys( action : forall<s> () -> <filesys<s>|e> a ) : e a {
   with<filesys<_>> { }
   action()
 }
 
-effect named file<s::S> in filesys<s> {
+ambient instance file<s::S> in filesys<s> {
   fun read() : string
 }
 
 fun fake-file(content,action) {
-  with f = named fun read() { content }  // ~> (with new { fun read() {..} })(fun(f) { ... })
+  with f = instance fun read() { content }  // ~> (with new { fun read() {..} })(fun(f) { ... })
   action(f)
 }
 

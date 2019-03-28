@@ -5,15 +5,20 @@ fun bar() {
   42
 }
 
-fun foo() 
+fun foo()
 {
+  with return(x) { println("return"); x }
+  with finally   { println("finally") }
+  bar()
+  /*
   handle(bar) {
-    return x -> { 
+    return x -> {
       println("return")
       x
     }
     finally  -> println("finally")
   }
+  */
 }
 
 fun main() {
