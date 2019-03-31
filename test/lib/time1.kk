@@ -69,6 +69,9 @@ fun test-tzs( tzs : timezones ) {
   check("tz4d", "2011-11-06T01:15:00-04:00 (EDT)"){ instant(2011,11,6,5,15).time(tz=z1).show }
   check("tz4e", "2011-11-06T01:15:00-05:00 (EST)"){ instant(2011,11,6,6,15).time(tz=z1).show }
 
+  check("tz5", "1978-12-31T23:59:59Z") { instant(1979,1,1,3,29,59,tz=z3).time.show }
+  check("tz6", "1973-01-01T00:00:11-01:00 TAI") { time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show }
+
   // leap second in other time zone
   check("tzleap1", "2016-12-31T15:59:60.500-08:00 (PST)"){ instant(2017,1,1,0,0,36,0.5,cal=cal-tai).time(tz=tzs.timezone("US/Pacific")).show }
   check("tzleap2", "1999-01-01T10:59:60.500+11:00"){ instant(1999,1,1,0,0,31,0.5,cal=cal-tai).time(tz=z2).show }

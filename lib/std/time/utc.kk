@@ -461,6 +461,8 @@ fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
   if (!inleap) then utc0 + diff else utc0.add-leap-seconds(diff)
 }
 
+// Return `Just(start,diff)` if a leap second occurred in the given day
+// (`days` after 2000-01-01) with the start time and leap second gap (`diff`)
 fun utc-leap-in-day( leaps : leaps-table, days : int ) : maybe<(timestamp,timespan)> {
   // check if there is a leap second in the day
   val utc0  = timestamp-days(days)
@@ -475,6 +477,7 @@ fun utc-leap-in-day( leaps : leaps-table, days : int ) : maybe<(timestamp,timesp
   Just((la1.utc-start, diff))
 }
 
+// The UTC seconds in a day
 fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
   match(utc-leap-in-day(leaps,utc.days)) {
     Nothing -> solar-secs-per-day
@@ -482,6 +485,8 @@ fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
   }
 }
 
+// Return the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
 fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) : ddouble {
   val (days1,secs1) = (utc + tzdelta).days-seconds
   val frac = match(utc-leap-in-day(leaps,utc.days)) {
@@ -496,6 +501,8 @@ fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) :
   (days1.ddouble + frac)
 }
 
+// Return UTC from the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
 fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
   match(utc-leap-in-day(leaps,days)) {
     Nothing -> timestamp-days( days, frac*solar-secs-per-day)
@@ -586,14 +593,25 @@ fun delta-tai( la : leap-adjust, utc : utc-timestamp ) : timespan {
 ----------------------------------------------------------------------------*/
 
 // Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
-public val leaps-table-ti : leaps-table = parse-leaps-table( default-ietf-leap-seconds ).default(leaps-table0)
+public val leaps-table-ti : leaps-table = {
+  val pre72  = parse-leap-seconds-dat( default-leap-seconds-pre72 )
+  val post72 = parse-leap-seconds( default-ietf-leap-seconds )
+  post72.extend(pre72)
+}
 
 // Leap second table up to 2017-01-01Z.
 public val leaps-table-y2017 : leaps-table = leaps-table-ti.upto(536544000.timestamp)  // == instant(2017,1,1).timestamp(ts-ti)
 
+public fun extend(leap1 : leaps-table, leap2 : leaps-table) : leaps-table {
+  match(leap1.adjusts.reverse) {
+    Nil -> leap2
+    Cons(la,_) ->
+      leap1( adjusts = leap1.adjusts + leap2.upto(la.utc-start - 1.timespan).adjusts )
+  }
+}
+
 private fun upto( lt : leaps-table, end : utc-timestamp ) : leaps-table {
-  lt( adjusts = lt.adjusts.drop-while(fun(la) { la.utc-start > end }),
-      expire  = ts-ti.instant(end))
+  lt( adjusts = lt.adjusts.drop-while(fun(la) { la.utc-start > end }) )
 }
 
 // Get a list of leap second steps in a triple, NTP start time, offset just before, and the new offset at that time,
@@ -613,30 +631,32 @@ public fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-ti
 // -----------------------------------------------------------
 
 // Parse a leap second table from text `leaps` in the  [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list)
-// file format. Returns a full leap second table extended with historical leap second adjustments from before 1972.
-public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
+// file format.
+public fun parse-leap-seconds( leaps : string ) : leaps-table {
   // get leap second adjustments
-  val adjusts72 = leaps.find-all(rxleap).map fun(cap) {
+  val adjusts = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(0)
     val adjust  = cap.groups[2].parse-int-default(0)
     // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
     Leap-adjust(timestamp(ntpsecs.timespan - ntp2000), adjust.timespan, timestamp0, timespan0)
   }.reverse
 
+  val expire = parse-leap-expire(leaps,adjusts)
+  val table = Leaps-table(expire,adjusts)
+  table
+}
+val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
+
+private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant {
   // get expiration date
-  val la-final   = adjusts72.head.default(zero)
+  val la-final   = adjusts.head.default(zero)
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
     val ntpex = cap.groups[1].parse-int-default(ntp2000.int)
     timestamp(ntpex.timespan - ntp2000)
   }.default(la-final.utc-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
   // trace("expire: " + utc-expire.ts-show)
-  val expire = ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
-
-  val adjusts = adjusts72 + leap-seconds-pre72()  // add pre 1972 adjustments
-  val table = Leaps-table(expire,adjusts)
-  Just(table)
+  ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 }
-val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 
 // IETF leap second data valid until 2017-06-28
@@ -681,17 +701,22 @@ val default-ietf-leap-seconds = @"
 // Parsing TAI 'continuous' leap second tables from before 1972
 // -----------------------------------------------------------
 
-// Cached leap second table for dates before 1972.
-val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
-
 val jd-epoch-shift     = 2400000.5.timespan  // JD to MJD
 val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified julian date epoch
 
 
-// Parse the standard UTC leap second adjustment file.\
-// See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
-fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
-  s.find-all(rxtaiadjust).map( fun(cap) {
+// Parse the standard UTC leap second adjustment file in the "old" .dat format as
+// in <http://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
+// ```
+// 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
+// ```
+// which specifies the start time (`JD 2437300.5`), new TAI-UTC offset
+// (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
+// Lines that start with `#` are comments. As an extension you can have an
+// expiration date on a line that starts with `#@` followed by seconds since
+// the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
+fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
+  val adjusts = leaps.find-all(rxtaiadjust).map( fun(cap) {
     val mjd    = cap.groups[1].parse-ddouble.default(jd-epoch-shift) - jd-epoch-shift
     val ofs    = cap.groups[2].parse-ddouble.default(zero)
     val dmjd   = cap.groups[3].parse-ddouble.default(zero)
@@ -702,6 +727,8 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
     Leap-adjust( start, ofs, dstart, drift )
   }).reverse
+  val expire = parse-leap-expire(leaps,adjusts)
+  Leaps-table(expire,adjusts)
 }
 val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
@@ -712,7 +739,7 @@ val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+
 // change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01.
 // (without a rate change it is a negative -0.0272380s).
 // Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
-val leap-seconds-dat = @"
+val default-leap-seconds-pre72 = @"
   # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
   1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S
   1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S
