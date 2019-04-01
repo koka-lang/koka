@@ -106,7 +106,7 @@ Here are some interesting time steps that occurred in this time frame:
 ## UTC before 1961
 
 The TAI timescale was officially established on 1958-01-01Z, and at that
-time the difference (TAI - UT1) was approximately zero (about 0.008s).
+time the difference (UT2 - TAI) was approximately zero[^fn-taiepoch].
 In the time frame 1958 up to 1961 the relation between TAI and UTC
 is not formally defined, as UTC was only officially established in 1960 (Arias
 and Guinot [@Arias:utc]).
@@ -123,7 +123,7 @@ In the library, this makes UTC coincide with TAI up to 1958-01-01,
 interpolated with 'drift' up to 1972-01-01, and using integral leap-seconds
 after that.
 
-Interestingy, in the time before 1961, most leap steps occurred at 19:00h
+Interestingly, in the time before 1961, most leap steps occurred at 19:00h
 instead of at the last second of the day, for example, on 1959-01-28
 there was a 0.02s leap step:
 ```
@@ -137,7 +137,7 @@ showing the seconds at 60 just before 19:00h.
 Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
 is calculated and uses historical data for time steps before 1972.
 
-~ TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
+~ Begin TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
   &Delta;(_date_) returns the number of days since _date_. Entries after \
   1972 are based on [IETF data][ietfl]. The entries before 1972 are  \
   derived from the _Explanatory Supplement to the Astronomical Almanac_, by \
@@ -215,13 +215,13 @@ is calculated and uses historical data for time steps before 1972.
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 
-~
+~ End TableFigure
 
 -- Daan Leijen, 2016.
 
 ## References { - }
 
-~ Bibliography { caption:"9" }
+~ Begin Bibliography { caption:"9" }
 
 ~~ BibItem { #Arias:utc; bibitem-label:"[1]"; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
 E.F.\ Arias and B.\ Guinot.
@@ -233,14 +233,48 @@ Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 200
 ~~ BibItem { #Almanac; bibitem-label:"[2]"; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
 P.K.\ Seidelmann.
 _Explanatory Supplement to the Astronomical Almanac_.
-University Science Books, 1992. [pdf][astroa]
+University Science Books, 1992. [book][astroa]
 ~~
-~
+
+~~ BibItem { #taiepoch; bibitem-label:"[3]"; searchterm:"History+of+the+Bureau+International+lHeure+Guinot" }
+B.\ Guinot.
+_	History of the Bureau International de l'Heure_.
+In "Polar Motion: Historical and Scientific Problems", ASP Conference Series, Vol. 208,
+Edited by Steven Dick, Dennis McCarthy, and Brian Luzum.
+ISBN: 1-58381-039-0, 2000., p.175.
+[pdf][taiepoch]
+~~
+
+~~ BibItem { #byear; bibitem-label:"[4]"; searchterm:"Besselian+Year+Precession+Matrix+Based+on+IAU+Lieske" }
+Jay\ Lieske.
+_Precession Matrix Based on IAU_ (1976).
+System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282--284. 1979.
+[wikipedia](https://en.wikipedia.org/wiki/Year#Besselian_year)
+~~
+
+~ End Bibliography
+
+[^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero but different
+    observatories used their own versions of UT2 leading to longitude errors
+    of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s
+    (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
+    which makes UT1 equal 1958-01-01T00:00:00.018 UT1.
+    When we calculate UT2 using the current definition [@Almanac, page 85]:
+
+    > UT2 = UT1 + 0.022&centerdot;sin(2&pi;&tau;) - 0.012&centerdot;cos(2&pi;&tau;) - 0.006&centerdot;sin(4&pi;&tau;) + 0.007&centerdot;cos(4&pi;&tau;)
+
+    where &tau; is the fraction of the Besselian year [@byear]:
+
+    > &tau; = 1900.0 + (JD~TT~ - 2415020.31352) / 365.242198781
+
+    we get 1958-01-01T00:00:00.013023922Z UT2. A difference of about 0.013s with TAI.
+
 
 [ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
 [dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
 [utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
+[taiepoch]:http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2000ASPC..208..175G&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
 [WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
 [UTC]: std_time_astro.html
 [TAI]: std_time_astro.html
@@ -351,7 +385,7 @@ val ntp2000 = timespan(3155673600)   // 2000-01-01 - 1900-01-01 in NTP seconds; 
 // Create a new time scale based on UTC seconds with a given `name`
 // and a leap second table.
 public fun utc-timescale( name : string, leaps : leaps-table ) : timescale {
-  fun from-tai(tai:duration)       { tai-to-utc(leaps,tai) }
+  fun from-tai(tai:duration)       { utc-from-tai(leaps,tai) }
   fun to-tai(utc:timestamp)        { utc-to-tai(leaps,utc) }
   fun seconds-in-day(utc:timestamp){ utc-seconds-in-day(leaps,utc) }
   fun to-mjd(utc:timestamp,tzdelta:timespan){ utc-to-mjd(leaps,utc,tzdelta) }
@@ -406,6 +440,50 @@ public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-
 public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 
+
+
+// Create a new smooted leap second time scale with an optional period during
+// which smoothing takes place. This is 1000s for `ts-utc-sls`.
+fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1000.timespan ) : timescale {
+  fun from-tai(tai:duration) { utc-sls-from-tai(leaps,smooth,tai) }
+  fun to-tai(utc:timestamp)  { utc-sls-to-tai(leaps,smooth,utc) }
+  timescale(
+    name,
+    from-tai,
+    to-tai,
+    "UTC-SLS"
+  )
+}
+
+
+// Create a new UTC-SLS time scale from a provided leap second table `leaps`.
+// Implements a UTC time scale except without ever showing leap seconds.
+// UTC-SLS is equivalent to UTC except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, UTC
+// and UTC-SLS are equal again.
+//
+// This is a recommended time scale to use for
+// time stamps or communication with other services since it avoids any potential trouble
+// with leap seconds while still being quite precise.
+// See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
+//
+// You can create a UTC-SLS time scale based on the latest IETF leap second
+// data using [`cal-utc-sls-load`](std_time_download.html#cal_utc_sls_load).
+public fun ts-utc-sls-create( leaps : leaps-table ) : timescale {
+  utc-sls-timescale( "UTC-SLS", leaps )
+}
+
+
+// TI time scale with smoothed leap seconds.\
+// Implements a TI time scale (`ts-ti`) except without ever showing leap seconds.
+// TI-SLS is equivalent to TI except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, TI
+// and TI-SLS are equal again.
+public val ts-ti-sls : timescale = utc-sls-timescale( "TI-SLS", leaps-table-ti )
+
+
 /*----------------------------------------------------------------------------
   UTC to TAI conversion
 ----------------------------------------------------------------------------*/
@@ -445,7 +523,7 @@ estimate plus the time of the leap period if we crossed over it, `utc0+diff`.
 Otherwise, the same holds but we need to add `diff` as leap seconds,
 in the example ending up as `189388799.5+1`.
 */
-fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
+fun utc-from-tai( leaps : leaps-table, tai-since : duration ) : timestamp {
   val tai   = tai-since.timestamp
   // take tai==utc for an initial estimate
   val dtai0 = utc-to-delta-tai(leaps,tai)
@@ -517,6 +595,52 @@ fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timest
 }
 
 
+/*----------------------------------------------------------------------------
+  UTC-SLS to TAI conversion
+----------------------------------------------------------------------------*/
+fun utc-sls-leap-in-day( leaps : leaps-table, smooth : timespan, utc : utc-timestamp ) : maybe<(timestamp,timestamp,timespan,timespan)> {
+  match(utc-leap-in-day(leaps, utc.days)) {
+    Nothing -> Nothing // on non-leap days, utc-sls == utc
+    Just((start,diff)) {
+      val smooth-start = (start - smooth) + diff
+      val smooth-end   = start.add-leap-seconds(diff)
+      if (utc <= smooth-start) then Nothing // before the smoothing
+      elif (utc > smooth-end) then Nothing // after the leap second
+      else {
+        val smooth-total = smooth-end.timespan-noleap - smooth-start.timespan-noleap
+        val dt = (utc.unsafe-timespan-withleap - smooth-start.timespan-noleap)
+        Just((start,smooth-start,smooth-total,dt))
+      }
+    }
+  }
+}
+
+fun utc-sls-from-tai( leaps : leaps-table, smooth : timespan, tai-since : duration ) : timestamp {
+  val utc = utc-from-tai(leaps,tai-since)
+  match(utc-sls-leap-in-day(leaps, smooth, utc)) {
+    Nothing -> utc // outside smooth zone: utc-sls == utc
+    Just((_start,smooth-start,smooth-total,dt)) {
+      val frac = dt / smooth
+      smooth-start + (frac * smooth-total)
+    }
+  }
+}
+
+fun utc-sls-to-tai( leaps : leaps-table, smooth : timespan, sls : utc-timestamp ) : duration {
+  val utc = match(utc-sls-leap-in-day(leaps,smooth,sls)) { // sls ~ utc
+    Nothing -> sls  // utc == utc-sls outside smooth zone
+    Just((start,smooth-start,smooth-total,dt)) {
+      val frac  = dt / smooth-total
+      val utc0  = smooth-start + (frac * smooth)
+      if (utc0 <= start) then utc0 else {
+        val ldiff = utc0.timespan-noleap - start.timespan-noleap
+        start.add-leap-seconds(ldiff)
+      }
+    }
+  }
+  utc-to-tai(leaps,utc)
+}
+
 
 // -----------------------------------------------------------
 // Leap second table
@@ -548,6 +672,7 @@ val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 fun zero?( la : leap-adjust ) : bool {
   la.offset.zero? && la.drift.zero?
 }
+
 
 
 /*----------------------------------------------------------------------------
@@ -707,15 +832,15 @@ val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified ju
 
 // Parse the standard UTC leap second adjustment file in the "old" .dat format as
 // in <http://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
-// ```
+// ````
 // 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
-// ```
+// ````
 // which specifies the start time (`JD 2437300.5`), new TAI-UTC offset
 // (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
 // Lines that start with `#` are comments. As an extension you can have an
 // expiration date on a line that starts with `#@` followed by seconds since
 // the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
-fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
+public fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
   val adjusts = leaps.find-all(rxtaiadjust).map( fun(cap) {
     val mjd    = cap.groups[1].parse-ddouble.default(jd-epoch-shift) - jd-epoch-shift
     val ofs    = cap.groups[2].parse-ddouble.default(zero)
@@ -730,7 +855,7 @@ fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
   val expire = parse-leap-expire(leaps,adjusts)
   Leaps-table(expire,adjusts)
 }
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+(?:\.\d*)?)[^\d]+(\d+(?:\.\d*)?)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
 // TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there

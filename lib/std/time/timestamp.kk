@@ -156,7 +156,7 @@ public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
 
 // Add `leaps` leap seconds to the timestamp.
 public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
-  if (!leaps.pos?) then ts
+  if (!leaps.pos?) then ts // + leaps // if negative, add as normal seconds
   elif (leaps < 1.timespan && ts.leap.zero?)
    then Timestamp( (ts.since - 1.timespan) + leaps, 1)
    else Timestamp( ts.since + leaps.fraction, ts.leap + leaps.truncate.int )

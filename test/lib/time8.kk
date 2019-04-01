@@ -11,7 +11,7 @@ module time8
 
 import std/os/path
 import std/os/file
-public import std/num/decimal
+public import std/num/ddouble
 public import std/time
 public import std/time/ut1
 public import std/time/astro
@@ -44,7 +44,7 @@ public fun test-ut2() {
   check("utc at tai epoch", "1958-01-01T00:00:00Z"){ i.time(cal=cal-iso).show }
   check("tt  at tai epoch", "1958-01-01T00:00:32.184Z TT") { i.time(cal=cal-tt).show }
   check("ut1 at tai epoch", "1958-01-01T00:00:00.018Z UT1"){ i.time(cal=cal-ut1-approx).show }
-  check("ut2 at tai epoch", "1958-01-01T00:00:00.007882274Z UT2"){ i.time(cal=cal-ut2-approx).show }
+  check("ut2 at tai epoch", "1958-01-01T00:00:00.013023922Z UT2"){ i.time(cal=cal-ut2-approx).show }
 }
 
 public fun test-ut1(verbose:bool = True) {

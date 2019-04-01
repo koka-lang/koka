@@ -225,7 +225,7 @@ public fun earth-calendar(
     earth-timestamp-to-dc( i.timestamp, tzdelta.timespan, days-to-date )
   }
   fun dc-to-instant(d : date, c : clock, tz : timezone) {
-    earth-timestamp-to-instant( dc-timestamp(d, c, date-to-days), tz, ts)
+    earth-timestamp-to-instant( dc-timestamp(d, c, date-to-days, ts.has-leap-seconds), tz, ts)
   }
   Calendar( name,long-name,ts,month-prefix,show-era,
             instant-to-dc,dc-to-instant,
@@ -260,12 +260,12 @@ fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) :
 }
 
 public fun cal-timestamp( cal : calendar, d : date, c : clock ) : timestamp {
-  dc-timestamp(d,c,cal.date-to-days)
+  dc-timestamp(d,c,cal.date-to-days,cal.timescale.has-leap-seconds)
 }
 
-fun dc-timestamp( d : date, c : clock, date-to-days: (date) -> int ) : timestamp {
+fun dc-timestamp( d : date, c : clock, date-to-days: (date) -> int, has-leap-seconds : bool = False) : timestamp {
   // check if we are in a leap second and remember
-  val (xsecs,leap)  = if (c.seconds < 60.ddouble) then (c.seconds,0) else {
+  val (xsecs,leap)  = if (!has-leap-seconds || c.seconds < 60.ddouble) then (c.seconds,0) else {
                         val leap = c.seconds.floor.int - 59
                         (c.seconds - leap.ddouble, leap)
                       }
@@ -473,17 +473,22 @@ is distributed over the last 1000 seconds of the day. On the full hour, ISO and 
 This is a recommended calendar to use for
 time stamps or communication with other services since it avoids any potential trouble
 with leap seconds while still being quite precise.
+
+Other good properties include:
+
+- All days have 86400 seconds, and the time 23:59:60 never appears
+- The time never differs more than one second from UTC
+- Time as always equal to UTC on the full and half hour
 */
-/*
-public val cal-iso-sls = iso-calendar( ts-ti-sls, "", "ISO-SLS" )
+public val cal-iso-sls = iso-calendar( ts-ti-sls, "SLS", "ISO-SLS" )
 
 // Create a new ISO 8601 calendar based on UTC-SLS time, i.e. UTC with smoothed leap
 // seconds.
 public fun cal-utc-sls-create( leaps : leaps-table ) : calendar {
   val ts-utc-sls = ts-utc-sls-create(leaps)
-  iso-calendar( ts-utc-sls, "", "ISO-SLS" )
+  iso-calendar( ts-utc-sls, "SLS", "ISO-SLS" )
 }
-*/
+
 
 // The (proleptic) [Gregorian calendar](https://en.wikipedia.org/wiki/Gregorian_calendar).
 // Just like the ISO calendar except that the year 0 does not exist, i.e. after 1 BCE (=`~1`)
