@@ -346,7 +346,7 @@ public fun unix-instant( u : int, frac : double = 0.0 ) : instant {
 }
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
-// and optional leap seconds.
+// and optional leap seconds to designate instants inside a leap seconds.
 public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
   ts-unix.instant( timestamp(t - unix2000, leap) )
 }
@@ -363,7 +363,7 @@ val unix2000 = timespan(946684800)
 
 
 // Convert an NTP time in seconds since the NTP epoch (1900-01-01Z) to an instant.
-// Also takes an optional `leap` argument if the NTP time is _in_ a leap seconds.
+// Also takes an optional `leap` argument if the NTP time is inside a leap second.
 public fun ntp-instant( ntp : ddouble, leap : int = 0 ) : instant {
   ts-ntp.instant( timestamp(ntp,leap) - ntp2000 )
 }
@@ -407,16 +407,16 @@ public fun ts-utc-create( leaps : leaps-table ) : timescale {
 }
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale is equal
-// to the UTC time scale (`ts-utc`) but  with a 1970-01-01Z epoch.
+// to the UTC time scale (`ts-utc`).
 public fun ts-unix-create( leaps : leaps-table ) : timescale {
   ts-utc-create(leaps) // utc-timescale( "UNIX", leaps )
 }
 
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal
-// to the UTC time scale (`ts-utc`) but  with a 1900-01-01Z epoch.
+// to the UTC time scale (`ts-utc`).
 public fun ts-ntp-create( leaps : leaps-table ) : timescale {
-  ts-utc-create(leaps) // utc-timescale( "NTP", leaps )
+  ts-utc-create(leaps)
 }
 
 
@@ -436,7 +436,7 @@ public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
 public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
-// It equal the `ts-ti` time scale.
+// It equals the `ts-ti` time scale.
 public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 
@@ -463,8 +463,8 @@ fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1
 // is distributed over the last 1000 seconds of the day. On the full hour, UTC
 // and UTC-SLS are equal again.
 //
-// This is a recommended time scale to use for
-// time stamps or communication with other services since it avoids any potential trouble
+// This is a recommended time scale to use for time stamps or communication
+// with other services since it avoids any potential trouble
 // with leap seconds while still being quite precise.
 // See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
 //

@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -172,7 +172,8 @@ interpreted by calendar `cal` (=`cal-iso`).
 The `month`, `day`, `hour`, `minutes` may be outside their usual ranges
 and will be normalized during the conversion. For example, January 33 converts to February 2.
 This makes it very easy to add- or subtract days or months to an existing time.
-When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are
+
+When the `seconds` or fraction of seconds `frac` add up over 60 though, those extra seconds are
 interpreted as leap seconds.
 
 Due to timezone transitions, or leap seconds, it is possible to specify dates that never
@@ -372,18 +373,34 @@ public fun last-weekday-of-month( t : time, wd : weekday ) : time {
 
 // Return the day of the year of time `t` (starting at 1).
 public fun day-of-year( t : time ) : int {
-  t.calendar.day-diff(t.date,Date(t.year,1,1)) + 1
+  t.calendar.days-until(Date(t.year,1,1),t.date) + 1
 }
 
 // Return the total days in the month of time `t`.
 public fun days-in-month( t : time ) : int {
   val d = t.date
-  t.calendar.day-diff(Date(d.year,d.month+1,1),Date(d.year,d.month,1))
+  t.calendar.days-until(Date(d.year,d.month,1),Date(d.year,d.month+1,1))
 }
 
 // Return the total days in the year of time `t`.
 public fun days-in-year( t : time) : int {
-  t.calendar.day-diff(Date(t.year+1,1,1),Date(t.year,1,1))
+  t.calendar.days-until(Date(t.year,1,1),Date(t.year+1,1,1))
+}
+
+// Return the days between two times. Uses the calendar and timezone
+// of the first time `t1` to determine the date of `t2`.
+// ```
+// days-until( time(2000,1,1), time(2000,1,1) ) == 0
+// days-until( time(2000,1,1), time(2000,1,2) ) == 1
+// days-until( time(2000,1,1), time(2000,1,2,tz=tz-fixed(1)) ) == 0
+// days-until( time(2000,1,1), time(2000,3,1) ) == 60
+// days-until( time(2000,2,1), time(2000,1,1) ) == -1
+// ```
+public fun days-until( t1 : time, t2 : time ) : int {
+  val d2 = if (t1.calendar == t2.calendar && t1.timezone == t2.timezone)
+            then t2.date
+            else t2.instant.time(tz=t1.timezone,cal=t1.calendar).date
+  t1.calendar.days-until( t1.date, d2 )
 }
 
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants))
@@ -400,12 +417,6 @@ public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
   t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
-  /*
-  val ds = cal-dayspan(t.calendar, t.date, t.clock)
-  val secs-in-day = t.instant.seconds-in-day
-  val frac = (ds.secs + ds.leap.ddouble) / secs-in-day
-  mjd-epoch-delta + ds.days.ddouble + frac
-  */
 }
 val mjd-epoch-delta = timespan(51544)
 
@@ -429,7 +440,7 @@ val jd-epoch-delta  = timespan(2400000.5)
 
 // Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
 public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso) : ndet time {
-  now().time(tz,cal)
+  now(cal.timescale).time(tz,cal)
 }
 
 // Return the current time in the local timezone and optional calendar (=`cal-iso`).
@@ -464,27 +475,3 @@ public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso ) 
 {
   time(d,c,tz-local(),cal)
 }
-
-/*
-
-// Return the `:time` value for a given `:weekdate` and `:clock` (=`clock0`) in the local timezone `tz`
-// interpreted by calendar `cal` (=`cal-iso-week`).
-// It is also possible to pass the weekday that determines if
-// a week falls in the current year or not (which is Thursday for the ISO definition).
-public fun local-time-weekdate( year :int, month: int, weekday : weekday, c : clock = clock0,
-                        cal : calendar = cal-iso-week ) : ndet time {
-  time-weekdate(year,month,weekday,c,tz-local(),cal)
-}
-
-// Return the `:time` value for a given ISO week date and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default)
-// interpreted by calendar `cal` (=`cal-iso-week`).
-// `time(2004,53,Sat,cal=cal-iso).date.show == "2005-01-01"`\
-// `time(2005,52,Sat,cal=cal-iso).date.show == "2005-12-31"`\
-// `time(2009,1,Wed,cal=cal-iso).date.show == "2008-12-31"`
-public fun time-weekdate( year : int, month : int, weekday : weekday, c : clock = clock0,
-                  tz : timezone = tz-utc, cal : calendar = cal-iso-week) : time
-{
-  time(instant(date(year,month,weekday.int),c,tz,cal=cal-iso-week),tz,cal)
-}
-
-*/

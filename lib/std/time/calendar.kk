@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -39,6 +39,10 @@ public struct calendar(
   private date-to-days  : (date:date) -> int
 )
 
+// Check if two calendars use the same date calculations. (Display of era names etc. may differ)
+public fun (==)( c1 : calendar, c2 : calendar ) : bool {
+  (c1.long-name == c2.long-name && c1.timescale == c2.timescale)
+}
 
 /*----------------------------------------------------------------------------
   Time zone
@@ -60,10 +64,14 @@ public struct timezone(
   private utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
 )
 
+// Same timezone?
+public fun (==)( tz1 : timezone, tz2 : timezone ) : bool {
+  (tz1.name == tz2.name)
+}
 
 // Is this the UTC timezone?
 public fun tz-utc?( tz : timezone ) : bool {
-  (tz.name == tz-utc.name)
+  tz == tz-utc
 }
 
 // Create a time zone with a fixed number of hours and optional minutes (=`0`) difference from UTC/GMT.
@@ -109,6 +117,7 @@ public fun tz-local() : ndet timezone {
 alias local-timezone = any
 
 // Get the current local timezone structure.
+// The timezone name is allowed to be the empty string.
 extern local-get-timezone() : ndet local-timezone {
   cs "_Calendar.LocalTimeZone"
   js "_local_get_timezone"
@@ -164,19 +173,6 @@ public fun instant( year : int, month : int = 1, day : int = 1,
   instant( Date(year,month,day), Clock(hours,minutes,fsecs), tz, cal )
 }
 
-/*
-// Return the instant in time for a given `:weekdate` and `:clock` (=`clock0`) interpreted by
-// calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
-// It is also possible to pass the weekday that determines if
-// a week falls in the current year or not (which is Thursday for the ISO definition)
-public fun instant( wd : weekdate, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, weekday-in-year : weekday = Thu ) : instant
-{
-  val adj = Date(wd.year,1,weekday-in-year.int).weekday(cal=cal).int + (7 - weekday-in-year.int)
-  val d   = Date(wd.year, 1, (7*wd.week + wd.day.int) - adj)
-  instant( d, c, tz, cal )
-}
-*/
-
 // Return the day of the week for a calendar `cal` (=`cal-iso`).
 fun weekday( d : date, cal : calendar ) : weekday {
   // Generic algorithm for any calendar
@@ -185,11 +181,11 @@ fun weekday( d : date, cal : calendar ) : weekday {
   dow.weekday                  // to ISO week day
 }
 
-// Return the difference in days between two dates interpreted by calendar `cal`.
-public fun day-diff( cal : calendar, d1 : date, d2 :date ) : int {
+// Return the days between two dates interpreted by calendar `cal`.
+public fun days-until( cal : calendar, d1 : date, d2 :date ) : int {
   val i1 = instant(d1,cal=cal)
   val i2 = instant(d2,cal=cal)
-  i1.days - i2.days
+  i2.days - i1.days
 }
 
 

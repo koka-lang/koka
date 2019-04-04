@@ -23,7 +23,7 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
 }
 
-val leap-seconds = "3786825600  36  # 1 Jan 2020" //testing negative 2 seconds
+val leap-seconds = "3786825600  36  # 1 Jan 2020" //testing negative leap second
 val leaps = parse-leap-seconds(leap-seconds).extend(leaps-table-ti)
 val cal-slsx = cal-utc-sls-create(leaps)
 val cal-utcx = cal-utc-create(leaps)

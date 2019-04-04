@@ -65,7 +65,7 @@ UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time
 - To avoid conversions, it is better to represent as days plus the seconds
   into that day. However, that means that adding or subtracting seconds
   always needs normalization.
-- To make it easier to add/substract time spans, can represent it as single
+- To make it easier to add/substract time spans, we can represent it as single
   timespan `since` where `days == floor(since / 86400)` and `seconds == since - days`.
   This is essentially the representation that Unix/Posic timestamps use too.
 - Finally, we add a separate `leap` seconds field
@@ -75,14 +75,14 @@ UTC based timescales. [Unix/UTC seconds](https://en.wikipedia.org/wiki/Unix_time
 Here is the representation of a time in the leap second just before 2006-01-01:
 ```
 time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show == "189388799.500 (+1 leap)"
-time(2005,12,31,23,59,60,0.5).instant.dayspan.show == "2191d 86399.500s (+1 leap)"
+time(2005,12,31,23,59,60,0.5).instant.timestamp.ts-show-days == "2191d 86399.500s (+1 leap)"
 ```
 The `leap` field also lets us represent leap times that occurred at another
 time than the last second of the day:
 ```
-time(1959,1,28,18,59,59,0.01).instant.dayspan.show == "-14948d 68399.010s"
-time(1959,1,28,18,59,60,0.01).instant.dayspan.show == "-14948d 68399.010s (+1 leap)"
-time(1959,1,28,19, 0, 0,0.01).instant.dayspan.show == "-14948d 68400.010s"
+time(1959,1,28,18,59,59,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s"
+time(1959,1,28,18,59,60,0.01).instant.timestamp.ts-show-days == "-14948d 68399.010s (+1 leap)"
+time(1959,1,28,19, 0, 0,0.01).instant.timestamp.ts-show-days == "-14948d 68400.010s"
 ```
 See `std/time/utc` for more information on leap seconds.
 
