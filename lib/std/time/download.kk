@@ -22,6 +22,7 @@ import std/time/utc
 import std/time/chrono
 import std/time/calendar
 
+/*
 // Construct a smoothed UTC-SLS based ISO calendar (see `ts-utc-sls-create`),
 // using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
@@ -41,6 +42,7 @@ public fun cal-utc-sls-load( fname : path = path(""),
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-sls-create(leaps)
 }
+*/
 
 // Construct a UTC based ISO calendar using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
@@ -50,6 +52,7 @@ public fun cal-utc-sls-load( fname : path = path(""),
 // If the file is older than `download-delay` (=`4.weeks`) the file is automatically refreshed from `url`.
 // The `download-timeout` (=`5.seconds`) gives the maximum time for downloading to finish.
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
+/*
 public fun cal-utc-load( fname : path = path(""),
                          url   : string = "auto",
                          download-delay : duration   = 4.weeks,
@@ -61,6 +64,7 @@ public fun cal-utc-load( fname : path = path(""),
   val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
   cal-utc-create(leaps)
 }
+*/
 
 // Construct a UTC time scale using the latest IERS leap second information from file `fname`
 // (= `"config/leap-seconds.list"` in the application directory).
@@ -77,7 +81,8 @@ public fun ts-utc-load( fname : path = path(""),
                          verbose : bool = False
                        ) : <io,async> timescale
 {
-  cal-utc-load(fname,url,download-delay,download-timeout,verbose).timescale
+  val leaps = load-leaps-table(fname,url,download-delay,download-timeout,verbose)
+  ts-utc-create(leaps)
 }
 
 // Load the latest leap second information from file `fname`
@@ -138,7 +143,7 @@ public fun load-latest( fname  : path,
   }
 
   // is the current data still valid?
-  val unow  = now()
+  val unow  = now-in(ts-ti)
   match(current) {
     Just(cur) | cur.expire.default(unow) > unow -> {
       warn("current data still valid")
@@ -235,7 +240,7 @@ public fun download-latest(  url   : string,
     // trace("downloaded: " + url + ": " + text.first(10).string + "...")
     match(text.parse) {
       Just(data) -> {
-        val exp = data.expire.default(now())
+        val exp = data.expire.default(now-in(ts-ti))
         match(current) {
           Just(data-cur) | data-cur.expire.default(exp) > exp -> {
             warn("downloaded data is less recent than the cached data.")

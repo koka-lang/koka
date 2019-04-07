@@ -17,7 +17,7 @@ public import std/time
   Testing
 ----------------------------------------------------------------------------*/
 
-fun check(name : string, res : string, tst : () -> io string ) : io () {
+fun check(name : string, res : string, tst : () -> <io,utc> string ) : <io,utc> () {
   val got = tst()
   println(name.pad-right(14,' ') + ": "
     + (if (got == res) then "ok: " + res
@@ -26,6 +26,8 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
 
 
 fun test-leap() {
+  val ts-utc = ts-utc-load()
+  with fun utc() { ts-utc }
   check("leap1", "2016-12-31T23:59:59Z" ) {  instant(2017,1,1,0,0,35,cal=cal-tai).time.show  }
   check("leap2", "2016-12-31T23:59:60Z" ) {  instant(2017,1,1,0,0,36,cal=cal-tai).time.show  }
   check("leap3", "2017-01-01T00:00:00Z" ) {  instant(2017,1,1,0,0,37,cal=cal-tai).time.show  }

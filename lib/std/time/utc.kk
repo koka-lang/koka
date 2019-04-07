@@ -258,7 +258,7 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
     observatories used their own versions of UT2 leading to longitude errors
     of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s
     (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
-    which makes UT1 equal 1958-01-01T00:00:00.018 UT1.
+    which equals 1958-01-01T00:00:00.018 UT1 time.
     When we calculate UT2 using the current definition [@Almanac, page 85]:
 
     > UT2 = UT1 + 0.022&centerdot;sin(2&pi;&tau;) - 0.012&centerdot;cos(2&pi;&tau;) - 0.006&centerdot;sin(4&pi;&tau;) + 0.007&centerdot;cos(4&pi;&tau;)
@@ -290,6 +290,9 @@ import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
+
+// Return the UTC timescale with the latest leap second information.
+public ambient fun utc() : timescale
 
 /*----------------------------------------------------------------------------
   Unix and NTP timestamps
@@ -433,11 +436,11 @@ public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
 // It equals the `ts-ti` time scale.
-public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
+//public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
 // It equals the `ts-ti` time scale.
-public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
+//public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 
 
@@ -473,7 +476,6 @@ fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1
 public fun ts-utc-sls-create( leaps : leaps-table ) : timescale {
   utc-sls-timescale( "UTC-SLS", leaps )
 }
-
 
 // TI time scale with smoothed leap seconds.\
 // Implements a TI time scale (`ts-ti`) except without ever showing leap seconds.

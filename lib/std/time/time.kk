@@ -31,8 +31,13 @@ abstract struct time (
   public  tzdelta : duration = zero,
   public  tzabbrv : string   = "",
   public  timezone: timezone = tz-utc,
-  public  instant : instant
+  public  instant : instant   // the timescale of the instant is the timescale of the calendar
 )
+
+// The `:timescale` of the time.
+public fun timescale( t : time ) : timescale {
+  t.instant.timescale
+}
 
 // Return the year of a `:time`.
 public fun year( t : time ) : int {
@@ -94,7 +99,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
   if (prec.neg?) then return t
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
-  val ri   = t.instant.use-timescale(t.calendar.timescale).round-to-prec(prec)
+  val ri   = t.instant.round-to-prec(prec)
   // trace("time.round-to-prec: " + t.showx + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
   if (secs.truncate == t.seconds.truncate) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
@@ -113,11 +118,13 @@ public fun show(t : time, prec : int = 9 ) : string {
 }
 
 fun showx( tp : time, prec : int = 9 ) : string {
+  val tsname = tp.timescale.name
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta )
    + (if (tp.tzabbrv.numeric?) then "" else " (" + tp.tzabbrv + ")")
    + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
+   + (if (tsname.empty? || tsname == "UTC") then "" else " " + tsname)
 }
 
 fun numeric?( abbrv : string ) : bool {
@@ -154,17 +161,26 @@ fun show0( i : int, width : int = 2) : string {
 
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
-public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val j = i.use-timescale(cal.timescale) // minimize number of conversions
+public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-null ) : time {
+  val j = if (ts==ts-null) then i else i.use-timescale(ts)
   val (d,c,tzdelta,tzabbrv) = instant-dc(j,tz,cal)
   Time(d,c,cal,tzdelta,tzabbrv,tz,j)
 }
 
 // Convert a `:time` `t` to a new `:time` value in a potentially different
 // timezone `tz` (=`t.timezone` by default) and calendar (=`t.calendar` by default).
-public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar ) : time {
-  time(t.instant,tz,cal)
+public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar, ts : timescale = ts-null ) : time {
+  time(t.instant,tz,cal,ts)
 }
+
+public fun time( ts : timescale, year : int, month : int = 1, day : int = 1,
+                 hours : int = 0, minutes : int = 0, secs : int = 0,
+                 frac : double = 0.0, tz : timezone = tz-utc,
+                 cal : calendar = cal-iso ) : time
+{
+  time(ts.instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal,ts)
+}
+
 
 /* Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default)
 interpreted by calendar `cal` (=`cal-iso`).
@@ -182,27 +198,34 @@ In such cases, the time is always interpreted in the earlier timezone.
 */
 public fun time( year : int, month : int = 1, day : int = 1,
                  hours : int = 0, minutes : int = 0, secs : int = 0,
-                 frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time
+                 frac : double = 0.0, tz : timezone = tz-utc,
+                 cal : calendar = cal-iso, ts : timescale = ts-null ) : <utc> time
 {
-  time(instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
+  val tsx = if (ts==ts-null) then utc() else ts
+  tsx.time(year,month,day,hours,minutes,secs,frac,tz,cal)
 }
 
+public fun time( ts : timescale, d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso) : time
+{
+  time(ts.instant(d,c,tz,cal),tz,cal,ts)
+}
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default)
 // interpreted by calendar `cal` (=`cal-iso`)
-public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time
+public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-null ) : <utc> time
 {
-  time(instant(d,c,tz,cal),tz,cal)
+  val tsx = if (ts==ts-null) then utc() else ts
+  tsx.time(d,c,tz,cal)
 }
 
 // Add a date (years, months, days) and optional clock to a time.  Takes leap years, leap seconds, etc. into account.
 public fun add-date( t : time, d : date, c : clock = clock0 ) : time {
-  time( t.date + d, t.clock + c, t.timezone, t.calendar )
+  t.timescale.time( t.date + d, t.clock + c, t.timezone, t.calendar )
 }
 
 // Add a clock (hours, minutes, seconds) to a time. Takes leap years, leap seconds, etc. into account.
 public fun add-clock( t : time, c : clock ) : time {
-  time( t.date, t.clock + c, t.timezone, t.calendar )
+  t.timescale.time( t.date, t.clock + c, t.timezone, t.calendar )
 }
 
 // Add  a specified number of days to a calendar time. Takes leap years etc. into account.\
@@ -257,17 +280,19 @@ public fun (-)( t1 : time, t2 : time ) : duration {
 public fun copy( t : time,
                  year : int = t.year, month : int = t.month, day : int = t.day,
                  hours : int = t.hours, minutes : int = t.minutes, seconds : ddouble = t.seconds,
-                 tz : timezone = t.timezone, cal : calendar = t.calendar ) : time
+                 tz : timezone = t.timezone, cal : calendar = t.calendar,
+                 ts : timescale = t.timescale ) : time
 {
-  time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal )
+  ts.time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal)
 }
 
 // Copy a `:time` with a new `:date` and optional `:clock` (=`t.clock`), and optionally a new
 // timezone (=`t.timezone`) and calendar (=`t.calendar`).
 public fun copy-dc( t : time, d : date = t.date, c : clock = t.clock,
-                    tz : timezone = t.timezone, cal : calendar = t.calendar ) : time
+                    tz : timezone = t.timezone, cal : calendar = t.calendar,
+                    ts : timescale = t.timescale ) : time
 {
-  time( d, c, tz, cal )
+  ts.time( d, c, tz, cal)
 }
 
 // Return the time at the start of the day of time `t`.
@@ -416,7 +441,8 @@ public fun days-until( t1 : time, t2 : time ) : int {
 public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
-  t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
+  val i = t.instant
+  i.mjd( i.timescale, t.tzdelta.timespan )
 }
 val mjd-epoch-delta = timespan(51544)
 
@@ -439,12 +465,23 @@ val jd-epoch-delta  = timespan(2400000.5)
 
 
 // Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
-public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso) : ndet time {
-  now(cal.timescale).time(tz,cal)
+public fun time-now(ts : timescale, tz : timezone = tz-utc, cal : calendar = cal-iso) : <ndet> time {
+  now-in(ts).time(tz,cal)
+}
+
+// Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
+public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-null) : <ndet,utc> time {
+  val tsx = if (ts==ts-null) then utc() else ts
+  tsx.time-now(tz,cal)
 }
 
 // Return the current time in the local timezone and optional calendar (=`cal-iso`).
-public fun local-time-now(cal : calendar = cal-iso) : ndet time {
+public fun local-time-now(ts : timescale, cal : calendar = cal-iso) : ndet time {
+  ts.time-now(tz-local(),cal)
+}
+
+// Return the current time in the local timezone and optional calendar (=`cal-iso`).
+public fun local-time-now(cal : calendar = cal-iso) : <ndet,utc> time {
   time-now(tz-local(),cal)
 }
 
@@ -461,17 +498,35 @@ public fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time {
 
 // Return the `:time` value for a given date and clock in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
-public fun local-time( year : int, month : int = 1, day : int = 1,
+public fun local-time( ts : timescale,
+                       year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
                        frac : double = 0.0, cal : calendar = cal-iso ) : ndet time
 {
-  time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
+  ts.time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
+}
+// Return the `:time` value for a given date and clock in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
+public fun local-time( year : int, month : int = 1, day : int = 1,
+                       hours : int = 0, minutes : int = 0, secs : int = 0,
+                       frac : double = 0.0, cal : calendar = cal-iso, ts : timescale = ts-null ) : <ndet,utc> time
+{
+  val tsx = if (ts==ts-null) then utc() else ts
+  tsx.local-time(year,month,day,hours,minutes,secs,frac,cal)
 }
 
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`)
-public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
+public fun local-time( ts : timescale, d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
 {
-  time(d,c,tz-local(),cal)
+  ts.time(d,c,tz-local(),cal)
+}
+
+// Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`)
+public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso, ts : timescale = ts-null ) : <ndet,utc> time
+{
+  val tsx = if (ts==ts-null) then utc() else ts
+  tsx.time(d,c,tz-local(),cal)
 }

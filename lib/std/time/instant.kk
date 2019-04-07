@@ -202,8 +202,9 @@ public fun round-to-prec(i : instant, prec : int ) : instant {
   if (prec.neg?) then i
   elif (i.ts.has-leap-seconds)
    // Round on TAI representation instead; assumes the leap second time scale has TAI SI seconds (which UTC has)
-   // TODO: optimize to round first on UTC, and only when necessary convert to TAI
-   then Instant( i.use-timescale(ts-tai).since.round-to-prec(prec), ts-tai )
+   // TODO: optimize to first see if rounding makes a difference and only than use TAI rounding
+   // TODO: optimize to first check if this is a leap day and only round via tai in that case.
+   then Instant( i.use-timescale(ts-tai).since.round-to-prec(prec), ts-tai ).use-timescale(i.ts)
    else Instant( i.since.round-to-prec(prec), i.ts )
 }
 

@@ -933,7 +933,7 @@ parseValOpDecl vis =
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
   do ((rng0,doc),linear) <- do rdoc <- dockeywordFun
-                               return (rdoc,True)
+                               return (rdoc,False) -- allow linear here?
                             <|>
                             do rdoc <- dockeyword "control"
                                return (rdoc,False)

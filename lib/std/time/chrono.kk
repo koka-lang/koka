@@ -20,6 +20,13 @@ extern include {
   js file "chrono-inline.js"
 }
 
+// The current `:instant` in time as returned by the system clock
+// in the UTC timescale. Equivalent to `now-in(utc())`, see
+// `now-in` for further information about the system clock.
+public fun now() : <ndet,utc> instant {
+  now-in(utc())
+}
+
 
 // The current `:instant` in time as returned by the system clock
 // in an optional time scale `ts` (`= ts-ti`).
@@ -43,7 +50,7 @@ extern include {
 // back one second after a leap second. By limiting the adjustment to at most
 // one second it ensures the clock catches up soon and does not affect the user
 // setting a new time in the past.
-public fun now( ts : timescale = ts-ti) : ndet instant {
+public fun now-in( ts : timescale = ts-ti) : ndet instant {
   // on current backends (C#, JavaScript) we can only use `unix-now` :-(
   val (secs,frac) = unix-now()
   unix-instant(secs,frac).use-timescale(ts)
