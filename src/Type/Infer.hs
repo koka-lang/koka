@@ -1278,11 +1278,22 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
                           []
         else return ()
 
-       -- check operations of lineas effect behave as expected
-       if (effectIsLinear handledEffect && rk > ResumeTail)
-        then termError rng (text "operation" <+> text (show opName) <+>
+       -- check operations of linear effect behave as expected
+       smbranchRho  <- subst mbranchRho
+       if (effectIsLinear handledEffect)
+        then (if (rk > ResumeTail)
+               then termError rng (text "operation" <+> text (show opName) <+>
                         text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
                         [(text "hint",text "Redefine the effect as 'control' or ensure the resumption is used linearly")]
+              else do let Just (_,_,TApp _ [effBranch,_]) = splitFunType smbranchRho
+                      let (effs,tl) = extractEffectExtend effBranch
+                      traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
+                      case (dropWhile effectIsLinear effs) of
+                         (e:_) ->
+                          termError rng (text "operation" <+> text (show opName) <+>
+                                        text ("needs to be linear but uses non-linear effects")) e
+                                        [(text "hint",text "Redefine the effect as 'control' or ensure only linear effects are used")]
+                         [] -> return ())
         else return ()
 
        -- The scoped variants require a bind translation in the branch but currently
@@ -1310,10 +1321,10 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
        sbranchCore <- subst branchCore
        sbranchEff  <- subst bexprEff
        shandlerBranchTp <- subst handlerBranchTp
-       smbranchRho  <- subst mbranchRho
 
        traceDoc $ \env -> text "inferHandlerBranch: name:" <+> pretty name <+>
                           text ", branch type:" <+> ppType env sbranchTp <+>
+                          text ", branch effect:" <+> ppType env sbranchEff <+>
                           text ", make branch type:" <+> ppType env smbranchRho <+>
                           text ", resume kind:" <+> pretty (show (rk,resKind))
        return (sbranchTp,shandlerBranchTp,sbranchEff,sbranchCore)
@@ -1427,7 +1438,9 @@ effectIsLinear :: Effect -> Bool
 effectIsLinear effect
   = case expandSyn effect of
       TApp (TCon tc) [hx]
-        | (typeConName tc == nameTpHandled1) -> True
+        -> (typeConName tc /= nameTpHandled)  -- handled effects, but allow handed1 and alloc<global> etc.
+      TCon _   -- builtin effects
+        -> True
       _ -> False
 
 {-
