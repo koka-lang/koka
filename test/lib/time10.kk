@@ -38,7 +38,7 @@ fun test-utc-neg() {
 }
 
 fun test-sls() {
-  check("utc-sls1","2016-12-31T23:43:20Z"){  instant(2017,1,0,23,43,20,ts=ts-ti-sls).time(ts=utc()).show  }
+  check("utc-sls1","2016-12-31T23:43:20Z"){  ts-ti-sls.instant(2017,1,0,23,43,20).time-utc().show  }
   check("utc-sls2","2016-12-31T23:43:22.001001001Z"){  instant(2017,1,0,23,43,22,ts=ts-ti-sls).time(ts=utc()).show  }
   check("utc-sls3","2016-12-31T23:59:60.989989990Z"){  instant(2017,1,0,23,59,59,0.99,ts=ts-ti-sls).time(ts=utc()).show  }
   check("utc-sls4","2016-12-31T23:43:20Z TI-SLS"){  instant(2017,1,0,23,43,20).time(ts=ts-ti-sls).show  }

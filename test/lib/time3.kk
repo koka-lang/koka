@@ -55,7 +55,7 @@ fun test-jd(ts-utc) {
 
 fun test-astro() {
   // check("astro1"){ instant(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds }
-  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).tai-time.show  }
+  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).time-tai.show  }
 }
 
 public val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
@@ -69,7 +69,7 @@ fun test-sofa(ts-utc) {
   val i = sofai
   check("sofa4utc","2006-01-15T21:24:37.500Z"){  i.time(ts=ts-utc).show  }
   check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(ts=ts-ut1-approx).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
-  check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.tai-time.show  }
+  check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.time-tai.show  }
   check("sofa4tt","2006-01-15T21:25:42.684Z TT"){  i.time(ts=ts-tt).show   }
   check("sofa4tcg","2006-01-15T21:25:43.322690496Z TCG"){  i.time(ts=ts-tcg).show  }   // astropy: 43.322690497
   // these differ slightly from astropy but up to 2micro-seconds

@@ -204,17 +204,26 @@ public fun time( year : int, month : int = 1, day : int = 1,
   ts.time(year,month,day,hours,minutes,secs,frac,tz,cal)
 }
 
-public fun utc-time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time {
+public fun time-utc( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso) : <utc> time {
   time(i,tz,cal,utc())
 }
 
-public fun tai-time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time {
+public fun time-tai( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
   time(i,tz,cal,ts-tai)
 }
 
-public fun gps-time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time {
+public fun time-gps( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
   time(i,tz,cal,ts-gps)
 }
+
+public fun time-tt( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-tt)
+}
+
+public fun time-ti( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-ti)
+}
+
 
 public fun time( ts : timescale, d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso) : time
 {

@@ -28,18 +28,18 @@ public fun test-timezones() {
   val tzs = load-timezones()
   val tz1 = tzs.timezone("America/New_York")
   val tz2 = tzs.timezone("Pacific/Kosrae")
-  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
+  val t1  = time(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
   t1.time(tz=tz2).show.println // 1998-01-01T17:31:00+12:00
-  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // across DST & leap second
+  val t2  = time(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) // across DST & leap second
   t2.time(tz=tz2).show.println // 1999-01-01T16:30:59+11:00
 
   // from moment-timezones docs: https://github.com/moment/moment-timezone
-  val t3 = instant(2014,6,1,12)
+  val t3 = time(2014,6,1,12)
   t3.time(tz=tz1).show.println
   t3.time(tz=tzs.timezone("America/Los_Angeles")).show.println
   t3.time(tz=tzs.timezone("Asia/Tokyo")).show.println
   t3.time(tz=tzs.timezone("Australia/Sydney")).show.println
-  val t4 = instant(2014,12,1,12)
+  val t4 = time(2014,12,1,12)
   t4.time(tz=tz1).show.println
   t4.time(tz=tzs.timezone("America/Los_Angeles")).show.println
   t4.time(tz=tzs.timezone("Asia/Tokyo")).show.println
@@ -70,12 +70,12 @@ fun test-tzs( tzs : timezones ) {
   check("tz4e", "2011-11-06T01:15:00-05:00 (EST)"){ instant(2011,11,6,6,15).time(tz=z1).show }
 
   check("tz5", "1978-12-31T23:59:59Z") { instant(1979,1,1,3,29,59,tz=z3).time.show }
-  check("tz6", "1973-01-01T00:00:11-01:00 TAI") { time(1973,1,1,0,0,11,tz=tz-fixed(~1),cal=cal-tai).show }
+  check("tz6", "1973-01-01T00:00:11-01:00 TAI") { ts-tai.time(1973,1,1,0,0,11,tz=tz-fixed(~1)).show }
 
   // leap second in other time zone
-  check("tzleap1", "2016-12-31T15:59:60.500-08:00 (PST)"){ ts-tai.instant(2017,1,1,0,0,36,0.5).utc-time(tz=tzs.timezone("US/Pacific")).show }
-  check("tzleap2", "1999-01-01T10:59:60.500+11:00"){ ts-tai.instant(1999,1,1,0,0,31,0.5).utc-time(tz=z2).show }
-  check("tzleap3", "1979-01-01T03:29:60.500+03:30"){ ts-tai.instant(1979,1,1,0,0,17,0.5).utc-time(tz=z3).show }
+  check("tzleap1", "2016-12-31T15:59:60.500-08:00 (PST)"){ ts-tai.instant(2017,1,1,0,0,36,0.5).time-utc(tz=tzs.timezone("US/Pacific")).show }
+  check("tzleap2", "1999-01-01T10:59:60.500+11:00"){ ts-tai.instant(1999,1,1,0,0,31,0.5).time-utc(tz=z2).show }
+  check("tzleap3", "1979-01-01T03:29:60.500+03:30"){ ts-tai.instant(1979,1,1,0,0,17,0.5).time-utc(tz=z3).show }
   check("tzleap4", "1978-12-31T23:59:59Z"){ instant(1979,1,1,3,29,59,tz=z3).time.show }
 
   // round into a time zone skip
