@@ -237,7 +237,7 @@ public fun max( i : instant, j : instant ) : instant {
 public fun (+)( i : instant, d : duration ) : instant {
   if (i.ts.unit=="TAI")
    then unsafe-add( i, d.timespan )
-   else i.use-timescale(ts-tai).unsafe-add( d.timespan )
+   else i.use-timescale(ts-tai).unsafe-add( d.timespan ).use-timescale(i.timescale)
 }
 
 // Add `days` days to the instant.

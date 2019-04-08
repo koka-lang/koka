@@ -103,12 +103,14 @@ public fun load-leaps-table( fname : path = path(""),
   val xfname = (fname || appdir() + path("config/leap-seconds.list"))
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   fun parse( leaps : string ) : maybe<leaps-table> { Just(parse-leap-seconds(leaps))}
-  load-latest( xfname, xurl, parse, fun(lt:leaps-table){ Just(lt.expire) },
+  val leaps-table
+    = load-latest( xfname, xurl, parse, fun(lt:leaps-table){ Just(lt.expire) },
                Just(leaps-table-ti),
                download-timeout=download-timeout,download-delay=download-delay,
                error-prefix="load IETF leap seconds table",
                verbose=verbose
              )
+  leaps-table.extend( leaps-table-pre1972 ) // extend with historical leap steps
 }
 
 

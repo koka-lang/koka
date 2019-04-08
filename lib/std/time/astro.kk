@@ -146,7 +146,7 @@ import std/time/utc        // ts-ti
 import std/time/calendars  // cal-tai, cal-gps
 import std/time/download   // cal-utc-load
 
-
+/*
 // The TCG (Geometric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcg` time scale.
 public val cal-tcg  = iso-calendar( ts-tcg )//, fixed(32184,3) )
 
@@ -155,7 +155,7 @@ public val cal-tdb  = iso-calendar( ts-tdb )//, fixed(32184,3) )
 
 // The TCB (Barycentric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcb` time scale.
 public val cal-tcb  = iso-calendar( ts-tcb )//, fixed(32184,3) )
-
+*/
 
 
 

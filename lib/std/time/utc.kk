@@ -334,24 +334,24 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
-public fun unix-instant( u : double, frac : double = 0.0 ) : instant {
+public fun unix-instant( u : double, frac : double = 0.0, ts : timescale = ts-ti ) : instant {
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
-  unix-instant(t,leap)
+  unix-instant(t,leap,ts)
 }
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // Use a fraction `> 1` to indicate a time inside a leap second.
-public fun unix-instant( u : int, frac : double = 0.0 ) : instant {
+public fun unix-instant( u : int, frac : double = 0.0, ts : timescale = ts-ti ) : instant {
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
-  unix-instant(t,leap)
+  unix-instant(t,leap,ts)
 }
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // and optional leap seconds to designate instants inside a leap seconds.
-public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
-  ts-unix.instant( timestamp(t - unix2000, leap) )
+public fun unix-instant( t : timespan, leap : int = 0, ts : timescale = ts-ti ) : instant {
+  ts-ti.instant( timestamp(t - unix2000, leap) ).use-timescale(ts)
 }
 
 
@@ -359,7 +359,7 @@ public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
 // Since Unix time stamps are ambigioous,
 // instants inside a leap seconds show as occurring in the second after that.
 public fun unix-timestamp( i :instant ) : ddouble {
-  (unix2000 + i.timestamp-in(ts-unix).unsafe-timespan-withleap)
+  (unix2000 + i.timestamp-in(ts-ti).unsafe-timespan-withleap)
 }
 
 val unix2000 = timespan(946684800)
@@ -436,11 +436,11 @@ public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
 // It equals the `ts-ti` time scale.
-//public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
+public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
 // It equals the `ts-ti` time scale.
-//public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
+public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
 
 
 
@@ -719,11 +719,15 @@ fun delta-tai( la : leap-adjust, utc : utc-timestamp ) : timespan {
   Default leap tables
 ----------------------------------------------------------------------------*/
 
+// Leap second table upto (but not including) 1972-01-01 UTC
+public val leaps-table-pre1972 : leaps-table = {
+  parse-leap-seconds-dat( default-leap-seconds-pre72 )
+}
+
 // Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
 public val leaps-table-ti : leaps-table = {
-  val pre72  = parse-leap-seconds-dat( default-leap-seconds-pre72 )
   val post72 = parse-leap-seconds( default-ietf-leap-seconds )
-  post72.extend(pre72)
+  post72.extend(leaps-table-pre1972)
 }
 
 // Leap second table up to 2017-01-01Z.

@@ -53,7 +53,7 @@ public fun now() : <ndet,utc> instant {
 public fun now-in( ts : timescale = ts-ti) : ndet instant {
   // on current backends (C#, JavaScript) we can only use `unix-now` :-(
   val (secs,frac) = unix-now()
-  unix-instant(secs,frac).use-timescale(ts)
+  unix-instant(secs,frac,ts)
 }
 
 // Returns a unix time stamp as seconds and fraction of seconds;

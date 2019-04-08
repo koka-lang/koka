@@ -136,7 +136,6 @@ extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
 /*----------------------------------------------------------------------------
   Time and instant conversion using a calendar
 ----------------------------------------------------------------------------*/
-public val ts-null = tai-timescale("NULL")
 
 // Return the instant in time for a given `:date` and `:clock` (= `clock0`) interpreted by
 // calendar `cal` (=`cal-iso`) in a timezone `tz` (=`tz-utc` by default).
@@ -144,9 +143,8 @@ public fun instant( ts : timescale, d : date, c : clock = clock0, tz : timezone 
   (cal.dc-to-instant)( d, c, tz, ts )
 }
 
-public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-null ) : utc instant {
-  val tsx = if (ts==ts-null) then utc() else ts
-  tsx.instant(d,c,tz,cal)
+public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : utc instant {
+  ts.instant(d,c,tz,cal)
 }
 
 // Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation,
@@ -183,10 +181,9 @@ public fun instant( ts : timescale,
 public fun instant( year : int, month : int = 1, day : int = 1,
                     hours : int = 0, minutes : int = 0, seconds : int = 0,
                     frac : double = 0.0, tz : timezone = tz-utc,
-                    cal : calendar = cal-iso, ts : timescale = ts-null ) : utc instant
+                    cal : calendar = cal-iso, ts : timescale = utc() ) : utc instant
 {
-  val tsx = if (ts==ts-null) then utc() else ts
-  tsx.instant(year,month,day,hours,minutes,seconds,frac,tz,cal)
+  ts.instant(year,month,day,hours,minutes,seconds,frac,tz,cal)
 }
 
 // Return the day of the week for a calendar `cal` (=`cal-iso`).

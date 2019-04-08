@@ -325,7 +325,7 @@ public fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc 
 
 fun sample-dates( year : int ) : list<instant> {
   list(year - 1, year).flatmap( fun(y) {
-    list(0,3).map( fun(m) { instant(y,m*4,15) } )
+    list(0,3).map( fun(m) { ts-ti.instant(y,m*4,15) } )
   })
 }
 
@@ -347,7 +347,7 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
   match(tzs.timezone-info(local-timezone-name())) {
     Just(tzi) -> tzi.timezone
     Nothing {
-      val year    = now().time.year
+      val year    = now-in(ts-ti).time.year
       val dates   = sample-dates(year)
       val offsets = dates.sample-offsets(tz-local())
       val matches = tzs.tzones.list.map(snd).filter( fun(tzi){
