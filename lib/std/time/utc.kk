@@ -363,7 +363,7 @@ public val ts-unix : timescale = ts-unix-create( leaps-table-ti )
 // -----------------------------------------------------------
 
 
-// `:ntp-timespan` is NTP time since 2000-01-01 (i.e. NTP - 3155673600)
+// `:ntp-timespan` is NTP time since 1900-01-01 
 alias ntp-timespan = timespan
 
 
