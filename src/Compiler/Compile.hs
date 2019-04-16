@@ -384,8 +384,8 @@ compileProgram' term flags modules compileTarget fname program
                                            Just f  ->
                                             let mainName2  = qualify (getName program) (newHiddenName "main")
                                                 r          = rangeNull
-                                                expression = App (Var mainName False r) [] r
-                                                defMain    = Def (ValueBinder mainName2 () (Lam [] (f expression) r) r r)  r Public (DefFun PolyMon)  ""
+                                                expression = App (Var entryName False r) [] r
+                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun PolyMon)  ""
                                                 program2   = programAddDefs program [] [defMain]
                                             in do loaded3 <- typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2

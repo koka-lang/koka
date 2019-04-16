@@ -9,4 +9,4 @@ leap-ut1f : ok: 2012-07-01T00:00:01.413237502Z UT1
 utc at tai epoch: ok: 1958-01-01T00:00:00Z
 tt at tai epoch: ok: 1958-01-01T00:00:32.184Z TT
 ut1 at tai epoch: ok: 1958-01-01T00:00:00.018Z UT1
-ut2 at tai epoch: ok: 1958-01-01T00:00:00.007882274Z UT2
+ut2 at tai epoch: ok: 1958-01-01T00:00:00.013023922Z UT2
