@@ -384,7 +384,9 @@ compileProgram' term flags modules compileTarget fname program
                                            Just f  ->
                                             let mainName2  = qualify (getName program) (newHiddenName "main")
                                                 r          = rangeNull
-                                                expression = App (Var entryName False r) [] r
+                                                expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
+                                                                                                  else unqualify mainName -- main
+                                                                      ) False r) [] r
                                                 defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun PolyMon)  ""
                                                 program2   = programAddDefs program [] [defMain]
                                             in do loaded3 <- typeCheck loaded1 flags 0 coreImports program2
