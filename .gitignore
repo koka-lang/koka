@@ -1,4 +1,6 @@
 node_modules/
 out/
+stack.yaml
+.stack-work
 src/Syntax/Lexer.hs
 .idea/

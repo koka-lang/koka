@@ -12,7 +12,6 @@ module std/time/timer
 
 import std/num/double
 import std/num/ddouble
-import std/time/timestamp
 import std/time/duration
 import std/time/instant
 

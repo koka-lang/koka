@@ -39,7 +39,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpInst )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -407,7 +407,7 @@ compileProgram' term flags modules compileTarget fname program
 
 checkUnhandledEffects flags name range tp
   = case expandSyn tp of
-      TFun _ eff _  | containsHandledEffect [nameTpCps,nameTpAsync] eff
+      TFun _ eff _  | containsHandledEffect [nameTpCps,nameTpAsync,nameTpInst] eff
         -> errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
                                          text " inferred effect:" <+> ppType (prettyEnvFromFlags flags) eff <-->
                                          text " hint           : wrap the main function in a handler"))

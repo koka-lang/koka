@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -31,8 +31,13 @@ abstract struct time (
   public  tzdelta : duration = zero,
   public  tzabbrv : string   = "",
   public  timezone: timezone = tz-utc,
-  public  instant : instant
+  public  instant : instant   // the timescale of the instant is the timescale of the calendar
 )
+
+// The `:timescale` of the time.
+public fun timescale( t : time ) : timescale {
+  t.instant.timescale
+}
 
 // Return the year of a `:time`.
 public fun year( t : time ) : int {
@@ -94,7 +99,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
   if (prec.neg?) then return t
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
-  val ri   = t.instant.use-timescale(t.calendar.timescale).round-to-prec(prec)
+  val ri   = t.instant.round-to-prec(prec)
   // trace("time.round-to-prec: " + t.showx + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
   if (secs.truncate == t.seconds.truncate) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
@@ -113,11 +118,13 @@ public fun show(t : time, prec : int = 9 ) : string {
 }
 
 fun showx( tp : time, prec : int = 9 ) : string {
+  val tsname = tp.timescale.name
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta )
    + (if (tp.tzabbrv.numeric?) then "" else " (" + tp.tzabbrv + ")")
    + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
+   + (if (tsname.empty? || tsname == "UTC") then "" else " " + tsname)
 }
 
 fun numeric?( abbrv : string ) : bool {
@@ -154,17 +161,26 @@ fun show0( i : int, width : int = 2) : string {
 
 // Convert an `:instant` to a `:time` value in a given timezone `tz` (=`tz-utc` by default)
 // and calendar (=`cal-iso` by default).
-public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time {
-  val j = i.use-timescale(cal.timescale) // minimize number of conversions
+public fun time( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = i.timescale ) : time {
+  val j = i.use-timescale(ts)
   val (d,c,tzdelta,tzabbrv) = instant-dc(j,tz,cal)
   Time(d,c,cal,tzdelta,tzabbrv,tz,j)
 }
 
 // Convert a `:time` `t` to a new `:time` value in a potentially different
 // timezone `tz` (=`t.timezone` by default) and calendar (=`t.calendar` by default).
-public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar ) : time {
-  time(t.instant,tz,cal)
+public fun time( t : time, tz : timezone = t.timezone, cal : calendar = t.calendar, ts : timescale = t.instant.timescale ) : time {
+  time(t.instant,tz,cal,ts)
 }
+
+public fun time( ts : timescale, year : int, month : int = 1, day : int = 1,
+                 hours : int = 0, minutes : int = 0, secs : int = 0,
+                 frac : double = 0.0, tz : timezone = tz-utc,
+                 cal : calendar = cal-iso ) : time
+{
+  time(ts.instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal,ts)
+}
+
 
 /* Return the `:time` value for a given date and clock in a timezone `tz` (=`tz-utc` by default)
 interpreted by calendar `cal` (=`cal-iso`).
@@ -172,7 +188,8 @@ interpreted by calendar `cal` (=`cal-iso`).
 The `month`, `day`, `hour`, `minutes` may be outside their usual ranges
 and will be normalized during the conversion. For example, January 33 converts to February 2.
 This makes it very easy to add- or subtract days or months to an existing time.
-When the `seconds` or fraction of seconds `frac` add up over 60 those extra seconds are
+
+When the `seconds` or fraction of seconds `frac` add up over 60 though, those extra seconds are
 interpreted as leap seconds.
 
 Due to timezone transitions, or leap seconds, it is possible to specify dates that never
@@ -181,27 +198,53 @@ In such cases, the time is always interpreted in the earlier timezone.
 */
 public fun time( year : int, month : int = 1, day : int = 1,
                  hours : int = 0, minutes : int = 0, secs : int = 0,
-                 frac : double = 0.0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time
+                 frac : double = 0.0, tz : timezone = tz-utc,
+                 cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time
 {
-  time(instant(year,month,day,hours,minutes,secs,frac,tz,cal),tz,cal)
+  ts.time(year,month,day,hours,minutes,secs,frac,tz,cal)
+}
+
+public fun time-utc( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso) : <utc> time {
+  time(i,tz,cal,utc())
+}
+
+public fun time-tai( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-tai)
+}
+
+public fun time-gps( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-gps)
+}
+
+public fun time-tt( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-tt)
+}
+
+public fun time-ti( i : instant, tz : timezone = tz-utc, cal : calendar = cal-iso ) : <utc> time {
+  time(i,tz,cal,ts-ti)
 }
 
 
+public fun time( ts : timescale, d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso) : time
+{
+  time(ts.instant(d,c,tz,cal),tz,cal,ts)
+}
+
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default)
 // interpreted by calendar `cal` (=`cal-iso`)
-public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso ) : time
+public fun time( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <utc> time
 {
-  time(instant(d,c,tz,cal),tz,cal)
+  ts.time(d,c,tz,cal)
 }
 
 // Add a date (years, months, days) and optional clock to a time.  Takes leap years, leap seconds, etc. into account.
 public fun add-date( t : time, d : date, c : clock = clock0 ) : time {
-  time( t.date + d, t.clock + c, t.timezone, t.calendar )
+  t.timescale.time( t.date + d, t.clock + c, t.timezone, t.calendar )
 }
 
 // Add a clock (hours, minutes, seconds) to a time. Takes leap years, leap seconds, etc. into account.
 public fun add-clock( t : time, c : clock ) : time {
-  time( t.date, t.clock + c, t.timezone, t.calendar )
+  t.timescale.time( t.date, t.clock + c, t.timezone, t.calendar )
 }
 
 // Add  a specified number of days to a calendar time. Takes leap years etc. into account.\
@@ -256,17 +299,19 @@ public fun (-)( t1 : time, t2 : time ) : duration {
 public fun copy( t : time,
                  year : int = t.year, month : int = t.month, day : int = t.day,
                  hours : int = t.hours, minutes : int = t.minutes, seconds : ddouble = t.seconds,
-                 tz : timezone = t.timezone, cal : calendar = t.calendar ) : time
+                 tz : timezone = t.timezone, cal : calendar = t.calendar,
+                 ts : timescale = t.timescale ) : time
 {
-  time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal )
+  ts.time( Date(year,month,day), Clock(hours,minutes,seconds), tz, cal)
 }
 
 // Copy a `:time` with a new `:date` and optional `:clock` (=`t.clock`), and optionally a new
 // timezone (=`t.timezone`) and calendar (=`t.calendar`).
 public fun copy-dc( t : time, d : date = t.date, c : clock = t.clock,
-                    tz : timezone = t.timezone, cal : calendar = t.calendar ) : time
+                    tz : timezone = t.timezone, cal : calendar = t.calendar,
+                    ts : timescale = t.timescale ) : time
 {
-  time( d, c, tz, cal )
+  ts.time( d, c, tz, cal)
 }
 
 // Return the time at the start of the day of time `t`.
@@ -372,18 +417,34 @@ public fun last-weekday-of-month( t : time, wd : weekday ) : time {
 
 // Return the day of the year of time `t` (starting at 1).
 public fun day-of-year( t : time ) : int {
-  t.calendar.day-diff(t.date,Date(t.year,1,1)) + 1
+  t.calendar.days-until(Date(t.year,1,1),t.date) + 1
 }
 
 // Return the total days in the month of time `t`.
 public fun days-in-month( t : time ) : int {
   val d = t.date
-  t.calendar.day-diff(Date(d.year,d.month+1,1),Date(d.year,d.month,1))
+  t.calendar.days-until(Date(d.year,d.month,1),Date(d.year,d.month+1,1))
 }
 
 // Return the total days in the year of time `t`.
 public fun days-in-year( t : time) : int {
-  t.calendar.day-diff(Date(t.year+1,1,1),Date(t.year,1,1))
+  t.calendar.days-until(Date(t.year,1,1),Date(t.year+1,1,1))
+}
+
+// Return the days between two times. Uses the calendar and timezone
+// of the first time `t1` to determine the date of `t2`.
+// ```
+// days-until( time(2000,1,1), time(2000,1,1) ) == 0
+// days-until( time(2000,1,1), time(2000,1,2) ) == 1
+// days-until( time(2000,1,1), time(2000,1,2,tz=tz-fixed(1)) ) == 0
+// days-until( time(2000,1,1), time(2000,3,1) ) == 60
+// days-until( time(2000,2,1), time(2000,1,1) ) == -1
+// ```
+public fun days-until( t1 : time, t2 : time ) : int {
+  val d2 = if (t1.calendar == t2.calendar && t1.timezone == t2.timezone)
+            then t2.date
+            else t2.instant.time(tz=t1.timezone,cal=t1.calendar).date
+  t1.calendar.days-until( t1.date, d2 )
 }
 
 // Return the modified Julian date ([MJD](https://en.wikipedia.org/wiki/Julian_day#Variants))
@@ -394,20 +455,22 @@ public fun days-in-year( t : time) : int {
 //
 // Also takes leap seconds into account:\
 // `time(2015,12,31,12,0,0).mjd.show == "57387.5"` &quad; (exactly mid-day)\
-// `time(2016,12,31,12,0,0).mjd.show == "57753.499994213029942"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
+// `time(2016,12,31,12,0,0).mjd.show(9) == "57753.499994213"` &quad; (this day has a leap second, so it is just before the real middle of the day)\
 // `time(2016,12,31,12,0,0,0.5).mjd.show == "57753.5"` &quad; (real middle of the day)\
 public fun mjd( t : time ) : ddouble {
   //trace("offset: " + t.tzdelta.show)
   // adjust with the timezone delta so we display the mjd on the date.
-  t.instant.mjd( t.calendar.timescale, t.tzdelta.timespan )
+  val i = t.instant
+  i.mjd( i.timescale, t.tzdelta.timespan )
 }
+val mjd-epoch-delta = timespan(51544)
 
 /* Return the Julian date ([JD](https://en.wikipedia.org/wiki/Julian_day))
 number for a given `:time` `t`. This interprets the Julian date in the calendar of `t` with
 the timezone of `t` applied.\
-`time(~4713,11,24,12,cal=cal-tt).jd == "0"`\
+`time(-4713,11,24,12,cal=cal-tt).jd == "0"`\
 `time(1972,1,2,tz=tz-fixed(1)).jd == "2441318.5"`\
-`time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-utc).show == "2441318.458333335"`
+`time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-ti).show(9) == "2441318.458333333"`
 
 Takes leap seconds into account when calculating the fraction of the day,
 see `mjd` for examples.
@@ -421,12 +484,22 @@ val jd-epoch-delta  = timespan(2400000.5)
 
 
 // Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
-public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso) : ndet time {
-  now().time(tz,cal)
+public fun time-now(ts : timescale, tz : timezone = tz-utc, cal : calendar = cal-iso) : <ndet> time {
+  now-in(ts).time(tz,cal)
+}
+
+// Return the current time in an optional timezone (=`tz-utc`) and optional calendar (=`cal-iso`).
+public fun time-now(tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time {
+  ts.time-now(tz,cal)
 }
 
 // Return the current time in the local timezone and optional calendar (=`cal-iso`).
-public fun local-time-now(cal : calendar = cal-iso) : ndet time {
+public fun local-time-now(ts : timescale, cal : calendar = cal-iso) : ndet time {
+  ts.time-now(tz-local(),cal)
+}
+
+// Return the current time in the local timezone and optional calendar (=`cal-iso`).
+public fun local-time-now(cal : calendar = cal-iso) : <ndet,utc> time {
   time-now(tz-local(),cal)
 }
 
@@ -443,41 +516,33 @@ public fun local-time( i : instant, cal : calendar = cal-iso ) : ndet time {
 
 // Return the `:time` value for a given date and clock in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
-public fun local-time( year : int, month : int = 1, day : int = 1,
+public fun local-time( ts : timescale,
+                       year : int, month : int = 1, day : int = 1,
                        hours : int = 0, minutes : int = 0, secs : int = 0,
                        frac : double = 0.0, cal : calendar = cal-iso ) : ndet time
 {
-  time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
+  ts.time(year,month,day,hours,minutes,secs,frac,tz-local(),cal)
+}
+// Return the `:time` value for a given date and clock in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`). See `instant` for roll-over behaviour.
+public fun local-time( year : int, month : int = 1, day : int = 1,
+                       hours : int = 0, minutes : int = 0, secs : int = 0,
+                       frac : double = 0.0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
+{
+  ts.local-time(year,month,day,hours,minutes,secs,frac,cal)
 }
 
 
 // Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
 // interpreted by calendar `cal` (=`cal-iso`)
-public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
+public fun local-time( ts : timescale, d : date, c : clock = clock0, cal : calendar = cal-iso ) : ndet time
 {
-  time(d,c,tz-local(),cal)
+  ts.time(d,c,tz-local(),cal)
 }
 
-/*
-
-// Return the `:time` value for a given `:weekdate` and `:clock` (=`clock0`) in the local timezone `tz`
-// interpreted by calendar `cal` (=`cal-iso-week`).
-// It is also possible to pass the weekday that determines if
-// a week falls in the current year or not (which is Thursday for the ISO definition).
-public fun local-time-weekdate( year :int, month: int, weekday : weekday, c : clock = clock0,
-                        cal : calendar = cal-iso-week ) : ndet time {
-  time-weekdate(year,month,weekday,c,tz-local(),cal)
-}
-
-// Return the `:time` value for a given ISO week date and `:clock` (=`clock0`) in a timezone `tz` (=`tz-utc` by default)
-// interpreted by calendar `cal` (=`cal-iso-week`).
-// `time(2004,53,Sat,cal=cal-iso).date.show == "2005-01-01"`\
-// `time(2005,52,Sat,cal=cal-iso).date.show == "2005-12-31"`\
-// `time(2009,1,Wed,cal=cal-iso).date.show == "2008-12-31"`
-public fun time-weekdate( year : int, month : int, weekday : weekday, c : clock = clock0,
-                  tz : timezone = tz-utc, cal : calendar = cal-iso-week) : time
+// Return the `:time` value for a given `:date` and `:clock` (=`clock0`) in the local timezone
+// interpreted by calendar `cal` (=`cal-iso`)
+public fun local-time( d : date, c : clock = clock0, cal : calendar = cal-iso, ts : timescale = utc() ) : <ndet,utc> time
 {
-  time(instant(date(year,month,weekday.int),c,tz,cal=cal-iso-week),tz,cal)
+  ts.time(d,c,tz-local(),cal)
 }
-
-*/

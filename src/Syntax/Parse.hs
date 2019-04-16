@@ -725,7 +725,7 @@ newtype OpDecl = OpDecl (String, Name, Range, Bool {-linear-},[TypeBinder UserKi
 
 -- EffectDeclHeader
 newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
-                                 String, DataKind, Bool, Bool, Name, Range, [TypeBinder UserKind],
+                                 String, DataKind, Bool {-linear-}, Bool {-resource-}, Name, Range, [TypeBinder UserKind],
                                  UserKind, Range, Maybe UserType, [OpDecl])
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
@@ -748,6 +748,8 @@ parseEffectDecl dvis =
                         else do keyword "in"
                                 tp <- ptype
                                 return (Just tp)
+                             <|>
+                                return (Just (TpCon nameTpInst irng))
          (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
          return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
@@ -756,7 +758,7 @@ parseEffectDecl dvis =
          op@(OpDecl (doc,opId,idrng,linear,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
          let mbResource = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
-         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+         return $ -- trace ("parsed effect decl " ++ show opId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show linear ) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, effectId, idrng, tpars, kind, prng, mbResource, [op])
       )
 
@@ -764,7 +766,7 @@ dockeywordEffect
   = dockeyword "effect" <|> dockeyword "implicit" <|> dockeyword "ambient"
 
 keywordResource
-  = keywordOr "resource" ["dynamic"] <|> keyword "instance" <|> keyword "named"
+  = keyword "instance" <|> keyword "named" <|> keyword "dynamic"
 
 keywordFun
   = keywordOr "fun" ["function"]
@@ -931,7 +933,7 @@ parseValOpDecl vis =
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
   do ((rng0,doc),linear) <- do rdoc <- dockeywordFun
-                               return (rdoc,True)
+                               return (rdoc,False) -- allow linear here?
                             <|>
                             do rdoc <- dockeyword "control"
                                return (rdoc,False)
@@ -1436,7 +1438,7 @@ handlerExprX braces rng
        handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort =     do keywordResource
-                     override <- do lapp
+                     override <- do lparen
                                     (name,rng) <- qidentifier
                                     rparen
                                     return (Just (Var name False rng))
@@ -1459,12 +1461,14 @@ handlerExprXX braces rng mbEff scoped override hsort
        let reinitFun = case mbReinit of
                          Nothing -> constNull rng
                          Just reinit -> makeNull $
-                           let argName = newHiddenName "local"
-                               rng = getRange reinit
-                               app = App (Var (getName reinit) False rng)
-                                        [(Nothing,App (Var nameJust False rng)
-                                                      [(Nothing,Var argName False rng)] rng)] rng
-                           in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
+                           if (null pars)
+                            then Var (getName reinit) False rng
+                            else let argName = newHiddenName "local"
+                                     rng = getRange reinit
+                                     app = App (Var (getName reinit) False rng)
+                                              [(Nothing,App (Var nameJust False rng)
+                                                            [(Nothing,Var argName False rng)] rng)] rng
+                                 in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
            handler = Handler hsort scoped override mbEff pars reinitFun ret final ops
                        (combineRanged rng pars) fullrange
            hasDefaults = any (isJust.binderExpr) dpars
@@ -1475,8 +1479,8 @@ handlerExprXX braces rng mbEff scoped override hsort
          Just reinit
           | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
           | otherwise   -> case pars of
-                             [par] -> return $ binders $ handlerAddReinit reinit par handler
-                             []    -> fail "A handler with an 'initially' clause must have local parameters"
+                             [par] -> return $ binders $ handlerAddReinit1 reinit par handler
+                             []    -> return $ binders $ handlerAddReinit reinit handler -- fail "A handler with an 'initially' clause must have local parameters"
                              _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],[ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
@@ -1486,8 +1490,8 @@ handlerParams
        let hpars  = [p{ binderExpr = () } | p <- pars]
        return (hpars, pars, rng)
 
-handlerAddReinit :: UserDef -> (ValueBinder (Maybe UserType) ()) -> UserExpr -> UserExpr
-handlerAddReinit reinit par handler
+handlerAddReinit1 :: UserDef -> (ValueBinder (Maybe UserType) ()) -> UserExpr -> UserExpr
+handlerAddReinit1 reinit par handler
   =let rng  = getRange par
        pinit = App (Var (getName reinit) False rng) [(Nothing,Var nameNothing False rng)] rng
        dpars = [par{ binderExpr = Just(pinit) }]
@@ -1497,6 +1501,16 @@ handlerAddReinit reinit par handler
         (Lam [ValueBinder aname Nothing Nothing rng rng]
              (App handler [(Nothing, pinit),(Nothing,Var aname False rng)] rng)
              rng) rng
+
+handlerAddReinit :: UserDef -> UserExpr -> UserExpr
+handlerAddReinit reinit handler
+ =let rng   = getRange reinit
+      init0 = App (Var (getName reinit) False rng) [] rng
+      iname = newHiddenName "init"
+      initDef = Def (ValueBinder iname () init0 rng rng) rng Private DefVal ""
+      aname = newHiddenName "action"
+  in Let (DefNonRec reinit)
+      (Bind initDef handler rng) rng
 
 handlerAddDefaults :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserExpr -> UserExpr
 handlerAddDefaults dpars handler

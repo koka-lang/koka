@@ -28,7 +28,7 @@ import std/text/regex
 import std/os/path
 import std/os/file
 
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
 import std/time/instant
 import std/time/utc
@@ -219,7 +219,7 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
     val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
                     val iu = acc.fst + diff*60.0
-                    val i = unsafe-instant(timespan(iu),ts-unix)
+                    val i = unix-instant(iu)
                     (iu,Cons(Just(i),acc.snd))
                   }).snd
     val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
@@ -325,7 +325,7 @@ public fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc 
 
 fun sample-dates( year : int ) : list<instant> {
   list(year - 1, year).flatmap( fun(y) {
-    list(0,3).map( fun(m) { instant(y,m*4,15) } )
+    list(0,3).map( fun(m) { ts-ti.instant(y,m*4,15) } )
   })
 }
 
@@ -347,7 +347,7 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
   match(tzs.timezone-info(local-timezone-name())) {
     Just(tzi) -> tzi.timezone
     Nothing {
-      val year    = now().time.year
+      val year    = time-now(ts-ti).year
       val dates   = sample-dates(year)
       val offsets = dates.sample-offsets(tz-local())
       val matches = tzs.tzones.list.map(snd).filter( fun(tzi){

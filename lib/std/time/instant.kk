@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -8,17 +8,24 @@
 
 /* Instants in time.
 
-Instants use the mighty 128-bit `:ddouble` timestamps to represent a `:duration` since the `epoch`.
-This gives very high range and precision. It spans about 10^300^ years
+Instants use the mighty 128-bit `:ddouble` timestamps to represent a `:duration`
+since the `epoch`.
+This gives very high range and precision (up 31 decimal digits).
+It spans about 10^300^ years
 into the past and future, well beyond the expected life span of the universe.
-Any time can be expressed up to atto-second (10^-18^) precision up to about 300,000 years
-in the past and future, and can express up to pico-second (10^-12^) precision any time
-since the age of the universe (about 13.8 billion years ago).
+Any time can be expressed with atto-second (10^-18^) precision
+up to about 300,000 years in the past and future, and with pico-second (10^-12^)
+precision any time since the age of the universe (about 13.8 billion years ago)
+up to 30 billion years into the future. For durations under 300 years, the precision
+is in excess of a zepto second (10^-21^). For comparison, it takes light about
+500 zepto-seconds to travel the length of an hydrogen atom.
 
 ```unchecked
+> instant(2100,1,1,0,0,0,1.0e-21).show(21)  // 1 zepto-second after Jan 1, 2100
+"3155760037.000000000000000000001s"
 > instant(300000,1,1,0,0,0,1.0e-18).show(18) // 1 atto-second after Jan 1, 300000
 "9403971696037.000000000000000001s"
-> instant((~13.82e9).int,1,1,0,0,0,1.0e-12).show(12) // 1 pico-second after the birth of the universe
+> instant(-13.82e9.int,1,1,0,0,0,1.0e-12).show(12) // 1 pico-second after the birth of the universe
 "-436117139753903999.999999999999s"
 ```
 
@@ -32,8 +39,74 @@ Time durations (`:duration`) are always in SI seconds (as measured on the Earth'
 module std/time/instant
 
 import std/num/ddouble
-import std/time/timespan
+import std/time/timestamp
 import std/time/duration
+import std/time/date
+
+/*----------------------------------------------------------------------------
+  Timescale
+----------------------------------------------------------------------------*/
+
+// A time scale defines how time is measured: the rate and unit of time,
+// and how it can be converted to- and from TAI.\
+// For time calculations, usually the [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time)
+// (international atomic time) time scale (`ts-tai`) is used which is time measured as SI seconds on the Earths geoid.
+// Another common time scale is UTC (`std/time/utc/ts-utc`) which also uses SI second time units but can contain leap seconds.
+abstract struct timescale(
+  // Time scale name, "TAI", "UTC", "UNIX", "TT", etc.
+  public name : string,
+  // SI seconds: usually "TAI", but could be "TCG", "TCB", "TDB" etc.
+  unit        : string,
+  // from duration since `epoch` to timestamp since epoch-y2k
+  from-tai    : duration -> timestamp,
+  // from timestamp since timescale-epoch to duration since `epoch`
+  to-tai      : timestamp -> duration,
+  // `Nothing` for fixed 86400s days, or
+  // a function to return the seconds in the day of the given `:dayspan` (for leap seconds timescales only).
+  mb-seconds-in-day : maybe<(t:timestamp) -> timespan> = Nothing,
+  mb-to-mjd2000     : maybe<(t:timestamp,tzdelta:timespan) -> ddouble> = Nothing,
+  mb-from-mjd2000   : maybe<(days:int,frac:ddouble) -> timestamp> = Nothing
+)
+
+// Are two timescales the same?
+public fun (==)(t1 : timescale, t2 : timescale ) : bool {
+  (t1.name == t2.name)
+}
+
+// Does this timescale have leap seconds?
+public fun has-leap-seconds(ts : timescale) : bool {
+  ts.mb-seconds-in-day.bool
+}
+
+
+// Convert a timespan between time scales
+fun convert( t : timestamp, from : timescale, to : timescale ) : timestamp {
+  if (from.name == to.name) then {
+    // already using the right time scale
+    t
+  }
+  elif (from.unit == to.unit && from.unit == "UTC") then {
+    // Optimization:
+    // For UTC timescales we promise that the only difference is the
+    // leap second table but the timestamps are valid for all
+    t
+  }
+  else {
+    // transform through TAI
+    // trace( "convert: " + from.name + " -> " + to.name +  ", t: " + t.show )
+    (to.from-tai)( (from.to-tai)(t) )
+  }
+}
+
+// Return the `:duration` since the `epoch` for a timestamp `t` interpreted in time scale `ts`.
+public fun to-tai(  ts : timescale, t : timestamp ) : duration {
+  t.convert(ts,ts-tai).unsafe-duration
+}
+
+// Given a `:duration` since the `epoch`, return a `:timespan` for that instant in time scale `ts`.
+public fun from-tai(ts : timescale, d : duration ) : timestamp {
+  d.timestamp.convert(ts-tai,ts)
+}
 
 /*----------------------------------------------------------------------------
   Instant
@@ -47,39 +120,65 @@ when necessary (for example when comparing instants in time, or calculating dura
 between UTC calendar times).
 */
 abstract struct instant(
-  since : timespan,   // seconds since the time-scale epoch in timescale units
+  since : timestamp,  // time since the 2000-01-01 in the timescale
   ts    : timescale   // the time scale (TAI, UTC, etc)
 )
 
-/*----------------------------------------------------------------------------
-  Timescale
-----------------------------------------------------------------------------*/
+// Return the time scale that instant `i` uses.
+public fun timescale( i : instant ) : timescale {
+  i.ts
+}
 
-// A time scale defines how time is measured, defines the unit of time, the epoch,
-// and how it can be converted to- and from TAI.\
-// For time calculations, usually the [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time)
-// (international atomic time) time scale (`ts-tai`) is used which is time measured as SI seconds on the Earths geoid.
-// Another common time scale is UTC (`std/time/utc/ts-utc`) which also uses SI second time units but can contain leap seconds.
-abstract struct timescale(
-  public name : string,   // Time scale name, "TAI", "UTC", "UNIX", "TT", etc.
-  unit        : string,   // SI seconds: usually "TAI", but could be "TCG", "TCB", "TDB" etc.
-  from-tai    : duration -> timespan,   // from duration since `epoch` to timespan since timescale-epoch
-  to-tai      : timespan -> duration,   // from timespan since timescale-epoch to duration since `epoch`
-  // from timespan since timescale epoch to dayspan since `epoch-y2k` and total seconds in that day
-  to-dayspan  : (timespan) -> (dayspan,timespan),
-  // from dayspan since `epoch-y2k` to timespan since timescale epoch
-  from-dayspan: (dayspan) -> timespan,
-  // The epoch-y2k states at what timespan  _in this timescale_ is the date 2000-01-01.
-  // `epoch-y2k == instant(2000,1,1,cal=cal-iso,ts=ts).since-in(ts)` with `ts` this timescale
-  epoch-y2k   : timespan,
-  // Just if all days have the same number of seconds, Nothing otherwise
-  fixed-secs-per-day: maybe<timespan>
-)
+// The seconds in the day of instant `i` (in its time scale).
+public fun seconds-in-day(i : instant) : timespan {
+  match(i.ts.mb-seconds-in-day) {
+    Nothing -> solar-secs-per-day
+    Just(f) -> f(i.since)
+  }
+}
+
+// Return `:timestamp` since 2000-01-01 in the time scale of the instant
+public fun timestamp( i : instant ) : timestamp {
+  i.since
+}
+
+// Return days since 2000-01-01 in the time scale of the instant
+public fun days( i : instant ) : int {
+  i.since.days
+}
+
+// Return days since 2000-01-01 in the time scale of the instant,
+// together with the clock on that day.
+public fun days-clock( i : instant ) : (int,clock) {
+  i.since.days-clock
+}
 
 
-/*----------------------------------------------------------------------------
-  Instant operations
-----------------------------------------------------------------------------*/
+// Create an instant from a time stamp `t` interpreted in time scale `ts`.\
+// Be careful to ensure that `t` should indeed be interpreted in the given time scale.
+public fun instant( ts : timescale, t : timestamp ) : instant {
+  Instant(t, ts)
+}
+
+// Return the instant at (TAI) SI seconds duration since the `epoch`.
+public fun instant( d : duration ) : instant {
+  instant(ts-tai, d.timestamp)
+}
+
+// Return the instant in time scale `ts`, `days` and `secs` after 2000-01-01 in that timescale.
+public fun instant( ts : timescale, days : int, secs : timespan, leap : int = 0) : instant {
+  ts.instant(timestamp-days(days,secs,leap))
+}
+
+// Return a `:timestamp` for instant `i` in a certain time scale `tscale`.
+public fun timestamp-in( i : instant, tscale : timescale  ) : timestamp {
+  i.since.convert(i.ts,tscale)
+}
+
+// Return the (TAI) SI second duration since the `epoch` at this instant.
+public fun duration( i : instant ) : duration {
+  i.timestamp-in(ts-tai).unsafe-duration // ok, because SI seconds
+}
 
 
 // Change the internal representation of an instant to use another timescale.
@@ -92,55 +191,8 @@ public fun use-timescale( i : instant, tscale : timescale ) : instant {
     i
   }
   else {
-    Instant( i.since-in(tscale), tscale )
+    Instant( i.timestamp-in(tscale), tscale )
   }
-}
-
-// Return a `:timespan` for instant `i` in a certain time scale `tscale` (= `ts-tai`)
-// since the epoch of that `tscale`.
-public fun since-in( i : instant, tscale : timescale = ts-tai ) : timespan {
-  i.since.convert(i.ts,tscale)
-}
-
-
-// Convert a timespan between time scales
-fun convert( t : timespan, from : timescale, to : timescale ) : timespan {
-  if (from.name == to.name) then {
-    // already using the right time scale
-    t
-  }
-  else {
-    // transform through TAI
-    // trace( "convert: " + from.name + " -> " + to.name +  ", t: " + t.show )
-    (to.from-tai)( (from.to-tai)(t) )
-  }
-}
-
-// Return the `:duration` since the `epoch` for a timestamp `t` interpreted in time scale `ts`.
-public fun to-tai(  ts : timescale, t : timespan ) : duration {
-  t.convert(ts,ts-tai).unsafe-duration
-}
-
-// Given a `:duration` since the `epoch`, return a `:timespan` for that instant in time scale `ts`.
-public fun from-tai(ts : timescale, d : duration ) : timespan {
-  d.timespan.convert(ts-tai,ts)
-}
-
-// Return the time scale that instant `i` uses.
-public fun timescale( i : instant ) : timescale {
-  i.ts
-}
-
-// Create an instant from a time stamp `t` interpreted in time scale `ts`.\
-// Be careful to ensure that `t` should indeed be interpreted in the given time scale.
-public fun unsafe-instant( t : timespan, ts : timescale ) : instant {
-  Instant(t,ts)
-}
-
-// Create an instant from a time span in `seconds` interpreted in time scale `ts`.\
-// Be careful to ensure that `secs` should indeed be interpreted in the given time scale.
-public fun unsafe-instant( secs : int, ts : timescale ) : instant {
-  Instant(secs.timespan, ts)
 }
 
 
@@ -150,52 +202,10 @@ public fun round-to-prec(i : instant, prec : int ) : instant {
   if (prec.neg?) then i
   elif (i.ts.has-leap-seconds)
    // Round on TAI representation instead; assumes the leap second time scale has TAI SI seconds (which UTC has)
-   // TODO: optimize to round first on UTC, and only when necessary convert to TAI
-   then Instant( i.use-timescale(ts-tai).since.round-to-prec(prec), ts-tai )
+   // TODO: optimize to first see if rounding makes a difference and only than use TAI rounding
+   // TODO: optimize to first check if this is a leap day and only round via tai in that case.
+   then Instant( i.use-timescale(ts-tai).since.round-to-prec(prec), ts-tai ) .use-timescale(i.ts)
    else Instant( i.since.round-to-prec(prec), i.ts )
-}
-
-
-public fun has-leap-seconds(ts : timescale) : bool {
-  !ts.fixed-secs-per-day.bool
-}
-
-// Our epoch is set at 2000-01-01 TAI (which is equal to 1999-12-31T23:59:28Z UTC).
-//
-// Another candidate epoch could have been the standard [J2000] epoch ([`epoch-j2000`](std_time_astro.html#epoch_j2000)),
-// which equals 2000-01-01T12:00:00 TT (terrestrial time).
-// However, that would mean that for the most common time scales, namely UTC and TAI, there would always be a
-// fractional offset (of 32.184s) for common time stamps. Moreover, by having an epoch at noon there would be
-// an extra correction needed for calendar date calculations too.
-//
-// Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
-// was fractional at that time (namely 8.000082s).
-//
-// Given these issues, we fixed the epoch at 2000-01-01T00:00:00 TAI instead.
-//
-// [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
-public val epoch : instant = Instant(timespan0,ts-tai)
-
-// Return the (TAI) SI second duration since the `epoch` at this instant.
-public fun since-epoch( i : instant ) : duration {
-  i.since-in(ts-tai).unsafe-duration
-}
-
-// Return the instant at (TAI) SI seconds duration since the `epoch`.
-public fun instant-since-epoch( d : duration ) : instant {
-  unsafe-instant(d.timespan, ts-tai)
-}
-
-// Return `:dayspan` since 2000-01-01 in the time scale of the instant,
-// and the total number of seconds in that day.
-public fun dayspan-since-y2k( i : instant ) : (dayspan,timespan) {
-  (i.ts.to-dayspan)(i.since - i.ts.epoch-y2k)
-}
-
-// Given a `:dayspan` since 2000-01-01 in the given time scale `ts`,
-// return the instant in time.
-public fun instant-from-dayspan( ts : timescale, ds : dayspan ) : instant {
-  Instant( (ts.from-dayspan)(ds) + ts.epoch-y2k, ts )
 }
 
 // Compare two `:instant`s in time.
@@ -221,16 +231,41 @@ public fun max( i : instant, j : instant ) : instant {
 }
 
 // Add a duration to an instant in time.
+// Note: this generally entails conversion to TAI time (`ts-tai`).
+// See also `add-duration-in` and `add-days` to add
+// in direct time scale units.
 public fun (+)( i : instant, d : duration ) : instant {
   if (i.ts.unit=="TAI")
    then unsafe-add( i, d.timespan )
-   else i.use-timescale(ts-tai).unsafe-add( d.timespan )
+   else i.use-timescale(ts-tai).unsafe-add( d.timespan ).use-timescale(i.timescale)
+}
+
+// Add `days` days to the instant.
+public fun add-days( i : instant,  days : int) : instant {
+  Instant(i.since.add-days(days), i.ts)
+}
+
+
+/* Add a duration of `t` seconds of time scale `tscale`.
+This can for example be used to add Unix or NTP seconds where leap seconds
+are ignored (allthough it is recommended in that case to use
+`:time` and add logical days etc).
+```
+> instant(2005,12,31).add-duration-in( ts-unix, (24*3600).timespan ).time
+2006-01-01T00:00:00Z
+
+> (instant(2005,12,31) + 24.hours).time
+2005-12-31T23:59:60Z
+```
+*/
+public fun add-duration-in( i : instant,  tscale : timescale, t : timespan) : instant {
+  i.use-timescale(tscale).unsafe-add( t )
 }
 
 // Add a time span to an instant in time.
 // This is only safe if the time unit of the timespan is the
 // same as that of the instant.
-public fun unsafe-add(i : instant, tspan : timespan ) : instant {
+fun unsafe-add(i : instant, tspan : timespan ) : instant {
   Instant( i.since + tspan, i.ts ) // directly add
 }
 
@@ -241,19 +276,18 @@ public fun (-)( i : instant, d : duration ) : instant {
 
 // Return the duration between to instants in time.
 public fun (-)( i : instant, j : instant ) : duration {
-  i.since-epoch - j.since-epoch
+  i.duration - j.duration
 }
 
 // Show an instant as a number of (TAI) SI seconds since the `epoch` in a given precision.
 // This can be used as an unambigious time stamp.
 public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
-  i.use-timescale(ts-tai).show-raw(max-prec,secs-width)
+  i.use-timescale(ts-tai).show-raw(max-prec,secs-width,"s")
 }
 
 // Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name.
-public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : string {
-  i.since.show(max-prec,secs-width)
-   + "s"
+public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
+  i.since.ts-show(max-prec,secs-width,unit)
    + (if (i.ts.name.empty? || i.ts.name=="TAI") then "" else " " + i.ts.name)
 }
 
@@ -261,62 +295,65 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1 ) : s
   Time scales
 ----------------------------------------------------------------------------*/
 
+
+// Our epoch is set at 2000-01-01 TAI (which is equal to 1999-12-31T23:59:28Z UTC).
+//
+// Another candidate epoch could have been the standard [J2000] epoch ([`epoch-j2000`](std_time_astro.html#epoch_j2000)),
+// which equals 2000-01-01T12:00:00 TT (terrestrial time).
+// However, that would mean that for the most common time scales, namely UTC and TAI, there would always be a
+// fractional offset (of 32.184s) for common time stamps. Moreover, by having an epoch at noon there would be
+// an extra correction needed for calendar date calculations too.
+//
+// Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
+// was fractional at that time (namely 8.000082s).
+//
+// Also, after 1996, TAI was corrected for black-body radiation so this makes the
+// the 2000-01-01 epoch a very precisely defined point in time.
+//
+// [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
+public val epoch : instant = instant(duration0)
+
+
 // Create a new time scale based on SI seconds (as measured on the Earth's geoid) with a given
 //  `name`, a fixed `offset` (=`duration0`) from TAI (e.g. GPS = TAI - 19), and
 // a `epoch-y2k` (= `timestamp0`) which is the timestamp of the 2000-01-01 date in that timescale
 // e.g. for a timescale `ts`:\
 // `epoch-y2k = instant(2000,1,1,cal=iso-calendar(ts)).since-in(ts)`
-public fun tai-timescale( name : string, offset : duration = zero, epoch-y2k : timespan = timespan0 ) : timescale {
-  val epoch-shift = epoch-y2k + offset.timespan
-  fun from-tai(tai:duration)     { tai.timespan + epoch-shift  }
-  fun to-tai(tspan:timespan)     { (tspan - epoch-shift).unsafe-duration }
-  Timescale(
+public fun tai-timescale( name : string, offset : duration = 0.duration ) : timescale {
+  val epoch-shift = offset.timespan
+  fun from-tai(tai:duration) { (tai.timespan + epoch-shift).timestamp  }
+  fun to-tai(t:timestamp)    { (t - epoch-shift).unsafe-duration }
+  timescale(
     name,
-    "TAI",
     from-tai,
     to-tai,
-    solar-to-dayspan,
-    solar-from-dayspan,
-    epoch-y2k,
-    Just(solar-secs-per-day)
+    "TAI"
   )
 }
 
-fun solar-to-dayspan( t : timespan ) : (dayspan,timespan) {
-  val days = (t / solar-secs-per-day).floor
-  val secs = t - (days * solar-secs-per-day)
-  (Dayspan(days.int, secs, 0), solar-secs-per-day)
-}
-
-fun solar-from-dayspan( ds : dayspan ) : timespan {
-  (ds.days.ddouble*solar-secs-per-day + ds.secs + ds.leap.timespan)
-}
-
-
 // Create a new time scale given `name`, two inverse function `from-tai` and `to-tai`,
-// and a `y2k-epoch` (=`timestamp0`). The time unit defaults to `name`.
-// The `y2k-epoch` is the timestamp of the 2000-01-01 date in the new timescale
-// e.g. for a timescale `ts`:\
-// `y2k-epoch = instant(2000,1,1,cal=iso-calendar(ts)).timestamp(ts)`
+// and an optional function that returns the seconds in the day of the instant.
+// The time unit defaults to `name`.
 public fun timescale( name : string,
-                      from-tai : duration -> timespan,
-                      to-tai   : timespan -> duration,
-                      epoch-y2k : timespan = timespan0,
+                      from-tai : duration -> timestamp,
+                      to-tai   : timestamp -> duration,
                       unit : string = name,
-                      to-dayspan : maybe<(timespan) -> (dayspan,timespan)> = Nothing,
-                      from-dayspan : maybe<(dayspan) -> timespan> = Nothing
+                      seconds-in-day : maybe<(timestamp) -> timespan> = Nothing,
+                      to-mjd2000 : maybe<(t:timestamp,tzdelta:timespan) -> ddouble> = Nothing,
+                      from-mjd2000 : maybe<(days:int,frac:ddouble) -> timestamp> = Nothing
                     ) : timescale {
   Timescale(
     name,
     unit,
     from-tai,
     to-tai,
-    to-dayspan.default(solar-to-dayspan),
-    from-dayspan.default(solar-from-dayspan),
-    epoch-y2k,
-    if (to-dayspan.bool) then Nothing else Just(solar-secs-per-day)
+    seconds-in-day,
+    to-mjd2000,
+    from-mjd2000
   )
 }
+
+
 
 // The [TAI](https://en.wikipedia.org/wiki/International_Atomic_Time) (International atomic time)
 // time scale is based on SI seconds measured on the Earth's geoid, with a 2000-01-01 TAI `epoch`.
@@ -325,24 +362,58 @@ public val ts-tai : timescale = tai-timescale( "TAI" )
 // The [GPS](https://en.wikipedia.org/wiki/Global_Positioning_System#Timekeeping) time scale based
 // on SI seconds with a 1980-01-06 GPS epoch.\
 // GPS = TAI - 19s.
-public val ts-gps : timescale = tai-timescale( "GPS", -19.seconds, timespan(630720000) )
+public val ts-gps : timescale = tai-timescale( "GPS", -19.duration)
 
+val gps2000  = duration(630720000)
 
-// Return the epoch of a certain time scale.
-public fun timescale-epoch( ts : timescale ) : instant {
-  unsafe-instant(timespan0,ts)
+// Get the GPS time in SI seconds since the GPS epoch (1980-01-06Z)
+public fun gps-timestamp(i : instant ) : duration {
+  i.timestamp-in(ts-gps).unsafe-duration + gps2000
 }
 
-// Return the instant of the date 2000-01-01 of a particular time scale `ts` (when imposed on a proleptic Gregorian calendar).\
-// `timescale-y2k(ts) == instant(2000,1,1,cal=iso-calendar(ts))`
-public fun timescale-y2k( ts : timescale ) : instant {
-  unsafe-instant(ts.epoch-y2k,ts)
+// Create an instant from a raw GPS time since the GPS epoch (1980-01-06Z)
+public fun gps-instant(gps : duration) : instant {
+  instant( gps - gps2000  )
 }
 
-// Show a timespan with an optional maximum precision (`max-prec` (=`9`)) and
+
+// Get the GPS time as weeks and SI seconds in the week since the GPS epoch (1980-01-06Z)
+public fun gps-week-timestamp(i : instant ) : (int,duration) {
+  val t = i.gps-timestamp
+  val w = (t.timespan / 25200.ddouble).floor.int
+  val s = t - (w*25200).duration
+  (w, s)
+}
+
+// Create an instant from a GPS time in weeks and SI seconds since the GPS epoch (1980-01-06Z)
+public fun gps-instant(weeks : int, secs : duration) : instant {
+  gps-instant( (weeks * 25200).duration + secs )
+}
+
+// The [TT](https://en.wikipedia.org/wiki/Terrestrial_Time) (Terrestrial time)
+// time scale is based on SI seconds with a 1977-01-01 TAI `epoch`. It is the
+// continuation of TDT (Terrestrial dynamic time) and ET (Ephemeris time). TT
+// is defined as: TT = TAI + 32.184s.
+public val ts-tt : timescale = tai-timescale( "TT", duration(32.184))
+
+val tt2000 = duration(630720000)
+
+// Get the TT time in SI seconds since the TT epoch (1977-01-01 TAI)
+public fun tt-instant(i : instant ) : duration {
+  i.timestamp-in(ts-tt).unsafe-duration + tt2000
+}
+
+// Create an instant from a raw TT time since the TT epoch (1977-01-01 TAI)
+public fun tt-instant(tt : duration) {
+  instant( tt - tt2000 )
+}
+
+
+
+// Show a timestamp with an optional maximum precision (`max-prec` (=`9`)) and
 // minimum width for the seconds (=`1`).
-public fun show( tspan : timespan, max-prec : int = 9, secs-width : int = 1 ) : string {
-  tspan.ts-show(max-prec,secs-width)
+public fun show( t : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
+  t.ts-show(max-prec,secs-width,unit)
 }
 
 
@@ -374,28 +445,14 @@ public fun instant-at-mjd( mjd : double, ts : timescale ) : instant {
 // Create an instant given a [modified julian day](https://en.wikipedia.org/wiki/Julian_day).
 // and time scale `ts`.\
 // `modified-julian-day = julian-day - 2400000.5`
-public fun instant-at-mjd( mjd : ddouble, tscale : timescale  ) : instant {
-  val d  = mjd - mjd-epoch-delta // since 2000-01-01
-  match (tscale.fixed-secs-per-day) {
-    Just(secs-per-day) {
-      timescale-y2k(tscale).unsafe-add(d*secs-per-day) // since the time scale epoch
-    }
-    Nothing {
-      // Time scale has leap seconds.
-      // first add days to the TAI timescale and convert back to the target time scale,
-      // and then convert the fraction of the day. This ensures we correctly
-      // handle leap seconds in excess of a day.
-      // (It also assumes that TAI days are in sync with the timescale days,
-      //  which will be the case as this is the reason for leap seconds in the first place.)
-      val days = d.floor
-      val frac = d - days
-      val itai = instant-since-epoch( duration(days*solar-secs-per-day) )
-      val i    = itai.use-timescale(tscale)  // start of day in target time scale
-      val (_ds,secs-in-day) = i.dayspan-since-y2k
-      // assert(ds.days == days && ds.secs == zero)
-      val secs = frac * secs-in-day       // fraction of the seconds in this day
-      i.unsafe-add(secs)
-    }
+public fun instant-at-mjd( mjd : ddouble, ts : timescale  ) : instant {
+  val d     = mjd - mjd-epoch-delta // since 2000-01-01
+  val days  = d.floor
+  val frac  = d - days
+  val idays = days.int
+  match(ts.mb-from-mjd2000) {
+    Nothing            -> ts.instant( idays, frac*solar-secs-per-day )
+    Just(from-mjd2000) -> ts.instant( from-mjd2000(idays,frac) )
   }
 }
 
@@ -425,10 +482,18 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 // Return the modified julian day in a given time scale `ts` for an instant `i`.
 // Can also pass an optional `delta` (=`timespan0`) that is added to the raw timestamp of `i`
 // before conversion (used in `std/time/time` to take timezones into account)
-public fun mjd( i : instant, tscale : timescale, delta : timespan = timespan0 ) : ddouble {
-  val j   = i.use-timescale(tscale)
-  val (ds0,secs-in-day) = j.dayspan-since-y2k
-  val ds  = if (delta.zero?) then ds0 else j.unsafe-add(delta).dayspan-since-y2k.fst
-  val secs= ds.secs / secs-in-day
-  (mjd-epoch-delta + ds.days.ddouble + secs)
+public fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 ) : ddouble {
+  val i0 = i.use-timescale(tscale)
+  val mjd = match(tscale.mb-to-mjd2000) {
+              Nothing {
+                val i1   = i0.add-duration-in(tscale,tzdelta)
+                val days = i1.days.ddouble
+                val frac = i1.since.seconds-into-day / solar-secs-per-day
+                (days + frac)
+              }
+              Just(to-mjd) {
+                to-mjd( i0.since, tzdelta )
+              }
+            }
+  (mjd + mjd-epoch-delta)
 }

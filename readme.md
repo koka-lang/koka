@@ -26,7 +26,7 @@ Unix.
 
 The following programs are required to build Koka:
 
-* The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
+* The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later) or [Stack](https://docs.haskellstack.org/).
 * The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
 * Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
 
@@ -51,16 +51,33 @@ Now we can build Koka itself:
    ``sudo npm install`` so that the ``npm`` package manager has enough
    permissions to install the ``jake`` and ``madoko`` tools.
 
-4. Install `alex`, a lexer generator used by the Koka compiler:
+4. Install `alex`, a lexer generator used by the Koka compiler,
+
+    a. if you use `cabal`,
 
    ```
    > cabal update
    > cabal install alex
    ```
 
+   b. or if you use `stack`,
+
+   ```
+   > stack install alex
+   ```
+
 5. Finally, build the compiler and run the Koka interactive environment:
 
    `> jake`
+
+   `jake` uses `ghc` to compile Haskell programs by default.
+   If you use `stack` to build the project, set environment variable `build_with_stack`:
+
+   ```
+   > jake compiler build_with_stack=true
+   > jake # enter interactive shell
+   ```
+   only once to build.
 
    You can type ``jake help`` to see an overview of all make targets.
 

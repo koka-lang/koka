@@ -5,14 +5,14 @@ effect heap { }
 
 val heap = handler<heap>{ }
 
-effect resource ref<a> in heap {
+effect instance ref<a> in heap {
   fun get() : a       // (ref<a>) -> <heap,exn|e> a  with ediv(heap,a,e)
   fun set( value : a ) : ()
 }
 
 fun new-ref(init,action) {
   var s := init
-  with r = resource {
+  with r = instance {
     fun get()  { s }
     fun set(x) { s := x }
   }

@@ -16,7 +16,7 @@ module Core.Monadic( monTransform, monType
                    ) where
 
 
-import qualified Lib.Trace 
+import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
 
@@ -54,13 +54,13 @@ monTransform penv defs
 
 {--------------------------------------------------------------------------
   transform definition groups
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 monDefGroups :: DefGroups -> Mon DefGroups
 monDefGroups monDefGroups
   = do defGroupss <- mapM monDefGroup monDefGroups
        return (concat defGroupss)
 
-monDefGroup (DefRec defs) 
+monDefGroup (DefRec defs)
   = do defss <- mapM (monDef True) defs
        return [DefRec (concat defss)]
 
@@ -71,9 +71,9 @@ monDefGroup (DefNonRec def)
 
 {--------------------------------------------------------------------------
   transform a definition
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 monDef :: Bool -> Def -> Mon [Def]
-monDef recursive def 
+monDef recursive def
   = do needMon <- needsMonDef def
        if (not (needMon)) -- only translate when necessary
         then return [def{ defSort = defSortTo NoMon (defSort def) }]
@@ -88,7 +88,7 @@ monDef recursive def
                       monKind <- xgetMonType (defType def)
                       return [def{ defExpr = expr' id, defSort = defSortTo monKind (defSort def) }] -- at top level this should be ok since the type is total
 
-type Trans a = TransX a a 
+type Trans a = TransX a a
 type TransX a b  = (a -> b) ->b
 
 monExpr :: Expr -> Mon (TransX Expr Expr)
@@ -96,27 +96,27 @@ monExpr expr
   = do monExpr' False expr
 
 monExpr' :: Bool -> Expr -> Mon (TransX Expr Expr)
-monExpr' topLevel expr 
+monExpr' topLevel expr
   = case expr of
       -- open
       -- simplify open away if it is directly applied
         {-
       App (App (TypeApp (Var open _) [effFrom, effTo]) [f]) args
-        | getName open == nameEffectOpen 
+        | getName open == nameEffectOpen
         -> monExpr (App f args)
       -}
 
 
       --  lift _open_ applications
-      
+
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
-        | getName open == nameEffectOpen         
+        | getName open == nameEffectOpen
         -> do monkFrom <- xgetMonType effFrom
               monkTo   <- xgetMonType effTo
               if (monkFrom /= NoMon || monkTo == NoMon)
                -- simplify open away if already in cps form, or not in cps at all
                then do monTraceDoc $ \env -> text "open: ignore: " <+> prettyExpr env expr <+> text ": effects" <+> tupled (niceTypes env [effFrom,effTo])
-                       -- monExpr f                       
+                       -- monExpr f
                        f' <- monExpr f
                        return $ \k -> f' (\ff -> k (App eopen [ff]))
               -- lift the function to a monadic function
@@ -125,13 +125,13 @@ monExpr' topLevel expr
                        pars <- mapM (\(name,partp) ->
                                      do pname <- if (name==nameNil) then uniqueName "x" else return name
                                         return (TName pname partp)) partps
-                       let args = [Var tname InfoNone | tname <- pars]                       
+                       let args = [Var tname InfoNone | tname <- pars]
                        -- The first argument should be 'True' if we need to ensure _k is defined;
-                       -- see algeff/open1a for a good example. If the to effect is guaranteed to be 
+                       -- see algeff/open1a for a good example. If the to effect is guaranteed to be
                        -- in cps, we can leave out the check (which enables the simplifier to do a better job)
                        f' <- monExpr f
                        return $ \k -> k (Lam pars effTo (f' (\ff -> appLift (App ff args))))
-      
+
       -- leave 'return' in place
       App ret@(Var v _) [arg] | getName v == nameReturn
         -> do -- monTraceDoc $ \env -> text "found return: " <+> prettyExpr env expr
@@ -139,26 +139,26 @@ monExpr' topLevel expr
               arg' <- monExpr arg
               ismon <- isInBindContext
               let lift = if (ismon) then appLift else id
-              return $ \k -> arg' (\xx -> k (App ret [lift xx]))  
+              return $ \k -> arg' (\xx -> k (App ret [lift xx]))
 
 
-      -- lift out lambda's into definitions so they can be duplicated if necessary                  
-      -- note: removed for now; this means handlers are always bind-translated      
+      -- lift out lambda's into definitions so they can be duplicated if necessary
+      -- note: removed for now; this means handlers are always bind-translated
       {-
-      TypeLam tpars (Lam pars eff body) | not topLevel 
+      TypeLam tpars (Lam pars eff body) | not topLevel
         -> monExprAsDef tpars pars eff body
       Lam pars eff body | not topLevel
         -> monExprAsDef [] pars eff body
       -}
-      
+
       -- regular cases
-      Lam args eff body 
+      Lam args eff body
         -> do monk <- xgetMonEffect eff
               if (monk == NoMon)
                then withMonadic NoMon $
                     do -- monTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
                        body' <- monExpr body
-                       args' <- mapM monTName args                      
+                       args' <- mapM monTName args
                        return $ \k -> k (Lam args' eff (body' id))
                else -- mon converted lambda
                     monLambda False args eff body
@@ -168,7 +168,8 @@ monExpr' topLevel expr
               args' <- mapM monExpr args
               let -- ff  = f' id
                   ftp = typeOf f -- ff
-              feff <- case splitFunType ftp of
+              feff <- let (tvs,preds,rho) = splitPredType ftp -- can happen with: ambient control abort() : a
+                      in case splitFunType rho of
                            Just(_,feff,_) -> return feff
                            _ -> do monTraceDoc $ \env -> text "Core.Monadic.App: illegal application:" <+> ppType env ftp
                                    failure ("Core.Monadic.App: illegal application")
@@ -176,9 +177,9 @@ monExpr' topLevel expr
               let isMonF = monKind /= NoMon
               -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
               if ((not (isMonF || isAlwaysMon f)) || isNeverMon f)
-               then return $ \k -> 
-                f' (\ff -> 
-                  applies args' (\argss -> 
+               then return $ \k ->
+                f' (\ff ->
+                  applies args' (\argss ->
                     k (appNoBind ff argss)
                 ))
                else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
@@ -189,17 +190,17 @@ monExpr' topLevel expr
                               contBody = k (Var tnameY InfoNone)
                               cont = case contBody of
                                         -- optimize (fun(y) { let x = y in .. })
-                                       Let [DefNonRec def@(Def{ defExpr = Var v _ })] body 
-                                        | getName v == nameY 
-                                        -> Lam [TName (defName def) (defType def)] feff body 
+                                       Let [DefNonRec def@(Def{ defExpr = Var v _ })] body
+                                        | getName v == nameY
+                                        -> Lam [TName (defName def) (defType def)] feff body
                                        -- TODO: optimize (fun (y) { lift(expr) } )?
                                        body -> Lam [tnameY] feff body
                           in
                           f' (\ff ->
-                            applies args' (\argss -> 
+                            applies args' (\argss ->
                               appBind resTp feff (typeOf contBody) ff argss cont
                           ))
-      Let defgs body 
+      Let defgs body
         -> do defgs' <- monLetGroups defgs
               body'  <- monExpr body
               return $ \k -> defgs' (\dgs -> Let dgs (body' k))
@@ -210,10 +211,10 @@ monExpr' topLevel expr
               needM  <- anyM needsMonBranch bs
               if (not needM)
                then return $ \k -> exprs' (\xxs -> k (Case xxs bs'))
-               else do nameC <- uniqueName "c"                      
+               else do nameC <- uniqueName "c"
                        let resTp = typeOf expr
-                           tnameC = TName nameC resTp                           
-                       return $ \k -> 
+                           tnameC = TName nameC resTp
+                       return $ \k ->
                          let effTp    = typeTotal
                              contBody = k (Var tnameC InfoNone)
                              cont = Lam [tnameC] effTp contBody
@@ -221,7 +222,7 @@ monExpr' topLevel expr
 
       Var (TName name tp) info
         -> do -- tp' <- monTypeX tp
-              return (\k -> k (Var (TName name tp) info)) 
+              return (\k -> k (Var (TName name tp) info))
 
       -- type application and abstraction
 
@@ -234,7 +235,7 @@ monExpr' topLevel expr
         -> do body' <- monExpr' topLevel body
               -- return $ \k -> body' (\xx -> k (TypeLam tvars xx))
               return $ \k -> k (TypeLam tvars (body' id))
-      
+
       TypeApp body tps
         -> do body' <- monExpr' topLevel body
               return $ \k -> body' (\xx -> k (TypeApp xx tps))
@@ -243,12 +244,12 @@ monExpr' topLevel expr
 
 
 monLambda :: Bool -> [TName] -> Effect -> Expr -> Mon (Trans Expr)
-monLambda ensure pars eff body 
+monLambda ensure pars eff body
   = do withMonadic AlwaysMon $
         withMonTVars (freeEffectTVars eff) $ -- todo: is this correct?
          do body' <- monExpr body
-            pars' <- mapM monTName pars 
-            return $ \k -> 
+            pars' <- mapM monTName pars
+            return $ \k ->
               k (Lam pars' eff (body' id))
 
 monExprAsDef :: [TypeVar] -> [TName] -> Effect -> Expr -> Mon (Trans Expr)
@@ -256,11 +257,11 @@ monExprAsDef tpars pars eff body
   = do let expr = addTypeLambdas tpars (Lam pars eff body)
        monk <- xgetMonEffect eff
        if (monk/=PolyMon)
-         then monExpr' True expr 
+         then monExpr' True expr
          else do name <- uniqueName "lam"
                  let {-
                      tvars  = tvsList (ftv expr)
-                     bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]              
+                     bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
                      bsub  = subNew (zip tvars (map TVar bvars))
                      expr' = addTypeLambdas bvars (bsub |-> expr)
                      -}
@@ -272,8 +273,8 @@ monExprAsDef tpars pars eff body
 
                  monTraceDoc $ \env -> text "mon as expr:" <+> pretty name <.> text (show (length tpars, length pars)) <--> prettyExpr env expr
                  letd <- monExpr (Let [DefNonRec def] bodyx) -- process as let definition
-                 return $ \k -> k (letd id) 
-                 
+                 return $ \k -> k (letd id)
+
 
 monBranch :: Branch -> Mon Branch
 monBranch (Branch pat guards)
@@ -281,17 +282,17 @@ monBranch (Branch pat guards)
        return $ Branch pat guards'
 
 monGuard :: Guard -> Mon Guard
-monGuard (Guard guard body)       
+monGuard (Guard guard body)
   = do -- guard' <- monExpr guard  -- guards are total!
        body'  <- monExpr body
        return $ Guard guard (body' id)
 
 monLetGroups :: DefGroups -> Mon (TransX DefGroups Expr)
-monLetGroups dgs 
+monLetGroups dgs
   = do dgss' <- monTrans monLetGroup dgs
        return $ \k -> dgss' (\dgss -> k (concat dgss))
   -- = monDefGroups dgs
-  
+
 monLetGroup :: DefGroup -> Mon (TransX [DefGroup] Expr)
 monLetGroup dg
   = case dg of
@@ -306,7 +307,7 @@ monLetDef recursive def
     do monk <- xgetMonType (defType def)
        -- monTraceDoc $ \env -> text "analyze typex: " <+> ppType env (defType def) <.> text ", result: " <.> text (show (monk,defSort def)) -- <--> prettyExpr env (defExpr def)
        if ((monk == PolyMon {-|| monk == MixedMon-}) && isDupFunctionDef (defExpr def))
-        then monLetDefDup monk recursive def 
+        then monLetDefDup monk recursive def
         else do -- when (monk == PolyMon) $ monTraceDoc $ \env -> text "not a function definition but has mon type" <+> ppType env (defType def)
                 expr' <- monExpr' True (defExpr def) -- don't increase depth
                 return $ \k -> expr' (\xx -> k ([def{defExpr = xx, defSort = defSortTo monk (defSort def)}],[],[]))
@@ -315,48 +316,48 @@ monLetDef recursive def
 monLetDefDup :: MonKind -> Bool -> Def -> Mon (TransX ([Def],[Def],[Def]) Expr)
 monLetDefDup monk recursive def
   = do let teffs = let (tvars,_,rho) = splitPredType (defType def)
-                   in -- todo: we use all free effect type variables; that seems too much. 
+                   in -- todo: we use all free effect type variables; that seems too much.
                       -- we should use the ones that caused this to be mon-translated and
                       -- return those as part of MonPoly or MonAlways
                       freeEffectTVars rho
 
-       -- monTraceDoc (\env -> text "mon translation") 
+       -- monTraceDoc (\env -> text "mon translation")
        exprMon'    <- withMonTVars teffs $ monExpr' True (defExpr def)
        monTraceDoc (\env -> text "fast translation: free:" <+> tupled (niceTypes env (defType def:map TVar teffs)))
        exprNoMon'  <- withPureTVars teffs $ monExpr' True (defExpr def)
-       let (m,n)    = getArity (defType def)                    
+       let (m,n)    = getArity (defType def)
        monTraceDoc $ \env -> text " (m,n) :" <+> pretty (show (m,n)) <+> text "on def type:" <+> ppType env (defType def)
-             
-       return $ \k -> 
-        exprMon' $ \exprMon -> 
-        exprNoMon' $ \exprNoMon ->           
+
+       return $ \k ->
+        exprMon' $ \exprMon ->
+        exprNoMon' $ \exprNoMon ->
          let createDef name monKind expr
               = let tname    = TName name (defType def)
                     var      = Var tname (InfoArity m n monKind)
-                    expr'    = if (recursive) 
+                    expr'    = if (recursive)
                                  then [(defTName def, var)] |~> expr
                                  else expr
                 in (def{ defName = name, defExpr = expr', defSort = DefFun monKind }, var)
              nameMon  = makeMonName (defName def)
              nameNoMon= makeNoMonName (defName def)
-             (defMon,varMon)   = createDef nameMon AlwaysMon (exprMon)     
+             (defMon,varMon)   = createDef nameMon AlwaysMon (exprMon)
              (defNoMon,varNoMon) = createDef nameNoMon NoMon (exprNoMon)
 
              defPick  = def{ defExpr = exprPick }
              exprPick = case simplify (defExpr defMon) of -- assume (forall<as>(forall<bs> ..)<as>) has been simplified by the mon transform..
                           TypeLam tpars (Lam pars eff body) | length pars > 0 -> TypeLam tpars (Lam pars eff (bodyPick tpars pars))
                           Lam pars eff body                 | length pars > 0 -> Lam pars eff (bodyPick [] pars)
-                          _ -> failure $ "Core.Mon.monLetDefDup: illegal monadic transformed non-function?: " ++ show (prettyDef defaultEnv def) 
+                          _ -> failure $ "Core.Mon.monLetDefDup: illegal monadic transformed non-function?: " ++ show (prettyDef defaultEnv def)
 
              bodyPick :: [TypeVar] -> [TName] -> Expr
-             bodyPick tpars pars 
+             bodyPick tpars pars
               = makeIfExpr (isInBindContextExpr)
-                              (callPick varMon tpars pars) 
+                              (callPick varMon tpars pars)
                               (callPick varNoMon tpars pars)
-             
+
              callPick :: Expr -> [TypeVar] -> [TName] -> Expr
              callPick var tpars pars
-              = let typeApp e = trace (" e: " ++ show e) $ (if null tpars then e else TypeApp e (map TVar tpars))                    
+              = let typeApp e = trace (" e: " ++ show e) $ (if null tpars then e else TypeApp e (map TVar tpars))
                 in App (typeApp var) [Var par InfoNone | par <- pars]
 
          in k ([defMon],[defNoMon],[defPick])
@@ -370,7 +371,7 @@ isDupFunctionDef expr
       Lam pars eff body                 | length pars > 0 -> True
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
         -> isDupFunctionDef body
-      TypeLam tpars (TypeApp body tps)  | length tpars == length tps 
+      TypeLam tpars (TypeApp body tps)  | length tpars == length tps
          -> isDupFunctionDef body
       _ -> False
 
@@ -381,7 +382,7 @@ makeMonName  name  = makeHiddenName "bind" name
 simplify :: Expr -> Expr
 simplify expr
   = case expr of
-      App (TypeApp (Var openName _) [eff1,eff2]) [arg]  
+      App (TypeApp (Var openName _) [eff1,eff2]) [arg]
         | getName openName == nameEffectOpen && matchType eff1 eff2
         -> simplify arg
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
@@ -402,7 +403,7 @@ monTrans f xs
 
 applies :: [Trans a] -> ([a] -> a) -> a
 applies [] f = f []
-applies (t:ts) f 
+applies (t:ts) f
   = t (\c -> applies ts (\cs -> f (c:cs)))
 
 monTName :: TName -> Mon TName
@@ -412,14 +413,14 @@ monTName (TName name tp)
 
 
 varValidK :: Expr
-varValidK 
+varValidK
   = let typeVar = TypeVar 1 kindStar Bound
     in  Var (TName nameIsValidK (TForall [typeVar] [] (TFun [(nameNil,TVar typeVar)] typeTotal typeBool)))
             (Core.InfoExternal [(JS,"(#1 !== undefined)")])
 
 ensureK :: TName -> TName -> (Expr -> Expr)
 ensureK tname@(TName name tp) namek body
-  = let expr = App (Var (TName nameEnsureK (TFun [(nameNil,tp)] typeTotal tp)) 
+  = let expr = App (Var (TName nameEnsureK (TFun [(nameNil,tp)] typeTotal tp))
                   (Core.InfoExternal [(JS,"(#1 || $std_core.id)")])) [Var namek InfoNone]
         def = Def name tp expr Private DefVal rangeNull ""
     in Let [DefNonRec def] body
@@ -427,13 +428,13 @@ ensureK tname@(TName name tp) namek body
 varK tp effTp resTp    = Var (tnameK tp effTp resTp) InfoNone -- (InfoArity 0 1)
 tnameK tp effTp resTp  = tnameKN "" tp effTp resTp
 tnameKN post tp effTp resTp = TName (postpend post nameK) (typeK tp effTp resTp)
-typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing) 
+typeK tp effTp resTp   = TSyn (TypeSyn nameTpCont (kindFun kindStar (kindFun kindEffect (kindFun kindStar kindStar))) 0 Nothing)
                           {- [tp,effTp,resTp]
                            (TFun [(nameNil,tp)] effTp resTp) -}
                            [tp, effTp, tp]
                            (TFun [(nameNil,tp)] effTp tp)
                           -- TFun [(nameNil,tp)] typeTotal typeYld
- 
+
 
 nameK = newHiddenName "k"
 nameX = newHiddenName "x"
@@ -448,7 +449,7 @@ varApplyK k x
 isInBindContextExpr :: Expr
 isInBindContextExpr
   = exprTrue -- App (Var (TName nameIsInBindCtx tp) info) []
-  where 
+  where
     tp = TFun [] typePartial typeBool
     info = Core.InfoExternal [(CS,"Eff.Op.IsInBindContext()"),(JS,"$std_core._is_in_bind_context()")]  -- TODO: super fragile
     nameIsInBindCtx = qualify nameSystemCore $ newHiddenName "in-bind-context?"
@@ -456,7 +457,7 @@ isInBindContextExpr
 appNoBind :: Expr -> [Expr] -> Expr
 appNoBind fun args
   = case fun of
-      TypeApp (Var (TName name tp) info@(InfoArity m n PolyMon)) targs 
+      TypeApp (Var (TName name tp) info@(InfoArity m n PolyMon)) targs
         -> App (TypeApp (Var (TName (makeNoMonName name) tp) (InfoArity m n NoMon)) targs) args
       _ -> trace ("App no bind: " ++ show fun) $ App fun args
 
@@ -466,29 +467,29 @@ appBind tpArg tpEff tpRes fun args cont
       -- optimize: bind( lift(argBody), cont ) -> cont(argBody)
       (TypeApp (Var v _) [_], [argBody]) | getName v == nameLift
         -> App cont [argBody]
-      (Lam pars eff (App (TypeApp (Var v _) [_]) [App f args0]), _)   | getName v == nameLift -- && length pars == length args && argsMatchPars pars args0 
+      (Lam pars eff (App (TypeApp (Var v _) [_]) [App f args0]), _)   | getName v == nameLift -- && length pars == length args && argsMatchPars pars args0
         -> App cont [App f args]
       _ -> let app = case fun of
-                      TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs   
-                        -> App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args  
+                      TypeApp (Var (TName name tp) (InfoArity m n PolyMon)) targs
+                        -> App (TypeApp (Var (TName (makeMonName name) tp) (InfoArity m n AlwaysMon)) targs) args
                       _ -> applyInBindContext fun args
            in applyBind tpArg tpEff tpRes app cont
 
 applyBind tpArg tpEff tpRes expr cont
   = case cont of
-      Lam [aname] eff (Var v _) | getName v == getName aname -> expr 
+      Lam [aname] eff (Var v _) | getName v == getName aname -> expr
       _ -> App (TypeApp (Var (TName nameBind typeBind) info) [unEff tpArg, unEff tpRes, tpEff]) [expr,cont]
   where
     -- TODO: hmm, a bit unsafe to duplicate here but it is the only way to inline for now..
-    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]           
+    info = Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
 
 
 applyInBindContext :: Expr -> [Expr] -> Expr
 applyInBindContext fun args
-  = -- Let [DefNonRec defInBindCtx] 
-    (App fun args) 
-  where    
-    defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""  
+  = -- Let [DefNonRec defInBindCtx]
+    (App fun args)
+  where
+    defInBindCtx    = Def nameNil typeUnit (App varInBindCtx []) Private DefVal rangeNull ""
       where
         varInBindCtx    = Var (TName nameInBindCtx (TFun [] typePartial typeUnit)) externInBindCtx
         externInBindCtx = Core.InfoExternal [(CS, "Eff.Op.InBindContext()"),(JS,"$std_core._set_in_bind_context()")]
@@ -503,7 +504,7 @@ unEff tp
 
 typeBind :: Type
 typeBind
-  = TForall [tvarA,tvarB,tvarE] [] 
+  = TForall [tvarA,tvarB,tvarE] []
       (TFun [(nameNil,typeYld (TVar tvarA)),
              (nameNil,TFun [(nameNil,TVar tvarA)] (TVar tvarE) (typeYld (TVar tvarB)))]
             (TVar tvarE) (typeYld (TVar tvarB)))
@@ -511,10 +512,10 @@ typeBind
 
 appLift :: Expr -> Expr
 appLift arg
-  = let tp = typeOf arg        
+  = let tp = typeOf arg
         extern = Core.InfoExternal [(Default,"#1")] -- identity
     in App (TypeApp (Var (TName nameLift typeLift) extern) [tp]) [arg]
-    
+
 
 typeLift :: Type
 typeLift
@@ -530,25 +531,25 @@ isTypeYld tp
       _ -> False
 
 tvarA :: TypeVar
-tvarA = TypeVar 0 kindStar Bound      
+tvarA = TypeVar 0 kindStar Bound
 
 tvarB :: TypeVar
-tvarB = TypeVar 1 kindStar Bound      
+tvarB = TypeVar 1 kindStar Bound
 
 tvarE :: TypeVar
-tvarE = TypeVar 2 kindEffect Bound      
+tvarE = TypeVar 2 kindEffect Bound
 
 
 {--------------------------------------------------------------------------
   Check if expressions need monadic translation
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 
 -- Some expressions always need mon translation
 isAlwaysMon :: Expr -> Bool
 isAlwaysMon expr
   = case expr of
       TypeApp e _ -> isAlwaysMon e
-      Var v _     -> -- getName v == nameYieldOp || 
+      Var v _     -> -- getName v == nameYieldOp ||
                      getName v == nameUnsafeTotal -- TODO: remove these special cases?
       _ -> False
 
@@ -566,25 +567,25 @@ needsMonDef def
   = do t <- needsMonType (defType def)
        if (t) then return True
         else needsMonExpr (defExpr def)
-       
+
 needsMonExpr :: Expr -> Mon Bool
 needsMonExpr expr
   = case expr of
       App (TypeApp (Var open _) [_, effTo]) [_] | getName open == nameEffectOpen
         -> needsMonEffect effTo
-      App f args 
+      App f args
         -> anyM needsMonExpr (f:args)
       Lam pars eff body
         -> orM [needsMonEffect eff, needsMonExpr body]
-      
+
       TypeApp (TypeLam tpars body) targs
         -> do b1 <- anyM needsMonType targs
               if (b1 || any (isKindEffect . getKind) tpars)
                then return True
                else needsMonExpr (subNew (zip tpars targs) |-> body)
       TypeApp (Var tname info) targs
-        -> orM [anyM needsMonType targs, needsMonType (typeOf expr)]                    
-      
+        -> orM [anyM needsMonType targs, needsMonType (typeOf expr)]
+
       TypeApp body targs
         -> orM [anyM needsMonType targs, needsMonExpr body]
       TypeLam tpars body
@@ -611,7 +612,7 @@ anyM :: (a -> Mon Bool) -> [a] -> Mon Bool
 anyM f xs = orM (map f xs)
 
 orM :: [Mon Bool] -> Mon Bool
-orM xs 
+orM xs
   = case xs of
       [] -> return False
       (x:xx) -> do b <- x
@@ -620,12 +621,12 @@ orM xs
 -- Is the type a function with a handled effect?
 needsMonType :: Type -> Mon Bool
 needsMonType tp
-  = do monk <- xgetMonType tp 
+  = do monk <- xgetMonType tp
        return (monk /= NoMon)
 
 needsMonEffect :: Effect -> Mon Bool
 needsMonEffect eff
-  = do monk <- xgetMonEffect eff 
+  = do monk <- xgetMonEffect eff
        return (monk /= NoMon)
 
 
@@ -653,11 +654,11 @@ freeEffectTVars tp
 
 {--------------------------------------------------------------------------
   Mon monad
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 newtype Mon a = Mon (Env -> State -> Result a)
 
-data Env = Env{ monkind:: MonKind, currentDef :: [Def], 
-                pureTVars :: Tvs, monTVars :: Tvs, 
+data Env = Env{ monkind:: MonKind, currentDef :: [Def],
+                pureTVars :: Tvs, monTVars :: Tvs,
                 prettyEnv :: Pretty.Env }
 
 data State = State{ uniq :: Int }
@@ -670,17 +671,17 @@ runMon penv u (Mon c)
       Ok x _ -> return x
 
 instance Functor Mon where
-  fmap f (Mon c)  = Mon (\env st -> case c env st of 
+  fmap f (Mon c)  = Mon (\env st -> case c env st of
                                       Ok x st' -> Ok (f x) st')
-                                                      
+
 instance Applicative Mon where
   pure  = return
-  (<*>) = ap                    
+  (<*>) = ap
 
 instance Monad Mon where
   return x      = Mon (\env st -> Ok x st)
-  (Mon c) >>= f = Mon (\env st -> case c env st of 
-                                    Ok x st' -> case f x of 
+  (Mon c) >>= f = Mon (\env st -> case c env st of
+                                    Ok x st' -> case f x of
                                                    Mon d -> d env st' )
 
 instance HasUnique Mon where
@@ -692,7 +693,7 @@ withEnv f (Mon c)
   = Mon (\env st -> c (f env) st)
 
 getEnv :: Mon Env
-getEnv 
+getEnv
   = Mon (\env st -> Ok env st)
 
 updateSt :: (State -> State) -> Mon State
@@ -743,10 +744,10 @@ withMonTVars vs mon
 getPureTVars :: Mon Tvs
 getPureTVars
   = do env <- getEnv
-       return (pureTVars env)  
+       return (pureTVars env)
 
 isPureTVar :: TypeVar -> Mon Bool
-isPureTVar tv 
+isPureTVar tv
   = do env <- getEnv
        return (tvsMember tv (pureTVars env))
 
@@ -754,10 +755,10 @@ isPureTVar tv
 getMonTVars :: Mon Tvs
 getMonTVars
   = do env <- getEnv
-       return (monTVars env)  
+       return (monTVars env)
 
 isMonTVar :: TypeVar -> Mon Bool
-isMonTVar tv 
+isMonTVar tv
   = do env <- getEnv
        return (tvsMember tv (monTVars env))
 
@@ -786,4 +787,4 @@ monType tp
                              in TFun pars' eff' res''
       TApp t ts           -> TApp (monType t) (map monType ts)
       TSyn syn ts t       -> TSyn syn (map monType ts) (monType t)
-      _                   -> tp                            
+      _                   -> tp

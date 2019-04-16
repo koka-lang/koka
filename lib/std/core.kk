@@ -228,9 +228,19 @@ extern error-pattern(location : string, definition : string) : exn a {
 }
 
 // Execute a `hndler` no matter what exception was raised in `action`.
-extern finally : forall<e,a> (action: () -> e a, hndl: () -> e ()) -> e a  {
-  cs inline "Eff.Op.HandleFinally<##2>(#1,#2)"
-  js inline "$std_core._handle_finally(#1,#2)"
+extern finally : forall<e,a> (hndler: () -> e (), action: () -> e a) -> e a  {
+  cs inline "Eff.Op.HandleFinally<##2>(#2,#1)"
+  js inline "$std_core._handle_finally(#2,#1)"
+}
+
+private extern initiallyx : forall<e,a> (init: () -> e (), action: () -> e a) -> e a  {
+  cs inline "Eff.Op.HandleFinally<##2>(#2,null,#1)"
+  js inline "$std_core._handle_finally(#2,null,#1)"
+}
+
+fun initially(init: () -> e (), action: () -> e a) : e a {
+  init()
+  initiallyx( init, action )
 }
 
 // Catch any exception raised in `action` and handle it.
@@ -257,9 +267,8 @@ fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|
 }
 
 // Set a `hndler` that is always called when the `action` finishes (either normally or with an exception).
-// Note that `on-exit(handler,action) == finally(action,handler)`.
 fun on-exit( hndler : () -> e (), action : () -> e a ) : e a {
-  finally(action,hndler)
+  finally(hndler,action)
 }
 
 
@@ -2978,6 +2987,9 @@ type handled    :: HX -> X;
 
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
 type handled1   :: HX1 -> X;
+
+// The `:inst` effect is the default umbrella effect for effect instances
+type inst :: HX
 
 
 // ----------------------------------------------------------------------------

@@ -1,4 +1,5 @@
-
+// Note: this corresponds to the implicit paper but we changed
+// the name to ambients instead and moved tests to the `test/ambients` directory.
 implicit val width : int
 
 fun f() {

@@ -64,6 +64,7 @@ module Common.NamePrim
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
           , nameTpValueOp
+          , nameTpInst
 
 
           , nameTpAsync, nameTpAsyncX
@@ -269,7 +270,7 @@ nameTpTotal     = preludeName "total"
 nameTpPartial   = preludeName "exn"
 nameTpDiv       = preludeName "div"
 nameTpPure      = preludeName "pure"
-
+nameTpInst      = preludeName "inst"
 
 nameTpAlloc        = preludeName "alloc"
 nameTpRead         = preludeName "read"

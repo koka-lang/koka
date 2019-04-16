@@ -522,24 +522,26 @@ inferExpr propagated expect (Lam binders body rng)
                          Just _  -> binder
                       | (binder,mbProp) <- zip binders propArgs]
        binders1 <- mapM instantiateBinder binders0
-       (infgamma,sub,defs) <- inferOptionals [] binders1
+       eff <- freshEffect  -- TODO: use propEff?
+       (infgamma,sub,defs) <- inferOptionals eff [] binders1
        let coref c = Core.makeLet (map Core.DefNonRec defs) ((CoreVar.|~>) sub c)
 
        returnTp <- case propBody of
                      Nothing     -> Op.freshTVar kindStar Meta
                      Just (tp,_) -> return tp
 
-       (tp,eff,core) <- extendInfGamma False infgamma  $
-                        extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
-                        (if (isNamed) then inferIsolated rng (getRange body) body else id) $
-                        -- inferIsolated rng (getRange body) body $
-                        inferExpr propBody expectBody body
+       (tp,eff1,core) <- extendInfGamma False infgamma  $
+                         extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
+                         (if (isNamed) then inferIsolated rng (getRange body) body else id) $
+                         -- inferIsolated rng (getRange body) body $
+                         inferExpr propBody expectBody body
 
        inferUnify (checkReturnResult rng) (getRange body) returnTp tp
+       inferUnify (Infer rng) (getRange body) eff eff1
 
        -- traceDoc $ \env -> text " inferExpr.Lam: body tp:" <+> ppType env tp
        topEff <- case propEff of
-                   Nothing -> return eff
+                   Nothing -> subst eff
                    Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                       do inferUnify (checkEffectSubsume rng) r eff topEff
@@ -682,8 +684,8 @@ inferExpr propagated expect (Ann expr annTp rng)
        return (resTp,resEff,resCore)
 
 
-inferExpr propagated expect (Handler shallow scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
-  = inferHandler propagated expect shallow scoped mbEff pars reinit ret final branches hrng rng
+inferExpr propagated expect (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+  = inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
 inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pars reinit ret final branches hrng rng)
   = do mbhxeff <- inferHandledEffect hrng handlerSort mbEff branches
        case mbhxeff of
@@ -1106,7 +1108,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (isKindHandled1 (getKind handledEffect)) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
+                             if (effectIsLinear handledEffect) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
                 handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
@@ -1278,11 +1280,22 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
                           []
         else return ()
 
-       -- check operations of lineas effect behave as expected
-       if (effectIsLinear handledEffect && rk > ResumeTail)
-        then termError rng (text "operation" <+> text (show opName) <+>
+       -- check operations of linear effect behave as expected
+       smbranchRho  <- subst mbranchRho
+       if (effectIsLinear handledEffect)
+        then (if (rk > ResumeTail)
+               then termError rng (text "operation" <+> text (show opName) <+>
                         text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
                         [(text "hint",text "Redefine the effect as 'control' or ensure the resumption is used linearly")]
+              else do let Just (_,_,TApp _ [effBranch,_]) = splitFunType smbranchRho
+                      let (effs,tl) = extractEffectExtend effBranch
+                      traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
+                      case (dropWhile effectIsLinear effs) of
+                         (e:_) ->
+                          termError rng (text "operation" <+> text (show opName) <+>
+                                        text ("needs to be linear but uses non-linear effects")) e
+                                        [(text "hint",text "Redefine the effect as 'control' or ensure only linear effects are used")]
+                         [] -> return ())
         else return ()
 
        -- The scoped variants require a bind translation in the branch but currently
@@ -1310,10 +1323,10 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
        sbranchCore <- subst branchCore
        sbranchEff  <- subst bexprEff
        shandlerBranchTp <- subst handlerBranchTp
-       smbranchRho  <- subst mbranchRho
 
        traceDoc $ \env -> text "inferHandlerBranch: name:" <+> pretty name <+>
                           text ", branch type:" <+> ppType env sbranchTp <+>
+                          text ", branch effect:" <+> ppType env sbranchEff <+>
                           text ", make branch type:" <+> ppType env smbranchRho <+>
                           text ", resume kind:" <+> pretty (show (rk,resKind))
        return (sbranchTp,shandlerBranchTp,sbranchEff,sbranchCore)
@@ -1427,7 +1440,9 @@ effectIsLinear :: Effect -> Bool
 effectIsLinear effect
   = case expandSyn effect of
       TApp (TCon tc) [hx]
-        | (typeConName tc == nameTpHandled1) -> True
+        -> (typeConName tc /= nameTpHandled)  -- handled effects, but allow handed1 and alloc<global> etc.
+      TCon _   -- builtin effects
+        -> True
       _ -> False
 
 {-
@@ -1974,13 +1989,13 @@ inferBinders infgamma binders
 -- Takes an accumulated InfGamma (initially empty), a list of parameters (as value binders) and returns
 -- the new InfGamma and a substitution from optional paramter names to the local unique names (of type a)
 -- and a list of core (non-recursive) bindings (where the substitution has already been applied)
-inferOptionals :: [(Name,NameInfo)] -> [ValueBinder Type (Maybe (Expr Type))] -> Inf ([(Name,NameInfo)],[(Core.TName,Core.Expr)],[Core.Def])
-inferOptionals infgamma []
+inferOptionals :: Effect -> [(Name,NameInfo)] -> [ValueBinder Type (Maybe (Expr Type))] -> Inf ([(Name,NameInfo)],[(Core.TName,Core.Expr)],[Core.Def])
+inferOptionals eff infgamma []
   = return (infgamma,[],[])
-inferOptionals infgamma (par:pars)
+inferOptionals eff infgamma (par:pars)
   = case binderExpr par of
      Nothing
-      -> inferOptionals (infgamma ++ [(binderName par,createNameInfoX (binderName par) DefVal (getRange par) (binderType par))]) pars
+      -> inferOptionals eff (infgamma ++ [(binderName par,createNameInfoX (binderName par) DefVal (getRange par) (binderType par))]) pars
 
      Just expr  -- default value
       -> do let fullRange = combineRanged par expr
@@ -1996,7 +2011,9 @@ inferOptionals infgamma (par:pars)
             -- infer expression
             (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par)) (if isRho partp then Instantiated else Generalized) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
-            inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
+            -- inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
+            inferUnify (Infer fullRange) (getRange expr) eff exprEff
+
             tp <- subst partp
             let infgamma' = infgamma ++ [(binderName par,createNameInfoX (binderName par) DefVal (getRange par) tp)]
 
@@ -2029,7 +2046,7 @@ inferOptionals infgamma (par:pars)
                 --   = Core.Let [Core.DefNonRec def] ((CoreVar.|~>) sub core)
 
             -- infer the rest
-            (infgamma2,sub2,defs2) <- inferOptionals infgamma' pars
+            (infgamma2,sub2,defs2) <- inferOptionals eff infgamma' pars
             return (infgamma2,sub ++ sub2,def : ((CoreVar.|~>) sub defs2))
 
 

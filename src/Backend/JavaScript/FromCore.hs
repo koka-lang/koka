@@ -557,8 +557,11 @@ genMatch result scrutinees branches
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
                      ConSingleton{} -- the only constructor without fields (=== null)
                        -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)
-                     ConSingle{} -- always succeeds
-                       -> []
+                     ConSingle{} -- always succeeds, but need to test the fields
+                       -> concatMap
+                            (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
+                            ( zip fields (map (ppName . fst) (conInfoParams info)) )
+
                      ConIso{} -- alwasy success
                        -> []
                      ConStruct{}
