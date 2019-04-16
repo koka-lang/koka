@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -15,9 +15,9 @@ public import std/time
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, res : string, tst : () -> string ) : io () {
+fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
   val got = tst()
-  println(name + ": " + (if (got == res) then "ok: " + res 
+  println(name + ": " + (if (got == res) then "ok: " + res
                          else "failed!:\n expect: " + res + "\n gotten: " + got))
   if (got!=res) error("FAILED")
 }
@@ -47,18 +47,18 @@ fun test-week-dates() {
     val mds = md.show
     check("date-" + ds, wds) { instant(d).time(cal=cal-iso-week).date.show }
     check("date-" + wds, ds) { instant(wd,cal=cal-iso-week).time(cal=cal-iso).date.show }
-    check("date-isow-" + ds, wds) { 
+    check("date-isow-" + ds, wds) {
       val i = instant(d)
       val id = i.time(cal=cal-iso-week).date
       (weekdate(id.year,id.month,id.day.weekday)).show
     }
-    check("date-isow-" + wds, ds) { 
+    check("date-isow-" + wds, ds) {
       instant(wd,cal=cal-iso-week).time.date.show
     }
     check("date-isom-" + mds, mds) {  instant(d).time(cal=cal-iso-month).date.show  }
     check("date-isom-" + ds, ds) {  instant(md,cal=cal-iso-month).time.date.show  }
     println("")
-  })    
+  })
 }
 
 fun test-week-in-years() {
@@ -72,13 +72,13 @@ fun test-week-in-years() {
     val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
     // check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
-    check("isow-" + year.show, weeks.show) { 
-      val d = instant(year,12,28).time(cal=cal-iso-week).date 
+    check("isow-" + year.show, weeks.show) {
+      val d = instant(year,12,28).time(cal=cal-iso-week).date
       if (d.month==53) then "53" else "52"
     }
- 
-    check("isom-" + year.show, weeks.show) { 
-      val d = instant(year,12,28).time(cal=cal-iso-month).date 
+
+    check("isom-" + year.show, weeks.show) {
+      val d = instant(year,12,28).time(cal=cal-iso-month).date
       if (d.month==12 && d.day > 31) then "53" else "52"
     }
   })
@@ -106,7 +106,7 @@ fun test-nth() {
   check("nth4", "2017-11-19") { time(2016,10,10).nth-weekday-of-month(60,Sun).date.show }
   check("nth5", "2016-10-30") { time(2016,11,1).nth-weekday(0,Sun).date.show }
   check("nth6", "2016-10-26") { time(2016,11,16).start-of-month.nth-weekday(0,Wed).date.show }
-  check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }  
+  check("nth7", "2016-11-13") { time(2016,11,10).nth-weekday(1,Sun).date.show }
 }
 
 public fun main() {

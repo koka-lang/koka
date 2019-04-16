@@ -294,6 +294,11 @@ import std/time/instant
 // Return the UTC timescale with the latest leap second information.
 public ambient fun utc() : timescale
 
+public fun ".default-utc"( action : () -> <utc|e> a) : e a {
+  with fun utc() { ts-ti }
+  action()
+}
+
 /*----------------------------------------------------------------------------
   Unix and NTP timestamps
 ----------------------------------------------------------------------------*/
@@ -432,7 +437,7 @@ possible future leap seconds after that date. This is the preferred time scale
 in this library as it guarantees deterministic time calculations for any
 future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 37s.
 */
-public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
+public val ts-ti : timescale = utc-timescale( "", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
 // It equals the `ts-ti` time scale.

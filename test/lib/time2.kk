@@ -26,13 +26,11 @@ fun check(name : string, res : string, tst : () -> <io,utc> string ) : <io,utc> 
 
 
 fun test-leap() {
-  val ts-utc = ts-utc-load()
-  with fun utc() { ts-utc }
   check("leap1", "2016-12-31T23:59:59Z" ) {  ts-tai.instant(2017,1,1,0,0,35).time(ts=utc()).show  }
   check("leap2", "2016-12-31T23:59:60Z" ) {  ts-tai.instant(2017,1,1,0,0,36).time-utc.show  }
   check("leap3", "2017-01-01T00:00:00Z" ) {  ts-tai.instant(2017,1,1,0,0,37).time-utc.show  }
   // 'leap second' around 1972-01-01 of 0.11035s (0.107758s from TAI)
-  check("leap4", "1971-12-31T23:59:59.107758Z" ) {  ts-tai.instant(1972,1,1,0,0,9).time(ts=ts-utc).show(6)  }
+  check("leap4", "1971-12-31T23:59:59.107758Z" ) {  ts-tai.instant(1972,1,1,0,0,9).time(ts=utc()).show(6)  }
   check("leap5", "1971-12-31T23:59:59.907758Z" ) {  ts-tai.instant(1972,1,1,0,0,9,0.8).time-utc.show(6)  }
   check("leap6", "1971-12-31T23:59:60.007758Z" ) {  ts-tai.instant(1972,1,1,0,0,9,0.9).time-utc.show(6)  }
   check("leap7", "1972-01-01T00:00:00Z" ) {  ts-tai.instant(1972,1,1,0,0,10).time-utc.show  }
@@ -80,6 +78,8 @@ fun test-leap() {
 }
 
 public fun main() {
+  //val ts-utc = ts-utc-load()
+  //with fun utc() { ts-utc }
   //update-leaps-table(verbose=True)
   test-leap()
 }

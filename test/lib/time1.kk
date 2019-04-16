@@ -95,8 +95,8 @@ fun test-tzs( tzs : timezones ) {
 
 
 public fun test() {
-  val ts-utc = ts-utc-load()
-  with fun utc() { ts-utc }
+  //val ts-utc = ts-utc-load()
+  //with fun utc() { ts-utc }
   println( "tz-local(): " + now().time(tz=tz-local()).show )
   val tzs = //try(timezones-empty){
             load-timezones(verbose=True) //}
@@ -107,7 +107,7 @@ public fun test() {
 }
 
 public fun main() {
-  val ts-utc = ts-utc-load()
-  with fun utc() { ts-utc }
+  //val ts-utc = ts-utc-load()
+  //with fun utc() { ts-utc }
   test-tzs(try-default(timezones-empty){ load-timezones() })
 }

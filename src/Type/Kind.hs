@@ -8,7 +8,8 @@
 module Type.Kind ( HasKind( getKind )
                  , handledToLabel
                  , HandledSort(..)
-                 , getHandledEffect, containsHandledEffect
+                 , getHandledEffect, getHandledEffectX
+                 , containsHandledEffect
                  ) where
 
 import Data.Maybe( isJust )
@@ -19,8 +20,8 @@ import Type.Type
 
 
 handledToLabel :: Type -> Type
-handledToLabel e 
-  = if (isKindHandled1 (getKind e)) 
+handledToLabel e
+  = if (isKindHandled1 (getKind e))
      then TApp tconHandled1 [e]
      else TApp tconHandled [e]
 
@@ -32,21 +33,21 @@ containsHandledEffect exclude eff
 data HandledSort = ResumeOnce | ResumeMany
                  deriving (Eq,Show)
 
-getHandledEffect :: Type -> Maybe HandledSort
+getHandledEffect :: Type -> Maybe (HandledSort,Name)
 getHandledEffect tp
   = getHandledEffectX [] tp
 
 getHandledEffectX exclude tp
   = case expandSyn tp of
-      TApp (TCon (TypeCon name _)) [t]  
+      TApp (TCon (TypeCon name _)) [t]
         | name == nameTpHandled  -> getHandledEffectX exclude t
         | name == nameTpHandled1 -> getHandledEffectX exclude t
       TApp (TCon (TypeCon hxName _)) _
-        | isKindHandled (getKind tp)  && not (hxName `elem` exclude) -> Just ResumeMany
-        | isKindHandled1 (getKind tp) && not (hxName `elem` exclude) -> Just ResumeOnce
-      TCon (TypeCon hxName kind) 
-        | isKindHandled kind  && not (hxName `elem` exclude) -> Just ResumeMany
-        | isKindHandled1 kind && not (hxName `elem` exclude) -> Just ResumeOnce
+        | isKindHandled (getKind tp)  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
+        | isKindHandled1 (getKind tp) && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
+      TCon (TypeCon hxName kind)
+        | isKindHandled kind  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
+        | isKindHandled1 kind && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
       _ -> Nothing
 
 {--------------------------------------------------------------------------
@@ -78,7 +79,7 @@ instance HasKind Type where
         TVar v         -> getKind v
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
-                          kindApply xs (getKind syn)  
+                          kindApply xs (getKind syn)
         TApp tp args   -> case collect [] (getKind tp) of
                             (kres:_) -> kres
                             _  -> failure ("Type.Kind: illegal kind in type application? " ++ show (getKind tp) )
@@ -90,6 +91,3 @@ instance HasKind Type where
       kindApply [] k   = k
       kindApply (_:rest) (KApp (KApp arr k1) k2)  = kindApply rest k2
       kindApply _  k   = failure ("Type.Kind.kindApply: illegal kind in application? " ++ show k)
-
-
-

@@ -84,8 +84,8 @@ fun test-sofa(ts-utc) {
 }
 
 public fun main() {
-  val ts-utc = ts-utc-load()
-  with fun utc() { ts-utc }
+  //val ts-utc = ts-utc-load()
+  //with fun utc() { ts-utc }
   test-misc()
   test-jd(utc())
   test-astro()
