@@ -21,7 +21,7 @@ module Common.Syntax( Visibility(..)
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen
                     , HandlerSort(..)
-                    , isHandlerResource, isHandlerDeep, isHandlerShallow
+                    , isHandlerResource, isHandlerNormal
                     ) where
 
 {--------------------------------------------------------------------------
@@ -55,24 +55,21 @@ isPrivate _       = False
 
 
 data HandlerSort e
-  = HandlerDeep | HandlerShallow | HandlerResource (Maybe e)
+  = HandlerNormal | HandlerResource (Maybe e)
   deriving (Eq)
 
 instance Show (HandlerSort e) where
   show hsort = case hsort of
-                 HandlerDeep -> "Deep"
-                 HandlerShallow -> "Shallow"
+                 HandlerNormal -> "Normal"
                  HandlerResource Nothing -> "FreshResource"
                  HandlerResource _       -> "Resource"
 
 isHandlerResource (HandlerResource _) = True
 isHandlerResource _ = False
 
-isHandlerDeep (HandlerDeep) = True
-isHandlerDeep _ = False
+isHandlerNormal (HandlerNormal) = True
+isHandlerNormal _ = False
 
-isHandlerShallow (HandlerShallow) = True
-isHandlerShallow _ = False
 
 {--------------------------------------------------------------------------
   DataKind

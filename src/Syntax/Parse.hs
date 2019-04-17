@@ -1444,8 +1444,7 @@ handlerSort =     do keywordResource
                                     return (Just (Var name False rng))
                                  <|> return Nothing
                      return (HandlerResource override)
-              <|> do specialId "shallow"; return HandlerShallow
-              <|> return HandlerDeep
+              <|> return HandlerNormal
 
 
 

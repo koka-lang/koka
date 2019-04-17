@@ -51,15 +51,15 @@ analyzeResume defName opName raw expr
 arTailExpr expr  = arExpr' ResumeTail expr
 arExpr expr      = arExpr' ResumeScopedOnce expr
 
-isResumingElem tnames = S.member resumeName tnames || S.member finalizeName tnames
-isResuming tname = tname == resumeName || tname == finalizeName
+isResumingElem tnames = S.member resumeName tnames || S.member finalizeName tnames || S.member resumeShallowName tnames
+isResuming tname = (tname == resumeName || tname == finalizeName || tname == resumeShallowName)
 
 arExpr' appResume expr
   = case expr of
       Lam tnames eff body
         -> if (isResumingElem (fv expr)) then ResumeNormal else ResumeNever
       App (Var tname info) args  | isResuming tname
-        -> appResume `rand` arExprsAnd args
+        -> appResume `rand` arExprsAnd args `rand` (if (tname==resumeShallowName) then ResumeOnce else ResumeNever)
       App f args
         -> arExprsAnd (f:args)
       TypeLam tvs body
@@ -73,7 +73,8 @@ arExpr' appResume expr
       Lit lit
         -> ResumeNever
       Let [DefNonRec def] expr
-        | defName def == getName resumeName  -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
+        -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
+        | defName def == getName resumeName || defName def == getName resumeShallowName
         -> arExpr' appResume expr
       Let defGroups body -- TODO: be more sophisticated here?
         -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
@@ -146,4 +147,5 @@ isScoped ResumeOnce   = False
 isScoped _            = True
 
 resumeName = TName (newName "resume") typeVoid
+resumeShallowName = TName (newName "resume-shallow") typeVoid
 finalizeName = TName (newName "finalize") typeVoid

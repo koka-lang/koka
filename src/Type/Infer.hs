@@ -874,7 +874,7 @@ inferHandler propagated expect handlerSort handlerScoped
            localTypes   = map snd localArgs0
            locals       = [b{ binderType=tp, binderExpr = () } | (b,tp) <- zip propLocals localTypes]
            localArgs    = [(binderName b, binderType b) | b <- locals]
-           branchTp     = if (isHandlerShallow handlerSort) then retInTp else retOutTp
+           branchTp     = retOutTp
 
        traceDoc $ \env -> text "inferHandler: retTp:" <+> ppType env retTp
                            <+> text ", propLocals: " <+> list (map (pretty . binderName) propLocals)
@@ -884,7 +884,7 @@ inferHandler propagated expect handlerSort handlerScoped
        -- Create effect type variable & unify with the return clause effect
        heff <- freshEffect
        inferUnify (checkEffectSubsume hrng) hrng heff retEff
-          -- (if shallow then heff else (effectExtend typeCps heff)) retEff
+
 
        -- infer the handled effect
        mbhxeff <- inferHandledEffect hrng handlerSort mbEffect branches
@@ -1019,7 +1019,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (handledEffectName,branches) <- checkCoverage hrng handledEffect branches0
 
        -- build up the type of the action parameter
-       let actionEffect   = if (not (isHandlerDeep handlerSort) || isHandlerResource handlerSort)
+       let actionEffect   = if (isHandlerResource handlerSort)
                              then effect else effectExtend handledEffect effect
 
            actionPars     = case handlerSort of
@@ -1108,7 +1108,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (effectIsLinear handledEffect) then 1 else if (isHandlerShallow handlerSort) then 2 else 0
+                             if (effectIsLinear handledEffect) then 1 else 0
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
                 handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
@@ -1184,7 +1184,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
 
            contextName = if (raw) then newName "context" else newHiddenName "context"
-           contextTp   = makeContextType resTp resumeEff branchTp locals
+           contextTp   = makeContextType resTp resumeEff actionEffect branchTp locals
            contextBind = ValueBinder contextName Nothing Nothing nameRng nameRng
 
            resumeName  = newName "resume"
@@ -1206,33 +1206,29 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
            resumeDef   = DefNonRec (Def (ValueBinder resumeName () resumeExpr nameRng nameRng)
                                         nameRng Public (DefFun AlwaysMon) "")
 
-           {-
-           resumeName= newName "resume"
-           resumeTp  = TFun ([(newName "result", resTp)] ++ locals) resumeEff branchTp
-           resumeBind= ValueBinder resumeName Nothing Nothing nameRng nameRng
+           sresumeName = newName "resume-shallow"
+           sresumeTp   = TFun ([(rargName, resTp)] ++ locals) actionEffect branchTp  -- leaves in handledEffect
 
-           finalizeName= newName "finalize"
-           finalizeTp  = TFun [(newName "after", typeFun [] resumeEff branchTp)] resumeEff branchTp
-           fargName    = newName "after"
-           primFinalizeName = qualify nameSystemCore $ newHiddenName ("finalize" ++ (if null locals then "" else show (length locals)))
-           finalizeApp = App (Var primFinalizeName False nameRng)
-                             [(Nothing,Var resumeName False nameRng),
-                              (Nothing,Var fargName False nameRng)] nameRng
-           finalizeLam = Lam [(ValueBinder fargName (Just (typeFun [] resumeEff branchTp)) Nothing nameRng nameRng)]
-                             finalizeApp nameRng
+           sprimResumeName = qualify nameSystemCore $ newName ("resume-shallow")
+           sresumeApp  = App (Var sprimResumeName False nameRng)
+                            ([(Nothing,Var contextName False nameRng),
+                              (Nothing,Var rargName False nameRng)
+                             ] ++ [(Nothing, Var lname False nameRng) | lname <- resumeLocals]) nameRng
+           sresumeLam  = Lam ([(ValueBinder rargName Nothing Nothing nameRng nameRng)]
+                              ++ [ValueBinder lname Nothing Nothing nameRng nameRng | lname <- resumeLocals])
+                             sresumeApp nameRng
+
+           sresumeExpr = Ann sresumeLam sresumeTp nameRng
+           sresumeDef  = DefNonRec (Def (ValueBinder sresumeName () sresumeExpr nameRng nameRng)
+                                       nameRng Public (DefFun AlwaysMon) "")
 
 
-           finalizeExpr= Ann finalizeLam finalizeTp nameRng
-           finalizeDef = DefNonRec (Def (ValueBinder finalizeName () finalizeExpr nameRng nameRng)
-                                        nameRng Public (DefFun AlwaysMon) "")
-
-           -}
            parContextName= contextName
            parContextTp  = contextTp
            parContextBind= ValueBinder parContextName Nothing Nothing nameRng nameRng
 
 
-           localExpr = if (raw) then expr else Let resumeDef expr nameRng
+           localExpr = if (raw) then expr else Let resumeDef (Let sresumeDef expr nameRng) nameRng
 
            bodyPat   = PatCon conName [(Nothing,toPattern par) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
                      where
@@ -1345,10 +1341,10 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
     nameTpHandlerBranch n
       = qualify nameSystemCore (newName ("handler-branch" ++ show n))
 
-makeContextType argTp effTp branchTp locals
+makeContextType argTp effTp actionEffTp branchTp locals
   = let name = nameMakeContextTp (length locals)
         kind = kindFun kindStar (kindFun kindEffect (kindCon (length locals + 1)))
-    in TApp (TCon (TypeCon name kind)) ([argTp,effTp,branchTp] ++ map snd locals)
+    in TApp (TCon (TypeCon name kind)) ([argTp,effTp,actionEffTp,branchTp] ++ map snd locals)
 
 checkCoverage :: Range -> Effect -> [HandlerBranch Type] -> Inf (Name, [HandlerBranch Type])
 checkCoverage rng effect branches

@@ -228,7 +228,7 @@
       },
 
     "libraryid":
-      { "match": "(finally|repeat|for|foreach|while|foreach-indexed|inline|cs|js|file|ref|assigned|resume|context|cont)(?![\\w\\-?'])"
+      { "match": "(finally|inline|cs|js|file|ref|resume|resume-shallow|context)(?![\\w\\-?'])"
       , "name": "support.function.koka"
       },
 
@@ -243,7 +243,7 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|with(?:\\s+override)?|extern|external|fun(?:\\s+raw)?|val|var|con|if|then|else|elif|match|inject|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?|shallow|return|module|import|as|in|public|private|abstract|effect|implicit|ambient(?:\\s+rec)?|cont|resource|instance|dynamic|named|control)(?![\\w\\-?'])"
+      { "match": "(infix|infixr|infixl|prefix|postfix|type|cotype|rectype|struct|alias|forall|exists|some|interface|with(?:\\s+override)?|extern|external|fun(?:\\s+raw)?|val|var|con|if|then|else|elif|match|inject|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?|return|module|import|as|in|public|private|abstract|effect|implicit|ambient(?:\\s+rec)?|cont|resource|instance|dynamic|named|control)(?![\\w\\-?'])"
       , "name": "keyword.other.koka"
       },
 

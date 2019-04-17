@@ -3039,37 +3039,45 @@ extern ".yieldop-x2"<a,b,x1,x2>( effect-name : string, op-name : string, op-reso
   js inline "$std_core._yield_op(#1,#2,#5,#4,#3)"
 }
 
-type resume-context<a,e::E,b>
-type resume-context1<a,e::E,b,l>
+type resume-context<a,e::E,e2::E,b>
+type resume-context1<a,e::E,e2::E,b,l>
 
-extern resume( context : resume-context<a,e,b>, result : a ) : e b {
+extern resume( context : resume-context<a,e,e2,b>, result : a ) : e b {
   js inline "#1.resume(#2,undefined)"
 }
 
-extern resume( context : resume-context1<a,e,b,l>, result : a, local : l ) : e b {
+extern resume( context : resume-context1<a,e,e2,b,l>, result : a, local : l ) : e b {
   js inline "#1.resume(#2,#3)"
 }
 
-extern finalize( context : resume-context<a,e,b>, result : c ) : e c {
+extern finalize( context : resume-context<a,e,e2,b>, result : c ) : e c {
   js inline "#1.finalize(#2)"
 }
 
-extern finalize( context : resume-context1<a,e,b,l>, result : c ) : e c {
+extern finalize( context : resume-context1<a,e,e2,b,l>, result : c ) : e c {
   js inline "#1.finalize(#2)"
+}
+
+extern resume-shallow( context : resume-context<a,e,e2,b>, result : a ) : e2 b {
+  js inline "#1.resume_shallow(#2,undefined)"
+}
+
+extern resume-shallow( context : resume-context1<a,e,e2,b,l>, result : a, local : l ) : e2 b {
+  js inline "#1.resume_shallow(#2,#3)"
 }
 
 type handler-branch0<e::E,a>
 type handler-branch1<e::E,l,a>
 
 extern ".makeHandlerBranch0"( resume-kind : int, op-name : string,
-                              branch : (resume-context<a,e,b>, op : c) -> e b
+                              branch : (resume-context<a,e,e2,b>, op : c) -> e b
                             ) : total handler-branch0<e,b> {
   cs inline "new Eff.Branch<##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch"
 }
 
 extern ".makeHandlerBranch1"( resume-kind : int, op-name : string,
-                              branch : (resume-context1<a,e,b,l>, op : c, local : l) -> e b
+                              branch : (resume-context1<a,e,e2,b,l>, op : c, local : l) -> e b
                             ) : total handler-branch1<e,l,b> {
   cs inline "new Eff.Branch1<##5,##3,##1,##2>((Eff.ResumeKind)((int)#1),#2,#3)"
   js "$std_core._new_branch1"
