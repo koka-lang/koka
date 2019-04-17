@@ -257,8 +257,6 @@ topdef vis
     do effectDecl vis
   <|>
     do externDecl vis
-  <|>
-    do implicitDecl vis
 
 {---------------------------------------------------------------
   Import declaration
@@ -648,7 +646,7 @@ constructorId
 -----------------------------------------------------------
 
 type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
-
+{-
 --
 -- Implicit Parameter Declarations
 --
@@ -685,7 +683,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,ki
              EffectDecl (vis,defvis,vrng,erng,doc,sort,linear,isResource,
                           effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
-
+-}
 --
 -- Handling Implicit Parameters
 --
@@ -751,7 +749,7 @@ parseEffectDecl dvis =
                              <|>
                                 return (Just (TpCon nameTpInst irng))
          (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
-         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+         return $ -- trace ("parsed effect decl " ++ show effectId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
@@ -1438,7 +1436,7 @@ handlerExprX braces rng
        handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort =     do keywordResource
-                     override <- do lparen
+                     override <- do lapp
                                     (name,rng) <- qidentifier
                                     rparen
                                     return (Just (Var name False rng))
@@ -1449,7 +1447,7 @@ handlerSort =     do keywordResource
 
 
 handlerExprXX braces rng mbEff scoped override hsort
-  = do (pars,dpars,rng1) <- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
+  = do (pars,dpars,rng1) <- handlerParams -- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
        -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
            bodyParser = if braces || not (null xpars) then bracedOps else handlerOps

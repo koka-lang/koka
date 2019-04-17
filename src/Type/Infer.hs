@@ -1207,15 +1207,14 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
                                         nameRng Public (DefFun AlwaysMon) "")
 
            sresumeName = newName "resume-shallow"
-           sresumeTp   = TFun ([(rargName, resTp)] ++ locals) actionEffect branchTp  -- leaves in handledEffect
+           sresumeTp   = TFun [(rargName, resTp)] actionEffect branchTp  -- leaves in handledEffect, no locals
 
            sprimResumeName = qualify nameSystemCore $ newName ("resume-shallow")
            sresumeApp  = App (Var sprimResumeName False nameRng)
                             ([(Nothing,Var contextName False nameRng),
                               (Nothing,Var rargName False nameRng)
-                             ] ++ [(Nothing, Var lname False nameRng) | lname <- resumeLocals]) nameRng
-           sresumeLam  = Lam ([(ValueBinder rargName Nothing Nothing nameRng nameRng)]
-                              ++ [ValueBinder lname Nothing Nothing nameRng nameRng | lname <- resumeLocals])
+                             ]) nameRng
+           sresumeLam  = Lam [(ValueBinder rargName Nothing Nothing nameRng nameRng)]
                              sresumeApp nameRng
 
            sresumeExpr = Ann sresumeLam sresumeTp nameRng
@@ -1278,7 +1277,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
 
        -- check operations of linear effect behave as expected
        smbranchRho  <- subst mbranchRho
-       if (effectIsLinear handledEffect)
+       if (not (isHandlerResource handlerSort) && effectIsLinear handledEffect)
         then (if (rk > ResumeTail)
                then termError rng (text "operation" <+> text (show opName) <+>
                         text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
@@ -1435,8 +1434,12 @@ effectNameFromLabel effect
 effectIsLinear :: Effect -> Bool
 effectIsLinear effect
   = case expandSyn effect of
-      TApp (TCon tc) [hx]
-        -> (typeConName tc /= nameTpHandled)  -- handled effects, but allow handed1 and alloc<global> etc.
+      TApp (TCon tc) [hx] | (typeConName tc == nameTpHandled1)
+        -> True
+      TApp (TCon tc) [hx] | typeConName tc /= nameTpHandled
+        -- allow `alloc<global>` etc.
+        -> let k = getKind effect
+           in (isKindLabel k || isKindEffect k)
       TCon _   -- builtin effects
         -> True
       _ -> False

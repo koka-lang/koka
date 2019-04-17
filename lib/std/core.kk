@@ -3059,11 +3059,11 @@ extern finalize( context : resume-context1<a,e,e2,b,l>, result : c ) : e c {
 }
 
 extern resume-shallow( context : resume-context<a,e,e2,b>, result : a ) : e2 b {
-  js inline "#1.resume_shallow(#2,undefined)"
+  js inline "#1.resume_shallow(#2)"
 }
 
-extern resume-shallow( context : resume-context1<a,e,e2,b,l>, result : a, local : l ) : e2 b {
-  js inline "#1.resume_shallow(#2,#3)"
+extern resume-shallow( context : resume-context1<a,e,e2,b,l>, result : a ) : e2 b {  // no locals are passed !
+  js inline "#1.resume_shallow(#2)"
 }
 
 type handler-branch0<e::E,a>
