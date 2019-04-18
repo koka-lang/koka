@@ -5,15 +5,17 @@ ambient heap {
 ambient instance ref<a> in heap {
 	control get() : a
 	control set( value : a ) : ()
-  //control free() : ()
+  control free() : ()
 }
 
-fun with-ref(init,action) {
+// bug: we need to add `:inst` (or any other handled effect)
+// or the optimizer gets too aggressive :-(
+fun with-ref(init : a, action : (ref<a>) -> <inst|e> b ) : <inst|e> b {
   fun f() {
     with r = instance {
       control get()  { (fun(s) { resume(s)(s) }) }
       control set(x) { (fun(s) { resume(())(x)}) }
-      //control free() { (fun(s) { resume-shallow(())(s) }) }
+      control free() { (fun(s) { resume-shallow(())(s) }) }
     }
     val x = action(r)
     (fun(s){ x })
@@ -37,9 +39,18 @@ fun main() {
   println( r1.get + r2.get.count)
 }
 
+fun example1() {
+	with heap
+	with r1 : ref<int> = with-ref(40)
+  val r2 = escape()
+  val x = r1.get
+  r1.free
+  println( x + r2.get.count)
+}
+
 fun wrong1() {
   with heap
   val r1 = new-ref(42)
-  //r1.free
-  println(r1.get)
+  r1.free
+  println(r1.get)  // use after free
 }

@@ -176,6 +176,7 @@ monExpr' topLevel expr
               monKind <- xgetMonType ftp
               let isMonF = monKind /= NoMon
               -- monTraceDoc $ \env -> text "app" <+> (if isNeverMon f then text "never-mon" else text "") <+> prettyExpr env f <+> text ",tp:" <+> niceType env (typeOf f)
+              -- monTraceDoc $ \env -> text "   : " <+> pretty isMonF <+> (if isAlwaysMon f then text "always-mon" else text "") <+> pretty monKind
               if ((not (isMonF || isAlwaysMon f)) || isNeverMon f)
                then return $ \k ->
                 f' (\ff ->
@@ -459,7 +460,8 @@ appNoBind fun args
   = case fun of
       TypeApp (Var (TName name tp) info@(InfoArity m n PolyMon)) targs
         -> App (TypeApp (Var (TName (makeNoMonName name) tp) (InfoArity m n NoMon)) targs) args
-      _ -> trace ("App no bind: " ++ show fun) $ App fun args
+      _ -> -- trace ("App no bind: " ++ show fun) $
+           App fun args
 
 appBind :: Type -> Effect ->  Type -> Expr -> [Expr] -> Expr -> Expr
 appBind tpArg tpEff tpRes fun args cont
