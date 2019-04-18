@@ -70,7 +70,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-   -- Lib.Trace.trace s
+ -- Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -1282,9 +1282,10 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
                then termError rng (text "operation" <+> text (show opName) <+>
                         text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
                         [(text "hint",text "Redefine the effect as 'control' or ensure the resumption is used linearly")]
-              else do let Just (_,_,TApp _ [effBranch,_]) = splitFunType smbranchRho
+              else do --traceDoc $ \env -> text "operation split" <+> text (show opName) <+> text ":" <+> niceType env smbranchRho
+                      let Just (_,_,TApp _ (effBranch:_)) = splitFunType smbranchRho
                       let (effs,tl) = extractEffectExtend effBranch
-                      traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
+                      --traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
                       case (dropWhile effectIsLinear effs) of
                          (e:_) ->
                           termError rng (text "operation" <+> text (show opName) <+>

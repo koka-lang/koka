@@ -1020,7 +1020,7 @@ extendInfGamma topLevel tnames inf
                       Just info2 | infoCanonicalName name info2 /= nameReturn
                         -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                               env <- getEnv
-                              if (not (isHiddenName name) && show name /= "resume")
+                              if (not (isHiddenName name) && show name /= "resume" && show name /= "resume-shallow")
                                then infWarning range (Pretty.ppName (prettyEnv env) name <+> text "shadows an earlier local definition or parameter")
                                else return ()
                       _ -> return ()

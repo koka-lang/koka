@@ -33,7 +33,7 @@ bob
 [bob,alice]
 -----------
 failure while running program:
- node out/test/implicits_inim.js
+ node out/test/ambients_anim.js
 .Op-cheat : forall<a> (player : player) -> .op-cheat<a>
 .Op-choose : .op-choose
 .Op-get : forall<a> .op-get<a>
