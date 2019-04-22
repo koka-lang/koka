@@ -1107,7 +1107,7 @@ funDecl rng doc vis
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body   <- block
+       body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun doc)
@@ -1333,7 +1333,7 @@ typeAnnotation
 --------------------------------------------------------------------------}
 bodyexpr :: LexParser UserExpr
 bodyexpr
-  = do keyword "->"
+  = do keyword "->" <|> keyword "="
        blockexpr
   <|>
     block
@@ -1890,7 +1890,7 @@ injectExpr
 injectType :: LexParser (Range, UserExpr -> UserExpr)
 injectType
  = do rng1 <- keywordInject
-      behind <- do { specialId "behind"; return True } <|> return False
+      behind <- do { specialId "behind" <|> specialId "other"; return True } <|> return False
       langle
       tp <- ptype
       rangle
