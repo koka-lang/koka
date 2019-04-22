@@ -11,10 +11,13 @@
     <script type="text/javascript">
     require.config({ baseUrl: "../../out/lib" });
 
-    // callback for the inference
+    // callback to get the chart data
     function calculate( cb ) {
       require(["test_bayes_bayes"],function($bayes) {
-        const xs = JSON.parse($bayes.browser_main());   // Call browser-main
+        const xs = JSON.parse($bayes.browser_main());   // Call Koka `browser-main`
+        // zip all data:
+        // instead of:    [[(ax1,ay1),(ax2,ay2)],[(bx1,by1),(bx2,by2)]]
+        // we zip it to:  [[ax1,ay1,by1],[ax2,ay2,by2]]
         if (xs[0][0] instanceof Array) {
           const graphs = xs.length;
           const base = xs[0];
@@ -35,9 +38,7 @@
     // https://developers.google.com/chart/interactive/docs/gallery/linechart
     google.charts.load('current', {packages: ['corechart', 'line']});
     google.charts.setOnLoadCallback(drawBasic);
-
     function drawBasic() {
-
       var data = new google.visualization.DataTable();
       data.addColumn('number', 'X');
       var options = {
