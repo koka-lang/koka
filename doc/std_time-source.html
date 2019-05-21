@@ -17,8 +17,8 @@
 
 <body class="koka doc body"><div class="madoko">
 <pre class="koka source"><span class="comment">/&#42;----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
-    
+   Copyright (C) 2012-2019 Microsoft Corporation
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -28,14 +28,19 @@
 
 # Dates and time
 
-This is an extensive library for managing time and supports advanced features
-as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
-Internally time is represented by a &#96;:ddouble&#96; giving it a very high range and precision 
-(see the &#96;std/time/instant&#96; module).
+This is an extensive library for managing time.
+By using careful defaults the library offers an easy to use interface for the
+common use cases, but uses accurate and precise time representations and algorithms.
+In particular, it handles accurate leap seconds, time zones, multiple calendars,
+and astronomical time scales.
+Internally time is represented by a 128-bit &#96;:ddouble&#96; giving it a very high range
+and precision (up to 31 decimal digits, see the &#96;std/time/instant&#96; module for more
+information). As such, we believe this library is one of the most accurate time
+libraries around.
 
 Core concepts are:
 
-&#42; A &#96;:duration&#96; is a span of time in fractional SI seconds. 
+&#42; A &#96;:duration&#96; is a span of time in SI seconds (as measured on the earth's geoid).
 
 &#42; An &#96;:instant&#96; represents an instant in time. Instants can be substracted to
 get the &#96;:duration&#96; between them. Instants are usually represented as the number
@@ -44,10 +49,10 @@ in different time scales for efficiency. For example, there is the TAI time scal
 standard UTC (&#96;ts-ti&#96;), or astronomical time scales like terrestrial time (&#96;std/time/astro/ts-tt&#96;).
 
 &#42; A &#96;:time&#96; is a human readable &#96;:date&#96; (year, month, day), and &#96;:clock&#96; (hour, minutes, seconds)
-in a particular &#96;:calendar&#96; (usually the standard ISO calendar) and time zone. 
-Instants can be converted to 
-time values and back. We can add years, months, or days to a &#96;:time&#96;, or get the difference
-between times in days etc.
+in a particular &#96;:calendar&#96; (usually the standard ISO calendar) and time zone.
+Instants can be converted to time values and back. We can add logical years, months, or
+days to a &#96;:time&#96;, or get the difference between times in days etc. See the
+&#96;std/time/time&#96; module for more information.
 
 The current time, in the UTC timezone (&#96;tz-utc&#96;) using the ISO calendar (&#96;cal-iso&#96;):
 
@@ -69,6 +74,7 @@ We can also get the current instant in time as the number of SI seconds since th
 &gt; now()
 539106063.980999947s
 &#96;&#96;&#96;
+See &#96;std/time/chrono&#96; for more information on system time.
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (&#96;tz-utc&#96;) and
@@ -80,7 +86,7 @@ calendar (&#96;cal-iso&#96;):
 &#96;&#96;&#96;
 
 Instants can be constructed similarly, and can be converted to and from
-&#96;:time&#96; values. Here we construct a time value interpreted in 
+&#96;:time&#96; values. Here we construct a time value interpreted in
 the TAI time scale (which was 32 seconds ahead of UTC on 2000-01-01Z):
 
 &#96;&#96;&#96;
@@ -103,7 +109,7 @@ For example, here are some durations between different times:
 &gt; (time(2017,1,1,0,0,0,0.5) - time(2016,12,31,23,59,59)).show
 "2.5s" // over a leap second
 
-&gt; (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show 
+&gt; (time(2017,1,1,0,0,0,0.5) - time(2017,1,1,2,59,59,tz=tz-fixed(3)).show
 "2.5s" // UTC+3, and over a leap second
 &#96;&#96;&#96;
 
@@ -111,19 +117,19 @@ Similarly, adding logical &#95;days&#95; (or weeks, months, or years) works over
 other time irregularties:
 
 &#96;&#96;&#96;
-&gt; time(2016,12,31,12).add-days(1).show 
+&gt; time(2016,12,31,12).add-days(1).show
 "2017-01-01T12:00:00Z"   // over a leap second
 
 &gt; time(1582,10,4,cal=cal-jg).add-days(1).show
 "1582-10-15T00:00:00Z JG"  // transition from Julian (&#96;cal-julian&#96;) to Gregorian (&#96;cal-gregorian&#96;) calendar)
 &#96;&#96;&#96;
 
-See the &#96;std/time/utc&#96; module for more information on leap seconds. 
+See the &#96;std/time/utc&#96; module for more information on leap seconds.
 
 ## Time zones
 
 If calculating with timezones besides the UTC (&#96;tz-utc&#96;)
-and local timezone (&#96;tz-local&#96;), one needs to use the &#96;module std/time/timezone&#96; 
+and local timezone (&#96;tz-local&#96;), one needs to use the &#96;module std/time/timezone&#96;
 module to load the latest time zone information (&#96;std/time/timezone/load-timezones&#96;).
 
 &#96;&#96;&#96;
@@ -134,13 +140,13 @@ fun test-timezones() {
   val tzs = load-timezones()
   val tz1 = tzs.timezone("America/New&#95;York")
   val tz2 = tzs.timezone("Pacific/Kosrae")
-  
+
   /&#42; A flight of 12.5 hours from New York to Kosrae &#42;/
-  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
+  val t1  = instant(1997,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
   t1.time(tz=tz2).show.println   // "1998-01-01T17:31:00+12:00"
-  
+
   /&#42; Again, but across DST &amp; leap second &#42;/
-  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes) 
+  val t2  = instant(1998,12,31,12,1,0,tz=tz1) + (12.hours + 30.minutes)
   t2.time(tz=tz2).show.println   // "1999-01-01T16:30:59+11:00"
 }
 &#96;&#96;&#96;
@@ -161,6 +167,26 @@ fun test-nfib() {
   print-elapsed{ nfib(30) }   // "elapsed 0.111s"
 }
 &#96;&#96;&#96;
+
+## UTC
+
+The library uses by default the International Time (TI) time scale (&#96;ts-ti&#96;) which
+uses UTC time with leap seconds up to 2019, and ignores leap seconds after
+this. This is a nice default as it tracks historical leap seconds precisely
+while having deterministic future time calculations. Moreover, even if there
+are future leap seconds, only durations calculations between times will be
+off by the inserted leap seconds; &#96;time-now&#96;, &#96;:time&#96;, and &#96;:instants&#96;
+stay valid and designate correct times (as they use a &#95;day + seconds&#95;
+internal representation).
+
+There are two other good UTC time scales though:
+
+- &#96;ts-ti-sls&#96; smooths leap seconds over the last 1000s of a day with a leap
+  seccond so they never appear in any displayed time or timestamp.
+- &#96;ts-utc-create&#96;/&#96;cal-utc-load&#96; creates a proper UTC timescale from a leap
+  second table. This ensures future leap seconds are fully accounted for and
+  that duration calculations work properly up to 6 months into the future.
+
 .
 &#42;/</span>
 <span class="kw">module</span> time

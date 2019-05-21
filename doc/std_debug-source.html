@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<!-- NO_CLICK_TRACKING -->
+
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<style type="text/css">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>
+<link rel="stylesheet" type="text/css" href="styles/madoko.css" />
+<link rel="stylesheet" type="text/css" href="styles/koka.css" />
+
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
+
+<title>debug.kk documentation</title>
+</head>
+
+<body class="koka doc body"><div class="madoko">
+<pre class="koka source"><span class="comment">/&#42;---------------------------------------------------------------------------
+  Copyright 2012-2016 Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------&#42;/</span>
+
+<span class="comment">/&#42; Debugging support
+
+&#42;/</span>
+<span class="kw">module</span> debug
+
+
+
+<span class="decl-fun" id="breakpoint"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="std_debug.html#breakpoint">breakpoint<span class="pc"><span class="mo">std<span class="fslash">/</span>debug<span class="fslash last">/</span></span>breakpoint: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="std_core-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="std_core-source.html#type_space__lp__rp_"><span class="tp">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a><a class="pp" href="std_core-source.html#type_space__lp__rp_"><span class="tp">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> {
+  cs <span class="st">"System.Diagnostics.Debugger.Break"</span>
+  js inline <span class="st">"(function(){ debugger; })()"</span>
+</span>}
+
+<span class="decl-fun" id="launch"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="std_debug.html#launch">launch<span class="pc"><span class="mo">std<span class="fslash">/</span>debug<span class="fslash last">/</span></span>launch: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="std_core-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="std_core-source.html#type_space__lp__rp_"><span class="tp">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a><a class="pp" href="std_core-source.html#type_space__lp__rp_"><span class="tp">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> {
+  cs <span class="st">"System.Diagnostics.Debugger.Launch"</span>
+  js inline <span class="st">"(function(){ debugger; })()"</span>
+</span>}</pre>
+
+</div></body>
+</html>
