@@ -3,7 +3,7 @@
 // This is a much nicer way to give semantics to state
 // versus the state-monad encoding. However, implementations
 // need to support frame "smashing" to implement this in constant
-// stack space. 
+// stack space.
 // --------------------------------------------------------------
 
 ambient<s> val get : s
@@ -16,6 +16,15 @@ fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
       with val get = x
       resume(())
     }
+  }
+  action()
+}
+
+fun localo( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
+  with val get = init
+  with control set(x){
+    with override val get = x
+    resume(())
   }
   action()
 }
@@ -37,7 +46,7 @@ fun test2() : int {
   with val get = 41
   with local(0)
   set(get + 1)
-  (0 + get + inject<get>{get})  // = 42!
+  (0 + get + mask<get>{get})  // = 42!
 }
 
 // If we make the effect row closed, we can guarantee absence of

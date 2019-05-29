@@ -35,6 +35,21 @@ when necessary (for example when comparing instants in time, or calculating dura
 between UTC calendar times).
 
 Time durations (`:duration`) are always in SI seconds (as measured on the Earth's geoid).
+
+## References { - }
+
+~ Begin Bibliography { caption:"9" }
+
+~~ BibItem { #blackbody; bibitem-label:"[1]"; searchterm:"Claudine+Thomas+Accuracy+of+TAI" }
+Claudine Thomas,
+_The Accuracy of TAI_.
+Proceedings of the 29th Annual Precise Time and Time Interval Systems and Applications Meeting,
+Long Beach, California, December 1997, pp. 19--26. [pdf](https://tycho.usno.navy.mil/ptti/1997papers/Vol%2029_02.pdf)
+~~
+
+~ End Bibliography
+
+\/
 */
 module std/time/instant
 
@@ -307,8 +322,9 @@ public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1, unit
 // Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
 // was fractional at that time (namely 8.000082s).
 //
-// Also, after 1996, TAI was corrected for black-body radiation so this makes the
+// Finally, after 1996, TAI was corrected for black-body radiation [@blackbody] which makes
 // the 2000-01-01 epoch a very precisely defined point in time.
+//
 //
 // [J2000]: https://en.wikipedia.org/wiki/Equinox_(celestial_coordinates)#J2000.0
 public val epoch : instant = instant(duration0)

@@ -92,6 +92,12 @@ val homogeneous-linear : regression = fun() {
   (fun(x){ a * x })
 }
 
+val linear : regression = fun() {
+  val a = normal(0.0,2.0)
+  val b = normal(0.0,2.0)
+  (fun(x){ a * x + b })
+}
+
 val homogeneous-cubic : regression = fun() {
   val a = normal(0.0,2.0)
   val b = normal(0.0,2.0)
@@ -136,7 +142,7 @@ fun fit(reg : regression, data : list<(double,double)>) : regression = fun(){
   f
 }
 
-val fitted : regression = fit(homogeneous-linear,dataset)
+val fitted : regression = fit(linear,dataset)
 
 
 /*--------------------------------------------------------------------
@@ -220,12 +226,12 @@ fun resample(ld : list-dist<a>, default : a ) : sample list-dist<a> {
   val total = ld.sum-weights
   fun resample-model() {
     score(total)
-    ld.weighted-choice(default)
+    ld.weighted-choice(default)  // guarantee it doesn't score.
   }
   populate(n,resample-model)
 }
 
-alias thunk<a> = () -> <score,sample> a
+alias thunk<a> = () -> <score,sample> a  // todo: make it polymorphic in `e`
 
 // Break on score-ing
 fun yield-on-score(action : () -> <score,sample> a) : <score,sample> thunk<a> {
@@ -263,7 +269,7 @@ fun score-fitted() : <score,sample> thunk<double -> double> {
 
 fun plot-smc() : <ndet> string {
   with random-sampler
-  val particle-count = 100
+  val particle-count = 1000
   val steps     = 4
   val pop       = populate(particle-count,score-fitted)
   val thunks    = list(1,steps).foldl(pop, fun(p,i) { p.resample(fun(){id}).advance } )

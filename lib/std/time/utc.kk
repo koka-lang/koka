@@ -256,7 +256,7 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
 
 [^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero but different
     observatories used their own versions of UT2 leading to longitude errors
-    of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s
+    of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s &plusmn; 0.003s
     (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
     which equals 1958-01-01T00:00:00.018 UT1 time.
     When we calculate UT2 using the current definition [@Almanac, page 85]:
