@@ -33,15 +33,7 @@ import Core.Pretty
 analyzeResume :: Name -> Name -> Bool -> Expr -> ResumeKind
 analyzeResume defName opName raw expr
   = case expr of
-      Lam pars eff body -> let rk0 = arTailExpr body
-                               rk  = if (not raw) then rk0
-                                      else ResumeNormalRaw
-                                        {- if (raw && (rk0==ResumeOnce || rk0<=ResumeScopedOnce))
-                                            then ResumeOnceRaw else ResumeNormalRaw -}
-                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <.> text ": resume" <+> text (show rk)
-                                      --  </> prettyExpr defaultEnv body
-                                       ) $
-                              rk
+      Lam pars eff body -> if (not raw) then arTailExpr body else ResumeNormalRaw
       TypeLam _ body    -> analyzeResume defName opName raw body
       TypeApp body _    -> analyzeResume defName opName raw body
       App _ [body]      -> analyzeResume defName opName raw body  -- for toAny (...)
