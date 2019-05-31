@@ -58,6 +58,14 @@ when necessary (for example when comparing instants in time, or calculating dura
 between UTC calendar times).
 </p>
 <p class="p indent">Time durations (<code class="koka"><a class="pp" href="std_time_duration.html#type_space_duration"><span class="tp">duration</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>duration<span class="fslash last">/</span></span>duration: <span class="tp">V</span></span></a></code>) are always in SI seconds (as measured on the Earth&#39;s geoid).
+</p><h3 id="sec-references" class="clearnum h2" data-heading-depth="2" style="display:block">References</h3>
+<div class="bibliography" data-hanging-indent="0" style="bibstyle:madoko-numeric">
+
+<div id="blackbody" class="bibitem" data-cite-label="1" style="text-indent:-2rem;margin-left:2rem;bibitem-label:[1];searchterm:Claudine+Thomas+Accuracy+of+TAI"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[1]</span>Claudine Thomas,
+<em class="em-low1">The Accuracy of TAI</em>.
+Proceedings of the 29th Annual Precise Time and Time Interval Systems and Applications Meeting,
+Long Beach, California, December 1997, pp. 19&#8211;26.&nbsp;<a href="https://tycho.usno.navy.mil/ptti/1997papers/Vol%2029_02.pdf">pdf</a>&nbsp;<a href="http://www.bing.com/search?q=Claudine+Thomas+Accuracy+of+TAI" class="bibsearch">&#128270;</a></div></div>
+<p class="p noindent">.
 </p></div>
 <div class="decl" id="type_space_instant"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="std_time_instant-source.html#type_space_instant"><span class="tp">instant</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
@@ -126,8 +134,9 @@ are ignored (allthough it is recommended in that case to use
    Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
    was fractional at that time (namely 8.000082s).
 <br>
-   Also, after 1996, TAI was corrected for black-body radiation so this makes the
+   Finally, after 1996, TAI was corrected for black-body radiation&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#blackbody" class="bibref localref" style="target-element:bibitem"><span class="cite-number">1</span></a>]</span> which makes
    the 2000-01-01 epoch a very precisely defined point in time.
+  
   
 </p></div></div><div class="decl" id="gps_instant"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_time_instant-source.html#gps_instant">gps<span class="dash">-</span>instant</a></span>( <span class="tp tpp">gps</span> <span class="tp sp">:</span>&nbsp;<a class="pp" href="std_time_duration.html#type_space_duration"><span class="tp">duration</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>duration<span class="fslash last">/</span></span>duration: <span class="tp">V</span></span></a> ) <span class="tp sp">:</span>&nbsp;<a class="pp" href="#type_space_instant"><span class="tp">instant</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant: <span class="tp">V</span></span></a></div><div class="doc koka comment">
 

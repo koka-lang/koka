@@ -53,6 +53,21 @@ when necessary (for example when comparing instants in time, or calculating dura
 between UTC calendar times).
 
 Time durations (&#96;:duration&#96;) are always in SI seconds (as measured on the Earth's geoid).
+
+## References { - }
+
+~ Begin Bibliography { caption:"9" }
+
+~~ BibItem { #blackbody; bibitem-label:"[1]"; searchterm:"Claudine+Thomas+Accuracy+of+TAI" }
+Claudine Thomas,
+&#95;The Accuracy of TAI&#95;.
+Proceedings of the 29th Annual Precise Time and Time Interval Systems and Applications Meeting,
+Long Beach, California, December 1997, pp. 19--26. [pdf](https://tycho.usno.navy.mil/ptti/1997papers/Vol%2029&#95;02.pdf)
+~~
+
+~ End Bibliography
+
+\/
 &#42;/</span>
 <span class="kw">module</span> instant
 
@@ -325,8 +340,9 @@ are ignored (allthough it is recommended in that case to use
 // Similarly, the standard Unix epoch of 1970-01-01Z UTC is not ideal either since the UTC offset with TAI
 // was fractional at that time (namely 8.000082s).
 //
-// Also, after 1996, TAI was corrected for black-body radiation so this makes the
+// Finally, after 1996, TAI was corrected for black-body radiation [@blackbody] which makes
 // the 2000-01-01 epoch a very precisely defined point in time.
+//
 //
 // [J2000]: https://en.wikipedia.org/wiki/Equinox&#95;(celestial&#95;coordinates)#J2000.0
 </span><span class="decl-val" id="epoch"><span class="kw">public</span> <span class="kw">val</span> <a class="pp" href="std_time_instant.html#epoch">epoch<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>epoch: <span class="tp">instant</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="#type_space_instant"><span class="tp">instant</span><span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant: <span class="tp">V</span></span></a> <span class="kw">=</span> <a class="pp" href="#instant_1">instant<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>instant<span class="fslash last">/</span></span>instant<span class="postfix">.1</span>: <span class="tp sp">(</span><span class="tp tpp">d</span> <span class="tp kw op">:</span> <span class="tp">duration</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">instant</span></span></a>(<a class="pp" href="std_time_duration-source.html#duration0">duration0<span class="pc"><span class="mo">std<span class="fslash">/</span>time<span class="fslash">/</span>duration<span class="fslash last">/</span></span>duration0: <span class="tp">duration</span></span></a></span>)
