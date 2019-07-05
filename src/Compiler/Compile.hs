@@ -54,6 +54,7 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
+import Core.Evidence          ( evidenceTransform )
 import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -779,11 +780,15 @@ inferCheck loaded flags line coreImports program1
        -- remove return statements
        coreDefsUR <- unreturn penv coreDefs0
 
+       -- do evidence translation
+       coreDefsEv <- evidenceTransform penv coreDefsUR
+       when (coreCheck flags) $ Core.Check.checkCore True penv unique4 gamma coreDefsEv
+
        -- do monadic effect translation (i.e. insert binds)
        (isCps,coreDefsMon)
            <- if (not (enableMon flags)) -- CS `elem` targets flags ||
-               then return (False,coreDefsUR)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
+               then return (False,coreDefsEv)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsEv
                        -- recheck cps transformed core
                        when (coreCheck flags) $
                           Core.Check.checkCore True penv unique4 gamma cdefs

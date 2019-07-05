@@ -454,6 +454,7 @@ var hsModules = [
   "Core.Divergent",
   "Core.BindingGroups",
   "Core.UnReturn",
+  "Core.Evidence",
   "Core.Monadic",
   "Core.AnalysisResume",
   "Core.Simplify",

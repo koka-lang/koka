@@ -34,6 +34,7 @@ module Common.NamePrim
           , nameLift, nameBind
           , nameInject, nameInjectExn, nameInjectResource
           , nameTpResourceTag, nameConResourceTag
+          , nameTpEv, nameConEv
 
           , nameUnsafeTotal
           , nameIntConst, nameInt32
@@ -246,6 +247,9 @@ nameConResourceTag = preludeName ".Resource-tag"
 nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
 nameOpNoMatch   = preludeName ".conOpNoMatch"
+
+nameTpEv        = preludeName "ev"
+nameConEv       = preludeName "Ev"
 
 
 nameTpBool      = preludeName "bool"
