@@ -100,8 +100,9 @@ evExpr expr
       Case exprs bs
         -> undefined
 
-      Var (TName name tp) info
-        -> undefined
+      Var (TName name tp) info -- FIXME TODO: potentially update arity information.
+        -> let tp' = evType tp
+           in return $ Var (TName name tp') info
 
       -- type application and abstraction
       TypeApp (TypeLam tvars body) tps  | length tvars == length tps
@@ -115,6 +116,23 @@ evExpr expr
 
       _ -> return expr -- leave unchanged
 
+
+{--------------------------------------------------------------------------
+  transform a types
+--------------------------------------------------------------------------}
+evType :: Type -> Type
+evType typ
+  = case typ of
+     TForall tyvars pred rho -> undefined
+     TFun params eff cod     -> undefined
+     TCon tycon              -> undefined
+     TVar tyvar              -> undefined
+     TApp t ts               -> undefined
+     TSyn tysyn ts t         -> undefined
+
+evPred :: Pred -> Pred
+evPred (PredSub t t') = undefined
+evPred (PredIFace name ts) = undefined
 
 -----------------------------------------------------------------------------
 -- Evidence Monad
