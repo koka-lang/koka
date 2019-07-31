@@ -123,12 +123,25 @@ evExpr expr
 evType :: Type -> Type
 evType typ
   = case typ of
-     TForall tyvars pred rho -> undefined
-     TFun params eff cod     -> undefined
-     TCon tycon              -> undefined
-     TVar tyvar              -> undefined
-     TApp t ts               -> undefined
-     TSyn tysyn ts t         -> undefined
+     TCon tycon              -> TCon tycon
+     TVar tyvar              -> TVar tyvar
+     TFun params eff cod     ->
+       let params' = map (\(name, t) -> (name, evType t)) params
+           evs     = undefined -- FIXME TODO.
+           cod'    = evType cod
+       in TFun (evs ++ params') eff cod'
+     TForall tyvars pred rho ->
+       let pred' = map evPred pred
+           rho'  = evType rho
+       in TForall tyvars pred' rho'
+     TApp t ts               ->
+       let t'  = evType t
+           ts' = map evType ts
+       in TApp t' ts'
+     TSyn tysyn ts t         ->
+       let ts' = map evType ts
+           t'  = evType t
+       in TSyn tysyn ts t
 
 evPred :: Pred -> Pred
 evPred (PredSub t t') = undefined
