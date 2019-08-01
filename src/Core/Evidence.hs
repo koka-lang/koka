@@ -56,24 +56,25 @@ evidenceTransform penv defGroups
 --------------------------------------------------------------------------}
 evDefGroups :: DefGroups -> EvMon DefGroups
 evDefGroups evDefGroups
-  = do defGroupss <- mapM evDefGroup evDefGroups
-       return (concat defGroupss)
+  = mapM evDefGroup evDefGroups
 
 evDefGroup (DefRec defs)
-  = do defss <- mapM (evDef True) defs
-       return [DefRec (concat defss)]
+  = do defs' <- mapM (evDef True) defs
+       return $ DefRec defs'
 
 evDefGroup (DefNonRec def)
-  = do defs <- evDef False def
-       return (map DefNonRec defs)
+  = do def' <- evDef False def
+       return $ DefNonRec def'
 
 
 {--------------------------------------------------------------------------
   transform a definition
 --------------------------------------------------------------------------}
-evDef :: Bool -> Def -> EvMon [Def]
+evDef :: Bool -> Def -> EvMon Def
 evDef recursive def
-  = undefined
+  = do expr' <- evExpr (defExpr def)
+       let ty' = evType (defType def)
+       return $ def { defExpr = expr', defType = ty' }
 
 evExpr :: Expr -> EvMon Expr
 evExpr expr
@@ -88,31 +89,51 @@ evExpr expr
         -> undefined
 
       -- regular cases
-      Lam args eff body
-        -> undefined
+      Lam params eff body
+        -> let params' = map param params
+           in do body' <- evExpr body
+                 let evs = [] -- FIXME TODO: add evidence parameters.
+                 return $ Lam (evs ++ params') eff body'
+                   where param :: TName -> TName
+                         param (TName name ty) = TName name (evType ty)
 
       App f args
         -> undefined
 
       Let defgs body
-        -> undefined
+        -> do defgs' <- evDefGroups defgs
+              body'  <- evExpr body
+              return $ Let defgs' body'
 
       Case exprs bs
-        -> undefined
+        -> do exprs' <- mapM evExpr exprs
+              bs' <- mapM branch bs
+              return $ Case exprs' bs'
+                where branch :: Branch -> EvMon Branch
+                      branch (Branch pats guards)
+                        = do guards' <- mapM guard guards
+                             return $ Branch { branchPatterns = pats
+                                             , branchGuards   = guards' }
+                      guard :: Guard -> EvMon Guard
+                      guard (Guard test expr)
+                        = do test' <- evExpr test
+                             expr' <- evExpr expr
+                             return $ Guard { guardTest = test'
+                                            , guardExpr = expr' }
 
       Var (TName name tp) info -- FIXME TODO: potentially update arity information.
         -> let tp' = evType tp
            in return $ Var (TName name tp') info
 
       -- type application and abstraction
-      TypeApp (TypeLam tvars body) tps  | length tvars == length tps
-        -> undefined
-
       TypeLam tvars body
-        -> undefined
+        -> do body' <- evExpr body
+              return $ TypeLam tvars body'
 
       TypeApp body tps
-        -> undefined
+        -> let tps' = map evType tps
+           in do body' <- evExpr body
+                 return $ TypeApp body' tps'
 
       _ -> return expr -- leave unchanged
 
