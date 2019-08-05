@@ -98,7 +98,11 @@ evExpr expr
                          param (TName name ty) = TName name (evType ty)
 
       App f args
-        -> undefined
+        -> do f' <- evExpr f
+              args' <- mapM evExpr args
+              -- FIXME TODO: join evidence environments, check type
+              -- equality, introduce evidence abstraction.
+              return $ App f' args'
 
       Let defgs body
         -> do defgs' <- evDefGroups defgs
@@ -165,8 +169,14 @@ evType typ
        in TSyn tysyn ts t
 
 evPred :: Pred -> Pred
-evPred (PredSub t t') = undefined
-evPred (PredIFace name ts) = undefined
+evPred (PredSub t t') = PredSub (evType t) (evType t')
+evPred (PredIFace name ts) = PredIFace name (map evType ts)
+
+-----------------------------------------------------------------------------
+-- Evidence constructor
+-----------------------------------------------------------------------------
+type Label = String
+data Ev = Ev Label
 
 -----------------------------------------------------------------------------
 -- Evidence Monad
@@ -174,7 +184,32 @@ evPred (PredIFace name ts) = undefined
 
 newtype EvMon a = EvMon (Env -> State -> Result a)
 
-data Env = Env { foobar :: [()] } -- FIXME TODO.
+type Q = [Label]
+type P = [(Label, Ev)]
+
+data Env = Env { penv_ :: P }
+
+getEnv :: EvMon Env
+getEnv = EvMon (\env st -> Ok env st)
+
+withEnv :: (Env -> Env) -> EvMon a -> EvMon a
+withEnv f (EvMon ctxt)
+  = EvMon (\env st -> ctxt (f env) st)
+
+evLookup :: Label -> EvMon (Maybe Ev)
+evLookup label
+  = do env <- getEnv
+       return $ lookup label (penv_ env)
+
+evInsert :: Label -> Ev -> EvMon a -> EvMon a
+evInsert label ev evm
+  = withEnv (\env -> Env { penv_ = (label, ev) : (penv_ env) }) evm
+
+(<>) :: Env -> Env -> Env
+env <> env' = undefined -- FIXME TODO: implement evidence composition
+
+evConstruct :: P -> Q -> Expr -> (P, Expr)
+evConstruct p q e = undefined
 
 data State = State { uniq :: Int }
 
