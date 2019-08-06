@@ -54,30 +54,33 @@ evidenceTransform penv defGroups
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}
-evDefGroups :: DefGroups -> EvMon DefGroups
-evDefGroups evDefGroups
-  = mapM evDefGroup evDefGroups
+evDefGroups :: P -> DefGroups -> EvMon (P, DefGroups)
+evDefGroups evCtx evDefGroups
+  = do defGroups' <- mapM (evDefGroup evCtx) evDefGroups
+       let evCtx' = foldr (<>) pnil (map fst defGroups')
+       return $ (evCtx', map snd defGroups')
 
-evDefGroup (DefRec defs)
-  = do defs' <- mapM (evDef True) defs
-       return $ DefRec defs'
+evDefGroup evCtx (DefRec defs)
+  = do defs' <- mapM (evDef evCtx) defs
+       let evCtx' = foldr (<>) pnil (map fst defs')
+       return $ (evCtx, DefRec (map snd defs'))
 
-evDefGroup (DefNonRec def)
-  = do def' <- evDef False def
-       return $ DefNonRec def'
+evDefGroup evCtx (DefNonRec def)
+  = do (evCtx', def') <- evDef evCtx def
+       return $ (evCtx', DefNonRec def')
 
 
 {--------------------------------------------------------------------------
   transform a definition
 --------------------------------------------------------------------------}
-evDef :: Bool -> Def -> EvMon Def
-evDef recursive def
-  = do expr' <- evExpr (defExpr def)
+evDef :: P -> Def -> EvMon (P, Def)
+evDef evCtx def
+  = do (evCtx', expr') <- evExpr evCtx (defExpr def)
        let ty' = evType (defType def)
-       return $ def { defExpr = expr', defType = ty' }
+       return $ (evCtx', def { defExpr = expr', defType = ty' })
 
-evExpr :: Expr -> EvMon Expr
-evExpr expr
+evExpr :: P -> Expr -> EvMon (P, Expr)
+evExpr evCtx expr
   = case expr of
       --  lift _open_ applications
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
@@ -91,55 +94,63 @@ evExpr expr
       -- regular cases
       Lam params eff body
         -> let params' = map param params
-           in do body' <- evExpr body
+           in do (evCtx', body') <- evExpr pnil body
                  let evs = [] -- FIXME TODO: add evidence parameters.
-                 return $ Lam (evs ++ params') eff body'
+                 return $ (pnil, Lam (evs ++ params') eff body')
                    where param :: TName -> TName
                          param (TName name ty) = TName name (evType ty)
 
       App f args
-        -> do f' <- evExpr f
-              args' <- mapM evExpr args
+        -> do (evCtx', f') <- evExpr evCtx f
+              args' <- mapM (evExpr evCtx) args
+              let args'' = map snd args'
               -- FIXME TODO: join evidence environments, check type
               -- equality, introduce evidence abstraction.
-              return $ App f' args'
+              return $ (undefined, App f' args'')
 
       Let defgs body
-        -> do defgs' <- evDefGroups defgs
-              body'  <- evExpr body
-              return $ Let defgs' body'
+        -> do (_, defgs') <- evDefGroups evCtx defgs
+              (evCtx', body') <- evExpr evCtx body
+              return $ (evCtx', Let defgs' body')
 
       Case exprs bs
-        -> do exprs' <- mapM evExpr exprs
+        -> do exprs' <- mapM (evExpr evCtx) exprs
               bs' <- mapM branch bs
-              return $ Case exprs' bs'
-                where branch :: Branch -> EvMon Branch
+              let evCtx' = foldr (<>) pnil (map fst exprs')
+              let evCtx'' = foldr (<>) evCtx' (map fst bs')
+              let exprs'' = map snd exprs'
+              let bs'' = map snd bs'
+              return $ (evCtx'', Case exprs'' bs'')
+                where branch :: Branch -> EvMon (P, Branch)
                       branch (Branch pats guards)
                         = do guards' <- mapM guard guards
-                             return $ Branch { branchPatterns = pats
-                                             , branchGuards   = guards' }
-                      guard :: Guard -> EvMon Guard
+                             let evCtx' = foldr (<>) pnil (map fst guards')
+                             let guards'' = map snd guards'
+                             return $ (evCtx', Branch { branchPatterns = pats
+                                                      , branchGuards   = guards'' })
+                      guard :: Guard -> EvMon (P, Guard)
                       guard (Guard test expr)
-                        = do test' <- evExpr test
-                             expr' <- evExpr expr
-                             return $ Guard { guardTest = test'
-                                            , guardExpr = expr' }
+                        = do (evCtx', test') <- evExpr evCtx test
+                             (evCtx'', expr') <- evExpr evCtx expr
+                             return $ (evCtx' <> evCtx'',
+                                       Guard { guardTest = test'
+                                             , guardExpr = expr' })
 
       Var (TName name tp) info -- FIXME TODO: potentially update arity information.
         -> let tp' = evType tp
-           in return $ Var (TName name tp') info
+           in return $ (pnil, Var (TName name tp') info)
 
       -- type application and abstraction
       TypeLam tvars body
-        -> do body' <- evExpr body
-              return $ TypeLam tvars body'
+        -> do (evCtx', body') <- evExpr evCtx body
+              return $ (evCtx', TypeLam tvars body')
 
       TypeApp body tps
         -> let tps' = map evType tps
-           in do body' <- evExpr body
-                 return $ TypeApp body' tps'
+           in do (evCtx', body') <- evExpr evCtx body
+                 return $ (evCtx', TypeApp body' tps')
 
-      _ -> return expr -- leave unchanged
+      _ -> return (pnil, expr) -- leave unchanged
 
 
 {--------------------------------------------------------------------------
@@ -187,6 +198,9 @@ newtype EvMon a = EvMon (Env -> State -> Result a)
 type Q = [Label]
 type P = [(Label, Ev)]
 
+pnil :: P
+pnil = []
+
 data Env = Env { penv_ :: P }
 
 getEnv :: EvMon Env
@@ -205,8 +219,8 @@ evInsert :: Label -> Ev -> EvMon a -> EvMon a
 evInsert label ev evm
   = withEnv (\env -> Env { penv_ = (label, ev) : (penv_ env) }) evm
 
-(<>) :: Env -> Env -> Env
-env <> env' = undefined -- FIXME TODO: implement evidence composition
+(<>) :: P -> P -> P
+p0 <> p1 = undefined -- FIXME TODO: implement evidence composition
 
 evConstruct :: P -> Q -> Expr -> (P, Expr)
 evConstruct p q e = undefined
