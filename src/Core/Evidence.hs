@@ -201,6 +201,24 @@ type P = [(Label, Ev)]
 pnil :: P
 pnil = []
 
+(<>) :: P -> P -> P
+p0 <> p1 = undefined -- FIXME TODO: implement evidence composition
+
+-- This cannot be entirely right...
+evEnact :: P -> Q -> Expr -> (P, Expr)
+evEnact _ [] e = (pnil, e)
+evEnact p (l : q) e
+  = case lookup l p of
+     Nothing ->
+       let (p', e') = evEnact p q e
+           ql       = undefined -- TODO create term.
+           l'       = undefined -- TODO create runtime name
+       in ((l, Ev l') : p', App e' ql)
+     Just (Ev l') ->
+       let (p', e') = evEnact p q e
+           ql       = undefined -- TODO create term.
+       in (p', App e' ql)
+
 data Env = Env { penv_ :: P }
 
 getEnv :: EvMon Env
@@ -218,12 +236,6 @@ evLookup label
 evInsert :: Label -> Ev -> EvMon a -> EvMon a
 evInsert label ev evm
   = withEnv (\env -> Env { penv_ = (label, ev) : (penv_ env) }) evm
-
-(<>) :: P -> P -> P
-p0 <> p1 = undefined -- FIXME TODO: implement evidence composition
-
-evConstruct :: P -> Q -> Expr -> (P, Expr)
-evConstruct p q e = undefined
 
 data State = State { uniq :: Int }
 
