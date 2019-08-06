@@ -87,10 +87,6 @@ evExpr evCtx expr
         | getName open == nameEffectOpen
         -> undefined
 
-      -- return
-      App ret@(Var v _) [arg] | getName v == nameReturn
-        -> undefined
-
       -- regular cases
       Lam params eff body
         -> let params' = map param params
