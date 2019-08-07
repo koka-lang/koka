@@ -24,7 +24,7 @@ import Common.Failure
 import Common.Name
 import Common.Range
 import Common.Unique
-import Common.NamePrim( nameTpEv, nameConEv, nameEffectOpen, nameReturn )
+import Common.NamePrim( nameTpEv, nameConEv, nameEffectOpen, nameReturn, nameTpHandled, nameTpHandled1 )
 import Common.Error
 import Common.Syntax
 
@@ -159,7 +159,7 @@ evType typ
      TVar tyvar              -> TVar tyvar
      TFun params eff cod     ->
        let params' = map (\(name, t) -> (name, evType t)) params
-           evs     = undefined -- FIXME TODO.
+           evs     = evFromEffectType eff
            cod'    = evType cod
        in TFun (evs ++ params') eff cod'
      TForall tyvars pred rho ->
@@ -178,6 +178,20 @@ evType typ
 evPred :: Pred -> Pred
 evPred (PredSub t t') = PredSub (evType t) (evType t')
 evPred (PredIFace name ts) = PredIFace name (map evType ts)
+
+evFromEffectType :: Tau -> [(Name, Type)]
+evFromEffectType eff
+  = let (constants, tail) = extractOrderedEffect eff
+        labels            = map labelName constants
+        evTypes           = map (makeEvType . extractTypeConstant) constants
+    in zip labels evTypes
+
+extractTypeConstant :: Tau -> Tau
+extractTypeConstant t
+  = case expandSyn t of
+      TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
+        -> extractTypeConstant htp -- reach under the handled<htp> name to extract htp.
+      t' -> t'
 
 -----------------------------------------------------------------------------
 -- Evidence constructor

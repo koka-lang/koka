@@ -32,6 +32,7 @@ module Type.Type (-- * Types
                   , typeInt, typeBool, typeFun, typeVoid, typeInt32
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
+                  , typeEv, isEvType, makeEvType
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -547,7 +548,6 @@ labelNameEx tp
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
 
-
 typeCps :: Type
 typeCps
   = TApp tconHandled [TCon (TypeCon nameTpCps kindHandled)]
@@ -738,6 +738,19 @@ typeNull :: Tau -> Tau
 typeNull tp
   = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
 
+-- | Type of evidence.
+typeEv :: Tau
+typeEv = TCon tconEv
+
+tconEv :: TypeCon
+tconEv = TypeCon nameTpEv (kindFun kindStar kindStar)
+
+isEvType :: Tau -> Bool
+isEvType (TCon tc) = tc == tconEv
+isEvType _         = False
+
+makeEvType :: Type -> Type
+makeEvType arg = typeApp typeEv [arg]
 
 -- | Create a function type. Can have zero arguments.
 typeFun :: [(Name,Tau)] -> Tau -> Tau -> Tau
