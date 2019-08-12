@@ -101,6 +101,7 @@ evExpr evCtx expr
         -> do (evCtx', f') <- evExpr evCtx f
               args' <- mapM (evExpr evCtx) args
               let args'' = map snd args'
+              let (q3, s1'') = decomposeEvType (typeOf f')
               -- FIXME TODO: join evidence environments, check type
               -- equality, introduce evidence abstraction.
               return $ (undefined, App f' args'')
@@ -138,7 +139,6 @@ evExpr evCtx expr
         -> let tp' = evType tp
            in return $ (pnil, Var (TName name tp') info)
 
-      -- type application and abstraction
       TypeLam tvars body
         -> do (evCtx', body') <- evExpr evCtx body
               return $ (evCtx', TypeLam tvars body')
@@ -211,6 +211,15 @@ evsFromType (TFun [(name, ty)] _ cod)
    | otherwise   = []
 evsFromType _ = []
 
+evTypeErase :: Type -> Type
+evTypeErase (ty @ TFun [(_, ty)] _ cod)
+   | isEvType ty = evTypeErase cod
+   | otherwise = ty
+evTypeErase ty = ty
+
+decomposeEvType :: Type -> (Q, Type)
+decomposeEvType ty = (evsFromType ty, evTypeErase ty)
+
 recoverLabel :: Name -> Label
 recoverLabel name
   = case nameId name of
@@ -261,7 +270,7 @@ pnil :: P
 pnil = []
 
 (<>) :: P -> P -> P
-p0 <> p1 = undefined -- FIXME TODO: implement evidence composition
+p0 <> p1 = mappend p0 p1
 
 data Env = Env { penv_ :: P }
 
