@@ -100,11 +100,22 @@ evExpr evCtx expr
       App f args
         -> do (evCtx', f') <- evExpr evCtx f
               args' <- mapM (evExpr evCtx) args
-              let args'' = map snd args'
-              let (q3, s1'') = decomposeEvType (typeOf f')
+              let (q3, s1'')        = decomposeEvType (typeOf f')
+                  args'' = map (transform s1'') args'
               -- FIXME TODO: join evidence environments, check type
               -- equality, introduce evidence abstraction.
-              return $ (undefined, App f' args'')
+              return $ (evCtx' <> undefined, App f' (map snd args''))
+              where
+                transform :: Type -> (P, Expr) -> (P, Expr)
+                transform s1'' (p, expr)
+                  = let ty = typeOf expr
+                    in if isFun ty
+                       then let (q5, s2'') = decomposeEvType ty
+                            in if s1'' /= s2''
+                               then error "Type mismatch."
+                               else let p4 = undefined -- FIXME TODO: construct p4
+                                    in evClosureR p4 q5 expr
+                       else (pnil, expr)
 
       -- Regular cases
       Let defgs body
@@ -211,14 +222,14 @@ evsFromType (TFun [(name, ty)] _ cod)
    | otherwise   = []
 evsFromType _ = []
 
-evTypeErase :: Type -> Type
-evTypeErase (ty @ TFun [(_, ty)] _ cod)
-   | isEvType ty = evTypeErase cod
-   | otherwise = ty
-evTypeErase ty = ty
+dropEvs :: Type -> Type
+dropEvs (ty' @ (TFun [(_, ty)] _ cod))
+  | isEvType ty = dropEvs cod
+  | otherwise   = ty'
+dropEvs ty = ty
 
 decomposeEvType :: Type -> (Q, Type)
-decomposeEvType ty = (evsFromType ty, evTypeErase ty)
+decomposeEvType ty = (evsFromType ty, dropEvs ty)
 
 recoverLabel :: Name -> Label
 recoverLabel name
