@@ -98,27 +98,35 @@ evExpr evCtx expr
                          toParam (name, ty) = TName name ty
 
       App f args
-        -> do (evCtx', f') <- evExpr evCtx f
+        -> do (p1, f') <- evExpr evCtx f
               args' <- mapM (evExpr evCtx) args
-              let (q3, sft)  = decomposeEvType (typeOf f')
-                  (TFun s1' _ s')  = sft
-                  -- (q4, s1'') = decomposeEvType s1'
-                  s1'' = undefined
-                  args''     = map (transform s1'') args'
-              -- FIXME TODO: join evidence environments, check type
-              -- equality, introduce evidence abstraction.
-              return $ (evCtx' <> undefined, App f' (map snd args''))
+              let (p3, f'') = evClosureR pnil (fst . decomposeEvType $ typeOf f') f'
+                  p2        = foldr (<>) pnil (map fst args')
+                  (p6, args'') = transform (typeOf f') (map snd args')
+              return $ (p1 <> p2 <> p3, abstract p6 (App f'' args''))
               where
-                transform :: Type -> (P, Expr) -> (P, Expr)
-                transform s1'' (p, expr)
-                  = let ty = typeOf expr
-                    in if isFun ty
-                       then let (q5, s2'') = decomposeEvType ty
-                            in if s1'' /= s2''
-                               then error "Type mismatch."
-                               else let p4 = toP q5
-                                    in evClosureR p4 q5 expr
-                       else (pnil, expr)
+                transform :: Type -> [Expr] -> (P, [Expr])
+                transform sft args
+                  = let (q3, ft) = decomposeEvType sft
+                        Just(dom, _, cod) = splitFunType ft
+                        (p6, args')    = pointwise dom args
+                    in if not (isEmptyP p6) && not (isFun cod)
+                       then error "s' is not a function type."
+                       else (p6, args')
+                pointwise :: [(Name, Type)] -> [Expr] -> (P, [Expr])
+                pointwise [] [] = (pnil, [])
+                pointwise ((_, s1) : ps) (arg : args)
+                  = if isFun s1
+                    then let (q4, s1'') = decomposeEvType s1
+                             (q5, s2'') = decomposeEvType (typeOf arg)
+                         in if s1'' /= s2'' then error "s1'' != s2''"
+                            else let p4 = toP q4
+                                     (p6, arg') = evClosureR p4 q5 arg
+                                     (p6', args') = pointwise ps args
+                                 in (p6 <> p6', (abstract p4 arg') : args')
+                    else let (p, args') = pointwise ps args
+                         in (p, arg : args')
+                pointwise _ _ = error "Arity mismatch."
 
       -- Regular cases
       Let defgs body
@@ -288,6 +296,10 @@ pnil = []
 
 (<>) :: P -> P -> P
 p0 <> p1 = mappend p0 p1
+
+isEmptyP :: P -> Bool
+isEmptyP [] = True
+isEmptyP _  = False
 
 data Env = Env { penv_ :: P }
 
