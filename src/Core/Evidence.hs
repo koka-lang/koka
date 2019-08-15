@@ -100,8 +100,11 @@ evExpr evCtx expr
       App f args
         -> do (evCtx', f') <- evExpr evCtx f
               args' <- mapM (evExpr evCtx) args
-              let (q3, s1'')        = decomposeEvType (typeOf f')
-                  args'' = map (transform s1'') args'
+              let (q3, sft)  = decomposeEvType (typeOf f')
+                  (TFun s1' _ s')  = sft
+                  -- (q4, s1'') = decomposeEvType s1'
+                  s1'' = undefined
+                  args''     = map (transform s1'') args'
               -- FIXME TODO: join evidence environments, check type
               -- equality, introduce evidence abstraction.
               return $ (evCtx' <> undefined, App f' (map snd args''))
@@ -113,7 +116,7 @@ evExpr evCtx expr
                        then let (q5, s2'') = decomposeEvType ty
                             in if s1'' /= s2''
                                then error "Type mismatch."
-                               else let p4 = undefined -- FIXME TODO: construct p4
+                               else let p4 = toP q5
                                     in evClosureR p4 q5 expr
                        else (pnil, expr)
 
@@ -267,6 +270,9 @@ type Witness = (TName, VarInfo)
 makeWitness :: (Name, Type) -> Witness
 makeWitness (lbl, t)
   = (TName lbl t, InfoNone) -- FIXME TODO: include correct var info.
+
+toP :: Q -> P
+toP q = map (\(lbl, nt) -> (lbl, makeWitness nt)) q
 
 -----------------------------------------------------------------------------
 -- Evidence Monad
