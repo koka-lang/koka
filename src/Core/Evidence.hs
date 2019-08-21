@@ -135,6 +135,10 @@ data State    = State { uniq :: Int
 
 newtype Ev a = Ev (State -> Result a)
 
+instance HasUnique Ev where
+  setUnique    i = Ev (\st -> Result () (st { uniq = i }) )
+  updateUnique f = Ev (\st -> Result (uniq st) (st { uniq = (f (uniq st)) }))
+
 instance Functor Ev where
   fmap f (Ev env) = Ev (\st -> case env st of
                                 Result x st' -> Result (f x) st')
