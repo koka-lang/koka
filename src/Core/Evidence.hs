@@ -179,6 +179,9 @@ bindEvidence eff = undefined
 getWitness :: Effect -> Ev Expr
 getWitness eff = undefined
 
+toQ :: Effect -> Ev Q
+toQ eff = undefined
+
 -- {--------------------------------------------------------------------------
 --   transform definition groups
 -- --------------------------------------------------------------------------}
