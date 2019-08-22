@@ -71,7 +71,7 @@ evDefGroup toplevel (DefNonRec def)
 evDef :: Bool -> Def -> Ev Def
 evDef toplevel def
   = do expr' <- evExpr (defExpr def)
-       ty' <- evType (defType def)
+       let ty' = evType (defType def)
        return $ def { defExpr = expr', defType = ty' }
 
 {--------------------------------------------------------------------------
@@ -84,9 +84,12 @@ evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
 
 -- Interesting cases.
 evExpr (Lam params eff body)
-  = do (body', p) <- runIsolated (evExpr body)  -- find needed evidence 
-       p' <- eff `implies` p                    -- bind the evidence in the right order
-       evAbstract p' (Lam (evParams params) eff body')
+  = do (body', p) <- runIsolated (evExpr body)  -- find needed evidence
+       p' <- eff `entails` p                    -- bind the evidence in the right order
+       let params' = map evParam params
+       return (evAbstract p' (Lam params' eff body'))
+         where evParam :: TName -> TName
+               evParam (TName name typ) = TName name (evType typ)
 
 evExpr (App f args)
   = do f' <- evExpr f
@@ -148,12 +151,14 @@ evExpr (Case exprs bs)
                                      , guardExpr = expr' }
 
 evExpr (Var (TName name typ) info)
-  = do (typ',k) <- evTypeEx typ
-       let tname = TName name typ'
-       let info' = case info of
-                     InfoArity n m mkind -> InfoArity n (m + k) mkind
-                     _ -> info
-       return (Var tname info')
+  = let typ' = evType typ
+        tname = TName name typ'
+        info' = case info of
+                  InfoArity n m mkind ->
+                    let k = length (fst (decomposeEvType typ'))
+                    in InfoArity n (m + k) mkind
+                  _ -> info
+    in return (Var tname info')
 
 evExpr (TypeLam tvars body)
   = do body' <- evExpr body
@@ -161,51 +166,46 @@ evExpr (TypeLam tvars body)
 
 evExpr (TypeApp body tps)
   = do body' <- evExpr body
-       tps' <- mapM evType tps
+       let tps' = map evType tps
        return (TypeApp body' tps')
 
 evExpr expr = return expr -- leave unchanged.
 
-
 {--------------------------------------------------------------------------
   Transform types.
 --------------------------------------------------------------------------}
-evType :: Type -> Ev Type
+evType :: Type -> Type
 evType (TFun params eff cod)
-  = do params' <- mapM isolateParam params
-       q <- bindEvidence eff
-       let evs = toTFunParams q
-       cod' <- evType cod
-       return (typeFun (evs ++ params') eff cod')
-         where isolateParam :: (Name, Type) -> Ev (Name, Type)
-               isolateParam (name, typ)
-                 = do typ' <- runIsolated' (evType typ)
-                      return (name, typ')
+  =  let params' = map (mapSnd evType) params
+         evs     = undefined
+         cod'    = evType cod
+     in typeFun (evs ++ params') eff cod'
+
 evType (TForall tyvars preds rho)
-  = do preds' <- mapM evPred preds
-       rho'   <- evType rho
-       return (TForall tyvars preds' rho')
+  = let preds' = map evPred preds
+        rho'   = evType rho
+    in TForall tyvars preds' rho'
+
 evType (TApp t ts)
-  = do t' <- evType t
-       ts' <- mapM evType ts
-       return (TApp t' ts')
+  = let t'  = evType t
+        ts' = map evType ts
+    in TApp t' ts'
+
 evType (TSyn tysyn ts t)
-  = do ts' <- mapM evType ts
-       t'  <- evType t
-       return (TSyn tysyn ts' t')
-evType typ = return typ  -- base cases.
+  = let ts' = map evType ts
+        t'  = evType t
+    in TSyn tysyn ts' t'
 
+evType typ = typ  -- base cases.
 
-evPred :: Pred -> Ev Pred
+evPred :: Pred -> Pred
 evPred (PredSub t0 t1)
-  = do t0' <- evType t0
-       t1' <- evType t1
-       return (PredSub t0' t1')
+  = let t0' = evType t0
+        t1' = evType t1
+    in PredSub t0' t1'
 evPred (PredIFace name ts)
-  = do ts' <- mapM evType ts
-       return (PredIFace name ts')
-
-
+  = let ts' = map evType ts
+    in PredIFace name ts'
 
 {--------------------------------------------------------------------------
   Auxiliary functions on types.
@@ -213,14 +213,28 @@ evPred (PredIFace name ts)
 decomposeEvType :: Type -> (Q, Type)
 decomposeEvType (TFun params _ _ )
   = (undefined, undefined)
-decomposeEvType _ = error "decomposeEvType applied to non-function type."
+decomposeEvType t = ([], t)
 
-extractTypeConstant :: Tau -> Tau
-extractTypeConstant t
+effectsOf :: Expr -> Effect
+effectsOf e = case typeOf e of
+               TFun _ eff _ -> eff
+               _            -> effectEmpty
+
+labelsOf :: Effect -> [Type]
+labelsOf eff = fst (extractOrderedEffect eff)
+
+extractLabelType :: Type -> Type
+extractLabelType t
   = case expandSyn t of
       TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
-        -> extractTypeConstant htp -- reach under the handled<htp> name to extract htp.
+        -> extractLabelType htp -- reach under the handled<htp> name to extract htp.
       t' -> t'
+
+evidenceRequiredBy :: Expr -> [Type]
+evidenceRequiredBy e = map (makeEvType . extractLabelType) (labelsOf (effectsOf e))
+
+evidenceTypesOf :: P -> [Type]
+evidenceTypesOf p = foldr (\((_, TName _ typ)) types -> typ : types) [] p
 
 {-----------------------------------------------------------------------------
   Evidence context.
@@ -236,7 +250,6 @@ p ||= ((name, tname) : q) = case lookup name p of
                               Nothing -> ((name, tname) : p) ||= q
                               Just _  -> p ||= q
 
-
 pempty :: P
 pempty = []
 
@@ -245,18 +258,19 @@ p <<= eff = let present = map labelName (fst . extractOrderedEffect $ eff)
             in all (\(label, _) -> label `elem` present) p
 
 evApply :: Expr -> P -> Expr
-evApply e p = addApps (map toFunArg p) e
-            where
-              toFunArg (l,ev) = ev
+evApply e p = addApps (map makeWitness p) e
 
 evAbstract :: P -> Expr -> Expr
-evAbstract p e = addLambdas (toFunParams p) eff e
+evAbstract p e = addLambdas (toFunParams p) (effectsOf e) e
 
 toTFunParams :: Q -> [(Name, Type)]
 toTFunParams q = map (\(_, TName name typ) -> (name, typ)) q
 
 toFunParams :: P -> [(Name, Type)]
 toFunParams = toTFunParams
+
+makeWitness :: (Name, TName) -> Expr
+makeWitness (_, tname) = Var { varName = tname, varInfo = InfoNone }
 
 {-----------------------------------------------------------------------------
   Evidence monad.
@@ -315,6 +329,12 @@ runIsolated' comp
   = do result <- runIsolated comp
        return (fst result)
 
+-- Entailment.
+entails :: Effect -> P -> Ev P
+entails eff p = go (labelsOf eff) p
+  where go :: [Type] -> P -> Ev P
+        go _ _ = undefined
+
 -- bindEvidence :: Effect -> Ev TName
 -- bindEvidence eff
 --   = let (members, tail) = extractOrderedEffect eff
@@ -342,9 +362,9 @@ effectsOf :: Expr -> Effect
 
 bindEvidence :: Effect -> Ev Q
 bindEvidence eff
-  = let (members, tail)  = extractOrderedEffect eff
-        staticLabelNames = map labelName members
-        types            = map extractTypeConstant members
+  = let (labels, tail)  = extractOrderedEffect eff
+        staticLabelNames = map labelName labels
+        types            = map extractLabelType labels
     in go staticLabelNames types
        where go :: [Name] -> [Type] -> Ev Q
              go [] [] = return []
@@ -372,6 +392,15 @@ toRuntimeLabel name = name -- FIXME TODO: use the names generated by the parser.
 freshRuntimeLabel :: Name -> Ev Name
 freshRuntimeLabel name
   = uniqueName (nameId (prepend "ev-" name))
+
+{--------------------------------------------------------------------------
+  Miscellaneous.
+--------------------------------------------------------------------------}
+mapPair :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
+mapPair f g (x, y) = (f x, g y)
+
+mapSnd :: (b -> c) -> (a, b) -> (a, c)
+mapSnd f p = mapPair id f p
 
 -- {--------------------------------------------------------------------------
 --   transform definition groups
