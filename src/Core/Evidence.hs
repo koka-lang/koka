@@ -43,6 +43,8 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar
 
+import Control.Exception (assert)
+
 trace s x =
   -- Lib.Trace.trace s
     x
@@ -76,7 +78,110 @@ evDef toplevel def
   Transform expressions.
 --------------------------------------------------------------------------}
 evExpr :: Expr -> Ev Expr
-evExpr expr = undefined
+-- Effect row open.
+evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
+  | getName open == nameEffectOpen = undefined -- FIXME TODO.
+
+-- Interesting cases.
+evExpr (Lam params eff body)
+  = do (expr, p) <- runIsolated $
+         do params' <- mapM param params
+            body' <- evExpr body
+            p <- getEvContext
+            assert (p <<= eff) $
+              do q <- bindEvidence eff
+                 let p' = p ||= q
+                 assert (p' <<= eff) $ return (Lam params' eff body')
+       return $ evAbstract p expr
+         where param :: TName -> Ev TName
+               param (TName name ty)
+                 = do ty' <- evType ty
+                      return (TName name ty')
+
+evExpr (App f args)
+  = do f' <- evExpr f
+       return (App f' undefined)
+
+
+--       App f args
+--         -> do (p1, f') <- evExpr evCtx f
+--               args' <- mapM (evExpr evCtx) args
+--               let (p3, f'') = evClosureR pnil (fst . decomposeEvType $ typeOf f') f'
+--                   p2        = foldr (<>) pnil (map fst args')
+--                   (p6, args'') = transform (typeOf f') (map snd args')
+--               return $ (p1 <> p2 <> p3, abstract p6 (App f'' args''))
+--               where
+--                 transform :: Type -> [Expr] -> (P, [Expr])
+--                 transform sft args
+--                   = let (q3, ft) = decomposeEvType sft
+--                         Just(dom, _, cod) = splitFunType ft
+--                         (p6, args')    = pointwise dom args
+--                     in if not (isEmptyP p6) && not (isFun cod)
+--                        then error "s' is not a function type."
+--                        else (p6, args')
+--                 pointwise :: [(Name, Type)] -> [Expr] -> (P, [Expr])
+--                 pointwise [] [] = (pnil, [])
+--                 pointwise ((_, s1) : ps) (arg : args)
+--                   = if isFun s1
+--                     then let (q4, s1'') = decomposeEvType s1
+--                              (q5, s2'') = decomposeEvType (typeOf arg)
+--                          in if s1'' /= s2'' then error "s1'' != s2''"
+--                             else let p4 = toP q4
+--                                      (p6, arg') = evClosureR p4 q5 arg
+--                                      (p6', args') = pointwise ps args
+--                                  in (p6 <> p6', (abstract p4 arg') : args')
+--                     else let (p, args') = pointwise ps args
+--                          in (p, arg : args')
+--                 pointwise _ _ = error "Arity mismatch."
+
+
+-- Regular cases.
+evExpr (Let defgs body)
+  = do defgs' <- evDefGroups False defgs
+       body' <- evExpr body
+       return $ makeLet defgs' body'
+
+
+evExpr (Case exprs bs)
+  = do exprs' <- mapM evExpr exprs
+       bs' <- mapM branch bs
+       return $ Case exprs' bs'
+         where branch :: Branch -> Ev Branch
+               branch (b@(Branch _ guards))
+                 = do guards' <- mapM guard guards
+                      return $ b { branchGuards = guards' }
+               guard :: Guard -> Ev Guard
+               guard (Guard test expr)
+                 = do test' <- evExpr test
+                      expr' <- evExpr expr
+                      return $ Guard { guardTest = test'
+                                     , guardExpr = expr' }
+
+evExpr (Var (TName name typ) info)
+  = do typ' <- evType typ
+       let tname = TName name typ'
+       let info' =
+             case typ of
+               TFun _ _ _ ->
+                 if arity typ /= arity typ'
+                 then InfoNone
+                 else info
+               _ -> info
+       return (Var tname info)
+         where arity :: Type -> Int
+               arity (TFun dom _ _) = length dom
+               arity _ = error "arity applied to non-function type."
+
+evExpr (TypeLam tvars body)
+  = do body' <- evExpr body
+       return (TypeLam tvars body')
+
+evExpr (TypeApp body tps)
+  = do body' <- evExpr body
+       tps' <- mapM evType tps
+       return (TypeApp body' tps')
+
+evExpr expr = return expr -- leave unchanged.
 
 
 {--------------------------------------------------------------------------
@@ -85,9 +190,10 @@ evExpr expr = undefined
 evType :: Type -> Ev Type
 evType (TFun params eff cod)
   = do params' <- mapM (\(name, typ) -> do { typ' <- evType typ; return (name, typ') }) params
-       --- TODO FIXME: extract Q from [eff].
+       q <- bindEvidence eff
+       let evs = toTFunParams q
        cod' <- evType cod
-       return (TFun params' eff cod')
+       return (typeFun (evs ++ params') eff cod')
 evType (TForall tyvars preds rho)
   = do preds' <- mapM evPred preds
        rho'   <- evType rho
@@ -112,11 +218,42 @@ evPred (PredIFace name ts)
   = do ts' <- mapM evType ts
        return (PredIFace name ts')
 
+
+
+{--------------------------------------------------------------------------
+  Auxiliary functions on types.
+--------------------------------------------------------------------------}
+decomposeEvType :: Type -> (Q, Type)
+decomposeEvType (TFun params _ _ )
+  = (undefined, undefined)
+decomposeEvType _ = error "decomposeEvType applied to non-function type."
+
+extractTypeConstant :: Tau -> Tau
+extractTypeConstant t
+  = case expandSyn t of
+      TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
+        -> extractTypeConstant htp -- reach under the handled<htp> name to extract htp.
+      t' -> t'
+
 {-----------------------------------------------------------------------------
   Evidence context.
 -----------------------------------------------------------------------------}
-type P = [(Name, TName)]
+type Evidence = TName
+type P = [(Name, Evidence)]
 type Q = P
+
+-- Computes the Q-extension of P.
+(||=) :: P -> Q -> P
+p ||= [] = p
+p ||= ((name, tname) : q) = case lookup name p of
+                              Nothing -> ((name, tname) : p) ||= q
+                              Just _  -> p ||= q
+
+toTFunParams :: Q -> [(Name, Type)]
+toTFunParams q = map (\(_, TName name typ) -> (name, typ)) q
+
+toFunParams :: P -> [(Name, Type)]
+toFunParams = toTFunParams
 
 pempty :: P
 pempty = []
@@ -124,6 +261,10 @@ pempty = []
 (<<=) :: P -> Effect -> Bool
 p <<= eff = let present = map labelName (fst . extractOrderedEffect $ eff)
             in all (\(label, _) -> label `elem` present) p
+
+evAbstract :: P -> Expr -> Expr
+evAbstract p (e @ (Lam _ eff _)) = addLambdas (toFunParams p) eff e
+evAbstract _ _ = error "evAbstract applied to non-lambda term."
 
 {-----------------------------------------------------------------------------
   Evidence monad.
@@ -177,14 +318,53 @@ runIsolated comp
       setEvContext p      -- restore the original context.
       return (result, p')
 
-bindEvidence :: Effect -> Ev TName
-bindEvidence eff = undefined
+-- bindEvidence :: Effect -> Ev TName
+-- bindEvidence eff
+--   = let (members, tail) = extractOrderedEffect eff
+--         labelNames      = map labelName members
+--     in do p <- getEvContext
+--        case lookup
+-- -- (constants, tail) = extractOrderedEffect eff
+-- --         labels            = map (toRuntimeLabelName . labelName) constants
+-- --         evTypes           = map (makeEvType . extractTypeConstant) constants
 
-getWitness :: Effect -> Ev Expr
-getWitness eff = undefined
+-- getWitness :: Effect -> Ev Expr
+-- getWitness eff = undefined
 
-toQ :: Effect -> Ev Q
-toQ eff = undefined
+addEvidence :: Name -> Evidence -> Ev ()
+addEvidence name ev
+  = do p <- getEvContext
+       setEvContext ((name, ev) : p)
+
+bindEvidence :: Effect -> Ev Q
+bindEvidence eff
+  = let (members, tail)  = extractOrderedEffect eff
+        staticLabelNames = map labelName members
+        types            = map extractTypeConstant members
+    in go staticLabelNames types
+       where go :: [Name] -> [Type] -> Ev Q
+             go [] [] = return []
+             go (l : ls) (t : ts)
+               = do p <- getEvContext
+                    case lookup l p of
+                      Nothing ->
+                        do runtimeLabel <- freshRuntimeLabel l
+                           let ev = TName runtimeLabel (makeEvType t)
+                           addEvidence l ev
+                           q <- go ls ts
+                           return ((l, ev) : q)
+                      Just ev ->
+                        do q <- go ls ts
+                           return ((l, ev) : q)
+             go _ _   = error "impossible"
+
+
+{--------------------------------------------------------------------------
+  Evidence naming.
+--------------------------------------------------------------------------}
+freshRuntimeLabel :: Name -> Ev Name
+freshRuntimeLabel name
+  = uniqueName (nameId (prepend "ev-" name))
 
 -- {--------------------------------------------------------------------------
 --   transform definition groups
