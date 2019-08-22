@@ -84,19 +84,9 @@ evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
 
 -- Interesting cases.
 evExpr (Lam params eff body)
-  = do (expr, p) <- runIsolated $
-         do params' <- mapM param params
-            body' <- evExpr body
-            p <- getEvContext
-            assert (p <<= eff) $
-              do q <- bindEvidence eff
-                 let p' = p ||= q
-                 assert (p' <<= eff) $ return (Lam params' eff body')
-       return $ evAbstract p expr
-         where param :: TName -> Ev TName
-               param (TName name ty)
-                 = do ty' <- runIsolated' (evType ty)
-                      return (TName name ty')
+  = do (body', p) <- runIsolated (evExpr body)  -- find needed evidence 
+       p' <- eff `implies` p                    -- bind the evidence in the right order
+       evAbstract p' (Lam (evParams params) eff body')
 
 evExpr (App f args)
   = do f' <- evExpr f
@@ -158,19 +148,12 @@ evExpr (Case exprs bs)
                                      , guardExpr = expr' }
 
 evExpr (Var (TName name typ) info)
-  = do typ' <- evType typ
+  = do (typ',k) <- evTypeEx typ
        let tname = TName name typ'
-       let info' =
-             case typ of
-               TFun _ _ _ ->
-                 if arity typ /= arity typ'
-                 then InfoNone
-                 else info
-               _ -> info
-       return (Var tname info)
-         where arity :: Type -> Int
-               arity (TFun dom _ _) = length dom
-               arity _ = error "arity applied to non-function type."
+       let info' = case info of
+                     InfoArity n m mkind -> InfoArity n (m + k) mkind
+                     _ -> info
+       return (Var tname info')
 
 evExpr (TypeLam tvars body)
   = do body' <- evExpr body
@@ -253,11 +236,6 @@ p ||= ((name, tname) : q) = case lookup name p of
                               Nothing -> ((name, tname) : p) ||= q
                               Just _  -> p ||= q
 
-toTFunParams :: Q -> [(Name, Type)]
-toTFunParams q = map (\(_, TName name typ) -> (name, typ)) q
-
-toFunParams :: P -> [(Name, Type)]
-toFunParams = toTFunParams
 
 pempty :: P
 pempty = []
@@ -266,9 +244,19 @@ pempty = []
 p <<= eff = let present = map labelName (fst . extractOrderedEffect $ eff)
             in all (\(label, _) -> label `elem` present) p
 
+evApply :: Expr -> P -> Expr
+evApply e p = addApps (map toFunArg p) e
+            where
+              toFunArg (l,ev) = ev
+
 evAbstract :: P -> Expr -> Expr
-evAbstract p (e @ (Lam _ eff _)) = addLambdas (toFunParams p) eff e
-evAbstract _ _ = error "evAbstract applied to non-lambda term."
+evAbstract p e = addLambdas (toFunParams p) eff e
+
+toTFunParams :: Q -> [(Name, Type)]
+toTFunParams q = map (\(_, TName name typ) -> (name, typ)) q
+
+toFunParams :: P -> [(Name, Type)]
+toFunParams = toTFunParams
 
 {-----------------------------------------------------------------------------
   Evidence monad.
@@ -344,6 +332,13 @@ addEvidence :: Name -> Evidence -> Ev ()
 addEvidence name ev
   = do p <- getEvContext
        setEvContext ((name, ev) : p)
+
+{-
+assertMatchesEvidence :: Expr -> P -> String -> Ev ()
+evidenceTypesOf :: P -> [Type]
+evidenceNeeded :: Expr -> [Type]
+effectsOf :: Expr -> Effect
+-}
 
 bindEvidence :: Effect -> Ev Q
 bindEvidence eff
