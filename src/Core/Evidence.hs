@@ -281,6 +281,10 @@ toWitness (_, tname) = Var { varName = tname, varInfo = InfoNone }
 -----------------------------------------------------------------------------}
 
 data Result a = Result a State
+
+fromResult :: Result a -> a
+fromResult (Result x _) = x
+
 data State    = State { uniq :: Int
                       , penv :: P }
 
@@ -397,8 +401,7 @@ effectsOf :: Expr -> Effect
 
 runEv :: Monad m => Pretty.Env -> State -> Ev a -> m a
 runEv penv st0 (Ev comp)
-  = let Result x _ = comp st0
-    in return x
+  = return (fromResult (comp st0))
 
 {--------------------------------------------------------------------------
   Evidence naming.
