@@ -336,11 +336,28 @@ addEvidence name ev
   = do p <- getEvContext
        setEvContext ((name, ev) : p)
 
+bindEvidence :: Type -> Ev (Name, TName)
+bindEvidence typ
+  = let evtyp = makeEvType typ
+        labelName = staticLabelNameOf typ
+    in do runtimeLabelName <- freshRuntimeLabelName (toRuntimeLabelName labelName)
+          let ev = TName nameNil evtyp
+          addEvidence labelName ev
+          return (labelName, ev)
+
 -- Entailment.
 entails :: Effect -> P -> Ev P
-entails eff p = go (labelsOf eff) p
-  where go :: [Type] -> P -> Ev P
-        go _ _ = undefined
+entails eff p
+  = let delta = diff (labelsOf eff) p
+    in do evs <- mapM bindEvidence delta
+          return (evs ++ p)
+         where diff :: [Type] -> P -> [Type]
+               diff ls p
+                 = foldr
+                   (\l delta -> case lookup (labelName l) p of
+                                  Nothing -> l : delta
+                                  _       -> delta)
+                   [] ls
 
 -- bindEvidence :: Effect -> Ev TName
 -- bindEvidence eff
