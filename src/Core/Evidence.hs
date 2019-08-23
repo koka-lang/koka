@@ -176,7 +176,7 @@ evExpr expr = return expr -- leave unchanged.
 evType :: Type -> Type
 evType (TFun params eff cod)
   =  let params' = map (mapSnd evType) params
-         evs     = undefined
+         evs     = evidenceParameterTypesOf eff
          cod'    = evType cod
      in typeFun (evs ++ params') eff cod'
 
@@ -232,11 +232,20 @@ extractLabelType t
         -> extractLabelType htp -- reach under the handled<htp> name to extract htp.
       t' -> t'
 
-evidenceRequiredBy :: Expr -> [Type]
-evidenceRequiredBy e = map (makeEvType . extractLabelType) (labelsOf (effectsOf e))
+toEvidenceType :: Type -> Type
+toEvidenceType label = makeEvType . extractLabelType $ label
 
-evidenceTypesOf :: P -> [Type]
-evidenceTypesOf p = foldr (\((_, TName _ typ)) types -> typ : types) [] p
+evidenceRequiredBy :: Expr -> [Type]
+evidenceRequiredBy e = map toEvidenceType (labelsOf (effectsOf e))
+
+evidenceParameterTypesOf :: Effect -> [(Name, Type)]
+evidenceParameterTypesOf eff
+  = let labels = labelsOf eff
+    in map (\label -> (nameNil, toEvidenceType label)) labels
+
+
+-- evidenceTypesOf :: P -> [Type]
+-- evidenceTypesOf p = foldr (\((_, TName _ typ)) types -> typ : types) [] p
 
 {-----------------------------------------------------------------------------
   Evidence context.
@@ -244,13 +253,6 @@ evidenceTypesOf p = foldr (\((_, TName _ typ)) types -> typ : types) [] p
 type Evidence = TName
 type P = [(Name, Evidence)]
 type Q = P
-
--- Computes the Q-extension of P.
-(||=) :: P -> Q -> P
-p ||= [] = p
-p ||= ((name, tname) : q) = case lookup name p of
-                              Nothing -> ((name, tname) : p) ||= q
-                              Just _  -> p ||= q
 
 pempty :: P
 pempty = []
@@ -341,7 +343,7 @@ bindEvidence typ
   = let evtyp = makeEvType typ
         labelName = staticLabelNameOf typ
     in do runtimeLabelName <- freshRuntimeLabelName (toRuntimeLabelName labelName)
-          let ev = TName nameNil evtyp
+          let ev = TName runtimeLabelName evtyp
           addEvidence labelName ev
           return (labelName, ev)
 
