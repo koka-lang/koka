@@ -50,8 +50,8 @@ trace s x =
     x
 
 evidenceTransform :: Pretty.Env -> DefGroups -> Error DefGroups
-evidenceTransform penv defGroups
-  = return defGroups
+evidenceTransform prenv defGroups
+  = runEv prenv initialState (evDefGroups True defGroups)
 
 {--------------------------------------------------------------------------
   Transform definitions.
@@ -85,7 +85,7 @@ evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
 -- Interesting cases.
 evExpr (Lam params eff body)
   = do (body', p) <- runIsolated (evExpr body)  -- find needed evidence
-       p' <- p `complyWith` eff                 -- bind the evidence in the right order
+       p' <- p `makeCompliantWith` eff          -- bind the evidence in the right order
        let params' = map evParam params
        return (evAbstract p' (Lam params' eff body'))
          where evParam :: TName -> TName
@@ -284,25 +284,31 @@ data Result a = Result a State
 data State    = State { uniq :: Int
                       , penv :: P }
 
+initialState :: State
+initialState = State { uniq = 0
+                     , penv = pempty }
+
 newtype Ev a = Ev (State -> Result a)
 
 instance HasUnique Ev where
   setUnique    i = Ev (\st -> Result () (st { uniq = i }) )
   updateUnique f = Ev (\st -> Result (uniq st) (st { uniq = (f (uniq st)) }))
 
+instance Functor Result where
+  fmap f (Result x st) = Result (f x) st
+
 instance Functor Ev where
-  fmap f (Ev env) = Ev (\st -> case env st of
-                                Result x st' -> Result (f x) st')
+  fmap f (Ev comp) = Ev (\st -> fmap f (comp st))
 
 instance Applicative Ev where
   pure = return
   (<*>) = ap
 
 instance Monad Ev where
-  return x       = Ev (\st -> Result x st)
-  (Ev env) >>= k = Ev (\st -> case env st of
-                               Result x st' -> case k x of
-                                                Ev env' -> env' st')
+  return x        = Ev (\st -> Result x st)
+  (Ev comp) >>= k = Ev (\st -> let Result x st' = comp st
+                                   Ev comp'     = k x
+                               in comp' st')
 
 -- Monadic operations.
 getEvContext :: Ev P
@@ -357,8 +363,8 @@ makeFreshEvidence typ
 
 -- Computes an evidence context [p] which complies with the interface
 -- [eff].
-complyWith :: P -> Effect -> Ev P
-complyWith p eff
+makeCompliantWith :: P -> Effect -> Ev P
+makeCompliantWith p eff
   = assert (p <<= eff) $ (labelsOf eff) `entails` p
      where entails :: [Type] -> P -> Ev P
            entails [] _ = return []
@@ -373,12 +379,26 @@ complyWith p eff
                       return ((staticLabelName, ev) : p)
 
 
+dispatch :: Q -> Expr -> Ev Expr
+dispatch q expr
+  = do p <- getEvContext
+       dispatch' p q expr
+       where dispatch' :: P -> Q -> Expr -> Ev Expr
+             dispatch' p [] expr = return expr
+             dispatch' p ((sname, ev) : q) expr
+               = undefined
+
 {-
 assertMatchesEvidence :: Expr -> P -> String -> Ev ()
 evidenceTypesOf :: P -> [Type]
 evidenceNeeded :: Expr -> [Type]
 effectsOf :: Expr -> Effect
 -}
+
+runEv :: Monad m => Pretty.Env -> State -> Ev a -> m a
+runEv penv st0 (Ev comp)
+  = let Result x _ = comp st0
+    in return x
 
 {--------------------------------------------------------------------------
   Evidence naming.
