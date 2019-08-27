@@ -394,20 +394,16 @@ makeCompliantWith p eff
 
 -- Applies the given [Expr] to witnesses of [Q].
 dispatch :: Q -> Expr -> Ev Expr
-dispatch q expr
+dispatch [] expr = return expr
+dispatch ((staticLabelName, ev) : q) expr
   = do p <- getEvContext
-       dispatch' p q expr
-       where dispatch' :: P -> Q -> Expr -> Ev Expr
-             dispatch' p [] expr = return expr
-             dispatch' p ((staticLabelName, ev) : q) expr
-               = case lookup staticLabelName p of
-                   Nothing ->
-                     do expr' <- dispatch' p q expr
-                        addEvidence staticLabelName ev
-                        return (addApps [toWitness ev] expr')
-                   Just ev ->
-                     do expr' <- dispatch' p q expr
-                        return (addApps [toWitness ev] expr')
+       expr' <- dispatch q expr
+       case lookup staticLabelName p of
+         Nothing ->
+           do addEvidence staticLabelName ev
+              return (addApps [toWitness ev] expr')
+         Just ev ->
+           return (addApps [toWitness ev] expr')
 
 {-
 assertMatchesEvidence :: Expr -> P -> String -> Ev ()
