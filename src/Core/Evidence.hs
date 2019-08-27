@@ -93,7 +93,16 @@ evExpr (Lam params eff body)
 
 evExpr (App f args)
   = do f' <- evExpr f
+       let ft = typeOf f'
+       let (q3, ft') = decomposeEvType ft'
+       (f'', p3) <- runIsolated (dispatch q3 f')
+       (p6, args') <- transform ft args
        return (App f' undefined)
+         where transform :: Type -> [Expr] -> Ev (P, [Expr])
+               transform ft args
+                 = let (q4, ft') = decomposeEvType ft
+                   in undefined
+
 
 --       App f args
 --         -> do (p1, f') <- evExpr evCtx f
@@ -262,7 +271,7 @@ p <<= eff = let present = map labelName (fst . extractOrderedEffect $ eff)
             in all (\(label, _) -> label `elem` present) p
 
 evApply :: Expr -> P -> Expr
-evApply e p = addApps (map toWitness p) e
+evApply e p = addApps (map (toWitness . snd) p) e
 
 evAbstract :: P -> Expr -> Expr
 evAbstract p e = addLambdas (toFunParams p) (effectsOf e) e
@@ -273,8 +282,8 @@ toTFunParams q = map (\(_, TName name typ) -> (name, typ)) q
 toFunParams :: P -> [(Name, Type)]
 toFunParams = toTFunParams
 
-toWitness :: (Name, TName) -> Expr
-toWitness (_, tname) = Var { varName = tname, varInfo = InfoNone }
+toWitness :: TName -> Expr
+toWitness tname = Var { varName = tname, varInfo = InfoNone }
 
 {-----------------------------------------------------------------------------
   Evidence monad.
@@ -389,8 +398,15 @@ dispatch q expr
        dispatch' p q expr
        where dispatch' :: P -> Q -> Expr -> Ev Expr
              dispatch' p [] expr = return expr
-             dispatch' p ((sname, ev) : q) expr
-               = undefined
+             dispatch' p ((staticLabelName, ev) : q) expr
+               = case lookup staticLabelName p of
+                   Nothing ->
+                     do expr' <- dispatch' p q expr
+                        addEvidence staticLabelName ev
+                        return (addApps [toWitness ev] expr')
+                   Just ev ->
+                     do expr' <- dispatch' p q expr
+                        return (addApps [toWitness ev] expr')
 
 {-
 assertMatchesEvidence :: Expr -> P -> String -> Ev ()
