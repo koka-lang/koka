@@ -392,6 +392,7 @@ makeCompliantWith p eff
                       return ((staticLabelName, ev) : p)
 
 
+-- Applies the given [Expr] to witnesses of [Q].
 dispatch :: Q -> Expr -> Ev Expr
 dispatch q expr
   = do p <- getEvContext
