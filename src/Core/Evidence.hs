@@ -425,7 +425,9 @@ makeCompliantWith p eff
 
 -- Coerces a [Q] into a [P]
 realise :: Q -> Ev P
-realise q = return q
+realise q
+  = do includeManyEvidence [q]
+       return q
 
 
 -- Applies the given [Expr] to witnesses of [Q].
