@@ -44,6 +44,7 @@ import Core.Pretty
 import Core.CoreVar
 
 import Control.Exception (assert)
+import Control.Monad     (zipWithM)
 
 trace s x =
   -- Lib.Trace.trace s
@@ -78,9 +79,6 @@ evDef toplevel def
   Transform expressions.
 --------------------------------------------------------------------------}
 evExpr :: Expr -> Ev Expr
--- Effect row open.
-evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
-  | getName open == nameEffectOpen = undefined -- FIXME TODO.
 
 -- Interesting cases.
 evExpr (Lam params eff body)
@@ -91,17 +89,40 @@ evExpr (Lam params eff body)
          where evParam :: TName -> TName
                evParam (TName name typ) = TName name (evType typ)
 
-evExpr (App f args)
-  = do f' <- evExpr f
-       let ft = typeOf f'
-       let (q3, ft') = decomposeEvType ft'
-       (f'', p3) <- runIsolated (dispatch q3 f')
-       (p6, args') <- transform ft args
-       return (App f' undefined)
-         where transform :: Type -> [Expr] -> Ev (P, [Expr])
-               transform ft args
-                 = let (q4, ft') = decomposeEvType ft
-                   in undefined
+-- Effect row open.
+evExpr (App (TypeApp (Var open _) [effFrom, effTo, _, _]) [f])
+  | getName open == nameEffectOpen = undefined -- FIXME TODO.
+
+evExpr (App f args)                                    -- in: P1
+  = do f' <- evExpr f                                  -- in: P1, out: P2
+       args' <- mapM evExpr args                       -- in: P2, out: P3
+       let (q1, ft) = decomposeEvType (typeOf f')
+       assert (effectsOf f `isCompatibleWith` q1) $
+         do f'' <- dispatch q1 f'                      -- in: P3, out: P4
+            (args'', p6) <- runIsolated (transformPointwise ft args) -- in: P4, out: P4
+            return (evAbstract p6 (App f'' args'))     -- out: P4
+              where transformPointwise :: Type -> [Expr] -> Ev [Expr]
+                    transformPointwise ft args
+                      = let dom = domain ft
+                        in assert (length dom == length args) $
+                           do results <- zipWithM (\x y -> runIsolated (pointwise x y)) (map snd dom) args
+                              let args' = map fst results
+                              let ps    = map snd results
+                              includeManyEvidence ps      -- P6
+                              return args'
+                    pointwise :: Type -> Expr -> Ev Expr
+                    pointwise typ expr
+                      = if isFun typ
+                        then let (q2, ft1) = decomposeEvType typ
+                                 (q3, ft2) = decomposeEvType (typeOf expr)
+                             in assert (ft1 == ft2) $
+                                do p5 <- realise q2
+                                   expr' <- dispatch q3 expr
+                                   p6 <- getEvContext
+                                   assert (p5 == p6 || (p5 /= p6 && isFun (codomain ft1))) $
+                                     return expr'
+                        else return expr
+
 
 
 --       App f args
@@ -285,6 +306,15 @@ toFunParams = toTFunParams
 toWitness :: TName -> Expr
 toWitness tname = Var { varName = tname, varInfo = InfoNone }
 
+isCompatibleWith :: Effect -> Q -> Bool
+isCompatibleWith eff q = entails (labelsOf eff) q
+   where entails :: [Type] -> Q -> Bool
+         entails [] [] = True
+         entails (l : ls) ((staticLabelName, _) : qs)
+           | labelName l == staticLabelName = entails ls qs -- TODO: check types too?
+           | otherwise = False
+         entails _ _ = False
+
 {-----------------------------------------------------------------------------
   Evidence monad.
 -----------------------------------------------------------------------------}
@@ -357,6 +387,17 @@ addEvidence name ev
   = do p <- getEvContext
        setEvContext ((name, ev) : p)
 
+includeEvidence :: (Name, TName) -> Ev ()
+includeEvidence (staticLabelName, ev)
+  = do p <- getEvContext
+       case lookup staticLabelName p of
+         Nothing -> addEvidence staticLabelName ev
+         Just _  -> return ()
+
+includeManyEvidence :: [P] -> Ev ()
+includeManyEvidence p
+  = mapM_ (mapM_ includeEvidence) p
+
 makeFreshEvidence :: Type -> Ev (Name, TName)
 makeFreshEvidence typ
   = let evtyp = toEvidenceType typ
@@ -364,15 +405,6 @@ makeFreshEvidence typ
     in do evidenceLabelName <- freshEvidenceLabelName staticLabelTypeName
           let ev = TName evidenceLabelName evtyp
           return (staticLabelTypeName, ev)
-
--- bindEvidence :: Type -> Ev (Name, TName)
--- bindEvidence typ
---   = let evtyp = toEvidenceType typ
---         labelName = staticLabelNameOf typ
---     in do runtimeLabelName <- freshRuntimeLabelName (toRuntimeLabelName labelName)
---           let ev = TName runtimeLabelName evtyp
---           addEvidence labelName ev
---           return (labelName, ev)
 
 -- Computes an evidence context [p] which complies with the interface
 -- [eff].
@@ -391,19 +423,18 @@ makeCompliantWith p eff
                       p <- ls `entails` p
                       return ((staticLabelName, ev) : p)
 
+-- Coerces a [Q] into a [P]
+realise :: Q -> Ev P
+realise q = return q
+
 
 -- Applies the given [Expr] to witnesses of [Q].
 dispatch :: Q -> Expr -> Ev Expr
 dispatch [] expr = return expr
 dispatch ((staticLabelName, ev) : q) expr
-  = do p <- getEvContext
-       expr' <- dispatch q expr
-       case lookup staticLabelName p of
-         Nothing ->
-           do addEvidence staticLabelName ev
-              return (addApps [toWitness ev] expr')
-         Just ev ->
-           return (addApps [toWitness ev] expr')
+  = do expr' <- dispatch q expr
+       includeEvidence (staticLabelName, ev)
+       return (addApps [toWitness ev] expr')
 
 {-
 assertMatchesEvidence :: Expr -> P -> String -> Ev ()
@@ -411,6 +442,12 @@ evidenceTypesOf :: P -> [Type]
 evidenceNeeded :: Expr -> [Type]
 effectsOf :: Expr -> Effect
 -}
+
+-- assertMatchesEvidence :: Expr -> P -> String -> Ev ()
+-- assertMatchesEvidence expr p msg
+--   = let requiredEvidence = evidenceRequiredBy expr
+--     in
+
 
 runEv :: Monad m => Pretty.Env -> State -> Ev a -> m a
 runEv penv st0 (Ev comp)
@@ -446,3 +483,13 @@ mapPair f g (x, y) = (f x, g y)
 
 mapSnd :: (b -> c) -> (a, b) -> (a, c)
 mapSnd f p = mapPair id f p
+
+domain :: Type -> [(Name, Type)]
+domain typ = case splitFunType typ of
+              Nothing -> error "domain applied to a non-function type."
+              Just (dom, _, _) -> dom
+
+codomain :: Type -> Type
+codomain typ = case splitFunType typ of
+                Nothing -> error "codomain applied to a non-function type."
+                Just (_, _, cod) -> cod
