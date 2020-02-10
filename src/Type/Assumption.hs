@@ -27,13 +27,14 @@ module Type.Assumption (
                     , infoCanonicalName
                     -- * From Core
                     , extractGammaImports
-                    , extractGamma   
+                    , extractGamma
                     , coreDefInfo
                     , createNameInfo
                     , createNameInfoX
                     , getArity
                     ) where
 
+import Prelude hiding ((<>))
 import Common.Range
 import Common.Failure
 import Common.Syntax( DefSort(..) )
@@ -135,7 +136,7 @@ gammaExtend :: Name -> NameInfo -> Gamma -> Gamma
 gammaExtend name tp (Gamma gamma)
   = Gamma (M.insertWith combine (unqualify name) [(name,tp)] gamma)
 
-combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)] 
+combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)]
 combine xs ys
   = -- TODO: check for overlapping type schemes?
     xs ++ ys
@@ -152,8 +153,8 @@ gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookup name (Gamma gamma)
   = case M.lookup (unqualify name) gamma of
       Nothing -> []
-      Just xs -> -- let qname = if isQualified name then name else qualify context name 
-                 -- in filter (\(n,_) -> n == qname) xs 
+      Just xs -> -- let qname = if isQualified name then name else qualify context name
+                 -- in filter (\(n,_) -> n == qname) xs
                  if (isQualified name)
                   then filter (\(n,_) -> n == name) xs
                   else xs
@@ -187,7 +188,7 @@ gammaFilter mod (Gamma g)
   = Gamma (M.map belongs g)
   where
     belongs xs  = [(name,tp) | (name,tp) <- xs, qualifier name == mod]
-  
+
 {---------------------------------------------------------------
   Extract from core
 ---------------------------------------------------------------}
@@ -220,8 +221,8 @@ extractTypeDefGroup isVisible msf (Core.TypeDefGroup tdefs)
 extractTypeDef isVisible msf tdef
   = case tdef of
      Core.Data dataInfo vis conViss   | isVisible vis
-       -> gammaUnions (L.map extractConInfo 
-            [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo) 
+       -> gammaUnions (L.map extractConInfo
+            [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo)
                (zip conViss (snd (Core.getDataRepr msf {- struct fields do not matter for extraction -} dataInfo))), isVisible vis])
      _ -> gammaEmpty
   where
@@ -284,8 +285,8 @@ instance Show Gamma where
 instance Pretty Gamma where
   pretty g
     = ppGamma Type.Pretty.defaultEnv g
-    
-    
+
+
 ppGamma :: Env -> Gamma -> Doc
 ppGamma env gamma
     = vcat [fill maxwidth (ppName env name) <> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
@@ -309,7 +310,7 @@ instance HasTypeVar Gamma where
 instance HasTypeVar NameInfo where
   sub `substitute` info
     = info{ infoType = sub `substitute` (infoType info) }
-  
+
   ftv info
     = ftv (infoType info)
 

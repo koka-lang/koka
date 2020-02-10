@@ -8,17 +8,17 @@
 
 module Type.InferMonad( Inf, InfGamma
                       , runInfer
-                      
+
                       -- * substitutation
                       , zapSubst
                       , subst, extendSub
-                      
+
                       -- * Environment
                       , getGamma
                       , extendGamma, extendGammaCore
                       , extendInfGamma, extendInfGammaCore
                       , withGammaType
-                      
+
                       -- * Name resolution
                       , qualifyName
                       , resolveName, resolveNameEx
@@ -34,7 +34,7 @@ module Type.InferMonad( Inf, InfGamma
                       , findDataInfo
                       , withDefName
                       , currentDefName
-                      
+
                       -- * Misc.
                       , allowReturn, isReturnAllowed
                       , withLhs, isLhs
@@ -48,7 +48,7 @@ module Type.InferMonad( Inf, InfGamma
                       , checkEmptyPredicates
                       , checkCasing
                       , normalize
-                      
+
                       -- * Unification
                       , Context(..)
                       , inferUnify, inferUnifies
@@ -62,9 +62,11 @@ module Type.InferMonad( Inf, InfGamma
                       , addRangeInfo
                       ) where
 
+import Prelude hiding ((<>))
 import Data.List( partition, sortBy)
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Fail
 import Lib.PPrint
 import Common.Range
 import Common.Unique
@@ -91,13 +93,13 @@ import Type.Assumption
 import Type.InfGamma
 
 import Type.Unify
-import Common.Message( docFromRange, table, tablex) 
+import Common.Message( docFromRange, table, tablex)
 
 import Core.Pretty()
 
 import Syntax.RangeMap( RangeMap, RangeInfo(..), rangeMapInsert )
 
-import qualified Lib.Trace( trace ) 
+import qualified Lib.Trace( trace )
 
 trace s x =
    -- Lib.Trace.trace (" " ++ s)
@@ -123,7 +125,7 @@ generalize contextRange range eff  tp@(TForall _ _ _)  core0
         else -- Lib.Trace.trace ("generalize forall-inst: " ++ show (pretty seff, pretty stp) ++ " with " ++ show ps0) $
              do (rho,tvars,icore) <- instantiate range stp
                 generalize contextRange range seff rho (icore core0)
-     
+
 generalize contextRange range eff0 rho0 core0
   = do seff <- subst eff0
        srho  <- subst rho0
@@ -133,42 +135,42 @@ generalize contextRange range eff0 rho0 core0
        score0 <- subst core0
 
        sub <- getSub
-       trace (" generalize: " ++ show (seff,srho) ++ " with " ++ show ps0 
-                  {- ++ " and free " ++ show (tvsList free) -} 
-                  {- ++ "\n subst=" ++ show (take 10 $ subList sub) -} 
-                  {- ++ "\ncore: " ++ show score0 -}) 
+       trace (" generalize: " ++ show (seff,srho) ++ " with " ++ show ps0
+                  {- ++ " and free " ++ show (tvsList free) -}
+                  {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
+                  {- ++ "\ncore: " ++ show score0 -})
              $ return ()
        -- simplify and improve predicates
-       (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho) 
+       (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho)
        -- trace (" improved to: " ++ show (eff1,rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
        let -- generalized variables
            tvars0 = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps1) rho1))
 
-       if (null tvars0) 
+       if (null tvars0)
         then do addPredicates ps1 -- add them back to solve later (?)
                 score <- subst (core1 core0)
-                
+
                 -- substitute more free variables in the core with ()
                 let score1 = substFree free score
                 nrho <- normalizeX free rho1
-                trace (" generalized to (as rho type): " ++ show (nrho)) $ return () 
+                trace (" generalized to (as rho type): " ++ show (nrho)) $ return ()
                 return (nrho,score1)
 
         else do -- check that the computation is total
                 inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff1
                 -- simplify and improve again since we can have substituted more
-                (ps2,(eff2,rho2),core2) <- simplifyAndImprove contextRange free ps1 (eff1,rho1) 
+                (ps2,(eff2,rho2),core2) <- simplifyAndImprove contextRange free ps1 (eff1,rho1)
                 -- due to improvement, our constraints may need to be split again
                 addPredicates ps2
                 ps3 <- splitPredicates free
                 -- simplify and improve again since we can have substituted more
-                (ps4,(eff4,rho4),core4) <- simplifyAndImprove contextRange free ps3 (eff2,rho2) 
-                                                    
+                (ps4,(eff4,rho4),core4) <- simplifyAndImprove contextRange free ps3 (eff2,rho2)
+
                 -- check for satisifiable constraints
-                checkSatisfiable contextRange ps4                
+                checkSatisfiable contextRange ps4
                 score <- subst (core4 (core2 (core1 core0)))
                 -- trace (" before normalize: " ++ show (eff4,rho4) ++ " with " ++ show ps4) $ return ()
-                
+
                 -- update the free variables since substitution may have changed it
                 free1 <- freeInGamma
                 let free = tvsUnion free1 (fuv eff4)
@@ -181,20 +183,20 @@ generalize contextRange range eff0 rho0 core0
                 -- trace (" normalized: " ++ show (nrho) ++ " from " ++ show rho4) $ return ()
                 let -- substitute to Bound ones
                     tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps4) nrho))
-                    bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]              
-                    bsub  = subNew (zip tvars (map TVar bvars)) 
+                    bvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
+                    bsub  = subNew (zip tvars (map TVar bvars))
                     (TForall [] ps5 rho5) = bsub |-> (TForall [] (map evPred ps4) nrho)
                     -- core
                     core5 = Core.addTypeLambdas bvars $
                             bsub |-> score
                             -- no lambdas for now...
-                            -- (Core.addLambda (map evName ps4) score) 
+                            -- (Core.addLambda (map evName ps4) score)
 
                     resTp = quantifyType bvars (qualifyType ps5 rho5)
                 -- extendSub bsub
                 -- substitute more free variables in the core with ()
                 let core6 = substFree free core5
-                trace (" generalized to: " ++ show (resTp)) $ return () 
+                trace (" generalized to: " ++ show (resTp)) $ return ()
                 return (resTp, core6)
 
   where
@@ -207,7 +209,7 @@ generalize contextRange range eff0 rho0 core0
                   then typeVoid
                   else TCon (TypeCon nameTpVoid kind) -- make something up for now
         in if (tvsIsEmpty fvars)
-            then core 
+            then core
             else let sub = subNew [(tv,tcon (getKind tv)) | tv <- tvsList fvars]
                  in sub |-> core
 
@@ -221,17 +223,17 @@ improve contextRange range eff0 rho0 core0
        sps    <- splitPredicates free
        score0 <- subst core0
        trace (" improve: " ++ show (seff,srho) ++ " with " ++ show sps ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
-       
+
        -- isolate: do first to discharge certain hdiv predicates.
        -- todo: in general, we must to this after some improvement since that can lead to substitutions that may enable isolation..
        (ps0,eff0,coref0) <- isolate (tvsUnions [free,ftv srho]) sps seff
 
        -- simplify and improve predicates
-       (ps1,(eff1,rho1),coref1) <- simplifyAndResolve contextRange free ps0 (eff0,srho) 
+       (ps1,(eff1,rho1),coref1) <- simplifyAndResolve contextRange free ps0 (eff0,srho)
        addPredicates ps1  -- add unsolved ones back
        -- isolate
-       -- (eff2,coref2) <- isolate (tvsUnions [free,ftv rho1,ftv ps1]) eff1 
-       
+       -- (eff2,coref2) <- isolate (tvsUnions [free,ftv rho1,ftv ps1]) eff1
+
        (nrho) <- normalizeX free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
        trace (" improved to: " ++ show (eff1,nrho) ++ " with " ++ show ps1) $ return ()
@@ -241,7 +243,7 @@ instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiate range tp | isRho tp
   = do rho <- Op.extend tp
        return (rho,[],id)
-instantiate range tp 
+instantiate range tp
   = do (tvars,ps,rho,coref) <- instantiateEx range tp
        addPredicates ps
        return (rho, tvars, coref)
@@ -249,18 +251,18 @@ instantiate range tp
 instantiateNoEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiateNoEx range tp | isRho tp
   = return (tp,[],id)
-instantiateNoEx range tp 
+instantiateNoEx range tp
   = do (tvars,ps,rho,coref) <- Op.instantiateNoEx range tp
        addPredicates ps
        return (rho, tvars, coref)
-        
+
 -- | Automatically remove heap effects when safe to do so.
 isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> Core.Expr)
 isolate free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
     in case filter (\l -> labelName l `elem` [nameTpRead,nameTpWrite]) ls of
-          (TApp _ [TVar h] : _) 
+          (TApp _ [TVar h] : _)
             -> -- has heap variable 'h' in its effect
                do (polyPs,ps1) <- splitHDiv h ps
                   if not (tvsMember h free || tvsMember h (ftv ps1))
@@ -292,19 +294,19 @@ isolate free ps eff
       = do (evs1,evs2) <- splitHDiv heapTv evs
            let defaultRes = (evs1,ev:evs2)
            case evPred ev of
-            PredIFace name [hp,tp,eff]  | name == namePredHeapDiv 
+            PredIFace name [hp,tp,eff]  | name == namePredHeapDiv
              -> do shp <- subst hp
                    case expandSyn shp of
                      h@(TVar tv)  | tv == heapTv
                        -> do stp <- subst tp
-                             if (not (h `elem` heapTypes stp)) 
+                             if (not (h `elem` heapTypes stp))
                               then return (ev:evs1,evs2) -- even if polymorphic, we are ok if we isolate
                               else return defaultRes
                      _ -> return defaultRes
             _ -> return defaultRes
-                                  
 
-                
+
+
 data Variance = Neg | Inv | Pos
               deriving (Eq,Ord,Enum,Show)
 
@@ -328,7 +330,7 @@ normalizeX free tp
       TFun args eff res
         -> do (ls,tl) <- nofailUnify $ extractNormalizeEffect eff
               eff'    <- case expandSyn tl of
-                          -- remove tail variables in the result type 
+                          -- remove tail variables in the result type
                           (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
                             -> return (effectFixed ls)
                           _ -> do ls' <- mapM (normalizex Pos) ls
@@ -356,7 +358,7 @@ normalizeX free tp
                   -}
                               _ -> do ls' <- mapM (normalizex var) ls
                                       tl' <- normalizex var tl
-                                      return (effectExtends ls' tl')          
+                                      return (effectExtends ls' tl')
                   args' <- mapM (\(name,arg) -> do{arg' <- normalizex (vflip var) arg; return (name,arg')}) args
                   res'  <- normalizex var res
                   niceEff <- nicefyEffect eff'
@@ -384,7 +386,7 @@ nicefyEffect eff
       = case names of
           [] -> return ls
           (name:ns)
-            -> do (pre,post) <- tryAlias ls name 
+            -> do (pre,post) <- tryAlias ls name
                   post' <- matchAliases ns post
                   return (pre ++ post')
 
@@ -403,13 +405,13 @@ nicefyEffect eff
                               (sls,insts) = findInsts params ls2 ls
                           in -- Lib.Trace.trace ("* try alias: " ++ show (synInfoName syn, ls, sls)) $
                              case (isSubset [] sls ls) of
-                                Just rest 
+                                Just rest
                                   -> -- Lib.Trace.trace (" synonym replace: " ++ show (synInfoName syn, ls, sls, rest)) $
                                       return ([TSyn (TypeSyn name (synInfoKind syn) (synInfoRank syn) (Just syn)) insts (effectFixed sls)], rest)
                                 _ -> return ([], ls)
 
 findInsts :: [TypeVar] -> [Tau] -> [Tau] -> ([Tau],[Tau])
-findInsts [] ls _ 
+findInsts [] ls _
   = (ls,[])
 findInsts params ls1 ls2
   = case filter matchParams ls1 of
@@ -423,7 +425,7 @@ findInsts params ls1 ls2
   where
     matchParams (TApp _ args) = (map TVar params == args)
     matchParams _ = False
-      
+
 
 
 isSubset :: [Tau] -> [Tau] -> [Tau] -> Maybe [Tau]
@@ -446,7 +448,7 @@ splitEffect eff
   = nofailUnify (extractNormalizeEffect eff)
 
 
--- | Simplify and improve contraints. 
+-- | Simplify and improve contraints.
 simplifyAndImprove :: Range -> Tvs -> [Evidence] -> (Effect,Type) -> Inf ([Evidence],(Effect,Type),Core.Expr -> Core.Expr)
 simplifyAndImprove range free [] efftp
   = return ([],efftp,id)
@@ -455,7 +457,7 @@ simplifyAndImprove range free evs efftp
        efftp1 <- subst efftp
        return (evs1,efftp1,core1)
 
--- | Simplify and resolve contraints. 
+-- | Simplify and resolve contraints.
 simplifyAndResolve :: Range -> Tvs -> [Evidence] -> (Effect,Type) -> Inf ([Evidence],(Effect,Type),Core.Expr -> Core.Expr)
 simplifyAndResolve range free [] efftp
   = return ([],efftp,id)
@@ -477,7 +479,7 @@ resolveHeapDiv free (ev:evs)
               shp <- subst hp
               let tvsTp = ftv stp
                   tvsHp = ftv hp
-              if (expandSyn shp `elem` heapTypes stp || 
+              if (expandSyn shp `elem` heapTypes stp ||
                   not (tvsIsEmpty (ftv stp)) -- conservative guess...
                  )
                then do -- return (ev{ evPred = PredSub typeDivergent eff } : evs')
@@ -513,10 +515,10 @@ improveEffects contextRange free evs etp
 --------------------------------------------------------------------------}
 
 checkEmptyPredicates :: Range -> Inf (Core.Expr -> Core.Expr)
-checkEmptyPredicates contextRange 
+checkEmptyPredicates contextRange
   = do free <- freeInGamma
-       ps <- getPredicates      
-       (ps1,_,core1) <- simplifyAndImprove contextRange free ps (typeTotal,typeUnit) 
+       ps <- getPredicates
+       (ps1,_,core1) <- simplifyAndImprove contextRange free ps (typeTotal,typeUnit)
        setPredicates ps1
        checkSatisfiable contextRange ps1
        return core1
@@ -551,7 +553,7 @@ inferUnify context range expected tp
        res <- doUnify (unify sexp stp)
        case res of
          Right () -> return ()
-         Left err -> unifyError context range err sexp stp 
+         Left err -> unifyError context range err sexp stp
 
 
 inferUnifies :: Context -> [(Range,Type)] -> Inf Type
@@ -559,7 +561,7 @@ inferUnifies context tps
   = case tps of
       [] -> matchFailure "Type.InferMonad.inferUnifies"
       [(rng,tp)] -> return tp
-      ((rng1,tp1):(rng2,tp2):rest) 
+      ((rng1,tp1):(rng2,tp2):rest)
         -> do let rng = combineRange rng1 rng2
               inferUnify context rng tp1 tp2
               tp <- subst tp1
@@ -574,14 +576,14 @@ inferSubsume context range expected tp
        case res of
          Right (t,ps,coref) -> do addPredicates ps
                                   return (t,coref)
-         Left err         -> do unifyError context range err sexp stp 
+         Left err         -> do unifyError context range err sexp stp
                                 return (expected,id)
 
 nofailUnify :: Unify a -> Inf a
 nofailUnify u
   = do res <- runUnify u
        case res of
-         (Right x,sub)  
+         (Right x,sub)
           -> do extendSub sub
                 return x
          (Left err,sub)
@@ -593,7 +595,7 @@ doUnify :: Unify a -> Inf (Either UnifyError a)
 doUnify u
   = do res <- runUnify u
        case res of
-         (Right x,sub)  
+         (Right x,sub)
           -> do extendSub sub
                 return (Right x)
          (Left err,sub)
@@ -635,7 +637,7 @@ unifyError' env context range err tp1 tp2
     showEnv
       = case err of
           NoMatchKind -> env{ Pretty.showKinds = True }
-          _           -> env 
+          _           -> env
 
     nomatch
       = case err of
@@ -648,7 +650,7 @@ unifyError' env context range err tp1 tp2
       = if (getKind tp1 == kindEffect)
          then "effect"
          else "type"
-          
+
 
     (message,hint)
       = case err of
@@ -658,11 +660,11 @@ unifyError' env context range err tp1 tp2
           NoSubsume   -> ("type is not polymorph enough",[])
           NoEntail    -> ("predicates cannot be resolved",[])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "annotate the function definition?")])
-          NoArgMatch n m -> if (m<0) 
+          NoArgMatch n m -> if (m<0)
                              then ("only functions can be applied",[])
                              else ("application has too " ++ (if (n > m) then "few" else "many") ++ " arguments"
                                   ,[(text "hint",text ("expecting " ++ show n ++ " argument" ++ (if n == 1 then "" else "s") ++ " but has been given " ++ show m))])
-                             
+
 predicateError :: Range -> Range -> String -> Pred -> Inf ()
 predicateError contextRange range message pred
   = do env <- getEnv
@@ -707,7 +709,7 @@ contextError' env contextRange range message extra
                 ,(text "term", docFromRange (Pretty.colors env) range)
                 ]
                 ++ extra)
-    
+
 {--------------------------------------------------------------------------
   Inference monad
 --------------------------------------------------------------------------}
@@ -720,7 +722,7 @@ data Env    = Env{ prettyEnv :: !Pretty.Env
                  , types :: !Newtypes
                  , synonyms :: !Synonyms
                  , gamma :: !Gamma
-                 , infgamma :: !InfGamma 
+                 , infgamma :: !InfGamma
                  , imports :: !ImportMap
                  , returnAllowed :: Bool
                  , inLhs :: Bool
@@ -736,7 +738,7 @@ runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
 
 
 zapSubst :: Inf ()
-zapSubst 
+zapSubst
   = do env <- getEnv
        assertion "not an empty infgamma" (infgammaIsEmpty (infgamma env)) $
         do updateSt (\st -> assertion "no empty preds" (null (preds st)) $
@@ -746,7 +748,7 @@ zapSubst
 instance Functor Inf where
   fmap f (Inf i)  = Inf (\env st -> case i env st of
                                       Ok x st1 w -> Ok (f x) st1 w
-                                      Err err w  -> Err err w) 
+                                      Err err w  -> Err err w)
 
 instance Applicative Inf where
   pure  = return
@@ -761,9 +763,12 @@ instance Monad Inf where
                                                                    Err err w2 -> Err err (w1++w2)
                                        Err err w -> Err err w)
 
+instance MonadFail Inf where
+  fail msg = Inf (\env st -> Err (rangeNull,text msg) [])
+
 instance HasUnique Inf where
   updateUnique f  = Inf (\env st -> Ok (uniq st) st{uniq = f (uniq st)} [])
-                                                              
+
 getEnv :: Inf Env
 getEnv
   = Inf (\env st -> Ok env st [])
@@ -774,7 +779,7 @@ withEnv f (Inf i)
 
 updateSt :: (St -> St) -> Inf St
 updateSt f
-  = Inf (\env st -> Ok st (f st) []) 
+  = Inf (\env st -> Ok st (f st) [])
 
 infError :: Range -> Doc -> Inf a
 infError range doc
@@ -882,7 +887,7 @@ extendGamma isAlreadyCanonical defs inf
                localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info), qualifier qname == ctx || qualifier qname == nameNil, isSameNamespace qname name ]
            mapM (checkNoOverlap ctx name info) localMatches
            -- trace (" extend gamma: " ++ show (name,info)) $
-           let (cinfo) 
+           let (cinfo)
                    = -- if null localMatches then (info) else
                     if (isAlreadyCanonical) then info else
                        let cname = Core.canonicalName (length localMatches) (if isQualified name then name else qualify ctx name)
@@ -891,10 +896,10 @@ extendGamma isAlreadyCanonical defs inf
                             InfoFun{} -> info{ infoCName = cname }
                             InfoExternal{} -> info{ infoCName = cname }
                             _ -> info
-           -- Lib.Trace.trace (" extend gamma: " ++ show (name,infoType info) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $ 
+           -- Lib.Trace.trace (" extend gamma: " ++ show (name,infoType info) ++ " with " ++ show (infoCanonicalName name cinfo) ++ " (matches: " ++ show (length matches,ctx,map fst matches)) $
            extend ctx rest (gammaExtend name cinfo gamma)
-           
-     
+
+
     checkNoOverlap :: Name -> Name -> NameInfo -> (Name,NameInfo) -> Inf ()
     checkNoOverlap ctx name info (name2,info2)
       = do checkCasingOverlap (infoRange info) name name2 info
@@ -909,7 +914,7 @@ extendGamma isAlreadyCanonical defs inf
                      valueType     = not (isFun rho1 && isFun rho2)
                  if (isFun rho1 && isFun rho2)
                   then infError (infoRange info) (text "definition" <+> Pretty.ppName (prettyEnv env) name <+> text "overlaps with an earlier definition of the same name" <->
-                                                  table ([(text "type",nice1) 
+                                                  table ([(text "type",nice1)
                                                          ,(text "overlaps",nice2)
                                                          ,(text "because", text "definitions with the same name must differ on the argument types")])
                                                  )
@@ -943,7 +948,7 @@ extendInfGamma topLevel tnames inf
                range = infoRange info
                tp    = infoType info
            case (lookup name seen) of
-            Just (info2) 
+            Just (info2)
               -> do checkCasingOverlap range name (infoCanonicalName name info2) info2
                     env <- getEnv
                     infError range (Pretty.ppName (prettyEnv env) name <+> text "is already defined at" <+> pretty (show (infoRange info2))
@@ -957,7 +962,7 @@ extendInfGamma topLevel tnames inf
                       _ -> return ()
            extend ctx gamma (x:seen) rest (infgammaExtend qname (info{ infoCName =  if topLevel then createCanonicalName ctx gamma qname else qname}) infgamma)
 
-createCanonicalName ctx gamma qname 
+createCanonicalName ctx gamma qname
   = let matches = gammaLookup (unqualify qname) gamma
         localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info), qualifier qname == ctx || qualifier qname == nameNil ]
         cname = Core.canonicalName (length localMatches) qname
@@ -1009,7 +1014,7 @@ addPredicates []
   = return ()
 addPredicates ps
   = do updateSt (\st -> st{ preds = (preds st) ++ ps })
-       return ()  
+       return ()
 
 getPredicates :: Inf [Evidence]
 getPredicates
@@ -1030,20 +1035,20 @@ findDataInfo typeName
 
 -- | Lookup a name with a certain type and return the fully qualified name and its type
 resolveName :: Name -> Maybe(Type,Range) -> Range -> Inf (Name,Type,NameInfo)
-resolveName name mbType range 
+resolveName name mbType range
   = case mbType of
       Just (tp,ctxRange) -> resolveNameEx infoFilter (Just infoFilterAmb) name (CtxType tp) ctxRange range
       Nothing            -> resolveNameEx infoFilter (Just infoFilterAmb) name CtxNone range range
   where
-    infoFilter = isInfoValFunExt 
+    infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
 -- | Lookup a name with a number of arguments and return the fully qualified name and its type
 resolveFunName :: Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
-resolveFunName name ctx rangeContext range 
+resolveFunName name ctx rangeContext range
   = resolveNameEx infoFilter (Just infoFilterAmb) name ctx rangeContext range
   where
-    infoFilter = isInfoValFunExt 
+    infoFilter = isInfoValFunExt
     infoFilterAmb = not . isInfoImport
 
 
@@ -1053,7 +1058,7 @@ resolveConName name mbType range
        return (qname,tp,infoRepr info,infoCon info)
 
 resolveNameEx :: (NameInfo -> Bool) -> Maybe (NameInfo -> Bool) -> Name -> NameContext -> Range -> Range -> Inf (Name,Type,NameInfo)
-resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range 
+resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
   = do matches <- lookupNameEx infoFilter name ctx range
        case matches of
         []   -> do amb <- case ctx of
@@ -1069,10 +1074,10 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                             infError range (text "identifier" <+> Pretty.ppName penv name <+> text "does not match the argument types" <->
                                                table (ctxTerm rangeContext ++
                                                       [(text "inferred type",nice2)
-                                                      ,(text "expected type",nice1)]))                                                
+                                                      ,(text "expected type",nice1)]))
                     (CtxType tp, (_:rest))
                       -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "has no matching definition" <->
-                                         table (ctxTerm rangeContext ++ 
+                                         table (ctxTerm rangeContext ++
                                                 [(text "inferred type", Pretty.niceType penv tp)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
                     (CtxFunArgs fixed named, (_:rest))
@@ -1089,7 +1094,7 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                            parens (hsep (punctuate comma (fdocs ++ ndocs ++ pdocs))) <+>
                                            text "-> ..."
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
-                                         table (ctxTerm rangeContext ++ 
+                                         table (ctxTerm rangeContext ++
                                                 [(text "inferred type", argsDoc)
                                                 ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
 
@@ -1101,27 +1106,27 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                 -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "is undefined") <->
                                                    (text "perhaps you meant: " <> ppOr penv (map fst amb2)))
                               _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "is undefined")
-                    
-        [(qname,info)]  
+
+        [(qname,info)]
            -> do checkCasing range name qname info
                  return (qname,infoType info,info)
         _  -> do env <- getEnv
                  infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is ambiguous" <> ppAmbiguous env hintTypeSig matches)
   where
     hintTypeSig = "give a type annotation to the function parameters or arguments"
-                                       
+
 checkCasingOverlaps :: Range -> Name -> [(Name,NameInfo)] -> Inf ()
 checkCasingOverlaps range name matches
   = -- this is called when various definitions (possibly from different modules) match with a name
     -- we could check here that all these definitions agree on the casing
     -- .. but I think it is better to only complain if the actual definition
     -- used has a different casing to reduce potential conflicts between modules
-    return () 
+    return ()
 
 checkCasingOverlap :: Range -> Name -> Name -> NameInfo -> Inf ()
 checkCasingOverlap range name qname info
   = do case caseOverlaps name qname info of
-         Just qname1  
+         Just qname1
            -> do env <- getEnv
                  infError range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "is already in scope with a different casing as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
          _ -> return ()
@@ -1134,16 +1139,16 @@ checkCasing range name qname info
           -> do env <- getEnv
                 infError range (text (infoElement info) <+> Pretty.ppName (prettyEnv env) (unqualify name) <+> text "should be cased as" <+> Pretty.ppName (prettyEnv env) (importsAlias qname1 (imports env)))
 
-                     
+
 caseOverlaps :: Name -> Name -> NameInfo -> (Maybe Name)
 caseOverlaps name qname info
   = let qname1 = case info of
                    InfoImport{infoAlias = alias} -> alias
                    _                             -> qname
-    in if (nameCaseOverlap ((if isQualified name then id else unqualify) (Core.nonCanonicalName qname1)) name) 
+    in if (nameCaseOverlap ((if isQualified name then id else unqualify) (Core.nonCanonicalName qname1)) name)
         then Just qname1
         else Nothing
-    
+
 ppOr :: Pretty.Env -> [Name] -> Doc
 ppOr env []     = Lib.PPrint.empty
 ppOr env [name] = Pretty.ppName env name
@@ -1159,7 +1164,7 @@ ppCandidates env hint nameInfos
    = let penv = prettyEnv env
          modName = context env
          n = 6
-         sorted      = sortBy (\(name1,info1) (name2,info2) -> 
+         sorted      = sortBy (\(name1,info1) (name2,info2) ->
                                 if (qualifier name1 == modName && qualifier name2 /= modName)
                                  then LT
                                 else if (qualifier name1 /= modName && qualifier name2 == modName)
@@ -1173,9 +1178,9 @@ ppCandidates env hint nameInfos
         ++
         (if (null hint) then [] else [(text "hint",text hint)])
 
-ppNameInfo env (name,info) 
+ppNameInfo env (name,info)
   = (Pretty.ppName (prettyEnv env) (importsAlias name (imports env)), Pretty.ppType (prettyEnv env) (infoType info))
-  
+
 
 
 lookupImportName :: Name -> Range -> Inf (Maybe (Name,NameInfo))
@@ -1220,10 +1225,10 @@ lookupNameN name fixed named range
        case matches of
          []         -> do amb <- lookupNameEx isInfoFun name CtxNone range
                           env <- getEnv
-                          if null amb 
+                          if null amb
                            then infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is undefined")
-                           else infError range (text "no function" <+> Pretty.ppName (prettyEnv env) name 
-                                                <+> text "accepts" <+> (pretty (fixed + length named)) <+> text "arguments" 
+                           else infError range (text "no function" <+> Pretty.ppName (prettyEnv env) name
+                                                <+> text "accepts" <+> (pretty (fixed + length named)) <+> text "arguments"
                                                 <> ppAmbiguous env "" amb)
                           return []
          _          -> return matches
@@ -1236,7 +1241,7 @@ lookupInfName name
 
 maybeToContext :: Maybe Type -> NameContext
 maybeToContext mbType
-  = case mbType of 
+  = case mbType of
       Just tp -> CtxType tp
       Nothing -> CtxNone
 
@@ -1252,11 +1257,11 @@ data NameContext
   deriving (Show)
 
 lookupNameEx :: (NameInfo -> Bool) -> Name -> NameContext -> Range -> Inf [(Name,NameInfo)]
-lookupNameEx infoFilter name ctx range 
+lookupNameEx infoFilter name ctx range
   = -- trace ("lookup: " ++ show name ++ ": " ++ show mbType) $
     do env <- getEnv
        case infgammaLookupX name (infgamma env) of
-         Just info  | infoFilter info  
+         Just info  | infoFilter info
                   -> do sinfo <- subst info
                         return [(infoCanonicalName name info, sinfo)] -- TODO: what about local definitions without local type variables or variables?
          _        -> -- trace ("gamma: " ++ show (gamma env)) $
@@ -1286,14 +1291,14 @@ lookupNameEx infoFilter name ctx range
                                                  _  ->
                                                -}
                                                        return matches
-                                                       {- do 
+                                                       {- do
                                                           let localCands = [(qname,info) | (qname,info) <- candidates, qualifier qname == context env]
                                                           case localCands of
                                                             [(qname,info)] -> return (qname,info)
                                                             _            -> return localCands -- infError range (Pretty.ppName (prettyEnv env) name <+> text "is ambiguous")
-                                                          
+
                                                         -}
-  where   
+  where
     matchType :: Type -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchType expect (name,info)
       = do free <- freeInGamma
@@ -1304,7 +1309,7 @@ lookupNameEx infoFilter name ctx range
 
     matchNamedArgs :: Int -> [Name] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchNamedArgs n named (name,info)
-      = do res <- runUnify (matchNamed range (infoType info) n named) 
+      = do res <- runUnify (matchNamed range (infoType info) n named)
            case res of
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []
@@ -1312,7 +1317,7 @@ lookupNameEx infoFilter name ctx range
     matchArgs :: Bool -> [Type] -> [(Name,Type)] -> (Name,NameInfo) -> Inf [(Name,NameInfo)]
     matchArgs matchSome fixed named (name,info)
       = do free <- freeInGamma
-           res <- runUnify (matchArguments matchSome range free (infoType info) fixed named) 
+           res <- runUnify (matchArguments matchSome range free (infoType info) fixed named)
            case res of
              (Right _,_)  -> return [(name,info)]
              (Left _,_)   -> return []

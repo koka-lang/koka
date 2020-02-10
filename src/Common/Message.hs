@@ -16,8 +16,9 @@ module Common.Message(
                      , docFromRange, docsFromRanges
                      ) where
 
+import Prelude hiding ((<>))
 import Data.Char      ( isSpace )
-import Lib.PPrint     
+import Lib.PPrint
 import Common.Failure (failure)
 import Common.Range
 import Common.ColorScheme

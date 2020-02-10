@@ -13,6 +13,7 @@ module Common.Error( Error, ErrorMessage(..), errorMsg, ok
                    , catchError, checkError, warningMsg, addWarnings
                    , ppErrorMessage, errorWarning ) where
 
+import Prelude hiding ((<>))
 import Control.Monad
 import Control.Applicative
 import Lib.PPrint
@@ -31,15 +32,15 @@ data Error a    = Error !ErrorMessage ![(Range,Doc)]
 -- | Error messages
 data ErrorMessage = ErrorGeneral !Range !Doc
                   | ErrorParse   !Range !Doc
-                  | ErrorStatic  [(Range,Doc)]  
-                  | ErrorKind    [(Range,Doc)] 
-                  | ErrorType    [(Range,Doc)] 
+                  | ErrorStatic  [(Range,Doc)]
+                  | ErrorKind    [(Range,Doc)]
+                  | ErrorType    [(Range,Doc)]
                   | ErrorWarning [(Range,Doc)] ErrorMessage   -- ^ warnings can be followed by errors
                   | ErrorIO      Doc
                   | ErrorZero
                   deriving (Show)
 
--- | Check an 'Error' 
+-- | Check an 'Error'
 checkError :: Error a -> Either ErrorMessage (a,[(Range,Doc)])
 checkError err
   = case err of
@@ -89,11 +90,11 @@ errorMerge err1 err2
   where
     unwarn (ErrorWarning warnings msg) = (warnings, msg)
     unwarn msg                         = ([],msg)
-       
+
 
 {--------------------------------------------------------------------------
   pretty
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Pretty ErrorMessage where
   pretty msg  = ppErrorMessage False defaultColorScheme msg
 
@@ -105,7 +106,7 @@ ppErrorMessage endToo cscheme msg
       ErrorKind ks          -> err (head ks)
       ErrorType es          -> err (head es)
       ErrorWarning  ws m    | null ws   -> ppErrorMessage endToo cscheme m
-                            | otherwise -> prettyWarnings endToo cscheme ws <-> 
+                            | otherwise -> prettyWarnings endToo cscheme ws <->
                                             (case m of ErrorZero -> Lib.PPrint.empty
                                                        _         -> ppErrorMessage endToo cscheme m)
       ErrorIO doc           -> color (colorError cscheme) doc
@@ -123,7 +124,7 @@ prettyWarnings endToo cscheme warnings
 
 {--------------------------------------------------------------------------
   instances
---------------------------------------------------------------------------}  
+--------------------------------------------------------------------------}
 instance Functor Error where
   fmap f e      = case e of
                     Ok x w    -> Ok (f x) w
@@ -131,12 +132,12 @@ instance Functor Error where
 
 instance Applicative Error where
   pure  = return
-  (<*>) = ap                    
+  (<*>) = ap
 
 instance Monad Error where
   return x      = Ok x []
   fail s        = Error (ErrorGeneral rangeNull (text s)) []
-  e >>= f       = case e of 
+  e >>= f       = case e of
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w
 

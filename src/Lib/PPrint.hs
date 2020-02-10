@@ -59,8 +59,9 @@ module Lib.PPrint
         , isEmptyDoc
         ) where
 
+import Prelude hiding ((<>))
 import System.IO           -- (Handle,hPutStr,hPutChar,stdout,openFile,hClose)
-import Lib.Printer  
+import Lib.Printer
 import Platform.Runtime( finally )
 
 import qualified Data.Text    as T
@@ -112,7 +113,7 @@ vsep            = fold (<->) . filter (not . isEmpty)
 
 cat             = group . vcat
 fillCat         = fold (<//>)
-hcat            = fold (<>) 
+hcat            = fold (<>)
 vcat            = fold (<-->) . filter (not . isEmpty)
 
 fold f []       = empty
@@ -296,7 +297,7 @@ data SimpleDoc  = SEmpty
                 | SChar Int Char SimpleDoc
                 | SText Int T.Text SimpleDoc
                 | SLine Int SimpleDoc
-                | SColorOpen Bool Color SimpleDoc 
+                | SColorOpen Bool Color SimpleDoc
                 | SColorClose SimpleDoc
 
 
@@ -369,7 +370,7 @@ renderPrettyB rfrac w x
       --         n = indentation of current line
       --         k = current column
       --        (ie. (k >= n) && (k - n == count of inserted characters)
-      best b n k []      
+      best b n k []
         = mempty
       best b n k ((i,d):ds)
         = case d of
@@ -459,7 +460,7 @@ renderCompact x
                         Union x y   -> scan k (y:ds)
                         Column f    -> scan k (f k:ds)
                         Nesting f   -> scan k (f 0:ds)
-                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))  
+                        Colored f c x-> SColorOpen f c (scan k (x : ColoredEnd : ds))
                         ColoredEnd   -> SColorClose (scan k ds)
 
 -----------------------------------------------------------
@@ -518,12 +519,12 @@ instance Show Doc where
 
 putDoc :: Doc -> IO ()
 putDoc doc              = hPutDoc stdout doc
-                             
+
 
 hPutDoc :: Handle -> Doc -> IO ()
-hPutDoc handle doc      
+hPutDoc handle doc
   = hPutDocW defaultWidth handle doc
-    
+
 hPutDocW :: Int -> Handle -> Doc -> IO ()
 hPutDocW width handle doc
   = TL.hPutStr handle (B.toLazyText $ renderPrettyB 0.5 width doc)
@@ -564,7 +565,6 @@ indentation 15 = "               "
 indentation 16 = "                "
 indentation 17 = "                 "
 indentation n  = spaces n
-                
+
 defaultWidth :: Int
 defaultWidth = 200
-             

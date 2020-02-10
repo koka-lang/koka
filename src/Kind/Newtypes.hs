@@ -14,12 +14,13 @@ module Kind.Newtypes( -- * Type newtypes
                     , newtypesEmpty, newtypesExtend, newtypesLookup, newtypesFind
                     , newtypesNew, newtypesCompose
                     , newtypesIsEmpty
-                    , newtypesTypeDefs       
+                    , newtypesTypeDefs
                     , extractNewtypes
                       -- * Pretty
                     -- , ppNewtypes
                     ) where
 
+import Prelude hiding ((<>))
 import qualified Common.NameMap as M
 import Common.Failure( failure )
 import Common.Name
@@ -50,13 +51,13 @@ newtypesNew :: [DataInfo] -> Newtypes
 newtypesNew infos
   = Newtypes (M.fromList [(dataInfoName info, info) | info <- infos])
 
-newtypesCompose :: Newtypes -> Newtypes -> Newtypes 
-newtypesCompose (Newtypes m1) (Newtypes m2) 
+newtypesCompose :: Newtypes -> Newtypes -> Newtypes
+newtypesCompose (Newtypes m1) (Newtypes m2)
   = Newtypes (M.union m2 m1) -- ASSUME: left-biased union
 
-newtypesTypeDefs :: Newtypes -> M.NameMap DataInfo 
+newtypesTypeDefs :: Newtypes -> M.NameMap DataInfo
 newtypesTypeDefs (Newtypes m)
-  = m 
+  = m
 
 newtypesExtend :: Name -> DataInfo -> Newtypes -> Newtypes
 newtypesExtend name info (Newtypes m)
@@ -100,10 +101,9 @@ instance Show Newtypes where
 instance Pretty Newtypes where
   pretty syns
     = ppNewtypes Type.Pretty.defaultEnv syns
-    
+
 ppNewtypes showOptions (Newtypes m)
     = vcat [fill 8 (pretty name) <> colon <+>
             -- text "rank" <+> pretty rank <> colon <+>
-            ppDataInfo defaultEnv True dataInfo 
+            ppDataInfo defaultEnv True dataInfo
            | (name,dataInfo) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
-
