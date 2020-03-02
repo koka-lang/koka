@@ -1181,7 +1181,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
            opPar     = ValueBinder opParName Nothing Nothing rng nameRng
            localsPar = [ValueBinder localName Nothing Nothing nameRng nameRng | (localName,_) <- locals]
 
-           contextName = if (raw) then newName "context" else newHiddenName "context"
+           contextName = if (raw) then newName "rcontext" else newHiddenName "rcontext"
            contextTp   = makeContextType resTp resumeEff branchTp locals
            contextBind = ValueBinder contextName Nothing Nothing nameRng nameRng
 

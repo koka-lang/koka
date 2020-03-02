@@ -261,7 +261,7 @@ reservedNames
     , "extern"
 
     -- effect handlers
-    , "implicit", "ambient" {- alternative name for implicit -}
+    , "implicit", "ambient", "context" {- alternative names for implicit -}
     , "control"
     , "with"
     , "instance", "named" {- alternative names for resource -}

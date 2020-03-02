@@ -450,7 +450,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		control raw do-await(setup,scope,c) {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( /* no-cps */ { context.resume(res) }  )
+				ch.emit-io( /* no-cps */ { rcontext.resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
@@ -659,7 +659,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
+		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ rcontext.resume(x) }, c) }  // returns to outer event loop
     control no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
 		control cancel( scope ) { resume(handle-cancel(scope)) }
 		control async-iox( f ) { resume(f()) }

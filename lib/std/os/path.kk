@@ -1,6 +1,6 @@
 /*---------------------------------------------------------------------------
   Copyright 2012-2016 Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -11,24 +11,24 @@
 
 The path functions are system independent: backward slashes (`'\\'`)
 are treated as a forward slash to separate directories. Windows style
-root names like ``c:\`` or ``//server`` are also recognised. 
+root names like ``c:\`` or ``//server`` are also recognised.
 
 A list of paths can be separated with either a colon (``:``) or
-semi-colon (``;``). 
+semi-colon (``;``).
 
 A `:path` is created using the `path` functions. Use `string` to convert
 back to a normalized path string. A path consists of a _root_ name
 (``/``, ``c:\``), the directory (``foo/bar``) and finally the _base_ name.
 The base name itself consists of the _stem_ and the _extension_. The
 extension is always the part that follows the last occurence of a dot (`'.'`)
-in the base name. 
+in the base name.
 
 A `:path` is always normalized. For a sequence of directories, any
-empty directory or ``.`` directory is ignored. 
+empty directory or ``.`` directory is ignored.
 A directory followed by ``..`` is also ignored -- this is the [Plan 9](https://9p.io/sys/doc/lexnames.html)
-interpretation of paths where ``..`` is considered lexically. 
-If parent directories should be resolved through symbolic links, 
-the `realpath` function should be used (which has the `:io` effect though).  
+interpretation of paths where ``..`` is considered lexically.
+If parent directories should be resolved through symbolic links,
+the `realpath` function should be used (which has the `:io` effect though).
 */
 module std/os/path
 
@@ -128,7 +128,7 @@ public fun path( s : string ) : path {
     Just(capr) -> path-parts(capr.groups[1] + "/",capr.slice.after.string)
   }
 }
-fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {  
+fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {
   val parts = s.split(rx-partsep).path-split(dirs)
   Path(root,parts)
 }
@@ -138,7 +138,7 @@ fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
     Nil -> dirs
   }
 }
-fun push-dir( dir : string, dirs : list<string> ) : list<string> {  
+fun push-dir( dir : string, dirs : list<string> ) : list<string> {
   if (dir=="." || dir=="")       then dirs
   elif (dir==".." && dirs.cons?) then dirs.tail
   else Cons(dir,dirs)
@@ -149,19 +149,19 @@ val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 
 // Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
 //
-// Colon separated paths can be ambiguous with Windows style root names (`c:\\`) 
+// Colon separated paths can be ambiguous with Windows style root names (`c:\\`)
 // In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
-// parsed as ``c:/foo`` and ``/bar``. 
+// parsed as ``c:/foo`` and ``/bar``.
 public fun paths( s : string ) : list<path> {
   s.split(rx-pathsep).paths-split
 }
 fun paths-split( ps : list<string> ) : list<path> {
   match(ps) {
-    Cons(root,Cons(colon,Cons(part,rest))) // match on windows 'c:\' parts    
-      | colon==":" && root.count==1 && root.head-char.default(' ').alpha? && 
+    Cons(root,Cons(colon,Cons(part,rest))) // match on windows 'c:\' parts
+      | colon==":" && root.count==1 && root.head-char.default(' ').alpha? &&
         part.notempty? && "/\\".contains(part.head)
       -> Cons( path(root+":"+part), paths-split(rest))
-    Cons(part,rest) 
+    Cons(part,rest)
       | part==";" || part==":" || part==""
       -> paths-split(rest)
     Cons(part,rest) -> Cons( path(part), paths-split(rest))
@@ -238,13 +238,13 @@ public fun change-base( p : path, basename : string ) : path {
 
 // Return a list of all directory components (excluding the root but including the basename).\
 // `"/foo/bar/test.txt".path.dirparts === ["foo","bar","test.txt"]`
-public function dirparts(p : path) : list<string> {
+public fun dirparts(p : path) : list<string> {
   p.parts.reverse
 }
 
 // Return the last directory component name (or the empty string).\
 // `"c:/foo/bar/tst.txt".path.parentname === "bar"
-public function parentname( p : path ) : string {
+public fun parentname( p : path ) : string {
   p.parts.tail.head("")
 }
 
@@ -264,7 +264,7 @@ public fun cwd() {
 }
 
 // Convert a path to the absolute path on the file system.\
-// The overload on a plain string is necessary as it allows 
+// The overload on a plain string is necessary as it allows
 // for unnormalized paths with `".."` parts. For example
 // `"/foo/symlink/../test.txt"` may resolve to `"/bar/test.txt"` if
 // ``symlink`` is a symbolic link to a sub directory of `"/bar"`.

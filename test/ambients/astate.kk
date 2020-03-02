@@ -3,7 +3,7 @@
 // This is a much nicer way to give semantics to state
 // versus the state-monad encoding. However, implementations
 // need to support frame "smashing" to implement this in constant
-// stack space. 
+// stack space.
 // --------------------------------------------------------------
 
 ambient<s> val get : s
@@ -18,6 +18,17 @@ fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
     }
   }
   action()
+}
+
+fun localx(init1,init2,action) {
+  val r = {
+    with val get = init1
+    with control set(x) {
+      resume
+    }
+  }
+  with val get = init2
+  r(())
 }
 
 fun printn() {

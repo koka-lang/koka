@@ -3042,19 +3042,19 @@ extern ".yieldop-x2"<a,b,x1,x2>( effect-name : string, op-name : string, op-reso
 type resume-context<a,e::E,b>
 type resume-context1<a,e::E,b,l>
 
-extern resume( context : resume-context<a,e,b>, result : a ) : e b {
+extern resume( ctx : resume-context<a,e,b>, result : a ) : e b {
   js inline "#1.resume(#2,undefined)"
 }
 
-extern resume( context : resume-context1<a,e,b,l>, result : a, local : l ) : e b {
+extern resume( ctx : resume-context1<a,e,b,l>, result : a, local : l ) : e b {
   js inline "#1.resume(#2,#3)"
 }
 
-extern finalize( context : resume-context<a,e,b>, result : c ) : e c {
+extern finalize( ctx : resume-context<a,e,b>, result : c ) : e c {
   js inline "#1.finalize(#2)"
 }
 
-extern finalize( context : resume-context1<a,e,b,l>, result : c ) : e c {
+extern finalize( ctx : resume-context1<a,e,b,l>, result : c ) : e c {
   js inline "#1.finalize(#2)"
 }
 

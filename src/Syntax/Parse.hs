@@ -763,7 +763,7 @@ parseEffectDecl dvis =
       )
 
 dockeywordEffect
-  = dockeyword "effect" <|> dockeyword "implicit" <|> dockeyword "ambient"
+  = dockeyword "effect" <|> dockeyword "context" <|> dockeyword "implicit" <|> dockeyword "ambient" 
 
 keywordResource
   = keyword "instance" <|> keyword "named" <|> keyword "dynamic"
