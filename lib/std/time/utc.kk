@@ -103,13 +103,16 @@ Here are some interesting time steps that occurred in this time frame:
   instant(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z"
   ```
 
+UTC was only established in 1960 (Arias and Guinot [@Arias:utc]), and the TAI
+instant 1961-01-01 00:00:01.422818Z TAI was set to be UTC instant
+1961-01-01Z exactly.
+
 ## UTC before 1961
 
-The TAI timescale was officially established on 1958-01-01Z, and at that
-time the difference (UT2 - TAI) was approximately zero[^fn-taiepoch].
+The TAI timescale was established with a 1958-01-01Z epoch, where
+the difference (UT2 - TAI) was set to be approximately zero[^fn-taiepoch].
 In the time frame 1958 up to 1961 the relation between TAI and UTC
-is not formally defined, as UTC was only officially established in 1960 (Arias
-and Guinot [@Arias:utc]).
+is not formally defined.
 
 We can however use the time steps and frequency adjustments as broadcast by
 the NIST WWV radio station (see Explanatory Supplement to the Astronomical
@@ -254,7 +257,7 @@ System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282-
 
 ~ End Bibliography
 
-[^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero but different
+[^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero on 1958-01-01Z TAI but different
     observatories used their own versions of UT2 leading to longitude errors
     of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s &plusmn; 0.003s
     (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
@@ -848,8 +851,8 @@ val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified ju
 // ````
 // which specifies the start time (`JD 2437300.5`), new TAI-UTC offset
 // (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
-// Lines that start with `#` are comments. As an extension you can have an
-// expiration date on a line that starts with `#@` followed by seconds since
+// Lines that start with ``#`` are comments. As an extension you can have an
+// expiration date on a line that starts with ``#@`` followed by seconds since
 // the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
 public fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
   val adjusts = leaps.find-all(rxtaiadjust).map( fun(cap) {
@@ -873,7 +876,7 @@ val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+(?:\.\d*)?)[
 // were small steps of 20ms. See Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
 // In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we
 // change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01.
-// (without a rate change it is a negative -0.0272380s).
+// (without a rate change it is a negative -0.0472380s).
 // Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
 val default-leap-seconds-pre72 = @"
   # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
