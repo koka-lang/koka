@@ -170,6 +170,7 @@ type exception
 type open exception-info {
   Error
   Assert
+  Unreachable
   Todo
   Range
   Finalize
@@ -2701,7 +2702,11 @@ fun assert( message : string, condition : bool ) : () {
   if (!condition) unsafe-noexn{ throw(message,Assert) }
 }
 
-fun todo( message : string ) : () {
+fun unreachable() : a {
+  unsafe-noexn{ throw("BUG: this should never happen",Unreachable) }
+}
+
+fun todo( message : string ) : a {
   unsafe-noexn{ throw(message,Todo) }
 }
 
