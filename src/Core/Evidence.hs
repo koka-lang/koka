@@ -52,7 +52,8 @@ trace s x =
 
 evidenceTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 evidenceTransform prenv defGroups
-  = runEv prenv initialState (evDefGroups True defGroups)
+  = return defGroups
+    -- runEv prenv initialState (evDefGroups True defGroups)
 
 {--------------------------------------------------------------------------
   Transform definitions.
