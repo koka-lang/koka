@@ -6,7 +6,9 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-function evv_insert_ev(ev,evv) {
+var marker_count = 1;
+
+function evv_insert_ev(evv,ev) {
   const n = evv.length;
   const evv2 = new Array(n+1);
   var i;
@@ -22,7 +24,7 @@ function evv_insert_ev(ev,evv) {
   return evv2;
 }
 
-function evv_lookup(tag,evv) {
+function evv_lookup(evv,tag) {
   for(var i = 0; i < evv.length; i++) {
     if (tag === evv[i].tag) return evv[i];
   }
