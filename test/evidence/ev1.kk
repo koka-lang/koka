@@ -220,14 +220,14 @@ public fun amb(w) {
 
 type state<a> :: V -> HX;
 
-// val state-tag : forall<a> htag<state-hnd<a,_,_>> = Unsafe-htag("state")
+val state-tag : forall<a> htag<state-hnd<a>> = Unsafe-htag("state")
 
 type state-hnd<a,e,r> {
   con State-hnd( op-get : op<(),a,e,r>, op-set : op<a,(),e,r> )
 }
 
 fun state-handle( w : evv<e>, h : state-hnd<a,e,r>, action : (w:evv<<state<a>|e>>) -> yld<<state<a>|e>,r> ) : yld<e,r> {
-  ihandle(w,error("hi"),h,action)
+  ihandle(w,state-tag,h,action)
 }
 /*
 public fun amb(w) {

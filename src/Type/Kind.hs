@@ -80,9 +80,11 @@ instance HasKind Type where
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
                           kindApply xs (getKind syn)
-        TApp tp args   -> case collect [] (getKind tp) of
+        TApp tp args   -> kindApply args (getKind tp)
+                          {- case collect [] (getKind tp) of
                             (kres:_) -> kres
                             _  -> failure ("Type.Kind: illegal kind in type application? " ++ show (getKind tp) )
+                          -}
     where
       collect :: [Kind] -> Kind -> [Kind]
       collect acc (KApp (KApp arr k1) k2) | arr == kindArrow  = collect (k1:acc) k2

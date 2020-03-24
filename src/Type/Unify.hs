@@ -55,7 +55,7 @@ overlaps range free tp1 tp2
          (Just (targs1,_,_), Just (targs2,_,_))
           -> {-
              if (length targs1 /= length targs2)
-              then unifyError NoMatch
+              then unifyError  NoMatch
               else unifies (map snd targs1) (map snd targs2)
              -}
              let (fixed1,optional1) = span (not . isOptional) (map snd targs1)
@@ -213,9 +213,22 @@ unify (TCon tc1) (TCon tc2)  | tc1 == tc2
   = return ()
 
 -- applications
+{-
 unify (TApp t1 ts1) (TApp u1 us2)   | length ts1 == length us2
   = do unify t1 u1
        unifies ts1 us2
+-}
+unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
+  = let len1 = length ts1
+        len2 = length us2
+    in if (len1==len2)
+        then do unify t1 u1
+                unifies ts1 us2
+       else if (len1 < len2)
+        then do unify t1 (TApp u1 (take (len2 - len1) us2))
+                unifies ts1 (drop (len2 - len1) us2)
+        else do unify (TApp t1 (take (len1 - len2) ts1)) u1
+                unifies (drop (len1 - len2) ts1) us2
 
 -- functions
 unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
