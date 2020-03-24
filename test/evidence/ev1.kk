@@ -151,7 +151,7 @@ fun ilocal-var(init:a, action: (l:local-var<s,a>) -> yld< <local<s>|e>, b> ) : y
 // -------------------------------------------
 
 type op<a,b,e,r> {
-  Tail(op : (a -> yld<e,b>) )
+  Tail(op : (a -> e yld<e,b>) )
   Control(op : (x:a, k:(evv<e>,b) -> yld<e,r>) -> yld<e,r> )
 }
 
@@ -162,7 +162,7 @@ fun tail2(op : (a,b) -> yld<e,c> ) : op<(a,b),c,e,r> {
 public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x : a ) : yld<e,b> {
   match(ev) {
     Ev(_tag,m,h) -> match(h.op) {
-      Tail(clause)    -> unsafe-coerce(clause(x))
+      Tail(clause)    -> unsafe-coerce(clause)(x)
       Control(clause) -> Yield(m, fun(k){ clause(x,k) }, Pure)
     }
   }
@@ -229,24 +229,17 @@ type state-hnd<a,e,r> {
 fun state-handle( w : evv<e>, h : state-hnd<a,e,r>, action : (w:evv<<state<a>|e>>) -> yld<<state<a>|e>,r> ) : yld<e,r> {
   ihandle(w,state-tag,h,action)
 }
-/*
-public fun amb(w) {
-  amb-handle(
-    w,
-    Amb-hnd( Control( fun(x,k){
-                with xs : list<bool> = yld-bind( k(w,True) )
-                with ys = yld-bind( k(w,False) )
-                Pure(xs + ys)
-             }),
-             tail2( fun(x,y){ Pure(True) } )
-    ),
-    fun(w2) {
-      with p = yld-bind( iperform(w2.ievv-select-at(0),op-flip,()) )
-      Pure([p])
-    }
+
+public fun add42(w) {
+  with s = ilocal-var(0)
+  state-handle(w,
+      State-hnd( Tail( fun(x){ Pure(s) } ), Tail( fun(x){ s := x; Pure(()) }) ),
+      fun(w2) {
+        iperform( w2.ievv-select-at(0), op-get, () )
+      }
   )
 }
-*/
+
 /*
 handle(action) {
   flip() -> resume(True)
