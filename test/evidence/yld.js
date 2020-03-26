@@ -6,6 +6,8 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+var $evv = [];
+
 var marker_count = 1;
 
 function evv_insert_ev(evv,ev) {
