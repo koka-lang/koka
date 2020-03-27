@@ -12,8 +12,6 @@ extern include {
 
 struct marker<e::E,a>(m:int32)
 
-//struct hnd<h,e::E,r>(hnd:h<e,r>)
-
 public type htag<h::(E,V)->V> {
   Unsafe-htag(tag:string)
 }
@@ -24,6 +22,22 @@ type ev<h> {
 
 type evv<e::E>;
 
+
+// -------------------------------------------
+// Internal Markers
+// -------------------------------------------
+
+extern fresh-marker-int() : int32 {
+  js inline "_marker_unique++"
+}
+
+fun fresh-marker() : marker<e,r> {
+  Marker(fresh-marker-int())
+}
+
+fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
+  (m1.m == m2.m)
+}
 
 // -------------------------------------------
 // Internal Evidence vectors
@@ -41,41 +55,29 @@ extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
   js "evv_insert_ev"
 }
 
-public extern ievv-lookup( evv : evv<e>, htag : htag<h> ) : ev<h> {
-  js "evv_lookup"
+public extern ievv-lookup( htag : htag<h> ) : ev<h> {
+  js inline "evv_lookup(_context.evv,#1)"
 }
 
-public extern inline ievv-select-at( evv : evv<e>, i : int ) : ev<h> {
-  js inline "(#1)[#2]"
+public extern inline ievv-select-at( i : int ) : ev<h> {
+  js inline "(_context.evv)[#1]"
 }
 
-public fun ievv-select( evv : evv<e>, i : int, htag : htag<h> ) : ev<h> {
-  if (i>=0) then evv.ievv-select-at(i) else evv.ievv-lookup(htag);
+public extern inline ievv-select( i : int, htag : htag<h> ) : ev<h> {
+  js inline "(#1 >= 0 ? _context.evv[#1] : evv_lookup(_context.evv,#2))"
 }
 
-
-extern fresh-marker-int() : int32 {
-  js inline "marker_count++"
-}
-
-fun fresh-marker() : marker<e,r> {
-  Marker(fresh-marker-int())
-}
-
-fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
-  (m1.m == m2.m)
-}
 
 extern evv-current() : evv<e> {
-  js inline "$evv"
+  js inline "_context.evv"
 }
 
 extern evv-set(w : evv<e>) : () {
-  js inline "(function(){ $evv = #1; return 1; })()"
+  js inline "(_context.evv = #1)"
 }
 
 extern under( w : evv<e1>, action : () -> yld<e1,a> ) : yld<e,a> {   // e1 <= e
-  js inline "(function(){ const w0 = $evv; $evv = #1; const res = (#2)(); $evv = w0; return res; })()"
+  js inline "(function(){ const w0 = _context.evv; _context.evv = #1; const res = (#2)(); _context.evv = w0; return res; })()"
 }
 
 fun under( w : evv<e1>, action : (a) -> yld<e1,b>, x : a ) : yld<e,b> {
@@ -231,6 +233,10 @@ fun amb-handle( h : amb-hnd<e,r>, action : () -> yld<<amb|e>,r> ) : yld<e,r> {
   ihandle(amb-tag,h,action)
 }
 
+fun amb-flip( i : int ) : yld<<amb|e>,bool> {
+  iperform(ievv-select(i,amb-tag),op-flip,())
+}
+
 public fun amb() {
   amb-handle(
     Amb-hnd( Control( fun(x,k){
@@ -241,7 +247,7 @@ public fun amb() {
              tail2( fun(x,y){ Pure(True) } )
     ))
   {
-    with p = yld-bind( iperform(evv-current().ievv-select-at(0),op-flip,()) )
+    with p = yld-bind( amb-flip(0) )
     Pure([p])
   }
 }
@@ -260,11 +266,14 @@ fun state-handle( h : state-hnd<a,e,r>, action : () -> yld<<state<a>|e>,r> ) : y
   ihandle(state-tag,h,action)
 }
 
-fun state-get( i : int ) {
-  iperform( evv-current().ievv-select(i,state_tag), op-get, () )
+fun state-get( i : int ) : yld<<state<a>|e>,a> {
+  iperform( ievv-select(i,state-tag), op-get, () )
+}
+fun state-set( i : int, x : a ) : yld<<state<a>|e>,()> {
+  iperform( ievv-select(i,state-tag), op-set, x )
 }
 
-xs.map((+))
+/*
 
 val x = state-get(2)
 yield-check(fun() { x + 2})
@@ -275,7 +284,7 @@ fun reflect() :
 fun reify( action: () -> e a ) : yld<e,a> {
 
 }
-
+*/
 /*
 local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)
 ~>
@@ -293,8 +302,8 @@ public fun add42() : yld<<>,int> {
     state-handle(
         State-hnd( Tail( fun(x){ lift{s} } ), Tail( fun(x){ lift{s := x} }) ),
         {
-          with _x = yld-bind( iperform( evv-current().ievv-select-at(0), op-set, (42) ) )
-          iperform( evv-current().ievv-select-at(0), op-get, () )
+          with _x = yld-bind( state-set(0,42) )
+          state-get(0 )
         }
     )
   }
