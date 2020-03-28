@@ -16,7 +16,7 @@ function evv_insert_ev(evv,ev) {
   var i;
   for(i = 0; i < n; i++) {
     const ev2 = evv[i];
-    if (ev.tag <= ev2.tag) break;
+    if (ev._field1 <= ev2._field1) break;
     evv2[i] = ev2;
   }
   evv2[i] = ev;
@@ -29,9 +29,9 @@ function evv_insert_ev(evv,ev) {
 
 function evv_lookup(evv,tag) {
   for(var i = 0; i < evv.length; i++) {
-    if (tag === evv[i].tag) return evv[i];
+    if (tag === evv[i]._field1) return evv[i];
   }
-  console.error("cannot find " + tag + " in " + evv.toString());
+  console.error("cannot find " + tag + " in " + JSON.stringify(evv,2));
   return null;
 }
 
@@ -41,30 +41,48 @@ function _kcompose( start, conts ) {
     for(var i = start; i < conts.length; i++) {
       y = conts[i](y);
       if (_context.yield !== 0) {
-        (function(i){ return _yield_extend(_kcompose(i+1,conts)); })(i);
+        return (function(i){ return _yield_extend(_kcompose(i+1,conts)); })(i);
       }
     }
     return y;
   }
 }
 
-function _yield_extend(_x, next) {
+function _yield_extend(next) {
   if (_context.yield===0) console.error("yield extension while not yielding!");
   _context.yield_conts.push(next);
+  //const cont = _context.yield_cont;
+  //_context.yield_cont = kliesli_compose(cont,next);
+  return undefined;
+}
+
+function _yield_cont(f) {
+  if (_context.yield===0) console.error("yield extension while not yielding!");
+  const conts = _context.yield_conts;
+  _context.yield_conts = new Array();
+  _context.yield_conts.push( function(x){ return f(_kcompose(0,conts),x); } );
   return undefined;
 }
 
 function _yield_prompt(evv, evv_expected, m, res) {
-  if (_context.evv !== evv_expected) console.log("non-matching evidence");
-  _context.evv = evv;
-  if (_context.yield === 0) return Pure(res);
-  if (_context.yield !== m) return Yielding;
-  const conts = _context.yield_conts;
-  const clause = _context.yield_clause;
-  _context.yield = 0;
-  _context.yield_conts = null;
-  _context.yield_clause = null;
-  return Yielded(clause, _kcompose(0,conts));
+  if (_context.evv !== evv_expected && (_context.yield === 0 || _context.yield === m)) console.log("non-matching evidence: " + JSON.stringify(_context,null,1) + "\n  expecting: " + JSON.stringify(evv_expected,null,1));
+  if (_context.yield === 0) {
+    _context.evv = evv;
+    return Pure(res);
+  }
+  else if (_context.yield !== m) {
+    _context.evv = evv;
+    return Yielding;
+  }
+  else {
+    _context.evv = evv;
+    const conts = _context.yield_conts;
+    const clause = _context.yield_clause;
+    _context.yield = 0;
+    _context.yield_conts = null;
+    _context.yield_clause = null;
+    return Yielded(clause, _kcompose(0,conts));
+  }
 }
 
 function _yield_to(m,clause) {

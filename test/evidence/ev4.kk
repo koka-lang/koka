@@ -1,4 +1,4 @@
-module ev4
+public module ev4
 
 import std/num/int32
 
@@ -69,21 +69,14 @@ public extern inline ievv-select( i : int, htag : htag<h> ) : ev<h> {
 }
 
 
-extern evv-current() : evv<e> {
+extern inline evv-current() : evv<e> {
   js inline "_context.evv"
 }
 
-extern under( w : evv<e1>, action : () -> e1 a ) : e a {   // e1 <= e
-  js inline "(function(){ const w0 = _context.evv; _context.evv = #1; const res = (#2)(); _context.evv = w0; return res; })()"
+extern inline evv-set( w : evv<e> ) : e () {
+  js inline "(_context.evv = #1)"
 }
 
-extern under( w : evv<e1>, action : (a) -> e1 b, x : a ) : e b {
-  js inline "(function(){ const w0 = _context.evv; _context.evv = #1; const res = (#2)(#3); _context.evv = w0; return res; })()"
-}
-
-fun under( w : evv<e1>, action : (a,b) -> e1 c, x : a, y : b ) : e c {
-  under(w){ action(x,y) }
-}
 
 
 // -------------------------------------------
@@ -94,12 +87,15 @@ extern inline yielding() : e bool {
   js inline "(_context.yield !== 0)"
 }
 
-extern inline yield-extend( _x : a, next : a -> e b ) : e b {
-  js inline "(_context.yield_conts.push(#2))"
+extern yield-extend(next : a -> e b ) : e b {
+  js "_yield_extend"
+}
+extern yield-cont(f : (a -> e b,a) -> e b ) : e b {
+  js "_yield_cont"
 }
 
 fun yield-bind( x : a, next : a -> e b ) : e b {
-  if (yielding()) then yield-extend(x,next) else next(x)
+  if (yielding()) then yield-extend(next) else next(x)
 }
 
 extern yield-prompt( w1:evv<e>, w2:evv<e2>, m: marker<e,a>, res : a ) : yld<e,a> {
@@ -122,10 +118,13 @@ abstract type yld<e,r> {
   Yielded<b>(clause : (b -> e r) -> e r, cont : b -> e r)
 }
 
-fun prompt( w1:evv<e>, w2:evv<e2>, m : marker<e,r>, res : r ) : e r {
+fun prompt( w1:evv<e>, w2:evv<e2>, m : marker<e,r>, res : r ) : e r
+{
   match(yield-prompt(w1,w2,m,res)) {
-    Pure(x)  -> x
-    Yielding -> yield-extend(res, fun(x){ prompt(w1,w2,unsafe-decreasing(m),x); })
+    Pure(x) -> x
+    Yielding {
+      yield-cont(fun(cont,res){ prompt(w1,w2,unsafe-decreasing(m),cont(res)); })
+    }
     Yielded(clause,cont) {
       val deep = fun(x) {
         val w = evv-current()
@@ -136,11 +135,6 @@ fun prompt( w1:evv<e>, w2:evv<e2>, m : marker<e,r>, res : r ) : e r {
   }
 }
 
-fun guard( w1 : evv<e>, cont : a -> e b, x : a ) : e b {
-  val w2 = evv-current()
-  if (evv-equal(w1,w2)) then cont(x) else unsafe-total{ error("non-scoped resumption") }
-}
-
 public fun ihandle( tag:htag<h>, h : h<e1,r>, action : () -> e2 r ) : e1 r {
   val m  = fresh-marker()
   val w1 = evv-current()
@@ -149,23 +143,17 @@ public fun ihandle( tag:htag<h>, h : h<e1,r>, action : () -> e2 r ) : e1 r {
   prompt(w1,w2,m,unsafe-coerce(action)())
 }
 
-extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
-extern inline unsafe-st( action : (a) -> <div,st<h>|e> b ) : ((a) -> e b) { inline "#1" }
-
-extern yld-local-var-create(x:a) : total (local-var<s,a>) {
-  js inline "{value:#1}"
-}
 
 fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,st<h>,local<h>|e> b {
   if (!yielding()) return res;
   val v = !r
-  yield-extend( res, fun(x){ r := v; prompt-local-var(r,x) } )
+  yield-extend(fun(x){ r := v; prompt-local-var(r,x) } )
 }
 
 fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : e b {
   unsafe-total {
     val r   = ref(init)
-    val res = unsafe-coerce(action)(unsafe-ref-to-local(r))
+    val res = unsafe-coerce(action)(r)
     prompt-local-var(r,res)
   }
 }
@@ -176,18 +164,42 @@ fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : e b {
 // -------------------------------------------
 
 type op<a,b,e,r> {
-  Tail(op : (a -> e b) )
+  Tail(op : (evv<e>, a) -> e b)
   Control(op : (x:a, k: b -> e r) -> e r )
 }
 
-fun tail2(op : (a,b) -> e c ) : op<(a,b),c,e,r> {
-  Tail( fun(t:(_,_)){ op(t.fst,t.snd) } )
+fun under( w : evv<e>, op : a -> e b, x : a ) : e b {
+  val w0 = evv-current()
+  evv-set(w)
+  val y = op(x)
+  if (yielding()) return yield-extend(fun(yy){ evv-set(w0); yy })
+  evv-set(w0)
+  y
 }
+
+fun under( w : evv<e>, op : (a,b) -> e c, x : a, y : b ) : e c {
+  val w0 = evv-current()
+  evv-set(w)
+  val z = op(x,y)
+  if (yielding()) return yield-extend(fun(zz){ evv-set(w0); zz })
+  evv-set(w0)
+  z
+}
+
+
+fun tail(op : a -> e b) : op<a,b,e,r> {
+  Tail( fun(w,x){ under(w,op,x) } )
+}
+
+fun tail-noyield(op : a -> e b) : op<a,b,e,r> {
+  Tail( fun(w,x){ op(x) } )
+}
+
 
 public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
-      Tail(clause)    -> under(w,clause,x)
+      Tail(clause)    -> unsafe-coerce(clause)(w,x)
       Control(clause) -> yield-to( m, fun(k){ clause(x,k) } )
     }
   }
@@ -201,7 +213,7 @@ type op2<a,b,c,e,r> {
 public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
-      Tail2(clause)    -> under(w,clause,x,y)
+      Tail2(clause)    -> unsafe-coerce(clause)(w,x,y)
       Control2(clause) -> yield-to(m, fun(k){ clause(x,y,k) })
     }
   }
@@ -216,7 +228,7 @@ type amb :: HX;
 val amb-tag : htag<amb-hnd> = Unsafe-htag("amb")
 
 type amb-hnd<e,r> {
-  con Amb-hnd( op-flip : op<(),bool,e,r> , op-op2 : op<(int,double),bool,e,r> )
+  con Amb-hnd( op-flip : op<(),bool,e,r> )
 }
 
 fun amb-handle( h : amb-hnd<e,r>, action : () -> <amb|e> r ) : e r {
@@ -227,22 +239,45 @@ fun amb-flip( i : int ) : <amb|e> bool {
   iperform(ievv-select(i,amb-tag),op-flip,())
 }
 
-public fun amb() {
-  amb-handle(
-    Amb-hnd( Control( fun(x,k){
-                with xs : list<bool> = yield-bind(k(True))
-                with ys = yield-bind( k(False) )
-                xs + ys
-             }),
-             tail2( fun(x,y){ True } )
-    ))
-  {
-    with p = yield-bind( amb-flip(0) )
-    [p]
+val h = Amb-hnd( Control( fun(x,k){
+            with xs : list<bool> = yield-bind(k(False))
+            with ys = yield-bind( k(True) )
+            xs + ys
+         }))
+
+public fun amb(action) {
+  amb-handle(h,action)
+}
+
+fun xor() : amb bool {
+  with p:bool = yield-bind(amb-flip(0))
+  with q = yield-bind(amb-flip(0))
+  (p!=q)
+}
+
+fun test-amb() {
+  amb {
+    with b = yield-bind(xor())
+    [b]
   }
 }
 
+type reader<a> :: V -> HX;
+val reader-tag : forall<a> htag<reader-hnd<a>> = Unsafe-htag("reader")
 
+struct reader-hnd<a,e,r>( op-read : op<(),a,e,r> )
+
+fun read-handle( h : reader-hnd<a,e,r>, action : () -> <reader<a>|e> r) : e r {
+  ihandle(reader-tag,h,action)
+}
+
+fun read(i:int) {
+  iperform(ievv-select(i,reader-tag), op-read, ())
+}
+
+fun reader(init,action) {
+  read-handle( Reader-hnd( Control( fun(x,k){ k(init) } )), action)
+}
 
 type state<a> :: V -> HX;
 
@@ -259,19 +294,42 @@ fun state-handle( h : state-hnd<a,e,r>, action : () -> <state<a>|e> r ) : e r {
 fun state-get( i : int ) : <state<a>|e> a {
   iperform( ievv-select(i,state-tag), op-get, () )
 }
-fun state-set( i : int, x : a ) : <state<a>|e> () {
-  iperform( ievv-select(i,state-tag), op-set, x )
+fun state-set( ev : ev<state-hnd<a>>, x : a ) : <state<a>|e> () {
+  iperform( ev, op-set, x )
 }
 
-public fun add42()  {
-  with s = ilocal-var(0)
-  state-handle(
-    State-hnd( Tail( fun(x){ s } ), Tail( fun(x){ s := x }) ),
-    {
-      with _x = yield-bind( state-set(0,42) )
-      state-get(0)
-    }
-  )
+fun state(init,action) {
+  with s = ilocal-var(init)
+  state-handle(State-hnd( tail( fun(x){ s } ), tail( fun(x){ s := x }) ), action)
+}
+
+public fun add21()  {
+  with i  = yield-bind(state-get(0))
+  with _x = yield-bind(state-set(ievv-select-at(0),i+21))
+  state-get(0)
+}
+
+fun test-state() {
+  state(21) {
+    add21()
+  }
+}
+
+
+fun state-x(init,action) {
+  with s = ilocal-var(init)
+  state-handle(State-hnd( tail( fun(x){
+    read(-1)
+  } ), tail( fun(x){ s := x }) ), action)
+}
+
+fun test-difficult() : int {
+  with reader(1)
+  with state-x(42)
+  //state-get(-1)
+  with reader(2)
+  with _x = yield-bind(state-get(-1))
+  read(-1)
 }
 
 /*
