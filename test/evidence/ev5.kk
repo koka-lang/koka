@@ -3,7 +3,7 @@ public module ev5
 import std/num/int32
 
 extern include {
-  js file "yld.js"
+  js file "yld5.js"
 }
 
 
@@ -45,35 +45,43 @@ fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
 // -------------------------------------------
 
 public extern inline evv-total() : evv<<>> {
-  js inline "[]"
+  js inline "{ ofs: 0, evv: [] }"
 }
 
 public extern evv-lookup( htag : htag<h> ) : ev<h> {
-  js inline "_evv_lookup($evv,#1)"
+  js inline "_evv_lookup($evv,$evv_ofs,#1)"
 }
 
 public extern inline evv-at( i : int ) : ev<h> {
-  js inline "($evv)[#1]"
+  js inline "$evv[$evv_ofs + #1]"
 }
 
 public extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
-  js inline "(#1 >= 0 ? $evv[#1] : _evv_lookup($evv,#2))"
+  js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : _evv_lookup($evv,$evv_ofs,#2))"
 }
 
 extern inline evv-get() : e evv<e> {
-  js inline "$evv"
+  js inline "{ evv: $evv, ofs: $evv_ofs }"
 }
 
-extern inline evv-equals(w : evv<e> ) : bool {
-  js inline "($evv===#1)"
+extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
+  js "_evv_insert"
 }
 
-extern evv-set-insert( ev : ev<h> ) : evv<e2> {
-  js inline "($evv = _evv_insert($evv,#1))"
+extern evv-create( evv : evv<e1>, indices : vector<int> ) : evv<e2> {
+  js "_evv_create"
 }
 
-extern inline evv-set( w : evv<e> ) : e () {
-  js inline "($evv = #1)"
+extern inline evv-set( w : evv<e> ) : () {
+  js inline "(function(){ $evv = (#1).evv; $evv_ofs = (#1).ofs; }())"
+}
+
+extern inline evv-set-ofs( ofs : int ) : int {
+  js inline "(function(){ const _ofs = $evv_ofs; $evv_ofs = #1; return _ofs; }())"
+}
+
+extern evv-equals( w : evv<e> ) : bool {
+  js inline "($evv === w.evv && $evv_ofs === w.ofs)"
 }
 
 extern evv-show( evv : evv<e> ) : string {
@@ -164,8 +172,13 @@ public fun ihandle( tag:htag<h>, h : h<e,r>, action : () -> e1 r ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
-  val w1 = evv-set-insert(ev)
+  val w1 = evv-insert(w0,ev)
+  evv-set(w1)
   prompt(w0,w1,m,unsafe-coerce(action)())
+}
+
+public fun ihandler( tag:htag<h>, h : h<e,r> ) : ((action : () -> e1 r ) -> e r) {
+  (fun(action){ ihandle(tag,h,action) })
 }
 
 
@@ -202,13 +215,7 @@ fun finally-prompt(fin : () -> e (), res : a ) : e a {
   res
 }
 
-fun unit(x) {
-  ()
-}
-
-extern undefined() : a {
-  js inline "undefined"
-}
+fun unit(x) { () }
 
 fun finalize(cont : (() -> a) -> e b) : e () {
   val m : marker<_e,_b> = fresh-marker()
@@ -363,6 +370,26 @@ fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
   Clause( fun(m,w,x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
 }
 
+// -------------------------------------------
+// Open
+// -------------------------------------------
+
+fun open-at1( i: int, f : a -> e1 b, x : a ) : e2 b {
+  val ofs = evv-set-ofs(i)
+  val res = unsafe-coerce(f)(x)
+  if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
+  val j = evv-set-ofs(ofs)
+  res
+}
+
+fun open1( indices : vector<int>, f : a -> e1 b, x : a ) : e2 b {
+  val w = evv-get()
+  evv-set( evv-create(w,indices) )
+  val res = unsafe-coerce(f)(x)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
 
 // -------------------------------------------
 // Example
@@ -376,6 +403,10 @@ type amb-hnd<e,r> {
   con Amb-hnd( op-flip : clause<(),bool,e,r> )
 }
 
+fun amb-handler( h : amb-hnd<e,r> ) : ((action:() -> <amb|e> r) -> e r) {
+  ihandler(amb-tag,h)
+}
+
 fun amb-handle( h : amb-hnd<e,r>, action : () -> <amb|e> r ) : e r {
   ihandle(amb-tag,h,action)
 }
@@ -384,7 +415,7 @@ fun amb-flip( i : int ) : <amb|e> bool {
   iperform(evv-select(i,amb-tag),op-flip,())
 }
 
-val h = Amb-hnd( clause-control( fun(x,k){
+val h = Amb-hnd( clause-control( fun(x,k) {
             with xs : list<_> = yield-bind(k(False))
             with ys = yield-bind( k(True) )
             xs + ys

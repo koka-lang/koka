@@ -3,7 +3,7 @@ public module ev4
 import std/num/int32
 
 extern include {
-  js file "yld.js"
+  js file "yld4.js"
 }
 
 
