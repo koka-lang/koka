@@ -76,7 +76,13 @@ extern inline evv-set( w : evv<e> ) : e () {
   js inline "($evv = #1)"
 }
 
+extern evv-show( evv : evv<e> ) : string {
+  js "_evv_show"
+}
 
+extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
+  js "_evv_expect"
+}
 
 // -------------------------------------------
 // Internal Yielding
@@ -98,11 +104,11 @@ extern yield-cont(f : (a -> e1 b,a) -> e0 b ) : e0 b {
   js "_yield_cont"
 }
 
-extern yield-prompt( w0:evv<e0>, w1:evv<e1>, m: marker<e0,a>, res : a ) : yld<e0,a> {
+extern yield-prompt( m: marker<e,a>, res : a ) : yld<e,a> {
   js "_yield_prompt"
 }
 
-extern yield-to(m:marker<e1,r>,clause:(a -> e1 r) -> e1 r) : a {
+extern yield-to(m:marker<e1,r>,clause:(a -> e1 r) -> e1 r, final: bool) : e a {
   js "_yield_to"
 }
 
@@ -116,23 +122,39 @@ extern inline cast-under1(w0:evv<e0>, w1:evv<e1>, f:(a) -> e1 b) : ((a) -> e0 b)
 
 abstract type yld<e,r> {
   Pure(x:r)
-  Yielding()
-  Yielded<b>(clause : (b -> e r) -> e r, cont : b -> e r)
+  Yielding(final:bool)
+  Yield<b>(clause : (b -> e r) -> e r, cont : maybe<b -> e r>)
 }
 
 fun guard(w : evv<e> ) : e () {
   if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
+extern impossible( s : string ) : e a {
+  js inline "(console.error(#1))"
+}
+
 fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, res : r ) : e0 r
 {
-  match(yield-prompt(w0,w1,m,res)) {
-    Pure(x) -> x
-    Yielding {
-      yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),cont(res)); })
+  //evv-expect(m,w1)
+  match(yield-prompt(m,res)) {
+    Pure(x) -> {
+      evv-set(w0)
+      x
     }
-    Yielded(clause,cont) {
-      val deep = fun(x) { guard(w0); prompt(w0,w1,unsafe-decreasing(m),cont(x)) }
+    Yielding(final) {
+      // evv-set(w0)  // only needed if we do evidence expected check
+      if (final) then res else yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),cont(res)); })
+    }
+    Yield(clause,mbcont) {
+      fun deep(x){
+        guard(w0)
+        match(mbcont) {
+          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),cont(x))
+          Nothing    -> impossible("trying to resume a non-resumable resumption")
+        }
+      }
+      evv-set(w0)
       clause(deep)
     }
   }
@@ -165,7 +187,27 @@ fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s
   }
 }
 
+// -------------------------------------------
+// Finally/Initially
+// -------------------------------------------
+/*
+fun finally( fin : () -> e (), action : () -> e a ) : e a {
+  finally-prompt(fin, action());
+}
 
+fun finally-prompt(fin : () -> e (), res : a ) : e a {
+  if (yielding-control()) return yield-cont(fun(cont,x){ finally-prompt(fin,cont(x)) })
+  fin()
+  res
+}
+
+fun resume-final(cont : a -> e b) : e () {
+  val m = fresh-marker()
+  val w = evv-current()
+  yield-to(m,fun(k) { () })
+  prompt(w,w,m,unsafe-coerce(cont)(()))
+}
+*/
 // -------------------------------------------
 // Perform Operations
 // -------------------------------------------
@@ -179,6 +221,7 @@ fun under1( w : evv<e>, op : a -> e b, x : a ) : e b {
   val w0 = evv-get()
   evv-set(w)
   val y = op(x)
+  // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
   if (yielding()) return yield-extend(fun(yy){ evv-set(w0); yy })
   evv-set(w0)
   y
@@ -205,7 +248,7 @@ public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x 
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail(clause)    -> unsafe-coerce(clause)(w,x)
-      Control(clause) -> yield-to( m, fun(k){ clause(x,k) } )
+      Control(clause) -> yield-to(m,fun(k){ clause(x,k) },False)
     }
   }
 }
@@ -240,7 +283,7 @@ public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail2(clause)    -> unsafe-coerce(clause)(w,x,y)
-      Control2(clause) -> yield-to(m, fun(k){ clause(x,y,k) })
+      Control2(clause) -> yield-to(m,fun(k){ clause(x,y,k) },False)
     }
   }
 }
@@ -304,7 +347,7 @@ fun xor() : amb bool {
   (p!=q)
 }
 
-fun test-amb() {
+fun test-amb() : list<bool> {
   amb {
     with b = yield-bind(xor())
     [b]
@@ -349,18 +392,18 @@ fun state-set( ev : ev<state-hnd<a>>, x : a ) : <state<a>|e> () {
   iperform( ev, op-set, x )
 }
 
-fun state(init,action) {
+fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = ilocal-var(init)
-  state-handle(State-hnd( op-tail-noyield( fun(x){ s } ), op-tail-noyield( fun(x){ s := x }) ), action)
+  state-handle(State-hnd( op-tail-noyield( fun(x){ s } ), op-tail-noyield( fun(x){ s := x }) ), { mask<local>(action) } )
 }
 
-public fun add21()  {
+public fun add21() : state<int> int {
   with i  = yield-bind(state-get(0))
   with _x = yield-bind(state-set(evv-at(0),i+21))
   state-get(0)
 }
 
-fun test-state() {
+fun test-state() : int {
   state(21) {
     add21()
   }
@@ -379,7 +422,7 @@ fun xorst() {
   i+j
 }
 
-fun test-state-amb() {  // 1,2,3,4
+fun test-state-amb() : list<int> {  // 1,2,3,4
   with reader(1)
   with state(0)
   with amb
@@ -387,7 +430,7 @@ fun test-state-amb() {  // 1,2,3,4
   [i]
 }
 
-fun test-amb-state() {  // 1,1,1,1
+fun test-amb-state() : list<int> {  // 1,1,1,1
   with reader(1)
   with amb
   with state(0)
@@ -412,6 +455,13 @@ fun test-difficult() : int {
   (x+y)
 }
 
+fun test() {
+  test-amb().show-list(show).println
+  test-state().println
+  test-difficult().println
+  test-state-amb().show-list(show).println
+  test-amb-state().show-list(show).println
+}
 /*
 handle(action) {
   flip() -> resume(True)

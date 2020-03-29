@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 var $evv = [];
-var $yield = null; // { marker: 0, clause: null, conts: [], conts_count: 0 };
+var $yield = null; // { marker: 0, clause: null, conts: [], conts_count: 0, final: bool };
 var $marker_unique = 1;
 
 //--------------------------------------------------
@@ -38,6 +38,31 @@ function _evv_lookup(evv,tag) {
   return null;
 }
 
+function _evv_show(evv0) {
+  const evv = evv0.slice(0);
+  evv.sort(function(ev1,ev2){ return (ev1._field2 - ev2._field2); });
+  var out = "";
+  for( var i = 0; i < evv.length; i++) {
+    out += ("" + evv[i]._field1.padEnd(8," ") + ": marker " + evv[i]._field2 + ", under <" + evv[i]._field4.map(function(ev){ return ev._field2.toString(); }).join(",") + ">\n");
+  }
+  return out;
+}
+
+function _yield_show() {
+  if (_yielding()) {
+    return "yielding to " + $yield.marker + ", final: " + $yield.final;
+  }
+  else {
+    return "pure"
+  }
+}
+
+function _evv_expect(m,expected) {
+  if (($yield===null || $yield.marker === m) && ($evv !== expected)) {
+    console.error("expected evidence: \n" + _evv_show(expected) + "\nbut found:\n" + _evv_show($evv));
+  }
+}
+
 //--------------------------------------------------
 // Yielding
 //--------------------------------------------------
@@ -58,40 +83,37 @@ function _kcompose( from, to, conts ) {
 
 function _yield_extend(next) {
   if (!_yielding()) console.error("yield extension while not yielding!");
+  if ($yield.final) return;
   $yield.conts[$yield.conts_count++] = next;  // index is ~80% faster as push
-  return undefined;
 }
 
 function _yield_cont(f) {
   if (!_yielding()) console.error("yield extension while not yielding!");
+  if ($yield.final) return;
   const cont   = _kcompose(0,$yield.conts_count,$yield.conts);
   $yield.conts = new Array(8);
   $yield.conts_count = 1;
   $yield.conts[0] = function(x){ return f(cont,x); };
-  return undefined;
 }
 
-function _yield_prompt(evv, evv_expected, m, res) {
-  if ($evv !== evv_expected && ($yield===null || $yield.marker === m)) console.log("non-matching evidence: " + JSON.stringify(_context,null,1) + "\n  expecting: " + JSON.stringify(evv_expected,null,1));
-  $evv = evv;
+function _yield_prompt(m, res) {
   if ($yield === null) {
     return Pure(res);
   }
   else if ($yield.marker !== m) {
-    return Yielding;
+    return Yielding($yield.final);
   }
   else {
-    const cont   = _kcompose(0,$yield.conts_count,$yield.conts);
+    const cont   = ($yield.final ? $std_core.Nothing : $std_core.Just(_kcompose(0,$yield.conts_count,$yield.conts)));
     const clause = $yield.clause;
     $yield = null;
-    return Yielded(clause,cont);
+    return Yield(clause,cont);
   }
 }
 
-function _yield_to(m,clause) {
+function _yield_to(m,clause,final) {
   if (_yielding()) console.error("yielding while yielding!");
   const evv = $evv;
-  $yield = { marker: m, clause: clause, conts: new Array(8), conts_count: 1 };
-  $yield.conts[0] = function(x){ $evv = evv; return x; };
-  return undefined;
+  $yield = { marker: m, clause: clause, conts: new Array(8), conts_count: 1, final: final };
+  $yield.conts[0] = function(x){ $evv = evv; return x; };  // restore evidence when resuming
 }
