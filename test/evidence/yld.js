@@ -115,5 +115,5 @@ function _yield_to(m,clause,final) {
   if (_yielding()) console.error("yielding while yielding!");
   const evv = $evv;
   $yield = { marker: m, clause: clause, conts: new Array(8), conts_count: 1, final: final };
-  $yield.conts[0] = function(x){ $evv = evv; return x; };  // restore evidence when resuming
+  $yield.conts[0] = function(f){ $evv = evv; return f(); };  // restore evidence when resuming
 }

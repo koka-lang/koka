@@ -92,6 +92,10 @@ extern inline yielding() : e bool {
   js inline "($yield !== null)"
 }
 
+extern inline yielding-non-final() : e bool {
+  js inline "($yield !== null && !$yield.final)"
+}
+
 extern yield-extend(next : a -> e b ) : e b {
   js "_yield_extend"
 }
@@ -108,7 +112,7 @@ extern yield-prompt( m: marker<e,a>, res : a ) : yld<e,a> {
   js "_yield_prompt"
 }
 
-extern yield-to(m:marker<e1,r>,clause:(a -> e1 r) -> e1 r, final: bool) : e a {
+extern yield-to( m : marker<e1,r>, clause : ((b -> e1 r) -> e1 r), final : bool ) : b {
   js "_yield_to"
 }
 
@@ -123,7 +127,7 @@ extern inline cast-under1(w0:evv<e0>, w1:evv<e1>, f:(a) -> e1 b) : ((a) -> e0 b)
 abstract type yld<e,r> {
   Pure(x:r)
   Yielding(final:bool)
-  Yield<b>(clause : (b -> e r) -> e r, cont : maybe<b -> e r>)
+  Yield<b>(clause : (b -> e r) -> e r, cont : maybe<(() -> b) -> e r>)
 }
 
 fun guard(w : evv<e> ) : e () {
@@ -150,7 +154,7 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, res : r ) : e0 r
       fun deep(x){
         guard(w0)
         match(mbcont) {
-          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),cont(x))
+          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),cont({x}))
           Nothing    -> impossible("trying to resume a non-resumable resumption")
         }
       }
@@ -190,31 +194,38 @@ fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s
 // -------------------------------------------
 // Finally/Initially
 // -------------------------------------------
-/*
+
 fun finally( fin : () -> e (), action : () -> e a ) : e a {
   finally-prompt(fin, action());
 }
 
 fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (yielding-control()) return yield-cont(fun(cont,x){ finally-prompt(fin,cont(x)) })
+  if (yielding-non-final()) return yield-cont(fun(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
   fin()
   res
 }
 
-fun resume-final(cont : a -> e b) : e () {
-  val m = fresh-marker()
-  val w = evv-current()
-  yield-to(m,fun(k) { () })
-  prompt(w,w,m,unsafe-coerce(cont)(()))
+fun unit(x) {
+  ()
 }
-*/
+
+extern undefined() : a {
+  js inline "undefined"
+}
+
+fun finalize(cont : (() -> a) -> e b) : e () {
+  val m : marker<_e,_b> = fresh-marker()
+  val w = evv-get()
+  prompt(w,w,m, unit(cont( { yield-to(m,fun(_k){ () }, True)() } )))
+}
+
 // -------------------------------------------
 // Perform Operations
 // -------------------------------------------
 
 abstract type op<a,b,e,r> {
   Tail(op : (evv<e>, a) -> e b)
-  Control(op : (x:a, k: b -> e r) -> e r )
+  Control(op : (x:a, k: (b -> e r)) -> e r )
 }
 
 fun under1( w : evv<e>, op : a -> e b, x : a ) : e b {
