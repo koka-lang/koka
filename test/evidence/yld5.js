@@ -111,14 +111,14 @@ function _yield_cont(f) {
   $yield.conts[0] = function(x){ return f(cont,x); };
 }
 
-function _yield_prompt(m, res) {
+function _yield_prompt(m) {
   if ($yield === null) {
-    return Pure(res);
+    return Pure;
   }
   else if ($yield.marker !== m) {
-    return Yielding($yield.final);
+    return ($yield.final ? YieldingFinal : Yielding);
   }
-  else {
+  else { // $yield.marker === m
     const cont   = ($yield.final ? $std_core.Nothing : $std_core.Just(_kcompose(0,$yield.conts_count,$yield.conts)));
     const clause = $yield.clause;
     $yield = null;

@@ -112,11 +112,14 @@ fun yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
 }
 
-extern yield-cont(f : (a -> e1 b,a) -> e0 b ) : e0 b {
+extern yield-cont(f : (a -> e1 b, a) -> e0 r ) : e0 r {
   js "_yield_cont"
 }
+extern yield-final() : e r {
+  js inline "undefined"
+}
 
-extern yield-prompt( m: marker<e,a>, res : a ) : yld<e,a> {
+extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
@@ -144,33 +147,37 @@ extern inline cast-ev1( f:(a1) -> e1 b) : ((a1) -> e0 b) { inline "#1" }
 extern inline cast-ev2( f:(a1,a2) -> e1 b) : ((a1,a2) -> e0 b) { inline "#1" }
 
 
-abstract type yld<e,r> {
-  Pure(x:r)
-  Yielding(final:bool)
-  Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : maybe<(() -> b) -> e r>)
+abstract type yld<e,a,r> {
+  Pure
+  YieldingFinal
+  Yielding
+  Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : maybe<(() -> b) -> e a>)
 }
 
 fun guard(w : evv<e> ) : e () {
   if (evv-equals(w)) then () else cast-ev1(error)("non-scoped resumption")
 }
 
-fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret : r ) : e0 r
+fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
 {
   //evv-expect(m,w1)
-  match(yield-prompt(m,ret)) {
-    Pure(x) -> {
+  match(yield-prompt(m)) {
+    Pure {
       evv-set(w0)
-      x
+      ret(result)
     }
-    Yielding(final) {
+    YieldingFinal {
+      yield-final()
+    }
+    Yielding {
       // evv-set(w0)  // only needed if we do evidence expected check
-      if (final) then ret else yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),cont(res)); })
+      yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),ret,cont(res)); })
     }
     Yield(clause,mbcont) {
       fun deep(f) {
         guard(w0)
         match(mbcont) {
-          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),cont(f))
+          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
           Nothing    -> cast-ev1(error)("trying to resume a non-resumable resumption")
         }
       }
@@ -180,17 +187,17 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret : r ) : e0 r
   }
 }
 
-public fun ihandle( tag:htag<h>, h : h<e,r>, action : () -> e1 r ) : e r {
+public fun ihandle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
   val w1 = evv-insert(w0,ev)
   evv-set(w1)
-  prompt(w0,w1,m,cast-ev0(action)())
+  prompt(w0,w1,m,ret,cast-ev0(action)())
 }
 
-public fun ihandler( tag:htag<h>, h : h<e,r> ) : ((action : () -> e1 r ) -> e r) {
-  (fun(action){ ihandle(tag,h,action) })
+public fun ihandler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
+  (fun(action){ ihandle(tag,h,ret,action) })
 }
 
 
@@ -201,8 +208,7 @@ public fun ihandler( tag:htag<h>, h : h<e,r> ) : ((action : () -> e1 r ) -> e r)
 fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,st<h>,local<h>|e> b {
   if (!yielding()) return res;
   val v = !r
-  yield-extend(fun(x){ r := v; prompt-local-var(r,x) } )    // restore the state (late) after returning from a resume
-  // yield-cont(fun(cont,x){ r := v; prompt-local-var(r,cont(x)) } )  // restore state early before the resume
+  yield-cont(fun(cont,x){ r := v; prompt-local-var(r,cont(x)) } )  // restore state early before the resume
 }
 
 fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
@@ -236,7 +242,7 @@ fun unit(x) { () }
 fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,m, const(res, cont( { yield-final(m,fun(_k){ res }) } )))
+  prompt(w,w,m,id, const(res, cont( { yield-final(m,fun(_k){ res }) } )))
 }
 
 fun initially(init : (int) -> e (), action : () -> e a ) : e a {
@@ -406,7 +412,6 @@ fun clause-control2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : op
   Clause2(fun(m,w,x1,x2){ yield-to(m, fun(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
-
 fun clause-tail2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ under2(w,op,x1,x2) })
 }
@@ -428,27 +433,20 @@ public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>
 // Or should the compiler do tupling/untupling?
 //----------------------------------------------------------------
 
-fun under3( w : evv<e>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a3 ) : e b {
-  val w0 = evv-get()
-  evv-set(w)
-  val z = op(x1,x2,x3)
-  if (yielding()) return yield-extend(fun(zz){ evv-set(w0); zz })
-  evv-set(w0)
-  z
+fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause<(a1,a2,a3),b,e,r> {
+  clause-control-raw( fun(x:(_,_,_),r){ op(x.fst,x.snd,x.thd,r) } )
 }
 
-
-fun clause-control3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause<(a1,a2,a3),b,e,r> {
-  Clause( fun(m,w,x:(_,_,_)){ yield-to(m, fun(k){ op(x.fst,x.snd,x.thd,Resume-context(k)) } ) } )
+fun clause-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : clause<(a1,a2,a3),b,e,r> {
+  clause-control( fun(x:(_,_,_),k){ op(x.fst,x.snd,x.thd,k) } )
 }
-
 
 fun clause-tail3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
-  Clause( fun(m,w,x:(_,_,_)){ under3(w,op,x.fst,x.snd,x.thd) } )
+  clause-tail( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
 fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
-  Clause( fun(m,w,x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
+  clause-tail-noyield( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
 // -------------------------------------------
@@ -484,26 +482,36 @@ type amb-hnd<e,r> {
   con Amb-hnd( op-flip : clause<(),bool,e,r> )
 }
 
-fun amb-handler( h : amb-hnd<e,r> ) : ((action:() -> <amb|e> r) -> e r) {
-  ihandler(amb-tag,h)
+fun amb-handler( h : amb-hnd<e,r>, ret : a -> e r ) : ((action:() -> <amb|e> a) -> e r) {
+  ihandler(amb-tag,h,ret)
 }
 
-fun amb-handle( h : amb-hnd<e,r>, action : () -> <amb|e> r ) : e r {
-  ihandle(amb-tag,h,action)
+fun amb-handle( h : amb-hnd<e,r>, ret : a -> e r, action : () -> <amb|e> a ) : e r {
+  ihandle(amb-tag,h,ret,action)
 }
 
 fun amb-flip( i : int ) : <amb|e> bool {
   iperform(evv-select(i,amb-tag),op-flip,())
 }
 
-val h = Amb-hnd( clause-control( fun(x,k) {
+val h = amb-handler( Amb-hnd( clause-control( fun(x,k) {
             with xs : list<_> = yield-bind(k(False))
             with ys = yield-bind( k(True) )
             xs + ys
-         }))
+         })), fun(x){ [x] } )
 
 public fun amb(action) {
-  amb-handle(h,action)
+  h(action)
+}
+
+public fun amb2(action) {
+  amb-handle( Amb-hnd( clause-control( fun(x,k) {
+                with xs : list<_> = yield-bind(k(False))
+                with ys = yield-bind( k(True) )
+                xs + ys
+              })),
+              fun(x){ [x] },
+              action )
 }
 
 fun xor() : amb bool {
@@ -513,10 +521,7 @@ fun xor() : amb bool {
 }
 
 fun test-amb() : list<bool> {
-  amb {
-    with b = yield-bind(xor())
-    [b]
-  }
+  amb(xor)
 }
 
 // Reader with control
@@ -526,7 +531,7 @@ val reader-tag : forall<a> htag<reader-hnd<a>> = Unsafe-htag("reader")
 struct reader-hnd<a,e,r>( op-read : clause<(),a,e,r> )
 
 fun read-handle( h : reader-hnd<a,e,r>, action : () -> <reader<a>|e> r) : e r {
-  ihandle(reader-tag,h,action)
+  ihandle(reader-tag,h,id,action)
 }
 
 fun read(i:int) {
@@ -547,7 +552,7 @@ type state-hnd<a,e,r> {
 }
 
 fun state-handle( h : state-hnd<a,e,r>, action : () -> <state<a>|e> r ) : e r {
-  ihandle(state-tag,h,action)
+  ihandle(state-tag,h,id,action)
 }
 
 fun state-get( i : int ) : <state<a>|e> a {
@@ -591,16 +596,14 @@ fun test-state-amb() : list<int> {  // 1,2,3,4
   with reader(1)
   with state(0)
   with amb
-  with i = yield-bind(xorst())
-  [i]
+  xorst()
 }
 
 fun test-amb-state() : list<int> {  // 1,1,1,1
   with reader(1)
   with amb
   with state(0)
-  with i = yield-bind(xorst())
-  [i]
+  xorst()
 }
 
 
