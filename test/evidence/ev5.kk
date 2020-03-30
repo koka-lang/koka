@@ -242,6 +242,7 @@ fun finally( fin : () -> e (), action : () -> e a ) : e a {
 fun finally-prompt(fin : () -> e (), res : a ) : e a {
   if (yielding-non-final()) return yield-cont(fun(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
   fin()
+  if (yielding()) return yield-extend( fun(_x){ res } )
   res
 }
 
@@ -250,7 +251,7 @@ fun unit(x) { () }
 fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,m,id, const(res, cont( { yield-final(m,fun(_k){ res }) } )))
+  prompt(w,w,m,id, yield-bind( cont( { yield-final(m,fun(_k){ res }) } ), fun(_x) { res } ))
 }
 
 fun initially(init : (int) -> e (), action : () -> e a ) : e a {
