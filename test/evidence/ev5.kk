@@ -201,6 +201,14 @@ public fun ihandler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () ->
 }
 
 
+public fun inamed-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+  val m  = fresh-marker()
+  val w0 = evv-get()
+  val ev = Ev(tag,m,h,w0)
+  prompt(w0,w0,m,ret,action(ev))
+}
+
+
 // -------------------------------------------
 // Local variables
 // -------------------------------------------
