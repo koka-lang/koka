@@ -48,7 +48,7 @@ public extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern evv-lookup( htag : htag<h> ) : ev<h> {
+public extern evv-lookup( htag : htag<h> ) : int {
   js inline "_evv_lookup($evv,$evv_ofs,#1)"
 }
 
@@ -57,7 +57,7 @@ public extern inline evv-at( i : int ) : ev<h> {
 }
 
 public extern inline evv-select( i : int, htag : htag<h> ) : ev<h> {
-  js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : _evv_lookup($evv,$evv_ofs,#2))"
+  js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : $evv[_evv_lookup($evv,$evv_ofs,#2) + $evv_ofs])"
 }
 
 extern inline evv-get() : e evv<e> {
@@ -66,6 +66,10 @@ extern inline evv-get() : e evv<e> {
 
 extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
   js "_evv_insert"
+}
+
+extern evv-delete( w : evv<e1>, i : int ) : evv<e2> {
+  js "_evv_delete"
 }
 
 extern evv-create( evv : evv<e1>, indices : vector<int> ) : evv<e2> {
@@ -206,6 +210,16 @@ public fun inamed-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h>
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
   prompt(w0,w0,m,ret,action(ev))
+}
+
+// -------------------------------------------
+// mask
+// -------------------------------------------
+
+public fun imask( i : int, action : () -> e1 a ) : e2 a {
+  val w0 = evv-get()
+  val w1 = evv-delete(w0,i)
+  under0(w1,cast-ev0(action))
 }
 
 
@@ -537,8 +551,8 @@ val reader-tag : forall<a> htag<reader-hnd<a>> = Unsafe-htag("reader")
 
 struct reader-hnd<a,e,r>( op-read : clause<(),a,e,r> )
 
-fun read-handle( h : reader-hnd<a,e,r>, action : () -> <reader<a>|e> r) : e r {
-  ihandle(reader-tag,h,id,action)
+fun read-handle( h : reader-hnd<a,e,r>, ret : b -> e r, action : () -> <reader<a>|e> b) : e r {
+  ihandle(reader-tag,h,ret,action)
 }
 
 fun read(i:int) {
@@ -546,7 +560,7 @@ fun read(i:int) {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( clause-control( fun(x,k){ k(init) } )), action)
+  read-handle( Reader-hnd( clause-control( fun(x,k){ k(init) } )), id, action)
 }
 
 // State
@@ -558,25 +572,28 @@ type state-hnd<a,e,r> {
   con State-hnd( op-get : clause<(),a,e,r>, op-set : clause<a,(),e,r> )
 }
 
-fun state-handle( h : state-hnd<a,e,r>, action : () -> <state<a>|e> r ) : e r {
-  ihandle(state-tag,h,id,action)
+fun state-handle( h : state-hnd<a,e,r>, ret : b -> e r, action : () -> <state<a>|e> b ) : e r {
+  ihandle(state-tag,h,ret,action)
 }
 
 fun state-get( i : int ) : <state<a>|e> a {
   iperform( evv-select(i,state-tag), op-get, () )
 }
-fun state-set( ev : ev<state-hnd<a>>, x : a ) : <state<a>|e> () {
-  iperform( ev, op-set, x )
+fun state-set( i : int, x : a ) : <state<a>|e> () {
+  iperform( evv-select(i,state-tag), op-set, x )
 }
 
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = ilocal-var(init)
-  state-handle(State-hnd( clause-tail-noyield( fun(x){ s } ), clause-tail-noyield( fun(x){ s := x }) ), { mask<local>(action) } )
+  state-handle(State-hnd(
+    clause-tail-noyield( fun(x){ s } ),
+    clause-tail-noyield( fun(x){ s := x }) ),
+    id, { mask<local>(action) } )
 }
 
 public fun add21() : state<int> int {
   with i  = yield-bind(state-get(0))
-  with _x = yield-bind(state-set(evv-at(0),i+21))
+  with _x = yield-bind(state-set(0,i+21))
   state-get(0)
 }
 
@@ -619,7 +636,8 @@ fun state-x(init,action) {
   with s = ilocal-var(init)
   state-handle(State-hnd(
     clause-tail( fun(x){ read(-1) } ),
-    clause-tail-noyield( fun(x){ s := x }) ), action)
+    clause-tail-noyield( fun(x){ s := x }) ),
+    id, action)
 }
 
 fun test-difficult() : int {

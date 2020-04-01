@@ -33,12 +33,27 @@ function _evv_insert(w,ev) {
   return { evv: evv2, ofs: 0 };
 }
 
+function _evv_delete(w,i) {
+  const ofs = w.ofs;
+  const evv = w.evv;
+  const n = evv.length - ofs;
+  const evv2 = new Array(n-1);
+  var j;
+  for(j = 0; j < i; j++) {
+    evv2[j] = evv[j + ofs];
+  }
+  for(; j < n-1; j++) {
+    evv2[j] = evv[j + ofs + 1];
+  }
+  return { evv: evv2, ofs: 0 };
+}
+
 function _evv_lookup(evv,ofs,tag) {
   for(var i = ofs; i < evv.length; i++) {
-    if (tag === evv[i]._field1) return evv[i];
+    if (tag === evv[i]._field1) return (i - ofs);
   }
   console.error("cannot find " + tag + " in " + JSON.stringify(evv,2));
-  return null;
+  return (-1);
 }
 
 function _evv_show(w) {
