@@ -246,8 +246,6 @@ fun finally-prompt(fin : () -> e (), res : a ) : e a {
   res
 }
 
-fun unit(x) { () }
-
 fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
@@ -261,7 +259,7 @@ fun initially(init : (int) -> e (), action : () -> e a ) : e a {
 }
 
 fun initially-prompt( init : (int) -> e (), res : a ) : e a {
-  if (yielding()) then return unsafe-total {
+  if (yielding-non-final()) then return unsafe-total {
     val count = ref(0);
     return yield-cont(fun(cont,x){
       val cnt = !count                   // increase counter on every resumption
