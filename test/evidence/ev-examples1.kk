@@ -6,7 +6,7 @@ import core/hnd
 // -------------------------------------------
 // Example
 // -------------------------------------------
-/*
+
 type amb :: HX;
 
 val amb-tag : htag<amb-hnd> = hidden-htag("amb")
@@ -75,7 +75,7 @@ fun read() {
 fun reader(init,action) {
   read-handle( Reader-hnd( clause-control0(fun(k){ k(init) } )), id, action)
 }
-*/
+
 // State
 type state<a> :: V -> HX;
 
@@ -96,7 +96,7 @@ fun state-set( x : a ) : <state<a>|e> () {
   hidden-perform1( hidden-evv-lookup(state-tag), op-set, x )
 }
 
-/*
+
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
@@ -171,4 +171,3 @@ fun test() {
   test-state-amb().show-list(show).println
   test-amb-state().show-list(show).println
 }
-*/

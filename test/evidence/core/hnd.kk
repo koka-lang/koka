@@ -133,11 +133,11 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e2 (() -> b) {
+private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e (() -> b) {
   js "_yield_to"
 }
 
-private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e2 b {
+private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
   js "_yield_final"
 }
 
@@ -325,7 +325,7 @@ private extern inline cast-ev0( f : (marker<e1,r>,evv<e1>) -> e1 b) : e ((marker
 private extern inline cast-ev1( f : (marker<e1,r>,evv<e1>,a) -> e1 b) : e ((marker<e1,r>,evv<e1>,a) -> e b) { inline "#1" }
 private extern inline cast-ev2( f : (marker<e1,r>,evv<e1>,a1,a2) -> e1 b) : e ((marker<e1,r>,evv<e1>,a1,a2) -> e b) { inline "#1" }
 
-public fun hidden-perform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : b {
+public fun hidden-perform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,w,x)
@@ -394,7 +394,7 @@ abstract type clause0<b,e,r> {
   Clause0( clause: (marker<e,r>, evv<e>) -> e b )
 }
 
-public fun hidden-perform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : e2 b {
+public fun hidden-perform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,w)
@@ -466,7 +466,7 @@ public fun clause-tail-noyield2(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ op(x1,x2) })
 }
 
-public fun hidden-perform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,e1,r>), x : a, y : b ) : c {
+public fun hidden-perform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,w,x,y)
@@ -502,6 +502,10 @@ public fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,e
 
 public fun clause-never3( op : (a1,a2,a3) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
   clause-never1(fun(x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
+}
+
+public fun hidden-perform3( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3),b,e1,r>), x1 : a1, x2 : a2, x3 : a3 ) : e b {
+  hidden-perform1(ev,op,(x1,x2,x3))
 }
 
 
