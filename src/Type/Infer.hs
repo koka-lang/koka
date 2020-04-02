@@ -123,7 +123,7 @@ inferDefGroupX topLevel defGroup cont
 inferDefGroup :: Bool -> DefGroup Type -> Inf a -> Inf ([Core.DefGroup], a)
 inferDefGroup topLevel (DefNonRec def) cont
   = --- trace ("\ninfer single " ++ show (defName def)) $
-    do core <- inferDef Generalized def
+    do core <- inferDef (Generalized True) def
        mod  <- getModuleName
 
        (x,core1) <- let cgroup = [Core.DefNonRec core]
@@ -286,7 +286,7 @@ addDivergentEffect coreDefs0
                     inferUnify (checkEffectSubsume rng) rng newEff teff
                     snewEff <- subst newEff
                     let tp1 = TFun targs snewEff tres
-                    (resTp,resCore) <- generalize rng rng typeTotal (TFun targs snewEff tres) (coref (Core.defExpr def))
+                    (resTp,resCore) <- generalize rng rng True typeTotal (TFun targs snewEff tres) (coref (Core.defExpr def))
                     -- inferSubsume (checkEffectSubsume rng) rng (Core.defType def) resTp
                     -- fix up the core since the recursive tname still refers to the old type without the 'div' effect
                     -- let name = unqualify (Core.defName def)
@@ -318,7 +318,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                     -- trace (" infer subsume: " ++ show (Core.defName coreDef) ++ ": " ++ show (assumedTp, Core.defType coreDef)) $ return ()
                                     return (resTp,assumedTp,coref)
 
-        (resTp1,resCore1) <- generalize rng nameRng typeTotal resTp0 (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
+        (resTp1,resCore1) <- generalize rng nameRng True typeTotal resTp0 (coref0 (Core.defExpr coreDef)) -- typeTotal is ok since only functions are recursive (?)
 
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
@@ -327,7 +327,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
               <- case (mbAssumed,resCore1) of
                          (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
                             -> -- fix it up by adding the polymorphic type application
-                               do assumedTpX <- subst assumedTp >>= normalize -- resTp0
+                               do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
                                   simexpr <- liftUnique $ uniqueSimplify expr
                                   coreX <- subst simexpr
@@ -351,13 +351,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                    return resCore2
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
-                            -> do assumedTpX <- normalize assumedTp >>= subst -- resTp0
+                            -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
                                   simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
-                            -> do assumedTpX <- normalize assumedTp >>= subst
+                            -> do assumedTpX <- normalize True assumedTp >>= subst
                                   simResCore1 <- liftUnique $ uniqueSimplify resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
@@ -402,7 +402,7 @@ inferRecDef topLevel infgamma def
             -> return cdef
           Right (resTp0,coreDef,resCore0)
             -> -- trace ("right recursive: " ++ show (Core.defName coreDef)) $
-               do (resTp1,resCore1) <- generalize rng nameRng typeTotal resTp0 resCore0 -- typeTotal is ok since only functions are recursive (?)
+               do (resTp1,resCore1) <- generalize rng nameRng True typeTotal resTp0 resCore0 -- typeTotal is ok since only functions are recursive (?)
 
                   let name     = Core.defName coreDef
                       coreExpr = case resCore1 of
@@ -433,9 +433,9 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
      withDefName name $
       (if (not (isDefFun sort) || nameIsNil name) then id else allowReturn True) $
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
-                                --  Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
+                                -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
 
-           -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
+           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
@@ -481,14 +481,14 @@ unusedError rng = infError rng (text "expression has no effect and is unused" <-
 {--------------------------------------------------------------------------
   Expression
 --------------------------------------------------------------------------}
-data Expect = Generalized
+data Expect = Generalized Bool
             | Instantiated
             deriving (Show,Eq)
 
 inferIsolated :: Range -> Range -> Expr a -> Inf (Type,Effect,Core.Expr) -> Inf (Type,Effect,Core.Expr)
 inferIsolated contextRange range body inf
   = do (tp,eff,core) <- inf
-       res@(itp,ieff,icore) <- improve contextRange range eff tp  core
+       res@(itp,ieff,icore) <- improve contextRange range True eff tp  core
        case hasVarDecl body of
          Nothing   -> return res
          Just vrng -> do seff <- subst ieff
@@ -542,9 +542,9 @@ inferExpr propagated expect (Lam binders body rng)
        -- traceDoc $ \env -> text " inferExpr.Lam: body tp:" <+> ppType env tp
        topEff <- case propEff of
                    Nothing -> subst eff
-                   Just (topEff,r) -> -- trace (" inferExpr.Lam.propEff: " ++ show (eff,topEff)) $
+                   Just (topEff,r) -> do -- traceDoc (\env -> text (" inferExpr.Lam.propEff: ") <+> ppType env eff <+> text ", top: " <+> ppType env topEff)
                                       -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
-                                      do inferUnify (checkEffectSubsume rng) r eff topEff
+                                         inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
 
        -- traceDoc $ \env -> text " inferExpr.Lam: body eff:" <+> ppType env eff <+> text ", topeff: " <+> ppType env topEff
@@ -556,6 +556,7 @@ inferExpr propagated expect (Lam binders body rng)
        let pars = optPars
        -- traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env (typeFun pars stopEff tp)
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect (typeFun pars stopEff tp) bodyCore2
+       -- traceDoc $ \env -> text " inferExpr.Lam: subst fun type:" <+> ppType env ftp
 
        -- check for polymorphic parameters (this has to be done after generalize since some substitution may only exist as a constraint up to that point)
        unannotBinders <- mapM (\b -> do tp <- subst (binderType b); return b{ binderType = tp })
@@ -669,10 +670,11 @@ inferExpr propagated expect (App fun nargs rng)
   = inferApp propagated expect fun nargs rng
 
 inferExpr propagated expect (Ann expr annTp rng)
-  = do -- traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
-       (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized) expr
+  = do traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
+       (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized False) expr
        sannTp <- subst annTp
-       -- traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env tp
+       stp    <- subst tp
+       -- traceDoc $ \env -> text "  subsume annotation:" <+> ppType env sannTp <+> text " to: " <+> ppType env stp
        (resTp0,coref) <- -- withGammaType rng sannTp $
                           inferSubsume (checkAnn rng) (getRange expr) sannTp tp
        -- (resTp,resCore) <- maybeInstantiateOrGeneralize expect annTp (coref core)
@@ -1878,7 +1880,9 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
 
 inferPatternX :: Type -> Range -> Pattern Type -> Inf (Core.Pattern,[(Name,NameInfo)])
 inferPatternX matchType branchRange pattern
-  = do (_,_,res) <- inferPattern matchType branchRange pattern $ \pcore infGamma -> return (typeVoid,typeVoid,(pcore,infGamma))
+  = do (_,_,res) <- inferPattern matchType branchRange pattern $ \pcore infGamma ->
+                     do smatchType <- subst matchType
+                        return (smatchType,typeTotal,(pcore,infGamma))
        return res
 
 inferPattern :: Type -> Range -> Pattern Type -> (Core.Pattern -> [(Name,NameInfo)] -> Inf (Type,Effect,a))
@@ -2009,7 +2013,7 @@ inferOptionals eff infgamma (par:pars)
             partp <- subst tvar
 
             -- infer expression
-            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par)) (if isRho partp then Instantiated else Generalized) expr
+            (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par)) (if isRho partp then Instantiated else Generalized True) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
             -- inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
             inferUnify (Infer fullRange) (getRange expr) eff exprEff
@@ -2131,7 +2135,7 @@ inferSubsumeN' ctx range acc []
 inferSubsumeN' ctx range acc parArgs
   = do lsArgs <- pickArgument parArgs
        let ((i,(tpar,arg)):rest) = lsArgs
-       (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized) arg
+       (targ,teff,core) <- allowReturn False $ inferExpr (Just (tpar,getRange arg)) (if isRho tpar then Instantiated else Generalized True) arg
        tpar1  <- subst tpar
        (_,coref)  <- if isAnnot arg
                       then do -- traceDoc $ \env -> text "inferSubsumeN1:" <+> ppType env tpar1 <+> text "~" <+> ppType env targ
@@ -2385,12 +2389,12 @@ maybeGeneralize :: Range -> Range -> Effect -> Expect -> Rho -> Core.Expr-> Inf 
 maybeGeneralize contextRange range eff expect tp core
   = case expect of
       Instantiated -> return (tp,core)
-      Generalized  -> generalize contextRange range eff tp core
+      Generalized close  -> generalize contextRange range close eff tp core
 
 maybeInstantiate :: Range -> Expect -> Scheme -> Inf (Rho,Core.Expr -> Core.Expr)
 maybeInstantiate range expect tp
   = case expect of
-      Generalized  -> return (tp,id)
+      Generalized close  -> return (tp,id)
       Instantiated -> do (rho,_,coref) <- instantiate range tp
                          return (rho,coref)
 
@@ -2398,7 +2402,7 @@ maybeInstantiate range expect tp
 maybeInstantiateOrGeneralize :: Range -> Range -> Effect -> Expect -> Type -> Core.Expr -> Inf (Type,Core.Expr)
 maybeInstantiateOrGeneralize contextRange range eff expect tp core
   = case expect of
-      Generalized  -> generalize contextRange range eff tp core
+      Generalized close  -> generalize contextRange range close eff tp core
       Instantiated -> do (tp,_,coref) <- instantiate range tp
                          return (tp, coref core)
 
@@ -2417,7 +2421,7 @@ matchFun nArgs mbType
                             -> let m = length args
                                in -- can happen: see test/type/wrong/hm4 and hm4a
                                   --assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
-                                  return (take nArgs (map Just args ++ replicate (nArgs - m) Nothing), Just (eff,rng), Just (res,rng), if isRho res then Instantiated else Generalized)
+                                  return (take nArgs (map Just args ++ replicate (nArgs - m) Nothing), Just (eff,rng), Just (res,rng), if isRho res then Instantiated else Generalized True)
 
 monotonic :: [Int] -> Bool
 monotonic []  = True

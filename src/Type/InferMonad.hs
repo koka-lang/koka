@@ -112,8 +112,8 @@ trace s x =
 {--------------------------------------------------------------------------
   Generalization
 --------------------------------------------------------------------------}
-generalize :: Range -> Range -> Effect -> Rho -> Core.Expr -> Inf (Scheme,Core.Expr )
-generalize contextRange range eff  tp@(TForall _ _ _)  core0
+generalize :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Scheme,Core.Expr )
+generalize contextRange range close eff  tp@(TForall _ _ _)  core0
   = {-
     trace ("generalize forall: " ++ show tp) $
     return (tp,core0)
@@ -128,9 +128,9 @@ generalize contextRange range eff  tp@(TForall _ _ _)  core0
               return (tp,core0)
         else -- Lib.Trace.trace ("generalize forall-inst: " ++ show (pretty seff, pretty stp) ++ " with " ++ show ps0) $
              do (rho,tvars,icore) <- instantiate range stp
-                generalize contextRange range seff rho (icore core0)
+                generalize contextRange range close seff rho (icore core0)
 
-generalize contextRange range eff0 rho0 core0
+generalize contextRange range close eff0 rho0 core0
   = do seff <- subst eff0
        srho  <- subst rho0
        free0 <- freeInGamma
@@ -143,7 +143,7 @@ generalize contextRange range eff0 rho0 core0
                   {- ++ " and free " ++ show (tvsList free) -}
                   {- ++ "\n subst=" ++ show (take 10 $ subList sub) -}
                   {- ++ "\ncore: " ++ show score0 -}
-       --       $ return ()
+       --        $ return ()
        -- simplify and improve predicates
        (ps1,(eff1,rho1),core1) <- simplifyAndResolve contextRange free ps0 (seff,srho)
        -- trace (" improved to: " ++ show (pretty eff1, pretty rho1) ++ " with " ++ show ps1 ++ " and free " ++ show (tvsList free) {- ++ "\ncore: " ++ show score0 -}) $ return ()
@@ -156,7 +156,7 @@ generalize contextRange range eff0 rho0 core0
 
                 -- substitute more free variables in the core with ()
                 let score1 = substFree free score
-                nrho <- normalizeX free rho1
+                nrho <- normalizeX close free rho1
                 trace ("generalized to (as rho type): " ++ show (pretty nrho)) $ return ()
                 return (nrho,score1)
 
@@ -183,7 +183,7 @@ generalize contextRange range eff0 rho0 core0
                 let rho5 = rho4
                     coref = id
 
-                nrho <- normalizeX free rho5
+                nrho <- normalizeX close free rho5
                 -- trace (" normalized: " ++ show (nrho) ++ " from " ++ show rho4) $ return ()
                 let -- substitute to Bound ones
                     tvars = filter (\tv -> not (tvsMember tv free)) (ofuv (TForall [] (map evPred ps4) nrho))
@@ -205,7 +205,10 @@ generalize contextRange range eff0 rho0 core0
 
   where
     substFree free core
-      = let fvars = tvsDiff (ftv core) free
+      = core
+      -- TODO: check why we need to do the below?
+      {-
+        let fvars = tvsDiff (ftv core) free
             tcon kind
               = if (kind == kindEffect)
                  then typeTotal
@@ -216,10 +219,11 @@ generalize contextRange range eff0 rho0 core0
             then core
             else let sub = subNew [(tv,tcon (getKind tv)) | tv <- tvsList fvars]
                  in sub |-> core
+       -}
 
 
-improve :: Range -> Range -> Effect -> Rho -> Core.Expr -> Inf (Rho,Effect,Core.Expr )
-improve contextRange range eff0 rho0 core0
+improve :: Range -> Range -> Bool -> Effect -> Rho -> Core.Expr -> Inf (Rho,Effect,Core.Expr )
+improve contextRange range close eff0 rho0 core0
   = do seff  <- subst eff0
        srho  <- subst rho0
        free  <- freeInGamma
@@ -238,7 +242,7 @@ improve contextRange range eff0 rho0 core0
        -- isolate
        -- (eff2,coref2) <- isolate (tvsUnions [free,ftv rho1,ftv ps1]) eff1
 
-       (nrho) <- normalizeX free rho1
+       (nrho) <- normalizeX close free rho1
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
        -- trace (" improved to: " ++ show (pretty eff1, pretty nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
@@ -331,27 +335,28 @@ vflip Neg = Pos
 vflip Pos = Neg
 vflip Inv = Inv
 
-normalize :: Rho -> Inf Rho
-normalize tp
+normalize :: Bool -> Rho -> Inf Rho
+normalize close tp
   = do free <- freeInGamma
-       normalizeX free tp
+       normalizeX close free tp
 
-normalizeX :: Tvs -> Rho -> Inf Rho
-normalizeX free tp
+normalizeX :: Bool -> Tvs -> Rho -> Inf Rho
+normalizeX close free tp
   = case tp of
       TForall [] [] t
-        -> normalizeX free t
+        -> normalizeX close free t
       TSyn syn targs t
-        -> do t' <- normalizeX free t
+        -> do t' <- normalizeX close free t
               return (TSyn syn targs t')
       TFun args eff res
         -> do (ls,tl) <- nofailUnify $ extractNormalizeEffect eff
               -- trace (" normalizeX: " ++ show (map pretty ls,pretty tl)) $ return ()
               eff'    <- case expandSyn tl of
                           -- remove tail variables in the result type
-                          (TVar tv) | isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
+                          (TVar tv) | close && isMeta tv && not (tvsMember tv free) && not (tvsMember tv (ftv (res:map snd args)))
                             -> trace ("close effect: " ++ show (pretty tp)) $
-                                return (effectFixed ls)
+                               do nofailUnify $ unify typeTotal tl
+                                  (subst eff) -- (effectFixed ls)
                           _ -> do ls' <- mapM (normalizex Pos) ls
                                   tl' <- normalizex Pos tl
                                   return (effectExtends ls' tl')
@@ -590,7 +595,7 @@ inferSubsume :: Context -> Range -> Type -> Type -> Inf (Type,Core.Expr -> Core.
 inferSubsume context range expected tp
   = do free <- freeInGamma
        (sexp,stp) <- subst (expected,tp)
-       -- trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
+       trace ("inferSubsume: " ++ show (tupled [pretty sexp,pretty stp]) ++ " with free " ++ show (tvsList free)) $ return ()
        res <- doUnify (subsume range free sexp stp)
        case res of
          Right (t,ps,coref) -> do addPredicates ps
@@ -647,8 +652,8 @@ occursInContext tv extraFree
 unifyError :: Context -> Range -> UnifyError -> Type -> Type -> Inf a
 unifyError context range err xtp1 xtp2
   = do free <- freeInGamma
-       tp1 <- subst xtp1 >>= normalizeX free
-       tp2 <- subst xtp2 >>= normalizeX free
+       tp1 <- subst xtp1 >>= normalizeX False free
+       tp2 <- subst xtp2 >>= normalizeX False free
        env <- getEnv
        unifyError' (prettyEnv env) context range err tp1 tp2
 
@@ -724,7 +729,7 @@ typeError :: Range -> Range -> Doc -> Type -> [(Doc,Doc)] -> Inf ()
 typeError contextRange range message xtp extra
   = do env  <- getEnv
        free <- freeInGamma
-       tp   <- subst xtp >>= normalizeX free
+       tp   <- subst xtp >>= normalizeX False free
        typeError' (prettyEnv env) contextRange range message tp extra
 
 typeError' env contextRange range message tp extra

@@ -143,7 +143,7 @@ effect amb {
 fun xor() : amb bool {
   val p = flip()
   val q = flip()
-  :
+  (p && !q)||(!p&&q)
 }
 
 val coinflip = handler {

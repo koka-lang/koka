@@ -142,10 +142,10 @@ subsume range free tp1 tp2
        -- entailment check: predicates should be entailed
        -- todo: we should check for skolems since predicates with skolems must be entailed directly
        sub  <- getSubst
-       -- trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
+       --trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
        let allfree = tvsUnion free (ftv tp1)
            escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
-       -- trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
+       --trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
        if (tvsDisjoint (tvsNew sks) escaped)
          then return ()
          else unifyError NoSubsume

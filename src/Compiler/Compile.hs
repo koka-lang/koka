@@ -93,7 +93,7 @@ import Compiler.Package
 -- import qualified Core.Check
 
 -- Debugging
--- import Lib.Trace
+import Lib.Trace
 
 {--------------------------------------------------------------------------
   Compilation
@@ -775,23 +775,25 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return ()
-        else Core.Check.checkCore False penv unique4 gamma coreDefs0
+        else trace "initial core check" $ Core.Check.checkCore False penv unique4 gamma coreDefs0
 
        -- remove return statements
-       coreDefsUR <- unreturn penv coreDefs0
+       --coreDefsUR <- unreturn penv coreDefs0
+       let coreDefsUR = coreDefs0
+       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsUR
 
        -- do evidence translation
-       coreDefsEv <- evidenceTransform penv coreDefsUR
-       when (coreCheck flags) $ Core.Check.checkCore True penv unique4 gamma coreDefsEv
+       -- coreDefsEv <- evidenceTransform penv coreDefsUR
+       -- when (coreCheck flags) $ trace "evidence core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsEv
 
        -- do monadic effect translation (i.e. insert binds)
        (isCps,coreDefsMon)
            <- if (not (enableMon flags)) -- CS `elem` targets flags ||
-               then return (False,coreDefsEv)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsEv
+               then return (False,coreDefsUR)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core
                        when (coreCheck flags) $
-                          Core.Check.checkCore True penv unique4 gamma cdefs
+                          trace "monadic core check" $ Core.Check.checkCore True penv unique4 gamma cdefs
                        return (True,cdefs)
 
 
@@ -806,7 +808,7 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) unique4 penv coreDefsMon
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
-                                Core.Check.checkCore isCps penv unique4a gamma cdefs
+                                trace "after simplify core check" $Core.Check.checkCore isCps penv unique4a gamma cdefs
                               -- and one more unsafe simplify to remove open calls etc.
                               return $ simplifyDefs True 1 unique4a penv cdefs
 

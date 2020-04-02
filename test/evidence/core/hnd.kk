@@ -14,7 +14,7 @@ extern include {
 private struct marker<e::E,a>(m:int32)
 
 abstract type htag<h::(E,V)->V> {
-  Htag(tag:string)
+  Htag(:string)
 }
 
 public fun hidden-htag( tag : string ) {
@@ -53,15 +53,15 @@ private extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern hidden-evv-lookup( htag : htag<h> ) : ev<h> {
+public extern hidden-evv-lookup( htag : htag<h> ) : e ev<h> {
   js inline "_evv_lookup($evv,$evv_ofs,#1)"
 }
 
-public extern inline hidden-evv-at( i : ev-index ) : ev<h> {
+public extern inline hidden-evv-at( i : ev-index ) : e ev<h> {
   js inline "$evv[$evv_ofs + #1]"
 }
 
-public extern inline hidden-evv-select( i : ev-index, htag : htag<h> ) : ev<h> {
+public extern inline hidden-evv-select( i : ev-index, htag : htag<h> ) : e ev<h> {
   js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : _evv_lookup($evv,$evv_ofs,#2))"
 }
 
@@ -81,11 +81,11 @@ private extern evv-create( evv : evv<e1>, indices : vector<int> ) : evv<e2> {
   js "_evv_create"
 }
 
-private extern inline evv-set( w : evv<e> ) : () {
+private extern inline evv-set( w : evv<e1> ) : e2 () {
   js inline "(function(){ $evv = (#1).evv; $evv_ofs = (#1).ofs; }())"
 }
 
-private extern inline evv-set-ofs( ofs : int ) : int {
+private extern inline evv-set-ofs( ofs : int ) : e int {
   js inline "(function(){ const _ofs = $evv_ofs; $evv_ofs = #1; return _ofs; }())"
 }
 
@@ -125,7 +125,7 @@ private extern yield-cont(f : (a -> e1 b, a) -> e0 r ) : e0 r {  // make hidden 
   js "_yield_cont"
 }
 
-private extern yield-final() : e r {
+private extern inline yielding-final() : e r {
   js inline "undefined"
 }
 
@@ -133,11 +133,11 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : (() -> b) {
+private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e2 (() -> b) {
   js "_yield_to"
 }
 
-private extern yield-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : b {
+private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e2 b {
   js "_yield_final"
 }
 
@@ -177,7 +177,7 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
       ret(result)
     }
     YieldingFinal {
-      yield-final()
+      yielding-final()
     }
     Yielding {
       // evv-set(w0)  // only needed if we do evidence expected check
@@ -186,10 +186,11 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
     Yield(clause,mbcont) {
       fun deep(f) {
         guard(w0)
-        match(mbcont) {
-          Just(cont) -> prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
-          Nothing    -> cast-ev1(error)("trying to resume a non-resumable resumption")
-        }
+        val g = match(mbcont) {
+                  Just(cont) -> cont //prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
+                  Nothing    -> cast-ev1(error)("trying to resume a non-resumable resumption")
+                }
+        prompt(w0,w1,unsafe-decreasing(m),ret,g(f))
       }
       evv-set(w0)
       clause(deep)
@@ -273,7 +274,7 @@ private fun finally-prompt(fin : () -> e (), res : a ) : e a {
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,m,id, yield-bind( cont( { yield-final(m,fun(_k){ res }) } ), fun(_x) { res } ))
+  prompt(w,w,m,id, yield-bind( cont( { yield-to-final(m,fun(_k){ res }) } ), fun(_x) { res } ))
 }
 
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
@@ -316,18 +317,18 @@ public fun finalize( r : resume-context<b,e,r>, x : a ) : e a {
 // Clauses
 // -------------------------------------------
 
-abstract type clause<a,b,e,r> {
-  Clause( clause: (marker<e,r>, evv<e>, a) -> e b )
+abstract type clause1<a,b,e,r> {
+  Clause1( clause: (marker<e,r>, evv<e>, a) -> e b )
 }
 
 private extern inline cast-ev0( f : (marker<e1,r>,evv<e1>) -> e1 b) : e ((marker<e1,r>,evv<e1>) -> e b) { inline "#1" }
 private extern inline cast-ev1( f : (marker<e1,r>,evv<e1>,a) -> e1 b) : e ((marker<e1,r>,evv<e1>,a) -> e b) { inline "#1" }
 private extern inline cast-ev2( f : (marker<e1,r>,evv<e1>,a1,a2) -> e1 b) : e ((marker<e1,r>,evv<e1>,a1,a2) -> e b) { inline "#1" }
 
-public fun hidden-perform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause<a,b,e1,r>), x : a ) : b {
+public fun hidden-perform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
-      Clause(f) -> cast-ev1(f)(m,w,x)
+      Clause1(f) -> cast-ev1(f)(m,w,x)
     }
   }
 }
@@ -343,11 +344,11 @@ private fun under1( w : evv<e>, op : a -> e b, x : a ) : e b {
 }
 
 
-public fun clause-control-raw( op : (x:a, r: resume-context<b,e,r>) -> e r ) : clause<a,b,e,r> {
-  Clause(fun(m,w,x){ yield-to(m, fun(k){ op(x,Resume-context(k)) } ) } )
+public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,r>) -> e r ) : clause1<a,b,e,r> {
+  Clause1(fun(m,w,x){ yield-to(m, fun(k){ op(x,Resume-context(k)) } ) } )
 }
 
-private fun get( ref: ref<h,a>) : <read<h>,div|e> a {
+private fun get( ref: ref<h,a>) : <read<h>,div> a {
   !ref
 }
 
@@ -369,20 +370,20 @@ private fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : (() -> b) ->
   protect-check(resumed,k,res)
 }
 
-public fun clause-control( clause : (x:a, k: b -> e r) -> e r ) : clause<a,b,e,r> {
-  Clause(fun(m,w,x){ yield-to(m, fun(k){ protect(x,clause,k) }) })
+public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r> {
+  Clause1(fun(m,w,x){ yield-to(m, fun(k){ protect(x,clause,k) }) })
 }
 
-public fun clause-tail(op : a -> e b) : clause<a,b,e,r> {
-  Clause(fun(_m,w,x){ under1(w,op,x) })
+public fun clause-tail1(op : a -> e b) : clause1<a,b,e,r> {
+  Clause1(fun(_m,w,x){ under1(w,op,x) })
 }
 
-public fun clause-tail-noyield(op : a -> e b) : clause<a,b,e,r> {
-  Clause(fun(_m,_w,x){ op(x) })
+public fun clause-tail-noyield1(op : a -> e b) : clause1<a,b,e,r> {
+  Clause1(fun(_m,_w,x){ op(x) })
 }
 
-public fun clause-never( op : a -> e r ) : clause<a,b,e,r> {
-  Clause(fun(m,w,x){ yield-final(m, fun(_k){ op(x) }) })
+public fun clause-never1( op : a -> e r ) : clause1<a,b,e,r> {
+  Clause1(fun(m,w,x){ yield-to-final(m, fun(_k){ op(x) }) })
 }
 
 //----------------------------------------------------------------
@@ -393,7 +394,7 @@ abstract type clause0<b,e,r> {
   Clause0( clause: (marker<e,r>, evv<e>) -> e b )
 }
 
-public fun hidden-perform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : b {
+public fun hidden-perform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : e2 b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,w)
@@ -433,7 +434,7 @@ public fun clause-value(v : b) : clause0<b,e,r> {
 }
 
 public fun clause-never0( op : () -> e r ) : clause0<b,e,r> {
-  Clause0(fun(m,w){ yield-final(m, fun(_k){ op() }) })
+  Clause0(fun(m,w){ yield-to-final(m, fun(_k){ op() }) })
 }
 
 //----------------------------------------------------------------
@@ -474,7 +475,7 @@ public fun hidden-perform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a
 }
 
 public fun clause-never0( op : (a1,a2) -> e r ) : clause2<a1,a2,b,e,r> {
-  Clause2(fun(m,w,x1,x2){ yield-final(m, fun(_k){ op(x1,x2) }) })
+  Clause2(fun(m,w,x1,x2){ yield-to-final(m, fun(_k){ op(x1,x2) }) })
 }
 
 
@@ -483,24 +484,24 @@ public fun clause-never0( op : (a1,a2) -> e r ) : clause2<a1,a2,b,e,r> {
 // Or should the compiler do tupling/untupling?
 //----------------------------------------------------------------
 
-public fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause<(a1,a2,a3),b,e,r> {
-  clause-control-raw( fun(x:(_,_,_),r){ op(x.fst,x.snd,x.thd,r) } )
+public fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
+  clause-control-raw1( fun(x:(_,_,_),r){ op(x.fst,x.snd,x.thd,r) } )
 }
 
-public fun clause-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : clause<(a1,a2,a3),b,e,r> {
-  clause-control( fun(x:(_,_,_),k){ op(x.fst,x.snd,x.thd,k) } )
+public fun clause-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
+  clause-control1( fun(x:(_,_,_),k){ op(x.fst,x.snd,x.thd,k) } )
 }
 
-public fun clause-tail3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
-  clause-tail( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
+public fun clause-tail3(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,e,r> {
+  clause-tail1( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
-public fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause<(a1,a2,a3),b,e,r> {
-  clause-tail-noyield( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
+public fun clause-tail-noyield3(op : (a1,a2,a3) -> e b) : clause1<(a1,a2,a3),b,e,r> {
+  clause-tail-noyield1( fun( x:(_,_,_) ){ op(x.fst,x.snd,x.thd) } )
 }
 
-public fun clause-never3( op : (a1,a2,a3) -> e r ) : clause<(a1,a2,a3),b,e,r> {
-  Clause(fun(m,w,x:(_,_,_)){ yield-final(m, fun(_k){ op(x.fst,x.snd,x.thd) }) })
+public fun clause-never3( op : (a1,a2,a3) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
+  clause-never1(fun(x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
 }
 
 

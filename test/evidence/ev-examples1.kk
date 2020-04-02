@@ -6,7 +6,7 @@ import core/hnd
 // -------------------------------------------
 // Example
 // -------------------------------------------
-
+/*
 type amb :: HX;
 
 val amb-tag : htag<amb-hnd> = hidden-htag("amb")
@@ -75,14 +75,14 @@ fun read() {
 fun reader(init,action) {
   read-handle( Reader-hnd( clause-control0(fun(k){ k(init) } )), id, action)
 }
-
+*/
 // State
 type state<a> :: V -> HX;
 
 val state-tag : forall<a> htag<state-hnd<a>> = hidden-htag("state")
 
 type state-hnd<a,e,r> {
-  con State-hnd( op-get : clause0<a,e,r>, op-set : clause<a,(),e,r> )
+  con State-hnd( op-get : clause0<a,e,r>, op-set : clause1<a,(),e,r> )
 }
 
 fun state-handle( h : state-hnd<a,e,r>, ret : b -> e r, action : () -> <state<a>|e> b ) : e r {
@@ -93,14 +93,15 @@ fun state-get() : <state<a>|e> a {
   hidden-perform0( hidden-evv-lookup(state-tag), op-get )
 }
 fun state-set( x : a ) : <state<a>|e> () {
-  hidden-perform( hidden-evv-lookup(state-tag), op-set, x )
+  hidden-perform1( hidden-evv-lookup(state-tag), op-set, x )
 }
 
+/*
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
     clause-tail-noyield0( fun(){ s } ),
-    clause-tail-noyield( fun(x){ s := x }) ),
+    clause-tail-noyield1( fun(x){ s := x }) ),
     id, { mask<local>(action) } )
 }
 
@@ -149,7 +150,7 @@ fun state-x(init,action) {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
     clause-tail0( fun(){ read() } ),
-    clause-tail-noyield( fun(x){ s := x }) ),
+    clause-tail-noyield1( fun(x){ s := x }) ),
     id, action)
 }
 
@@ -170,3 +171,4 @@ fun test() {
   test-state-amb().show-list(show).println
   test-amb-state().show-list(show).println
 }
+*/
