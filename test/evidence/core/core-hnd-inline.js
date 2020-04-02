@@ -54,10 +54,10 @@ function _evv_delete(w,i) {
 
 function _evv_lookup(evv,ofs,tag) {
   for(var i = ofs; i < evv.length; i++) {
-    if (tag === evv[i]._field1) return (i - ofs);
+    if (tag === evv[i]._field1) return evv[i];
   }
   console.error("cannot find " + tag + " in " + JSON.stringify(evv,2));
-  return (-1);
+  return null;
 }
 
 function _evv_show(w) {
@@ -116,13 +116,13 @@ function _kcompose( from, to, conts ) {
 }
 
 function _yield_extend(next) {
-  _assert(!_yielding(), "yield extension while not yielding!");
+  _assert(_yielding(), "yield extension while not yielding!");
   if ($yield.final) return;
   $yield.conts[$yield.conts_count++] = next;  // index is ~80% faster as push
 }
 
 function _yield_cont(f) {
-  _assert(!_yielding(), "yield extension while not yielding!");
+  _assert(_yielding(), "yield extension while not yielding!");
   if ($yield.final) return;
   const cont   = _kcompose(0,$yield.conts_count,$yield.conts);
   $yield.conts = new Array(8);
@@ -146,12 +146,12 @@ function _yield_prompt(m) {
 }
 
 function _yield_final(m,clause) {
-  if (_yielding()) console.error("yielding while yielding!");
+  _assert(!_yielding(),"yielding while yielding!");
   $yield = { marker: m, clause: clause, conts: null, conts_count: 0, final: true };
 }
 
 
 function _yield_to(m,clause) {
-  if (_yielding()) console.error("yielding while yielding!");
+  _assert(!_yielding(),"yielding while yielding!");
   $yield = { marker: m, clause: clause, conts: new Array(8), conts_count: 0, final: false };
 }
