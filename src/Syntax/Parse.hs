@@ -809,13 +809,13 @@ makeEffectDecl decl =
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect irng
       kindStar   = KindCon nameKindStar irng
-      hndName    = postpend "-hnd" id
+      hndName    = makeHiddenName "hnd" id
       hndEffTp   = TypeBinder (newHiddenName "e") (KindCon nameKindEffect irng) irng irng
       hndResTp   = TypeBinder (newHiddenName "r") kindStar irng irng
       hndTpName  = TypeBinder hndName KindNone irng irng
 
       -- declare the effect tag
-      tagName    = postpend "-tag" id
+      tagName    = makeHiddenName "tag" id
       tagDef     = Def (ValueBinder tagName ()
                          (Ann (App (Var nameHTag False irng)
                                [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) irng))]
@@ -833,9 +833,11 @@ makeEffectDecl decl =
                      (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
       -- parse the operations and return the constructor fields and function definitions
-      (opFields,opDefs,opValDefs)
-          = unzip3 $ map (operationDecl vis tpars docEffect tagName isResource opEffTp (tpCon hndTpName)
-                                                 (map tpVar [hndEffTp,hndResTp]) extraEffects) operations
+      opCount = length operations
+      (opFields,opSelects,opDefs,opValDefs)
+          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName isResource opEffTp (tpCon hndTpName)
+                                                 ([hndEffTp,hndResTp]) extraEffects)
+                                                 (zip [0..opCount-1] operations)
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing irng rng vis ""
       hndTpDecl  = DataType hndTpName (tpars ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
@@ -939,6 +941,7 @@ makeEffectDecl decl =
                            rng vis sort DataDefNormal False "// internal data type to group operations belonging to one effect"
    -}
   in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl]
+         ++ map DefValue opSelects
          ++ map DefValue opDefs
          ++ map DefValue (catMaybes opValDefs)
            -- effResourceDecls ++
@@ -990,9 +993,9 @@ parseFunOpDecl vis =
 
 
 -- smart constructor for operations
-operationDecl :: Visibility -> [UserTypeBinder] -> String -> Name -> Bool -> UserType -> UserType -> [UserType] ->
-             [UserType] -> OpDecl -> (ValueBinder UserType (Maybe UserExpr), UserDef, Maybe UserDef)
-operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars extraEffects op
+operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Bool -> UserType -> UserType -> [UserTypeBinder] ->
+             [UserType] -> (Int,OpDecl) -> (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
+operationDecl opCount vis foralls docEffect hndName isResource effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) = op
            teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
@@ -1027,16 +1030,39 @@ operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars ext
 
            clauseId    = prepend "clause-" (if (isValueOperationName id) then fromValueOperationsName id else id)
            clauseName  = nameTpClause (length pars)
-           clauseTp    = quantify QForall exists $
-                         makeTpApp (TpCon clauseName rng)
-                                   ([binderType par | (vis,par) <- pars] ++ [tres] ++ hndTpVars)
+           clauseRhoTp = makeTpApp (TpCon clauseName rng)
+                                   ([binderType par | (vis,par) <- pars] ++ [tres] ++ map tpVar hndTpVars)
                                    rng
+           clauseTp    = quantify QForall exists $ clauseRhoTp
+
            conField    = trace ("con field: " ++ show clauseId) $
                          ValueBinder clauseId clauseTp Nothing idrng rng
 
+           -- create an operation selector explicitly so we can hide the handler constructor
+           selectId    = makeHiddenName "select" id
+           opSelect = let def       = Def binder rng vis defFun ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
+                          nameRng   = idrng
+                          binder    = ValueBinder selectId () body nameRng nameRng
+                          body      = Ann (Lam [hndParam] innerBody rng) fullTp rng
+                          fullTp    = quantify QForall (foralls ++ exists ++ hndTpVars) $
+                                      makeTpFun [(hndArg,makeTpApp hndTp (map tpVar (foralls ++ hndTpVars)) rng)]
+                                                 (makeTpTotal rng) clauseRhoTp rng
+
+                          hndArg    = newName "hnd"
+                          hndParam  = ValueBinder hndArg Nothing Nothing idrng rng
+
+                          innerBody = Case (Var hndArg False rng) [branch] rng
+                          fld       = prepend "clause-" id
+                          branch    = Branch (PatCon (toConstructorName hndName) patterns rng rng) guardTrue (Var fld False rng)
+                          i          = opIndex
+                          fieldCount = opCount
+                          patterns  = [(Nothing,PatWild rng) | _ <- [0..i-1]]
+                                      ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
+                                      ++ [(Nothing,PatWild rng) | _ <- [i+1..fieldCount-1]]
+                      in def
+
 
            -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
-           -- Declare the yield operation
            opDef  = let def      = Def binder rng vis defFun ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
@@ -1048,7 +1074,7 @@ operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars ext
                                [(Nothing, if isResource
                                            then Var resourceName False nameRng
                                            else App (Var nameEvvAt False nameRng) [(Nothing,zeroIdx)] nameRng),
-                                (Nothing, Var clauseId False nameRng)]
+                                (Nothing, Var selectId False nameRng)]
                                ++ arguments) rng
 
 
@@ -1070,6 +1096,7 @@ operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars ext
                         isJust _        = False
                     in def
 
+           -- create a temporary value definition for type checking
            opValDef = if isValueOperationName id then
                          let opName  = fromValueOperationsName id
                              qualTpe = promoteType (TpApp (TpCon nameTpValueOp idrng) [tres] idrng)
@@ -1164,7 +1191,7 @@ operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars ext
 
                     in def
                   -}
-           in (conField,opDef,opValDef) -- (opsConDef,opTpDecl,opDef,opValDef)
+           in (conField,opSelect,opDef,opValDef) -- (opsConDef,opTpDecl,opDef,opValDef)
 
 
 

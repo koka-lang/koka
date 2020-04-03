@@ -11,12 +11,14 @@ effect amb {
   fun flip() : bool
 }
 
+
 effect state<a> {
   fun get()    : a
   fun set(x:a) : ()
+  fun throw(s:string) : b
 }
 
-ambient val width : int
+// ambient val width : int
 
 effect instance file {
   fun read() : string
