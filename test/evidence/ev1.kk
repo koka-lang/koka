@@ -18,8 +18,11 @@ effect state<a> {
   fun throw(s:string) : b
 }
 
-// ambient val width : int
+//ambient val width : int
 
+/*
 effect instance file {
   fun read() : string
+  //fun fthrow(x:a) : b
 }
+*/

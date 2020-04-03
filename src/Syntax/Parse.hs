@@ -790,7 +790,8 @@ makeEffectDecl decl =
                  _ -> kind
       ename   = TypeBinder id infkind irng irng
       effTpH  = TpApp (TpCon (tbinderName ename) (tbinderRange ename)) (map tpVar tpars) irng
-      effTp   = if (isResource) then effTpH
+      effTp   = if (isResource)
+                 then effTpH
                  else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
                        [effTpH] irng
       rng     = combineRanges [vrng,erng,irng]
@@ -803,7 +804,7 @@ makeEffectDecl decl =
       docEffect  = "`:" ++ show id ++ "` effect"
       docx       = (if (doc/="") then doc else "// " ++ docEffect)
       effTpDecl  = if isResource
-                    then Synonym  ename tpars (makeTpApp (TpCon nameTpEv rng) [tpCon hndTpName] rng) rng vis docx
+                    then Synonym  ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
                     else DataType ename tpars [] rng vis Inductive DataDefNormal False docx
 
       -- declare the effect handler type
@@ -841,6 +842,35 @@ makeEffectDecl decl =
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing irng rng vis ""
       hndTpDecl  = DataType hndTpName (tpars ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+
+      -- declare the handle function
+
+      handleRetTp= TypeBinder (newHiddenName "b") kindStar irng irng
+      handleName = makeHiddenName "handle" id
+      handleEff  = if isResource
+                    then tpVar hndEffTp
+                    else makeEffectExtend irng effTp (tpVar hndEffTp) :: UserType
+      handleTp   = quantify QForall (tpars ++ [handleRetTp,hndEffTp,hndResTp]) $
+                   makeTpFun [
+                    ((newName "hnd"), TpApp (TpCon hndName rng) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng),
+                    (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) rng),
+                    (newName "action",
+                        makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng)
+                    ] (tpVar hndEffTp) (tpVar hndResTp) rng
+      actionArgTp= if isResource
+                    then [(newName "name",effTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
+                    else []
+      handleBody = Ann (Lam params handleInner rng) handleTp rng
+      handleInner= App (Var (if isResource then nameNamedHandle else nameHandle) False rng) arguments rng
+      params     = [ValueBinder (newName "hnd") Nothing Nothing irng rng,
+                    ValueBinder (newName "ret") Nothing Nothing irng rng,
+                    ValueBinder (newName "action") Nothing Nothing irng rng]
+      arguments  = [(Nothing, Var tagName False irng),
+                    (Nothing, Var (newName "hnd") False irng),
+                    (Nothing, Var (newName "ret") False irng),
+                    (Nothing, Var (newName "action") False irng)]
+      handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
+                        rng vis (DefFun NoMon) ("// handler for the " ++ docEffect)
 
 
       {-
@@ -940,10 +970,11 @@ makeEffectDecl decl =
       opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
                            rng vis sort DataDefNormal False "// internal data type to group operations belonging to one effect"
    -}
-  in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl]
+   in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
          ++ map DefValue opSelects
          ++ map DefValue opDefs
          ++ map DefValue (catMaybes opValDefs)
+
            -- effResourceDecls ++
            -- map DefType opTpDecls ++
            -- map DefValue opDefs ++ map DefValue (catMaybes opsValDefs)
@@ -1079,8 +1110,8 @@ operationDecl opCount vis foralls docEffect hndName isResource effTp hndTp hndTp
 
 
                         zeroIdx        = App (Var nameInt32 False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
-                        resourceName   = newHiddenName "ev"
-                        resourceBinder = ValueBinder resourceName ((makeTpApp (TpCon nameTpEv idrng) [hndTp] rng)) Nothing idrng rng
+                        resourceName   = newHiddenName "name"
+                        resourceBinder = ValueBinder resourceName ((makeTpApp effTp (map tpVar foralls) rng)) Nothing idrng rng
                         perform        = Var (namePerform (length pars)) False nameRng
 
                         params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?

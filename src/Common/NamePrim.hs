@@ -41,7 +41,7 @@ module Common.NamePrim
           , nameTpClause, namePerform
           , nameEvvAt, nameEvvLookup
           , nameOpenAt, nameOpen
-          , nameTpEv
+          , nameTpEv, nameHandle, nameNamedHandle
 
           --
           , nameUnsafeTotal
@@ -216,7 +216,8 @@ nameEvvLookup   = coreHndName "hidden-evv-lookup"
 nameOpenAt i    = coreHndName ("hidden-open-at" ++ show i)
 nameOpen i      = coreHndName ("hidden-open" ++ show i)
 nameTpEv        = coreHndName "ev"
-
+nameHandle      = coreHndName "hidden-handle"
+nameNamedHandle = coreHndName "hidden-named-handle"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
