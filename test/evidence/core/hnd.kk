@@ -217,11 +217,11 @@ public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action :
 
 abstract struct hname<h>( ev : ev<h> )
 
-public fun hidden-named-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : hname<h> -> e a ) : e r {
+public fun hidden-named-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
-  prompt(w0,w0,m,ret,action(Hname(ev)))
+  prompt(w0,w0,m,ret,action(ev))
 }
 
 // -------------------------------------------

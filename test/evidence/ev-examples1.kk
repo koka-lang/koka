@@ -7,6 +7,18 @@ import core/hnd
 // Example
 // -------------------------------------------
 
+type exc :: HX;
+
+val exc-tag : htag<exc-hnd> = hidden-htag("exc")
+
+type exc-hnd<e,r> {
+  con Exc-hnd( op-throwx : forall<a> clause1<string,a,e,r> )
+}
+
+fun ethrow( s : string ) : exc a {
+  hidden-perform1( hidden-evv-lookup(exc-tag), op-throwx, s )
+}
+
 type amb :: HX;
 
 val amb-tag : htag<amb-hnd> = hidden-htag("amb")

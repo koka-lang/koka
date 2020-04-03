@@ -207,9 +207,10 @@ synAccessors modName info vis conviss
                        then dataName else newName ".this"
                 fld = newName ".x"
 
-                fullTp = quantifyType (dataInfoParams info) $
-                         typeFun [(arg,dataTp)] (if isPartial then typePartial else typeTotal) tp
                 dataTp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) (map TVar (dataInfoParams info))
+                fullTp = let (foralls,preds,rho) = splitPredType tp
+                         in tForall (dataInfoParams info ++ foralls) preds $
+                            typeFun [(arg,dataTp)] (if isPartial then typePartial else typeTotal) rho
 
                 expr       = Ann (Lam [ValueBinder arg Nothing Nothing rng rng] caseExpr rng) fullTp rng
                 caseExpr   = Case (Var arg False rng) (map snd branches ++ defaultBranch) rng

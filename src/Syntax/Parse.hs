@@ -799,13 +799,49 @@ makeEffectDecl decl =
                   Nothing -> effTp
                   Just rtp -> rtp
 
-      -- declare the effect tag
-      effTagName = toOpenTagName id
-      effTagDef  = Def (ValueBinder effTagName ()
-                         (Lit (LitString (show id ++ "-" ++ basename (sourceName (rangeSource irng))) irng))
-                         irng irng) irng vis DefVal ""
-
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
+      docEffect  = "`:" ++ show id ++ "` effect"
+      docx       = (if (doc/="") then doc else "// " ++ docEffect)
+      effTpDecl  = if isResource
+                    then Synonym  ename tpars (makeTpApp (TpCon nameTpEv rng) [tpCon hndTpName] rng) rng vis docx
+                    else DataType ename tpars [] rng vis Inductive DataDefNormal False docx
+
+      -- declare the effect handler type
+      kindEffect = KindCon nameKindEffect irng
+      kindStar   = KindCon nameKindStar irng
+      hndName    = postpend "-hnd" id
+      hndEffTp   = TypeBinder (newHiddenName "e") (KindCon nameKindEffect irng) irng irng
+      hndResTp   = TypeBinder (newHiddenName "r") kindStar irng irng
+      hndTpName  = TypeBinder hndName KindNone irng irng
+
+      -- declare the effect tag
+      tagName    = postpend "-tag" id
+      tagDef     = Def (ValueBinder tagName ()
+                         (Ann (App (Var nameHTag False irng)
+                               [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) irng))]
+                               irng)
+                          (quantify QForall tpars
+                            (makeTpApp (TpCon nameTpHTag irng) [makeTpApp (TpCon hndName irng) (map tpVar tpars) irng] irng))
+                         irng)
+                        irng irng) irng vis DefVal ("// runtime tag for the " ++ docEffect)
+
+
+      --extendConName = toEffectConName (tbinderName ename)
+      extraEffects = (case mbResource of
+                        Just _  -> [TpCon nameTpPartial irng]
+                        Nothing -> []) ++
+                     (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
+
+      -- parse the operations and return the constructor fields and function definitions
+      (opFields,opDefs,opValDefs)
+          = unzip3 $ map (operationDecl vis tpars docEffect tagName isResource opEffTp (tpCon hndTpName)
+                                                 (map tpVar [hndEffTp,hndResTp]) extraEffects) operations
+
+      hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing irng rng vis ""
+      hndTpDecl  = DataType hndTpName (tpars ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+
+
+      {-
       effConName = (makeHiddenName "Con" (toConstructorName id))
       resName = newHiddenName "res"
 
@@ -817,8 +853,10 @@ makeEffectDecl decl =
                        in cons
 
       effTpDecl = DataType ename tpars effTpCons rng vis Inductive DataDefNormal False doc
+      -}
+      {-
 
-      -- define resource wrapper
+    -- define resource wrapper
       (effResourceDecls, mbResourceInt)
        = case mbResource of
            Nothing -> ([], Nothing)
@@ -899,11 +937,13 @@ makeEffectDecl decl =
       -- declare operations data type (for the type checker)
       opsTpDecl = DataType opsName (tpars++[opsResTpVar]) opsConDefs
                            rng vis sort DataDefNormal False "// internal data type to group operations belonging to one effect"
-
-  in [DefType effTpDecl, DefValue effTagDef, DefType opsTpDecl] ++
-           effResourceDecls ++
-           map DefType opTpDecls ++
-           map DefValue opDefs ++ map DefValue (catMaybes opsValDefs)
+   -}
+  in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl]
+         ++ map DefValue opDefs
+         ++ map DefValue (catMaybes opValDefs)
+           -- effResourceDecls ++
+           -- map DefType opTpDecls ++
+           -- map DefValue opDefs ++ map DefValue (catMaybes opsValDefs)
 
 effectDecl :: Visibility -> LexParser [TopDef]
 effectDecl dvis = do
@@ -926,7 +966,7 @@ parseValOpDecl vis =
      _ <- case mbteff of
        Nothing  -> return ()
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
-     return $ OpDecl (doc,toValueOperationName id,idrng,True,[],[],idrng,mbteff,tres)
+     return $ OpDecl (doc, toValueOperationName id,idrng,True,[],[],idrng,mbteff,tres)
 
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
@@ -950,10 +990,9 @@ parseFunOpDecl vis =
 
 
 -- smart constructor for operations
-operationDecl :: Visibility -> [UserTypeBinder] -> Name -> UserType -> UserType ->
-             Maybe (UserType, ValueBinder UserType (Maybe UserExpr),UserExpr) ->
-             [UserType] -> OpDecl -> (UserUserCon, UserTypeDef, Integer -> UserDef, Maybe UserDef)
-operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
+operationDecl :: Visibility -> [UserTypeBinder] -> String -> Name -> Bool -> UserType -> UserType -> [UserType] ->
+             [UserType] -> OpDecl -> (ValueBinder UserType (Maybe UserExpr), UserDef, Maybe UserDef)
+operationDecl vis foralls docEffect tagName isResource effTp hndTp hndTpVars extraEffects op
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) = op
            teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
@@ -966,8 +1005,8 @@ operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
 
            -- Create the constructor
-           opName   = toOpTypeName id
-           opBinder = TypeBinder opName KindNone idrng idrng
+           -- opName   = toOpTypeName id
+           -- opBinder = TypeBinder opName KindNone idrng idrng
 
 
            exists   = if (not (null exists0)) then exists0
@@ -975,27 +1014,88 @@ operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
            -- for now add a divergence effect to named effects/resources when there are type variables...
            -- this is too conservative though; we should generate the `ediv` constraint instead but
            -- that is a TODO for now
-           teff     = if (not (null (foralls ++ exists)) && isJust mbResourceInt && all notDiv extraEffects)
+           teff     = if (not (null (foralls ++ exists)) && isResource && all notDiv extraEffects)
                        then makeEffectExtend idrng (TpCon nameTpDiv idrng) teff0
                        else teff0
                     where
                       notDiv (TpCon name _) = name /= nameTpDiv
                       notDiv _              = True
 
-           conName  = toOpConName id
-           conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
-           conDef   = UserCon conName [] conParams Nothing idrng rng vis ""
-
-           -- Declare the operation as a struct type with one constructor
-           opTpDecl = -- trace ("declare op type: " ++ show opName) $
-                      DataType opBinder ({-tpBindE:-}foralls ++ exists) [conDef] rng vis Inductive DataDefNormal False doc
-
-           -- Declare the operation constructor for part of the full operations data type
+           -- create a constructor field for the operation as `clauseId : clauseN<a1,..,aN,b,e,r>`
            forallParams= [TpVar (tbinderName par) idrng | par <- foralls]
            tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
+
+           clauseId    = prepend "clause-" (if (isValueOperationName id) then fromValueOperationsName id else id)
+           clauseName  = nameTpClause (length pars)
+           clauseTp    = quantify QForall exists $
+                         makeTpApp (TpCon clauseName rng)
+                                   ([binderType par | (vis,par) <- pars] ++ [tres] ++ hndTpVars)
+                                   rng
+           conField    = trace ("con field: " ++ show clauseId) $
+                         ValueBinder clauseId clauseTp Nothing idrng rng
+
+
+           -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
+           -- Declare the yield operation
+           opDef  = let def      = Def binder rng vis defFun ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
+                        nameRng   = idrng
+                        binder    = ValueBinder id () body nameRng nameRng
+                        body      = Ann (Lam lparams innerBody rng) tpFull rng
+
+                        hasExists = (length exists==0)
+                        innerBody
+                          = App perform (
+                               [(Nothing, if isResource
+                                           then Var resourceName False nameRng
+                                           else App (Var nameEvvAt False nameRng) [(Nothing,zeroIdx)] nameRng),
+                                (Nothing, Var clauseId False nameRng)]
+                               ++ arguments) rng
+
+
+                        zeroIdx        = App (Var nameInt32 False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
+                        resourceName   = newHiddenName "ev"
+                        resourceBinder = ValueBinder resourceName ((makeTpApp (TpCon nameTpEv idrng) [hndTp] rng)) Nothing idrng rng
+                        perform        = Var (namePerform (length pars)) False nameRng
+
+                        params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
+                        params    = (if (isResource) then [resourceBinder] else []) ++ params0
+                        arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params0]
+
+                        lparams   = [par{ binderType = Nothing} | par <- params]
+                        tplparams = [(binderName par, binderType par) | par <- params]
+                        tpFull    = quantify QForall (foralls ++ exists) (TpFun tplparams teff tres rng)
+
+                        makeOptional tp = TpApp (TpCon nameTpOptional (getRange tp)) [tp] (getRange tp)
+                        isJust (Just{}) = True
+                        isJust _        = False
+                    in def
+
+           opValDef = if isValueOperationName id then
+                         let opName  = fromValueOperationsName id
+                             qualTpe = promoteType (TpApp (TpCon nameTpValueOp idrng) [tres] idrng)
+                             phantom = App (Var namePhantom False idrng) [] idrng
+                             annot   = Ann phantom qualTpe idrng
+                         in Just $ Def (ValueBinder opName () annot idrng idrng)
+                                        idrng vis DefVal "// phantom definition for value operations"
+
+                       else Nothing
+           -- conName  = toOpConName id
+           -- conParams= pars -- [(pvis,par{ binderExpr = Nothing }) | (pvis,par) <- pars]
+           -- conDef   = UserCon conName [] conParams Nothing idrng rng vis ""
+
+           -- Declare the operation as a struct type with one constructor
+           -- opTpDecl = -- trace ("declare op type: " ++ show opName) $
+           --            DataType opBinder ({-tpBindE:-}foralls ++ exists) [conDef] rng vis Inductive DataDefNormal False doc
+
+           -- Declare the operation constructor for part of the full operations data type
+           {-
+           forallParams= [TpVar (tbinderName par) idrng | par <- foralls]
+           tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
+
            opsConTpRes = makeTpApp opsTp (forallParams ++ [tres]) rng
            opsConTpArg = makeTpApp (tpCon opBinder) ({-effTp:-}tpParams) rng
            opsConArg   = ValueBinder id opsConTpArg Nothing idrng idrng
+
            opsConDef = UserCon (toOpsConName id) exists [(Private,opsConArg)] (Just opsConTpRes) idrng rng vis ""
 
            -- Declare the operation tag name
@@ -1063,7 +1163,8 @@ operationDecl vis foralls effTagName effTp opsTp mbResourceInt extraEffects op
 
 
                     in def
-           in (opsConDef,opTpDecl,opDef,opValDef)
+                  -}
+           in (conField,opDef,opValDef) -- (opsConDef,opTpDecl,opDef,opValDef)
 
 
 

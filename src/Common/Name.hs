@@ -25,6 +25,7 @@ module Common.Name
           , makeHiddenName, makeFreshHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
+          , toHandlerName, fromHandlerName
           , toOperationsName, fromOperationsName, isOperationsName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
@@ -254,6 +255,16 @@ newHiddenExternalName name
 newCreatorName :: Name -> Name
 newCreatorName name
   = makeHiddenName "create" name
+
+-- | Create a handler type name from an effect type name.
+toHandlerName :: Name -> Name
+toHandlerName name
+  = postpend "-hnd" name
+
+-- | Create an effect type name from an operations type name.
+fromHandlerName :: Name -> Name
+fromHandlerName name
+  = newQualified (nameModule name) (reverse (drop 4 (reverse (nameId name))))
 
 
 -- | Create an operations type name from an effect type name.

@@ -34,8 +34,16 @@ module Common.NamePrim
           , nameLift, nameBind
           , nameInject, nameInjectExn, nameInjectResource
           , nameTpResourceTag, nameConResourceTag
-          , nameTpEv, nameConEv
+          , nameConEv
 
+          -- Effects
+          , nameTpHTag, nameHTag
+          , nameTpClause, namePerform
+          , nameEvvAt, nameEvvLookup
+          , nameOpenAt, nameOpen
+          , nameTpEv
+
+          --
           , nameUnsafeTotal
           , nameIntConst, nameInt32
 
@@ -197,6 +205,20 @@ nameIntConst    = preludeName ".int-string"
 nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
+  Handlers
+--------------------------------------------------------------------------}
+nameHTag        = coreHndName "hidden-htag"
+nameTpHTag      = coreHndName "htag"
+nameTpClause i  = coreHndName ("clause" ++ show i)
+namePerform i   = coreHndName ("hidden-perform" ++ show i)
+nameEvvAt       = coreHndName "hidden-evv-at"
+nameEvvLookup   = coreHndName "hidden-evv-lookup"
+nameOpenAt i    = coreHndName ("hidden-open-at" ++ show i)
+nameOpen i      = coreHndName ("hidden-open" ++ show i)
+nameTpEv        = coreHndName "ev"
+
+
+{--------------------------------------------------------------------------
   Primitive type constructors
 --------------------------------------------------------------------------}
 nameEffectEmpty = preludeName "<>"
@@ -248,7 +270,6 @@ nameTpOpMatch   = preludeName "opmatch"
 nameOpMatch     = preludeName ".conOpMatch"
 nameOpNoMatch   = preludeName ".conOpNoMatch"
 
-nameTpEv        = preludeName "ev"
 nameConEv       = preludeName "Ev"
 
 
@@ -300,8 +321,12 @@ isNameTuple name
 preludeName s
   = qualify nameSystemCore (newName s)
 
+coreHndName s
+  = qualify nameCoreHnd (newName s)
+
 nameSystemCore  = newName "std/core"
 nameCore        = newName "core"
+nameCoreHnd     = newName "core/hnd"
 nameDict        = newName "std/data/dict"
 
 toShortModuleName :: Name -> Name
