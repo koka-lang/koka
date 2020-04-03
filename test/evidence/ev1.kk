@@ -11,18 +11,20 @@ effect amb {
   fun flip() : bool
 }
 
-
 effect state<a> {
   fun get()    : a
   fun set(x:a) : ()
-  fun throw(s:string) : b
+  fun throw(s:string,x:a) : b
 }
 
-//ambient val width : int
+ambient val width : int
 
-/*
-effect instance file {
-  fun read() : string
-  //fun fthrow(x:a) : b
+
+effect instance file<a> {
+  fun read(x:a) : string
+  fun fthrow(x:a) : b
 }
-*/
+
+effect cow {
+  control moo() : (() -> cow ())
+}

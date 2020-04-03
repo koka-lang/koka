@@ -796,10 +796,6 @@ makeEffectDecl decl =
                        [effTpH] irng
       rng     = combineRanges [vrng,erng,irng]
 
-      opEffTp = case mbResource of
-                  Nothing -> effTp
-                  Just rtp -> rtp
-
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
       docEffect  = "`:" ++ show id ++ "` effect"
       docx       = (if (doc/="") then doc else "// " ++ docEffect)
@@ -836,7 +832,7 @@ makeEffectDecl decl =
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
       (opFields,opSelects,opDefs,opValDefs)
-          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName isResource opEffTp (tpCon hndTpName)
+          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName mbResource effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
                                                  (zip [0..opCount-1] operations)
 
@@ -1024,16 +1020,19 @@ parseFunOpDecl vis =
 
 
 -- smart constructor for operations
-operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Bool -> UserType -> UserType -> [UserTypeBinder] ->
+operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Maybe UserType -> UserType -> UserType -> [UserTypeBinder] ->
              [UserType] -> (Int,OpDecl) -> (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
-operationDecl opCount vis foralls docEffect hndName isResource effTp hndTp hndTpVars extraEffects (opIndex,op)
+operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) = op
-           teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (effTp:extraEffects)
+           opEffTp  = case mbResource of
+                        Nothing  -> effTp
+                        Just rtp -> rtp
+           teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (opEffTp:extraEffects)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
-
+           isResource = isJust mbResource
 
            --nameE    = newName ".e"
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
@@ -1111,7 +1110,7 @@ operationDecl opCount vis foralls docEffect hndName isResource effTp hndTp hndTp
 
                         zeroIdx        = App (Var nameInt32 False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
                         resourceName   = newHiddenName "name"
-                        resourceBinder = ValueBinder resourceName ((makeTpApp effTp (map tpVar foralls) rng)) Nothing idrng rng
+                        resourceBinder = ValueBinder resourceName effTp  Nothing idrng rng
                         perform        = Var (namePerform (length pars)) False nameRng
 
                         params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?

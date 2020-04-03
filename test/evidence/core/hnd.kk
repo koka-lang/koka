@@ -454,7 +454,7 @@ private fun under2( w : evv<e>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
   z
 }
 
-public fun clause-control2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : clause2<a1,a2,b,e,r> {
+public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ yield-to(m, fun(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
@@ -474,7 +474,7 @@ public fun hidden-perform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a
   }
 }
 
-public fun clause-never0( op : (a1,a2) -> e r ) : clause2<a1,a2,b,e,r> {
+public fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ yield-to-final(m, fun(_k){ op(x1,x2) }) })
 }
 
