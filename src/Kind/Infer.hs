@@ -778,7 +778,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                  fromOpsName nm = if (isOperationsName nm) then [fromOperationsName nm] else []
              in if (any (occursNegativeCon (recNames ++ effNames)) (infos))
               then do cs <- getColorScheme
-                      addError range (text "Type" <+> color (colorType cs) (pretty (unqualify (getName newtp'))) <+> text "is declared as being (co)inductive but it occurs" <-> text " recursively in a negative position." <->
+                      let fname  = unqualify (getName newtp')
+                          name   = if (isHandlerName fname) then fromHandlerName fname else fname
+                      addError range (text "Type" <+> color (colorType cs) (pretty name) <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
        -- trace (showTypeBinder newtp') $

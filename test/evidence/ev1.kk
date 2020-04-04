@@ -25,6 +25,6 @@ effect instance file<a> {
   fun fthrow(x:a) : b
 }
 
-effect cow {
+effect rec cow {
   control moo() : (() -> cow ())
 }

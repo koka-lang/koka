@@ -799,17 +799,22 @@ makeEffectDecl decl =
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
       docEffect  = "`:" ++ show id ++ "` effect"
       docx       = (if (doc/="") then doc else "// " ++ docEffect)
+
       effTpDecl  = if isResource
                     then Synonym  ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
-                    else DataType ename tpars [] rng vis Inductive DataDefNormal False docx
+                    else let -- add a private constructor that refers to the handler type to get a proper recursion check
+                             hndfld = ValueBinder nameNil hndTp Nothing irng rng
+                             hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng rng Private ""
+                         in DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect irng
       kindStar   = KindCon nameKindStar irng
-      hndName    = makeHiddenName "hnd" id
+      hndName    = toHandlerName id
       hndEffTp   = TypeBinder (newHiddenName "e") (KindCon nameKindEffect irng) irng irng
       hndResTp   = TypeBinder (newHiddenName "r") kindStar irng irng
       hndTpName  = TypeBinder hndName KindNone irng irng
+      hndTp      = makeTpApp (tpCon hndTpName) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng
 
       -- declare the effect tag
       tagName    = makeHiddenName "tag" id
