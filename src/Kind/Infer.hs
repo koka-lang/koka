@@ -552,9 +552,9 @@ infExpr expr
                                                       return (HandlerResource (Just rexpr'))
                                                HandlerResource Nothing -> return $ HandlerResource Nothing
                                                HandlerNormal -> return HandlerNormal
-                                   ret' <- infExpr ret
-                                   reinit' <- infExpr reinit
-                                   final'  <- infExpr final
+                                   ret' <- infExprMaybe ret
+                                   reinit' <- infExprMaybe reinit
+                                   final'  <- infExprMaybe final
                                    ops' <- mapM infHandlerBranch ops
                                    return (Handler hsort' scoped override meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
@@ -562,6 +562,11 @@ infExpr expr
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
                                   return (Inject tp' expr' b range)
 
+infExprMaybe mbExpr
+  = case mbExpr of
+      Nothing -> return Nothing
+      Just expr -> do expr' <- infExpr expr
+                      return (Just expr')
 
 infPat pat
   = case pat of

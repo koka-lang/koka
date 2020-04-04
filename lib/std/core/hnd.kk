@@ -1,9 +1,7 @@
-public module core/hnd
-
-import std/num/int32
+public module std/core/hnd
 
 extern include {
-  js file "core-hnd-inline.js"
+  js file "hnd-inline.js"
 }
 
 
@@ -41,9 +39,6 @@ private fun fresh-marker() : marker<e,r> {
   Marker(fresh-marker-int())
 }
 
-private fun (==)(m1 : marker<e1,a1>, m2: marker<e2,a2>) : bool {
-  (m1.m == m2.m)
-}
 
 // -------------------------------------------
 // Internal Evidence vectors
@@ -54,19 +49,19 @@ private extern inline evv-total() : evv<<>> {
 }
 
 public extern hidden-evv-lookup( htag : htag<h> ) : e ev<h> {
-  js inline "_evv_lookup($evv,$evv_ofs,#1)"
+  js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 public extern inline hidden-evv-at( i : ev-index ) : e ev<h> {
-  js inline "$evv[$evv_ofs + #1]"
+  js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
 public extern inline hidden-evv-select( i : ev-index, htag : htag<h> ) : e ev<h> {
-  js inline "(#1 >= 0 ? $evv[#1 + $evv_ofs] : _evv_lookup($evv,$evv_ofs,#2))"
+  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : _evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
 private extern inline evv-get() : e evv<e> {
-  js inline "{ evv: $evv, ofs: $evv_ofs }"
+  js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
@@ -82,15 +77,15 @@ private extern evv-create( evv : evv<e1>, indices : vector<int> ) : evv<e2> {
 }
 
 private extern inline evv-set( w : evv<e1> ) : e2 () {
-  js inline "(function(){ $evv = (#1).evv; $evv_ofs = (#1).ofs; }())"
+  js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
 private extern inline evv-set-ofs( ofs : int ) : e int {
-  js inline "(function(){ const _ofs = $evv_ofs; $evv_ofs = #1; return _ofs; }())"
+  js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
 private extern evv-equals( w : evv<e> ) : bool {
-  js inline "($evv === w.evv && $evv_ofs === w.ofs)"
+  js inline "($std_core_hnd._evv === w.evv && $std_core_hnd._evv_ofs === w.ofs)"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
@@ -106,11 +101,11 @@ private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
 // -------------------------------------------
 
 public extern inline yielding() : bool {
-  js inline "($yield !== null)"
+  js inline "($std_core_hnd._yield !== null)"
 }
 
 public extern inline yielding-non-final() : bool {
-  js inline "($yield !== null && !$yield.final)"
+  js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
 public extern yield-extend(next : a -> e b ) : e b {

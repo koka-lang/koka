@@ -171,10 +171,10 @@ dependencyExpr modName expr
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng
-        -> let (depRet,fv1)     = dependencyExpr modName ret
+        -> let (depRet,fv1)     = dependencyExprMaybe modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-               (depReinit,fv3)  = dependencyExpr modName reinit
-               (depFinal,fv4)   = dependencyExpr modName final
+               (depReinit,fv3)  = dependencyExprMaybe modName reinit
+               (depFinal,fv4)   = dependencyExprMaybe modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
            in (Handler shallow scoped override eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
       Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
@@ -183,6 +183,11 @@ dependencyExpr modName expr
 dependencyBranches f modName branches
   = unzipWith (id,S.unions) (map (f modName) branches)
 
+dependencyExprMaybe modName mbExpr
+  = case mbExpr of
+      Nothing -> (Nothing,S.empty)
+      Just expr -> let (depExpr,fv) = dependencyExpr modName expr
+                   in (Just depExpr,fv)
 
 dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
 dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })

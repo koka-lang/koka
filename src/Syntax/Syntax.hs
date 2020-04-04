@@ -207,7 +207,7 @@ data Expr t
   | Parens (Expr t)              Range
   | Handler (HandlerSort (Expr t)) HandlerScope HandlerOverride
                   (Maybe t) [ValueBinder (Maybe t) ()]
-                  (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
+                  (Maybe (Expr t)) (Maybe (Expr t)) (Maybe (Expr t)) [HandlerBranch t] Range Range
   | Inject t (Expr t) Bool {-behind?-} Range
 
 

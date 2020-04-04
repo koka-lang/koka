@@ -31,7 +31,7 @@ module Syntax.Parse( parseProgramFromFile
                    ) where
 
 import Lib.Trace
-import Data.List (intersperse,unzip4)
+import Data.List (intersperse,unzip4,sortBy)
 import Data.Maybe (isJust,isNothing,catMaybes)
 import Data.Either (partitionEithers)
 import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,rparen,rangle,langle)
@@ -689,23 +689,25 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,ki
 --
 
 -- resumeCall e [params] = "resume(e, params...)"
+{-
 resumeCall :: UserExpr -> [ValueBinder t e] -> Range -> UserExpr
 resumeCall expr pars rng
   = App (Var (newName "resume") False rng) ((Nothing, expr) : (map paramToArg pars)) rng where
     paramToArg p = (Nothing, Var (binderName p) False rng)
-
+-}
 
 -- given a name and an expression, this function generates
 -- - a binder for a fresh name (let's say `val x$name$3 = expr; body`), binding the expression
 -- - a tail resuming expression i.e. `resume(x$name$3, params...)`
 -- TODO add parameters to resume (replace UserExpr by [ValueBinder t e] -> UserExpr)
+
 bindExprToVal :: Name -> Range -> UserExpr -> (UserExpr -> UserExpr, [ValueBinder t e] -> UserExpr)
 bindExprToVal opname oprange expr
   =  let fresh    = makeFreshHiddenName "value" opname oprange
          freshVar = (Var fresh False oprange)
          erange   = (getRange expr)
          binder   = (Def (ValueBinder fresh () expr oprange erange) oprange Private DefVal "")
-      in (\body -> Bind binder body erange, \params -> resumeCall freshVar params erange)
+     in (\body -> Bind binder body erange, \params -> freshVar {- \params -> resumeCall freshVar params erange -})
 
 
 -- Effect definitions
@@ -839,7 +841,9 @@ makeEffectDecl decl =
       (opFields,opSelects,opDefs,opValDefs)
           = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName mbResource effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
-                                                 (zip [0..opCount-1] operations)
+                                                 (zip [0..opCount-1] (sortBy cmpName operations))
+      cmpName op1 op2 = compare (getOpName op1) (getOpName op2)
+      getOpName (OpDecl (doc,opId,idrng,linear,exists0,pars,prng,mbteff,tres)) = show (unqualify opId)
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing irng rng vis ""
       hndTpDecl  = DataType hndTpName (tpars ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
@@ -1070,11 +1074,11 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
                                    rng
            clauseTp    = quantify QForall exists $ clauseRhoTp
 
-           conField    = trace ("con field: " ++ show clauseId) $
+           conField    = -- trace ("con field: " ++ show clauseId) $
                          ValueBinder clauseId clauseTp Nothing idrng rng
 
            -- create an operation selector explicitly so we can hide the handler constructor
-           selectId    = makeHiddenName "select" id
+           selectId    = toOpSelectorName id
            opSelect = let def       = Def binder rng vis defFun ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
                           nameRng   = idrng
                           binder    = ValueBinder selectId () body nameRng nameRng
@@ -1619,8 +1623,8 @@ handlerExprXX braces rng mbEff scoped override hsort
        let (clauses, binders) = extractBinders clausesAndBinders
        (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
        let reinitFun = case mbReinit of
-                         Nothing -> constNull rng
-                         Just reinit -> makeNull $
+                         Nothing -> Nothing
+                         Just reinit -> Just $
                            if (null pars)
                             then Var (getName reinit) False rng
                             else let argName = newHiddenName "local"
@@ -1736,16 +1740,16 @@ extractBinders = foldr extractBinder ([], id) where
   extractBinder (clause, Nothing) (cs, binders) = (clause : cs, binders)
   extractBinder (clause, Just binder) (cs, binders) = (clause : cs, binders . binder)
 
-partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (Maybe UserDef,UserExpr,UserExpr,[UserHandlerBranch])
+partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (Maybe UserDef,Maybe UserExpr,Maybe UserExpr,[UserHandlerBranch])
 partitionClauses clauses pars rng
   = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses
        ret <- case rets of
-                [r] -> return (makeNull r)
-                []  -> return (Var (if null pars then nameReturnNull else nameReturnNull1) False rng)
+                [r] -> return (Just r)
+                []  -> return Nothing
                 _   -> fail "There can be be at most one 'return' clause in a handler body"
        final <- case finals of
-                [f] -> return (makeNull f)
-                []  -> return (constNull rng)
+                [f] -> return (Just f)
+                []  -> return Nothing
                 _   -> fail "There can be be at most one 'finally' clause in a handler body"
        reinit <- case reinits of
                    [i] -> return (Just i)
@@ -1830,7 +1834,7 @@ handlerOp defaultResumeKind pars
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams
        expr <- bodyexpr
-       let rexpr  = if (resumeKind /= ResumeTail) then expr else resumeCall expr pars nameRng
+       let rexpr  = expr -- if (resumeKind /= ResumeTail) then expr else resumeCall expr pars nameRng
        return (ClauseBranch (HandlerBranch name oppars rexpr (resumeKind == ResumeNormalRaw) resumeKind nameRng (combineRanges [nameRng,prng])), Nothing)
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)

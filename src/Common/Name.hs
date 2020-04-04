@@ -26,6 +26,7 @@ module Common.Name
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
           , toHandlerName, fromHandlerName, isHandlerName
+          , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
@@ -285,6 +286,22 @@ isOperationsName name
 fromOperationsName :: Name -> Name
 fromOperationsName name
   = newQualified (nameModule name) (drop 5 (nameId name))
+
+-- | Create an operations type name from an effect type name.
+toOpSelectorName :: Name -> Name
+toOpSelectorName name
+  = makeHiddenName "select" name
+
+-- | Is this an operations name?
+isOpSelectorName :: Name -> Bool
+isOpSelectorName name
+  = nameId name `startsWith` ".select-"
+
+-- | Create an effect type name from an operations type name.
+fromOpSelectorName :: Name -> Name
+fromOpSelectorName name
+  = newQualified (nameModule name) (drop 8 (nameId name))
+
 
 -- | Create an operation type name from an operation name.
 toOpTypeName :: Name -> Name

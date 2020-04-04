@@ -1,12 +1,12 @@
 public module ev-examples1
 
-import core/hnd
+import std/core/hnd
 
 type cow :: HX  {
   private con Cow<e,r>( : cow-hnd<e,r> )
 }
 
-type cow-hnd<e,r> {
+rectype cow-hnd<e,r> {
   con Cow-hnd( op-moo: clause0< () -> cow (), e, r> )
 }
 

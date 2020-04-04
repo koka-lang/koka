@@ -34,7 +34,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
                       , nameMakeContextTp
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocal
-                      , nameTpValueOp
+                      , nameTpValueOp, nameClause, nameIdentity
                        )
 import Common.Range
 import Common.Unique
@@ -70,7 +70,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
- -- Lib.Trace.trace s
+  Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv; trace (show (fdoc penv)) $ return ()
@@ -435,9 +435,9 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
         do (tp,eff,coreExpr) <- inferExpr Nothing expect expr
                                 -- Just annTp -> inferExpr (Just (annTp,rng)) (if (isRho annTp) then Instantiated else Generalized) (Ann expr annTp rng)
 
-           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
+           -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env tp
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
-           traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
+           -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
            if (verbose penv >= 2)
             then Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
@@ -446,7 +446,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort doc)
 
 inferBindDef :: Def Type -> Inf (Effect,Core.Def)
 inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort doc)
-  = trace ("infer bind def: " ++ show name) $
+  = -- trace ("infer bind def: " ++ show name) $
     do withDefName name $
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)
@@ -670,7 +670,7 @@ inferExpr propagated expect (App fun nargs rng)
   = inferApp propagated expect fun nargs rng
 
 inferExpr propagated expect (Ann expr annTp rng)
-  = do traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
+  = do -- traceDoc $ \env -> text "infer annotation:" <+> ppType env annTp
        (tp,eff,core) <- inferExpr (Just (annTp,rng)) (if isRho annTp then Instantiated else Generalized False) expr
        sannTp <- subst annTp
        stp    <- subst tp
@@ -689,18 +689,19 @@ inferExpr propagated expect (Ann expr annTp rng)
 inferExpr propagated expect (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
   = inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
 inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pars reinit ret final branches hrng rng)
-  = do mbhxeff <- inferHandledEffect hrng handlerSort mbEff branches
+  = do heff <- inferHandledEffect hrng handlerSort mbEff branches
+       {-
        case mbhxeff of
          Nothing
           -> do termError rng (text "cannot determine the effect type for the override") typeTotal []
                 inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
-         Just heff
-          -> let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
-                 name = newHiddenName "override-action"
-                 binder = ValueBinder name Nothing Nothing rng rng
-                 var    = Var name False rng
-                 lam    = Lam [binder] (Inject heff (Lam [] (App h [(Nothing,var)] rng) rng) False rng) rng
-             in inferExpr propagated expect lam
+         Just heff -> -}
+       let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+           name = newHiddenName "override-action"
+           binder = ValueBinder name Nothing Nothing rng rng
+           var    = Var name False rng
+           lam    = Lam [binder] (Inject heff (Lam [] (App h [(Nothing,var)] rng) rng) False rng) rng
+       inferExpr propagated expect lam
 
 inferExpr propagated expect (Case expr branches rng)
   = -- trace " inferExpr.Case" $
@@ -839,10 +840,49 @@ inferUnifyTypes contextF ((tp1,r):(tp2,(ctx2,rng2)):tps)
 
 inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> HandlerScope
                       -> Maybe Effect
-                      -> [ValueBinder (Maybe Type) ()] -> Expr Type -> Expr Type -> Expr Type
+                      -> [ValueBinder (Maybe Type) ()] -> Maybe (Expr Type) -> Maybe (Expr Type) -> Maybe (Expr Type)
                       -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect handlerSort handlerScoped
-            mbEffect localPars reinit ret final branches hrng rng
+             mbEffect localPars initially ret finally [] hrng rng
+  = failure "Type.Infer.inferHandler: TODO: no branches"
+inferHandler propagated expect handlerSort handlerScoped
+             mbEffect (_:localPars) initially ret finally branches hrng rng
+  = failure "Type.Infer.inferHandler: TODO: not supporting local parameters"
+inferHandler propagated expect handlerSort handlerScoped
+             mbEffect [] initially ret finally branches hrng rng
+  = do heff <- (inferHandledEffect hrng handlerSort mbEffect branches)
+       let isResource = isHandlerResource handlerSort
+           effectName = effectNameFromLabel heff
+
+           -- create expressions for each clause
+           handlerCon = App (Var (toConstructorName (toHandlerName effectName)) False hrng) clauses rng
+           clauses    = map clause (sortBy opName branches)
+           opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
+           clause (HandlerBranch opName pars body raw rkind nameRng patRng)
+                      = let (clauseName, cparams) = case rkind of
+                                ResumeTail      -> (nameClause "tail" (length pars), pars)
+                                ResumeNormal    -> (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") Nothing () nameRng patRng])
+                                ResumeNormalRaw -> (nameClause "controw-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
+                                _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
+                            cparamsx = map (\b -> case b of
+                                                    ValueBinder name _ _ nameRng rng -> ValueBinder name Nothing Nothing nameRng rng)
+                                           cparams :: [ValueBinder (Maybe Type) (Maybe (Expr Type))]
+                            frng = combineRanged nameRng body
+                        in (Nothing, App (Var clauseName False nameRng) [(Nothing,Lam cparamsx body frng)] frng)
+
+           -- create handler expression
+           handleName = makeHiddenName "handle" effectName
+           handleRet  = case ret of
+                          Nothing -> Var nameIdentity False hrng
+                          Just expr -> expr
+           handleExpr = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,Var (newHiddenName "action") False rng)] hrng
+           handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] handleExpr hrng
+
+       -- and check the handle expression
+       inferExpr propagated expect handlerExpr
+
+
+{-
   = do -- analyze propagated type
        (propArgs,propEff,propRes,expectRes) <- matchFun (length localPars + 1) propagated
        let propAction    = last propArgs
@@ -878,15 +918,25 @@ inferHandler propagated expect handlerSort handlerScoped
            localArgs    = [(binderName b, binderType b) | b <- locals]
            branchTp     = retOutTp
 
+       {-
        traceDoc $ \env -> text "inferHandler: retTp:" <+> ppType env retTp
                            <+> text ", propLocals: " <+> list (map (pretty . binderName) propLocals)
                            <+> text ", localTypes: " <+> list (map (ppType env) localTypes)
                            <+> text ", locals: " <+> list [pretty (binderName l) <.> colon <+> ppType env (binderType l) | l <- locals]
-
+      -}
        -- Create effect type variable & unify with the return clause effect
-       heff <- freshEffect
-       inferUnify (checkEffectSubsume hrng) hrng heff retEff
 
+       heff <- inferHandledEffect hrng handlerSort mbEffect branches
+       actionEff0 <- freshEffect
+       inferUnify (checkEffectSubsume hrng) hrng actionEff0 (effectExtend hxeff retEff)
+       actionEff  <- subst actionEff0
+       sretTp     <- subst retTp
+       traceDoc $ \env -> text "inferHandler: retTp:" <+> ppType env sretTp <+> text ", action effect: " <+> ppType env actionEff
+
+
+
+       failure $ "todo"
+       {-
 
        -- infer the handled effect
        mbhxeff <- inferHandledEffect hrng handlerSort mbEffect branches
@@ -942,6 +992,8 @@ inferHandler propagated expect handlerSort handlerScoped
        geff <- freshEffect
        -- trace ("inferred handler type: " ++ show (pretty sihandlerTp)) $
        return (sghandlerTp,geff,sghandlerCore)
+       -}
+-}
 {-
 wrapScopedHandler :: HandlerScope -> Maybe Effect -> Core.Expr -> Type -> Range -> Inf (Core.Expr,Type)
 wrapScopedHandler HandlerNoScope mbeff hcore htp rng = return (hcore,htp)
@@ -967,27 +1019,26 @@ handlerReturnDefault rng propLocals
         xvar  = Var xname False rng
     in Lam (xbind:propLocals) xvar rng
 
--- TODO check whether branch type fits
-inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Maybe Effect)
+
+inferHandledEffect :: Range -> HandlerSort (Expr Type) -> Maybe Effect -> [HandlerBranch Type] -> Inf (Effect)
 inferHandledEffect rng handlerSort mbeff ops
   = case mbeff of
-      Just eff -> return (Just eff)
+      Just eff -> return (eff)
       Nothing  -> case ops of
         (HandlerBranch name pars expr isRaw resKind nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
                 (rho,_,_) <- instantiate nameRng tp
                 case splitFunType rho of
-                  Just((opname,rtp):_,_,_) | isHandlerResource handlerSort && opname == newHiddenName "resource"
-                                -> do traceDoc $ \env -> text "resource effect: " <+> ppType env rtp
-                                      return $ Just rtp
+                  Just((opname,rtp):_,_,_) | isHandlerResource handlerSort && opname == newHiddenName "name"
+                                -> do traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
+                                      return rtp
                   Just(_,eff,_) | not (isHandlerResource handlerSort)
                                 -> case extractEffectExtend eff of
-                                    ((l:_),_) -> return (Just l)  -- TODO: can we assume the effect comes first?
+                                    ((l:_),_) -> return (l)  -- TODO: can we assume the effect comes first?
                                     _ -> failure $ "Type.Infer.inferHandledEffect: invalid effect type: " ++ show eff
                   _ -> infError rng (text ("Expected effect operation to be handled but got a function: " ++ show qname ++ " instead"))
-        _ -> return Nothing
-              -- infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
+        _ -> infError rng (text "unable to determine the handled effect." <--> text " hint: use a `handler<eff>` declaration?")
 
 
 inferHandlerRet :: [ValueBinder Type ()] -> [(Name,Type)] -> Type -> Effect ->  Type -> Type -> Effect -> Range -> Range
@@ -1431,6 +1482,7 @@ effectNameFromLabel effect
       TApp (TCon tc) [hx]
         | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1) -> effectNameFromLabel hx
       TCon tc -> typeConName tc
+      TSyn syn _ _ -> typeSynName syn
       TApp (TCon tc) targs -> typeConName tc
       _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
 
@@ -1925,7 +1977,7 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) infer
            withSkolemized range conExistsTp Nothing $ \conXRho0 xvars ->
             do conXRho <- Op.instantiate nameRange (TForall (conInfoForalls coninfo) [] conXRho0)
                (iconRho,_,_)  <- instantiate nameRange gconTp
-               traceDoc $ \env -> text " conXRho:" <+> ppType env conXRho <+> text ", versus iconRho:" <+> ppType env iconRho
+               -- traceDoc $ \env -> text " conXRho:" <+> ppType env conXRho <+> text ", versus iconRho:" <+> ppType env iconRho
                inferUnify (checkOp range) nameRange conXRho iconRho
                conRho <- subst iconRho
                cont conRho xvars
