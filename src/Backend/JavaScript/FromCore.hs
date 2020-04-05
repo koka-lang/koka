@@ -119,10 +119,8 @@ genModule maxStructFields mbMain core
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
                       in map unqualify $ concatMap f (coreProgDefs core)
-    exportedConstrs = let f (Synonym _ _)    = []
-                          f (Data info _ vs _)
-                                             = let xs = zip vs $ map conInfoName (dataInfoConstrs info)
-                                               in  map snd $ filter (\(v,_)-> v == Public) xs
+    exportedConstrs = let f (Synonym _ )    = []
+                          f (Data info _)   = map conInfoName $ filter (isPublic . conInfoVis) (dataInfoConstrs info)
                           u (TypeDefGroup xs) = xs
                       in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
 
@@ -237,7 +235,7 @@ genTypeDefGroup maxStructFields (TypeDefGroup tds)
 genTypeDef :: Int -> TypeDef -> Asm Doc
 genTypeDef maxStructFields (Synonym {})
   = return empty
-genTypeDef maxStructFields (Data info _ _ isExtend)
+genTypeDef maxStructFields (Data info isExtend)
   = do modName <- getModule
        let (dataRepr, conReprs) = getDataRepr maxStructFields info
        docs <- mapM ( \(c,repr)  ->

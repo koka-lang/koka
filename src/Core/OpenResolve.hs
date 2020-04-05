@@ -124,7 +124,10 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                                 trace " identity" $ expr
         else
        -}
-       -- not equal, insert open
+       if (matchType effFrom effTo)
+        then -- exact match, just use expr
+             trace " identity" $ expr
+        else -- not equal, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
                                   _ -> failure $ "Core.openResolve.resOpen: unknown name: " ++ show name
@@ -138,8 +141,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                  []  -> -- no handled effect, use cast
                         trace (" no handled effect; use cast") $
                         -- wrapper (resolve (nameOpenNone n)) []
-                        -- App eopen [expr]
-                        expr  -- change nothing
+                        App eopen [expr]
+                        -- expr  -- change nothing
                  [l] -> -- just one: used open-atN for efficiency
                         trace (" one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)

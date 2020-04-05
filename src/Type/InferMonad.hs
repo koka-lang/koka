@@ -75,6 +75,7 @@ import Common.Range
 import Common.Unique
 import Common.Failure
 import Common.Error
+import Common.Syntax( Visibility(..))
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
                        nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
@@ -948,7 +949,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)
-  = (Core.nonCanonicalName name, createNameInfoX name sort nameRng tp)
+  = (Core.nonCanonicalName name, createNameInfoX vis name sort nameRng tp)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -1050,7 +1051,7 @@ withGammaType :: Range -> Type -> Inf a -> Inf a
 withGammaType range tp inf
   = do defName <- currentDefName
        name <- uniqueName (show defName)
-       extendInfGamma False [(name,(InfoVal name tp range False))] inf
+       extendInfGamma False [(name,(InfoVal Public name tp range False))] inf
 
 currentDefName :: Inf Name
 currentDefName

@@ -133,17 +133,17 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e (() -> b) {
+private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : b {
   js "_yield_to"
 }
 
-private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
+private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : b {
   js "_yield_final"
 }
 
 private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
   val w0 = evv-get()
-  val keep0 = yield-to-prim(m, clause)
+  val g = yield-to-prim(m, clause)
   yield-extend( fun(f){ val keep1 = evv-set(w0); f() })
 }
 
@@ -164,8 +164,9 @@ private type yld<e,a,r> {
   Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : maybe<(() -> b) -> e a>)
 }
 
-private fun guard(w : evv<e> ) : e () {
-  if (evv-equals(w)) then () else cast-ev1(error)("non-scoped resumption")
+private extern guard(w : evv<e> ) : e () {
+  js "_guard"
+  // if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
 private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
@@ -188,7 +189,7 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
         guard(w0)
         val g = match(mbcont) {
                   Just(cont) -> cont //prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
-                  Nothing    -> cast-ev1(error)("trying to resume a non-resumable resumption")
+                  Nothing    -> unsafe-total{ error("trying to resume a non-resumable resumption") }
                 }
         prompt(w0,w1,unsafe-decreasing(m),ret,g(f))
       }
@@ -274,7 +275,7 @@ private fun finally-prompt(fin : () -> e (), res : a ) : e a {
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,m,id, yield-bind( cont( { yield-to-final(m,fun(_k){ res }) } ), fun(_x) { res } ))
+  prompt(w,w,m,id, yield-bind( cont( { yield-to-final(m,fun(_k){ res }) } ), fun(_x){ res } ))
 }
 
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {

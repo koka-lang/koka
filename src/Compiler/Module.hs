@@ -21,13 +21,13 @@ module Compiler.Module( Module(..), Modules, moduleNull
                       ) where
 
 import Lib.Trace
-import Lib.PPrint             
+import Lib.PPrint
 import Common.Range           ( Range )
 import Common.Name            ( Name, newName)
 import Common.Error
 import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
 
-import Syntax.Syntax          
+import Syntax.Syntax
 import Static.FixityResolve   ( Fixities, fixitiesEmpty, fixitiesNew, fixitiesCompose )
 
 import Kind.ImportMap
@@ -52,7 +52,7 @@ data Module  = Module{ modName        :: Name
                      , modPath        :: FilePath          -- interface file
                      , modSourcePath  :: FilePath          -- maybe empty
                      , modPackageQName:: FilePath          -- A/B/C
-                     , modPackageLocal:: FilePath          -- lib          
+                     , modPackageLocal:: FilePath          -- lib
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
@@ -77,7 +77,7 @@ loadedLatest loaded
   = maxFileTimes (map modTime (loadedModules loaded))
 
 initialLoaded :: Loaded
-initialLoaded 
+initialLoaded
   = Loaded gammaInit
            kgammaInit
            synonymsEmpty
@@ -88,7 +88,7 @@ initialLoaded
            0
            (moduleNull (newName "Interactive"))
            []
-           
+
 moduleNull :: Name -> Module
 moduleNull modName
   = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) Nothing fileTime0
@@ -99,7 +99,7 @@ loadedName ld
 
 modPackageName :: Module -> PackageName
 modPackageName mod
-  = last (splitPath (modPackageQName mod)) 
+  = last (splitPath (modPackageQName mod))
 
 modPackagePath :: Module -> PackageName
 modPackagePath mod
@@ -110,9 +110,9 @@ modPackageQPath mod
   = joinPkg (modPackageQName mod) (modPackageLocal mod)
 
 {---------------------------------------------------------------
-  
+
 ---------------------------------------------------------------}
-                       
+
 
 loadedImportModule :: Int -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
 loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1) mod range impName
@@ -122,17 +122,17 @@ loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 uniqu
           = case importsExtend impName (modName mod) imps1 of
               Nothing   -> (imps1,[ErrorGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
               Just imps -> (imps,[])
-        loaded 
-          = Loaded (gammaUnion gamma1 (extractGamma True msf core))
+        loaded
+          = Loaded (gammaUnion gamma1 (extractGamma False msf core))
                 (kgammaUnion kgamma1 (extractKGamma core))
                 (synonymsCompose syns1 (extractSynonyms core))
                 (newtypesCompose data1 (extractNewtypes core))
-                (constructorsCompose cons1 (extractConstructors True core))
+                (constructorsCompose cons1 (extractConstructors core))
                 (fixitiesCompose fix1 (extractFixities core))
                 imps2
                 unique1
                 mod1
-                (addOrReplaceModule mod imp1)  
+                (addOrReplaceModule mod imp1)
     in (loaded,errs)
 
 addOrReplaceModule :: Module -> Modules -> Modules

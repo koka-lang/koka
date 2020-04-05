@@ -433,7 +433,7 @@ checkUnhandledEffects flags loaded name range tp
                              Nothing -> combine eff mf ls
                              Just (_,effName)
                                -> case gammaLookupQ (makeHiddenName "default" effName) (loadedGamma loaded) of
-                                    [InfoFun dname _ _ _]
+                                    [InfoFun _ dname _ _ _]
                                       -> let g expr = let r = getRange expr
                                                       in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mf) r)] r
                                          in combine eff (Just g) ls
@@ -736,7 +736,7 @@ inferCheck loaded flags line coreImports program1
               program1
 
        let  gamma0  = gammaUnions [loadedGamma loaded
-                                  ,extractGamma False (maxStructFields flags) coreProgram1
+                                  ,extractGamma True (maxStructFields flags) coreProgram1
                                   ,extractGammaImports (importsList (loadedImportMap loaded)) (getName program1)
                                   ]
 
@@ -784,7 +784,7 @@ inferCheck loaded flags line coreImports program1
 
        -- do monadic effect translation (i.e. insert binds)
        coreDefsMon
-           <- if (not (enableMon flags)) -- CS `elem` targets flags ||
+           <- if (not (enableMon flags) || Core.coreProgName coreProgram1 == newName "std/core/hnd" ) -- CS `elem` targets flags ||
                then return (coreDefsUR)
                else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core

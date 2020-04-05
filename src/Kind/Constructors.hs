@@ -33,7 +33,7 @@ import Kind.Pretty    ( kindColon )
 import Type.Type
 import Type.Pretty
 import qualified Core.Core as Core
-  
+
 {--------------------------------------------------------------------------
    Newtype map
 --------------------------------------------------------------------------}
@@ -87,7 +87,7 @@ instance Show Constructors where
 instance Pretty Constructors where
   pretty syns
     = ppConstructors Type.Pretty.defaultEnv syns
-    
+
 ppConstructors showOptions (Constructors m)
     = vcat [fill 8 (pretty name) <.> kindColon (colors showOptions) <+>
             ppType showOptions (conInfoType conInfo)
@@ -96,12 +96,12 @@ ppConstructors showOptions (Constructors m)
 
 
 -- | Extract constructor environment from core
-extractConstructors :: Bool -> Core.Core -> Constructors
-extractConstructors publicOnly core
+extractConstructors :: Core.Core -> Constructors
+extractConstructors core
   = Constructors (M.unions (L.map (extractTypeDefGroup isVisible) (Core.coreProgTypeDefs core)))
   where
     isVisible Public = True
-    isVisible _      = not publicOnly
+    isVisible _      = False -- not publicOnly
 
 extractTypeDefGroup isVisible (Core.TypeDefGroup tdefs)
   = M.unions (L.map (extractTypeDef isVisible) tdefs)
@@ -109,7 +109,7 @@ extractTypeDefGroup isVisible (Core.TypeDefGroup tdefs)
 extractTypeDef :: (Visibility -> Bool) -> Core.TypeDef -> M.NameMap ConInfo
 extractTypeDef isVisible tdef
   = case tdef of
-      Core.Data dataInfo vis conViss isExtend | isVisible vis
+      Core.Data dataInfo isExtend | isVisible (dataInfoVis dataInfo)
         -> let conInfos = dataInfoConstrs dataInfo
-           in M.fromList [(conInfoName conInfo,conInfo) | (conInfo,vis) <- zip conInfos conViss, isVisible vis]
+           in M.fromList [(conInfoName conInfo,conInfo) | (conInfo) <-  conInfos, isVisible (conInfoVis conInfo)]
       _ -> M.empty

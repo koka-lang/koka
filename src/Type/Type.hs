@@ -171,7 +171,8 @@ data DataInfo = DataInfo{ dataInfoSort :: DataKind
                         , dataInfoParams :: [TypeVar] {- ^ arguments -}
                         , dataInfoConstrs :: [ConInfo]
                         , dataInfoRange  :: Range
-                        , dataInfoDef    :: DataDef
+                        , dataInfoDef    :: DataDef  -- normal, rec, open
+                        , dataInfoVis    :: Visibility
                         , dataInfoDoc    :: String
                         }
 
@@ -198,6 +199,7 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamRanges :: [Range]
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
+                      , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }
 
@@ -212,6 +214,7 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoType :: Type {- ^ result type -}
                       , synInfoRank :: SynonymRank
                       , synInfoRange :: Range
+                      , synInfoVis :: Visibility    
                       , synInfoDoc :: String
                       }
              deriving Show

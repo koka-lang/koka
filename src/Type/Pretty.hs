@@ -25,7 +25,7 @@ import Platform.Config( programName )
 import Data.List( partition )
 import Lib.PPrint
 import Common.Name
-import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty, 
+import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
                         nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore )
 import Common.ColorScheme
 import Common.IdNice
@@ -55,7 +55,7 @@ compress cs
       (c:cc) ->
         if (c=='\n')
          then compress (dropWhile isSpace cc)
-        else if (isSpace c) 
+        else if (isSpace c)
          then ' ' : compress (dropWhile isSpace cc)
          else c : compress cc
 
@@ -64,7 +64,7 @@ compress cs
 --------------------------------------------------------------------------}
 niceType :: Env -> Type -> Doc
 niceType env tp
-  -- ppType env tp 
+  -- ppType env tp
   = head (niceTypes env [tp])
 
 niceTypes :: Env -> [Type] -> [Doc]
@@ -72,7 +72,7 @@ niceTypes = niceList (\env tp -> color (colorType (colors env)) (ppType env tp))
 
 niceList :: (HasTypeVar a) => (Env -> a -> Doc) -> Env -> [a] -> [Doc]
 niceList printer env schemes
-  = let env' =  niceEnv env (tvsList (ftv schemes)) 
+  = let env' =  niceEnv env (tvsList (ftv schemes))
     in map (printer env') schemes
 
 niceEnv :: Env -> [TypeVar] -> Env
@@ -108,12 +108,12 @@ instance Pretty TypeSyn where
   into type schemes when they (a) occur once, and (b) the variance
   of the type variable matches the bound. This makes type schemes
   much more readable than the plain mlF variant.
-  
+
   Furthermore, we want to hide type schemes that are hidden under
   a type synonym (see test/correct/kind/poly3). So, we have to
   determine if variables are used uniquely, or if they are dead,
-  where we do not look under type synonyms if the option 
-  "--expand-synonyms" is not given. 
+  where we do not look under type synonyms if the option
+  "--expand-synonyms" is not given.
 
   Even more complications: we want to return a big map with single
   use and dead variables but that is only possible if no name-capture
@@ -134,13 +134,14 @@ data Env     = Env{ showKinds      :: Bool
                   , fullNames :: Bool
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
-                  , htmlBases :: [(String,String)]  
+                  , htmlBases :: [(String,String)]
                   , htmlCss   :: String
                   , htmlJs    :: String
 
                   -- should not be here either: Signifies whether we output core for an interface or not
                   , coreIface :: Bool
-                  , showCoreTypes :: Bool  -- show types in core output
+                  , coreShowTypes :: Bool  -- show types in core output
+                  , coreInlineMax :: Int   -- max size for exported inline definition
 
                   -- should not be here either: was the verbose flag set?
                   , verbose   :: Int
@@ -151,11 +152,12 @@ data Env     = Env{ showKinds      :: Bool
 defaultEnv :: Env
 defaultEnv
   = Env False False defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
-        [] 
+        []
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
-        False -- showCoreTypes
+        False -- coreShowTypes
+        25    -- coreInlineMax
         0     -- verbose
 
 
@@ -169,7 +171,7 @@ ppSchemeEffect env tp@(TFun [] effect result)
   = ppSchemeEffect env (TForall [] [] tp)
 ppSchemeEffect env (TForall vars preds (TFun [] effect result))
   = color (colorType (colors env)) $
-    let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in           
+    let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in
     pparens (prec env) precQuant $ tab $
     (if null vars then empty else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> dot <.> space))
     <.> (if null preds then empty else ((commaSep (map (ppPred env') preds)) <+> text "=> " ))
@@ -184,18 +186,18 @@ ppDeclType :: Env -> Scheme -> (Maybe [(Name,Doc)],Doc)
 ppDeclType env tp
   = case tp of
       TForall vars preds rho
-        -> let env' = niceEnv env vars 
-               (args,res) = ppDeclType env' rho 
+        -> let env' = niceEnv env vars
+               (args,res) = ppDeclType env' rho
            in (args, res <.> ppPredicates env' preds)
-      TFun params effect rho 
+      TFun params effect rho
         -> -- ppFun env (text ":") params eff rho
            let pparams = [(name, ppType env tp) | (name,tp) <- params]
            in (Just pparams, (if (isTypeTotal effect) then empty else (ppType env{prec=precArrow} effect <.> space)) <.> ppType env{prec=precArrow} rho)
-      _ -> -- ppType env tp 
+      _ -> -- ppType env tp
            (Nothing,ppType env tp)
 
 {--------------------------------------------------------------------------
-  Pretty printing of type information 
+  Pretty printing of type information
 
   TODO: properly implement these
 --------------------------------------------------------------------------}
@@ -207,14 +209,14 @@ instance Pretty DataInfo where
   pretty = ppDataInfo Type.Pretty.defaultEnv True False
 
 ppDataInfo env showBody isExtend dataInfo
-  = prettyDataInfo env showBody False isExtend dataInfo Private (repeat Private)
+  = prettyDataInfo env showBody False isExtend dataInfo
 
 
 commaSep = hsep . punctuate comma
 
 
-prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef doc) vis conViss
-  = if (publicOnly && isPrivate vis) then empty else 
+prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name kind args cons range datadef vis doc)
+  = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
@@ -222,40 +224,40 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
          Inductive -> keyword env "type"
          CoInductive -> keyword env "cotype"
          Retractive  -> keyword env "rectype") <+>
-      (if isExtend then keyword env "extend " 
-        else if dataDefIsOpen datadef then keyword env "open " 
+      (if isExtend then keyword env "extend "
+        else if dataDefIsOpen datadef then keyword env "open "
           else if dataDefIsRec datadef then keyword env "rec "
             else empty) <.>
       -- ppVis env vis <+>
-      ppName env name <.> 
+      ppName env name <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>
-      (if kind /= kindStar then text " ::" <+> ppKind (colors env) 0 kind else empty) <+> 
+      (if kind /= kindStar then text " ::" <+> ppKind (colors env) 0 kind else empty) <+>
       (if (showBody && not (null cons))
-        then (text "{" <-> 
-              indent 2 (vcat (map (prettyConInfo env publicOnly) (zip conViss cons))) <-> text "}")
+        then (text "{" <->
+              indent 2 (vcat (map (prettyConInfo env publicOnly) cons)) <-> text "}")
         else empty))
 
-prettyConInfo env0 publicOnly (vis,ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton doc)
-  = if (publicOnly && isPrivate vis) then empty else 
+prettyConInfo env0 publicOnly (ConInfo conName ntname foralls exists fields scheme sort range paramRanges paramVis singleton vis doc)
+  = if (publicOnly && isPrivate vis) then empty else
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
-      keyword env0 "con" <+> 
+      keyword env0 "con" <+>
       ppName env0 conName <.>
       (if null exists then empty else (angled (map (ppTypeVar env) exists))) <.>
-      (if null fields 
+      (if null fields
         then empty
         else parens (commaSep (map (ppField env) (zip paramVis fields))))
       <+> text ":" <+> ppType env scheme <.> semi)
   where
-    ppField env (fvis,(name,tp)) 
-      = -- (if (fvis /= vis) then ppVis env fvis else empty) <.> 
-        (if isFieldName name then empty else (ppName env name <.> text ": ")) <.> 
+    ppField env (fvis,(name,tp))
+      = -- (if (fvis /= vis) then ppVis env fvis else empty) <.>
+        (if isFieldName name then empty else (ppName env name <.> text ": ")) <.>
         ppType env tp
-    env = env0{ nice = niceTypeExtend exists (nice env0) } 
-             
+    env = env0{ nice = niceTypeExtend exists (nice env0) }
+
 
 prettyComment env comment doc
-  = if null comment then doc 
+  = if null comment then doc
     else let cmt = if last comment == '\n' then init comment else comment
          in color (colorComment (colors env)) (text cmt) <-> doc
 
@@ -271,10 +273,10 @@ ppVis env vis
 
 
 instance Pretty SynInfo where
-  pretty info = ppSynInfo Type.Pretty.defaultEnv False True info Public
+  pretty info = ppSynInfo Type.Pretty.defaultEnv False True info 
 
-ppSynInfo env publicOnly showBody (SynInfo name kind params scheme rank range doc) vis
-    = if (publicOnly && isPrivate vis) then empty else 
+ppSynInfo env publicOnly showBody (SynInfo name kind params scheme rank range vis doc)
+    = if (publicOnly && isPrivate vis) then empty else
       (prettyComment env doc $
         (if publicOnly then empty else ppVis env vis) <.>
         keyword env "alias" <+> ppName env name <.> -- <+> (ppSynInfo env True synInfo)
@@ -312,17 +314,17 @@ ppType env tp
   = color (colorType (colors env)) $
     case tp of
       TForall vars preds t
-        -> let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in           
+        -> let env' = env{ nice = niceTypeExtend vars (nice env), prec = precTop } in
            pparens (prec env) precQuant $ tab $
-               (if (null vars {- prec env == precTopTop-}) then empty 
-                  else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space)) 
+               (if (null vars {- prec env == precTopTop-}) then empty
+                  else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space))
             <.> ppType env' t
             <.> ppPredicates env' preds
-            
+
       TFun args effect result
         -> ppFun env (text "->") args effect result
 
-      TVar tv@(TypeVar id kind Bound) 
+      TVar tv@(TypeVar id kind Bound)
                     -> case M.lookup tv (ranked env) of
                          Nothing -> ppTypeVar env tv -- nicePretty (nice env) id
                          Just f  -> f (prec env)
@@ -343,7 +345,7 @@ ppType env tp
 
       TApp (TCon con) [eff,res]
                     | typeConName con == nameTpDelay
-                    -> text "$" <+>                                
+                    -> text "$" <+>
                        (if (isTypeTotal eff) then empty else (ppType env{prec = precArrow} eff <.> space)) <.>
                        ppType env{prec=precArrow} res
 
@@ -352,10 +354,10 @@ ppType env tp
                     -> text "?" <.> ppType env{prec=precTop} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
-      TApp (TCon (TypeCon name _)) args | isNameTuple (name) 
+      TApp (TCon (TypeCon name _)) args | isNameTuple (name)
                     -> parens (commaSep (map (ppType env{prec = precTop}) args))
       TApp f args   -> pparens (prec env) precApp $
-                       ppType env{ prec = precAtom } f <.> 
+                       ppType env{ prec = precAtom } f <.>
                        (case args of
                           [] -> empty
                           (arg:rest)
@@ -375,7 +377,7 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (not (nameIsNil name || isFieldName name)) then (color (colorParameter (colors env)) (ppNameEx env name <.> text " : ")) else empty) 
+  = (if (not (nameIsNil name || isFieldName name)) then (color (colorParameter (colors env)) (ppNameEx env name <.> text " : ")) else empty)
     <.> ppType env tp
 
 
@@ -394,7 +396,7 @@ ppNameEx env name
            then pretty (unqualify name)
            else -- if coreIface env
                 -- then pretty name
-                -- else 
+                -- else
                 pretty (importsAlias name (importsMap env))
 
 ---------------------------------------------------------------------------
@@ -405,16 +407,16 @@ ppPred :: Env -> Pred -> Doc
 ppPred env pred
   = pparens (prec env) precPred $
     case pred of
-      PredSub tp1 tp2     
+      PredSub tp1 tp2
         -> ppType (env{prec = precPred}) tp1 <+> text "<=" <+> ppType (env{prec=precPred}) tp2
-      PredIFace name args 
+      PredIFace name args
         -> ppTypeName env name <.> angled (map (ppType env{prec=precTop}) args)
 
 
 
 ppSynonym :: Env -> TypeSyn -> [Tau] -> Doc -> Doc
 ppSynonym env (TypeSyn name kind rank _) args tpdoc
-  = (if (expandSynonyms env) 
+  = (if (expandSynonyms env)
       then parens
       else if (null args)
        then id
@@ -426,8 +428,8 @@ ppTypeVar :: Env -> TypeVar -> Doc
 ppTypeVar env (TypeVar id kind flavour)
     = colorByKindDef env kind colorTypeVar $
       wrapKind (showKinds env) env kind $
-       (case flavour of 
-         Meta   -> text "_" 
+       (case flavour of
+         Meta   -> text "_"
          Skolem -> text "$"
          _      -> empty) <.> nicePretty (nice env) id -- <.> text (":" ++ show id)
 
@@ -450,7 +452,7 @@ colorByKind env kind defcolor doc
   = case colorForKind env kind of
       Just c  -> color c doc
       Nothing -> defcolor doc
-      
+
 
 colorForKind env kind
   = if (kind == kindEffect || kind == kindLabel || kind == kindFun kindHeap kindLabel)
@@ -461,9 +463,9 @@ colorForKind env kind
 
 wrapKind :: Bool -> Env -> Kind -> Doc -> Doc
 wrapKind showKinds env kind doc
-  = if (showKinds  && kind /= kindStar ) 
+  = if (showKinds  && kind /= kindStar )
     then color (colorKind (colors env)) $
-         parens (color (colorType (colors env)) doc <+> text "::" <+> 
+         parens (color (colorType (colors env)) doc <+> text "::" <+>
                  ppKind (colors env) precTop kind)
     else doc
 
@@ -474,12 +476,12 @@ niceTypeInitial ts
 niceTypeExtend :: [TypeVar] -> Nice -> Nice
 niceTypeExtend tvars nice
   = niceTypeExtendVars tvars nice
-    
+
 niceTypeExtendVars ts nice
   = let (es,ws) = partition (\(TypeVar id kind flavour) -> kind == kindEffect) ts
         (hs,vs) = partition (\(TypeVar id kind flavour) -> kind == kindHeap) ws
         (ss,us) = partition (\(TypeVar id kind flavour) -> kind == kindScope) vs
-        nice1   = niceExtend (map typeVarId us) niceTypeVars nice        
+        nice1   = niceExtend (map typeVarId us) niceTypeVars nice
         nice2   = niceExtend (map typeVarId es) niceEffectVars nice1
         nice3   = niceExtend (map typeVarId hs) niceHeapVars nice2
         nice4   = niceExtend (map typeVarId ss) niceScopeVars nice3

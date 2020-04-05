@@ -142,29 +142,29 @@ hasTagField DataStruct = True
 hasTagField _          = False
 
 genTypeDef :: Int -> TypeDef -> Asm ()
-genTypeDef maxStructFields (Synonym synInfo vis)
+genTypeDef maxStructFields (Synonym synInfo)
   = return ()
-genTypeDef maxStructFields (Data info vis conViss isExtend)
+genTypeDef maxStructFields (Data info isExtend)
   = onTopLevel $
     do -- generate the type constructor
        ctx <- getModule
        putLn $ text "// type" <+> pretty (dataInfoName info)
        case getDataRepr maxStructFields info of
          (DataEnum,_)
-           -> do putLn (ppVis vis <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+>
-                      block (vcatBreak (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conViss))))
+           -> do putLn (ppVis (dataInfoVis info) <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+>
+                      block (vcatBreak (punctuate comma (map ppEnumCon (dataInfoConstrs info))))
                      )
          (dataRepr,conReprs)
            -> do if (isExtend) then return ()
                   else do  -- generate type parameter constants
                            if (null (dataInfoParams info))
                             then return ()
-                            else putLn (ppVis vis <+>
+                            else putLn (ppVis (dataInfoVis info) <+>
                                         text "sealed class" <+>
                                         ppDefName (typeConClassName (dataInfoName info)) <+> text "{ }")
                            -- generate the type
                            let noCons = null conReprs
-                           putLn (ppVis vis <+> (if (noCons && not (dataInfoIsOpen info)) then text "sealed " else empty) <.>
+                           putLn (ppVis (dataInfoVis info) <+> (if (noCons && not (dataInfoIsOpen info)) then text "sealed " else empty) <.>
                                   (if isStruct dataRepr then text "struct" else text "class") <+>
                                   ppDefName (typeClassName (dataInfoName info)) <.>
                                   ppTypeParams (dataInfoParams info) <.>
@@ -195,15 +195,15 @@ genTypeDef maxStructFields (Data info vis conViss isExtend)
                         then putLn (text "public" <+> ppDefName (typeClassName (dataInfoName info)) <.> text "() { }")
                         else return ()
                       -- generate constructors
-                      mapM_ (genConstructor info dataRepr) (zip (zip (dataInfoConstrs info) conViss) conReprs)
+                      mapM_ (genConstructor info dataRepr) (zip (dataInfoConstrs info) conReprs)
 
                  if (isExtend) then return () else putLn (text "}")
   where
-    ppEnumCon (con,vis)
+    ppEnumCon (con)
       = ppDefName (conInfoName con)
 
-genConstructor :: DataInfo -> DataRepr -> ((ConInfo,Visibility),ConRepr) -> Asm ()
-genConstructor info dataRepr ((con,vis),conRepr) =
+genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
+genConstructor info dataRepr (con,conRepr) =
   case conRepr of
     ConEnum _ _
        -> return ()
@@ -246,6 +246,7 @@ genConstructor info dataRepr ((con,vis),conRepr) =
              -- genConCreator con conRepr vis
              -- putLn (linebreak)
   where
+    vis = conInfoVis con
     conStruct typeName  | null (conInfoParams con)
       = conSingleton typeName
     conStruct typeName

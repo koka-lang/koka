@@ -95,8 +95,8 @@ genDoc env kgamma gamma core p
     sizeOf (tdef,ds)
       = length ds +
         case tdef of
-          Data info _ _ _ -> length (dataInfoConstrs info)
-          _               -> 1
+          Data info _  -> length (dataInfoConstrs info)
+          _            -> 1
 
 
     (publicImports,privateImports)
@@ -145,8 +145,8 @@ genDoc env kgamma gamma core p
 
         typeDefTCon tdef
           = case tdef of
-              (Data info _ _ _) -> TypeCon (dataInfoName info) (dataInfoKind info) -- todo: handle exten
-              (Synonym info _)  -> TypeCon (synInfoName info) (synInfoKind info)
+              (Data info _)   -> TypeCon (dataInfoName info) (dataInfoKind info) -- todo: handle exten
+              (Synonym info)  -> TypeCon (synInfoName info) (synInfoKind info)
 
     sortDefs ds
       = sortOn (show . defName) ds
@@ -172,8 +172,8 @@ genDoc env kgamma gamma core p
       where
         getTDef (TypeDefGroup ts) = ts
 
-        filterCon (Data info vis conViss isExtend)
-          = Data (info{ dataInfoConstrs = sortOn conInfoName [cons | (v,cons) <- zip conViss (dataInfoConstrs info), v == Public]}) vis conViss isExtend
+        filterCon (Data info isExtend)
+          = Data (info{ dataInfoConstrs = sortOn conInfoName [cons | (cons) <- (dataInfoConstrs info), isPublic (conInfoVis cons)]}) isExtend
         filterCon other
           = other
 
@@ -271,7 +271,7 @@ indent n s
 --------------------------------------------------------------------------
 
 fmtTypeDefTOC :: (TypeDef,[Def]) -> [String]
-fmtTypeDefTOC  (Synonym info _, defs)
+fmtTypeDefTOC  (Synonym info, defs)
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) $
       cspan "keyword" "alias" ++ "&nbsp;" ++ cspan "type" (niceTypeName (synInfoName info))) ++ "\n"]
@@ -279,7 +279,7 @@ fmtTypeDefTOC  (Synonym info _, defs)
     map (fmtDefTOC True) defs
 
 
-fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss isExtend, defs)  | conInfoName conInfo == dataInfoName info
+fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
@@ -287,7 +287,7 @@ fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [
      ++
     map (fmtDefTOC True) defs
 
-fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
+fmtTypeDefTOC (Data info isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
@@ -358,7 +358,7 @@ fmtModuleName env qname
   -- atag (linkFromModName env qname "") $ span "module" qname
 
 fmtTypeDef :: Env -> KGamma -> Gamma -> (TypeDef,[Def]) -> String
-fmtTypeDef env kgamma gamma (Synonym info _, defs)
+fmtTypeDef env kgamma gamma (Synonym info, defs)
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
     concat
@@ -378,7 +378,7 @@ fmtTypeDef env kgamma gamma (Synonym info _, defs)
    where
       (fmtTp:fmtTVars) = showTypes env kgamma gamma (synInfoType info : map TVar (synInfoParams info))
 
-fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } _ conViss isExtend, defs)  | conInfoName conInfo == dataInfoName info
+fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [conInfo] } isExtend, defs)  | conInfoName conInfo == dataInfoName info
   -- struct
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
@@ -401,7 +401,7 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
 
 
 
-fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show extend correctly
+fmtTypeDef env kgamma gamma (Data info isExtend, defs) -- TODO: show extend correctly
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
     concat

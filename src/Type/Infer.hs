@@ -169,7 +169,7 @@ inferDefGroup topLevel (DefRec defs) cont
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
        let sub = map (\cdef -> let tname    = Core.defTName cdef
                                    nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
-                                              createNameInfoX (Core.defName cdef) (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef)
+                                              createNameInfoX Public (Core.defName cdef) (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef)
                                    varInfo  = coreVarInfoFromNameInfo nameInfo
                                    var      = Core.Var tname varInfo
                                in (tname, var)) (Core.flattenDefGroups coreGroups2)
@@ -216,7 +216,7 @@ inferDefGroup topLevel (DefRec defs) cont
             -> case expr of
                   Ann _ tp _  | topLevel && tvsIsEmpty (ftv tp)
                     -> do qname <- qualifyName name
-                          let nameInfo = createNameInfoX qname sort nameRng tp -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
+                          let nameInfo = createNameInfoX Public qname sort nameRng tp -- (not topLevel || isValue) nameRng tp  -- NOTE: Val is fixed later in "FixLocalInfo"
                           -- trace ("*** createGammas: assume: " ++ show name ++ ": " ++ show nameInfo) $ return ()
                           createGammas ((name,nameInfo):gamma) infgamma defs
                   _ -> case lookup name gamma of
@@ -226,10 +226,10 @@ inferDefGroup topLevel (DefRec defs) cont
                          Nothing
                           -> do qname <- if (topLevel) then qualifyName name else return name
                                 info <- case expr of
-                                          Ann _ tp _ -> return (createNameInfoX qname sort nameRng tp)  -- may be off due to incomplete type: get fixed later in inferRecDef2
+                                          Ann _ tp _ -> return (createNameInfoX Public qname sort nameRng tp)  -- may be off due to incomplete type: get fixed later in inferRecDef2
                                           _          -> do tp <- Op.freshTVar kindStar Meta
                                                            trace ("*** assume defVal: " ++ show qname) $
-                                                            return (createNameInfoX qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
+                                                            return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
 
@@ -322,7 +322,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
 
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
-            info = coreVarInfoFromNameInfo (createNameInfoX name csort (defRange def) resTp1)
+            info = coreVarInfoFromNameInfo (createNameInfoX Public name csort (defRange def) resTp1)
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
                          (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
@@ -531,7 +531,7 @@ inferExpr propagated expect (Lam binders body rng)
                      Just (tp,_) -> return tp
 
        (tp,eff1,core) <- extendInfGamma False infgamma  $
-                         extendInfGamma False [(nameReturn,createNameInfoX nameReturn DefVal (getRange body) returnTp)] $
+                         extendInfGamma False [(nameReturn,createNameInfoX Public nameReturn DefVal (getRange body) returnTp)] $
                          (if (isNamed) then inferIsolated rng (getRange body) body else id) $
                          -- inferIsolated rng (getRange body) body $
                          inferExpr propBody expectBody body
@@ -1818,7 +1818,7 @@ inferVar :: Maybe (Type,Range) -> Expect -> Name -> Range -> Bool -> Inf (Type,E
 inferVar propagated expect name rng isRhs  | isConstructorName name
   = -- trace("inferVar: constructor: " ++ show name)$
     do (qname1,tp1,conRepr,conInfo) <- resolveConName name (fmap fst propagated) rng
-       let info1 = InfoCon tp1 conRepr conInfo rng
+       let info1 = InfoCon Public tp1 conRepr conInfo rng
        (qname,tp,info) <- do defName <- currentDefName
                              let creatorName = newCreatorName qname1
                              -- trace ("inferCon: " ++ show (defName,creatorName,qname1,nameCopy)) $ return ()
@@ -2000,7 +2000,7 @@ inferPattern matchType branchRange (PatVar binder) inferBranchCont
                    Nothing -> return ()
                  (cpat,infGamma) <- inferPatternX matchType branchRange (binderExpr binder)
                  inferBranchCont (Core.PatVar (Core.TName (binderName binder) matchType) cpat)
-                                 ([(binderName binder,(createNameInfoX (binderName binder) DefVal (binderNameRange binder) matchType))] ++ infGamma)
+                                 ([(binderName binder,(createNameInfoX Public (binderName binder) DefVal (binderNameRange binder) matchType))] ++ infGamma)
 
 inferPattern matchType branchRange (PatWild range) inferBranchCont
   = inferBranchCont Core.PatWild []
@@ -2037,7 +2037,7 @@ inferBinders infgamma binders
   = case binders of
       [] -> infgamma
       (par:pars) ->
-        let info = (binderName par,createNameInfoX (binderName par) DefVal (getRange par) (binderType par))
+        let info = (binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) (binderType par))
         in inferBinders (infgamma ++ [info]) pars
 
 
@@ -2051,7 +2051,7 @@ inferOptionals eff infgamma []
 inferOptionals eff infgamma (par:pars)
   = case binderExpr par of
      Nothing
-      -> inferOptionals eff (infgamma ++ [(binderName par,createNameInfoX (binderName par) DefVal (getRange par) (binderType par))]) pars
+      -> inferOptionals eff (infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) (binderType par))]) pars
 
      Just expr  -- default value
       -> do let fullRange = combineRanged par expr
@@ -2071,7 +2071,7 @@ inferOptionals eff infgamma (par:pars)
             inferUnify (Infer fullRange) (getRange expr) eff exprEff
 
             tp <- subst partp
-            let infgamma' = infgamma ++ [(binderName par,createNameInfoX (binderName par) DefVal (getRange par) tp)]
+            let infgamma' = infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) tp)]
 
             -- build up core to get the optional value
             local <- uniqueName (show (binderName par))

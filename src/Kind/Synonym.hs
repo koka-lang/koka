@@ -61,7 +61,7 @@ synonymsNew :: [SynInfo] -> Synonyms
 synonymsNew synInfos
   = Synonyms (M.fromList [(synInfoName synInfo, synInfo) | synInfo <- synInfos])
 
-synonymsTypeDefs :: Synonyms -> M.NameMap SynInfo 
+synonymsTypeDefs :: Synonyms -> M.NameMap SynInfo
 synonymsTypeDefs (Synonyms m)
   = m
 
@@ -101,9 +101,9 @@ instance Show Synonyms where
 instance Pretty Synonyms where
   pretty syns
     = ppSynonyms Type.Pretty.defaultEnv syns
-    
+
 ppSynonyms showOptions (Synonyms m)
-    = vcat [ppSynInfo showOptions False True sscheme Public
+    = vcat [ppSynInfo showOptions False True sscheme
            | (name, sscheme) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
 
 
@@ -114,7 +114,7 @@ ppSynonyms showOptions (Synonyms m)
 instantiateSynonym instkind args (SynInfo name kind params scheme rank)
   = assertion "Kind.Synonym.instantiateSynonym" (length args >= length params) $
     let (used,unused) = splitAt (length params) args
-        sub  = subNew $ zip params args 
+        sub  = subNew $ zip params args
     in (sub |-> scheme, used, unused)-}
 
 -- | Extract synonym environment from core
@@ -128,6 +128,6 @@ extractTypeDefGroup (Core.TypeDefGroup tdefs)
 extractTypeDef :: Core.TypeDef -> M.NameMap SynInfo
 extractTypeDef tdef
   = case tdef of
-      Core.Synonym synInfo Core.Public 
+      Core.Synonym synInfo
         -> M.singleton (synInfoName synInfo) synInfo
       _ -> M.empty

@@ -134,8 +134,8 @@ extractInfos groups
     extractGroupInfos (Core.TypeDefGroup ctdefs)
       = map extractInfo ctdefs
 
-    extractInfo (Core.Synonym synInfo vis)                 = Left synInfo
-    extractInfo (Core.Data dataInfo vis convss isExtend)   = Right dataInfo
+    extractInfo (Core.Synonym synInfo )         = Left synInfo
+    extractInfo (Core.Data dataInfo isExtend)   = Right dataInfo
 
 {---------------------------------------------------------------
 
@@ -145,26 +145,26 @@ synTypeDefGroup modName (Core.TypeDefGroup ctdefs)
   = concatMap (synTypeDef modName) ctdefs
 
 synTypeDef :: Name -> Core.TypeDef -> DefGroups Type
-synTypeDef modName (Core.Synonym synInfo vis) = []
-synTypeDef modName (Core.Data dataInfo vis conviss isExtend) | isHiddenName (dataInfoName dataInfo) = []
-synTypeDef modName (Core.Data dataInfo vis conviss isExtend)
-  = synAccessors modName dataInfo vis conviss
+synTypeDef modName (Core.Synonym synInfo) = []
+synTypeDef modName (Core.Data dataInfo isExtend) | isHiddenName (dataInfoName dataInfo) = []
+synTypeDef modName (Core.Data dataInfo isExtend)
+  = synAccessors modName dataInfo
     ++
     (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo) && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo)))))
-      then [synCopyCon modName dataInfo (head conviss) (head (dataInfoConstrs dataInfo))]
+      then [synCopyCon modName dataInfo (head (dataInfoConstrs dataInfo))]
       else [])
     ++
     (if (length (dataInfoConstrs dataInfo) > 1 || (dataInfoIsOpen dataInfo))
-      then concatMap (synTester dataInfo) (zip conviss (dataInfoConstrs dataInfo))
+      then concatMap (synTester dataInfo) (dataInfoConstrs dataInfo)
       else [])
     ++
     (if (dataInfoIsOpen dataInfo)
-      then map synConstrTag (zip conviss (dataInfoConstrs dataInfo))
+      then map synConstrTag (dataInfoConstrs dataInfo)
       else [])
 
 
-synCopyCon :: Name -> DataInfo -> Visibility -> ConInfo -> DefGroup Type
-synCopyCon modName info vis con
+synCopyCon :: Name -> DataInfo -> ConInfo -> DefGroup Type
+synCopyCon modName info con
   = let rc = conInfoRange con
         tp = typeApp (TCon (TypeCon (dataInfoName info) (dataInfoKind info))) [TVar (TypeVar id kind Meta) | TypeVar id kind _ <- (dataInfoParams info)]
 
@@ -182,11 +182,11 @@ synCopyCon modName info vis con
         params = [ValueBinder name Nothing (if isFieldName name then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
         body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
-        def  = DefNonRec (Def (ValueBinder nameCopy () (Ann expr fullTp rc) rc rc) rc vis (DefFun) "")
+        def  = DefNonRec (Def (ValueBinder nameCopy () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (DefFun) "")
     in def
 
-synAccessors :: Name -> DataInfo -> Visibility -> [Visibility] -> [DefGroup Type]
-synAccessors modName info vis conviss
+synAccessors :: Name -> DataInfo -> [DefGroup Type]
+synAccessors modName info
   = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis)))
                                    (conInfoParams conInfo) (zip (conInfoParamVis conInfo) (conInfoParamRanges conInfo)))
                       (dataInfoConstrs info)
@@ -219,13 +219,13 @@ synAccessors modName info vis conviss
                 isPartial = (length branches < length (dataInfoConstrs info)) || dataInfoIsOpen info
 
                 branches :: [(Visibility,Branch Type)]
-                branches = concatMap makeBranch (zip conviss (dataInfoConstrs info))
-                makeBranch (vis,con)
+                branches = concatMap makeBranch (dataInfoConstrs info)
+                makeBranch (con)
                     = let r = conInfoRange con
                       in case lookup name (zip (map fst (conInfoParams con)) [0..]) of
                         Just i
                           -> let patterns = [(Nothing,PatWild r) | _ <- [0..i-1]] ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild r) r r))] ++ [(Nothing,PatWild r) | _ <- [i+1..length (conInfoParams con)-1]]
-                             in [(vis,Branch (PatCon (conInfoName con) patterns r r) guardTrue (Var fld False r))]
+                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r) guardTrue (Var fld False r))]
                         Nothing -> []
                 defaultBranch
                   = if isPartial
@@ -238,10 +238,10 @@ synAccessors modName info vis conviss
 
     in map synAccessor fields
 
-synTester :: DataInfo -> (Visibility,ConInfo) -> [DefGroup Type]
-synTester info (vis,con) | isHiddenName (conInfoName con)
+synTester :: DataInfo -> ConInfo -> [DefGroup Type]
+synTester info con | isHiddenName (conInfoName con)
   = []
-synTester info (vis,con)
+synTester info con
   = let name = (postpend "?" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
@@ -252,14 +252,14 @@ synTester info (vis,con)
         branch2   = Branch (PatWild rc) guardTrue (Var nameFalse False rc)
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
         doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
-    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc vis (DefFun ) doc)]
+    in [DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) (DefFun ) doc)]
 
-synConstrTag :: (Visibility,ConInfo) -> DefGroup Type
-synConstrTag (vis,con)
+synConstrTag :: (ConInfo) -> DefGroup Type
+synConstrTag (con)
   = let name = toOpenTagName (unqualify (conInfoName con))
         rc   = conInfoRange con
         expr = Lit (LitString (show (conInfoName con)) rc)
-    in DefNonRec (Def (ValueBinder name () expr rc rc) rc vis DefVal "")
+    in DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) DefVal "")
 
 {---------------------------------------------------------------
   Types for constructors
@@ -269,7 +269,7 @@ constructorGamma maxStructFields dataInfos
   = conInfoGamma (concatMap (\info -> zip (dataInfoConstrs info) (snd (Core.getDataRepr maxStructFields info))) dataInfos)
   where
     conInfoGamma conInfos
-      = gammaNew [(conInfoName conInfo,InfoCon (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo)) | (conInfo,conRepr) <- conInfos]
+      = gammaNew [(conInfoName conInfo,InfoCon (conInfoVis conInfo) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo)) | (conInfo,conRepr) <- conInfos]
 
 constructorCheckDuplicates :: ColorScheme -> [ConInfo] -> [(Range,Doc)]
 constructorCheckDuplicates cscheme conInfos
@@ -754,8 +754,8 @@ resolveTypeDef isRec recNames (Synonym syn params tp range vis doc)
 
        -- trace (showTypeBinder syn') $
        addRangeInfo range (Decl "alias" (getName syn') (mangleTypeName (getName syn')))
-       let synInfo = SynInfo (getName syn') (typeBinderKind syn') etaParams etaTp (maxSynonymRank etaTp + 1) range doc
-       return (Core.Synonym synInfo vis)
+       let synInfo = SynInfo (getName syn') (typeBinderKind syn') etaParams etaTp (maxSynonymRank etaTp + 1) range vis doc
+       return (Core.Synonym synInfo)
   where
     kindArity (KApp (KApp kcon k1) k2)  | kcon == kindArrow = k1 : kindArity k2
     kindArity _ = []
@@ -793,8 +793,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        let ddef' = case ddef of
                      DataDefNormal | isRec -> DataDefRec
                      _ -> ddef
-           dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' doc
-       return (Core.Data dataInfo vis (map conVis constructors) isExtend)
+           dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' vis doc
+       return (Core.Data dataInfo isExtend)
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
 
@@ -872,6 +872,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
                   (map (binderNameRange . snd) params')
                   (map fst params')
                   isSingleton
+                  vis
                   doc)
 
 resolveConParam :: M.NameMap TypeVar -> (Visibility,ValueBinder (KUserType InfKind) (Maybe (Expr UserType))) -> KInfer (Visibility,ValueBinder Type (Maybe (Expr Type)))
@@ -980,7 +981,7 @@ resolveApp idmap partialSyn (TpCon name r,args) rng
 
         mbSyn <- lookupSynInfo name
         case mbSyn of
-          Just syn@(SynInfo name kind params tp rank range doc)
+          Just syn@(SynInfo name kind params tp rank range vis doc)
             -> do -- check over/under application
                   if (not partialSyn && length args < length params)
                    then do cs <- getColorScheme

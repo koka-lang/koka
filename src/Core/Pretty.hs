@@ -77,12 +77,12 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     importedSyns = extractImportedSynonyms core
     extraImports = extractImportsFromSynonyms imports importedSyns
     env1         = env0{ importsMap = extendImportMap extraImports (importsMap env0),
-                         showCoreTypes = (showCoreTypes env0 || coreIface env0),
+                         coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0) }
 
 prettyImport env imp
   = prettyComment env (importModDoc imp) $
-    (if isPublic (importVis imp) then keyword env "public " else empty) <.>
+    prettyVis env (importVis imp) $
     keyword env "import"
       <+> pretty (importsAlias (importName imp) (importsMap env)) <+> text "="
       <+> prettyName env (importName imp)
@@ -103,7 +103,7 @@ prettyFixDef env (FixDef name fixity)
 
 prettyImportedSyn :: Env -> SynInfo -> Doc
 prettyImportedSyn env synInfo
-  = ppSynInfo env False True synInfo Private <.> semi
+  = ppSynInfo env False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
 prettyExternal env (External name tp body vis nameRng doc)
@@ -141,12 +141,12 @@ prettyTypeDefGroup env (TypeDefGroup defs)
     vcat (map (prettyTypeDef env) defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
-prettyTypeDef env (Synonym synInfo vis )
-  = ppSynInfo env True True synInfo vis <.> semi
+prettyTypeDef env (Synonym synInfo  )
+  = ppSynInfo env True True synInfo <.> semi
 
-prettyTypeDef env (Data dataInfo vis conViss isExtend)
+prettyTypeDef env (Data dataInfo isExtend)
   = -- keyword env "type" <+> prettyVis env vis <.> ppDataInfo env True dataInfo
-    prettyDataInfo env True True isExtend dataInfo vis conViss <.> semi
+    prettyDataInfo env True False {-public only?-} isExtend dataInfo <.> semi
 
 prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)
@@ -163,18 +163,20 @@ prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
 prettyDef :: Env -> Def -> Doc
-prettyDef env (Def name scheme expr vis sort nameRng doc)
+prettyDef env def@(Def name scheme expr vis sort nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
     keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     <+> text ":" <+> prettyType env scheme
-    <.> (if coreIface env then empty else linebreak <.> indent 2 (text "=" <+> prettyExpr env expr)) <.> semi
+    <.> (if (coreIface env) -- && sizeDef def > coreInlineMax env)
+          then empty
+          else linebreak <.> indent 2 (text "=" <+> prettyExpr env expr)) <.> semi
 
 prettyVis env vis doc
   = case vis of
-      Public  -> if (coreIface env) then doc else (keyword env "public" <+> doc)
-      Private -> if (coreIface env) then empty else doc
+      Public  -> keyword env "public" <+> doc
+      Private -> keyword env "private" <+> doc --if (coreIface env) then (keyword env "private" <+> doc) else doc
 
 prettyType env tp
   = head (prettyTypes env [tp])
@@ -234,7 +236,7 @@ prettyExpr env (TypeLam tvs expr)
                }
 
 prettyExpr env (TypeApp expr tps)
-  = if (not (showCoreTypes env)) then prettyExpr env expr
+  = if (not (coreShowTypes env)) then prettyExpr env expr
      else pparens (prec env) precApp $
           prettyExpr (decPrec env') expr <.> angled [prettyType env'' tp | tp <- tps]
   where
@@ -291,7 +293,7 @@ prettyGuard env (Guard test expr)
 
 prettyPatternType env (pat,tp)
   = prettyPattern env pat <.>
-    (if (showCoreTypes env) then text " :" <+> prettyType env tp else empty)
+    (if (coreShowTypes env) then text " :" <+> prettyType env tp else empty)
 
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
@@ -317,7 +319,7 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = if (showCoreTypes env) then prettyTName env tname else pretty (getName tname)
+      = if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
 
 {--------------------------------------------------------------------------
   Literals
@@ -327,7 +329,7 @@ prettyLit :: Env -> Lit -> Doc
 prettyLit env lit
   = case lit of
       LitInt    i -> color (colorNumber (colors env)) (text (show i))
-      LitFloat  d -> color (colorNumber (colors env)) (text (show d))
+      LitFloat  d -> color (colorNumber (colors env)) (text (show d)) -- TODO: use showHex
       LitChar   c -> color (colorString (colors env)) (text (show c))
       LitString s -> color (colorString (colors env)) (text (show s))
 

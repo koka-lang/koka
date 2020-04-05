@@ -47,7 +47,7 @@ prettyEnvFromFlags flags
                  , TP.htmlCss         = htmlCss flags
                  , TP.htmlJs          = htmlJs flags
                  , TP.verbose         = verbose flags
-                 , TP.showCoreTypes   = showCoreTypes flags
+                 , TP.coreShowTypes   = showCoreTypes flags
                  }
 
 

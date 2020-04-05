@@ -202,7 +202,7 @@ check expr
               -- substituted when doing kind application (above)
               -- when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
               when (length tps > length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
-                failDoc (\env -> let penv = env{showCoreTypes=True,showKinds=True}
+                failDoc (\env -> let penv = env{coreShowTypes=True,showKinds=True}
                                  in text "kind error in type application:" <+> prettyExpr expr penv </> text " applied to: " <+> ppType penv tpTForall)
               return (tForall (drop (length tps) tvars) [] (subNew (zip tvars tps) |-> tp))
       Lit lit

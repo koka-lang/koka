@@ -23,6 +23,7 @@ module Core.Core ( -- Data structures
                    , flattenDefGroups
                    , extractSignatures
                    , typeDefIsExtension
+                   , typeDefVis
 
                      -- Core term builders
                    , defIsVal
@@ -38,7 +39,7 @@ module Core.Core ( -- Data structures
                    , openEffectExpr
                    , makeIfExpr
                    , makeInt32
-                   , Visibility(..), Fixity(..), Assoc(..)
+                   , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
                    , tnamesList
                    , TNames
@@ -55,6 +56,9 @@ module Core.Core ( -- Data structures
                    , VarInfo(..)
 
                    , isMonType, isMonEffect
+
+                   -- Inlining
+                   , sizeDef
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -93,7 +97,7 @@ isExprFalse _              = False
 patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool tag
-        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False ""
+        conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False Public ""
         pat = PatCon tname [] conEnum [] [] typeBool conInfo
         expr = Con tname conEnum
     in (pat,expr)
@@ -175,15 +179,17 @@ type TypeDefs = [TypeDef]
 
 -- | A type definition
 data TypeDef =
-    Synonym{ typeDefSynInfo :: SynInfo, typeDefVis ::  Visibility }             -- ^ name, synonym info, and the visibility
-  | Data{ typeDefDataInfo :: DataInfo, typeDefVis ::  Visibility, typeDefConViss :: [Visibility], typeDefIsExtend :: Bool }  -- ^ name, info, visibility, and the visibilities of the constructors, the isExtend is true if this is an extension of the datatype.
+    Synonym{ typeDefSynInfo :: SynInfo }             -- ^ name, synonym info, and the visibility
+  | Data{ typeDefDataInfo :: DataInfo, typeDefIsExtend :: Bool }  -- ^ name, info, visibility, and the visibilities of the constructors, the isExtend is true if this is an extension of the datatype.
 
-typeDefName (Synonym info _) = synInfoName info
-typeDefName (Data info _ _ _)  = dataInfoName info
+typeDefName (Synonym info) = synInfoName info
+typeDefName (Data info _)  = dataInfoName info
 
-typeDefIsExtension (Data _ _ _ True) = True
-typeDefIsExtension _                 = False
+typeDefIsExtension (Data _  True) = True
+typeDefIsExtension _              = False
 
+typeDefVis (Synonym info) = synInfoVis info
+typeDefVis (Data info _)  = dataInfoVis info
 
 {--------------------------------------------------------------------------
   Data representation
@@ -278,8 +284,8 @@ flattenDefGroups defGroups
 data Def = Def{ defName  :: Name
               , defType  :: Scheme
               , defExpr  :: Expr
-              , defVis   :: Visibility
-              , defSort  :: DefSort
+              , defVis   :: Visibility     -- Private, Public
+              , defSort  :: DefSort        -- DefFun, DefVal, DefVar
               , defNameRange :: Range
               , defDoc :: String
               }
@@ -407,6 +413,42 @@ isMonEffect eff
        any (\l -> case getHandledEffect l of
                     Just (ResumeMany,_) -> True
                     _                   -> False) ls
+
+
+inlineMax = 25
+
+isInlineable :: Def -> Bool
+isInlineable def
+  = sizeDef def < inlineMax
+
+sizeDefGroup dg
+  = case dg of
+      DefRec defs   -> sum (map sizeDef defs)
+      DefNonRec def -> sizeDef def
+
+sizeDef :: Def -> Int
+sizeDef def
+  = sizeExpr (defExpr def)
+
+sizeExpr :: Expr -> Int
+sizeExpr expr
+  = case expr of
+      Lam tname eff body -> 1 + sizeExpr body
+      Var tname info     -> 0
+      App e args         -> 1 + sum (map sizeExpr args)
+      TypeLam tvs e      -> sizeExpr e
+      TypeApp e tps      -> sizeExpr e
+      Con tname repr     -> 0
+      Lit lit            -> 0
+      Let defGroups body -> sum (map sizeDefGroup defGroups) + (sizeExpr body)
+      Case exprs branches -> sum (map sizeExpr exprs) + sum (map sizeBranch branches)
+
+sizeBranch (Branch patterns guards)
+  = sum (map sizeGuard guards)
+
+sizeGuard (Guard test expr)
+  = sizeExpr test + sizeExpr expr
+
 
 
 {--------------------------------------------------------------------------

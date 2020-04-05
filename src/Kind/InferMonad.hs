@@ -204,8 +204,8 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
                                                   text "is already defined"
                                  return (kgamma,tdefs)
       where
-        nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-        nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+        nameKind (Core.Synonym synInfo) = (synInfoName synInfo, synInfoKind synInfo)
+        nameKind (Core.Data dataInfo isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
 
 
 -- | This extend KGamma does not check for duplicates
@@ -217,12 +217,12 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
                                   , synonyms = synonymsCompose (synonyms env) kSyns }) st)
   where
     kGamma = kgammaNewNub (map nameKind tdefs) -- duplicates are removed here
-    nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-    nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+    nameKind (Core.Synonym synInfo)        = (synInfoName synInfo, synInfoKind synInfo)
+    nameKind (Core.Data dataInfo isExtend) = (dataInfoName dataInfo, dataInfoKind dataInfo)
 
     kSyns  = synonymsNew (concatMap nameSyn tdefs)
-    nameSyn (Core.Synonym synInfo vis) = [synInfo]
-    nameSyn _                          = []
+    nameSyn (Core.Synonym synInfo ) = [synInfo]
+    nameSyn _                       = []
 
 infQualifiedName :: Name -> Range -> KInfer Name
 infQualifiedName name range  | not (isQualified name)
