@@ -224,7 +224,7 @@ nameOpenAt i    = coreHndName (".open-at" ++ show i)
 nameOpenNone i  = coreHndName (".open-none" ++ show i)
 nameOpen i      = coreHndName (".open" ++ show i)
 
-nameHandle      = coreHndName ".handle"
+nameHandle      = coreHndName ".hhandle"
 nameNamedHandle = coreHndName ".named-handle"
 
 {--------------------------------------------------------------------------

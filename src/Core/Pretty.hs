@@ -50,8 +50,6 @@ instance Show Expr      where show = show . prettyExpr      defaultEnv
 instance Show Lit       where show = show . prettyLit       defaultEnv
 instance Show Branch    where show = show . prettyBranch    defaultEnv
 instance Show Pattern   where show = show . prettyPattern   defaultEnv
--- instance Show MonKind   where show = show . prettyMonKind   defaultEnv
-instance Pretty MonKind where pretty = prettyMonKind defaultEnv
 
 {--------------------------------------------------------------------------
   Pretty-printers proper
@@ -189,11 +187,6 @@ prettyKind env prefix kind
      then empty
      else text prefix <+> ppKind (colors env) precTop kind
 
-prettyMonKind env monType
-  = text $ case monType of
-      NoMon     -> "fast"
-      AlwaysMon -> "bind"
-      PolyMon   -> "poly"
 
 {--------------------------------------------------------------------------
   Expressions
@@ -222,7 +215,7 @@ prettyExpr env (Var tname varInfo)
     prettyInfo
       = case varInfo of
           InfoNone -> empty
-          InfoArity m n mon -> braces (pretty m <.> comma <.> pretty n <.> comma <.> pretty mon)
+          InfoArity m n  -> braces (pretty m <.> comma <.> pretty n)
           InfoExternal f -> braces (text"@")
 
 prettyExpr env (App a args)
@@ -240,7 +233,7 @@ prettyExpr env (TypeLam tvs expr)
                , nice = (if prettyNames then niceTypeExtendVars tvs else id) $ nice env
                }
 
-prettyExpr env (TypeApp expr tps) 
+prettyExpr env (TypeApp expr tps)
   = if (not (showCoreTypes env)) then prettyExpr env expr
      else pparens (prec env) precApp $
           prettyExpr (decPrec env') expr <.> angled [prettyType env'' tp | tp <- tps]
@@ -259,7 +252,7 @@ prettyExpr env (Lit lit)
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (x==nameNil) then exprDoc 
+           in if (x==nameNil) then exprDoc
                else (text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
@@ -305,10 +298,10 @@ prettyPattern env pat
   = case pat of
       PatCon tname args repr targs exists _ info
                         -> -- pparens (prec env) precApp $
-                           -- prettyName env (getName tname) 
+                           -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                           in prettyConName env tname <.> 
-                               (if (null exists) then empty 
+                           in prettyConName env tname <.>
+                               (if (null exists) then empty
                                  else angled (map (ppTypeVar env') exists)) <.>
                                tupled (map (prettyPatternType (decPrec env')) (zip args targs))
 
@@ -324,7 +317,7 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = if (showCoreTypes env) then prettyTName env tname else pretty (getName tname) 
+      = if (showCoreTypes env) then prettyTName env tname else pretty (getName tname)
 
 {--------------------------------------------------------------------------
   Literals

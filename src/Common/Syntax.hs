@@ -14,7 +14,6 @@ module Common.Syntax( Visibility(..)
                     , Fixity(..)
                     , DataKind(..)
                     , DefSort(..), isDefFun, defFun
-                    , MonKind(..)
                     , Target(..)
                     , Host(..)
                     , isPublic, isPrivate
@@ -102,32 +101,21 @@ dataDefIsOpen ddef
 --------------------------------------------------------------------------}
 
 data DefSort
-  = DefFun MonKind | DefVal | DefVar
+  = DefFun | DefVal | DefVar
   deriving (Eq,Ord)
 
-isDefFun (DefFun _) = True
+isDefFun (DefFun )  = True
 isDefFun _          = False
 
 defFun :: DefSort
-defFun = DefFun PolyMon
+defFun = DefFun
 
 instance Show DefSort where
   show ds = case ds of
-              DefFun kind -> "fun" ++ show kind
+              DefFun -> "fun"
               DefVal -> "val"
               DefVar -> "var"
 
-data MonKind
-  = NoMon      -- no monadic type
-  | AlwaysMon  -- always monadically translated
-  | PolyMon    -- polymorphic in monad translation: has a fast non-monadic, and a monadic version
-  deriving (Eq,Ord)
-
-instance Show MonKind where
-  show mk = case mk of
-              NoMon     -> ""
-              AlwaysMon -> "*"
-              PolyMon   -> "**"
 
 {--------------------------------------------------------------------------
   Fixities

@@ -31,8 +31,6 @@ import Core.CoreVar
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
-import Core.Monadic( makeNoMonName, makeMonName ) -- , nameIsInBindCtx, nameInBindCtx )
-
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
@@ -394,8 +392,7 @@ instance Simplify DefGroup where
 
 instance Simplify Def where
   simplify (Def name tp expr vis sort nameRng doc)
-    = withMonKind (monKindFromSort sort) $
-      do expr' <- case expr of
+    = do expr' <- case expr of
                     TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
                             return $ TypeLam tvs (Lam pars eff body')
@@ -415,15 +412,11 @@ instance Simplify a => Simplify [a] where
 instance Simplify Expr where
   simplify e
     = do td <- topDown e
-         mk <- getMonKind
          e' <- case td of
                 Lam tnames eff expr
-                  -> withMonKind PolyMon $
-                     do x <- simplify expr; return $ Lam tnames eff x
+                  -> do x <- simplify expr; return $ Lam tnames eff x
                 Var tname info
                   -> return td
-                -- App (Var (TName name _) _) []  | name == nameIsInBindCtx && mk /= PolyMon
-                --  -> return $ if (mk == NoMon) then exprFalse else exprTrue
                 App e1 e2
                   -> do x1 <- simplify e1
                         x2 <- simplify e2
@@ -456,8 +449,6 @@ instance Simplify Guard where
          xe <- simplify expr
          return $ Guard xt xe
 
-monKindFromSort (DefFun mk) = mk
-monKindFromSort _           = PolyMon
 
 {--------------------------------------------------------------------------
   Occurrences
@@ -584,12 +575,12 @@ newtype Simp a = Simplify (Int -> SEnv -> Result a)
 
 runSimplify :: Bool -> Int -> Pretty.Env -> Simp a -> (a,Int)
 runSimplify unsafe uniq penv (Simplify c)
-  = case (c uniq (SEnv unsafe penv [] PolyMon)) of
+  = case (c uniq (SEnv unsafe penv [] )) of
       Ok x u' -> (x,u')
 
 
 
-data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def], monKind :: MonKind }
+data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
 
@@ -622,13 +613,3 @@ getUnsafe :: Simp Bool
 getUnsafe
   = do env <- getEnv
        return (unsafe env)
-
-getMonKind :: Simp MonKind
-getMonKind
-  = do env <- getEnv
-       return (monKind env)
-
-withMonKind :: MonKind -> Simp a -> Simp a
-withMonKind monKind action
-  = do env <- getEnv
-       withEnv (env{ monKind = monKind }) action

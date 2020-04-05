@@ -875,7 +875,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "ret") False irng),
                     (Nothing, Var (newName "action") False irng)]
       handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
-                        rng vis (DefFun NoMon) ("// handler for the " ++ docEffect)
+                        rng vis (DefFun) ("// handler for the " ++ docEffect)
 
 
       {-
@@ -1808,7 +1808,7 @@ handlerOp defaultResumeKind pars
            drng = combineRanged rng expr
            lam = Lam mpars expr drng
            name = newHiddenName "reinit"
-           def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun NoMon) ""
+           def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun) ""
        return (ClauseInitially def, Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>

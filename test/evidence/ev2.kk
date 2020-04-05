@@ -88,6 +88,7 @@ fun test-amb-state() : list<int> {  // 1,1,1,1
   xorst()
 }
 
+
 ambient val width : int
 
 

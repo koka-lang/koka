@@ -54,11 +54,7 @@ module Core.Core ( -- Data structures
                    , getDataRepr
                    , VarInfo(..)
 
-                   , MonKind(..)
-                   , getMonType, getMonEffect
-                   , getMonTypeX, getMonEffectX, getMonTVarX
-                   , makeDefFun
-                   , defSortTo, defSortFromTp
+                   , isMonType, isMonEffect
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -292,7 +288,7 @@ data Def = Def{ defName  :: Name
 defIsVal :: Def -> Bool
 defIsVal def
   = case defSort def of
-      DefFun _ -> False
+      DefFun   -> False
       _        -> True
 
 
@@ -349,7 +345,7 @@ defTName def
 
 data VarInfo
   = InfoNone
-  | InfoArity Int Int MonKind -- #Type parameters, #parameters, monadic info
+  | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
   deriving Show
 
@@ -394,51 +390,23 @@ isTotal expr
                       _                 -> False
       _       -> False  -- todo: a let or case could be total
 
-makeDefFun :: Type -> DefSort
-makeDefFun tp = DefFun (getMonType tp)
 
-
-defSortTo :: MonKind -> DefSort -> DefSort
-defSortTo monKind (DefFun _) = DefFun monKind
-defSortTo monKind sort       = sort
-
-defSortFromTp :: Type -> DefSort -> DefSort
-defSortFromTp tp defSort = defSortTo (getMonType tp) defSort
-
-getMonType :: Type -> MonKind
-getMonType tp = getMonTypeX tvsEmpty tvsEmpty tp
-
-getMonEffect :: Effect -> MonKind
-getMonEffect eff = getMonEffectX tvsEmpty tvsEmpty eff
-
-getMonTypeX :: Tvs -> Tvs -> Type -> MonKind
-getMonTypeX pureTvs monTvs tp
-  | isKindEffect (getKind tp) = getMonEffectX pureTvs monTvs tp
+isMonType :: Type -> Bool
+isMonType tp
+  | isKindEffect (getKind tp) = isMonEffect tp
   | otherwise =
     case expandSyn tp of
-      TForall vars preds t -> let tvs = tvsNew vars in getMonTypeX (tvsDiff pureTvs tvs) (tvsDiff monTvs tvs) t
-      TFun pars eff res    -> getMonEffectX pureTvs monTvs eff
-      _ -> NoMon
+      TForall vars preds t -> isMonType t
+      TFun pars eff res    -> isMonEffect eff
+      _ -> False
 
-getMonEffectX :: Tvs -> Tvs -> Effect -> MonKind
-getMonEffectX pureTvs monTvs eff
+isMonEffect :: Effect -> Bool
+isMonEffect eff
   = let (ls,tl) = extractEffectExtend eff
-    in if (any (\l -> case getHandledEffect l of
-                        Just (ResumeMany,_) -> True
-                        _ -> False) ls)
-        then AlwaysMon
-        else getMonTVarX pureTvs monTvs tl
+    in any (\l -> case getHandledEffect l of
+                    Just (ResumeMany,_) -> True
+                    _                   -> False) ls
 
-getMonTVarX :: Tvs -> Tvs -> Type -> MonKind
-getMonTVarX pureTvs monTvs tp
-  = case expandSyn tp of
-      TVar tv | isKindEffect (typevarKind tv)
-         -> let isPure = tvsMember tv pureTvs
-                isMon  = tvsMember tv monTvs
-            in if (isPure) then NoMon
-                else if (isMon) then AlwaysMon
-                else PolyMon
-      _  -> NoMon
 
 {--------------------------------------------------------------------------
   Type variables inside core expressions
@@ -630,7 +598,7 @@ addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
-addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun (getMonType tp)) rangeNull "")] e'
+addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun ) rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool
@@ -667,7 +635,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
 
 makeInt32 :: Integer -> Expr
 makeInt32 i
-  = let int32 = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 NoMon)
+  = let int32 = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 )
     in App int32 [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-{-    Pretty-printer for core-F 
+{-    Pretty-printer for core-F
 -}
 -----------------------------------------------------------------------------
 
@@ -49,23 +49,23 @@ parseCore fname
 program :: Source -> LexParser Core
 program source
   = do many semiColon
-       p <- pmodule 
+       p <- pmodule
        eof
        return p
 
 
 pmodule :: LexParser Core
-pmodule 
+pmodule
   = do (rng,doc) <- dockeyword "module"
        keyword "interface"
        (name,_)<- modulepath
        many semiColon
        braced (do (imps,impAliases) <- fmap unzip $ semis importDecl
                   let impMap = foldr (\(asname,name) imp -> case importsExtend asname name imp of { Just imp' -> imp'; Nothing -> imp }) importsEmpty impAliases
-                  
+
                   fixs <- semis fixDecl
-                  (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias 
-                  (tdefs,env2)   <- semisEnv env1 typeDecl 
+                  (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias
+                  (tdefs,env2)   <- semisEnv env1 typeDecl
                   {-
                   let syns = concatMap (\td -> case td of
                                                  Synonym info vis -> [info]
@@ -84,7 +84,7 @@ localAlias :: Env -> LexParser (SynInfo, Env)
 localAlias env
   = do try $ do { keyword "private"; keyword "alias" }
        (qname) <- qualifiedTypeId  -- can be qualified
-       let name = envQualify env qname 
+       let name = envQualify env qname
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
        keyword "="
@@ -100,7 +100,7 @@ semisEnv env p
     accum xs env0
       = do (x,env1) <- p env0
            many1 semiColon
-           accum (x:xs) env1 
+           accum (x:xs) env1
       <|>
         return (reverse xs,env0)
 
@@ -118,13 +118,13 @@ importDecl
        return (Import name pkg vis doc, (asname, name))
 
 fixDecl :: LexParser [FixDef]
-fixDecl 
+fixDecl
   = do fix <- pfixity
        (op,_) <- identifier
        return [FixDef op fix]
 
 pfixity :: LexParser Fixity
-pfixity 
+pfixity
   =   {-
       do keyword "prefix"; return FixPrefix
   <|> do keyword "postfix"; return FixPostfix
@@ -136,15 +136,15 @@ pfixity
          return (FixInfix (fromInteger prec) assoc)
 
 {--------------------------------------------------------------------------
-  Type definitions 
+  Type definitions
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
   = do (ddef0,isExtend,sort,doc) <- typeSort
        ddef       <- do keyword "rec"
-                        return (case ddef0 of 
+                        return (case ddef0 of
                                   DataDefNormal -> DataDefRec
-                                  _ -> ddef0)                         
+                                  _ -> ddef0)
                      <|> return ddef0
        tname <- if (isExtend)
                  then qualifiedTypeId
@@ -170,7 +170,7 @@ typeDecl env
        tp       <- ptype env
        (rank,_)  <- do{ keyword "="; integer } <|> return (0::Integer,rangeNull)
        let qname   = qualify (modName env) name
-       let synInfo = SynInfo qname kind params tp (fromInteger rank) rangeNull doc       
+       let synInfo = SynInfo qname kind params tp (fromInteger rank) rangeNull doc
        return (Synonym synInfo Public, envExtendSynonym env synInfo)
 
 conDecl tname foralls sort env
@@ -178,7 +178,7 @@ conDecl tname foralls sort env
        (name,_)  <- constructorId <|> constructorDot
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
-       params <- parameters env1 
+       params <- parameters env1
        tp     <- typeAnnot env
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
        return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False doc)
@@ -193,7 +193,7 @@ typeSort
 
 
 {--------------------------------------------------------------------------
-  Value definitions 
+  Value definitions
 --------------------------------------------------------------------------}
 
 defDecl :: Env -> LexParser Def
@@ -204,7 +204,7 @@ defDecl env
        keyword ":"
        tp       <- ptype env
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
-       return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file")) 
+       return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
                    Public sort rangeNull doc)
 
 canonical p
@@ -212,22 +212,22 @@ canonical p
        (do keyword "."
            (n,_) <- integer
            return (canonicalName (fromInteger n) name)
-        <|> 
+        <|>
            return name)
 
 pdefSort
-  = do (_,doc) <- dockeyword "fun" 
-       monKind <- do { specialOp "**"; return PolyMon }
+  = do (_,doc) <- dockeyword "fun"
+       _       <- do { specialOp "**"; return ()}
                   <|>
-                  do { specialOp "*"; return AlwaysMon }
+                  do { specialOp "*"; return () }
                   <|>
-                  return NoMon
-       return (DefFun monKind,doc)
+                  return ()
+       return (DefFun ,doc)
   <|>
     do (_,doc) <- dockeyword "val"
        return (DefVal,doc)
 
-       
+
 binderDot
   = parens $
     do keyword "."
@@ -246,7 +246,7 @@ tbinderDot
        return (prepend "." name,rng)
 
 {--------------------------------------------------------------------------
-  External definitions 
+  External definitions
 --------------------------------------------------------------------------}
 externDecl :: Env -> LexParser External
 externDecl env
@@ -260,7 +260,7 @@ externDecl env
 
 
 externalBody :: LexParser [(Target,String)]
-externalBody 
+externalBody
   = do keyword "="
        call <- externalEntry
        return [call]
@@ -272,7 +272,7 @@ externalEntry
        optional (specialId "inline")
        (s,_)  <- stringLit
        return (target,s)
-                                  
+
 externalTarget
   = do specialId "cs"
        return CS
@@ -302,7 +302,7 @@ parameter env
         <|>
         do tp <- ptype env
            return (name, tp))
- 
+
 
 typeAnnot :: Env -> LexParser Type
 typeAnnot env
@@ -378,8 +378,8 @@ pqualifier env
     return []
 
 predicate env
-  = do (name,_) <- qvarid 
-       tps <- angles (ptype env `sepBy` comma) <|> return []       
+  = do (name,_) <- qvarid
+       tps <- angles (ptype env `sepBy` comma) <|> return []
        return (PredIFace (envQualify env name) tps)
   <?> "predicate"
 
@@ -403,7 +403,7 @@ tresult env params
            return (TFun params tp1 tp2)
         <|>
            return (TFun params typeTotal tp1))
-        
+
 
 tatom :: Env -> LexParser Type
 tatom env
@@ -412,7 +412,7 @@ tatom env
          Left params -> do tp <- extract params "expecting single type"
                            ptypeApp env tp
          Right tp    -> return tp
-       
+
 extract params msg
   = case params of
       [] -> return typeUnit
@@ -462,9 +462,9 @@ psynonym env tp tps
          TCon (TypeCon name kind)
            -> -- trace ("make type syn: " ++ show name) $
               case synonymsLookup name (syns env) of
-                Just info@(SynInfo synname kind params syntp rank range doc) 
+                Just info@(SynInfo synname kind params syntp rank range doc)
                   -> return (TSyn (TypeSyn name kind rank (Just info)) tps body)
-                _ -> return (TSyn (TypeSyn name kind (fromInteger rank) Nothing) tps body)                 
+                _ -> return (TSyn (TypeSyn name kind (fromInteger rank) Nothing) tps body)
          TSyn _ _ _ | null tps
            -> return tp
          _ -> fail ("illegal type alias expression: " ++ show tp)
@@ -491,17 +491,17 @@ tlabel env
 
 tid :: Env -> LexParser Type
 tid env
-  = do (name) <- qualifiedTypeId 
+  = do (name) <- qualifiedTypeId
        kind <- kindAnnotFull <|> return kindStar
        return (envType env name kind)
-    
-qualifiedTypeId 
+
+qualifiedTypeId
   = do (name,_) <- qvarid
        return name
   <|>
     do (name,_) <- qidop  -- for things like std/core/<.>
        return name
-  <|> 
+  <|>
     do special "("
        cs <- many comma
        special ")"
@@ -509,7 +509,7 @@ qualifiedTypeId
   <|>
     do keyword "."
        (name,_) <- qvarid
-       return (prepend "." name)     
+       return (prepend "." name)
 
 
 {--------------------------------------------------------------------------
@@ -518,7 +518,7 @@ qualifiedTypeId
 
 pkind :: LexParser Kind
 pkind
-  = do params <- parensCommas lparen pkind 
+  = do params <- parensCommas lparen pkind
        keyword "->"
        res    <- pkind
        return (foldr kindFun res params)
@@ -534,10 +534,10 @@ pkind
 katom
   = do parens pkind
   <|>
-    do specialConId "V" 
+    do specialConId "V"
        return kindStar
   <|>
-    do specialConId "X" 
+    do specialConId "X"
        return kindLabel
   <|>
     do specialConId "E"
@@ -588,7 +588,7 @@ envType env@(Env bound syns mname _ _) name kind
                         -> -- trace ("type synonym1: " ++ show info) $
                            TSyn (TypeSyn name kind rank (Just info)) [] tp
                       _ -> {- (if (qname == nameTpST)
-                            then trace ("st as con in " ++ show mname ++ ": " ++ show qname ++ ": " ++ show syns) 
+                            then trace ("st as con in " ++ show mname ++ ": " ++ show qname ++ ": " ++ show syns)
                             else id) $  -}
                            TCon (TypeCon qname kind)
       Just tv -> TVar tv
@@ -610,11 +610,11 @@ envExtendSynonym env synInfo
 envTypeApp :: Env -> Type -> [Type] -> Type
 envTypeApp env tp tps
   = case tp of
-      TCon (TypeCon name0 kind0)  
+      TCon (TypeCon name0 kind0)
         -> case synonymsLookup name0 (syns env) of
             Just synInfo@(SynInfo name kind params syntp rank range doc) | length params == length tps
               -> assertion ("Core.Parse.envTypeApp: kind/name does not match in type synonym: " ++ show (tp,tps,name0,kind0,synInfo) )
-                           (name==name0 && kind==kind0) $              
+                           (name==name0 && kind==kind0) $
                  -- trace ("core: fix synonym: " ++ show name) $
                  TSyn (TypeSyn name kind rank (Just synInfo)) tps (subNew (zip params tps) |-> syntp)
             _ -> typeApp tp tps

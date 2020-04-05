@@ -10,9 +10,7 @@
 -- Transform user-defined effects into monadic bindings.
 -----------------------------------------------------------------------------
 
-module Core.Monadic( monTransform, monType
-                   , makeMonName, makeNoMonName
-                   -- , nameInBindCtx, nameIsInBindCtx
+module Core.Monadic( monTransform
                    ) where
 
 
@@ -50,8 +48,9 @@ trace s x =
 
 monTransform :: Pretty.Env -> DefGroups -> Error DefGroups
 monTransform penv defs
-  = runMon penv 0 (monDefGroups defs)
+  = return defs -- runMon penv 0 (monDefGroups defs)
 
+{-
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}
@@ -790,3 +789,4 @@ monType tp
       TApp t ts           -> TApp (monType t) (map monType ts)
       TSyn syn ts t       -> TSyn syn (map monType ts) (monType t)
       _                   -> tp
+-}

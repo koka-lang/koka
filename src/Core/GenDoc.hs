@@ -27,7 +27,7 @@ import Kind.Kind
 import Kind.Pretty
 import Type.Type
 import Type.TypeVar( tvsList, ftv )
-import Type.Pretty 
+import Type.Pretty
 
 import Kind.Assumption
 import Type.Assumption
@@ -46,7 +46,7 @@ genDoc env kgamma gamma core p
     do writeLn p $ ptag "h1" "module" $ fmtName (coreProgName core)
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
        writeLn p $ fmtImports env kgamma gamma (coreProgImports core)
-       
+
   | otherwise
   = -- trace ("genDoc: " ++ show (coreProgName core, noDeclarations, map importVis (coreProgImports core))) $
     htmlBody $
@@ -64,13 +64,13 @@ genDoc env kgamma gamma core p
     table []   = ""
     table [x]  = x
     table xs   = doctag "table" "toc" (doctag "tr" "" (concatMap (doctag "td" "") xs) ++ "\n")
-      
+
     tocFmts
-      = let fmts = concatMap fmtTypeDefTOC typeDefsDefs 
-                   ++ (if (null otherDefs || null typeDefsDefs) then [] else [doctag "li" "" "&nbsp;"]) 
+      = let fmts = concatMap fmtTypeDefTOC typeDefsDefs
+                   ++ (if (null otherDefs || null typeDefsDefs) then [] else [doctag "li" "" "&nbsp;"])
                    ++ map (fmtDefTOC False) otherDefs
             n    = length fmts
-            niceRows  = 20  
+            niceRows  = 20
             niceCol   = 4
             maxRows   = 31
         in if (n <= niceCol*niceRows)
@@ -83,7 +83,7 @@ genDoc env kgamma gamma core p
                   else split niceRows fmts
             else -- split ((n `div` maxCol) + 1) fmts
                  split maxRows fmts
-           
+
       where
         split :: Int -> [a] -> [[a]]
         split n []
@@ -91,7 +91,7 @@ genDoc env kgamma gamma core p
         split n fmts
           = let (pre,post) = splitAt n fmts
             in (pre : split n post)
-    
+
     sizeOf (tdef,ds)
       = length ds +
         case tdef of
@@ -99,28 +99,28 @@ genDoc env kgamma gamma core p
           _               -> 1
 
 
-    (publicImports,privateImports) 
+    (publicImports,privateImports)
       = partition (\imp -> importVis imp == Public) (coreProgImports core)
 
     (otherDefs,typeDefsDefs)
-      = (sortDefs odefs, map (\(td,tds) -> (td,sortDefs tds)) tdefs) 
+      = (sortDefs odefs, map (\(td,tds) -> (td,sortDefs tds)) tdefs)
       where
-        (odefs,tdefs) 
-          = fold selfResult $ 
+        (odefs,tdefs)
+          = fold selfResult $
             fold selfArg $
-            fold selfName $ 
+            fold selfName $
             (defs,map (\tdef -> (tdef,[])) typeDefs)
-        
-        fold :: (TypeCon -> Def -> Bool) -> ([Def],[(TypeDef,[Def])])  -> ([Def],[(TypeDef,[Def])]) 
+
+        fold :: (TypeCon -> Def -> Bool) -> ([Def],[(TypeDef,[Def])])  -> ([Def],[(TypeDef,[Def])])
         fold f (ds,tdds)
           = foldr (assoc f) (ds,[]) tdds
 
         assoc :: (TypeCon -> Def -> Bool) -> (TypeDef,[Def]) -> ([Def],[(TypeDef,[Def])]) -> ([Def],[(TypeDef,[Def])])
-        assoc f (tdef,ds0) (ds, tdds) 
+        assoc f (tdef,ds0) (ds, tdds)
           = let tcon = typeDefTCon tdef
                 (ds1,ds2) = partition (f tcon) ds
             in (ds2, (tdef,ds0++ds1) : tdds)
-          
+
         selfName, selfArg, selfResult :: TypeCon -> Def -> Bool
         selfResult tcon def
           = let (_,_,rho) = splitPredType (defType def)
@@ -128,7 +128,7 @@ genDoc env kgamma gamma core p
                  Just (_,_,TCon tc) -> (tc == tcon && TCon tc /= typeUnit)
                  Just (_,_,TApp (TCon tc) _) -> (tc == tcon)
                  _  -> False
-        
+
         selfArg tcon def
           = let (_,_,rho) = splitPredType (defType def)
             in case splitFunType rho of
@@ -142,7 +142,7 @@ genDoc env kgamma gamma core p
         selfName tcon def
           = ((typeConName tcon) == nonCanonicalName (defName def))
 
-        
+
         typeDefTCon tdef
           = case tdef of
               (Data info _ _ _) -> TypeCon (dataInfoName info) (dataInfoKind info) -- todo: handle exten
@@ -150,25 +150,25 @@ genDoc env kgamma gamma core p
 
     sortDefs ds
       = sortOn (show . defName) ds
-                 
+
     sortOn f xs
       = sortBy (\x y -> compare (f x) (f y)) xs
 
     noDeclarations
       = null defs && null typeDefs && null externals
 
-    defs 
+    defs
       = filter (\def -> defVis def == Public && not (isHiddenName (defName def))) $
         concatMap getDef (coreProgDefs core) ++ externals
       where
         getDef (DefRec ds) = ds
-        getDef (DefNonRec d) = [d]   
+        getDef (DefNonRec d) = [d]
 
     typeDefs
       = sortOn (show . typeDefName) $
         map filterCon $
         filter (\tdef -> typeDefVis tdef == Public && not (isHiddenName (typeDefName tdef))) $
-        concatMap getTDef (coreProgTypeDefs core) 
+        concatMap getTDef (coreProgTypeDefs core)
       where
         getTDef (TypeDefGroup ts) = ts
 
@@ -182,13 +182,13 @@ genDoc env kgamma gamma core p
       = map toDef (coreProgExternals core)
       where
         toDef ext = Def (externalName ext) (externalType ext) (failure "Core.GenDoc.genDoc: access to expression")
-                        (externalVis ext) (makeDefFun (externalType ext)) (externalRange ext) (externalDoc ext)
+                        (externalVis ext) DefFun (externalRange ext) (externalDoc ext)
 
     htmlBody pre
       = do mapM_ (writeLn p) (htmlHeader env (show (coreProgName core)))
            pre
            mapM_ (writeLn p) htmlFooter
-        
+
 
 --------------------------------------------------------------------------
 --  Index
@@ -196,16 +196,16 @@ genDoc env kgamma gamma core p
 
 
 fmtImports :: Env -> KGamma -> Gamma -> [Import] -> String
-fmtImports env kgamma gamma imports 
+fmtImports env kgamma gamma imports
   = doctag "table" "index" $
     unlines $ fmtImportEntries env kgamma gamma [] $ sorted
   where
     sorted = sortBy (\i1 i2 -> compare (importName i1) (importName i2)) imports
-    
+
 fmtImportEntries env kgamma gamma root []
   = []
 fmtImportEntries env kgamma gamma root (imp:imps)
-  = let (root',entry) = fmtImportEntry env kgamma gamma root imp 
+  = let (root',entry) = fmtImportEntry env kgamma gamma root imp
     in entry : fmtImportEntries env kgamma gamma root' imps
 
 fmtImportEntry :: Env -> KGamma -> Gamma -> [String] -> Import -> ([String],String)
@@ -213,19 +213,19 @@ fmtImportEntry env kgamma gamma root imp
   = case common [] root (splitImport (importName imp)) of
       Right (rootCommon,name)
         -> (rootCommon ++ [name],fmtImport env kgamma gamma rootCommon name imp) -- span "module" $ atag (linkFromModName env (importName imp)) $ span "id" (show name)
-      Left (rootCommon,pre) 
+      Left (rootCommon,pre)
         -> let (root',entry) = fmtImportEntry env kgamma gamma (rootCommon ++ [pre]) imp
            in (root',doctag "tr" "" (doctag "td" "code" (indent (length rootCommon) pre)) ++ "\n" ++ entry)
-           
+
   where
     splitImport name
       = split "" (show name)
       where
         split acc ""          = [reverse acc]
         split acc ('/':cs)    = reverse acc : split "" cs
-        split acc (c:cs)      = split (c:acc) cs  
+        split acc (c:cs)      = split (c:acc) cs
 
-    
+
     common rootc root parts
       = case (root,parts) of
           (_,[name])      -> Right (rootc,name)
@@ -239,18 +239,18 @@ fmtImportEntry env kgamma gamma root imp
 fmtImport :: Env -> KGamma -> Gamma -> [String] -> String -> (Import) -> String
 fmtImport env kgamma gamma root name (imp)
   = doctag "tr" "" $
-    (doctag "td" "code" (indent (length root) $ fmtModuleName env name (importName imp)) ++ 
+    (doctag "td" "code" (indent (length root) $ fmtModuleName env name (importName imp)) ++
      doctag "td" "" (synopsis env kgamma gamma (importModDoc imp)))
   where
     fmtModuleName env name qname
       = atag (linkFromModName env qname "") $ span "module" $ limit 15 name
-      
+
 synopsis :: Env -> KGamma -> Gamma -> String -> String
 synopsis env kgamma gamma doc
   = showDoc env kgamma gamma $
-    endWithDot $ capitalize $ 
-    fst $ extract "" $ 
-    dropWhile isSpace $ 
+    endWithDot $ capitalize $
+    fst $ extract "" $
+    dropWhile isSpace $
     removeComment doc
   where
     extract acc s
@@ -265,7 +265,7 @@ synopsis env kgamma gamma doc
 indent n s
   = span ("nested" ++ show n) s
 
-      
+
 --------------------------------------------------------------------------
 --  TOC
 --------------------------------------------------------------------------
@@ -291,7 +291,7 @@ fmtTypeDefTOC (Data info _ conViss isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
       cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
-    ++ map fmtConTOC constructors 
+    ++ map fmtConTOC constructors
     ++ map (fmtDefTOC True) defs
   where
     constructors = filter (not . isHiddenName . conInfoName) (dataInfoConstrs info)
@@ -316,17 +316,17 @@ fmtDefTOC nested def
     cspan "keyword" (showDefSort (defSort def)) ++ "&nbsp;" ++ niceNameId (defName def)
   where
     mname = mangle (defName def) (defType def)
-  
+
 
 --------------------------------------------------------------------------
---  
+--
 --------------------------------------------------------------------------
 
 fmtPublicImport :: Env -> KGamma -> Gamma -> Import -> String
-fmtPublicImport env kgamma gamma imp 
+fmtPublicImport env kgamma gamma imp
   = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (importName imp))) (
-    concat 
-      [doctag "div" "header code"$ 
+    concat
+      [doctag "div" "header code"$
         doctag "span" "def" $
           cspan "keyword" "module" ++ "&nbsp;"
           ++ fmtModuleName env qname -- (atag (linkFromModName env qname "") $ span "module" $ show qname)
@@ -341,32 +341,32 @@ fmtPrivateImports :: Env -> KGamma -> Gamma -> [Import] -> String
 fmtPrivateImports env kgamma gamma [] = ""
 fmtPrivateImports env kgamma gamma imps
   = doctag "div" ("decl\" id=\"-private-imports") (
-    concat 
-      [doctag "div" "header code"$ 
+    concat
+      [doctag "div" "header code"$
         doctag "span" "def" $
           cspan "keyword" "private import" ++ "&nbsp;"
           ++ concat (intersperse ", " (map (fmtPrivateImport env kgamma gamma) imps))
       ]
     )
-  
+
 fmtPrivateImport :: Env -> KGamma -> Gamma -> Import -> String
 fmtPrivateImport env kgamma gamma imp
   = doctag "span" "code" $ fmtModuleName env (importName imp)
 
 fmtModuleName env qname
   = signature env True True "module" qname (qualify qname nameNil) (span "module" (fmtName qname)) $ cspan "namespace" $ fmtName (unqualify qname)
-  -- atag (linkFromModName env qname "") $ span "module" qname    
+  -- atag (linkFromModName env qname "") $ span "module" qname
 
 fmtTypeDef :: Env -> KGamma -> Gamma -> (TypeDef,[Def]) -> String
 fmtTypeDef env kgamma gamma (Synonym info _, defs)
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (synInfoName info)))) (
-    concat 
-      [doctag "div" "header code"$ 
+    concat
+      [doctag "div" "header code"$
         concat
         [ doctag "span" "def" $
             cspan "keyword" "alias" ++ "&nbsp;"
-            ++ cspan "type" (signature env False True "kind" (synInfoName info) (mangleTypeName (synInfoName info)) (showKind env (synInfoKind info)) -- atag (linkToSource (synInfoName info)) 
+            ++ cspan "type" (signature env False True "kind" (synInfoName info) (mangleTypeName (synInfoName info)) (showKind env (synInfoKind info)) -- atag (linkToSource (synInfoName info))
                               (cspan "type" (niceTypeName (synInfoName info))))
         , cspan "type" (angled fmtTVars)
         , "&nbsp;", cspan "keyword" "=", "&nbsp;"
@@ -382,12 +382,12 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
   -- struct
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-    concat 
-      [ doctag "div" "header code"$ 
+    concat
+      [ doctag "div" "header code"$
         concat
         [ doctag "span" "def" $
             cspan "keyword" "struct" ++ "&nbsp;"
-            ++ cspan "type" (signature env False True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info)) 
+            ++ cspan "type" (signature env False True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info))
                               (cspan "type" (niceTypeName (dataInfoName info))))
         , cspan "type" (angled (fmtTVars))
         , parenthesized (map (showParam env' kgamma gamma) (conInfoParams conInfo))
@@ -404,12 +404,12 @@ fmtTypeDef env kgamma gamma (Data info@DataInfo{ dataInfoSort = Inductive, dataI
 fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show extend correctly
   = nestedDecl defs $
     doctag "div" ("decl\" id=\"" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-    concat 
-      [doctag "div" "header code"$ 
+    concat
+      [doctag "div" "header code"$
         concat
         [ doctag "span" "def" $
-            cspan "keyword" dataInfo ++ "&nbsp;" 
-            ++ cspan "type" (signature env isExtend True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info)) 
+            cspan "keyword" dataInfo ++ "&nbsp;"
+            ++ cspan "type" (signature env isExtend True "kind" (dataInfoName info) (mangleTypeName (dataInfoName info)) (showKind env (dataInfoKind info)) -- atag (linkToSource (dataInfoName info))
                              (cspan "type" (niceTypeName (dataInfoName info))))
         , cspan "type" $ angled (fmtTVars)
         --, "&nbsp;", span "keyword" ":", "&nbsp;", showKind env' (dataInfoKind info)
@@ -423,7 +423,7 @@ fmtTypeDef env kgamma gamma (Data info _ conViss isExtend, defs) -- TODO: show e
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
 
     dataInfo = show (dataInfoSort info) ++
-               (if (isExtend) then "&nbsp;extend" 
+               (if (isExtend) then "&nbsp;extend"
                 else if (dataInfoIsOpen info) then "&nbsp;open"
                 else "")
 
@@ -441,8 +441,8 @@ nestedDecl xs
 
 fmtConstructor env kgamma gamma info
   = doctag "div" ("con-decl\" id=\"" ++ linkEncode (nameId (mangleConName (conInfoName info)))) $
-    concat 
-      [doctag "div" "header code"$ 
+    concat
+      [doctag "div" "header code"$
         concat
         [ doctag "span" "def" $
            cspan "keyword" "con" ++ "&nbsp;" ++
@@ -450,7 +450,7 @@ fmtConstructor env kgamma gamma info
         , angled fmtTVars
         , parenthesized (map (showParam env' kgamma gamma) (conInfoParams info))
         ]
-        , showDoc env kgamma gamma (conInfoDoc info)        
+        , showDoc env kgamma gamma (conInfoDoc info)
       ]
   where
     env' = niceEnv env (conInfoExists info)
@@ -463,9 +463,9 @@ showParam env kgamma gamma (name,tp)
 fmtDef :: Env -> KGamma -> Gamma -> Def -> String
 fmtDef env kgamma gamma def
   = doctag "div" ("decl\" id=\"" ++ linkEncode (nameId mname)) $
-    concat 
+    concat
       [doctag "div" "header code" $
-        concat 
+        concat
          [ doctag "span" "def" $
             cspan "keyword" (showDefSort (defSort def)) ++ "&nbsp;"
             ++ doctag "a" ("link\" href=\"" ++ linkToSource mname) (niceNameId (defName def))
@@ -476,7 +476,7 @@ fmtDef env kgamma gamma def
          ]
      , showDoc env kgamma gamma (defDoc def)
      ]
-    
+
   where
     mname = mangle (defName def) (defType def)
 
@@ -486,11 +486,10 @@ fmtDef env kgamma gamma def
 
     spanEffect kind
       = if (kind == kindLabel || kind == kindEffect)
-         then cspan "type effect" 
+         then cspan "type effect"
          else id
 
-showDefSort (DefFun kind) = "fun"
-showDefSort dsort         = show dsort
+showDefSort dsort = show dsort
 
 niceTypeName name
   = fmtTypeName (unqualify name)
@@ -524,17 +523,17 @@ showType env kgamma gamma tp
   = head (showTypes env kgamma gamma [tp])
 
 showTypes env kgamma gamma tps
-  = map (highlightType env kgamma gamma . show . ppType env') tps 
-  where    
+  = map (highlightType env kgamma gamma . show . ppType env') tps
+  where
     env' = niceEnv (env{ fullNames = True }) (tvsList (ftv tps))
 
 
 highlightType :: Env -> KGamma -> Gamma -> String -> String
 highlightType env kgamma gamma typeStr
-  = concat $ 
+  = concat $
     highlight (fmtLiterate Nothing env kgamma gamma) lexQualifiers (CtxType [] ":") "" 1 $
     compress [] typeStr
-  where    
+  where
     lexQualifiers :: [Lexeme] -> [Lexeme]
     lexQualifiers lexs
       = case lexs of
@@ -555,7 +554,7 @@ compress acc (c:cs)
      then case dropWhile isSpace cs of
             (',':ds) -> compress acc (',':ds)
             ds -> compress (' ':acc) ds
-     else compress (c:acc) cs  
+     else compress (c:acc) cs
 
 
 atag link content
@@ -575,5 +574,5 @@ parenthesized [] = ""
 parenthesized xs = "(" ++ concat (intersperse (",&nbsp;") xs) ++ ")"
 
 limit n s
-  = if (length s <= n) then fmtNameString s 
+  = if (length s <= n) then fmtNameString s
      else (fmtNameString (take n s) ++  "&hellip;")

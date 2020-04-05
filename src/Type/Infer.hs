@@ -169,7 +169,7 @@ inferDefGroup topLevel (DefRec defs) cont
        -- TODO: fix local info in the core; test/algeff/nim.kk with no types for bobTurn and aliceTurn triggers this
        let sub = map (\cdef -> let tname    = Core.defTName cdef
                                    nameInfo = -- trace ("fix local info: " ++ show (Core.defName cdef)) $
-                                              createNameInfoX (Core.defName cdef) (Core.defSortFromTp (Core.defType cdef) (Core.defSort cdef)) (Core.defNameRange cdef) (Core.defType cdef)
+                                              createNameInfoX (Core.defName cdef) (Core.defSort cdef) (Core.defNameRange cdef) (Core.defType cdef)
                                    varInfo  = coreVarInfoFromNameInfo nameInfo
                                    var      = Core.Var tname varInfo
                                in (tname, var)) (Core.flattenDefGroups coreGroups2)
@@ -1257,7 +1257,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
 
            resumeExpr  = Ann resumeLam resumeTp nameRng
            resumeDef   = DefNonRec (Def (ValueBinder resumeName () resumeExpr nameRng nameRng)
-                                        nameRng Public (DefFun AlwaysMon) "")
+                                        nameRng Public (DefFun ) "")
 
            sresumeName = newName "resume-shallow"
            sresumeTp   = TFun [(rargName, resTp)] actionEffect branchTp  -- leaves in handledEffect, no locals
@@ -1272,7 +1272,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
 
            sresumeExpr = Ann sresumeLam sresumeTp nameRng
            sresumeDef  = DefNonRec (Def (ValueBinder sresumeName () sresumeExpr nameRng nameRng)
-                                       nameRng Public (DefFun AlwaysMon) "")
+                                       nameRng Public (DefFun ) "")
 
 
            parContextName= contextName
@@ -1644,7 +1644,7 @@ inferApp propagated expect fun nargs rng
                             if (Core.isTotal fcore)
                              then return (Core.makeLet defs (coreApp fcore cargs))
                              else do fname <- uniqueName "fun"
-                                     let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (Core.makeDefFun ftp) rangeNull "")
+                                     let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private DefFun rangeNull "")
                                          fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
                                      return (Core.Let (fdef:defs) (coreApp fvar cargs))
            -- take top effect

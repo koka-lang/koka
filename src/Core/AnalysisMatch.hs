@@ -123,7 +123,7 @@ cart xss
 
 patternMatchError :: Type -> Name -> Range -> Expr
 patternMatchError resultType defName range
-  = App (TypeApp (Var (TName name tp) (InfoArity 1 2 NoMon)) [resultType])
+  = App (TypeApp (Var (TName name tp) (InfoArity 1 2)) [resultType])
             [Lit (LitString (sourceName (posSource (rangeStart range)) ++ show range)), Lit (LitString (show defName))]
   where
     name = namePatternMatchError
@@ -131,7 +131,7 @@ patternMatchError resultType defName range
     a    = TypeVar (newId 0) kindStar Bound
 
     info = if (qualifier defName /= nameSystemCore)
-            then (InfoArity 1 2 NoMon)
+            then (InfoArity 1 2)
             else (InfoExternal [(CS,"koka_" ++ aname ++ "<##1>(#1,#2)")
                                ,(JS,aname ++ "(#1,#2)")])
     aname = asciiEncode True (nameModule name) ++ "." ++ asciiEncode False (nameId name)
