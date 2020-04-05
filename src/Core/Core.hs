@@ -403,7 +403,8 @@ isMonType tp
 isMonEffect :: Effect -> Bool
 isMonEffect eff
   = let (ls,tl) = extractEffectExtend eff
-    in any (\l -> case getHandledEffect l of
+    in not (isEffectEmpty tl) ||
+       any (\l -> case getHandledEffect l of
                     Just (ResumeMany,_) -> True
                     _                   -> False) ls
 

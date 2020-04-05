@@ -48,24 +48,24 @@ private extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern inline ".evv-at"( i : ev-index ) : e ev<h> {
+public extern inline ".evv-at"<e::E,h> ( i : ev-index ) : ev<h> {
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
-public extern ".evv-index"<e,h>( htag : htag<h> ) : e ev-index {
+public extern ".evv-index"<e::E,h>( htag : htag<h> ) : ev-index {
   js inline "_evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 
-public extern ".evv-lookup"( htag : htag<h> ) : e ev<h> {
+public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
   js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
-public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : e ev<h> {
+public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : _evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
-private extern inline evv-get() : e evv<e> {
+private extern inline evv-get() : evv<e> {
   js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
 }
 
@@ -81,11 +81,11 @@ private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2>
   js "_evv_create"
 }
 
-private extern inline evv-set( w : evv<e1> ) : e2 () {
+private extern inline evv-set( w : evv<e1> ) : () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
-private extern inline evv-set-ofs( ofs : ev-index ) : e ev-index {
+private extern inline evv-set-ofs( ofs : ev-index ) : ev-index {
   js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
@@ -228,7 +228,7 @@ public fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<
 // mask
 // -------------------------------------------
 
-public fun ".mask"( i : ev-index, action : () -> e1 a ) : e2 a {
+public fun ".hmask"( i : ev-index, action : () -> e1 a ) : e2 a {
   val w0 = evv-get()
   val w1 = evv-delete(w0,i)
   under0(w1,cast-ev0(action))

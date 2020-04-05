@@ -775,42 +775,43 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return ()
-        else trace "initial core check" $ Core.Check.checkCore False penv unique4 gamma coreDefs0
+        else trace "initial core check" $ Core.Check.checkCore penv unique4 gamma coreDefs0
 
        -- remove return statements
        --coreDefsUR <- unreturn penv coreDefs0
        let coreDefsUR = coreDefs0
-       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsUR
-
-       -- resolve phantom .open
-       let coreDefsOR = openResolve penv gamma coreDefsUR
-       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsOR
+       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore penv unique4 gamma coreDefsUR
 
        -- do monadic effect translation (i.e. insert binds)
-       (isCps,coreDefsMon)
+       coreDefsMon
            <- if (not (enableMon flags)) -- CS `elem` targets flags ||
-               then return (False,coreDefsOR)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsOR
+               then return (coreDefsUR)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core
                        when (coreCheck flags) $
-                          trace "monadic core check" $ Core.Check.checkCore True penv unique4 gamma cdefs
-                       return (True,cdefs)
+                          trace "monadic core check" $ Core.Check.checkCore penv unique4 gamma cdefs
+                       return (cdefs)
+
+
+       -- resolve phantom .open
+       let coreDefsOR = openResolve penv gamma coreDefsMon
+       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore penv unique4 gamma coreDefsOR
 
        -- simplify coreF if enabled
        (coreDefsSimp,unique5)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
-                      then return (coreDefsMon,unique4)
+                      then return (coreDefsOR,unique4)
                       else -- trace "simplify" $
-                           do let (cdefs,unique4a) -- Core.Simplify.simplify $
+                           do let (cdefs0,unique4a) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) unique4 penv coreDefsMon
+                                     = simplifyDefs False (simplify flags) unique4 penv coreDefsOR
                               -- recheck simplified core
-                              when (not isCps && coreCheck flags) $
-                                trace "after simplify core check 1" $Core.Check.checkCore isCps penv unique4a gamma cdefs
+                              when (coreCheck flags) $
+                                trace "after simplify core check 1" $Core.Check.checkCore penv unique4a gamma cdefs0
                               -- and one more unsafe simplify to remove open calls etc.
-                              let (cdefs1,unique4b) =  simplifyDefs False 1 unique4a penv cdefs
-                              when (not isCps && coreCheck flags) $
-                                trace "after simplify core check 2" $Core.Check.checkCore isCps penv unique4b gamma cdefs1
+                              let (cdefs1,unique4b) =  simplifyDefs False 1 unique4a penv cdefs0
+                              when (coreCheck flags) $
+                                trace "after simplify core check 2" $Core.Check.checkCore penv unique4b gamma cdefs1
                               return (cdefs1,unique4b) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- Assemble core program and return

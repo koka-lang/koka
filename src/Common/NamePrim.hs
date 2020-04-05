@@ -267,7 +267,7 @@ nameReturnNull   = preludeName "null-return"
 nameReturnNull1   = preludeName "null-return1"
 
 nameLift        = preludeName "lift"
-nameBind        = preludeName "bind"
+nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameTpYld       = preludeName "yld"
 nameInject      = preludeName ".inject-effect"
 nameInjectExn   = preludeName "inject-exn"

@@ -40,10 +40,10 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore mon prettyEnv uniq gamma  defGroups
+checkCore :: Env -> Int -> Gamma -> DefGroups -> Error ()
+checkCore prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv mon gamma prettyEnv []) of
+      Check c -> case c uniq (CEnv False gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
 

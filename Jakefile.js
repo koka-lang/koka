@@ -57,7 +57,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/implicits -itest/ambients -itest/evidence -itest/lib --core --checkcore --no-mon " + (process.env.kokaFlags || "");
+var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/implicits -itest/ambients -itest/evidence -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   console.log("use profile options")
