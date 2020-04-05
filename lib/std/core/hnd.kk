@@ -48,12 +48,17 @@ private extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern hidden-evv-lookup( htag : htag<h> ) : e ev<h> {
-  js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
-}
-
 public extern inline hidden-evv-at( i : ev-index ) : e ev<h> {
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
+}
+
+public extern hidden-evv-index<e,h>( htag : htag<h> ) : e ev-index {
+  js inline "_evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
+}
+
+
+public extern hidden-evv-lookup( htag : htag<h> ) : e ev<h> {
+  js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 public extern inline hidden-evv-select( i : ev-index, htag : htag<h> ) : e ev<h> {
@@ -72,7 +77,7 @@ private extern evv-delete( w : evv<e1>, i : ev-index ) : evv<e2> {
   js "_evv_delete"
 }
 
-private extern evv-create( evv : evv<e1>, indices : vector<int> ) : evv<e2> {
+private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2> {
   js "_evv_create"
 }
 
@@ -80,7 +85,7 @@ private extern inline evv-set( w : evv<e1> ) : e2 () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
-private extern inline evv-set-ofs( ofs : int ) : e int {
+private extern inline evv-set-ofs( ofs : ev-index ) : e ev-index {
   js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
@@ -507,8 +512,31 @@ public fun hidden-perform3( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a
 // -------------------------------------------
 // Open
 // -------------------------------------------
+public extern inline ".open"<e1,e2,a,b>( x : a ) : e2 b {
+  inline "(#1)"
+}
 
-public fun hidden-open-at1( i: int, f : a -> e1 b, x : a ) : e2 b {
+public fun hidden-open-none0( f : () -> e1 b ) : e2 b {
+  cast-ev0(f)()
+}
+
+public fun hidden-open-none1( f : a -> e1 b, x : a ) : e2 b {
+  cast-ev1(f)(x)
+}
+
+public fun hidden-open-none2( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+  cast-ev2(f)(x1,x2)
+}
+
+public fun hidden-open-at0( i: ev-index, f : () -> e1 b ) : e2 b {
+  val ofs = evv-set-ofs(i)
+  val res = cast-ev0(f)()
+  if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
+  val j = evv-set-ofs(ofs)
+  res
+}
+
+public fun hidden-open-at1( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev1(f)(x)
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
@@ -516,7 +544,15 @@ public fun hidden-open-at1( i: int, f : a -> e1 b, x : a ) : e2 b {
   res
 }
 
-public fun hidden-open1( indices : vector<int>, f : a -> e1 b, x : a ) : e2 b {
+public fun hidden-open0( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+  val w = evv-get()
+  evv-set( evv-create(w,indices) )
+  val res = cast-ev0(f)()
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+public fun hidden-open1( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev1(f)(x)

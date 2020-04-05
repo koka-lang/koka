@@ -50,6 +50,7 @@ module Type.InferMonad( Inf, InfGamma
                       , checkEmptyPredicates
                       , checkCasing
                       , normalize
+                      , getResolver
 
                       -- * Unification
                       , Context(..)
@@ -80,7 +81,6 @@ import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
                        nameTpLocal)
 -- import Common.Syntax( DefSort(..) )
 import Common.ColorScheme
-
 import Kind.Kind
 import Kind.ImportMap
 import Kind.Newtypes
@@ -246,6 +246,15 @@ improve contextRange range close eff0 rho0 core0
        -- trace (" improve normalized: " ++ show (nrho) ++ " from " ++ show rho1) $ return ()
        -- trace (" improved to: " ++ show (pretty eff1, pretty nrho) ++ " with " ++ show ps1) $ return ()
        return (nrho,eff1,coref1 (coref0 core0))
+
+getResolver :: Inf (Name -> Core.Expr)
+getResolver
+  = do env <- getEnv
+       return (\name -> case gammaLookup name (gamma env) of
+                          [(qname,info)] -> coreExprFromNameInfo qname info
+                          _              -> failure $ "Type.InferMonad:getResolver: called with unknown name: " ++ show name)
+
+
 
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiate range tp | isRho tp

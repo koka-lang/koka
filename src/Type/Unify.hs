@@ -10,7 +10,7 @@
 -- Unification and subsumption
 -----------------------------------------------------------------------------
 
-module Type.Unify ( Unify, UnifyError(..), runUnify
+module Type.Unify ( Unify, UnifyError(..), runUnify, runUnifyEx
                   , unify
                   , subsume
                   , overlaps
@@ -419,8 +419,8 @@ unifyLabels ls1 ls2
                     unifyLabels ll1 ll2
 
 compareLabel l1 l2
-  = let (name1,i1) = labelNameEx l1
-        (name2,i2) = labelNameEx l2
+  = let (name1,i1,_) = labelNameEx l1
+        (name2,i2,_) = labelNameEx l2
     in case compare name1 name2 of
          -- EQ | i1 /= 0 && i2 /= 0 -> compare i1 i2
          cmp -> cmp
@@ -458,14 +458,18 @@ data UnifyError
   | NoArgMatch Int Int
   deriving Show
 
+runUnifyEx :: Int -> Unify a -> (Either UnifyError a,Sub,Int)
+runUnifyEx i (Unify f)
+  = case f (St i subNull) of
+      Ok x (St j sub)    -> (Right x,sub,j)
+      Err err (St j sub) -> (Left err,sub,j)
+
 runUnify :: HasUnique m => Unify a -> m (Either UnifyError a,Sub)
-runUnify (Unify f)
+runUnify u
   = do i <- unique
-       case f (St i subNull) of
-         Ok x (St j sub)    -> do setUnique j
-                                  return (Right x,sub)
-         Err err (St j sub) -> do setUnique j
-                                  return (Left err,sub)
+       let (res,sub,j) = runUnifyEx i u
+       setUnique j
+       return (res,sub)
 
 instance HasUnique Unify where
   updateUnique f = Unify (\st -> Ok (uniq st) (st{ uniq = f (uniq st) }))

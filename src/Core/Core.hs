@@ -71,13 +71,15 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
-import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog, nameSystemCore )
+import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
+                        nameSystemCore, nameEvvIndex, nameOpenAt, nameOpenNone )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
-import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany) )
+import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect )
+
 
 isExprUnit (Con tname _)  = getName tname == nameTuple 0
 isExprUnit _              = False
@@ -650,8 +652,6 @@ freshName prefix
   = do id <- unique
        return (newName $ prefix ++ "." ++ show id)
 
-
--- | Create a phantom application that opens the effect type of a function
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
 openEffectExpr effFrom effTo tpFrom tpTo expr
   = App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
@@ -662,7 +662,6 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     b       = TypeVar (-2) kindStar Bound
     e1      = TypeVar (-3) kindEffect Bound
     e2      = TypeVar (-4) kindEffect Bound
-
 
 
 ---------------------------------------------------------------------------

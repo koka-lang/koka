@@ -28,6 +28,7 @@ module Common.Name
           , toHandlerName, fromHandlerName, isHandlerName
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
+          , toEffectTagName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
@@ -301,6 +302,11 @@ isOpSelectorName name
 fromOpSelectorName :: Name -> Name
 fromOpSelectorName name
   = newQualified (nameModule name) (drop 8 (nameId name))
+
+-- | Create an effect tag name from an effect type name.
+toEffectTagName :: Name -> Name
+toEffectTagName name
+  = makeHiddenName "tag" name
 
 
 -- | Create an operation type name from an operation name.

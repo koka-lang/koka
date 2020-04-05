@@ -8,7 +8,7 @@
 module Type.Kind ( HasKind( getKind )
                  , handledToLabel
                  , HandledSort(..)
-                 , getHandledEffect, getHandledEffectX
+                 , getHandledEffect, getHandledEffectX, isHandledEffect
                  , containsHandledEffect
                  ) where
 
@@ -32,6 +32,10 @@ containsHandledEffect exclude eff
 
 data HandledSort = ResumeOnce | ResumeMany
                  deriving (Eq,Show)
+
+isHandledEffect :: Type -> Bool
+isHandledEffect tp = isJust (getHandledEffect tp)
+
 
 getHandledEffect :: Type -> Maybe (HandledSort,Name)
 getHandledEffect tp

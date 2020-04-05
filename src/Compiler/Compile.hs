@@ -54,7 +54,7 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
-import Core.Evidence          ( evidenceTransform )
+import Core.OpenResolve       ( openResolve )
 import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -782,21 +782,19 @@ inferCheck loaded flags line coreImports program1
        let coreDefsUR = coreDefs0
        when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsUR
 
-       -- do evidence translation
-       -- coreDefsEv <- evidenceTransform penv coreDefsUR
-       -- when (coreCheck flags) $ trace "evidence core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsEv
+       -- resolve phantom .open
+       let coreDefsOR = openResolve penv gamma coreDefsUR
+       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsOR
 
        -- do monadic effect translation (i.e. insert binds)
        (isCps,coreDefsMon)
            <- if (not (enableMon flags)) -- CS `elem` targets flags ||
-               then return (False,coreDefsUR)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
+               then return (False,coreDefsOR)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsOR
                        -- recheck cps transformed core
                        when (coreCheck flags) $
                           trace "monadic core check" $ Core.Check.checkCore True penv unique4 gamma cdefs
                        return (True,cdefs)
-
-
 
        -- simplify coreF if enabled
        (coreDefsSimp,unique5)
@@ -810,7 +808,8 @@ inferCheck loaded flags line coreImports program1
                               when (not isCps && coreCheck flags) $
                                 trace "after simplify core check" $Core.Check.checkCore isCps penv unique4a gamma cdefs
                               -- and one more unsafe simplify to remove open calls etc.
-                              return $ simplifyDefs True 1 unique4a penv cdefs
+                              -- return $ simplifyDefs True 1 unique4a penv cdefs
+                              return (cdefs,unique4a) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

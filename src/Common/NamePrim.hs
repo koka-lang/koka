@@ -39,8 +39,8 @@ module Common.NamePrim
           -- Effects
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
-          , nameEvvAt, nameEvvLookup
-          , nameOpenAt, nameOpen
+          , nameEvvAt, nameEvvLookup, nameEvvIndex
+          , nameOpenAt, nameOpen, nameOpenNone
           , nameTpEv, nameHandle, nameNamedHandle
           , nameClause
           , nameIdentity
@@ -154,7 +154,7 @@ nameLog     = preludeName "log"
 namePhantom = preludeName "phantom"
 
 nameEffectOpen :: Name
-nameEffectOpen = preludeName ".open"
+nameEffectOpen = coreHndName ".open" -- preludeName ".open"
 
 {--------------------------------------------------------------------------
   Primitive constructors
@@ -215,8 +215,11 @@ nameTpClause i  = coreHndName ("clause" ++ show i)
 namePerform i   = coreHndName ("hidden-perform" ++ show i)
 nameEvvAt       = coreHndName "hidden-evv-at"
 nameEvvLookup   = coreHndName "hidden-evv-lookup"
+nameEvvIndex    = coreHndName "hidden-evv-index"
 nameOpenAt i    = coreHndName ("hidden-open-at" ++ show i)
+nameOpenNone i  = coreHndName ("hidden-open-none" ++ show i)
 nameOpen i      = coreHndName ("hidden-open" ++ show i)
+
 nameTpEv        = coreHndName "ev"
 nameHandle      = coreHndName "hidden-handle"
 nameNamedHandle = coreHndName "hidden-named-handle"
@@ -331,7 +334,7 @@ coreHndName s
 
 nameSystemCore  = newName "std/core"
 nameCore        = newName "core"
-nameCoreHnd     = newName "core/hnd"
+nameCoreHnd     = newName "std/core/hnd"
 nameDict        = newName "std/data/dict"
 
 toShortModuleName :: Name -> Name

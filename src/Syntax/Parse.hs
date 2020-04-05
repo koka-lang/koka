@@ -819,7 +819,7 @@ makeEffectDecl decl =
       hndTp      = makeTpApp (tpCon hndTpName) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng
 
       -- declare the effect tag
-      tagName    = makeHiddenName "tag" id
+      tagName    = toEffectTagName id
       tagDef     = Def (ValueBinder tagName ()
                          (Ann (App (Var nameHTag False irng)
                                [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) irng))]

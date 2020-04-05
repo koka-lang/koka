@@ -27,11 +27,12 @@ module Type.Assumption (
                     , infoCanonicalName
                     -- * From Core
                     , extractGammaImports
-                    , extractGamma   
+                    , extractGamma
                     , coreDefInfo
                     , createNameInfo
                     , createNameInfoX
                     , getArity
+                    , coreVarInfoFromNameInfo, coreExprFromNameInfo
                     ) where
 import Lib.Trace
 import Common.Range
@@ -93,6 +94,24 @@ infoElement info
       _             -> "identifier"
 
 
+coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
+coreVarInfoFromNameInfo info
+  = case info of
+      InfoVal _ tp _ _           -> Core.InfoNone
+      InfoFun _ tp (m,n) _       -> Core.InfoArity m n (Core.getMonType tp)
+      InfoExternal _ tp format _ -> Core.InfoExternal format
+      _                          -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
+
+coreExprFromNameInfo qname info
+  = -- trace ("create name: " ++ show qname) $
+    case info of
+      InfoVal cname tp _ _            -> Core.Var (Core.TName cname tp) (Core.InfoNone)
+      InfoFun cname tp ((m,n)) _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n (Core.getMonType tp))
+      InfoCon tp repr _ _             -> Core.Con (Core.TName qname tp) repr
+      InfoExternal cname tp format _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
+      InfoImport _ _ _ _              -> matchFailure "Type.Infer.coreExprFromNameInfo"
+
+
 {--------------------------------------------------------------------------
   Initial kind gamma
 --------------------------------------------------------------------------}
@@ -136,7 +155,7 @@ gammaExtend :: Name -> NameInfo -> Gamma -> Gamma
 gammaExtend name tp (Gamma gamma)
   = Gamma (M.insertWith combine (unqualify name) [(name,tp)] gamma)
 
-combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)] 
+combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)]
 combine xs ys
   = -- TODO: check for overlapping type schemes?
     xs ++ ys
@@ -153,13 +172,13 @@ gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookup name (Gamma gamma)
   = case M.lookup (unqualify name) gamma of
       Nothing -> []
-      Just xs -> -- let qname = if isQualified name then name else qualify context name 
-                 -- in filter (\(n,_) -> n == qname) xs 
-                 -- trace (" in gamma found: " ++ show (map fst xs)) $ 
+      Just xs -> -- let qname = if isQualified name then name else qualify context name
+                 -- in filter (\(n,_) -> n == qname) xs
+                 -- trace (" in gamma found: " ++ show (map fst xs)) $
                  if (isQualified name)
                   then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
                   else xs
-                 
+
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)
   = Gamma (M.map (\xs -> [(name,f tp) | (name,tp) <- xs]) gamma)
@@ -188,7 +207,7 @@ gammaFilter mod (Gamma g)
   = Gamma (M.map belongs g)
   where
     belongs xs  = [(name,tp) | (name,tp) <- xs, qualifier name == mod]
-  
+
 {---------------------------------------------------------------
   Extract from core
 ---------------------------------------------------------------}
@@ -221,8 +240,8 @@ extractTypeDefGroup isVisible msf (Core.TypeDefGroup tdefs)
 extractTypeDef isVisible msf tdef
   = case tdef of
      Core.Data dataInfo vis conViss isExtend  | isVisible vis
-       -> gammaUnions (L.map extractConInfo 
-            [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo) 
+       -> gammaUnions (L.map extractConInfo
+            [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo)
                (zip conViss (snd (Core.getDataRepr msf {- struct fields do not matter for extraction -} dataInfo))), isVisible vis])
      _ -> gammaEmpty
   where
@@ -286,8 +305,8 @@ instance Show Gamma where
 instance Pretty Gamma where
   pretty g
     = ppGamma Type.Pretty.defaultEnv g
-    
-    
+
+
 ppGamma :: Env -> Gamma -> Doc
 ppGamma env gamma
     = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
@@ -311,7 +330,7 @@ instance HasTypeVar Gamma where
 instance HasTypeVar NameInfo where
   sub `substitute` info
     = info{ infoType = sub `substitute` (infoType info) }
-  
+
   ftv info
     = ftv (infoType info)
 

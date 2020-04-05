@@ -15,7 +15,7 @@ module Kind.Kind( -- * Kinds
                  -- * Standard kinds
                   , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1
-                  , kindFun, kindArrowN, kindLabel, extractKindFun
+                  , kindFun, kindArrowN, kindLabel, extractKindFun, kindFunN
                   , builtinKinds
                   , kindCon, kindConOver
                   , isKindFun
@@ -116,6 +116,9 @@ kindConOver kinds
   = foldr kindFun kindStar kinds
 
 
+kindFunN :: [Kind] -> Kind -> Kind
+kindFunN kinds kind
+  = foldr kindFun kind kinds
 
 -- | Create a (kind) function from a kind to another kind.
 kindFun :: Kind -> Kind -> Kind

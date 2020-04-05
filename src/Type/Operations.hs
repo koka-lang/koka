@@ -25,9 +25,10 @@ import Kind.Kind
 import Type.Type
 import Type.TypeVar
 import Core.Core as Core
+import Type.Assumption
 
 --------------------------------------------------------------------------
--- Instantiation 
+-- Instantiation
 --------------------------------------------------------------------------
 data Evidence = Ev{ evName :: Core.TName
                   , evPred :: Pred
@@ -48,10 +49,10 @@ instance Show Evidence where
 -- | Instantiate a type
 instantiate :: HasUnique m => Range -> Type -> m Rho
 instantiate range tp
-  = do (ids,preds,rho,coref) <- instantiateEx range tp 
+  = do (ids,preds,rho,coref) <- instantiateEx range tp
        return rho
 
--- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
+-- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
@@ -59,7 +60,7 @@ instantiateEx rng tp
        (erho,coreg) <- extend rho
        return (ids,preds,erho, coreg . coref)
 
--- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
+-- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 instantiateNoEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateNoEx rng tp
@@ -68,7 +69,7 @@ instantiateNoEx rng tp
 
 -- | Ensure the result of function always gets an extensible effect type
 -- This is necessary to do on instantiation since we simplify such effect variables
--- away during generalization. Effectively, the set of accepted programs does not 
+-- away during generalization. Effectively, the set of accepted programs does not
 -- change but the types look simpler to the user.
 extend :: HasUnique m => Rho -> m (Rho, Core.Expr -> Core.Expr)
 extend tp
@@ -91,7 +92,7 @@ skolemize range tp
   = do (ids,preds,rho,coref) <- skolemizeEx range tp
        return rho
 
--- | Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence, 
+-- | Skolemize a type and return the instantiated quantifiers, name/predicate pairs for evidence,
 -- the instantiated type, and a core transformer function (which applies type arguments and evidence)
 skolemizeEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 skolemizeEx = instantiateExFl Skolem
@@ -112,12 +113,12 @@ instantiateExFl flavour range tp
                return (tvars, evidence, srho
                       ,(if null corevars then id else id {- Core.addApps corevars -}) . Core.addTypeApps tvars)
 
-              
+
 predName :: HasUnique m => Pred -> m Core.TName
 predName pred
   = do name <- case pred of
                  PredSub _ _ -> Core.freshName "sub"
-                 PredIFace iname _ -> Core.freshName (show iname)               
+                 PredIFace iname _ -> Core.freshName (show iname)
        return (Core.TName name (predType pred))
 
 
@@ -146,7 +147,7 @@ instantiateAnnot (Annot ids tp)
 -}
 
 --------------------------------------------------------------------------
--- Fresh type variables 
+-- Fresh type variables
 --------------------------------------------------------------------------
 -- | return fresh skolem variables
 freshSkolems :: HasUnique m => Kind -> Int -> m [Type]
@@ -162,4 +163,3 @@ freshTVar :: HasUnique m => Kind -> Flavour -> m Type
 freshTVar kind flavour
   = do tv <- freshTypeVar kind flavour
        return (TVar tv)
-

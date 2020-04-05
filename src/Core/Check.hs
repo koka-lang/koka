@@ -36,7 +36,7 @@ import Type.Pretty
 import Type.Kind
 import Type.TypeVar
 import Type.Unify( unify, runUnify )
-import Type.Operations( instantiate )
+import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
@@ -200,9 +200,11 @@ check expr
               let (tvars,_,tp) = splitPredType tpTForall
               -- We can use actual equality for kinds, because any kind variables will have been
               -- substituted when doing kind application (above)
-              when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
-                failDoc (\env -> text "kind error in type application:" <+> prettyExpr expr env)
-              return (subNew (zip tvars tps) |-> tp)
+              -- when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+              when (length tps > length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+                failDoc (\env -> let penv = env{showCoreTypes=True,showKinds=True}
+                                 in text "kind error in type application:" <+> prettyExpr expr penv </> text " applied to: " <+> ppType penv tpTForall)
+              return (tForall (drop (length tps) tvars) [] (subNew (zip tvars tps) |-> tp))
       Lit lit
         -> return (typeOf lit)
 
@@ -259,7 +261,7 @@ findConstrArgs fdoc tpScrutinee con
   = do tpCon <- lookupVar con
        -- Until we add qualifiers to constructor types, the list of predicates
        -- returned by instantiate' must always be empty
-       tpConInst <- instantiate rangeNull tpCon
+       (_,_,tpConInst,_) <- Op.instantiateNoEx rangeNull tpCon
        let Just (tpArgs, eff, tpRes) = splitFunType tpConInst
        ures <- runUnify (unify tpRes tpScrutinee)
        case ures of
@@ -293,6 +295,7 @@ showMessage err when a b fdoc env
                      , text "  =~ " <.> docB
                      , text "when" <+> text when
                      , indent 2 (fdoc env)
+                     , text $ (show a) ++ "\n" ++ (show b)
                      ]
 
 prettyExpr e env = PrettyCore.prettyExpr env e
