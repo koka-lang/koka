@@ -53,19 +53,19 @@ public extern inline ".evv-at"<e::E,h> ( i : ev-index ) : ev<h> {
 }
 
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : ev-index {
-  js inline "_evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
+  js inline "__evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
-  js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
+  js inline "__evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
-  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : _evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
+  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : __evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
-private extern inline evv-get() : evv<e> {
+private extern inline evv-get() : e evv<e> {
   js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
 }
 
@@ -81,11 +81,11 @@ private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2>
   js "_evv_create"
 }
 
-private extern inline evv-set( w : evv<e1> ) : () {
+private extern inline evv-set( w : evv<e1> ) : e () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
-private extern inline evv-set-ofs( ofs : ev-index ) : ev-index {
+private extern inline evv-set-ofs( ofs : ev-index ) : e ev-index {
   js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
@@ -133,11 +133,11 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : b {
+private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e b {
   js "_yield_to"
 }
 
-private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : b {
+private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
   js "_yield_final"
 }
 

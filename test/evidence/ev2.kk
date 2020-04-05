@@ -6,9 +6,6 @@ effect exc {
   control throw() : a
 }
 
-fun foo() {
-  yielding-final()
-}
 
 fun to-maybe( action ) {
   handle(action) {
