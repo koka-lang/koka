@@ -37,6 +37,7 @@ module Core.Core ( -- Data structures
                    , isExprFalse, exprFalse, patFalse
                    , openEffectExpr
                    , makeIfExpr
+                   , makeInt32
                    , Visibility(..), Fixity(..), Assoc(..)
                    , coreName
                    , tnamesList
@@ -72,7 +73,7 @@ import Common.Range
 import Common.Failure
 import Common.Unique
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameSystemCore, nameEvvIndex, nameOpenAt, nameOpenNone )
+                        nameSystemCore, nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32 )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -663,6 +664,11 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e1      = TypeVar (-3) kindEffect Bound
     e2      = TypeVar (-4) kindEffect Bound
 
+
+makeInt32 :: Integer -> Expr
+makeInt32 i
+  = let int32 = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 NoMon)
+    in App int32 [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------
 -- type of a core term

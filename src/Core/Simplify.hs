@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-{-    Core simplification 
+{-    Core simplification
 -}
 -----------------------------------------------------------------------------
 
@@ -15,12 +15,14 @@ import Control.Monad
 import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
+import Common.Failure
 import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
-                       , nameLift, nameBind )
+                       , nameLift, nameBind, nameEvvIndex )
 import Common.Unique
 import Type.Type
+import Type.Kind
 import Type.TypeVar
 import Type.Pretty as Pretty
 import Core.Core
@@ -42,7 +44,7 @@ simplifyN :: Int -> DefGroups -> Simp DefGroups
 simplifyN n defs
   = if (n <= 0) then return defs
     else do defs' <- simplify defs
-            simplifyN (n-1) defs' 
+            simplifyN (n-1) defs'
 
 uniqueSimplify :: Simplify a => a -> Unique a
 uniqueSimplify expr
@@ -56,9 +58,9 @@ class Simplify a where
   simplify :: a -> Simp a
 
 {--------------------------------------------------------------------------
-  Top-down optimizations 
+  Top-down optimizations
 
-  These optimizations must be careful to call simplify recursively 
+  These optimizations must be careful to call simplify recursively
   when necessary.
 --------------------------------------------------------------------------}
 
@@ -66,18 +68,18 @@ topDown :: Expr -> Simp Expr
 
 
 -- Inline simple let-definitions
-topDown (Let dgs body)  
+topDown (Let dgs body)
   = topDownLet [] [] dgs body
   where
     subst sub expr
       = if null sub then expr else (sub |~> expr)
 
     topDownLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Simp Expr
-    topDownLet sub acc [] body 
-      = case subst sub body of 
+    topDownLet sub acc [] body
+      = case subst sub body of
           Let sdgs sbody -> topDownLet [] acc sdgs sbody  -- merge nested Let's
-          sbody -> if (null acc) 
-                    then topDown sbody 
+          sbody -> if (null acc)
+                    then topDown sbody
                     else return $ Let (reverse acc) sbody
 
     topDownLet sub acc [DefNonRec (Def{defName=name,defType=tp,defExpr=e})] (Var v _) | getName v == name
@@ -85,7 +87,7 @@ topDown (Let dgs body)
 
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
-        in case sdg of 
+        in case sdg of
           DefRec [def]
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                if (occursNot (defName def) (Let dgs body))
@@ -93,22 +95,22 @@ topDown (Let dgs body)
                      topDownLet sub (acc) dgs body -- dead definition
                 else -- trace ("no simplify rec def: " ++ show (defName def)) $
                      topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
-          DefRec defs 
+          DefRec defs
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
             -> -- trace ("simplify let: " ++ show x) $
-               if (isTotalAndCheap se) 
+               if (isTotalAndCheap se)
                 then -- inline very small expressions
                      -- trace (" inline small") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
-                Just (tpars,pars,_,_)  
+                Just (tpars,pars,_,_)
                   | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
                      -- trace (" inline once & applied") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body    
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body
                 Just ([],pars,eff,fbody) | isSmall fbody -- App (Var _ _) args)  | all cheap args
                   -> -- inline functions that are direct applications to another function
                      -- trace (" inline direct app") $
@@ -116,14 +118,14 @@ topDown (Let dgs body)
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- inline small total expressions
                      -- trace (" inline small total once") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body                     
+                     topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ -> -- no inlining
                      -- trace (" don't inline") $
                      topDownLet sub (sdg:acc) dgs body
 
     extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
     extend (name,e) sub
-      = (name,e):sub                     
+      = (name,e):sub
 
     extractFun expr
       = case expr of
@@ -156,19 +158,19 @@ topDown (Let dgs body)
 -- the effect types won't match up
 topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = do unsafe <- getUnsafe
-       if (unsafe) 
+       if (unsafe)
         then topDown arg
         else return expr
 
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars == length args  
+topDown (App (Lam pars eff body) args) | length pars == length args
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-       topDown $ Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)       
-  where           
-    makeDef (TName npar nparTp) arg 
-      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
+       topDown $ Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
+  where
+    makeDef (TName npar nparTp) arg
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
 
 
 {-
@@ -192,7 +194,7 @@ topDown expr
 
 
 {--------------------------------------------------------------------------
-  Bottom-up optimizations 
+  Bottom-up optimizations
 
   These optimizations can assume their children have already been simplified.
 --------------------------------------------------------------------------}
@@ -201,7 +203,7 @@ bottomUp :: Expr -> Expr
 
 
 -- replace "(/\a. body) t1" with "body[a |-> t1]"
-bottomUp expr@(TypeApp (TypeLam tvs body) tps) 
+bottomUp expr@(TypeApp (TypeLam tvs body) tps)
   = if (length tvs == length tps)
      then let sub = subNew (zip tvs tps)
           in sub |-> body
@@ -218,17 +220,17 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
 
 -- Direct function applications with arguments that have different free variables than the parameters
 bottomUp (App (Lam pars eff body) args) | length pars == length args  && all free pars
-  = Let (zipWith makeDef pars args) body       
-  where           
-    makeDef (TName npar nparTp) arg 
-      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "") 
-    
-    free parName 
+  = Let (zipWith makeDef pars args) body
+  where
+    makeDef (TName npar nparTp) arg
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
+
+    free parName
       = not (parName `S.member` fv args)
 
 -- eta contract
 {-
-bottomUp (Lam pars eff (App expr args)) | parsMatchArgs 
+bottomUp (Lam pars eff (App expr args)) | parsMatchArgs
   = expr
   where
     parsMatchArgs = length pars == length args && all match (zip pars args)
@@ -251,10 +253,10 @@ bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == na
       Var optNone _  | getName optNone == nameOptionalNone  -> exprFalse
       Lam _ _ _ -> exprTrue
       App _ _ -> exprTrue
-      _ -> expr   
+      _ -> expr
 
 -- case on singleton constructor
-bottomUp expr@(Case [con@(Con name repr)] bs)  
+bottomUp expr@(Case [con@(Con name repr)] bs)
   = case matchBranches con bs of
       Just b -> b
       _ -> expr
@@ -265,7 +267,7 @@ bottomUp expr@(Case scruts bs)  | commonContinue
       Nothing           -> expr -- cannot happen
       Just (common,cbs) -> App common [Case scruts cbs]
   where
-    commonContinue = case mbCont of 
+    commonContinue = case mbCont of
                        Nothing -> False
                        Just _  -> True
 
@@ -282,14 +284,14 @@ bottomUp expr@(Case scruts bs)  | commonContinue
           Nothing   -> Nothing
           Just(cbs) -> Just (contVar,cbs)
       where
-        extract (Branch pats guards) 
+        extract (Branch pats guards)
           = case flattenJust [] (map extractG guards) of
               Nothing -> Nothing
               Just guards' -> Just (Branch pats guards')
-              
+
         extractG guard
           = case guard of
-              (Guard guards (App (Var name _) [arg]))  | name == contName  -> Just (Guard guards arg)      
+              (Guard guards (App (Var name _) [arg]))  | name == contName  -> Just (Guard guards arg)
               _ -> Nothing
 
     flattenJust acc (Nothing:xs)  = Nothing
@@ -297,15 +299,20 @@ bottomUp expr@(Case scruts bs)  | commonContinue
     flattenJust acc  []           = Just (reverse acc)
 
 
+-- simplify evv-index(l) to i if l has a known offset
+bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvIndex == nameEvvIndex && isEffectFixed effTp
+  = makeInt32 (effectOffset (effectLabelFromHandler hndTp) effTp)
+
+
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
-bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars 
+bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
   = f
   where
     argsMatchPars = and (zipWith argMatchPar pars args)
     argMatchPar par (Var name _)  = par == name
     argMatchPar _    _            = False
 
-    notExternal = case info of 
+    notExternal = case info of
                     InfoExternal{} -> False
                     _ -> True
 
@@ -329,7 +336,7 @@ bottomUpArg arg
       _ -> arg
 
 
-matchBranches :: Expr -> [Branch] -> Maybe Expr      
+matchBranches :: Expr -> [Branch] -> Maybe Expr
 matchBranches scrutinee branches
   = case (foldl f NoMatch branches) of
       Match expr -> Just expr
@@ -339,12 +346,12 @@ matchBranches scrutinee branches
     f found _ = found
 
 matchBranch :: Expr -> Branch -> Match Expr
-matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard 
+matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
   = case (scrut,pat) of
-      (Con name _repr, PatCon pname [] _prepr _ _ _ _info) 
+      (Con name _repr, PatCon pname [] _prepr _ _ _ _info)
         | name == pname -> Match expr
         | otherwise     -> NoMatch
-      (_,PatVar name PatWild) 
+      (_,PatVar name PatWild)
         -> let def = Def (getName name) (typeOf name) scrut Private DefVal rangeNull ""
            in Match (Let [DefNonRec def] expr)
       (_,PatWild)
@@ -352,13 +359,33 @@ matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
            in Match (Let [DefNonRec def] expr)
       _ -> Unknown
 matchBranch scrut branch
-  = Unknown      
+  = Unknown
 
 
 data Match a = Match a | Unknown | NoMatch
 
 {--------------------------------------------------------------------------
-  Definitions 
+  Effects
+--------------------------------------------------------------------------}
+
+-- effectOffset (effectTypeFromHandler hndTp) effTp)
+effectLabelFromHandler :: Type -> Name
+effectLabelFromHandler tp
+  = fromHandlerName (labelName tp)
+
+effectOffset :: Name -> Type -> Integer
+effectOffset l effTp
+  = let (ls,_) = extractHandledEffect effTp
+    in findMatch 0 l ls
+
+findMatch :: Integer -> Name -> [Type] -> Integer
+findMatch i lname (l:ls)  = if (labelName l == lname) then i else findMatch (i+1) lname ls
+findMatch i lname []      = failure $ "Core.Simplify.findMatch: label " ++ show lname ++ " is not in the labels"
+
+
+
+{--------------------------------------------------------------------------
+  Definitions
 --------------------------------------------------------------------------}
 
 instance Simplify DefGroup where
@@ -366,10 +393,10 @@ instance Simplify DefGroup where
   simplify (DefNonRec def ) = fmap DefNonRec (simplify def)
 
 instance Simplify Def where
-  simplify (Def name tp expr vis sort nameRng doc) 
+  simplify (Def name tp expr vis sort nameRng doc)
     = withMonKind (monKindFromSort sort) $
       do expr' <- case expr of
-                    TypeLam tvs (Lam pars eff body) 
+                    TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
                             return $ TypeLam tvs (Lam pars eff body')
                     Lam pars eff body
@@ -382,34 +409,34 @@ instance Simplify a => Simplify [a] where
   simplify  = mapM simplify
 
 {--------------------------------------------------------------------------
-  Expressions 
+  Expressions
 --------------------------------------------------------------------------}
 
 instance Simplify Expr where
-  simplify e 
+  simplify e
     = do td <- topDown e
          mk <- getMonKind
          e' <- case td of
                 Lam tnames eff expr
                   -> withMonKind PolyMon $
                      do x <- simplify expr; return $ Lam tnames eff x
-                Var tname info     
+                Var tname info
                   -> return td
                 -- App (Var (TName name _) _) []  | name == nameIsInBindCtx && mk /= PolyMon
                 --  -> return $ if (mk == NoMon) then exprFalse else exprTrue
-                App e1 e2          
+                App e1 e2
                   -> do x1 <- simplify e1
                         x2 <- simplify e2
                         return $ App x1 x2
-                TypeLam tv expr    
+                TypeLam tv expr
                   -> fmap (TypeLam tv) (simplify expr)
-                TypeApp expr tp    
+                TypeApp expr tp
                   -> do x <- simplify expr; return $ TypeApp x tp
-                Con tname repr     
+                Con tname repr
                   -> return td
-                Lit lit            
+                Lit lit
                   -> return td
-                Let defGroups expr 
+                Let defGroups expr
                   -> do dgs <- simplify defGroups
                         x   <- simplify expr
                         return $ Let dgs x
@@ -420,11 +447,11 @@ instance Simplify Expr where
          return (bottomUp e')
 
 instance Simplify Branch where
-  simplify (Branch patterns guards) 
+  simplify (Branch patterns guards)
     = fmap (Branch patterns) (mapM simplify guards)
 
 instance Simplify Guard where
-  simplify (Guard test expr) 
+  simplify (Guard test expr)
     = do xt <- simplify test
          xe <- simplify expr
          return $ Guard xt xe
@@ -433,7 +460,7 @@ monKindFromSort (DefFun mk) = mk
 monKindFromSort _           = PolyMon
 
 {--------------------------------------------------------------------------
-  Occurrences 
+  Occurrences
 --------------------------------------------------------------------------}
 
 
@@ -444,10 +471,10 @@ isTotalAndCheap expr
       Con{} -> True
       Lit{} -> True
       -- toany(x)
-      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg      
-      App (TypeApp (Var v _) _) [arg]   | getName v == nameEffectOpen -> isTotalAndCheap arg      
+      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg
+      App (TypeApp (Var v _) _) [arg]   | getName v == nameEffectOpen -> isTotalAndCheap arg
       -- functions that are immediately applied to something cheap (cps generates this for resumes)
-      -- Lam pars eff (App e args) 
+      -- Lam pars eff (App e args)
       --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
       -- type application / abstraction
       TypeLam _ body -> isTotalAndCheap body
@@ -466,7 +493,7 @@ occursNot :: Name -> Expr -> Bool
 occursNot name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
-      Just oc -> case oc of 
+      Just oc -> case oc of
                    None -> True
                    _    -> False
 
@@ -476,7 +503,7 @@ occursAtMostOnce :: Name -> Expr -> Bool
 occursAtMostOnce name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
-      Just oc -> case oc of 
+      Just oc -> case oc of
                    Many -> False
                    _    -> True
 
@@ -486,7 +513,7 @@ occursAtMostOnceApplied :: Name -> Int -> Int -> Expr -> Bool
 occursAtMostOnceApplied name tn n expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
-      Just oc -> case oc of 
+      Just oc -> case oc of
                    Many      -> False
                    Once tm m -> (tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
                    _         -> True
@@ -496,10 +523,10 @@ occursAtMostOnceApplied name tn n expr
 data Occur = None | Once Int Int | Many
 
 add oc1 oc2
-  = case oc1 of  
+  = case oc1 of
       None -> oc2
       Many -> Many
-      Once _ _ -> case oc2 of 
+      Once _ _ -> case oc2 of
                     None -> oc1
                     _    -> Many
 
@@ -508,7 +535,7 @@ occurrences expr
   = case expr of
       App (TypeApp (Var v _) targs) args
         -> ounions (M.singleton (getName v) (Once (length targs) (length args)) : map occurrences args)
-      App (Var v _) args 
+      App (Var v _) args
         -> ounions (M.singleton (getName v) (Once 0 (length args)) : map occurrences args)
       Var v _ -> M.singleton (getName v) (Once 0 0)
 
@@ -526,7 +553,7 @@ occurrencesBranch (Branch pat guards)
   = foldr M.delete (ounions (map occurrencesGuard guards)) (map getName (S.elems (bv pat)))
 
 occurrencesGuard (Guard g e)
-  = ounion (occurrences g) (occurrences e) 
+  = ounion (occurrences g) (occurrences e)
 
 ounion :: M.NameMap Occur -> M.NameMap Occur -> M.NameMap Occur
 ounion oc1 oc2
@@ -540,7 +567,7 @@ occurrencesDefGroup :: DefGroup -> M.NameMap Occur -> M.NameMap Occur
 occurrencesDefGroup dg oc
   = case dg of
       DefNonRec def -> ounion (M.delete (defName def) oc) (occurrences (defExpr def))
-      DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs)) 
+      DefRec defs   -> foldr M.delete (ounions (oc : map (occurrences . defExpr) defs))
                                       (map defName defs)
 
 
@@ -550,7 +577,7 @@ uniqueTName (TName name tp)
 
 
 {--------------------------------------------------------------------------
-  Simplify Monad 
+  Simplify Monad
 --------------------------------------------------------------------------}
 
 newtype Simp a = Simplify (Int -> SEnv -> Result a)
@@ -571,12 +598,12 @@ instance Functor Simp where
 
 instance Applicative Simp where
   pure  = return
-  (<*>) = ap                    
+  (<*>) = ap
 
 instance Monad Simp where
   return x      = Simplify (\u g -> Ok x u)
-  (Simplify c) >>= f  = Simplify (\u g -> case c u g of 
-                                      Ok x u' -> case f x of 
+  (Simplify c) >>= f  = Simplify (\u g -> case c u g of
+                                      Ok x u' -> case f x of
                                                    Simplify d -> d u' g)
 
 instance HasUnique Simp where
@@ -584,15 +611,15 @@ instance HasUnique Simp where
   setUnique  i   = Simplify (\u g -> Ok () i)
 
 getEnv :: Simp SEnv
-getEnv 
+getEnv
   = Simplify (\u g -> Ok g u)
 
 withEnv :: SEnv -> Simp a -> Simp a
 withEnv env (Simplify c)
-  = Simplify (\u _ -> c u env)  
+  = Simplify (\u _ -> c u env)
 
 getUnsafe :: Simp Bool
-getUnsafe 
+getUnsafe
   = do env <- getEnv
        return (unsafe env)
 

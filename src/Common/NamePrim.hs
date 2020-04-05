@@ -296,7 +296,7 @@ nameTpRef       = preludeName "ref"
 nameRef         = preludeName "ref"
 nameTpLocalVar  = preludeName "local-var"
 nameTpLocal     = preludeName "local"
-nameLocal       = preludeName "local-var"
+nameLocal       = coreHndName "local-var" -- preludeName "local-var"
 nameRunLocal    = preludeName "local-scope"
 
 nameTpTotal     = preludeName "total"

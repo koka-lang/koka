@@ -757,8 +757,12 @@ genInline expr
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
-                  -> do fdoc <- genInline f
-                        return (fdoc <.> tupled argDocs)
+                  -> case (f,args) of
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
+                         -> return (pretty i)
+                       _ -> do fdoc <- genInline f
+                               return (fdoc <.> tupled argDocs)
+
       _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
 
 extractExtern :: Expr -> Maybe (TName,[(Target,String)])

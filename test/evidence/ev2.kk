@@ -19,7 +19,11 @@ effect amb {
 
 val amb1 = handler {
   return x { [x] }
-  control flip { resume(False) + (resume(True) : list<_>) }
+  control flip {
+    with xs : list<_> = yield-bind(resume(False))
+    with ys = yield-bind(resume(True))
+    xs + ys
+  }
 }
 
 fun amb2(action) {
@@ -51,6 +55,16 @@ fun state(init : a, action : () -> <state<a>|e> b) : e b {
   }
 }
 
+effect reader<a> {
+  control read() : a
+}
+
+fun reader(init,action) {
+  handle(action) {
+    control read() { resume(init) }
+  }
+}
+
 fun inc() : state<int> int {
   with i = yield-bind(get())
   with _x = yield-bind(set(i+1))
@@ -60,19 +74,19 @@ fun inc() : state<int> int {
 fun xorst() {
   with p = yield-bind(xor())
   with i = yield-bind(inc())
-  // with j:int = yield-bind(read())
-  i
+  with j:int = yield-bind(read())
+  i+j
 }
 
 fun test-state-amb() : list<int> {  // 1,2,3,4
-  //with reader(1)
+  with reader(1)
   with state(0)
   with amb1
   xorst()
 }
 
 fun test-amb-state() : list<int> {  // 1,1,1,1
-  //with reader(1)
+  with reader(1)
   with amb1
   with state(0)
   xorst()

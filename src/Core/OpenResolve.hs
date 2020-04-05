@@ -110,8 +110,8 @@ resOpen :: Env -> Expr -> Effect -> Effect -> Type -> Type -> Expr -> Expr
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) expr
   = trace ("resolve open: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)) $
     let n       = length targs
-        (ls1,tl1) = extractHandledEffects effFrom
-        (ls2,tl2) = extractHandledEffects effTo
+        (ls1,tl1) = extractHandledEffect effFrom
+        (ls2,tl2) = extractHandledEffect effTo
     in -- assertion ("Core.OpenResolve.resOpen: opening from non-closed effect? " ++ show (ppType penv effFrom)) (isEffectFixed effFrom) $
        -- if effFrom is not closed (fixed) it comes from a mask (inject) in the type inferencer
        if (matchLabels ls1 ls2)
@@ -125,12 +125,12 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
                                   _ -> failure $ "Core.openResolve.resOpen: unknown name: " ++ show name
-                 actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
-                 params = [actionPar] ++ [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
+                 -- actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
+                 params = [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
                  wrapper openExpr evExprs
                    = Lam params effFrom $
                        App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
-                           (evExprs ++ [Var p InfoNone | p <- params])
+                           (evExprs ++ [expr] ++ [Var p InfoNone | p <- params])
              in case ls1 of
                  []  -> -- no handled effect, use cast
                         trace (" no handled effect; use cast") $
@@ -155,7 +155,3 @@ makeTypeApp expr targs  = TypeApp expr targs
 matchLabels (l1:ls1) (l2:ls2) = (labelName l1 == labelName l2) && matchLabels ls1 ls2
 matchLabels [] []             = True
 matchLabels _ _               = False
-
-extractHandledEffects eff
-  = let (ls,tl) = extractOrderedEffect eff
-    in (filter isHandledEffect ls, tl)

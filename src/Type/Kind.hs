@@ -10,6 +10,7 @@ module Type.Kind ( HasKind( getKind )
                  , HandledSort(..)
                  , getHandledEffect, getHandledEffectX, isHandledEffect
                  , containsHandledEffect
+                 , extractHandledEffect
                  ) where
 
 import Data.Maybe( isJust )
@@ -17,6 +18,10 @@ import Common.NamePrim( nameTpHandled, nameTpHandled1 )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
+
+extractHandledEffect eff
+  = let (ls,tl) = extractOrderedEffect eff
+    in (filter isHandledEffect ls, tl)
 
 
 handledToLabel :: Type -> Type
