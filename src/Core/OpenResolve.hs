@@ -114,14 +114,17 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
         (ls2,tl2) = extractHandledEffect effTo
     in -- assertion ("Core.OpenResolve.resOpen: opening from non-closed effect? " ++ show (ppType penv effFrom)) (isEffectFixed effFrom) $
        -- if effFrom is not closed (fixed) it comes from a mask (inject) in the type inferencer
+       {-
        if (matchLabels ls1 ls2)
-        then -- same effect (except for builtins?)
+        then -- same effect (except for builtins and/or polymorphic tail?)
              case (runUnifyEx 0 (unify tpFrom tpTo)) of
                (Left _,_,_)  -> -- not exactly equal, leave the .open as a cast
                                 trace " use cast" $ App eopen [expr]
                (Right _,_,_) -> -- exact match, just use expr
                                 trace " identity" $ expr
-        else -- not equal, insert open
+        else
+       -}
+       -- not equal, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
                                   _ -> failure $ "Core.openResolve.resOpen: unknown name: " ++ show name
