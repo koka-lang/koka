@@ -95,6 +95,13 @@ fun test-amb-state() : list<int> {  // 1,1,1,1
   xorst()
 }
 
+fun test() {
+  test-amb().show-list(show).println
+  //test-state().println
+  //test-difficult().println
+  test-state-amb().show-list(show).println
+  test-amb-state().show-list(show).println
+}
 
 ambient val width : int
 
