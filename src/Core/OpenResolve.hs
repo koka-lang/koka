@@ -127,6 +127,11 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
        if (matchType effFrom effTo)
         then -- exact match, just use expr
              trace " identity" $ expr
+       else if (not (isEffectFixed effFrom))
+        then if (and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+              then -- all handled effect match, just use expr
+                   trace "masking? " $ expr
+              else failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
         else -- not equal, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
