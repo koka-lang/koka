@@ -209,22 +209,23 @@ nameInt32       = preludeName "int32"
 {--------------------------------------------------------------------------
   Handlers
 --------------------------------------------------------------------------}
-nameHTag        = coreHndName "hidden-htag"
 nameTpHTag      = coreHndName "htag"
 nameTpClause i  = coreHndName ("clause" ++ show i)
-namePerform i   = coreHndName ("hidden-perform" ++ show i)
-nameEvvAt       = coreHndName "hidden-evv-at"
-nameEvvLookup   = coreHndName "hidden-evv-lookup"
-nameEvvIndex    = coreHndName "hidden-evv-index"
-nameOpenAt i    = coreHndName ("hidden-open-at" ++ show i)
-nameOpenNone i  = coreHndName ("hidden-open-none" ++ show i)
-nameOpen i      = coreHndName ("hidden-open" ++ show i)
-
 nameTpEv        = coreHndName "ev"
-nameHandle      = coreHndName "hidden-handle"
-nameNamedHandle = coreHndName "hidden-named-handle"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
 nameIdentity    = preludeName "id"
+
+nameHTag        = coreHndName ".htag"
+namePerform i   = coreHndName (".perform" ++ show i)
+nameEvvAt       = coreHndName ".evv-at"
+nameEvvLookup   = coreHndName ".evv-lookup"
+nameEvvIndex    = coreHndName ".evv-index"
+nameOpenAt i    = coreHndName (".open-at" ++ show i)
+nameOpenNone i  = coreHndName (".open-none" ++ show i)
+nameOpen i      = coreHndName (".open" ++ show i)
+
+nameHandle      = coreHndName ".handle"
+nameNamedHandle = coreHndName ".named-handle"
 
 {--------------------------------------------------------------------------
   Primitive type constructors

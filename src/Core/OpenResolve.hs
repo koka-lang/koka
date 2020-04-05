@@ -135,7 +135,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                  []  -> -- no handled effect, use cast
                         trace (" no handled effect; use cast") $
                         -- wrapper (resolve (nameOpenNone n)) []
-                        App eopen [expr]
+                        -- App eopen [expr]
+                        expr  -- change nothing
                  [l] -> -- just one: used open-atN for efficiency
                         trace (" one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)
@@ -146,6 +147,9 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         in wrapper (resolve (nameOpenAt n)) [App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]]
 
                  _ -> failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
+
+resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
+  = failure $ "Core.OpenResolve.resOpen: open applied to a non-function? " ++ show (ppType penv effTo)
 
 
 makeTypeApp expr []     = expr

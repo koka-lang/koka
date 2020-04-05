@@ -26,10 +26,6 @@ val amb1 = handler {
   }
 }
 
-fun amb2(action) {
-  with control flip { resume(False) + (resume(True) : list<_>) }
-  action()
-}
 
 fun xor() {
   with p : bool = yield-bind(flip())

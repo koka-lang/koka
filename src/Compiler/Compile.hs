@@ -806,10 +806,12 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) unique4 penv coreDefsMon
                               -- recheck simplified core
                               when (not isCps && coreCheck flags) $
-                                trace "after simplify core check" $Core.Check.checkCore isCps penv unique4a gamma cdefs
+                                trace "after simplify core check 1" $Core.Check.checkCore isCps penv unique4a gamma cdefs
                               -- and one more unsafe simplify to remove open calls etc.
-                              -- return $ simplifyDefs True 1 unique4a penv cdefs
-                              return (cdefs,unique4a) -- $ simplifyDefs False 1 unique4a penv cdefs
+                              let (cdefs1,unique4b) =  simplifyDefs False 1 unique4a penv cdefs
+                              when (not isCps && coreCheck flags) $
+                                trace "after simplify core check 2" $Core.Check.checkCore isCps penv unique4b gamma cdefs1
+                              return (cdefs1,unique4b) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

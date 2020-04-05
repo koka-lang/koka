@@ -15,7 +15,7 @@ abstract type htag<h::(E,V)->V> {
   Htag(:string)
 }
 
-public fun hidden-htag( tag : string ) {
+public fun ".htag"( tag : string ) {
   Htag(tag)
 }
 
@@ -48,20 +48,20 @@ private extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern inline hidden-evv-at( i : ev-index ) : e ev<h> {
+public extern inline ".evv-at"( i : ev-index ) : e ev<h> {
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
-public extern hidden-evv-index<e,h>( htag : htag<h> ) : e ev-index {
+public extern ".evv-index"<e,h>( htag : htag<h> ) : e ev-index {
   js inline "_evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 
-public extern hidden-evv-lookup( htag : htag<h> ) : e ev<h> {
+public extern ".evv-lookup"( htag : htag<h> ) : e ev<h> {
   js inline "_evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
-public extern inline hidden-evv-select( i : ev-index, htag : htag<h> ) : e ev<h> {
+public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : e ev<h> {
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : _evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
@@ -198,7 +198,7 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
   }
 }
 
-public fun hidden-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+public fun ".handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -207,9 +207,9 @@ public fun hidden-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () ->
   prompt(w0,w1,m,ret,cast-ev0(action)())
 }
 
-public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
-  (fun(action){ hidden-handle(tag,h,ret,action) })
-}
+//public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
+//  (fun(action){ hidden-handle(tag,h,ret,action) })
+//}
 
 // -------------------------------------------
 // named handler
@@ -217,7 +217,7 @@ public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action :
 
 abstract struct hname<h>( ev : ev<h> )
 
-public fun hidden-named-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+public fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -228,7 +228,7 @@ public fun hidden-named-handle( tag:htag<h>, h : h<e,r>, ret: a -> e r, action :
 // mask
 // -------------------------------------------
 
-public fun hidden-mask( i : ev-index, action : () -> e1 a ) : e2 a {
+public fun ".mask"( i : ev-index, action : () -> e1 a ) : e2 a {
   val w0 = evv-get()
   val w1 = evv-delete(w0,i)
   under0(w1,cast-ev0(action))
@@ -325,7 +325,7 @@ private extern inline cast-ev0( f : (marker<e1,r>,evv<e1>) -> e1 b) : e ((marker
 private extern inline cast-ev1( f : (marker<e1,r>,evv<e1>,a) -> e1 b) : e ((marker<e1,r>,evv<e1>,a) -> e b) { inline "#1" }
 private extern inline cast-ev2( f : (marker<e1,r>,evv<e1>,a1,a2) -> e1 b) : e ((marker<e1,r>,evv<e1>,a1,a2) -> e b) { inline "#1" }
 
-public fun hidden-perform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : e b {
+public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,w,x)
@@ -394,7 +394,7 @@ abstract type clause0<b,e,r> {
   Clause0( clause: (marker<e,r>, evv<e>) -> e b )
 }
 
-public fun hidden-perform0( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : e b {
+public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,e1,r>) ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,w)
@@ -466,7 +466,7 @@ public fun clause-tail-noyield2(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ op(x1,x2) })
 }
 
-public fun hidden-perform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,e1,r>), x : a, y : b ) : e c {
+public fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,w,x,y)
@@ -483,6 +483,15 @@ public fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,e,r> {
 // 3 arguments: reuse 1 argument clause.
 // Or should the compiler do tupling/untupling?
 //----------------------------------------------------------------
+
+// For interal use
+private fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,e1,r>), x : a ) : e b {
+  match(ev) {
+    Ev(_tag,m,h,w) -> match(h.op) {
+      Clause1(f) -> cast-ev1(f)(m,w,x)
+    }
+  }
+}
 
 public fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
   clause-control-raw1( fun(x:(_,_,_),r){ op(x.fst,x.snd,x.thd,r) } )
@@ -504,8 +513,8 @@ public fun clause-never3( op : (a1,a2,a3) -> e r ) : clause1<(a1,a2,a3),b,e,r> {
   clause-never1(fun(x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
 }
 
-public fun hidden-perform3( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3),b,e1,r>), x1 : a1, x2 : a2, x3 : a3 ) : e b {
-  hidden-perform1(ev,op,(x1,x2,x3))
+public fun ".perform3"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3),b,e1,r>), x1 : a1, x2 : a2, x3 : a3 ) : e b {
+  xperform1(ev,op,(x1,x2,x3))
 }
 
 
@@ -516,19 +525,19 @@ public extern inline ".open"<e1,e2,a,b>( x : a ) : e2 b {
   inline "(#1)"
 }
 
-public fun hidden-open-none0( f : () -> e1 b ) : e2 b {
+public fun ".open-none0"( f : () -> e1 b ) : e2 b {
   cast-ev0(f)()
 }
 
-public fun hidden-open-none1( f : a -> e1 b, x : a ) : e2 b {
+public fun ".open-none1"( f : a -> e1 b, x : a ) : e2 b {
   cast-ev1(f)(x)
 }
 
-public fun hidden-open-none2( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open-none2"( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   cast-ev2(f)(x1,x2)
 }
 
-public fun hidden-open-at0( i: ev-index, f : () -> e1 b ) : e2 b {
+public fun ".open-at0"( i: ev-index, f : () -> e1 b ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev0(f)()
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
@@ -536,7 +545,7 @@ public fun hidden-open-at0( i: ev-index, f : () -> e1 b ) : e2 b {
   res
 }
 
-public fun hidden-open-at1( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open-at1"( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev1(f)(x)
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
@@ -544,7 +553,7 @@ public fun hidden-open-at1( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   res
 }
 
-public fun hidden-open0( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public fun ".open0"( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev0(f)()
@@ -552,7 +561,7 @@ public fun hidden-open0( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   evv-set(w)
   res
 }
-public fun hidden-open1( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open1"( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev1(f)(x)
