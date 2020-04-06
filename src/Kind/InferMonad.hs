@@ -33,7 +33,6 @@ import Common.Range
 import Common.ColorScheme
 import Common.Unique
 import Common.Name
-import Common.NamePrim( toShortModuleName )
 import Common.QNameMap( Lookup(..) )
 import qualified Common.NameMap as M
 
@@ -63,7 +62,7 @@ data KResult a  = KResult{ result:: !a, errors:: ![(Range,Doc)], warnings :: ![(
 
 runKindInfer :: ColorScheme -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
 runKindInfer cscheme mbRangeMap moduleName imports kgamma syns unique (KInfer ki)
-  = let imports' = case importsExtend (toShortModuleName moduleName) moduleName imports of
+  = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
     in case ki (KEnv cscheme moduleName imports' kgamma M.empty syns) (KSt unique ksubEmpty mbRangeMap) of

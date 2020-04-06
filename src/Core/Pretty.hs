@@ -64,7 +64,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     (vcat $ concat $
       [ map (prettyImport envX) (imports ++ extraImports)
       , map (prettyFixDef envX) fixDefs
-      , map (prettyImportedSyn envX) importedSyns
+      -- , map (prettyImportedSyn envX) importedSyns
       , map (prettyTypeDefGroup envX) typeDefGroups
       , map (prettyDefGroup env) defGroups
       , map (prettyExternal env) externals

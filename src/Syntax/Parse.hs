@@ -204,9 +204,10 @@ programBody vis source modName nameRange doc
                         return (imps,fixs,tdefs))
        many semiColon
        let (defs,typeDefs,externals) = splitTopDefs (concat topDefss)
-       return (Program source modName nameRange [TypeDefRec typeDefs] [DefRec defs] (prelude ++ imports) externals (concat fixDefss) doc)
+       return (Program source modName nameRange [TypeDefRec typeDefs] [DefRec defs]
+                 (prelude ++ imports) externals (concat fixDefss) doc)
   where
-    prelude = if (modName == nameSystemCore)
+    prelude = if (show modName `startsWith` "std/core")
                then []
                else [Import nameSystemCore nameSystemCore rangeNull Private]
 

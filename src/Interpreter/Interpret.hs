@@ -28,7 +28,7 @@ import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
 import Common.Name            ( Name, unqualify, qualify, newName )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore, toShortModuleName )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
 import Common.Error
 

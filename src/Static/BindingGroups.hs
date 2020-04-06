@@ -14,7 +14,6 @@ import qualified Common.NameSet as S
 import Data.List(partition,isPrefixOf)
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
-import Common.NamePrim (toShortModuleName)
 import Common.Range
 import Common.Syntax
 import Syntax.Syntax
@@ -27,7 +26,7 @@ import Lib.Trace (trace)
 
 bindingGroups :: UserProgram -> UserProgram
 bindingGroups (Program source modName nameRange typeDefs defs imports externals fixDefs doc)
-  = Program source modName nameRange (bindingsTypeDefs typeDefs) (bindings (toShortModuleName modName) defs) imports externals fixDefs doc
+  = Program source modName nameRange (bindingsTypeDefs typeDefs) (bindings ({-toShortModuleName-} modName) defs) imports externals fixDefs doc
 
 ---------------------------------------------------------------------------
 -- Binding groups in type definitions

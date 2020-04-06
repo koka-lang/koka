@@ -15,7 +15,7 @@ module Kind.Kind( -- * Kinds
                  -- * Standard kinds
                   , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1
-                  , kindFun, kindArrowN, kindLabel, extractKindFun, kindFunN
+                  , kindFun, kindLabel, extractKindFun, kindFunN
                   , builtinKinds
                   , kindCon, kindConOver
                   , isKindFun
@@ -66,10 +66,6 @@ kindLabel
 kindArrow :: Kind
 kindArrow
   = KCon nameKindFun
-
-kindArrowN :: Int -> Kind
-kindArrowN n
-  = foldr kindFun (kindFun kindEffect kindStar) (replicate n kindStar)
 
 kindAddArg :: Kind -> Kind -> Kind
 kindAddArg kfun karg

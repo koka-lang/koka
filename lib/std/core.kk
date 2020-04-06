@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2016 Microsoft Corporation.
+  Copyright 2012-2020 Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -13,6 +13,9 @@
 */
 public module std/core
 
+public import std/core/types
+public import std/core/hnd
+
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
 infixl 60  (+), (-)
@@ -21,7 +24,6 @@ infixr 30  (&&)
 infixr 20  (||)
 
 // prefix     (!), (-)
-
 
 
 extern include {
@@ -49,78 +51,30 @@ extern include {
   js file "../../contrib/biginteger.js"
 }
 
-
-// ----------------------------------------------------------------------------
-// Core types
-// ----------------------------------------------------------------------------
-
-// An arbitrary precision signed integer.
-type int
-
-// A string is a sequence of unicode character points (`char`).
-// The encoding of a string is internal and there
-// is no constant-time indexing of characters in a string.
-// Use the `:sslice` type for efficient matching and retrieving
-// sub-strings from string.\
-// See also the [``std/text/string``](std_text_string.html) module.
-type string
-
-// A 64-bit IEEE 754 floating point value.
-// See also `std/num/double` for more operations on `:double`s.
-type double
-
-// An any type. Used for extern calls
-type any
-
-// A unicode character.
-// Characters are unicode _codepoint_\/s.
-// This is different from a unicode _grapheme_ which represents a single displayed
-// symbol and can consists of multiple codepoints due to combining characters and marks.
-// (see also the [``std/text/unicode``](std_text_unicode.html) module.)
-type char
-
-
 // ----------------------------------------------------------------------------
 // Core effects
 // ----------------------------------------------------------------------------
 
-// The _total_ effect represents the absence of any effect.
-type <> :: E
+// An alias for the empty effect.
+alias total = <>
 
-// The effect constructor extends an effect with another effect.
-type <|> :: (X,E) -> E
+// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
+alias st<h> = <read<h>, write<h>, alloc<h>>
 
 // The exception effect: a partial function may raise an exception.
 type exn :: X
-
-// The divergence effect: a divergent function may not terminate.
-type div :: X
 
 // NonDeterminism: a nonDeterministic function may return varying
 // results even when called with the same input values.
 type ndet :: X
 
-// The alloc effect signifies a function may allocate in a heap `:h`
-type alloc :: H -> X
-
-// The read effect: signifies that a function may read from from heap `:h`.
-type read :: H -> X
-
-// The write effect: signifies that a function may write to heap `:h`.
-type write :: H -> X
-
 // The console effect signifies that a function may read or write to the console.
 type console :: X
-
-// An alias for the empty effect.
-alias total = <>
 
 // An alias for pure effects: a pure function always returns the same result
 // when called with the same arguments but may not terminate or raise an exception.
 alias pure = <exn,div>
 
-// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
-alias st<h> = <read<h>, write<h>, alloc<h>>
 
 // The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
@@ -227,6 +181,7 @@ extern error-pattern(location : string, definition : string) : exn a {
   js "exn_error_pattern"
 }
 
+/*
 // Execute a `hndler` no matter what exception was raised in `action`.
 extern finally : forall<e,a> (hndler: () -> e (), action: () -> e a) -> e a  {
   cs inline "Eff.Op.HandleFinally<##2>(#2,#1)"
@@ -242,6 +197,7 @@ fun initially(init: () -> e (), action: () -> e a) : e a {
   init()
   initiallyx( init, action )
 }
+*/
 
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
@@ -350,20 +306,6 @@ fun unsafe-try-all( action : () -> <exn|e> a) : e try<a> {
 
 
 // ----------------------------------------------------------------------------
-// Internal types
-// ----------------------------------------------------------------------------
-
-// Optional is used internally by the compiler to pass optional arguments.
-// It is usually displayed as `:?a` for some type `:a`.
-type optional<a> {
-  // The `Optional` constructor is used when an optional argument is given.
-  con Optional(value:a)
-  // `None` is used when an optional argument is not provided.
-  con None
-}
-
-
-// ----------------------------------------------------------------------------
 // Null is used for external interfaces
 // ----------------------------------------------------------------------------
 
@@ -386,7 +328,7 @@ external null(x : maybe<a>) : null<a> {
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 external maybe( n : null<a> ) : maybe<a> {
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
-  js inline "(#1==null ? $std_core.Nothing : $std_core.Just(#1))"
+  js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 }
 
 // Cast a integer that is zero to a null
@@ -406,16 +348,10 @@ fun null( b : bool ) : null<()> {
 
 val null-const : forall<a> null<a> = null(Nothing)
 
-
-
 // ----------------------------------------------------------------------------
-// Standard functions
+// Standard Functions
 // ----------------------------------------------------------------------------
 
-// The identity function returns its argument unchanged.
-fun id(x) {
-  x;
-}
 
 // The `const` funs returns its first argument and ignores the second.
 fun const(x,y) {
@@ -447,16 +383,6 @@ fun const( default : a ) : total (( x : b ) -> a) {
 // Standard Data types
 // ----------------------------------------------------------------------------
 
-// The `:void` type is empty and has no constructors.
-// See also the `:()` unit type and the `:bool` type.
-type void
-
-// The type of booleans has two inhabitants: `True` and `False`.
-type bool {
-  con False
-  con True
-}
-
 
 fun int( b : bool ) : int  { if (b) then 1 else 0 }
 
@@ -480,29 +406,6 @@ fun bool( m : maybe<a> ) : bool {
 
 // Convert a string to a boolean, using `False` for the empty string and `True` otherwise.
 fun bool( s : string ) : bool { s!="" }
-
-// The unit type `:()` is inhabited by just a single value, namely `()`.
-// See also the `:void` type and the `:bool` type.
-struct ()
-
-// A pair of values `:a` and `:b`.
-struct (,)<a,b>(fst:a,snd:b)
-
-// A triple of values.
-struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
-
-// A quadruple of values.
-struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
-
-// A quintuple of values.
-struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
-
-// The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
-// This type is often used to represent values that can be _null_.
-type maybe<a> {
-  con Nothing
-  con Just( value : a )
-}
 
 // Match a `:maybe` value and either return a default value on `Nothing` or apply a function to the value on `Just`
 fun maybe( m : maybe<a>, onNothing: b, onJust: a -> e b ) : e b
@@ -546,12 +449,6 @@ fun (||)( m1 : maybe<a>, m2: maybe<a> ) : maybe<a> {
     Nothing -> m2
     _       -> m1
   }
-}
-
-// The choice type represents one of two possible types `:a` or `:b`.
-type either<a,b> {
-  con Left( left : a )
-  con Right( right : b )
 }
 
 // Convert a `:either` to a `:maybe` type discarding the value of the `Left` constructor
@@ -1318,20 +1215,6 @@ fun white?( c : char )     : bool { c == ' ' || c == '\t' || c == '\n' || c == '
 // Booleans
 // ----------------------------------------------------------------------------
 
-// For short-circuiting we use extern here
-// fun (&&)( x : bool, y : bool) : bool = if (x) then y else false
-// fun (||)( x : bool, y : bool) : bool = if (x) then true else y
-
-extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
-extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
-
-// for efficiency we use extern here
-// fun (!)( b : bool ) : bool = if (x) then false else true
-// fun not( b : bool ) : bool = if (x) then false else true
-
-extern inline not  : (bool) -> bool  { inline "!(#1)" }
-extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
-
 fun (==)( x : bool, y : bool) : bool { if (x) then y else !y }
 fun (!=)( x : bool, y : bool) : bool { if (x) then !y else y }
 
@@ -1603,10 +1486,6 @@ fun maybe( i : int ) : maybe<int> {
 // Just define the operations needed for defining the std/core interface but
 // don't export any definitions here. Full operations are defined in `std/int32`.
 // ----------------------------------------------------------------------------
-
-// Type of a 32-bit signed integer.
-// See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-type int32
 
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int {
@@ -2273,9 +2152,6 @@ extern inline trim-right( s : string ) : string {
 //  Vectors
 // ----------------------------------------------------------------------------
 
-// The type of immutable arrays is called `:vector`.
-type vector<a>
-
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int32 ) -> total a {
   cs inline "(#1)[#2]";
@@ -2722,80 +2598,13 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 // References
 // ----------------------------------------------------------------------------
 
-// The predicate `:hdiv<h,a,e>` signifies that if the type `:a` contains a reference to `:h`,
-// then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
-// when reading from the heap (see `(!)`) and is necessary to catch cases where code can diverge
-// by storing self referential functions in the heap.
-type hdiv :: (H,V,E) -> P
-
-// The predicate `:ediv<x,a,e>` signifies that if the type `:a` contains a reference to effect constant `:x",
-// then the effect `:e` must contain the divergent effect (`:div`). This constraint is generated
-// for operations on first-class effects where code can diverge through operations.
-type ediv :: (X,V,E) -> P
-
-
-// A reference `:ref<h,a>` points to a value of type `:a` in heap `:h`.
-type ref :: (H,V) -> V
-
-// Allocate a fresh reference with an initial value.
-extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
-  cs inline "new Ref<##1,##2>(#1)";
-  js inline "{ value: #1 }"
-}
-
-// Assign a new value to a reference.
-extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  cs inline "#1.Set(#2)";
-  js inline "((#1).value = #2)"
-}
-
-// Read the value of reference.
-extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
-  cs inline "#1.Value";
-  js inline "((#1).value)";
-}
-
-// If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
-// See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline run : forall<e,a> ( action : forall<h> () -> <st<h> | e> a ) -> e a  {
-  cs inline "Primitive.Run<##2>(#1)";
-  js inline "((#1)())";
-}
-
-// A local variable `:var<s,a>` points to a value of type `:a` in local scope `:s`
-type local :: (H) -> X
-type local-var :: (H,V) -> V
 
 extern inline inject-local( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
-
-// Allocate a fresh local with an initial value.
-extern inline local-var : forall<s,e,a,b> (value:a, action: (v:local-var<s,a>) -> <local<s>|e> b) -> <local<s>|e> b {
-  js "$std_core._with_local"
-}
-
-// Assign a new value to a local variable
-extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
-  cs inline "#1.Set(#2)";
-  js inline "((#1).value = #2)"
-}
-
-// Read the value of a local variable.
-extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
-  cs inline "#1.Value";
-  js inline "((#1).value)";
-}
 
 // Assign to an entry in a local `:vector` variable.
 extern inline [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
   cs inline "(#1)[(int)#2] = #3"
   js inline "(#1)[#2] = #3"
-}
-
-// If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
-// See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
-  cs inline "Primitive.Run<##2>(#1)";
-  js inline "((#1)())";
 }
 
 // Given a total function to calculate a value `:a`, return
@@ -2824,13 +2633,6 @@ fun once( calc : () -> a ) : (() -> a) {
 // Unsafe
 // ----------------------------------------------------------------------------
 
-private extern inline unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> total a) { inline "#1" }
-
-// _Unsafe_. This function calls a function and pretends it did not have any effect at all.
-fun unsafe-total( action : () -> e a ) : total a
-{
-  unsafe-total-cast( action )()
-}
 
 
 // _Unsafe_. This function removes the exception effect (`:exn`) from the effect of an action
@@ -2845,8 +2647,6 @@ fun unsafe-nodiv( action : () -> <div|e> a ) : e a
   unsafe-total( action )
 }
 
-// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
-extern inline unsafe-decreasing( x : a ) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
 // Non determinism
@@ -2982,14 +2782,6 @@ extern host() : ndet string {
 // Handled effects
 // ----------------------------------------------------------------------------
 
-// Handled effects are lifted to an atomic effect using the `:handled` type constructor
-type handled    :: HX -> X;
-
-// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
-type handled1   :: HX1 -> X;
-
-// The `:inst` effect is the default umbrella effect for effect instances
-type inst :: HX
 
 
 // ----------------------------------------------------------------------------

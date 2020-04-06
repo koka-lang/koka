@@ -104,7 +104,7 @@ genModule maxStructFields mbMain core
                     , mainEntry
                     , text " "
                     , text "// exports"
-                    , hang 2 (modName <+> text "=" <+> ppModName nameSystemCore <.> dot <.> text "_export(" <.>
+                    , hang 2 (modName <+> text "=" <+> ppModName nameCoreTypes <.> dot <.> text "_export(" <.>
                                 modName <.> text ", {" <-->
                         (vcat $ punctuate comma $
                            map (\n-> fill 12 (ppName n) <.> text ":" <+> ppName n)

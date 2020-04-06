@@ -1,9 +1,10 @@
 public module std/core/hnd
 
+import std/core/types
+
 extern include {
   js file "hnd-inline.js"
 }
-
 
 // -------------------------------------------
 // Internal types
@@ -169,6 +170,10 @@ private extern guard(w : evv<e> ) : e () {
   // if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
+private extern resume-final() : a {
+  js "_throw_resume_final"
+}
+
 private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
 {
   //evv-expect(m,w1)
@@ -189,7 +194,7 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
         guard(w0)
         val g = match(mbcont) {
                   Just(cont) -> cont //prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
-                  Nothing    -> unsafe-total{ error("trying to resume a non-resumable resumption") }
+                  Nothing    -> resume-final()
                 }
         prompt(w0,w1,unsafe-decreasing(m),ret,g(f))
       }
@@ -240,7 +245,7 @@ public fun ".hmask"( i : ev-index, action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,st<h>,local<h>|e> b {
+private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {
   if (!yielding()) return res;
   val v = !r
   yield-cont(fun(cont,x){ r := v; prompt-local-var(r,cont(x)) } )  // restore state early before the resume
@@ -277,7 +282,7 @@ private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val w = evv-get()
   prompt(w,w,m,id, yield-bind( cont( { yield-to-final(m,fun(_k){ res }) } ), fun(_x){ res } ))
 }
-
+/*
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
   init(0)
   if (yielding()) return yield-extend(fun(_ret){ initially-prompt(init,action()) })
@@ -299,6 +304,7 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
   }
   res
 }
+*/
 
 // -------------------------------------------
 // Resume context

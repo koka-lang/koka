@@ -14,8 +14,7 @@ module Common.NamePrim
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
-          , nameSystemCore
---          , nameCore
+          , nameSystemCore, nameCoreTypes
           , nameOpExpr
 
           -- * Operations
@@ -57,8 +56,7 @@ module Common.NamePrim
           -- * Lists
           , nameNull, nameCons, nameTpList
           -- * Type constructors
-          , nameEffectEmpty, nameEffectExtend
-          , nameEffectAppend
+          , nameEffectEmpty, nameEffectExtend, nameEffectAppend
 
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat
@@ -112,8 +110,6 @@ module Common.NamePrim
           , nameKindHeap, nameKindScope
           , nameKindHandled1, nameKindHandled
 
-          , toShortModuleName
-
           , namesSameSize
           ) where
 
@@ -138,38 +134,15 @@ nameOpExpr      = newName ".opexpr"
 --------------------------------------------------------------------------}
 nameIf          = newName "if"
 nameCase        = newName "case"
-nameUnit        = preludeName "()"
-
-namePredHeapDiv :: Name
-namePredHeapDiv = preludeName "hdiv"
-
-namePredEffDiv :: Name
-namePredEffDiv = preludeName "ediv"
-
-nameReturn :: Name
-nameReturn = preludeName ".return"
 
 nameTrace   = preludeName "trace"
 nameLog     = preludeName "log"
 namePhantom = preludeName "phantom"
 
-nameEffectOpen :: Name
-nameEffectOpen = coreHndName ".open" -- preludeName ".open"
 
 {--------------------------------------------------------------------------
   Primitive constructors
 --------------------------------------------------------------------------}
-nameTrue        = preludeName "True"
-nameFalse       = preludeName "False"
-
-nameJust        = preludeName "Just"
-nameNothing     = preludeName "Nothing"
-nameTpMaybe     = preludeName "maybe"
-
-nameOptional         = preludeName "Optional"
-nameOptionalNone     = preludeName "None"
-nameTpOptional       = preludeName "optional"
-
 nameTpDelay          = preludeName "delay"
 
 namePatternMatchError = preludeName "error-pattern"
@@ -177,24 +150,11 @@ nameMainConsole      = preludeName "main-console"
 nameSubStr1          = preludeName "substr1"
 nameDec              = preludeName "dec"
 
-nameAssign      = preludeName ":="
-nameAssigned    = newName "assigned"
-nameRefSet      = preludeName "set"
-
-nameLocalSet    = preludeName "local-set"
-nameLocalGet    = preludeName "local-get"
-
-nameDeref       = preludeName "!"
-nameByref       = preludeName ".&"
-nameIndex       = newName "[]"
 
 nameTpArray     = qualify (newName "std/data/array") (newName "array")
-nameTpVector    = preludeName "vector"
 nameVector      = preludeName "vector"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
-nameDecreasing  = preludeName "unsafe-decreasing"
-nameUnsafeTotal = preludeName "unsafe-total"
 
 {--------------------------------------------------------------------------
   Lists
@@ -207,41 +167,13 @@ nameIntConst    = preludeName ".int-string"
 nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
-  Handlers
---------------------------------------------------------------------------}
-nameTpHTag      = coreHndName "htag"
-nameTpClause i  = coreHndName ("clause" ++ show i)
-nameTpEv        = coreHndName "ev"
-nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
-nameIdentity    = preludeName "id"
-
-nameHTag        = coreHndName ".htag"
-namePerform i   = coreHndName (".perform" ++ show i)
-nameEvvAt       = coreHndName ".evv-at"
-nameEvvLookup   = coreHndName ".evv-lookup"
-nameEvvIndex    = coreHndName ".evv-index"
-nameOpenAt i    = coreHndName (".open-at" ++ show i)
-nameOpenNone i  = coreHndName (".open-none" ++ show i)
-nameOpen i      = coreHndName (".open" ++ show i)
-
-nameHandle      = coreHndName ".hhandle"
-nameNamedHandle = coreHndName ".named-handle"
-
-{--------------------------------------------------------------------------
   Primitive type constructors
 --------------------------------------------------------------------------}
-nameEffectEmpty = preludeName "<>"
-nameEffectExtend= preludeName "<|>"
-nameEffectAppend= newName ".<+>"
-
-nameTpHandled   = preludeName "handled"
-nameTpHandled1  = preludeName "handled1"
 nameTpOperation = preludeName "operation"
 nameTpHandlerBranch0 = preludeName "handler-branch0"
 nameTpHandlerBranch1 = preludeName "handler-branch1"
 
 nameTpValueOp   = preludeName "value"
-
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
@@ -267,7 +199,6 @@ nameReturnNull   = preludeName "null-return"
 nameReturnNull1   = preludeName "null-return1"
 
 nameLift        = preludeName "lift"
-nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameTpYld       = preludeName "yld"
 nameInject      = preludeName ".inject-effect"
 nameInjectExn   = preludeName "inject-exn"
@@ -281,52 +212,118 @@ nameOpNoMatch   = preludeName ".conOpNoMatch"
 
 nameConEv       = preludeName "Ev"
 
-
-nameTpBool      = preludeName "bool"
-nameTpInt       = preludeName "int"
-nameTpInt32     = preludeName "int32"
-nameTpFloat     = preludeName "double"
-nameTpChar      = preludeName "char"
-nameTpString    = preludeName "string"
-nameTpAny       = preludeName "any"
 nameTpNull      = preludeName "null"
-
 nameTpIO        = preludeName "io"
-nameTpUnit      = preludeName "()"
-nameTpRef       = preludeName "ref"
-nameRef         = preludeName "ref"
-nameTpLocalVar  = preludeName "local-var"
-nameTpLocal     = preludeName "local"
-nameLocal       = coreHndName "local-var"
-                  -- preludeName "local-var"
-nameRunLocal    = preludeName "local-scope"
 
-nameTpTotal     = preludeName "total"
 nameTpPartial   = preludeName "exn"
-nameTpDiv       = preludeName "div"
 nameTpPure      = preludeName "pure"
-nameTpInst      = preludeName "inst"
 
-nameTpAlloc        = preludeName "alloc"
-nameTpRead         = preludeName "read"
-nameTpWrite        = preludeName "write"
-nameTpST           = preludeName "st"
-
-nameTpVoid       = preludeName "void"
 nameTpException  = preludeName "exception"
 
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
+{--------------------------------------------------------------------------
+  std/core/hnd
+--------------------------------------------------------------------------}
+nameTpHTag      = coreHndName "htag"
+nameTpClause i  = coreHndName ("clause" ++ show i)
+nameTpEv        = coreHndName "ev"
+nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
+
+nameHTag        = coreHndName ".htag"
+namePerform i   = coreHndName (".perform" ++ show i)
+nameEvvAt       = coreHndName ".evv-at"
+nameEvvLookup   = coreHndName ".evv-lookup"
+nameEvvIndex    = coreHndName ".evv-index"
+nameOpenAt i    = coreHndName (".open-at" ++ show i)
+nameOpenNone i  = coreHndName (".open-none" ++ show i)
+nameOpen i      = coreHndName (".open" ++ show i)
+
+nameHandle      = coreHndName ".hhandle"
+nameNamedHandle = coreHndName ".named-handle"
+
+nameBind        = coreHndName "yield-bind" -- preludeName "bind"
+nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+
+{--------------------------------------------------------------------------
+  std/core/types
+--------------------------------------------------------------------------}
+nameDecreasing  = coreTypesName "unsafe-decreasing"
+nameUnsafeTotal = coreTypesName "unsafe-total"
+
+nameAssigned    = newName "assigned"
+nameIndex       = newName "[]"
+nameAssign      = coreTypesName ":="
+nameRefSet      = coreTypesName "set"
+nameLocalSet    = coreTypesName "local-set"
+nameLocalGet    = coreTypesName "local-get"
+nameDeref       = coreTypesName "!"
+nameByref       = coreTypesName ".&"
+
+namePredHeapDiv = coreTypesName "hdiv"
+namePredEffDiv  = coreTypesName "ediv"
+nameReturn      = coreTypesName ".return"
+
+nameTpRef       = coreTypesName "ref"
+nameTpLocalVar  = coreTypesName "local-var"
+nameTpLocal     = coreTypesName "local"
+nameRef         = coreTypesName "ref"
+nameLocal       = coreHndName   "local-var"
+                  -- coreTypesName "local-var"
+nameRunLocal    = coreTypesName "local-scope"
+
+nameTpTotal     = preludeName "total"
+nameTpDiv       = coreTypesName "div"
+nameTpAlloc     = coreTypesName "alloc"
+nameTpRead      = coreTypesName "read"
+nameTpWrite     = coreTypesName "write"
+nameTpST        = preludeName "st"
+
+nameEffectEmpty = coreTypesName "<>"
+nameEffectExtend= coreTypesName "<|>"
+nameEffectAppend= newName ".<+>"  -- only used during kind inference
+
+nameTpHandled   = coreTypesName "handled"
+nameTpHandled1  = coreTypesName "handled1"
+nameTpInst      = coreTypesName "inst"
+
+nameIdentity    = coreTypesName "id"
+
+
+nameUnit        = coreTypesName "()"
+nameTrue        = coreTypesName "True"
+nameFalse       = coreTypesName "False"
+
+nameJust        = coreTypesName "Just"
+nameNothing     = coreTypesName "Nothing"
+nameTpMaybe     = coreTypesName "maybe"
+
+nameOptional    = coreTypesName "Optional"
+nameOptionalNone= coreTypesName "None"
+nameTpOptional  = coreTypesName "optional"
+
+nameTpVoid      = coreTypesName "void"
+nameTpUnit      = coreTypesName "()"
+nameTpBool      = coreTypesName "bool"
+nameTpInt       = coreTypesName "int"
+nameTpInt32     = coreTypesName "int32"
+nameTpFloat     = coreTypesName "double"
+nameTpChar      = coreTypesName "char"
+nameTpString    = coreTypesName "string"
+nameTpAny       = coreTypesName "any"
+nameTpVector    = coreTypesName "vector"
+
 nameTuple :: Int -> Name
-nameTuple n     = preludeName ("(" ++ (replicate (n-1) ',') ++ ")")
+nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")
 
 isNameTuple :: Name -> Bool
 isNameTuple name
-  = nameModule name == nameId nameSystemCore && length s >= 2 && head s == '(' && last s == ')' && all (==',') (tail (init s))
+  = nameModule name == nameId nameCoreTypes && length s >= 2 && head s == '(' && last s == ')' && all (==',') (tail (init s))
   where
     s = nameId name
+
 
 preludeName s
   = qualify nameSystemCore (newName s)
@@ -334,15 +331,15 @@ preludeName s
 coreHndName s
   = qualify nameCoreHnd (newName s)
 
+coreTypesName s
+  = qualify nameCoreTypes (newName s)
+
 nameSystemCore  = newName "std/core"
-nameCore        = newName "core"
 nameCoreHnd     = newName "std/core/hnd"
+nameCoreTypes   = newName "std/core/types"
 nameDict        = newName "std/data/dict"
 
-toShortModuleName :: Name -> Name
-toShortModuleName name
-  = let short = last (splitModuleName name) in
-    if (short == nameCore) then nameSystemCore else short  -- so primitives can be qualified correctly
+
 
 {--------------------------------------------------------------------------
   Primitive kind constructors

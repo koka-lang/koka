@@ -784,7 +784,9 @@ inferCheck loaded flags line coreImports program1
 
        -- do monadic effect translation (i.e. insert binds)
        coreDefsMon
-           <- if (not (enableMon flags) || Core.coreProgName coreProgram1 == newName "std/core/hnd" ) -- CS `elem` targets flags ||
+           <- if (not (enableMon flags) ||
+                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
+                  Core.coreProgName coreProgram1 == newName "std/core/hnd" ) 
                then return (coreDefsUR)
                else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core

@@ -214,7 +214,7 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoType :: Type {- ^ result type -}
                       , synInfoRank :: SynonymRank
                       , synInfoRange :: Range
-                      , synInfoVis :: Visibility    
+                      , synInfoVis :: Visibility
                       , synInfoDoc :: String
                       }
              deriving Show
@@ -791,7 +791,7 @@ typeMakeTuple tps
 
 typeTuple :: Int -> Tau
 typeTuple n
-  = TCon (TypeCon (nameTuple n) (kindArrowN n))
+  = TCon (TypeCon (nameTuple n) ({-kindArrowN n-} kindFunN (replicate n kindStar) kindStar))
 
 typeOptional :: Tau
 typeOptional

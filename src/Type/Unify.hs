@@ -303,7 +303,7 @@ unifyTVar tv@(TypeVar id kind Meta) tp
                   then unifyTVar tv2 (TVar tv)
                   else return () -- todo: kind check?
             _ -> if (not (matchKind kind (getKind tp)))
-                  then -- trace ("unifyTVar: kinds: " ++ show (kind,getKind tp) ++ ", " ++ show tp) $
+                  then trace ("unifyTVar: kinds: typevar var:\n" ++ show kind ++ "\nand:\n" ++ show (getKind tp) ++ "\ntype:\n" ++ show tp) $
                        unifyError NoMatchKind
                   else do -- trace ("unifyVar: " ++ show tv ++ ":=" ++ show tp) $ return ()
                           extendSub tv tp

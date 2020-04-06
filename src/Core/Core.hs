@@ -73,7 +73,7 @@ import Common.Range
 import Common.Failure
 import Common.Unique
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameSystemCore, nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32 )
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32 )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
