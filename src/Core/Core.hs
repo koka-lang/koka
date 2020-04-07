@@ -20,6 +20,7 @@ module Core.Core ( -- Data structures
                    , Branch(..), Guard(..), Pattern(..)
                    , TName(..), getName, typeDefName
                    , showTName
+                   , flattenTypeDefGroups
                    , flattenDefGroups
                    , extractSignatures
                    , typeDefIsExtension
@@ -190,6 +191,9 @@ typeDefIsExtension _              = False
 
 typeDefVis (Synonym info) = synInfoVis info
 typeDefVis (Data info _)  = dataInfoVis info
+
+flattenTypeDefGroups :: TypeDefGroups -> [TypeDef]
+flattenTypeDefGroups tdgs = concatMap (\(TypeDefGroup tdg) -> tdg) tdgs
 
 {--------------------------------------------------------------------------
   Data representation

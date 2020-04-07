@@ -135,11 +135,11 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
 }
 
 private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e b {
-  js "_yield_to"
+  js "$std_core_hnd._yield_to"
 }
 
 private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
-  js "_yield_final"
+  js "$std_core_hnd._yield_final"
 }
 
 private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {

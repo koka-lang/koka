@@ -20,7 +20,7 @@ module Common.Name
           , nameId, nameModule
 
           , newFieldName, isFieldName, isWildcard
-          , newHiddenExternalName
+          , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName
           , makeHiddenName, makeFreshHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
@@ -250,6 +250,11 @@ isImplicitTypeVarName name
 newHiddenExternalName name
   = makeHiddenName "extern" name
 
+isHiddenExternalName name
+  = hiddenNameStartsWith name "extern"
+
+hiddenNameStartsWith name pre
+  = nameId name `startsWith` ("." ++ pre ++ "-")
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.

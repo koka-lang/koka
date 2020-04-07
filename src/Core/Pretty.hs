@@ -62,21 +62,38 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     (if (coreIface env) then text "interface " else empty) <.>
     prettyDefName env name <->
     (vcat $ concat $
-      [ map (prettyImport envX) (imports ++ extraImports)
+      [ separator "import declarations"
+      , map (prettyImport envX) (imports) -- ++ extraImports)
+      , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
+      , separator "type declarations"
+      , map (prettyTypeDef envX) allTypeDefs
+      , separator "declarations"
+      , map (prettyDef      env) allDefs
+      , separator "external declarations"
+      , map (prettyExternal env) externals
+      ]
       -- , map (prettyImportedSyn envX) importedSyns
+      {-
       , map (prettyTypeDefGroup envX) typeDefGroups
       , map (prettyDefGroup env) defGroups
       , map (prettyExternal env) externals
-      ]
+      -}
     )
   where
+    separator msg = if (not (coreIface env0)) then []
+                     else [text " ", text "//------------------------------", text ("//#kki: " ++ msg), text " "]
+
+    allDefs     = flattenDefGroups defGroups
+    allTypeDefs = flattenTypeDefGroups typeDefGroups
+
     env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
-
+    {-
     importedSyns = extractImportedSynonyms core
     extraImports = extractImportsFromSynonyms imports importedSyns
-    env1         = env0{ importsMap = extendImportMap extraImports (importsMap env0),
+    -}
+    env1         = env0{ importsMap = {- extendImportMap extraImports -} (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0) }
 
@@ -106,6 +123,8 @@ prettyImportedSyn env synInfo
   = ppSynInfo env False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
+prettyExternal env (External name tp body vis nameRng doc) | coreIface env && isHiddenExternalName name
+  = empty
 prettyExternal env (External name tp body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $

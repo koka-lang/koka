@@ -1,7 +1,5 @@
 public module ev2
 
-import std/core/hnd
-
 effect exc {
   control throw() : a
 }
