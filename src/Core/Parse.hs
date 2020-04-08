@@ -383,7 +383,7 @@ parseForall env
 
 parseFun :: Env -> LexParser Expr
 parseFun env
-  = do keyword "fun" <|> keyword "fun.anon"
+  = do keyword "fun.anon"
        eff    <- angles (ptype env) <|> return typeTotal
        (env1,params) <- parameters env
        body   <- curlies (parseExpr env1)
@@ -405,7 +405,14 @@ parseCon env
 
 parseVar :: Env -> LexParser Expr
 parseVar env
-  = do (name) <- canonical qvarid
+  =do q <- try $ do (q,_) <- modulepath
+                    specialOp "/"
+                    return q
+      (name,_) <- binderDot
+      let qname = qualify q name
+      envLookupVar env qname
+  <|>
+    do (name) <- canonical (qvarid <|> qidop)
        if (isQualified name)
         then envLookupVar env name
         else do tp <- envLookupLocal env name
@@ -432,6 +439,8 @@ parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,doc) <- pdefSort
        name       <- canonical (funid <|> binderDot)
+                     <|> do (name,rng) <- wildcard
+                            return name
        tp         <- typeAnnot env
        expr       <- parseBody env
        return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort rangeNull doc))
@@ -496,12 +505,13 @@ qualifiedConId
    = do (name,_) <- qconid
         return name
    <|>
-     do try $ do modulepath
-                 specialOp "/"
-                 special "("
-        cs <- many comma
-        special ")"
-        return (nameTuple (length cs+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
+     do n <-  try $ do modulepath
+                       specialOp "/"
+                       special "("
+                       cs <- many comma
+                       special ")"
+                       return (length cs)
+        return (nameTuple (n+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
 
 
 
@@ -549,12 +559,14 @@ tbinders :: Env -> LexParser (Env,[TypeVar])
 tbinders env
   = do bs <- tbinder `sepBy` comma
        let env1 = foldl envExtend env bs
-           tvs  = [tv | TVar tv <- [envType env1 name kindStar | (name,_) <- bs]]
+           tvs  = [tv | TVar tv <- [envType env1 name kind | (name,kind) <- bs]]
        return (env1,tvs)
 
 tbinder :: LexParser (Name,Kind)
 tbinder
-  = do (id,_) <- varid <?> "type parameter"
+  = do id     <- do (id,_) <- varid <|> wildcard
+                    return id
+                <?> "type parameter"
        kind   <- kindAnnotFull <|> return kindStar
        return (id,kind)
   <|>
@@ -721,7 +733,7 @@ tid env
        return (envType env name kind)
 
 qualifiedTypeId
-  = do (name,_) <- qvarid
+  = do (name,_) <- qvarid <|> wildcard
        return name
   <|>
     do (name,_) <- qidop  -- for things like std/core/<.>

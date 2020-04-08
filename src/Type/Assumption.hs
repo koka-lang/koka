@@ -170,7 +170,7 @@ gammaLookupCanonical:: Name -> Gamma -> [NameInfo]
 gammaLookupCanonical name gamma
   = let xs = (gammaLookupQ (Core.nonCanonicalName name) gamma)
     in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
-       filter (\ni -> infoCanonicalName name ni == name) xs
+       filter (\ni -> infoCanonicalName nameNil ni == name) xs
 
 gammaLookupExactCon :: Name -> Gamma -> [NameInfo]
 gammaLookupExactCon name gamma

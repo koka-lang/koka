@@ -355,7 +355,7 @@ ppType env tp
 
       TApp (TCon con) [arg]
                     | typeConName con == nameTpOptional
-                    -> text "?" <.> ppType env{prec=precTop} arg
+                    -> text "?" <.> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name)
@@ -434,7 +434,7 @@ ppTypeVar env (TypeVar id kind flavour)
       wrapKind (showKinds env) env kind $
        (case flavour of
          Meta   -> text "_"
-         Skolem -> text "$"
+         Skolem -> if (coreIface env) then text "__" else text "$"
          _      -> empty) <.> nicePretty (nice env) id -- <.> text (":" ++ show id)
 
 ppTypeCon :: Env -> TypeCon -> Doc

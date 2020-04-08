@@ -233,6 +233,10 @@ makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
     where idFromPos pos = "-" ++ show (posLine pos) ++ "-" ++ show (posColumn pos)
 
+hiddenNameStartsWith name pre
+  = nameId name `startsWith` ("." ++ pre ++ "-")
+
+
 newFieldName i
   = newHiddenName ("field" ++ show i)
 
@@ -253,8 +257,6 @@ newHiddenExternalName name
 isHiddenExternalName name
   = hiddenNameStartsWith name "extern"
 
-hiddenNameStartsWith name pre
-  = nameId name `startsWith` ("." ++ pre ++ "-")
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.

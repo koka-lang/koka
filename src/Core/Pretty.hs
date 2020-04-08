@@ -187,12 +187,13 @@ prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
 prettyInlineDef :: Env -> Def -> Doc
-prettyInlineDef env def | not (coreIface env) || (sizeDef def >= coreInlineMax env)
+prettyInlineDef env def | (not (coreIface env) || (sizeDef def >= coreInlineMax env))
   = empty
 prettyInlineDef env def@(Def name scheme expr vis sort nameRng doc)
   = keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
+    <+> text ("// inline size: " ++ show (sizeDef def))
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
 
 prettyDef :: Env -> Def -> Doc
@@ -381,7 +382,8 @@ prettyTName env (TName name tp)
 prettyName :: Env -> Name -> Doc
 prettyName env name
   = color (colorSource (colors env)) $
-    pretty name
+    let (nm,post) = canonicalSplit name
+    in if (post=="") then pretty name else pretty nm <+> text post
 
 prettyDefName :: Env -> Name -> Doc
 prettyDefName env name

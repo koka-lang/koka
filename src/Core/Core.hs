@@ -82,6 +82,7 @@ import Type.Pretty ()
 import Type.TypeVar
 import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect )
 
+import Lib.Trace
 
 isExprUnit (Con tname _)  = getName tname == nameTuple 0
 isExprUnit _              = False
@@ -438,15 +439,17 @@ sizeDef def
 sizeExpr :: Expr -> Int
 sizeExpr expr
   = case expr of
+      Var tname info     | isHiddenExternalName (getName tname)
+                         -> trace ("hidden external: " ++ show (getName tname) ) $ 1000
       Lam tname eff body -> 1 + sizeExpr body
       Var tname info     -> 0
-      App e args         -> 1 + sum (map sizeExpr args)
+      App e args         -> 1 + sizeExpr e + sum (map sizeExpr args)
       TypeLam tvs e      -> sizeExpr e
       TypeApp e tps      -> sizeExpr e
       Con tname repr     -> 0
       Lit lit            -> 0
       Let defGroups body -> sum (map sizeDefGroup defGroups) + (sizeExpr body)
-      Case exprs branches -> sum (map sizeExpr exprs) + sum (map sizeBranch branches)
+      Case exprs branches -> 1 + sum (map sizeExpr exprs) + sum (map sizeBranch branches)
 
 sizeBranch (Branch patterns guards)
   = sum (map sizeGuard guards)
