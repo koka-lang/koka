@@ -427,14 +427,25 @@ isInlineable :: Def -> Bool
 isInlineable def
   = sizeDef def < inlineMax
 
-sizeDefGroup dg
-  = case dg of
-      DefRec defs   -> sum (map sizeDef defs)
-      DefNonRec def -> sizeDef def
+
+sizeInf :: Int
+sizeInf = 1000
 
 sizeDef :: Def -> Int
 sizeDef def
+  = let n = sizeLocalDef def
+    in if (defIsVal def)
+        then (if (n==0) then 0 else sizeInf) -- don't duplicate work
+        else n
+
+sizeLocalDef :: Def -> Int
+sizeLocalDef def
   = sizeExpr (defExpr def)
+
+sizeDefGroup dg
+  = case dg of
+      DefRec defs   -> sum (map sizeLocalDef defs)
+      DefNonRec def -> sizeLocalDef def
 
 sizeExpr :: Expr -> Int
 sizeExpr expr

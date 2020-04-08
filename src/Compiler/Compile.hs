@@ -471,13 +471,13 @@ resolveImports term flags currentDir loaded []
 resolveImports term flags currentDir loaded (imp:imps)
   = do (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
        let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (getRange imp) (impName imp)
-       inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded1)
        let loaded2        = loaded1{ loadedModules = modules }
            -- impsPub        = filter (\imp -> Core.importVis imp == Public) $ Core.coreProgImports $ modCore mod
        mapM_ (\err -> liftError (errorMsg err)) errs
        -- trace ("impsPub: " ++ show [show (Core.importName imp) ++ ": " ++ Core.importPackage imp | imp <- impsPub]) $ return ()
        (loaded3,mods3) <- resolveImports term flags currentDir loaded2 imps
        (loaded4,mods) <- resolvePubImports flags loaded3 mod
+       inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded4) -- process inlines after pub imports
        return (loaded4,mods:mods3)
 
 resolvePubImports :: Flags -> Loaded -> Module -> IOErr (Loaded,[Module])
@@ -785,8 +785,8 @@ inferCheck loaded flags line coreImports program1
         else trace "initial core check" $ Core.Check.checkCore penv unique4 gamma coreDefs0
 
        -- remove return statements
-       --coreDefsUR <- unreturn penv coreDefs0
-       let coreDefsUR = coreDefs0
+       coreDefsUR <- unreturn penv coreDefs0
+       -- let coreDefsUR = coreDefs0
        when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore penv unique4 gamma coreDefsUR
 
        -- do monadic effect translation (i.e. insert binds)
@@ -870,7 +870,7 @@ codeGen term flags compileTarget loaded
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False } (modCore mod) <-> Lib.PPrint.empty
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } (modCore mod) <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging

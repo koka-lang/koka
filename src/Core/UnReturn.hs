@@ -225,10 +225,10 @@ urCase org scruts branches
            return (Guard test, kexpr)
 
 
-data KExpr  = U Expr
-            | I Expr
-            | R Expr
-            | F ((Expr -> Expr) -> Expr)
+data KExpr  = U Expr   -- unchanged expression
+            | I Expr   -- identity
+            | R Expr   -- returned expression
+            | F ((Expr -> Expr) -> Expr)  -- cps transformed, needs continuation
 
 
 
@@ -248,7 +248,7 @@ applyK c kexpr
   = case kexpr of
       U org -> c org
       I e -> c e
-      R r -> r
+      R r -> r          -- if returning, the continuation is ignored
       F f -> f c
 
 

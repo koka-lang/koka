@@ -272,10 +272,12 @@ tbinderDot
        return (prepend "." name,rng)
 
 paramidDot
- = paramid <|>
-   do keyword "."
-      (name,rng) <- identifier
-      return (prepend "." name,rng)
+ = canonical (
+     paramid <|>
+     do keyword "."
+        (name,rng) <- identifier
+        return (prepend "." name,rng)
+  )
 
 parseIdDot
  = canonical (
@@ -350,6 +352,7 @@ parseExpr env
     <|> parseMatch env
     <|> parseLet env
     <|> parseApp env
+    <?> "expression"
 
 parseApp env
   = do expr <- parseAtom env
@@ -366,6 +369,8 @@ parseApp env
 parseAtom env
   =   parseCon env
   <|> parseVar env
+  <|> do lit <- parseLit
+         return (Lit lit)
   <|> parens (parseExpr env)
 
 parseLet :: Env -> LexParser Expr
@@ -421,6 +426,21 @@ parseVar env
     do (name) <- parseIdDot
        tp <- envLookupLocal env name
        return (Var (TName name tp) InfoNone)
+
+parseLit :: LexParser Lit
+parseLit
+  =   do (i,rng) <- integer
+         return (LitInt i)
+    <|>
+      do (f,rng) <- floatLit
+         return (LitFloat f)
+    <|>
+      do (s,rng) <- stringLit
+         return (LitString s)
+    <|>
+      do (c,rng) <- charLit
+         return (LitChar c)
+    <?> "literal"
 
 
 {--------------------------------------------------------------------------
@@ -530,7 +550,7 @@ parameters env
 
 parameter :: Env -> LexParser (Name,Type)
 parameter env
-  = do name <- try (do{ (name,_) <- paramidDot; keyword ":"; return name}) <|> return nameNil
+  = do name <- try (do{ name <- paramidDot; keyword ":"; return name}) <|> return nameNil
        (do specialOp "?"
            tp <- ptype env
            return (name, makeOptional tp)

@@ -73,7 +73,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       , separator "external declarations"
       , map (prettyExternal env) externals
       , separator "inline definitions"
-      , if (coreInlineMax env0 <= 0 || not (coreIface env0))
+      , if (coreInlineMax env0 < 0 || not (coreIface env0))
          then []
          else [text ".inline"] ++
               map (prettyInlineDef env1{coreInlineMax = coreInlineMax env0}) allDefs
@@ -101,7 +101,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     env1         = env0{ importsMap = {- extendImportMap extraImports -} (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
-                         coreInlineMax = 0 }
+                         coreInlineMax = (-1) }
 
 prettyImport env imp
   = prettyComment env (importModDoc imp) $
@@ -187,7 +187,7 @@ prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
 prettyInlineDef :: Env -> Def -> Doc
-prettyInlineDef env def | (not (coreIface env) || (sizeDef def >= coreInlineMax env))
+prettyInlineDef env def | (not (coreIface env) || (sizeDef def > coreInlineMax env))
   = empty
 prettyInlineDef env def@(Def name scheme expr vis sort nameRng doc)
   = keyword env (show sort)
@@ -368,8 +368,16 @@ prettyLit env lit
   = case lit of
       LitInt    i -> color (colorNumber (colors env)) (text (show i))
       LitFloat  d -> color (colorNumber (colors env)) (text (show d)) -- TODO: use showHex
-      LitChar   c -> color (colorString (colors env)) (text (show c))
-      LitString s -> color (colorString (colors env)) (text (show s))
+      LitChar   c -> color (colorString (colors env)) (text ("'" ++ showXChar c ++ "'"))
+      LitString s -> color (colorString (colors env)) (text ("\"" ++ concatMap showXChar s ++ "\""))
+
+
+showXChar c
+  = if (c >= ' ' && c <= '~' && c /= '\"' && c /= '\'' && c /= '\\') then [c]
+    else let n = fromEnum c
+         in if (n < 256) then "\\x" ++ (showHex 2 n)
+            else if (n < 65536) then "\\u" ++ (showHex 4 n)
+                                else "\\U" ++ (showHex 6 n)
 
 {--------------------------------------------------------------------------
   Pretty-printers for non-core terms
