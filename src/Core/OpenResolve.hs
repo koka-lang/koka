@@ -147,7 +147,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         trace (" no handled effect; use cast") $
                         -- wrapper (resolve (nameOpenNone n)) []
                         -- App eopen [expr]
-                        expr  -- change nothing  
+                        expr  -- change nothing
                  [l] -> -- just one: used open-atN for efficiency
                         trace (" one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)
@@ -163,9 +163,6 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
   = failure $ "Core.OpenResolve.resOpen: open applied to a non-function? " ++ show (ppType penv effTo)
 
 
-makeTypeApp expr []     = expr
-makeTypeApp (TypeApp expr targs0) targs1 = makeTypeApp expr (targs0 ++ targs1)
-makeTypeApp expr targs  = TypeApp expr targs
 
 matchLabels (l1:ls1) (l2:ls2) = (labelName l1 == labelName l2) && matchLabels ls1 ls2
 matchLabels [] []             = True

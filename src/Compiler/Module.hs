@@ -56,6 +56,7 @@ data Module  = Module{ modName        :: Name
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
+                     , modInlines     :: Gamma -> Error [Core.InlineDef]
                      , modRangeMap    :: Maybe RangeMap
                      , modTime        :: FileTime
                      }
@@ -91,7 +92,7 @@ initialLoaded
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) Nothing fileTime0
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (\g -> return []) Nothing fileTime0
 
 loadedName :: Loaded -> Name
 loadedName ld

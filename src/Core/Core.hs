@@ -15,7 +15,7 @@ module Core.Core ( -- Data structures
                    , Externals, External(..), externalVis
                    , FixDefs, FixDef(..)
                    , TypeDefGroups, TypeDefGroup(..), TypeDefs, TypeDef(..)
-                   , DefGroups, DefGroup(..), Defs, Def(..)
+                   , DefGroups, DefGroup(..), Defs, Def(..), InlineDef(..)
                    , Expr(..), Lit(..)
                    , Branch(..), Guard(..), Pattern(..)
                    , TName(..), getName, typeDefName
@@ -30,7 +30,7 @@ module Core.Core ( -- Data structures
                    , defIsVal
                    , defTName
                    , addTypeLambdas, addTypeApps, addLambdas, addApps
-                   , makeLet
+                   , makeLet, makeTypeApp
                    , addNonRec, addCoreDef, coreNull
                    , freshName
                    , typeOf
@@ -294,6 +294,7 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
+data InlineDef = InlineDef Name Expr
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -617,6 +618,9 @@ makeLet :: [DefGroup] -> Expr -> Expr
 makeLet [] expr = expr
 makeLet defs expr = Let defs expr
 
+makeTypeApp expr []     = expr
+makeTypeApp (TypeApp expr targs0) targs1 = makeTypeApp expr (targs0 ++ targs1)
+makeTypeApp expr targs  = TypeApp expr targs
 
 -- | Add a value application
 addApps :: [Expr] -> (Expr -> Expr)

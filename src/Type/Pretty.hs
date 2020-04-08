@@ -142,6 +142,8 @@ data Env     = Env{ showKinds      :: Bool
                   , coreIface :: Bool
                   , coreShowTypes :: Bool  -- show types in core output
                   , coreInlineMax :: Int   -- max size for exported inline definition
+                  , coreShowVis   :: Bool -- show visibility?
+                  , coreShowDef   :: Bool -- show definition body
 
                   -- should not be here either: was the verbose flag set?
                   , verbose   :: Int
@@ -158,6 +160,8 @@ defaultEnv
         False -- coreIface
         False -- coreShowTypes
         25    -- coreInlineMax
+        True  -- coreShowVis
+        False -- coreShowDef
         0     -- verbose
 
 
@@ -273,7 +277,7 @@ ppVis env vis
 
 
 instance Pretty SynInfo where
-  pretty info = ppSynInfo Type.Pretty.defaultEnv False True info 
+  pretty info = ppSynInfo Type.Pretty.defaultEnv False True info
 
 ppSynInfo env publicOnly showBody (SynInfo name kind params scheme rank range vis doc)
     = if (publicOnly && isPrivate vis) then empty else

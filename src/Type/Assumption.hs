@@ -14,6 +14,7 @@ module Type.Assumption (
                     , gammaEmpty
                     , gammaExtend, gammaExtends
                     , gammaLookup, gammaLookupQ
+                    , gammaLookupCanonical, gammaLookupExactCon -- for core
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
@@ -50,7 +51,7 @@ import Type.Pretty
 import qualified Core.Core as Core
 import qualified Core.CoreVar as CoreVar
 
--- import Lib.Trace
+import Lib.Trace
 
 data NameInfo
   = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool }
@@ -164,6 +165,19 @@ combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)]
 combine xs ys
   = -- TODO: check for overlapping type schemes?
     xs ++ ys
+
+gammaLookupCanonical:: Name -> Gamma -> [NameInfo]
+gammaLookupCanonical name gamma
+  = let xs = (gammaLookupQ (Core.nonCanonicalName name) gamma)
+    in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
+       filter (\ni -> infoCanonicalName name ni == name) xs
+
+gammaLookupExactCon :: Name -> Gamma -> [NameInfo]
+gammaLookupExactCon name gamma
+ = let xs = (gammaLookupQ name gamma)
+   in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
+      filter isInfoCon xs
+
 
 
 gammaLookupQ :: Name -> Gamma -> [NameInfo]

@@ -351,7 +351,13 @@ compileProgram' term flags modules compileTarget fname program
        ftime <- liftIO (getFileTimeOrCurrent fname)
        let name   = getName program
            outIFace = outName flags (showModName name) ++ ifaceExtension
-           mod    = Module name outIFace fname "" "" [] (Just program) (failure "Compiler.Compile.compileProgram: recursive module import") Nothing ftime
+           mod    = (moduleNull name){
+                      modPath = outIFace,
+                      modSourcePath = fname,
+                      modProgram = (Just program),
+                      modCore = failure "Compiler.Compile.compileProgram: recursive module import",
+                      modTime = ftime
+                    }
            allmods = addOrReplaceModule mod modules
            loaded = initialLoaded { loadedModule = mod
                                   , loadedModules = allmods
@@ -465,7 +471,8 @@ resolveImports term flags currentDir loaded []
 resolveImports term flags currentDir loaded (imp:imps)
   = do (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
        let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (getRange imp) (impName imp)
-           loaded2        = loaded1{ loadedModules = modules }
+       inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded1)
+       let loaded2        = loaded1{ loadedModules = modules }
            -- impsPub        = filter (\imp -> Core.importVis imp == Public) $ Core.coreProgImports $ modCore mod
        mapM_ (\err -> liftError (errorMsg err)) errs
        -- trace ("impsPub: " ++ show [show (Core.importName imp) ++ ": " ++ Core.importPackage imp | imp <- impsPub]) $ return ()
@@ -606,11 +613,11 @@ resolveModule term flags currentDir modules mimp
                       Nothing
                        -> do loadMessage "loading:"
                              ftime  <- liftIO $ getFileTime iface
-                             core <- lift $ parseCore iface
+                             (core,parseInlines) <- lift $ parseCore iface
                              -- liftIO $ copyIFaceToOutputDir term flags iface
                              let mod = Module (Core.coreName core) iface (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                  core Nothing ftime
+                                                  core parseInlines Nothing ftime
                              return mod
              loadFromModule iface root stem mod
 
@@ -786,7 +793,7 @@ inferCheck loaded flags line coreImports program1
        coreDefsMon
            <- if (not (enableMon flags) ||
                   Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                  Core.coreProgName coreProgram1 == newName "std/core/hnd" ) 
+                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
                then return (coreDefsUR)
                else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core

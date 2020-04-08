@@ -69,9 +69,14 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       , separator "type declarations"
       , map (prettyTypeDef envX) allTypeDefs
       , separator "declarations"
-      , map (prettyDef      env) allDefs
+      , map (prettyDef env) allDefs
       , separator "external declarations"
       , map (prettyExternal env) externals
+      , separator "inline definitions"
+      , if (coreInlineMax env0 <= 0 || not (coreIface env0))
+         then []
+         else [text ".inline"] ++
+              map (prettyInlineDef env1{coreInlineMax = coreInlineMax env0}) allDefs
       ]
       -- , map (prettyImportedSyn envX) importedSyns
       {-
@@ -95,7 +100,8 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     -}
     env1         = env0{ importsMap = {- extendImportMap extraImports -} (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
-                         showKinds = (showKinds env0 || coreIface env0) }
+                         showKinds = (showKinds env0 || coreIface env0),
+                         coreInlineMax = 0 }
 
 prettyImport env imp
   = prettyComment env (importModDoc imp) $
@@ -170,9 +176,8 @@ prettyTypeDef env (Data dataInfo isExtend)
 prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
-    -- text "rec" <+> align (
-    prettyDefs env defs
-    --)
+    text "rec {" <+> align (prettyDefs env defs) </> text "}"
+
 
 prettyDefGroup env (DefNonRec def)
   = prettyDef env def
@@ -181,6 +186,15 @@ prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
+prettyInlineDef :: Env -> Def -> Doc
+prettyInlineDef env def | not (coreIface env) || (sizeDef def >= coreInlineMax env)
+  = empty
+prettyInlineDef env def@(Def name scheme expr vis sort nameRng doc)
+  = keyword env (show sort)
+    <+> (if nameIsNil name then text "_" else prettyDefName env name)
+    -- <+> text ":" <+> prettyType env scheme
+    <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
+
 prettyDef :: Env -> Def -> Doc
 prettyDef env def@(Def name scheme expr vis sort nameRng doc)
   = prettyComment env doc $
@@ -188,12 +202,13 @@ prettyDef env def@(Def name scheme expr vis sort nameRng doc)
     keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     <+> text ":" <+> prettyType env scheme
-    <.> (if (coreIface env) -- && sizeDef def > coreInlineMax env)
+    <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
           then empty
-          else linebreak <.> indent 2 (text "=" <+> prettyExpr env expr)) <.> semi
+          else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi
 
 prettyVis env vis doc
-  = case vis of
+  = if (not (coreShowVis env)) then doc else
+    case vis of
       Public  -> keyword env "public" <+> doc
       Private -> keyword env "private" <+> doc --if (coreIface env) then (keyword env "private" <+> doc) else doc
 
@@ -236,8 +251,8 @@ prettyExpr env (Var tname varInfo)
     prettyInfo
       = case varInfo of
           InfoNone -> empty
-          InfoArity m n  -> braces (pretty m <.> comma <.> pretty n)
-          InfoExternal f -> braces (text"@")
+          InfoArity m n  -> empty -- braces (pretty m <.> comma <.> pretty n)
+          InfoExternal f -> empty -- braces (text"@")
 
 prettyExpr env (App a args)
   = pparens (prec env) precApp $
@@ -274,11 +289,11 @@ prettyExpr env (Lit lit)
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
            in if (x==nameNil) then exprDoc
-               else (text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
+               else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)
-  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg <.> semi) defGroups)
+  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg) defGroups)
          , prettyExpr env expr
          ]
 
@@ -301,7 +316,8 @@ prettyBranches env (branches)
 
 prettyBranch :: Env -> Branch -> Doc
 prettyBranch env (Branch patterns guards)
-  = hsep (map (prettyPattern env{ prec = precApp } ) patterns) <.> vcat (map (prettyGuard env) guards)
+  = hsep (punctuate comma (map (prettyPattern env{ prec = precApp } ) patterns)) <.>
+     vcat (map (prettyGuard env) guards) <.> semi
 
 prettyGuard   :: Env -> Guard -> Doc
 prettyGuard env (Guard test expr)
@@ -311,23 +327,25 @@ prettyGuard env (Guard test expr)
     )   <+> text "->" <+> prettyExpr env{ prec = precTop } expr
 
 prettyPatternType env (pat,tp)
-  = prettyPattern env pat <.>
-    (if (coreShowTypes env) then text " :" <+> prettyType env tp else empty)
+  = prettyPattern env pat
+    <.> (if (coreShowTypes env) then text " :" <+> prettyType env tp else empty)
 
 prettyPattern :: Env -> Pattern -> Doc
 prettyPattern env pat
   = case pat of
-      PatCon tname args repr targs exists _ info
+      PatCon tname args repr targs exists resTp info
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                           in prettyConName env tname <.>
+                           in parens $
+                              prettyConName env tname <.>
                                (if (null exists) then empty
                                  else angled (map (ppTypeVar env') exists)) <.>
-                               tupled (map (prettyPatternType (decPrec env')) (zip args targs))
+                               tupled (map (prettyPatternType (decPrec env')) (zip args targs)) <+> colon <+> prettyType env resTp <.> space
 
-      PatVar tname PatWild  -> prettyName env (getName tname)
-      PatVar tname pat      -> pparens (prec env) precApp $
+      PatVar tname PatWild  -> parens  $
+                               prettyTName env tname -- prettyName env (getName tname)
+      PatVar tname pat      -> parens $
                                prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)
       PatWild               -> text "_"
       PatLit lit            -> prettyLit env lit
@@ -338,7 +356,7 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
+      = pretty (getName tname) -- if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
 
 {--------------------------------------------------------------------------
   Literals
@@ -358,7 +376,7 @@ prettyLit env lit
 
 prettyTName :: Env -> TName -> Doc
 prettyTName env (TName name tp)
-  = prettyName env name <.> text ":" <.> ppType env tp
+  = prettyName env name <.> text ":" <+> ppType env tp
 
 prettyName :: Env -> Name -> Doc
 prettyName env name

@@ -16,16 +16,16 @@ module Syntax.Parse( parseProgramFromFile
                    , parseType
 
                    -- used by the core parser
-                   , lexParse, parseLex, LexParser
+                   , lexParse, parseLex, LexParser, parseLexemes
 
                    , visibility, modulepath, importAlias
                    , tbinderId, constructorId, funid, paramid
                    , braced, semiBraces, semis, semiColons
-                   , angles, anglesCommas, parensCommas, parens
+                   , angles, anglesCommas, parensCommas, parens, curlies
                    , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx
                    , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid
                    , integer, charLit, floatLit, stringLit
-                   , special, specialId, specialOp, specialConId
+                   , special, specialId, specialOp, specialConId, wildcard
                    , keyword, dockeyword
                    , parseOpenExtend
                    ) where
@@ -114,6 +114,12 @@ lexParse semiInsert p sourceName line rawinput
         case (parse (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
           Right x  -> return x
+
+parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error a
+parseLexemes p source@(Source sourceName _) lexemes
+  = case (parse p sourceName lexemes) of
+      Left err -> makeParseError (errorRangeLexeme lexemes source) err
+      Right x  -> return x
 
 
 makeParseError :: (ParseError -> Range) -> ParseError -> Error a
@@ -2585,6 +2591,9 @@ parensCommasRng lpar p
 
 parensx lpar f p
   = bracketed lpar rparen f p
+
+curlies p
+  = curliesx const p
 
 curliesx f p
   = bracketed lcurly rcurly f p
