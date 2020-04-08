@@ -458,6 +458,7 @@ var hsModules = [
   "Core.Monadic",
   "Core.AnalysisResume",
   "Core.Simplify",
+  "Core.FunLift",
 
   "Type.Infer",
 

@@ -55,6 +55,7 @@ import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
 import Core.OpenResolve       ( openResolve )
+import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -852,7 +853,7 @@ inferCheck loaded flags line coreImports program1
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore penv unique4 gamma coreDefsOR
 
        -- simplify coreF if enabled
-       (coreDefsSimp,unique5)
+       (coreDefsSimp,uniqueSimp)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
                       then return (coreDefsOR,unique4)
                       else -- trace "simplify" $
@@ -868,15 +869,19 @@ inferCheck loaded flags line coreImports program1
                                 trace "after simplify core check 2" $Core.Check.checkCore penv unique4b gamma cdefs1
                               return (cdefs1,unique4b) -- $ simplifyDefs False 1 unique4a penv cdefs
 
+       -- lifting all functions to top level
+       let (coreDefsLifted,uniqueLift) = liftFunctions penv uniqueSimp coreDefsSimp
+       when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore penv uniqueLift gamma coreDefsLifted
+
        -- Assemble core program and return
        let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
                           coreProgram1{ Core.coreProgImports = coreImports
-                                      , Core.coreProgDefs = coreDefsSimp
+                                      , Core.coreProgDefs = coreDefsLifted  -- coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
            loaded4 = loaded3{ loadedGamma = gamma
-                            , loadedUnique = unique4
+                            , loadedUnique = uniqueLift
                             , loadedModule = (loadedModule loaded3){ modCore = coreProgram2, modRangeMap = mbRangeMap2 }
                             }
 
