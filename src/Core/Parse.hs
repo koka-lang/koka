@@ -335,7 +335,7 @@ inlineDef :: Env -> LexParser (Name,Expr)
 inlineDef env
   = do (sort,doc) <- pdefSort
        (name) <- canonical (funid <|> binderDot)
-       trace ("core inline def: " ++ show name) $ return ()
+       -- trace ("core inline def: " ++ show name) $ return ()
        expr <- parseBody env
        return (name,expr)
 

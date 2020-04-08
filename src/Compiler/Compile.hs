@@ -469,16 +469,21 @@ resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOEr
 resolveImports term flags currentDir loaded []
   = return (loaded,[])
 resolveImports term flags currentDir loaded (imp:imps)
-  = do (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
+  = do trace ("resolve module: " ++ show (impName imp) ++ ", loaded: " ++ show (map modName (loadedModules loaded))) $ return ()
+       (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
        let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (getRange imp) (impName imp)
+       trace ("import module: " ++ show (impName imp)) $ return ()
        let loaded2        = loaded1{ loadedModules = modules }
            -- impsPub        = filter (\imp -> Core.importVis imp == Public) $ Core.coreProgImports $ modCore mod
        mapM_ (\err -> liftError (errorMsg err)) errs
        -- trace ("impsPub: " ++ show [show (Core.importName imp) ++ ": " ++ Core.importPackage imp | imp <- impsPub]) $ return ()
-       (loaded3,mods3) <- resolveImports term flags currentDir loaded2 imps
-       (loaded4,mods) <- resolvePubImports flags loaded3 mod
-       inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded4) -- process inlines after pub imports
-       return (loaded4,mods:mods3)
+       trace ("resolve public imports of module: " ++ show (impName imp)) $ return ()
+       (loaded3,pubMods) <- resolvePubImports flags loaded2 mod
+       trace ("resolve further imports (from  module: " ++ show (impName imp) ++ ")") $ return ()
+       (loaded4,modss) <- resolveImports term flags currentDir loaded3 imps
+       -- trace ("\n\n--------------------\nmodule " ++ show (impName imp) ++ ":\n " ++ show (loadedGamma loaded4)) $ return ()
+       -- inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded4) -- process inlines after pub imports
+       return (loaded4,pubMods:modss)
 
 resolvePubImports :: Flags -> Loaded -> Module -> IOErr (Loaded,[Module])
 resolvePubImports flags loaded0 mod
@@ -501,12 +506,12 @@ resolvePubImports flags loaded0 mod
 
     loadPubImport :: (Loaded,[Module],[ErrorMessage]) -> (FilePath,Core.Import) -> (Loaded,[Module],[ErrorMessage])
     loadPubImport (loaded,imps,errs0) (iface,imp)
-      = -- trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
+      = trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
         case lookupImport iface modules of
           Just impMod | True -- modName impMod /= Core.importName imp
                       -> let (loadedImp,errs1) = loadedImportModule (maxStructFields flags) loaded impMod rangeNull (Core.importName imp)
                          in (loadedImp,impMod:imps,errs0) --  ++ errs1)
-          _ -> (loaded,imps,errs0)
+          _ -> trace " pub not found" $ (loaded,imps,errs0)
 
 
 searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
@@ -622,7 +627,7 @@ resolveModule term flags currentDir modules mimp
              loadFromModule iface root stem mod
 
       loadFromModule iface root source mod
-        = -- trace ("loadFromModule: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
+        = trace ("loadFromModule: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
           do let allmods = addOrReplaceModule mod modules
                  loaded = initialLoaded { loadedModule = mod
                                         , loadedModules = allmods
