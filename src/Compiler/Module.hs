@@ -37,6 +37,7 @@ import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCom
 import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma)
+import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
 
 import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
@@ -56,7 +57,7 @@ data Module  = Module{ modName        :: Name
                      , modWarnings    :: [(Range,Doc)]
                      , modProgram     :: Maybe (Program UserType UserKind) -- not for interfaces
                      , modCore        :: Core.Core
-                     , modInlines     :: Gamma -> Error [Core.InlineDef]
+                     , modInlines     :: Either (Gamma -> Error [Core.InlineDef]) ([Core.InlineDef])
                      , modRangeMap    :: Maybe RangeMap
                      , modTime        :: FileTime
                      }
@@ -71,6 +72,7 @@ data Loaded = Loaded{ loadedGamma       :: Gamma
                     , loadedUnique      :: Int
                     , loadedModule      :: Module
                     , loadedModules     :: [Module]
+                    , loadedInlines     :: Inlines
                     }
 
 loadedLatest :: Loaded -> FileTime
@@ -89,10 +91,11 @@ initialLoaded
            0
            (moduleNull (newName "Interactive"))
            []
+           inlinesEmpty
 
 moduleNull :: Name -> Module
 moduleNull modName
-  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (\g -> return []) Nothing fileTime0
+  = Module (modName) "" "" "" "" [] Nothing (Core.coreNull modName) (Left (\g -> return [])) Nothing fileTime0
 
 loadedName :: Loaded -> Name
 loadedName ld
@@ -116,7 +119,7 @@ modPackageQPath mod
 
 
 loadedImportModule :: Int -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
-loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1) mod range impName
+loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
   = -- trace ("loadedImport: " ++ show impName ++ " into " ++ show [mod | mod <- importsList imps1]) $
     let core = modCore mod
         (imps2,errs)
@@ -134,6 +137,7 @@ loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 uniqu
                 unique1
                 mod1
                 (addOrReplaceModule mod imp1)
+                inlines1
     in (loaded,errs)
 
 addOrReplaceModule :: Module -> Modules -> Modules

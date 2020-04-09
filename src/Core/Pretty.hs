@@ -76,7 +76,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       , if (coreInlineMax env0 < 0 || not (coreIface env0))
          then []
          else [text ".inline"] ++
-              map (prettyInlineDef env1{coreInlineMax = coreInlineMax env0}) allDefs
+              map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
       ]
       -- , map (prettyImportedSyn envX) importedSyns
       {-
@@ -177,8 +177,6 @@ prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
     text "rec {" <+> align (prettyDefs env defs) </> text "}"
-
-
 prettyDefGroup env (DefNonRec def)
   = prettyDef env def
 
@@ -186,14 +184,24 @@ prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
-prettyInlineDef :: Env -> Def -> Doc
-prettyInlineDef env def | (not (coreIface env) || (sizeDef def > coreInlineMax env))
+prettyInlineDefGroup :: Env -> DefGroup -> Doc
+prettyInlineDefGroup env (DefRec defs)
+  = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
+    -- text "rec {" <+> align (prettyDefs env defs) </> text "}"
+    vcat (map (prettyInlineDef env True) defs)
+prettyInlineDefGroup env (DefNonRec def)
+  = prettyInlineDef env False def
+
+
+prettyInlineDef :: Env -> Bool -> Def -> Doc
+prettyInlineDef env isRec def | (not (coreIface env) || not (isInlineable (coreInlineMax env) def))
   = empty
-prettyInlineDef env def@(Def name scheme expr vis sort nameRng doc)
+prettyInlineDef env isRec def@(Def name scheme expr vis sort nameRng doc)
   = keyword env (show sort)
+    <.> (if isRec then (space <.> keyword env "rec") else empty)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
-    <+> text ("// inline size: " ++ show (sizeDef def))
+    <+> text ("// inline size: " ++ show (costDef def))
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
 
 prettyDef :: Env -> Def -> Doc

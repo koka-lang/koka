@@ -59,7 +59,8 @@ module Core.Core ( -- Data structures
                    , isMonType, isMonEffect
 
                    -- Inlining
-                   , sizeDef
+                   , costDef, costExpr, costInf
+                   , isInlineable
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
@@ -295,7 +296,7 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef Name Expr
+data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int }
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -421,52 +422,50 @@ isMonEffect eff
                     _                   -> False) ls
 
 
-inlineMax = 25
-
-isInlineable :: Def -> Bool
-isInlineable def
-  = sizeDef def < inlineMax
+isInlineable :: Int -> Def -> Bool
+isInlineable inlineMax def
+  = costDef def <= inlineMax
 
 
-sizeInf :: Int
-sizeInf = 1000
+costInf :: Int
+costInf = 1000
 
-sizeDef :: Def -> Int
-sizeDef def
-  = let n = sizeLocalDef def
+costDef :: Def -> Int
+costDef def
+  = let n = costLocalDef def
     in if (defIsVal def)
-        then (if (n==0) then 0 else sizeInf) -- don't duplicate work
+        then (if (n==0) then 0 else costInf) -- don't duplicate work
         else n
 
-sizeLocalDef :: Def -> Int
-sizeLocalDef def
-  = sizeExpr (defExpr def)
+costLocalDef :: Def -> Int
+costLocalDef def
+  = costExpr (defExpr def)
 
-sizeDefGroup dg
+costDefGroup dg
   = case dg of
-      DefRec defs   -> sum (map sizeLocalDef defs)
-      DefNonRec def -> sizeLocalDef def
+      DefRec defs   -> sum (map costLocalDef defs)
+      DefNonRec def -> costLocalDef def
 
-sizeExpr :: Expr -> Int
-sizeExpr expr
+costExpr :: Expr -> Int
+costExpr expr
   = case expr of
       Var tname info     | isHiddenExternalName (getName tname)
                          -> trace ("hidden external: " ++ show (getName tname) ) $ 1000
-      Lam tname eff body -> 1 + sizeExpr body
+      Lam tname eff body -> 1 + costExpr body
       Var tname info     -> 0
-      App e args         -> 1 + sizeExpr e + sum (map sizeExpr args)
-      TypeLam tvs e      -> sizeExpr e
-      TypeApp e tps      -> sizeExpr e
+      App e args         -> 1 + costExpr e + sum (map costExpr args)
+      TypeLam tvs e      -> costExpr e
+      TypeApp e tps      -> costExpr e
       Con tname repr     -> 0
       Lit lit            -> 0
-      Let defGroups body -> sum (map sizeDefGroup defGroups) + (sizeExpr body)
-      Case exprs branches -> 1 + sum (map sizeExpr exprs) + sum (map sizeBranch branches)
+      Let defGroups body -> sum (map costDefGroup defGroups) + (costExpr body)
+      Case exprs branches -> 1 + sum (map costExpr exprs) + sum (map costBranch branches)
 
-sizeBranch (Branch patterns guards)
-  = sum (map sizeGuard guards)
+costBranch (Branch patterns guards)
+  = sum (map costGuard guards)
 
-sizeGuard (Guard test expr)
-  = sizeExpr test + sizeExpr expr
+costGuard (Guard test expr)
+  = costExpr test + costExpr expr
 
 
 

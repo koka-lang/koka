@@ -91,7 +91,7 @@ compile p flags fname
                  exitFailure
 
          Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
-                (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ 
+                (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _
                , warnings)
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero

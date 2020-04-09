@@ -57,6 +57,8 @@ import Core.UnReturn          ( unreturn )
 import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
+import Core.Inlines           ( inlinesExtends, extractInlines )
+import Core.Inline            ( inlineDefs )
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -525,21 +527,36 @@ resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOEr
 resolveImports term flags currentDir loaded0 imports
   = do (imports,resolved) <- resolveImportModules term flags currentDir [] imports
        -- trace ("resolved imports: " ++ show (map (show . modName) imports)) $ return ()
-       let load loaded []
+       let load msg loaded []
              = return loaded
-           load loaded (mod:mods)
+           load msg loaded (mod:mods)
              = do let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (rangeNull) (modName mod)
-                  -- trace ("import module: " ++ show (modName mod)) $ return ()
+                  trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
-                  load loaded1 mods
-       load loaded0 imports
+                  load msg loaded1 mods
+
+           loadInlines :: Loaded -> Module -> IOErr [Core.InlineDef]
+           loadInlines loaded mod
+             = case modInlines mod of
+                 Right idefs -> return idefs
+                 Left parseInlines ->
+                   do trace ("load module inline defs: " ++ show (modName mod)) $ return ()
+                      liftError $ parseInlines (loadedGamma loaded) -- process inlines after all have been loaded
+
+
+       loadedImp  <- load "import" loaded0 imports
+       loadedFull <- load "inline import" loaded0 resolved
+       inlineDefss   <- mapM (loadInlines loadedFull) resolved
+       let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
+           inlineDefs = concat inlineDefss
+       return loadedImp{ loadedModules = modsFull, loadedInlines = inlinesExtends inlineDefs (loadedInlines loadedImp) }
 
 resolveImportModules :: Terminal -> Flags -> FilePath -> [Module] -> [ModImport] -> IOErr ([Module],[Module])
 resolveImportModules term flags currentDir resolved []
   = return ([],resolved)
 resolveImportModules term flags currentDir resolved (imp:imps)
   = do -- trace ("resolve imported modules: " ++ show (impName imp) ++ ", resolved: " ++ show (map (show . modName) resolved)) $ return ()
-       (mod,resolved1) <- case filter (\m -> impFullName imp == modName m) resolved of
+       (mod,resolved1) <- case filter (\m -> impName imp == modName m) resolved of
                             (mod:_) -> return (mod,resolved)
                             _       -> resolveModule term flags currentDir resolved imp
        -- trace ("newly resolved from " ++ show (modName mod) ++ ": " ++ show (map (show . modName) resolved)) $ return ()
@@ -662,7 +679,7 @@ resolveModule term flags currentDir modules mimp
                              -- liftIO $ copyIFaceToOutputDir term flags iface
                              let mod = Module (Core.coreName core) iface (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
-                                                  core parseInlines Nothing ftime
+                                                  core (Left parseInlines) Nothing ftime
                              return mod
              loadFromModule iface root stem mod
 
@@ -873,16 +890,26 @@ inferCheck loaded flags line coreImports program1
        let (coreDefsLifted,uniqueLift) = liftFunctions penv uniqueSimp coreDefsSimp
        when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore penv uniqueLift gamma coreDefsLifted
 
+       -- do an inlining pass
+       let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsSimp) (loadedInlines loaded3)
+           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift coreDefsSimp
+       when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore penv uniqueInl gamma coreDefsInl
+
+
        -- Assemble core program and return
-       let coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
+       let coreDefsLast = coreDefsInl
+           uniqueLast   = uniqueInl
+
+           coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
                           coreProgram1{ Core.coreProgImports = coreImports
-                                      , Core.coreProgDefs = coreDefsLifted  -- coreDefsSimp
+                                      , Core.coreProgDefs = coreDefsLast  -- coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
            loaded4 = loaded3{ loadedGamma = gamma
-                            , loadedUnique = uniqueLift
+                            , loadedUnique = uniqueLast
                             , loadedModule = (loadedModule loaded3){ modCore = coreProgram2, modRangeMap = mbRangeMap2 }
+                            , loadedInlines = inlines
                             }
 
        -- for now, generate C# code here

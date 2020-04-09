@@ -331,13 +331,15 @@ externalTarget
 {--------------------------------------------------------------------------
   Inline defs
 --------------------------------------------------------------------------}
-inlineDef :: Env -> LexParser (Name,Expr)
+inlineDef :: Env -> LexParser InlineDef
 inlineDef env
   = do (sort,doc) <- pdefSort
+       isRec      <- do keyword "rec"; return True
+                     <|> return False
        (name) <- canonical (funid <|> binderDot)
        -- trace ("core inline def: " ++ show name) $ return ()
        expr <- parseBody env
-       return (name,expr)
+       return (InlineDef name expr isRec (costExpr expr))
 
 parseBody env
   = do keyword "="
@@ -404,7 +406,16 @@ parseMatch env
 
 parseCon :: Env -> LexParser Expr
 parseCon env
-  = do name <- qualifiedConId
+  = {-
+       do qname <- try $ do (q,_) <- modulepath
+                         specialOp "/"
+                         (name,_) <- parens constructorDot
+                         return (qualify q name)
+       con  <- envLookupCon env qname
+       return $ Con (TName qname (infoType con)) (infoRepr con)
+  <|>
+  -}
+    do name <- qualifiedConId
        con  <- envLookupCon env name
        return $ Con (TName name (infoType con)) (infoRepr con)
 
@@ -413,7 +424,7 @@ parseVar env
   =do q <- try $ do (q,_) <- modulepath
                     specialOp "/"
                     return q
-      (name,_) <- binderDot
+      name <- canonical binderDot
       let qname = qualify q name
       envLookupVar env qname
   <|>
@@ -522,16 +533,22 @@ parsePatWild
        return ([],PatWild)
 
 qualifiedConId
-   = do (name,_) <- qconid
-        return name
-   <|>
-     do n <-  try $ do modulepath
+   = do n <-  try $ do modulepath
                        specialOp "/"
                        special "("
                        cs <- many comma
                        special ")"
                        return (length cs)
         return (nameTuple (n+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
+   <|>
+     do qname <- try $ do (q,_) <- modulepath
+                          specialOp "/"
+                          (name,_) <- parens constructorDot
+                          return (qualify q name)
+        return qname
+   <|>
+     do (name,_) <- qconid
+        return name
 
 
 
