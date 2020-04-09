@@ -101,7 +101,8 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
     env1         = env0{ importsMap = {- extendImportMap extraImports -} (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
-                         coreInlineMax = (-1) }
+                         coreInlineMax = (-1),
+                         coreShowDef = not (coreIface env0) }
 
 prettyImport env imp
   = prettyComment env (importModDoc imp) $

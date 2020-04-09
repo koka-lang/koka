@@ -370,6 +370,7 @@ compileProgram' term flags modules compileTarget fname program
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports term flags (dirname fname) loaded (map ImpProgram (programImports program))
+       trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
                                            color (colorSource (colorScheme flags)) (pretty (name)))
@@ -526,7 +527,7 @@ resolvePubImports flags loaded0 mod
 resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOErr (Loaded)
 resolveImports term flags currentDir loaded0 imports
   = do (imports,resolved) <- resolveImportModules term flags currentDir [] imports
-       -- trace ("resolved imports: " ++ show (map (show . modName) imports)) $ return ()
+       -- trace ("resolved imports: " ++ show (map (show . modName) imports) ++ ", resolved: " ++ show (map (show . modName) resolved)) $ return ()
        let load msg loaded []
              = return loaded
            load msg loaded (mod:mods)
@@ -549,7 +550,9 @@ resolveImports term flags currentDir loaded0 imports
        inlineDefss   <- mapM (loadInlines loadedFull) resolved
        let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
            inlineDefs = concat inlineDefss
-       return loadedImp{ loadedModules = modsFull, loadedInlines = inlinesExtends inlineDefs (loadedInlines loadedImp) }
+           inlines    = inlinesExtends inlineDefs (loadedInlines loadedImp)
+       trace ("resolved inlines: " ++ show (length inlineDefss, length inlineDefs)) $ return ()
+       return loadedImp{ loadedModules = modsFull, loadedInlines = inlines }
 
 resolveImportModules :: Terminal -> Flags -> FilePath -> [Module] -> [ModImport] -> IOErr ([Module],[Module])
 resolveImportModules term flags currentDir resolved []
@@ -892,13 +895,30 @@ inferCheck loaded flags line coreImports program1
 
        -- do an inlining pass
        let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsSimp) (loadedInlines loaded3)
-           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift coreDefsSimp
+           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift inlines coreDefsSimp
        when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore penv uniqueInl gamma coreDefsInl
+
+       -- and one more simplify
+       (coreDefsSimp2,uniqueSimp2)
+                  <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
+                      then return (coreDefsInl,uniqueInl)
+                      else -- trace "simplify" $
+                           do let (cdefs0,unique0) -- Core.Simplify.simplify $
+                                          -- Core.Simplify.simplify
+                                     = simplifyDefs False (simplify flags) uniqueInl penv coreDefsInl
+                              -- recheck simplified core
+                              when (coreCheck flags) $
+                                trace "after simplify core check 1" $Core.Check.checkCore penv unique0 gamma cdefs0
+                              -- and one more unsafe simplify to remove open calls etc.
+                              let (cdefs1,unique1) =  simplifyDefs False 1 unique0 penv cdefs0
+                              when (coreCheck flags) $
+                                trace "after simplify core check 2" $Core.Check.checkCore penv unique1 gamma cdefs1
+                              return (cdefs1,unique1) -- $ simplifyDefs False 1 unique4a penv cdefs
 
 
        -- Assemble core program and return
-       let coreDefsLast = coreDefsInl
-           uniqueLast   = uniqueInl
+       let coreDefsLast = coreDefsSimp2
+           uniqueLast   = uniqueSimp2
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $

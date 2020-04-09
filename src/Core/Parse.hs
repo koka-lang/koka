@@ -54,9 +54,9 @@ parseInlines prog source env inlines gamma
 
 pInlines :: Env -> LexParser [InlineDef]
 pInlines env
-  = do many (inlineDef env)
+  = do idefs <- many (inlineDef env)
        eof
-       return []
+       return idefs
 
 program :: Source -> LexParser (Core,ParseInlines)
 program source
@@ -339,7 +339,7 @@ inlineDef env
        (name) <- canonical (funid <|> binderDot)
        -- trace ("core inline def: " ++ show name) $ return ()
        expr <- parseBody env
-       return (InlineDef name expr isRec (costExpr expr))
+       return (InlineDef (envQualify env name) expr isRec (costExpr expr))
 
 parseBody env
   = do keyword "="
