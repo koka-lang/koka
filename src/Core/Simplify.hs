@@ -97,14 +97,16 @@ topDown (Let dgs body)
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
-            -> -- trace ("simplify let: " ++ show x) $
+            -> trace ("simplify let: " ++ show x) $
                if (isTotalAndCheap se)
                 then -- inline very small expressions
                      -- trace (" inline small") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
                 Just (tpars,pars,_,_)
-                  | occursAtMostOnceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
+                  | -- occursAtMostOnceApplied
+                     occursAtMostTwiceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
+                     -- TODO: this is probably too aggresive but inlines all yield-bind next arguments...
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
                      -- trace (" inline once & applied") $
@@ -508,8 +510,9 @@ occursAtMostOnce name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
       Just oc -> case oc of
-                   Many -> False
-                   _    -> True
+                   None       -> True
+                   Full 1 _ _ -> True
+                   _          -> False
 
 
 -- occurs at most once; and if so, it was fully applied to `tn` type arguments and `n` arguments.
@@ -518,30 +521,43 @@ occursAtMostOnceApplied name tn n expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
       Just oc -> case oc of
-                   Many      -> False
-                   Once tm m -> (tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
-                   _         -> True
+                   None      -> True
+                   Full 1 tm m -> (tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
+                   _         -> False
+
+occursAtMostTwiceApplied :: Name -> Int -> Int -> Expr -> Bool
+occursAtMostTwiceApplied name tn n expr
+ = case M.lookup name (occurrences expr) of
+     Nothing -> True
+     Just oc -> case oc of
+                  None      -> True
+                  Full cnt tm m -> (cnt <= 2 && tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
+                  _         -> False
 
 
 
-data Occur = None | Once Int Int | Many
+data Occur = None | Full Int {-times-} Int Int | Many
 
 add oc1 oc2
   = case oc1 of
       None -> oc2
       Many -> Many
-      Once _ _ -> case oc2 of
-                    None -> oc1
-                    _    -> Many
+      Full cnt m n -> case oc2 of
+                        None -> oc1
+                        Full cnt2 m2 n2 | n>n2 -> Full cnt m n
+                                        | n<n2 -> Full cnt2 m2 n2
+                                        | m==m2 && n==n2 -> Full (cnt+cnt2) m n
+                                        | otherwise -> Many
+                        _    -> Many
 
 occurrences :: Expr -> M.NameMap Occur
 occurrences expr
   = case expr of
       App (TypeApp (Var v _) targs) args
-        -> ounions (M.singleton (getName v) (Once (length targs) (length args)) : map occurrences args)
+        -> ounions (M.singleton (getName v) (Full 1 (length targs) (length args)) : map occurrences args)
       App (Var v _) args
-        -> ounions (M.singleton (getName v) (Once 0 (length args)) : map occurrences args)
-      Var v _ -> M.singleton (getName v) (Once 0 0)
+        -> ounions (M.singleton (getName v) (Full 1 0 (length args)) : map occurrences args)
+      Var v _ -> M.singleton (getName v) (Full 1 0 0)
 
       Con{} -> M.empty
       Lit{} -> M.empty
