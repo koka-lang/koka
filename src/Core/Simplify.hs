@@ -170,6 +170,19 @@ topDown (App (Lam pars eff body) args) | length pars == length args
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
 
+-- Direct function applications
+topDown (App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
+  = do newNames <- mapM uniqueTName pars
+       let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
+           argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
+       topDown $
+        substitute (subNew (zip tpars targs)) $
+         Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
+  where
+    makeDef (TName npar nparTp) arg
+      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
+
+
 
 {-
 

@@ -326,8 +326,8 @@ prettyBranches env (branches)
 
 prettyBranch :: Env -> Branch -> Doc
 prettyBranch env (Branch patterns guards)
-  = hsep (punctuate comma (map (prettyPattern env{ prec = precApp } ) patterns)) <.>
-     vcat (map (prettyGuard env) guards) <.> semi
+  = hsep (punctuate comma (map (prettyPattern env{ prec = precApp } ) patterns))
+     <.> linebreak <.> indent 2 (vcat (map (prettyGuard env) guards)) <.> semi
 
 prettyGuard   :: Env -> Guard -> Doc
 prettyGuard env (Guard test expr)

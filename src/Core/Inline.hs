@@ -80,7 +80,7 @@ inlExpr expr
     App (TypeApp f targs) args
       -> do f' <- inlAppExpr f (length targs) (argLength args)
             args' <- mapM inlExpr args
-            return (App f' args')
+            return (App (TypeApp f' targs) args')
 
     App f args
       -> do args' <- mapM inlExpr args
