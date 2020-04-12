@@ -40,7 +40,7 @@ import Core.Pretty
 import Core.Inlines
 
 trace s x =
-  Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 
@@ -57,7 +57,7 @@ inlineDefs penv u inlines defs
 --------------------------------------------------------------------------}
 inlDefGroups :: DefGroups -> Inl DefGroups
 inlDefGroups defGroups
-  = do traceDoc (\penv -> text "inlining")
+  = do -- traceDoc (\penv -> text "inlining")
        mapM inlDefGroup defGroups
 
 inlDefGroup (DefRec defs)

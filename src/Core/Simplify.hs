@@ -100,33 +100,33 @@ topDown (Let dgs body)
             -> -- cannot inline effectful expressions
                topDownLet sub (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
-             -> trace ("simplify let: " ++ show x) $
+             -> -- trace ("simplify let: " ++ show x) $
                 do maxSmallOccur <- getDuplicationMax
                    let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
                    case occurrencesOf x (Let dgs body) of
                      -- no occurrence, disregard
                      Occur 0 m n 0
-                       -> trace "no occurrence" $
+                       -> -- trace "no occurrence" $
                           topDownLet sub (acc) dgs body
                      -- occurs once, always inline (TODO: maybe only if it is not very big?)
                      Occur vcnt m n acnt | vcnt + acnt == 1
-                       -> trace "occurs once: inline" $
+                       -> -- trace "occurs once: inline" $
                           inlineExpr
                      -- occurs fully applied, check if it small enough to inline anyways;
                      -- as it is a function, make it expensive to inline partial applications to avoid too much duplication
                      Occur acnt m n vcnt  | ((acnt + vcnt*3) * sizeOfExpr se) < maxSmallOccur
-                       -> trace "occurs as cheap function: inline" $
+                       -> -- trace "occurs as cheap function: inline" $
                           inlineExpr
                      -- occurs multiple times as variable, check if it small enough to inline anyways
                      Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
-                       -> trace "occurs as cheap value: inline" $
+                       -> -- trace "occurs as cheap value: inline" $
                           inlineExpr
                      -- inline total and very small expressions
                      Many n | (n*sizeOfExpr se) < maxSmallOccur
-                       -> trace "occurs many as cheap value: inline" $
+                       -> -- trace "occurs many as cheap value: inline" $
                           inlineExpr
                      -- dont inline
-                     oc -> trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
+                     oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
                            topDownLet sub (sdg:acc) dgs body
 
             {-

@@ -40,10 +40,10 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore prettyEnv uniq gamma  defGroups
+checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
+checkCore liberalEffects prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv False gamma prettyEnv []) of
+      Check c -> case c uniq (CEnv liberalEffects gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
 
@@ -55,7 +55,7 @@ checkCore prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ mon :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+data CheckEnv = CEnv{ liberal :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
               | Err Doc
@@ -125,8 +125,6 @@ checkTName (TName name tp)
 checkType :: Type -> Check Type
 checkType tp
   = return tp
-    --do env <- getEnv
-    --   return (if (mon env) then monType tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups
@@ -158,7 +156,7 @@ checkDef d
     do tp <- check (defExpr d)
        dtp <- checkType (defType d)
        -- trace ("deftype: " ++ show (defType d) ++ "\ninferred: " ++ show tp) $ return ()
-       match "checking annotation on definition" (prettyDef d) (dtp) tp
+       matchSub "checking annotation on definition" (prettyDef d) (dtp) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX tname True
@@ -190,7 +188,7 @@ check expr
                   -> do -- env <- getEnv
                         --when (length tpPars /= length args + n) $
                         --  failDoc (\env -> text "wrong number of arguments in application: " <+> prettyExpr expr env)
-                        sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                        sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
                         return tpRes
       TypeLam tvars body
         -> do tp <- check body
@@ -268,6 +266,28 @@ findConstrArgs fdoc tpScrutinee con
         (Left error, _)  -> showCheck "comparing scrutinee with branch type" "cannot unify" tpRes tpScrutinee fdoc
         (Right _, subst) -> return $ (subst |-> map snd tpArgs)
 
+matchSub :: String -> (Env -> Doc) -> Type -> Type -> Check ()
+matchSub when fdoc a b
+  = do env <- getEnv
+       if (not (liberal env))
+        then match when fdoc a b
+        else -- check if b can be used as an a
+              case (splitFunType a, splitFunType b) of
+                (Just (targs1,teff1,tres1), Just (targs2,teff2,tres2)) | length targs1 == length targs2
+                  -> do match when fdoc tres1 tres2
+                        sequence_ [match when fdoc targ1 targ2 | ((_,targ1),(_,targ2)) <- zip targs1 targs2]
+                        matchSubEff when fdoc teff1 teff2
+                _ -> match when fdoc a b
+
+matchSubEff :: String -> (Env -> Doc) -> Type -> Type -> Check ()
+matchSubEff when fdoc eff1 eff2
+  = let (ls1,tl1) = extractHandledEffect eff1
+        (ls2,tl2) = extractHandledEffect eff2
+    in if (length ls1 /= length ls2)
+        then showCheck "handled effects do not match" when eff1 eff2 fdoc
+        else do sequence_ [match when fdoc targ1 targ2 | (targ1,targ2) <- zip ls1 ls2]
+                return ()
+
 
 -- In Core, when we are comparing types, we are interested in exact
 -- matches only.
@@ -278,9 +298,7 @@ match when fdoc a b
          (Left error, _)  -> showCheck ("cannot unify (" ++ show error ++ ")") when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return ()
-                              else do env <- getEnv
-                                      if (mon env) then return ()
-                                        else showCheck "non-empty substitution" when a b (\env -> text "")
+                              else do showCheck "non-empty substitution" when a b (\env -> text "")
                                       return ()
 
 -- Print unification error

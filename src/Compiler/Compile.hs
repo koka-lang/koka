@@ -370,7 +370,7 @@ compileProgram' term flags modules compileTarget fname program
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports term flags (dirname fname) loaded (map ImpProgram (programImports program))
-       trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
+       -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
                                            color (colorSource (colorScheme flags)) (pretty (name)))
@@ -541,7 +541,7 @@ resolveImports term flags currentDir loaded0 imports
              = case modInlines mod of
                  Right idefs -> return idefs
                  Left parseInlines ->
-                   do trace ("load module inline defs: " ++ show (modName mod)) $ return ()
+                   do -- trace ("load module inline defs: " ++ show (modName mod)) $ return ()
                       liftError $ parseInlines (loadedGamma loaded) -- process inlines after all have been loaded
 
 
@@ -551,7 +551,7 @@ resolveImports term flags currentDir loaded0 imports
        let modsFull   = zipWith (\mod idefs -> mod{ modInlines = Right idefs }) resolved inlineDefss
            inlineDefs = concat inlineDefss
            inlines    = inlinesExtends inlineDefs (loadedInlines loadedImp)
-       trace ("resolved inlines: " ++ show (length inlineDefss, length inlineDefs)) $ return ()
+       -- trace ("resolved inlines: " ++ show (length inlineDefss, length inlineDefs)) $ return ()
        return loadedImp{ loadedModules = modsFull, loadedInlines = inlines }
 
 resolveImportModules :: Terminal -> Flags -> FilePath -> [Module] -> [ModImport] -> IOErr ([Module],[Module])
@@ -848,12 +848,12 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return ()
-        else trace "initial core check" $ Core.Check.checkCore penv unique4 gamma coreDefs0
+        else trace "initial core check" $ Core.Check.checkCore False penv unique4 gamma coreDefs0
 
        -- remove return statements
        coreDefsUR <- unreturn penv coreDefs0
        -- let coreDefsUR = coreDefs0
-       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore penv unique4 gamma coreDefsUR
+       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore False penv unique4 gamma coreDefsUR
 
        -- do monadic effect translation (i.e. insert binds)
        coreDefsMon
@@ -864,13 +864,13 @@ inferCheck loaded flags line coreImports program1
                else do cdefs <- Core.Monadic.monTransform penv coreDefsUR
                        -- recheck cps transformed core
                        when (coreCheck flags) $
-                          trace "monadic core check" $ Core.Check.checkCore penv unique4 gamma cdefs
+                          trace "monadic core check" $ Core.Check.checkCore False penv unique4 gamma cdefs
                        return (cdefs)
 
 
        -- resolve phantom .open
        let coreDefsOR = openResolve penv gamma coreDefsMon
-       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore penv unique4 gamma coreDefsOR
+       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True penv unique4 gamma coreDefsOR
 
        -- simplify coreF if enabled
        (coreDefsSimp,uniqueSimp)
@@ -882,17 +882,17 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) (simplifyMaxDup flags) unique4 penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
-                                trace "after simplify core check 1" $Core.Check.checkCore penv unique4a gamma cdefs0
+                                trace "after simplify core check 1" $Core.Check.checkCore True penv unique4a gamma cdefs0
                               return (cdefs0,unique4a) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- lifting all functions to top level
        let (coreDefsLifted,uniqueLift) = liftFunctions penv uniqueSimp coreDefsSimp
-       when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore penv uniqueLift gamma coreDefsLifted
+       when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True penv uniqueLift gamma coreDefsLifted
 
        -- do an inlining pass
        let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsSimp) (loadedInlines loaded3)
            (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift inlines coreDefsSimp
-       when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore penv uniqueInl gamma coreDefsInl
+       when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify
        (coreDefsSimp2,uniqueSimp2)
@@ -904,7 +904,7 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
                               -- recheck simplified core
                               when (coreCheck flags) $
-                                trace "after simplify core check 1" $Core.Check.checkCore penv unique0 gamma cdefs0
+                                trace "after simplify core check 1" $Core.Check.checkCore True penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
 
