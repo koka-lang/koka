@@ -117,11 +117,9 @@ effect cheating {
   fun cheat<a>(player:player) : a
 }
 
-fun cheatReport(action : () -> <cheating|e> string ) : e string {
-  handle(action) {
-    //return x -> x
-    cheat(p) -> id((p:player).show + " cheated!")
-  }
+val cheatReport = handler {
+  return x -> x
+  cheat(p) -> error((p:player).show + " cheated!")
 }
 
 val check = handler {
@@ -212,7 +210,7 @@ val state-param = handler(s) {
 
 fun state(init,action) {
   var s := init
-  handle(action) {
+  handle({mask<local>(action)}) {
     get()  -> resume(s)
     put(x) -> { s := x; resume(()) }
   }
@@ -221,7 +219,7 @@ fun state(init,action) {
 alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
-
+/*
 val scoreUpdater = handler {
   return p -> {
     put(updateScore(p,get()))
@@ -261,7 +259,7 @@ fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
 fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
-
+*/
 
 fun main() {
   [""

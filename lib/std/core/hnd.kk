@@ -40,7 +40,7 @@ private extern fresh-marker-int() : int32 {
   js inline "$marker_unique++"
 }
 
-private fun fresh-marker() : e marker<e,r> {
+private fun fresh-marker() : marker<e,r> {
   Marker(fresh-marker-int())
 }
 
@@ -579,6 +579,14 @@ public fun ".open-at0"( i: ev-index, f : () -> e1 b ) : e2 b {
 public fun ".open-at1"( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev1(f)(x)
+  if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
+  val j = evv-set-ofs(ofs)
+  res
+}
+
+public fun ".open-at2"( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+  val ofs = evv-set-ofs(i)
+  val res = cast-ev2(f)(x1,x2)
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
   val j = evv-set-ofs(ofs)
   res

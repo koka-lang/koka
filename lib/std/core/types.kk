@@ -50,6 +50,9 @@ type vector<a>
 // The divergence effect: a divergent function may not terminate.
 type div :: X
 
+// The non-determism effect.
+type ndet :: X
+
 // The alloc effect signifies a function may allocate in a heap `:h`
 type alloc :: H -> X
 
@@ -232,7 +235,11 @@ extern inline unsafe-decreasing( x : a ) : a { inline "#1" }
 private extern inline unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a) { inline "#1" }
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
-fun unsafe-total( action : () -> e a ) : a
-{
+fun unsafe-total( action : () -> e a ) : a {
+  unsafe-total-cast( action )()
+}
+
+// _Unsafe_. This function pretends the give action was deterministic
+fun unsafe-ndet( action : () -> <ndet|e> a ) : e a {
   unsafe-total-cast( action )()
 }

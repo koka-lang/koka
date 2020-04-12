@@ -96,7 +96,7 @@ topDown (Let dgs body)
           DefRec defs
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
-          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (hasNoEffect se)
             -> -- cannot inline effectful expressions
                topDownLet sub (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
@@ -494,7 +494,7 @@ isTotalAndCheap expr
       App (TypeApp (Var v _) _) [arg]   | getName v == nameEffectOpen -> isTotalAndCheap arg
       -- functions that are immediately applied to something cheap (cps generates this for resumes)
       -- Lam pars eff (App e args)
-      --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
+        --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
       -- type application / abstraction
       TypeLam _ body -> isTotalAndCheap body
       TypeApp body _ -> isTotalAndCheap body
@@ -728,3 +728,25 @@ getDuplicationMax :: Simp Int
 getDuplicationMax
   = do e <- getEnv
        return (dupMax e)
+
+
+
+-- | a core expression that cannot cause any evaluation _for sure_
+hasNoEffect :: Expr -> Bool
+hasNoEffect  expr
+ = case expr of
+     Lam _ _ _   -> True
+     Var _ _     -> True
+     TypeLam _ e -> hasNoEffect e
+     TypeApp e _ -> hasNoEffect e
+     Con _ _     -> True
+     Lit _      -> True
+     Let dgs e  -> all hasNoEffectDef (flattenDefGroups dgs) && hasNoEffect e
+     Case exps branches -> all hasNoEffect exps && all hasNoEffectBranch branches
+     _          -> False  -- todo: a let or case could be total
+
+
+hasNoEffectDef def = hasNoEffect (defExpr def)
+
+hasNoEffectBranch (Branch pat guards) = all hasNoEffectGuard guards
+hasNoEffectGuard (Guard test expr)    = hasNoEffect test && hasNoEffect expr
