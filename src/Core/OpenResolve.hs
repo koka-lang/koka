@@ -132,6 +132,9 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
               then -- all handled effect match, just use expr
                    trace "masking? " $ expr
               else failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
+       else if (matchType tl1 tl2 && and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+        then -- same handled effects, just use expr
+             expr
         else -- not equal, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
@@ -158,6 +161,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         in wrapper (resolve (nameOpenAt n)) [App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]]
 
                  _ -> failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
+                                 ++ " with handled: " ++ show (map (ppType penv) ls1, map (ppType penv) ls2)
 
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
   = failure $ "Core.OpenResolve.resOpen: open applied to a non-function? " ++ show (ppType penv effTo)

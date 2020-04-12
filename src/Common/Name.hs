@@ -21,7 +21,7 @@ module Common.Name
 
           , newFieldName, isFieldName, isWildcard
           , newHiddenExternalName, isHiddenExternalName
-          , newHiddenName, isHiddenName
+          , newHiddenName, isHiddenName, hiddenNameStartsWith
           , makeHiddenName, makeFreshHiddenName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
@@ -29,11 +29,13 @@ module Common.Name
           , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
           , toEffectTagName
+          , toHandleName, isHandleName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName
+          , isEarlyBindName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath
@@ -46,6 +48,10 @@ import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse)
+
+
+isEarlyBindName name
+  = isHandleName name -- || nameId name `startsWith` "clause-" || hiddenNameStartsWith name "tag"
 
 ----------------------------------------------------------------
 -- Names
@@ -278,6 +284,15 @@ isHandlerName name
 fromHandlerName :: Name -> Name
 fromHandlerName name
   = newQualified (nameModule name) (drop 5 (nameId name))
+
+-- | Create a handle function name from an effect type name.
+toHandleName :: Name -> Name
+toHandleName name
+  = makeHiddenName "handle" name
+
+isHandleName :: Name -> Bool
+isHandleName name
+  = hiddenNameStartsWith name "handle"
 
 
 -- | Create an operations type name from an effect type name.

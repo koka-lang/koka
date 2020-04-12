@@ -450,7 +450,8 @@ costExpr :: Expr -> Int
 costExpr expr
   = case expr of
       Var tname info     | isHiddenExternalName (getName tname)
-                         -> trace ("hidden external: " ++ show (getName tname) ) $ 1000
+                         -> -- trace ("hidden external: " ++ show (getName tname) ) $
+                            1000
       Lam tname eff body -> 1 + costExpr body
       Var tname info     -> 0
       App e args         -> 1 + costExpr e + sum (map costExpr args)

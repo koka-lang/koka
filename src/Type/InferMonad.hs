@@ -162,7 +162,9 @@ generalize contextRange range close eff0 rho0 core0
                 return (nrho,score1)
 
         else do -- check that the computation is total
-                inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff1
+                if (close)
+                 then inferUnify (Check "Generalized values cannot have an effect" contextRange) range typeTotal eff1
+                 else return ()
                 -- simplify and improve again since we can have substituted more
                 (ps2,(eff2,rho2),core2) <- simplifyAndImprove contextRange free ps1 (eff1,rho1)
                 -- due to improvement, our constraints may need to be split again

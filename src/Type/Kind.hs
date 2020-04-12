@@ -39,7 +39,11 @@ data HandledSort = ResumeOnce | ResumeMany
                  deriving (Eq,Show)
 
 isHandledEffect :: Type -> Bool
-isHandledEffect tp = isJust (getHandledEffect tp)
+isHandledEffect tp -- isJust (getHandledEffect tp)
+  = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) [t]
+        -> (name == nameTpHandled || name == nameTpHandled1)
+      _ -> False
 
 
 getHandledEffect :: Type -> Maybe (HandledSort,Name)

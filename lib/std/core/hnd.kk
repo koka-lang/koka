@@ -20,6 +20,10 @@ public fun ".htag"( tag : string ) {
   Htag(tag)
 }
 
+public fun hidden-htag( tag : string ) {
+  Htag(tag)
+}
+
 abstract type ev<h> {
   con Ev<e,r>(:htag<h>, :marker<e,r>, :h<e,r>, :evv<e>)
 }
@@ -36,7 +40,7 @@ private extern fresh-marker-int() : int32 {
   js inline "$marker_unique++"
 }
 
-private fun fresh-marker() : marker<e,r> {
+private fun fresh-marker() : e marker<e,r> {
   Marker(fresh-marker-int())
 }
 
@@ -212,6 +216,10 @@ public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1
   evv-set(w1)
   prompt(w0,w1,m,ret,cast-ev0(action)())
 }
+
+//public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+//  return hidden-handle(tag,h,ret,action);
+//}
 
 //public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
 //  (fun(action){ hidden-handle(tag,h,ret,action) })
@@ -460,6 +468,22 @@ private fun under2( w : evv<e>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
   evv-set(w0)
   z
 }
+
+private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : (() -> b) -> e r ) : e r {
+  val resumed = cast-ev1(ref)(False)
+  fun kprotect(ret) {
+    val keep = cast-ev2(set)(resumed,True)
+    k({ret})
+  }
+  val res = clause(x1,x2,kprotect)
+  if (yielding()) return yield-extend( fun(xres){ protect-check(resumed,k,xres) } )
+  protect-check(resumed,k,res)
+}
+
+public fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,e,r> {
+  Clause2(fun(m,w,x1,x2){ yield-to(m, fun(k){ protect(x1,x2,clause,k) }) })
+}
+
 
 public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ yield-to(m, fun(k){ op(x1,x2,Resume-context(k)) } ) })

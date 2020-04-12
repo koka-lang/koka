@@ -858,7 +858,7 @@ makeEffectDecl decl =
       -- declare the handle function
 
       handleRetTp= TypeBinder (newHiddenName "b") kindStar irng irng
-      handleName = makeHiddenName "handle" id
+      handleName = toHandleName id
       handleEff  = if isResource
                     then tpVar hndEffTp
                     else makeEffectExtend irng effTp (tpVar hndEffTp) :: UserType

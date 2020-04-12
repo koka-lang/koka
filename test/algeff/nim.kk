@@ -117,9 +117,11 @@ effect cheating {
   fun cheat<a>(player:player) : a
 }
 
-val cheatReport = handler {
-  return x -> x
-  cheat(p) -> error(p.show + " cheated!")
+fun cheatReport(action : () -> <cheating|e> string ) : e string {
+  handle(action) {
+    //return x -> x
+    cheat(p) -> id((p:player).show + " cheated!")
+  }
 }
 
 val check = handler {
@@ -174,7 +176,7 @@ fun bobChooses(m) {
 
 val allResults = handler {
   return x -> [x]
-  choose() -> resume(True) + resume(False)
+  choose() -> resume(True) + (resume(False):list<_>)
 }
 
 fun testChoose() {

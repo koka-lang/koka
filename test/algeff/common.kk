@@ -4,7 +4,7 @@
 // --------------------------------------------------------
 public module common
 
-import std/os/readline
+// import std/os/readline
 
 // --------------------------------------------------------
 //  Exceptions
@@ -77,23 +77,25 @@ fun counter() {
   }
 }
 
+/*
 val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
 }
+*/
 
 fun state(init, action) {
   var s := init
-  handle(action) {
+  handle({mask<local>(action)}) {
     return x -> (x,s)
-    get()    -> { val x = s; s := s+1; resume(x) }
+    get()    -> { resume(s) }
     put(x)   -> { s := x; resume(()) }
   }
 }
 
 fun test3() {
-  state(2,counter)
+  state(2,counter).fst
 }
 
 
@@ -152,7 +154,7 @@ val coinflip = handler {
 
 val amb = handler {
   return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  flip()   -> resume(False) + (resume(True) : list<_>)
 }
 
 fun test5() {
@@ -183,6 +185,7 @@ fun test7() {
 // --------------------------------------------------------
 //  An asynchronous effect
 // --------------------------------------------------------
+/*
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
@@ -203,7 +206,7 @@ fun ask-age-err() {
     println("error: " + err )
   }
 }
-
+*/
 
 // --------------------------------------------------------
 //  Testing
