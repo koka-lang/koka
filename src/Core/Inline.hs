@@ -48,7 +48,7 @@ trace s x =
 inlineDefs :: Pretty.Env -> Int -> Inlines -> DefGroups -> (DefGroups,Int)
 inlineDefs penv u inlines defs
   = runInl penv u inlines $
-    do traceDoc $ \penv -> ppInlines penv inlines
+    do -- traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        inlDefGroups defs
 
 

@@ -94,6 +94,7 @@ data Flags
          , targets          :: [Target]
          , host             :: Host
          , simplify         :: Int
+         , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
          , includePath      :: [FilePath]
@@ -137,6 +138,7 @@ flagsNull
           [JS]
           Node
           5     -- simplify passes
+          120   -- simplify dup max
           defaultColorScheme
           "out"    -- out-dir
           []
@@ -227,6 +229,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
+ , hiddenNumOption 120 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"

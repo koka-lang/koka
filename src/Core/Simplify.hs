@@ -34,20 +34,20 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Bool -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
-simplifyDefs unsafe n uniq penv defs
-  = runSimplify unsafe uniq penv (simplifyN n defs)
+simplifyDefs :: Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
+simplifyDefs unsafe nRuns duplicationMax uniq penv defs
+  = runSimplify unsafe duplicationMax uniq penv (simplifyN nRuns defs)
 
 simplifyN :: Int -> DefGroups -> Simp DefGroups
-simplifyN n defs
-  = if (n <= 0) then return defs
+simplifyN nRuns defs
+  = if (nRuns <= 0) then return defs
     else do defs' <- simplify defs
-            simplifyN (n-1) defs'
+            simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => a -> Unique a
-uniqueSimplify expr
+uniqueSimplify :: Simplify a => Int -> a -> Unique a
+uniqueSimplify duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify False u Pretty.defaultEnv (simplify expr)
+       let (x,u') = runSimplify False duplicationMax u Pretty.defaultEnv (simplify expr)
        setUnique u'
        return x
 
@@ -96,23 +96,55 @@ topDown (Let dgs body)
           DefRec defs
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
-          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})
-            -> trace ("simplify let: " ++ show x) $
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
+            -> -- cannot inline effectful expressions
+               topDownLet sub (sdg:acc) dgs body
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
+             -> trace ("simplify let: " ++ show x) $
+                do maxSmallOccur <- getDuplicationMax
+                   let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
+                   case occurrencesOf x (Let dgs body) of
+                     -- no occurrence, disregard
+                     Occur 0 m n 0
+                       -> trace "no occurrence" $
+                          topDownLet sub (acc) dgs body
+                     -- occurs once, always inline (TODO: maybe only if it is not very big?)
+                     Occur vcnt m n acnt | vcnt + acnt == 1
+                       -> trace "occurs once: inline" $
+                          inlineExpr
+                     -- occurs fully applied, check if it small enough to inline anyways;
+                     -- as it is a function, make it expensive to inline partial applications to avoid too much duplication
+                     Occur acnt m n vcnt  | ((acnt + vcnt*3) * sizeOfExpr se) < maxSmallOccur
+                       -> trace "occurs as cheap function: inline" $
+                          inlineExpr
+                     -- occurs multiple times as variable, check if it small enough to inline anyways
+                     Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
+                       -> trace "occurs as cheap value: inline" $
+                          inlineExpr
+                     -- inline total and very small expressions
+                     Many n | (n*sizeOfExpr se) < maxSmallOccur
+                       -> trace "occurs many as cheap value: inline" $
+                          inlineExpr
+                     -- dont inline
+                     oc -> trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
+                           topDownLet sub (sdg:acc) dgs body
+
+            {-
                if (isTotalAndCheap se)
-                then -- inline very small expressions
+                then -- inline total and small expressions
                      -- trace (" inline small") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                else case extractFun se of
                 Just (tpars,pars,_,_)
-                  | -- occursAtMostOnceApplied
-                     occursAtMostTwiceApplied x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
-                     -- TODO: this is probably too aggresive but inlines all yield-bind next arguments...
+                  | occursAtMostOnceApplied
+                    -- occursAtMostTwiceApplied -- TODO: this is probably too aggresive but inlines all yield-bind next arguments...
+                     x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
                   -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
                      -- let f = \x -> x in f(2) ~> 2
                      -- trace (" inline once & applied") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                 Just ([],pars,eff,fbody) | isSmall fbody -- App (Var _ _) args)  | all cheap args
-                  -> -- inline functions that are direct applications to another function
+                  -> -- inline functions that are small
                      -- trace (" inline direct app") $
                      topDownLet (extend (TName x tp, se) sub) acc dgs body
                 _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
@@ -122,7 +154,7 @@ topDown (Let dgs body)
                 _ -> -- no inlining
                      -- trace (" don't inline") $
                      topDownLet sub (sdg:acc) dgs body
-
+          -}
     extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
     extend (name,e) sub
       = (name,e):sub
@@ -133,26 +165,7 @@ topDown (Let dgs body)
           Lam pars eff body                 -> Just ([],pars,eff,body)
           _ -> Nothing
 
-    cheap expr
-      = isSmallX 1 expr
 
-    isSmall expr
-      = isSmallX 3 expr -- at most 3 applications deep
-
-    isSmallX n expr
-      = if (n <= 0) then False
-        else case expr of
-          Var{} -> True
-          Con{} -> True
-          Lit{} -> True
-          TypeLam _ e -> isSmallX n e
-          TypeApp e _ -> isSmallX n e
-          App (Var v _) _ | getName v == nameReturn -> False  -- and ensureK?
-          -- next one enables inlining of resume; improve performance on 'test/algeff/perf2'
-          App (TypeApp (Var v _) [_]) [e] | getName v == nameToAny -> cheap e
-          App (TypeApp (Var v _) _) [e]   | getName v == nameEffectOpen -> cheap e
-          App f args  -> all (isSmallX (n-1)) (f:args)
-          _ -> False
 
 -- Remove effect open applications; only if 'unsafe' is enabled since
 -- the effect types won't match up
@@ -485,7 +498,8 @@ isTotalAndCheap expr
       -- type application / abstraction
       TypeLam _ body -> isTotalAndCheap body
       TypeApp body _ -> isTotalAndCheap body
-
+      Lam params eff body -> isTotalAndCheap body
+      Case exprs branches -> all isTotalAndCheap exprs && all isTotalAndCheapBranch branches
       _     -> False
   where
     matchParArg (par,Var v _) = par == v
@@ -495,13 +509,70 @@ isTotalAndCheap expr
     matchTParTArg (tv1,TVar tv2) = tv1 == tv2
     matchTParTArg _ = False
 
+isTotalAndCheapBranch (Branch pats guards)
+  = all isTotalAndCheapGuard guards
+isTotalAndCheapGuard (Guard test expr)
+  = isTotalAndCheap test && isTotalAndCheap expr
+
+
+cheap expr
+  = isSmallX 1 expr
+
+isSmall expr
+  = isSmallX 3 expr -- at most 3 applications deep
+
+isSmallX n expr
+  = if (n <= 0) then False
+    else case expr of
+      Var{} -> True
+      Con{} -> True
+      Lit{} -> True
+      TypeLam _ e -> isSmallX n e
+      TypeApp e _ -> isSmallX n e
+      -- next one enables inlining of resume; improve performance on 'test/algeff/perf2'
+      App (TypeApp (Var v _) [_]) [e] | getName v == nameToAny      -> cheap e
+      App (TypeApp (Var v _) _) [e]   | getName v == nameEffectOpen -> cheap e
+      App f args  -> all (isSmallX (n-1)) (f:args)
+      _ -> False
+
+
+
+sizeOfExpr :: Expr -> Int
+sizeOfExpr expr
+  = case expr of
+      Var tname info     -> 1
+      Con tname repr     -> 1
+      Lit lit            -> 1
+      Lam tname eff body -> 1 + sizeOfExpr body
+      App e args         -> 1 + sizeOfExpr e + sum (map sizeOfExpr args)
+      TypeLam tvs e      -> sizeOfExpr e
+      TypeApp e tps      -> sizeOfExpr e
+      Let defGroups body -> sum (map sizeOfDefGroup defGroups) + (sizeOfExpr body)
+      Case exprs branches -> 1 + sum (map sizeOfExpr exprs) + sum (map sizeOfBranch branches)
+
+sizeOfBranch (Branch patterns guards)
+  = sum (map sizeOfGuard guards)
+
+sizeOfGuard (Guard test expr)
+  = sizeOfExpr test + sizeOfExpr expr
+
+sizeOfLocalDef :: Def -> Int
+sizeOfLocalDef def
+  = sizeOfExpr (defExpr def)
+
+sizeOfDefGroup dg
+  = case dg of
+      DefRec defs   -> sum (map sizeOfLocalDef defs)
+      DefNonRec def -> sizeOfLocalDef def
+
+
+
+
 occursNot :: Name -> Expr -> Bool
 occursNot name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
-      Just oc -> case oc of
-                   None -> True
-                   _    -> False
+      Just oc -> False
 
 
 
@@ -510,54 +581,64 @@ occursAtMostOnce name expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
       Just oc -> case oc of
-                   None       -> True
-                   Full 1 _ _ -> True
-                   _          -> False
+                   Occur acnt _ _ vcnt -> ((acnt + vcnt) == 1)
+                   _ -> False
 
 
 -- occurs at most once; and if so, it was fully applied to `tn` type arguments and `n` arguments.
-occursAtMostOnceApplied :: Name -> Int -> Int -> Expr -> Bool
-occursAtMostOnceApplied name tn n expr
+occursAtMostOnceAndApplied :: Name -> Int -> Int -> Expr -> Bool
+occursAtMostOnceAndApplied name tn n expr
   = case M.lookup name (occurrences expr) of
       Nothing -> True
       Just oc -> case oc of
-                   None      -> True
-                   Full 1 tm m -> (tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
-                   _         -> False
+                   Occur 1 tm m 0 -> (tn == tm && m == n)
+                   _ -> False
 
-occursAtMostTwiceApplied :: Name -> Int -> Int -> Expr -> Bool
-occursAtMostTwiceApplied name tn n expr
+occursOnceApplied :: Name -> Int -> Int -> Expr -> Maybe Int
+occursOnceApplied name tn n expr
  = case M.lookup name (occurrences expr) of
-     Nothing -> True
+     Nothing -> Nothing
      Just oc -> case oc of
-                  None      -> True
-                  Full cnt tm m -> (cnt <= 2 && tn==tm && m > 0 && n > 0) -- n==m)  -- can be partly applied with continuations
-                  _         -> False
+                 Occur 1 tm m vcnt | (tn == tm && m == n) -> Just vcnt
+                 _ -> Nothing
+
+occurrencesOf :: Name -> Expr -> Occur
+occurrencesOf name expr
+  = case M.lookup name (occurrences expr) of
+      Nothing -> Occur 0 0 0 0
+      Just oc -> oc
 
 
+-- either: applyCount applications to typeArgsCount/argsCount, and varCount bare occurrences,
+-- or more that two occurrences in different forms
+data Occur = Occur{ applyCount :: Int, typeArgsCount :: Int, argsCount :: Int, varCount :: Int }
+           | Many { count :: Int }
 
-data Occur = None | Full Int {-times-} Int Int | Many
+instance Show Occur where
+  show (Occur acnt m n vcnt) = show (acnt,m,n,vcnt)
+  show (Many m)              = show m
 
 add oc1 oc2
   = case oc1 of
-      None -> oc2
-      Many -> Many
-      Full cnt m n -> case oc2 of
-                        None -> oc1
-                        Full cnt2 m2 n2 | n>n2 -> Full cnt m n
-                                        | n<n2 -> Full cnt2 m2 n2
-                                        | m==m2 && n==n2 -> Full (cnt+cnt2) m n
-                                        | otherwise -> Many
-                        _    -> Many
+      Many n -> case oc2 of
+                  Many m -> Many (n+m)
+                  Occur acnt2 m2 n2 vcnt2 -> Many (acnt2 + vcnt2 + n)
+      Occur acnt1 m1 n1 vcnt1
+        -> case oc2 of
+             Many n -> Many (acnt1 + vcnt1 + n)
+             Occur acnt2 m2 n2 vcnt2   | acnt2==0 -> Occur acnt1 m1 n1 (vcnt1 + vcnt2)
+                                       | acnt1==0 -> Occur acnt2 m2 n2 (vcnt1 + vcnt2)
+                                       | m1==m2 && n1==n2 -> Occur (acnt1 + acnt2) m1 n1 (vcnt1 + vcnt2)
+                                       | otherwise -> Many (acnt1 + acnt2 + vcnt1 + vcnt2)
 
 occurrences :: Expr -> M.NameMap Occur
 occurrences expr
   = case expr of
       App (TypeApp (Var v _) targs) args
-        -> ounions (M.singleton (getName v) (Full 1 (length targs) (length args)) : map occurrences args)
+        -> ounions (M.singleton (getName v) (Occur 1 (length targs) (length args) 0) : map occurrences args)
       App (Var v _) args
-        -> ounions (M.singleton (getName v) (Full 1 0 (length args)) : map occurrences args)
-      Var v _ -> M.singleton (getName v) (Full 1 0 0)
+        -> ounions (M.singleton (getName v) (Occur 1 0 (length args) 0) : map occurrences args)
+      Var v _ -> M.singleton (getName v) (Occur 0 0 0 1)
 
       Con{} -> M.empty
       Lit{} -> M.empty
@@ -602,14 +683,14 @@ uniqueTName (TName name tp)
 
 newtype Simp a = Simplify (Int -> SEnv -> Result a)
 
-runSimplify :: Bool -> Int -> Pretty.Env -> Simp a -> (a,Int)
-runSimplify unsafe uniq penv (Simplify c)
-  = case (c uniq (SEnv unsafe penv [] )) of
+runSimplify :: Bool -> Int -> Int -> Pretty.Env -> Simp a -> (a,Int)
+runSimplify unsafe dupMax uniq penv (Simplify c)
+  = case (c uniq (SEnv unsafe dupMax penv [] )) of
       Ok x u' -> (x,u')
 
 
 
-data SEnv = SEnv{ unsafe :: Bool, penv :: Pretty.Env, currentDef :: [Def] }
+data SEnv = SEnv{ unsafe :: Bool, dupMax :: Int, penv :: Pretty.Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
 
@@ -642,3 +723,8 @@ getUnsafe :: Simp Bool
 getUnsafe
   = do env <- getEnv
        return (unsafe env)
+
+getDuplicationMax :: Simp Int
+getDuplicationMax
+  = do e <- getEnv
+       return (dupMax e)

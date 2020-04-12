@@ -879,15 +879,11 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique4a) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) unique4 penv coreDefsOR
+                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) unique4 penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 trace "after simplify core check 1" $Core.Check.checkCore penv unique4a gamma cdefs0
-                              -- and one more unsafe simplify to remove open calls etc.
-                              let (cdefs1,unique4b) =  simplifyDefs False 1 unique4a penv cdefs0
-                              when (coreCheck flags) $
-                                trace "after simplify core check 2" $Core.Check.checkCore penv unique4b gamma cdefs1
-                              return (cdefs1,unique4b) -- $ simplifyDefs False 1 unique4a penv cdefs
+                              return (cdefs0,unique4a) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- lifting all functions to top level
        let (coreDefsLifted,uniqueLift) = liftFunctions penv uniqueSimp coreDefsSimp
@@ -905,15 +901,11 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) uniqueInl penv coreDefsInl
+                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 trace "after simplify core check 1" $Core.Check.checkCore penv unique0 gamma cdefs0
-                              -- and one more unsafe simplify to remove open calls etc.
-                              let (cdefs1,unique1) =  simplifyDefs False 1 unique0 penv cdefs0
-                              when (coreCheck flags) $
-                                trace "after simplify core check 2" $Core.Check.checkCore penv unique1 gamma cdefs1
-                              return (cdefs1,unique1) -- $ simplifyDefs False 1 unique4a penv cdefs
+                              return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
 
        -- Assemble core program and return
