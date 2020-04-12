@@ -42,20 +42,88 @@ trace s x =
   Lib.Trace.trace s
     x
 
+test = False
 
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
 liftFunctions penv u defs
-  = runLift penv u (liftDefGroups defs)
+  = if test then runLift penv u (liftDefGroups defs)
+    else (defs, u)
 
 
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}
+
 liftDefGroups :: DefGroups -> Lift DefGroups
 liftDefGroups defGroups
-  = do traceDoc (\penv -> text "hi")
-       return defGroups
+  = do traceDoc (\penv -> text "lifting")
+       mapM liftDefGroup defGroups
+
+liftDefGroup :: DefGroup -> Lift DefGroup
+liftDefGroup (DefRec defs)
+  = do defs' <- fmap (concat) $ mapM liftDef defs
+       return (DefRec defs')
+liftDefGroup (DefNonRec def)
+  = do def' <- liftDef def
+       return (DefRec def')
+       -- not right yet
+       -- after lifting it might be a recursive group
+       -- more to do here
+
+liftDef :: Def -> Lift Defs
+liftDef def
+  = withCurrentDef def $
+    do (expr', defs) <- liftExpr True tnamesEmpty (defExpr def)
+       return $ def{ defExpr = expr'} : defs
+
+liftExpr :: Bool -> TNames -> Expr -> Lift (Expr, Defs)
+liftExpr topLevel tnames expr
+  = case expr of
+    App f args
+      -> do (f', defs1) <- liftExpr False tnames f
+            (args', defs2) <- fmap (fmap concat . unzip) $ mapM (liftExpr False tnames) args
+            return (App f' args', defs1 ++ defs2)
+
+    Lam args eff body
+      -- top level functions are allowed
+      | topLevel -> liftLambda
+      -- lift local functions
+      | otherwise ->
+          do (expr1, defs) <- liftLambda
+                 -- abstract over free variables
+                 -- rename?
+             let fvs = tnamesList (tnamesDiff (fv expr1) tnames)
+                 -- TODO: recursion?
+                 expr2 = addLambdasTName fvs eff expr1 -- poison?
+
+                 -- abstract over type variables
+                 tvs = tvsList (ftv expr2)
+                 expr3 = addTypeLambdas tvs expr2
+
+             name <- uniqueNameCurrentDef
+             let ty = typeInt -- TODO: get the type of expr
+                 def = Def name ty expr3 Private DefFun rangeNull ""
+
+                 liftExp1 = Var (TName name ty)
+                                (InfoArity (length tvs) (length fvs + length args))
+                 liftExp2 = addTypeApps tvs liftExp1
+                 liftExp3 = addApps (map (\name -> Var name InfoNone) fvs) liftExp2 -- InfoNone?
+
+             return (liftExp3, def:defs)
+      where liftLambda
+              = do (body', defs) <- liftExpr topLevel (tnamesInsertAll tnames args) body
+                   return (Lam args eff body', defs)
+
+    _ -> return (expr, [])
+
+currentDefName :: Lift String
+currentDefName = return "name" -- TODO
+
+uniqueNameCurrentDef :: Lift Name
+uniqueNameCurrentDef =
+  do defName <- currentDefName
+     uniqueName defName
 
 
 {--------------------------------------------------------------------------

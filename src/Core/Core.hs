@@ -29,7 +29,7 @@ module Core.Core ( -- Data structures
                      -- Core term builders
                    , defIsVal
                    , defTName
-                   , addTypeLambdas, addTypeApps, addLambdas, addApps
+                   , addTypeLambdas, addTypeApps, addLambdas, addLambdasTName, addApps
                    , makeLet, makeTypeApp
                    , addNonRec, addCoreDef, coreNull
                    , freshName
@@ -42,7 +42,7 @@ module Core.Core ( -- Data structures
                    , makeInt32
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
-                   , tnamesList
+                   , tnamesList , tnamesEmpty, tnamesDiff, tnamesInsertAll
                    , TNames
                    , splitFun
                    , splitTForall
@@ -602,9 +602,18 @@ instance HasTypeVar TName where
 
 type TNames = S.Set TName
 
+tnamesEmpty :: TNames
+tnamesEmpty = S.empty
+
 tnamesList :: TNames -> [TName]
 tnamesList tns
   = S.elems tns
+
+tnamesInsertAll :: TNames -> [TName] -> TNames
+tnamesInsertAll  = foldr S.insert
+
+tnamesDiff :: TNames -> TNames -> TNames
+tnamesDiff = S.difference
 
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
@@ -660,6 +669,11 @@ addLambdas [] eff e              = e
 addLambdas pars eff (Lam ps _ e) = Lam ([TName x tp | (x,tp) <- pars] ++ ps) eff e
 addLambdas pars eff e            = Lam [TName x tp | (x,tp) <- pars] eff e
 
+-- | Add term lambdas
+addLambdasTName :: [TName] -> (Type -> Expr -> Expr)
+addLambdasTName [] eff e              = e
+addLambdasTName pars eff (Lam ps _ e) = Lam (pars ++ ps) eff e
+addLambdasTName pars eff e            = Lam pars eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
