@@ -112,7 +112,7 @@ program :-
 
 -- fun/function followed by '(' or '<'
 <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
-<0> "function" [\(\<]     { less 7 $ constant $ LexKeyword "function.anon" "" }
+<0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
 
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
@@ -487,8 +487,8 @@ lexing source lineNo input
 
         lparen token prev
           = case token of
-              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.("  -- application
-              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.["  -- indexing
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.index"  -- indexing
               _ -> token
 
         isApplyToken prev

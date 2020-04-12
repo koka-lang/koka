@@ -17374,8 +17374,8 @@ lexing source lineNo input
 
         lparen token prev
           = case token of
-              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.("  -- application
-              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.["  -- indexing
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.index"  -- indexing
               _ -> token
 
         isApplyToken prev
@@ -17406,7 +17406,7 @@ alex_action_3 =  next comment $ more id
 alex_action_4 =  next linecom $ more id 
 alex_action_5 =  next linedir $ more id 
 alex_action_6 =  less 3 $ constant $ LexKeyword "fun.anon" "" 
-alex_action_7 =  less 7 $ constant $ LexKeyword "function.anon" "" 
+alex_action_7 =  less 8 $ constant $ LexKeyword "function.anon" "" 
 alex_action_8 =  string $ LexCons . newQName 
 alex_action_9 =  string $ LexId . newQName 
 alex_action_10 =  string $ LexIdOp . newQName . stripParens 

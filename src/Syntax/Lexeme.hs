@@ -41,7 +41,7 @@ data Lex    = LexInt     !Integer !String {- original number, used for documenta
             | LexChar    !Char
             | LexString   !String
             | LexId       !Name
-            | LexCons     !Name       
+            | LexCons     !Name
             | LexOp       !Name
             | LexPrefix   !Name
             | LexIdOp     !Name
@@ -54,7 +54,7 @@ data Lex    = LexInt     !Integer !String {- original number, used for documenta
             -- special for highlighting
             | LexModule   !Name !Name   -- ^ alias full-import
             | LexTypedId  !Name !String
-            
+
             | LexInsLCurly  -- ^ inserted '{'
             | LexInsRCurly  -- ^ inserted '}'
             | LexInsSemi    -- ^ inserted ';'
@@ -144,16 +144,21 @@ showLex lex
       LexIdOp id    -> "identifier \"(" ++ show id ++ ")\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""
-      LexKeyword k d-> "keyword " ++ k ++ (if null d then "" else " (" ++ d ++ ")")
-      LexSpecial s  -> "\"" ++ s ++ "\""
+      LexKeyword k d-> "keyword " ++ k ++ postfix ++ (if null d then "" else " (" ++ d ++ ")")
+                    where postfix = if (k=="fun" || k=="function") then "<space> "
+                                     else if (k=="fun.anon") then "<nospace> "
+                                     else ""
+      LexSpecial s  -> prefix ++ "\"" ++ s ++ "\""
+                    where prefix = if (s=="(.apply" || s=="[.index") then "<nospace>"
+                                    else ""
+
       LexComment s  -> "comment \"" ++ s ++ "\""
       LexWhite w    -> "white"
       LexInsLCurly  -> "start of statements"
       LexInsRCurly  -> "end of statements"
       LexInsSemi    -> "end of statement"
       LexError msg  -> msg
-      LexCons id    -> "constructor \"" ++ show id ++ "\""      
+      LexCons id    -> "constructor \"" ++ show id ++ "\""
       LexTypedId id tp -> "typedid " ++ show id ++ ":" ++ tp
   where
     showSpaces = map (\c -> if (c==' ') then '_' else c)
-

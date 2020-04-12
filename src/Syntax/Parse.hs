@@ -1976,7 +1976,7 @@ funblock
        return (Lam [] exp (getRange exp))
 
 funexpr
-  = do rng <- keyword "fun.anon" <|> keyword "function.anon"
+  = do rng <- keyword "fun.anon" <|> keyword "function.anon"  <?> "(anonymous) fun"
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body <- block
@@ -2608,8 +2608,8 @@ bracketed open close f p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-lapp     = special "(.(" <?> show "("
-lidx     = special "[.[" <?> show "["
+lapp     = special "(.apply" <?> show "("
+lidx     = special "[.index" <?> show "["
 lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<"
@@ -2847,7 +2847,7 @@ keyword :: String -> LexParser Range
 keyword s
   = do (Lexeme rng _) <- parseLex (LexKeyword s "")
        return rng
-  <?> show s
+  <?> show (LexKeyword s "")
 
 dockeyword :: String -> LexParser (Range,String)
 dockeyword s
