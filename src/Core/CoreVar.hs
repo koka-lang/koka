@@ -9,6 +9,7 @@
 module Core.CoreVar ( HasExprVar, (|~>)
                     , HasExpVar, fv, bv
                     , isTopLevel
+                    , freeLocals
                     ) where
 
 
@@ -33,6 +34,10 @@ isTopLevel (Def name tp expr vis isVal nameRng doc)
         yes = (null freeVar && tvsIsEmpty freeTVar)
     in -- trace ("isTopLevel " ++ show name ++ ": " ++ show (yes,freeVar,tvsList freeTVar)) $
         yes
+
+freeLocals :: Expr -> TNames
+freeLocals expr
+  = S.filter (\(TName nm _) -> not (isQualified nm)) (fv expr)
 
 
 {--------------------------------------------------------------------------
@@ -144,7 +149,7 @@ instance HasExprVar Expr where
                               in Lam tnames eff (sub' |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
       App e1 e2            -> App (sub |~> e1) (sub |~> e2)
-      TypeLam typeVars exp -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam: " ++ show typeVars ++ ",\n " ++ show sub ++ "\n " ++ show expr) 
+      TypeLam typeVars exp -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam: " ++ show typeVars ++ ",\n " ++ show sub ++ "\n " ++ show expr)
                                         (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVars
                                           || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $
                               TypeLam typeVars (sub |~> exp)
@@ -170,5 +175,3 @@ instance HasExprVar Guard where
 
 notIn :: TName -> [(TName, Expr)] -> Bool
 notIn name subst = not (name `elem` map fst subst)
-
-
