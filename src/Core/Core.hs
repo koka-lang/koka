@@ -22,13 +22,14 @@ module Core.Core ( -- Data structures
                    , showTName
                    , flattenTypeDefGroups
                    , flattenDefGroups
+                   , flattenAllDefGroups
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
 
                      -- Core term builders
                    , defIsVal
-                   , defTName
+                   , defTName , defGroupTNames , defGroupsTNames
                    , addTypeLambdas, addTypeApps, addLambdas, addLambdasTName, addApps
                    , makeLet, makeTypeApp
                    , addNonRec, addCoreDef, coreNull
@@ -37,12 +38,13 @@ module Core.Core ( -- Data structures
                    , isExprUnit
                    , isExprTrue,  exprTrue, patTrue
                    , isExprFalse, exprFalse, patFalse
+                   , isValueExpr
                    , openEffectExpr
                    , makeIfExpr
                    , makeInt32
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
-                   , tnamesList , tnamesEmpty, tnamesDiff, tnamesInsertAll
+                   , tnamesList , tnamesEmpty, tnamesDiff, tnamesInsertAll , tnamesUnion
                    , TNames
                    , splitFun
                    , splitTForall
@@ -286,6 +288,10 @@ flattenDefGroups :: [DefGroup] -> [Def]
 flattenDefGroups defGroups
   = concatMap (\defg -> case defg of { DefRec defs -> defs; DefNonRec def -> [def]}) defGroups
 
+flattenAllDefGroups :: [DefGroups] -> [Def]
+flattenAllDefGroups defGroups
+  = concatMap flattenDefGroups defGroups
+
 -- | A value definition
 data Def = Def{ defName  :: Name
               , defType  :: Scheme
@@ -355,6 +361,13 @@ showTName (TName name tp)
 defTName :: Def -> TName
 defTName def
   = TName (defName def) (defType def)
+
+defGroupTNames :: DefGroup -> TNames
+defGroupTNames (DefNonRec def) = S.singleton (defTName def)
+defGroupTNames (DefRec defs) = S.fromList $ map defTName defs
+
+defGroupsTNames :: DefGroups -> TNames
+defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
 
 data VarInfo
   = InfoNone
@@ -611,6 +624,9 @@ tnamesList tns
 
 tnamesInsertAll :: TNames -> [TName] -> TNames
 tnamesInsertAll  = foldr S.insert
+
+tnamesUnion :: TNames -> TNames -> TNames
+tnamesUnion = S.union
 
 tnamesDiff :: TNames -> TNames -> TNames
 tnamesDiff = S.difference
