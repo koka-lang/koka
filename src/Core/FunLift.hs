@@ -47,7 +47,7 @@ test = False
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
 liftFunctions penv u defs
-  = if test then runLift penv u (liftDefGroups defs)
+  = if test then runLift penv u (liftDefGroups True defs)
     else (defs, u)
 
 
@@ -55,77 +55,53 @@ liftFunctions penv u defs
   transform definition groups
 --------------------------------------------------------------------------}
 
--- TopLevel = True
-liftDefGroups :: DefGroups -> Lift DefGroups
-liftDefGroups defGroups
+liftDefGroups :: Bool   -- top-level functions are allowed
+              -> DefGroups -> Lift DefGroups
+liftDefGroups topLevel defGroups
   = do traceDoc (\penv -> text "lifting")
-       fmap concat $ mapM liftDefGroup defGroups
+       fmap concat $ mapM (liftDefGroup topLevel) defGroups
 
-liftDefGroup :: DefGroup -> Lift DefGroups
-liftDefGroup (DefNonRec def)
-  = do (def', groups) <- collectLifted $ liftDef def
-       return $  groups ++ [DefNonRec def']
+liftDefGroup :: Bool -> DefGroup -> Lift DefGroups
+liftDefGroup True (DefNonRec def)
+  = do (def', groups) <- collectLifted $ liftDef True def
+       return $  groups ++ [DefNonRec def'] -- all lifted definitions are put before the current definition
 
-
-liftDefGroup (DefRec defs)
-  = do (defs', groups) <- collectLifted $ mapM liftDef defs
+liftDefGroup True (DefRec defs)
+  = do (defs', groups) <- collectLifted $ mapM (liftDef True) defs
        let groups' = flattenDefGroups groups
-       return [DefRec (defs' ++ groups')]
+       return [DefRec (defs' ++ groups')] -- defs' depend on groups', groups' might depend on defs'
 
-liftDef :: Def -> Lift Def
-liftDef  def
-  = withCurrentDef def $
-    do expr' <- liftExpr True (defExpr def)
-       return def{ defExpr = expr'}
-
--- TopLevel = False
-liftDefGroupsX :: DefGroups -> Lift DefGroups
-liftDefGroupsX defGroups
-  = do defs <- mapM liftDefGroupX defGroups
-       return (concat defs)
-
-defSubst :: Def -> (TName, Expr)
-defSubst def = (defTName def, defExpr def)
-
-
-exprSort :: Expr -> DefSort
-exprSort expr = if isValueExpr expr then DefVal else DefFun
-
-
-liftDefGroupX :: DefGroup -> Lift [DefGroup]  -- list because we may change a DefRec into all non-recursive bindings
-liftDefGroupX (DefNonRec def)
-  = do def' <- liftDefX def
+liftDefGroup False (DefNonRec def)
+  = do def' <- liftDef False def
        return [DefNonRec def']
 
-liftDefGroupX (DefRec defs)
-  -- = return (DefRec defs, [])
+liftDefGroup False (DefRec defs)
   = do let exprs = map defExpr defs
            names = map defTName defs
            fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
            tvs = tvsList $ tvsUnions $ map ftv exprs
-       (expr2, liftDefs) <- fmap unzip $ mapM (liftExprDef fvs tvs) exprs
+       (expr2, liftDefs) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
        let subst = zip names expr2
-           liftDefs2 = map (subst |~> ) liftDefs
-       groups <- liftDefGroup (DefRec liftDefs2)
+           liftDefs2 = map (subst |~>) liftDefs
+       groups <- liftDefGroup True (DefRec liftDefs2) -- lift all recs to top-level
        emitLifteds groups
 
-       let defs' = zipWith (\def expr -> def{defExpr = expr, defSort = exprSort expr})
+       let defs' = zipWith (\def expr -> def{defExpr = expr, defSort = liftSort False (defSort def)})
                            defs expr2
 
-       return (map DefNonRec defs')
+       return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
 
-
-
-liftDefX :: Def -> Lift Def
-liftDefX def
+liftDef :: Bool -> Def -> Lift Def
+liftDef topLevel def
   = withCurrentDef def $
-    do expr' <- liftExpr False (defExpr def)
-       let sort' = case defSort def of
-                    DefFun  -> DefVal
-                    sort    -> sort
-       return ( def{ defExpr = expr', defSort = sort' }) -- always value? what are DefVar?
+    do expr' <- liftExpr topLevel (defExpr def)
+       return def{ defExpr = expr', defSort = liftSort topLevel (defSort def)}
 
-liftExpr :: Bool    -- top-level functions are allowed
+liftSort :: Bool -> DefSort -> DefSort
+liftSort False DefFun = DefVal
+liftSort _ sort = sort
+
+liftExpr :: Bool
          -> Expr
          -> Lift Expr
 liftExpr topLevel expr
@@ -136,22 +112,15 @@ liftExpr topLevel expr
             return (App f' args')
 
     Lam args eff body
-      -- top level functions are allowed
-      | topLevel -> liftLambda
-      -- lift local functions
-      | otherwise ->
-          do expr1 <- liftLambda
-             let fvs = tnamesList $ freeLocals expr1
-                 tvs = tvsList (ftv expr1)
-             (expr2, liftDef) <- liftExprDef fvs tvs expr1
-             emitLifted (DefNonRec liftDef)
-             return expr2
-      where liftLambda
-              = do body' <- liftExpr topLevel body
-                   return $ Lam args eff body'
+      -> do body' <- liftExpr topLevel body
+            let expr' = Lam args eff body'
+            -- top level functions are allowed
+            if topLevel then return expr'
+            -- lift local functions
+            else liftLocalFun expr' eff
     Let defgs body
       -> do liftTrace ("let hi "  ++ show expr)
-            defgs' <- liftDefGroupsX defgs
+            defgs' <- liftDefGroups False defgs
             body'  <- liftExpr False body
             return (Let defgs' body')
 
@@ -164,11 +133,7 @@ liftExpr topLevel expr
       | not topLevel
       , Lam _ eff _ <- body
       -> do expr1 <- liftTypeLambda
-            let fvs = tnamesList $ freeLocals expr1
-                tvs = tvsList (ftv expr1)
-            (expr2, liftDef) <- liftExprDef fvs tvs expr1
-            emitLifted (DefNonRec liftDef)
-            return expr2
+            liftLocalFun expr1 eff
       | otherwise -> liftTypeLambda
       where liftTypeLambda
               = do body' <- liftExpr topLevel body
@@ -179,8 +144,17 @@ liftExpr topLevel expr
 
     _ -> return expr
 
-liftExprDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
-liftExprDef fvs tvs expr
+liftLocalFun :: Expr -> Effect -> Lift Expr
+liftLocalFun expr eff
+  = do let fvs = tnamesList $ freeLocals expr
+           tvs = tvsList (ftv expr)
+       (expr2, liftDef) <- makeDef fvs tvs expr
+       emitLifted (DefNonRec liftDef)
+       return expr2
+
+
+makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
+makeDef fvs tvs expr
   = do liftTrace (show expr)
        let liftExp1 = addLambdasTName fvs (getEffExpr expr) expr
            liftExp2 = addTypeLambdas tvs liftExp1
