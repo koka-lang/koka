@@ -68,8 +68,8 @@ liftDefGroup (DefNonRec def)
 
 
 liftDefGroup (DefRec defs)
-  = do (defs', groups) <- fmap unzip $ mapM liftDef defs
-       let groups' = flattenAllDefGroups groups
+  = do (defs', groups) <- collectLifted $ mapM liftDef defs
+       let groups' = flattenDefGroups groups
        return [DefRec (defs' ++ groups')]
 
 liftDef :: Def -> Lift Def
@@ -104,15 +104,15 @@ liftDefGroupX (DefRec defs)
            fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
            tvs = tvsList $ tvsUnions $ map ftv exprs
        (expr2, liftDefs) <- fmap unzip $ mapM (liftExprDef fvs tvs) exprs
-       traceDoc (\env -> text "liftDefGroupX: " <+> vcat (map (prettyExpr env) expr2))
        let subst = zip names expr2
            liftDefs2 = map (subst |~> ) liftDefs
        groups <- liftDefGroup (DefRec liftDefs2)
+       emitLifteds groups
 
        let defs' = zipWith (\def expr -> def{defExpr = expr, defSort = exprSort expr})
                            defs expr2
 
-       return (map DefNonRec defs',  groups)
+       return (map DefNonRec defs')
 
 
 
@@ -140,43 +140,44 @@ liftExpr topLevel expr
       | topLevel -> liftLambda
       -- lift local functions
       | otherwise ->
-          do (expr1, groups) <- liftLambda
+          do expr1 <- liftLambda
              let fvs = tnamesList $ freeLocals expr1
                  tvs = tvsList (ftv expr1)
              (expr2, liftDef) <- liftExprDef fvs tvs expr1
-             emitLifted [DefNonRec liftDef]
-             return (expr2)
+             emitLifted (DefNonRec liftDef)
+             return expr2
       where liftLambda
-              = do (body', groups) <- liftExpr topLevel body
-                   return (Lam args eff body', groups)
+              = do body' <- liftExpr topLevel body
+                   return $ Lam args eff body'
     Let defgs body
       -> do liftTrace ("let hi "  ++ show expr)
-            (defgs', groups1) <- liftDefGroupsX defgs
-            (body', groups2) <- liftExpr False body
-            return (Let defgs' body', groups1 ++ groups2)
+            defgs' <- liftDefGroupsX defgs
+            body'  <- liftExpr False body
+            return (Let defgs' body')
 
     Case exprs bs
-      -> do (exprs', groups1) <- fmap unzip $ mapM (liftExpr False) exprs
-            (bs', groups2) <- fmap unzip $ mapM liftBranch bs
-            return (Case exprs' bs', (concat groups1) ++ (concat groups2))
+      -> do exprs' <- mapM (liftExpr False) exprs
+            bs'    <- mapM liftBranch bs
+            return (Case exprs' bs')
 
     TypeLam tvars body
       | not topLevel
       , Lam _ eff _ <- body
-      -> do (expr1, groups) <- liftTypeLambda
+      -> do expr1 <- liftTypeLambda
             let fvs = tnamesList $ freeLocals expr1
                 tvs = tvsList (ftv expr1)
             (expr2, liftDef) <- liftExprDef fvs tvs expr1
-            return (expr2, groups ++ [DefNonRec liftDef])
+            emitLifted (DefNonRec liftDef)
+            return expr2
       | otherwise -> liftTypeLambda
       where liftTypeLambda
-              = do (body', groups) <- liftExpr topLevel body
-                   return (TypeLam tvars body', groups)
+              = do body' <- liftExpr topLevel body
+                   return (TypeLam tvars body')
     TypeApp body tps
-      -> do (body', groups) <- liftExpr topLevel body
-            return (TypeApp body' tps, groups)
+      -> do body' <- liftExpr topLevel body
+            return (TypeApp body' tps)
 
-    _ -> return (expr, [])
+    _ -> return expr
 
 liftExprDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 liftExprDef fvs tvs expr
@@ -193,16 +194,16 @@ liftExprDef fvs tvs expr
 
        return (expr3, liftDef)
 
-liftBranch :: Branch -> Lift (Branch, DefGroups)
+liftBranch :: Branch -> Lift Branch
 liftBranch (Branch pat guards)
-  = do (guards', groups) <- fmap unzip $ mapM liftGuard guards
-       return $ (Branch pat guards', concat groups)
+  = do guards' <- mapM liftGuard guards
+       return (Branch pat guards')
 
-liftGuard :: Guard -> Lift (Guard, DefGroups)
+liftGuard :: Guard -> Lift Guard
 liftGuard (Guard guard body)
-  = do (guard', groups1) <- liftExpr False guard
-       (body', groups2)  <- liftExpr False body
-       return (Guard guard' body', groups1 ++ groups2 )
+  = do guard' <- liftExpr False guard
+       body'  <- liftExpr False body
+       return (Guard guard' body')
 
 uniqueNameCurrentDef :: Lift Name
 uniqueNameCurrentDef =
@@ -260,7 +261,7 @@ updateSt :: (State -> State) -> Lift State
 updateSt f
   = Lift (\env st -> Ok st (f st) [])
 
-collectLifted :: Lift a -> Lift (a, [DefGroups])
+collectLifted :: Lift a -> Lift (a, DefGroups)
 collectLifted (Lift d)
   = Lift (\env st -> case d env st of
                        Ok x st' dgs -> Ok (x,dgs) st' [])
@@ -269,6 +270,9 @@ emitLifted :: DefGroup -> Lift ()
 emitLifted dg
   = Lift (\env st -> Ok () st [dg])
 
+emitLifteds :: DefGroups -> Lift ()
+emitLifteds dg
+  = Lift (\env st -> Ok () st dg)
 
 withCurrentDef :: Def -> Lift a -> Lift a
 withCurrentDef def action
