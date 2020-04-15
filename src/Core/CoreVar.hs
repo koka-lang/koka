@@ -35,7 +35,7 @@ isTopLevel (Def name tp expr vis isVal nameRng doc)
     in -- trace ("isTopLevel " ++ show name ++ ": " ++ show (yes,freeVar,tvsList freeTVar)) $
         yes
 
-freeLocals :: Expr -> TNames
+freeLocals :: HasExpVar a => a -> TNames
 freeLocals expr
   = S.filter (\(TName nm _) -> not (isQualified nm)) (fv expr)
 

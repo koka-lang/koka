@@ -81,15 +81,38 @@ liftDef  def
 liftDefGroupsX :: DefGroups -> Lift (DefGroups, DefGroups)
 liftDefGroupsX defGroups
   = do (defs, groups) <- fmap unzip $ mapM liftDefGroupX defGroups
-       return (defs, concat groups)
+       return (concat defs, concat groups)
 
-liftDefGroupX :: DefGroup -> Lift (DefGroup, DefGroups)
+defSubst :: Def -> (TName, Expr)
+defSubst def = (defTName def, defExpr def)
+
+
+exprSort :: Expr -> DefSort
+exprSort expr = if isValueExpr expr then DefVal else DefFun
+
+
+liftDefGroupX :: DefGroup -> Lift (DefGroups, DefGroups)
 liftDefGroupX (DefNonRec def)
   = do (def', groups) <- liftDefX def
-       return $  (DefNonRec def', groups)
+       return ([DefNonRec def'], groups)
 
-liftDefGroupX (DefRec def)
-  = return (DefRec def, []) -- TODO
+liftDefGroupX (DefRec defs)
+  -- = return (DefRec defs, [])
+  = do let exprs = map defExpr defs
+           names = map defTName defs
+           fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
+           tvs = tvsList $ tvsUnions $ map ftv exprs
+       (expr2, liftDefs) <- fmap unzip $ mapM (liftExprDef fvs tvs) exprs
+       traceDoc (\env -> text "liftDefGroupX: " <+> vcat (map (prettyExpr env) expr2))
+       let subst = zip names expr2
+           liftDefs2 = map (subst |~> ) liftDefs
+       groups <- liftDefGroup (DefRec liftDefs2)
+
+       let defs' = zipWith (\def expr -> def{defExpr = expr, defSort = exprSort expr})
+                           defs expr2
+
+       return (map DefNonRec defs',  groups)
+
 
 
 liftDefX :: Def -> Lift (Def, DefGroups)
@@ -114,29 +137,16 @@ liftExpr topLevel expr
       -- lift local functions
       | otherwise ->
           do (expr1, groups) <- liftLambda
-                 -- abstract over free variables
              let fvs = tnamesList $ freeLocals expr1
-                 expr2 = addLambdasTName fvs eff expr1
-
-                 -- abstract over type variables
-                 tvs = tvsList (ftv expr2)
-                 expr3 = addTypeLambdas tvs expr2
-
-             name <- uniqueNameCurrentDef
-             let ty = typeOf expr3
-                 def = DefNonRec $ Def name ty expr3 Private DefFun rangeNull "// lifted"
-
-             let liftExp1 = Var (TName name ty)
-                                (InfoArity (length tvs) (length fvs + length args))
-                 liftExp2 = addTypeApps tvs liftExp1
-                 liftExp3 = addApps (map (\name -> Var name InfoNone) fvs) liftExp2
-
-             return (liftExp3, groups ++ [def])
+                 tvs = tvsList (ftv expr1)
+             (expr2, liftDef) <- liftExprDef fvs tvs expr1
+             return (expr2, groups ++ [DefNonRec liftDef])
       where liftLambda
               = do (body', groups) <- liftExpr topLevel body
                    return (Lam args eff body', groups)
     Let defgs body
-      -> do (defgs', groups1) <- liftDefGroupsX defgs
+      -> do liftTrace ("let hi "  ++ show expr)
+            (defgs', groups1) <- liftDefGroupsX defgs
             (body', groups2) <- liftExpr False body
             return (Let defgs' body', groups1 ++ groups2)
 
@@ -150,21 +160,9 @@ liftExpr topLevel expr
       , Lam _ eff _ <- body
       -> do (expr1, groups) <- liftTypeLambda
             let fvs = tnamesList $ freeLocals expr1
-                expr2 = addLambdasTName fvs eff expr1
-
-                tvs = tvsList (ftv expr2)
-                expr3 = addTypeLambdas tvs expr2
-            name <- uniqueNameCurrentDef
-            let ty = typeOf expr3
-                def = DefNonRec $ Def name ty expr3 Private DefFun rangeNull ""
-
-            let tvarLen = if null fvs then length tvars + length tvs else length tvs
-                liftExp1 = Var (TName name ty)
-                               (InfoArity tvarLen (length fvs))
-                liftExp2 = addTypeApps tvs liftExp1
-                liftExp3 = addApps (map (\name -> Var name InfoNone) fvs) liftExp2
-
-            return (liftExp3, groups ++ [def])
+                tvs = tvsList (ftv expr1)
+            (expr2, liftDef) <- liftExprDef fvs tvs expr1
+            return (expr2, groups ++ [DefNonRec liftDef])
       | otherwise -> liftTypeLambda
       where liftTypeLambda
               = do (body', groups) <- liftExpr topLevel body
@@ -174,6 +172,20 @@ liftExpr topLevel expr
             return (TypeApp body' tps, groups)
 
     _ -> return (expr, [])
+
+liftExprDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
+liftExprDef fvs tvs expr
+  = do liftTrace (show expr)
+       let liftExp1 = addLambdasTName fvs (getEffExpr expr) expr
+           liftExp2 = addTypeLambdas tvs liftExp1
+       name <- uniqueNameCurrentDef
+       let ty = typeOf liftExp2
+           liftDef = Def name ty liftExp2 Private DefFun rangeNull "// lift"
+       let expr1 = Var (TName name ty) (InfoArity (getTypeArityExpr liftExp2)
+                                                  (getParamArityExpr liftExp2))
+           expr2 = addTypeApps tvs expr1
+           expr3 = addApps (map (\name -> Var name InfoNone) fvs) expr2
+       return (expr3, liftDef)
 
 liftBranch :: Branch -> Lift (Branch, DefGroups)
 liftBranch (Branch pat guards)

@@ -44,7 +44,9 @@ module Core.Core ( -- Data structures
                    , makeInt32
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
-                   , tnamesList , tnamesEmpty, tnamesDiff, tnamesInsertAll , tnamesUnion
+                   , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
+                   , tnamesUnion, tnamesUnions, tnamesRemove
+                   , getTypeArityExpr, getParamArityExpr, getEffExpr
                    , TNames
                    , splitFun
                    , splitTForall
@@ -481,6 +483,19 @@ costBranch (Branch patterns guards)
 costGuard (Guard test expr)
   = costExpr test + costExpr expr
 
+getTypeArityExpr :: Expr -> Int
+getTypeArityExpr (TypeLam args _) = length args
+getTypeArityExpr _ = 0
+
+getParamArityExpr :: Expr -> Int
+getParamArityExpr (Lam args _ _) = length args
+getParamArityExpr (TypeLam _ (Lam args _ _)) = length args
+getParamArityExpr _ = 0
+
+getEffExpr :: Expr -> Effect
+getEffExpr (Lam _ eff _) = eff
+getEffExpr (TypeLam _ (Lam _ eff _)) = eff
+getEffExpr _ = effectEmpty
 
 
 {--------------------------------------------------------------------------
@@ -628,8 +643,15 @@ tnamesInsertAll  = foldr S.insert
 tnamesUnion :: TNames -> TNames -> TNames
 tnamesUnion = S.union
 
+tnamesUnions :: [TNames] -> TNames
+tnamesUnions xs = foldr tnamesUnion tnamesEmpty xs
+
 tnamesDiff :: TNames -> TNames -> TNames
 tnamesDiff = S.difference
+
+tnamesRemove :: [TName] -> TNames -> TNames
+tnamesRemove names set
+  = foldr S.delete set names
 
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
