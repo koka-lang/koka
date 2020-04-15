@@ -63,25 +63,26 @@ liftDefGroups defGroups
 
 liftDefGroup :: DefGroup -> Lift DefGroups
 liftDefGroup (DefNonRec def)
-  = do (def', groups) <- liftDef def
+  = do (def', groups) <- collectLifted $ liftDef def
        return $  groups ++ [DefNonRec def']
+
 
 liftDefGroup (DefRec defs)
   = do (defs', groups) <- fmap unzip $ mapM liftDef defs
        let groups' = flattenAllDefGroups groups
        return [DefRec (defs' ++ groups')]
 
-liftDef :: Def -> Lift (Def, DefGroups)
+liftDef :: Def -> Lift Def
 liftDef  def
   = withCurrentDef def $
-    do (expr', defs) <- liftExpr True (defExpr def)
-       return ( def{ defExpr = expr'}, defs)
+    do expr' <- liftExpr True (defExpr def)
+       return def{ defExpr = expr'}
 
 -- TopLevel = False
-liftDefGroupsX :: DefGroups -> Lift (DefGroups, DefGroups)
+liftDefGroupsX :: DefGroups -> Lift DefGroups
 liftDefGroupsX defGroups
-  = do (defs, groups) <- fmap unzip $ mapM liftDefGroupX defGroups
-       return (concat defs, concat groups)
+  = do defs <- mapM liftDefGroupX defGroups
+       return (concat defs)
 
 defSubst :: Def -> (TName, Expr)
 defSubst def = (defTName def, defExpr def)
@@ -91,10 +92,10 @@ exprSort :: Expr -> DefSort
 exprSort expr = if isValueExpr expr then DefVal else DefFun
 
 
-liftDefGroupX :: DefGroup -> Lift (DefGroups, DefGroups)
+liftDefGroupX :: DefGroup -> Lift [DefGroup]  -- list because we may change a DefRec into all non-recursive bindings
 liftDefGroupX (DefNonRec def)
-  = do (def', groups) <- liftDefX def
-       return ([DefNonRec def'], groups)
+  = do def' <- liftDefX def
+       return [DefNonRec def']
 
 liftDefGroupX (DefRec defs)
   -- = return (DefRec defs, [])
@@ -115,21 +116,24 @@ liftDefGroupX (DefRec defs)
 
 
 
-liftDefX :: Def -> Lift (Def, DefGroups)
+liftDefX :: Def -> Lift Def
 liftDefX def
   = withCurrentDef def $
-    do (expr', defs) <- liftExpr False (defExpr def)
-       return ( def{ defExpr = expr', defSort = DefVal}, defs) -- always value? what are DefVar?
+    do expr' <- liftExpr False (defExpr def)
+       let sort' = case defSort def of
+                    DefFun  -> DefVal
+                    sort    -> sort
+       return ( def{ defExpr = expr', defSort = sort' }) -- always value? what are DefVar?
 
 liftExpr :: Bool    -- top-level functions are allowed
          -> Expr
-         -> Lift (Expr, DefGroups)
+         -> Lift Expr
 liftExpr topLevel expr
   = case expr of
     App f args
-      -> do (f', groups1) <- liftExpr False f
-            (args', groups2) <- fmap unzip $ mapM (liftExpr False) args
-            return (App f' args', groups1 ++ concat groups2)
+      -> do f' <- liftExpr False f
+            args' <- mapM (liftExpr False) args
+            return (App f' args')
 
     Lam args eff body
       -- top level functions are allowed
@@ -140,7 +144,8 @@ liftExpr topLevel expr
              let fvs = tnamesList $ freeLocals expr1
                  tvs = tvsList (ftv expr1)
              (expr2, liftDef) <- liftExprDef fvs tvs expr1
-             return (expr2, groups ++ [DefNonRec liftDef])
+             emitLifted [DefNonRec liftDef]
+             return (expr2)
       where liftLambda
               = do (body', groups) <- liftExpr topLevel body
                    return (Lam args eff body', groups)
@@ -185,6 +190,7 @@ liftExprDef fvs tvs expr
                                                   (getParamArityExpr liftExp2))
            expr2 = addTypeApps tvs expr1
            expr3 = addApps (map (\name -> Var name InfoNone) fvs) expr2
+
        return (expr3, liftDef)
 
 liftBranch :: Branch -> Lift (Branch, DefGroups)
@@ -215,30 +221,32 @@ data Env = Env{ currentDef :: [Def],
 
 data State = State{ uniq :: Int }
 
-data Result a = Ok a State
+data Result a = Ok a State [DefGroup]
 
 runLift :: Pretty.Env -> Int -> Lift a -> (a,Int)
 runLift penv u (Lift c)
   = case c (Env [] penv) (State u) of
-      Ok x st -> (x,uniq st)
+      Ok x st [] -> (x,uniq st)
+      Ok x st _  -> failure $ "Core.FunLift.runLift: unprocessed defgroups"
 
 instance Functor Lift where
   fmap f (Lift c)  = Lift (\env st -> case c env st of
-                                        Ok x st' -> Ok (f x) st')
+                                        Ok x st' dgs -> Ok (f x) st' dgs)
 
 instance Applicative Lift where
   pure  = return
   (<*>) = ap
 
 instance Monad Lift where
-  return x       = Lift (\env st -> Ok x st)
+  return x       = Lift (\env st -> Ok x st [])
   (Lift c) >>= f = Lift (\env st -> case c env st of
-                                      Ok x st' -> case f x of
-                                                    Lift d -> d env st' )
+                                      Ok x st' dgs -> case f x of
+                                                        Lift d -> case d env st' of
+                                                                    Ok x' st'' dgs' -> Ok x' st'' (dgs ++ dgs'))
 
 instance HasUnique Lift where
-  updateUnique f = Lift (\env st -> Ok (uniq st) st{ uniq = (f (uniq st)) })
-  setUnique  i   = Lift (\env st -> Ok () st{ uniq = i} )
+  updateUnique f = Lift (\env st -> Ok (uniq st) st{ uniq = (f (uniq st)) } [])
+  setUnique  i   = Lift (\env st -> Ok () st{ uniq = i} [])
 
 withEnv :: (Env -> Env) -> Lift a -> Lift a
 withEnv f (Lift c)
@@ -246,11 +254,21 @@ withEnv f (Lift c)
 
 getEnv :: Lift Env
 getEnv
-  = Lift (\env st -> Ok env st)
+  = Lift (\env st -> Ok env st [])
 
 updateSt :: (State -> State) -> Lift State
 updateSt f
-  = Lift (\env st -> Ok st (f st))
+  = Lift (\env st -> Ok st (f st) [])
+
+collectLifted :: Lift a -> Lift (a, [DefGroups])
+collectLifted (Lift d)
+  = Lift (\env st -> case d env st of
+                       Ok x st' dgs -> Ok (x,dgs) st' [])
+
+emitLifted :: DefGroup -> Lift ()
+emitLifted dg
+  = Lift (\env st -> Ok () st [dg])
+
 
 withCurrentDef :: Def -> Lift a -> Lift a
 withCurrentDef def action
