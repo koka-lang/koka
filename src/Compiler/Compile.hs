@@ -890,8 +890,8 @@ inferCheck loaded flags line coreImports program1
        when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True penv uniqueLift gamma coreDefsLifted
 
        -- do an inlining pass
-       let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsSimp) (loadedInlines loaded3)
-           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift inlines coreDefsSimp
+       let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsLifted) (loadedInlines loaded3)
+           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueLift inlines coreDefsLifted
        when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify
