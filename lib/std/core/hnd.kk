@@ -166,7 +166,7 @@ private type yld<e,a,r> {
   Pure
   YieldingFinal
   Yielding
-  Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : maybe<(() -> b) -> e a>)
+  Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : (() -> b) -> e a)
 }
 
 private extern guard(w : evv<e> ) : e () {
@@ -193,14 +193,10 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
       // evv-set(w0)  // only needed if we do evidence expected check
       yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),ret,cont(res)); })
     }
-    Yield(clause,mbcont) {
+    Yield(clause,cont) {
       fun deep(f) {
         guard(w0)
-        val g = match(mbcont) {
-                  Just(cont) -> cont //prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
-                  Nothing    -> resume-final()
-                }
-        prompt(w0,w1,unsafe-decreasing(m),ret,g(f))
+        prompt(w0,w1,unsafe-decreasing(m),ret,cont(f))
       }
       evv-set(w0)
       clause(deep)
@@ -385,6 +381,12 @@ private fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : (() -> b) ->
   protect-check(resumed,k,res)
 }
 
+/*
+public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r> {
+  Clause1(fun(m,w,x){ yield-to(m, fun(k){ clause(x, fun(r){ k({r}) } ) }) })
+}
+*/
+
 public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e,r> {
   Clause1(fun(m,w,x){ yield-to(m, fun(k){ protect(x,clause,k) }) })
 }
@@ -430,6 +432,12 @@ private fun under0( w : evv<e>, op : () -> e b) : e b {
 public fun clause-control-raw0( op : resume-context<b,e,r> -> e r ) : clause0<b,e,r> {
   Clause0(fun(m,w){ yield-to(m, fun(k){ op(Resume-context(k)) } ) })
 }
+
+/*
+public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r> {
+  Clause0(fun(m,w){ yield-to(m, fun(k){ op(fun(r){ k({r} )}) }) })
+}
+*/
 
 public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r> {
   Clause0(fun(m,w){ yield-to(m, fun(k){ protect((),fun(_x,r){ op(r) }, k) }) })
@@ -568,7 +576,7 @@ public fun ".open-none2"( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   cast-ev2(f)(x1,x2)
 }
 
-public fun ".open-at0"( i: ev-index, f : () -> e1 b ) : e2 b {
+public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev0(f)()
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
@@ -576,7 +584,7 @@ public fun ".open-at0"( i: ev-index, f : () -> e1 b ) : e2 b {
   res
 }
 
-public fun ".open-at1"( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev1(f)(x)
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );
@@ -584,7 +592,7 @@ public fun ".open-at1"( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   res
 }
 
-public fun ".open-at2"( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val ofs = evv-set-ofs(i)
   val res = cast-ev2(f)(x1,x2)
   if (yielding()) return yield-extend( fun(xres){ val j = evv-set-ofs(ofs); xres } );

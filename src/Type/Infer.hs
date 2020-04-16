@@ -228,8 +228,8 @@ inferDefGroup topLevel (DefRec defs) cont
                                 info <- case expr of
                                           Ann _ tp _ -> return (createNameInfoX Public qname sort nameRng tp)  -- may be off due to incomplete type: get fixed later in inferRecDef2
                                           _          -> do tp <- Op.freshTVar kindStar Meta
-                                                           trace ("*** assume defVal: " ++ show qname) $
-                                                            return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
+                                                           -- trace ("*** assume defVal: " ++ show qname) $
+                                                           return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
 
@@ -1801,7 +1801,7 @@ inferApp propagated expect fun nargs rng
 
     inferAppFixedArgs :: [(Type,(Range,Effect),Core.Expr)] -> Inf (Type,Effect,Core.Expr)
     inferAppFixedArgs acc
-      = trace ("inferAppFixedArgs") $
+      = -- trace ("inferAppFixedArgs") $
         do -- (tpArgs,effArgs,coreArgs) <- fmap unzip3 $ mapM (inferExpr Nothing Instantiated) args  -- todo: what about higher-ranked types?
            let (tpArgs,effArgs,coreArgs) = unzip3 acc
            stpArgs <- mapM subst tpArgs
