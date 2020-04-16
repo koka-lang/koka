@@ -786,9 +786,27 @@ genInlineExternal tname formats argDocs
         then return doc
         else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))) <.> text "()"
 
--- generate external
+-- generate external: needs to add try blocks for primitives that can throw exceptions
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
 genExprExternal tname formats argDocs0
+  = do (decls,doc) <- genExprExternalPrim tname formats argDocs0
+       case splitFunType (typeOf tname) of
+         Nothing -> return (decls,doc)
+         Just (pars,eff,res)
+           -> let (ls,tl) = extractOrderedEffect eff
+              in case filter (\l -> labelName l == nameTpPartial) ls of
+                   [] -> return (decls,doc)
+                   _  -> -- has an exception type, wrap it in a try handler
+                         let try = parens $
+                                   parens (text "function()" <+> block (vcat (
+                                     [text "try" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))
+                                     ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
+                                     )))
+                                   <.> text "()"
+                         in return ([],try)
+
+genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternalPrim tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
         argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0

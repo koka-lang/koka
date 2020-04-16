@@ -550,6 +550,10 @@ labelNameEx tp
                                (typeConName tc,0,targs)
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
+typePartial :: Type
+typePartial
+  = TApp tconHandled [TCon (TypeCon nameTpPartial kindHandled)]
+
 
 typeCps :: Type
 typeCps
@@ -699,9 +703,11 @@ isTypeTotal :: Tau -> Bool
 isTypeTotal (TCon tc) = (tc == tconTotal)
 isTypeTotal _         = False
 
+{-
 typePartial :: Tau
 typePartial
   = single nameTpPartial
+-}
 
 typePure :: Tau
 typePure

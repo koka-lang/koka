@@ -98,7 +98,7 @@ inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context uniq0 
     isKeyDef (DefNonRec def)  = defName def `elem` (map unqualify keyDefNames)
     isKeyDef _                = False
 
-    keyDefNames = [namePatternMatchError,nameRef,nameRefSet,nameDeref]
+    keyDefNames = [{-namePatternMatchError,-}nameRef,nameRefSet,nameDeref]
 
 {--------------------------------------------------------------------------
   Definition groups

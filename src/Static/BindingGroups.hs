@@ -276,9 +276,11 @@ group defs deps
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: bindings: " ++ show defVars ++ "\n\ndependencies: " ++ show (defDeps) ++
-       --            "\n\ninitial order: " ++ show defOrder0 ++ "\n\nfinal order: " ++ show defOrder) $
-       concatMap makeGroup defOrder
+        finalGroup     = concatMap makeGroup defOrder
+    in trace ("trace: bindings: " ++ show defVars ++ "\n\ndependencies: " ++ show (defDeps) ++
+                   "\n\ninitial order: " ++ show defOrder0 ++ "\n\nfinal order: " ++ show defOrder) $
+       finalGroup
+
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]
 groupTypeDefs typeDefs deps
@@ -312,7 +314,9 @@ orderedPartition pred xs
       = if (pred x) then part xx (x:ys,zs) else part xx (ys,x:zs)
 
 {-
-
+As a tribute to Doaitse Swierstra, let's leave in this code which
+was from a time when we used the Attribute Grammar system from
+Doaitse developed at the University of Utrecht.
 
 {--------------------------------------------------------------------
   Group

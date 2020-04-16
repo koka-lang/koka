@@ -1,9 +1,15 @@
-test/cgen/wrong/assign1.kk(6, 5): error: no function count is defined that matches the argument types
+[01;30mloaded import module: std/core
+[00;39;49m[00m[01;30mloaded import module: std/core/types
+[00;39;49m[00m[01;30mloaded import module: std/core/hnd
+[00;39;49m[00m[01;30mloaded inline import module: std/core/types
+[00;39;49m[00m[01;30mloaded inline import module: std/core/hnd
+[00;39;49m[00m[01;30mloaded inline import module: std/core
+[00;39;49m[00mtest/cgen/wrong/assign1.kk(6, 5): error: no function count is defined that matches the argument types
  context : c.count := 1
  term : count
  inferred type: (counter<_h>, _a, ...) -> ...
- candidates : count: forall<h> (counter : counter<h>) -> ref<h,int>
- count: (s : string, pattern : string) -> int
- count: (s : string, pred : (char) -> bool) -> int
- count: (slice : sslice) -> int
- count: (s : string) -> int
+ candidates : count: forall<h> (counter : counter<h>) -> std/core/types/ref<h,std/core/types/int>
+ count: (s : std/core/types/string, pattern : std/core/types/string) -> std/core/types/int
+ count: (s : std/core/types/string, pred : (std/core/types/char) -> std/core/types/bool) -> std/core/types/int
+ count: (slice : sslice) -> std/core/types/int
+ count: (s : std/core/types/string) -> std/core/types/int

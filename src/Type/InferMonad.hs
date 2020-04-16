@@ -1189,9 +1189,9 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                                       Nothing            -> return []
                             case amb2 of
                               (_:_)
-                                -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "is undefined") <->
+                                -> infError range ((text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found") <->
                                                    (text "perhaps you meant: " <.> ppOr penv (map fst amb2)))
-                              _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "is undefined")
+                              _ -> infError range (text "identifier" <+> Pretty.ppName penv name <+> text "cannot be found")
 
         [(qname,info)]
            -> do checkCasing range name qname info
@@ -1274,7 +1274,7 @@ lookupImportName name range
   = do matches <- lookupNameEx (const True) name CtxNone range
        case matches of
         [] -> do env <- getPrettyEnv
-                 infError range (text "identifier" <+> Pretty.ppName env name <+> text "is undefined")
+                 infError range (text "identifier" <+> Pretty.ppName env name <+> text "cannot be found")
                  return Nothing
         _  -> case filter (isInfoImport . snd) matches of
                 []         -> return Nothing
@@ -1312,7 +1312,7 @@ lookupNameN name fixed named range
          []         -> do amb <- lookupNameEx isInfoFun name CtxNone range
                           env <- getEnv
                           if null amb
-                           then infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "is undefined")
+                           then infError range (text "identifier" <+> Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
                            else infError range (text "no function" <+> Pretty.ppName (prettyEnv env) name
                                                 <+> text "accepts" <+> (pretty (fixed + length named)) <+> text "arguments"
                                                 <.> ppAmbiguous env "" amb)
@@ -1356,7 +1356,7 @@ lookupNameEx infoFilter name ctx range
                      do let candidates = filter (infoFilter . snd) (gammaLookup name (gamma env))
                         case candidates of
                            [(qname,info)] -> return candidates
-                           [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "is undefined")
+                           [] -> return [] -- infError range (Pretty.ppName (prettyEnv env) name <+> text "cannot be found")
                            _  -> do checkCasingOverlaps range name candidates
                                     -- lookup global candidates that match the expected type
                                     matches <- case ctx of
