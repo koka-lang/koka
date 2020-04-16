@@ -42,7 +42,7 @@ trace s x =
   Lib.Trace.trace s
     x
 
-test = False
+test = True
 
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
@@ -184,7 +184,8 @@ uniqueNameCurrentDef =
   do env <- getEnv
      let defNames = map defName (currentDef env)
      i <- unique
-     let udefName = postpend (show i)(makeHiddenName "lift" (last defNames))
+     let base     = concatMap (\name -> nameId name ++ "-") (reverse defNames) ++ show i
+         udefName = makeHiddenName "lift" (newQualified (nameModule (last defNames)) base)
      return udefName
 
 

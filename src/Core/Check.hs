@@ -40,10 +40,10 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore liberalEffects prettyEnv uniq gamma  defGroups
+checkCore :: Bool -> Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
+checkCore liberalEffects allowPartialApps prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv liberalEffects gamma prettyEnv []) of
+      Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
 
@@ -55,7 +55,7 @@ checkCore liberalEffects prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ liberal :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+data CheckEnv = CEnv{ liberalEff :: Bool, allowPartialApps :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
               | Err Doc
@@ -188,8 +188,15 @@ check expr
                   -> do -- env <- getEnv
                         --when (length tpPars /= length args + n) $
                         --  failDoc (\env -> text "wrong number of arguments in application: " <+> prettyExpr expr env)
-                        sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
-                        return tpRes
+                        env <- getEnv
+                        if (allowPartialApps env)
+                         then do sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                                 let morePars = drop (length tpArgs) tpPars
+                                 if (null morePars)
+                                  then return tpRes
+                                  else return (TFun morePars eff tpRes)
+                         else do sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                                 return tpRes
       TypeLam tvars body
         -> do tp <- check body
               return (quantifyType tvars tp)
@@ -269,7 +276,7 @@ findConstrArgs fdoc tpScrutinee con
 matchSub :: String -> (Env -> Doc) -> Type -> Type -> Check ()
 matchSub when fdoc a b
   = do env <- getEnv
-       if (not (liberal env))
+       if (not (liberalEff env))
         then match when fdoc a b
         else -- check if b can be used as an a
               case (splitFunType a, splitFunType b) of
