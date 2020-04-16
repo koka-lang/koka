@@ -277,8 +277,8 @@ group defs deps
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
         finalGroup     = concatMap makeGroup defOrder
-    in trace ("trace: bindings: " ++ show defVars ++ "\n\ndependencies: " ++ show (defDeps) ++
-                   "\n\ninitial order: " ++ show defOrder0 ++ "\n\nfinal order: " ++ show defOrder) $
+    in --trace ("trace: bindings: " ++ show defVars ++ "\n\ndependencies: " ++ show (defDeps) ++
+       --             "\n\ninitial order: " ++ show defOrder0 ++ "\n\nfinal order: " ++ show defOrder) $
        finalGroup
 
 
