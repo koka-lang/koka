@@ -183,8 +183,10 @@ uniqueNameCurrentDef :: Lift Name
 uniqueNameCurrentDef =
   do env <- getEnv
      let defNames = map defName (currentDef env)
-     uniName <- uniqueName "lift"
-     return $ foldr1 (\localName name -> postpend ("-" ++ show localName) name) (uniName:defNames)
+     i <- unique
+     let udefName = postpend (show i)(makeHiddenName "lift" (last defNames))
+     return udefName
+
 
 {--------------------------------------------------------------------------
   Lift monad
