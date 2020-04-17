@@ -94,8 +94,8 @@ liftDefGroup False (DefRec defs)
                            defs expr2
 
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
-  where substBody subst (TypeLam _ e) = substBody subst e
-        substBody subst (Lam _ _ e) = substBody subst e
+  where substBody subst (TypeLam args e) = TypeLam args $ substBody subst e
+        substBody subst (Lam args eff e) = Lam args eff $ substBody subst e
         substBody subst e = subst |~> e
 
 liftDef :: Bool -> Def -> Lift Def
