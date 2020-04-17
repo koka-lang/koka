@@ -11,6 +11,7 @@
 
 module Core.Uniquefy ( uniquefy
                      , uniquefyDefGroup {- used for divergence analysis -}
+                     , uniquefyExpr
                      ) where
 
 import Control.Monad
@@ -65,7 +66,8 @@ setRenaming r = updateSt (\st -> st{ renaming = r })
 runUn (Un u)
   = fst (u (St S.empty M.empty))
 
-
+uniquefyExpr :: Expr -> Expr
+uniquefyExpr expr = runUn (uniquefyExprX expr)
 
 uniquefy :: Core -> Core
 uniquefy core
@@ -79,11 +81,11 @@ uniquefy core
   where
     uniquefyDG (DefNonRec def)
       = fmap DefNonRec $
-        do expr <- uniquefyExpr (defExpr def)
+        do expr <- uniquefyExprX (defExpr def)
            return def{ defExpr = expr }
     uniquefyDG (DefRec defs)
       = fmap DefRec $
-        do exprs <- mapM (uniquefyExpr . defExpr) defs
+        do exprs <- mapM (uniquefyExprX . defExpr) defs
            return [def{ defExpr = expr } | (def,expr) <- zip defs exprs]
 
 
@@ -97,7 +99,7 @@ uniquefyDefGroup defgroup
         -> fmap DefRec $
            do locals <- getLocals
               setLocals (foldr (\name locs -> S.insert name locs) locals (map defName defs))
-              exprs <- localized $ mapM (uniquefyExpr . defExpr) defs
+              exprs <- localized $ mapM (uniquefyExprX . defExpr) defs
               return [def{ defExpr = expr } | (def,expr) <- zip defs exprs]
 
 
@@ -113,40 +115,40 @@ uniquefyInnerDefGroup dg
 uniquefyRecDefs :: [Def] -> Un [Def]
 uniquefyRecDefs defs
   = do names <- mapM (uniquefyName . defName) defs
-       exprs <- localized $ mapM (uniquefyExpr . defExpr) defs
+       exprs <- localized $ mapM (uniquefyExprX . defExpr) defs
        return [def{ defExpr = expr, defName = name } | (def,(name,expr)) <- zip defs (zip names exprs)]
 
 uniquefyDef :: Def -> Un Def
 uniquefyDef def
-  = do expr1 <- localized $ uniquefyExpr (defExpr def)
+  = do expr1 <- localized $ uniquefyExprX (defExpr def)
        name1 <- uniquefyName (defName def)  -- works because we can't have overloaded recursive identifiers in an inner scope
        return (def{ defName = name1, defExpr = expr1 })
 
-uniquefyExpr :: Expr -> Un Expr
-uniquefyExpr expr
+uniquefyExprX :: Expr -> Un Expr
+uniquefyExprX expr
   = case expr of
       Lam tnames eff expr-> localized $
                             do tnames1 <- mapM uniquefyTName tnames
-                               expr1   <- uniquefyExpr expr
+                               expr1   <- uniquefyExprX expr
                                return (Lam tnames1 eff expr1)
       Var tname info    -> do renaming <- getRenaming
                               case M.lookup (getName tname) renaming of
                                 Just name -> return $ Var (TName name (typeOf tname)) info
                                 Nothing   -> return expr
-      App f args        -> do f1 <- uniquefyExpr f
-                              args1 <- mapM uniquefyExpr args
+      App f args        -> do f1 <- uniquefyExprX f
+                              args1 <- mapM uniquefyExprX args
                               return (App f1 args1)
-      TypeLam tvs expr  -> do expr1 <- uniquefyExpr expr
+      TypeLam tvs expr  -> do expr1 <- uniquefyExprX expr
                               return (TypeLam tvs expr1)
-      TypeApp expr tps  -> do expr1 <- uniquefyExpr expr
+      TypeApp expr tps  -> do expr1 <- uniquefyExprX expr
                               return (TypeApp expr1 tps)
       Con tname repr    -> return expr
       Lit lit           -> return expr
       Let defGroups expr  -> do defGroups1 <- mapM uniquefyInnerDefGroup defGroups
-                                expr1 <- uniquefyExpr expr
+                                expr1 <- uniquefyExprX expr
                                 return (Let defGroups1 expr1)
       Case exprs branches
-        -> do exprs1 <- mapM uniquefyExpr exprs
+        -> do exprs1 <- mapM uniquefyExprX exprs
               branches1 <- localized $ mapM uniquefyBranch branches
               return (Case exprs1 branches1 )
 
@@ -157,8 +159,8 @@ uniquefyBranch (Branch patterns guardExprs)
        return (Branch patterns1 guardExprs1)
 
 uniquefyGuard (Guard test expr)
-  = do t <- uniquefyExpr test
-       e <- uniquefyExpr expr
+  = do t <- uniquefyExprX test
+       e <- uniquefyExprX expr
        return (Guard t e)
 
 uniquefyPattern pattern

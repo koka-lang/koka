@@ -28,6 +28,7 @@ import Type.Pretty as Pretty
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
+import Core.Uniquefy( uniquefyExpr )
 import qualified Common.NameMap as M
 import qualified Data.Set as S
 
@@ -36,7 +37,7 @@ import qualified Data.Set as S
 
 simplifyDefs :: Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
 simplifyDefs unsafe nRuns duplicationMax uniq penv defs
-  = runSimplify unsafe duplicationMax uniq penv (simplifyN nRuns defs)
+  = runSimplify unsafe duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
 simplifyN :: Int -> DefGroups -> Simp DefGroups
 simplifyN nRuns defs
@@ -50,6 +51,16 @@ uniqueSimplify duplicationMax expr
        let (x,u') = runSimplify False duplicationMax u Pretty.defaultEnv (simplify expr)
        setUnique u'
        return x
+
+
+uniquefyDefBodies :: [DefGroup] -> [DefGroup]
+uniquefyDefBodies dgs  = map uniquefyDefGroupBody dgs
+
+uniquefyDefGroupBody :: DefGroup -> DefGroup
+uniquefyDefGroupBody (DefRec defs) = DefRec (map uniquefyDefBody defs)
+uniquefyDefGroupBody (DefNonRec def) = DefNonRec (uniquefyDefBody def)
+
+uniquefyDefBody def = def{ defExpr = uniquefyExpr (defExpr def) }
 
 
 class Simplify a where
@@ -176,11 +187,13 @@ topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nam
         else return expr
 
 -- Direct function applications
-topDown (App (Lam pars eff body) args) | length pars == length args
+topDown expr@(App (Lam pars eff body) args) | length pars == length args
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-       topDown $ Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
+           expr' = Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
+       trace("simplify: " ++ show expr ++ " to " ++ show expr') $
+        topDown expr'
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
