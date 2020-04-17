@@ -76,27 +76,24 @@ liftDefGroup False (DefNonRec def)
        return [DefNonRec def']
 
 liftDefGroup False (DefRec defs)
-  = do let exprs = map defExpr defs
-           names = map defTName defs
-           fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
-           tvs = tvsList $ tvsUnions $ map ftv exprs
-       -- loop:
-       -- let (expr2, liftDefs) = unzip $ zipWith (makeDefX fvs tvs) newNames exprs'
-       --     subst = zip names expr2
-       --     exprs' = map (subst |~>) exprs
-       (expr2, liftDefs) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
+  = do (expr2, liftDefs) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
        let subst = zip names expr2
-           liftDefs2 = map (\def -> def{defExpr = substBody subst (defExpr def)}) liftDefs
+           liftDefs2 = zipWith (substWithLiftedExpr subst) liftDefs exprs
        groups <- liftDefGroup True (DefRec liftDefs2) -- lift all recs to top-level
        emitLifteds groups
 
-       let defs' = zipWith (\def expr -> def{defExpr = expr, defSort = liftSort False (defSort def)})
+       let defs' = zipWith (\def expr -> def{ defExpr = expr
+                                            , defSort = liftSort False (defSort def)})
                            defs expr2
-
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
-  where substBody subst (TypeLam args e) = TypeLam args $ substBody subst e
-        substBody subst (Lam args eff e) = Lam args eff $ substBody subst e
-        substBody subst e = subst |~> e
+  where exprs = map defExpr defs
+        names = map defTName defs
+        fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
+        tvs = tvsList $ tvsUnions $ map ftv exprs
+        substWithLiftedExpr subst def expr
+          = let liftExp1 = addLambdasTName fvs (getEffExpr expr) (subst |~> expr)
+                liftExp2 = addTypeLambdas tvs liftExp1
+            in def{defExpr = liftExp2}
 
 liftDef :: Bool -> Def -> Lift Def
 liftDef topLevel def
