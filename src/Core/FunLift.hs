@@ -42,12 +42,12 @@ trace s x =
   Lib.Trace.trace s
     x
 
-test = True
+enableLifting = True
 
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
 liftFunctions penv u defs
-  = if test then runLift penv u (liftDefGroups True defs)
+  = if enableLifting then runLift penv u (liftDefGroups True defs)
     else (defs, u)
 
 

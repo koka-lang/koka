@@ -92,6 +92,7 @@ instance HasKind Type where
         TVar v         -> getKind v
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
+                          -- if (null xs) then getKind tp else 
                           kindApply xs (getKind syn)
         TApp tp args   -> kindApply args (getKind tp)
                           {- case collect [] (getKind tp) of

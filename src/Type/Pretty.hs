@@ -333,9 +333,11 @@ ppType env tp
                          Nothing -> ppTypeVar env tv -- nicePretty (nice env) id
                          Just f  -> f (prec env)
       TVar tv       -> ppTypeVar env tv
-      TCon cv       -> if (typeConName cv == nameEffectEmpty && not (coreIface env))
-                        then ppNameEx env nameTpTotal
-                        else ppTypeCon env cv
+      TCon cv       -> --if (typeConName cv == nameEffectEmpty && not (coreIface env))
+                       --
+                       --  then ppNameEx env nameTpTotal
+                      --  else
+                        ppTypeCon env cv
       TApp (TCon con) [_,_] | typeConName con == nameEffectExtend
                     -> let (ls,tl) = shallowExtractEffectExtend tp
                            tldoc   = if (tl == effectEmpty)
@@ -343,7 +345,7 @@ ppType env tp
                                       else text "|" <.> ppType env{prec=precTop} tl
                        in color (colorEffect (colors env)) $
                           case ls of
-                            []  | tl == effectEmpty && not (coreIface env) -> ppNameEx env nameTpTotal
+                            --[]  | tl == effectEmpty && not (coreIface env) -> ppNameEx env nameTpTotal
                             [l] | tl == effectEmpty && not (coreIface env) -> ppType env{prec=precAtom} l
                             _   -> text "<" <.> hcat (punctuate comma (map (ppType env{prec=precTop}) ls)) <.> tldoc <.> text ">"
 
@@ -440,7 +442,8 @@ ppTypeVar env (TypeVar id kind flavour)
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)
     = colorByKindDef env kind colorTypeCon $
-      (if name == nameEffectEmpty then id else wrapKind (showKinds env) env kind) $
+      --(if name == nameEffectEmpty then id else)
+      (wrapKind (showKinds env) env kind) $
       ppNameEx env name
 
 ppTypeSyn :: Env -> TypeSyn -> Doc
@@ -467,7 +470,7 @@ colorForKind env kind
 
 wrapKind :: Bool -> Env -> Kind -> Doc -> Doc
 wrapKind showKinds env kind doc
-  = if (showKinds  && kind /= kindStar )
+  = if (showKinds && kind /= kindStar )
     then color (colorKind (colors env)) $
          parens (color (colorType (colors env)) doc <+> text "::" <+>
                  ppKind (colors env) precTop kind)

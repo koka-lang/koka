@@ -192,8 +192,8 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
            argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
            expr' = Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
-       trace("simplify: " ++ show expr ++ " to " ++ show expr') $
-        topDown expr'
+       -- trace("simplify: " ++ show expr ++ " to " ++ show expr') $
+       topDown expr'
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
