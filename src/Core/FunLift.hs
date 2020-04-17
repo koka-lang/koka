@@ -69,7 +69,7 @@ liftDefGroup True (DefNonRec def)
 liftDefGroup True (DefRec defs)
   = do (defs', groups) <- collectLifted $ mapM (liftDef True) defs
        let groups' = flattenDefGroups groups
-       return [DefRec (defs' ++ groups')] -- defs' depend on groups', groups' might depend on defs'
+       return [DefRec (groups' ++ defs')] -- defs' depend on groups', groups' might depend on defs'
 
 liftDefGroup False (DefNonRec def)
   = do def' <- liftDef False def
