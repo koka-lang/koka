@@ -37,7 +37,7 @@ import Common.Unique
 import Common.Syntax
 
 import Core.Core
-import Core.Pretty ()
+import Core.Pretty
 import Core.CoreVar
 
 type CommentDoc   = Doc
@@ -308,19 +308,19 @@ tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
 tryTailCall result expr
   = case expr of
      -- Tailcall case 1
-     App (Var n _) args | ( case result of
-                              ResultReturn (Just m) _ -> m == getName n
-                              _                       -> False
-                          )
+     App (Var n info) args  | ( case result of
+                                  ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
+                                  _                       -> False
+                              )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
              return $ Just $ block $ stmts <-> tailcall
 
      -- Tailcall case 2
-     App (TypeApp (Var n _) _) args | ( case result of
-                                        ResultReturn (Just m) _ -> m == getName n
-                                        _                       -> False
-                                      )
+     App (TypeApp (Var n info) _) args | ( case result of
+                                            ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
+                                            _                       -> False
+                                          )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
              return $ Just $ block $ stmts <-> tailcall
@@ -610,7 +610,8 @@ genMatch result scrutinees branches
 -- | Generates javascript statements and a javascript expression from core expression
 genExpr :: Expr -> Asm (Doc,Doc)
 genExpr expr
-  = case expr of
+  = trace ("genExpr: " ++ show expr) $
+    case expr of
      -- check whether the expression is pure an can be inlined
      _  | isInlineableExpr expr
        -> do doc <- genInline expr
@@ -625,22 +626,31 @@ genExpr expr
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
      App f args
-        -- | isFunExpr f
-       -- ->
-       --  | otherwise
-       -> case extractList expr of
-            Just (xs,tl) -> genList xs tl
-            Nothing -> case extractExtern f of
-             Just (tname,formats)
-              -> do (decls,argDocs) <- genExprs args
-                    (edecls,doc) <- genExprExternal tname formats argDocs
-                    if (getName tname == nameReturn)
-                     then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
-                     else return (vcat (decls ++ edecls), doc)
-             Nothing
-              -> do lsDecls <- genExprs (f:trimOptionalArgs args)
-                    let (decls,fdoc:docs) = lsDecls
-                    return (vcat decls, fdoc <.> tupled docs)
+       -> case splitFunType (typeOf f) of
+            Just (tpars,eff,tres)
+              | length tpars > length args
+               -> do vars <- newVarNames (length tpars - length args)
+                     let pars' = [TName v tpar | (v,(_,tpar)) <- zip vars tpars]
+                         args' = [Var v InfoNone | v <- pars']
+                     trace  ("genExpr: wrap in lambda: " ++ show ( expr)) $
+                      genExpr (Lam pars' typeTotal (App f (args ++ args')))
+              | length tpars < length args
+               -> let n = length tpars
+                  in trace  ("genExpr: double App: " ++ show (n,length args) ++ ": " ++ show (typeOf f) ++ ": " ++ show expr) $
+                      genExpr (App (App f (take n args)) (drop n args))
+            _ -> case extractList expr of
+                  Just (xs,tl) -> genList xs tl
+                  Nothing -> case extractExtern f of
+                   Just (tname,formats)
+                    -> do (decls,argDocs) <- genExprs args
+                          (edecls,doc) <- genExprExternal tname formats argDocs
+                          if (getName tname == nameReturn)
+                           then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
+                           else return (vcat (decls ++ edecls), doc)
+                   Nothing
+                    -> do lsDecls <- genExprs (f:trimOptionalArgs args)
+                          let (decls,fdoc:docs) = lsDecls
+                          return (vcat decls, fdoc <.> tupled docs)
 
      Let groups body
        -> do decls1       <- genGroups groups
@@ -917,9 +927,11 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App f args       -> isPureExpr f && all isPureExpr args
+      App f args       -> trace ("isInlineable f: " ++ show f) $
+                          isPureExpr f && all isPureExpr args
                           -- all isInlineableExpr (f:args)
                           && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
+                          && getParamArityExpr f == length args
       _                -> isPureExpr expr
 
 isPureExpr :: Expr -> Bool
@@ -944,10 +956,10 @@ isTailCalling expr n
       Var _ _           -> False                      -- a variable is not a call
       Con _ _           -> False                      -- a constructor is not a call
       Lit _             -> False                      -- a literal is not a call
-      App (Var tn _) _   | getName tn == n            -- direct application can be a tail call
-                        -> True
-      App (TypeApp (Var tn _) _) _ | getName tn == n  -- tailcalled function might be polymorphic and is applied to types before
-                        -> True
+      App (Var tn info) args   | getName tn == n            -- direct application can be a tail call
+                        -> infoArity info == length args
+      App (TypeApp (Var tn info) _) args | getName tn == n  -- tailcalled function might be polymorphic and is applied to types before
+                        -> infoArity info == length args
       App (Var tn _) [e] | getName tn == nameReturn   -- a return statement is transparent in terms of tail calling
                         -> e `isTailCalling` n
       App _ _           -> False                      -- other applications don't apply

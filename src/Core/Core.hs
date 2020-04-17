@@ -68,6 +68,7 @@ module Core.Core ( -- Data structures
 
                    -- * Canonical names
                    , canonicalName, nonCanonicalName, canonicalSplit
+                   , infoArity, infoTypeArity
                    ) where
 
 import Data.Char( isDigit )
@@ -356,6 +357,8 @@ data TName = TName Name Type
 
 getName (TName name _) = name
 
+tnameType (TName name tp) = tp
+
 showTName (TName name tp)
     = show name -- ++ ": " ++ minCanonical tp
 
@@ -377,6 +380,11 @@ data VarInfo
   | InfoExternal [(Target,String)]  -- inline body
   deriving Show
 
+infoArity (InfoArity m n) = n
+infoArity (_)             = 0
+
+infoTypeArity (InfoArity m n) = m
+infoTypeArity (_)             = 0
 
 
 data Branch = Branch { branchPatterns :: [Pattern]
@@ -484,13 +492,30 @@ costGuard (Guard test expr)
   = costExpr test + costExpr expr
 
 getTypeArityExpr :: Expr -> Int
-getTypeArityExpr (TypeLam args _) = length args
-getTypeArityExpr _ = 0
+getTypeArityExpr expr
+  = case expr of
+      Var _ (InfoArity m n) -> m
+      Var tname _           -> fst (getTypeArities (tnameType tname))
+      Con tname _           -> fst (getTypeArities (tnameType tname))
+      TypeApp e targs       -> getTypeArityExpr e - length targs
+      TypeLam pars _        -> length pars
+      Case _ (Branch _ (Guard _ e:_):_) -> getTypeArityExpr e
+      _ -> 0
+
+-- fun foo(x:int){ fun bar(y){ x + y }; [1,2].map(bar) }
 
 getParamArityExpr :: Expr -> Int
-getParamArityExpr (Lam args _ _) = length args
-getParamArityExpr (TypeLam _ (Lam args _ _)) = length args
-getParamArityExpr _ = 0
+getParamArityExpr expr
+  = case expr of
+    Var _ (InfoArity m n) -> n
+    Var tname _           -> snd (getTypeArities (tnameType tname))
+    Con tname _           -> snd (getTypeArities (tnameType tname))
+    Lam pars _ _          -> length pars
+    App f args            -> getParamArityExpr f - length args
+    TypeLam _ e           -> getParamArityExpr e
+    TypeApp e _           -> getParamArityExpr e
+    Case _ (Branch _ (Guard _ e:_):_) -> getParamArityExpr e
+    _ -> 0
 
 getEffExpr :: Expr -> Effect
 getEffExpr (Lam _ eff _) = eff
@@ -781,8 +806,14 @@ instance HasType Expr where
     = typeOf tname
 
   -- Application
-  typeOf (App fun args)
-    = snd (splitFun (typeOf fun))
+  typeOf expr@(App fun args)
+    = -- snd (splitFun (typeOf fun))
+      case expandSyn (typeOf fun) of
+         TFun targs eff tres
+           | length args == length targs || length targs == 0 -> tres
+           | length args > length targs  -> typeOf (App (Var (TName (newName "tmp") tres) InfoNone) (drop (length targs) args))
+           | otherwise -> TFun (drop (length args) targs) eff tres
+         _ -> failure ("Core.Core.typeOf.App: Expected function: " ++ show (pretty (typeOf fun))) -- ++ " in the application " ++ show (expr))
 
   -- Type lambdas
   typeOf (TypeLam xs expr)
@@ -792,9 +823,10 @@ instance HasType Expr where
   typeOf (TypeApp expr [])
     = typeOf expr
 
-  typeOf (TypeApp expr tps)
+  typeOf tapp@(TypeApp expr tps)
     = let (tvs,tp1) = splitTForall (typeOf expr)
       in -- assertion "Core.Core.typeOf.TypeApp" (getKind a == getKind tp) $
+         trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
          subNew (zip tvs tps) |-> tp1
 
   -- Literals

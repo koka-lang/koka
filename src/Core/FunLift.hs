@@ -184,8 +184,8 @@ uniqueNameCurrentDef =
   do env <- getEnv
      let defNames = map defName (currentDef env)
      i <- unique
-     let base     = concatMap (\name -> nameId name ++ "-") (reverse defNames) ++ show i
-         udefName = makeHiddenName "lift" (newQualified (nameModule (last defNames)) base)
+     let base     = "." ++ concatMap (\name -> nameId name ++ "-") (reverse defNames) ++ "lift" ++ show i
+         udefName = (newQualified (nameModule (last defNames)) base)
      return udefName
 
 
