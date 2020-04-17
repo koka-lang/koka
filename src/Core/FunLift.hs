@@ -80,9 +80,13 @@ liftDefGroup False (DefRec defs)
            names = map defTName defs
            fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
            tvs = tvsList $ tvsUnions $ map ftv exprs
+       -- loop:
+       -- let (expr2, liftDefs) = unzip $ zipWith (makeDefX fvs tvs) newNames exprs'
+       --     subst = zip names expr2
+       --     exprs' = map (subst |~>) exprs
        (expr2, liftDefs) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
        let subst = zip names expr2
-           liftDefs2 = map (subst |~>) liftDefs
+           liftDefs2 = map (\def -> def{defExpr = substBody subst (defExpr def)}) liftDefs
        groups <- liftDefGroup True (DefRec liftDefs2) -- lift all recs to top-level
        emitLifteds groups
 
@@ -90,6 +94,9 @@ liftDefGroup False (DefRec defs)
                            defs expr2
 
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
+  where substBody subst (TypeLam _ e) = substBody subst e
+        substBody subst (Lam _ _ e) = substBody subst e
+        substBody subst e = subst |~> e
 
 liftDef :: Bool -> Def -> Lift Def
 liftDef topLevel def
