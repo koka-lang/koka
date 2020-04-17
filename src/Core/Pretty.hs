@@ -46,7 +46,7 @@ instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
 instance Show Def       where show = show . prettyDef       defaultEnv
-instance Show Expr      where show = show . prettyExpr      defaultEnv
+instance Show Expr      where show = show . prettyExpr      defaultEnv{showKinds=True,coreShowTypes=True}
 instance Show Lit       where show = show . prettyLit       defaultEnv
 instance Show Branch    where show = show . prettyBranch    defaultEnv
 instance Show Pattern   where show = show . prettyPattern   defaultEnv

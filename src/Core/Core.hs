@@ -493,6 +493,15 @@ costGuard (Guard test expr)
 
 getTypeArityExpr :: Expr -> Int
 getTypeArityExpr expr
+  = fst (getTypeArities (typeOf expr))
+
+getParamArityExpr :: Expr -> Int
+getParamArityExpr expr
+  = snd (getTypeArities (typeOf expr))
+
+{-
+getTypeArityExpr :: Expr -> Int
+getTypeArityExpr expr
   = case expr of
       Var _ (InfoArity m n) -> m
       Var tname _           -> fst (getTypeArities (tnameType tname))
@@ -516,6 +525,7 @@ getParamArityExpr expr
     TypeApp e _           -> getParamArityExpr e
     Case _ (Branch _ (Guard _ e:_):_) -> getParamArityExpr e
     _ -> 0
+-}
 
 getEffExpr :: Expr -> Effect
 getEffExpr (Lam _ eff _) = eff
@@ -826,7 +836,7 @@ instance HasType Expr where
   typeOf tapp@(TypeApp expr tps)
     = let (tvs,tp1) = splitTForall (typeOf expr)
       in -- assertion "Core.Core.typeOf.TypeApp" (getKind a == getKind tp) $
-         trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
+         -- trace ("typeOf:TypeApp: , tvs: " ++ show (map pretty tvs) ++ ", tp1: " ++ show (pretty tp1)) $
          subNew (zip tvs tps) |-> tp1
 
   -- Literals

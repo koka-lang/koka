@@ -61,7 +61,7 @@ module Type.Type (-- * Types
                   -- ** Trivial conversion
                   , IsType( toType)
                   -- ** Primitive
-                  , isFun, splitFunType
+                  , isFun, splitFunType, splitFunScheme
                   , getTypeArities
                   , module Common.Name
                   ) where
@@ -386,10 +386,16 @@ applyType tp1 tp2
 
 getTypeArities :: Type -> (Int,Int)
 getTypeArities tp
+  = case splitFunScheme tp of
+      Just (tvars,_,pars,eff,res) -> (length tvars, length pars)
+      Nothing -> (0,0)
+
+splitFunScheme :: Scheme -> Maybe ([TypeVar],[Pred],[(Name,Tau)],Effect,Tau)
+splitFunScheme tp
   = let (tvars, preds, rho) = splitPredType tp
     in case splitFunType rho of
-         Just (pars,eff,res) -> (length tvars, length pars)
-         Nothing             -> (length tvars, 0)
+         Just (pars,eff,res) -> Just (tvars,preds,pars,eff,res)
+         Nothing             -> Nothing
 
 
 {--------------------------------------------------------------------------

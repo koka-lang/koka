@@ -610,7 +610,7 @@ genMatch result scrutinees branches
 -- | Generates javascript statements and a javascript expression from core expression
 genExpr :: Expr -> Asm (Doc,Doc)
 genExpr expr
-  = trace ("genExpr: " ++ show expr) $
+  = -- trace ("genExpr: " ++ show expr) $
     case expr of
      -- check whether the expression is pure an can be inlined
      _  | isInlineableExpr expr
@@ -626,17 +626,17 @@ genExpr expr
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
      App f args
-       -> case splitFunType (typeOf f) of
-            Just (tpars,eff,tres)
+       -> case splitFunScheme (typeOf f) of
+            Just (_,_,tpars,eff,tres)
               | length tpars > length args
                -> do vars <- newVarNames (length tpars - length args)
                      let pars' = [TName v tpar | (v,(_,tpar)) <- zip vars tpars]
                          args' = [Var v InfoNone | v <- pars']
-                     trace  ("genExpr: wrap in lambda: " ++ show ( expr)) $
-                      genExpr (Lam pars' typeTotal (App f (args ++ args')))
+                     -- trace  ("genExpr: wrap in lambda: " ++ show ( expr)) $
+                     genExpr (Lam pars' typeTotal (App f (args ++ args')))
               | length tpars < length args
                -> let n = length tpars
-                  in trace  ("genExpr: double App: " ++ show (n,length args) ++ ": " ++ show (typeOf f) ++ ": " ++ show expr) $
+                  in --  trace  ("genExpr: double App: " ++ show (n,length args) ++ ": " ++ show (typeOf f) ++ ": " ++ show expr) $
                       genExpr (App (App f (take n args)) (drop n args))
             _ -> case extractList expr of
                   Just (xs,tl) -> genList xs tl
@@ -927,7 +927,7 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App f args       -> trace ("isInlineable f: " ++ show f) $
+      App f args       -> -- trace ("isInlineable f: " ++ show f) $
                           isPureExpr f && all isPureExpr args
                           -- all isInlineableExpr (f:args)
                           && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
