@@ -253,10 +253,13 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = case nameId name of
-      c:cs | c=='.' -> name   -- already hidden
-      c:cs | not (isAlpha c) -> prepend "." name -- hidden operator
-      _    -> prepend ("." ++ s ++ "-") name
+  = case nameId xname of
+      c:cs | not (isAlpha c) -> prepend "." xname -- hidden operator
+      _    -> prepend ("." ++ s ++ "-") xname
+  where
+    xname = case nameId name of
+              '.':cs -> newQualified (nameModule name) cs
+              s      -> name
 
 makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
