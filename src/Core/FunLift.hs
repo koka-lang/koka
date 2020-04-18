@@ -42,7 +42,7 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enableLifting = False -- True
+enableLifting = True
 
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
@@ -76,24 +76,27 @@ liftDefGroup False (DefNonRec def)
        return [DefNonRec def']
 
 liftDefGroup False (DefRec defs)
-  = do (expr2, liftDefs) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
-       let subst = zip names expr2
-           liftDefs2 = zipWith (substWithLiftedExpr subst) liftDefs exprs
-       groups <- liftDefGroup True (DefRec liftDefs2) -- lift all recs to top-level
+  = do (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
+       let subst       = zip names callExprs
+           liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
+       groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
        emitLifteds groups
 
-       let defs' = zipWith (\def expr -> def{ defExpr = expr
-                                            , defSort = liftSort False (defSort def)})
-                           defs expr2
+       let defs' = zipWith (\def callExpr -> def{ defExpr = callExpr
+                                                , defSort = liftSort False (defSort def)})
+                          defs callExprs
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
   where exprs = map defExpr defs
         names = map defTName defs
         fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
         tvs = tvsList $ tvsUnions $ map ftv exprs
-        substWithLiftedExpr subst def expr
-          = let liftExp1 = addLambdasTName fvs (getEffExpr expr) (subst |~> expr)
-                liftExp2 = addTypeLambdas tvs liftExp1
-            in def{defExpr = liftExp2}
+
+        substWithLiftedExpr subst def
+          = let body = case defExpr def of
+                        (TypeLam tpars (Lam pars eff lbody)) -> TypeLam tpars (Lam pars eff (subst |~> lbody))
+                        (Lam pars eff lbody)                 -> Lam pars eff (subst |~> lbody)
+                        expr -> failure $ ("Core.FunLift.liftDefGroup False DefRec: lifting non-function? " ++ show expr)
+            in def{defExpr = body}
 
 liftDef :: Bool -> Def -> Lift Def
 liftDef topLevel def
