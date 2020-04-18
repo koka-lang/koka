@@ -172,16 +172,8 @@ fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
-fun foo(f,action) {
-  handle(action) {
-    choose() -> {
-      mask<resume>(f)
-      resume(True)
-    }
-  }
-}
 
-val allResults = handler(action) {
+val allResults = handler {
   return x -> [x]
   choose() -> resume(True) + (resume(False) : list<_>)
 }

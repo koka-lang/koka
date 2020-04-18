@@ -770,7 +770,16 @@ tid env
        return (envType env name kind)
 
 qualifiedTypeId
-  = do (name,_) <- qvarid <|> wildcard
+  = do q <- try $ do (q,_) <- modulepath
+                     specialOp "/"
+                     return q
+       name <- parens $ do keyword "."
+                           (name,_) <- varid
+                           return (prepend "." name)
+       let qname = qualify q name
+       return qname
+  <|>
+    do (name,_) <- qvarid <|> wildcard
        return name
   <|>
     do (name,_) <- qidop  -- for things like std/core/<.>

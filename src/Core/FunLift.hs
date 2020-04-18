@@ -133,15 +133,13 @@ liftExpr topLevel expr
             bs'    <- mapM liftBranch bs
             return (Case exprs' bs')
 
+    TypeLam tvars (Lam pars eff lbody)  | not topLevel
+      -> do expr1 <- liftExpr False lbody
+            liftLocalFun (TypeLam tvars (Lam pars eff expr1)) eff
     TypeLam tvars body
-      | not topLevel
-      , Lam _ eff _ <- body
-      -> do expr1 <- liftTypeLambda
-            liftLocalFun expr1 eff
-      | otherwise -> liftTypeLambda
-      where liftTypeLambda
-              = do body' <- liftExpr topLevel body
-                   return (TypeLam tvars body')
+      -> do body' <- liftExpr topLevel body
+            return (TypeLam tvars body')
+
     TypeApp body tps
       -> do body' <- liftExpr topLevel body
             return (TypeApp body' tps)
@@ -160,17 +158,31 @@ liftLocalFun expr eff
 makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 makeDef fvs tvs expr
   = do liftTrace (show expr)
-       let liftExp1 = addLambdasTName fvs (getEffExpr expr) expr
-           liftExp2 = addTypeLambdas tvs liftExp1
        name <- uniqueNameCurrentDef
-       let ty = typeOf liftExp2
-           liftDef = Def name ty liftExp2 Private DefFun rangeNull "// lift"
-       let expr1 = Var (TName name ty) (InfoArity (getTypeArityExpr liftExp2)
-                                                  (getParamArityExpr liftExp2))
-           expr2 = addTypeApps tvs expr1
-           expr3 = addApps (map (\name -> Var name InfoNone) fvs) expr2
+       return (etaExpr name, liftedDef name)
+  where
+    (tpars,pars,eff,body) -- :: ([TypeVar],[TName],Type)
+      = case expr of
+          (TypeLam tpars (Lam pars eff lbody)) -> (tpars, pars, eff, lbody)
+          (Lam pars eff lbody)                 -> ([], pars, eff, lbody)
+          _ -> failure $ ("Core.FunLift.makeDef: lifting non-function? " ++ show expr)
 
-       return (expr3, liftDef)
+    alltpars = tvs ++ tpars
+    allpars  = fvs ++ pars
+    allargs  = [Var tname InfoNone | tname <- allpars]
+
+    liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
+    liftedTp  = typeOf liftedFun
+    liftedDef name = Def name liftedTp liftedFun Private DefFun rangeNull "// lift"
+
+    funExpr name
+      = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
+
+    etaExpr name
+      = case (tvs,fvs) of
+         ([],[]) -> funExpr name
+         _ -> addTypeLambdas tpars $ Lam pars eff $
+               App (addTypeApps (alltpars) (funExpr name)) (allargs)
 
 liftBranch :: Branch -> Lift Branch
 liftBranch (Branch pat guards)
@@ -188,8 +200,8 @@ uniqueNameCurrentDef =
   do env <- getEnv
      let defNames = map defName (currentDef env)
      i <- unique
-     let base     = concatMap (\name -> nameId name ++ "-") (tail $ reverse defNames) ++ "x" ++ show i
-         udefName = postpend base (makeHiddenName "lift" (last defNames))
+     let -- base     = concatMap (\name -> nameId name ++ "-") (tail $ reverse defNames) ++ "x" ++ show i
+         udefName =  makeHiddenName ("lift"++show i) (last defNames)
      return udefName
 
 

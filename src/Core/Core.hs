@@ -341,7 +341,7 @@ data Expr =
   -- Core lambda calculus
     Lam [TName] Effect Expr
   | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
-  | App Expr [Expr]
+  | App Expr [Expr]                              -- ^ always fully applied!
   -- Type (universal) abstraction/application
   | TypeLam [TypeVar] Expr
   | TypeApp Expr [Type]
