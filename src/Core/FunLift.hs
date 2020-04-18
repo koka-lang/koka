@@ -58,7 +58,7 @@ liftFunctions penv u defs
 liftDefGroups :: Bool   -- top-level functions are allowed
               -> DefGroups -> Lift DefGroups
 liftDefGroups topLevel defGroups
-  = do traceDoc (\penv -> text "lifting")
+  = do -- traceDoc (\penv -> text "lifting")
        fmap concat $ mapM (liftDefGroup topLevel) defGroups
 
 liftDefGroup :: Bool -> DefGroup -> Lift DefGroups
@@ -123,7 +123,7 @@ liftExpr topLevel expr
             -- lift local functions
             else liftLocalFun expr' eff
     Let defgs body
-      -> do liftTrace ("let hi "  ++ show expr)
+      -> do -- liftTrace ("let hi "  ++ show expr)
             defgs' <- liftDefGroups False defgs
             body'  <- liftExpr False body
             return (Let defgs' body')
@@ -157,7 +157,7 @@ liftLocalFun expr eff
 
 makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 makeDef fvs tvs expr
-  = do liftTrace (show expr)
+  = do -- liftTrace (show expr)
        name <- uniqueNameCurrentDef
        return (etaExpr name, liftedDef name)
   where
