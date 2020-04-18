@@ -951,7 +951,7 @@ extendGammaCore isAlreadyCanonical (coreGroup:coreDefss) inf
 
 -- Specialized for recursive defs where we sometimes get InfoVal even though we want InfoFun? is this correct for the csharp backend?
 coreDefInfoX def@(Core.Def name tp expr vis sort nameRng doc)
-  = (Core.nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
+  = (nonCanonicalName name, createNameInfoX Public name sort nameRng tp)
 
 extendGamma :: Bool -> [(Name,NameInfo)] -> Inf a -> Inf (a)
 extendGamma isAlreadyCanonical defs inf
@@ -969,7 +969,7 @@ extendGamma isAlreadyCanonical defs inf
            let (cinfo)
                    = -- if null localMatches then (info) else
                     if (isAlreadyCanonical) then info else
-                       let cname = Core.canonicalName (length localMatches) (if isQualified name then name else qualify ctx name)
+                       let cname = canonicalName (length localMatches) (if isQualified name then name else qualify ctx name)
                        in case info of
                             InfoVal{} -> info{ infoCName = cname }  -- during recursive let's we use InfoVal sometimes for functions..
                             InfoFun{} -> info{ infoCName = cname }
@@ -1046,7 +1046,7 @@ extendInfGamma topLevel tnames inf
 createCanonicalName ctx gamma qname
   = let matches = gammaLookup (unqualify qname) gamma
         localMatches = [(qname,info) | (qname,info) <- matches, not (isInfoImport info), qualifier qname == ctx || qualifier qname == nameNil ]
-        cname = Core.canonicalName (length localMatches) qname
+        cname = canonicalName (length localMatches) qname
     in cname
 
 withGammaType :: Range -> Type -> Inf a -> Inf a
@@ -1231,7 +1231,7 @@ caseOverlaps name qname info
   = let qname1 = case info of
                    InfoImport{infoAlias = alias} -> alias
                    _                             -> qname
-    in if (nameCaseOverlap ((if isQualified name then id else unqualify) (Core.nonCanonicalName qname1)) name)
+    in if (nameCaseOverlap ((if isQualified name then id else unqualify) (nonCanonicalName qname1)) name)
         then Just qname1
         else Nothing
 

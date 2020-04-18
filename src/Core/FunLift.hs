@@ -166,9 +166,12 @@ makeDef fvs tvs expr
   where
     (tpars,pars,eff,body) -- :: ([TypeVar],[TName],Type)
       = case expr of
-          (TypeLam tpars (Lam pars eff lbody)) -> (tpars, pars, eff, lbody)
-          (Lam pars eff lbody)                 -> ([], pars, eff, lbody)
+          (TypeLam tpars (Lam pars eff lbody)) -> (tpars, map unwild pars, eff, lbody)
+          (Lam pars eff lbody)                 -> ([], map unwild pars, eff, lbody)
           _ -> failure $ ("Core.FunLift.makeDef: lifting non-function? " ++ show expr)
+
+    unwild (TName name tp)
+      = TName (if (head (nameId name) == '_') then prepend "wild" name else name) tp
 
     alltpars = tvs ++ tpars
     allpars  = fvs ++ pars
@@ -204,7 +207,7 @@ uniqueNameCurrentDef =
      let defNames = map defName (currentDef env)
      i <- unique
      let -- base     = concatMap (\name -> nameId name ++ "-") (tail $ reverse defNames) ++ "x" ++ show i
-         udefName =  makeHiddenName ("lift"++show i) (last defNames)
+         udefName =  toHiddenUniqueName i "lift" (last defNames)
      return udefName
 
 

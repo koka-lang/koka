@@ -2756,7 +2756,7 @@ wildcard
   = do (Lexeme rng (LexWildCard id)) <- parseLex (LexWildCard nameNil)
        if (showPlain id == "_")
         then let p = rangeStart rng
-             in return (newName ("_" ++ show (posLine p) ++ "-" ++ show (posColumn p)), rng)
+             in return (newName ("_l" ++ show (posLine p) ++ "-c" ++ show (posColumn p)), rng)
         else return (id,rng)
   <?> "wildcard"
 

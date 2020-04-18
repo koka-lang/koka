@@ -384,7 +384,7 @@ infExternal names (External name tp nameRng rng calls vis doc)
   = do tp' <- infResolveType tp (Check "Externals must be values" rng)
        qname <- qualifyDef name
        let cname = let n = length (filter (==qname) names) in
-                   Core.canonicalName n qname
+                   canonicalName n qname
        if (isHiddenName name)
         then return ()
         else do addRangeInfo nameRng (Id qname (NIValue tp') True)

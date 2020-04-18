@@ -14,6 +14,7 @@ module Common.Name
           ( Name, Names     -- instance Eq Ord Show
           , showName        -- show with quotes
           , showPlain
+          , toHiddenUniqueName
           , newName, newQualified
           , nameNil, nameIsNil
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
@@ -40,7 +41,7 @@ module Common.Name
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath
-          , canonicalSep
+          , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
           ) where
 
 import Lib.Trace( trace )
@@ -252,11 +253,14 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = prepend ("." ++ s ++ "-") name
+  = case nameId name of
+      c:cs | c=='.' -> name   -- already hidden
+      c:cs | not (isAlpha c) -> prepend "." name -- hidden operator
+      _    -> prepend ("." ++ s ++ "-") name
 
 makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
-    where idFromPos pos = "-" ++ show (posLine pos) ++ "-" ++ show (posColumn pos)
+    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
 
 hiddenNameStartsWith name pre
   = nameId name `startsWith` ("." ++ pre ++ "-")
@@ -400,8 +404,36 @@ prepend s name
     )
 
 postpend :: String -> Name -> Name
-postpend s name
-  = newQualified (nameModule name) (nameId name ++ s)
+postpend s cname
+  = let (name,post) = canonicalSplit cname
+    in newQualified (nameModule name) (nameId name ++ s ++ post)
+
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i s name
+  = makeHiddenName s (postpend (show i) xname)
+  where
+    xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
+
+canonicalName :: Int -> Name -> Name
+canonicalName n name
+  = if (n==0) then name
+    else postpend (canonicalSep : show n) name
+    {-
+         case (span isDigit (reverse (nameId name))) of
+           (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest))
+           _ -> name -}
+
+nonCanonicalName :: Name -> Name
+nonCanonicalName name
+  = fst (canonicalSplit name)
+
+canonicalSplit :: Name -> (Name,String)
+canonicalSplit name
+  = case (span isDigit (reverse (nameId name))) of
+      (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest), c:reverse postfix)
+      _        -> (name,"")
+
 
 ----------------------------------------------------------------
 -- camel-case to dash-case

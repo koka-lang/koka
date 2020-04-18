@@ -67,7 +67,7 @@ module Core.Core ( -- Data structures
                    , isInlineable
 
                    -- * Canonical names
-                   , canonicalName, nonCanonicalName, canonicalSplit
+                   -- , canonicalName, nonCanonicalName, canonicalSplit
                    , infoArity, infoTypeArity
                    ) where
 
@@ -312,20 +312,6 @@ defIsVal def
   = case defSort def of
       DefFun   -> False
       _        -> True
-
-canonicalName :: Int -> Name -> Name
-canonicalName n name
-  = if (n/=0) then postpend ([canonicalSep] ++ show n) name else name
-
-nonCanonicalName :: Name -> Name
-nonCanonicalName name
-  = fst (canonicalSplit name)
-
-canonicalSplit :: Name -> (Name,String)
-canonicalSplit name
-  = case (span isDigit (reverse (nameId name))) of
-      (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest), c:reverse postfix)
-      _        -> (name,"")
 
 
 {--------------------------------------------------------------------------
