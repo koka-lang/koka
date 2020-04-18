@@ -398,14 +398,16 @@ prettyTName env (TName name tp)
 
 prettyName :: Env -> Name -> Doc
 prettyName env name
-  = color (colorSource (colors env)) $
+  = color (colorSource (colors env)) $ pretty name
+  {-
     let (nm,post) = canonicalSplit name
-    in if (post=="") then pretty name else pretty nm <+> text post
+    in if (post=="") then pretty name else pretty nm <.> text post
+    -}
 
 prettyDefName :: Env -> Name -> Doc
 prettyDefName env name
   = color (colorSource (colors env)) $
-    fmtName (unqualify name)
+    pretty (unqualify name)
   where
     fmtName cname
       = let (name,postfix) = canonicalSplit cname
@@ -413,7 +415,7 @@ prettyDefName env name
             pre = case s of
                    ""  -> empty
                    (c:cs) -> if (isAlphaNum c || c == '_' || c == '(' || c == '[') then text s else parens (text s)
-        in (if null postfix then pre else (pre <+> text postfix))
+        in (if null postfix then pre else (pre <.> text postfix))
 
 ppOperatorName env name
   = color (colorSource (colors env)) $

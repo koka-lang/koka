@@ -46,7 +46,62 @@ type ParseInlines = Gamma -> Error [InlineDef]
 parseCore :: FilePath -> IO (Error (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse True program fname 1 input)
+       return (lexParse True (requalify . allowDotIds) program fname 1 input)
+
+requalify :: [Lexeme] -> [Lexeme]
+requalify lexs
+ = case lexs of
+    -- identifier
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexId name) : lexx)  | nameId slash == "/"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexIdOp name) : lexx)  | nameId slash == "/"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexOp name) : lexx)  | nameId slash == "/"
+      -> requalify (Lexeme (combineRange r1 r2) (LexId (qualify (newName (showPlain mod)) name)) : lexx)
+    (Lexeme r1 (LexId mod) : Lexeme _ (LexOp slash) : Lexeme r2 (LexCons name) : lexx)  | nameId slash == "/"
+      -> requalify (Lexeme (combineRange r1 r2) (LexCons (qualify (newName (showPlain mod)) name)) : lexx)
+
+    (lex:lexx)
+      -> lex : requalify lexx
+    [] -> []
+
+allowDotIds :: [Lexeme] -> [Lexeme]
+allowDotIds lexs
+  = case lexs of
+      -- identifier
+      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexId name) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
+      (Lexeme r1 (LexId name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
+
+      -- operator
+      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexOp name) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
+      (Lexeme r1 (LexOp name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
+
+      -- constructor
+      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexCons name) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexCons (prepend "." name)) : lexx)
+      (Lexeme r1 (LexCons name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r3) (LexCons (postpend ("." ++ show i) name)) : lexx)
+
+      -- (-.4), (++.2)
+      (Lexeme r1 (LexSpecial "(") : Lexeme r2 (LexOp name) : Lexeme r4 (LexInt i _) : Lexeme r5 (LexSpecial ")") :  lexx) -- | last (nameId name) == '.'
+        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend (show i) name)) : lexx)
+      -- (/.4)
+      (Lexeme r1 (LexSpecial "(") : Lexeme r2 (LexOp name) : Lexeme _ (LexKeyword "." _) : Lexeme r4 (LexInt i _) : Lexeme r5 (LexSpecial ")") :  lexx) -- | last (nameId name) == '.'
+        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend ("." ++ show i) (newName "/"))) : lexx)
+      -- ([].1)
+      (Lexeme r1 (LexSpecial "(") : Lexeme _ (LexSpecial "[") : Lexeme _ (LexSpecial "]") : Lexeme _ (LexKeyword "." _) : Lexeme _ (LexInt i _) : Lexeme r2 (LexSpecial ")") : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (postpend ("." ++ show i) (newName "[]"))) : lexx)
+      -- ([])
+      (Lexeme r1 (LexSpecial "(") : Lexeme _ (LexSpecial "[") : Lexeme _ (LexSpecial "]") : Lexeme r2 (LexSpecial ")") : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (newName "[]")) : lexx)
+
+      (lex:lexx)
+        -> lex : allowDotIds lexx
+      [] -> []
 
 parseInlines :: Core -> Source -> Env -> [Lexeme] -> ParseInlines
 parseInlines prog source env inlines gamma
@@ -86,8 +141,7 @@ pmodule
                   -}
                   defs      <- semis (defDecl env2)
                   externals <- semis (externDecl env2)
-                  inlines   <- do keyword "."
-                                  specialId "inline"
+                  inlines   <- do specialId ".inline"
                                   lexemes <- getInput
                                   setInput []
                                   return lexemes
@@ -100,7 +154,7 @@ pmodule
 localAlias :: Env -> LexParser (SynInfo, Env)
 localAlias env
   = do try $ do { keyword "private"; keyword "alias" }
-       (qname) <- qualifiedTypeId  -- can be qualified
+       (qname,_) <- qtypeid  -- can be qualified
        let name = envQualify env qname
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
@@ -166,8 +220,12 @@ typeDecl env
                                   _ -> ddef0)
                      <|> return ddef0
        tname <- if (isExtend)
-                 then qualifiedTypeId
-                 else do (name,_)   <- tbinderId <|> tbinderDot
+                 then do (name,_) <- qtypeid
+                         return name
+                 else do (name,_) <- tbinderId
+                         return (qualify (modName env) name)
+                      <|>
+                      do (name,_) <- idop -- (<>), (<|>)
                          return (qualify (modName env) name)
 
        -- trace ("core type: " ++ show tname) $ return ()
@@ -183,7 +241,7 @@ typeDecl env
     do (vis,doc) <- try $ do (vis,_) <- visibility Public
                              (_,doc) <- dockeyword "alias"
                              return (vis,doc)
-       (name,_) <- tbinderId <|> tbinderDot
+       (name,_) <- tbinderId
        --trace ("core alias: " ++ show name) $ return ()
        (env,params) <- typeParams env
        kind     <- kindAnnotFull
@@ -198,7 +256,7 @@ conDecl tname foralls sort env
   = do (vis,doc) <- try $ do (vis,_) <- visibility Public
                              (_,doc) <- dockeyword "con"
                              return (vis,doc)
-       (name,_)  <- constructorId <|> constructorDot
+       (name,_)  <- constructorId
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        (env2,params)  <- parameters env1
@@ -224,22 +282,13 @@ defDecl env
   = do (vis,sort,doc) <- try $ do (vis,_) <- visibility Public
                                   (sort,doc) <- pdefSort
                                   return (vis,sort,doc)
-       (name) <- canonical (funid <|> binderDot)
+       (name,_) <- funid <|> idop
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp       <- ptype env
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
                    vis sort rangeNull doc)
-
-canonical :: LexParser (Name,Range) -> LexParser Name
-canonical p
-  = do (name,_) <- p
-       (do keyword "."
-           (n,_) <- integer
-           return (canonicalName (fromInteger n) name)
-        <|>
-           return name)
 
 pdefSort
   = do (_,doc) <- dockeyword "fun"
@@ -253,41 +302,6 @@ pdefSort
     do (_,doc) <- dockeyword "val"
        return (DefVal,doc)
 
-
-binderDot
-  = parens $
-    do keyword "."
-       (name,rng) <- identifier
-       return (prepend "." name,rng)
-
-constructorDot
-  = -- parens $
-    do keyword "."
-       (name,rng) <- constructorId
-       return (prepend "." name,rng)
-
-tbinderDot
-  = do keyword "."
-       (name,rng) <- tbinderId
-       return (prepend "." name,rng)
-
-paramidDot
- = canonical (
-     paramid <|>
-     do keyword "."
-        (name,rng) <- identifier
-        return (prepend "." name,rng)
-  )
-
-parseIdDot
- = canonical (
-     identifier <|>
-     do keyword "."
-        (name,rng) <- identifier
-        return (prepend "." name,rng)
-   )
-
-
 {--------------------------------------------------------------------------
   External definitions
 --------------------------------------------------------------------------}
@@ -296,7 +310,7 @@ externDecl env
   = do (vis,doc)  <- try $ do (vis,_) <- visibility Public
                               (_,doc) <- dockeyword "external"
                               return (vis,doc)
-       (name) <- canonical (funid  <|> binderDot)
+       (name,_) <- (funid)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp <- ptype env
@@ -336,7 +350,7 @@ inlineDef env
   = do (sort,doc) <- pdefSort
        isRec      <- do keyword "rec"; return True
                      <|> return False
-       (name) <- canonical (funid <|> binderDot)
+       (name,_) <- funid
        -- trace ("core inline def: " ++ show name) $ return ()
        expr <- parseBody env
        return (InlineDef (envQualify env name) expr isRec (costExpr expr))
@@ -406,37 +420,17 @@ parseMatch env
 
 parseCon :: Env -> LexParser Expr
 parseCon env
-  = {-
-       do qname <- try $ do (q,_) <- modulepath
-                         specialOp "/"
-                         (name,_) <- parens constructorDot
-                         return (qualify q name)
-       con  <- envLookupCon env qname
-       return $ Con (TName qname (infoType con)) (infoRepr con)
-  <|>
-  -}
-    do name <- qualifiedConId
+  = do name <- qualifiedConId
        con  <- envLookupCon env name
        return $ Con (TName name (infoType con)) (infoRepr con)
 
 parseVar :: Env -> LexParser Expr
 parseVar env
-  =do q <- try $ do (q,_) <- modulepath
-                    specialOp "/"
-                    return q
-      name <- canonical binderDot
-      let qname = qualify q name
-      envLookupVar env qname
-  <|>
-    do (name) <- canonical (qvarid <|> qidop)
+  = do (name,_) <- (qvarid <|> qidop)
        if (isQualified name)
         then envLookupVar env name
         else do tp <- envLookupLocal env name
                 return (Var (TName name tp) InfoNone)
-  <|>
-    do (name) <- parseIdDot
-       tp <- envLookupLocal env name
-       return (Var (TName name tp) InfoNone)
 
 parseLit :: LexParser Lit
 parseLit
@@ -469,9 +463,7 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,doc) <- pdefSort
-       name       <- canonical (funid <|> binderDot)
-                     <|> do (name,rng) <- wildcard
-                            return name
+       (name,_)   <- funid <|> wildcard
        tp         <- typeAnnot env
        expr       <- parseBody env
        return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort rangeNull doc))
@@ -524,7 +516,7 @@ parsePatternArg env
 
 parsePatVar  :: Env -> LexParser (PatBinders, Pattern)
 parsePatVar env
-  = do (name) <- parseIdDot
+  = do (name,_) <- varid
        tp <- typeAnnot env
        return ([(name,tp)],PatVar (TName name tp) PatWild)
 
@@ -541,15 +533,8 @@ qualifiedConId
                        return (length cs)
         return (nameTuple (n+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
    <|>
-     do qname <- try $ do (q,_) <- modulepath
-                          specialOp "/"
-                          (name,_) <- parens constructorDot
-                          return (qualify q name)
-        return qname
-   <|>
      do (name,_) <- qconid
         return name
-
 
 
 
@@ -567,7 +552,7 @@ parameters env
 
 parameter :: Env -> LexParser (Name,Type)
 parameter env
-  = do name <- try (do{ name <- paramidDot; keyword ":"; return name}) <|> return nameNil
+  = do name <- try (do{ (name,_) <- paramid; keyword ":"; return name}) <|> return nameNil
        (do specialOp "?"
            tp <- ptype env
            return (name, makeOptional tp)
@@ -721,6 +706,8 @@ tatomParamsEx allowParams env
      do specialOp "?"
         tp <- tatom env
         return (single (makeOptional tp))
+    <?>
+     "type atom"
   where
     single tp   = Right tp
 
@@ -763,36 +750,13 @@ tlabel env
   = do tp1 <- tatom env
        ptypeApp env tp1
 
+
 tid :: Env -> LexParser Type
 tid env
-  = do (name) <- qualifiedTypeId
+  = do (name,_) <- qvarid <|> qidop {- std/core/types/(<>) -} <|> wildcard {- __c -}
        kind <- kindAnnotFull <|> return kindStar
        return (envType env name kind)
 
-qualifiedTypeId
-  = do q <- try $ do (q,_) <- modulepath
-                     specialOp "/"
-                     return q
-       name <- parens $ do keyword "."
-                           (name,_) <- varid
-                           return (prepend "." name)
-       let qname = qualify q name
-       return qname
-  <|>
-    do (name,_) <- qvarid <|> wildcard
-       return name
-  <|>
-    do (name,_) <- qidop  -- for things like std/core/<.>
-       return name
-  <|>
-    do special "("
-       cs <- many comma
-       special ")"
-       return (nameTuple (length cs+1)) -- (("(" ++ concat (replicate (length cs) ",") ++ ")"))
-  <|>
-    do keyword "."
-       (name,_) <- qvarid
-       return (prepend "." name)
 
 
 {--------------------------------------------------------------------------

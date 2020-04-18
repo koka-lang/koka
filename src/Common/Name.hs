@@ -13,6 +13,7 @@
 module Common.Name
           ( Name, Names     -- instance Eq Ord Show
           , showName        -- show with quotes
+          , showPlain
           , newName, newQualified
           , nameNil, nameIsNil
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
@@ -39,6 +40,7 @@ module Common.Name
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath
+          , canonicalSep
           ) where
 
 import Lib.Trace( trace )
@@ -111,17 +113,34 @@ instance Ord Name where
                 lg -> lg
         lg -> lg
 
+
+canonicalSep = '.'
+
 instance Show Name where
   show (Name m _ n _)
-    = if null m
-       then n
-       else m ++ "/" ++ case n of
-                          (c:cs) | not (isAlpha c || c=='_' || c=='(') -> "(" ++ n ++ ")"
-                          _      -> n
+   = let (mid,post) = case (span isDigit (reverse n)) of
+                        (postfix, c:rest) | c == canonicalSep && not (null postfix)
+                           -> (reverse rest, c:reverse postfix)
+                        _  -> (n,"")
+         pre        = if null m then "" else m ++ "/"
+     in pre ++ case mid of
+                  (c:cs) -- | any (\c -> c `elem` ".([])") mid    -> "(" ++ n ++ ")"
+                         | not (isAlpha c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
+                  _      -> n
+
+
+showPlain (Name m _ n _)
+  = (if null m then "" else m ++ "/") ++ n
 
 instance Pretty Name where
   pretty name
     = text (show name)
+
+
+
+
+
+
 
 -- | Show quotes around the name
 showName :: Name -> String

@@ -23,7 +23,7 @@ module Syntax.Parse( parseProgramFromFile
                    , braced, semiBraces, semis, semiColons
                    , angles, anglesCommas, parensCommas, parens, curlies
                    , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx
-                   , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid
+                   , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid, idop
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId, wildcard
                    , keyword, dockeyword
@@ -82,7 +82,7 @@ optional p  = do { p; return True } <|> return False
 parseProgramFromFile :: Bool -> FilePath -> IO (Error UserProgram)
 parseProgramFromFile semiInsert fname
   = do input <- readInput fname
-       return (lexParse semiInsert program fname 1 input)
+       return (lexParse semiInsert id program fname 1 input)
 
 
 parseValueDef :: Bool -> FilePath -> Int -> String -> Error UserDef
@@ -102,14 +102,14 @@ parseExpression semiInsert sourceName line name input
   = lexParseS semiInsert (const (expression name))  sourceName line input
 
 lexParseS semiInsert p sourceName line str
-  = lexParse semiInsert p sourceName line (stringToBString str)
+  = lexParse semiInsert id p sourceName line (stringToBString str)
 
-lexParse :: Bool -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
-lexParse semiInsert p sourceName line rawinput
+lexParse :: Bool -> ([Lexeme]-> [Lexeme]) -> (Source -> LexParser a) -> FilePath -> Int -> BString -> Error a
+lexParse semiInsert preprocess p sourceName line rawinput
   = let source = Source sourceName rawinput
         input  = if (isLiteralDoc sourceName) then extractLiterate rawinput else rawinput
         xs = lexing source line input
-        lexemes = layout semiInsert xs
+        lexemes = preprocess $ layout semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
         case (parse (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
@@ -2701,13 +2701,15 @@ ensureUnqualified entity p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
+qtypeid :: LexParser (Name,Range)
 qtypeid
   = try $
     do pos <- getPosition
        (name,range) <- qvarid
        if (not (isTypeVar name))
         then return (name,range)
-        else do setPosition pos
+        else trace ("not a qtype: " ++ show name) $
+             do setPosition pos
                 mzero <?> "type name"
 
 qop :: LexParser (Name,Range)
@@ -2746,13 +2748,13 @@ qconid
 modulepath :: LexParser (Name,Range)
 modulepath
   = do (id,rng) <- qvarid
-       return (newName (show id), rng) -- return the entire module path as one identifier
+       return (newName (showPlain id), rng) -- return the entire module path as one identifier
   <?> "module path"
 
 wildcard:: LexParser (Name,Range)
 wildcard
   = do (Lexeme rng (LexWildCard id)) <- parseLex (LexWildCard nameNil)
-       if (show id == "_")
+       if (showPlain id == "_")
         then let p = rangeStart rng
              in return (newName ("_" ++ show (posLine p) ++ "-" ++ show (posColumn p)), rng)
         else return (id,rng)
@@ -2788,7 +2790,7 @@ specialOp :: String -> LexParser Range
 specialOp s
   = try (
       do (Lexeme rng (LexOp op)) <- parseLex (LexOp nameNil)
-         if (show op == s)
+         if (showPlain op == s)
           then return rng
           else fail s
       <?> show s
@@ -2798,7 +2800,7 @@ specialId :: String -> LexParser Range
 specialId s
   = try (
       do (Lexeme rng (LexId id)) <- parseLex (LexId nameNil)
-         if (show id == s)
+         if (showPlain id == s)
           then return rng
           else fail s
       <?> show s
@@ -2808,7 +2810,7 @@ specialConId :: String -> LexParser Range
 specialConId s
   = try (
       do (Lexeme rng (LexCons id)) <- parseLex (LexCons nameNil)
-         if (show id == s)
+         if (showPlain id == s)
           then return rng
           else fail s
       <?> show s

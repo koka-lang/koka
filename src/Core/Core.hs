@@ -313,9 +313,6 @@ defIsVal def
       DefFun   -> False
       _        -> True
 
-
-canonicalSep = '.'
-
 canonicalName :: Int -> Name -> Name
 canonicalName n name
   = if (n/=0) then postpend ([canonicalSep] ++ show n) name else name

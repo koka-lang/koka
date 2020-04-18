@@ -141,7 +141,7 @@ showLex lex
       LexId  id     -> "identifier \"" ++ show id ++ "\""
       LexOp id      -> "operator \"" ++ show id ++ "\""
       LexPrefix id  -> "prefix operator \"" ++ show id ++ "\""
-      LexIdOp id    -> "identifier \"(" ++ show id ++ ")\""
+      LexIdOp id    -> "identifier (operator) \"" ++ show id ++ "\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""
       LexKeyword k d-> "keyword " ++ k ++ postfix ++ (if null d then "" else " (" ++ d ++ ")")
