@@ -35,6 +35,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameMakeContextTp
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocal
                       , nameTpValueOp, nameClause, nameIdentity
+                      , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
                        )
 import Common.Range
 import Common.Unique
@@ -804,32 +805,29 @@ inferExpr propagated expect (Inject label expr behind rng)
        inferUnify (checkInject rng) rng (tfun res) exprTp
        resTp <- subst res
 
-       (coreEffName,isHandled,effName) <- effectNameCore label rng
+       (mbHandled,effName) <- effectNameCore label rng
        effTo <- subst $ effectExtend label eff
 
        sexprTp <- subst exprTp
        -- traceDoc $ \env -> text "inject: effTo:" <+> ppType env effTo <+> text "," <+> ppType env exprEff <+> text ", exprTp: " <+> ppType env sexprTp
-       let coreLevel  = Core.Lit (Core.LitInt (if behind then 1 else 0))
-       core <- if (isHandled)
+       let coreLevel  = if behind then Core.exprTrue else Core.exprFalse -- Core.Lit (Core.LitInt (if behind then 1 else 0))
+       core <- case mbHandled of
                  -- general handled effects use ".inject-effect"
-                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInject (CtxFunArgs 3 []) rng rng
-                         let coreInject = coreExprFromNameInfo injectQName injectInfo
-                             core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo])
-                                             [coreEffName,coreLevel,exprCore]
+                 Just coreHTag
+                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskAt (CtxFunArgs 3 []) rng rng
+                         (evvIndexQName,evvIndexTp,evvIndexInfo) <- resolveFunName nameEvvIndex (CtxFunArgs 1 []) rng rng
+                         let coreMask = coreExprFromNameInfo maskQName maskInfo
+                             coreIndex= Core.App (Core.TypeApp (coreExprFromNameInfo evvIndexQName evvIndexInfo) [effTo])
+                                                 [coreHTag]
+                             core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [coreIndex,coreLevel,exprCore]
                          return core
-                         {-
-                else if (effName == nameTpPartial)  -- exception
-                 -- exceptions use "inject-exn"
-                 then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 2 []) rng rng
-                         let coreInject = coreExprFromNameInfo injectQName injectInfo
-                             core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [coreLevel,exprCore]
-                         return core
-                         -}
-                 -- for builtin effects, use ".open" to optimize the inject away
-                 else do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
-                             core       = Core.App coreOpen []
+                 Nothing
+                   -> do (maskQName,maskTp,maskInfo) <- resolveFunName nameMaskBuiltin (CtxFunArgs 3 []) rng rng
+                         let coreMask = coreExprFromNameInfo maskQName maskInfo
+                             core     = Core.App (Core.TypeApp coreMask [resTp,eff,effTo]) [exprCore]
                          return core
        return (resTp,effTo,core)
+
 
 inferCheckedExpr expectTp expr
   = do (_,_,core) <- inferExpr Nothing Instantiated (Ann expr expectTp (getRange expr))
@@ -854,8 +852,12 @@ inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> Handl
                       -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
 inferHandler propagated expect handlerSort handlerScoped
              mbEffect localPars initially ret finally [] hrng rng
-  = do contextError hrng rng (text "Type.Infer.inferHandler: TODO: no branches") []
-       failure "abort"
+  = do let retExpr = case ret of
+                       Nothing -> Var nameIdentity False hrng
+                       Just expr -> expr
+           handleExpr = App retExpr [(Nothing,App (Var (newHiddenName "action") False rng) [] hrng)] hrng
+           handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] handleExpr hrng
+       inferExpr propagated expect handlerExpr
 
 inferHandler propagated expect handlerSort handlerScoped
              mbEffect (_:localPars) initially ret finally branches hrng rng
@@ -878,7 +880,7 @@ inferHandler propagated expect handlerSort handlerScoped
                                 ResumeNormalRaw -> (nameClause "controw-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
                                 _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                             cparamsx = map (\b -> case b of
-                                                    ValueBinder name _ _ nameRng rng -> ValueBinder name Nothing Nothing nameRng rng)
+                                                    ValueBinder name mbtp _ nameRng rng -> ValueBinder name mbtp Nothing nameRng rng)
                                            cparams :: [ValueBinder (Maybe Type) (Maybe (Expr Type))]
                             frng = combineRanged nameRng body
                         in (Nothing, App (Var clauseName False nameRng) [(Nothing,Lam cparamsx body frng)] frng)
@@ -886,7 +888,8 @@ inferHandler propagated expect handlerSort handlerScoped
            -- create handler expression
            handleName = makeHiddenName "handle" effectName
            handleRet  = case ret of
-                          Nothing -> Var nameIdentity False hrng
+                          Nothing -> let argName = (newHiddenName "x")
+                                     in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr
            handleExpr = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,Var (newHiddenName "action") False rng)] hrng
            handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] handleExpr hrng
@@ -1475,19 +1478,19 @@ checkCoverage rng effect branches
           = qualify (qualifier name) (newName (drop 4 (show (unqualify name))))
 
 
-effectNameCore :: Effect -> Range -> Inf (Core.Expr,Bool,Name)
+effectNameCore :: Effect -> Range -> Inf (Maybe Core.Expr,Name)
 effectNameCore effect range
   = case expandSyn effect of
       -- handled effects (from an `effect` declaration)
       TApp (TCon tc) [hx]
         | (typeConName tc == nameTpHandled || typeConName tc == nameTpHandled1)
         -> do let effName = effectNameFromLabel hx
-              (effectNameVar,_,effectNameInfo) <- resolveName (toOpenTagName effName) (Just (typeString,range)) range
+              (effectNameVar,_,effectNameInfo) <- resolveName (toEffectTagName effName) Nothing range
               let effectNameCore = coreExprFromNameInfo effectNameVar effectNameInfo
-              return (effectNameCore,True,effName)
+              return (Just effectNameCore,effName)
       -- builtin effect
       _ -> do let effName = effectNameFromLabel effect
-              return (Core.Lit (Core.LitString (show effName)),False,effName)
+              return (Nothing,effName)
 
 effectNameFromLabel :: Effect -> Name
 effectNameFromLabel effect
