@@ -2347,7 +2347,10 @@ effect exn {
 
 fun ".default-exn"(action) {
   handle(action) {
-    control throw( exn : exception ) { show(exn:exception).println }
+    control throw( exn : exception ) {
+      "uncaught exception: ".prints
+      show(exn).println 
+    }
   }
 }
 

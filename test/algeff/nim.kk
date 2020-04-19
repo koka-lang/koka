@@ -36,7 +36,7 @@ fun show(ps : list<player> ) : string {
 // --------------------------------------------------------
 
 effect nim {
-  fun move(player:player,sticks:int) : int
+  control move(player:player,sticks:int) : int
 }
 
 
@@ -57,8 +57,7 @@ fun game(n) {
 // --------------------------------------------------------
 
 val perfect = handler {
-  return x   -> x
-  move(_p,n) -> resume(max(1,n%4))
+  fun move(_p,n) { max(1,n%4) }
 }
 
 fun testPerfect1() {
@@ -84,7 +83,7 @@ fun validMoves(n) {
 
 val gametree = handler {
   return x  -> Winner(x)
-  move(p,n) -> {
+  control move(p,n) {
     val moves    = validMoves(n)
     val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
@@ -118,16 +117,14 @@ effect cheating {
 }
 
 val cheatReport = handler {
-  return x -> x
-  cheat(p) -> error((p:player).show + " cheated!")
+  fun cheat(p) { error((p:player).show + " cheated!") }
 }
 
 val check = handler {
-  return x  -> x
-  move(p,n) -> {
+  fun move(p,n) {
     val m = move(p,n)
     if (validMoves(n).find(fun(i) { i == m }).bool)
-     then resume(m)
+     then m
      else cheat(p)
   }
 }
@@ -142,10 +139,11 @@ fun testCheck() {
 // --------------------------------------------------------
 
 val pc = handler {
-  return x -> x
-  move(p,n) -> match(p){
-    Alice -> resume(max(1,n%4))
-    Bob   -> resume(n)
+  fun move(p,n) {
+    match(p){
+      Alice -> max(1,n%4)
+      Bob   -> n
+    }
   }
 }
 
@@ -175,7 +173,7 @@ fun bobChooses(m) {
 
 val allResults = handler {
   return x -> [x]
-  choose() -> resume(True) + (resume(False) : list<_>)
+  choose() -> ((resume(True) + resume(False)):list<_>)
 }
 
 fun testChoose() {
@@ -220,7 +218,7 @@ fun state(init,action) {
 alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
-/*
+
 val scoreUpdater = handler {
   return p -> {
     put(updateScore(p,get()))
@@ -260,22 +258,22 @@ fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
 fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
-*/
+
 
 fun main() {
   [""
   ,testPerfect1().show
   ,testPerfect2().show
   ,testGt().show
-  ,testCheck().show
-  ,testPc2().show
-  ,testChoose().show
-  //,testCoin().show
-  //,testPrint1().show
-  //,testPrint2().show
+  //,testCheck().show
+  //,testPc2().show
+  //,testChoose().show
+  ,testCoin().show
+  ,testPrint1().show
+  ,testPrint2().show
   ,""
   ].join("\n-----------\n").print
-  testPc1().show.println // raises exception
+  //testPc1().show.println // raises exception
 }
 
 fun mymap( xs, f ) {

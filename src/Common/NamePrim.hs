@@ -43,6 +43,7 @@ module Common.NamePrim
           , nameTpEv, nameHandle, nameNamedHandle
           , nameClause
           , nameIdentity
+          , nameMaskAt, nameMaskBuiltin
 
           --
           , nameUnsafeTotal
@@ -164,7 +165,6 @@ nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
 nameIntConst    = preludeName ".int-string"
-nameInt32       = preludeName "int32"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
@@ -237,6 +237,8 @@ namePerform i   = coreHndName (".perform" ++ show i)
 nameEvvAt       = coreHndName ".evv-at"
 nameEvvLookup   = coreHndName ".evv-lookup"
 nameEvvIndex    = coreHndName ".evv-index"
+nameMaskAt      = coreHndName ".mask-at"
+nameMaskBuiltin = coreHndName ".mask-builtin"
 nameOpenAt i    = coreHndName (".open-at" ++ show i)
 nameOpenNone i  = coreHndName (".open-none" ++ show i)
 nameOpen i      = coreHndName (".open" ++ show i)
@@ -291,6 +293,7 @@ nameTpInst      = coreTypesName "inst"
 
 nameIdentity    = coreTypesName "id"
 
+nameInt32       = preludeName "int32"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"

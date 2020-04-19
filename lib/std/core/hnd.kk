@@ -78,7 +78,7 @@ private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
   js "_evv_insert"
 }
 
-private extern evv-delete( w : evv<e1>, i : ev-index ) : evv<e2> {
+private extern evv-delete( w : evv<e1>, i : ev-index, behind : bool ) : evv<e2> {
   js "_evv_delete"
 }
 
@@ -238,10 +238,14 @@ public fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<
 // mask
 // -------------------------------------------
 
-public fun ".hmask"( i : ev-index, action : () -> e1 a ) : e2 a {
+public fun ".mask-at"<a,e1,e2>( i : ev-index, behind : bool, action : () -> e1 a ) : e2 a {
   val w0 = evv-get()
-  val w1 = evv-delete(w0,i)
+  val w1 = evv-delete(w0,i,behind)
   under0(w1,cast-ev0(action))
+}
+
+public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
+  cast-ev0(action)()
 }
 
 
@@ -564,15 +568,15 @@ public extern inline ".open"<e1,e2,a,b>( x : a ) : e2 b {
   inline "(#1)"
 }
 
-public fun ".open-none0"( f : () -> e1 b ) : e2 b {
+public fun ".open-none0"<b,e1,e2>( f : () -> e1 b ) : e2 b {
   cast-ev0(f)()
 }
 
-public fun ".open-none1"( f : a -> e1 b, x : a ) : e2 b {
+public fun ".open-none1"<a,b,e1,e2>( f : a -> e1 b, x : a ) : e2 b {
   cast-ev1(f)(x)
 }
 
-public fun ".open-none2"( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open-none2"<a1,a2,e1,e2>( f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   cast-ev2(f)(x1,x2)
 }
 
@@ -600,7 +604,7 @@ public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a
   res
 }
 
-public fun ".open0"( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev0(f)()
@@ -608,7 +612,7 @@ public fun ".open0"( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   evv-set(w)
   res
 }
-public fun ".open1"( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev1(f)(x)
