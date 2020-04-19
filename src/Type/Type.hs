@@ -66,7 +66,7 @@ module Type.Type (-- * Types
                   , module Common.Name
                   ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.Maybe(isJust)
 import Data.List( sortBy )
 
@@ -660,7 +660,8 @@ extractEffectExtend t
   where
     extractLabel :: Tau -> [Tau]
     extractLabel l
-      = case expandSyn l of
+      = -- trace ("extractLabel: " ++ show l) $
+        case expandSyn l of
           TApp (TCon tc) [_,e] | typeConName tc == nameEffectExtend
             -> let (ls,tl) = extractEffectExtend l
                in assertion "label was not a fixed effect type alias" (isEffectFixed tl) $

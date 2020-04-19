@@ -277,13 +277,15 @@ ppVis env vis
 
 
 instance Pretty SynInfo where
-  pretty info = ppSynInfo Type.Pretty.defaultEnv False True info
+  pretty info = ppSynInfo Type.Pretty.defaultEnv False False True info
 
-ppSynInfo env publicOnly showBody (SynInfo name kind params scheme rank range vis doc)
+ppSynInfo env isLocal publicOnly showBody (SynInfo name kind params scheme rank range vis doc)
     = if (publicOnly && isPrivate vis) then empty else
       (prettyComment env doc $
-        (if publicOnly then empty else ppVis env vis) <.>
-        keyword env "alias" <+> ppName env name <.> -- <+> (ppSynInfo env True synInfo)
+        (if isLocal
+          then keyword env "local alias"
+          else (if publicOnly then empty else ppVis env vis) <.> keyword env "alias") <+>
+        ppName env name <.> -- <+> (ppSynInfo env True synInfo)
         let docs = niceTypes env (map TVar params ++ [scheme])
         in (if null params then empty else angled (init docs))
          <.> (if kind /= kindStar then text " ::" <+> ppKind (colors env) precTop kind else empty)

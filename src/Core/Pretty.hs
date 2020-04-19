@@ -66,6 +66,8 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       , map (prettyImport envX) (imports) -- ++ extraImports)
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
+      , separator "local imported aliases"
+      , map (prettyImportedSyn envX) importedSyns
       , separator "type declarations"
       , map (prettyTypeDef envX) allTypeDefs
       , separator "declarations"
@@ -78,7 +80,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
          else [text ".inline"] ++
               map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
       ]
-      -- , map (prettyImportedSyn envX) importedSyns
+      -- ,
       {-
       , map (prettyTypeDefGroup envX) typeDefGroups
       , map (prettyDefGroup env) defGroups
@@ -94,11 +96,11 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
 
     env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
-    {-
+
     importedSyns = extractImportedSynonyms core
     extraImports = extractImportsFromSynonyms imports importedSyns
-    -}
-    env1         = env0{ importsMap = {- extendImportMap extraImports -} (importsMap env0),
+
+    env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
                          coreInlineMax = (-1),
@@ -127,7 +129,7 @@ prettyFixDef env (FixDef name fixity)
 
 prettyImportedSyn :: Env -> SynInfo -> Doc
 prettyImportedSyn env synInfo
-  = ppSynInfo env False True synInfo <.> semi
+  = ppSynInfo env True False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
 prettyExternal env (External name tp body vis nameRng doc) | coreIface env && isHiddenExternalName name
@@ -168,7 +170,7 @@ prettyTypeDefGroup env (TypeDefGroup defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
 prettyTypeDef env (Synonym synInfo  )
-  = ppSynInfo env True True synInfo <.> semi
+  = ppSynInfo env False True True synInfo <.> semi
 
 prettyTypeDef env (Data dataInfo isExtend)
   = -- keyword env "type" <+> prettyVis env vis <.> ppDataInfo env True dataInfo

@@ -817,12 +817,14 @@ inferExpr propagated expect (Inject label expr behind rng)
                              core       = Core.App (Core.TypeApp coreInject [resTp,eff,effTo])
                                              [coreEffName,coreLevel,exprCore]
                          return core
+                         {-
                 else if (effName == nameTpPartial)  -- exception
                  -- exceptions use "inject-exn"
                  then do (injectQName,injectTp,injectInfo) <- resolveFunName nameInjectExn (CtxFunArgs 2 []) rng rng
                          let coreInject = coreExprFromNameInfo injectQName injectInfo
                              core       = Core.App (Core.TypeApp coreInject [resTp,eff]) [coreLevel,exprCore]
                          return core
+                         -}
                  -- for builtin effects, use ".open" to optimize the inject away
                  else do let coreOpen   = Core.openEffectExpr eff effTo exprTp (typeFun [] effTo resTp) exprCore
                              core       = Core.App coreOpen []

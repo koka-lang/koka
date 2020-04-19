@@ -133,12 +133,12 @@ pmodule
                   fixs <- semis fixDecl
                   (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias
                   (tdefs,env2)   <- semisEnv env1 typeDecl
-                  {-
+                  -- add synonyms
                   let syns = concatMap (\td -> case td of
-                                                 Synonym info vis -> [info]
-                                                 _                -> []) tdefs
+                                                 Synonym info  -> [info]
+                                                 _             -> []) tdefs
                       env2 = env1{ syns = synonymsNew (impsyns ++ syns) }
-                  -}
+
                   defs      <- semis (defDecl env2)
                   externals <- semis (externDecl env2)
                   inlines   <- do specialId ".inline"
@@ -153,7 +153,7 @@ pmodule
 
 localAlias :: Env -> LexParser (SynInfo, Env)
 localAlias env
-  = do try $ do { keyword "private"; keyword "alias" }
+  = do try $ do { specialId "local"; keyword "alias" }
        (qname,_) <- qtypeid  -- can be qualified
        let name = envQualify env qname
        (env,params) <- typeParams env

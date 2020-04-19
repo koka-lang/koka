@@ -69,7 +69,7 @@ import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
 import Type.Type
-import Type.Kind              ( containsHandledEffect, getHandledEffectX )
+import Type.Kind              ( containsHandledEffect, getHandledEffectX, extractHandledEffect )
 import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(..), gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
@@ -436,8 +436,8 @@ checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error (Mayb
 checkUnhandledEffects flags loaded name range tp
   = case expandSyn tp of
       TFun _ eff _
-        -> let (ls,_) = extractEffectExtend eff
-           in combine eff Nothing ls
+        -> let (ls,_) = extractHandledEffect eff
+           in trace ("extract effects: " ++ show ls) $combine eff Nothing ls
       _ -> return Nothing
   where
     exclude = [nameTpCps,nameTpAsync,nameTpInst]
@@ -449,7 +449,8 @@ checkUnhandledEffects flags loaded name range tp
                              Just (_,effName)
                                -> case gammaLookupQ (makeHiddenName "default" effName) (loadedGamma loaded) of
                                     [InfoFun _ dname _ _ _]
-                                      -> let g expr = let r = getRange expr
+                                      -> trace ("add default effect for " ++ show effName) $
+                                         let g expr = let r = getRange expr
                                                       in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mf) r)] r
                                          in combine eff (Just g) ls
                                     _ -> do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->

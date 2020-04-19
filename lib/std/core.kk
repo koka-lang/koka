@@ -2345,6 +2345,12 @@ effect exn {
   control throw( exn : exception ) : a
 }
 
+fun ".default-exn"(action) {
+  handle(action) {
+    control throw( exn : exception ) { show(exn:exception).println }
+  }
+}
+
 // The exception data type
 struct exception( message :string, info :exception-info )
 

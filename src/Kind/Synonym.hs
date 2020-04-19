@@ -103,7 +103,7 @@ instance Pretty Synonyms where
     = ppSynonyms Type.Pretty.defaultEnv syns
 
 ppSynonyms showOptions (Synonyms m)
-    = vcat [ppSynInfo showOptions False True sscheme
+    = vcat [ppSynInfo showOptions False False True sscheme
            | (name, sscheme) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
 
 
