@@ -46,7 +46,8 @@ module Core.Core ( -- Data structures
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
                    , tnamesUnion, tnamesUnions, tnamesRemove
-                   , getTypeArityExpr, getParamArityExpr, getEffExpr
+                   -- , getTypeArityExpr -- ,getParamArityExpr
+                   , getEffExpr
                    , TNames
                    , splitFun
                    , splitTForall

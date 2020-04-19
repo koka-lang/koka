@@ -42,7 +42,7 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enableLifting = False
+enableLifting = True
 
 liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
 liftFunctions penv u defs

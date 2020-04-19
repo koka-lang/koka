@@ -41,7 +41,7 @@ import Core.CoreVar
 import Type.Unify( unify, runUnifyEx )
 
 trace s x =
-   -- Lib.Trace.trace s
+   Lib.Trace.trace s
     x
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
@@ -128,14 +128,15 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
         then -- exact match, just use expr
              trace " identity" $ expr
        else if (not (isEffectFixed effFrom))
-        then if (and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+        then {- if (and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
               then -- all handled effect match, just use expr
                    trace "masking? " $ expr
-              else failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
-       else if (matchType tl1 tl2 && and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+              else -} failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
+       else if (matchType tl1 tl2 && length ls1 == length ls2 && and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
         then -- same handled effects, just use expr
+             trace " same handled effects, leave as is" $
              expr
-        else -- not equal, insert open
+        else -- not equal in handled effects, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
                                   _ -> failure $ "Core.openResolve.resOpen: unknown name: " ++ show name
@@ -147,10 +148,11 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                            (evExprs ++ [expr] ++ [Var p InfoNone | p <- params])
              in case ls1 of
                  []  -> -- no handled effect, use cast
-                        trace (" no handled effect; use cast") $
-                        -- wrapper (resolve (nameOpenNone n)) []
-                        -- App eopen [expr]
-                        expr  -- change nothing
+                        case ls2 of
+                          [] -> trace (" no handled effect, in no handled effect context: use cast")
+                                expr
+                          _  -> trace (" no handled effect; use none") $
+                                wrapper (resolve (nameOpenNone n)) []
                  [l] -> -- just one: used open-atN for efficiency
                         trace (" one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)

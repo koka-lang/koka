@@ -409,7 +409,7 @@ genExprStat result expr
               return (getResult result exprDoc)
 
       Case exprs branches
-         -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
+         -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (trace ("typeOf: " ++ show e) $ typeOf e)
                                                                then do d       <- genInline e
                                                                        return (text "", d)
                                                                else do (sd,vn) <- genVarBinding e
@@ -626,7 +626,7 @@ genExpr expr
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
      App f args
-       -> case splitFunScheme (typeOf f) of
+       -> {- case splitFunScheme (typeOf f) of
             Just (_,_,tpars,eff,tres)
               | length tpars > length args
                -> do vars <- newVarNames (length tpars - length args)
@@ -638,7 +638,8 @@ genExpr expr
                -> let n = length tpars
                   in --  trace  ("genExpr: double App: " ++ show (n,length args) ++ ": " ++ show (typeOf f) ++ ": " ++ show expr) $
                       genExpr (App (App f (take n args)) (drop n args))
-            _ -> case extractList expr of
+            _ -> -}
+             case extractList expr of
                   Just (xs,tl) -> genList xs tl
                   Nothing -> case extractExtern f of
                    Just (tname,formats)
@@ -931,7 +932,7 @@ isInlineableExpr expr
                           isPureExpr f && all isPureExpr args
                           -- all isInlineableExpr (f:args)
                           && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
-                          && getParamArityExpr f == length args
+                          -- && getParamArityExpr f == length args
       _                -> isPureExpr expr
 
 isPureExpr :: Expr -> Bool

@@ -437,7 +437,8 @@ checkUnhandledEffects flags loaded name range tp
   = case expandSyn tp of
       TFun _ eff _
         -> let (ls,_) = extractHandledEffect eff
-           in trace ("extract effects: " ++ show ls) $combine eff Nothing ls
+           in -- trace ("extract effects: " ++ show ls) $
+              combine eff Nothing ls
       _ -> return Nothing
   where
     exclude = [nameTpCps,nameTpAsync,nameTpInst]
