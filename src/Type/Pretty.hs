@@ -159,7 +159,7 @@ defaultEnv
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
         False -- coreShowTypes
-        5     -- coreInlineMax
+        6     -- coreInlineMax
         True  -- coreShowVis
         False -- coreShowDef
         0     -- verbose

@@ -260,9 +260,11 @@ conDecl tname foralls sort env
        -- trace ("core con: " ++ show name) $ return ()
        (env1,existss) <- typeParams env
        (env2,params)  <- parameters env1
-       tp     <- typeAnnot env
+       tp     <- typeAnnot env2
        let params2 = [(if nameIsNil name then newFieldName i else name, tp) | ((name,tp),i) <- zip params [1..]]
-       return (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False vis doc)
+       let con = (ConInfo (qualify (modName env) name) tname foralls existss params2 tp sort rangeNull (map (const rangeNull) params2) (map (const Public) params2) False vis doc)
+       -- trace (show con ++ ": " ++ show params2) $
+       return con
 
 
 typeSort :: LexParser (DataDef, Bool, DataKind,String)
@@ -511,8 +513,8 @@ parsePatCon env
                           rparen
                           return x
        let (patArgs,argTypes)  = unzip args
-       resTp <- typeAnnot env
-       con <- envLookupCon env cname
+       resTp <- typeAnnot env2
+       con <- envLookupCon env2 cname
        return $ (env2,PatCon (TName cname (infoType con)) patArgs (infoRepr con) argTypes exists resTp (infoCon con))
 
 

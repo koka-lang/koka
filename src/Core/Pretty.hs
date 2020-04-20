@@ -347,7 +347,7 @@ prettyPatterns env pats
     f (env,docs) pat = let (env',doc) = prettyPattern env pat
                        in (env',doc:docs)
 
-prettyPatternType (env,docs) (pat,tp)
+prettyPatternType (pat,tp) (env,docs) 
   = let (env',doc) = prettyPattern (decPrec env) pat
     in (env', (doc <.> (if (coreShowTypes env') then text " :" <+> prettyType env' tp else empty)) : docs)
 
@@ -358,7 +358,7 @@ prettyPattern env pat
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                               (env'',docs) = foldl prettyPatternType (env',[]) (zip args targs)
+                               (env'',docs) = foldr prettyPatternType (env',[]) (zip args targs)
                            in (env'',
                                parens $
                                 prettyConName env tname <.>

@@ -510,16 +510,18 @@ genMatch result scrutinees branches
 
            gs <- mapM (se . genGuard False      result) (init guards)
            g  <-      (se . genGuard lastBranch result) (last guards)
-           return (conditions, debugWrap "genBranch" $ vcat gs <-> g)
+           return (conditions, debugWrap ("genBranch: " ++ show substs) $ vcat gs <-> g)
 
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
           = case pat of
               PatCon tn args repr _ _ _ info
-                -> concatMap (\(pat',fn)-> getSubstitutions
+                -> -- trace ("pattern: " ++ show tn ++ ": " ++ show args ++ ",  " ++ show info) $
+                   concatMap (\(pat',fn)-> getSubstitutions
                                              (nameDoc <.> (if (getName tn == nameOptional || isConIso repr) then empty else (text "."  <.> fn)))
                                              pat'
-                            ) (zip args (map (ppName . fst) (conInfoParams info)) )
+                            )
+                            (zip args (map (ppName . fst) (conInfoParams info)) )
               PatVar tn pat'      -> (tn, nameDoc):(getSubstitutions nameDoc pat')
               PatWild             -> []
               PatLit lit          -> []
@@ -557,8 +559,10 @@ genMatch result scrutinees branches
                        -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
-                            (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
-                            ( zip fields (map (ppName . fst) (conInfoParams info)) )
+                            (\(field,fieldName) -> genTest modName (
+                                                    debugWrap ("genTest: single: " ++ show field ++ " -> " ++ show fieldName) $
+                                                   scrutinee <.> dot <.> fieldName, field) )
+                            (zip fields (map (ppName . fst) (conInfoParams info)) )
 
                      ConIso{} -- alwasy success
                        -> []
@@ -575,7 +579,7 @@ genMatch result scrutinees branches
                           in (conTest:fieldTests)
                      _ -> let conTest    = debugWrap "genTest: normal" $ scrutinee <.> dot <.> tagField <+> text "===" <+> getConTag modName info repr
                               fieldTests  =  concatMap
-                                             (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
+                                             (\(field,fieldName) -> genTest modName (debugWrap ("genTest: normal: " ++ show field ++ " -> " ++ show fieldName) $ scrutinee <.> dot <.> fieldName, field) )
                                              ( zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
 
