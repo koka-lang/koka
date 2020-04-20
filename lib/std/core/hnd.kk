@@ -94,6 +94,10 @@ private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2>
   js "_evv_create"
 }
 
+private extern inline evv-set-in( w : evv<e1> ) : e1 () {
+  js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
+}
+
 private extern inline evv-set( w : evv<e1> ) : e () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
@@ -147,7 +151,7 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern inline yield-to-prim( m : marker<e1,r>, clause : (b -> e1 r) -> e1 r ) : e b {
+private extern inline yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
   js "$std_core_hnd._yield_to"
 }
 
@@ -157,7 +161,7 @@ private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e
 
 private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
   val w0 = evv-get()
-  val g = yield-to-prim(m, clause)
+  val g : () -> _b = yield-to-prim(m, clause)
   yield-extend( fun(f){ val keep1 = evv-set(w0); f() })
 }
 
@@ -220,8 +224,8 @@ public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
   val w1 = evv-insert(w0,ev)
-  evv-set(w1)
-  prompt(w0,w1,m,ret,cast-ev0(action)())
+  // evv-set(w1)
+  prompt(w0,w1,m,ret,cast-ev0({ evv-set(w1); action() })())
 }
 
 //public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
@@ -264,6 +268,8 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
+private extern unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
+
 private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {
   if (!yielding()) return res;
   val v = !r
@@ -272,7 +278,7 @@ private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,loca
 
 public fun local-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
   val r   = cast-ev1(ref)(init)
-  val res = cast-ev1(action)(unsafe-coerce(r))
+  val res = cast-ev1(action)(unsafe-ref-to-local(r))
   cast-ev2(prompt-local-var)(r,res)
 }
 

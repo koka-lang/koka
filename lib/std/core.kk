@@ -2349,7 +2349,7 @@ fun ".default-exn"(action) {
   handle(action) {
     control throw( exn : exception ) {
       "uncaught exception: ".prints
-      show(exn).println 
+      show(exn).println
     }
   }
 }
@@ -2512,7 +2512,7 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 // ----------------------------------------------------------------------------
 
 
-extern inline inject-local( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
+extern inline inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
 
 // Assign to an entry in a local `:vector` variable.
 extern inline [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
