@@ -2234,22 +2234,25 @@ private extern xprints : string -> console ()  {
   js "_print"
 }
 
+// _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
+extern inline unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) { inline "#1"}
+
 private fun prints( s : string ) : console () {
-  unsafe-total {
+  (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprints(s)
       Just(f) -> f(s)
     }
-  }
+  })()
 }
 
 private fun printsln( s : string ) : console () {
-  unsafe-total {
+  (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprintsln(s)
       Just(f) -> f(s + "\n")
     }
-  }
+  })()
 }
 
 // Print a string to the console.

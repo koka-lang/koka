@@ -268,7 +268,8 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private extern unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
+private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a { inline "(#1)()"}
+private extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
 
 private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {
   if (!yielding()) return res;
@@ -277,14 +278,12 @@ private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,loca
 }
 
 public fun local-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
-  val r   = cast-ev1(ref)(init)
-  val res = cast-ev1(action)(unsafe-ref-to-local(r))
-  cast-ev2(prompt-local-var)(r,res)
+  unsafe-local {
+    val r   = ref(init)
+    val res = cast-ev1(action)(unsafe-ref-to-local(r))
+    prompt-local-var(r,res)
+  }
 }
-
-//private extern inline ilocal-varx(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
-//  js inline "(function(){ const _r = { value: (#1) }; const _res = (#2)(_r); if (!_yielding()) return _res; return prompt_local_var(_r,_res); })()"
-//}
 
 
 // -------------------------------------------
