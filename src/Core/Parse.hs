@@ -476,11 +476,17 @@ parseDefGroup env
 
 parseBranch :: Env -> LexParser Branch
 parseBranch env
-  = do pats <- sepBy1 (parsePattern env) comma
-       let (binds,patterns) = unzip pats
-       let env' = foldl envExtendLocal env (concat binds)
-       guards   <- many1 (parseGuard env')
+  = do (env',patterns) <- parsePatterns1 env
+       guards <- many1 (parseGuard env')
        return (Branch patterns guards)
+
+parsePatterns1 :: Env -> LexParser (Env, [Pattern])
+parsePatterns1 env
+  = do (env1,pattern) <- parsePattern env
+       (do comma
+           (envN,patterns) <- parsePatterns1 env1
+           return (envN,pattern:patterns)
+        <|> return (env1,[pattern]))
 
 parseGuard :: Env -> LexParser Guard
 parseGuard env
@@ -491,38 +497,54 @@ parseGuard env
 
 type PatBinders = [(Name,Type)]
 
-parsePattern  :: Env -> LexParser (PatBinders,Pattern)
+parsePattern  :: Env -> LexParser (Env,Pattern)
 parsePattern env
-  = parsePatCon env <|> parsePatVar env <|> parsePatWild
+  = parsePatCon env <|> parsePatVar env <|> parsePatWild env
     <|> parens (parsePattern env)
 
-parsePatCon  :: Env -> LexParser (PatBinders, Pattern)
+parsePatCon  :: Env -> LexParser (Env,Pattern)
 parsePatCon env
   = do cname <- qualifiedConId
-       (env',exists) <- typeParams env
-       args <- parensCommas (lparen <|> lapp) (parsePatternArg env)
-       let (pats,argTypes)  = unzip args
-           (patBs, patArgs) = unzip pats
+       (env1,exists) <- typeParams env
+       (env2,args)  <- do (lparen <|> lapp)
+                          x <- parsePatternArgs0 env1
+                          rparen
+                          return x
+       let (patArgs,argTypes)  = unzip args
        resTp <- typeAnnot env
        con <- envLookupCon env cname
-       return $ (concat patBs, PatCon (TName cname (infoType con)) patArgs (infoRepr con) argTypes exists resTp (infoCon con))
+       return $ (env2,PatCon (TName cname (infoType con)) patArgs (infoRepr con) argTypes exists resTp (infoCon con))
 
 
-parsePatternArg :: Env -> LexParser ((PatBinders,Pattern),Type)
+parsePatternArgs0 :: Env -> LexParser (Env,[(Pattern,Type)])
+parsePatternArgs0 env
+  = parsePatternArgs1 env <|> return (env,[])
+
+parsePatternArgs1 :: Env -> LexParser (Env,[(Pattern,Type)])
+parsePatternArgs1 env
+  = do (env1,pattp) <- parsePatternArg env
+       (do comma
+           (envN,patTps) <- parsePatternArgs1 env1
+           return (envN, pattp:patTps)
+        <|>
+           return (env1,[pattp]))
+
+parsePatternArg :: Env -> LexParser (Env,(Pattern,Type))
 parsePatternArg env
-  = do pat <- parsePattern env
+  = do (env1,pat) <- parsePattern env
        tp  <- typeAnnot env
-       return (pat,tp)
+       return (env1,(pat,tp))
 
-parsePatVar  :: Env -> LexParser (PatBinders, Pattern)
+parsePatVar  :: Env -> LexParser (Env,Pattern)
 parsePatVar env
   = do (name,_) <- varid
        tp <- typeAnnot env
-       return ([(name,tp)],PatVar (TName name tp) PatWild)
+       let env1 = envExtendLocal env (name,tp)
+       return (env1,PatVar (TName name tp) PatWild)
 
-parsePatWild
+parsePatWild env
   = do wildcard
-       return ([],PatWild)
+       return (env,PatWild)
 
 qualifiedConId
    = do n <-  try $ do modulepath

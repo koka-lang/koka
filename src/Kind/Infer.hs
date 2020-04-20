@@ -150,7 +150,9 @@ synTypeDef modName (Core.Data dataInfo isExtend) | isHiddenName (dataInfoName da
 synTypeDef modName (Core.Data dataInfo isExtend)
   = synAccessors modName dataInfo
     ++
-    (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo) && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo)))))
+    (if (length (dataInfoConstrs dataInfo) == 1 && not (dataInfoIsOpen dataInfo)
+         && not (isHiddenName (conInfoName (head (dataInfoConstrs dataInfo))))
+         && hasKindStarResult (dataInfoKind dataInfo) )
       then [synCopyCon modName dataInfo (head (dataInfoConstrs dataInfo))]
       else [])
     ++

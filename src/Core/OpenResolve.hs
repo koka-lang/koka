@@ -41,7 +41,7 @@ import Core.CoreVar
 import Type.Unify( unify, runUnifyEx )
 
 trace s x =
-   Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }

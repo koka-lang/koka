@@ -398,6 +398,10 @@ instance HasTypeVar Type where
         TApp tp arg             -> tvsUnion (btv tp) (btv arg)
         _                       -> tvsEmpty
 
+instance HasTypeVar Name where
+  sub `substitute` name = name
+  ftv name              = tvsEmpty
+  btv name              = tvsEmpty
 
 instance HasOrderedTypeVar Type where
   odftv tp

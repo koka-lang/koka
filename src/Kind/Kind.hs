@@ -21,6 +21,7 @@ module Kind.Kind( -- * Kinds
                   , isKindFun
                   , isKindStar
                   , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel
+                  , hasKindStarResult
                   , kindAddArg
                   ) where
 
@@ -47,7 +48,9 @@ data Flavour  = Bound
               | Meta    -- used for pretty printing
               deriving(Eq, Show)
 
-
+hasKindStarResult :: Kind -> Bool
+hasKindStarResult kind
+  = isKindStar (snd (extractKindFun kind))
 
 {--------------------------------------------------------------------------
   Standard kinds

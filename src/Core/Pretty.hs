@@ -49,7 +49,7 @@ instance Show Def       where show = show . prettyDef       defaultEnv
 instance Show Expr      where show = show . prettyExpr      defaultEnv{showKinds=True,coreShowTypes=True}
 instance Show Lit       where show = show . prettyLit       defaultEnv
 instance Show Branch    where show = show . prettyBranch    defaultEnv
-instance Show Pattern   where show = show . prettyPattern   defaultEnv
+instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
 
 {--------------------------------------------------------------------------
   Pretty-printers proper
@@ -328,8 +328,9 @@ prettyBranches env (branches)
 
 prettyBranch :: Env -> Branch -> Doc
 prettyBranch env (Branch patterns guards)
-  = hsep (punctuate comma (map (prettyPattern env{ prec = precApp } ) patterns))
-     <.> linebreak <.> indent 2 (vcat (map (prettyGuard env) guards)) <.> semi
+  = let (env', patDocs) = (prettyPatterns env{ prec = precApp } patterns)
+    in hsep (punctuate comma patDocs)
+        <.> linebreak <.> indent 2 (vcat (map (prettyGuard env') guards)) <.> semi
 
 prettyGuard   :: Env -> Guard -> Doc
 prettyGuard env (Guard test expr)
@@ -338,29 +339,40 @@ prettyGuard env (Guard test expr)
        else text " |" <+> prettyExpr env{ prec = precTop } test
     )   <+> text "->" <+> prettyExpr env{ prec = precTop } expr
 
-prettyPatternType env (pat,tp)
-  = prettyPattern env pat
-    <.> (if (coreShowTypes env) then text " :" <+> prettyType env tp else empty)
 
-prettyPattern :: Env -> Pattern -> Doc
+prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
+prettyPatterns env pats
+  = foldl f (env,[]) pats
+  where
+    f (env,docs) pat = let (env',doc) = prettyPattern env pat
+                       in (env',doc:docs)
+
+prettyPatternType (env,docs) (pat,tp)
+  = let (env',doc) = prettyPattern (decPrec env) pat
+    in (env', (doc <.> (if (coreShowTypes env') then text " :" <+> prettyType env' tp else empty)) : docs)
+
+prettyPattern :: Env -> Pattern -> (Env,Doc)
 prettyPattern env pat
   = case pat of
       PatCon tname args repr targs exists resTp info
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                           in parens $
-                              prettyConName env tname <.>
-                               (if (null exists) then empty
-                                 else angled (map (ppTypeVar env') exists)) <.>
-                               tupled (map (prettyPatternType (decPrec env')) (zip args targs)) <+> colon <+> prettyType env resTp <.> space
+                               (env'',docs) = foldl prettyPatternType (env',[]) (zip args targs)
+                           in (env'',
+                               parens $
+                                prettyConName env tname <.>
+                                 (if (null exists) then empty
+                                   else angled (map (ppTypeVar env'') exists)) <.>
+                                  tupled docs <+> colon <+> prettyType env'' resTp <.> space)
 
-      PatVar tname PatWild  -> parens  $
-                               prettyTName env tname -- prettyName env (getName tname)
-      PatVar tname pat      -> parens $
-                               prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)
-      PatWild               -> text "_"
-      PatLit lit            -> prettyLit env lit
+      PatVar tname PatWild  -> (env, parens  $
+                               prettyTName env tname) -- prettyName env (getName tname))
+      PatVar tname pat      -> let (env',doc) = prettyPattern (decPrec env) pat
+                               in (env', parens (doc <+> keyword env "as" <+> prettyName env (getName tname)))
+
+      PatWild               -> (env,text "_")
+      PatLit lit            -> (env,prettyLit env lit)
   where
     commaSep :: [Doc] -> Doc
     commaSep = hcat . punctuate comma

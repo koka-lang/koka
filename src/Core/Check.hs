@@ -248,7 +248,8 @@ checkPattern :: (Type,Pattern) -> Check ()
 checkPattern (tpScrutinee,pat)
   = case pat of
       PatCon tname args _ tpargs exists resTp coninfo
-        -> do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
+        -> -- (if (null exists) then id else (trace ("check existential pattern: " ++ show exists ++ ", " ++ show tpScrutinee))) $
+           do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
               mapM_  checkPattern  (zip tpargs args)
       PatVar tname _ -> match "comparing constructor argument to case annotation" (prettyPattern pat) tpScrutinee (typeOf tname)
       PatLit lit     -> match "comparing literal pattern to scrutinee" (prettyPattern pat) tpScrutinee (typeOf lit)
@@ -324,5 +325,5 @@ showMessage err when a b fdoc env
                      ]
 
 prettyExpr e env = PrettyCore.prettyExpr env e
-prettyPattern e env = PrettyCore.prettyPattern env e
+prettyPattern e env = snd (PrettyCore.prettyPattern env e)
 prettyDef d env     = PrettyCore.prettyDef env d

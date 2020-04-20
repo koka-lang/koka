@@ -409,7 +409,7 @@ genExprStat result expr
               return (getResult result exprDoc)
 
       Case exprs branches
-         -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (trace ("typeOf: " ++ show e) $ typeOf e)
+         -> do (docs, scrutinees) <- fmap unzip $ mapM (\e-> if isInlineableExpr e && isTypeBool (typeOf e)
                                                                then do d       <- genInline e
                                                                        return (text "", d)
                                                                else do (sd,vn) <- genVarBinding e
