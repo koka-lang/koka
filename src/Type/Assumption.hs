@@ -184,7 +184,8 @@ gammaLookupQ :: Name -> Gamma -> [NameInfo]
 gammaLookupQ name (Gamma gamma)
   = case M.lookup (unqualify name) gamma of
       Nothing -> []
-      Just xs -> map snd (filter (\(n,tp) -> n == name) xs)
+      Just xs -> -- trace ("gamma lookupQ: " ++ show name ++ " in " ++ show xs) $
+                 map snd (filter (\(n,tp) -> n == name) xs)
 
 -- | @gammaLookup context name gamma@ looks up a potentially qualified name in a module named @context@.
 gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
@@ -328,7 +329,7 @@ instance Pretty Gamma where
 
 ppGamma :: Env -> Gamma -> Doc
 ppGamma env gamma
-    = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (text (showPlain name)) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes]
     where
       nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma]

@@ -53,9 +53,6 @@ alias total = <>
 // Stateful funs can manipulate heap `:h` using allocations, reads and writes.
 alias st<h> = <read<h>, write<h>, alloc<h>>
 
-// NonDeterminism: a nonDeterministic function may return varying
-// results even when called with the same input values.
-type ndet :: X
 
 // The console effect signifies that a function may read or write to the console.
 type console :: X

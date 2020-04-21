@@ -414,7 +414,7 @@ postpend s cname
 
 toHiddenUniqueName :: Int -> String -> Name -> Name
 toHiddenUniqueName i s name
-  = makeHiddenName s (postpend (show i) xname)
+  = makeHiddenName (s ++ show i) xname
   where
     xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
 

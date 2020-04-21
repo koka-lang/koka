@@ -91,7 +91,7 @@ allowDotIds lexs
         -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend (show i) name)) : lexx)
       -- (/.4)
       (Lexeme r1 (LexSpecial "(") : Lexeme r2 (LexOp name) : Lexeme _ (LexKeyword "." _) : Lexeme r4 (LexInt i _) : Lexeme r5 (LexSpecial ")") :  lexx) -- | last (nameId name) == '.'
-        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend ("." ++ show i) (newName "/"))) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r5) (LexId (postpend ("." ++ show i) name)) : lexx)
       -- ([].1)
       (Lexeme r1 (LexSpecial "(") : Lexeme _ (LexSpecial "[") : Lexeme _ (LexSpecial "]") : Lexeme _ (LexKeyword "." _) : Lexeme _ (LexInt i _) : Lexeme r2 (LexSpecial ")") : lexx)
         -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (postpend ("." ++ show i) (newName "[]"))) : lexx)
@@ -428,7 +428,7 @@ parseCon env
 
 parseVar :: Env -> LexParser Expr
 parseVar env
-  = do (name,_) <- (qvarid <|> qidop)
+  = do (name,_) <- qvarid <|> qidop
        if (isQualified name)
         then envLookupVar env name
         else do tp <- envLookupLocal env name
@@ -918,4 +918,4 @@ envLookupVar env name
     [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
     [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
     [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
-    res               -> fail $ "unknown identifier: " ++ show name ++ ": " ++ show res ++ ":\n" ++ show (gamma env)
+    res               -> fail $ "unknown identifier: " ++ showPlain name ++ ": " ++ show res ++ ":\n" ++ show (gamma env)

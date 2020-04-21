@@ -17103,6 +17103,7 @@ stripParens s
 newQName s
   = let (rname,rsmod) = span (/='/') (reverse s)
     in case rsmod of
+         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")
          ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
          _           -> newName s
 
