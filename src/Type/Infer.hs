@@ -333,7 +333,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                   simexpr <- liftUnique $ uniqueSimplify 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
-                                      mvars = [TypeVar id kind Meta | TypeVar id kind _ <- tvars]
+                                      mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
                                       msub  = subNew (zip tvars (map TVar mvars))
 
 
@@ -1992,7 +1992,7 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
            (cpatterns,infGammas) <- fmap unzip $ mapM (\(parTp,pat) ->
                                                    do sparTp <- subst parTp
                                                       inferPatternX sparTp branchRange pat)
-                                            (zip (map snd conParTps) (patterns))           
+                                            (zip (map snd conParTps) (patterns))
            let infGamma  = concat infGammas
            (btp,beff,coreGuard0) <- inferGuard infGamma
            {-
