@@ -10,7 +10,7 @@ static class _Chrono {
   private static long unixEpochTicks = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
   private static long prev = 0;
 
-  public static __std_core._Tuple2_<double,double> UnixNow() {
+  public static __std_core_types._Tuple2_<double,double> UnixNow() {
     long ticks  = DateTime.UtcNow.Ticks - unixEpochTicks;
     long diff   = ticks - prev;
     if (prev != 0 && diff <= 0 && diff >= -TimeSpan.TicksPerSecond) {
@@ -24,7 +24,7 @@ static class _Chrono {
     prev = ticks; // thread unsafe is ok here
     double seconds = (double)(ticks / TimeSpan.TicksPerSecond);
     double frac  = (double)(ticks % TimeSpan.TicksPerSecond) / (double)TimeSpan.TicksPerSecond;
-    return new __std_core._Tuple2_<double,double>( seconds, frac );
+    return new __std_core_types._Tuple2_<double,double>( seconds, frac );
   }
 
   public static double NowResolution() {

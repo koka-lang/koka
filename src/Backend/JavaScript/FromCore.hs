@@ -120,7 +120,8 @@ genModule maxStructFields mbMain core
                           f (DefNonRec x) = [defName x]
                       in map unqualify $ concatMap f (coreProgDefs core)
     exportedConstrs = let f (Synonym _ )    = []
-                          f (Data info _)   = map conInfoName $ filter (isPublic . conInfoVis) (dataInfoConstrs info)
+                          f (Data info _)   = map conInfoName $ -- filter (isPublic . conInfoVis)  -- export all for inlined defs
+                                                                (dataInfoConstrs info)
                           u (TypeDefGroup xs) = xs
                       in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
 
