@@ -95,6 +95,11 @@ liftDefGroup False (DefRec defs)
                         (TypeLam tpars (Lam pars eff lbody)) -> TypeLam tpars (Lam pars eff (subst |~> lbody))
                         (Lam pars eff lbody)                 -> Lam pars eff (subst |~> lbody)
                         expr -> failure $ ("Core.FunLift.liftDefGroup False DefRec: lifting non-function? " ++ show expr)
+            -- Note here we only want to skip the substiution for fvs and tvs,
+            -- but we have skipped more than necessary, i.e.,
+            -- the part of those tpars and pars that are not in fvs and tvs.
+            -- But it is OK here, because fvs/tvs are in the scope of all defs,
+            -- and we have ensured that fvs/pars and tvs/tpars are always unique (see Type/Infer.hs).
             in def{defExpr = body}
 
 liftDef :: Bool -> Def -> Lift Def
