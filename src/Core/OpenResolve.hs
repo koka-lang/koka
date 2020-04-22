@@ -152,7 +152,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                           [] -> trace (" no handled effect, in no handled effect context: use cast")
                                 expr
                           _  -> trace (" no handled effect; use none") $
-                                wrapper (resolve (nameOpenNone n)) []
+                                -- wrapper (resolve (nameOpenNone n)) []
+                                expr
                  [l] -> -- just one: used open-atN for efficiency
                         trace (" one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)

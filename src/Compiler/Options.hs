@@ -48,6 +48,7 @@ prettyEnvFromFlags flags
                  , TP.htmlJs          = htmlJs flags
                  , TP.verbose         = verbose flags
                  , TP.coreShowTypes   = showCoreTypes flags
+                 , TP.coreInlineMax   = optInlineMax flags
                  }
 
 
@@ -120,6 +121,7 @@ data Flags
          , packages         :: Packages
          , forceModule      :: FilePath
          , optimize         :: Int       -- optimization level; negative is off
+         , optInlineMax     :: Int
          , debug            :: Bool
          }
 
@@ -138,7 +140,7 @@ flagsNull
           [JS]
           Node
           5     -- simplify passes
-          120   -- simplify dup max
+          200   -- simplify dup max
           defaultColorScheme
           "out"    -- out-dir
           []
@@ -164,6 +166,7 @@ flagsNull
           packagesEmpty -- packages
           "" -- forceModule
           (-1) -- optimize
+          10   -- inlineMax
           True -- debug
 
 isHelp Help = True
@@ -230,6 +233,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
  , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
  , hiddenNumOption 120 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hiddenNumOption 20 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
  , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"

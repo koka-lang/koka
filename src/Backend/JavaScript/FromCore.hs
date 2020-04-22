@@ -933,11 +933,14 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
+      {-
+      -- TODO: comment out for now as it may prevent a tailcall if inlined
       App f args       -> -- trace ("isInlineable f: " ++ show f) $
                           isPureExpr f && all isPureExpr args
                           -- all isInlineableExpr (f:args)
                           && not (isFunExpr f) -- avoid `fun() {}(a,b,c)` !
                           -- && getParamArityExpr f == length args
+      -}
       _                -> isPureExpr expr
 
 isPureExpr :: Expr -> Bool
