@@ -15,6 +15,7 @@ module Core.Inlines ( -- Inline map
                     , ppInlines
 
                     , extractInlines
+                    , inlinesExtractDef
                     ) where
 
 import Lib.Trace
@@ -72,12 +73,12 @@ extractInlines costMax dgs
   = concatMap (extractDefGroup costMax) dgs
 
 extractDefGroup costMax (DefRec defs)
-  = catMaybes (map (extractDef costMax True) defs)
+  = catMaybes (map (inlinesExtractDef costMax True) defs)
 extractDefGroup costMax (DefNonRec def)
-  = maybeToList (extractDef costMax False def)
+  = maybeToList (inlinesExtractDef costMax False def)
 
-extractDef :: Int -> Bool -> Def -> Maybe InlineDef
-extractDef costMax isRec def
+inlinesExtractDef :: Int -> Bool -> Def -> Maybe InlineDef
+inlinesExtractDef costMax isRec def
   = if (not (isInlineable costMax def)) then Nothing
      else Just (InlineDef (defName def) (defExpr def) isRec (costDef def))
 

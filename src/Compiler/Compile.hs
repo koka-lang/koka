@@ -888,8 +888,7 @@ inferCheck loaded flags line coreImports program1
                               return (cdefs0,unique4a) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- do an inlining pass
-       let inlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsSimp) (loadedInlines loaded3)
-           (coreDefsInl,uniqueInl) = inlineDefs penv uniqueSimp inlines coreDefsSimp
+       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueSimp (loadedInlines loaded3) coreDefsSimp
        when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify
@@ -935,7 +934,7 @@ inferCheck loaded flags line coreImports program1
            loaded4 = loaded3{ loadedGamma = gamma
                             , loadedUnique = uniqueLast
                             , loadedModule = (loadedModule loaded3){ modCore = coreProgram2, modRangeMap = mbRangeMap2 }
-                            , loadedInlines = inlines
+                            , loadedInlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsLast) (loadedInlines loaded3)       
                             }
 
        -- for now, generate C# code here

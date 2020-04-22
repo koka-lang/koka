@@ -17,7 +17,7 @@ module Core.Inline( inlineDefs
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
-
+import Data.Maybe( catMaybes )
 import Lib.PPrint
 import Common.Failure
 import Common.NamePrim ( nameEffectOpen )
@@ -57,16 +57,17 @@ inlineDefs penv u inlines defs
   transform definition groups
 --------------------------------------------------------------------------}
 inlDefGroups :: DefGroups -> Inl DefGroups
-inlDefGroups defGroups
-  = do -- traceDoc (\penv -> text "inlining")
-       mapM inlDefGroup defGroups
+inlDefGroups [] = return []
+inlDefGroups (dg:dgs) = inlDefGroup dg (inlDefGroups dgs)
 
-inlDefGroup (DefRec defs)
+inlDefGroup (DefRec defs) next
   = do defs' <- mapM inlDef defs
-       return (DefRec defs')
-inlDefGroup (DefNonRec def)
+       inlExtend True defs' $ do dgs <- next
+                                 return (DefRec defs':dgs)
+inlDefGroup (DefNonRec def) next
  = do def' <- inlDef def
-      return (DefNonRec def')
+      inlExtend False [def'] $ do dgs <-  next
+                                  return (DefNonRec def':dgs)
 
 inlDef :: Def -> Inl Def
 inlDef def
@@ -207,6 +208,11 @@ withCurrentDef def action
   = -- trace ("inl def: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $
     action
+
+inlExtend :: Bool -> [Def] -> Inl a -> Inl a
+inlExtend isRec defs
+  = withEnv (\env -> let inls = catMaybes (map (inlinesExtractDef (2*(coreInlineMax (prettyEnv env))) isRec) defs)
+                     in env{ inlines = inlinesExtends inls (inlines env)} )
 
 inlLookup :: Name -> Inl (Maybe (InlineDef,Int,Int))
 inlLookup name

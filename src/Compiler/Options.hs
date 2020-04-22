@@ -140,7 +140,7 @@ flagsNull
           [JS]
           Node
           5     -- simplify passes
-          200   -- simplify dup max
+          320   -- simplify dup max
           defaultColorScheme
           "out"    -- out-dir
           []
@@ -166,7 +166,7 @@ flagsNull
           packagesEmpty -- packages
           "" -- forceModule
           (-1) -- optimize
-          12   -- inlineMax
+          10   -- inlineMax
           True -- debug
 
 isHelp Help = True
@@ -232,8 +232,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
- , hiddenNumOption 200 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
- , hiddenNumOption 12 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
+ , hiddenNumOption 320 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hiddenNumOption 10 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
  , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"

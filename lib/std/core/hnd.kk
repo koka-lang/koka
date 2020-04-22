@@ -82,7 +82,7 @@ private extern inline evv-count() : e ev-index {
   js inline "$std_core_hnd._evv.length"
 }
 
-private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : evv<e2> {
+private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
   js "_evv_insert"
 }
 
@@ -98,7 +98,7 @@ private extern inline evv-set-in( w : evv<e1> ) : e1 () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
-private extern inline evv-set( w : evv<e1> ) : e () {
+private extern inline evv-set<e1,e2>( w : evv<e1> ) : e () {
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
