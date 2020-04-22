@@ -62,6 +62,12 @@ type read :: H -> X
 // The write effect: signifies that a function may write to heap `:h`.
 type write :: H -> X
 
+// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
+alias st<h> = <read<h>, write<h>, alloc<h>>
+
+// The `:global` heap is a special heap constant to denote the global shared heap
+type global :: H
+
 
 // ----------------------------------------------------------------------------
 // Internal types

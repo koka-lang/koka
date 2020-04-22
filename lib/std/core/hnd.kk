@@ -383,17 +383,19 @@ private fun get( ref: ref<h,a>) : <read<h>,div> a {
   !ref
 }
 
-private fun protect-check( resumed : ref<h,bool>,  k : (() -> b) -> e r, res : a ) : e a {
-  val did-resume : bool = cast-ev1(get)(resumed)
+external inline unsafe-st(f : () -> <st<global>|e> a ) : (() -> e a) { inline "#1" }
+
+private fun protect-check( resumed : ref<global,bool>,  k : (() -> b) -> e r, res : a ) : e a {
+  val did-resume : bool = (unsafe-st{ !resumed })()
   if (!did-resume)
    then finalize(k,res)
    else res
 }
 
 private fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : (() -> b) -> e r ) : e r {
-  val resumed = cast-ev1(ref)(False)
+  val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret) {
-    val keep = cast-ev2(set)(resumed,True)
+    (unsafe-st{resumed := True})()
     k({ret})
   }
   val res = clause(x,kprotect)
@@ -498,9 +500,9 @@ private fun under2( w : evv<e>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
 }
 
 private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : (() -> b) -> e r ) : e r {
-  val resumed = cast-ev1(ref)(False)
+  val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret) {
-    val keep = cast-ev2(set)(resumed,True)
+    (unsafe-st{ resumed := True })()
     k({ret})
   }
   val res = clause(x1,x2,kprotect)

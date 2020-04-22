@@ -50,20 +50,12 @@ extern include {
 // An alias for the empty effect.
 alias total = <>
 
-// Stateful funs can manipulate heap `:h` using allocations, reads and writes.
-alias st<h> = <read<h>, write<h>, alloc<h>>
-
-
 // The console effect signifies that a function may read or write to the console.
 type console :: X
 
 // An alias for pure effects: a pure function always returns the same result
 // when called with the same arguments but may not terminate or raise an exception.
 alias pure = <exn,div>
-
-
-// The `:global` heap is a special heap constant to denote the global shared heap
-type global :: H
 
 // The `:global-scope` is a special type constant to denote the global scope
 type global-scope :: S
