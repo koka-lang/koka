@@ -343,7 +343,7 @@ fun double-from-bits( lo : int32, hi : int32 ) : double {
   val exp  = (hi.shr(20.int32) & 0x07FF.int32)
   val pos? = hi.shr(31.int32).zero?
   val p = if (lo.zero? && hifrac.zero?) then {
-            if (exp.zero?) then 0.0 
+            if (exp.zero?) then 0.0
             elif (exp==0x7FF.int32) then posinf
             else exp2( (exp - 1023.int32).double )
           }
@@ -585,7 +585,7 @@ fun abs-max( x : double, y : double ) : double {
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<double> ) : double {
-  xs.foldr(0.0,fun(x,m){ max(abs(x),m) })
+  xs.foldl(0.0,fun(m,x){ max(abs(x),m) })
 }
 
 //-----------------------------------------

@@ -79,8 +79,10 @@ extractDefGroup costMax (DefNonRec def)
 
 inlinesExtractDef :: Int -> Bool -> Def -> Maybe InlineDef
 inlinesExtractDef costMax isRec def
-  = if (not (isInlineable costMax def)) then Nothing
-     else Just (InlineDef (defName def) (defExpr def) isRec (costDef def))
+  = let inlinable = (isInlineable costMax def)
+    in trace ("def: " ++ show (defName def) ++ ": inline=" ++ show inlinable) $
+        if not inlinable then Nothing
+         else Just (InlineDef (defName def) (defExpr def) isRec (costDef def))
 
 instance Show Inlines where
  show = show . pretty

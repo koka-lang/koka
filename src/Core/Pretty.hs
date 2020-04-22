@@ -312,7 +312,8 @@ prettyExpr env (Let defGroups expr)
 
 -- Case expressions
 prettyExpr env (Case exprs branches)
-  = text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
+  = pparens (prec env) precTop $
+    text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
@@ -347,7 +348,7 @@ prettyPatterns env pats
     f (env,docs) pat = let (env',doc) = prettyPattern env pat
                        in (env',doc:docs)
 
-prettyPatternType (pat,tp) (env,docs) 
+prettyPatternType (pat,tp) (env,docs)
   = let (env',doc) = prettyPattern (decPrec env) pat
     in (env', (doc <.> (if (coreShowTypes env') then text " :" <+> prettyType env' tp else empty)) : docs)
 

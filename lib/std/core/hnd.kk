@@ -53,7 +53,7 @@ private extern inline evv-total() : evv<<>> {
   js inline "{ ofs: 0, evv: [] }"
 }
 
-public extern inline ".evv-at"<e::E,h> ( i : ev-index ) : e ev<h> {
+public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 

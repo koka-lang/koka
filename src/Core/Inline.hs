@@ -37,6 +37,7 @@ import Type.Assumption
 import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
+import Core.Simplify
 import Core.Inlines
 
 trace s x =
@@ -49,8 +50,13 @@ inlineDefs :: Pretty.Env -> Int -> Inlines -> DefGroups -> (DefGroups,Int)
 inlineDefs penv u inlines defs
   = runInl penv u inlines $
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
-       -- return defs
-       inlDefGroups defs
+       --inlDefGroups defs
+       defs1 <- inlDefGroups defs
+       defs2 <- withUnique (\uniq -> simplifyDefs True 3 0 uniq penv defs1)
+       inlDefGroups defs2
+
+
+
 
 
 {--------------------------------------------------------------------------
@@ -117,7 +123,8 @@ inlExpr expr
     _ -> inlAppExpr expr 0 0
  where
    argLength args
-     = if (all isVar args) then 0   -- prevent inlining of functions with just variable argmuments
+     = --length args
+       if (all isVar args) then 0   -- prevent inlining of functions with just variable argmuments
         else length args
 
    isVar (Var _ _) = True
@@ -127,7 +134,7 @@ inlAppExpr :: Expr -> Int -> Int -> Inl Expr
 inlAppExpr expr m n
   = case expr of
       App eopen@(TypeApp (Var open info) targs) [f] | getName open == nameEffectOpen
-        -> do f' <- inlAppExpr f m n
+        -> do (f') <- inlAppExpr f m n
               return (App eopen [f'])
       Var tname varInfo
         -> do mbInfo <- inlLookup (getName tname)
@@ -137,10 +144,10 @@ inlAppExpr expr m n
                         return (inlineExpr info)
                 Just (info,m',n')
                   -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n))
-                        return expr
+                        return (expr)
                 Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
-                              return expr
-      _ -> return expr  -- no inlining
+                              return (expr)
+      _ -> return (expr)  -- no inlining
 
 
 inlBranch :: Branch -> Inl Branch
@@ -195,6 +202,10 @@ withEnv :: (Env -> Env) -> Inl a -> Inl a
 withEnv f (Inl c)
   = Inl (\env st -> c (f env) st)
 
+withUnique :: (Int -> (a,Int)) -> Inl a
+withUnique f
+  = Inl (\env st -> let (x,u') = f (uniq st) in Ok x (st{ uniq = u'}))
+
 getEnv :: Inl Env
 getEnv
   = Inl (\env st -> Ok env st)
@@ -207,7 +218,8 @@ withCurrentDef :: Def -> Inl a -> Inl a
 withCurrentDef def action
   = -- trace ("inl def: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $
-    action
+    do -- traceDoc $ (\penv -> text "\ndefinition:" <+> prettyDef penv{Pretty.coreShowDef=True} def)
+       action
 
 inlExtend :: Bool -> [Def] -> Inl a -> Inl a
 inlExtend isRec defs

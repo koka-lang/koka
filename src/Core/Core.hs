@@ -441,7 +441,7 @@ costDef :: Def -> Int
 costDef def
   = let n = costLocalDef def
     in if (defIsVal def)
-        then (if (n==0) then 0 else costInf) -- don't duplicate work
+        then (if (n<=1) then 0 else costInf) -- don't duplicate (too much) work
         else n
 
 costLocalDef :: Def -> Int
@@ -458,8 +458,8 @@ costExpr expr
   = case expr of
       Var tname info     | isHiddenExternalName (getName tname)
                          -> -- trace ("hidden external: " ++ show (getName tname) ) $
-                            1000
-      Lam tname eff body -> 1 + costExpr body
+                            costInf
+      Lam tname eff body -> 0 + costExpr body
       Var tname info     -> 0
       App e args         -> 1 + costExpr e + sum (map costExpr args)
       TypeLam tvs e      -> costExpr e
@@ -467,7 +467,7 @@ costExpr expr
       Con tname repr     -> 0
       Lit lit            -> 0
       Let defGroups body -> sum (map costDefGroup defGroups) + (costExpr body)
-      Case exprs branches -> 1 + sum (map costExpr exprs) + sum (map costBranch branches)
+      Case exprs branches -> (length branches - 1) + sum (map costExpr exprs) + sum (map costBranch branches)
 
 costBranch (Branch patterns guards)
   = sum (map costGuard guards)

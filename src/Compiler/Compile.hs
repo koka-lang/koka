@@ -934,7 +934,7 @@ inferCheck loaded flags line coreImports program1
            loaded4 = loaded3{ loadedGamma = gamma
                             , loadedUnique = uniqueLast
                             , loadedModule = (loadedModule loaded3){ modCore = coreProgram2, modRangeMap = mbRangeMap2 }
-                            , loadedInlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsLast) (loadedInlines loaded3)       
+                            , loadedInlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsLast) (loadedInlines loaded3)
                             }
 
        -- for now, generate C# code here
