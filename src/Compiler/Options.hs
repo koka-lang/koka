@@ -148,7 +148,7 @@ flagsNull
           "node"
           ""
           ""
-          3
+          3        -- max struct fields
           0
           []
           ("styles/" ++ programName ++ ".css")
@@ -166,7 +166,7 @@ flagsNull
           packagesEmpty -- packages
           "" -- forceModule
           (-1) -- optimize
-          10   -- inlineMax
+          12   -- inlineMax
           True -- debug
 
 isHelp Help = True
@@ -232,8 +232,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
- , hiddenNumOption 120 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
- , hiddenNumOption 20 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
+ , hiddenNumOption 200 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hiddenNumOption 12 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
  , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
  , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
