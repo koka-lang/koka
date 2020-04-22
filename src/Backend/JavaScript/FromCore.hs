@@ -630,6 +630,8 @@ genExpr expr
        -> genExpr arg
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+       -> return (empty, pretty i)
      App f args
        -> {- case splitFunScheme (typeOf f) of
             Just (_,_,tpars,eff,tres)
@@ -648,11 +650,15 @@ genExpr expr
                   Just (xs,tl) -> genList xs tl
                   Nothing -> case extractExtern f of
                    Just (tname,formats)
-                    -> do (decls,argDocs) <- genExprs args
-                          (edecls,doc) <- genExprExternal tname formats argDocs
-                          if (getName tname == nameReturn)
-                           then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
-                           else return (vcat (decls ++ edecls), doc)
+                     -> case args of
+                         [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+                           -> return (empty,pretty i)
+                         _ -> -- genInlineExternal tname formats argDocs
+                              do (decls,argDocs) <- genExprs args
+                                 (edecls,doc) <- genExprExternal tname formats argDocs
+                                 if (getName tname == nameReturn)
+                                  then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
+                                  else return (vcat (decls ++ edecls), doc)
                    Nothing
                     -> do lsDecls <- genExprs (f:trimOptionalArgs args)
                           let (decls,fdoc:docs) = lsDecls
