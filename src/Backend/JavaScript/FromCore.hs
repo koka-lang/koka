@@ -939,6 +939,7 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
+      App (Var _ (InfoExternal _)) args -> all isPureExpr args
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
       App f args       -> -- trace ("isInlineable f: " ++ show f) $
