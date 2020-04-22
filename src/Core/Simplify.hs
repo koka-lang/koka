@@ -19,7 +19,7 @@ import Common.Failure
 import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
-                       , nameLift, nameBind, nameEvvIndex )
+                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName )
 import Common.Unique
 import Type.Type
 import Type.Kind
@@ -341,6 +341,11 @@ bottomUp expr@(Case scruts bs)  | commonContinue
 -- simplify evv-index(l) to i if l has a known offset
 bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvIndex == nameEvvIndex && isEffectFixed effTp
   = makeInt32 (effectOffset (effectLabelFromHandler hndTp) effTp)
+
+
+-- simplify clause-tailN to clause-tail-noyieldN if it cannot yield
+bottomUp (App (TypeApp (Var clauseTail info) (effTp:tps)) [op]) | Just n <- isClauseTailName (getName clauseTail), ([],_) <- extractHandledEffect effTp
+  = (App (TypeApp (Var (TName (nameClauseTailNoYield n) (typeOf clauseTail)) info) (effTp:tps)) [op])
 
 
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f

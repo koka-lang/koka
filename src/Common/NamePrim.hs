@@ -44,6 +44,7 @@ module Common.NamePrim
           , nameClause
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
+          , isClauseTailName, nameClauseTailNoYield
 
           --
           , nameUnsafeTotal
@@ -114,9 +115,10 @@ module Common.NamePrim
           , namesSameSize
           ) where
 
+import Data.Char (isDigit)
 import Common.Name
 import Common.Syntax
-
+import Common.File( startsWith )
 
 {--------------------------------------------------------------------------
   Special
@@ -248,6 +250,18 @@ nameNamedHandle = coreHndName ".named-handle"
 
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+
+nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
+
+isClauseTailName :: Name -> Maybe Int
+isClauseTailName name  | nameModule name /= nameId nameCoreHnd  = Nothing
+isClauseTailName name
+  = let s = nameId name
+    in if (s `startsWith` "clause-tail" && all isDigit (drop 11 s))
+        then Just (read (drop 11 s))
+        else Nothing
+
+
 
 {--------------------------------------------------------------------------
   std/core/types

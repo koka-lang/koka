@@ -411,11 +411,11 @@ public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e
   Clause1(fun(m,w,x){ yield-to(m, fun(k){ protect(x,clause,k) }) })
 }
 
-public fun clause-tail1(op : a -> e b) : clause1<a,b,e,r> {
+public fun clause-tail1<e,r,a,b>(op : a -> e b) : clause1<a,b,e,r> {
   Clause1(fun(_m,w,x){ under1(w,op,x) })
 }
 
-public fun clause-tail-noyield1(op : a -> e b) : clause1<a,b,e,r> {
+public fun clause-tail-noyield1<e,r,a,b>(op : a -> e b) : clause1<a,b,e,r> {
   Clause1(fun(_m,_w,x){ op(x) })
 }
 
@@ -464,11 +464,11 @@ public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r> {
 }
 
 
-public fun clause-tail0(op : () -> e b) : clause0<b,e,r> {
+public fun clause-tail0<e,r,b>(op : () -> e b) : clause0<b,e,r> {
   Clause0(fun(_m,w){ under0(w,op) })
 }
 
-public fun clause-tail-noyield0(op : () -> e b) : clause0<b,e,r> {
+public fun clause-tail-noyield0<e,r,b>(op : () -> e b) : clause0<b,e,r> {
   Clause0(fun(_m,_w){ op() })
 }
 
@@ -517,11 +517,11 @@ public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) ->
   Clause2(fun(m,w,x1,x2){ yield-to(m, fun(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
-public fun clause-tail2(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
+public fun clause-tail2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ under2(w,op,x1,x2) })
 }
 
-public fun clause-tail-noyield2(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
+public fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,e,r> {
   Clause2(fun(m,w,x1,x2){ op(x1,x2) })
 }
 
