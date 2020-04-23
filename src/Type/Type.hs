@@ -525,7 +525,8 @@ extractOrderedEffect tp
   = let (labs,tl) = extractEffectExtend tp
         labss     = concatMap expand labs
         slabs     = (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
-    in (slabs,tl)
+    in -- trace ("sorted: " ++ show (map labelName labss) ++ " to " ++ show (map labelName slabs)) $
+       (slabs,tl)
   where
     expand l
       = let (ls,tl) = extractEffectExtend l

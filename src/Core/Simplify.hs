@@ -420,7 +420,9 @@ effectLabelFromHandler tp
 effectOffset :: Name -> Type -> Integer
 effectOffset l effTp
   = let (ls,_) = extractHandledEffect effTp
-    in findMatch 0 l ls
+        ofs = findMatch 0 l ls
+    in -- trace ("found offset " ++ show ofs ++ " for " ++ show l ++ " in " ++ show (map (show . labelName) ls)) $    
+       ofs
 
 findMatch :: Integer -> Name -> [Type] -> Integer
 findMatch i lname (l:ls)  = if (labelName l == lname) then i else findMatch (i+1) lname ls

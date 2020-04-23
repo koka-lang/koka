@@ -41,7 +41,7 @@ import Core.CoreVar
 import Type.Unify( unify, runUnifyEx )
 
 trace s x =
-   -- Lib.Trace.trace s
+ -- Lib.Trace.trace s
     x
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
@@ -69,7 +69,8 @@ resDefGroup env (DefNonRec def)
 --------------------------------------------------------------------------}
 resDef :: Env -> Def -> Def
 resDef env def
-  = def{ defExpr = resExpr env (defExpr def) }
+  = trace ("\n*** enter def: " ++ show (defName def)) $
+    def{ defExpr = resExpr env (defExpr def) }
 
 resExpr :: Env -> Expr -> Expr
 resExpr env expr
@@ -108,7 +109,7 @@ resGuard env (Guard guard body)
 
 resOpen :: Env -> Expr -> Effect -> Effect -> Type -> Type -> Expr -> Expr
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) expr
-  = trace ("resolve open: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)) $
+  = trace (" resolve open: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)) $
     let n       = length targs
         (ls1,tl1) = extractHandledEffect effFrom
         (ls2,tl2) = extractHandledEffect effTo
@@ -126,7 +127,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
        -}
        if (matchType effFrom effTo)
         then -- exact match, just use expr
-             trace " identity" $ expr
+             trace "  identity" $ expr
        else if (not (isEffectFixed effFrom))
         then {- if (and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
               then -- all handled effect match, just use expr
@@ -134,7 +135,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
               else -} failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
        else if (matchType tl1 tl2 && length ls1 == length ls2 && and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
         then -- same handled effects, just use expr
-             trace " same handled effects, leave as is" $
+             trace "  same handled effects, leave as is" $
              expr
         else -- not equal in handled effects, insert open
              let resolve name = case gammaLookup name gamma of
@@ -149,13 +150,13 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
              in case ls1 of
                  []  -> -- no handled effect, use cast
                         case ls2 of
-                          [] -> trace (" no handled effect, in no handled effect context: use cast")
+                          [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> trace (" no handled effect; use none") $
+                          _  -> trace ("  no handled effect; use none") $
                                 -- wrapper (resolve (nameOpenNone n)) []
                                 expr
                  [l] -> -- just one: used open-atN for efficiency
-                        trace (" one handled effect; use at: " ++ show (ppType penv l)) $
+                        trace ("  one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)
                                 = let (name,_,tpArgs) = labelNameEx l
                                       hndCon = TCon (TypeCon (toHandlerName name)

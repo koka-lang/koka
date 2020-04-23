@@ -164,7 +164,7 @@ newQualified m n
     -- The hash is done taking the first 4 characters. This is of course a
     -- terrible hash but we use it mostly to speed up *comparisions* for the NameMap
     hash :: String -> Int
-    hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 s))
+    hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 (s ++ "\0\0\0\0")))
 
 
 nameNil :: Name
