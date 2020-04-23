@@ -351,12 +351,13 @@ externalTarget
 inlineDef :: Env -> LexParser InlineDef
 inlineDef env
   = do (sort,doc) <- pdefSort
+       inl        <- parseInline
        isRec      <- do keyword "rec"; return True
                      <|> return False
-       (name,_) <- funid
        -- trace ("core inline def: " ++ show name) $ return ()
+       (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec (costExpr expr))
+       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr))
 
 parseBody env
   = do keyword "="

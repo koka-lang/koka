@@ -75,6 +75,17 @@ inlDefGroup (DefNonRec def) next
       inlExtend False [def'] $ do dgs <-  next
                                   return (DefNonRec def':dgs)
 
+inlLocalDefGroups :: DefGroups -> Inl DefGroups
+inlLocalDefGroups dgs = mapM inlLocalDefGroup dgs
+
+inlLocalDefGroup (DefRec defs)
+  = do defs' <- mapM inlDef defs
+       return (DefRec defs)
+inlLocalDefGroup (DefNonRec def)
+ = do def' <- inlDef def
+      return (DefNonRec def')
+
+
 inlDef :: Def -> Inl Def
 inlDef def
   = withCurrentDef def $
@@ -86,13 +97,13 @@ inlExpr expr
   = case expr of
     -- Applications
     App (TypeApp f targs) args
-      -> do f' <- inlAppExpr f (length targs) (argLength args)
+      -> do f' <- inlAppExpr f (length targs) (length args) (onlyZeroCost args)
             args' <- mapM inlExpr args
             return (App (TypeApp f' targs) args')
 
     App f args
       -> do args' <- mapM inlExpr args
-            f' <- inlAppExpr f 0 (argLength args)
+            f' <- inlAppExpr f 0 (argLength args) (onlyZeroCost args)
             return (App f' args')
 
     -- regular cases
@@ -102,7 +113,7 @@ inlExpr expr
             return (Lam args eff body')
 
     Let defgs body
-      -> do defgs' <- inlDefGroups defgs
+      -> do defgs' <- inlLocalDefGroups defgs
             body'  <- inlExpr body
             return (Let defgs' body')
     Case exprs bs
@@ -116,29 +127,32 @@ inlExpr expr
             return $ TypeLam tvars body'
 
     TypeApp body tps
-      -> do body' <- inlAppExpr body (length tps) 0
+      -> do body' <- inlAppExpr body (length tps) 0 False
             return $ TypeApp body' tps
 
     -- the rest
-    _ -> inlAppExpr expr 0 0
+    _ -> inlAppExpr expr 0 0 False
  where
    argLength args -- prevent inlining of functions with just variable argmuments
-     = -- length args
-       if (all isVar args) then 0 else length args
+     = length args
+       -- if (all isVar args) then 0 else length args
+   onlyZeroCost args
+     = all isVar args
 
    isVar (Var _ _) = True
    isVar _         = False
 
-inlAppExpr :: Expr -> Int -> Int -> Inl Expr
-inlAppExpr expr m n
+inlAppExpr :: Expr -> Int -> Int -> Bool -> Inl Expr
+inlAppExpr expr m n onlyZeroCost
   = case expr of
       App eopen@(TypeApp (Var open info) targs) [f] | getName open == nameEffectOpen
-        -> do (f') <- inlAppExpr f m n
+        -> do (f') <- inlAppExpr f m n onlyZeroCost
               return (App eopen [f'])
       Var tname varInfo
         -> do mbInfo <- inlLookup (getName tname)
               case mbInfo of
                 Just (info,m',n') | not (inlineRec info) && (m >= m') && (n >= n')
+                                       && (not onlyZeroCost || inlineCost info <= 0)
                   -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')

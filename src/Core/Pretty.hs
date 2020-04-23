@@ -201,6 +201,7 @@ prettyInlineDef env isRec def | (not (coreIface env) || defInline def == InlineN
   = empty
 prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = keyword env (show sort)
+    <.> (if (inl==InlineAlways) then (space <.> keyword env "inline") else empty)
     <.> (if isRec then (space <.> keyword env "rec") else empty)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
