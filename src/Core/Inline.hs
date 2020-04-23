@@ -122,10 +122,9 @@ inlExpr expr
     -- the rest
     _ -> inlAppExpr expr 0 0
  where
-   argLength args
-     = --length args
-       if (all isVar args) then 0   -- prevent inlining of functions with just variable argmuments
-        else length args
+   argLength args -- prevent inlining of functions with just variable argmuments
+     = -- length args
+       if (all isVar args) then 0 else length args
 
    isVar (Var _ _) = True
    isVar _         = False

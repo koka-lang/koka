@@ -166,7 +166,7 @@ flagsNull
           packagesEmpty -- packages
           "" -- forceModule
           (-1) -- optimize
-          12   -- inlineMax
+          10   -- inlineMax
           True -- debug
 
 isHelp Help = True
