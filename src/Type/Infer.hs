@@ -1222,7 +1222,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
        -- assume foralls are in the same order...
        extendSub (subNew [(tv,TVar ctv) | (tv,ctv) <- zip ctvars optvars] )
        sconTp <- subst conTp
-       let (conParTps,conResTp) = splitConTp sconTp
+       let (conParTps,_,conResTp) = splitConTp sconTp
        traceDoc $ \env -> text "inferHandlerBranch con:" <+> pretty conName <.> colon <+> ppType env conTp
 
 
@@ -1980,7 +1980,8 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
 
        useSkolemizedCon coninfo gconTp branchRange range $ \conRho xvars ->
         do -- (conRho,tvars,_) <- instantiate range gconTp
-           let (conParTps,conResTp) = splitConTp conRho
+           let (conParTps,conEffTp,conResTp) = splitConTp conRho
+           inferUnify (checkConTotal range) nameRange conEffTp typeTotal
            inferUnify (checkConMatch range) nameRange conResTp matchType
            patterns <- matchPatterns range nameRange conRho conParTps patterns0
                        {-
@@ -2077,11 +2078,11 @@ inferPattern matchType branchRange pattern
   = todo ("Type.Infer.inferPattern")
 -}
 
-splitConTp :: Type -> ([(Name,Type)],Type)
+splitConTp :: Type -> ([(Name,Type)],Effect,Type)
 splitConTp tp
   = case expandSyn tp of
-      TFun args eff res -> (args,res)
-      res               -> ([],res)
+      TFun args eff res -> (args,eff,res)
+      res               -> ([],typeTotal,res)
 
 
 inferBinders :: [(Name,NameInfo)] -> [ValueBinder Type ()] -> [(Name,NameInfo)]
@@ -2166,6 +2167,7 @@ checkRec        = Check "recursive invocations do not match the assumed type; ad
 checkGuardTotal = Check "guard expressions must be total"
 checkGuardBool  = Check "guard expressions must be of a boolean type"
 checkConMatch   = Check "constructor must have the same the type as the matched term"
+checkConTotal   = Check "constructor in a pattern must have a total effect type"
 checkLit        = Check "literal does not match the expected type"
 checkOptional   = Check "default value does not match the parameter type"
 checkOptionalTotal = Check "default value expression must be total"

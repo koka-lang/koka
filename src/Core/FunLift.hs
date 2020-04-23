@@ -75,7 +75,8 @@ liftDefGroup False (DefNonRec def)
        return [DefNonRec def']
 
 liftDefGroup False (DefRec defs)
-  = do (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
+  = do -- traceDoc $ \penv -> text "not-toplevel, recursive def:" <+> text (show (length defs)) <+> ppName penv (defName (head defs)) <+> text ", tvs:" <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) <//> prettyDef penv{coreShowDef=True} (head defs)
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
@@ -166,7 +167,9 @@ makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 makeDef fvs tvs expr
   = do -- liftTrace (show expr)
        name <- uniqueNameCurrentDef
-       return (etaExpr name, liftedDef name)
+       let (callExpr,lifted) = (etaExpr name, liftedDef name)
+       -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
+       return (callExpr,lifted)
   where
     (tpars,pars,eff,body) -- :: ([TypeVar],[TName],Type)
       = case expr of

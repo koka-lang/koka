@@ -11,6 +11,7 @@
 
 module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef ) where
 
+import Lib.Trace
 import Data.Char( isAlphaNum )
 import Common.Name
 import Common.ColorScheme
@@ -23,9 +24,8 @@ import Kind.Pretty hiding (prettyKind)
 import Kind.Synonym
 import Kind.ImportMap
 import Type.Type
+import Type.TypeVar
 import Type.Pretty
-
--- import Lib.Trace
 
 {--------------------------------------------------------------------------
   Show pretty names (rather than numbers)
@@ -370,7 +370,7 @@ prettyPattern env pat
       PatVar tname PatWild  -> (env, parens  $
                                prettyTName env tname) -- prettyName env (getName tname))
       PatVar tname pat      -> let (env',doc) = prettyPattern (decPrec env) pat
-                               in (env', parens (doc <+> keyword env "as" <+> prettyName env (getName tname)))
+                               in (env', parens (doc <+> keyword env "as" <+> prettyTName env (tname)))
 
       PatWild               -> (env,text "_")
       PatLit lit            -> (env,prettyLit env lit)
@@ -381,7 +381,8 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = pretty (getName tname) -- if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
+      = pretty (getName tname)
+        --  if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
 
 {--------------------------------------------------------------------------
   Literals
@@ -519,3 +520,132 @@ extractImportedSynonyms core
 
     extractSynonyms :: [Type] -> Synonyms
     extractSynonyms xs = foldr synonymsCompose synonymsEmpty (map extractSynonym xs)
+
+
+
+
+instance HasTypeVar DefGroup where
+  sub `substitute` defGroup
+    = case defGroup of
+        DefRec defs   -> DefRec (sub `substitute` defs)
+        DefNonRec def -> DefNonRec (sub `substitute` def)
+
+  ftv defGroup
+    = case defGroup of
+        DefRec defs   -> ftv defs
+        DefNonRec def -> ftv def
+
+  btv defGroup
+    = case defGroup of
+        DefRec defs   -> btv defs
+        DefNonRec def -> btv def
+
+
+instance HasTypeVar Def where
+  sub `substitute` (Def name scheme expr vis isVal nameRng doc)
+    = Def name (sub `substitute` scheme) (sub `substitute` expr) vis isVal nameRng doc
+
+  ftv (Def name scheme expr vis isVal  nameRng doc)
+    = ftv scheme `tvsUnion` ftv expr
+
+  btv (Def name scheme expr vis isVal nameRng doc)
+    = btv scheme `tvsUnion` btv expr
+
+instance HasTypeVar Expr where
+  sub `substitute` expr
+    = case expr of
+        Lam tnames eff expr -> Lam (sub `substitute` tnames) (sub `substitute` eff) (sub `substitute` expr)
+        Var tname info    -> Var (sub `substitute` tname) info
+        App f args        -> App (sub `substitute` f) (sub `substitute` args)
+        TypeLam tvs expr  -> let sub' = subRemove tvs sub
+                              in TypeLam tvs (sub' |-> expr)
+        TypeApp expr tps   -> TypeApp (sub `substitute` expr) (sub `substitute` tps)
+        Con tname repr     -> Con (sub `substitute` tname) repr
+        Lit lit            -> Lit lit
+        Let defGroups expr -> Let (sub `substitute` defGroups) (sub `substitute` expr)
+        Case exprs branches -> Case (sub `substitute` exprs) (sub `substitute` branches)
+
+  ftv expr
+    = let tvs = case expr of
+                  Lam tname eff expr -> tvsUnions [ftv tname, ftv eff, ftv expr]
+                  Var tname info     -> ftv tname
+                  App a b            -> ftv a `tvsUnion` ftv b
+                  TypeLam tvs expr   -> tvsRemove tvs (ftv expr)
+                  TypeApp expr tp    -> ftv expr `tvsUnion` ftv tp
+                  Con tname repr     -> ftv tname
+                  Lit lit            -> tvsEmpty
+                  Let defGroups expr -> ftv defGroups `tvsUnion` ftv expr
+                  Case exprs branches -> ftv exprs `tvsUnion` ftv branches
+      in -- trace ("ftv :" ++ show (tvsList (tvs)) ++ ", in expr: " ++ show expr) $
+         tvs
+
+  btv expr
+    = case expr of
+        Lam tname eff expr -> tvsUnions [btv tname, btv eff, btv expr]
+        Var tname info     -> btv tname
+        App a b            -> btv a `tvsUnion` btv b
+        TypeLam tvs expr   -> tvsInsertAll tvs (btv expr)
+        TypeApp expr tp    -> btv expr `tvsUnion` btv tp
+        Con tname repr     -> btv tname
+        Lit lit            -> tvsEmpty
+        Let defGroups expr -> btv defGroups `tvsUnion` btv expr
+        Case exprs branches -> btv exprs `tvsUnion` btv branches
+
+
+instance HasTypeVar Branch where
+  sub `substitute` (Branch patterns guards)
+    = let sub' = subRemove (tvsList (btv patterns)) sub
+      in Branch (map ((sub `substitute`)) patterns) (map (sub' `substitute`) guards)
+
+  ftv (Branch patterns guards)
+    = ftv patterns `tvsUnion` (tvsDiff (ftv guards) (btv patterns))
+
+  btv (Branch patterns guards)
+    = btv patterns `tvsUnion` btv guards
+
+
+instance HasTypeVar Guard where
+  sub `substitute` (Guard test expr)
+    = Guard (sub `substitute` test) (sub `substitute` expr)
+  ftv (Guard test expr)
+    = let tvs = ftv test `tvsUnion` ftv expr
+      in -- trace ("ftv:" ++ show (tvsList (tvs)) ++ ", in guard: " ++ show expr) $
+         tvs
+  btv (Guard test expr)
+    = btv test `tvsUnion` btv expr
+
+instance HasTypeVar Pattern where
+  sub `substitute` pat
+    = case pat of
+        PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
+        PatCon tname args repr tps exists restp info
+          -> let sub' = subRemove exists sub
+             in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info
+        PatWild           -> PatWild
+        PatLit lit        -> pat
+
+
+  ftv pat
+    = let tvs = case pat of
+                  PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
+                  PatCon tname args _ targs exists tres _ -> tvsRemove exists (tvsUnions [ftv tname,ftv args,ftv targs,ftv tres])
+                  PatWild             -> tvsEmpty
+                  PatLit lit          -> tvsEmpty
+      in -- trace ("ftv :" ++ show (tvsList (tvs)) ++ ", in pattern: " ++ show pat) $
+         tvs
+
+  btv pat
+    = case pat of
+        PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
+        PatCon tname args _ targs exists tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres,tvsNew exists]
+        PatWild                 -> tvsEmpty
+        PatLit lit              -> tvsEmpty
+
+
+instance HasTypeVar TName where
+  sub `substitute` (TName name tp)
+    = TName name (sub `substitute` tp)
+  ftv (TName name tp)
+    = ftv tp
+  btv (TName name tp)
+    = btv tp
