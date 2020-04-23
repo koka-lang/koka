@@ -107,7 +107,7 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
                          coreShowDef = not (coreIface env0) }
 
 prettyImport env imp
-  = prettyComment env (importModDoc imp) $
+  = -- prettyComment env (importModDoc imp) $
     prettyVis env (importVis imp) $
     keyword env "import"
       <+> pretty (importsAlias (importName imp) (importsMap env)) <+> text "="

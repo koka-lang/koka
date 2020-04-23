@@ -754,7 +754,8 @@ extractSignatures core
     extractExternal ext@(External{ externalType = tp }) | externalVis ext == Public = [tp]
     extractExternal _ = []
 
-    extractDefs = map defType . filter (\d -> defVis d == Public) . flattenDefGroups
+    extractDefs = map defType . -- filter (\d -> defVis d == Public) .
+                                flattenDefGroups
 
 {--------------------------------------------------------------------------
   Decompose types

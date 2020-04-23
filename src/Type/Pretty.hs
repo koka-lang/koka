@@ -284,7 +284,7 @@ ppSynInfo env isLocal publicOnly showBody (SynInfo name kind params scheme rank 
       (prettyComment env doc $
         (if isLocal
           then keyword env "local alias"
-          else (if publicOnly then empty else ppVis env vis) <.> keyword env "alias") <+>
+          else (ppVis env vis) <.> keyword env "alias") <+>
         ppName env name <.> -- <+> (ppSynInfo env True synInfo)
         let docs = niceTypes env (map TVar params ++ [scheme])
         in (if null params then empty else angled (init docs))
