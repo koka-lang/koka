@@ -176,7 +176,7 @@ genGroup group
       DefNonRec def -> genDef def
 
 genDef :: Def -> Asm Doc
-genDef def@(Def name tp expr vis sort rng comm)
+genDef def@(Def name tp expr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let resDoc = typeComment (Pretty.ppType penv tp)
        defDoc <- do mdoc <- tryFunDef name resDoc expr

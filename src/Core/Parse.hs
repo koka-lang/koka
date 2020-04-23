@@ -285,12 +285,13 @@ defDecl env
                                   (sort,doc) <- pdefSort
                                   return (vis,sort,doc)
        (name,_) <- funid <|> idop
+       inl      <- parseInline
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp       <- ptype env
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
-                   vis sort rangeNull doc)
+                   vis sort inl rangeNull doc)
 
 pdefSort
   = do (_,doc) <- dockeyword "fun"
@@ -466,9 +467,10 @@ parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,doc) <- pdefSort
        (name,_)   <- funid <|> wildcard
+       inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env
-       return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort rangeNull doc))
+       return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort inl rangeNull doc))
 
 
 

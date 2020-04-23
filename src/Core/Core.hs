@@ -302,6 +302,7 @@ data Def = Def{ defName  :: Name
               , defExpr  :: Expr
               , defVis   :: Visibility     -- Private, Public
               , defSort  :: DefSort        -- DefFun, DefVal, DefVar
+              , defInline:: DefInline      -- InlineAuto, InlineAlways, InlineNever
               , defNameRange :: Range
               , defDoc :: String
               }
@@ -613,7 +614,7 @@ addLambdasTName pars eff e            = Lam pars eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
-addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun ) rangeNull "")] e'
+addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun ) InlineAuto rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool

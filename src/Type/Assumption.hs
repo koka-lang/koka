@@ -279,13 +279,13 @@ extractDefGroup updateVis (Core.DefNonRec def)
 
 
 
-extractDef updateVis def@(Core.Def name tp expr vis sort nameRng doc)
+extractDef updateVis def@(Core.Def name tp expr vis sort inl nameRng doc)
   = let info = createNameInfoX (updateVis vis) name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
     in gammaSingle (nonCanonicalName name) info
 
 
 coreDefInfo :: Core.Def -> (Name,NameInfo)
-coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
+coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
   = (nonCanonicalName name,
       createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for

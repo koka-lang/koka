@@ -197,9 +197,9 @@ prettyInlineDefGroup env (DefNonRec def)
 
 
 prettyInlineDef :: Env -> Bool -> Def -> Doc
-prettyInlineDef env isRec def | (not (coreIface env) || not (isInlineable (coreInlineMax env) def))
+prettyInlineDef env isRec def | (not (coreIface env) || defInline def == InlineNever || (defInline def == InlineAuto && not (isInlineable (coreInlineMax env) def)))
   = empty
-prettyInlineDef env isRec def@(Def name scheme expr vis sort nameRng doc)
+prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = keyword env (show sort)
     <.> (if isRec then (space <.> keyword env "rec") else empty)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
@@ -208,7 +208,7 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort nameRng doc)
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
 
 prettyDef :: Env -> Def -> Doc
-prettyDef env def@(Def name scheme expr vis sort nameRng doc)
+prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
     keyword env (show sort)
@@ -298,7 +298,7 @@ prettyExpr env (Lit lit)
   = prettyLit env lit
 
 -- Let
-prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
+prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
            in if (x==nameNil) then exprDoc
                else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
@@ -542,13 +542,13 @@ instance HasTypeVar DefGroup where
 
 
 instance HasTypeVar Def where
-  sub `substitute` (Def name scheme expr vis isVal nameRng doc)
-    = Def name (sub `substitute` scheme) (sub `substitute` expr) vis isVal nameRng doc
+  sub `substitute` (Def name scheme expr vis isVal inl nameRng doc)
+    = Def name (sub `substitute` scheme) (sub `substitute` expr) vis isVal inl nameRng doc
 
-  ftv (Def name scheme expr vis isVal  nameRng doc)
+  ftv (Def name scheme expr vis isVal inl nameRng doc)
     = ftv scheme `tvsUnion` ftv expr
 
-  btv (Def name scheme expr vis isVal nameRng doc)
+  btv (Def name scheme expr vis isVal inl nameRng doc)
     = btv scheme `tvsUnion` btv expr
 
 instance HasTypeVar Expr where

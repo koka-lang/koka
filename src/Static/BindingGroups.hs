@@ -113,8 +113,8 @@ dependencies modName defs
     (depDefs, deps)  = unzipWith (id,unions) (map (dependencyDef modName) defs)
 
 dependencyDef :: Name -> UserDef -> (UserDef, Deps)
-dependencyDef modName (Def binding range vis isVal defDoc)
-  = (Def depBinding range vis isVal defDoc, deps)
+dependencyDef modName (Def binding range vis isVal inline defDoc)
+  = (Def depBinding range vis isVal inline defDoc, deps)
   where
     (depBinding,deps) = dependencyBinding modName binding
 

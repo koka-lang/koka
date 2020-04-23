@@ -131,7 +131,7 @@ public extern inline yielding-non-final() : bool {
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
-public extern yield-extend(next : a -> e b ) : e b {
+public extern noinline yield-extend(next : a -> e b ) : e b {
   js "_yield_extend"
 }
 
@@ -219,7 +219,7 @@ private fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, ret: a -> e0 r, re
   }
 }
 
-public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+public fun noinline ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   val m  = fresh-marker()
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
@@ -661,7 +661,7 @@ public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a
   res
 }
 
-public fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev0(f)()
@@ -669,7 +669,7 @@ public fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 
   evv-set(w)
   res
 }
-public fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-get()
   evv-set( evv-create(w,indices) )
   val res = cast-ev1(f)(x)

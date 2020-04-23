@@ -166,8 +166,8 @@ liftLocalFun expr eff
 makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 makeDef fvs tvs expr
   = do -- liftTrace (show expr)
-       name <- uniqueNameCurrentDef
-       let (callExpr,lifted) = (etaExpr name, liftedDef name)
+       (name,inl) <- uniqueNameCurrentDef
+       let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
        -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
        return (callExpr,lifted)
   where
@@ -186,7 +186,7 @@ makeDef fvs tvs expr
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name = Def name liftedTp liftedFun Private DefFun rangeNull "// lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private DefFun inl rangeNull "// lift"
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
@@ -208,14 +208,14 @@ liftGuard (Guard guard body)
        body'  <- liftExpr False body
        return (Guard guard' body')
 
-uniqueNameCurrentDef :: Lift Name
+uniqueNameCurrentDef :: Lift (Name,DefInline)
 uniqueNameCurrentDef =
   do env <- getEnv
      let defNames = map defName (currentDef env)
      i <- unique
      let -- base     = concatMap (\name -> nameId name ++ "-") (tail $ reverse defNames) ++ "x" ++ show i
          udefName =  toHiddenUniqueName i "lift" (last defNames)
-     return udefName
+     return (udefName, defInline (last (currentDef env)))
 
 
 {--------------------------------------------------------------------------

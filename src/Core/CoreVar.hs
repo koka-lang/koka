@@ -28,7 +28,7 @@ import Core.Pretty
 
 
 isTopLevel :: Def -> Bool
-isTopLevel (Def name tp expr vis isVal nameRng doc)
+isTopLevel (Def name tp expr vis isVal inl nameRng doc)
   = let freeVar = filter (\(nm) -> not (isQualified nm) && nm /= unqualify name) (map getName (tnamesList (fv expr)))
         freeTVar = ftv expr
         yes = (null freeVar && tvsIsEmpty freeTVar)
@@ -72,8 +72,8 @@ instance HasExpVar DefGroup where
       DefNonRec def -> bv def
 
 instance HasExpVar Def where
-  fv (Def name tp expr vis isVal nameRng doc) = fv expr
-  bv (Def name tp expr vis isVal nameRng doc) = S.singleton (TName name tp)
+  fv (Def name tp expr vis isVal inl nameRng doc) = fv expr
+  bv (Def name tp expr vis isVal inl nameRng doc) = S.singleton (TName name tp)
 
 fvDefGroups defGroups expr
   = case defGroups of
@@ -136,10 +136,10 @@ instance HasExprVar DefGroup where
 
 
 instance HasExprVar Def where
-  sub |~> (Def dname scheme expr vis isVal nameRng doc)
+  sub |~> (Def dname scheme expr vis isVal inl nameRng doc)
     = -- assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
       let sub' = [(name,e) | (name,e) <- sub, getName name /= dname]
-      in Def dname scheme (sub' |~> expr) vis isVal nameRng doc
+      in Def dname scheme (sub' |~> expr) vis isVal inl nameRng doc
 
 instance HasExprVar Expr where
   sub |~> expr =

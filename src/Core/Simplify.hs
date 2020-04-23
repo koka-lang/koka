@@ -196,7 +196,7 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
        topDown expr'
   where
     makeDef (TName npar nparTp) arg
-      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
+      = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
 -- Direct function applications
 topDown (App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
@@ -208,7 +208,7 @@ topDown (App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length 
          Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
   where
     makeDef (TName npar nparTp) arg
-      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
+      = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
 
 
@@ -262,7 +262,7 @@ bottomUp (App (Lam pars eff body) args) | length pars == length args  && all fre
   = Let (zipWith makeDef pars args) body
   where
     makeDef (TName npar nparTp) arg
-      = DefNonRec (Def npar nparTp arg Private DefVal rangeNull "")
+      = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
     free parName
       = not (parName `S.member` fv args)
@@ -396,10 +396,10 @@ matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
         | name == pname -> Match expr
         | otherwise     -> NoMatch
       (_,PatVar name PatWild)
-        -> let def = Def (getName name) (typeOf name) scrut Private DefVal rangeNull ""
+        -> let def = Def (getName name) (typeOf name) scrut Private DefVal InlineAuto rangeNull ""
            in Match (Let [DefNonRec def] expr)
       (_,PatWild)
-        -> let def = Def (nameNil) (typeOf scrut) scrut Private DefVal rangeNull ""
+        -> let def = Def (nameNil) (typeOf scrut) scrut Private DefVal InlineAuto rangeNull ""
            in Match (Let [DefNonRec def] expr)
       _ -> Unknown
 matchBranch scrut branch
@@ -437,7 +437,7 @@ instance Simplify DefGroup where
   simplify (DefNonRec def ) = fmap DefNonRec (simplify def)
 
 instance Simplify Def where
-  simplify (Def name tp expr vis sort nameRng doc)
+  simplify (Def name tp expr vis sort inl nameRng doc)
     = do expr' <- case expr of
                     TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
@@ -446,7 +446,7 @@ instance Simplify Def where
                       -> do body' <- simplify body
                             return $ Lam pars eff body'
                     _ -> simplify expr
-         return $ Def name tp expr' vis sort nameRng doc
+         return $ Def name tp expr' vis sort inl nameRng doc
 
 instance Simplify a => Simplify [a] where
   simplify  = mapM simplify

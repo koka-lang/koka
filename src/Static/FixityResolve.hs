@@ -58,9 +58,9 @@ resolveDefGroup (DefRec defs)
 resolveDefGroup (DefNonRec def)
   = resolveDef def >>= return . DefNonRec
 
-resolveDef (Def binder range vis isVal doc)
+resolveDef (Def binder range vis isVal inline doc)
   = do binder' <- resolveBinder binder
-       return (Def binder' range vis isVal doc)
+       return (Def binder' range vis isVal inline doc)
 
 resolveBinder binder
   = do expr' <- resolveExpr (binderExpr binder)

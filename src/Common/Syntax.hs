@@ -14,6 +14,7 @@ module Common.Syntax( Visibility(..)
                     , Fixity(..)
                     , DataKind(..)
                     , DefSort(..), isDefFun, defFun
+                    , DefInline(..)
                     , Target(..)
                     , Host(..)
                     , isPublic, isPrivate
@@ -116,6 +117,16 @@ instance Show DefSort where
               DefVal -> "val"
               DefVar -> "var"
 
+
+data DefInline
+  = InlineNever | InlineAlways | InlineAuto
+  deriving (Eq,Ord)
+
+instance Show DefInline where
+  show di = case di of
+              InlineNever  -> "noinline"
+              InlineAlways -> "inline"
+              InlineAuto   -> "autoinline"
 
 {--------------------------------------------------------------------------
   Fixities

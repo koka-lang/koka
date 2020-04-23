@@ -409,7 +409,7 @@ genDefGroup (DefRec defs)
   = mapM_ (genDef True) defs
 
 genDef :: Bool -> Def -> Asm ()
-genDef isRec def@(Def name tp expr vis defsort nameRng doc)
+genDef isRec def@(Def name tp expr vis defsort inl nameRng doc)
   = if (defIsVal def)
      then genDefX isRec def
      else case expr of  -- Ensure a top level non-value always gets compiled to a top-level function
@@ -419,13 +419,13 @@ genDef isRec def@(Def name tp expr vis defsort nameRng doc)
                  in if (m <= 0) then genDefX isRec def else
                      do expr1 <- tetaExpand expr [] n
                         expr2 <- etaExpand expr1 [] m
-                        genDefX isRec (Def name tp expr2 vis defsort nameRng doc)
+                        genDefX isRec (Def name tp expr2 vis defsort inl nameRng doc)
 
 genDefZ :: Bool -> Def -> Asm ()
 genDefZ isRec def  = genDefX isRec def
 
 genDefX :: Bool -> Def -> Asm ()
-genDefX isRec (Def name tp expr vis isVal nameRng doc)
+genDefX isRec (Def name tp expr vis isVal inl nameRng doc)
   = -- trace ("genDef: " ++ show name) $
     onTopLevel $
     (if (isRec) then withRecDef name (extractArgs name expr) else withDef name) $
@@ -942,13 +942,13 @@ genLetDefs isRec defs groups expr
        mapM_ (genLetDef isRec) defs''
        genLetGroups groups' expr'
   where
-    uniquefyTopLevel def@(Def name tp expr vis isVal nameRng doc)
+    uniquefyTopLevel def@(Def name tp expr vis isVal inl nameRng doc)
       = if not (liftDefToTopLevel  def)
          then return ([],def)
          else do defname <- getCurrentDef
                  newVName <- (newVarName (show (unqualify defname) ++ "-" ++ show (unqualify name)))
                  let newName = qualify (qualifier defname) newVName -- need to qualify or otherwise its considered local
-                     newDef = Def newName tp expr vis isVal nameRng ""
+                     newDef = Def newName tp expr vis isVal inl nameRng ""
                      (m,n)  = getArity tp
                  return ([(TName name tp,Var (TName newName (typeOf expr)) (InfoArity m n))], newDef)
 
@@ -961,7 +961,7 @@ liftDefToTopLevel def
 
 
 genLetDef :: Bool -> Def -> Asm ()
-genLetDef isRec def@(Def name tp expr vis isVal nameRng doc)
+genLetDef isRec def@(Def name tp expr vis isVal inl nameRng doc)
   = if isLambda expr && isTopLevel def
      then genDef isRec def
     else if (isLambda expr && isRec)

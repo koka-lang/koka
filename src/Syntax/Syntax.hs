@@ -179,6 +179,7 @@ data Def t
        , defRange  :: Range
        , defVis    :: Visibility
        , defSort   :: DefSort
+       , defInline :: DefInline
        , defDoc    :: String
        }
 
@@ -291,7 +292,7 @@ instance Ranged (TypeDef t u k) where
     = typeDefRange typeDef
 
 instance Ranged t => Ranged (Def t) where
-  getRange (Def binder nameTypeRange _ _ _)
+  getRange (Def binder nameTypeRange _ _ _ _)
     = getRange binder
 
 instance Ranged (ValueBinder t e) where
@@ -405,7 +406,7 @@ instance HasName (ValueBinder t e) where
   getRName vb = (binderName vb,binderNameRange vb)
 
 instance HasName (Def t) where
-  getRName (Def vb range _ _ _) = getRName vb
+  getRName (Def vb range _ _ _ _) = getRName vb
 
 
 
@@ -444,10 +445,10 @@ instance HasFreeTypeVar a => HasFreeTypeVar (Either a b) where
   Access definitions
 --------------------------------------------------------------------------}
 defBody :: Def t -> Expr t
-defBody (Def vb _ _ _ _)  = binderExpr vb
+defBody (Def vb _ _ _ _ _)  = binderExpr vb
 
 defName :: Def t -> Name
-defName (Def vb _ _ _ _)  = binderName vb
+defName (Def vb _ _ _ _ _)  = binderName vb
 
 defType :: Def t -> Maybe t
 defType def
