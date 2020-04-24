@@ -126,8 +126,8 @@ liftExpr topLevel expr
     Lam args eff body
       -> do body' <- liftExpr topLevel body
             let expr' = Lam args eff body'
-            -- top level functions are allowed
-            if topLevel then return expr'
+            -- top level or simple functions are allowed
+            if (topLevel || isSimpleFunc expr) then return expr'
             -- lift local functions
             else liftLocalFun expr' eff
     Let defgs body
@@ -141,7 +141,7 @@ liftExpr topLevel expr
             bs'    <- mapM liftBranch bs
             return (Case exprs' bs')
 
-    TypeLam tvars (Lam pars eff lbody)  | not topLevel
+    TypeLam tvars (Lam pars eff lbody) | not topLevel && not (isSimpleFunc expr)
       -> do expr1 <- liftExpr False lbody
             liftLocalFun (TypeLam tvars (Lam pars eff expr1)) eff
     TypeLam tvars body
@@ -217,6 +217,28 @@ uniqueNameCurrentDef =
          udefName =  toHiddenUniqueName i "lift" (last defNames)
      return (udefName, defInline (last (currentDef env)))
 
+-- Don't lift a simple function. A function is simple if its body is simply an
+-- application consisting of simple arguments.
+-- More general than eta-expanded expressions.
+isSimpleFunc :: Expr -> Bool
+isSimpleFunc expr =
+  case expr of
+    Lam pars _ (App _ args) -> all isSimpleArg args
+    TypeLam tpars (Lam pars _ (App (TypeApp _ targs) args))
+      -> all isSimpleTArg targs && all isSimpleArg args
+    TypeLam tpars (Lam pars _ (App _ args)) -> all isSimpleArg args
+    _ -> False
+ where -- The definition of simple arguments can be extended.
+       isSimpleTArg TCon{}        = True
+       isSimpleTArg (TVar x)      = True
+       isSimpleTArg (TApp ty tys) = all isSimpleTArg (ty:tys)
+       isSimpleTArg _             = False
+
+       isSimpleArg Con{}      = True
+       isSimpleArg Lit{}      = True
+       isSimpleArg (Var x _)  = True
+       isSimpleArg (App e es) = all isSimpleArg (e:es)
+       isSimpleArg _          = False
 
 {--------------------------------------------------------------------------
   Lift monad
