@@ -58,12 +58,13 @@ externalNames
 
 cFromCore :: Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
 cFromCore maxStructFields mbMain core
-  = runAsm (Env moduleName penv externalNames False) (genModule maxStructFields mbMain core)
+  = case runAsm (Env moduleName penv externalNames False) (genModule maxStructFields mbMain core) of
+      ((),cdoc,hdoc) -> (cdoc,hdoc)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Int -> Maybe (Name,Bool) -> Core -> Asm Doc
+genModule :: Int -> Maybe (Name,Bool) -> Core -> Asm ()
 genModule maxStructFields mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
@@ -81,7 +82,7 @@ genModule maxStructFields mbMain core
                                  else (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
                                       ,[]))
-        return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+        emitToC $ text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
                    list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport (coreProgImports core))) <.> comma <+>
@@ -112,6 +113,7 @@ genModule maxStructFields mbMain core
                     ])
                  )
               <-> text "});"
+        return ()
   where
     modName         = ppModName (coreProgName core)
     exportedValues  = let f (DefRec xs)   = map defName xs
@@ -987,7 +989,7 @@ isTailCalling expr n
 -- The assembly monad
 ---------------------------------------------------------------------------------
 
-newtype Asm a = Asm { unAsm :: Env -> St -> (a, St, Doc)}
+newtype Asm a = Asm { unAsm :: Env -> St -> (a, St)}
 
 instance Functor Asm where
   fmap f (Asm a) = Asm (\env st -> case a env st of
@@ -1003,13 +1005,14 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
-runAsm :: Env -> Asm Doc -> (Doc,Doc)
+runAsm :: Env -> Asm a -> (a,Doc,Doc)
 runAsm initEnv (Asm asm)
   = case asm initEnv initSt of
-      (doc,st) -> (doc, hdoc st)
+      (x,st) -> (x, vcat (reverse (cdoc st)), vcat (reverse (hdoc st)))
 
 data St  = St  { uniq :: Int
-               , hdoc :: Doc
+               , hdoc :: [Doc]  -- h file in reverse
+               , cdoc :: [Doc]  -- c file in reverse
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
@@ -1021,7 +1024,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign Name (Maybe Name)    -- variable name and optional label to break
 
-initSt = St 0 empty
+initSt = St 0 [] []
 
 instance HasUnique Asm where
   updateUnique f
@@ -1035,6 +1038,12 @@ getSt
 
 setSt st
   = updateSt (const st)
+
+
+emitToHeader doc
+  = updateSt (\st -> st{hdoc = doc : hdoc st })
+emitToC doc
+  = updateSt (\st -> st{cdoc = doc : cdoc st })
 
 getEnv
   = Asm (\env st -> (env, st))

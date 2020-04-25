@@ -404,6 +404,7 @@ formatCall tp (target,ExternalCall fname)
   = case target of
       CS      -> (target,formatCS)
       JS      -> (target,formatJS)
+      C       -> (target,formatJS)
       Default -> (target,formatJS)
   where
     (foralls,preds,rho) = splitPredType tp

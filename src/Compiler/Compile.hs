@@ -82,8 +82,9 @@ import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
 import Platform.Config        ( exeExtension, pathSep, sourceExtension )
 
-import Backend.CSharp.FromCore( csharpFromCore )
+import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
+import Backend.C.FromCore         ( cFromCore )
 
 import qualified Core.Core as Core
 import Core.Simplify( simplifyDefs )
@@ -1016,7 +1017,7 @@ codeGen term flags compileTarget loaded
     concatMaybe :: [Maybe a] -> [a]
     concatMaybe mbs  = concatMap (maybe [] (\x -> [x])) mbs
 
-    backends = [codeGenCS, codeGenJS]
+    backends = [codeGenCS, codeGenJS, codeGenC]
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1034,7 +1035,7 @@ codeGenCSDll term flags modules compileTarget outBase core
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCSharp flags) (termDoc term cs)
+       when (showAsmCS flags) (termDoc term cs)
 
        let linkFlags  = concat ["-r:" ++ outName flags (showModName (Core.importName imp)) ++ dllExtension ++ " "
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
@@ -1067,7 +1068,7 @@ codeGenCS term flags modules compileTarget outBase core
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
-       when (showAsmCSharp flags) (termDoc term cs)
+       when (showAsmCS flags) (termDoc term cs)
 
        case mbEntry of
          Nothing -> return Nothing
@@ -1095,7 +1096,7 @@ codeGenJS term flags modules compileTarget outBase core
        let js    = javascriptFromCore (maxStructFields flags) mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
-       when (showAsmJavaScript flags) (termDoc term js)
+       when (showAsmJS flags) (termDoc term js)
 
        case mbEntry of
         Nothing -> return Nothing
@@ -1136,6 +1137,26 @@ codeGenJS term flags modules compileTarget outBase core
                do return (Just (runSystem (dquote outHtml ++ " &")))
               Node ->
                do return (Just (runSystem ("node " ++ outjs)))
+
+
+
+
+codeGenC :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+--codeGenC term flags modules compileTarget outBase core  | not (C `elem` targets flags)
+-- = return Nothing
+codeGenC term flags modules compileTarget outBase core
+ = do let outC = outBase ++ ".c"
+          outH = outBase ++ ".h"
+      let mbEntry = case compileTarget of
+                      Executable name tp -> Just (name,isAsyncFunction tp)
+                      _                  -> Nothing
+      let (cdoc,hdoc) = cFromCore (maxStructFields flags) mbEntry core
+      termPhase term ( "generate c: " ++ outBase )
+      writeDocW 120 outC cdoc
+      writeDocW 120 outH hdoc
+      when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
+      return Nothing
+
 
 
 

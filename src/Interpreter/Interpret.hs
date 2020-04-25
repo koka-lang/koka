@@ -84,7 +84,7 @@ interpret printer flags0 files
    -}
       -- ; interpreterEx st2
 
-      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
+      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
                   `catchIO` (\msg -> do messageError st2 msg;
                                         return (errorMsg (ErrorGeneral rangeNull (text msg))))
       ; case checkError err of

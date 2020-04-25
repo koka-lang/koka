@@ -87,8 +87,9 @@ data Flags
          , showSynonyms     :: Bool
          , showCore         :: Bool
          , showCoreTypes    :: Bool
-         , showAsmCSharp    :: Bool
-         , showAsmJavaScript :: Bool
+         , showAsmCS        :: Bool
+         , showAsmJS        :: Bool
+         , showAsmC         :: Bool
          , showTypeSigs     :: Bool
          , evaluate         :: Bool
          , library          :: Bool
@@ -132,8 +133,9 @@ flagsNull
           -- show
           False False  -- kinds kindsigs
           False False False -- synonyms core core-types
-          False -- show asmCSharp
-          False -- show asmJavaScript
+          False -- show asm
+          False
+          False
           False -- typesigs
           True -- executes
           False -- library
@@ -206,7 +208,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
  , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
  , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
- , config []    ["target"]          [("js",[JS]),("cs",[CS])] (\t f -> f{targets=t}) "generate csharp or javascript (default)"
+ , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t}) "generate csharp, javascript (default), or C"
  , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ targets=[JS], host=h}) "specify host for running code"
 
  , emptyline
@@ -217,8 +219,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})     "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})         "show core"
  , flag   []    ["showcoretypes"]       (\b f -> f{showCoreTypes=b})         "show full types in core"
- , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
- , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
+ , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})    "show generated c#"
+ , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b}) "show generated javascript"
+ , flag   []    ["showc"]          (\b f -> f{showAsmC=b}) "show generated C"
  , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
