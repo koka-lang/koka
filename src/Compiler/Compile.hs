@@ -808,6 +808,7 @@ inferCheck loaded flags line coreImports program1
               (loadedImportMap loaded)
               (loadedKGamma loaded)
               (loadedSynonyms loaded)
+              (loadedNewtypes loaded)
               (loadedUnique loaded)
               program1
 
@@ -819,7 +820,7 @@ inferCheck loaded flags line coreImports program1
             loaded3 = loaded { loadedKGamma  = kgamma
                             , loadedGamma   = gamma0
                             , loadedSynonyms= synonyms
-                            , loadedNewtypes= newtypesCompose (loadedNewtypes loaded) newtypes
+                            , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
                             , loadedConstructors=constructors
                             , loadedUnique  = unique3
                             }
@@ -1150,7 +1151,7 @@ codeGenC term flags modules compileTarget outBase core
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (cdoc,hdoc) = cFromCore (maxStructFields flags) mbEntry core
+      let (cdoc,hdoc) = cFromCore (3 {-maxStructFields flags-}) mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc

@@ -165,15 +165,15 @@ maxSynonymRank tp
 --------------------------------------------------------------------------}
 
 -- | Data type information: name, kind, type arguments, and constructors
-data DataInfo = DataInfo{ dataInfoSort :: DataKind
-                        , dataInfoName :: Name
-                        , dataInfoKind :: Kind
-                        , dataInfoParams :: [TypeVar] {- ^ arguments -}
+data DataInfo = DataInfo{ dataInfoSort    :: DataKind
+                        , dataInfoName    :: Name
+                        , dataInfoKind    :: Kind
+                        , dataInfoParams  :: [TypeVar] {- ^ arguments -}
                         , dataInfoConstrs :: [ConInfo]
-                        , dataInfoRange  :: Range
-                        , dataInfoDef    :: DataDef  -- normal, rec, open
-                        , dataInfoVis    :: Visibility
-                        , dataInfoDoc    :: String
+                        , dataInfoRange   :: Range
+                        , dataInfoDef     :: DataDef  -- normal, rec, open
+                        , dataInfoVis     :: Visibility
+                        , dataInfoDoc     :: String
                         }
 
 dataInfoIsRec info

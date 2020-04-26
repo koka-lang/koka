@@ -229,9 +229,11 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
          CoInductive -> keyword env "cotype"
          Retractive  -> keyword env "rectype") <+>
       (if isExtend then keyword env "extend "
-        else if dataDefIsOpen datadef then keyword env "open "
-          else if dataDefIsRec datadef then keyword env "rec "
-            else empty) <.>
+        else case datadef of
+               DataDefRec -> text "rec "
+               DataDefOpen -> text "open "
+               DataDefValue m n -> text ("value{" ++ show m ++ "," ++ show n ++ "} ")
+               _ -> empty) <.>
       -- ppVis env vis <+>
       ppName env name <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>

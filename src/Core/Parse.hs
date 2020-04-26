@@ -270,10 +270,22 @@ conDecl tname foralls sort env
 typeSort :: LexParser (DataDef, Bool, DataKind,String)
 typeSort
   = do let f kw sort = do (_,doc) <- dockeyword kw
-                          (ddef,isExtend) <- parseOpenExtend
+                          (ddef,isExtend) <- parseOpenExtendX
                           return (ddef,isExtend,sort,doc)
        (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
 
+parseOpenExtendX :: LexParser (DataDef,Bool)
+parseOpenExtendX
+ =   do{ specialId "open"; return (DataDefOpen, False) }
+ <|> do{ specialId "extend"; return (DataDefOpen, True) }
+ <|> do specialId "value"
+        (m,n) <- braced $ do (m,_) <- integer
+                             comma
+                             (n,_) <- integer
+                             return (m,n)
+        return (DataDefValue (fromInteger m) (fromInteger n), False)
+ <|> return (DataDefNormal, False)
+ <?> ""
 
 {--------------------------------------------------------------------------
   Value definitions

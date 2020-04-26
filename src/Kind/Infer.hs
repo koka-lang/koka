@@ -55,6 +55,7 @@ import Type.Type
 import Type.Assumption
 import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->) )
 import Type.Pretty
+import Type.Kind( getKind )
 
 import Kind.InferKind
 import Kind.InferMonad
@@ -74,13 +75,14 @@ inferKinds
   -> ImportMap        -- ^ Import aliases
   -> KGamma           -- ^ Initial kind kgamma
   -> Synonyms         -- ^ Initial list of synonyms
+  -> Newtypes         -- ^ Initial list of data types
   -> Int              -- ^ Unique
   -> Program UserType UserKind  -- ^ Original program
   -> Error ( DefGroups Type       --  Translated program (containing translated types)
            -- , Gamma                --  Gamma containing generated functions, i.e type scheme for every constructor
            , KGamma               --  updated kind gamma
            , Synonyms             --  Updated synonyms
-           , Newtypes             --  Data type information
+           , Newtypes             --  Update data types
            , Constructors         --  Constructor information
            -- , Core.TypeDefGroups   --  Core type definition groups
            -- , Core.Externals       --  Core externals
@@ -88,11 +90,11 @@ inferKinds
            , Int                  --  New unique
            , Maybe RangeMap
            )
-inferKinds colors maxStructFields mbRangeMap imports kgamma0 syns0 unique0
+inferKinds colors maxStructFields mbRangeMap imports kgamma0 syns0 data0 unique0
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
-  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1)) = runKindInfer colors mbRangeMap modName imports kgamma0 syns0 unique0 (infTypeDefGroups tdgroups)
-        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors rm1 modName imports kgamma1 syns1 unique1 (infExternals externals)
-        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors rm2 modName imports kgamma1 syns1 unique2 (infDefGroups defs)
+  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
+        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
+        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
 --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
         (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
         conInfos  = concatMap dataInfoConstrs dataInfos
@@ -108,7 +110,7 @@ inferKinds colors maxStructFields mbRangeMap imports kgamma0 syns0 unique0
                     -- ,gamma1
                     ,kgamma1
                     ,syns1
-                    ,newtypesNew dataInfos
+                    ,data1 -- newtypesNew dataInfos
                     ,cons1
                     -- ,cgroups
                     -- ,externals1
@@ -290,11 +292,11 @@ constructorCheckDuplicates cscheme conInfos
 {---------------------------------------------------------------
   Infer kinds for type definition groups
 ---------------------------------------------------------------}
-infTypeDefGroups :: [TypeDefGroup UserType UserKind] -> KInfer ([Core.TypeDefGroup],KGamma,Synonyms)
+infTypeDefGroups :: [TypeDefGroup UserType UserKind] -> KInfer ([Core.TypeDefGroup],KGamma,Synonyms,Newtypes)
 infTypeDefGroups (tdgroup:tdgroups)
   = do (ctdgroup)  <- infTypeDefGroup tdgroup
-       (ctdgroups,kgamma,syns) <- extendKGamma (getRanges tdgroup) ctdgroup $ infTypeDefGroups tdgroups
-       return (ctdgroup:ctdgroups,kgamma,syns)
+       (ctdgroups,kgamma,syns,datas) <- extendKGamma (getRanges tdgroup) ctdgroup $ infTypeDefGroups tdgroups
+       return (ctdgroup:ctdgroups,kgamma,syns,datas)
   where
     getRanges (TypeDefRec tdefs)   = map getRange tdefs
     getRanges (TypeDefNonRec tdef) = [getRange tdef]
@@ -302,7 +304,8 @@ infTypeDefGroups (tdgroup:tdgroups)
 infTypeDefGroups []
   = do kgamma <- getKGamma
        syns <- getSynonyms
-       return ([],kgamma,syns)
+       datas <- getNewtypes
+       return ([],kgamma,syns,datas)
 
 infTypeDefGroup :: TypeDefGroup UserType UserKind -> KInfer (Core.TypeDefGroup)
 infTypeDefGroup (TypeDefRec tdefs)
@@ -780,26 +783,108 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        let tvarMap = M.fromList (zip (map getName params') typeVars)
        consinfos <- mapM (resolveConstructor (getName newtp') sort (not (dataDefIsOpen ddef) && length constructors == 1) typeResult typeVars tvarMap) constructors
        let (constructors',infos) = unzip consinfos
+       cs <- getColorScheme
+       let fname  = unqualify (getName newtp')
+           name   = if (isHandlerName fname) then fromHandlerName fname else fname
+           nameDoc = color (colorType cs) (pretty name)
+       --check recursion
        if (sort == Retractive)
         then return ()
         else let effNames = concatMap fromOpsName recNames
                  fromOpsName nm = if (isOperationsName nm) then [fromOperationsName nm] else []
              in if (any (occursNegativeCon (recNames ++ effNames)) (infos))
-              then do cs <- getColorScheme
-                      let fname  = unqualify (getName newtp')
-                          name   = if (isHandlerName fname) then fromHandlerName fname else fname
-                      addError range (text "Type" <+> color (colorType cs) (pretty name) <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
+              then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
+       -- value types
+       ddef' <- case ddef of
+                  DataDefValue _ _ | isRec
+                    -> do addError range (text "Type" <+> nameDoc <+> text "cannot be declared as a value type since it is recursive.")
+                          return ddef
+                  DataDefNormal | isRec
+                    -> return DataDefRec
+                  DataDefOpen
+                    -> return DataDefOpen
+                  _ -- Value or Normal and not recursive
+                    -> -- determine the raw fields and total size
+                       do dd <- toDefValues (ddef/=DataDefNormal) nameDoc infos
+                          case (ddef,dd) of
+                            (DataDefValue _ _, DataDefValue m n)
+                              -> if (hasKindStarResult (getKind typeResult))
+                                  then return (DataDefValue m n)
+                                  else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type does not have a value kind ('V').")  -- should never happen?
+                                          return DataDefNormal
+                            (DataDefValue _ _, DataDefNormal)
+                              -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
+                                    return DataDefNormal
+                            (DataDefNormal, DataDefValue m n) | n <= 3 && hasKindStarResult (getKind typeResult)
+                              -> trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
+                                 return (DataDefValue m n)
+                            _ -> return DataDefNormal
+
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))
-       let ddef' = case ddef of
-                     DataDefNormal | isRec -> DataDefRec
-                     _ -> ddef
-           dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' vis doc
+       let dataInfo = DataInfo sort (getName newtp') (typeBinderKind newtp') typeVars infos range ddef' vis doc
        return (Core.Data dataInfo isExtend)
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
+
+    toDefValues :: Bool -> Doc -> [ConInfo] -> KInfer DataDef
+    toDefValues isVal nameDoc conInfos
+      = do ddefs <- mapM (toDefValue nameDoc) conInfos
+           maxDataDefs isVal nameDoc ddefs
+
+    toDefValue :: Doc -> ConInfo -> KInfer DataDef
+    toDefValue nameDoc con
+      = do ddefs <- mapM (typeDataDef lookupDataInfo . snd) (conInfoParams con)
+           sumDataDefs nameDoc ddefs
+
+    maxDataDefs :: Bool -> Doc -> [DataDef] -> KInfer DataDef
+    maxDataDefs isVal nameDoc [] = return (DataDefValue 1 1) -- (if isVal then DataDefValue 1 0 else DataDefNormal)
+    maxDataDefs isVal nameDoc [dd] = return dd
+    maxDataDefs isVal nameDoc (dd:dds)
+      = do dd2 <- maxDataDefs isVal nameDoc dds
+           case (dd,dd2) of
+             (DataDefValue 0 0, DataDefValue m n)    -> return (DataDefValue m n)
+             (DataDefValue m n, DataDefValue 0 0)    -> return (DataDefValue m n)
+             (DataDefValue m1 0, DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
+             (DataDefValue 0 n1, DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
+             (DataDefValue m1 n1, DataDefValue m2 n2)
+               -> do if (isVal)
+                      then addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which mix raw types and regular types." <->
+                                           text "hint: value types with multiple constructors must either use all raw types, or all regular types (use 'box' to use a raw type as a regular type).")
+                      else return ()
+                     return (DataDefValue (max m1 m2) (max n1 n2))
+             _ -> return DataDefNormal
+
+    sumDataDefs :: Doc -> [DataDef] -> KInfer DataDef
+    sumDataDefs nameDoc [] = return (DataDefValue 0 0)
+    sumDataDefs nameDoc (dd:dds)
+      = do dd2 <- sumDataDefs nameDoc dds
+           case (dd,dd2) of
+            (DataDefValue m1 n1, DataDefValue m2 n2)  | (m1 > 0 || m2 > 0) && m1 < n1 && m2 < n2
+               -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
+                                     text "hint: use 'box' on either field to make it a non-value type.")
+                     return (DataDefValue (m1+m2) (n1+n2))
+            (DataDefValue m1 n1, DataDefValue m2 n2)
+              -> return (DataDefValue (m1+m2) (n1+n2))
+            (DataDefValue m n, DataDefNormal)
+              -> return (DataDefValue m (n+1))
+            (DataDefNormal, DataDefValue m n)
+              -> return (DataDefValue m (n+1))
+            _ -> return DataDefNormal
+
+    typeDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m DataDef
+    typeDataDef lookupDataInfo tp
+      = case expandSyn tp of
+          TCon (TypeCon name _)
+            -> do mbdi <- lookupDataInfo name
+                  case mbdi of
+                    Nothing  -> failure ("Kind.Infer.resolve data def: unknown type: " ++ show name);
+                    Just di  -> return (dataInfoDef di)
+          TApp t _ -> typeDataDef lookupDataInfo t
+          _        -> return DataDefNormal
+
 
 occursNegativeCon :: [Name] -> ConInfo -> Bool
 occursNegativeCon names conInfo

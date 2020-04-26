@@ -18,10 +18,10 @@ import Data.Char
 -- import Data.Monoid ( mappend )
 import qualified Data.Set as S
 
--- import Kind.Kind
+import Kind.Kind
 import Type.Type
--- import Type.TypeVar
--- import Type.Kind( getKind )
+import Type.TypeVar
+import Type.Kind( getKind )
 -- import Type.Assumption( getArity )
 import qualified Type.Pretty as Pretty
 
@@ -41,6 +41,7 @@ import Core.CoreVar
 type CommentDoc   = Doc
 type ConditionDoc = Doc
 
+type ModuleName = Name
 
 debug :: Bool
 debug  = False
@@ -67,10 +68,13 @@ cFromCore maxStructFields mbMain core
 genModule :: Int -> Maybe (Name,Bool) -> Core -> Asm ()
 genModule maxStructFields mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
-            (tagDefs,defs) = partition isTagDef (coreProgDefs core)
-        decls0 <- genGroups tagDefs
-        decls1 <- genTypeDefs maxStructFields (coreProgTypeDefs core)
-        decls2 <- genGroups defs
+            headComment = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+        emitToC $ headComment
+        emitToH $ headComment
+                  <-> text "// type declarations"
+        genTypeDefs maxStructFields (coreProgTypeDefs core)
+        -- decls2 <- genGroups defs
+        {-
         let imports = map importName (coreProgImports core)
             (mainEntry,mainImports) = case mbMain of
                           Nothing -> (empty,[])
@@ -82,37 +86,7 @@ genModule maxStructFields mbMain core
                                  else (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
                                       ,[]))
-        emitToC $ text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
-              <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
-              <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
-                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport (coreProgImports core))) <.> comma <+>
-                   text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map ppModName imports)) <+> text "{" <->
-                    vcat (
-                    [ text "\"use strict\";"
-                    , text "var" <+> modName <+> text " = {};"
-                    , text " "
-                    , text "// externals"
-                    , externs
-                    , text " "
-                    , text "// type declarations"
-                    , decls0
-                    , decls1
-                    , text " "
-                    , text "// declarations"
-                    , decls2
-                    , mainEntry
-                    , text " "
-                    , text "// exports"
-                    , hang 2 (modName <+> text "=" <+> ppModName nameCoreTypes <.> dot <.> text "_export(" <.>
-                                modName <.> text ", {" <-->
-                        (vcat $ punctuate comma $
-                           map (\n-> fill 12 (ppName n) <.> text ":" <+> ppName n)
-                              ( exportedConstrs ++ exportedValues ))
-                      ) <--> text "});"
-                    , text "return" <+> modName <.> semi
-                    ])
-                 )
-              <-> text "});"
+        -}
         return ()
   where
     modName         = ppModName (coreProgName core)
@@ -223,66 +197,217 @@ tryFunDef name comment expr
 -- Generate value constructors for each defined type
 ---------------------------------------------------------------------------------
 
-genTypeDefs :: Int -> TypeDefGroups -> Asm Doc
+genTypeDefs :: Int -> TypeDefGroups -> Asm ()
 genTypeDefs maxStructFields groups
-  = do docs <- mapM (genTypeDefGroup maxStructFields) groups
-       return (vcat docs)
+  = mapM_ (genTypeDefGroup maxStructFields) groups
 
-genTypeDefGroup :: Int -> TypeDefGroup -> Asm Doc
+
+genTypeDefGroup :: Int -> TypeDefGroup -> Asm ()
 genTypeDefGroup maxStructFields (TypeDefGroup tds)
-  = do docs <- mapM (genTypeDef maxStructFields) tds
-       return (vcat docs)
+  = mapM_ (genTypeDef maxStructFields) tds
 
-genTypeDef :: Int -> TypeDef -> Asm Doc
-genTypeDef maxStructFields (Synonym {})
-  = return empty
+genTypeDef :: Int -> TypeDef -> Asm ()
+genTypeDef maxStructFields (Synonym synInfo)
+  = return ()
 genTypeDef maxStructFields (Data info isExtend)
-  = do modName <- getModule
-       let (dataRepr, conReprs) = getDataRepr maxStructFields info
-       docs <- mapM ( \(c,repr)  ->
-          do let args = map ppName (map fst (conInfoParams c))
-             name <- genName (conInfoName c)
-             penv <- getPrettyEnv
-             if (conInfoName c == nameTrue)
-              then return (constdecl <+> name <+> text "=" <+> text "true" <.> semi)
-              else if (conInfoName c == nameFalse)
-              then return (constdecl <+> name <+> text "=" <+> text "false" <.> semi)
-              else return $ case repr of
-                ConEnum{}
-                   -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                ConSingleton{}
-                   -> constdecl <+> name <+> text "=" <+>
-                        text (if conInfoName c == nameOptionalNone then "undefined" else "null")
-                         <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                -- tagless
-                ConIso{}     -> genConstr penv c repr name args []
-                ConSingle{}  -> genConstr penv c repr name args []
-                ConAsCons{}  -> genConstr penv c repr name args []
-                _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
-          ) $ zip (dataInfoConstrs $ info) conReprs
-       return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
-            <-> vcat docs
-            <-> text ""
+  = do -- generate the type constructor
+       ctx <- getModule
+       emitToH $ text "// type" <+> pretty (dataInfoName info)
+       case getDataRepr maxStructFields info of
+         (DataEnum,_)
+           -> emitToH $ ppVis (dataInfoVis info) <+> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
+                        block (vcat (punctuate comma (map ppEnumCon (dataInfoConstrs info)))) <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
+
+         (dataRepr,conReprs)
+           -> do let noCons = null conReprs
+                     name   = typeClassName (dataInfoName info)
+                 trace ("type " ++ show name ++ ": " ++ show maxStructFields ++ ", "++ show dataRepr ++ ": " ++ show conReprs) $ return ()
+                 -- if (isExtend) then return ()
+                 -- generate the type
+                 emitToH (ppVis (dataInfoVis info) <+> text "typedef struct"
+                           <+> structName dataRepr <+> ppName name <.> semi <.>
+                           (if (isValueData dataRepr && not (hasTagField dataRepr)) then empty
+                             else linebreak <.>
+                                  text "struct" <+> ppName name <.> text "_s {" <+>
+                                  (-- header field
+                                   if (isValueData dataRepr)
+                                     then if (hasTagField dataRepr)
+                                           then (text "tag_t _tag;") -- Struct
+                                           else empty
+                                     else (text "header_t _header;")) <+> text "};"))
+
+                 -- generate fields and constructors
+                 mapM_ (genConstructor info dataRepr) (zip (dataInfoConstrs info) conReprs)
   where
-    genConstr penv c repr name args tagFields
-      = if null args
-         then debugWrap "genConstr: null fields"
-            $ constdecl <+> name <+> text "=" <+> object tagFields <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-         else debugWrap "genConstr: with fields"
-            $ text "function" <+> name <.> tupled args <+> comment (Pretty.ppType penv (conInfoType c))
-          <+> block ( text "return" <+>
-                      (if (conInfoName c == nameOptional || isConIso repr) then head args
-                        else object (tagFields ++ map (\arg -> (arg, arg))  args)) <.> semi )
+    ppEnumCon (con)
+      = ppDefName (conInfoName con)
 
-getConTag modName coninfo repr
-  = case repr of
-      ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
-                   let name = toOpenTagName (conInfoName coninfo)
-                   in ppName (if (qualifier name == modName) then unqualify name else name)
-      _ -> int (conTag repr)
+    structName dataRepr
+      = if (not (isValueData dataRepr))
+         then -- regular
+              ppName (typeClassName (dataInfoName info)) <.> text "_s*"
+         else -- value type, use the constructor with (the most?) fields
+              case filter (\con -> not (null (conInfoParams con))) (dataInfoConstrs info) of
+                (con:_) -> ppName (typeClassName (conInfoName con))
+                [] -> failure ("Backend.C.FromCore.ppTypeDef: " ++ show (dataInfoName info) ++ " value type with multiple constructors?")
 
-openConTag name
-  = name
+
+
+genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
+genConstructor info dataRepr (con,conRepr) =
+  case conRepr of
+    ConEnum _ _
+       -> return () -- already in enum declaration
+    _  -> do emitToH $ ppVis (conInfoVis con) <+> text "struct" <+> ppName (typeClassName (conInfoName con)) <+>
+                       block (vcat (typeField ++ map ppConField (conInfoParams con))) <.> semi
+  where
+    typeField  = if (isValueData dataRepr && not (hasTagField dataRepr)) then []
+                  else [ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> text "_type;"]
+
+ppConField :: (Name,Type) -> Doc
+ppConField (name,tp)
+  = ppType tp <+> ppDefName name <.> semi
+
+ppConConstructor :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [Doc]
+ppConConstructor ctx con conRepr defaults
+  = ppConConstructorEx ctx con conRepr (conInfoParams con) defaults
+
+ppConConstructorEx :: ModuleName -> ConInfo -> ConRepr -> [(Name,Type)] -> [(Name,Type)] -> [Doc]
+ppConConstructorEx ctx con conRepr conParams defaults
+  = if (null conParams && not (isConNormal conRepr))
+     then []
+     else [text "public" <+>
+           (case conRepr of
+              ConAsCons typeName nilName _ -> ppDefName (typeClassName typeName)
+              ConSingle typeName _ -> ppDefName (typeClassName typeName)
+              ConStruct typeName _ -> ppDefName (typeClassName typeName)
+              ConIso    typeName _ -> ppDefName (typeClassName typeName)
+              _                    -> ppDefName (conClassName (conInfoName con))) <.>
+           tupled (map ppParam (conInfoParams con)) <+>
+           (case conRepr of
+              ConNormal typeName _ -> text ":" <+> text "base" <.> parens (ppTag ctx typeName (conInfoName con)) <.> space
+              _                    -> empty) <.>
+           block (linebreak <.> vcat (
+              (case conRepr of
+                 ConStruct typeName _ -> [text "this." <.> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <.> semi]
+                 _             -> [])
+              ++ map ppAssignConField conParams
+              ++ map (ppAssignDefault ctx) defaults
+             )
+          )]
+  where
+    ppParam (name,tp)
+      = ppType tp <+> ppDefName name
+
+    ppAssignConField (name,tp)
+      = text "this." <.> ppDefName name <+> text "=" <+> ppQName ctx name <.> semi
+
+ppAssignDefault ctx (name,tp)
+  = text "this." <.> ppDefName name <+> text "=" <+> text "default" <.> parens (ppType tp) <.> semi;
+
+
+
+ppTag ctx typeName conName
+  = ppTagType ctx typeName <.> text "." <.> ppDefName conName
+
+ppTagType ctx typeName
+  = ppQName ctx (typeClassName typeName) <.> text "_Tag"
+
+ppTagName
+  = text tagName
+
+tagName
+  = "tag_";
+
+ppSingletonName
+  = text "singleton_";
+
+ppVis :: Visibility -> Doc
+ppVis Public  = text "decl_public"
+ppVis Private = text "decl_private"
+
+-- | Returns the type constructor class name, for "List" it would be ".List"
+typeConClassName :: Name -> Name
+typeConClassName name
+  = postpend "." (prepend "." name)
+
+conClassName, typeClassName :: Name -> Name
+typeClassName name
+  = prepend "." name
+conClassName name
+  = postpend "-ct" name
+
+ppDefName :: Name -> Doc
+ppDefName name
+  = ppName (unqualify name)
+
+vcatBreak []  = empty
+vcatBreak xs  = linebreak <.> vcat xs
+
+
+hasTagField :: DataRepr -> Bool
+hasTagField DataStruct = True
+hasTagField rep        = not (isValueData rep)
+
+-- Value data is not heap allocated and needs no header
+isValueData :: DataRepr -> Bool
+isValueData DataSingleStruct = True
+isValueData DataIso          = True
+isValueData DataEnum         = True
+isValueData DataStruct       = True   -- structs have a tag field though
+isValueData _                = False
+---------------------------------------------------------------------------------
+-- Types
+---------------------------------------------------------------------------------
+
+
+ppType :: Type -> Doc
+ppType tp
+  = case expandSyn tp of
+      TForall vars preds t
+        -> if (not (null vars))
+            then primitive ("TypeFun" ++ show (length vars))
+            else case expandSyn t of
+                   TFun pars eff res -> ppTypeFun preds pars eff res
+                   _                 -> ppType t
+      TFun pars eff res
+        -> ppTypeFun [] pars eff res
+
+      TApp t ts
+        -> ppType t
+      TCon c
+        -> ppTypeCon c (getKind tp)
+      TVar v
+        -> ppTypeVar v
+      TSyn syn args t
+        -> ppType t
+
+ppTypeCon c kind
+   = let name = typeConName c
+     in if (name == nameTpInt)
+         then text "integer"
+        else if (name == nameTpString)
+         then text "string"
+        else if (name == nameTpChar)
+         then text "int32_t"
+        else if (name == nameTpInt32)
+         then text "int32_t"
+        else if (name == nameTpFloat)
+         then text "double"
+        else if (name == nameTpBool)
+         then text "bool"
+        else ppName (typeClassName name)
+
+ppTypeVar v
+  = text ("box_t")
+
+ppTypeFun preds pars eff res
+  = text ("fun_t")
+
+primitive s
+  = text s
+
+
 
 ---------------------------------------------------------------------------------
 -- Statements
@@ -584,6 +709,7 @@ genMatch result scrutinees branches
                                              ( zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
 
+
 {-  -- | Generates assignments for the variables in the pattern
     genAssign :: (TName,Pattern) -> Asm [Doc]
     genAssign (TName n t,pattern)
@@ -607,6 +733,15 @@ genMatch result scrutinees branches
       = text "true"
     conjunction docs
       = hcat (intersperse (text " && ") docs)
+
+getConTag modName coninfo repr
+  = case repr of
+      ConOpen{} -> -- ppLit (LitString (show (openConTag (conInfoName coninfo))))
+                   let name = toOpenTagName (conInfoName coninfo)
+                   in ppName (if (qualifier name == modName) then unqualify name else name)
+      _ -> int (conTag repr)
+
+
 
 ---------------------------------------------------------------------------------
 -- Expressions that produce statements on their way
@@ -1031,7 +1166,7 @@ instance HasUnique Asm where
     = Asm (\env st -> (uniq st, st{ uniq = f (uniq st)}))
 
 updateSt f
-  = Asm (\env st -> (st,f st))
+  = Asm (\env st -> ((),f st))
 
 getSt
   = updateSt id
@@ -1040,7 +1175,7 @@ setSt st
   = updateSt (const st)
 
 
-emitToHeader doc
+emitToH doc
   = updateSt (\st -> st{hdoc = doc : hdoc st })
 emitToC doc
   = updateSt (\st -> st{cdoc = doc : cdoc st })
@@ -1145,7 +1280,7 @@ minSmallInt = -maxSmallInt
 ppName :: Name -> Doc
 ppName name
   = if isQualified name
-     then ppModName (qualifier name) <.> dot <.> encode False (unqualify name)
+     then ppModName (qualifier name) <.> text "_" <.> encode False (unqualify name)
      else encode False name
 
 ppQName :: Name -> Name -> Doc
@@ -1156,13 +1291,13 @@ ppQName modName name
 
 ppModName :: Name -> Doc
 ppModName name
-  = text "$" <.> encode True (name)
+  = text "__" <.> encode True (name)
 
 encode :: Bool -> Name -> Doc
 encode isModule name
   = let s = show name
     in if (isReserved s)
-         then text ('$' : s)
+         then text ("__" ++ s)
          else text ( (asciiEncode isModule s))
 
 isReserved :: String -> Bool

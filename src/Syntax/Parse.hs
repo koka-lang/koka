@@ -564,11 +564,11 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do let f kw  allowRec defsort
+  = do let f kw allowRec defsort
               =do (rng,doc) <- dockeyword kw
                   sort <- if (allowRec) then do{ keyword "rec"; return Retractive} <|> return defsort
                            else return defsort
-                  (ddef,isExtend) <- parseOpenExtend
+                  (ddef,isExtend) <- parseOpenExtend (sort == Inductive)
                   return (sort,rng,doc,ddef,isExtend)
        (f "type" True (Inductive)
         <|>
@@ -576,11 +576,13 @@ typeDeclKind
         <|>
         f "rectype" False (Retractive))
 
-parseOpenExtend :: LexParser (DataDef,Bool)
-parseOpenExtend
+parseOpenExtend :: Bool -> LexParser (DataDef,Bool)
+parseOpenExtend allowVal
   =   do{ specialId "open"; return (DataDefOpen, False) }
   <|> do{ specialId "extend"; return (DataDefOpen, True) }
-  <|> return (DataDefNormal, False)
+  <|> (if (allowVal)
+       then (do{ specialId "value"; return (DataDefValue 0 0, False) } <|> return (DataDefNormal, False))
+       else return (DataDefNormal, False))
   <?> ""
 
 typeKindParams

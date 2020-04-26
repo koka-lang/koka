@@ -83,13 +83,23 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefNormal | DataDefRec | DataDefOpen
+data DataDef = DataDefValue{ rawFields :: Int, totalFields :: Int }
+             | DataDefNormal
+             | DataDefRec
+             | DataDefOpen
              deriving Eq
 
+instance Show DataDef where
+  show dd = case dd of
+              DataDefValue m n -> "val" ++ show (m,n)
+              DataDefNormal    -> "normal"
+              DataDefRec       -> "rec"
+              DataDefOpen      -> "open"
 
 dataDefIsRec ddef
   = case ddef of
-      DataDefNormal -> False
+      DataDefValue{} -> False
+      DataDefNormal  -> False
       _  -> True
 
 dataDefIsOpen ddef

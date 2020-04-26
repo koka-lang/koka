@@ -383,7 +383,7 @@ extractFlags flagsInit options
   = let flags = foldl extract flagsInit options
     in case (JS `elem` targets flags) of  -- the maxStructFields prevents us from generating CS and JS at the same time...
          True -> flags{ maxStructFields = -1 }
-         _    -> case (CS `elem` targets flags) of
+         _    -> case (CS `elem` targets flags || C `elem` targets flags) of
                    True | maxStructFields flags < 0 -> flags{ maxStructFields = 3 }
                    _    -> flags
   where
