@@ -245,26 +245,26 @@ extractImport (name,qname)
   = gammaSingle name (InfoImport Private typeVoid name qname rangeNull)
 
 -- | Extract a Gamma from a Core module
-extractGamma :: Bool -> Core.Core -> Gamma
-extractGamma privateAsPublic (Core.Core name imports fixDefs tdefgroups defgroups externals doc)
+extractGamma :: (DataInfo -> Bool) -> Bool -> Core.Core -> Gamma
+extractGamma isValue privateAsPublic (Core.Core name imports fixDefs tdefgroups defgroups externals doc)
   = gammaUnions [gammaUnions (L.map (extractDefGroup updateVis) defgroups)
                 ,gammaUnions (L.map (extractExternal updateVis) externals)
-                ,gammaUnions (L.map (extractTypeDefGroup updateVis) tdefgroups)
+                ,gammaUnions (L.map (extractTypeDefGroup isValue updateVis) tdefgroups)
                 ]
   where
     updateVis Public  = Public
     updateVis Private = if (privateAsPublic) then Public else Private
 
 
-extractTypeDefGroup updateVis (Core.TypeDefGroup tdefs)
-  = gammaUnions (L.map (extractTypeDef updateVis) tdefs)
+extractTypeDefGroup isValue updateVis (Core.TypeDefGroup tdefs)
+  = gammaUnions (L.map (extractTypeDef isValue updateVis) tdefs)
 
-extractTypeDef updateVis tdef
+extractTypeDef isValue updateVis tdef
   = case tdef of
      Core.Data dataInfo isExtend
        -> gammaUnions (L.map extractConInfo
             [(conInfo, conRepr) | (conInfo,conRepr) <- zip (dataInfoConstrs dataInfo)
-                 (snd (Core.getDataRepr dataInfo))] )
+                 (snd (Core.getDataReprEx isValue dataInfo))] )
      _ -> gammaEmpty
   where
     extractConInfo (conInfo,conRepr)

@@ -73,7 +73,7 @@ import Type.Kind              ( containsHandledEffect, getHandledEffectX, extrac
 import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(..), gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
-import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath )
+import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
 
 import Compiler.Module
 
@@ -98,6 +98,7 @@ import Compiler.Package
 
 -- Debugging
 import Lib.Trace
+
 
 {--------------------------------------------------------------------------
   Compilation
@@ -534,7 +535,7 @@ resolveImports term flags currentDir loaded0 imports
        let load msg loaded []
              = return loaded
            load msg loaded (mod:mods)
-             = do let (loaded1,errs) = loadedImportModule loaded mod (rangeNull) (modName mod)
+             = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) (modName mod)
                   trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
@@ -803,6 +804,7 @@ inferCheck loaded flags line coreImports program1
   = do -- kind inference
        (defs, {- conGamma, -} kgamma, synonyms, newtypes, constructors, {- coreTypeDefs, coreExternals,-} coreProgram1, unique3, mbRangeMap1)
          <- inferKinds
+              (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
               (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
@@ -813,7 +815,7 @@ inferCheck loaded flags line coreImports program1
               program1
 
        let  gamma0  = gammaUnions [loadedGamma loaded
-                                  ,extractGamma True coreProgram1
+                                  ,extractGamma (isValueFromFlags flags) True coreProgram1
                                   ,extractGammaImports (importsList (loadedImportMap loaded)) (getName program1)
                                   ]
 

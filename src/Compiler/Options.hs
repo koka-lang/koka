@@ -17,6 +17,7 @@ module Compiler.Options( -- * Command line options
                        , prettyEnvFromFlags
                        , colorSchemeFromFlags
                        , prettyIncludePath
+                       , isValueFromFlags
                        ) where
 
 
@@ -32,7 +33,7 @@ import Common.ColorScheme
 import Common.File
 import Common.Syntax          ( Target (..), Host(..) )
 import Compiler.Package
-
+import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
   Convert flags to pretty environment
 --------------------------------------------------------------------------}
@@ -177,6 +178,9 @@ isVersion _      = False
 
 isInteractive Interactive = True
 isInteractive _ = False
+
+isValueFromFlags flags
+ = if (JS `elem` targets flags) then (const False) else dataInfoIsValue
 
 {--------------------------------------------------------------------------
   Options and environment variables

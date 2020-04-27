@@ -260,8 +260,6 @@ genTypeDef (Data info isExtend)
     ppStructConField con
       = text "struct" <+> ppName (typeClassName (conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
-dataInfoIsValue :: DataInfo -> Bool
-dataInfoIsValue info = dataDefIsValue (dataInfoDef info)
 
 genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
 genConstructorType info dataRepr (con,conRepr) =

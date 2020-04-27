@@ -37,6 +37,7 @@ import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCom
 import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma)
+import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
 
 import Syntax.RangeMap
@@ -118,8 +119,8 @@ modPackageQPath mod
 ---------------------------------------------------------------}
 
 
-loadedImportModule :: Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
-loadedImportModule (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
+loadedImportModule :: (DataInfo -> Bool) -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
+loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
   = -- trace ("loadedImport: " ++ show impName ++ " into " ++ show [mod | mod <- importsList imps1]) $
     let core = modCore mod
         (imps2,errs)
@@ -127,7 +128,7 @@ loadedImportModule (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 m
               Nothing   -> (imps1,[ErrorGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
               Just imps -> (imps,[])
         loaded
-          = Loaded (gammaUnion gamma1 (extractGamma False core))
+          = Loaded (gammaUnion gamma1 (extractGamma isValue False core))
                 (kgammaUnion kgamma1 (extractKGamma core))
                 (synonymsCompose syns1 (extractSynonyms core))
                 (newtypesCompose data1 (extractNewtypes core))

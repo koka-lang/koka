@@ -69,7 +69,8 @@ import Syntax.RangeMap
 --------------------------------------------------------------------------}
 -- | Kindcheck a program and calculate types
 inferKinds
-  :: ColorScheme      -- ^ Color scheme used for error messages
+  :: (DataInfo -> Bool) -- ^ is this a value type?
+  -> ColorScheme      -- ^ Color scheme used for error messages
   -> Maybe RangeMap   -- ^ possible range map for tool integration
   -> ImportMap        -- ^ Import aliases
   -> KGamma           -- ^ Initial kind kgamma
@@ -89,7 +90,7 @@ inferKinds
            , Int                  --  New unique
            , Maybe RangeMap
            )
-inferKinds colors mbRangeMap imports kgamma0 syns0 data0 unique0
+inferKinds isValue colors mbRangeMap imports kgamma0 syns0 data0 unique0
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
   = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
         (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
@@ -98,7 +99,7 @@ inferKinds colors mbRangeMap imports kgamma0 syns0 data0 unique0
         (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
         conInfos  = concatMap dataInfoConstrs dataInfos
         cons1     = constructorsFromList conInfos
-        gamma1    = constructorGamma dataInfos
+        gamma1    = constructorGamma isValue dataInfos
         errs4     = constructorCheckDuplicates colors conInfos
         errs      = errs1 ++ errs2 ++ errs3 ++ errs4
         warns     = warns1 ++ warns2 ++ warns3
@@ -267,9 +268,9 @@ synConstrTag (con)
 {---------------------------------------------------------------
   Types for constructors
 ---------------------------------------------------------------}
-constructorGamma :: [DataInfo] -> Gamma
-constructorGamma dataInfos
-  = conInfoGamma (concatMap (\info -> zip (dataInfoConstrs info) (snd (Core.getDataRepr info))) dataInfos)
+constructorGamma :: (DataInfo -> Bool) -> [DataInfo] -> Gamma
+constructorGamma isValue dataInfos
+  = conInfoGamma (concatMap (\info -> zip (dataInfoConstrs info) (snd (Core.getDataReprEx isValue info))) dataInfos)
   where
     conInfoGamma conInfos
       = gammaNew [(conInfoName conInfo,InfoCon (conInfoVis conInfo) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo)) | (conInfo,conRepr) <- conInfos]

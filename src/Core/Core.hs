@@ -58,7 +58,7 @@ module Core.Core ( -- Data structures
                    , isConNormal
                    , isConIso
                    , isDataStruct
-                   , getDataRepr
+                   , getDataRepr, getDataReprEx, dataInfoIsValue
                    , VarInfo(..)
 
                    , isMonType, isMonEffect
@@ -241,16 +241,22 @@ isConIso _ = False
 isDataStruct (DataStruct) = True
 isDataStruct _ = False
 
+dataInfoIsValue :: DataInfo -> Bool
+dataInfoIsValue info = dataDefIsValue (dataInfoDef info)
+
 getDataRepr :: DataInfo -> (DataRepr,[ConRepr])
 getDataRepr info
+  = getDataReprEx dataInfoIsValue info
+
+
+getDataReprEx :: (DataInfo -> Bool) -> DataInfo -> (DataRepr,[ConRepr])
+getDataReprEx getIsValue info
   = let typeName  = dataInfoName info
         conInfos = dataInfoConstrs info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         hasExistentials = any (\con -> not (null (conInfoExists con))) conInfos
-        isValue = case (dataInfoDef info) of
-                    DataDefValue _ _ -> True
-                    _ -> False
+        isValue = getIsValue info
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)

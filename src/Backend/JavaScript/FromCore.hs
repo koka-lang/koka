@@ -1,9 +1,8 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
---
--- This is free software; you can redistribute it and/or modify it under the
--- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+--Copyright 2012 Microsoft Corporation.  This is free software; you can
+--redistribute it and/or modify it under the terms of the Apache License,
+--Version 2.0. A copy of the License can be found in the file "license.txt" at
+--the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.JavaScript.FromCore
@@ -238,7 +237,7 @@ genTypeDef  (Synonym {})
   = return empty
 genTypeDef (Data info isExtend)
   = do modName <- getModule
-       let (dataRepr, conReprs) = getDataRepr info
+       let (dataRepr, conReprs) = getDataReprEx (const False) info
        docs <- mapM ( \(c,repr)  ->
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)
