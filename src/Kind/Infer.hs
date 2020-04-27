@@ -817,7 +817,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefNormal, DataDefValue m n) | n <= 3 && hasKindStarResult (getKind typeResult)
+                            (DataDefNormal, DataDefValue m n) | (m+n) <= 3 && hasKindStarResult (getKind typeResult)
                               -> trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
                                  return (DataDefValue m n)
                             _ -> return DataDefNormal
@@ -834,22 +834,24 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
       = do ddefs <- mapM (toDefValue nameDoc) conInfos
            maxDataDefs isVal nameDoc ddefs
 
-    toDefValue :: Doc -> ConInfo -> KInfer DataDef
+    toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
     toDefValue nameDoc con
       = do ddefs <- mapM (typeDataDef lookupDataInfo . snd) (conInfoParams con)
-           sumDataDefs nameDoc ddefs
+           dd <- sumDataDefs nameDoc ddefs
+           trace ("datadefs: " ++ show nameDoc ++ ": " ++ show ddefs ++ " to " ++ show dd) $
+             return dd
 
-    maxDataDefs :: Bool -> Doc -> [DataDef] -> KInfer DataDef
+    maxDataDefs :: Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
     maxDataDefs isVal nameDoc [] = return (if isVal then DataDefValue 1 0 else DataDefNormal)
-    maxDataDefs isVal nameDoc [dd] = return dd
+    maxDataDefs isVal nameDoc [(m,n)] = return (DataDefValue m n)
     maxDataDefs isVal nameDoc (dd:dds)
       = do dd2 <- maxDataDefs isVal nameDoc dds
            case (dd,dd2) of
-             (DataDefValue 0 0, DataDefValue m n)    -> return (DataDefValue m n)
-             (DataDefValue m n, DataDefValue 0 0)    -> return (DataDefValue m n)
-             (DataDefValue m1 0, DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
-             (DataDefValue 0 n1, DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
-             (DataDefValue m1 n1, DataDefValue m2 n2)
+             ((0,0), DataDefValue m n)    -> return (DataDefValue m n)
+             ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
+             ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
+             ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
+             ((m1,n1), DataDefValue m2 n2)
                -> do if (isVal)
                       then addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which mix raw types and regular types." <->
                                            text "hint: value types with multiple constructors must either use all raw types, or all regular types (use 'box' to use a raw type as a regular type).")
@@ -857,27 +859,23 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                      return (DataDefValue (max m1 m2) (max n1 n2))
              _ -> return DataDefNormal
 
-    sumDataDefs :: Doc -> [DataDef] -> KInfer DataDef
-    sumDataDefs nameDoc [] = return (DataDefValue 0 0)
+    sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)
+    sumDataDefs nameDoc [] = return (0,0)
     sumDataDefs nameDoc (dd:dds)
       = do case dd of
-             DataDefValue m n | m > 0 && m < n
+             DataDefValue m n | m > 0 && n > 0   -- mixed raw and scan fields?
                -> mapM_ (checkNoClash nameDoc m n) dds
              _ -> return ()
-           dd2 <- sumDataDefs nameDoc dds
-           case (dd,dd2) of
-            (DataDefValue m1 n1, DataDefValue m2 n2)
-              -> return (DataDefValue (m1+m2) (n1+n2))
-            (DataDefValue m n, DataDefNormal)
-              -> return (DataDefValue m (n+1))
-            (DataDefNormal, DataDefValue m n)
-              -> return (DataDefValue m (n+1))
-            _ -> return DataDefNormal
+           (m2,n2) <- sumDataDefs nameDoc dds
+           case (dd) of
+            DataDefValue m1 n1
+              -> return (m1+m2, n1+n2)
+            _ -> return (m2, n2+1)
 
     checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
     checkNoClash nameDoc m1 n1 dd
       = case dd of
-          DataDefValue m2 n2 | m2 > 0 && m2 < n2
+          DataDefValue m2 n2 | m2 > 0 && n2 > 0
             -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
                                   text ("hint: use 'box' on either field to make it a non-value type."))
           _ -> return ()
@@ -892,8 +890,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   case mbdi of
                     Nothing  -> failure ("Kind.Infer.resolve data def: unknown type: " ++ show name);
                     Just di  -> return (dataInfoDef di)
-          TApp t _ -> typeDataDef lookupDataInfo t
-          _        -> return DataDefNormal
+          TApp t _      -> typeDataDef lookupDataInfo t
+          TForall _ _ t -> typeDataDef lookupDataInfo t
+          _             -> return DataDefNormal
 
 
 occursNegativeCon :: [Name] -> ConInfo -> Bool

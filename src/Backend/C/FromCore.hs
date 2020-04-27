@@ -19,6 +19,7 @@ import Data.Char
 import qualified Data.Set as S
 
 import Kind.Kind
+import Kind.Newtypes
 import Type.Type
 import Type.TypeVar
 import Type.Kind( getKind )
@@ -57,9 +58,9 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: Maybe (Name,Bool) -> Core -> (Doc,Doc)
-cFromCore mbMain core
-  = case runAsm (Env moduleName penv externalNames False) (genModule mbMain core) of
+cFromCore :: Newtypes -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
+cFromCore newtypes mbMain core
+  = case runAsm (Env moduleName penv externalNames newtypes False) (genModule mbMain core) of
       ((),cdoc,hdoc) -> (cdoc,hdoc)
   where
     moduleName = coreProgName core
@@ -211,66 +212,70 @@ genTypeDef (Synonym synInfo)
   = return ()
 genTypeDef (Data info isExtend)
   = do -- generate the type constructor
-       ctx <- getModule
        emitToH $ linebreak <.> text ("// " ++ if (dataInfoIsValue info) then "value type" else "type") <+> pretty (dataInfoName info)
-       case getDataRepr info of
-         (DataEnum,conReprs)
-           -> emitToH $ ppVis (dataInfoVis info) <+> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
-                        block (vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
+       let (dataRepr,conReprs) = getDataRepr info
+           noCons = null conReprs
+           name   = (dataInfoName info)
 
-         (dataRepr,conReprs)
-           -> do let noCons = null conReprs
-                     name   = typeClassName (dataInfoName info)
-                 trace ("type " ++ show name ++ ": " ++ show dataRepr ++ ": " ++ show conReprs) $ return ()
-                 -- if (isExtend) then return ()
-                 -- generate the type
-                 if (dataReprIsValue dataRepr || isExtend)
-                    then return ()
-                        --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
-                    else emitToH $ ppVis (dataInfoVis info) <+> text "typedef datatype_t"
-                                   <+> ppName name <.> semi
-                                   <-> text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
+       trace ("type " ++ show name ++ ": " ++ show dataRepr ++ ": " ++ show conReprs) $ return ()
+       -- if (isExtend) then return ()
+       -- generate the type
+       if (dataRepr == DataEnum)
+        then emitToH $ ppVis (dataInfoVis info) <+> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
+                       block (vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
+        else if (dataReprIsValue dataRepr || isExtend)
+          then return ()
+              --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
+          else emitToH $ ppVis (dataInfoVis info) <+> text "typedef datatype_t"
+                         <+> ppName (typeClassName name) <.> semi
+                         <-> text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
 
-                 -- generate types for constructors
-                 mapM_ (genConstructorType info dataRepr) (zip (dataInfoConstrs info) conReprs)
+       -- order fields of constructors to have their scan fields first
+       let conInfoReprs = zip (dataInfoConstrs info) conReprs
+       conInfos <- mapM (\(conInfo,conRepr) -> do (fields,scanCount) <- orderConFields (dataInfoDef info) (conInfoParams conInfo)
+                                                  return (conInfo,conRepr,fields,scanCount)) conInfoReprs
+       -- generate types for constructors
+       if (dataRepr == DataEnum)
+        then return ()
+        else mapM_ (genConstructorType info dataRepr) conInfos
 
-                 -- wrap up the type definition
-                 if (dataReprIsValue dataRepr)
-                    then emitToH $ if (isDataStruct dataRepr)
-                          then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
-                               <-> block (text "datatype_tag_t _tag;" <-> text "union _cons"
-                                          <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <.> semi) <.> semi
-                               <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName name <.> semi
-                          else ppVis (dataInfoVis info) <+> text "typedef struct"
-                               <+> (case (dataRepr,dataInfoConstrs info) of
-                                      (DataIso,[con])          -> ppName (typeClassName (conInfoName con))
-                                      (DataSingleStruct,[con]) -> ppName (typeClassName (conInfoName con))
-                                      _                        -> ppName name <.> text "_s")
-                               <+> ppName name <.> semi
-                    else return ()
+       -- wrap up the type definition
+       if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
+        then return ()
+        else emitToH $ if (isDataStruct dataRepr)
+                then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
+                     <-> block (text "datatype_tag_t _tag;" <-> text "union"
+                                <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
+                     <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
+                else ppVis (dataInfoVis info) <+> text "typedef struct"
+                     <+> (case (dataRepr,dataInfoConstrs info) of
+                            (DataIso,[con])          -> ppName ((conInfoName con))
+                            (DataSingleStruct,[con]) -> ppName ((conInfoName con))
+                            _                        -> ppName name <.> text "_s")
+                     <+> ppName (typeClassName name) <.> semi
 
-                 -- generate types for constructors
-                 emitToH empty
-                 mapM_ (genConstructor info dataRepr) (zip (dataInfoConstrs info) conReprs)
+       -- generate functions for constructors
+       emitToH empty
+       mapM_ (genConstructor info dataRepr) conInfos
 
   where
     ppEnumCon (con,conRepr)
       = ppName (conInfoName con) <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
 
     ppStructConField con
-      = text "struct" <+> ppName (typeClassName (conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
+      = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
 
-genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
-genConstructorType info dataRepr (con,conRepr) =
+genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
+genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
   case conRepr of
     ConEnum _ _
        -> return () -- already in enum declaration
-    _ | null (conInfoParams con) && (dataRepr < DataNormal && not (isDataStruct dataRepr))
-       -> do emitToH $ ppVis (conInfoVis con) <+> text "#define" <+> ppName (typeClassName (conInfoName con))
+    _ | null conFields && (dataRepr < DataNormal && not (isDataStruct dataRepr))
+       -> do emitToH $ ppVis (conInfoVis con) <+> text "#define" <+> ppName ((conInfoName con))
                        <+> text " datatype_enum(" <.> pretty (conTag (conRepr)) <.> text ")"
-    _  -> do emitToH $ ppVis (conInfoVis con) <+> text "struct" <+> ppName (typeClassName (conInfoName con)) <+>
-                       block (vcat (typeField ++ map ppConField (conInfoParams con))) <.> semi
+    _  -> do emitToH $ ppVis (conInfoVis con) <+> text "struct" <+> ppName ((conInfoName con)) <+>
+                       block (vcat (typeField ++ map ppConField conFields)) <.> semi
   where
     typeField  = if (dataReprIsValue dataRepr) then []
                   else [text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> text "_type;"]
@@ -279,8 +284,14 @@ ppConField :: (Name,Type) -> Doc
 ppConField (name,tp)
   = ppType tp <+> ppName (unqualify name) <.> semi
 
-genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
-genConstructor info dataRepr (con,conRepr)
+genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
+genConstructor info dataRepr (con,conRepr,conFields,scanCount)
+  = do genConstructorTest info dataRepr con conRepr
+       genConstructorCreate info dataRepr con conRepr conFields scanCount
+
+
+genConstructorTest :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
+genConstructorTest info dataRepr con conRepr
   = emitToH $
     (if (dataRepr/=DataOpen) then empty else
       text "extern tag_t" <+> ppName (makeHiddenName "tag" (conInfoName con)) <.> semi <.> linebreak
@@ -288,23 +299,103 @@ genConstructor info dataRepr (con,conRepr)
     <.> text "static inline bool" <+> ppName (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
     <+> block( text "return (" <.> (
     let nameDoc = ppName (conInfoName con)
-        tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+        -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
         dataTypeTagDoc = text "datatype_tag(x)"
     in case conRepr of
-      ConEnum{}      -> text "x ==" <+> tagDoc
+      ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
       ConIso{}       -> text "true"
       ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
-                     | otherwise -> text "x ==" <+> tagDoc
+                     | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
       ConSingle{}    -> text "true"
-      ConStruct{}    -> text "x._tag ==" <+> tagDoc
+      ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
       ConAsCons{}    -> text "datatype_is_ptr(x)"
       ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
-                     | otherwise -> dataTypeTagDoc <+> text "==" <+> pretty (conTag conRepr)
-      ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppName (makeHiddenName "tag" (conInfoName con))
-    ) <.> text ")")
+                     | otherwise -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+      ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+    ) <.> text ");")
 
 conTestName con
   = makeHiddenName "is" (conInfoName con)
+
+ppConTag con conRepr dataRepr
+  = case conRepr of
+      ConOpen{} ->  ppName (makeHiddenName "tag" (conInfoName con))
+      ConEnum{} ->  ppName (conInfoName con)
+      ConSingleton{} | dataRepr == DataAsList -> ppName ((conInfoName con))
+      _         | dataRepr == DataStruct -> text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+      _         ->  pretty (conTag conRepr)
+
+genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
+genConstructorCreate info dataRepr con conRepr conFields scanCount
+  = do if (null conFields)
+         then do emitToH $ text "extern" <+> ppName (typeClassName (dataInfoName info)) <+> conSingletonName con <.> semi
+         else return ()
+       emitToH $
+          text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateName con
+          <.> parameters (conInfoParams con)
+          <.> block (
+            let nameDoc = ppName (conInfoName con)
+                -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+            in case conRepr of
+              ConEnum{}      -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
+              ConIso{}       -> text "return {" <.> ppDefName (fst (head conFields)) <.> text "};"  -- return as wrapped struct
+              ConSingleton{} | dataRepr == DataAsList -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
+              _ -> let tmp = text "_con"
+                       assignField f (name,tp) = f (ppDefName name) <+> text "=" <+> ppDefName name <.> semi
+                   in if (dataReprIsValue dataRepr)
+                    then vcat([ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
+                              ++ (if (hasTagField dataRepr)
+                                   then [tmp <.> text "._tag = " <.> ppConTag con conRepr dataRepr <.> text ";"]
+                                        ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
+                                   else map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
+                                 )
+                              ++ [text "return" <+> tmp <.> semi])
+                    else if (null conFields)
+                     then text "return datatype_ptr(&" <.> conSingletonName con <.> text ");"
+                     else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
+                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount, ppConTag con conRepr dataRepr]
+                               <.> semi]
+                              ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
+                              ++ [text "return datatype_ptr(" <.> tmp <.> text ");"])
+          )
+
+conCreateName :: ConInfo -> Doc
+conCreateName con = ppName (makeHiddenName "new" (conInfoName con))
+
+conSingletonName :: ConInfo -> Doc
+conSingletonName con = ppName (makeHiddenName "singleton" (conInfoName con))
+
+parameters :: [(Name,Type)] -> Doc
+parameters []
+  = text "(void)"
+parameters pars
+  = tupled (map param pars)
+  where
+    param (name,tp) = ppType tp <+> ppName (unqualify name)
+
+-- order constructor fields of constructors with raw field so the regular fields
+-- come first to be scanned.
+-- TODO: adjust scan count for added "tag_t" members in structs with multiple constructors
+orderConFields :: DataDef -> [(Name,Type)] -> Asm ([(Name,Type)],Int)
+orderConFields ddef fields
+  = visit ([],[],0) fields
+  where
+    visit (rraw, rscan, scanCount) []
+      = do case ddef of
+             DataDefValue raw scan | scanCount > scan
+               -> failure $ "Backend.C.FromCore.orderConFields: scan count seems wrong: " ++ show scanCount ++ " vs " ++ show (raw,scan) ++ ", in " ++ show fields
+             _ -> return (reverse rscan ++ reverse rraw, scanCount)
+    visit (rraw,rscan,scanCount) (field@(name,tp) : fs)
+      = do dd <- getDataDef tp
+           case dd of
+             DataDefValue raw scan
+               -> if (raw > 0 && scan > 0)
+                   then -- mixed raw,total: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
+                        visit (rraw ++ [field], rscan, scanCount + scan) fs
+                   else if (raw > 0)
+                         then visit (field:rraw, rscan, scanCount) fs
+                         else visit (rraw, field:rscan, scanCount + scan) fs
+             _ -> visit (rraw, field:rscan, scanCount + 1) fs
 
 
 ppVis :: Visibility -> Doc
@@ -1134,18 +1225,20 @@ runAsm initEnv (Asm asm)
 data St  = St  { uniq :: Int
                , hdoc :: [Doc]  -- h file in reverse
                , cdoc :: [Doc]  -- c file in reverse
+               , idoc :: [Doc]  -- initialization expressions
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
                , prettyEnv         :: Pretty.Env              -- | for printing nice types
                , substEnv          :: [(TName, Doc)]          -- | substituting names
+               , newtypes          :: Newtypes
                , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
                }
 
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign Name (Maybe Name)    -- variable name and optional label to break
 
-initSt = St 0 [] []
+initSt = St 0 [] [] []
 
 instance HasUnique Asm where
   updateUnique f
@@ -1165,6 +1258,8 @@ emitToH doc
   = updateSt (\st -> st{hdoc = doc : hdoc st })
 emitToC doc
   = updateSt (\st -> st{cdoc = doc : cdoc st })
+emitToInit doc
+  = updateSt (\st -> st{idoc = doc : idoc st })
 
 getEnv
   = Asm (\env st -> (env, st))
@@ -1216,6 +1311,29 @@ getInStatement :: Asm Bool
 getInStatement
   = do env <- getEnv
        return (inStatement env)
+
+getNewtypes :: Asm Newtypes
+getNewtypes
+  = do env <- getEnv
+       return (newtypes env)
+
+
+getDataDef :: Type -> Asm DataDef
+getDataDef tp
+  = case extractDataDefType tp of
+      Nothing -> return DataDefNormal
+      Just name -> do newtypes <- getNewtypes
+                      case newtypesLookup name newtypes of
+                        Nothing -> failure $ "Backend.C.FromCore.getDataDef: cannot find type: " ++ show name
+                        Just di -> return (dataInfoDef di)
+
+extractDataDefType tp
+  = case expandSyn tp of
+      TApp t _      -> extractDataDefType t
+      TForall _ _ t -> extractDataDefType t
+      TCon tc       -> Just (typeConName tc)
+      _             -> Nothing
+
 
 ---------------------------------------------------------------------------------
 -- Pretty printing

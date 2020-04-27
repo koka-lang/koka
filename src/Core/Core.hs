@@ -1,4 +1,4 @@
-  -----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 -- Copyright 2012 Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the

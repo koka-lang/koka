@@ -83,7 +83,7 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefValue{ rawFields :: Int, totalFields :: Int }
+data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
              | DataDefNormal
              | DataDefRec
              | DataDefOpen

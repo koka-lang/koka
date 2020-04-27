@@ -64,7 +64,7 @@ import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
 
 import Kind.ImportMap
-import Kind.Newtypes          ( newtypesCompose )
+import Kind.Newtypes          ( Newtypes, newtypesCompose )
 import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
@@ -1020,7 +1020,7 @@ codeGen term flags compileTarget loaded
     concatMaybe :: [Maybe a] -> [a]
     concatMaybe mbs  = concatMap (maybe [] (\x -> [x])) mbs
 
-    backends = [codeGenCS, codeGenJS, codeGenC]
+    backends = [codeGenCS, codeGenJS, codeGenC (loadedNewtypes loaded)]
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1144,16 +1144,16 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 
-codeGenC :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenC :: Newtypes -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 --codeGenC term flags modules compileTarget outBase core  | not (C `elem` targets flags)
 -- = return Nothing
-codeGenC term flags modules compileTarget outBase core
+codeGenC newtypes term flags modules compileTarget outBase core
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (cdoc,hdoc) = cFromCore mbEntry core
+      let (cdoc,hdoc) = cFromCore newtypes mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc
