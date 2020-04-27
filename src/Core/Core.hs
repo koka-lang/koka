@@ -207,17 +207,14 @@ flattenTypeDefGroups tdgs = concatMap (\(TypeDefGroup tdg) -> tdg) tdgs
   Data representation
 --------------------------------------------------------------------------}
 data DataRepr = -- value types
-                DataEnum            -- only singletons
-              | DataIso             -- only one constructor with one field
-              -- single constructor with fields
-              | DataSingleStruct    -- only one constructor; value type
-              | DataStruct          -- value type, compatible constructors (all raw or regular types) and possibly singletons
+                DataEnum            -- only singletons (as an enumeration)
+              | DataIso             -- only one constructor with one field  (isomorpic)
+              | DataSingleStruct    -- only one constructor (no tag needed)
+              | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
-              -- single constructor with fields
-              | DataSingle          -- only one constructor
-              | DataAsList          -- one constructor with fields, and one singleton
-              | DataSingleNormal    -- one constructor with fields, and multiple singletons
-              -- normal
+              | DataSingle          -- only one constructor (no tag needed)
+              | DataAsList          -- one constructor with fields, and one singleton (can distinguish pointer vs enum)
+              | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal
               | DataOpen
               deriving (Eq,Ord,Show)
