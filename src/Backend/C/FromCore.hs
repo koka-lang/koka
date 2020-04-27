@@ -57,22 +57,22 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
-cFromCore maxStructFields mbMain core
-  = case runAsm (Env moduleName penv externalNames False) (genModule maxStructFields mbMain core) of
+cFromCore :: Maybe (Name,Bool) -> Core -> (Doc,Doc)
+cFromCore mbMain core
+  = case runAsm (Env moduleName penv externalNames False) (genModule mbMain core) of
       ((),cdoc,hdoc) -> (cdoc,hdoc)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Int -> Maybe (Name,Bool) -> Core -> Asm ()
-genModule maxStructFields mbMain core
+genModule :: Maybe (Name,Bool) -> Core -> Asm ()
+genModule mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
             headComment = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
         emitToC $ headComment
         emitToH $ headComment
                   <-> text "// type declarations"
-        genTypeDefs maxStructFields (coreProgTypeDefs core)
+        genTypeDefs (coreProgTypeDefs core)
         -- decls2 <- genGroups defs
         {-
         let imports = map importName (coreProgImports core)
@@ -197,23 +197,23 @@ tryFunDef name comment expr
 -- Generate value constructors for each defined type
 ---------------------------------------------------------------------------------
 
-genTypeDefs :: Int -> TypeDefGroups -> Asm ()
-genTypeDefs maxStructFields groups
-  = mapM_ (genTypeDefGroup maxStructFields) groups
+genTypeDefs :: TypeDefGroups -> Asm ()
+genTypeDefs groups
+  = mapM_ (genTypeDefGroup) groups
 
 
-genTypeDefGroup :: Int -> TypeDefGroup -> Asm ()
-genTypeDefGroup maxStructFields (TypeDefGroup tds)
-  = mapM_ (genTypeDef maxStructFields) tds
+genTypeDefGroup :: TypeDefGroup -> Asm ()
+genTypeDefGroup (TypeDefGroup tds)
+  = mapM_ (genTypeDef) tds
 
-genTypeDef :: Int -> TypeDef -> Asm ()
-genTypeDef maxStructFields (Synonym synInfo)
+genTypeDef :: TypeDef -> Asm ()
+genTypeDef (Synonym synInfo)
   = return ()
-genTypeDef maxStructFields (Data info isExtend)
+genTypeDef (Data info isExtend)
   = do -- generate the type constructor
        ctx <- getModule
        emitToH $ text "// type" <+> pretty (dataInfoName info)
-       case getDataRepr maxStructFields info of
+       case getDataRepr info of
          (DataEnum,_)
            -> emitToH $ ppVis (dataInfoVis info) <+> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
                         block (vcat (punctuate comma (map ppEnumCon (dataInfoConstrs info)))) <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
@@ -221,7 +221,7 @@ genTypeDef maxStructFields (Data info isExtend)
          (dataRepr,conReprs)
            -> do let noCons = null conReprs
                      name   = typeClassName (dataInfoName info)
-                 trace ("type " ++ show name ++ ": " ++ show maxStructFields ++ ", "++ show dataRepr ++ ": " ++ show conReprs) $ return ()
+                 trace ("type " ++ show name ++ ": " ++ show dataRepr ++ ": " ++ show conReprs) $ return ()
                  -- if (isExtend) then return ()
                  -- generate the type
                  emitToH (ppVis (dataInfoVis info) <+> text "typedef struct"

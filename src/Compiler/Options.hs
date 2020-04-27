@@ -104,7 +104,6 @@ data Flags
          , node             :: FileName
          , editor           :: String
          , redirectOutput   :: FileName
-         , maxStructFields  :: Int
          , outHtml          :: Int
          , htmlBases        :: [(String,String)]
          , htmlCss          :: String
@@ -150,7 +149,6 @@ flagsNull
           "node"
           ""
           ""
-          3        -- max struct fields
           0
           []
           ("styles/" ++ programName ++ ".css")
@@ -238,7 +236,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hiddenNumOption 320 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hiddenNumOption 10 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
  , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
- , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
  , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
  ]
  where
@@ -381,11 +378,7 @@ processOptions flags0 opts
 extractFlags :: Flags -> [Option] -> Flags
 extractFlags flagsInit options
   = let flags = foldl extract flagsInit options
-    in case (JS `elem` targets flags) of  -- the maxStructFields prevents us from generating CS and JS at the same time...
-         True -> flags{ maxStructFields = -1 }
-         _    -> case (CS `elem` targets flags || C `elem` targets flags) of
-                   True | maxStructFields flags < 0 -> flags{ maxStructFields = 3 }
-                   _    -> flags
+    in flags
   where
     extract flags (Flag f)  = f flags
     extract flags _         = flags

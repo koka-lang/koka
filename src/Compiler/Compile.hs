@@ -534,7 +534,7 @@ resolveImports term flags currentDir loaded0 imports
        let load msg loaded []
              = return loaded
            load msg loaded (mod:mods)
-             = do let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (rangeNull) (modName mod)
+             = do let (loaded1,errs) = loadedImportModule loaded mod (rangeNull) (modName mod)
                   trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
@@ -803,7 +803,7 @@ inferCheck loaded flags line coreImports program1
   = do -- kind inference
        (defs, {- conGamma, -} kgamma, synonyms, newtypes, constructors, {- coreTypeDefs, coreExternals,-} coreProgram1, unique3, mbRangeMap1)
          <- inferKinds
-              (colorSchemeFromFlags flags) (maxStructFields flags)
+              (colorSchemeFromFlags flags)
               (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
               (loadedKGamma loaded)
@@ -813,7 +813,7 @@ inferCheck loaded flags line coreImports program1
               program1
 
        let  gamma0  = gammaUnions [loadedGamma loaded
-                                  ,extractGamma True (maxStructFields flags) coreProgram1
+                                  ,extractGamma True coreProgram1
                                   ,extractGammaImports (importsList (loadedImportMap loaded)) (getName program1)
                                   ]
 
@@ -1030,7 +1030,7 @@ codeGenCSDll term flags modules compileTarget outBase core
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
-           cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
+           cs  = csharpFromCore (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
@@ -1063,7 +1063,7 @@ codeGenCS term flags modules compileTarget outBase core
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
-           cs  = csharpFromCore (maxStructFields flags) (enableMon flags) mbEntry core
+           cs  = csharpFromCore (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
@@ -1094,7 +1094,7 @@ codeGenJS term flags modules compileTarget outBase core
        let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
-       let js    = javascriptFromCore (maxStructFields flags) mbEntry core
+       let js    = javascriptFromCore mbEntry core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
        when (showAsmJS flags) (termDoc term js)
@@ -1151,7 +1151,7 @@ codeGenC term flags modules compileTarget outBase core
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (cdoc,hdoc) = cFromCore (3 {-maxStructFields flags-}) mbEntry core
+      let (cdoc,hdoc) = cFromCore mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc

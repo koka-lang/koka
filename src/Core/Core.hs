@@ -206,13 +206,18 @@ flattenTypeDefGroups tdgs = concatMap (\(TypeDefGroup tdg) -> tdg) tdgs
 {--------------------------------------------------------------------------
   Data representation
 --------------------------------------------------------------------------}
-data DataRepr = DataEnum            -- only singletons
+data DataRepr = -- value types
+                DataEnum            -- only singletons
               | DataIso             -- only one constructor with one field
-              | DataSingleStruct    -- only one constructor; it has  less than max-struct fields
+              -- single constructor with fields
+              | DataSingleStruct    -- only one constructor; value type
+              | DataStruct          -- value type, compatible constructors (all raw or regular types) and possibly singletons
+              -- non-value types
+              -- single constructor with fields
               | DataSingle          -- only one constructor
               | DataAsList          -- one constructor with fields, and one singleton
-              | DataSingleNormal    -- one constructor with fields, and possibly singletons
-              | DataStruct          -- one constructor with non-recursive fields <= max-struct fields, and possibly singletons
+              | DataSingleNormal    -- one constructor with fields, and multiple singletons
+              -- normal
               | DataNormal
               | DataOpen
               deriving (Eq,Ord,Show)
@@ -239,31 +244,35 @@ isConIso _ = False
 isDataStruct (DataStruct) = True
 isDataStruct _ = False
 
-getDataRepr :: Int -> DataInfo -> (DataRepr,[ConRepr])
-getDataRepr maxStructFields info
+getDataRepr :: DataInfo -> (DataRepr,[ConRepr])
+getDataRepr info
   = let typeName  = dataInfoName info
         conInfos = dataInfoConstrs info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         hasExistentials = any (\con -> not (null (conInfoExists con))) conInfos
+        isValue = case (dataInfoDef info) of
+                    DataDefValue _ _ -> True
+                    _ -> False
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
-         else if (hasExistentials)
-          then (DataNormal, map (\con -> ConNormal typeName) conInfos)
-         else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
+         -- TODO: only for C#? check this during kind inference?
+         -- else if (hasExistentials)
+         --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
+         else if (isValue && null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos
-               in (if (length (conInfoParams conInfo) == 1)
+               in (if (isValue && length (conInfoParams conInfo) == 1)
                     then DataIso
-                   else if (length (conInfoParams conInfo) <= maxStructFields && null singletons && not (dataInfoIsRec info))
+                   else if (isValue && null singletons && not (dataInfoIsRec info))
                     then DataSingleStruct
                     else DataSingle
-                  ,[if (length (conInfoParams conInfo) == 1) then ConIso typeName
+                  ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName
                     else if length singletons == 1 then ConSingleton typeName
                     else ConSingle typeName])
-         else if (length singletons == length conInfos-1 && length (concatMap conInfoParams conInfos) <= maxStructFields && not (dataInfoIsRec info))
+         else if (isValue && not (dataInfoIsRec info))
           then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
          else if (length conInfos == 2 && length singletons == 1)
           then (DataAsList

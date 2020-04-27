@@ -47,9 +47,9 @@ import Type.Pretty(defaultEnv)
 -- Generate CSharp code from System-F
 --------------------------------------------------------------------------
 
-csharpFromCore :: Int -> Bool -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore maxStructFields useCps mbMain core
-  = let body = runAsm initEnv (genProgram maxStructFields core)
+csharpFromCore :: Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore useCps mbMain core
+  = let body = runAsm initEnv (genProgram core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->
        text "#pragma warning disable 162 // unreachable code" <->
@@ -110,9 +110,9 @@ ppMain name tp
                    -> angled (map (\_ -> text "object") pars)
                  _ -> empty
 
-genProgram :: Int -> Core -> Asm ()
-genProgram maxStructFields core
-  = do mapM_ (genTypeDefGroup maxStructFields) (coreProgTypeDefs core)
+genProgram :: Core -> Asm ()
+genProgram core
+  = do mapM_ (genTypeDefGroup ) (coreProgTypeDefs core)
        mapM_ genDefGroup (coreProgDefs core)
 
 
@@ -122,8 +122,8 @@ genProgram maxStructFields core
 -- Type definitions
 ---------------------------------------------------------------------------------
 
-genTypeDefGroup msf (TypeDefGroup tdefs)
-  = mapM_ (genTypeDef msf) tdefs
+genTypeDefGroup (TypeDefGroup tdefs)
+  = mapM_ (genTypeDef) tdefs
 
 
 
@@ -141,15 +141,15 @@ hasTagField DataNormal = True
 hasTagField DataStruct = True
 hasTagField _          = False
 
-genTypeDef :: Int -> TypeDef -> Asm ()
-genTypeDef maxStructFields (Synonym synInfo)
+genTypeDef :: TypeDef -> Asm ()
+genTypeDef (Synonym synInfo)
   = return ()
-genTypeDef maxStructFields (Data info isExtend)
+genTypeDef (Data info isExtend)
   = onTopLevel $
     do -- generate the type constructor
        ctx <- getModule
        putLn $ text "// type" <+> pretty (dataInfoName info)
-       case getDataRepr maxStructFields info of
+       case getDataRepr info of
          (DataEnum,_)
            -> do putLn (ppVis (dataInfoVis info) <+> text "enum" <+> ppDefName (typeClassName (dataInfoName info)) <+>
                       block (vcatBreak (punctuate comma (map ppEnumCon (dataInfoConstrs info))))

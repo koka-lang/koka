@@ -58,19 +58,19 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-javascriptFromCore :: Int -> Maybe (Name,Bool) -> Core -> Doc
-javascriptFromCore maxStructFields mbMain core
-  = runAsm (Env moduleName penv externalNames False) (genModule maxStructFields mbMain core)
+javascriptFromCore :: Maybe (Name,Bool) -> Core -> Doc
+javascriptFromCore mbMain core
+  = runAsm (Env moduleName penv externalNames False) (genModule mbMain core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Int -> Maybe (Name,Bool) -> Core -> Asm Doc
-genModule maxStructFields mbMain core
+genModule :: Maybe (Name,Bool) -> Core -> Asm Doc
+genModule mbMain core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
         decls0 <- genGroups tagDefs
-        decls1 <- genTypeDefs maxStructFields (coreProgTypeDefs core)
+        decls1 <- genTypeDefs (coreProgTypeDefs core)
         decls2 <- genGroups defs
         let imports = map importName (coreProgImports core)
             (mainEntry,mainImports) = case mbMain of
@@ -223,22 +223,22 @@ tryFunDef name comment expr
 -- Generate value constructors for each defined type
 ---------------------------------------------------------------------------------
 
-genTypeDefs :: Int -> TypeDefGroups -> Asm Doc
-genTypeDefs maxStructFields groups
-  = do docs <- mapM (genTypeDefGroup maxStructFields) groups
+genTypeDefs :: TypeDefGroups -> Asm Doc
+genTypeDefs groups
+  = do docs <- mapM (genTypeDefGroup) groups
        return (vcat docs)
 
-genTypeDefGroup :: Int -> TypeDefGroup -> Asm Doc
-genTypeDefGroup maxStructFields (TypeDefGroup tds)
-  = do docs <- mapM (genTypeDef maxStructFields) tds
+genTypeDefGroup :: TypeDefGroup -> Asm Doc
+genTypeDefGroup (TypeDefGroup tds)
+  = do docs <- mapM (genTypeDef) tds
        return (vcat docs)
 
-genTypeDef :: Int -> TypeDef -> Asm Doc
-genTypeDef maxStructFields (Synonym {})
+genTypeDef ::TypeDef -> Asm Doc
+genTypeDef  (Synonym {})
   = return empty
-genTypeDef maxStructFields (Data info isExtend)
+genTypeDef (Data info isExtend)
   = do modName <- getModule
-       let (dataRepr, conReprs) = getDataRepr maxStructFields info
+       let (dataRepr, conReprs) = getDataRepr info
        docs <- mapM ( \(c,repr)  ->
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)

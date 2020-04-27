@@ -118,8 +118,8 @@ modPackageQPath mod
 ---------------------------------------------------------------}
 
 
-loadedImportModule :: Int -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
-loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
+loadedImportModule :: Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
+loadedImportModule (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
   = -- trace ("loadedImport: " ++ show impName ++ " into " ++ show [mod | mod <- importsList imps1]) $
     let core = modCore mod
         (imps2,errs)
@@ -127,7 +127,7 @@ loadedImportModule msf (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 uniqu
               Nothing   -> (imps1,[ErrorGeneral range (text "Module" <+> pretty impName <+> text "is already imported")])
               Just imps -> (imps,[])
         loaded
-          = Loaded (gammaUnion gamma1 (extractGamma False msf core))
+          = Loaded (gammaUnion gamma1 (extractGamma False core))
                 (kgammaUnion kgamma1 (extractKGamma core))
                 (synonymsCompose syns1 (extractSynonyms core))
                 (newtypesCompose data1 (extractNewtypes core))
