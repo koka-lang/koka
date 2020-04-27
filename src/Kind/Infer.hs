@@ -839,7 +839,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            sumDataDefs nameDoc ddefs
 
     maxDataDefs :: Bool -> Doc -> [DataDef] -> KInfer DataDef
-    maxDataDefs isVal nameDoc [] = return (DataDefValue 1 1) -- (if isVal then DataDefValue 1 0 else DataDefNormal)
+    maxDataDefs isVal nameDoc [] = return (if isVal then DataDefValue 1 0 else DataDefNormal)
     maxDataDefs isVal nameDoc [dd] = return dd
     maxDataDefs isVal nameDoc (dd:dds)
       = do dd2 <- maxDataDefs isVal nameDoc dds
@@ -859,12 +859,12 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     sumDataDefs :: Doc -> [DataDef] -> KInfer DataDef
     sumDataDefs nameDoc [] = return (DataDefValue 0 0)
     sumDataDefs nameDoc (dd:dds)
-      = do dd2 <- sumDataDefs nameDoc dds
+      = do case dd of
+             DataDefValue m n | m > 0 && m < n
+               -> mapM_ (checkNoClash nameDoc m n) dds
+             _ -> return ()
+           dd2 <- sumDataDefs nameDoc dds
            case (dd,dd2) of
-            (DataDefValue m1 n1, DataDefValue m2 n2)  | (m1 > 0 || m2 > 0) && m1 < n1 && m2 < n2
-               -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
-                                     text "hint: use 'box' on either field to make it a non-value type.")
-                     return (DataDefValue (m1+m2) (n1+n2))
             (DataDefValue m1 n1, DataDefValue m2 n2)
               -> return (DataDefValue (m1+m2) (n1+n2))
             (DataDefValue m n, DataDefNormal)
@@ -872,6 +872,16 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
             (DataDefNormal, DataDefValue m n)
               -> return (DataDefValue m (n+1))
             _ -> return DataDefNormal
+
+    checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
+    checkNoClash nameDoc m1 n1 dd
+      = case dd of
+          DataDefValue m2 n2 | m2 > 0 && m2 < n2
+            -> do addError range (text "Type:" <+> nameDoc <+> text "has multiple value type fields that each contain both raw types and regular types." <->
+                                  text ("hint: use 'box' on either field to make it a non-value type."))
+          _ -> return ()
+
+
 
     typeDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m DataDef
     typeDataDef lookupDataInfo tp

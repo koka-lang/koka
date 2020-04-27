@@ -21,21 +21,21 @@ type string
 
 // A 64-bit IEEE 754 floating point value.
 // See also `std/num/double` for more operations on `:double`s.
-type double
+type value double
 
 // Type of a 32-bit signed integer.
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-type int32
+type value int32
 
 // An any type. Used for extern calls
-type any
+type value any
 
 // A unicode character.
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
 // (see also the [``std/text/unicode``](std_text_unicode.html) module.)
-type char
+type value char
 
 // The _total_ effect represents the absence of any effect.
 type <> :: E
