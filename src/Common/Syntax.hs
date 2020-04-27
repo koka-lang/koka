@@ -19,7 +19,7 @@ module Common.Syntax( Visibility(..)
                     , Host(..)
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen
+                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
                     , isHandlerResource, isHandlerNormal
                     ) where
@@ -107,6 +107,10 @@ dataDefIsOpen ddef
       DataDefOpen -> True
       _ -> False
 
+dataDefIsValue ddef
+  = case ddef of
+      DataDefValue _ _ -> True
+      _ -> False
 
 {--------------------------------------------------------------------------
   Definition kind
