@@ -221,7 +221,7 @@ data DataRepr = -- value types
 
 data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                     -- part of enumeration (none has fields)
               | ConIso{ conTypeName:: Name, conTag :: Int }                       -- one constructor with one field
-              | ConSingleton{ conTypeName :: Name, conTag :: Int }                -- the only constructor without fields
+              | ConSingleton{ conTypeName :: Name, conTag :: Int }                -- constructor without fields (and not part of an enum)
               | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
               | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
               | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)

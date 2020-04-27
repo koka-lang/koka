@@ -239,7 +239,7 @@ genTypeDef (Data info isExtend)
                     then emitToH $ if (isDataStruct dataRepr)
                           then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
                                <-> block (text "datatype_tag_t _tag;" <-> text "union _cons"
-                                          <+> block (vcat (map ppStructConField (dataInfoConstrs info)))) <.> semi
+                                          <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <.> semi) <.> semi
                                <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName name <.> semi
                           else ppVis (dataInfoVis info) <+> text "typedef struct"
                                <+> (case (dataRepr,dataInfoConstrs info) of
@@ -250,6 +250,7 @@ genTypeDef (Data info isExtend)
                     else return ()
 
                  -- generate types for constructors
+                 emitToH empty
                  mapM_ (genConstructor info dataRepr) (zip (dataInfoConstrs info) conReprs)
 
   where
@@ -282,7 +283,30 @@ ppConField (name,tp)
 
 genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
 genConstructor info dataRepr (con,conRepr)
-  = return ()
+  = emitToH $
+    (if (dataRepr/=DataOpen) then empty else
+      text "extern tag_t" <+> ppName (makeHiddenName "tag" (conInfoName con)) <.> semi <.> linebreak
+    )
+    <.> text "static inline bool" <+> ppName (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
+    <+> block( text "return (" <.> (
+    let nameDoc = ppName (conInfoName con)
+        tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+        dataTypeTagDoc = text "datatype_tag(x)"
+    in case conRepr of
+      ConEnum{}      -> text "x ==" <+> tagDoc
+      ConIso{}       -> text "true"
+      ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
+                     | otherwise -> text "x ==" <+> tagDoc
+      ConSingle{}    -> text "true"
+      ConStruct{}    -> text "x._tag ==" <+> tagDoc
+      ConAsCons{}    -> text "datatype_is_ptr(x)"
+      ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
+                     | otherwise -> dataTypeTagDoc <+> text "==" <+> pretty (conTag conRepr)
+      ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppName (makeHiddenName "tag" (conInfoName con))
+    ) <.> text ")")
+
+conTestName con
+  = makeHiddenName "is" (conInfoName con)
 
 
 ppVis :: Visibility -> Doc
