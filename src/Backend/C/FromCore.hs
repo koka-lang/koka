@@ -68,52 +68,63 @@ cFromCore newtypes mbMain core
 
 genModule :: Maybe (Name,Bool) -> Core -> Asm ()
 genModule mbMain core
-  =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
-            headComment = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
-        emitToC $ headComment
-        emitToH $ headComment
-                  <-> text "// type declarations"
+  =  do let externs       = vcat (concatMap includeExternal (coreProgExternals core))
+            headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+            initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> text "(void)"
+
+        emitToInit $ vcat $ [text "static bool _initialized = false;"
+                            ,text "if (_initialized) return;"
+                            ,text "_initialized = true;"]
+                            ++ map initImport (coreProgImports core)
+
+        emitToC $ vcat $ [headComment
+                         ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
+                         ++ externalIncludes
+
+        emitToH $ vcat $ [ text "#pragma once"
+                         , text "#ifndef __" <.> modName <.> text "_H"
+                         , text "#define __" <.> modName <.> text "_H"
+                         , headComment ]
+                         ++ externalImports
+                         ++ map moduleImport (coreProgImports core)
+                         ++ [text "// type declarations"]
         genTypeDefs (coreProgTypeDefs core)
-        -- decls2 <- genGroups defs
-        {-
-        let imports = map importName (coreProgImports core)
-            (mainEntry,mainImports) = case mbMain of
-                          Nothing -> (empty,[])
-                          Just (name,isAsync)
-                            -> (if isAsync
-                                 then (text " " <-> text "// main entry:" <->
-                                       text "$std_async_.async_handle" <.> parens (ppName (unqualify name)) <.> semi
-                                      ,[(text "./std_async", text "$std_async_")])
-                                 else (text " " <-> text "// main entry:" <->
-                                       ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
-                                      ,[]))
-        -}
+
+        init <- getInit
+        emitToC $ linebreak
+                  <.> text "// initialization"
+                  <-> initSignature
+                  <.> block init
+        emitToH $ vcat [ initSignature <.> semi <.> linebreak
+                       , text "#endif // header"]
         return ()
   where
     modName         = ppModName (coreProgName core)
-    exportedValues  = let f (DefRec xs)   = map defName xs
-                          f (DefNonRec x) = [defName x]
-                      in map unqualify $ concatMap f (coreProgDefs core)
-    exportedConstrs = let f (Synonym _ )    = []
-                          f (Data info _)   = map conInfoName $ -- filter (isPublic . conInfoVis)  -- export all for inlined defs
-                                                                (dataInfoConstrs info)
-                          u (TypeDefGroup xs) = xs
-                      in map unqualify $ concatMap f $ concatMap u (coreProgTypeDefs core)
 
-    isTagDef (DefNonRec def) = isOpenTagName (defName def)
-    isTagDef _               = False
+    externalIncludes :: [Doc]
+    externalIncludes
+      = concatMap includeExternal (coreProgExternals core)
 
-    externalImports :: [(Doc,Doc)]
+    externalImports :: [Doc]
     externalImports
-      = concatMap importExternal (coreProgExternals core)
+      = map fst (concatMap importExternal (coreProgExternals core))
+
+    initImport :: Import -> Doc
+    initImport imp
+      = ppName (qualify (importName imp) (newName ".init")) <.> text "();"
+
+
 
 moduleImport :: Import -> Doc
 moduleImport imp
-  = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
+  = text "#include" <+>
+    (if null (importPackage imp)
+      then dquotes (text (moduleNameToPath  (importName imp)) <.> text ".h")
+      else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
 includeExternal :: External -> [Doc]
 includeExternal (ExternalInclude includes range)
-  = let content = case lookup JS includes of
+  = let content = case lookup C includes of
                     Just s -> s
                     Nothing -> case lookup Default includes of
                                  Just s -> s
@@ -124,12 +135,12 @@ includeExternal _  = []
 
 importExternal :: External -> [(Doc,Doc)]
 importExternal (ExternalImport imports range)
-  = let (nm,s) = case lookup JS imports of
-                    Just s -> s
+  = let xs = case lookup C imports of
+                    Just s -> [s]
                     Nothing -> case lookup Default imports of
-                                 Just s -> s
-                                 Nothing -> failure ("javascript backend does not support external import at " ++ show range)
-    in [(text s,pretty nm)]
+                                 Just s -> [s]
+                                 Nothing -> [] -- failure ("C backend does not support external import at " ++ show range)
+    in [(text "#include" <+> (if (head s == '<') then text s else dquotes (text s)), pretty nm) | (nm,s) <- xs, not (null s)]
 importExternal _
   = []
 
@@ -240,19 +251,23 @@ genTypeDef (Data info isExtend)
         else mapM_ (genConstructorType info dataRepr) conInfos
 
        -- wrap up the type definition
-       if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
-        then return ()
-        else emitToH $ if (isDataStruct dataRepr)
-                then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
-                     <-> block (text "datatype_tag_t _tag;" <-> text "union"
-                                <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
-                     <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
-                else ppVis (dataInfoVis info) <+> text "typedef struct"
-                     <+> (case (dataRepr,dataInfoConstrs info) of
-                            (DataIso,[con])          -> ppName ((conInfoName con))
-                            (DataSingleStruct,[con]) -> ppName ((conInfoName con))
-                            _                        -> ppName name <.> text "_s")
-                     <+> ppName (typeClassName name) <.> semi
+       if (dataRepr == DataOpen && not isExtend)
+        then do let openTag = text "tag_t" <+> openTagName name
+                emitToH $ text "extern" <+> openTag <.> semi
+                emitToC $ openTag <+> text "= 0;"
+        else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
+          then return ()
+          else emitToH $ if (isDataStruct dataRepr)
+                  then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
+                       <-> block (text "datatype_tag_t _tag;" <-> text "union"
+                                  <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
+                       <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
+                  else ppVis (dataInfoVis info) <+> text "typedef struct"
+                       <+> (case (dataRepr,dataInfoConstrs info) of
+                              (DataIso,[con])          -> ppName ((conInfoName con))
+                              (DataSingleStruct,[con]) -> ppName ((conInfoName con))
+                              _                        -> ppName name <.> text "_s")
+                       <+> ppName (typeClassName name) <.> semi
 
        -- generate functions for constructors
        emitToH empty
@@ -292,30 +307,35 @@ genConstructor info dataRepr (con,conRepr,conFields,scanCount)
 
 genConstructorTest :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
 genConstructorTest info dataRepr con conRepr
-  = emitToH $
-    (if (dataRepr/=DataOpen) then empty else
-      text "extern tag_t" <+> ppName (makeHiddenName "tag" (conInfoName con)) <.> semi <.> linebreak
-    )
-    <.> text "static inline bool" <+> (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
-    <+> block( text "return (" <.> (
-    let nameDoc = ppName (conInfoName con)
-        -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
-        dataTypeTagDoc = text "datatype_tag(x)"
-    in case conRepr of
-      ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
-      ConIso{}       -> text "true"
-      ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
-                     | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
-      ConSingle{}    -> text "true"
-      ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
-      ConAsCons{}    -> text "datatype_is_ptr(x)"
-      ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
-                     | otherwise -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
-      ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
-    ) <.> text ");")
+  = do if (dataRepr/=DataOpen)
+          then return ()
+          else do emitToH $ text "extern tag_t" <+> conTagName con <.> semi
+                  emitToC $ text "tag_t" <+> conTagName con <.> semi
+                  emitToInit $ conTagName con <+> text "=" <+> openTagName (dataInfoName info) <.> text "++;"
+
+       emitToH  $ text "static inline bool" <+> (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
+                  <+> block( text "return (" <.> (
+                  let nameDoc = ppName (conInfoName con)
+                      -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+                      dataTypeTagDoc = text "datatype_tag(x)"
+                  in case conRepr of
+                    ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
+                    ConIso{}       -> text "true"
+                    ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
+                                   | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
+                    ConSingle{}    -> text "true"
+                    ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
+                    ConAsCons{}    -> text "datatype_is_ptr(x)"
+                    ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
+                                   | otherwise -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+                    ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+                  ) <.> text ");")
 
 conTestName con
   = ppName (makeHiddenName "is" (conInfoName con))
+
+conTagName con
+  = ppName (makeHiddenName "tag" (conInfoName con))
 
 ppConTag con conRepr dataRepr
   = case conRepr of
@@ -327,8 +347,10 @@ ppConTag con conRepr dataRepr
 
 genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
 genConstructorCreate info dataRepr con conRepr conFields scanCount
-  = do if (null conFields &&  dataRepr /= DataAsList)
-         then emitToH $ text "extern" <+> ppName (typeClassName (dataInfoName info)) <+> conSingletonName con <.> semi
+  = do if (null conFields && dataRepr >= DataNormal)
+         then do let declTpName = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> conSingletonName con
+                 emitToH $ text "extern" <+> declTpName <.> semi
+                 emitToC $ declTpName <+> text "= { header_static( 0, " <.> ppConTag con conRepr dataRepr <.> text ") };"
          else return ()
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateName con
@@ -384,6 +406,9 @@ conSingletonName con = ppName (makeHiddenName "singleton" (conInfoName con))
 
 conAsName :: ConInfo -> Doc
 conAsName con = ppName (makeHiddenName "as" (conInfoName con))
+
+openTagName :: Name -> Doc
+openTagName name = ppName (makeHiddenName "tag" name)
 
 parameters :: [(Name,Type)] -> Doc
 parameters []
@@ -1280,6 +1305,10 @@ emitToC doc
   = updateSt (\st -> st{cdoc = doc : cdoc st })
 emitToInit doc
   = updateSt (\st -> st{idoc = doc : idoc st })
+
+getInit :: Asm Doc
+getInit
+  = Asm (\env st -> (vcat (reverse (idoc st)), st{ idoc = [] }))
 
 getEnv
   = Asm (\env st -> (env, st))

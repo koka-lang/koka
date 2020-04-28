@@ -148,12 +148,11 @@ includeExternal _  = []
 
 importExternal :: External -> [(Doc,Doc)]
 importExternal (ExternalImport imports range)
-  = let (nm,s) = case lookup JS imports of
-                    Just s -> s
-                    Nothing -> case lookup Default imports of
-                                 Just s -> s
-                                 Nothing -> failure ("javascript backend does not support external import at " ++ show range)
-    in [(text s,pretty nm)]
+  = case lookup JS imports of
+      Just (nm,s) -> [(text s, pretty nm)]
+      Nothing -> case lookup Default imports of
+                   Just (nm,s) -> [(text s, pretty nm)]
+                   Nothing -> [] -- failure ("javascript backend does not support external import at " ++ show range)
 importExternal _
   = []
 
