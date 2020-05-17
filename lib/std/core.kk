@@ -992,12 +992,14 @@ extern inline compare : (int,int) -> order  {
 
 // Are two integers equal?
 extern inline (==) : (int,int) -> bool  {
+  c  "integer_eq"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
 extern inline (!=) : (int,int) -> bool  {
+  c  "integer_neq"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
@@ -1028,18 +1030,21 @@ extern inline (>)  : (int,int) -> bool  {
 
 // Add two integers.
 extern inline (+) : (int,int) -> int {
+  c  "integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 }
 
 // Substract two integers.
 extern inline (-) : (int,int) -> int {
+  c  "integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 }
 
 // Multiply two integers.
 extern inline (*) : (int,int) -> int {
+  c  "integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 }

@@ -348,7 +348,10 @@ externalEntry
        return (target,s)
 
 externalTarget
-  = do specialId "cs"
+  = do specialId "c"
+       return C
+  <|> 
+    do specialId "cs"
        return CS
   <|>
     do specialId "js"

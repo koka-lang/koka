@@ -165,7 +165,7 @@ genLocalDef :: Def -> Asm Doc
 genLocalDef def@(Def name tp expr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let resDoc = typeComment (Pretty.ppType penv tp)
-       defDoc <- genStat (ResultAssign name Nothing) expr
+       defDoc <- genStat (ResultAssign (defTName def) Nothing) expr
        let fdoc = vcat [ if null comm
                            then empty
                            else align (vcat (space : map text (lines (trim comm)))) {- already a valid C comment -}
@@ -189,48 +189,57 @@ genTopGroups groups
 genTopGroup :: DefGroup -> Asm ()
 genTopGroup group
   = do case group of
-        DefRec defs   -> do sigs <- mapM (genFunDefSig False) defs
-                            (if (any isPublic (map defVis defs)) then emitToH else emitToC) (vcat sigs)
-                            mapM_ (genTopDef False) defs
-        DefNonRec def -> do let inlineC = False
-                            when (not inlineC && isPublic (defVis def)) $ 
-                              do sig <- genFunDefSig inlineC def
-                                 emitToH sig
-                            genTopFunDef inlineC def
+        DefRec defs   -> do mapM_ genFunTopDefSig defs                            
+                            mapM_ (genTopDef False False) defs
+        DefNonRec def -> do let inlineC =  (defInline def == InlineAlways || isInlineable 10 def)
+                            genTopDef True inlineC def
 
-genFunDefSig :: Bool -> Def -> Asm Doc
-genFunDefSig inlineC def@(Def name tp expr vis sort inl rng comm)
-  = do  penv <- getPrettyEnv
-        let tpDoc = typeComment (Pretty.ppType penv tp)       
-        return $
-          (if (inlineC) then text "static inline "
+genFunTopDefSig :: Def -> Asm ()
+genFunTopDefSig def@(Def name tp defExpr vis sort inl rng comm)
+  = do penv <- getPrettyEnv 
+       let tpDoc = typeComment (Pretty.ppType penv tp)                      
+           sig   = (genFunDefSig False def) 
+       (if (isPublic vis) then emitToH else emitToC) (sig <.> semi <+> tpDoc)
+
+genFunDefSig :: Bool -> Def -> Doc
+genFunDefSig inlineC def@(Def name tp defExpr vis sort inl rng comm)
+  = let tryFun expr = case expr of
+                        TypeApp e _   -> tryFun e
+                        TypeLam _ e   -> tryFun e
+                        Lam params eff body  -> genSig params body
+                        _             -> error ("Backend.C.FromCore.genFunDefSig: not a function: " ++ show def)
+    in tryFun defExpr
+  where
+    genSig params body
+      = (if (inlineC) then text "static inline "
            else if (not (isPublic vis)) then text "static "
            else empty) <.>
-          (case splitFunScheme tp of
-            Nothing -> error ("Backend.C.fromCore.genFunDefSig: not a function: " ++ show def)
-            Just (qvars,preds,tparams,eff,tres)
-              -> ppType tres <+> ppName name <.> tupled (map ppParam tparams) <.> semi <+> tpDoc)
+        ppType (typeOf body) <+> ppName name <.> tupled (map ppParam params)
 
-ppParam (name,tp) = ppType tp <+> ppName name
+ppParam (TName name tp) = ppType tp <+> ppName name
 
-genTopDef :: Bool -> Def -> Asm ()
-genTopDef inlineC def@(Def name tp expr vis sort inl rng comm)
-  = do penv <- getPrettyEnv
-       when (not (null comm)) $
+genTopDef :: Bool -> Bool -> Def -> Asm ()
+genTopDef genSig inlineC def@(Def name tp expr vis sort inl rng comm)
+  = do when (not (null comm)) $
          (if inlineC then emitToH else emitToC) (align (vcat (space : map text (lines (trim comm))))) {- already a valid C comment -}
-       genTopFunDef inlineC def
+       genTopDefDecl genSig inlineC def
   where
     -- remove final newlines and whitespace
     trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
 
-genTopFunDef :: Bool -> Def -> Asm ()
-genTopFunDef inlineC def@(Def name tp defBody vis sort inl rng comm)
+genTopDefDecl :: Bool -> Bool -> Def -> Asm ()
+genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
   = let tryFun expr = case expr of
                         TypeApp e _   -> tryFun e
                         TypeLam _ e   -> tryFun e
-                        Lam params eff body  -> genFunDef params body
-                        _ -> do doc <- genStat (ResultAssign name Nothing) expr
-                                emit doc
+                        Lam params eff body  -> genFunDef params (box (resultType tp) body)
+                        _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
+                                emitToInit doc
+                                let decl = ppType tp <+> ppName name <.> semi
+                                if (isPublic vis) 
+                                 then do emitToH (text "extern" <+> decl)
+                                         emitToC decl
+                                 else do emitToC (text "static" <+> decl)
     in tryFun defBody                                  
   where
     emit = if inlineC then emitToH else emitToC
@@ -242,15 +251,14 @@ genTopFunDef inlineC def@(Def name tp defBody vis sort inl rng comm)
            bodyDoc <- (if isTailCall then withStatement else id)
                       (genStat (ResultReturn (Just name) params) body)
            penv <- getPrettyEnv
-           let comDoc = typeComment (Pretty.ppType penv tp)                      
-           emit $ (if (inlineC) then text "static inline "
-                         else if (not (isPublic vis)) then text "static "
-                         else empty)
-                  <.> (ppType (typeOf body)) <+> ppName name <.> tupled (map (\(TName name tp) -> ppParam (name,tp)) params)
+           let tpDoc = typeComment (Pretty.ppType penv tp)                      
+           let sig = genFunDefSig inlineC def
+           when (genSig && not inlineC && isPublic (defVis def)) $ emitToH (sig <.> semi <+> tpDoc) 
+           emit $ sig
                   <+> ( if isTailCall
-                          then tcoBlock comDoc bodyDoc
+                          then tcoBlock tpDoc bodyDoc
                           else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
-                            <.> tblock comDoc bodyDoc
+                            <.> tblock tpDoc bodyDoc
                       )
 
 ---------------------------------------------------------------------------------
@@ -280,12 +288,12 @@ genTypeDef (Data info isExtend)
        -- if (isExtend) then return ()
        -- generate the type
        if (dataRepr == DataEnum)
-        then emitToH $ ppVis (dataInfoVis info) <+> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
+        then emitToH $ ppVis (dataInfoVis info) <.> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
                        block (vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
         else if (dataReprIsValue dataRepr || isExtend)
           then return ()
               --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
-          else emitToH $ ppVis (dataInfoVis info) <+> text "typedef datatype_t"
+          else emitToH $ ppVis (dataInfoVis info) <.> text "typedef datatype_t"
                          <+> ppName (typeClassName name) <.> semi
                          <-> if (noCons) then empty
                               else text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
@@ -307,11 +315,11 @@ genTypeDef (Data info isExtend)
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
           else emitToH $ if (isDataStruct dataRepr)
-                  then ppVis (dataInfoVis info) <+> text "struct" <+> ppName name <.> text "_s"
+                  then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
                        <-> block (text "datatype_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
-                       <-> ppVis (dataInfoVis info) <+> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
-                  else ppVis (dataInfoVis info) <+> text "typedef struct"
+                       <-> ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
+                  else ppVis (dataInfoVis info) <.> text "typedef struct"
                        <+> (case (dataRepr,dataInfoConstrs info) of
                               (DataIso,[con])          -> ppName ((conInfoName con))
                               (DataSingleStruct,[con]) -> ppName ((conInfoName con))
@@ -337,7 +345,7 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
        -> return () -- already in enum declaration
     _ | null conFields && (dataRepr < DataNormal && not (isDataStruct dataRepr))
        -> return ()
-    _  -> do emitToH $ ppVis (conInfoVis con) <+> text "struct" <+> ppName ((conInfoName con)) <+>
+    _  -> do emitToH $ ppVis (conInfoVis con) <.> text "struct" <+> ppName ((conInfoName con)) <+>
                        block (vcat (typeField ++ map ppConField conFields)) <.> semi
   where
     typeField  = if (dataReprIsValue dataRepr) then []
@@ -498,8 +506,8 @@ orderConFields ddef fields
 
 ppVis :: Visibility -> Doc
 ppVis _       = empty
-ppVis Public  = text "decl_public"
-ppVis Private = text "decl_private"
+ppVis Public  = text "decl_public "
+ppVis Private = text "decl_private "
 
 -- | Returns the type constructor class name, for "List" it would be ".List"
 typeConClassName :: Name -> Name
@@ -538,52 +546,116 @@ dataReprIsValue _                = False
 
 ppType :: Type -> Doc
 ppType tp
-  = case expandSyn tp of
+  = case cType tp of
+      CBox -> text "box_t"
+      CData name -> ppName name
+      CPrim prim -> text prim
+  
+data CType 
+  = CBox
+  | CData Name
+  | CPrim String
+  
+cType :: Type -> CType
+cType tp
+  = case tp of
       TForall vars preds t
-        -> if (not (null vars))
-            then primitive ("TypeFun" ++ show (length vars))
-            else case expandSyn t of
-                   TFun pars eff res -> ppTypeFun preds pars eff res
-                   _                 -> ppType t
+        -> cType t
       TFun pars eff res
-        -> ppTypeFun [] pars eff res
-
+        -> CPrim "function_t"
       TApp t ts
-        -> ppType t
+        -> cType t
       TCon c
-        -> ppTypeCon c (getKind tp)
+        -> cTypeCon c 
       TVar v
-        -> ppTypeVar v
+        -> CBox
       TSyn syn args t
-        -> ppType t
+        -> cType t
 
-ppTypeCon c kind
+cTypeCon c 
    = let name = typeConName c
      in if (name == nameTpInt)
-         then text "integer"
+         then CPrim "integer"
         else if (name == nameTpString)
-         then text "string"
+         then CPrim "string"
         else if (name == nameTpChar)
-         then text "int32_t"
+         then CPrim "int32_t"
         else if (name == nameTpInt32)
-         then text "int32_t"
+         then CPrim "int32_t"
         else if (name == nameTpFloat)
-         then text "double"
+         then CPrim "double"
         else if (name == nameTpBool)
-         then text "bool"
-        else ppName (typeClassName name)
+         then CPrim "bool"
+        else CData (typeClassName name)
 
-ppTypeVar v
-  = text ("box_t")
+    
+boxTypeOf :: Expr -> Type
+boxTypeOf expr
+  = case expr of
+      TypeLam tvs e  -> boxTypeOf e
+      TypeApp e tps  -> boxTypeOf e
+      _              -> typeOf expr
+      
+boxDef :: Def -> Def
+boxDef def 
+    = def{ defExpr = box (defType def) (defExpr def) }
+      
 
-ppTypeFun preds pars eff res
-  = text ("fun_t")
+resultType :: Type -> Type
+resultType tp
+  = case splitFunScheme tp of
+      Just (_,_,_,_,resTp) -> resTp
+      
+box :: Type -> Expr -> Expr
+box expectTp expr
+  = case expr of
+      TypeLam tvs e        -> TypeLam tvs (box expectTp e)
+      TypeApp e tps        -> TypeApp (box expectTp e) tps
+      Lam tparams eff body -> bcoerce (typeOf expr) (expectTp) $
+                              Lam tparams eff (box (resultType expectTp) body)
+      App e args           -> boxApp e args
+      Let defGroups body   -> Let (map boxDefGroup defGroups) (box expectTp body)
+      Case exprs branches  -> Case (map (\e -> box (typeOf e) e) exprs) (map (boxBranch expectTp) branches)
+      _                    -> bcoerce (typeOf expr) expectTp expr
+  where
+    boxApp e args 
+      = let tp = boxTypeOf e in
+        case splitFunScheme tp of
+          Just (_,_,tparams,eff,tres) 
+            -> assertion ("Backend.C.box: boxArgs: arguments do not match: " ++ show expr) (length tparams == length args) $
+               bcoerce tres expectTp $
+               App (box tp e) (map boxArg (zip tparams args))
 
-primitive s
-  = text s
+    boxArg ((_,paramTp),arg) = box paramTp arg
+    
+boxDefGroup dg
+  = case dg of
+      DefRec defs   -> DefRec (map boxDef defs)
+      DefNonRec def -> DefNonRec (boxDef def)
+      
+boxBranch expectTp (Branch patterns guards)
+  = Branch patterns (map (boxGuard expectTp) guards)
 
-
-
+boxGuard expectTp (Guard test expr)
+  = Guard (box typeBool test) (box expectTp expr)
+    
+    
+bcoerce :: Type -> Type -> Expr -> Expr
+bcoerce fromTp toTp expr
+  = case (cType fromTp, cType toTp) of
+      (CBox, CBox)        -> expr
+      (CBox, CPrim prim)  -> App (boxVar "unbox" prim toTp) [expr]
+      (CBox, CData name)  -> App (boxVar "unbox" "data" toTp) [expr]
+      (CPrim prim, CBox)  -> App (boxVar "box" prim fromTp) [expr]
+      (CData name, CBox)  -> App (boxVar "box" "data" fromTp) [expr]
+      _             -> expr
+  where
+    boxVar s prim tp
+      = Var (TName (newName ("." ++ s)) (coerceTp tp)) (InfoExternal [(C, s ++ "_" ++ prim ++ "(#1)")])
+    coerceTp tp
+      = TFun [(nameNil,tp)] typeTotal tp
+    
+    
 ---------------------------------------------------------------------------------
 -- Statements
 ---------------------------------------------------------------------------------
@@ -598,12 +670,14 @@ getResult result doc
 getResultX result (puredoc,retdoc)
   = case result of
      ResultReturn _ _  -> text "return" <+> retdoc <.> semi
-     ResultAssign n ml -> ( if isWildcard n
+     ResultAssign n ml -> ( if isWildcard (getName n)
                               then (if (isEmptyDoc puredoc) then puredoc else puredoc <.> semi)
-                              else text "var" <+> ppName (unqualify n) <+> text "=" <+> retdoc <.> semi
+                              else ppVarDecl n <+> text "=" <+> retdoc <.> semi
                           ) <-> case ml of
                                   Nothing -> empty
                                   Just l  -> text "break" <+> ppName l <.> semi
+
+ppVarDecl (TName name tp) = ppType tp <+> ppName name
 
 tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
 tryTailCall result expr
@@ -936,43 +1010,35 @@ genExpr expr
      TypeLam _ e -> genExpr e
 
      -- handle not inlineable cases
+     {-
      App (TypeApp (Con name repr) _) [arg]  | getName name == nameOptional || isConIso repr
        -> genExpr arg
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
+     -}
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
      App f args
-       -> {- case splitFunScheme (typeOf f) of
-            Just (_,_,tpars,eff,tres)
-              | length tpars > length args
-               -> do vars <- newVarNames (length tpars - length args)
-                     let pars' = [TName v tpar | (v,(_,tpar)) <- zip vars tpars]
-                         args' = [Var v InfoNone | v <- pars']
-                     -- trace  ("genExpr: wrap in lambda: " ++ show ( expr)) $
-                     genExpr (Lam pars' typeTotal (App f (args ++ args')))
-              | length tpars < length args
-               -> let n = length tpars
-                  in --  trace  ("genExpr: double App: " ++ show (n,length args) ++ ": " ++ show (typeOf f) ++ ": " ++ show expr) $
-                      genExpr (App (App f (take n args)) (drop n args))
-            _ -> -}
-             case extractList expr of
-                  Just (xs,tl) -> genList xs tl
-                  Nothing -> case extractExtern f of
-                   Just (tname,formats)
-                     -> case args of
-                         [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-                           -> return (empty,pretty i)
-                         _ -> -- genInlineExternal tname formats argDocs
-                              do (decls,argDocs) <- genExprs args
-                                 (edecls,doc) <- genExprExternal tname formats argDocs
-                                 if (getName tname == nameReturn)
-                                  then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
-                                  else return (vcat (decls ++ edecls), doc)
-                   Nothing
-                    -> do lsDecls <- genExprs (f:trimOptionalArgs args)
-                          let (decls,fdoc:docs) = lsDecls
-                          return (vcat decls, fdoc <.> tupled docs)
+       -> case extractList expr of
+              -- inline list
+              Just (xs,tl) -> genList xs tl
+              Nothing -> case extractExtern f of
+               Just (tname,formats)
+                 -- inline external
+                 -> case args of
+                     [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
+                       -> return (empty,pretty i)
+                     _ -> -- genInlineExternal tname formats argDocs
+                          do (decls,argDocs) <- genExprs args                             
+                             (edecls,doc) <- genExprExternal tname formats argDocs
+                             if (getName tname == nameReturn)
+                              then return (vcat (decls ++ edecls ++ [doc <.> semi]), text "")
+                              else return (vcat (decls ++ edecls), doc)
+               Nothing
+                -- normal application
+                -> do lsDecls <- genExprs (f:args)
+                      let (decls,fdoc:argDocs) = lsDecls                          
+                      return (vcat decls, fdoc <.> tupled argDocs)
 
      Let groups body
        -> do decls1       <- genLocalGroups groups
@@ -985,6 +1051,7 @@ genExpr expr
              return (doc, nameDoc)
 
      _ -> failure ("JavaScript.FromCore.genExpr: invalid expression:\n" ++ show expr)
+
 
 extractList :: Expr -> Maybe ([Expr],Expr)
 extractList e
@@ -1032,8 +1099,9 @@ genVarBinding expr
   = case expr of
       Var tn _ -> return $ (empty, tn)
       _        -> do name <- newVarName "x"
-                     doc  <- genStat (ResultAssign name Nothing) expr
-                     return ( doc, TName name (typeOf expr) )
+                     let tname = TName name (typeOf expr)
+                     doc  <- genStat (ResultAssign tname Nothing) expr
+                     return ( doc, tname )
 
 ---------------------------------------------------------------------------------
 -- Pure expressions
@@ -1074,12 +1142,8 @@ genInline expr
       _  | isPureExpr expr -> genPure expr
       TypeLam _ e -> genInline e
       TypeApp e _ -> genInline e
-      App (TypeApp (Con name repr) _) [arg]  | getName name == nameOptional || isConIso repr
-        -> genInline arg
-      App (Con _ repr) [arg]  | isConIso repr
-        -> genInline arg
       App f args
-        -> do argDocs <- mapM genInline (trimOptionalArgs args)
+        -> do argDocs <- mapM genInline args
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
@@ -1093,7 +1157,7 @@ genInline expr
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
 
-      _ -> failure ("JavaScript.FromCore.genInline: invalid expression:\n" ++ show expr)
+      _ -> failure ("Backend.C.FromCore.genInline: invalid expression:\n" ++ show expr)
 
 extractExtern :: Expr -> Maybe (TName,[(Target,String)])
 extractExtern expr
@@ -1108,7 +1172,8 @@ genWrapExternal tname formats
   = do let n = snd (getTypeArities (typeOf tname))
        vs  <- genVarNames n
        (decls,doc) <- genExprExternal tname formats vs
-       return $ parens (text "function" <.> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <.> semi])))
+       return $ error ("Backend.C.FromCore.genWrapExternal: TODO: " ++ show (vcat (decls++[doc])))
+                 -- parens (text "function" <.> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <.> semi])))
 
 -- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
@@ -1116,29 +1181,11 @@ genInlineExternal tname formats argDocs
   = do (decls,doc) <- genExprExternal tname formats argDocs
        if (null decls)
         then return doc
-        else return $ parens $ parens (text "function()" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))) <.> text "()"
+        else error ("Backend.C.FromCore.genInlineExternal: TODO: inline external declarations: " ++ show (vcat (decls++[doc])))
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
 genExprExternal tname formats argDocs0
-  = do (decls,doc) <- genExprExternalPrim tname formats argDocs0
-       case splitFunType (typeOf tname) of
-         Nothing -> return (decls,doc)
-         Just (pars,eff,res)
-           -> let (ls,tl) = extractOrderedEffect eff
-              in case filter (\l -> labelName l == nameTpPartial) ls of
-                   [] -> return (decls,doc)
-                   _  -> -- has an exception type, wrap it in a try handler
-                         let try = parens $
-                                   parens (text "function()" <+> block (vcat (
-                                     [text "try" <+> block (vcat (decls ++ [text "return" <+> doc <.> semi]))
-                                     ,text "catch(_err){ return $std_core._throw_exception(_err); }"]
-                                     )))
-                                   <.> text "()"
-                         in return ([],try)
-
-genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
         argDocs = map (\argDoc -> if (all (\c -> isAlphaNum c || c == '_') (asString argDoc)) then argDoc else parens argDoc) argDocs0
@@ -1152,7 +1199,7 @@ genExprExternalPrim tname formats argDocs0
     ppExternalF name k@('\\':'#':xs) args
      = char '#' <.> ppExternalF name xs args
     ppExternalF name k@('#':'#':xs) args
-     = failure ("Backend.JavaScript.FromCore: type arguments in javascript external in: " ++ show tname)
+     = failure ("Backend.C.FromCore: type arguments in C external in: " ++ show tname)
     ppExternalF name k@('#':y:xs)  args
      = if  y `elem` ['1'..'9']
         then (let n = length args
@@ -1165,11 +1212,11 @@ genExprExternalPrim tname formats argDocs0
 
 getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
-  = case lookup JS formats of
+  = case lookup C formats of
       Nothing -> case lookup Default formats of
          Just s  -> s
          Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                    trace( "warning: backend does not support external in " ++ show tname ) $
+                    trace( "warning: C backend does not support external in " ++ show tname ) $
                       ("__std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
@@ -1208,13 +1255,6 @@ genCommentTName (TName n t)
   = do env <- getPrettyEnv
        return $ ppName n <+> comment (Pretty.ppType env t )
 
-trimOptionalArgs args
-  = reverse (dropWhile isOptionalNone (reverse args))
-  where
-    isOptionalNone arg
-      = case arg of
-          TypeApp (Con tname _) _ -> getName tname == nameOptionalNone
-          _ -> False
 
 ---------------------------------------------------------------------------------
 -- Classification
@@ -1230,7 +1270,7 @@ extractExternal expr
       _ -> Nothing
   where
     format tn fs
-      = case lookup JS fs of
+      = case lookup C fs of
           Nothing -> case lookup Default fs of
                        Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
                        Just s  -> s
@@ -1334,7 +1374,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                }
 
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
-            | ResultAssign Name (Maybe Name)    -- variable name and optional label to break
+            | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
 initSt = St 0 [] [] []
 
@@ -1589,7 +1629,7 @@ tcoBlock tpDoc doc
   = tblock tpDoc (text "_tailcall:" <-> doc)
 
 tailcall :: Doc
-tailcall  = text "continue tailcall;"
+tailcall  = text "goto _tailcall;"
 
 object :: [(Doc, Doc)] -> Doc
 object xs

@@ -124,6 +124,7 @@ private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
 // -------------------------------------------
 
 public extern inline yielding() : bool {
+  c  inline "yielding()"
   js inline "($std_core_hnd._yield !== null)"
 }
 
@@ -132,6 +133,7 @@ public extern inline yielding-non-final() : bool {
 }
 
 public extern noinline yield-extend(next : a -> e b ) : e b {
+  c  "yield_extend"
   js "_yield_extend"
 }
 
