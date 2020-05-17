@@ -51,11 +51,11 @@ externalNames :: [(TName, Doc)]
 externalNames
   = [ (conName exprTrue,  text "true")
     , (conName exprFalse, text "false")
-    , (TName nameOptionalNone typeOptional, text "undefined")  -- ugly but has real performance benefit
+    -- , (TName nameOptionalNone typeOptional, text "undefined")  -- ugly but has real performance benefit
     ]
 
 --------------------------------------------------------------------------
--- Generate JavaScript code from System-F core language
+-- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
 cFromCore :: Newtypes -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
@@ -88,7 +88,9 @@ genModule mbMain core
                          ++ externalImports
                          ++ map moduleImport (coreProgImports core)
                          ++ [text "// type declarations"]
+
         genTypeDefs (coreProgTypeDefs core)
+        genTopGroups (coreProgDefs core)
 
         init <- getInit
         emitToC $ linebreak
@@ -145,65 +147,111 @@ importExternal _
   = []
 
 ---------------------------------------------------------------------------------
--- Generate javascript statements for value definitions
+-- Generate C statements for value definitions
 ---------------------------------------------------------------------------------
 
-genGroups :: [DefGroup] -> Asm Doc
-genGroups groups
-  = localUnique $
-    do docs <- mapM genGroup groups
+genLocalGroups :: [DefGroup] -> Asm Doc
+genLocalGroups dgs
+  = do docs <- mapM genLocalGroup dgs
        return (vcat docs)
 
-genGroup :: DefGroup -> Asm Doc
-genGroup group
-  = case group of
-      DefRec defs   -> do docs <- mapM genDef defs
-                          return (vcat docs)
-      DefNonRec def -> genDef def
-
-genDef :: Def -> Asm Doc
-genDef def@(Def name tp expr vis sort inl rng comm)
+genLocalGroup :: DefGroup -> Asm Doc
+genLocalGroup (DefRec _) = error "Backend.C.FromCore.genLocalGroup: local resursive function definitions are not allowed"
+genLocalGroup (DefNonRec def)
+  = genLocalDef def
+  
+  
+genLocalDef :: Def -> Asm Doc
+genLocalDef def@(Def name tp expr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let resDoc = typeComment (Pretty.ppType penv tp)
-       defDoc <- do mdoc <- tryFunDef name resDoc expr
-                    case mdoc of
-                      Just doc -> return doc
-                      Nothing  -> genStat (ResultAssign name Nothing) expr
-       return $ vcat [ if null comm
-                         then empty
-                         else align (vcat (space : map text (lines (trim comm)))) {- already a valid javascript comment -}
-                     , defDoc
-                     ]
+       defDoc <- genStat (ResultAssign name Nothing) expr
+       let fdoc = vcat [ if null comm
+                           then empty
+                           else align (vcat (space : map text (lines (trim comm)))) {- already a valid C comment -}
+                       , defDoc
+                       ]
+       return (fdoc)
+  where
+    -- remove final newlines and whitespace
+    trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
+  
+  
+---------------------------------------------------------------------------------
+-- Generate C declaration for top level definitions
+---------------------------------------------------------------------------------
+
+genTopGroups :: [DefGroup] -> Asm ()
+genTopGroups groups
+  = localUnique $
+    mapM_ genTopGroup groups
+
+genTopGroup :: DefGroup -> Asm ()
+genTopGroup group
+  = do case group of
+        DefRec defs   -> do sigs <- mapM (genFunDefSig False) defs
+                            (if (any isPublic (map defVis defs)) then emitToH else emitToC) (vcat sigs)
+                            mapM_ (genTopDef False) defs
+        DefNonRec def -> do let inlineC = False
+                            when (not inlineC && isPublic (defVis def)) $ 
+                              do sig <- genFunDefSig inlineC def
+                                 emitToH sig
+                            genTopFunDef inlineC def
+
+genFunDefSig :: Bool -> Def -> Asm Doc
+genFunDefSig inlineC def@(Def name tp expr vis sort inl rng comm)
+  = do  penv <- getPrettyEnv
+        let tpDoc = typeComment (Pretty.ppType penv tp)       
+        return $
+          (if (inlineC) then text "static inline "
+           else if (not (isPublic vis)) then text "static "
+           else empty) <.>
+          (case splitFunScheme tp of
+            Nothing -> error ("Backend.C.fromCore.genFunDefSig: not a function: " ++ show def)
+            Just (qvars,preds,tparams,eff,tres)
+              -> ppType tres <+> ppName name <.> tupled (map ppParam tparams) <.> semi <+> tpDoc)
+
+ppParam (name,tp) = ppType tp <+> ppName name
+
+genTopDef :: Bool -> Def -> Asm ()
+genTopDef inlineC def@(Def name tp expr vis sort inl rng comm)
+  = do penv <- getPrettyEnv
+       when (not (null comm)) $
+         (if inlineC then emitToH else emitToC) (align (vcat (space : map text (lines (trim comm))))) {- already a valid C comment -}
+       genTopFunDef inlineC def
   where
     -- remove final newlines and whitespace
     trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
 
-tryFunDef :: Name -> CommentDoc -> Expr -> Asm (Maybe Doc)
-tryFunDef name comment expr
-  = case expr of
-      TypeApp e _   -> tryFunDef  name comment e
-      TypeLam _ e   -> tryFunDef  name comment e
-      Lam args eff body  -> do inStat <- getInStatement
-                               if (inStat)
-                                then return Nothing
-                                else do fun <- genFunDef' name args comment body
-                                        return (Just fun)
-      _ -> return Nothing
+genTopFunDef :: Bool -> Def -> Asm ()
+genTopFunDef inlineC def@(Def name tp defBody vis sort inl rng comm)
+  = let tryFun expr = case expr of
+                        TypeApp e _   -> tryFun e
+                        TypeLam _ e   -> tryFun e
+                        Lam params eff body  -> genFunDef params body
+                        _ -> do doc <- genStat (ResultAssign name Nothing) expr
+                                emit doc
+    in tryFun defBody                                  
   where
-    genFunDef' :: Name -> [TName] -> CommentDoc -> Expr -> Asm Doc
-    genFunDef' name params comm body
+    emit = if inlineC then emitToH else emitToC
+    
+    genFunDef :: [TName] -> Expr -> Asm ()
+    genFunDef params body
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
            bodyDoc <- (if isTailCall then withStatement else id)
                       (genStat (ResultReturn (Just name) params) body)
-           return   $ text "function" <+> ppName (unqualify name)
-                                       <.> tupled args
-                                      <+> comm
-                                      <+> ( if isTailCall
-                                              then tcoBlock bodyDoc
-                                              else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
-                                                <.> block bodyDoc
-                                          )
+           penv <- getPrettyEnv
+           let comDoc = typeComment (Pretty.ppType penv tp)                      
+           emit $ (if (inlineC) then text "static inline "
+                         else if (not (isPublic vis)) then text "static "
+                         else empty)
+                  <.> (ppType (typeOf body)) <+> ppName name <.> tupled (map (\(TName name tp) -> ppParam (name,tp)) params)
+                  <+> ( if isTailCall
+                          then tcoBlock comDoc bodyDoc
+                          else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
+                            <.> tblock comDoc bodyDoc
+                      )
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
@@ -239,7 +287,8 @@ genTypeDef (Data info isExtend)
               --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
           else emitToH $ ppVis (dataInfoVis info) <+> text "typedef datatype_t"
                          <+> ppName (typeClassName name) <.> semi
-                         <-> text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
+                         <-> if (noCons) then empty
+                              else text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
 
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
@@ -275,7 +324,7 @@ genTypeDef (Data info isExtend)
 
   where
     ppEnumCon (con,conRepr)
-      = ppName (conInfoName con) <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+      = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
 
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
@@ -366,13 +415,16 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
               _ -> let tmp = text "_con"
                        assignField f (name,tp) = f (ppDefName name) <+> text "=" <+> ppDefName name <.> semi
                    in if (dataReprIsValue dataRepr)
-                    then vcat([ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
-                              ++ (if (hasTagField dataRepr)
-                                   then [tmp <.> text "._tag = " <.> ppConTag con conRepr dataRepr <.> text ";"]
-                                        ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
-                                   else map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
-                                 )
-                              ++ [text "return" <+> tmp <.> semi])
+                    then vcat(--[ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
+                               (if (hasTagField dataRepr)
+                                 then [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "=" <+>
+                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "}; // zero initializes remaining fields"]
+                                      ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
+                                 else [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {0}; // zero initializes all fields" <+>
+                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "};"]
+                                      ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
+                               )
+                               ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
                      then text "return datatype_ptr(&" <.> conSingletonName con <.> text ");"
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
@@ -385,6 +437,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
 genConstructorAccess :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
 genConstructorAccess info dataRepr con conRepr
   = case conRepr of
+      ConSingle{}    -> gen
       ConAsCons{}    -> gen
       ConNormal{}    -> gen
       ConOpen{}      -> gen
@@ -420,7 +473,6 @@ parameters pars
 
 -- order constructor fields of constructors with raw field so the regular fields
 -- come first to be scanned.
--- TODO: adjust scan count for added "tag_t" members in structs with multiple constructors
 orderConFields :: DataDef -> [(Name,Type)] -> Asm ([(Name,Type)],Int)
 orderConFields ddef fields
   = visit ([],[],0) fields
@@ -431,15 +483,16 @@ orderConFields ddef fields
                -> failure $ "Backend.C.FromCore.orderConFields: scan count seems wrong: " ++ show scanCount ++ " vs " ++ show (raw,scan) ++ ", in " ++ show fields
              _ -> return (reverse rscan ++ reverse rraw, scanCount)
     visit (rraw,rscan,scanCount) (field@(name,tp) : fs)
-      = do dd <- getDataDef tp
+      = do (dd,dataRepr) <- getDataDefRepr tp
            case dd of
              DataDefValue raw scan
-               -> if (raw > 0 && scan > 0)
-                   then -- mixed raw,total: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
-                        visit (rraw ++ [field], rscan, scanCount + scan) fs
+               -> let extra = if (dataRepr == DataStruct) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  if (raw > 0 && scan > 0)
+                   then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
+                        visit (rraw ++ [field], rscan, scanCount + scan  + extra) fs
                    else if (raw > 0)
                          then visit (field:rraw, rscan, scanCount) fs
-                         else visit (rraw, field:rscan, scanCount + scan) fs
+                         else visit (rraw, field:rscan, scanCount + scan + extra) fs
              _ -> visit (rraw, field:rscan, scanCount + 1) fs
 
 
@@ -668,7 +721,7 @@ genExprStat result expr
                return (vcat docs <-> doc)
 
       Let groups body
-        -> do doc1 <- genGroups groups
+        -> do doc1 <- genLocalGroups groups
               doc2 <- genStat result body
               return (doc1 <-> doc2)
 
@@ -922,7 +975,7 @@ genExpr expr
                           return (vcat decls, fdoc <.> tupled docs)
 
      Let groups body
-       -> do decls1       <- genGroups groups
+       -> do decls1       <- genLocalGroups groups
              (decls2,doc) <- genExpr body
              return (decls1 <-> decls2, doc)
 
@@ -1367,14 +1420,14 @@ getNewtypes
        return (newtypes env)
 
 
-getDataDef :: Type -> Asm DataDef
-getDataDef tp
+getDataDefRepr :: Type -> Asm (DataDef,DataRepr)
+getDataDefRepr tp
   = case extractDataDefType tp of
-      Nothing -> return DataDefNormal
+      Nothing -> return (DataDefNormal,DataNormal)
       Just name -> do newtypes <- getNewtypes
                       case newtypesLookup name newtypes of
-                        Nothing -> failure $ "Backend.C.FromCore.getDataDef: cannot find type: " ++ show name
-                        Just di -> return (dataInfoDef di)
+                        Nothing -> failure $ "Backend.C.FromCore.getDataInfo: cannot find type: " ++ show name
+                        Just di -> return (dataInfoDef di, fst (getDataRepr di))
 
 extractDataDefType tp
   = case expandSyn tp of
@@ -1526,11 +1579,14 @@ block :: Doc -> Doc
 block doc
   = text "{" <--> tab doc <--> text "}"
 
+tblock :: Doc -> Doc -> Doc
+tblock tpDoc doc
+  = text "{" <+> tpDoc <--> tab doc <--> text "}"
 
-tcoBlock :: Doc -> Doc
-tcoBlock doc
-  = text "{ tailcall: while(1)" <->
-    text "{" <--> tab ( doc ) <--> text "}}"
+
+tcoBlock :: Doc -> Doc -> Doc
+tcoBlock tpDoc doc
+  = tblock tpDoc (text "_tailcall:" <-> doc)
 
 tailcall :: Doc
 tailcall  = text "continue tailcall;"

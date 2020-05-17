@@ -253,9 +253,10 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = case nameId xname of
-      c:cs | not (isAlpha c) -> prepend "." xname -- hidden operator
-      _    -> prepend ("." ++ s ++ "-") xname
+  = --case nameId xname of
+    --  c:cs | not (isAlpha c) -> prepend "." xname -- hidden operator
+    --  _    ->
+    prepend ("." ++ s ++ "-") xname
   where
     xname = case nameId name of
               '.':cs -> newQualified (nameModule name) cs
