@@ -595,9 +595,12 @@ cTypeCon c
 boxTypeOf :: Expr -> Type
 boxTypeOf expr
   = case expr of
-      TypeLam tvs e  -> boxTypeOf e
-      TypeApp e tps  -> boxTypeOf e
-      _              -> typeOf expr
+      TypeLam tvs e     -> boxTypeOf e
+      TypeApp e tps     -> boxTypeOf e
+      Lam pars eff body -> typeFun [(name,tp) | TName name tp <- pars] eff (boxTypeOf body)
+      App e args        -> resultType (boxTypeOf e)
+      _                 -> typeOf expr
+      
       
 boxDef :: Def -> Def
 boxDef def 
@@ -614,12 +617,14 @@ box expectTp expr
   = case expr of
       TypeLam tvs e        -> TypeLam tvs (box expectTp e)
       TypeApp e tps        -> TypeApp (box expectTp e) tps
-      Lam tparams eff body -> bcoerce (typeOf expr) (expectTp) $
+      Lam tparams eff body -> bcoerce (boxTypeOf expr) (expectTp) $
                               Lam tparams eff (box (resultType expectTp) body)
       App e args           -> boxApp e args
       Let defGroups body   -> Let (map boxDefGroup defGroups) (box expectTp body)
-      Case exprs branches  -> Case (map (\e -> box (typeOf e) e) exprs) (map (boxBranch expectTp) branches)
-      _                    -> bcoerce (typeOf expr) expectTp expr
+      Case exprs branches  -> let exprTps = map boxTypeOf exprs
+                              in Case (map (\e -> box (boxTypeOf e) e) exprs) 
+                                      (map (boxBranch exprTps expectTp) branches)
+      _                    -> bcoerce (boxTypeOf expr) expectTp expr
   where
     boxApp e args 
       = let tp = boxTypeOf e in
@@ -631,28 +636,50 @@ box expectTp expr
 
     boxArg ((_,paramTp),arg) = box paramTp arg
     
+    isBoxOp (App (Var (TName name _) (InfoExternal _)) [arg]) = (name == newHiddenName ("box") || name == newHiddenName ("unbox"))
+    isBoxOp _ = False
+    
 boxDefGroup dg
   = case dg of
       DefRec defs   -> DefRec (map boxDef defs)
       DefNonRec def -> DefNonRec (boxDef def)
       
-boxBranch expectTp (Branch patterns guards)
-  = Branch patterns (map (boxGuard expectTp) guards)
+boxBranch patTps expectTp (Branch patterns guards)
+  = let (subss,patterns') = unzip [boxPattern patTp pat | (patTp,pat) <- zip patTps patterns]
+    in Branch patterns' (map (boxGuard expectTp) (concat subss |~> guards))
 
 boxGuard expectTp (Guard test expr)
   = Guard (box typeBool test) (box expectTp expr)
     
+boxPattern :: Type -> Pattern -> ([(TName,Expr)],Pattern)
+boxPattern fromTp pat
+  = case pat of
+      PatCon name params repr targs exists tres conInfo
+        -> let (subss,params') = unzip [boxPattern ftp par | (ftp,par) <- zip (map snd (conInfoParams conInfo)) params]
+           in (concat subss, PatCon name params' repr targs exists tres conInfo)
+      PatVar tname arg 
+        -> let (subs,arg') = boxPattern fromTp arg 
+               tname'      = (TName (getName tname) fromTp)
+           in
+           case bcoerce fromTp (typeOf tname) (Var tname' InfoNone) of
+             Var{}  -> (subs, PatVar tname arg')
+             coerce -> ((tname,coerce):subs,PatVar tname' arg')
+      PatWild  -> ([],pat)
+      PatLit _ -> ([],pat)
     
 bcoerce :: Type -> Type -> Expr -> Expr
 bcoerce fromTp toTp expr
   = case (cType fromTp, cType toTp) of
       (CBox, CBox)             -> expr
-      (CBox, CPrim prim)       -> App (boxVar "unbox" prim toTp) [expr]
-      (CBox, CData name)       -> App (boxVar "unbox" (show (ppName name)) toTp) [expr]
-      (CBox, CFun cpars cres)  -> App (boxVar "unbox" "function" toTp) [expr]
-      (CPrim prim, CBox)       -> App (boxVar "box" prim fromTp) [expr]
-      (CData name, CBox)       -> App (boxVar "box" (show (ppName name)) fromTp) [expr]
-      (CFun cpars cres, CBox)  -> App (boxVar "box" "function" fromTp) [expr]
+      
+      (CBox, CPrim prim)       -> App (unboxVar prim) [expr]
+      (CBox, CData name)       -> App (unboxVar (show (ppName name))) [expr]
+      (CBox, CFun cpars cres)  -> App (unboxVar "function") [expr]
+      
+      (CPrim prim, CBox)       -> App (boxVar prim) [expr]
+      (CData name, CBox)       -> App (boxVar (show (ppName name))) [expr]
+      (CFun cpars cres, CBox)  -> App (boxVar "function") [expr]
+      
       (CFun fromPars fromRes, CFun toPars toRes)
           | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
           -> case splitFunScheme toTp of
@@ -660,18 +687,27 @@ bcoerce fromTp toTp expr
                  -> case splitFunScheme fromTp of
                       Just (_,_,fromParTps,fromEffTp,fromResTp)  
                         -> 
-                           let names = [ newHiddenName "b" | i <- [1..length toParTps]]
+                           let names = [ newHiddenName ("bx" ++ show i) | i <- [1..length toParTps]]
                                pars  = zipWith TName names (map snd toParTps)
                                args  = [Var par InfoNone | par <- pars]
                            in Lam pars toEffTp $
-                              bcoerce fromResTp toResTp $
-                              App expr (map (\(arg,argTp) -> box argTp arg) (zip args (map snd fromParTps)))
+                              let coercedArgs = map (\(arg,argTp) -> box argTp arg) (zip args (map snd fromParTps)) in
+                              case expr of
+                                Lam fpars feffTp body 
+                                  -> -- inline directly to avoid allocating a function
+                                     let sub = zip fpars coercedArgs
+                                     in sub |~> body  -- this can lead to box/unbox pairs :-( -- optimize afterwards                                                                          
+                                _ -> -- use an application     
+                                     bcoerce fromResTp toResTp $
+                                     App expr coercedArgs
       _   -> expr
   where
-    boxVar s prim tp
-      = Var (TName (newName ("." ++ s)) (coerceTp tp)) (InfoExternal [(C, s ++ "_" ++ prim ++ "(#1)")])
-    coerceTp tp
-      = TFun [(nameNil,tp)] typeTotal tp
+    boxVar prim
+      = Var (TName (newHiddenName ("box")) (coerceTp)) (InfoExternal [(C, "box_" ++ prim ++ "(#1)")])
+    unboxVar prim
+      = Var (TName (newHiddenName ("unbox")) (coerceTp )) (InfoExternal [(C, "unbox_" ++ prim ++ "(#1)")])
+    coerceTp 
+      = TFun [(nameNil,fromTp)] typeTotal toTp
     
     
 ---------------------------------------------------------------------------------
@@ -695,7 +731,7 @@ getResultX result (puredoc,retdoc)
                                   Nothing -> empty
                                   Just l  -> text "break" <+> ppName l <.> semi
 
-ppVarDecl (TName name tp) = ppType tp <+> ppName name
+ppVarDecl (TName name tp) = ppType tp <+> text "/*" <.> pretty tp <.> text "*/" <+> ppName name
 
 tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
 tryTailCall result expr
@@ -847,7 +883,7 @@ genMatch result scrutinees branches
                            (text "if" <.> parens (head scrutinees) <+> block (stmts1 <-> text "return" <+> expr1 <.> semi))
                             <-->
                            (stmts2 <-> getResultX result (if (isExprUnit e2) then text "" else expr2,expr2))
-
+{-
         [Branch [p1] [Guard t1 e1], Branch [p2] [Guard t2 e2]]
            | isExprTrue t1
           && isExprTrue t2
@@ -863,7 +899,7 @@ genMatch result scrutinees branches
                           return $ debugWrap "genMatch: conditional expression"
                                  $ getResult result
                                  $ parens (conjunction test) <+> text "?" <+> doc1 <+> text ":" <+> doc2
-
+-}
         bs
            | all (\b-> length (branchGuards   b) == 1) bs
           && all (\b->isExprTrue $ guardTest $ head $ branchGuards b) bs
@@ -899,11 +935,12 @@ genMatch result scrutinees branches
       = do modName <- getModule
            let substs     = concatMap (uncurry getSubstitutions) (zip tnDocs patterns)
            let conditions = concatMap (genTest modName) (zip tnDocs patterns)
-           let se         = withNameSubstitutions substs
-
-           gs <- mapM (se . genGuard False      result) (init guards)
-           g  <-      (se . genGuard lastBranch result) (last guards)
-           return (conditions, debugWrap ("genBranch: " ++ show substs) $ vcat gs <-> g)
+           -- let se         = withNameSubstitutions substs
+           let decls = [ppVarDecl tname <+> text "=" <+> doc | (tname,doc) <- substs]
+           
+           gs <- mapM (genGuard False      result) (init guards)
+           g  <-      (genGuard lastBranch result) (last guards)
+           return (conditions, debugWrap ("genBranch") $ vcat (decls ++ gs) <-> g)
 
     getSubstitutions :: Doc -> Pattern -> [(TName, Doc)]
     getSubstitutions nameDoc pat
@@ -977,23 +1014,7 @@ genMatch result scrutinees branches
                           in (conTest:fieldTests)
 
 
-{-  -- | Generates assignments for the variables in the pattern
-    genAssign :: (TName,Pattern) -> Asm [Doc]
-    genAssign (TName n t,pattern)
-      = do docs <- f (ppName n) pattern
-           return $ [debugComment "<genAssign>"] ++ docs ++ [debugComment "</genAssign>"]
-      where
-        f s pattern
-          = case pattern of
-              PatWild
-                -> do return []
-              PatVar tname pat
-                -> do let doc = text "var" <+> ppName (getName tname) <+> text "=" <+> s <.> semi
-                      docs <- f (ppName (getName tname)) pat -- avoid mutiple a.b.c.d call
-                      return (doc:docs)
-              PatCon _ fields _ _ info
-                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1. WTF?
--}
+    
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [Doc] -> Doc
     conjunction []
