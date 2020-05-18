@@ -548,13 +548,16 @@ ppType :: Type -> Doc
 ppType tp
   = case cType tp of
       CBox -> text "box_t"
+      CFun _ _ -> text "function_t"
       CData name -> ppName name
       CPrim prim -> text prim
   
 data CType 
   = CBox
+  | CFun [CType] CType
   | CData Name
   | CPrim String
+  deriving (Eq,Show)
   
 cType :: Type -> CType
 cType tp
@@ -562,7 +565,7 @@ cType tp
       TForall vars preds t
         -> cType t
       TFun pars eff res
-        -> CPrim "function_t"
+        -> CFun (map (cType . snd) pars) (cType res)
       TApp t ts
         -> cType t
       TCon c
@@ -643,12 +646,27 @@ boxGuard expectTp (Guard test expr)
 bcoerce :: Type -> Type -> Expr -> Expr
 bcoerce fromTp toTp expr
   = case (cType fromTp, cType toTp) of
-      (CBox, CBox)        -> expr
-      (CBox, CPrim prim)  -> App (boxVar "unbox" prim toTp) [expr]
-      (CBox, CData name)  -> App (boxVar "unbox" "data" toTp) [expr]
-      (CPrim prim, CBox)  -> App (boxVar "box" prim fromTp) [expr]
-      (CData name, CBox)  -> App (boxVar "box" "data" fromTp) [expr]
-      _             -> expr
+      (CBox, CBox)             -> expr
+      (CBox, CPrim prim)       -> App (boxVar "unbox" prim toTp) [expr]
+      (CBox, CData name)       -> App (boxVar "unbox" (show (ppName name)) toTp) [expr]
+      (CBox, CFun cpars cres)  -> App (boxVar "unbox" "function" toTp) [expr]
+      (CPrim prim, CBox)       -> App (boxVar "box" prim fromTp) [expr]
+      (CData name, CBox)       -> App (boxVar "box" (show (ppName name)) fromTp) [expr]
+      (CFun cpars cres, CBox)  -> App (boxVar "box" "function" fromTp) [expr]
+      (CFun fromPars fromRes, CFun toPars toRes)
+          | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
+          -> case splitFunScheme toTp of
+               Just (_,_,toParTps,toEffTp,toResTp) 
+                 -> case splitFunScheme fromTp of
+                      Just (_,_,fromParTps,fromEffTp,fromResTp)  
+                        -> 
+                           let names = [ newHiddenName "b" | i <- [1..length toParTps]]
+                               pars  = zipWith TName names (map snd toParTps)
+                               args  = [Var par InfoNone | par <- pars]
+                           in Lam pars toEffTp $
+                              bcoerce fromResTp toResTp $
+                              App expr (map (\(arg,argTp) -> box argTp arg) (zip args (map snd fromParTps)))
+      _   -> expr
   where
     boxVar s prim tp
       = Var (TName (newName ("." ++ s)) (coerceTp tp)) (InfoExternal [(C, s ++ "_" ++ prim ++ "(#1)")])
