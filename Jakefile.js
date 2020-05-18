@@ -467,6 +467,7 @@ var hsModules = [
 
   "Backend.CSharp.FromCore",
   "Backend.JavaScript.FromCore",
+  "Backend.C.Box",
   "Backend.C.FromCore",
 
   "Syntax.Colorize",
