@@ -340,9 +340,10 @@ genTypeDef (Data info isExtend)
                        <+> ppName (typeClassName name) <.> semi
 
        -- generate functions for constructors
-       emitToH empty
        mapM_ (genConstructor info dataRepr) conInfos
-
+       
+       -- generate functions for the datatype (box/unbox)
+       genBoxUnbox name info dataRepr 
   where
     ppEnumCon (con,conRepr)
       = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
@@ -351,6 +352,43 @@ genTypeDef (Data info isExtend)
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
 
+
+genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
+genBoxUnbox name info dataRepr
+  = do genBox name info dataRepr
+       genUnbox  name info dataRepr
+
+genUnbox name info dataRepr
+  = emitToH $
+    text "static inline box_t box_" <.> ppName name <.> parens (ppName name <+> text "x") <+> block (
+      text "return" <+> (
+      case dataRepr of
+        DataEnum -> parens (ppName name) <.> text "box_enum(x)"
+        DataIso  -> let conInfo = head (dataInfoConstrs info)
+                        (isoName,isoTp)   = (head (conInfoParams conInfo))
+                    in text "box_" <.> ppType isoTp <.> parens (text "x." <.> ppName (unqualify isoName))
+        _ -> case dataInfoDef info of
+               DataDefValue raw scancount 
+                  -> let extra = if (dataRepr == DataStruct) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                     in text "box_valuetype" <.> tupled [ppName name, text "x", pretty (scancount + extra) <+> text "/* scan fields */"]
+               _  -> text "box_datatype(x)"
+    ) <.> semi)
+
+genBox name info dataRepr
+  = emitToH $
+    text "static inline" <+> ppName name <+> text "unbox_" <.> ppName name <.> parens (text "box_t x") <+> block (
+      text "return" <+> (
+      case dataRepr of
+        DataEnum -> parens (ppName name) <.> text "unbox_enum(x)"
+        DataIso  -> let conInfo = head (dataInfoConstrs info)
+                        isoTp   = snd (head (conInfoParams conInfo))
+                    in conCreateName conInfo <.> parens (text "unbox_" <.> ppType isoTp <.> text "(x)")
+        _ | dataReprIsValue dataRepr
+          -> text "unbox_valuetype" <.> tupled [ppName name, text "x"]
+        _ -> text "unbox_datatype(x)"
+    ) <.> semi)
+
+    
 genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
 genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
   case conRepr of
@@ -367,7 +405,7 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
 ppConField :: (Name,Type) -> Doc
 ppConField (name,tp)
   = ppType tp <+> ppName (unqualify name) <.> semi
-
+  
 genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
 genConstructor info dataRepr (con,conRepr,conFields,scanCount)
   = do genConstructorTest info dataRepr con conRepr
@@ -438,18 +476,19 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                     then vcat(--[ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
                                (if (hasTagField dataRepr)
                                  then [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "=" <+>
-                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "}; // zero initializes remaining fields"]
+                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "/* _tag */ }; // zero initializes remaining fields"]
                                       ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
-                                 else [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {0}; // zero initializes all fields" <+>
-                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "};"]
+                                 else [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {0}; // zero initializes all fields" ]
                                       ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
                                )
                                ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
                      then text "return datatype_ptr(&" <.> conSingletonName con <.> text ");"
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount, 
-                                                               if (dataRepr /= DataOpen) then ppConTag con conRepr dataRepr else text "TAG_OPEN"]
+                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */", 
+                                                               if (dataRepr /= DataOpen) 
+                                                                then ppConTag con conRepr dataRepr <+> text "/* tag */"
+                                                                else text "TAG_OPEN"]
                                <.> semi]
                               ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_type._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
@@ -471,6 +510,8 @@ genConstructorAccess info dataRepr con conRepr
                           [text "assert(" <.> conTestName con <.> text "(x)" <.> text ");"
                           ,text "return" <+> parens (text "struct"  <+> ppName (conInfoName con) <.> text "*") <.> text "x;"]
                         )
+
+
 
 
 conCreateName :: ConInfo -> Doc
