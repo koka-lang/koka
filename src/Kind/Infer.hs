@@ -812,7 +812,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
                                   then return (DataDefValue m n)
-                                  else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type does not have a value kind ('V').")  -- should never happen?
+                                  else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type but does not have a value kind ('V').")  -- should never happen?
                                           return DataDefNormal
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?

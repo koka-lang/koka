@@ -173,6 +173,7 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
        let fdoc = vcat [ if null comm
                            then empty
                            else align (vcat (space : map text (lines (trim comm)))) {- already a valid C comment -}
+                       , ppVarDecl (defTName def) <.> semi
                        , defDoc
                        ]
        return (fdoc)
@@ -301,11 +302,17 @@ genTypeDef (Data info isExtend)
           else emitToH $ ppVis (dataInfoVis info) <.> text "typedef datatype_t"
                          <+> ppName (typeClassName name) <.> semi
                          <-> if (noCons) then empty
-                              else text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" <+> text "header_t _header;" <+> text "};"
+                              else text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{" 
+                                    <+> text "header_t _header;" 
+                                    <.> (if (dataRepr /= DataOpen) then empty else text " string_t _tag;")
+                                    <+> text "};"
 
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
-       conInfos <- mapM (\(conInfo,conRepr) -> do (fields,scanCount) <- orderConFields (dataInfoDef info) (conInfoParams conInfo)
+       conInfos <- mapM (\(conInfo,conRepr) -> do (fields,scanCount0) <- orderConFields (dataInfoDef info) (conInfoParams conInfo)
+                                                  let scanCount = if (dataRepr == DataOpen) 
+                                                                   then scanCount0 + 1  -- tag field
+                                                                   else scanCount0
                                                   return (conInfo,conRepr,fields,scanCount)) conInfoReprs
        -- generate types for constructors
        if (dataRepr == DataEnum)
@@ -314,9 +321,10 @@ genTypeDef (Data info isExtend)
 
        -- wrap up the type definition
        if (dataRepr == DataOpen && not isExtend)
-        then do let openTag = text "tag_t" <+> openTagName name
+        then {- do let openTag = text "tag_t" <+> openTagName name
                 emitToH $ text "extern" <+> openTag <.> semi
-                emitToC $ openTag <+> text "= 0;"
+                emitToC $ openTag <+> text "= 0;" -}
+             return ()
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
           else emitToH $ if (isDataStruct dataRepr)
@@ -371,10 +379,9 @@ genConstructorTest :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
 genConstructorTest info dataRepr con conRepr
   = do if (dataRepr/=DataOpen)
           then return ()
-          else do emitToH $ text "extern tag_t" <+> conTagName con <.> semi
-                  emitToC $ text "tag_t" <+> conTagName con <.> semi
-                  emitToInit $ conTagName con <+> text "=" <+> openTagName (dataInfoName info) <.> text "++;"
-
+          else do emitToH $ text "extern string_t" <+> conTagName con <.> semi  -- real def already generated 
+                  -- emitToC $ text "tag_t" <+> conTagName con <.> semi
+                  -- emitToInit $ conTagName con <+> text "=" <+> openTagName (dataInfoName info) <.> text "++;"
        emitToH  $ text "static inline bool" <+> (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
                   <+> block( text "return (" <.> (
                   let nameDoc = ppName (conInfoName con)
@@ -390,7 +397,7 @@ genConstructorTest info dataRepr con conRepr
                     ConAsCons{}    -> text "datatype_is_ptr(x)"
                     ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    | otherwise -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
-                    ConOpen{}      -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+                    ConOpen{}      -> text "((struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s*)(x))->_type._tag" <+> text "==" <+> ppConTag con conRepr dataRepr
                   ) <.> text ");")
 
 conTestName con
@@ -441,8 +448,10 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                     else if (null conFields)
                      then text "return datatype_ptr(&" <.> conSingletonName con <.> text ");"
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount, ppConTag con conRepr dataRepr]
+                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount, 
+                                                               if (dataRepr /= DataOpen) then ppConTag con conRepr dataRepr else text "TAG_OPEN"]
                                <.> semi]
+                              ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_type._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
                               ++ [text "return datatype_ptr(" <.> tmp <.> text ");"])
           )
@@ -583,9 +592,9 @@ cType tp
 cTypeCon c 
    = let name = typeConName c
      in if (name == nameTpInt)
-         then CPrim "integer"
+         then CPrim "integer_t"
         else if (name == nameTpString)
-         then CPrim "string"
+         then CPrim "string_t"
         else if (name == nameTpChar)
          then CPrim "int32_t"
         else if (name == nameTpInt32)
@@ -614,12 +623,12 @@ getResultX result (puredoc,retdoc)
      ResultReturn _ _  -> text "return" <+> retdoc <.> semi
      ResultAssign n ml -> ( if isWildcard (getName n)
                               then (if (isEmptyDoc puredoc) then puredoc else puredoc <.> semi)
-                              else ppVarDecl n <+> text "=" <+> retdoc <.> semi
+                              else ppName (getName n) <+> text "=" <+> retdoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
                           ) <-> case ml of
                                   Nothing -> empty
                                   Just l  -> text "break" <+> ppName l <.> semi
 
-ppVarDecl (TName name tp) = ppType tp <+> text "/*" <.> pretty tp <.> text "*/" <+> ppName name
+ppVarDecl (TName name tp) = ppType tp <+> ppName name
 
 tryTailCall :: Result -> Expr -> Asm (Maybe Doc)
 tryTailCall result expr
@@ -1028,7 +1037,7 @@ genVarBinding expr
       _        -> do name <- newVarName "x"
                      let tname = TName name (typeOf expr)
                      doc  <- genStat (ResultAssign tname Nothing) expr
-                     return ( doc, tname )
+                     return ( ppVarDecl tname <.> semi <//> doc, tname )
 
 ---------------------------------------------------------------------------------
 -- Pure expressions
