@@ -28,7 +28,7 @@ class (Monad m, Functor m) => HasUnique m where
   updateUnique :: (Int -> Int) -> m Int
   -- getUnique    :: m Int
   setUnique    :: Int -> m ()
-
+  
   unique  :: m Int
   uniques :: Int -> m [Int]
   uniqueId :: String -> m Id
@@ -59,6 +59,7 @@ class (Monad m, Functor m) => HasUnique m where
     = do i <- unique
          return (newHiddenName (baseName ++ "." ++ show i))
 
+         
 {--------------------------------------------------------------------------
   Helper instance for unique variables
 --------------------------------------------------------------------------}
@@ -95,4 +96,3 @@ instance Monad Unique where
 
 instance HasUnique Unique where
   updateUnique f    = Unique (\i -> (i, f i))
-

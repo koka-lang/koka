@@ -39,6 +39,8 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 
+import Backend.C.Box
+
 type CommentDoc   = Doc
 type ConditionDoc = Doc
 
@@ -58,17 +60,18 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: Newtypes -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
-cFromCore newtypes mbMain core
-  = case runAsm (Env moduleName penv externalNames newtypes False) (genModule mbMain core) of
+cFromCore :: Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
+cFromCore newtypes uniq mbMain core
+  = case runAsm uniq (Env moduleName penv externalNames newtypes False) (genModule mbMain core) of
       ((),cdoc,hdoc) -> (cdoc,hdoc)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
 genModule :: Maybe (Name,Bool) -> Core -> Asm ()
-genModule mbMain core
-  =  do let externs       = vcat (concatMap includeExternal (coreProgExternals core))
+genModule mbMain core0
+  =  do core <- liftUnique (boxCore core0)  -- box/unbox transform
+        let externs       = vcat (concatMap includeExternal (coreProgExternals core))
             headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> text "(void)"
 
@@ -101,15 +104,15 @@ genModule mbMain core
                        , text "#endif // header"]
         return ()
   where
-    modName         = ppModName (coreProgName core)
+    modName         = ppModName (coreProgName core0)
 
     externalIncludes :: [Doc]
     externalIncludes
-      = concatMap includeExternal (coreProgExternals core)
+      = concatMap includeExternal (coreProgExternals core0)
 
     externalImports :: [Doc]
     externalImports
-      = map fst (concatMap importExternal (coreProgExternals core))
+      = map fst (concatMap importExternal (coreProgExternals core0))
 
     initImport :: Import -> Doc
     initImport imp
@@ -191,7 +194,7 @@ genTopGroup group
   = do case group of
         DefRec defs   -> do mapM_ genFunTopDefSig defs                            
                             mapM_ (genTopDef False False) defs
-        DefNonRec def -> do let inlineC =  (defInline def == InlineAlways || isInlineable 10 def)
+        DefNonRec def -> do let inlineC =  (defInline def == InlineAlways || isInlineable 5 def)
                             genTopDef True inlineC def
 
 genFunTopDefSig :: Def -> Asm ()
@@ -232,7 +235,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
   = let tryFun expr = case expr of
                         TypeApp e _   -> tryFun e
                         TypeLam _ e   -> tryFun e
-                        Lam params eff body  -> genFunDef params (box (resultType tp) body)
+                        Lam params eff body  -> genFunDef params body
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> semi
@@ -591,123 +594,6 @@ cTypeCon c
          then CPrim "bool"
         else CData (typeClassName name)
 
-    
-boxTypeOf :: Expr -> Type
-boxTypeOf expr
-  = case expr of
-      TypeLam tvs e     -> boxTypeOf e
-      TypeApp e tps     -> boxTypeOf e
-      Lam pars eff body -> typeFun [(name,tp) | TName name tp <- pars] eff (boxTypeOf body)
-      App e args        -> resultType (boxTypeOf e)
-      _                 -> typeOf expr
-      
-      
-boxDef :: Def -> Def
-boxDef def 
-    = def{ defExpr = box (defType def) (defExpr def) }
-      
-
-resultType :: Type -> Type
-resultType tp
-  = case splitFunScheme tp of
-      Just (_,_,_,_,resTp) -> resTp
-      
-box :: Type -> Expr -> Expr
-box expectTp expr
-  = case expr of
-      TypeLam tvs e        -> TypeLam tvs (box expectTp e)
-      TypeApp e tps        -> TypeApp (box expectTp e) tps
-      Lam tparams eff body -> bcoerce (boxTypeOf expr) (expectTp) $
-                              Lam tparams eff (box (resultType expectTp) body)
-      App e args           -> boxApp e args
-      Let defGroups body   -> Let (map boxDefGroup defGroups) (box expectTp body)
-      Case exprs branches  -> let exprTps = map boxTypeOf exprs
-                              in Case (map (\e -> box (boxTypeOf e) e) exprs) 
-                                      (map (boxBranch exprTps expectTp) branches)
-      _                    -> bcoerce (boxTypeOf expr) expectTp expr
-  where
-    boxApp e args 
-      = let tp = boxTypeOf e in
-        case splitFunScheme tp of
-          Just (_,_,tparams,eff,tres) 
-            -> assertion ("Backend.C.box: boxArgs: arguments do not match: " ++ show expr) (length tparams == length args) $
-               bcoerce tres expectTp $
-               App (box tp e) (map boxArg (zip tparams args))
-
-    boxArg ((_,paramTp),arg) = box paramTp arg
-    
-    isBoxOp (App (Var (TName name _) (InfoExternal _)) [arg]) = (name == newHiddenName ("box") || name == newHiddenName ("unbox"))
-    isBoxOp _ = False
-    
-boxDefGroup dg
-  = case dg of
-      DefRec defs   -> DefRec (map boxDef defs)
-      DefNonRec def -> DefNonRec (boxDef def)
-      
-boxBranch patTps expectTp (Branch patterns guards)
-  = let (subss,patterns') = unzip [boxPattern patTp pat | (patTp,pat) <- zip patTps patterns]
-    in Branch patterns' (map (boxGuard expectTp) (concat subss |~> guards))
-
-boxGuard expectTp (Guard test expr)
-  = Guard (box typeBool test) (box expectTp expr)
-    
-boxPattern :: Type -> Pattern -> ([(TName,Expr)],Pattern)
-boxPattern fromTp pat
-  = case pat of
-      PatCon name params repr targs exists tres conInfo
-        -> let (subss,params') = unzip [boxPattern ftp par | (ftp,par) <- zip (map snd (conInfoParams conInfo)) params]
-           in (concat subss, PatCon name params' repr targs exists tres conInfo)
-      PatVar tname arg 
-        -> let (subs,arg') = boxPattern fromTp arg 
-               tname'      = (TName (getName tname) fromTp)
-           in
-           case bcoerce fromTp (typeOf tname) (Var tname' InfoNone) of
-             Var{}  -> (subs, PatVar tname arg')
-             coerce -> ((tname,coerce):subs,PatVar tname' arg')
-      PatWild  -> ([],pat)
-      PatLit _ -> ([],pat)
-    
-bcoerce :: Type -> Type -> Expr -> Expr
-bcoerce fromTp toTp expr
-  = case (cType fromTp, cType toTp) of
-      (CBox, CBox)             -> expr
-      
-      (CBox, CPrim prim)       -> App (unboxVar prim) [expr]
-      (CBox, CData name)       -> App (unboxVar (show (ppName name))) [expr]
-      (CBox, CFun cpars cres)  -> App (unboxVar "function") [expr]
-      
-      (CPrim prim, CBox)       -> App (boxVar prim) [expr]
-      (CData name, CBox)       -> App (boxVar (show (ppName name))) [expr]
-      (CFun cpars cres, CBox)  -> App (boxVar "function") [expr]
-      
-      (CFun fromPars fromRes, CFun toPars toRes)
-          | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
-          -> case splitFunScheme toTp of
-               Just (_,_,toParTps,toEffTp,toResTp) 
-                 -> case splitFunScheme fromTp of
-                      Just (_,_,fromParTps,fromEffTp,fromResTp)  
-                        -> 
-                           let names = [ newHiddenName ("bx" ++ show i) | i <- [1..length toParTps]]
-                               pars  = zipWith TName names (map snd toParTps)
-                               args  = [Var par InfoNone | par <- pars]
-                           in Lam pars toEffTp $
-                              let coercedArgs = map (\(arg,argTp) -> box argTp arg) (zip args (map snd fromParTps)) in
-                              case expr of
-                                Lam fpars feffTp body 
-                                  -> -- inline directly to avoid allocating a function
-                                     let sub = zip fpars coercedArgs
-                                     in sub |~> body  -- this can lead to box/unbox pairs :-( -- optimize afterwards                                                                          
-                                _ -> -- use an application     
-                                     bcoerce fromResTp toResTp $
-                                     App expr coercedArgs
-      _   -> expr
-  where
-    boxVar prim
-      = Var (TName (newHiddenName ("box")) (coerceTp)) (InfoExternal [(C, "box_" ++ prim ++ "(#1)")])
-    unboxVar prim
-      = Var (TName (newHiddenName ("unbox")) (coerceTp )) (InfoExternal [(C, "unbox_" ++ prim ++ "(#1)")])
-    coerceTp 
-      = TFun [(nameNil,fromTp)] typeTotal toTp
     
     
 ---------------------------------------------------------------------------------
@@ -1328,6 +1214,7 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       App (Var _ (InfoExternal _)) args -> all isPureExpr args
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
@@ -1394,9 +1281,9 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
-runAsm :: Env -> Asm a -> (a,Doc,Doc)
-runAsm initEnv (Asm asm)
-  = case asm initEnv initSt of
+runAsm :: Int -> Env -> Asm a -> (a,Doc,Doc)
+runAsm uniq initEnv (Asm asm)
+  = case asm initEnv (initSt uniq) of
       (x,st) -> (x, vcat (reverse (cdoc st)), vcat (reverse (hdoc st)))
 
 data St  = St  { uniq :: Int
@@ -1415,7 +1302,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
-initSt = St 0 [] [] []
+initSt uniq = St uniq [] [] []
 
 instance HasUnique Asm where
   updateUnique f

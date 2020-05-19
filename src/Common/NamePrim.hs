@@ -49,6 +49,8 @@ module Common.NamePrim
           --
           , nameUnsafeTotal
           , nameIntConst, nameInt32
+          
+          , nameTpBox, nameUnbox, nameBox
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -331,6 +333,11 @@ nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
+
+nameTpBox       = coreTypesName ".Box"
+nameBox         = coreTypesName ".box"
+nameUnbox       = coreTypesName ".unbox"
+
 
 nameTuple :: Int -> Name
 nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")

@@ -19,7 +19,8 @@ import Common.Failure
 import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
-                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName )
+                       , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
+                       , nameBox, nameUnbox )
 import Common.Unique
 import Type.Type
 import Type.Kind
@@ -347,6 +348,10 @@ bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvInde
 bottomUp (App (TypeApp (Var clauseTail info) (effTp:tps)) [op]) | Just n <- isClauseTailName (getName clauseTail), ([],_) <- extractHandledEffect effTp
   = (App (TypeApp (Var (TName (nameClauseTailNoYield n) (typeOf clauseTail)) info) (effTp:tps)) [op])
 
+-- box(unbox(e)) ~> e   unbox(box(e)) ~> e
+bottomUp (App (Var v _) [App (Var w _) [arg]])  | (getName v == nameUnbox && getName w == nameBox) || (getName w == nameUnbox && getName v == nameBox)
+  = arg
+
 
 -- direct application of arguments to a lambda: fun(x1...xn) { f(x1,...,xn) }  -> f
 bottomUp (Lam pars eff (App f@(Var _ info) args))   | notExternal && length pars == length args && argsMatchPars
@@ -510,8 +515,9 @@ isTotalAndCheap expr
       Con{} -> True
       Lit{} -> True
       -- toany(x)
-      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg
       App (TypeApp (Var v _) _) [arg]   | getName v == nameEffectOpen -> isTotalAndCheap arg
+      App (TypeApp (Var v _) [_]) [arg] | getName v == nameToAny -> isTotalAndCheap arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isTotalAndCheap arg
       -- functions that are immediately applied to something cheap (cps generates this for resumes)
       -- Lam pars eff (App e args)
         --  -> isTotalAndCheap e && all isTotalAndCheap args -- matchParArg (zip pars args)
@@ -763,6 +769,8 @@ hasNoEffect  expr
      Lit _      -> True
      Let dgs e  -> all hasNoEffectDef (flattenDefGroups dgs) && hasNoEffect e
      Case exps branches -> all hasNoEffect exps && all hasNoEffectBranch branches
+     -- inline box/unbox 
+     App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> hasNoEffect arg
      _          -> False  -- todo: a let or case could be total
 
 

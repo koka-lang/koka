@@ -694,12 +694,12 @@ instance HasType Expr where
   -- Application
   typeOf expr@(App fun args)
     = -- snd (splitFun (typeOf fun))
-      case expandSyn (typeOf fun) of
-         TFun targs eff tres
+      case splitFunScheme (typeOf fun) of
+        Just (_,_,targs,eff,tres)          -- ignore forall as we can call this after box/unbox
            | length args == length targs || length targs == 0 -> tres
            | length args > length targs  -> typeOf (App (Var (TName (newName "tmp") tres) InfoNone) (drop (length targs) args))
            | otherwise -> TFun (drop (length args) targs) eff tres
-         _ -> failure ("Core.Core.typeOf.App: Expected function: " ++ show (pretty (typeOf fun))) -- ++ " in the application " ++ show (expr))
+        _ -> failure ("Core.Core.typeOf.App: Expected function: " ++ show (pretty (typeOf fun))) -- ++ " in the application " ++ show (expr))
 
   -- Type lambdas
   typeOf (TypeLam xs expr)
