@@ -90,9 +90,10 @@ genModule mbMain core0
                          , headComment ]
                          ++ externalImports
                          ++ map moduleImport (coreProgImports core)
-                         ++ [text "// type declarations"]
 
+        emitToH (linebreak <.> text "// type declarations")
         genTypeDefs (coreProgTypeDefs core)
+        emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
         init <- getInit
@@ -100,7 +101,7 @@ genModule mbMain core0
                   <.> text "// initialization"
                   <-> initSignature
                   <.> block init
-        emitToH $ vcat [ initSignature <.> semi <.> linebreak
+        emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
                        , text "#endif // header"]
         return ()
   where
@@ -202,7 +203,7 @@ genFunTopDefSig def@(Def name tp defExpr vis sort inl rng comm)
   = do penv <- getPrettyEnv 
        let tpDoc = typeComment (Pretty.ppType penv tp)                      
            sig   = (genFunDefSig False def) 
-       (if (isPublic vis) then emitToH else emitToC) (sig <.> semi <+> tpDoc)
+       (if (isPublic vis) then emitToH else emitToC) (linebreak <.> sig <.> semi <+> tpDoc)
 
 genFunDefSig :: Bool -> Def -> Doc
 genFunDefSig inlineC def@(Def name tp defExpr vis sort inl rng comm)
@@ -240,9 +241,9 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> semi
                                 if (isPublic vis) 
-                                 then do emitToH (text "extern" <+> decl)
-                                         emitToC decl
-                                 else do emitToC (text "static" <+> decl)
+                                 then do emitToH (linebreak <.> text "extern" <+> decl)
+                                         emitToC (linebreak <.> decl)
+                                 else do emitToC (linebreak <.> text "static" <+> decl)
     in tryFun defBody                                  
   where
     emit = if inlineC then emitToH else emitToC
@@ -256,14 +257,15 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
            penv <- getPrettyEnv
            let tpDoc = typeComment (Pretty.ppType penv tp)                      
            let sig = genFunDefSig inlineC def
-           when (genSig && not inlineC && isPublic (defVis def)) $ emitToH (sig <.> semi <+> tpDoc) 
-           emit $ sig
+           when (genSig && not inlineC && isPublic (defVis def)) $ emitToH (linebreak <.> sig <.> semi <+> tpDoc) 
+           emit $ linebreak 
+                  <.> sig
                   <+> ( if isTailCall
                           then tcoBlock tpDoc bodyDoc
                           else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
                             <.> tblock tpDoc bodyDoc
                       )
-
+                  
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
 ---------------------------------------------------------------------------------
@@ -1110,6 +1112,15 @@ genInlineExternal tname formats argDocs
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+-- special case box/unbox
+genExprExternal tname formats argDocs0 | getName tname == nameBox || getName tname == nameUnbox
+  = let isBox = (getName tname == nameBox) 
+        tp    = case typeOf tname of
+                  TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
+        fun   = text (if (isBox) then "box_" else "unbox_") <.> ppType tp
+    in return ([], fun <.> tupled argDocs0)
+    
+-- normal external
 genExprExternal tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
