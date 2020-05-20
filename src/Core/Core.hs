@@ -100,8 +100,8 @@ isExprTrue _              = False
 isExprFalse (Con tname _)  = (getName tname == nameFalse)
 isExprFalse _              = False
 
-(patFalse,exprFalse) = patExprBool nameFalse 1
-(patTrue,exprTrue)   = patExprBool nameTrue 2
+(patFalse,exprFalse) = patExprBool nameFalse 0
+(patTrue,exprTrue)   = patExprBool nameTrue 1
 
 patExprBool name tag
   = let tname   = TName name typeBool
