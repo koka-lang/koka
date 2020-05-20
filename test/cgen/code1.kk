@@ -1,4 +1,4 @@
-public fun id(x) { 
+public fun id(x) {
   x
 }
 
@@ -31,6 +31,14 @@ fun box-test2( xs : list<int> ) : list<int> {
 
 fun box-test3( xs : list<int> ) : int {
   xs.map(Just).head(Nothing).default(42)
+}
+
+fun box-test4( xs : list<int> ) : int {
+  match(xs.map(Just)) {
+    Cons(Just(x)) -> x
+    Cons(Nothing,Cons(Just(y))) -> y
+    _ -> 42
+  }
 }
 
 fun mapx( xs, f ) {

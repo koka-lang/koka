@@ -1005,7 +1005,7 @@ genPatternTest doTest (exprDoc,pattern)
                  return [(test [conTestName conInfo <.> parens exprDoc],[],next)]
 
           conTest conInfo
-            = do local <- newVarName (show exprDoc)
+            = do local <- newVarName "con"
                  let next    = genNextPatterns "->" (ppDefName local) (typeOf tname) patterns
                      typeDoc = text "struct" <+> ppName (conInfoName conInfo) <.> text "*"
                      assign  = typeDoc <+> ppDefName local <+> text "=" <+> conAsName conInfo <.> parens exprDoc <.> semi
