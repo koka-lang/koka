@@ -552,7 +552,7 @@ genMatch result scrutinees branches
                 -> [text "!" <.> scrutinee]
                 | otherwise
                 -> case repr of
-                     ConEnum _ tag
+                     ConEnum _ _ tag
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
                      ConSingleton{} -- the only constructor without fields (=== null)
                        -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)

@@ -12,6 +12,7 @@
 module Kind.Newtypes( -- * Type newtypes
                       Newtypes, DataInfo(..)
                     , newtypesEmpty, newtypesExtend, newtypesLookup, newtypesFind
+                    , newtypesLookupAny
                     , newtypesNew, newtypesCompose
                     , newtypesIsEmpty
                     , newtypesTypeDefs
@@ -23,7 +24,7 @@ module Kind.Newtypes( -- * Type newtypes
 import qualified Common.NameMap as M
 import Common.Failure( failure )
 import Common.Name
-import Common.Syntax  ( Visibility(..))
+import Common.Syntax  ( Visibility(..), isPublic )
 import Type.Type
 
 import Type.Pretty
@@ -63,7 +64,13 @@ newtypesExtend name info (Newtypes m)
   = Newtypes (M.insert name info m)
 
 newtypesLookup :: Name -> Newtypes -> Maybe DataInfo
-newtypesLookup name (Newtypes m)
+newtypesLookup name nt
+  = case newtypesLookupAny name nt of
+      Just info | isPublic (dataInfoVis info)  -> Just info
+      _ -> Nothing
+
+newtypesLookupAny :: Name -> Newtypes -> Maybe DataInfo
+newtypesLookupAny name (Newtypes m)
   = M.lookup name m
 
 newtypesFind :: Name -> Newtypes -> DataInfo
@@ -84,7 +91,7 @@ extractTypeDefGroup (Core.TypeDefGroup tdefs)
 extractTypeDef :: Core.TypeDef -> [DataInfo]
 extractTypeDef tdef
   = case tdef of
-      Core.Data dataInfo False | (dataInfoVis dataInfo == Public)
+      Core.Data dataInfo False
         -> [dataInfo]
       _ -> []
 

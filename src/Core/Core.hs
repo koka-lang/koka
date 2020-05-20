@@ -105,7 +105,7 @@ isExprFalse _              = False
 
 patExprBool name tag
   = let tname   = TName name typeBool
-        conEnum = ConEnum nameTpBool tag
+        conEnum = ConEnum nameTpBool DataEnum tag
         conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False Public ""
         pat = PatCon tname [] conEnum [] [] typeBool conInfo
         expr = Con tname conEnum
@@ -219,20 +219,20 @@ data DataRepr = -- value types
               | DataOpen
               deriving (Eq,Ord,Show)
 
-data ConRepr  = ConEnum{ conTypeName :: Name, conTag :: Int }                     -- part of enumeration (none has fields)
-              | ConIso{ conTypeName:: Name, conTag :: Int }                       -- one constructor with one field
-              | ConSingleton{ conTypeName :: Name, conTag :: Int }                -- constructor without fields (and not part of an enum)
-              | ConSingle{ conTypeName :: Name, conTag :: Int }                   -- there is only one constructor (and this is it)
-              | ConStruct{ conTypeName :: Name, conTag :: Int }                   -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
-              | ConOpen  { conTypeName :: Name }                                  -- constructor of open data type
-              | ConNormal{ conTypeName :: Name, conTag :: Int }                   -- a regular constructor
+data ConRepr  = ConEnum{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                     -- part of enumeration (none has fields)
+              | ConIso{ conTypeName:: Name, conDataRepr :: DataRepr, conTag :: Int }                       -- one constructor with one field
+              | ConSingleton{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                -- constructor without fields (and not part of an enum)
+              | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- there is only one constructor and it is not iso or singleton (and this is it)
+              | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- constructor as value type
+              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr }                                  -- constructor of open data type
+              | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- a regular constructor
               deriving (Eq,Ord,Show)
 
-isConSingleton (ConSingleton _ _) = True
+isConSingleton (ConSingleton _ _ _) = True
 isConSingleton _ = False
 
-isConNormal (ConNormal _ _) = True
+isConNormal (ConNormal _ _ _) = True
 isConNormal _  = False
 
 isConIso (ConIso{}) = True
@@ -259,32 +259,34 @@ getDataReprEx getIsValue info
         isValue = getIsValue info
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
-          then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
+          then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen) conInfos)
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
          else if (isValue && null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
-          then (DataEnum,map (const (ConEnum typeName)) conInfos)
+          then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos
-               in (if (isValue && length (conInfoParams conInfo) == 1)
-                    then DataIso
-                   else if (isValue && null singletons && not (dataInfoIsRec info))
-                    then DataSingleStruct
-                    else DataSingle
-                  ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName
-                    else if length singletons == 1 then ConSingleton typeName
-                    else ConSingle typeName])
+                   dataRepr = if (isValue && length (conInfoParams conInfo) == 1)
+                                then DataIso
+                               else if (isValue && null singletons && not (dataInfoIsRec info))
+                                then DataSingleStruct
+                                else DataSingle
+               in (dataRepr
+                  ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
+                    else if length singletons == 1 then ConSingleton typeName dataRepr
+                    else ConSingle typeName dataRepr])
          else if (isValue && not (dataInfoIsRec info))
-          then (DataStruct, map (\_ -> ConStruct typeName) conInfos )
+          then (DataStruct, map (\_ -> ConStruct typeName DataStruct) conInfos )
          else if (length conInfos == 2 && length singletons == 1)
           then (DataAsList
-               ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName
-                              else ConAsCons typeName (conInfoName (head singletons))) conInfos)
-         else (if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal
-               ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -}
-                              ConNormal typeName) conInfos
-               )
+               ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
+                              else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
+         else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal
+              in (dataRepr
+                 ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -}
+                                ConNormal typeName dataRepr) conInfos
+                 )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
 
 

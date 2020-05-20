@@ -205,18 +205,18 @@ genTypeDef (Data info isExtend)
 genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr) -> Asm ()
 genConstructor info dataRepr (con,conRepr) =
   case conRepr of
-    ConEnum _ _
+    ConEnum _ _ _
        -> return ()
-    ConSingleton typeName _
+    ConSingleton typeName _ _
        -> assertion ("CSharp.FromCore.genTypeDef: singleton constructor with existentials?") (null (conInfoExists con)) $
           conSingleton typeName
 
-    ConAsCons typeName nilName _
+    ConAsCons typeName _ nilName _
        -> -- merge it into the type class itself
           do ctx <- getModule
              putLn (vcat (map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr []))
 
-    ConSingle typeName _
+    ConSingle typeName _ _
        -> -- merge it into the type class itself
           do ctx <- getModule
              let docs = map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr []
@@ -224,10 +224,10 @@ genConstructor info dataRepr (con,conRepr) =
               then return ()
               else putLn (vcat docs)
 
-    ConStruct typeName _
+    ConStruct typeName _ _
        -> conStruct typeName
 
-    ConIso typeName _
+    ConIso typeName _ _
        -> conStruct typeName
 
     _  -> onTopLevel $
@@ -305,18 +305,18 @@ ppConConstructorEx ctx con conRepr conParams defaults
      then []
      else [text "public" <+>
            (case conRepr of
-              ConAsCons typeName nilName _ -> ppDefName (typeClassName typeName)
-              ConSingle typeName _ -> ppDefName (typeClassName typeName)
-              ConStruct typeName _ -> ppDefName (typeClassName typeName)
-              ConIso    typeName _ -> ppDefName (typeClassName typeName)
-              _                    -> ppDefName (conClassName (conInfoName con))) <.>
+              ConAsCons typeName _ nilName _ -> ppDefName (typeClassName typeName)
+              ConSingle typeName _ _ -> ppDefName (typeClassName typeName)
+              ConStruct typeName _ _ -> ppDefName (typeClassName typeName)
+              ConIso    typeName _ _ -> ppDefName (typeClassName typeName)
+              _                      -> ppDefName (conClassName (conInfoName con))) <.>
            tupled (map ppParam (conInfoParams con)) <+>
            (case conRepr of
-              ConNormal typeName _ -> text ":" <+> text "base" <.> parens (ppTag ctx typeName (conInfoName con)) <.> space
-              _                    -> empty) <.>
+              ConNormal typeName _ _ -> text ":" <+> text "base" <.> parens (ppTag ctx typeName (conInfoName con)) <.> space
+              _                      -> empty) <.>
            block (linebreak <.> vcat (
               (case conRepr of
-                 ConStruct typeName _ -> [text "this." <.> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <.> semi]
+                 ConStruct typeName _ _ -> [text "this." <.> ppTagName <+> text "=" <+> ppTag ctx typeName (conInfoName con) <.> semi]
                  _             -> [])
               ++ map ppAssignConField conParams
               ++ map (ppAssignDefault ctx) defaults
@@ -746,28 +746,28 @@ genCon tname repr targs args
             ctx <- getModule
             result $ hang 2 $ -- cast $
              case repr of
-              ConEnum _ _
+              ConEnum _ _ _
                 -> assertion "genCon: ConEnum has type args or args?" (null targs && null args) $
                    ppConEnum ctx tname
-              ConSingleton typeName _
+              ConSingleton typeName _ _
                 -> ppConSingleton ctx typeName tname targs
-              ConStruct typeName _ | null args
+              ConStruct typeName _ _ | null args
                 -> ppConSingleton ctx typeName tname targs
-              ConStruct typeName _
+              ConStruct typeName _ _
                 -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <.>
                    ppTypeArgs ctx targs <//>
                    tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
-              ConIso typeName _
+              ConIso typeName _ _
                 -> text "new" <+>
                    ppQName ctx (typeClassName typeName) <.>
                    ppTypeArgs ctx targs <//>
                    tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
               _ -> text "new" <+>
                    (case repr of
-                      ConAsCons typeName _ _
+                      ConAsCons typeName _ _ _
                          -> ppQName ctx (typeClassName typeName)
-                      ConSingle typeName _
+                      ConSingle typeName _ _
                          -> ppQName ctx (typeClassName typeName)
                       _  -> ppQName ctx (conClassName (getName tname))) <.>
                    (ppTypeArgs ctx targs) <//>
@@ -1060,10 +1060,10 @@ genTag (exprDoc,patterns)
              -- putLn (text "int" <+> ppDefName local <+> text "=" <+> exprDoc <.> text "." <.> ppTagName <.> semi)
              return (Just (exprDoc <.> text "." <.> ppTagName))
   where
-    isConMatch (PatCon _ _ (ConNormal _ _) _ _ _ _) = True
-    isConMatch (PatCon _ _ (ConStruct _ _) _ _ _ _) = True
-    isConMatch (PatCon _ _ (ConIso _ _) _ _ _ _)    = True
-    isConMatch _                                  = False
+    isConMatch (PatCon _ _ (ConNormal _ _ _) _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConStruct _ _ _) _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConIso _ _ _) _ _ _ _)    = True
+    isConMatch _                                      = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
 genBranch mbTagDocs exprDocs doTest branch@(Branch patterns [g@(Guard guard expr)]) -- TODO: adapt for multiple guards!
@@ -1154,13 +1154,13 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
       PatCon tname patterns repr targs exists tres info
         -> do ctx <- getModule
               case repr of
-                 ConEnum _ _
+                 ConEnum _ _ _
                   -> assertion "CSharp.FromCore.ppPatternTest.enum with patterns?" (null patterns) $
                      return [(test [exprDoc <+> text "==" <+> ppConEnum ctx tname],[],[],[])]
-                 ConSingleton typeName _
+                 ConSingleton typeName _ _
                   -> assertion "CSharp.FromCore.ppPatternTest.singleton with patterns?" (null patterns) $
                      return [(test [exprDoc <+> text "==" <+> ppConSingleton ctx typeName tname tpars],[],[],[])]
-                 ConSingle typeName _
+                 ConSingle typeName _ _
                   -> -- assertion ("CSharp.FromCore.ppPatternTest.single with test? ")  (doTest == False) $
                      -- note: the assertion can happen when a nested singleton is tested
                      do -- generate local for the test result
@@ -1170,18 +1170,18 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         return [([] -- test [exprDoc <+> text "!=" <+> ppConSingleton ctx typeName (TName nilName (typeOf tname)) targs]
                                 ,[],next,[])]
 
-                 ConAsCons typeName nilName _
+                 ConAsCons typeName _ nilName _
                   -> do let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]
                                 ,[],next,[])]
-                 ConStruct typeName _
+                 ConStruct typeName _ _
                   -> testStruct typeName
-                 ConIso typeName _
+                 ConIso typeName _ _
                   -> testStruct typeName
-                 ConNormal typeName _
+                 ConNormal typeName _ _
                   -> conTest ctx typeName exists -- TODO: use tags if available
-                 ConOpen typeName
+                 ConOpen typeName _
                   -> conTest ctx typeName exists
         where
           testStruct typeName
