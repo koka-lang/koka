@@ -304,7 +304,7 @@ infTypeDefGroups (tdgroup:tdgroups)
 infTypeDefGroups []
   = do kgamma <- getKGamma
        syns <- getSynonyms
-       datas <- getNewtypes
+       datas <- getAllNewtypes
        return ([],kgamma,syns,datas)
 
 infTypeDefGroup :: TypeDefGroup UserType UserKind -> KInfer (Core.TypeDefGroup)

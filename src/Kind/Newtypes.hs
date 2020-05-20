@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 module Kind.Newtypes( -- * Type newtypes
                       Newtypes, DataInfo(..)
-                    , newtypesEmpty, newtypesExtend, newtypesLookup, newtypesFind
+                    , newtypesEmpty, newtypesExtend, newtypesLookupPublic, newtypesFind
                     , newtypesLookupAny
                     , newtypesNew, newtypesCompose
                     , newtypesIsEmpty
@@ -63,8 +63,8 @@ newtypesExtend :: Name -> DataInfo -> Newtypes -> Newtypes
 newtypesExtend name info (Newtypes m)
   = Newtypes (M.insert name info m)
 
-newtypesLookup :: Name -> Newtypes -> Maybe DataInfo
-newtypesLookup name nt
+newtypesLookupPublic :: Name -> Newtypes -> Maybe DataInfo
+newtypesLookupPublic name nt
   = case newtypesLookupAny name nt of
       Just info | isPublic (dataInfoVis info)  -> Just info
       _ -> Nothing
@@ -75,7 +75,7 @@ newtypesLookupAny name (Newtypes m)
 
 newtypesFind :: Name -> Newtypes -> DataInfo
 newtypesFind name syn
-  = case newtypesLookup name syn of
+  = case newtypesLookupAny name syn of
       Nothing -> failure ("Kind.Newtypes.newtypesFind: unknown newtype: " ++ show name)
       Just x  -> x
 

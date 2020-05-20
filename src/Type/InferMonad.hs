@@ -1115,7 +1115,7 @@ setPredicates ps
 findDataInfo :: Name -> Inf DataInfo
 findDataInfo typeName
   = do env <- getEnv
-       case newtypesLookup typeName (types env) of
+       case newtypesLookupAny typeName (types env) of
          Just info -> return info
          Nothing   -> failure ("Type.InferMonad.findDataInfo: unknown type: " ++ show typeName ++ "\n in: " ++ show (types env))
 
