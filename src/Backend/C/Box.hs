@@ -79,6 +79,14 @@ boxExpr expectTp expr
                                         do bargs <- mapM (\((_,paramTp),arg) -> boxExpr paramTp arg) (zip paramTps args)
                                            bexpr <- boxExpr funTp e
                                            bcoerce resTp expectTp (App bexpr bargs)
+                                   Nothing -- if it was a type variable
+                                     -> -- failure ("Backend.C.boxExpr.App: not a function: " ++ show funTp ++ ", " ++ show expr)
+                                        do let argTps = map boxTypeOf args
+                                               eTp    = TFun [(nameNil,tp) | tp <- argTps] typeTotal expectTp
+                                           bargs <- mapM (\(arg) -> boxExpr (boxTypeOf arg) arg) args
+                                           bexpr <- boxExpr eTp e
+                                           return (App bexpr bargs)
+                                           
       Lam tparams eff body -> do let funTp = boxTypeOf expr
                                  bbody <- boxExpr (resultType funTp) body
                                  bcoerce funTp (expectTp) (Lam tparams eff bbody)                                 
@@ -98,12 +106,8 @@ boxExpr expectTp expr
     
 boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch  
 boxBranch patTps expectTp (Branch patterns guards)
-  = do bs <- mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
-       let (bdeclss,bpatterns) = unzip bs
-           bsubs    = concat bdeclss
-           bgroups  = [DefNonRec (Def name tp expr Private DefVal InlineAuto rangeNull "") | ((TName name tp),expr) <- bsubs]
-           bguards0 = [Guard (bsubs |~> test) (makeLet bgroups body) | (Guard test body) <- guards]
-       bguards <- mapM (boxGuard expectTp) bguards0
+  = do bpatterns <- mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
+       bguards <- mapM (boxGuard expectTp) guards
        return (Branch bpatterns bguards)
 
 boxGuard :: BoxType -> Guard -> Unique Guard
@@ -112,23 +116,38 @@ boxGuard expectTp (Guard test expr)
       bexpr <- boxExpr expectTp expr
       return (Guard btest bexpr)
     
-boxPattern :: BoxType -> Pattern -> Unique ([(TName,Expr)],Pattern)
+boxPattern :: BoxType -> Pattern -> Unique Pattern
+boxPattern fromTp PatWild
+  = boxPatternX fromTp PatWild
+boxPattern fromTp pat | cType (fromTp) /= cType toTp
+  = do i <- unique
+       let uname = newHiddenName ("unbox-x" ++ show i)
+       coerce <- bcoerce fromTp toTp (Var (TName uname toTp) InfoNone) 
+       case coerce of
+         Var{} -> boxPatternX fromTp pat
+         _     -> do bpat <- boxPatternX toTp pat
+                     return (PatVar (TName uname toTp) bpat)
+  where
+    toTp  = case pat of
+              PatCon{}       -> patTypeRes pat
+              PatVar tname _ -> typeOf tname
+              PatLit lit     -> typeOf lit
+              PatWild        -> typeAny  -- cannot happen
+    
 boxPattern fromTp pat
+  = boxPatternX fromTp pat
+
+boxPatternX :: BoxType -> Pattern -> Unique Pattern
+boxPatternX fromTp pat
   = case pat of
       PatCon name params repr targs exists tres conInfo
-        -> do bs <- mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
-              let (subss,bparams) = unzip bs
-              return (concat subss, PatCon name bparams repr targs exists tres conInfo)
+        -> do bparams <- mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
+              return (PatCon name bparams repr targs exists tres conInfo)
       PatVar tname arg 
-        -> do (subs,barg) <- boxPattern fromTp arg
-              uname <- uniqueName (show (getName tname))
-              let utname = TName uname fromTp
-              coerce <- bcoerce fromTp (typeOf tname) (Var utname InfoNone)
-              case coerce of
-                Var{} -> return (subs, PatVar tname barg) -- no coercion
-                _     -> return ((tname,coerce):subs, PatVar utname barg)              
-      PatWild  -> return ([],pat)
-      PatLit _ -> return ([],pat)
+        -> do barg <- boxPattern (typeOf tname) arg
+              return (PatVar tname barg)              
+      PatWild  -> return pat
+      PatLit _ -> return pat
     
 bcoerce :: Type -> Type -> Expr -> Unique Expr
 bcoerce fromTp toTp expr
@@ -170,7 +189,9 @@ boxTypeOf expr
       TypeLam tvs e     -> boxTypeOf e
       TypeApp e tps     -> boxTypeOf e
       Lam pars eff body -> typeFun [(name,boxType tp) | TName name tp <- pars] (boxType eff) (boxTypeOf body)
-      App e args        -> resultType (boxTypeOf e)
+      App e args        -> case splitFunScheme (boxTypeOf e) of
+                             Just (_,_,_,_,resTp) -> resTp
+                             Nothing              -> typeBox kindStar -- error ("Backend.C.Box.resultType: not a function: " ++ show tp)
       _                 -> typeOf expr    
 
 resultType :: Type -> Type

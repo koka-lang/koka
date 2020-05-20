@@ -387,7 +387,7 @@ genBox name info dataRepr
         DataEnum -> parens (ppName name) <.> text "unbox_enum(x)"
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
-                    in conCreateName conInfo <.> parens (text "unbox_" <.> ppType isoTp <.> text "(x)")
+                    in conCreateNameInfo conInfo <.> parens (text "unbox_" <.> ppType isoTp <.> text "(x)")
         _ | dataReprIsValue dataRepr
           -> text "unbox_valuetype" <.> tupled [ppName name, text "x"]
         _ -> text "unbox_datatype(x)"
@@ -465,7 +465,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                  emitToC $ declTpName <+> text "= { header_static( 0, " <.> ppConTag con conRepr dataRepr <.> text ") };"
          else return ()
        emitToH $
-          text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateName con
+          text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
           <.> parameters (conInfoParams con)
           <.> block (
             let nameDoc = ppName (conInfoName con)
@@ -516,8 +516,11 @@ genConstructorAccess info dataRepr con conRepr
 
 
 
-conCreateName :: ConInfo -> Doc
-conCreateName con = ppName (makeHiddenName "new" (conInfoName con))
+conCreateNameInfo :: ConInfo -> Doc
+conCreateNameInfo con = conCreateName (conInfoName con)
+
+conCreateName :: Name -> Doc
+conCreateName conName  = ppName (makeHiddenName "new" conName)
 
 conSingletonName :: ConInfo -> Doc
 conSingletonName con = ppName (makeHiddenName "singleton" (conInfoName con))
@@ -579,6 +582,7 @@ typeClassName name
   = prepend "." name
 conClassName name
   = postpend "-ct" name
+
 
 ppDefName :: Name -> Doc
 ppDefName name
@@ -753,11 +757,12 @@ tryTailCall result expr
     genOverride :: [TName] -> [Expr] -> Asm Doc
     genOverride params args
       = fmap (debugWrap "genOverride") $
-        do (stmts, varNames) <- do args' <- mapM tailCallArg args
+        do (stmts, varNames) <- do -- args' <- mapM tailCallArg args
+                                   let args' = args
                                    bs    <- mapM genVarBinding args'
                                    return (unzip bs)
-           docs1             <- mapM genTName params
-           docs2             <- mapM genTName varNames
+           docs1             <- mapM genDefName params
+           docs2             <- mapM genDefName varNames
            let assigns    = map (\(p,a)-> if p == a
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
                                             else debugComment ("genOverride: preparing tailcall") <.> p <+> text "=" <+> a <.> semi
@@ -765,6 +770,7 @@ tryTailCall result expr
            return $
              linecomment (text "tail call") <-> vcat stmts <-> vcat assigns
 
+{-
     -- if local variables are captured inside a tailcalling function argument,
     -- we need to capture it by value (instead of reference since we will overwrite the local variables on a tailcall)
     -- we do this by wrapping the argument inside another function application.
@@ -803,6 +809,7 @@ tryTailCall result expr
 
     capturedGuard (Guard test expr)
       = S.union (capturedVar test) (capturedVar expr)
+-}
 
 -- | Generates a statement from an expression by applying a return context (deeply) inside
 genStat :: Result -> Expr -> Asm Doc
@@ -837,7 +844,7 @@ genExprStat result expr
                                    then do d       <- genInline e
                                            return (text "", d)
                                    else do (sd,vn) <- genVarBinding e
-                                           vd      <- genTName vn
+                                           vd      <- genDefName vn
                                            return (sd, vd)
                       ) exprs
                doc <- genMatch result scrutinees branches
@@ -950,9 +957,13 @@ genPatternTest doTest (exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
       PatWild -> return []
+      PatVar tname pattern | hiddenNameStartsWith (getName tname) "unbox"
+        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> text "unbox_" <.> ppType (typeOf tname) <.> parens exprDoc <.> semi
+                  next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
+              return [([],[after],next)]
       PatVar tname pattern
         -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
-                  next  = genNextPatterns (failure "C.FromCore.genPatternTest.PatVar") (ppDefName (getName tname)) (typeOf tname) [pattern]
+                  next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
@@ -998,21 +1009,21 @@ genPatternTest doTest (exprDoc,pattern)
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
               --   return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
-              do let select = case dataRepr of
-                                DataStruct -> "._cons." ++ show (ppDefName (getName conName)) ++ "."
-                                _          -> "."
-                     next = genNextPatterns select exprDoc (typeOf tname) patterns
+              do let selectOp = case dataRepr of
+                                  DataStruct -> "._cons." ++ show (ppDefName (getName conName)) ++ "."
+                                  _          -> "."
+                     next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns
                  return [(test [conTestName conInfo <.> parens exprDoc],[],next)]
 
           conTest conInfo
             = do local <- newVarName "con"
-                 let next    = genNextPatterns "->" (ppDefName local) (typeOf tname) patterns
+                 let next    = genNextPatterns (\self fld -> self <.> text "->" <.> fld) (ppDefName local) (typeOf tname) patterns
                      typeDoc = text "struct" <+> ppName (conInfoName conInfo) <.> text "*"
                      assign  = typeDoc <+> ppDefName local <+> text "=" <+> conAsName conInfo <.> parens exprDoc <.> semi
                  return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
 
 
-genNextPatterns :: String -> Doc -> Type -> [Pattern] -> [(Doc,Pattern)]
+genNextPatterns :: (Doc -> Doc -> Doc) -> Doc -> Type -> [Pattern] -> [(Doc,Pattern)]
 genNextPatterns select exprDoc tp []
   = []
 genNextPatterns select exprDoc tp patterns
@@ -1033,7 +1044,7 @@ genNextPatterns select exprDoc tp patterns
     genNextPattern (name,pattern)
       = case pattern of
           PatWild -> []
-          _       -> let patDoc = exprDoc <.> text select <.> ppDefName name
+          _       -> let patDoc = select exprDoc (ppDefName name)
                      in [(patDoc, pattern)]
 
 
@@ -1062,17 +1073,21 @@ genExpr expr
        -> genExpr arg
      -}
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-       -> return (empty, pretty i)
+       -> return (empty, parens (text "(int32_t)" <.> pretty i))
+     App (Con tname repr) args
+       -> do (decls,argDocs) <- genExprs args
+             return (vcat decls,conCreateName (getName tname) <.> tupled argDocs)
      App f args
-       -> case extractList expr of
+       -> -- case extractList expr of
               -- inline list
-              Just (xs,tl) -> genList xs tl
-              Nothing -> case extractExtern f of
+          --    Just (xs,tl) -> genList xs tl
+          --    Nothing -> 
+          case extractExtern f of
                Just (tname,formats)
                  -- inline external
                  -> case args of
                      [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-                       -> return (empty,pretty i)
+                       -> return (empty, parens (text "(int32_t)" <.> pretty i))
                      _ -> -- genInlineExternal tname formats argDocs
                           do (decls,argDocs) <- genExprs args
                              (edecls,doc) <- genExprExternal tname formats argDocs
@@ -1092,12 +1107,12 @@ genExpr expr
 
      Case _ _
        -> do (doc, tname) <- genVarBinding expr
-             nameDoc <- genTName tname
+             nameDoc <- genDefName tname
              return (doc, nameDoc)
 
      _ -> failure ("JavaScript.FromCore.genExpr: invalid expression:\n" ++ show expr)
 
-
+{-
 extractList :: Expr -> Maybe ([Expr],Expr)
 extractList e
   = let (elems,tl) = extract [] e
@@ -1116,21 +1131,8 @@ genList elems tl
   = do (decls,docs) <- genExprs elems
        (tdecl,tdoc) <- genExpr tl
        return (vcat (decls ++ [tdecl]), text "$std_core.vlist" <.> tupled [list docs, tdoc])
-
-{-
-genExternalExpr :: TName -> String -> [Expr] -> Asm (Doc,Doc)
-genExternalExpr tname format args
-  | getName tname == nameReturn
-  = do (statDoc,exprDoc) <- genExpr (head args)
-       return (statDoc <-> text "return" <+> exprDoc <.> semi <.> debugComment "premature return statement (2)"
-              , text "") -- emptyness of doc is important! no other way to tell to not generate assignment/return/whatever!
-  | otherwise
-  = do (statDocs,argDocs) <- genExprs args
-       doc <- genExternal tname format argDocs
-       return ( debugComment "<genExternalExpr.stmt>" <.> vcat statDocs <.> debugComment "</genExternalExpr.stmt>"
-              , debugComment "<genExternalExpr.expr>" <.> doc           <.> debugComment "</genExternalExpr.expr>"
-              )
 -}
+
 
 genExprs :: [Expr] -> Asm ([Doc],[Doc])
 genExprs exprs
@@ -1160,9 +1162,9 @@ genPure expr
      Var name (InfoExternal formats)
        -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
      Var name info
-       -> genTName name
-     Con name repr
-       -> genTName name
+       -> return (ppName (getName name))
+     Con name info
+       -> return (conCreateName (getName name) <.> text "()")
      Lit l
        -> return $ ppLit l
      Lam params eff body
@@ -1284,21 +1286,6 @@ genDefName :: TName -> Asm Doc
 genDefName tname
   = return (ppName (unqualify (getName tname)))
 
-genTName :: TName -> Asm Doc
-genTName tname
-  = do env <- getEnv
-       case lookup tname (substEnv env) of
-          Nothing -> genName (getName tname)
-          Just d  -> return d
-
-genName :: Name -> Asm Doc
-genName name
-  = if (isQualified name)
-      then do modname <- getModule
-              if (qualifier name == modname)
-               then return (ppName (unqualify name))
-               else return (ppName name)
-      else return (ppName name)
 
 genVarName :: String -> Asm Doc
 genVarName s = do n <- newVarName s
@@ -1570,14 +1557,16 @@ extractDataDefType tp
 -- Pretty printing
 ---------------------------------------------------------------------------------
 
--- | Approved for use in JavaScript according to ECMA definition
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> if (isSmallInt(i))
-                      then (pretty i)
-                      else ppName nameIntConst <.> parens (dquotes (pretty i))
-      LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
+                      then text "integer_from_small" <.> parens (pretty i)
+                      else text "integer_from_str" <.> parens (dquotes (pretty i))
+      LitChar c   -> let i = fromEnum c
+                     in if (c >= ' ' || c <= '~') 
+                         then text (show c)
+                         else text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
       LitString s -> dquotes (hcat (map escape s))
     where
@@ -1596,10 +1585,7 @@ ppLit lit
            then text "\\u" <.> text (showHex 4 (fromEnum c))
           else if (fromEnum c > 0x10FFFF)
            then text "\\uFFFD"  -- error instead?
-           else let code = fromEnum c - 0x10000
-                    hi = (code `div` 0x0400) + 0xD800
-                    lo = (code `mod` 0x0400) + 0xDC00
-                in text ("\\u" ++ showHex 4 hi ++ "\\u" ++ showHex 4 lo)
+           else text "\\U" <.> text (showHex 8 (fromEnum c))
 
 isSmallLitInt expr
   = case expr of
@@ -1609,7 +1595,7 @@ isSmallLitInt expr
 isSmallInt i = (i > minSmallInt && i < maxSmallInt)
 
 maxSmallInt, minSmallInt :: Integer
-maxSmallInt = 9007199254740991  -- 2^53 - 1
+maxSmallInt = 4095  -- 2^14 - 1
 minSmallInt = -maxSmallInt
 
 ppName :: Name -> Doc

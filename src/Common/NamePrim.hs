@@ -338,7 +338,6 @@ nameTpBox       = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
 
-
 nameTuple :: Int -> Name
 nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")
 

@@ -1,6 +1,3 @@
-public fun id(x) {
-  x
-}
 
 public fun f(x : int) : div int {
   if (x==0) then 1 else g(x) + 1;
@@ -19,6 +16,10 @@ fun apply(f,x) {
 
 fun incr(x : int) : int {
   x + 1
+}
+
+fun eta-test1() {
+  id(id)(1)
 }
 
 fun box-test1( x : int ) : int {
