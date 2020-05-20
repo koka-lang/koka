@@ -2121,8 +2121,8 @@ inferOptionals eff infgamma (par:pars)
             (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par))
                                              (if isRho partp then Instantiated else Generalized False) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
-            -- inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
-            inferUnify (Infer fullRange) (getRange expr) eff exprEff
+            inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
+            -- or: inferUnify (Infer fullRange) (getRange expr) eff exprEff
 
             tp <- subst partp
             let infgamma' = infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) tp)]
@@ -2150,7 +2150,7 @@ inferOptionals eff infgamma (par:pars)
                        ,  Core.Branch [ Core.PatWild ]
                                       [ Core.Guard   Core.exprTrue coreExpr ]
                        ]
-                def  = Core.Def local partp init Private DefVal InlineAuto (binderNameRange par) ""
+                def  = Core.Def local partp init Private DefVal InlineNever (binderNameRange par) ""
                 sub  = [(Core.TName (binderName par) tp, Core.Var (Core.TName local partp) Core.InfoNone)]
                 -- coref core
                 --   = Core.Let [Core.DefNonRec def] ((CoreVar.|~>) sub core)

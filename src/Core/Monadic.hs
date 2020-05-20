@@ -246,7 +246,7 @@ appBind tpArg tpEff tpRes fun args cont
 
 applyBind tpArg tpEff tpRes expr cont
   = case cont of
-      Lam [aname] eff (Var v _) | getName v == getName aname -> expr
+      Lam [aname] eff (Var v _) | getName v == getName aname -> expr      
       _ -> App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [expr,cont]
   where
     info = Core.InfoArity 2 3 -- Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
@@ -292,7 +292,7 @@ isNeverMon expr
   = case expr of
       TypeApp e _ -> isNeverMon e
       Var v _     -> getName v == canonicalName 1 nameDeref --TODO: remove special case?
-      _ -> False
+      _ -> isTotal expr
 
 
 -- Does this definition need any mon translation (sometimes deeper inside)

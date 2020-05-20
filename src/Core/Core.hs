@@ -81,7 +81,7 @@ import Common.Range
 import Common.Failure
 import Common.Unique
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32 )
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox )
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -410,6 +410,7 @@ data Lit =
 
 
 -- | a core expression is total if it cannot cause non-total evaluation
+{-
 isTotal:: Expr -> Bool
 isTotal expr
   = case expr of
@@ -424,6 +425,29 @@ isTotal expr
                       TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
                       _                 -> False
       _       -> False  -- todo: a let or case could be total
+-}
+
+-- | a core expression that cannot cause any evaluation _for sure_
+isTotal :: Expr -> Bool
+isTotal expr
+ = case expr of
+     Lam _ _ _   -> True
+     Var _ _     -> True
+     TypeLam _ e -> isTotal e
+     TypeApp e _ -> isTotal e
+     Con _ _     -> True
+     Lit _      -> True
+     Let dgs e  -> all isTotalDef (flattenDefGroups dgs) && isTotal e
+     Case exps branches -> all isTotal exps && all isTotalBranch branches
+     -- inline box/unbox 
+     App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isTotal arg
+     _          -> False  
+
+
+isTotalDef def = isTotal (defExpr def)
+
+isTotalBranch (Branch pat guards) = all isTotalGuard guards
+isTotalGuard (Guard test expr)    = isTotal test && isTotal expr
 
 
 isMonType :: Type -> Bool
