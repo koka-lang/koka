@@ -18,8 +18,18 @@ fun incr(x : int) : int {
   x + 1
 }
 
+fun fib(n:int) : int {
+  if (n==0) then 1 else fib(unsafe-decreasing(n - 1))
+}
+
+val incrx = (if (fib(10)==1) then incr else id)
+
+fun val-apply(x : int) : int {
+  incrx(x)
+}
+
 fun eta-test1() {
-  id(id)(1)
+  val-apply(id(id)(1))
 }
 
 fun box-test1( x : int ) : int {

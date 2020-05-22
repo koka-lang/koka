@@ -156,7 +156,7 @@ importExternal _
 
 genLocalGroups :: [DefGroup] -> Asm [Doc]
 genLocalGroups dgs
-  = mapM genLocalGroup dgs    
+  = mapM genLocalGroup dgs
 
 genLocalGroup :: DefGroup -> Asm Doc
 genLocalGroup (DefRec _) = error "Backend.C.FromCore.genLocalGroup: local resursive function definitions are not allowed"
@@ -977,10 +977,10 @@ genNextPatterns select exprDoc tp patterns
 
 -- | Generates javascript statements and a javascript expression from core expression
 genExpr :: Expr -> Asm ([Doc],Doc)
-genExpr expr  | isInlineableExpr expr  
+genExpr expr  | isInlineableExpr expr
   = do doc <- genInline expr
-       return ([],doc)       
-genExpr expr  
+       return ([],doc)
+genExpr expr
   = genExprPrim expr
 
 genExprPrim expr
@@ -988,7 +988,7 @@ genExprPrim expr
     case expr of
      TypeApp e _ -> genExpr e
      TypeLam _ e -> genExpr e
-    
+
      App f args
        -> genApp f args
 
@@ -1036,7 +1036,7 @@ genPure expr
      --   -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
      Var name info
        -> case splitFunScheme (typeOf name) of
-            Just (_,_,argTps,eff,resTp) | isQualified (getName name)  -- wrap bare top-level functions
+            Just (_,_,argTps,eff,resTp) | isQualified (getName name) && isInfoArity info -- wrap bare top-level functions
               -> do argNames <- mapM newVarName ["x" ++ show i | i <- [1..length argTps]]
                     let tnames = [TName name tp | (name,(_,tp)) <- zip argNames argTps]
                         body   = (App expr [Var name InfoNone | name <- tnames])
@@ -1059,7 +1059,7 @@ genPure expr
 
 {-
 genLambda :: Expr -> ([TypeVar],[Pred],[(Name,Type)],Effect,Type) -> Asm Doc
-genLambda expr (_,_,argTps,eff,resTp) 
+genLambda expr (_,_,argTps,eff,resTp)
   = do argNames <- genVarNames (length argTps)
        let tnames = [TName name tp | (name,tp) <- zip argNames argTps]
            lam = Lam tnames eff $
@@ -1078,7 +1078,7 @@ isPat b q
 -- | Generates an effect-free expression
 --   NOTE: Throws an error if expression is not guaranteed to be effectfree
 genInline :: Expr -> Asm Doc
-genInline expr | isPureExpr expr 
+genInline expr | isPureExpr expr
   = genPure expr
 genInline expr
   = do (decls,doc) <- genExprPrim expr
@@ -1088,7 +1088,7 @@ genInline expr
     {-
     case expr of
       _  | isPureExpr expr -> genPure expr
-      
+
       TypeLam _ e -> genInline e
       TypeApp e _ -> genInline e
       App f args
@@ -1119,8 +1119,8 @@ genApp f args
        case sapp of
          Just app -> return ([],app)
          Nothing  -> genAppNormal f args
-         
-         
+
+
 genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
 genAppNormal f args
   = do (decls,argDocs) <- genExprs args
@@ -1130,25 +1130,25 @@ genAppNormal f args
            -> do (edecls,doc) <- genExprExternal tname formats argDocs
                  return ((edecls ++ decls), doc)
          Nothing
-           -> case f of 
+           -> case f of
                -- constructor
                Con tname repr
                  -> return (decls,conCreateName (getName tname) <.> tupled argDocs)
                -- call to known function
-               Var tname info | isQualified (getName tname)
-                 -> return (decls,ppName (getName tname) <.> tupled argDocs)         
+               Var tname (InfoArity m n) | isQualified (getName tname)
+                 -> return (decls,ppName (getName tname) <.> tupled argDocs)
                -- call unknown function_t
-               _ -> do (fdecls,fdoc) <- case f of 
+               _ -> do (fdecls,fdoc) <- case f of
                                           Var tname info -> return ([], ppName (getName tname)) -- prevent lambda wrapping recursively
                                           _ -> genExpr f
-                       let (cresTp,cargTps) = case splitFunScheme (typeOf f) of 
-                                               Just (_,_,argTps,_,resTp) 
+                       let (cresTp,cargTps) = case splitFunScheme (typeOf f) of
+                                               Just (_,_,argTps,_,resTp)
                                                  -> (ppType resTp, tupled (map (ppType . snd) argTps))
                        return (fdecls ++ decls, text "function_call" <.> tupled [cresTp,cargTps,fdoc,tupled argDocs])
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
-genAppSpecial f args 
+genAppSpecial f args
   = case (f,args) of
       (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
         -> return (Just (genLitInt32 i))
@@ -1161,14 +1161,14 @@ genAppSpecial f args
                    _ -> return Nothing
              _ -> return Nothing
 
-{-                   
-genAppInline :: Expr -> [Expr] -> Asm Doc                   
+{-
+genAppInline :: Expr -> [Expr] -> Asm Doc
 genAppInline f args
   = do sapp <- genAppSpecial f args
        case sapp of
          Just app ->  return app
          Nothing  ->  do argDocs <- mapM genInline args
-                         case f of 
+                         case f of
                            Con tname repr
                              -> return (conCreateName (getName tname) <.> tupled argDocs)
                            _ -> case extractExtern f of
@@ -1307,7 +1307,7 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.      
+      App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
@@ -1532,11 +1532,11 @@ ppLit lit
     = case lit of
       LitInt i    -> if (isSmallInt(i))
                       then text "integer_from_small" <.> parens (pretty i)
-                     else if (isSmallInt32(i)) 
+                     else if (isSmallInt32(i))
                       then text "integer_from_int" <.> parens (pretty i)
                       else text "integer_from_str" <.> parens (dquotes (pretty i))
       LitChar c   -> let i = fromEnum c
-                     in if (c >= ' ' || c <= '~') 
+                     in if (c >= ' ' || c <= '~')
                          then text (show c)
                          else text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
@@ -1556,7 +1556,7 @@ ppLit lit
                  else char c)
           else if (fromEnum c <= 0xFF)
            then text "\\x" <.> text (showHex 2 (fromEnum c))
-          -- TODO: encode to UTF8-0 ourselves and don't use \u and \U                 
+          -- TODO: encode to UTF8-0 ourselves and don't use \u and \U
           else if (fromEnum c <= 0xFFFF)
            then text "\\u" <.> text (showHex 4 (fromEnum c))
           else if (fromEnum c > 0x10FFFF)
@@ -1564,7 +1564,7 @@ ppLit lit
            else text "\\U" <.> text (showHex 8 (fromEnum c))
 
 genLitInt32 :: Integer -> Doc
-genLitInt32 i 
+genLitInt32 i
   = parens (text "(int32_t)" <.> pretty i)
 
 isSmallLitInt expr

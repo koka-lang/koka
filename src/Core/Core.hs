@@ -59,7 +59,7 @@ module Core.Core ( -- Data structures
                    , isConIso
                    , isDataStruct
                    , getDataRepr, getDataReprEx, dataInfoIsValue
-                   , VarInfo(..)
+                   , VarInfo(..), isInfoArity
 
                    , isMonType, isMonEffect
 
@@ -385,6 +385,8 @@ infoArity (_)             = 0
 infoTypeArity (InfoArity m n) = m
 infoTypeArity (_)             = 0
 
+isInfoArity (InfoArity _ _) = True
+isInfoArity _ = False
 
 data Branch = Branch { branchPatterns :: [Pattern]
                      , branchGuards   :: [Guard]
@@ -439,9 +441,9 @@ isTotal expr
      Lit _      -> True
      Let dgs e  -> all isTotalDef (flattenDefGroups dgs) && isTotal e
      Case exps branches -> all isTotal exps && all isTotalBranch branches
-     -- inline box/unbox 
+     -- inline box/unbox
      App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isTotal arg
-     _          -> False  
+     _          -> False
 
 
 isTotalDef def = isTotal (defExpr def)
