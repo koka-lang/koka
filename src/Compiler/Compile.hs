@@ -1020,7 +1020,9 @@ codeGen term flags compileTarget loaded
     concatMaybe :: [Maybe a] -> [a]
     concatMaybe mbs  = concatMap (maybe [] (\x -> [x])) mbs
 
-    backends = [codeGenCS, codeGenJS, codeGenC (loadedNewtypes loaded) (loadedUnique loaded)]
+    backends = [codeGenCS, codeGenJS,
+                codeGenC (modSourcePath (loadedModule loaded))
+                         (loadedNewtypes loaded) (loadedUnique loaded)]
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1144,16 +1146,17 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 
-codeGenC :: Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 --codeGenC term flags modules compileTarget outBase core  | not (C `elem` targets flags)
 -- = return Nothing
-codeGenC newtypes unique term flags modules compileTarget outBase core
+codeGenC sourceFile newtypes unique term flags modules compileTarget outBase core
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
+          sourceDir = dirname sourceFile
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (cdoc,hdoc) = cFromCore newtypes unique mbEntry core
+      let (cdoc,hdoc) = cFromCore sourceDir newtypes unique mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc

@@ -479,16 +479,16 @@ asciiEncode isModule name
   = case name of
       (c:cs)  | isAlphaNum c -> encodeChars name
       ""      -> "_null_"
-      ".<>"   -> "_Total_"
-      ".<|>"  -> "_Extend_"
-      ".()"   -> "_Unit_"
-      ".(,)"  -> "_Tuple2_"
-      ".(,,)" -> "_Tuple3_"
-      ".(,,,)"-> "_Tuple4_"
-      "()"    -> "_unit_"
-      "(,)"   -> "_tuple2_"
-      "(,,)"  -> "_tuple3_"
-      "(,,,)" -> "_tuple4_"
+      ".<>"   -> "_total_"
+      ".<|>"  -> "_extend_"
+      ".()"   -> "_unit_"
+      ".(,)"  -> "_tuple2_"
+      ".(,,)" -> "_tuple3_"
+      ".(,,,)"-> "_tuple4_"
+      "()"    -> "_Unit_"
+      "(,)"   -> "_Tuple2_"
+      "(,,)"  -> "_Tuple3_"
+      "(,,,)" -> "_Tuple4_"
       "[]"    -> "_index_"
       -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
       -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs

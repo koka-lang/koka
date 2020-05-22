@@ -18,6 +18,7 @@ import Data.Char
 -- import Data.Monoid ( mappend )
 import qualified Data.Set as S
 
+import Common.File( normalizeWith   )
 import Kind.Kind
 import Kind.Newtypes
 import Type.Type
@@ -60,16 +61,17 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
-cFromCore newtypes uniq mbMain core
-  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False) (genModule mbMain core) of
+cFromCore :: FilePath -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
+cFromCore sourceDir newtypes uniq mbMain core
+  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False)
+           (genModule sourceDir mbMain core) of
       ((),cdoc,hdoc) -> (cdoc,hdoc)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name,Bool) -> Core -> Asm ()
-genModule mbMain core0
+genModule :: FilePath -> Maybe (Name,Bool) -> Core -> Asm ()
+genModule sourceDir mbMain core0
   =  do core <- liftUnique (boxCore core0)  -- box/unbox transform
         let externs       = vcat (concatMap includeExternal (coreProgExternals core))
             headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
@@ -82,13 +84,14 @@ genModule mbMain core0
 
         emitToC $ vcat $ [headComment
                          ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
+                         ++ externalImports
                          ++ externalIncludes
 
         emitToH $ vcat $ [ text "#pragma once"
                          , text "#ifndef __" <.> modName <.> text "_H"
                          , text "#define __" <.> modName <.> text "_H"
-                         , headComment ]
-                         ++ externalImports
+                         , headComment
+                         , text "#include <runtime.h>" ]
                          ++ map moduleImport (coreProgImports core)
 
         emitToH (linebreak <.> text "// type declarations")
@@ -113,7 +116,7 @@ genModule mbMain core0
 
     externalImports :: [Doc]
     externalImports
-      = map fst (concatMap importExternal (coreProgExternals core0))
+      = map fst (concatMap (importExternal sourceDir) (coreProgExternals core0))
 
     initImport :: Import -> Doc
     initImport imp
@@ -139,15 +142,21 @@ includeExternal (ExternalInclude includes range)
 includeExternal _  = []
 
 
-importExternal :: External -> [(Doc,Doc)]
-importExternal (ExternalImport imports range)
+importExternal :: FilePath -> External -> [(Doc,Doc)]
+importExternal sourceDir (ExternalImport imports range)
   = let xs = case lookup C imports of
                     Just s -> [s]
                     Nothing -> case lookup Default imports of
                                  Just s -> [s]
                                  Nothing -> [] -- failure ("C backend does not support external import at " ++ show range)
-    in [(text "#include" <+> (if (head s == '<') then text s else dquotes (text s)), pretty nm) | (nm,s) <- xs, not (null s)]
-importExternal _
+    in [(text "#include" <+>
+           (if (head s == '<')
+             then text s
+             else dquotes (if (null sourceDir) then text s
+                            else text (normalizeWith '/' sourceDir ++ "/" ++ s)))
+           , pretty nm)
+       | (nm,s) <- xs, not (null s)]
+importExternal _ _
   = []
 
 ---------------------------------------------------------------------------------
@@ -375,10 +384,11 @@ genTypeDef (Data info isExtend)
 
 genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
 genBoxUnbox name info dataRepr
-  = do genBox name info dataRepr
-       genUnbox  name info dataRepr
+  = do let tname = typeClassName name
+       genBox tname info dataRepr
+       genUnbox  tname info dataRepr
 
-genUnbox name info dataRepr
+genBox name info dataRepr
   = emitToH $
     text "static inline box_t box_" <.> ppName name <.> parens (ppName name <+> text "x") <+> block (
       text "return" <+> (
@@ -394,7 +404,7 @@ genUnbox name info dataRepr
                _  -> text "box_datatype(x)"
     ) <.> semi)
 
-genBox name info dataRepr
+genUnbox name info dataRepr
   = emitToH $
     text "static inline" <+> ppName name <+> text "unbox_" <.> ppName name <.> parens (text "box_t x") <+> block (
       text "return" <+> (
