@@ -1036,13 +1036,12 @@ genPure expr
      --   -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
      Var name info
        -> case splitFunScheme (typeOf name) of
-            Just (_,_,argTps,eff,resTp) 
+            Just (_,_,argTps,eff,resTp) | isQualified (getName name)  -- wrap bare top-level functions
               -> do argNames <- mapM newVarName ["x" ++ show i | i <- [1..length argTps]]
                     let tnames = [TName name tp | (name,(_,tp)) <- zip argNames argTps]
                         body   = (App expr [Var name InfoNone | name <- tnames])
                     genLambda tnames eff body
-            Nothing   
-              -> case info of
+            _ -> case info of
                    InfoExternal formats -> genInlineExternal name formats []
                    _ -> return (ppName (getName name))
      Con name info
