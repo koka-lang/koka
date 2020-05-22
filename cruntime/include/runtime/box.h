@@ -140,13 +140,13 @@ static inline box_t box_double(double d) {
   return v;
 }
 
-static inline int32_t unbox_int32(box_t v) {
+static inline int32_t unbox_int32_t(box_t v) {
   intptr_t i = unbox_int(v);
   assert(i >= INT32_MIN && i <= INT32_MAX);
   return (int32_t)(i);
 }
 
-static inline box_t box_int32(int32_t i) {
+static inline box_t box_int32_t(int32_t i) {
   return box_int(i);
 }
 
@@ -186,7 +186,7 @@ static inline box_t box_double(double d) {
   return box_ptr(p);
 }
 
-static inline int32_t unbox_int32(box_t v) {
+static inline int32_t unbox_int32_t(box_t v) {
   if (likely(is_int(v))) {
     return unbox_int(v);
   }
@@ -198,7 +198,7 @@ static inline int32_t unbox_int32(box_t v) {
     return i;
   }
 }
-static inline box_t box_int32(int32_t i) {
+static inline box_t box_int32_t(int32_t i) {
   if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
     return box_int(i);
   }
@@ -277,6 +277,14 @@ static inline box_t box_bool(bool b) {
   return box_enum(b ? 1 : 0);
 }
 
+static inline block_t* unbox_block_t(box_t v) {
+  return ptr_block(unbox_ptr(v));
+}
+
+static inline box_t box_block_t(block_t* b) {
+  return box_ptr(block_ptr(b, block_tag(b)));
+}
+
 
 #define unbox_valuetype(tp,box) (*(ptr_as(tp,unbox_ptr(box))))
 
@@ -295,4 +303,12 @@ static inline datatype_t unbox_datatype(box_t v) {
 static inline box_t box_datatype(datatype_t d) {
   assert(is_ptr(d) || is_enum(d));
   return d;
+}
+
+static inline function_t unbox_function_t(box_t v) {
+  return (function_t)(unbox_block_t(v));
+}
+
+static inline box_t box_function_t(function_t d) {  
+  return box_block_t(&d->block);
 }

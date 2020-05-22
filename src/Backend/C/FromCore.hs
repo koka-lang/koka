@@ -500,9 +500,12 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                 -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
             in case conRepr of
               ConEnum{}      -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
-              ConIso{}       -> text "return {" <.> ppDefName (fst (head conFields)) <.> text "};"  -- return as wrapped struct
               ConSingleton{} | dataRepr == DataAsList
                              -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
+              ConIso{}       
+                -> let tmp = text "_con"
+                   in vcat [ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {" <+> ppDefName (fst (head conFields)) <+> text "};"  -- struct init
+                           ,text "return" <+> tmp <.> semi]
               _ -> let tmp = text "_con"
                        assignField f (name,tp) = f (ppDefName name) <+> text "=" <+> ppDefName name <.> semi
                    in if (dataReprIsValue dataRepr)

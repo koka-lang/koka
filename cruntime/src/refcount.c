@@ -71,7 +71,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
     }
     else if (scan_fsize == 1) {
       // if just one field, we can recursively free without using stack space
-      const box_t v = b->fields[0]; 
+      const box_t v = block_field(b, 0);;
       runtime_free(b);
       if (is_ptr(v)) {
         // try to free the child now
@@ -85,11 +85,11 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
     }
     else {
       // more than 1 field
-      if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) { scan_fsize = unbox_enum(b->fields[0]); }
+      if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) { scan_fsize = unbox_enum(block_field(b,0)); }
       if (depth < MAX_RECURSE_DEPTH) {
         // free fields up to the last one
         for (size_t i = 0; i < (scan_fsize-1); i++) {
-          box_t v = b->fields[i];
+          box_t v = block_field(b, i);
           if (is_ptr(v)) {
             block_t* vb = ptr_block(unbox_ptr(v));
             if (block_decref_no_free(vb)) {
@@ -98,7 +98,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
           }
         }
         // and recurse into the last one
-        box_t v = b->fields[scan_fsize - 1];
+        box_t v = block_field(b,scan_fsize - 1);
         runtime_free(b);
         if (is_ptr(v)) {
           b = ptr_block(unbox_ptr(v));

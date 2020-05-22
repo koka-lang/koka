@@ -3,6 +3,7 @@
 #include <stdbool.h> // bool
 #include <stdint.h>  // intptr_t
 #include <stdio.h>   // FILE*
+#include <string.h>  // strlen
 #include <malloc.h>
 
 #define REFCOUNT_LIMIT_TO_32BIT 0
@@ -166,11 +167,12 @@ typedef union header_s {
 #define SCAN_FSIZE_MAX (255)
 #define HEADER(tag)    {(((uint64_t)tag << 48) | 1)}  // start with refcount of 1
 
+#define HEADER_STATIC(scan_fsize,tag)  {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40 | 0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 // A heap block is a header followed by `scan_fsize` boxed fields and further raw bytes
 typedef struct block_s {
   header_t header;
-  box_t    fields[1];
+  //box_t    fields[1];  // flexible array [] is not in C++, and [0] is not in either C or C++ :-(
 } block_t;
 
 
@@ -201,21 +203,28 @@ static inline decl_const ptr_t block_ptr(const block_t* b, tag_t tag) {
   return (ptr_t)b;
 }
 
-
 static inline decl_const tag_t block_tag(block_t* b) {
   return (tag_t)(b->header.h.tag);
 }
+
+static inline decl_const box_t* block_fields(block_t* b) {
+  return (box_t*)((uint8_t*)b + sizeof(block_t));
+}
+
+// define as macro to allow taking the address of a field.
+#define block_field(b,i)  (((box_t*)((uint8_t*)(b) + sizeof(block_t)))[i])
+
 
 static inline decl_const tag_t ptr_tag(ptr_t p) {
   return block_tag(ptr_block(p));
 }
 
 static inline decl_const box_t* ptr_fields(ptr_t p) {
-  return (&ptr_block(p)->fields[0]);
+  return block_fields(ptr_block(p));
 }
 
 // define as macro to allow taking the address of a field.
-#define ptr_field(p,i)  ptr_block(p)->fields[i]
+#define ptr_field(p,i)  block_field(ptr_block(p),i)
 
 static inline uintptr_t ptr_refcount(ptr_t p) {
   return ptr_block(p)->header.h.refcount;
@@ -223,7 +232,7 @@ static inline uintptr_t ptr_refcount(ptr_t p) {
 
 static inline decl_const size_t block_scan_fsize(block_t* b) {
   size_t sfsize = b->header.h.scan_fsize;
-  return (likely(sfsize != SCAN_FSIZE_MAX) ? sfsize : (size_t)unbox_int(b->fields[0]));
+  return (likely(sfsize != SCAN_FSIZE_MAX) ? sfsize : (size_t)unbox_int(block_field(b,0)));
 }
 
 static inline void* ptr_raw(ptr_t p) {
@@ -285,6 +294,21 @@ static inline bool yielding() {
 };
 
 
+/*--------------------------------------------------------------------------------------
+  Functions
+--------------------------------------------------------------------------------------*/
+
+// A function is a ptr to a function block
+struct function_s {
+  block_t  block;
+  box_t    fun;     // boxed cptr
+  // followed by free variables
+};
+typedef struct function_s* function_t;
+
+#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(f->fun)))args
+
+
 
 /*--------------------------------------------------------------------------------------
   Allocation
@@ -309,7 +333,7 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
   }
   else {
     header.h.scan_fsize = SCAN_FSIZE_MAX;
-    b->fields[0] = box_enum(scan_fsize);
+    block_field(b,0) = box_enum(scan_fsize);
   }
   b->header = header;
 }
@@ -448,19 +472,6 @@ static inline ptr_t ptr_alloc_reuse(orphan_t p, size_t size, size_t scan_fsize, 
 }
 
 
-/*----------------------------------------------------------------------
-  Strings
-----------------------------------------------------------------------*/
-
-typedef ptr_t string;
-
-static inline char* string_chars(string s) {
-  return ptr_as(char, s);
-}
-
-static inline string string_alloc(size_t size) {
-  return ptr_alloc(size, 0, TAG_STRING);
-}
 
 
 /*----------------------------------------------------------------------
@@ -528,19 +539,55 @@ static inline value_tag_t value_tag(uintptr_t tag) {
 #define value_tag(tag) (((value_tag_t)tag << 2) | 0x03)
 
 
+
 /*--------------------------------------------------------------------------------------
-  Functions
+  Strings
 --------------------------------------------------------------------------------------*/
 
-// A function is a ptr to a function block
-typedef struct function_s {
-  header_t header;
-  box_t    fun;     // boxed cptr
-  // followed by free variables
-} *function_t;
+// A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
+struct string_s {
+  block_t  block;
+  size_t   length;
+  char     str[1];
+};
+typedef struct string_s* string_t;
 
-#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(f->fun)))args
+struct small_string_s {
+  block_t  block;
+  char     str[1];
+};
+typedef struct small_string_s* small_string_t;
 
+#define define_string_literal(decl,name,len,chars) \
+  static struct { block_t block; size_t length; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, len, chars }; \
+  decl struct string_s* const name = (struct string_s*)(&_static_##name);
+
+static inline string_t string_alloc_buf(size_t len) {
+  string_t str = (string_t)block_alloc(sizeof(struct string_s) - 1 + len + 1, 0, TAG_STRING);
+  str->length = len;
+  str->str[0] = 0;
+  str->str[len] = 0;
+  return str;
+}
+
+
+static inline string_t string_alloc_len(size_t len, const char* s) {
+  string_t str = string_alloc_buf(len);
+  memcpy(&str->str[0], s, len+1);
+  return str;
+}
+
+static inline string_t string_alloc(const char* s) {
+  return (s==NULL ? string_alloc_len(0, "") : string_alloc_len(strlen(s), s));
+}
+
+static inline char* string_buf(string_t str) {
+  return &str->str[0];
+}
+
+static inline void string_decref(string_t str) {
+  ptr_decref(block_ptr(&str->block, TAG_STRING));
+}
 
 /*--------------------------------------------------------------------------------------
   References
@@ -548,14 +595,14 @@ typedef struct function_s {
 typedef datatype_t ref_t;
 
 struct ref_s {
-  header_t header;
+  block_t  block;
   box_t    value;
 };
 
 static inline ref_t ref_new(box_t value) {
   struct ref_s* r = block_alloc_tp(struct ref_s, 1, TAG_REF);
   r->value = value;
-  return block_datatype((block_t*)r);
+  return block_datatype(&r->block);
 }
 
 static inline box_t ref_get(ref_t b) {

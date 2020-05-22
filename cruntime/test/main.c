@@ -2,6 +2,8 @@
 #include "time.h"
 #include "runtime.h"
 
+define_string_literal(, stest, 5, "hello");
+
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y) {
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {

@@ -298,16 +298,16 @@ static size_t bigint_to_buf_(const bigint_t* b, char* buf, size_t buf_size) {
   return j;
 }
 
-static string bigint_to_string(bigint_t* b) {
+static string_t bigint_to_string(bigint_t* b) {
   size_t needed = bigint_to_buf_(b, NULL, 0);
-  string s = string_alloc(needed);
-  bigint_to_buf_(b, string_chars(s), needed);
+  string_t s = string_alloc_buf(needed);
+  bigint_to_buf_(b, string_buf(s), needed);
   bigint_decref(b);
   return s;
 }
 
 // intptr_t to string
-string int_to_string(intptr_t n) {
+string_t int_to_string(intptr_t n) {
   assert(INTPTR_SIZE <= 26);
   char buf[64];  // enough for 2^212
   bool neg = (n < 0);
@@ -326,8 +326,8 @@ string int_to_string(intptr_t n) {
     }
   }
   // write to the allocated string
-  string s = string_alloc(i + 1);
-  char* p = string_chars(s);
+  string_t s = string_alloc_buf(i + 1);
+  char* p = string_buf(s);
   intptr_t j;
   for (j = 0; j < i; j++) {
     p[j] = buf[i - j - 1];
@@ -1092,7 +1092,7 @@ integer_t integer_mod_generic(integer_t x, integer_t y) {
 ----------------------------------------------------------------------*/
 
 
-string integer_to_string(integer_t x) {
+string_t integer_to_string(integer_t x) {
   if (is_smallint(x)) {
     return int_to_string(unbox_int(x));
   }
@@ -1102,9 +1102,9 @@ string integer_to_string(integer_t x) {
 }
 
 void integer_fprint(FILE* f, integer_t x) {
-  string s = integer_to_string(x);
-  fprintf(f, "%s", string_chars(s));
-  ptr_decref(s);
+  string_t s = integer_to_string(x);
+  fprintf(f, "%s", string_buf(s));
+  string_decref(s);
 }
 
 void integer_print(integer_t x) {

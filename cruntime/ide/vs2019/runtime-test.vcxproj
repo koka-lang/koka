@@ -146,7 +146,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="$(ProjectDir)..\..\test\main.c" />
+    <ClCompile Include="$(ProjectDir)..\..\test\main.c">
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyAndSourceCode</AssemblerOutput>
+    </ClCompile>
     <ClCompile Include="..\..\test\time.c" />
   </ItemGroup>
   <ItemGroup>
