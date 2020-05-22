@@ -46,50 +46,40 @@ boxCore :: Core -> Unique Core
 boxCore core
   = do defs <- boxDefGroups (coreProgDefs core)
        return (core{ coreProgDefs = defs })
-  
-      
-boxDefGroups :: DefGroups -> Unique DefGroups      
+
+
+boxDefGroups :: DefGroups -> Unique DefGroups
 boxDefGroups dgs
   = mapM boxDefGroup dgs
-  
+
 boxDefGroup :: DefGroup -> Unique DefGroup
 boxDefGroup dg
   = case dg of
       DefRec defs   -> fmap DefRec (mapM boxDef defs)
-      DefNonRec def -> fmap DefNonRec (boxDef def)      
-      
+      DefNonRec def -> fmap DefNonRec (boxDef def)
+
 boxDef :: Def -> Unique Def
-boxDef def 
+boxDef def
     = do bexpr <- boxExpr (boxType (defType def)) (defExpr def)
          expr  <- uniqueSimplify 2 {- duplicationMax -} bexpr
          return def{ defExpr = expr }
 
-      
+
 boxExpr :: BoxType -> Expr -> Unique Expr
 boxExpr expectTp expr
   = case expr of
       -- remove type abstraction and applications
       TypeLam tvs e        -> boxExpr expectTp e
-      TypeApp e tps        -> boxExpr expectTp e      
+      TypeApp e tps        -> boxExpr expectTp e
       -- Regular
-      App e args           -> do let funTp = boxTypeOf e
-                                 case splitFunScheme funTp of
-                                   Just (_,_,paramTps,eff,resTp) 
-                                     -> assertion ("Backend.C.box: boxArgs: arguments do not match: " ++ show expr) (length paramTps == length args) $
-                                        do bargs <- mapM (\((_,paramTp),arg) -> boxExpr paramTp arg) (zip paramTps args)
-                                           bexpr <- boxExpr funTp e
-                                           bcoerce resTp expectTp (App bexpr bargs)
-                                   Nothing -- if it was a type variable
-                                     -> -- failure ("Backend.C.boxExpr.App: not a function: " ++ show funTp ++ ", " ++ show expr)
-                                        do let argTps = map boxTypeOf args
-                                               eTp    = TFun [(nameNil,tp) | tp <- argTps] typeTotal expectTp
-                                           bargs <- mapM (\(arg) -> boxExpr (boxTypeOf arg) arg) args
-                                           bexpr <- boxExpr eTp e
-                                           return (App bexpr bargs)
-                                           
+      App e args           -> do let argTps = map boxTypeOf args
+                                     eTp    = TFun [(nameNil,tp) | tp <- argTps] typeTotal expectTp
+                                 bargs <- mapM (\(arg) -> boxExpr (boxTypeOf arg) arg) args
+                                 bexpr <- boxExpr eTp e
+                                 return (App bexpr bargs)
       Lam tparams eff body -> do let funTp = boxTypeOf expr
-                                 bbody <- boxExpr (resultType funTp) body
-                                 bcoerce funTp (expectTp) (Lam tparams eff bbody)                                 
+                                 bbody <- boxExpr (boxTypeOf body) body
+                                 bcoerce funTp (expectTp) (Lam tparams eff bbody)
       Let defGroups body   -> do bdgs <- boxDefGroups defGroups
                                  bbody <- boxExpr expectTp body
                                  return (Let bdgs bbody)
@@ -99,12 +89,12 @@ boxExpr expectTp expr
                                  return (Case bexprs bbranches)
       _                    -> bcoerce (boxTypeOf expr) expectTp expr
 
-{-    
+{-
     isBoxOp (App (Var (TName name _) (InfoExternal _)) [arg]) = (name == newHiddenName ("box") || name == newHiddenName ("unbox"))
     isBoxOp _ = False
 -}
-    
-boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch  
+
+boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch
 boxBranch patTps expectTp (Branch patterns guards)
   = do bpatterns <- mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
        bguards <- mapM (boxGuard expectTp) guards
@@ -112,17 +102,17 @@ boxBranch patTps expectTp (Branch patterns guards)
 
 boxGuard :: BoxType -> Guard -> Unique Guard
 boxGuard expectTp (Guard test expr)
-  =do btest <- boxExpr typeBool test 
+  =do btest <- boxExpr typeBool test
       bexpr <- boxExpr expectTp expr
       return (Guard btest bexpr)
-    
+
 boxPattern :: BoxType -> Pattern -> Unique Pattern
 boxPattern fromTp PatWild
   = boxPatternX fromTp PatWild
 boxPattern fromTp pat | cType (fromTp) /= cType toTp
   = do i <- unique
        let uname = newHiddenName ("unbox-x" ++ show i)
-       coerce <- bcoerce fromTp toTp (Var (TName uname toTp) InfoNone) 
+       coerce <- bcoerce fromTp toTp (Var (TName uname toTp) InfoNone)
        case coerce of
          Var{} -> boxPatternX fromTp pat
          _     -> do bpat <- boxPatternX toTp pat
@@ -133,7 +123,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
               PatVar tname _ -> typeOf tname
               PatLit lit     -> typeOf lit
               PatWild        -> typeAny  -- cannot happen
-    
+
 boxPattern fromTp pat
   = boxPatternX fromTp pat
 
@@ -143,27 +133,27 @@ boxPatternX fromTp pat
       PatCon name params repr targs exists tres conInfo
         -> do bparams <- mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
               return (PatCon name bparams repr targs exists tres conInfo)
-      PatVar tname arg 
+      PatVar tname arg
         -> do barg <- boxPattern (typeOf tname) arg
-              return (PatVar tname barg)              
+              return (PatVar tname barg)
       PatWild  -> return pat
       PatLit _ -> return pat
-    
+
 bcoerce :: Type -> Type -> Expr -> Unique Expr
 bcoerce fromTp toTp expr
   = case (cType fromTp, cType toTp) of
-      (CBox, CBox)             -> return expr      
+      (CBox, CBox)             -> return expr
       (CBox, CData)            -> return $ App (unboxVar) [expr]
-      (CBox, CFun cpars cres)  -> return $ App (unboxVar) [expr]      
+      (CBox, CFun cpars cres)  -> return $ App (unboxVar) [expr]
       (CData, CBox)            -> return $ App (boxVar) [expr]
       (CFun cpars cres, CBox)  -> return $ App (boxVar) [expr]
-      
+
       (CFun fromPars fromRes, CFun toPars toRes)
           | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
           -> case splitFunScheme toTp of
-               Just (_,_,toParTps,toEffTp,toResTp) 
+               Just (_,_,toParTps,toEffTp,toResTp)
                  -> case splitFunScheme fromTp of
-                      Just (_,_,fromParTps,fromEffTp,fromResTp)  
+                      Just (_,_,fromParTps,fromEffTp,fromResTp)
                         -> do  names <- mapM (\_ -> uniqueName "b") toParTps
                                let pars  = zipWith TName names (map snd toParTps)
                                    args  = [Var par InfoNone | par <- pars]
@@ -177,29 +167,17 @@ bcoerce fromTp toTp expr
       = Var (TName nameBox (coerceTp)) (InfoExternal [(C, "box(#1)")])
     unboxVar
       = Var (TName nameUnbox (coerceTp )) (InfoExternal [(C, "unbox(#1)")])
-    coerceTp 
+    coerceTp
       = TFun [(nameNil,fromTp)] typeTotal toTp
 
 
 type BoxType = Type
 
+-- type without quantification
 boxTypeOf :: Expr -> BoxType
 boxTypeOf expr
-  = case expr of
-      TypeLam tvs e     -> boxTypeOf e
-      TypeApp e tps     -> boxTypeOf e
-      Lam pars eff body -> typeFun [(name,boxType tp) | TName name tp <- pars] (boxType eff) (boxTypeOf body)
-      App e args        -> case splitFunScheme (boxTypeOf e) of
-                             Just (_,_,_,_,resTp) -> resTp
-                             Nothing              -> typeBox kindStar -- error ("Backend.C.Box.resultType: not a function: " ++ show tp)
-      _                 -> typeOf expr    
-
-resultType :: Type -> Type
-resultType tp
-  = case splitFunScheme tp of
-      Just (_,_,_,_,resTp) -> resTp
-      Nothing              -> error ("Backend.C.Box.resultType: not a function: " ++ show tp)
-
+  = case splitPredType (typeOf expr) of
+      (_,_,tp) -> tp
 
 boxType :: Type -> BoxType
 boxType tp
@@ -218,14 +196,14 @@ boxType tp
 typeBox :: Kind -> BoxType
 typeBox k
   = TCon (TypeCon nameTpBox k)
-    
 
-data CType 
+
+data CType
   = CBox
   | CFun [CType] CType
-  | CData 
+  | CData
   deriving (Eq,Show)
-  
+
 cType :: Type -> CType
 cType tp
   = case tp of
