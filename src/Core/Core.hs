@@ -472,7 +472,10 @@ isMonEffect eff
 
 isInlineable :: Int -> Def -> Bool
 isInlineable inlineMax def
-  = costDef def <= inlineMax
+  = case defInline def of
+      InlineAlways -> True
+      InlineNever  -> False
+      _            -> costDef def <= inlineMax
 
 
 costInf :: Int

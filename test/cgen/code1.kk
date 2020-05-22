@@ -10,7 +10,7 @@ private fun const(x,y) {
   x
 }
 
-fun apply(f,x) {
+fun noinline apply(f,x) {
   f(x)
 }
 
@@ -30,6 +30,10 @@ fun val-apply(x : int) : int {
 
 fun eta-test1() {
   val-apply(id(id)(1))
+}
+
+fun val-apply2(x:int ) : int {
+  code1/apply(val-apply,1)
 }
 
 fun box-test1( x : int ) : int {
