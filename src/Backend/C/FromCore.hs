@@ -977,51 +977,20 @@ genNextPatterns select exprDoc tp patterns
 
 -- | Generates javascript statements and a javascript expression from core expression
 genExpr :: Expr -> Asm ([Doc],Doc)
-genExpr expr  | isInlineableExpr expr  = do{ doc <- genInline expr; return ([],doc) }
-genExpr expr  = genExprPrim expr
+genExpr expr  | isInlineableExpr expr  
+  = do doc <- genInline expr
+       return ([],doc)       
+genExpr expr  
+  = genExprPrim expr
 
 genExprPrim expr
   = -- trace ("genExpr: " ++ show expr) $
     case expr of
-     -- check whether the expression is pure an can be inlined
-     
      TypeApp e _ -> genExpr e
      TypeLam _ e -> genExpr e
-
-     -- handle not inlineable cases
-     {-
-     App (TypeApp (Con name repr) _) [arg]  | getName name == nameOptional || isConIso repr
-       -> genExpr arg
-     App (Con _ repr) [arg]  | isConIso repr
-       -> genExpr arg
-     -}
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-       -> return ([], parens (text "(int32_t)" <.> pretty i))
-     App (Con tname repr) args
-       -> do (decls,argDocs) <- genExprs args
-             return (decls,conCreateName (getName tname) <.> tupled argDocs)
+    
      App f args
-       -> -- case extractList expr of
-          -- inline list
-          --    Just (xs,tl) -> genList xs tl
-          --    Nothing -> 
-          case extractExtern f of
-           Just (tname,formats)
-             -- inline external
-             -> case args of
-                 [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-                   -> return ([], parens (text "(int32_t)" <.> pretty i))
-                 _ -> -- genInlineExternal tname formats argDocs
-                      do (decls,argDocs) <- genExprs args
-                         (edecls,doc) <- genExprExternal tname formats argDocs
-                         if (getName tname == nameReturn)
-                          then return ((decls ++ edecls ++ [doc <.> semi]), text "")
-                          else return ((decls ++ edecls), doc)
-           Nothing
-            -- normal application
-            -> do lsDecls <- genExprs (f:args)
-                  let (decls,fdoc:argDocs) = lsDecls
-                  return (decls, fdoc <.> tupled argDocs)
+       -> genApp f args
 
      Let groups body
        -> do decls1       <- genLocalGroups groups
@@ -1063,10 +1032,19 @@ genPure expr
   = case expr of
      TypeApp e _ -> genPure e
      TypeLam _ e -> genPure e
-     Var name (InfoExternal formats)
-       -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
+     -- Var name (InfoExternal formats)
+     --   -> genWrapExternal name formats  -- unapplied inlined external: wrap as function
      Var name info
-       -> return (ppName (getName name))
+       -> case splitFunScheme (typeOf name) of
+            Just (_,_,argTps,eff,resTp) 
+              -> do argNames <- mapM newVarName ["x" ++ show i | i <- [1..length argTps]]
+                    let tnames = [TName name tp | (name,(_,tp)) <- zip argNames argTps]
+                        body   = (App expr [Var name InfoNone | name <- tnames])
+                    genLambda tnames eff body
+            Nothing   
+              -> case info of
+                   InfoExternal formats -> genInlineExternal name formats []
+                   _ -> return (ppName (getName name))
      Con name info
        -> return (conCreateName (getName name) <.> text "()")
      Lit l
@@ -1080,6 +1058,15 @@ genPure expr
           genLambda params eff body
      _ -> failure ("Backend.C.FromCore.genPure: invalid expression:\n" ++ show expr)
 
+{-
+genLambda :: Expr -> ([TypeVar],[Pred],[(Name,Type)],Effect,Type) -> Asm Doc
+genLambda expr (_,_,argTps,eff,resTp) 
+  = do argNames <- genVarNames (length argTps)
+       let tnames = [TName name tp | (name,tp) <- zip argNames argTps]
+           lam = Lam tnames eff $
+                 App expr [Var tname InfoNone | tname <- tnames]
+       in genInline
+-}
 
 isPat :: Bool -> Pattern -> Bool
 isPat b q
@@ -1089,9 +1076,11 @@ isPat b q
       PatVar _ q' -> isPat b q'
       PatCon {}   -> getName (patConName q) == if b then nameTrue else nameFalse
 
--- | Generates an effect-free javasript expression
+-- | Generates an effect-free expression
 --   NOTE: Throws an error if expression is not guaranteed to be effectfree
 genInline :: Expr -> Asm Doc
+genInline expr | isPureExpr expr 
+  = genPure expr
 genInline expr
   = do (decls,doc) <- genExprPrim expr
        when (not (null decls)) $
@@ -1120,9 +1109,44 @@ genInline expr
       _ -> failure ("Backend.C.FromCore.genInline: invalid expression:\n" ++ show expr)
 -}
 
+
 ---------------------------------------------------------------------------------
 -- Applications
 ---------------------------------------------------------------------------------
+
+genApp :: Expr -> [Expr] -> Asm ([Doc],Doc)
+genApp f args
+  = do sapp <- genAppSpecial f args
+       case sapp of
+         Just app -> return ([],app)
+         Nothing  -> genAppNormal f args
+         
+         
+genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
+genAppNormal f args
+  = do (decls,argDocs) <- genExprs args
+       case extractExtern f of
+         -- known external
+         Just (tname,formats)
+           -> do (edecls,doc) <- genExprExternal tname formats argDocs
+                 return ((edecls ++ decls), doc)
+         Nothing
+           -> case f of 
+               -- constructor
+               Con tname repr
+                 -> return (decls,conCreateName (getName tname) <.> tupled argDocs)
+               -- call to known function
+               Var tname info | isQualified (getName tname)
+                 -> return (decls,ppName (getName tname) <.> tupled argDocs)         
+               -- call unknown function_t
+               _ -> do (fdecls,fdoc) <- case f of 
+                                          Var tname info -> return ([], ppName (getName tname)) -- prevent lambda wrapping recursively
+                                          _ -> genExpr f
+                       let (cresTp,cargTps) = case splitFunScheme (typeOf f) of 
+                                               Just (_,_,argTps,_,resTp) 
+                                                 -> (ppType resTp, tupled (map (ppType . snd) argTps))
+                       return (fdecls ++ decls, text "function_call" <.> tupled [cresTp,cargTps,fdoc,tupled argDocs])
+
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
 genAppSpecial f args 
@@ -1136,7 +1160,9 @@ genAppSpecial f args
                    [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
                      -> return (Just (parens (text "(int32_t)" <.> pretty i)))
                    _ -> return Nothing
-                   
+             _ -> return Nothing
+
+{-                   
 genAppInline :: Expr -> [Expr] -> Asm Doc                   
 genAppInline f args
   = do sapp <- genAppSpecial f args
@@ -1152,25 +1178,7 @@ genAppInline f args
                                   Nothing
                                     -> do fdoc <- genInline f
                                           return (fdoc <.> tupled argDocs)
-
-genApp :: Expr -> [Expr] -> Asm ([Doc],Doc)
-genApp f args
-  = do sapp <- genAppSpecial f args
-       case sapp of
-         Just app ->  return ([],app)
-         Nothing  ->  do (decls,argDocs) <- genExprs args
-                         case f of 
-                           Con tname repr
-                             -> return ([],conCreateName (getName tname) <.> tupled argDocs)
-                           _ -> case extractExtern f of
-                                  Just (tname,formats)
-                                    -> do (edecls,doc) <- genExprExternal tname formats argDocs
-                                          return ((decls ++ edecls), doc)
-                                  Nothing
-                                    -> do (fdecls,fdoc) <- genExpr f
-                                          return ((decls ++ fdecls), fdoc <.> tupled argDocs)
-
-
+-}
 
 ---------------------------------------------------------------------------------
 -- Externals
@@ -1300,9 +1308,8 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
-      App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
-      
+      App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.      
+      -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
       App f args       -> -- trace ("isInlineable f: " ++ show f) $

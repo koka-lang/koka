@@ -42,6 +42,9 @@ fun box-test4( xs : list<int> ) : int {
   }
 }
 
+fun call-test4( i : int, x : int ) : maybe<int> {
+  Just((if (i==42) then id else inc)(x))
+}
 fun mapx( xs, f ) {
   match(xs) {
     Nil -> Nil
