@@ -88,7 +88,7 @@ static inline bool is_int_fast(box_t b) {
 static inline bool is_enum_fast(box_t b) {
   return ((b & 0x03)==2);
 }
-static inline bool is_pointer_fast(box_t b) {
+static inline bool is_cptr_fast(box_t b) {
   return ((b & 0x03)==3);
 }
 
@@ -115,18 +115,20 @@ static inline bool is_int(box_t b) {
 static inline bool is_enum(box_t b) {
   return (is_enum_fast(b) && likely(!is_double(b)));
 }
-static inline bool is_pointer(box_t b) {
-  return (is_pointer_fast(b) && likely(!is_double(b)));
+static inline bool is_cptr(box_t b) {
+  return (is_cptr_fast(b) && likely(!is_double(b)));
 }
 
 static inline double unbox_double(box_t v) {
   assert(is_double(v));
-  union { uint64_t _v; double d; } u = { (uint64_t)v - ((uint64_t)1 << 48) };  // unsigned to avoid UB
+  union { uint64_t _v; double d; } u;
+  u._v = ((uint64_t)v - ((uint64_t)1 << 48));  // unsigned to avoid UB
   return u.d;
 }
 
 static inline box_t box_double(double d) {
-  union { double _d; uint64_t v; } u = { d };
+  union { double _d; uint64_t v; } u;
+  u._d = d;
   if (unlikely(u.v >= ((uint64_t)0xFFFE << 48))) {
     // high quiet NaN, subtract to bring it in range
     u.v = u.v - ((uint64_t)0x0002 << 48);
@@ -163,8 +165,8 @@ static inline bool is_int(box_t b) {
 static inline bool is_enum(box_t b) {
   return is_enum_fast(b);
 }
-static inline bool is_pointer(box_t b) {
-  return is_pointer_fast(b);
+static inline bool is_cptrr(box_t b) {
+  return is_cptr_fast(b);
 }
 static inline bool is_double(box_t v) {
   return (is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_DOUBLE);
@@ -173,14 +175,14 @@ static inline bool is_double(box_t v) {
 static inline double unbox_double(box_t b) {
   assert(is_double(b));
   ptr_t p = unbox_ptr(b);
-  double d = *(ptr_tp(p, double));
+  double d = *(ptr_as(double, p));
   ptr_decref(p);
   return d;
 }
 
 static inline box_t box_double(double d) {
   ptr_t p = ptr_alloc_tp(double, 0, TAG_DOUBLE);
-  *(ptr_tp(p, double)) = d;
+  *(ptr_as(double,p)) = d;
   return box_ptr(p);
 }
 
@@ -191,7 +193,7 @@ static inline int32_t unbox_int32(box_t v) {
   else {
     assert(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
     ptr_t p = unbox_ptr(v);
-    int32_t i = *(ptr_tp(p, int32_t));
+    int32_t i = *(ptr_as(int32_t,p));
     ptr_decref(p);
     return i;
   }
@@ -202,7 +204,7 @@ static inline box_t box_int32(int32_t i) {
   }
   else {
     ptr_t p = ptr_alloc_tp(int32_t, 0, TAG_INT32);
-    *(ptr_tp(p, int32_t)) = i;
+    *(ptr_as(int32_t, p)) = i;
     return box_ptr(p);
   }
 }
@@ -221,15 +223,15 @@ static inline box_t box_ptr(ptr_t p) {
   return (box_t)p;
 }
 
-static inline void* unbox_pointer(box_t b) {
-  assert(is_pointer(b));
+static inline void* unbox_cptr(box_t b) {
+  assert(is_cptr(b));
   return (void*)(b & ~0x03);
 }
 
-static inline box_t box_pointer(void* p) {
+static inline box_t box_cptr(void* p) {
   assert(((uintptr_t)p & 0x03) == 0); // check alignment
   box_t b = (box_t)p | 0x03;
-  assert(is_pointer(b));
+  assert(is_cptr(b));
   return b;
 }
 
@@ -275,3 +277,22 @@ static inline box_t box_bool(bool b) {
   return box_enum(b ? 1 : 0);
 }
 
+
+#define unbox_valuetype(tp,box) (*(ptr_as(tp,unbox_ptr(box))))
+
+#define box_valuetype(tp,x,val,scan_fsize)  \
+  do{ \
+     ptr_t p = ptr_alloc(sizeof(tp),scan_fsize,TAG_BOX); \
+     *(ptr_as(tp,p)) = val; \
+     x = box_ptr(p); \
+  }while(0);
+
+static inline datatype_t unbox_datatype(box_t v) {
+  assert(is_ptr(v) || is_enum(v));
+  return v;
+}
+
+static inline box_t box_datatype(datatype_t d) {
+  assert(is_ptr(d) || is_enum(d));
+  return d;
+}

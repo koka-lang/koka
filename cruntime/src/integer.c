@@ -65,7 +65,7 @@ static digit_t bigint_last_digit_(const bigint_t* b) {
   return b->digits[b->count-1];
 }
 
-static integer integer_bigint(bigint_t* x);
+static integer_t integer_bigint(bigint_t* x);
 
 /*----------------------------------------------------------------------
   allocation, ref counts, trim
@@ -102,7 +102,7 @@ static size_t bigint_roundup_count(size_t count) {
 
 static bigint_t* bigint_alloc(size_t count, bool is_neg) {
   size_t dcount = bigint_roundup_count(count);
-  bigint_t* b = ptr_tp(ptr_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT), bigint_t);
+  bigint_t* b = ptr_as(bigint_t, ptr_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT));
   b->is_neg = (is_neg ? 1 : 0);
   b->extra = (extra_t)(dcount - count);
   b->count = count;
@@ -125,7 +125,7 @@ static bigint_t* bigint_trim_realloc_(bigint_t* x, size_t count) {
     dcount = xcount;
   }
   else {
-    b = ptr_tp(ptr_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t)), bigint_t);
+    b = ptr_as(bigint_t, ptr_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t)));
   }
   b->count = count;
   b->extra = (extra_t)(dcount - count);
@@ -200,7 +200,7 @@ static bigint_t* bigint_push(bigint_t* x, digit_t d) {
 ----------------------------------------------------------------------*/
 
 // Bigint to integer. Possibly converting to a small int.
-static integer integer_bigint(bigint_t* x) {  
+static integer_t integer_bigint(bigint_t* x) {  
   if (x->count==1 && x->digits[0] <= SMALLINT_MAX) {
     // make it a small int
     intptr_t i = x->digits[0];
@@ -226,10 +226,10 @@ static bigint_t* bigint_from_int(intptr_t i) {
 }
 
 // unpack to a bigint always
-static bigint_t* integer_to_bigint(integer x) {
+static bigint_t* integer_to_bigint(integer_t x) {
   assert(is_integer(x));
   if (is_bigint(x)) {
-    return ptr_tp(unbox_ptr(x), bigint_t);
+    return ptr_as(bigint_t, unbox_ptr(x));
   }
   else {
     assert(is_smallint(x));
@@ -237,7 +237,7 @@ static bigint_t* integer_to_bigint(integer x) {
   }
 }
 
-integer integer_from_big(intptr_t i) {
+integer_t integer_from_big(intptr_t i) {
   return box_ptr(bigint_ptr_(bigint_from_int(i)));
 }
 
@@ -340,7 +340,7 @@ string int_to_string(intptr_t n) {
   Parse an integer
 ----------------------------------------------------------------------*/
 
-integer integer_parse(const char* s) {
+integer_t integer_parse(const char* s) {
   assert(s!=NULL);
   // parse
   bool is_neg = false;
@@ -349,7 +349,7 @@ integer integer_parse(const char* s) {
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
-  if (!isdigit(s[i])) return box_pointer(NULL);  // must start with a digit
+  if (!isdigit(s[i])) return box_cptr(NULL);  // must start with a digit
   // significant 
   for (; s[i] != 0; i++) {
     char c = s[i];
@@ -361,7 +361,7 @@ integer integer_parse(const char* s) {
     else if ((c == '.' || c=='e' || c=='E') && isdigit(s[i+1])) { // found fraction/exponent
       break;
     }
-    else return box_pointer(NULL); // error    
+    else return box_cptr(NULL); // error    
   }
   // fraction
   size_t frac_digits = 0;
@@ -377,7 +377,7 @@ integer integer_parse(const char* s) {
       else if ((c=='e' || c=='E') && isdigit(s[i+1]) && (s[i+1] != '0')) { // found fraction/exponent
         break;
       }
-      else return box_pointer(NULL); // error    
+      else return box_cptr(NULL); // error    
     }
   }
   const char* end = s + i;
@@ -389,12 +389,12 @@ integer integer_parse(const char* s) {
       char c = s[i];
       if (isdigit(c)) {
         exp = 10*exp + ((size_t)c - '0');
-        if (exp > BASE) return box_pointer(NULL); // exponents must be < 10^9
+        if (exp > BASE) return box_cptr(NULL); // exponents must be < 10^9
       }
-      else return box_pointer(NULL);
+      else return box_cptr(NULL);
     }
   }
-  if (exp < frac_digits) return box_pointer(NULL); // fractional number
+  if (exp < frac_digits) return box_cptr(NULL); // fractional number
   const size_t zero_digits = exp - frac_digits;
   const size_t dec_digits = sig_digits + frac_digits + zero_digits;  // total decimal digits needed in the bigint
 
@@ -443,9 +443,9 @@ integer integer_parse(const char* s) {
   return integer_bigint(b);
 }
 
-integer integer_from_str(const char* num) {
-  integer i = integer_parse(num);
-  assert(i != box_pointer(NULL));
+integer_t integer_from_str(const char* num) {
+  integer_t i = integer_parse(num);
+  assert(i != box_cptr(NULL));
   return i;
 }
 
@@ -763,7 +763,7 @@ static bigint_t* bigint_mul_karatsuba(bigint_t* x, bigint_t* y) {
   Pow
 ----------------------------------------------------------------------*/
 
-integer integer_pow(integer x, integer p) {
+integer_t integer_pow(integer_t x, integer_t p) {
   if (is_smallint(p)) {
     if (p == integer_from_small(0)) return integer_from_small(1);
   }
@@ -782,7 +782,7 @@ integer integer_pow(integer x, integer p) {
   if (integer_signum(p)==-1) {
     integer_decref(p); return integer_from_small(0);
   }
-  integer y = integer_from_small(1);
+  integer_t y = integer_from_small(1);
   if (is_bigint(p)) {
     while (1) {
       integer_incref(p);
@@ -946,19 +946,19 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
   Integer interface
 ----------------------------------------------------------------------*/
 
- integer integer_neg_generic(integer x) {
+ integer_t integer_neg_generic(integer_t x) {
   assert(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   return integer_bigint(bigint_neg(bx));
 }
 
- integer integer_sqr_generic(integer x) {
+ integer_t integer_sqr_generic(integer_t x) {
   assert(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   return integer_bigint(bigint_sqr(bx));
 }
 
- int integer_signum_generic(integer x) {
+ int integer_signum_generic(integer_t x) {
   assert(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
@@ -966,7 +966,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
   return signum;
 }
 
- bool integer_is_even_generic(integer x) {
+ bool integer_is_even_generic(integer_t x) {
   assert(is_integer(x));
   if (is_smallint(x)) return ((x&0x08)==0);
   bigint_t* bx = integer_to_bigint(x);
@@ -975,7 +975,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
   return even;
 }
 
-int integer_cmp_generic(integer x, integer y) {
+int integer_cmp_generic(integer_t x, integer_t y) {
   assert(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
@@ -985,14 +985,14 @@ int integer_cmp_generic(integer x, integer y) {
   return sign;
 }
 
-integer integer_add_generic(integer x, integer y) { 
+integer_t integer_add_generic(integer_t x, integer_t y) { 
   assert(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
   return integer_bigint(bigint_add(bx, by, by->is_neg));
 }
 
-integer integer_sub_generic(integer x, integer y) {
+integer_t integer_sub_generic(integer_t x, integer_t y) {
   assert(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
@@ -1003,7 +1003,7 @@ static bool use_karatsuba(size_t i, size_t j) {
   return ((0.000012*(i*j) - 0.0025*(i+j)) >= 0);
 }
 
-integer integer_mul_generic(integer x, integer y) {
+integer_t integer_mul_generic(integer_t x, integer_t y) {
   assert(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
@@ -1016,7 +1016,7 @@ integer integer_mul_generic(integer x, integer y) {
   Division and modulus
 ----------------------------------------------------------------------*/
 
-integer integer_div_mod_generic(integer x, integer y, integer* mod) {
+integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod) {
   assert(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
     if (y == integer_from_small(0)) return 0; // raise div-by-zero
@@ -1076,13 +1076,13 @@ integer integer_div_mod_generic(integer x, integer y, integer* mod) {
   return integer_bigint(bz);
 }
 
-integer integer_div_generic(integer x, integer y) {
+integer_t integer_div_generic(integer_t x, integer_t y) {
   return integer_div_mod_generic(x, y, NULL);
 }
 
-integer integer_mod_generic(integer x, integer y) {
-  integer mod = 0;
-  integer div = integer_div_mod_generic(x, y, &mod);
+integer_t integer_mod_generic(integer_t x, integer_t y) {
+  integer_t mod = 0;
+  integer_t div = integer_div_mod_generic(x, y, &mod);
   integer_decref(div);
   return mod;
 }
@@ -1092,7 +1092,7 @@ integer integer_mod_generic(integer x, integer y) {
 ----------------------------------------------------------------------*/
 
 
-string integer_to_string(integer x) {
+string integer_to_string(integer_t x) {
   if (is_smallint(x)) {
     return int_to_string(unbox_int(x));
   }
@@ -1101,13 +1101,13 @@ string integer_to_string(integer x) {
   }
 }
 
-void integer_fprint(FILE* f, integer x) {
+void integer_fprint(FILE* f, integer_t x) {
   string s = integer_to_string(x);
   fprintf(f, "%s", string_chars(s));
   ptr_decref(s);
 }
 
-void integer_print(integer x) {
+void integer_print(integer_t x) {
   integer_fprint(stdout, x);
 }
 
@@ -1136,7 +1136,7 @@ static intptr_t bigint_ctz(bigint_t* x) {
   return ctz;
 }
 
-integer integer_ctz(integer x) {
+integer_t integer_ctz(integer_t x) {
   if (is_smallint(x)) {
     return integer_from_small(int_ctz(unbox_int(x)));
   }
@@ -1179,7 +1179,7 @@ static intptr_t bigint_count_digits(bigint_t* x) {
   return count_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 }
 
-integer integer_count_digits(integer x) {
+integer_t integer_count_digits(integer_t x) {
   if (is_smallint(x)) {
     return integer_from_small(int_count_digits(unbox_int(x)));
   }
@@ -1190,7 +1190,7 @@ integer integer_count_digits(integer x) {
 
 static intptr_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
-integer integer_mul_pow10(integer x, integer p) {
+integer_t integer_mul_pow10(integer_t x, integer_t p) {
   if (p==integer_from_small(0)) {
     integer_decref(p);
     return x;
@@ -1236,7 +1236,7 @@ integer integer_mul_pow10(integer x, integer p) {
 }
 
 
-integer integer_div_pow10(integer x, integer p) {
+integer_t integer_div_pow10(integer_t x, integer_t p) {
   if (p==integer_from_small(0)) {
     integer_decref(p);
     return x;

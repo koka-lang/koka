@@ -48,6 +48,7 @@
 #define decl_pure       __attribute__((pure))
 #define noinline        __attribute__((noinline))
 #elif defined(_MSC_VER)
+#pragma warning(disable:4214)  // using bit field types other than int
 #define unlikely(x)     (x)
 #define likely(x)       (x)
 #define decl_const
@@ -91,7 +92,7 @@ static inline uintptr_t shr(uintptr_t i, uintptr_t shift) { return (i >> shift);
   Basic datatypes
 --------------------------------------------------------------------------------------*/
 
-// A `ptr_t` is a pointer to a heap block `block_t`. We keep it abstract to support tagged pointers or sticky refcounts in the future
+// A `ptr_t` is a pointer to a `block_t`. We keep it abstract to support tagged pointers or sticky refcounts in the future
 typedef uintptr_t ptr_t;      
 
 // Polymorpic operations work on boxed values. We use unsigned representation to avoid UB on shift operations and overflow.
@@ -100,6 +101,9 @@ typedef uintptr_t box_t;
 // A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
 typedef box_t datatype_t;
 
+// An integer is either a `ptr_t` or a small int. Identity with boxed values.
+typedef box_t integer_t;
+
 
 // Tags for heap blocks
 typedef enum tag_e {
@@ -107,6 +111,8 @@ typedef enum tag_e {
   TAG_MIN = 1,
   TAG_SMALL_MAX = 15,
   TAG_MAX = 65000,
+  TAG_BOX,
+  TAG_REF,
   TAG_FUNCTION,
   TAG_BIGINT,
   TAG_STRING,
@@ -170,16 +176,15 @@ typedef struct block_s {
 
 // boxed forward declarations
 static inline bool      is_ptr(box_t b);
-static inline bool      is_ptr_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
-static inline ptr_t       unbox_ptr(box_t b);
+static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, int, or enum, but not a double
+static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
+static inline ptr_t     unbox_ptr(box_t b);
 static inline box_t     box_ptr(ptr_t p);
 static inline intptr_t  unbox_int(box_t v);
 static inline box_t     box_int(intptr_t i);
 static inline uintptr_t unbox_enum(box_t v);
 static inline box_t     box_enum(uintptr_t u);
 
-// integer are represented as boxed values to have efficient operations on small ints
-typedef box_t integer;
 
 
 
@@ -196,8 +201,13 @@ static inline decl_const ptr_t block_ptr(const block_t* b, tag_t tag) {
   return (ptr_t)b;
 }
 
+
+static inline decl_const tag_t block_tag(block_t* b) {
+  return (tag_t)(b->header.h.tag);
+}
+
 static inline decl_const tag_t ptr_tag(ptr_t p) {
-  return (tag_t)(ptr_block(p)->header.h.tag);
+  return block_tag(ptr_block(p));
 }
 
 static inline decl_const box_t* ptr_fields(ptr_t p) {
@@ -230,11 +240,12 @@ static inline bool ptr_is_unique(ptr_t p) {
   // return (b->header.h.refcount == 1);
 }
 
-#define ptr_tp(p,tp)  (tp*)(&ptr_field(p,0))
+#define ptr_as(tp,p)  (tp*)(&ptr_field(p,0))
 
 static inline ptr_t pointer_ptr(void* p) {
   return (ptr_t)((uint8_t*)p - sizeof(header_t));
 }
+
 
 
 
@@ -245,11 +256,11 @@ static inline ptr_t pointer_ptr(void* p) {
   heap allocation and effect handlers.
 --------------------------------------------------------------------------------------*/
 typedef struct tld_s {
-  void*    yield;            // if not NULL, we are yielding to an effect handler; todo: put in register?
-  void*    evv;              // the current evidence vector for effect handling; todo: put in register as well?
-  void*    heap;             // the (thread-local) heap to allocate in
-  block_t* delayed_free;     // list of blocks that still need to be freed
-  integer  unique;           // thread local unique number generation
+  void*      yield;            // if not NULL, we are yielding to an effect handler; todo: put in register?
+  void*      evv;              // the current evidence vector for effect handling; todo: put in register as well?
+  void*      heap;             // the (thread-local) heap to allocate in
+  block_t*   delayed_free;     // list of blocks that still need to be freed
+  integer_t  unique;           // thread local unique number generation
 } tld_t;
 
 #if   (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
@@ -279,9 +290,9 @@ static inline bool yielding() {
   Allocation
 --------------------------------------------------------------------------------------*/
 
-#define kk_malloc(sz)     malloc(sz)
-#define kk_free(p)        free(p)
-#define kk_realloc(p,sz)  realloc(p,sz)
+#define runtime_malloc(sz)     malloc(sz)
+#define runtime_free(p)        free(p)
+#define runtime_realloc(p,sz)  realloc(p,sz)
 
 decl_export void block_free(block_t* b);
 
@@ -303,22 +314,31 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
   b->header = header;
 }
 
-static inline ptr_t ptr_alloc(size_t size, size_t scan_fsize, tag_t tag) {
-  block_t* b = (block_t*)kk_malloc(size + sizeof(header_t));
+static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag) {
+  block_t* b = (block_t*)runtime_malloc(size + sizeof(header_t));
   block_init(b, size, scan_fsize, tag);
+  return b;
+}
+
+#define block_alloc_tp(tp,scan_fsize,tag)  ((tp*)block_alloc(sizeof(tp), scan_fsize, tag))
+
+
+static inline ptr_t ptr_alloc(size_t size, size_t scan_fsize, tag_t tag) {
+  block_t* b = block_alloc(size, scan_fsize, tag);
   return block_ptr(b, tag);
 }
 
 static inline ptr_t ptr_realloc(ptr_t p, size_t size) {
   assert(ptr_is_unique(p));
   tag_t tag = ptr_tag(p);
-  block_t* b = (block_t*)kk_realloc(ptr_block(p), size + sizeof(block_t));
+  block_t* b = (block_t*)runtime_realloc(ptr_block(p), size + sizeof(block_t));
   return block_ptr(b, tag);
 }
 
 #define ptr_alloc_tp(tp,scan_fsize,tag)  ptr_alloc(sizeof(tp),scan_fsize,tag)
 
 #define ptr_null  ((ptr_t)NULL)
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -409,7 +429,7 @@ static inline orphan_t ptr_release1(ptr_t p, box_t unused_field1 ) {
 
 static inline void ptr_no_reuse(orphan_t p) {
   if (is_ptr_fast(p)) {
-    kk_free(ptr_block(unbox_ptr(p)));
+    runtime_free(ptr_block(unbox_ptr(p)));
   };
 }
 
@@ -421,7 +441,7 @@ static inline ptr_t ptr_alloc_reuse(orphan_t p, size_t size, size_t scan_fsize, 
     b = ptr_block(unbox_ptr(p));
   }
   else {
-    b = (block_t*)kk_malloc(size);
+    b = (block_t*)runtime_malloc(size);
   }
   block_init(b, size, scan_fsize, tag);
   return block_ptr(b, tag);
@@ -435,7 +455,7 @@ static inline ptr_t ptr_alloc_reuse(orphan_t p, size_t size, size_t scan_fsize, 
 typedef ptr_t string;
 
 static inline char* string_chars(string s) {
-  return ptr_tp(s, char);
+  return ptr_as(char, s);
 }
 
 static inline string string_alloc(size_t size) {
@@ -456,9 +476,94 @@ static inline string string_alloc(size_t size) {
 ----------------------------------------------------------------------*/
 
 // Get a thread local unique number.
-static inline integer gen_unique() {
-  integer u = tld->unique;
+static inline integer_t gen_unique() {
+  integer_t u = tld->unique;
   tld->unique = integer_inc(integer_dup(u));
   return u;
 };
 
+
+/*--------------------------------------------------------------------------------------
+  Datatype
+--------------------------------------------------------------------------------------*/
+
+static inline datatype_t ptr_datatype(ptr_t p) {
+  return box_ptr(p);
+}
+
+static inline ptr_t datatype_ptr(datatype_t d) {
+  return unbox_ptr(d);
+}
+
+static inline datatype_t block_datatype(block_t* p) {
+  return ptr_datatype(block_ptr(p, block_tag(p)));
+}
+
+static inline block_t* datatype_block(datatype_t d) {
+  return ptr_block(datatype_ptr(d));
+}
+
+static inline datatype_t datatype_enum(uintptr_t tag) {
+  return box_enum(tag);
+}
+
+static inline bool datatype_is_ptr(datatype_t d) {
+  return (is_ptr_fast(d));
+}
+
+static inline bool datatype_is_enum(datatype_t d) {
+  return (is_enum_fast(d));
+}
+
+
+// Tag for value types is always a boxed enum
+typedef box_t value_tag_t;
+
+// Use #define to enable constant initializer expression
+/*
+static inline value_tag_t value_tag(uintptr_t tag) {
+  return box_enum(tag);
+}
+*/
+#define value_tag(tag) (((value_tag_t)tag << 2) | 0x03)
+
+
+/*--------------------------------------------------------------------------------------
+  Functions
+--------------------------------------------------------------------------------------*/
+
+// A function is a ptr to a function block
+typedef struct function_s {
+  header_t header;
+  box_t    fun;     // boxed cptr
+  // followed by free variables
+} *function_t;
+
+#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(f->fun)))args
+
+
+/*--------------------------------------------------------------------------------------
+  References
+--------------------------------------------------------------------------------------*/
+typedef datatype_t ref_t;
+
+struct ref_s {
+  header_t header;
+  box_t    value;
+};
+
+static inline ref_t ref_new(box_t value) {
+  struct ref_s* r = block_alloc_tp(struct ref_s, 1, TAG_REF);
+  r->value = value;
+  return block_datatype((block_t*)r);
+}
+
+static inline box_t ref_get(ref_t b) {
+  struct ref_s* r = (struct ref_s*)datatype_block(b);
+  return r->value;
+}
+
+static inline void ref_set(ref_t b, box_t value) {
+  struct ref_s* r = (struct ref_s*)datatype_block(b);
+  r->value = value;
+}

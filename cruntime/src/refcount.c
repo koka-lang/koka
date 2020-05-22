@@ -66,13 +66,13 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
     size_t scan_fsize = b->header.h.scan_fsize;
     if (scan_fsize == 0) {
       // nothing to scan, just free
-      kk_free(b);
+      runtime_free(b);
       return;
     }
     else if (scan_fsize == 1) {
       // if just one field, we can recursively free without using stack space
       const box_t v = b->fields[0]; 
-      kk_free(b);
+      runtime_free(b);
       if (is_ptr(v)) {
         // try to free the child now
         b = ptr_block(unbox_ptr(v));
@@ -99,7 +99,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
         }
         // and recurse into the last one
         box_t v = b->fields[scan_fsize - 1];
-        kk_free(b);
+        runtime_free(b);
         if (is_ptr(v)) {
           b = ptr_block(unbox_ptr(v));
           if (block_decref_no_free(b)) {
@@ -120,7 +120,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
 void block_free(block_t* b) {
   assert(b->header.rc32.lo == UINT32_MAX);
   if (b->header.h.scan_fsize==0) {
-    kk_free(b); // deallocate directly if nothing to scan
+    runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
     block_decref_free(b, 0);

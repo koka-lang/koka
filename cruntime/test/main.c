@@ -2,7 +2,7 @@
 #include "time.h"
 #include "runtime.h"
 
-static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer,integer), integer x, integer y) {
+static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y) {
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {
     fun(integer_dup(x),integer_dup(y));    
@@ -15,7 +15,7 @@ static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer,in
 }
 
 
-typedef integer(iop)(integer x, integer y);
+typedef integer_t(iop)(integer_t x, integer_t y);
 typedef intptr_t(xop)(intptr_t x, intptr_t y);
 
 
@@ -25,14 +25,14 @@ static intptr_t sub(intptr_t x, intptr_t y) { return check(x - y); }
 static intptr_t mul(intptr_t x, intptr_t y) { return check(x * y); }
 
 void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j) {
-  integer x = box_int(i);
-  integer y = box_int(j);
+  integer_t x = box_int(i);
+  integer_t y = box_int(j);
   intptr_t k = unbox_int(op(x, y));
   intptr_t expect = opx(i, j);
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", i, name, j, k, (k==expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
 }
 void testb(const char* name, iop* op, box_t x, box_t y, box_t expect ) {
-  integer k = (op(x, y));
+  integer_t k = (op(x, y));
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x, name, y, k, (k==expect ? "ok" : "FAIL"), expect, (k == 43 ? "(overflow)" : ""));
 }
 void test_op(const char* name, iop* op, xop* opx) {
@@ -63,25 +63,25 @@ void test() {
   test_op("*", &integer_mul, &mul);
 }
 
-void test_add(integer x, integer y, integer expect) {
+void test_add(integer_t x, integer_t y, integer_t expect) {
   integer_incref(x); integer_incref(y);
   integer_print(x); printf(" + "); integer_print(y); printf(" = ");
-  integer z = integer_add(x, y);  
+  integer_t z = integer_add(x, y);  
   integer_print(z); printf(", expected: "); 
   integer_print(expect);
   printf("\n");
 }
 
-void test_sub(integer x, integer y, integer expect) {
+void test_sub(integer_t x, integer_t y, integer_t expect) {
   integer_incref(x); integer_incref(y);
   integer_print(x); printf(" - "); integer_print(y); printf(" = ");
-  integer z = integer_sub(x, y);
+  integer_t z = integer_sub(x, y);
   integer_print(z); printf(", expected: ");
   integer_print(expect);
   printf("\n");
 }
 
-void fibx(int n, integer* x1, integer* x2) {
+void fibx(int n, integer_t* x1, integer_t* x2) {
   if (n <= 1) {
     *x1 = box_int(0);
     *x2 = box_int(0);
@@ -91,17 +91,17 @@ void fibx(int n, integer* x1, integer* x2) {
     *x2 = box_int(0);
   }
   else {
-    integer y1; 
-    integer y2;
+    integer_t y1; 
+    integer_t y2;
     fibx(n - 1, &y1, &y2);
     *x2 = y1; integer_incref(y1);
     *x1 = integer_add(y1, y2);
   }
 }
 
-integer fib(int n) {
-  integer y1;
-  integer y2;
+integer_t fib(int n) {
+  integer_t y1;
+  integer_t y2;
   fibx(n+1, &y1, &y2);
   integer_decref(y2);
   return y1;
@@ -125,7 +125,7 @@ void expect(bool b, bool exp) {
   assert(b==exp);
 }
 
-void expect_eq(integer x, integer y) {
+void expect_eq(integer_t x, integer_t y) {
   integer_incref(x); integer_incref(y);
   printf(" "); integer_print(x); printf(" == ");  integer_print(y);
   bool eq = integer_eq(x, y);
@@ -182,8 +182,8 @@ const char* d = append10(append10(append10("1234567890")));
 
 void test_carry() {
   const char* fibs[] = { "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144", "233", "377", "610", "987", "1597", "2584", "4181", "6765", "10946", "17711", "28657", "46368", "75025", "121393", "196418", "317811", "514229", "832040", "1346269", "2178309", "3524578", "5702887", "9227465", "14930352", "24157817", "39088169", "63245986", "102334155", "165580141", "267914296", "433494437", "701408733", "1134903170", "1836311903", "2971215073", "4807526976", "7778742049", "12586269025" };
-  integer num = integer_from_small(1);
-  integer last = integer_from_small(1);
+  integer_t num = integer_from_small(1);
+  integer_t last = integer_from_small(1);
 
   for (intptr_t i = 2; i < 50; i++) {
     integer_incref(last);
@@ -207,7 +207,7 @@ void test_carry() {
   expect_eq(integer_sub(integer_parse("10000000010000000"), integer_parse("10000000")), integer_parse("10000000000000000"));
 }
 
-static integer factorial(integer n) {
+static integer_t factorial(integer_t n) {
   integer_incref(n); 
   if (integer_eq(n,integer_from_small(0))) {
     integer_decref(n);
@@ -232,11 +232,11 @@ void test_large() {
   expect_eq(integer_pow(integer_from_small(3),integer_from_int(10000)), integer_parse(threeToTenThousand));
 
   // large multiply divide
-  integer x = integer_from_str(hundredFactorial);
+  integer_t x = integer_from_str(hundredFactorial);
   expect_eq(integer_div(integer_mul(integer_dup(x), integer_dup(x)),integer_dup(x)), x);
   x = integer_from_str(threeToTenThousand);
   expect_eq(integer_div(integer_mul(integer_dup(x), integer_dup(x)), integer_dup(x)), x);
-  integer y = integer_from_str(hundredFactorial);
+  integer_t y = integer_from_str(hundredFactorial);
   x = integer_from_str(threeToTenThousand);
   expect_eq(integer_div(integer_mul(integer_dup(y), integer_dup(x)), y), x);
 }
@@ -303,9 +303,9 @@ void test_pow10() {
   expect_eq(integer_div_pow10(integer_parse("1234e14"), integer_from_int(14)), integer_parse("1234"));
 }
 
-static integer ia;
-static integer ib;
-static integer ic;
+static integer_t ia;
+static integer_t ib;
+static integer_t ic;
 
 static void init_nums(void) {
   ia = integer_from_str(a);
@@ -313,23 +313,23 @@ static void init_nums(void) {
   ic = integer_from_str(c);
 }
 
-static integer init_num(size_t  digits) {
+static integer_t init_num(size_t  digits) {
   char* s = malloc(digits + 1);
   for (size_t i = 0; i < digits; i++) {
     s[i] = '0' + (9 - (i%10));
   }
   s[digits] = 0;
-  integer x = integer_from_str(s);
+  integer_t x = integer_from_str(s);
   free(s);
   return x;
 }
 
-static void test_mul(integer x, integer y) {
-  integer i = integer_mul(x,y); 
+static void test_mul(integer_t x, integer_t y) {
+  integer_t i = integer_mul(x,y); 
   integer_decref(i);
 }
-static void test_mulk(integer x, integer y) {
-  integer i = integer_mul_karatsuba(x, y);
+static void test_mulk(integer_t x, integer_t y) {
+  integer_t i = integer_mul_karatsuba(x, y);
   integer_decref(i);
 }
 
@@ -353,9 +353,9 @@ int main() {
   /*
   init_nums();
   for (int i = 100; i < 800; i+=50) {
-    integer x = init_num(i);
+    integer_t x = init_num(i);
     for (int j = 100; j < 800; j += 50) {
-      integer y = init_num(j);
+      integer_t y = init_num(j);
       printf(".");
       msecs_t t1 = test_timing("multiply l", 10000, test_mul, integer_dup(x), integer_dup(y));
       msecs_t t2 = test_timing("multiply k", 10000, test_mulk, integer_dup(x), integer_dup(y));
@@ -464,13 +464,13 @@ ptr map(function f, ptr xs) {
   return 0;
 }
 
-integer test_add(integer x) {
-  integer res = int_add(x, int_small(4));
+integer_t test_add(integer_t x) {
+  integer_t res = int_add(x, int_small(4));
   return res;
 }
 
 int main(int argc, char** argv ) {
-  integer i = test_add(int_small(argc));
+  integer_t i = test_add(int_small(argc));
   if (i) printf("uh oh\n");
 	    else printf("hello world!\n");
 }

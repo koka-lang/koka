@@ -358,7 +358,7 @@ genTypeDef (Data info isExtend)
           then return ()
           else emitToH $ if (isDataStruct dataRepr)
                   then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
-                       <-> block (text "datatype_tag_t _tag;" <-> text "union"
+                       <-> block (text "value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
                        <-> ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
                   else ppVis (dataInfoVis info) <.> text "typedef struct"
@@ -391,18 +391,19 @@ genBoxUnbox name info dataRepr
 genBox name info dataRepr
   = emitToH $
     text "static inline box_t box_" <.> ppName name <.> parens (ppName name <+> text "x") <+> block (
-      text "return" <+> (
       case dataRepr of
-        DataEnum -> parens (ppName name) <.> text "box_enum(x)"
+        DataEnum -> text "return" <+> parens (ppName name) <.> text "box_enum(x)" <.> semi
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
-                    in text "box_" <.> ppType isoTp <.> parens (text "x." <.> ppName (unqualify isoName))
+                    in text "return" <+> text "box_" <.> ppType isoTp <.> parens (text "x." <.> ppName (unqualify isoName)) <.> semi
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
                   -> let extra = if (dataRepr == DataStruct) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                     in text "box_valuetype" <.> tupled [ppName name, text "x", pretty (scancount + extra) <+> text "/* scan fields */"]
-               _  -> text "box_datatype(x)"
-    ) <.> semi)
+                     in vcat [ text "box_t _box;" 
+                             , text "box_valuetype" <.> tupled [ppName name, text "_box", text "x", pretty (scancount + extra) <+> text "/* scan fields */"] <.> semi
+                             , text "return _box;" ]
+               _  -> text "return" <+> text "box_datatype(x)" <.> semi 
+    )
 
 genUnbox name info dataRepr
   = emitToH $
@@ -427,7 +428,9 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
     _ | null conFields && (dataRepr < DataNormal && not (isDataStruct dataRepr))
        -> return ()
     _  -> do emitToH $ ppVis (conInfoVis con) <.> text "struct" <+> ppName ((conInfoName con)) <+>
-                       block (vcat (typeField ++ map ppConField conFields)) <.> semi
+                       block (let fields = (typeField ++ map ppConField conFields)
+                              in if (null fields) then text "box_t _unused;"  -- avoid empty struct
+                                                  else vcat fields) <.> semi
   where
     typeField  = if (dataReprIsValue dataRepr) then []
                   else [text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> text "_type;"]
@@ -454,7 +457,7 @@ genConstructorTest info dataRepr con conRepr
                   <+> block( text "return (" <.> (
                   let nameDoc = ppName (conInfoName con)
                       -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
-                      dataTypeTagDoc = text "datatype_tag(x)"
+                      dataTypeTagDoc = text "value_tag(x)"
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
@@ -479,7 +482,7 @@ ppConTag con conRepr dataRepr
       ConOpen{} ->  ppName (makeHiddenName "tag" (conInfoName con))
       ConEnum{} ->  ppName (conInfoName con)
       ConSingleton{} | dataRepr == DataAsList -> text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
-      _         | dataRepr == DataStruct -> text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
+      _         | dataRepr == DataStruct -> text "value_tag(" <.> pretty (conTag conRepr) <.> text ")"
       _         ->  pretty (conTag conRepr)
 
 genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
@@ -513,16 +516,16 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                )
                                ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
-                     then text "return cptr_to_datatype(&" <.> conSingletonName con <.> text ");"
+                     then text "return block_datatype((block_t*)&" <.> conSingletonName con <.> text ");"
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
+                               <+> text "block_alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
                                                                if (dataRepr /= DataOpen)
                                                                 then ppConTag con conRepr dataRepr <+> text "/* tag */"
                                                                 else text "TAG_OPEN"]
                                <.> semi]
                               ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_type._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
-                              ++ [text "return cptr_to_datatype(" <.> tmp <.> text ");"])
+                              ++ [text "return block_datatype( (block_t*)" <.> tmp <.> text ");"])
           )
 
 genConstructorAccess :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
@@ -535,7 +538,7 @@ genConstructorAccess info dataRepr con conRepr
                     <.> parens( ppName (typeClassName (dataInfoName info)) <+> text "x" )
                     <+> block( vcat $
                           [text "assert(" <.> conTestName con <.> text "(x)" <.> text ");"
-                          ,text "return" <+> parens (text "struct"  <+> ppName (conInfoName con) <.> text "*") <.> text "datatype_to_cptr(x);"]
+                          ,text "return" <+> parens (text "struct"  <+> ppName (conInfoName con) <.> text "*") <.> text "datatype_block(x);"]
                         )
 
 
@@ -1169,8 +1172,8 @@ genAppNormal f args
                                           _ -> genExpr f
                        let (cresTp,cargTps) = case splitFunScheme (typeOf f) of
                                                Just (_,_,argTps,_,resTp)
-                                                 -> (ppType resTp, tupled (map (ppType . snd) argTps))
-                       return (fdecls ++ decls, text "function_call" <.> tupled [cresTp,cargTps,fdoc,tupled argDocs])
+                                                 -> (ppType resTp, tupled (text "function_t" : map (ppType . snd) argTps))
+                       return (fdecls ++ decls, text "function_call" <.> tupled [cresTp,cargTps,fdoc,tupled (fdoc:argDocs)])
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
@@ -1645,18 +1648,25 @@ isReserved s
 
 reserved :: S.Set String
 reserved
-  = S.fromList $ -- JavaScript pseudo-keywords
-    [ "prototype"
+  = S.fromList $ -- C pseudo-keywords
+    [ "bool"
     , "toString"
     , "arguments"
     , "eval"
     ]
-    ++ -- word literals
-    [ "null"
-    , "Infinity"
-    , "NaN"
+    ++ -- C types
+    [ "char"
+    , "int"
+    , "intptr_t"
+    , "long"
+    , "short"
+    , "signed"
+    , "size_t"
+    , "ssize_t"
+    , "uintptr_t"
+    , "unsigned"
     ]
-    ++ -- JavaScript keywords
+    ++ -- C keywords
     [ "async"
     , "await"
     , "break"
