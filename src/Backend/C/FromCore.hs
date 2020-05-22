@@ -501,7 +501,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
 
 genConstructorAccess :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
 genConstructorAccess info dataRepr con conRepr
-  = if (dataReprIsValue dataRepr)
+  = if (dataReprIsValue dataRepr || isConSingleton conRepr)
      then return ()
      else gen
   where
@@ -923,7 +923,7 @@ genPatternTest doTest (exprDoc,pattern)
                  ConEnum{} | conInfoName info == nameFalse
                     -> return [(test [text "!" <.> parens exprDoc],[],[])]
                  _  -> let dataRepr = conDataRepr repr
-                       in if (dataReprIsValue dataRepr)
+                       in if (dataReprIsValue dataRepr || isConSingleton repr)
                            then valTest tname info dataRepr
                            else conTest info
         where
