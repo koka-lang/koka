@@ -1,5 +1,13 @@
 #pragma once
+#ifndef __INTEGER_H__
+#define __INTEGER_H__
+/*---------------------------------------------------------------------------
+  Copyright 2020 Daan Leijen, Microsoft Corporation.
 
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
 #include "runtime.h"
 
 /*--------------------------------------------------------------------------------------------------
@@ -8,7 +16,6 @@
   efficient arithmetic on the boxed representation of a small int directly where
   `boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
 --------------------------------------------------------------------------------------------------*/
-
 
 #if INTPTR_SIZE==8                           // always us 32-bits on 64-bit platforms
 typedef int32_t smallint_t;
@@ -32,22 +39,22 @@ static inline bool is_integer(integer_t i) {
 }
 
 static inline bool is_bigint(integer_t i) {
-  assert(is_integer(i));
+  assert_internal(is_integer(i));
   return is_ptr_fast(i);
 }
 
 static inline bool is_smallint(integer_t i) {
-  assert(is_integer(i));
+  assert_internal(is_integer(i));
   return is_int_fast(i);
 }
 
 static inline bool are_smallints(integer_t i, integer_t j) {
-  assert(is_integer(i) && is_integer(j));
+  assert_internal(is_integer(i) && is_integer(j));
   return ((i&j)&1)!=0;
 }
 
 static inline integer_t integer_from_small(intptr_t i) {   // use for known small ints (under 14 bits)
-  assert(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
+  assert_internal(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
   return box_int(i);
 }
 
@@ -159,7 +166,7 @@ static inline bool smallint_mul_ovf(intptr_t x, intptr_t y, intptr_t* r) {
     (we use (^ 1) instead of (- 1) to reduce register stalls (since we know the bottom bits of `y` are 01)
 */
 static inline integer_t integer_add_small(integer_t x, integer_t y) {
-  assert(are_smallints(x, y));
+  assert_internal(are_smallints(x, y));
   intptr_t i;
   if (likely(!smallint_add_ovf((intptr_t)x, (intptr_t)(y^1), &i))) return (integer_t)i;
   return integer_add_generic(x, y);
@@ -182,11 +189,11 @@ static inline integer_t integer_add(integer_t x, integer_t y) {
   and we can detect afterwards if it was correct to assume these were smallint's
 */
 static inline integer_t integer_add(integer_t x, integer_t y) {
-  assert(is_integer(x) && is_integer(y));
+  assert_internal(is_integer(x) && is_integer(y));
   intptr_t i;
   if (likely(!smallint_add_ovf((intptr_t)x, (intptr_t)y, &i) && (i&2)!=0)) {
     integer_t z = (integer_t)(i) ^ 3;  // == i - 1
-    assert(is_int(z));
+    assert_internal(is_int(z));
     return z;
   }
   return integer_add_generic(x, y);
@@ -201,7 +208,7 @@ static inline integer_t integer_add(integer_t x, integer_t y) {
       = boxed(n-m)
 */
 static inline integer_t integer_sub_small(integer_t x, integer_t y) {
-  assert(are_smallints(x, y));
+  assert_internal(are_smallints(x, y));
   intptr_t i;
   if (likely(!smallint_sub_ovf((intptr_t)x, (intptr_t)(y^1), &i))) return (integer_t)(i);
   return integer_sub_generic(x, y);
@@ -220,13 +227,13 @@ static inline integer_t integer_sub(integer_t x, integer_t y) {
     = boxed(n*m)
 */
 static inline integer_t integer_mul_small(integer_t x, integer_t y) {
-  assert(are_smallints(x, y));
+  assert_internal(are_smallints(x, y));
   intptr_t i = sar((intptr_t)x, 1);
   intptr_t j = sar((intptr_t)y, 1);
   intptr_t k;
   if (likely(!smallint_mul_ovf(i, j, &k))) {
     integer_t z = (integer_t)(k)|1;
-    assert(is_int(z));
+    assert_internal(is_int(z));
     return z;
   }
   return integer_mul_generic(x, y);
@@ -244,7 +251,7 @@ static inline integer_t integer_mul(integer_t x, integer_t y) {
     = boxed(n/m)
 */
 static inline integer_t integer_div_small(integer_t x, integer_t y) {
-  assert(are_smallints(x, y));
+  assert_internal(are_smallints(x, y));
   intptr_t i = sar((intptr_t)x, 1);
   intptr_t j = sar((intptr_t)y, 1);
   return (shr(i/j, 2)|1);
@@ -257,14 +264,14 @@ static inline integer_t integer_div_small(integer_t x, integer_t y) {
     = boxed(n%m)
 */
 static inline integer_t integer_mod_small(integer_t x, integer_t y) {
-  assert(are_smallints(x, y));
+  assert_internal(are_smallints(x, y));
   intptr_t i = sar((intptr_t)x, 1);
   intptr_t j = sar((intptr_t)y, 1);
   return (shr(i%j, 1)|1);
 }
 
 static inline integer_t integer_div_mod_small(integer_t x, integer_t y, integer_t* mod) {
-  assert(are_smallints(x, y)); assert(mod!=NULL);
+  assert_internal(are_smallints(x, y)); assert_internal(mod!=NULL);
   intptr_t i = sar((intptr_t)x, 1);
   intptr_t j = sar((intptr_t)y, 1);
   *mod = shr(i%j, 1)|1;
@@ -282,7 +289,7 @@ static inline integer_t integer_mod(integer_t x, integer_t y) {
 }
 
 static inline integer_t integer_div_mod(integer_t x, integer_t y, integer_t* mod) {
-  assert(mod!=NULL);
+  assert_internal(mod!=NULL);
   if (likely(are_smallints(x, y))) return integer_div_mod_small(x, y, mod);
   return integer_div_mod_generic(x, y, mod);
 }
@@ -407,3 +414,5 @@ static inline integer_t integer_min(integer_t x, integer_t y) {
     integer_decref(x); return y;
   }
 }
+
+#endif // include guard

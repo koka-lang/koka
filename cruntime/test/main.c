@@ -1,10 +1,39 @@
+/*---------------------------------------------------------------------------
+  Copyright 2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include "time.h"
 #include "runtime.h"
 
 define_string_literal(, stest, 5, "hello");
 
+// type data1/list
+typedef datatype_t __data1__list;
+struct __data1_Cons {
+  box_t x;
+  __data1__list tail;
+};
+static inline bool __data1__is_Cons(__data1__list x) {
+  return (datatype_is_ptr(x));
+}
+__data1__list __data1__new_Cons(box_t x, __data1__list tail) {
+  struct __data1_Cons* _con = datatype_alloc_data_as(struct __data1_Cons, 2 /* scan fields */, (tag_t)1 /* tag */);
+  _con->x = x;
+  _con->tail = tail;
+  return datatype_from_data(_con);
+}
+struct __data1_Cons* __data1__as_Cons(__data1__list x) {
+  assert(__data1__is_Cons(x));
+  return datatype_data_as(struct __data1_Cons, x);
+}
+
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y) {
+  UNUSED(msg);
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {
     fun(integer_dup(x),integer_dup(y));    
@@ -316,13 +345,13 @@ static void init_nums(void) {
 }
 
 static integer_t init_num(size_t  digits) {
-  char* s = malloc(digits + 1);
+  char* s = (char*)runtime_malloc(digits + 1);
   for (size_t i = 0; i < digits; i++) {
     s[i] = '0' + (9 - (i%10));
   }
   s[digits] = 0;
   integer_t x = integer_from_str(s);
-  free(s);
+  runtime_free(s);
   return x;
 }
 
@@ -330,11 +359,25 @@ static void test_mul(integer_t x, integer_t y) {
   integer_t i = integer_mul(x,y); 
   integer_decref(i);
 }
+/*
 static void test_mulk(integer_t x, integer_t y) {
   integer_t i = integer_mul_karatsuba(x, y);
   integer_decref(i);
 }
+*/
 
+static void test_bitcount() {
+  uint32_t values[] = { 1,0x80000000,0xFFFFFFFF,0xFFFF,0xFFFF0000,0x7FFFFFFF,0xFFFFFFFE, 0x7FFFFFFE, 0x80000001, 0 };
+  size_t i = 0;
+  uint32_t v;
+  do {
+    v = values[i++];
+    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, bits_ctz32(v), bits_clz32(v));
+  } while (v != 0);
+  for (v = 1; v != 0; v <<= 1) {
+    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, bits_ctz32(v), bits_clz32(v));
+  }  
+}
 
 int main() {
   test_fib(50);   // 12586269025
@@ -351,7 +394,8 @@ int main() {
   test_div();
   test_count();
   test_pow10();
-
+  // test_bitcount();
+  
   /*
   init_nums();
   for (int i = 100; i < 800; i+=50) {
@@ -370,7 +414,8 @@ int main() {
     integer_decref(x);
   }
   */
-  return 0;
+  
+  return (int)(__data1__new_Cons(box_int(1),datatype_from_enum(0)));
 }
 
 /*

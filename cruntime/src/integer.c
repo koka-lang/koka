@@ -1,3 +1,11 @@
+/*---------------------------------------------------------------------------
+  Copyright 2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> // memcpy
@@ -73,7 +81,7 @@ static integer_t integer_bigint(bigint_t* x);
 ----------------------------------------------------------------------*/
 
 static ptr_t bigint_ptr_(bigint_t* x) {
-  return pointer_ptr(x);
+  return ptr_from_data(x);
 }
 
 static bool bigint_is_unique_(bigint_t* x) {
@@ -81,15 +89,15 @@ static bool bigint_is_unique_(bigint_t* x) {
 }
 
 static void bigint_incref(bigint_t* x) {
-  ptr_incref(pointer_ptr(x));
+  ptr_incref(bigint_ptr_(x));
 }
 
 static void bigint_decref(bigint_t* x) {
-  ptr_decref(pointer_ptr(x));
+  ptr_decref(bigint_ptr_(x));
 }
 
 static bigint_t* bigint_dup(bigint_t* x) {
-  ptr_incref(pointer_ptr(x));
+  ptr_incref(bigint_ptr_(x));
   return x;
 }
 
@@ -102,7 +110,7 @@ static size_t bigint_roundup_count(size_t count) {
 
 static bigint_t* bigint_alloc(size_t count, bool is_neg) {
   size_t dcount = bigint_roundup_count(count);
-  bigint_t* b = ptr_as(bigint_t, ptr_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT));
+  bigint_t* b = ptr_data_as(bigint_t, ptr_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT));
   b->is_neg = (is_neg ? 1 : 0);
   b->extra = (extra_t)(dcount - count);
   b->count = count;
@@ -116,7 +124,7 @@ static bigint_t* bigint_alloc_zero(size_t count, bool is_neg) {
 }
 
 static bigint_t* bigint_trim_realloc_(bigint_t* x, size_t count) {
-  assert(bigint_is_unique_(x));
+  assert_internal(bigint_is_unique_(x));
   size_t dcount = bigint_roundup_count(count);
   size_t xcount = bigint_available_(x);
   bigint_t* b;
@@ -125,7 +133,7 @@ static bigint_t* bigint_trim_realloc_(bigint_t* x, size_t count) {
     dcount = xcount;
   }
   else {
-    b = ptr_as(bigint_t, ptr_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t)));
+    b = ptr_data_as(bigint_t, ptr_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t)));
   }
   b->count = count;
   b->extra = (extra_t)(dcount - count);
@@ -134,7 +142,7 @@ static bigint_t* bigint_trim_realloc_(bigint_t* x, size_t count) {
 
 static bigint_t* bigint_trim_to(bigint_t* x, size_t count, bool allow_realloc) {
   ptrdiff_t d = bigint_available_(x) - count;
-  assert(d >= 0 && bigint_is_unique_(x));
+  assert_internal(d >= 0 && bigint_is_unique_(x));
   if (d < 0) {
     return x;
   }
@@ -156,7 +164,7 @@ static bigint_t* bigint_trim_to(bigint_t* x, size_t count, bool allow_realloc) {
 }
 
 static bigint_t* bigint_trim(bigint_t* x, bool allow_realloc) {
-  assert(bigint_is_unique_(x));
+  assert_internal(bigint_is_unique_(x));
   size_t i = bigint_count_(x);
   while ((i > 0) && (x->digits[i-1] == 0)) { i--; }  // skip top zero's
   return bigint_trim_to(x, i, allow_realloc);
@@ -173,7 +181,7 @@ static bigint_t* bigint_alloc_reuse_(bigint_t* x, size_t count) {
 }
 
 static bigint_t* bigint_copy(bigint_t* x, size_t extra ) {
-  assert(extra <= MAX_EXTRA);
+  assert_internal(extra <= MAX_EXTRA);
   if (extra > MAX_EXTRA) extra = MAX_EXTRA;
   bigint_t* z = bigint_alloc(x->count + extra, bigint_is_neg_(x));
   z->is_neg = x->is_neg;
@@ -227,12 +235,12 @@ static bigint_t* bigint_from_int(intptr_t i) {
 
 // unpack to a bigint always
 static bigint_t* integer_to_bigint(integer_t x) {
-  assert(is_integer(x));
+  assert_internal(is_integer(x));
   if (is_bigint(x)) {
-    return ptr_as(bigint_t, unbox_ptr(x));
+    return ptr_data_as(bigint_t, unbox_ptr(x));
   }
   else {
-    assert(is_smallint(x));
+    assert_internal(is_smallint(x));
     return bigint_from_int(unbox_int(x));
   }
 }
@@ -269,7 +277,7 @@ static intptr_t digit_to_str_partial(digit_t d, char* buf) {
 
 // Efficient conversion to a string buffer. Use `buf == NULL` to get the required size.
 static size_t bigint_to_buf_(const bigint_t* b, char* buf, size_t buf_size) {
-  assert(b != NULL);
+  assert_internal(b != NULL);
   const intptr_t count = bigint_count_(b);
   const size_t needed = (count*LOG_BASE) + (bigint_is_neg_(b) ? 1 : 0) + 1; // + (sign and terminator);
   if (buf==NULL || buf_size==0 || needed > buf_size) return needed;
@@ -281,7 +289,7 @@ static size_t bigint_to_buf_(const bigint_t* b, char* buf, size_t buf_size) {
   // skip leading zeros
   intptr_t i = count-1;
   while (i > 0 && b->digits[i]==0) {
-    assert(false); // we should never have leading zeros
+    assert_internal(false); // we should never have leading zeros
     i--;
   }
   // output leading digit
@@ -308,7 +316,7 @@ static string_t bigint_to_string(bigint_t* b) {
 
 // intptr_t to string
 string_t int_to_string(intptr_t n) {
-  assert(INTPTR_SIZE <= 26);
+  assert_internal(INTPTR_SIZE <= 26);
   char buf[64];  // enough for 2^212
   bool neg = (n < 0);
   if (neg) n = -n;
@@ -341,7 +349,7 @@ string_t int_to_string(intptr_t n) {
 ----------------------------------------------------------------------*/
 
 integer_t integer_parse(const char* s) {
-  assert(s!=NULL);
+  assert_internal(s!=NULL);
   // parse
   bool is_neg = false;
   size_t sig_digits = 0; // digits before the fraction
@@ -401,7 +409,7 @@ integer_t integer_parse(const char* s) {
   // parsed correctly, ready to construct the number
   // construct an `intptr_t` if it fits.
   if (dec_digits < LOG_BASE) {   // must be less than LOG_BASE to avoid overflow
-    assert(INTPTR_SIZE >= sizeof(digit_t));
+    assert_internal(INTPTR_SIZE >= sizeof(digit_t));
     intptr_t d = 0;
     for (const char* p = s; p < end; p++) {
       char c = *p;
@@ -429,23 +437,23 @@ integer_t integer_parse(const char* s) {
       char c = (p < end ? *p++ : '0'); // fill out with zeros
       if (isdigit(c)) {
         j++;
-        d = 10*d + ((digit_t)c - '0'); assert(d<BASE);
+        d = 10*d + ((digit_t)c - '0'); assert_internal(d<BASE);
       }
     }
     // and store it
-    assert(k > 0);
+    assert_internal(k > 0);
     if (k > 0) { b->digits[--k] = d; }    
     chunk = LOG_BASE;  // after the first digit, all chunks are full digits
   }
   // set the final zeros
-  assert(zero_digits / LOG_BASE == k);
+  assert_internal(zero_digits / LOG_BASE == k);
   for (size_t j = 0; j < k; j++) { b->digits[j] = 0; }
   return integer_bigint(b);
 }
 
 integer_t integer_from_str(const char* num) {
   integer_t i = integer_parse(num);
-  assert(i != box_cptr(NULL));
+  assert_internal(i != box_cptr(NULL));
   return i;
 }
 
@@ -490,19 +498,19 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg);
 
 
 static bigint_t* bigint_add_abs(bigint_t* x, bigint_t* y) {   // x.count >= y.count
-  // assert(bigint_sign_(x) == bigint_sign_(y));  
+  // assert_internal(bigint_sign_(x) == bigint_sign_(y));  
   // ensure x.count >= y.count
   const size_t cx = bigint_count_(x);
   const size_t cy = bigint_count_(y);
-  assert(cx >= cy);
+  assert_internal(cx >= cy);
   
   // allocate result bigint
   const size_t cz = ((intptr_t)bigint_last_digit_(x) + (intptr_t)bigint_last_digit_(y) + 1 >= BASE ? cx + 1 : cx);
   bigint_t* z = bigint_alloc_reuse_(x, cz); // if z==x, we reused x.
   //z->is_neg = x->is_neg;
 
-  assert(cx>=cy);
-  assert(bigint_count_(z) >= cx);
+  assert_internal(cx>=cy);
+  assert_internal(bigint_count_(z) >= cx);
   digit_t carry = 0;
   digit_t sum = 0;
   // add y's digits
@@ -522,7 +530,7 @@ static bigint_t* bigint_add_abs(bigint_t* x, bigint_t* y) {   // x.count >= y.co
   for (; carry != 0 && i < cx; i++) {
     sum = x->digits[i] + carry;
     if (unlikely(sum >= BASE)) {
-      assert(sum==BASE && carry==1);  // can only be at most BASE
+      assert_internal(sum==BASE && carry==1);  // can only be at most BASE
       // carry stays 1;
       sum -= BASE;
     }
@@ -545,7 +553,7 @@ static bigint_t* bigint_add_abs(bigint_t* x, bigint_t* y) {   // x.count >= y.co
   if (carry) {
     z->digits[i++] = carry;
   }
-  assert(i == bigint_count_(z) || i+1 == bigint_count_(z));
+  assert_internal(i == bigint_count_(z) || i+1 == bigint_count_(z));
   if (z != x) bigint_decref(x);
   bigint_decref(y);
   return bigint_trim_to(z, i, true /* allow realloc */);
@@ -553,15 +561,15 @@ static bigint_t* bigint_add_abs(bigint_t* x, bigint_t* y) {   // x.count >= y.co
 
 /*
 static bigint_t* bigint_add_abs_small(bigint_t* x, intptr_t y) {
-  assert(y >= 0 && y < BASE);  
-  // assert(bigint_sign_(x) == bigint_sign_(y));  
+  assert_internal(y >= 0 && y < BASE);  
+  // assert_internal(bigint_sign_(x) == bigint_sign_(y));  
  // ensure x.count >= y.count
   const size_t cx = bigint_count_(x);
  
   // allocate result bigint
   const size_t cz = ((intptr_t)bigint_last_digit_(x) + y + 1 >= BASE ? cx + 1 : cx);
   bigint_t* z = bigint_alloc_reuse_(x, cz); // if z==x, we reused x.
-  assert(bigint_count_(z) >= cx);
+  assert_internal(bigint_count_(z) >= cx);
   digit_t carry = (digit_t)y;
   digit_t sum = 0;
   // add y do the digits of x
@@ -579,7 +587,7 @@ static bigint_t* bigint_add_abs_small(bigint_t* x, intptr_t y) {
   }  
   // copy the tail
   if (i < cx && z != x) {
-    assert(carry == 0);
+    assert_internal(carry == 0);
     // memcpy(&z->digits[i], &x->digits[i], (cx - i)*sizeof(digit_t));
     for (; i < cx; i++) {
       z->digits[i] = x->digits[i];
@@ -592,7 +600,7 @@ static bigint_t* bigint_add_abs_small(bigint_t* x, intptr_t y) {
       z->digits[i++] = carry;
     }
   }  
-  assert(i == bigint_count_(z) || i + 1 == bigint_count_(z));
+  assert_internal(i == bigint_count_(z) || i + 1 == bigint_count_(z));
   if (z != x) bigint_decref(x);
   return bigint_trim_to(z, i, true );
 }
@@ -603,13 +611,13 @@ static bigint_t* bigint_add_abs_small(bigint_t* x, intptr_t y) {
 ----------------------------------------------------------------------*/
 
 static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y) {  // |x| >= |y|
-  assert(bigint_compare_abs_(x, y) >= 0);
+  assert_internal(bigint_compare_abs_(x, y) >= 0);
   size_t cx = bigint_count_(x);
   size_t cy = bigint_count_(y);
-  assert(cx>=cy);
+  assert_internal(cx>=cy);
   bigint_t* z = bigint_alloc_reuse_(x, cx);
   //z->is_neg = x->is_neg;
-  assert(bigint_count_(z) >= cx);
+  assert_internal(bigint_count_(z) >= cx);
   digit_t borrow = 0;
   digit_t diff = 0;
   // subtract y digits
@@ -618,7 +626,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y) {  // |x| >= |y|
     diff = x->digits[i] - borrow - y->digits[i];
     if (unlikely(diff < 0)) {
       borrow = 1;
-      diff += BASE; assert(diff >= 0);
+      diff += BASE; assert_internal(diff >= 0);
     }
     else {
       borrow = 0;
@@ -630,7 +638,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y) {  // |x| >= |y|
     diff = x->digits[i] - borrow;
     if (unlikely(diff < 0)) {
       // borrow stays 1;
-      assert(diff==-1);
+      assert_internal(diff==-1);
       diff += BASE;
     }
     else {
@@ -638,7 +646,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y) {  // |x| >= |y|
     }
     z->digits[i] = diff;
   }
-  assert(borrow==0);  // since x >= y.
+  assert_internal(borrow==0);  // since x >= y.
   // copy the tail
   if (z != x) {
     // memcpy(&z->digits[i], &x->digits[i], (cx - i)*sizeof(digit_t));
@@ -652,7 +660,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y) {  // |x| >= |y|
 }
 
 /*----------------------------------------------------------------------
-  Multiply & Sqr. including Karabatsuba multiplication
+  Multiply & Sqr. including Karatsuba multiplication
 ----------------------------------------------------------------------*/
 
 static bigint_t* bigint_mul(bigint_t* x, bigint_t* y) {
@@ -679,7 +687,7 @@ static bigint_t* bigint_mul(bigint_t* x, bigint_t* y) {
 }
 
 static bigint_t* bigint_mul_small(bigint_t* x, intptr_t y) {
-  assert(y > -BASE && y < BASE);
+  assert_internal(y > -BASE && y < BASE);
   size_t cx = bigint_count_(x);
   uint8_t is_neg = (bigint_is_neg_(x) && y<0 ? 1 : 0);
   size_t cz = cx+1;
@@ -694,7 +702,7 @@ static bigint_t* bigint_mul_small(bigint_t* x, intptr_t y) {
     z->digits[i] = (digit_t)(prod - (carry*BASE));
   }
   while (carry > 0) {
-    assert(i < bigint_count_(z));
+    assert_internal(i < bigint_count_(z));
     z->digits[i++] = carry % BASE;
     carry /= BASE;
   }
@@ -796,7 +804,7 @@ integer_t integer_pow(integer_t x, integer_t p) {
       x = integer_sqr(x);
     }
   }
-  assert(is_smallint(p));
+  assert_internal(is_smallint(p));
   intptr_t i = unbox_int(p);
   while (1) {
     if ((i&1)!=0) {
@@ -839,7 +847,7 @@ static bigint_t* bigint_div_mod_small(bigint_t* x, intptr_t y, intptr_t* pmod) {
 static bigint_t* bigint_div_mod(bigint_t* x, bigint_t* y, bigint_t** pmod) {
   size_t cx = bigint_count_(x);
   size_t cy = bigint_count_(y);
-  assert(cx >= cy);
+  assert_internal(cx >= cy);
   uint8_t is_neg = (bigint_is_neg_(x) != bigint_is_neg_(y) ? 1 : 0);
   bigint_t* z = bigint_alloc_zero(cx - cy + 1, is_neg);
   // normalize
@@ -852,13 +860,13 @@ static bigint_t* bigint_div_mod(bigint_t* x, bigint_t* y, bigint_t** pmod) {
   div = bigint_push(div, 0);
   for (intptr_t shift = cx - cy; shift >= 0; shift--) {
     int64_t qd = BASE - 1;
-    assert(rem->count > shift + cy);
+    assert_internal(rem->count > shift + cy);
     if (rem->digits[shift + cy] != divisorHi) {
-      assert(rem->count > 1);
+      assert_internal(rem->count > 1);
       int64_t rem_hi = (rem->digits[shift + cy]*(int64_t)BASE) + rem->digits[shift + cy - 1];
       qd = (rem_hi / divisorHi);
     }
-    assert(qd <= (BASE - 1));
+    assert_internal(qd <= (BASE - 1));
     int64_t carry = 0;
     int64_t borrow = 0;
     size_t cd = div->count;
@@ -920,7 +928,7 @@ static bigint_t* bigint_add(bigint_t* x, bigint_t* y, bool yneg) {
   else {
     z = bigint_add_abs(x, y);
   }
-  assert(bigint_is_unique_(z));
+  assert_internal(bigint_is_unique_(z));
   z->is_neg = yneg;
   return z;
 }
@@ -934,7 +942,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
   }
   else {
     bigint_t* z = bigint_sub_abs(y, x);
-    assert(bigint_is_unique_(z));
+    assert_internal(bigint_is_unique_(z));
     z->is_neg = !yneg;
     return z;
   }
@@ -947,19 +955,19 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
 ----------------------------------------------------------------------*/
 
  integer_t integer_neg_generic(integer_t x) {
-  assert(is_integer(x));
+  assert_internal(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   return integer_bigint(bigint_neg(bx));
 }
 
  integer_t integer_sqr_generic(integer_t x) {
-  assert(is_integer(x));
+  assert_internal(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   return integer_bigint(bigint_sqr(bx));
 }
 
  int integer_signum_generic(integer_t x) {
-  assert(is_integer(x));
+  assert_internal(is_integer(x));
   bigint_t* bx = integer_to_bigint(x);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
   integer_decref(x);
@@ -967,7 +975,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
 }
 
  bool integer_is_even_generic(integer_t x) {
-  assert(is_integer(x));
+  assert_internal(is_integer(x));
   if (is_smallint(x)) return ((x&0x08)==0);
   bigint_t* bx = integer_to_bigint(x);
   bool even = ((bx->digits[0]&0x1)==0);
@@ -976,7 +984,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg) {
 }
 
 int integer_cmp_generic(integer_t x, integer_t y) {
-  assert(is_integer(x)&&is_integer(y));
+  assert_internal(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
   int sign = bigint_compare_(bx, by);
@@ -986,14 +994,14 @@ int integer_cmp_generic(integer_t x, integer_t y) {
 }
 
 integer_t integer_add_generic(integer_t x, integer_t y) { 
-  assert(is_integer(x)&&is_integer(y));
+  assert_internal(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
   return integer_bigint(bigint_add(bx, by, by->is_neg));
 }
 
 integer_t integer_sub_generic(integer_t x, integer_t y) {
-  assert(is_integer(x)&&is_integer(y));
+  assert_internal(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
   return integer_bigint(bigint_sub(bx, by, by->is_neg));
@@ -1004,7 +1012,7 @@ static bool use_karatsuba(size_t i, size_t j) {
 }
 
 integer_t integer_mul_generic(integer_t x, integer_t y) {
-  assert(is_integer(x)&&is_integer(y));
+  assert_internal(is_integer(x)&&is_integer(y));
   bigint_t* bx = integer_to_bigint(x);
   bigint_t* by = integer_to_bigint(y);
   bool usek = use_karatsuba(bx->count, by->count);
@@ -1017,7 +1025,7 @@ integer_t integer_mul_generic(integer_t x, integer_t y) {
 ----------------------------------------------------------------------*/
 
 integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod) {
-  assert(is_integer(x)&&is_integer(y));
+  assert_internal(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
     if (y == integer_from_small(0)) return 0; // raise div-by-zero
     if (y == integer_from_small(1)) {
@@ -1130,7 +1138,7 @@ static intptr_t bigint_ctz(bigint_t* x) {
   for (i = 0; i < (x->count-1); i++) {
     if (x->digits[i] != 0) break;
   }
-  assert(x->digits[i]!=0);
+  assert_internal(x->digits[i]!=0);
   intptr_t ctz = (int_ctz(x->digits[i]) + LOG_BASE*i);
   bigint_decref(x);
   return ctz;
@@ -1175,7 +1183,7 @@ static intptr_t int_count_digits(intptr_t x) {
 }
 
 static intptr_t bigint_count_digits(bigint_t* x) {
-  assert(x->count > 0);
+  assert_internal(x->count > 0);
   return count_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 }
 
@@ -1228,7 +1236,7 @@ integer_t integer_mul_pow10(integer_t x, integer_t p) {
     bigint_t* c = bigint_alloc_reuse_(b, ccount);
     memmove(&c->digits[large], &b->digits[0], bcount * sizeof(digit_t)); 
     memset(&c->digits[0], 0, large * sizeof(digit_t));
-    assert(c->count == ccount);
+    assert_internal(c->count == ccount);
     if (b != c) bigint_decref(b);
     b = c;
   }

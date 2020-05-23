@@ -1,4 +1,14 @@
 #pragma once
+#ifndef __BOX_H__
+#define __BOX_H__
+
+/*---------------------------------------------------------------------------
+  Copyright 2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
 #include "runtime.h"
 
 /*--------------------------------------------------------------
@@ -120,7 +130,7 @@ static inline bool is_cptr(box_t b) {
 }
 
 static inline double unbox_double(box_t v) {
-  assert(is_double(v));
+  assert_internal(is_double(v));
   union { uint64_t _v; double d; } u;
   u._v = ((uint64_t)v - ((uint64_t)1 << 48));  // unsigned to avoid UB
   return u.d;
@@ -132,17 +142,17 @@ static inline box_t box_double(double d) {
   if (unlikely(u.v >= ((uint64_t)0xFFFE << 48))) {
     // high quiet NaN, subtract to bring it in range
     u.v = u.v - ((uint64_t)0x0002 << 48);
-    d = u._d;  // for the assert
+    d = u._d;  // for the assert_internal
   }
   box_t v = (box_t)(u.v + ((uint64_t)1 << 48));
-  assert(is_double(v));
-  assert(unbox_double(v) == d); // (well, not for high qNaN)
+  assert_internal(is_double(v));
+  assert_internal(unbox_double(v) == d); // (well, not for high qNaN)
   return v;
 }
 
 static inline int32_t unbox_int32_t(box_t v) {
   intptr_t i = unbox_int(v);
-  assert(i >= INT32_MIN && i <= INT32_MAX);
+  assert_internal(i >= INT32_MIN && i <= INT32_MAX);
   return (int32_t)(i);
 }
 
@@ -165,7 +175,7 @@ static inline bool is_int(box_t b) {
 static inline bool is_enum(box_t b) {
   return is_enum_fast(b);
 }
-static inline bool is_cptrr(box_t b) {
+static inline bool is_cptr(box_t b) {
   return is_cptr_fast(b);
 }
 static inline bool is_double(box_t v) {
@@ -173,17 +183,17 @@ static inline bool is_double(box_t v) {
 }
 
 static inline double unbox_double(box_t b) {
-  assert(is_double(b));
+  assert_internal(is_double(b));
   ptr_t p = unbox_ptr(b);
-  double d = *(ptr_as(double, p));
+  double d = *(ptr_data_as(double, p));
   ptr_decref(p);
   return d;
 }
 
 static inline box_t box_double(double d) {
-  ptr_t p = ptr_alloc_tp(double, 0, TAG_DOUBLE);
-  *(ptr_as(double,p)) = d;
-  return box_ptr(p);
+  double* data = ptr_alloc_data_as(double, 0, TAG_DOUBLE);
+  *data = d;
+  return box_ptr(ptr_from_data(data));
 }
 
 static inline int32_t unbox_int32_t(box_t v) {
@@ -191,9 +201,9 @@ static inline int32_t unbox_int32_t(box_t v) {
     return unbox_int(v);
   }
   else {
-    assert(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
+    assert_internal(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
     ptr_t p = unbox_ptr(v);
-    int32_t i = *(ptr_as(int32_t,p));
+    int32_t i = *(ptr_data_as(int32_t,p));
     ptr_decref(p);
     return i;
   }
@@ -203,9 +213,9 @@ static inline box_t box_int32_t(int32_t i) {
     return box_int(i);
   }
   else {
-    ptr_t p = ptr_alloc_tp(int32_t, 0, TAG_INT32);
-    *(ptr_as(int32_t, p)) = i;
-    return box_ptr(p);
+    int32_t* data = ptr_alloc_data_as(int32_t, 0, TAG_INT32);
+    *data = i;
+    return box_ptr(ptr_from_data(data));
   }
 }
 
@@ -214,54 +224,54 @@ static inline box_t box_int32_t(int32_t i) {
 #endif
 
 static inline ptr_t unbox_ptr(box_t v) {
-  assert(is_ptr(v));
+  assert_internal(is_ptr(v));
   return (ptr_t)v;
 }
 
 static inline box_t box_ptr(ptr_t p) {
-  assert(((uintptr_t)p & 0x03) == 0); // check alignment
+  assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
   return (box_t)p;
 }
 
 static inline void* unbox_cptr(box_t b) {
-  assert(is_cptr(b));
+  assert_internal(is_cptr(b));
   return (void*)(b & ~0x03);
 }
 
 static inline box_t box_cptr(void* p) {
-  assert(((uintptr_t)p & 0x03) == 0); // check alignment
+  assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
   box_t b = (box_t)p | 0x03;
-  assert(is_cptr(b));
+  assert_internal(is_cptr(b));
   return b;
 }
 
 static inline uintptr_t unbox_enum(box_t b) {
-  assert(is_enum(b));
+  assert_internal(is_enum(b));
   return shr(b, 2);
 }
 
 static inline box_t box_enum(uintptr_t u) {
-  assert(u <= MAX_BOXED_ENUM);
+  assert_internal(u <= MAX_BOXED_ENUM);
   box_t b = (u << 2) | 0x02;
-  assert(is_enum(b));
+  assert_internal(is_enum(b));
   return b;
 }
 
 static inline intptr_t unbox_int(box_t v) {
-  assert(is_int(v));
+  assert_internal(is_int(v));
   return (sar(v, 2));
 }
 
 static inline box_t box_int(intptr_t i) {
-  assert(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
+  assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
   box_t v = (i << 2) | 0x01;
-  assert(is_int(v));
+  assert_internal(is_int(v));
   return v;
 }
 
 static inline int16_t unbox_int16(box_t v) {
   intptr_t i = unbox_int(v);
-  assert(i >= INT16_MIN && i <= INT16_MAX);
+  assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }
 
@@ -278,13 +288,14 @@ static inline box_t box_bool(bool b) {
 }
 
 static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
-  block_t* b = ptr_block(unbox_ptr(v));
-  assert(block_tag(b) == expected_tag);
+  UNUSED_RELEASE(expected_tag);
+  block_t* b = ptr_as_block(unbox_ptr(v));
+  assert_internal(block_tag(b) == expected_tag);
   return b;
 }
 
 static inline box_t box_block_t(block_t* b) {
-  return box_ptr(block_ptr(b, block_tag(b)));
+  return box_ptr(block_as_ptr(b));
 }
 
 
@@ -298,27 +309,20 @@ static inline box_t box_block_t(block_t* b) {
   }while(0);
 
 static inline datatype_t unbox_datatype(box_t v) {
-  assert(is_ptr(v) || is_enum(v));
+  assert_internal(is_ptr(v) || is_enum(v));
   return v;
 }
 
-static inline box_t box_datatype(datatype_t d) {
-  assert(is_ptr(d) || is_enum(d));
+static inline datatype_t unbox_datatype_assert(box_t v, tag_t tag) {
+  UNUSED_RELEASE(tag);
+  datatype_t d = unbox_datatype(v);
+  assert_internal(datatype_tag(d) == tag);
   return d;
 }
 
-static inline function_t unbox_function_t(box_t v) {
-  return (function_t)(unbox_block_t(v, TAG_FUNCTION));
+static inline box_t box_datatype(datatype_t d) {
+  assert_internal(is_ptr(d) || is_enum(d));
+  return d;
 }
 
-static inline box_t box_function_t(function_t d) {  
-  return box_block_t(&d->block);
-}
-
-static inline string_t unbox_string_t(box_t v) {
-  return (string_t)(unbox_block_t(v, TAG_STRING));
-}
-
-static inline box_t box_string_t(string_t s) {
-  return box_block_t(&s->block);
-}
+#endif // include guard

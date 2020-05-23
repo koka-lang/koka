@@ -1,3 +1,10 @@
+/*---------------------------------------------------------------------------
+  Copyright 2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
 #include "runtime.h"
 
 /*--------------------------------------------------------------------------------------
@@ -24,13 +31,13 @@ static bool block_decref_no_free(block_t* b) {
 
 
 static void block_push_delayed_free(block_t* b) {
-  assert(b->header.h.refcount == 0);
+  assert_internal(b->header.h.refcount == 0);
   block_t* delayed = tld->delayed_free;
   // encode the next pointer into the block header
   b->header.rc32.lo = (uint32_t)((uintptr_t)delayed);
 #if (INTPTR_SIZE > 4)
   b->header.h.tag = (uint16_t)(sar((intptr_t)delayed,32));
-  assert(sar((intptr_t)delayed,48) == 0 || sar((intptr_t)delayed, 48) == -1);
+  assert_internal(sar((intptr_t)delayed,48) == 0 || sar((intptr_t)delayed, 48) == -1);
 #endif
   tld->delayed_free = b;
 }
@@ -62,7 +69,7 @@ static void block_decref_delayed() {
 
 static noinline void block_decref_free(block_t* b, size_t depth) {
   while(true) {
-    assert(b->header.rc32.lo == UINT32_MAX);
+    assert_internal(b->header.rc32.lo == UINT32_MAX);
     size_t scan_fsize = b->header.h.scan_fsize;
     if (scan_fsize == 0) {
       // nothing to scan, just free
@@ -75,7 +82,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
       runtime_free(b);
       if (is_ptr(v)) {
         // try to free the child now
-        b = ptr_block(unbox_ptr(v));
+        b = ptr_as_block(unbox_ptr(v));
         if (block_decref_no_free(b)) {
           // continue freeing on this block
           continue; // tailcall
@@ -91,7 +98,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
         for (size_t i = 0; i < (scan_fsize-1); i++) {
           box_t v = block_field(b, i);
           if (is_ptr(v)) {
-            block_t* vb = ptr_block(unbox_ptr(v));
+            block_t* vb = ptr_as_block(unbox_ptr(v));
             if (block_decref_no_free(vb)) {
               block_decref_free(vb, depth+1); // recurse with increased depth
             }
@@ -101,7 +108,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
         box_t v = block_field(b,scan_fsize - 1);
         runtime_free(b);
         if (is_ptr(v)) {
-          b = ptr_block(unbox_ptr(v));
+          b = ptr_as_block(unbox_ptr(v));
           if (block_decref_no_free(b)) {
             continue; // tailcall
           }
@@ -118,7 +125,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
 }
 
 void block_free(block_t* b) {
-  assert(b->header.rc32.lo == UINT32_MAX);
+  assert_internal(b->header.rc32.lo == UINT32_MAX);
   if (b->header.h.scan_fsize==0) {
     runtime_free(b); // deallocate directly if nothing to scan
   }
@@ -129,8 +136,8 @@ void block_free(block_t* b) {
 }
 
 void noinline ptr_check_free(ptr_t p) {
-  block_t* b = ptr_block(p);
-  assert(b->header.rc32.lo == UINT32_MAX);  // just underflowed
+  block_t* b = ptr_as_block(p);
+  assert_internal(b->header.rc32.lo == UINT32_MAX);  // just underflowed
   if (b->header.rc32.hi==0) {
     block_free(b);
   }
