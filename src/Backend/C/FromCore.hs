@@ -113,6 +113,11 @@ genModule sourceDir mbMain core0
     externalIncludes :: [Doc]
     externalIncludes
       = concatMap includeExternal (coreProgExternals core0)
+      
+    externalIncludesH :: [Doc]
+    externalIncludesH
+      = concatMap includeExternalH (coreProgExternals core0)
+      
 
     externalImports :: [Doc]
     externalImports
@@ -140,6 +145,14 @@ includeExternal (ExternalInclude includes range)
                                  Nothing -> ""
     in [align $ vcat $! map text (lines content)]
 includeExternal _  = []
+
+includeExternalH :: External -> [Doc]
+includeExternalH (ExternalInclude includes range)
+  = let content = case lookup CHeader includes of
+                    Just s -> s
+                    Nothing -> ""
+    in [align $ vcat $! map text (lines content)]
+includeExternalH _  = []
 
 
 importExternal :: FilePath -> External -> [(Doc,Doc)]
@@ -663,9 +676,9 @@ genLambda params eff body
                          then [text "static" <+> structDoc <+> text "_self ="
                                 <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return (&_self._fun);"]
-                         else [structDoc <.> text "* _self = alloc_tp" <.> tupled [structDoc, pretty (scanCount + 1) -- +1 for the _fun
+                         else [structDoc <.> text "* _self = block_alloc_tp" <.> tupled [structDoc, pretty (scanCount + 1) -- +1 for the _fun
                                                                                  , text "TAG_FUNCTION" ] <.> semi
-                              ,text "_self->_fun._fun = box_cptr(&" <.> ppName funName <.> text ");"]
+                              ,text "_self->_fun.fun = box_cptr(&" <.> ppName funName <.> text ");"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
                               ++ [text "return (&_self->_fun);"])
                      ))
@@ -1282,7 +1295,7 @@ getFormat tname formats
          Just s  -> s
          Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                     trace( "warning: C backend does not support external in " ++ show tname ) $
-                      ("__std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
+                      ("unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
 genDefName :: TName -> Asm Doc

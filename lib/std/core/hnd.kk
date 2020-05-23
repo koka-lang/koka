@@ -16,7 +16,7 @@ abstract type htag<h::(E,V)->V> {
   Htag(:string)
 }
 
-public fun ".htag"( tag : string ) {
+public fun ".new-htag"( tag : string ) {
   Htag(tag)
 }
 
@@ -37,6 +37,7 @@ public alias ev-index = int32
 // -------------------------------------------
 
 private extern fresh-marker-int() : int32 {
+  c inline "marker_unique()"
   js inline "$marker_unique++"
 }
 
@@ -54,6 +55,7 @@ private extern inline evv-total() : evv<<>> {
 }
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
+  c inline "tld->evv->evs[tld->evv->ofs + #1]"
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 

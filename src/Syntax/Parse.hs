@@ -390,33 +390,44 @@ externalImport rng1
 externalInclude :: Range -> LexParser External
 externalInclude rng1
   = do keyword "="
-       (entry) <- externalIncludeEntry
-       return (ExternalInclude [entry] rng1)
+       (entries) <- externalIncludeEntry
+       return (ExternalInclude entries rng1)
   <|>
-    do (entries,rng2) <- semiBracesRanged externalIncludeEntry
-       return (ExternalInclude entries (combineRange rng1 rng2))
+    do (entriess,rng2) <- semiBracesRanged externalIncludeEntry
+       return (ExternalInclude (concat entriess) (combineRange rng1 rng2))
 
 externalIncludeEntry
   = do target <- externalTarget
        (do specialId "file"
            (fname,rng) <- stringLit
-           content <- preadFile fname (Common.Range.sourceName (rangeSource rng))
-           return (target,content)
+           let currentFile = (Common.Range.sourceName (rangeSource rng))      
+               fpath       = joinPath (dirname currentFile) fname      
+           if (target==C && null (extname fname))
+            then do contentH <- preadFile (fpath ++ ".h")
+                    contentC <- preadFile (fpath ++ ".c")
+                    return [(CHeader,contentH),(C,contentC)]
+            else do content <- preadFile fpath 
+                    return [(target,content)]
         <|>
         do (s,rng) <- stringLit
-           return (target,s)
+           return [(target,s)]
         )
   where
-    preadFile :: FilePath -> FilePath -> LexParser String
-    preadFile fname currentFile
-      = do pos <- getPosition
-           let fpath      = joinPath (dirname currentFile) fname
-               mbContent  = unsafePerformIO $ exCatch (do{ -- putStrLn ("reading: " ++ fpath);
-                                                           content <- readFile fpath; return (Just content) }) (\exn -> return Nothing)
+    preadFile :: FilePath -> LexParser String
+    preadFile fpath
+      = do mbContent <- ptryReadFile fpath
            case mbContent of
              Just content -> return content
              Nothing      -> fail ("unable to read external file: " ++ fpath)
 
+    ptryReadFile :: FilePath -> LexParser (Maybe String)
+    ptryReadFile fpath
+      = do pos <- getPosition
+           let mbContent  = unsafePerformIO $ exCatch (do{ -- putStrLn ("reading: " ++ fpath);
+                                                           content <- readFile fpath; return (Just content) }) (\exn -> return Nothing)
+           case mbContent of
+             Just content -> seq content $ return (Just content)
+             Nothing      -> return Nothing
 
 externalBody :: LexParser ([(Target,ExternalCall)],Range)
 externalBody
@@ -442,7 +453,9 @@ externalCall
 
 externalTarget
   = do specialId "c"
-       return C
+       (do specialId "header"
+           return CHeader
+        <|> return C)
   <|>
     do specialId "cs"
        return CS

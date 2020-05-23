@@ -270,6 +270,7 @@ typedef struct tld_s {
   void*      heap;             // the (thread-local) heap to allocate in
   block_t*   delayed_free;     // list of blocks that still need to be freed
   integer_t  unique;           // thread local unique number generation
+  int32_t    marker_unique;    // unique marker generation
 } tld_t;
 
 #if   (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
@@ -307,6 +308,28 @@ struct function_s {
 typedef struct function_s* function_t;
 
 #define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(f->fun)))args
+
+/*--------------------------------------------------------------------------------------
+  Strings
+--------------------------------------------------------------------------------------*/
+
+// A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
+struct string_s {
+  block_t  block;
+  size_t   length;
+  char     str[1];
+};
+typedef struct string_s* string_t;
+
+struct small_string_s {
+  block_t  block;
+  char     str[1];
+};
+typedef struct small_string_s* small_string_t;
+
+#define define_string_literal(decl,name,len,chars) \
+  static struct { block_t block; size_t length; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, len, chars }; \
+  decl struct string_s* const name = (struct string_s*)(&_static_##name);
 
 
 
@@ -493,6 +516,10 @@ static inline integer_t gen_unique() {
   return u;
 };
 
+// Get a thread local marker unique number.
+static inline int32_t marker_unique() {
+  return tld->marker_unique++;
+};
 
 /*--------------------------------------------------------------------------------------
   Datatype
@@ -541,26 +568,8 @@ static inline value_tag_t value_tag(uintptr_t tag) {
 
 
 /*--------------------------------------------------------------------------------------
-  Strings
+  Strings operations
 --------------------------------------------------------------------------------------*/
-
-// A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
-struct string_s {
-  block_t  block;
-  size_t   length;
-  char     str[1];
-};
-typedef struct string_s* string_t;
-
-struct small_string_s {
-  block_t  block;
-  char     str[1];
-};
-typedef struct small_string_s* small_string_t;
-
-#define define_string_literal(decl,name,len,chars) \
-  static struct { block_t block; size_t length; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, len, chars }; \
-  decl struct string_s* const name = (struct string_s*)(&_static_##name);
 
 static inline string_t string_alloc_buf(size_t len) {
   string_t str = (string_t)block_alloc(sizeof(struct string_s) - 1 + len + 1, 0, TAG_STRING);
@@ -613,4 +622,8 @@ static inline box_t ref_get(ref_t b) {
 static inline void ref_set(ref_t b, box_t value) {
   struct ref_s* r = (struct ref_s*)datatype_block(b);
   r->value = value;
+}
+
+static inline void unsupported_external(const char* msg) {
+  fprintf(stderr, msg);
 }

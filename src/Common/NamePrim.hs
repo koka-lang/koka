@@ -236,7 +236,7 @@ nameTpClause i  = coreHndName ("clause" ++ show i)
 nameTpEv        = coreHndName "ev"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
 
-nameHTag        = coreHndName ".htag"
+nameHTag        = coreHndName ".new-htag"
 namePerform i   = coreHndName (".perform" ++ show i)
 nameEvvAt       = coreHndName ".evv-at"
 nameEvvLookup   = coreHndName ".evv-lookup"

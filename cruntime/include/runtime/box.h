@@ -277,8 +277,10 @@ static inline box_t box_bool(bool b) {
   return box_enum(b ? 1 : 0);
 }
 
-static inline block_t* unbox_block_t(box_t v) {
-  return ptr_block(unbox_ptr(v));
+static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
+  block_t* b = ptr_block(unbox_ptr(v));
+  assert(block_tag(b) == expected_tag);
+  return b;
 }
 
 static inline box_t box_block_t(block_t* b) {
@@ -306,9 +308,17 @@ static inline box_t box_datatype(datatype_t d) {
 }
 
 static inline function_t unbox_function_t(box_t v) {
-  return (function_t)(unbox_block_t(v));
+  return (function_t)(unbox_block_t(v, TAG_FUNCTION));
 }
 
 static inline box_t box_function_t(function_t d) {  
   return box_block_t(&d->block);
+}
+
+static inline string_t unbox_string_t(box_t v) {
+  return (string_t)(unbox_block_t(v, TAG_STRING));
+}
+
+static inline box_t box_string_t(string_t s) {
+  return box_block_t(&s->block);
 }
