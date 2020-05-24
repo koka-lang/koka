@@ -441,7 +441,7 @@ genUnbox name info dataRepr
         DataEnum -> parens (ppName name) <.> text "unbox_enum" <.> tupled [text "x"]
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
-                    in conCreateNameInfo conInfo <.> parens (genBoxCall "unbox" isoTp (text "x"))
+                    in conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" isoTp (text "x")]
         _ | dataReprIsValue dataRepr
           -> text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "unbox_datatype" <.> tupled [text "x"]
@@ -700,7 +700,7 @@ genLambda params eff body
                      <-> text (if toH then "static inline" else "static")
                      <+> text "function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
                        (if (null fields)
-                         then [text "define_static_function" <.> arguments [text "_fself", ppName funName] <.> semi
+                         then [text "define_static_function" <.> tupled [text "_fself", ppName funName] <.> semi
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]
@@ -723,7 +723,7 @@ genLambda params eff body
                     )
        emitToC funDef  -- TODO: make  static if for a Private definition
 
-       let funNew = ppName newName <.> tupled [ppName name | (name,_) <- fields]
+       let funNew = ppName newName <.> arguments [ppName name | (name,_) <- fields]
        return funNew
 
 ---------------------------------------------------------------------------------
@@ -980,7 +980,8 @@ genPatternTest doTest (exprDoc,pattern)
     case pattern of
       PatWild -> return []
       PatVar tname pattern | hiddenNameStartsWith (getName tname) "unbox"
-        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> text "unbox_" <.> ppType (typeOf tname) <.> arguments [exprDoc] <.> semi
+        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" 
+                              <+> genBoxCall "unbox" (typeOf tname) exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
       PatVar tname pattern

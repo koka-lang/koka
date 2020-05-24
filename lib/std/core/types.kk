@@ -180,14 +180,14 @@ type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
 extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
-  c inline "ref_alloc(#1)"
+  c inline "ref_alloc(#1,current_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
 extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  c inline "(ref_set(#1,#2),__std_core_types__Unit_)"
+  c inline "(ref_set(#1,#2,current_context()),__std_core_types__Unit_)"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
@@ -202,7 +202,7 @@ extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
-  c  "(function_call(box_t,(function_t),#1,(#1)))"
+  c  "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }
@@ -217,7 +217,7 @@ type local-var :: (H,V) -> V
 
 // Assign a new value to a local variable
 extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
-  c inline "(ref_set(#1,#2))"
+  c inline "(ref_set(#1,#2,current_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
@@ -232,7 +232,7 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
 // If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
-  c  "(function_call(box_t,(function_t),#1,(#1)))"
+  c  "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }

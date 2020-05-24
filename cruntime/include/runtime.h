@@ -363,6 +363,9 @@ typedef struct context_s {
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 decl_export context_t* runtime_context(void); 
 
+// The current context is passed as a _ctx parameter in the generated code
+#define current_context()   _ctx
+
 // Is the execution yielding?
 static inline bool yielding(context_t* ctx) {
   return (ctx->yield != ptr_null);
@@ -372,6 +375,8 @@ static inline bool yielding(context_t* ctx) {
 static inline int32_t marker_unique(context_t* ctx) {
   return ctx->marker_unique++;
 };
+
+
 
 /*--------------------------------------------------------------------------------------
   Allocation
@@ -829,11 +834,13 @@ static inline ref_t ref_alloc(box_t value, context_t* ctx) {
 }
 
 static inline box_t ref_get(ref_t b) {
-  return datatype_data_as_assert(struct ref_s, b, TAG_REF)->value;
+  return boxed_dup(datatype_data_as_assert(struct ref_s, b, TAG_REF)->value);
 }
 
-static inline void ref_set(ref_t b, box_t value) {
-  datatype_data_as_assert(struct ref_s, b, TAG_REF)->value = value;
+static inline void ref_set(ref_t r, box_t value, context_t* ctx) {
+  box_t* b = &datatype_data_as_assert(struct ref_s, r, TAG_REF)->value; 
+  boxed_decref(*b, ctx);
+  *b = value;
 }
 
 static inline void unsupported_external(const char* msg) {

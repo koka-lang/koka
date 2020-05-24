@@ -38,7 +38,7 @@ public alias ev-index = int32
 // -------------------------------------------
 
 private extern fresh-marker-int() : int32 {
-  c inline "marker_unique()"
+  c inline "marker_unique(current_context())"
   js inline "$marker_unique++"
 }
 
@@ -57,75 +57,75 @@ private extern inline evv-total() : evv<<>> {
 }
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
-  c "tld_evv_at"
+  c inline "evv_at(#1,current_context())"
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
-  c "tld_evv_index"
+  c inline "evv_index(#1,current_context())"
   js inline "__evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
-  c "tld_evv_lookup"
+  c inline "evv_lookup(#1,current_context())"
   js inline "__evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
-  c inline "(#1 >= 0 ? tld_evv_at(#1) : tld_evv_lookup(#2))"
+  c inline "(#1 >= 0 ? evv_at(#1,current_context()) : evv_lookup(#2,current_context()))"
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : __evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
 private extern evv-get() : e evv<e> {
-  c  "tld_evv_get"
+  c  inline "evv_get(current_context())"
   js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
 }
 
 
 private extern evv-count() : e ev-index {
-  c  inline "unbox_int32_t(tld_evv()->len)"
+  c  inline "evv_count(current_context())"
   js inline "$std_core_hnd._evv.length"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
-  c  "evv_insert"
+  c  inline "evv_insert(#1,#2,current_context())"
   js "_evv_insert"
 }
 
 private extern evv-delete( w : evv<e1>, i : ev-index, behind : bool ) : evv<e2> {
-  c  "evv_delete"
+  c  inline "evv_delete(#1,#2,#3,current_context())"
   js "_evv_delete"
 }
 
 private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2> {
-  c "evv_create"
+  c inline "evv_create(#1,#2,current_context())"
   js "_evv_create"
 }
 
 private extern inline evv-set<e1,e2>( w : evv<e1> ) : e () {
-  c inline "tld_evv_set(#1)"
+  c inline "evv_set(#1,current_context())"
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
 private extern inline evv-set-ofs( ofs : ev-index ) : e ev-index {
-  c inline "tld_evv_set_ofs(#1)"
+  c inline "evv_set_ofs(#1,current_context())"
   js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
 
 private extern evv-equals( w : evv<e> ) : bool {
-  c inline "(tld_evv_get()==(#1))"
+  c inline "(evv_get(current_context())==(#1))"  // todo: decref current context?
   js inline "($std_core_hnd._evv === w.evv && $std_core_hnd._evv_ofs === w.ofs)"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
-  c  "evv_show"
+  c  inline "evv_show(#1,current_context())"
   js "_evv_show"
 }
 
 private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
-  c  "evv_expect"
+  c  inline "evv_expect(#1,#2,current_context())"
   js "_evv_expect"
 }
 
@@ -134,17 +134,17 @@ private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
 // -------------------------------------------
 
 public extern inline yielding() : bool {
-  c  "yielding"
+  c  inline "yielding(current_context())"
   js inline "($std_core_hnd._yield !== null)"
 }
 
 public extern inline yielding-non-final() : bool {
-  c  "yielding_non_final"
+  c  inline "yielding_non_final(current_context())"
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
 public extern noinline yield-extend(next : a -> e b ) : e b {
-  c  "yield_extend"
+  c  inline "yield_extend(#1,current_context())"
   js "_yield_extend"
 }
 
@@ -153,7 +153,7 @@ public fun yield-bind( x : a, next : a -> e b ) : e b {
 }
 
 private extern yield-cont(f : (a -> e1 b, a) -> e0 r ) : e0 r {  // make hidden public?
-  c  "yield_cont"
+  c  inline "yield_cont(#1,current_context())"
   js "_yield_cont"
 }
 
@@ -163,17 +163,17 @@ private extern inline yielding-final() : e r {
 }
 
 private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
-  c  "yield_prompt"
+  c  inline "yield_prompt(#1,current_context())"
   js "_yield_prompt"
 }
 
 private extern inline yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
-  c  "yield_to"
+  c  inline "yield_to(#1,#2,current_context())"
   js "$std_core_hnd._yield_to"
 }
 
 private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
-  c  "yield_final"
+  c  inline "yield_final(#1,#2,current_context())"
   js "$std_core_hnd._yield_final"
 }
 
@@ -203,13 +203,13 @@ private type yld<e,a,r> {
 }
 
 private extern guard(w : evv<e> ) : e () {
-  c  "evv_guard"
+  c  inline "evv_guard(#1,current_context())"
   js "_guard"
   // if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
 private extern resume-final() : a {
-  c  "resume_final"
+  c  inline "resume_final(current_context())"
   js "_throw_resume_final"
 }
 
@@ -289,7 +289,7 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // -------------------------------------------
 
 private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a { 
-  c inline "(function_call(box_t,(function_t),#1,(#1)))"
+  c inline "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
   inline "(#1)()"
 }
 private extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }

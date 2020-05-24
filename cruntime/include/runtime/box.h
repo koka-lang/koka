@@ -115,8 +115,14 @@ static inline bool is_cptr_fast(box_t b) {
 static inline bool is_double(box_t b) {
   return ((uint16_t)((shr(b,48) + 1)) > 1);  // test of top 16 bits are not 0x0000 or 0xFFFF
 }
+static inline bool is_ptr_and_not_double(box_t b) {
+  // faster test if a `ptr` is guaranteed to not have 0xFFFF as the top 16 bits. (which is usually the case, unless you are kernel programming)
+  // this is used when doing `boxed_incref` for example.
+  assert_internal(is_ptr_fast(b));
+  return ((uint16_t)shr(b, 48) == 0);  
+}
 static inline bool is_ptr(box_t b) {
-  return (is_ptr_fast(b) && likely(!is_double(b)));
+  return (is_ptr_fast(b) && likely(is_ptr_and_not_double(b)));
 }
 static inline bool is_int(box_t b) {
   return (is_int_fast(b) && likely(!is_double(b)));
@@ -128,14 +134,16 @@ static inline bool is_cptr(box_t b) {
   return (is_cptr_fast(b) && likely(!is_double(b)));
 }
 
-static inline double unbox_double(box_t v) {
+static inline double unbox_double(box_t v, context_t* ctx) {
+  UNUSED(ctx);
   assert_internal(is_double(v));
   union { uint64_t _v; double d; } u;
   u._v = ((uint64_t)v - ((uint64_t)1 << 48));  // unsigned to avoid UB
   return u.d;
 }
 
-static inline box_t box_double(double d) {
+static inline box_t box_double(double d, context_t* ctx) {
+  UNUSED(ctx);
   union { double _d; uint64_t v; } u;
   u._d = d;
   if (unlikely(u.v >= ((uint64_t)0xFFFE << 48))) {
@@ -145,17 +153,19 @@ static inline box_t box_double(double d) {
   }
   box_t v = (box_t)(u.v + ((uint64_t)1 << 48));
   assert_internal(is_double(v));
-  assert_internal(unbox_double(v) == d); // (well, not for high qNaN)
+  assert_internal(unbox_double(v,ctx) == d); // (well, not for high qNaN)
   return v;
 }
 
-static inline int32_t unbox_int32_t(box_t v) {
+static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
+  UNUSED(ctx);
   intptr_t i = unbox_int(v);
   assert_internal(i >= INT32_MIN && i <= INT32_MAX);
   return (int32_t)(i);
 }
 
-static inline box_t box_int32_t(int32_t i) {
+static inline box_t box_int32_t(int32_t i, context_t* ctx) {
+  UNUSED(ctx);
   return box_int(i);
 }
 
@@ -181,21 +191,21 @@ static inline bool is_double(box_t v) {
   return (is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_DOUBLE);
 }
 
-static inline double unbox_double(box_t b) {
+static inline double unbox_double(box_t b, context_t* ctx) {
   assert_internal(is_double(b));
   ptr_t p = unbox_ptr(b);
   double d = *(ptr_data_as(double, p));
-  ptr_decref(p);
+  ptr_decref(p,ctx);
   return d;
 }
 
-static inline box_t box_double(double d) {
-  double* data = ptr_alloc_data_as(double, 0, TAG_DOUBLE);
+static inline box_t box_double(double d, context_t* ctx) {
+  double* data = ptr_alloc_data_as(double, 0, TAG_DOUBLE, ctx);
   *data = d;
   return box_ptr(ptr_from_data(data));
 }
 
-static inline int32_t unbox_int32_t(box_t v) {
+static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
   if (likely(is_int(v))) {
     return unbox_int(v);
   }
@@ -203,16 +213,16 @@ static inline int32_t unbox_int32_t(box_t v) {
     assert_internal(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
     ptr_t p = unbox_ptr(v);
     int32_t i = *(ptr_data_as(int32_t,p));
-    ptr_decref(p);
+    ptr_decref(p,ctx);
     return i;
   }
 }
-static inline box_t box_int32_t(int32_t i) {
+static inline box_t box_int32_t(int32_t i, context_t* ctx) {
   if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
     return box_int(i);
   }
   else {
-    int32_t* data = ptr_alloc_data_as(int32_t, 0, TAG_INT32);
+    int32_t* data = ptr_alloc_data_as(int32_t, 0, TAG_INT32, ctx);
     *data = i;
     return box_ptr(ptr_from_data(data));
   }
