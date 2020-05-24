@@ -180,14 +180,14 @@ type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
 extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
-  c inline "ref_new(#1)"
+  c inline "ref_alloc(#1)"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
 extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  c inline "(ref_set(#1,#2))"
+  c inline "(ref_set(#1,#2),__std_core_types__Unit_)"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }

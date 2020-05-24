@@ -3,6 +3,7 @@ public module std/core/hnd
 import std/core/types
 
 extern include {
+  c  file "hnd-inline"
   js file "hnd-inline.js"
 }
 
@@ -55,32 +56,34 @@ private extern inline evv-total() : evv<<>> {
 }
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
-  c inline "tld->evv->evs[tld->evv->ofs + #1]"
+  c inline "tld_evv_at(#1)"
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
+  c "tld_evv_index"
   js inline "__evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
+  c "tld_evv_lookup"
   js inline "__evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
 }
 
 public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
+  c inline "(#1 >= 0 ? tld_evv_at(#1) : tld_evv_lookup(#2))"
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : __evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
 }
 
-private extern inline evv-get() : e evv<e> {
+private extern evv-get() : e evv<e> {
+  c  "tld_evv_get"
   js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
 }
 
-private extern inline evv-empty() : e evv<e> {
-  js inline "{ evv:[], ofs:0 }"
-}
 
-private extern inline evv-count() : e ev-index {
+private extern evv-count() : e ev-index {
+  c  inline "unbox_int32_t(tld_evv()->len)"
   js inline "$std_core_hnd._evv.length"
 }
 
@@ -96,20 +99,19 @@ private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2>
   js "_evv_create"
 }
 
-private extern inline evv-set-in( w : evv<e1> ) : e1 () {
-  js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
-}
-
 private extern inline evv-set<e1,e2>( w : evv<e1> ) : e () {
+  c inline "tld_evv_set(#1)"
   js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
 }
 
 private extern inline evv-set-ofs( ofs : ev-index ) : e ev-index {
+  c inline "tld_evv_set_ofs(#1)"
   js inline "(function(){ const _ofs = $std_core_hnd._evv_ofs; $std_core_hnd._evv_ofs = #1; return _ofs; }())"
 }
 
 
 private extern evv-equals( w : evv<e> ) : bool {
+  c inline "(tld_evv_get()==(#1))"
   js inline "($std_core_hnd._evv === w.evv && $std_core_hnd._evv_ofs === w.ofs)"
 }
 
@@ -131,6 +133,7 @@ public extern inline yielding() : bool {
 }
 
 public extern inline yielding-non-final() : bool {
+  c inline  "yielding_non_final()"
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
@@ -144,22 +147,27 @@ public fun yield-bind( x : a, next : a -> e b ) : e b {
 }
 
 private extern yield-cont(f : (a -> e1 b, a) -> e0 r ) : e0 r {  // make hidden public?
+  c  "yield_cont"
   js "_yield_cont"
 }
 
 private extern inline yielding-final() : e r {
+  c inline "box_ptr(ptr_null)"
   js inline "undefined"
 }
 
 private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
+  c  "yield_prompt"
   js "_yield_prompt"
 }
 
 private extern inline yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
+  c  "yield_to"
   js "$std_core_hnd._yield_to"
 }
 
 private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
+  c  "yield_final"
   js "$std_core_hnd._yield_final"
 }
 
@@ -272,7 +280,10 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a { inline "(#1)()"}
+private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a { 
+  c inline "(function_call(box_t,(function_t),#1,(#1)))"
+  inline "(#1)()"
+}
 private extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
 
 private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {

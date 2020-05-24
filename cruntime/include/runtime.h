@@ -131,6 +131,7 @@ typedef enum tag_e {
   TAG_MAX = 65000,
   TAG_BOX,
   TAG_REF,
+  TAG_EVV,
   TAG_FUNCTION,
   TAG_BIGINT,
   TAG_STRING,
@@ -346,12 +347,12 @@ static inline decl_pure bool ptr_is_unique(ptr_t p) {
 typedef void* heap_t;
 
 typedef struct tld_s {
+  heap_t     heap;             // the (thread-local) heap to allocate in; todo: put in a register?
   ptr_t      yield;            // if not NULL, we are yielding to an effect handler; todo: put in register?
-  ptr_t      evv;              // the current evidence vector for effect handling; todo: put in register as well?
-  heap_t     heap;             // the (thread-local) heap to allocate in
+  datatype_t evv;              // the current evidence vector for effect handling
+  int32_t    marker_unique;    // unique marker generation
   block_t*   delayed_free;     // list of blocks that still need to be freed
   integer_t  unique;           // thread local unique number generation
-  int32_t    marker_unique;    // unique marker generation
 } tld_t;
 
 #if   (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
@@ -481,6 +482,8 @@ static inline box_t boxed_dup(box_t b) {
 /*--------------------------------------------------------------------------------------
   Datatype
 --------------------------------------------------------------------------------------*/
+
+#define datatype_null   ((datatype_t)(ptr_null))
 
 static inline decl_const datatype_t ptr_as_datatype(ptr_t p) {
   return box_ptr(p);
@@ -675,7 +678,7 @@ static inline struct function_s* function_data(function_t f) {
 #define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(function_data(f)->fun)))args
 
 #define define_static_function(name,cfun) \
-  static struct { block_t block; box_t fun } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, (box_t)(&cfun) }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
+  static struct { block_t block; box_t fun; } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, (box_t)(&cfun) }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
   function_t name = (function_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
 
 
