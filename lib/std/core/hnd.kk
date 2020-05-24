@@ -52,11 +52,12 @@ private fun fresh-marker() : marker<e,r> {
 // -------------------------------------------
 
 private extern inline evv-total() : evv<<>> {
+  c  "evv_total"
   js inline "{ ofs: 0, evv: [] }"
 }
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
-  c inline "tld_evv_at(#1)"
+  c "tld_evv_at"
   js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
 }
 
@@ -88,14 +89,17 @@ private extern evv-count() : e ev-index {
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
+  c  "evv_insert"
   js "_evv_insert"
 }
 
 private extern evv-delete( w : evv<e1>, i : ev-index, behind : bool ) : evv<e2> {
+  c  "evv_delete"
   js "_evv_delete"
 }
 
 private extern evv-create( evv : evv<e1>, indices : vector<ev-index> ) : evv<e2> {
+  c "evv_create"
   js "_evv_create"
 }
 
@@ -116,10 +120,12 @@ private extern evv-equals( w : evv<e> ) : bool {
 }
 
 private extern evv-show( evv : evv<e> ) : string {
+  c  "evv_show"
   js "_evv_show"
 }
 
 private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
+  c  "evv_expect"
   js "_evv_expect"
 }
 
@@ -128,12 +134,12 @@ private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
 // -------------------------------------------
 
 public extern inline yielding() : bool {
-  c  inline "yielding()"
+  c  "yielding"
   js inline "($std_core_hnd._yield !== null)"
 }
 
 public extern inline yielding-non-final() : bool {
-  c inline  "yielding_non_final()"
+  c  "yielding_non_final"
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
@@ -197,11 +203,13 @@ private type yld<e,a,r> {
 }
 
 private extern guard(w : evv<e> ) : e () {
+  c  "evv_guard"
   js "_guard"
   // if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
 private extern resume-final() : a {
+  c  "resume_final"
   js "_throw_resume_final"
 }
 
