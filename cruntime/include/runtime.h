@@ -119,7 +119,7 @@ typedef uintptr_t box_t;
 // A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
 typedef box_t datatype_t;
 
-// An integer is either a `ptr_t` or a small int. Identity with boxed values.
+// An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
 typedef box_t integer_t;
 
 
@@ -317,7 +317,7 @@ static inline decl_pure void* ptr_data_assert(ptr_t p, tag_t expected_tag) {
 }
 
 #define ptr_data_as(tp,p)              (tp*)ptr_data(p)
-#define ptr_data_assert_as(tp,p,tag)   (tp*)ptr_data_assert(p,tag)
+#define ptr_data_as_assert(tp,p,tag)   (tp*)ptr_data_assert(p,tag)
 
 static inline decl_const ptr_t ptr_from_data(void* data) {
   return block_as_ptr(block_from_data(data));
@@ -510,8 +510,16 @@ static inline decl_pure tag_t datatype_tag(datatype_t d) {
   return (datatype_is_ptr(d) ? ptr_tag(datatype_as_ptr(d)) : (tag_t)datatype_as_enum(d));
 }
 
+static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
+  assert_internal(datatype_is_ptr(d));
+  return ptr_tag(datatype_as_ptr(d));
+}
 
 #define datatype_alloc_data_as(tp,scan_fsize,tag)  ((tp*)ptr_alloc_data_as(tp,scan_fsize,tag))
+
+#define define_static_datatype(decl,name,tag) \
+    static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
+    decl data_type_t name = (datatype_t)(&_static_name); /* should be `datatype_cptr(&_static_##name*)` but we need a constant initializer */
 
 static inline decl_const datatype_t datatype_from_data(void* data) {
   return ptr_as_datatype(ptr_from_data(data));
@@ -654,7 +662,17 @@ struct function_s {
 };
 typedef datatype_t function_t;
 
-#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(datatype_data_as_assert(struct function_s,f,TAG_FUNCTION)->fun)))args
+static inline function_t function_from_data(struct function_s* data) {
+  return datatype_from_data(data);
+}
+
+static inline struct function_s* function_data(function_t f) {
+  return datatype_data_as_assert(struct function_s, f, TAG_FUNCTION);
+}
+
+#define function_data_as(tp,f)              ((tp*)function_data(f))
+
+#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(function_data(f)->fun)))args
 
 #define define_static_function(name,cfun) \
   static struct { block_t block; box_t fun } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, (box_t)(&cfun) }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
@@ -668,6 +686,7 @@ static inline function_t unbox_function_t(box_t v) {
 static inline box_t box_function_t(function_t d) {
   return box_datatype(d);
 }
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -754,9 +773,9 @@ static inline size_t decl_pure small_string_len(const struct small_string_s* s) 
   uint64_t v = s->u.value;  // read string a 64-bit value 
   // use bitcount to find the terminating zero byte
 #if defined(ARCH_BIG_ENDIAN)
-  return ((size_t)8 - (bits_ctz(v)/8));
+  return ((size_t)8 - (bits_ctz64(v)/8));
 #else
-  return ((size_t)8 - (bits_clz(v)/8));
+  return ((size_t)8 - (bits_clz64(v)/8));
 #endif
 }
 

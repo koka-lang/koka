@@ -8,7 +8,6 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include "runtime.h"
 
 /*--------------------------------------------------------------------------------------------------
   Integers are always boxed: and either a pointer to a `bigint_t`, or a boxed (small) int.
@@ -62,11 +61,11 @@ static inline integer_t integer_from_small(intptr_t i) {   // use for known smal
   Generic operations on integers
 -----------------------------------------------------------------------------------*/
 
-static inline box_t   box_integer(integer_t i) { return i; }
+static inline box_t     box_integer(integer_t i) { return i; }
 static inline integer_t unbox_integer(box_t b) { return b; }
 
-static inline void    integer_incref(integer_t x) { boxed_incref(x); }
-static inline void    integer_decref(integer_t x) { boxed_decref(x); }
+static inline void      integer_incref(integer_t x) { boxed_incref(x); }
+static inline void      integer_decref(integer_t x) { boxed_decref(x); }
 static inline integer_t integer_dup(integer_t x)    { return boxed_dup(x); }
 
 decl_export integer_t  integer_parse(const char* num);

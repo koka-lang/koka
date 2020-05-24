@@ -339,11 +339,8 @@ genTypeDef (Data info isExtend)
               --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
           else emitToH $ ppVis (dataInfoVis info) <.> text "typedef datatype_t"
                          <+> ppName (typeClassName name) <.> semi
-                         <-> if (noCons) then empty
-                              else text "struct" <+> ppName (typeClassName name) <.> text "_s" <+> text "{"
-                                    <+> text "header_t _header;"
-                                    <.> (if (dataRepr /= DataOpen) then empty else text " string_t _tag;")
-                                    <+> text "};"
+                         <-> if (dataRepr /= DataOpen) then empty
+                              else text "struct" <+> ppName (typeClassName name) <.> text "_s { string_t _tag; };"
 
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
@@ -445,7 +442,7 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
                               in if (null fields) then text "box_t _unused;"  -- avoid empty struct
                                                   else vcat fields) <.> semi
   where
-    typeField  = if (dataReprIsValue dataRepr) then []
+    typeField  = if (dataRepr /= DataOpen) then []
                   else [text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> text "_type;"]
 
 ppConField :: (Name,Type) -> Doc
@@ -470,7 +467,7 @@ genConstructorTest info dataRepr con conRepr
                   <+> block( text "return (" <.> (
                   let nameDoc = ppName (conInfoName con)
                       -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
-                      dataTypeTagDoc = text "value_tag(x)"
+                      dataTypeTagDoc = text "datatype_tag(x)"
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
@@ -480,7 +477,7 @@ genConstructorTest info dataRepr con conRepr
                     ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
                     ConAsCons{}    -> text "datatype_is_ptr(x)"
                     ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
-                                   | otherwise -> dataTypeTagDoc <+> text "==" <+> ppConTag con conRepr dataRepr
+                                   | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
                     ConOpen{}      -> text "((struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s*)(x))->_type._tag" <+> text "==" <+> ppConTag con conRepr dataRepr
                   ) <.> text ");")
 
@@ -502,8 +499,9 @@ genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Typ
 genConstructorCreate info dataRepr con conRepr conFields scanCount
   = do if (null conFields && dataRepr >= DataNormal)
          then do let declTpName = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> conSingletonName con
-                 emitToH $ text "extern" <+> declTpName <.> semi
-                 emitToC $ declTpName <+> text "= { header_static( 0, " <.> ppConTag con conRepr dataRepr <.> text ") };"
+                 emitToH $ text "extern datatype_t" <+> conSingletonName con <.> semi
+                 emitToC $ text "define_static_datatype(," <+> conSingletonName con <.> text "," 
+                                                           <+> ppConTag con conRepr dataRepr <.> text ");"
          else return ()
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
@@ -532,16 +530,17 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                )
                                ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
-                     then text "return block_datatype((block_t*)&" <.> conSingletonName con <.> text ");"
+                     then text "return" <+> conSingletonName con <.> text ";"
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "block_alloc_tp" <.> tupled [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
-                                                               if (dataRepr /= DataOpen)
-                                                                then ppConTag con conRepr dataRepr <+> text "/* tag */"
-                                                                else text "TAG_OPEN"]
+                               <+> text "datatype_alloc_data_as" 
+                                       <.> tupled [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
+                                                   if (dataRepr /= DataOpen)
+                                                    then ppConTag con conRepr dataRepr <+> text "/* tag */"
+                                                    else text "TAG_OPEN"]
                                <.> semi]
                               ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_type._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
-                              ++ [text "return block_datatype( (block_t*)" <.> tmp <.> text ");"])
+                              ++ [text "return datatype_from_data(" <.> tmp <.> text ");"])
           )
 
 genConstructorAccess :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
@@ -554,7 +553,7 @@ genConstructorAccess info dataRepr con conRepr
                     <.> parens( ppName (typeClassName (dataInfoName info)) <+> text "x" )
                     <+> block( vcat $
                           [text "assert(" <.> conTestName con <.> text "(x)" <.> text ");"
-                          ,text "return" <+> parens (text "struct"  <+> ppName (conInfoName con) <.> text "*") <.> text "datatype_block(x);"]
+                          ,text "return datatype_data_as" <.> tupled [text "struct"  <+> ppName (conInfoName con), text "x"] <.> semi]
                         )
 
 
@@ -663,24 +662,27 @@ genLambda params eff body
                                  Just res -> res
            fieldDocs = [ppType tp <+> ppName name | (name,tp) <- fields]
            tpDecl  = text "struct" <+> ppName funTpName <+> block (
-                       vcat ([text "struct function_s _fun;"] ++ [ppType tp <+> ppName name <.> semi | (name,tp) <- fields])
+                       vcat ([text "struct function_s _fun;"] ++ 
+                             [ppType tp <+> ppName name <.> semi | (name,tp) <- fields])
                      ) <.> semi
 
            funSig  = text (if toH then "extern" else "static") <+> ppType (typeOf body)
-                     <+> ppName funName <.> tupled ([structDoc <.> text "* _self"] ++ [ppType tp <+> ppName name | (TName name tp) <- params])
+                     <+> ppName funName <.> tupled ([text "function_t _fself"] ++ 
+                                                    [ppType tp <+> ppName name | (TName name tp) <- params])
 
            newDef  = funSig <.> semi
                      <-> text (if toH then "static inline" else "static")
                      <+> text "function_t" <+> ppName newName <.> parameters fields <+> block ( vcat (
                        (if (null fields)
-                         then [text "static" <+> structDoc <+> text "_self ="
-                                <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
-                              ,text "return (&_self._fun);"]
-                         else [structDoc <.> text "* _self = block_alloc_tp" <.> tupled [structDoc, pretty (scanCount + 1) -- +1 for the _fun
-                                                                                 , text "TAG_FUNCTION" ] <.> semi
+                         then [text "define_static_function(_fself," <.> ppName funName <.> text ");"
+                               --text "static" <+> structDoc <+> text "_self ="
+                              --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
+                              ,text "return _fself;"]
+                         else [structDoc <.> text "* _self = ptr_alloc_data_as" <.> tupled [structDoc, pretty (scanCount + 1) -- +1 for the _fun
+                                                                                           , text "TAG_FUNCTION" ] <.> semi
                               ,text "_self->_fun.fun = box_cptr(&" <.> ppName funName <.> text ");"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
-                              ++ [text "return (&_self->_fun);"])
+                              ++ [text "return function_from_data(&_self->_fun);"])
                      ))
 
 
@@ -688,8 +690,9 @@ genLambda params eff body
 
        bodyDoc <- genStat (ResultReturn Nothing params) body
        let funDef = funSig <+> block (
-                      (if (null fields) then text "UNUSED(_self);"
-                        else vcat [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields])
+                      (if (null fields) then text "UNUSED(_fself);"
+                        else vcat ([structDoc <.> text "* _self = function_data_as" <.> tupled [structDoc,text "_fself"] <.> semi] 
+                                   ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]))
                       <-> bodyDoc
                     )
        emitToC funDef  -- TODO: make  static if for a Private definition

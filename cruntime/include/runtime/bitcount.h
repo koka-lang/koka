@@ -9,7 +9,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include "runtime.h"
+
 
 /* -----------------------------------------------------------
   `clz` count leading zero bits

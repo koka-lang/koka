@@ -9,7 +9,6 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include "runtime.h"
 
 /*--------------------------------------------------------------
   Boxing
@@ -299,12 +298,12 @@ static inline box_t box_block_t(block_t* b) {
 }
 
 
-#define unbox_valuetype(tp,box) (*(ptr_as(tp,unbox_ptr(box))))
+#define unbox_valuetype(tp,box) (*(ptr_data_as_assert(tp,unbox_ptr(box),TAG_BOX)))
 
 #define box_valuetype(tp,x,val,scan_fsize)  \
   do{ \
      ptr_t p = ptr_alloc(sizeof(tp),scan_fsize,TAG_BOX); \
-     *(ptr_as(tp,p)) = val; \
+     *(ptr_data_as(tp,p)) = val; \
      x = box_ptr(p); \
   }while(0);
 
