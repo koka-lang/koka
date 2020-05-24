@@ -298,11 +298,11 @@ static inline box_t box_block_t(block_t* b) {
 }
 
 
-#define unbox_valuetype(tp,box) (*(ptr_data_as_assert(tp,unbox_ptr(box),TAG_BOX)))
+#define unbox_valuetype(tp,box,ctx) (*(ptr_data_as_assert(tp,unbox_ptr(box),TAG_BOX)))
 
-#define box_valuetype(tp,x,val,scan_fsize)  \
+#define box_valuetype(tp,x,val,scan_fsize,ctx)  \
   do{ \
-     ptr_t p = ptr_alloc(sizeof(tp),scan_fsize,TAG_BOX); \
+     ptr_t p = ptr_alloc(sizeof(tp),scan_fsize,TAG_BOX,ctx); \
      *(ptr_data_as(tp,p)) = val; \
      x = box_ptr(p); \
   }while(0);
