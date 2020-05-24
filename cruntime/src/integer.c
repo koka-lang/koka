@@ -1225,10 +1225,10 @@ integer_t integer_mul_pow10(integer_t x, integer_t p) {
 
   // multiply a bigint
   intptr_t large = i / LOG_BASE;  // number of zero digits to shift in
-  intptr_t small = i % LOG_BASE;  // small multiply the left over
+  intptr_t ismall = i % LOG_BASE;  // small multiply the left over
   bigint_t* b = integer_to_bigint(x);
-  if (small > 0) {
-    b = bigint_mul_small(b, powers_of_10[small]);
+  if (ismall > 0) {
+    b = bigint_mul_small(b, powers_of_10[ismall]);
   }
   if (large > 0) {
     size_t bcount = b->count;
@@ -1271,7 +1271,7 @@ integer_t integer_div_pow10(integer_t x, integer_t p) {
 
   // divide a bigint
   intptr_t large = i / LOG_BASE;  // number of zero digits to shift out
-  intptr_t small = i % LOG_BASE;  // small divide the left over
+  intptr_t ismall = i % LOG_BASE;  // small divide the left over
   bigint_t* b = integer_to_bigint(x);
   size_t bcount = b->count;
   if (large > 0) {
@@ -1291,8 +1291,8 @@ integer_t integer_div_pow10(integer_t x, integer_t p) {
       b = c;
     }    
   }
-  if (small > 0) {
-    b = bigint_div_mod_small(b, powers_of_10[small], NULL);
+  if (ismall > 0) {
+    b = bigint_div_mod_small(b, powers_of_10[ismall], NULL);
   }
   return integer_bigint(b);
 }

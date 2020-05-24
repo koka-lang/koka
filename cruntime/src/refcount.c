@@ -30,7 +30,7 @@ static bool block_decref_no_free(block_t* b) {
 
 
 
-static void block_push_delayed_free(block_t* b) {
+static void block_push_delayed_free(block_t* b, tld_t* tld) {
   assert_internal(b->header.h.refcount == 0);
   block_t* delayed = tld->delayed_free;
   // encode the next pointer into the block header
@@ -42,9 +42,9 @@ static void block_push_delayed_free(block_t* b) {
   tld->delayed_free = b;
 }
 
-static noinline void block_decref_free(block_t* b, size_t depth);
+static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld);
 
-static void block_decref_delayed() {
+static void block_decref_delayed(tld_t* tld) {
   block_t* delayed; 
   while ((delayed = tld->delayed_free) != NULL) {
     tld->delayed_free = NULL;
@@ -60,14 +60,14 @@ static void block_decref_delayed() {
 #endif
       delayed = (block_t*)next;
       // and free the block
-      block_decref_free(b, 0);
+      block_decref_free(b, 0, tld);
     } while (delayed != NULL);
   }
 }
 
 #define MAX_RECURSE_DEPTH (100)
 
-static noinline void block_decref_free(block_t* b, size_t depth) {
+static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld) {
   while(true) {
     assert_internal(b->header.rc32.lo == UINT32_MAX);
     size_t scan_fsize = b->header.h.scan_fsize;
@@ -100,7 +100,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
           if (is_ptr(v)) {
             block_t* vb = ptr_as_block(unbox_ptr(v));
             if (block_decref_no_free(vb)) {
-              block_decref_free(vb, depth+1); // recurse with increased depth
+              block_decref_free(vb, depth+1, tld); // recurse with increased depth
             }
           }
         }
@@ -117,7 +117,7 @@ static noinline void block_decref_free(block_t* b, size_t depth) {
       }
       else {
         // recursed too deep, push this block onto the todo list
-        block_push_delayed_free(b);
+        block_push_delayed_free(b,tld);
         return;
       }
     }
@@ -130,8 +130,9 @@ void block_free(block_t* b) {
     runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
-    block_decref_free(b, 0);
-    block_decref_delayed();
+    tld_t* tld = tld_get();
+    block_decref_free(b, 0, tld);
+    block_decref_delayed(tld);
   }
 }
 

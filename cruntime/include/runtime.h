@@ -15,12 +15,12 @@
 #include <stdint.h>  // intptr_t
 #include <stdio.h>   // FILE*
 #include <string.h>  // strlen
-#include <malloc.h>
+#include <stdlib.h>  // malloc, abort, etc.
 
 #define REFCOUNT_LIMIT_TO_32BIT 0
-#define MULTI_THREADED          0
-#define TLD_IN_REG              0
-
+#define MULTI_THREADED          1
+#define TLD_IN_REG              1
+#define TLD_IN_THREAD           0
 
 /*--------------------------------------------------------------------------------------
   Platform defines
@@ -59,6 +59,7 @@
 #define decl_const      __attribute__((const))
 #define decl_pure       __attribute__((pure))
 #define noinline        __attribute__((noinline))
+#define decl_thread     __thread
 #elif defined(_MSC_VER)
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
@@ -67,12 +68,14 @@
 #define decl_const
 #define decl_pure
 #define noinline        __declspec(noinline)
+#define decl_thread     __declspec(thread)
 #else
 #define unlikely(h)     (h)
 #define likely(h)       (h)
 #define decl_const
 #define decl_pure
 #define noinline   
+#define decl_thread     __thread
 #endif
 
 #ifndef UNUSED
@@ -341,7 +344,7 @@ static inline decl_pure bool ptr_is_unique(ptr_t p) {
 
 
 /*--------------------------------------------------------------------------------------
-  Thread local data
+  Thread local data (tld)
   We have a single location that points to the `tld` which is used for efficient
   heap allocation and effect handlers.
 --------------------------------------------------------------------------------------*/
@@ -356,26 +359,65 @@ typedef struct tld_s {
   integer_t  unique;           // thread local unique number generation
 } tld_t;
 
-#if   (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
-register tld_t* tld asm("%r15");  
+#if (TLD_IN_THREAD)            
+// force at thread local if so configured (for portability)
+extern decl_thread tld_t* tld_thread;
+static inline tld_t* tld_get(void) { return tld_thread;  }
+#define TLD_AS_THREAD
+#elif !(MULTI_THREADED)        
+// if not multithreaded, use a static tld
+extern tld_t tld_static;
+static inline tld_t* tld_get(void) { return &tld_static; }
+#define TLD_AS_STATIC
+// otherwise try to use a dedicated global register as a tld  pointer
+#elif (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
+register tld_t* tld_reg asm("%r15");  
+#define tld_get()  tld_reg
+#define TLD_AS_REG
 #elif (TLD_IN_REG) && defined(__GNUC__) && defined (__arm__) && !defined(__thumb__)
-register tld_t* tld asm("r6");
+register tld_t* tld_reg asm("r6");
+#define tld_get()  tld_reg
+#define TLD_AS_REG
 #elif (TLD_IN_REG) && defined(__GNUC__) && defined (__i386__)
-register tld_t* tld asm("%esi");
+register tld_t* tld_reg asm("%esi");
+#define tld_get()  tld_reg
+#define TLD_AS_REG
 #elif (TLD_IN_REG) && defined(__GNUC__) && (defined(__ppc__) || defined(__ppc64__))
-register tld_t* tld asm("26");
-#elif !(MULTI_THREADED)
-static tld_t* tld;
-#elif defined(_MSC_VER) 
-_declspec(thread) tld_t* tld;
+register tld_t* tld_reg asm("26");
+#define tld_get()  tld_reg
+#define TLD_AS_REG
+#elif defined(_WIN32)
+// on Windows we can use a TLS slot for best performance
+// unfortunately TlsGetValue is slowish as calls (indirectly) to a DLL export and it clears the last error ... 
+// so we inline ourselves to directly index the TLS slots
+#include <windows.h>
+#include <winternl.h>
+extern DWORD tls_slot;
+static inline tld_t* tld_get(void) {
+  return (tld_t*)(NtCurrentTeb()->TlsSlots[tls_slot]); // (much) faster than __thread
+}
+#define TLD_AS_WINTLS
 #else
-__thread tld_t* tld;
+// otherwise declare as thread local 
+// todo: use static tls slot on macOS?
+extern decl_thread tld_t* tld_thread;
+static inline tld_t* tld_get(void) { return tld_thread; }
+#define TLD_AS_THREAD
 #endif
 
-
 static inline bool yielding() {
-  return (tld->yield != ptr_null);
+  return (tld_get()->yield != ptr_null);
 };
+
+// Initialize the runtime; automatic for all platforms but can be called explicitly as it is idempotent.
+void runtime_init(void);
+void runtime_done(void);
+
+// Initialize the runtime per thread. Must be called if using TLD_AS_REG before
+// using runtime functions in a new (OS) thread. Can safely be called multiple times and
+// can be called always as the first call in callbacks that may be called from new threads.
+void runtime_thread_init(void);
+void runtime_thread_done(void);
 
 
 /*--------------------------------------------------------------------------------------
@@ -383,6 +425,7 @@ static inline bool yielding() {
 --------------------------------------------------------------------------------------*/
 
 #define runtime_malloc(sz)      malloc(sz)
+#define runtime_zalloc(sz)      calloc(1,sz)
 #define runtime_free(p)         free(p)
 #define runtime_realloc(p,sz)   realloc(p,sz)
 
@@ -642,6 +685,7 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
 
 // Get a thread local unique number.
 static inline integer_t gen_unique() {
+  tld_t* tld = tld_get();
   integer_t u = tld->unique;
   tld->unique = integer_inc(integer_dup(u));
   return u;
@@ -649,7 +693,7 @@ static inline integer_t gen_unique() {
 
 // Get a thread local marker unique number.
 static inline int32_t marker_unique() {
-  return tld->marker_unique++;
+  return tld_get()->marker_unique++;
 };
 
 
