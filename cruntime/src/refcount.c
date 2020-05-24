@@ -30,24 +30,24 @@ static bool block_decref_no_free(block_t* b) {
 
 
 
-static void block_push_delayed_free(block_t* b, tld_t* tld) {
+static void block_push_delayed_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.h.refcount == 0);
-  block_t* delayed = tld->delayed_free;
+  block_t* delayed = ctx->delayed_free;
   // encode the next pointer into the block header
   b->header.rc32.lo = (uint32_t)((uintptr_t)delayed);
 #if (INTPTR_SIZE > 4)
   b->header.h.tag = (uint16_t)(sar((intptr_t)delayed,32));
   assert_internal(sar((intptr_t)delayed,48) == 0 || sar((intptr_t)delayed, 48) == -1);
 #endif
-  tld->delayed_free = b;
+  ctx->delayed_free = b;
 }
 
-static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld);
+static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
 
-static void block_decref_delayed(tld_t* tld) {
+static void block_decref_delayed(context_t* ctx) {
   block_t* delayed; 
-  while ((delayed = tld->delayed_free) != NULL) {
-    tld->delayed_free = NULL;
+  while ((delayed = ctx->delayed_free) != NULL) {
+    ctx->delayed_free = NULL;
     do {
       block_t* b = delayed;
       // decode the next element in the delayed list from the block header
@@ -60,14 +60,14 @@ static void block_decref_delayed(tld_t* tld) {
 #endif
       delayed = (block_t*)next;
       // and free the block
-      block_decref_free(b, 0, tld);
+      block_decref_free(b, 0, ctx);
     } while (delayed != NULL);
   }
 }
 
 #define MAX_RECURSE_DEPTH (100)
 
-static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld) {
+static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx) {
   while(true) {
     assert_internal(b->header.rc32.lo == UINT32_MAX);
     size_t scan_fsize = b->header.h.scan_fsize;
@@ -100,7 +100,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld) {
           if (is_ptr(v)) {
             block_t* vb = ptr_as_block(unbox_ptr(v));
             if (block_decref_no_free(vb)) {
-              block_decref_free(vb, depth+1, tld); // recurse with increased depth
+              block_decref_free(vb, depth+1, ctx); // recurse with increased depth
             }
           }
         }
@@ -117,30 +117,29 @@ static noinline void block_decref_free(block_t* b, size_t depth, tld_t* tld) {
       }
       else {
         // recursed too deep, push this block onto the todo list
-        block_push_delayed_free(b,tld);
+        block_push_delayed_free(b,ctx);
         return;
       }
     }
   }
 }
 
-void block_free(block_t* b) {
+void block_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.rc32.lo == UINT32_MAX);
   if (b->header.h.scan_fsize==0) {
     runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
-    tld_t* tld = tld_get();
-    block_decref_free(b, 0, tld);
-    block_decref_delayed(tld);
+    block_decref_free(b, 0, ctx);
+    block_decref_delayed(ctx);
   }
 }
 
-void noinline ptr_check_free(ptr_t p) {
+void noinline ptr_check_free(ptr_t p, context_t* ctx) {
   block_t* b = ptr_as_block(p);
   assert_internal(b->header.rc32.lo == UINT32_MAX);  // just underflowed
   if (b->header.rc32.hi==0) {
-    block_free(b);
+    block_free(b, ctx);
   }
   else {
     // large refcount, propagate the borrow

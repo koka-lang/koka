@@ -344,96 +344,62 @@ static inline decl_pure bool ptr_is_unique(ptr_t p) {
 
 
 /*--------------------------------------------------------------------------------------
-  Thread local data (tld)
-  We have a single location that points to the `tld` which is used for efficient
-  heap allocation and effect handlers.
+  The thread local context as `context_t`
+  This is passed by the code generator as an argument to every function so it can
+  be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
 typedef void* heap_t;
 
-typedef struct tld_s {
+typedef struct context_s {
   heap_t     heap;             // the (thread-local) heap to allocate in; todo: put in a register?
   ptr_t      yield;            // if not NULL, we are yielding to an effect handler; todo: put in register?
   datatype_t evv;              // the current evidence vector for effect handling
   int32_t    marker_unique;    // unique marker generation
   block_t*   delayed_free;     // list of blocks that still need to be freed
   integer_t  unique;           // thread local unique number generation
-} tld_t;
+  uintptr_t  thread_id;        // unique thread id
+} context_t;
 
-#if (TLD_IN_THREAD)            
-// force at thread local if so configured (for portability)
-extern decl_thread tld_t* tld_thread;
-static inline tld_t* tld_get(void) { return tld_thread;  }
-#define TLD_AS_THREAD
-#elif !(MULTI_THREADED)        
-// if not multithreaded, use a static tld
-extern tld_t tld_static;
-static inline tld_t* tld_get(void) { return &tld_static; }
-#define TLD_AS_STATIC
-// otherwise try to use a dedicated global register as a tld  pointer
-#elif (TLD_IN_REG) && defined(__GNUC__) && defined(__x86_64__)
-register tld_t* tld_reg asm("%r15");  
-#define tld_get()  tld_reg
-#define TLD_AS_REG
-#elif (TLD_IN_REG) && defined(__GNUC__) && defined (__arm__) && !defined(__thumb__)
-register tld_t* tld_reg asm("r6");
-#define tld_get()  tld_reg
-#define TLD_AS_REG
-#elif (TLD_IN_REG) && defined(__GNUC__) && defined (__i386__)
-register tld_t* tld_reg asm("%esi");
-#define tld_get()  tld_reg
-#define TLD_AS_REG
-#elif (TLD_IN_REG) && defined(__GNUC__) && (defined(__ppc__) || defined(__ppc64__))
-register tld_t* tld_reg asm("26");
-#define tld_get()  tld_reg
-#define TLD_AS_REG
-#elif defined(_WIN32)
-// on Windows we can use a TLS slot for best performance
-// unfortunately TlsGetValue is slowish as calls (indirectly) to a DLL export and it clears the last error ... 
-// so we inline ourselves to directly index the TLS slots
-#include <windows.h>
-#include <winternl.h>
-extern DWORD tls_slot;
-static inline tld_t* tld_get(void) {
-  return (tld_t*)(NtCurrentTeb()->TlsSlots[tls_slot]); // (much) faster than __thread
-}
-#define TLD_AS_WINTLS
-#else
-// otherwise declare as thread local 
-// todo: use static tls slot on macOS?
-extern decl_thread tld_t* tld_thread;
-static inline tld_t* tld_get(void) { return tld_thread; }
-#define TLD_AS_THREAD
-#endif
+// Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
+decl_export context_t* runtime_context(void); 
 
-static inline bool yielding() {
-  return (tld_get()->yield != ptr_null);
+// Is the execution yielding?
+static inline bool yielding(context_t* ctx) {
+  return (ctx->yield != ptr_null);
 };
 
-// Initialize the runtime; automatic for all platforms but can be called explicitly as it is idempotent.
-void runtime_init(void);
-void runtime_done(void);
-
-// Initialize the runtime per thread. Must be called if using TLD_AS_REG before
-// using runtime functions in a new (OS) thread. Can safely be called multiple times and
-// can be called always as the first call in callbacks that may be called from new threads.
-void runtime_thread_init(void);
-void runtime_thread_done(void);
-
+// Get a thread local marker unique number.
+static inline int32_t marker_unique(context_t* ctx) {
+  return ctx->marker_unique++;
+};
 
 /*--------------------------------------------------------------------------------------
   Allocation
 --------------------------------------------------------------------------------------*/
 
-#define runtime_malloc(sz)      malloc(sz)
-#define runtime_zalloc(sz)      calloc(1,sz)
-#define runtime_free(p)         free(p)
-#define runtime_realloc(p,sz)   realloc(p,sz)
+static inline void* runtime_malloc(size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return malloc(sz);
+}
 
+static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return calloc(1, sz);
+}
 
-decl_export void block_free(block_t* b);
+static inline void runtime_free(void* p) {
+  free(p);
+}
 
-static inline void ptr_free(ptr_t p) {
-  block_free(ptr_as_block(p));
+static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return realloc(p, sz);
+}
+
+decl_export void block_free(block_t* b, context_t* ctx);
+
+static inline void ptr_free(ptr_t p, context_t* ctx) {
+  block_free(ptr_as_block(p),ctx);
 }
 
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
@@ -450,35 +416,39 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
   b->header = header;
 }
 
-static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag) {
-  const size_t extra = (likely(scan_fsize < SCAN_FSIZE_MAX) ? 0 : sizeof(box_t));
-  block_t* b = (block_t*)runtime_malloc(size + sizeof(block_t) + extra);
+static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  size_t extra = 0;
+  if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) {
+    extra = sizeof(box_t);
+    scan_fsize++; // scan the scan field itself
+  }
+  block_t* b = (block_t*)runtime_malloc(size + sizeof(block_t) + extra, ctx);
   block_init(b, size, scan_fsize, tag);
   return b;
 }
 
 
-static inline ptr_t ptr_alloc(size_t size, size_t scan_fsize, tag_t tag) {
-  block_t* b = block_alloc(size, scan_fsize, tag);
+static inline ptr_t ptr_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  block_t* b = block_alloc(size, scan_fsize, tag, ctx);
   return block_as_ptr(b);
 }
 
-static inline ptr_t ptr_realloc(ptr_t p, size_t size) {
+static inline ptr_t ptr_realloc(ptr_t p, size_t size, context_t* ctx) {
   assert_internal(ptr_is_unique(p));
   block_t* b = ptr_as_block(p);
   const size_t bsize = sizeof(block_t) + (likely(b->header.h.scan_fsize != SCAN_FSIZE_MAX) ? 0 : sizeof(box_t));
-  b = (block_t*)runtime_realloc(ptr_as_block(p), size + bsize);
+  b = (block_t*)runtime_realloc(ptr_as_block(p), size + bsize, ctx);
   return block_as_ptr(b);
 }
 
-#define ptr_alloc_data_as(tp,scan_fsize,tag)  ptr_data_as(tp,ptr_alloc(sizeof(tp),scan_fsize,tag))
+#define ptr_alloc_data_as(tp,scan_fsize,tag,ctx)  ptr_data_as(tp,ptr_alloc(sizeof(tp),scan_fsize,tag,ctx))
 
 
 /*--------------------------------------------------------------------------------------
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-decl_export void ptr_check_free(ptr_t p);
+decl_export void ptr_check_free(ptr_t p, context_t* ctx);
 
 
 static inline void ptr_incref(ptr_t p) {
@@ -493,15 +463,15 @@ static inline void ptr_incref(ptr_t p) {
 #endif
 }
 
-static inline void ptr_decref(ptr_t p) {
+static inline void ptr_decref(ptr_t p, context_t* ctx) {
   // optimize: always decrement just the 32 bits; 
   // on larger refcounts check afterwards if the hi-bits were 0. Since we use 0 for a unique reference we can 
   // efficiently check if the block can be freed by comparing to 0.
   uint32_t count = (ptr_as_block(p)->header.rc32.lo)--;
 #if REFCOUNT_LIMIT_TO_32BIT
-  if (count==0) ptr_free(p);
+  if (count==0) ptr_free(p,ctx);
 #else
-  if (count==0) ptr_check_free(p);
+  if (count==0) ptr_check_free(p,ctx);
 #endif
 }
 static inline ptr_t ptr_dup(ptr_t p) {
@@ -513,8 +483,8 @@ static inline void boxed_incref(box_t b) {
   if (is_ptr(b)) ptr_incref(unbox_ptr(b));
 }
 
-static inline void boxed_decref(box_t b) {
-  if (is_ptr(b)) ptr_decref(unbox_ptr(b));
+static inline void boxed_decref(box_t b, context_t* ctx) {
+  if (is_ptr(b)) ptr_decref(unbox_ptr(b), ctx);
 }
 
 static inline box_t boxed_dup(box_t b) {
@@ -562,7 +532,7 @@ static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
   return ptr_tag(datatype_as_ptr(d));
 }
 
-#define datatype_alloc_data_as(tp,scan_fsize,tag)  ((tp*)ptr_alloc_data_as(tp,scan_fsize,tag))
+#define datatype_alloc_data_as(tp,scan_fsize,tag,ctx)  ((tp*)ptr_alloc_data_as(tp,scan_fsize,tag,ctx))
 
 #define define_static_datatype(decl,name,tag) \
     static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
@@ -584,8 +554,8 @@ static inline decl_pure void* datatype_data_assert(datatype_t d, tag_t expected_
 #define datatype_data_as_assert(tp,d,tag)  ((tp*)datatype_data_assert(d,tag))
 
 
-static inline void datatype_decref(datatype_t d) {
-  if (datatype_is_ptr(d)) ptr_decref(datatype_as_ptr(d));
+static inline void datatype_decref(datatype_t d, context_t* ctx) {
+  if (datatype_is_ptr(d)) ptr_decref(datatype_as_ptr(d),ctx);
 }
 
 static inline void datatype_incref(datatype_t d) {
@@ -627,23 +597,23 @@ static inline orphan_t orphan_ptr(ptr_t p) {
   return ptr_as_datatype(p);
 }
 
-static inline orphan_t ptr_release0(ptr_t p) {
+static inline orphan_t ptr_release0(ptr_t p, context_t* ctx) {
   if (ptr_is_unique(p)) {
     return orphan_ptr(p);
   }
   else {
-    ptr_decref(p);
+    ptr_decref(p,ctx);
     return orphan_null();
   }
 }
 
-static inline orphan_t ptr_release1(ptr_t p, box_t unused_field1 ) {
+static inline orphan_t ptr_release1(ptr_t p, box_t unused_field1, context_t* ctx ) {
   if (ptr_is_unique(p)) {
-    boxed_decref(unused_field1);
+    boxed_decref(unused_field1,ctx);
     return orphan_ptr(p);
   }
   else {
-    ptr_decref(p);
+    ptr_decref(p,ctx);
     return orphan_null();
   }
 }
@@ -654,7 +624,7 @@ static inline void ptr_no_reuse(orphan_t o) {
   };
 }
 
-static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, tag_t tag) {
+static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   // TODO: check usable size p >= size
   block_t* b;
   if (datatype_is_ptr(o)) {
@@ -662,7 +632,7 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
     b = ptr_as_block(datatype_as_ptr(o));
   }
   else {
-    b = (block_t*)runtime_malloc(size);
+    b = (block_t*)runtime_malloc(size,ctx);
   }
   block_init(b, size, scan_fsize, tag);
   return block_as_ptr(b);
@@ -684,17 +654,12 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
 ----------------------------------------------------------------------*/
 
 // Get a thread local unique number.
-static inline integer_t gen_unique() {
-  tld_t* tld = tld_get();
-  integer_t u = tld->unique;
-  tld->unique = integer_inc(integer_dup(u));
+static inline integer_t gen_unique(context_t* ctx) {
+  integer_t u = ctx->unique;
+  ctx->unique = integer_inc(integer_dup(u),ctx);
   return u;
 };
 
-// Get a thread local marker unique number.
-static inline int32_t marker_unique() {
-  return tld_get()->marker_unique++;
-};
 
 
 
@@ -778,9 +743,9 @@ static inline box_t box_string_t(string_t s) {
   Strings operations
 --------------------------------------------------------------------------------------*/
 
-static inline string_t string_alloc_len(size_t len, const char* s) {
+static inline string_t string_alloc_len(size_t len, const char* s, context_t* ctx) {
   if (len <= SMALL_STRING_MAX_LEN) {
-    struct small_string_s* str = ptr_alloc_data_as(struct small_string_s, 0, TAG_STRING_SMALL);
+    struct small_string_s* str = ptr_alloc_data_as(struct small_string_s, 0, TAG_STRING_SMALL, ctx);
     str->u.value = 0;
     if (s != NULL) {
       for (size_t i = 0; i <= len; i++) {
@@ -790,7 +755,7 @@ static inline string_t string_alloc_len(size_t len, const char* s) {
     return datatype_from_data(str);
   }
   else {
-    struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING));
+    struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx));
     str->length = len;
     if (s != 0) {
       memcpy(&str->str[0], s, len);
@@ -800,12 +765,12 @@ static inline string_t string_alloc_len(size_t len, const char* s) {
   }
 }
 
-static inline string_t string_alloc_buf(size_t len) {
-  return string_alloc_len(len, NULL);
+static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
+  return string_alloc_len(len, NULL,ctx);
 }
 
-static inline string_t string_alloc(const char* s) {
-  return (s==NULL ? string_alloc_len(0, "") : string_alloc_len(strlen(s), s));
+static inline string_t string_alloc(const char* s, context_t* ctx) {
+  return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
 }
 
 static inline char* string_buf(string_t str) {
@@ -836,8 +801,8 @@ static inline size_t decl_pure string_len(string_t str) {
   }
 }
 
-static inline void string_decref(string_t str) {
-  datatype_decref(str);
+static inline void string_decref(string_t str, context_t* ctx) {
+  datatype_decref(str,ctx);
 }
 
 static inline void string_incref(string_t str) {
@@ -857,8 +822,8 @@ struct ref_s {
   box_t value;
 };
 
-static inline ref_t ref_alloc(box_t value) {
-  struct ref_s* r = datatype_alloc_data_as(struct ref_s, 1, TAG_REF);
+static inline ref_t ref_alloc(box_t value, context_t* ctx) {
+  struct ref_s* r = datatype_alloc_data_as(struct ref_s, 1, TAG_REF, ctx);
   r->value = value;
   return datatype_from_data(r);
 }
