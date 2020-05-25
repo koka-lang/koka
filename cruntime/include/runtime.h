@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef __RUNTIME_H__
 #define __RUNTIME_H__
 
@@ -302,7 +302,7 @@ static inline block_t* block_from_data_large(const void* data) {
   Ptr
 --------------------------------------------------------------------------------------*/
 
-#define ptr_null  ((ptr_t)NULL)
+extern ptr_t ptr_null;
 
 static inline decl_const tag_t ptr_tag(ptr_t p) {
   return block_tag(ptr_as_block(p));
@@ -361,16 +361,31 @@ static inline decl_pure bool ptr_is_unique(ptr_t p) {
   This is passed by the code generator as an argument to every function so it can
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
-typedef void* heap_t;
+typedef void*      heap_t;
+typedef datatype_t function_t;
+
+#define YIELD_CONT_MAX (8)
+
+typedef struct yield_s {
+  bool       yielding;        // are we yielding to a handler?
+  bool       final;           // is this a final yield? (e.g. exception)
+  int32_t    marker;          // marker of the handler to yield to
+  function_t clause;          // the operation clause to execute when the handler is found
+  int_t      conts_count;     // number of continuations in `conts`
+  function_t conts[YIELD_CONT_MAX];  // fixed array of continuations. The final continuation `k` is
+                              // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }` 
+                              // if the array becomes full, a fresh array is allocated and the first
+                              // entry points to its composition.
+} yield_t;
 
 typedef struct context_s {
   heap_t     heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  ptr_t      yield;            // if not NULL, we are yielding to an effect handler; todo: put in register?
   datatype_t evv;              // the current evidence vector for effect handling
+  yield_t    yield;            // inlined yield structure (for efficiency)
   int32_t    marker_unique;    // unique marker generation
   block_t*   delayed_free;     // list of blocks that still need to be freed
   integer_t  unique;           // thread local unique number generation
-  uint_t  thread_id;        // unique thread id
+  uint_t     thread_id;        // unique thread id
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -381,7 +396,7 @@ decl_export context_t* runtime_context(void);
 
 // Is the execution yielding?
 static inline bool yielding(context_t* ctx) {
-  return (ctx->yield != ptr_null);
+  return (ctx->yield.yielding);
 };
 
 // Get a thread local marker unique number.
@@ -510,7 +525,7 @@ static inline void boxed_drop(box_t b, context_t* ctx) {
   Datatype
 --------------------------------------------------------------------------------------*/
 
-#define datatype_null   ((datatype_t)(ptr_null))
+#define datatype_null   ((datatype_t)(0x02))   // enum 0
 
 static inline decl_const datatype_t ptr_as_datatype(ptr_t p) {
   return box_ptr(p);
@@ -682,7 +697,8 @@ struct function_s {
   box_t   fun;     // boxed cptr
   // followed by free variables
 };
-typedef datatype_t function_t;
+
+#define function_null   (box_null)
 
 static inline function_t function_from_data(const struct function_s* data) {
   return datatype_from_data(data);
@@ -692,7 +708,12 @@ static inline struct function_s* function_data(function_t f) {
   return datatype_data_as_assert(struct function_s, f, TAG_FUNCTION);
 }
 
-#define function_data_as(tp,f)              ((tp*)function_data(f))
+static inline ptr_t function_alloc(size_t size, size_t scan_fsize, context_t* ctx) {
+  return ptr_alloc(size, scan_fsize, TAG_FUNCTION, ctx);
+}
+
+#define function_alloc_as(tp,scan_fsize,ctx)    ptr_data_as(tp,function_alloc(sizeof(tp),scan_fsize,ctx))
+#define function_data_as(tp,f)                  ((tp*)function_data(f))
 
 #define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(function_data(f)->fun)))args
 
@@ -700,6 +721,8 @@ static inline struct function_s* function_data(function_t f) {
   static struct { block_t block; box_t fun; } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, (box_t)(&cfun) }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
   function_t name = (function_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
 
+
+extern function_t function_id;
 
 static inline function_t unbox_function_t(box_t v) {
   return unbox_datatype_assert(v, TAG_FUNCTION);
@@ -709,6 +732,17 @@ static inline box_t box_function_t(function_t d) {
   return box_datatype(d);
 }
 
+static inline bool function_is_unique(function_t f) {
+  return ptr_is_unique(datatype_as_ptr(f));
+}
+
+static inline void function_drop(function_t f, context_t* ctx) {
+  datatype_drop(f, ctx);
+}
+
+static inline function_t function_dup(function_t f) {
+  return datatype_dup(f);
+}
 
 
 /*--------------------------------------------------------------------------------------

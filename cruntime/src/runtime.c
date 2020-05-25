@@ -13,6 +13,15 @@ void fatal_error(const char* msg) {
   abort();
 }
 
+static block_t ptr_null_block = { HEADER_STATIC(0,TAG_INVALID) };
+ptr_t ptr_null = (ptr_t)(&ptr_null_block);
+
+static box_t _function_id(function_t self, box_t x, context_t* ctx) {
+  function_drop(self,ctx);
+  return x;
+}
+define_static_function(function_id, _function_id);
+
 
 /*--------------------------------------------------------------------------------------------------
   Process init/done

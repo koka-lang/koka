@@ -87,6 +87,8 @@ We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
 ----------------------------------------------------------------*/
 
+#define box_null   (datatype_null)    // enum 0
+
 // the _fast versions can apply if you are sure it is not a double
 static inline bool is_ptr_fast(box_t b) {
   return ((b & 0x03)==0);

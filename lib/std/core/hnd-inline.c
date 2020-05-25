@@ -107,25 +107,121 @@ string_t evv_show(datatype_t evv, context_t* ctx) {
   return string_alloc("not implemented: evv_show",ctx);
 }
 
-/*
-unit_t evv_expect(struct __std_core_hnd_Marker m, datatype_t evv, context_t* ctx) {
-  if (ctx->yield == datatype_null ||  )
-}
-unit_t evv_guard(datatype_t evv, context_t* ctx) {
-  
-}
-if (($std_core_hnd._yield===null || $std_core_hnd._yield.marker === m) && ($std_core_hnd._evv !== expected.evv || $std_core_hnd._evv_ofs !== expected.ofs)) {
-  console.error("expected evidence: \n" + _evv_show(expected) + "\nbut found:\n" + _evv_show({ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }));
-}
+
+
+/*-----------------------------------------------------------------------
+  Compose continuations
+-----------------------------------------------------------------------*/
+
+struct kcompose_fun_s {
+  struct function_s fun;  
+  box_t      count;
+  function_t conts[1];
+};
+
+// kleisli composition of continuations
+static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
+  struct kcompose_fun_s* self = function_data_as(struct kcompose_fun_s,fself);
+  bool unique = function_is_unique(fself);
+  int_t count = unbox_int(self->count);
+  function_t* conts = self->conts;  
+  // call each continuation in order
+  for(int_t i = 0; i < count; i++) {
+    if (!unique) function_dup(conts[i]);
+    x = function_call(box_t, (function_t, box_t, context_t*), conts[i], (conts[i], x, ctx));
+    if (unique) conts[i] = function_null;
+    if (yielding(ctx)) {
+      // if yielding, `yield_next` all continuations that still need to be done
+      while(++i < count) {
+        if (unique) {
+          yield_extend(conts[i]);
+          conts[i] = function_null;
+        }
+        else {
+          yield_extend(function_dup(conts[i]));          
+        }
+      }
+      function_drop(fself);
+      boxed_drop(x);
+      return box_null; // return yielding
+    }
+  }
+  function_drop(fself);
+  return x;
 }
 
-function _guard(w) {
-if (!($std_core_hnd._evv === w.evv && $std_core_hnd._evv_ofs === w.ofs)) {
-  console.error("trying to resume outside the (handler) scope of the original handler. \n captured under:\n" + _evv_show(w) + "\n but resumed under:\n" + _evv_show({evv:$std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }));
-  throw "trying to resume outside the (handler) scope of the original handler";
+static function_t new_kcompose( function_t* conts, int_t count ) {
+  if (count<=0) return function_dup(function_id);
+  if (count==1) return conts[0];
+  struct kcompose_fun_s* f = ptr_data_as(struct kcompose_fun_s*, 
+                                         ptr_alloc(sizeof(struct kcompose_fun_t) - sizeof(function_t) + (count*sizeof(function_t)), 
+                                           2 + count /* scan size */, TAG_FUNCTION, ctx));
+  f->fun = box_cptr(&kcompose);
+  f->count = box_int(count);
+  memcpy(f->conts, conts, count * sizeof(function_t));
+  return function_from_data(f);                              
 }
+
+/*-----------------------------------------------------------------------
+  Yield extension
+-----------------------------------------------------------------------*/
+
+box_t yield_extend( function_t next, context_t* ctx ) {
+  yield_t* yield = &ctx->yield;
+  assert_internal(yield->yielding);  // cannot extend if not yielding
+  if (unlikely(yield->final)) {
+    function_drop(next); // ignore extension if never resuming
+  }
+  else {
+    if (unlikely(yield->cont_count >= YIELD_CONT_MAX)) {
+      // alloc a function to compose all continuations in the array
+      function_t comp = new_kcompose( yield->conts, yield->cont_count );
+      yield->conts[0] = comp;
+      yield->cont_count = 1;
+    }
+    yield->conts[yield->cont_count++] = next;
+  }
+  return box_null;
 }
-*/
+
+// cont_apply: \x -> f(cont,x) 
+struct cont_apply_fun_s {
+  struct function_s fun;
+  function_t f;
+  function_t cont;
+};
+
+static box_t cont_apply( function_t fself, box_t x, context_t* ctx ) {
+  struct cont_apply_fun_s* self = function_data_as(struct cont_apply_fun_s, fself);
+  function_t f = function_dup(self->f);
+  function_t cont = function_dup(self->cont);
+  function_drop(fself);
+  return function_call( box_t, (function_t, function_t, box_t, context_t* ctx), f, f, cont, x, ctx));  
+}
+
+function_t new_cont_apply( function_t f, function_t cont, context_t* ctx ) {
+  struct cont_apply_fun_s* self = function_alloc_as(struct cont_apply_fun_s, 2, ctx);
+  self->fun = box_cptr(&cont_apply);
+  self->f = f;
+  self->cont = cont;
+  return function_from_data(self);
+}
+
+// Unlike `yield_extend`, `yield_cont` gets access to the current continuation. This is used in `yield_prompt`.
+box_t yield_cont( function_t f, context_t* ctx ) {
+  assert_internal(yield->yielding); // cannot extend if not yielding
+  if (unlikely(yield->final)) {
+    function_drop(f); // ignore extension if never resuming
+  }
+  else {
+    function_t cont = new_kcompose(yield->conts, yield->cont_count);
+    yield->cont_count = 1;
+    yield->conts[0] = new_cont_apply(f,cont);
+  }
+  return box_null;
+}
+
+
 /*
 datatype_t   evv_delete(datatype_t evv, int32_t index, __std_core_types__bool behind, context_t* ctx);
 string_t     evv_show(datatype_t evv, context_t* ctx);

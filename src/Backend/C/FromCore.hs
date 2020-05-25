@@ -704,8 +704,8 @@ genLambda params eff body
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]
-                         else [structDoc <.> text "* _self = ptr_alloc_data_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _fun
-                                                                                              , text "TAG_FUNCTION" ] <.> semi
+                         else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _fun 
+                                                                                              ] <.> semi
                               ,text "_self->_fun.fun = box_cptr(&" <.> ppName funName <.> text ");"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
                               ++ [text "return function_from_data(&_self->_fun);"])
@@ -719,6 +719,7 @@ genLambda params eff body
                       (if (null fields) then text "UNUSED(_fself);"
                         else vcat ([structDoc <.> text "* _self = function_data_as" <.> tupled [structDoc,text "_fself"] <.> semi] 
                                    ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]))
+                                   -- todo: add dup for each field, and then function_drop(_fself)
                       <-> bodyDoc
                     )
        emitToC funDef  -- TODO: make  static if for a Private definition
