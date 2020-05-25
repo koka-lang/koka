@@ -12,7 +12,7 @@
 
 #include <assert.h>
 #include <stdbool.h> // bool
-#include <stdint.h>  // intptr_t
+#include <stdint.h>  // int_t
 #include <stdio.h>   // FILE*
 #include <string.h>  // strlen
 #include <stdlib.h>  // malloc, abort, etc.
@@ -93,9 +93,6 @@
 // - a char/byte is 8 bits
 // - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
 
-static inline intptr_t  sar(intptr_t i, intptr_t shift) { return (i >> shift); }
-static inline uintptr_t shr(uintptr_t i, uintptr_t shift) { return (i >> shift); }
-
 #if INTPTR_MAX == 9223372036854775807LL
 # define INTPTR_SIZE 8
 #elif INTPTR_MAX == 2147483647LL
@@ -105,7 +102,23 @@ static inline uintptr_t shr(uintptr_t i, uintptr_t shift) { return (i >> shift);
 #endif
 #define INTPTR_BITS (8*INTPTR_SIZE)
 
-#if INTPTR_SIZE <= 4
+
+// abstract over intptr_t so we can in principle target architectures like x32 where 
+// the size of a pointer is 32-bit but int's can be 64-bit. 
+// An `int_t` should be the size of a boxed value and be able to contain pointers
+// to the heap (so pointer could be represented as an offset to a base)
+typedef intptr_t  int_t;
+typedef uintptr_t uint_t;
+
+#define INT_T_SIZE  INTPTR_SIZE
+#define INT_T_BITS  INTPTS_BITS
+
+// Distinguish unsigned shift right and signed arithmetic shift right.
+static inline int_t  sar(int_t i, int_t shift)   { return (i >> shift); }
+static inline uint_t shr(uint_t i, uint_t shift) { return (i >> shift); }
+
+// Limited reference counts can be more efficient
+#if INT_T_SIZE <= 4
 #undef  REFCOUNT_LIMIT_TO_32BIT
 #define REFCOUNT_LIMIT_TO_32BIT  1
 #endif
@@ -115,10 +128,10 @@ static inline uintptr_t shr(uintptr_t i, uintptr_t shift) { return (i >> shift);
 --------------------------------------------------------------------------------------*/
 
 // A `ptr_t` is a pointer to a `block_t`. We keep it abstract to support tagged pointers or sticky refcounts in the future
-typedef uintptr_t ptr_t;      
+typedef uint_t ptr_t;      
 
 // Polymorpic operations work on boxed values. We use unsigned representation to avoid UB on shift operations and overflow.
-typedef uintptr_t box_t;    
+typedef uint_t box_t;    
 
 // A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
 typedef box_t datatype_t;
@@ -143,7 +156,7 @@ typedef enum tag_e {
   TAG_BYTES,
   TAG_INT64,
   TAG_CPTR,          // full void*
-#if INTPTR_SIZE < 8
+#if INT_T_SIZE < 8
   TAG_DOUBLE,
   TAG_INT32,
 #endif
@@ -155,16 +168,16 @@ typedef union header_s {
   uint64_t as_uint64;
 #if !defined(ARCH_BIG_ENDIAN)
   struct {
-#if INTPTR_SIZE==8
+#if INT_T_SIZE==8
     uint64_t refcount : 38;
 #else
     uint32_t refcount;
-    size_t _unused_refcount : 6;
+    uint_t _unused_refcount : 6;
 #endif    
-    size_t _reserved : 1;
-    size_t thread_shared : 1;      // true if shared among threads (so release/acquire use locked increment/decrement)
-    size_t scan_fsize : 8;         // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-    size_t tag : 16;               // tag
+    uint_t _reserved : 1;
+    uint_t thread_shared : 1;      // true if shared among threads (so release/acquire use locked increment/decrement)
+    uint_t scan_fsize : 8;         // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
+    uint_t tag : 16;               // tag
   } h;
 
   // the following overlays are defined for efficient code generation of reference counting.
@@ -176,7 +189,7 @@ typedef union header_s {
     uint32_t  _unused_hi : 26;
   } rc32;
   struct {
-#if (INTPTR_SIZE==4)
+#if (INT_T_SIZE==4)
     uint32_t  extended;            // used for efficient incrementing
     uint32_t  _unused_extended;
 #else
@@ -206,10 +219,10 @@ static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, in
 static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
 static inline ptr_t     unbox_ptr(box_t b);
 static inline box_t     box_ptr(ptr_t p);
-static inline intptr_t  unbox_int(box_t v);
-static inline box_t     box_int(intptr_t i);
-static inline uintptr_t unbox_enum(box_t v);
-static inline box_t     box_enum(uintptr_t u);
+static inline int_t     unbox_int(box_t v);
+static inline box_t     box_int(int_t i);
+static inline uint_t    unbox_enum(box_t v);
+static inline box_t     box_enum(uint_t u);
 
 #define assert_internal assert
 
@@ -272,13 +285,13 @@ static inline decl_pure box_t block_field_large(block_t* b, size_t i) {
   return *block_field_at_large(b,i);
 }
 
-static inline decl_const block_t* block_from_data(void* data) {
+static inline decl_const block_t* block_from_data(const void* data) {
   block_t* b = (block_t*)((uint8_t*)data - sizeof(block_t));
   assert_internal(b->header.h.scan_fsize != SCAN_FSIZE_MAX); // is a small block?
   return b;
 }
 
-static inline block_t* block_from_data_large(void* data) {
+static inline block_t* block_from_data_large(const void* data) {
   block_t* b = (block_t*)((uint8_t*)data - sizeof(block_t));
   assert_internal(b->header.h.scan_fsize == SCAN_FSIZE_MAX); // is not a small block?
   return b;
@@ -307,7 +320,7 @@ static inline decl_const box_t ptr_field(ptr_t p, size_t i) {
   return block_field(ptr_as_block(p), i);
 }
 
-static inline decl_pure uintptr_t ptr_refcount(ptr_t p) {
+static inline decl_pure uint_t ptr_refcount(ptr_t p) {
   return ptr_as_block(p)->header.h.refcount;
 }
 
@@ -324,7 +337,7 @@ static inline decl_pure void* ptr_data_assert(ptr_t p, tag_t expected_tag) {
 #define ptr_data_as(tp,p)              (tp*)ptr_data(p)
 #define ptr_data_as_assert(tp,p,tag)   (tp*)ptr_data_assert(p,tag)
 
-static inline decl_const ptr_t ptr_from_data(void* data) {
+static inline decl_const ptr_t ptr_from_data(const void* data) {
   return block_as_ptr(block_from_data(data));
 }
 
@@ -357,7 +370,7 @@ typedef struct context_s {
   int32_t    marker_unique;    // unique marker generation
   block_t*   delayed_free;     // list of blocks that still need to be freed
   integer_t  unique;           // thread local unique number generation
-  uintptr_t  thread_id;        // unique thread id
+  uint_t  thread_id;        // unique thread id
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -456,7 +469,7 @@ static inline ptr_t ptr_realloc(ptr_t p, size_t size, context_t* ctx) {
 decl_export void ptr_check_free(ptr_t p, context_t* ctx);
 
 
-static inline void ptr_incref(ptr_t p) {
+static inline ptr_t ptr_dup(ptr_t p) {
 #if REFCOUNT_LIMIT_TO_32BIT
   // with a 32-bit reference count on a 64-bit system, we need a (8*2^32 = 32GiB array to create that many
   // references to a single object. That is often a reasonable restriction and more efficient.
@@ -466,9 +479,10 @@ static inline void ptr_incref(ptr_t p) {
   // this is reasonable as it would take a (8*2^38 = 2TiB array to create that many references to a single object)
   ptr_as_block(p)->header.rc.extended++;   
 #endif
+  return p;
 }
 
-static inline void ptr_decref(ptr_t p, context_t* ctx) {
+static inline void ptr_drop(ptr_t p, context_t* ctx) {
   // optimize: always decrement just the 32 bits; 
   // on larger refcounts check afterwards if the hi-bits were 0. Since we use 0 for a unique reference we can 
   // efficiently check if the block can be freed by comparing to 0.
@@ -479,23 +493,17 @@ static inline void ptr_decref(ptr_t p, context_t* ctx) {
   if (count==0) ptr_check_free(p,ctx);
 #endif
 }
-static inline ptr_t ptr_dup(ptr_t p) {
-  ptr_incref(p);
-  return p;
-}
-
-static inline void boxed_incref(box_t b) {
-  if (is_ptr(b)) ptr_incref(unbox_ptr(b));
-}
-
-static inline void boxed_decref(box_t b, context_t* ctx) {
-  if (is_ptr(b)) ptr_decref(unbox_ptr(b), ctx);
-}
 
 static inline box_t boxed_dup(box_t b) {
-  boxed_incref(b);
+  if (is_ptr(b)) ptr_dup(unbox_ptr(b));
   return b;
 }
+
+static inline void boxed_drop(box_t b, context_t* ctx) {
+  if (is_ptr(b)) ptr_drop(unbox_ptr(b), ctx);
+}
+
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -516,11 +524,11 @@ static inline decl_const bool datatype_is_ptr(datatype_t d) {
   return (is_ptr_fast(d));
 }
 
-static inline decl_const datatype_t datatype_from_enum(uintptr_t tag) {
+static inline decl_const datatype_t datatype_from_enum(uint_t tag) {
   return box_enum(tag);
 }
 
-static inline decl_const uintptr_t datatype_as_enum(datatype_t d) {
+static inline decl_const uint_t datatype_as_enum(datatype_t d) {
   return unbox_enum(d);
 }
 
@@ -543,7 +551,7 @@ static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
     static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
     decl data_type_t name = (datatype_t)(&_static_name); /* should be `datatype_cptr(&_static_##name*)` but we need a constant initializer */
 
-static inline decl_const datatype_t datatype_from_data(void* data) {
+static inline decl_const datatype_t datatype_from_data(const void* data) {
   return ptr_as_datatype(ptr_from_data(data));
 }
 
@@ -559,16 +567,12 @@ static inline decl_pure void* datatype_data_assert(datatype_t d, tag_t expected_
 #define datatype_data_as_assert(tp,d,tag)  ((tp*)datatype_data_assert(d,tag))
 
 
-static inline void datatype_decref(datatype_t d, context_t* ctx) {
-  if (datatype_is_ptr(d)) ptr_decref(datatype_as_ptr(d),ctx);
-}
-
-static inline void datatype_incref(datatype_t d) {
-  if (datatype_is_ptr(d)) ptr_incref(datatype_as_ptr(d));
+static inline void datatype_drop(datatype_t d, context_t* ctx) {
+  if (datatype_is_ptr(d)) ptr_drop(datatype_as_ptr(d),ctx);
 }
 
 static inline datatype_t datatype_dup(datatype_t d) {
-  datatype_incref(d);
+  if (datatype_is_ptr(d)) ptr_dup(datatype_as_ptr(d));
   return d;
 }
 
@@ -578,7 +582,7 @@ typedef box_t value_tag_t;
 
 // Use inlined #define to enable constant initializer expression
 /*
-static inline value_tag_t value_tag(uintptr_t tag) {
+static inline value_tag_t value_tag(uint_t tag) {
   return box_enum(tag);
 }
 */
@@ -607,18 +611,18 @@ static inline orphan_t ptr_release0(ptr_t p, context_t* ctx) {
     return orphan_ptr(p);
   }
   else {
-    ptr_decref(p,ctx);
+    ptr_drop(p,ctx);
     return orphan_null();
   }
 }
 
 static inline orphan_t ptr_release1(ptr_t p, box_t unused_field1, context_t* ctx ) {
   if (ptr_is_unique(p)) {
-    boxed_decref(unused_field1,ctx);
+    boxed_drop(unused_field1,ctx);
     return orphan_ptr(p);
   }
   else {
-    ptr_decref(p,ctx);
+    ptr_drop(p,ctx);
     return orphan_null();
   }
 }
@@ -680,7 +684,7 @@ struct function_s {
 };
 typedef datatype_t function_t;
 
-static inline function_t function_from_data(struct function_s* data) {
+static inline function_t function_from_data(const struct function_s* data) {
   return datatype_from_data(data);
 }
 
@@ -806,18 +810,18 @@ static inline size_t decl_pure string_len(string_t str) {
   }
 }
 
-static inline void string_decref(string_t str, context_t* ctx) {
-  datatype_decref(str,ctx);
-}
-
-static inline void string_incref(string_t str) {
-  datatype_incref(str);
+static inline void string_drop(string_t str, context_t* ctx) {
+  datatype_drop(str,ctx);
 }
 
 static inline string_t string_dup(string_t str) {
   return datatype_dup(str);
 }
 
+decl_export int_t string_cmp_borrow(string_t str1, string_t str2);
+decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
+decl_export int_t string_icmp_borrow(string_t str1, string_t str2);
+decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);
 
 /*--------------------------------------------------------------------------------------
   References
@@ -839,12 +843,29 @@ static inline box_t ref_get(ref_t b) {
 
 static inline void ref_set(ref_t r, box_t value, context_t* ctx) {
   box_t* b = &datatype_data_as_assert(struct ref_s, r, TAG_REF)->value; 
-  boxed_decref(*b, ctx);
+  boxed_drop(*b, ctx);
   *b = value;
 }
 
+decl_export void fatal_error(const char* msg);
+
 static inline void unsupported_external(const char* msg) {
-  fputs(msg, stderr);
+  fatal_error(msg);
+}
+
+/*--------------------------------------------------------------------------------------
+  Unit
+--------------------------------------------------------------------------------------*/
+typedef enum unit_e {
+  unit = 0
+} unit_t;
+
+static inline box_t box_unit_t(unit_t u) {
+  return box_enum(u);
+}
+
+static inline box_t unbox_unit_t(box_t u) {
+  return unbox_enum(u);
 }
 
 #endif // include guard

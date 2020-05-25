@@ -4,7 +4,7 @@ import std/core/types
 
 extern include {
   c  file "hnd-inline"
-  js file "hnd-inline.js"
+  js file "hnd-inline.js" 
 }
 
 // -------------------------------------------

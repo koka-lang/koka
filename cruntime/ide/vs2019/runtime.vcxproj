@@ -204,6 +204,7 @@
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyAndSourceCode</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="..\..\src\runtime.c" />
+    <ClCompile Include="..\..\src\string.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(ProjectDir)..\..\include\runtime.h" />

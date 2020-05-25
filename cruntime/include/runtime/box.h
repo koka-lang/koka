@@ -44,7 +44,7 @@ or a sign extended small integer of at most 30 bits; We can do addition
 then directly on the boxed values as:
 
     boxed integer_add(boxed x, boxed y) {
-      intptr_t z;
+      int_t z;
       if (unlikely(smallint_add_ovf32(x,y,&z) || (z&0x02)==0)) return integer_add_generic(x,y);
       return (boxed)(z - 1);  // or: z ^ 0x03
     }
@@ -101,10 +101,10 @@ static inline bool is_cptr_fast(box_t b) {
   return ((b & 0x03)==3);
 }
 
-#define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
+#define MAX_BOXED_INT  ((int_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
 #define MIN_BOXED_INT  (- MAX_BOXED_INT - 1)
 
-#define MAX_BOXED_ENUM ((uintptr_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
+#define MAX_BOXED_ENUM ((uint_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
 #define MIN_BOXED_ENUM (0)
 
 #if INTPTR_SIZE==8
@@ -159,7 +159,7 @@ static inline box_t box_double(double d, context_t* ctx) {
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
-  intptr_t i = unbox_int(v);
+  int_t i = unbox_int(v);
   assert_internal(i >= INT32_MIN && i <= INT32_MAX);
   return (int32_t)(i);
 }
@@ -195,7 +195,7 @@ static inline double unbox_double(box_t b, context_t* ctx) {
   assert_internal(is_double(b));
   ptr_t p = unbox_ptr(b);
   double d = *(ptr_data_as(double, p));
-  ptr_decref(p,ctx);
+  ptr_drop(p,ctx);
   return d;
 }
 
@@ -213,7 +213,7 @@ static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
     assert_internal(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
     ptr_t p = unbox_ptr(v);
     int32_t i = *(ptr_data_as(int32_t,p));
-    ptr_decref(p,ctx);
+    ptr_drop(p,ctx);
     return i;
   }
 }
@@ -238,7 +238,7 @@ static inline ptr_t unbox_ptr(box_t v) {
 }
 
 static inline box_t box_ptr(ptr_t p) {
-  assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
+  assert_internal(((uint_t)p & 0x03) == 0); // check alignment
   return (box_t)p;
 }
 
@@ -248,30 +248,30 @@ static inline void* unbox_cptr(box_t b) {
 }
 
 static inline box_t box_cptr(void* p) {
-  assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
+  assert_internal(((uint_t)p & 0x03) == 0); // check alignment
   box_t b = (box_t)p | 0x03;
   assert_internal(is_cptr(b));
   return b;
 }
 
-static inline uintptr_t unbox_enum(box_t b) {
+static inline uint_t unbox_enum(box_t b) {
   assert_internal(is_enum(b));
   return shr(b, 2);
 }
 
-static inline box_t box_enum(uintptr_t u) {
+static inline box_t box_enum(uint_t u) {
   assert_internal(u <= MAX_BOXED_ENUM);
   box_t b = (u << 2) | 0x02;
   assert_internal(is_enum(b));
   return b;
 }
 
-static inline intptr_t unbox_int(box_t v) {
+static inline int_t unbox_int(box_t v) {
   assert_internal(is_int(v));
   return (sar(v, 2));
 }
 
-static inline box_t box_int(intptr_t i) {
+static inline box_t box_int(int_t i) {
   assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
   box_t v = (i << 2) | 0x01;
   assert_internal(is_int(v));
@@ -279,7 +279,7 @@ static inline box_t box_int(intptr_t i) {
 }
 
 static inline int16_t unbox_int16(box_t v) {
-  intptr_t i = unbox_int(v);
+  int_t i = unbox_int(v);
   assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }

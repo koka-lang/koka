@@ -776,6 +776,8 @@ cTypeCon c
          then CPrim "double"
         else if (name == nameTpBool)
          then CPrim "bool"
+        else if (name == nameTpUnit)
+         then CPrim "unit_t"
         else CData (typeClassName name)
 
 
@@ -1120,7 +1122,10 @@ genPure expr
                    InfoExternal formats -> genInlineExternal name formats []
                    _ -> return (ppName (getName name))
      Con name info
-       -> return (conCreateName (getName name) <.> arguments [])
+       | getName name == nameTrue -> return (text "true")
+       | getName name == nameFalse -> return (text "false")
+       | getName name == nameUnit  -> return (text "unit")
+       | otherwise -> return (conCreateName (getName name) <.> arguments [])
      Lit l
        -> return $ ppLit l
      Lam params eff body

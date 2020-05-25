@@ -34,10 +34,10 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.h.refcount == 0);
   block_t* delayed = ctx->delayed_free;
   // encode the next pointer into the block header
-  b->header.rc32.lo = (uint32_t)((uintptr_t)delayed);
+  b->header.rc32.lo = (uint32_t)((uint_t)delayed);
 #if (INTPTR_SIZE > 4)
-  b->header.h.tag = (uint16_t)(sar((intptr_t)delayed,32));
-  assert_internal(sar((intptr_t)delayed,48) == 0 || sar((intptr_t)delayed, 48) == -1);
+  b->header.h.tag = (uint16_t)(sar((int_t)delayed,32));
+  assert_internal(sar((int_t)delayed,48) == 0 || sar((int_t)delayed, 48) == -1);
 #endif
   ctx->delayed_free = b;
 }
@@ -51,9 +51,9 @@ static void block_decref_delayed(context_t* ctx) {
     do {
       block_t* b = delayed;
       // decode the next element in the delayed list from the block header
-      intptr_t next = (intptr_t)b->header.rc32.lo;
+      int_t next = (int_t)b->header.rc32.lo;
 #if (INTPTR_SIZE>4)
-      next += ((intptr_t)((int16_t)(b->header.h.tag)) << 32); // sign extended
+      next += ((int_t)((int16_t)(b->header.h.tag)) << 32); // sign extended
 #endif
 #ifndef NDEBUG
       b->header.rc32.lo = UINT32_MAX;

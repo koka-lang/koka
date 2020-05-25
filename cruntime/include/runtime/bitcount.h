@@ -100,17 +100,17 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 #endif
 
 #if (INTPTR_SIZE == 8) 
-static inline uint8_t bits_clz(uintptr_t x) {
+static inline uint8_t bits_clz(uint_t x) {
   return bits_clz64(x);
 }
-static inline uint8_t bits_ctz(uintptr_t x) {
+static inline uint8_t bits_ctz(uint_t x) {
   return bits_ctz64(x);
 }
 #else
-static inline uint8_t bits_clz(uintptr_t x) {
+static inline uint8_t bits_clz(uint_t x) {
   return bits_clz32(x);
 }
-static inline uint8_t bits_ctz(uintptr_t x) {
+static inline uint8_t bits_ctz(uint_t x) {
   return bits_ctz32(x);
 }
 #endif
