@@ -39,6 +39,7 @@ static inline int32_t evv_set_ofs(int32_t ofs, context_t* ctx) {
   return (int32_t)old;  
 }
 
+
 int32_t      evv_index( struct __std_core_hnd_Htag htag, context_t* ctx );
 int32_t      evv_count( context_t* ctx );
 datatype_t   evv_lookup( struct __std_core_hnd_Htag htag, context_t* ctx );
@@ -47,10 +48,9 @@ datatype_t   evv_create(datatype_t evv, datatype_t indices, context_t* ctx);
 datatype_t   evv_insert(datatype_t evv, datatype_t ev, context_t* ctx);
 datatype_t   evv_delete(datatype_t evv, int32_t index, bool behind, context_t* ctx);
 string_t     evv_show(datatype_t evv, context_t* ctx);
-unit_t       evv_expect(struct __std_core_hnd_Marker m, datatype_t evv, context_t* ctx);
+//unit_t       evv_expect(struct __std_core_hnd_Marker m, datatype_t evv, context_t* ctx);
 unit_t       evv_guard(datatype_t evv, context_t* ctx);
-box_t        resume_final(context_t* ctx);
-bool         yielding_non_final(context_t* ctx);
+box_t        fatal_resume_final(context_t* ctx);
 box_t        yield_cont( function_t next, context_t* ctx );
 box_t        yield_extend( function_t next, context_t* ctx );
 box_t        yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx );

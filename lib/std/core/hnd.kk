@@ -124,11 +124,6 @@ private extern evv-show( evv : evv<e> ) : string {
   js "_evv_show"
 }
 
-private extern evv-expect( m: marker<e,r>, expected : evv<e0> ) : e () {
-  c  inline "evv_expect(#1,#2,current_context())"
-  js "_evv_expect"
-}
-
 // -------------------------------------------
 // Internal Yielding
 // -------------------------------------------
@@ -158,7 +153,7 @@ private extern yield-cont(f : (a -> e1 b, a) -> e0 r ) : e0 r {  // make hidden 
 }
 
 private extern inline yielding-final() : e r {
-  c inline "box_ptr(ptr_null)"
+  c inline "box_null"
   js inline "undefined"
 }
 
@@ -209,7 +204,7 @@ private extern guard(w : evv<e> ) : e () {
 }
 
 private extern resume-final() : a {
-  c  inline "resume_final(current_context())"
+  c  inline "fatal_resume_final(current_context())"
   js "_throw_resume_final"
 }
 

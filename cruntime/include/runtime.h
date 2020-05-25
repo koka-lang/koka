@@ -367,8 +367,7 @@ typedef datatype_t function_t;
 #define YIELD_CONT_MAX (8)
 
 typedef struct yield_s {
-  bool       yielding;        // are we yielding to a handler?
-  bool       final;           // is this a final yield? (e.g. exception)
+  uint8_t    yielding;        // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception)
   int32_t    marker;          // marker of the handler to yield to
   function_t clause;          // the operation clause to execute when the handler is found
   int_t      conts_count;     // number of continuations in `conts`
@@ -396,7 +395,11 @@ decl_export context_t* runtime_context(void);
 
 // Is the execution yielding?
 static inline bool yielding(context_t* ctx) {
-  return (ctx->yield.yielding);
+  return (ctx->yield.yielding != 0);
+};
+
+static inline bool yielding_non_final(context_t* ctx) {
+  return (ctx->yield.yielding == 1);
 };
 
 // Get a thread local marker unique number.

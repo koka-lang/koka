@@ -221,134 +221,56 @@ box_t yield_cont( function_t f, context_t* ctx ) {
   return box_null;
 }
 
-
-/*
-datatype_t   evv_delete(datatype_t evv, int32_t index, __std_core_types__bool behind, context_t* ctx);
-string_t     evv_show(datatype_t evv, context_t* ctx);
-__std_core_types__unit_ evv_expect(struct __std_core_hnd_Marker m, datatype_t evv, context_t* ctx);
-__std_core_types__unit_ evv_guard(datatype_t evv, context_t* ctx);
-box_t        resume_final(context_t* ctx);
-bool         yielding_non_final(context_t* ctx);
-box_t        yield_cont( function_t next, context_t* ctx );
-box_t        yield_extend( function_t next, context_t* ctx );
-box_t        yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx );
-box_t        yield_to( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx );
-struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, context_t* ctx );
-*/
-
-/*
-function _evv_show(w) {
-  const evv = w.evv.slice(w.ofs);
-  evv.sort(function(ev1,ev2){ return (ev1._field2 - ev2._field2); });
-  var out = "";
-  for( var i = 0; i < evv.length; i++) {
-    const wi = evv[i]._field4;
-    const evvi = wi.evv.slice(wi.ofs);
-    out += ("" + evv[i]._field1.padEnd(8," ") + ": marker " + evv[i]._field2 + ", under <" +
-             evvi.map(function(ev){ return ev._field2.toString(); }).join(",") + ">\n");
-  }
-  return out;
+box_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
+  yield_t* yield = &ctx->yield;
+  assert_internal(!yield->yielding; // already yielding  
+  yield->yielding = true;
+  yield->final = false;
+  yield->marker = m.field1;
+  yield->clause = clause;
+  yield->cont_count = 0;
+  return box_null;
 }
 
-function _yield_show() {
-  if (_yielding()) {
-    return "yielding to " + $std_core_hnd._yield.marker + ", final: " + $std_core_hnd._yield.final;
+box_t yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
+  yield_to(m,clause,ctx);
+  ctx->yield.final = true;
+  return box_null;
+}
+
+box_t fatal_resume_final(context_t* ctx) {
+  fatal_error("trying to resume a finalized resumption");
+  return box_null;
+}
+
+static box_t _fatal_resume_final(function_t self, context_t* ctx) {
+  return fatal_resume_final(ctx);
+}
+define_static_function(fun_fatal_resume_final,_fatal_resume_final);
+
+
+struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, context_t* ctx ) {
+  yield_t* yield = &ctx->yield;
+  if (!yield->yielding) {
+    return __std_core_hnd__new_Pure(ctx);
+  }
+  else if (yield->marker != m.field1) {
+    return (yield->final ? __std_core_hnd__new_YieldingFinal(ctx) : __std_core_hnd__new_Yielding(ctx));
   }
   else {
-    return "pure"
+    yield->yielding = false;
+    function_t cont = (yield->final ? function_dup(_fun_fatal_resume_final) : new_kcompose(yield->conts, yield->cont_count));
+    function_t clause = yield->clause;
+    #ifndef NDEBUG
+    memset(yield,0,sizeof(yield_t));
+    #endif
+    return __std_core_hnd__new_Yield(clause, cont, ctx);
   }
 }
 
-
-function _evv_expect(m,expected) {
-  if (($std_core_hnd._yield===null || $std_core_hnd._yield.marker === m) && ($std_core_hnd._evv !== expected.evv || $std_core_hnd._evv_ofs !== expected.ofs)) {
-    console.error("expected evidence: \n" + _evv_show(expected) + "\nbut found:\n" + _evv_show({ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }));
+unit_t  evv_guard(datatype_t evv, context_t* ctx) {
+  if (ctx->evv != evv) {
+    // todo: improve error message with diagnostics
+    fatal_error("trying to resume outside the (handler) scope of the original handler");
   }
 }
-
-function _guard(w) {
-  if (!($std_core_hnd._evv === w.evv && $std_core_hnd._evv_ofs === w.ofs)) {
-    console.error("trying to resume outside the (handler) scope of the original handler. \n captured under:\n" + _evv_show(w) + "\n but resumed under:\n" + _evv_show({evv:$std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }));
-    throw "trying to resume outside the (handler) scope of the original handler";
-  }
-}
-
-function _throw_resume_final(f) {
-  throw "trying to resume an unresumable resumption (from finalization)";
-}
-
-function _evv_create( w, indices ) {
-  const ofs = w.ofs;
-  const evv = w.evv;
-  const n = indices.length;
-  const evv2 = new Array(n);
-  for(var i = 0; i < n; i++) {
-    evv2[i] = evv[ofs + indices[i]];
-  }
-  return { evv: evv2, ofs: 0 };
-}
-
-//--------------------------------------------------
-// Yielding
-//--------------------------------------------------
-function _yielding() {
-  return ($std_core_hnd._yield !== null);
-}
-
-function _kcompose( from, to, conts ) {
-  return function(x) {
-    var acc = x;
-    for(var i = from; i < to; i++) {
-      acc = conts[i](acc);
-      if (_yielding()) {
-        //return ((function(i){ return _yield_extend(_kcompose(i+1,to,conts)); })(i));
-        while(++i < to) {
-          _yield_extend(conts[i]);
-        }
-        return; // undefined
-      }
-    }
-    return acc;
-  }
-}
-
-function _yield_extend(next) {
-  _assert(_yielding(), "yield extension while not yielding!");
-  if ($std_core_hnd._yield.final) return;
-  $std_core_hnd._yield.conts[$std_core_hnd._yield.conts_count++] = next;  // index is ~80% faster as push
-}
-
-function _yield_cont(f) {
-  _assert(_yielding(), "yield extension while not yielding!");
-  if ($std_core_hnd._yield.final) return;
-  const cont   = _kcompose(0,$std_core_hnd._yield.conts_count,$std_core_hnd._yield.conts);
-  $std_core_hnd._yield.conts = new Array(8);
-  $std_core_hnd._yield.conts_count = 1;
-  $std_core_hnd._yield.conts[0] = function(x){ return f(cont,x); };
-}
-
-function _yield_prompt(m) {
-  if ($std_core_hnd._yield === null) {
-    return Pure;
-  }
-  else if ($std_core_hnd._yield.marker !== m) {
-    return ($std_core_hnd._yield.final ? YieldingFinal : Yielding);
-  }
-  else { // $std_core_hnd._yield.marker === m
-    const cont   = ($std_core_hnd._yield.final ? _throw_resume_final : _kcompose(0,$std_core_hnd._yield.conts_count,$std_core_hnd._yield.conts));
-    const clause = $std_core_hnd._yield.clause;
-    $std_core_hnd._yield = null;
-    return Yield(clause,cont);
-  }
-}
-
-function _yield_final(m,clause) {
-  _assert(!_yielding(),"yielding while yielding!");
-  $std_core_hnd._yield = { marker: m, clause: clause, conts: null, conts_count: 0, final: true };
-}
-
-function _yield_to(m,clause) {
-  _assert(!_yielding(),"yielding while yielding!");
-  $std_core_hnd._yield = { marker: m, clause: clause, conts: new Array(8), conts_count: 0, final: false };
-}
-*/
