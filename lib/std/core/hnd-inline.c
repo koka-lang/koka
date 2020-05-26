@@ -124,7 +124,7 @@ static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
   struct kcompose_fun_s* self = function_data_as(struct kcompose_fun_s,fself);
   bool unique = function_is_unique(fself);
   int_t count = unbox_int(self->count);
-  function_t* conts = self->conts;  
+  function_t* conts = &self->conts[0];  
   // call each continuation in order
   for(int_t i = 0; i < count; i++) {
     if (!unique) function_dup(conts[i]);
