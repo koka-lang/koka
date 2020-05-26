@@ -852,6 +852,7 @@ makeEffectDecl decl =
       tagName    = toEffectTagName id
       tagDef     = Def (ValueBinder tagName ()
                          (Ann (App (Var nameHTag False irng)
+                               -- todo: this needs to be prefixed with the actual module name
                                [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) irng))]
                                irng)
                           (quantify QForall tpars

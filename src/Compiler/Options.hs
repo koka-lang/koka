@@ -180,7 +180,8 @@ isInteractive Interactive = True
 isInteractive _ = False
 
 isValueFromFlags flags
- = if (JS `elem` targets flags) then (const False) else dataInfoIsValue
+ = -- if (JS `elem` targets flags) then (const False) else dataInfoIsValue
+   dataInfoIsValue
 
 {--------------------------------------------------------------------------
   Options and environment variables

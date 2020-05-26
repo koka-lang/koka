@@ -524,7 +524,7 @@ extractOrderedEffect :: Tau -> ([Tau],Tau)
 extractOrderedEffect tp
   = let (labs,tl) = extractEffectExtend tp
         labss     = concatMap expand labs
-        slabs     = (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
+        slabs     = (sortBy (\l1 l2 -> labelNameCompare (labelName l1) (labelName l2)) labss)
     in -- trace ("sorted: " ++ show (map labelName labss) ++ " to " ++ show (map labelName slabs)) $
        (slabs,tl)
   where

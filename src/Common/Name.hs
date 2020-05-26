@@ -14,6 +14,7 @@ module Common.Name
           ( Name, Names     -- instance Eq Ord Show
           , showName        -- show with quotes
           , showPlain
+          , labelNameCompare
           , toHiddenUniqueName
           , newName, newQualified
           , nameNil, nameIsNil
@@ -93,14 +94,14 @@ lowerCompare (Name m1 _ n1 _) (Name m2 _ n2 _)
   = case lowerCompareS m1 m2 of
       EQ -> lowerCompareS n1 n2
       lg -> lg
-  where
-    lowerCompareS (c:cs) (d:ds)
-      = case compare (toLower c) (toLower d) of
-          EQ -> lowerCompareS cs ds
-          lg -> lg
-    lowerCompareS (c:cs) [] = GT
-    lowerCompareS [] (d:ds) = LT
-    lowerCompareS [] []     = EQ
+
+lowerCompareS (c:cs) (d:ds)
+  = case compare (toLower c) (toLower d) of
+      EQ -> lowerCompareS cs ds
+      lg -> lg
+lowerCompareS (c:cs) [] = GT
+lowerCompareS [] (d:ds) = LT
+lowerCompareS [] []     = EQ
 
 instance Eq Name where
   n1@(Name _ hm1 _ hn1) == n2@(Name _ hm2 _ hn2)
@@ -113,6 +114,16 @@ instance Ord Name where
                 EQ -> lowerCompare n1 n2
                 lg -> lg
         lg -> lg
+
+-- Effects compare by name first, then by module name for efficiency at runtime
+labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
+  = case compare hn1 hn2 of
+      EQ -> case lowerCompareS n1 n2 of
+              EQ -> case compare hm1 hm2 of
+                      EQ -> lowerCompareS m1 m2
+                      lg -> lg
+              lg -> lg
+      lg -> lg
 
 
 canonicalSep = '.'

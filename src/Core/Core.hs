@@ -277,15 +277,19 @@ getDataReprEx getIsValue info
                     else if length singletons == 1 then ConSingleton typeName dataRepr
                     else ConSingle typeName dataRepr])
          else if (isValue && not (dataInfoIsRec info))
-          then (DataStruct, map (\_ -> ConStruct typeName DataStruct) conInfos )
+          then (DataStruct, map (\con -> if null (conInfoParams con) 
+                                          then ConSingleton typeName DataStruct
+                                          else ConStruct typeName DataStruct) conInfos )
          else if (length conInfos == 2 && length singletons == 1)
           then (DataAsList
                ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
                               else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
-         else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) then DataSingleNormal else DataNormal
+         else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) 
+                              then DataSingleNormal else DataNormal
               in (dataRepr
-                 ,map (\con -> {- if null (conInfoParams con) then ConSingleton typeName else -}
-                                ConNormal typeName dataRepr) conInfos
+                 ,map (\con -> if null (conInfoParams con) 
+                                then ConSingleton typeName dataRepr
+                                else ConNormal typeName dataRepr) conInfos
                  )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
 

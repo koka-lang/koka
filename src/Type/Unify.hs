@@ -421,7 +421,7 @@ unifyLabels ls1 ls2
 compareLabel l1 l2
   = let (name1,i1,_) = labelNameEx l1
         (name2,i2,_) = labelNameEx l2
-    in case compare name1 name2 of
+    in case labelNameCompare name1 name2 of
          -- EQ | i1 /= 0 && i2 /= 0 -> compare i1 i2
          cmp -> cmp
 

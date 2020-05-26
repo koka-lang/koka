@@ -236,7 +236,7 @@ genTypeDef  (Synonym {})
   = return empty
 genTypeDef (Data info isExtend)
   = do modName <- getModule
-       let (dataRepr, conReprs) = getDataReprEx (const False) info
+       let (dataRepr, conReprs) = getDataRepr info
        docs <- mapM ( \(c,repr)  ->
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)
@@ -248,7 +248,7 @@ genTypeDef (Data info isExtend)
               else return $ case repr of
                 ConEnum{}
                    -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                ConSingleton{}
+                ConSingleton _ DataAsList _
                    -> constdecl <+> name <+> text "=" <+>
                         text (if conInfoName c == nameOptionalNone then "undefined" else "null")
                          <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
@@ -554,8 +554,13 @@ genMatch result scrutinees branches
                 -> case repr of
                      ConEnum _ _ tag
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
-                     ConSingleton{} -- the only constructor without fields (=== null)
-                       -> [debugWrap "genTest: singleton" $ scrutinee <+> text "== null"]  -- use == instead of === since undefined == null (for optional arguments)
+                     ConSingleton _ _ _
+                       | getName tn == nameOptionalNone
+                       -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
+                     ConSingleton _ DataAsList _
+                       -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"]  
+                     ConSingleton _ _ tag
+                       -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]  -- use == instead of === since undefined == null (for optional arguments)
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
                             (\(field,fieldName) -> genTest modName (
@@ -563,13 +568,12 @@ genMatch result scrutinees branches
                                                    scrutinee <.> dot <.> fieldName, field) )
                             (zip fields (map (ppName . fst) (conInfoParams info)) )
 
-                     ConIso{} -- alwasy success
+                     ConIso{} -- always success
                        -> []
                      ConStruct{}
-                       -> fail "Backend.JavaScript.FromCore.genTest: encountered ConStruct, which is not supposed to happen"
-                     ConAsCons{}
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
+                     ConAsCons{}                       
                        | otherwise
                        -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use === instead of == since undefined == null (for optional arguments)
                               fieldTests = concatMap

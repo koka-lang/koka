@@ -16,6 +16,7 @@ module std/time/timestamp
 
 //import std/text/regex
 import std/num/ddouble
+import std/num/int32
 import std/time/date
 
 // Time spans are a time duration in some time scale represented as a `:ddouble`;
@@ -90,16 +91,20 @@ See `std/time/utc` for more information on leap seconds.
 abstract struct timestamp(
   since : timespan,  // days+seconds since 2000-01-01 in the time scale
   // the extra leap seconds; always zero for any time scale except UTC based ones.
-  public leap : int
+  leap32 : int32
 )
 
+public fun leap( t : timestamp ) : int {
+  t.leap32.int
+}
+
 // The time stamp at 2000-01-01
-public val timestamp0 : timestamp = Timestamp(zero,0)
+public val timestamp0 : timestamp = Timestamp(ddouble/zero,int32/zero)
 
 
 // Create a time stamp from a `:timespan` since 2000-01-01 and possible leap seconds.
 public fun timestamp( t : timespan, leap : int = 0 ) : timestamp {
-  Timestamp(t,leap)
+  Timestamp(t,leap.int32)
 }
 
 // Create a time stamp from an integer timespan since 2000-01-01 and possible leap seconds.
@@ -151,15 +156,15 @@ public fun timespan-noleap( ts : timestamp ) : timespan {
 
 // Round a time stamp to a certain precision (`prec` is number of digits of the fraction of the second).
 public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
-  Timestamp(t.since.round-to-prec(prec), t.leap)
+  Timestamp(t.since.round-to-prec(prec), t.leap32)
 }
 
 // Add `leaps` leap seconds to the timestamp.
 public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
   if (!leaps.pos?) then ts // + leaps // if negative, add as normal seconds
   elif (leaps < 1.timespan && ts.leap.zero?)
-   then Timestamp( (ts.since - 1.timespan) + leaps, 1)
-   else Timestamp( ts.since + leaps.fraction, ts.leap + leaps.truncate.int )
+   then Timestamp( (ts.since - 1.timespan) + leaps, 1.int32)
+   else Timestamp( ts.since + leaps.fraction, ts.leap32 + leaps.truncate.int.int32 )
 }
 
 // Add `days` days to a timestamp
@@ -194,12 +199,12 @@ public fun max( i : timestamp, j : timestamp ) : timestamp {
 
 // Add a time span to a time stamp.
 public fun (+)( ts : timestamp, t : timespan ) : timestamp {
-  Timestamp(ts.since + t, ts.leap)
+  Timestamp(ts.since + t, ts.leap32)
 }
 
 // Subtract a time span from a time stamp.
 public fun (-)( ts : timestamp, t : timespan ) : timestamp {
-  Timestamp(ts.since - t, ts.leap)
+  Timestamp(ts.since - t, ts.leap32)
 }
 
 // Show a time stamp.
