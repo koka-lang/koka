@@ -53,27 +53,27 @@ private fun fresh-marker() : marker<e,r> {
 
 private extern inline evv-total() : evv<<>> {
   c  "evv_total"
-  js inline "{ ofs: 0, evv: [] }"
+  js inline "[]"
 }
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
   c inline "evv_at(#1,current_context())"
-  js inline "$std_core_hnd._evv[$std_core_hnd._evv_ofs + #1]"
+  js inline "$std_core_hnd._evv[#1]"
 }
 
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
   c inline "evv_index(#1,current_context())"
-  js inline "__evv_index($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
+  js inline "__evv_index($std_core_hnd._evv,#1)"
 }
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
   c inline "evv_lookup(#1,current_context())"
-  js inline "__evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#1)"
+  js inline "__evv_lookup($std_core_hnd._evv,#1)"
 }
 
 public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
   c inline "(#1 >= 0 ? evv_at(#1,current_context()) : evv_lookup(#2,current_context()))"
-  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1 + $std_core_hnd._evv_ofs] : __evv_lookup($std_core_hnd._evv,$std_core_hnd._evv_ofs,#2))"
+  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1] : __evv_lookup($std_core_hnd._evv,#2))"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
@@ -83,17 +83,17 @@ private extern evv-show( evv : evv<e> ) : string {
 
 private extern evv-get() : e evv<e> {
   c  inline "evv_get(current_context())"
-  js inline "{ evv: $std_core_hnd._evv, ofs: $std_core_hnd._evv_ofs }"
+  js inline "$std_core_hnd._evv"
 }
 
 private extern inline evv-set<e1,e>( w : evv<e1> ) : e () {
   c inline "evv_set(#1,current_context())"
-  js inline "(function(){ $std_core_hnd._evv = (#1).evv; $std_core_hnd._evv_ofs = (#1).ofs; }())"
+  js inline "(function(){ $std_core_hnd._evv = (#1); })()"
 }
 
 private extern inline evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
   c inline "evv_swap(#1,current_context())"
-  js inline "$std_core_hnd._evv_swap()"
+  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = (#1); return evv; })()"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
@@ -106,14 +106,14 @@ private extern evv-delete( w : evv<e1>, i : ev-index, behind : bool ) : evv<e2> 
   js "_evv_delete"
 }
 
-private extern evv-swap-create0() : evv<<>> {
+private extern inline evv-swap-create0() : evv<<>> {
   c inline "evv_swap_create0(current_context())"
-  js "_evv_swap_create0"
+  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
 }
 
-private extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
+private extern inline evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
   c inline "evv_swap_create1(#1,current_context())"
-  js "_evv_swap_create1"
+  js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
 }
 
 private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
