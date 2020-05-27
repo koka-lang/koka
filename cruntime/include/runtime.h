@@ -146,20 +146,22 @@ typedef enum tag_e {
   TAG_MIN = 1,
   TAG_SMALL_MAX = 15,
   TAG_MAX = 65000,
+  TAG_OPEN,
   TAG_BOX,
   TAG_REF,
-  TAG_EVV,
   TAG_FUNCTION,
   TAG_BIGINT,
   TAG_STRING,
   TAG_STRING_SMALL,
   TAG_BYTES,
+  TAG_BYTES_RAW,
   TAG_VECTOR,
-  TAG_INT64,
   TAG_CPTR,          // full void*
+  TAG_INT64,
 #if INT_T_SIZE < 8
-  TAG_DOUBLE,
   TAG_INT32,
+  TAG_DOUBLE,
+  TAG_FLOAT,
 #endif
   TAG_LAST
 } tag_t;
@@ -783,6 +785,8 @@ struct small_string_s {
 
 typedef datatype_t string_t;
 
+extern string_t string_empty;
+
 #define define_string_literal(decl,name,len,chars) \
   static struct { block_t block; size_t length; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, len, chars }; \
   decl string_t name = (string_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
@@ -874,6 +878,10 @@ decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
 decl_export int_t string_icmp_borrow(string_t str1, string_t str2);
 decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);
 
+
+static inline int string_cmp_cstr_borrow(string_t s, const char* t) {
+  return strcmp(string_buf(s), t);
+}
 
 /*--------------------------------------------------------------------------------------
   References

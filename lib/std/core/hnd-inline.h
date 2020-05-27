@@ -9,11 +9,12 @@
 static inline datatype_t evv_at( int32_t i, context_t* ctx ) {
   // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
   const vector_t evv = ctx->evv;
-  if (i==0 && (datatype_tag(evv) != TAG_VECTOR)) {
-    return datatype_dup(evv);
-  }
-  else {
+  if (datatype_tag(evv) == TAG_VECTOR) {
     return datatype_dup(vector_at(evv,i));
+  }
+  else {    
+    assert_internal(i==0);
+    return datatype_dup(evv); // single evidence
   }
 }
 
@@ -43,12 +44,13 @@ static inline datatype_t evv_swap_create0(context_t* ctx) {
 
 static inline datatype_t evv_swap_create1(int32_t i, context_t* ctx) {
   datatype_t evv0 = ctx->evv;  
-  if (i==0 && (datatype_tag(evv0)!=TAG_VECTOR)) {
-    return datatype_dup(evv0);
+  if (datatype_tag(evv0)==TAG_VECTOR) {
+    ctx->evv = unbox_datatype(vector_at(evv0,i)); // set single evidence
+    return evv0;
   }
   else {      
-    ctx->evv = unbox_datatype(vector_at(evv0,i));
-    return evv0;
+    assert_internal(i==0);
+    return datatype_dup(evv0);  // already a single evidence
   }
 }
 

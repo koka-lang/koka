@@ -497,7 +497,7 @@ genConstructorTest info dataRepr con conRepr
                     ConAsCons{}    -> text "datatype_is_ptr(x)"
                     ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
-                    ConOpen{}      -> text "((struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s*)(x))->_type._tag" <+> text "==" <+> ppConTag con conRepr dataRepr
+                    ConOpen{}      -> text "(datatype_data_as_assert(struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s,x,TAG_OPEN)->_tag)" <+> text "==" <+> ppConTag con conRepr dataRepr
                   ) <.> text ");")
 
 conTestName con
@@ -1010,6 +1010,8 @@ genPatternTest doTest (exprDoc,pattern)
         -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
+      PatLit (LitString s)
+        -> return [(test [text "string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
       PatCon tname patterns repr targs exists tres info
@@ -1098,6 +1100,14 @@ genExprPrim expr
        -> do (doc, tname) <- genVarBinding expr
              nameDoc <- genDefName tname
              return ([doc], nameDoc)
+             
+     Lit (LitString s)
+       -> do name <- newVarName "s"
+             if (s=="") 
+              then return ([],text "string_dup(string_empty)")
+              else do let (cstr,clen) = cstring s
+                      return ([text "define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]] 
+                             ,text "string_dup" <.> parens (ppName name));
 
      _ -> failure ("Backend.C.FromCore.genExpr: invalid expression:\n" ++ show expr)
 
@@ -1409,6 +1419,7 @@ isInlineableExpr expr
   = case expr of
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
+      Lit (LitString _)-> False
       App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
@@ -1428,6 +1439,7 @@ isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
       Var _ _ -> True
       Con _ _ -> True
+      Lit (LitString _) -> False  -- for our purposes, it's not pure
       Lit _   -> True
       Lam _ _ _ -> True
       _       -> False
@@ -1642,28 +1654,38 @@ ppLit lit
                          then text (show c)
                          else text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
-      LitString s -> dquotes (hcat (map escape s))
-    where
-      escape c
-        = if (c < ' ')
-           then (if (c=='\n') then text "\\n"
-                 else if (c == '\r') then text "\\r"
-                 else if (c == '\t') then text "\\t"
-                 else text "\\x" <.> text (showHex 2 (fromEnum c)))
-          else if (c <= '~')
-           then (if (c == '\"') then text "\\\""
-                 else if (c=='\'') then text "\\'"
-                 else if (c=='\\') then text "\\\\"
-                 else if (c=='?')  then text "\\?"  -- to avoid accidental trigraphs
-                 else char c)
-          else if (fromEnum c <= 0xFF)
-           then text "\\x" <.> text (showHex 2 (fromEnum c))
-          -- TODO: encode to UTF8-0 ourselves and don't use \u and \U
-          else if (fromEnum c <= 0xFFFF)
-           then text "\\u" <.> text (showHex 4 (fromEnum c))
-          else if (fromEnum c > 0x10FFFF)
-           then text "\\uFFFD"  -- error instead?
-           else text "\\U" <.> text (showHex 8 (fromEnum c))
+      LitString s -> failure ("Backend.C.FromCore: ppLit: cannot inline string literal: " ++ show s)
+      
+cstring :: String -> (Doc,Int)
+cstring s     
+  = let (cstr,ccnt) = unzip (map escape s)
+    in (dquotes (hcat cstr), sum ccnt)
+  where
+    bytes bs
+      = text ("\" \"" ++ concat ["\\x" ++ showHex 2 b | b <- bs] ++ "\" \"")
+    escape c
+      = if (c=='\0') 
+         then (bytes [0xC0,0x80],2) -- embedded zero character
+        else if (c < ' ')
+         then (if (c=='\n') then text "\\n"
+               else if (c == '\r') then text "\\r"
+               else if (c == '\t') then text "\\t"
+               else bytes [fromEnum c], 1)
+        else if (c <= '\x7F')
+         then (if (c == '\"') then text "\\\""
+               else if (c=='\'') then text "\\'"
+               else if (c=='\\') then text "\\\\"
+               else if (c=='?')  then text "\\?"  -- to avoid accidental trigraphs
+               else char c, 1)
+        else let x = fromEnum c
+             in if (x <= 0x07FF)
+                 then (bytes [0xC0 + (x`div`64), 0x80 + (x`mod`64)], 2)
+                else if (x <= 0xFFFF)
+                 then (bytes [0xE0 + (x`div`4096), 0x80 + ((x`div`64)`mod`64), 0x80 + (x`mod`64)], 3)
+                else if (x <= 0x10FFFF)
+                 then (bytes [0xF0 + (x`div`262144), 0x80 + ((x`div`4096)`mod`64), 0x80 + ((x`div`64)`mod`64), 0x80 + (x`mod`64)], 4)
+                 else escape (toEnum 0xFFFD)
+  
 
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
@@ -1779,14 +1801,8 @@ reserved
     , "import"
     , "super"
     ]
-    ++ -- special globals
-    [ "window"
-    , "document"
-    , "process"
-    , "exports"
-    , "module"
-    , "Date"
-    , "Error"
+    ++ -- special macros
+    [ "errno"
     ]
 
 block :: Doc -> Doc

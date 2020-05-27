@@ -24,6 +24,9 @@ static struct { block_t block; struct vector_s vec; } _vector_empty
   = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 /* length = box_enum(0) */, {0} } };
 vector_t vector_empty = (datatype_t)(&_vector_empty);
 
+// empty string
+define_string_literal(, string_empty, 0, "");
+
 /*--------------------------------------------------------------------------------------------------
   Errors 
 --------------------------------------------------------------------------------------------------*/
