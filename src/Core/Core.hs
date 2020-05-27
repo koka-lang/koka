@@ -210,10 +210,11 @@ data DataRepr = -- value types
                 DataEnum            -- only singletons (as an enumeration)
               | DataIso             -- only one constructor with one field  (isomorpic)
               | DataSingleStruct    -- only one constructor (no tag needed)
+              | DataAsMaybe         -- one constructor with fields, and one singleton 
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
               | DataSingle          -- only one constructor (no tag needed)
-              | DataAsList          -- one constructor with fields, and one singleton (can distinguish pointer vs enum)
+              | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal
               | DataOpen
@@ -223,6 +224,7 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conDataRepr :: DataRepr, conTag ::
               | ConIso{ conTypeName:: Name, conDataRepr :: DataRepr, conTag :: Int }                       -- one constructor with one field
               | ConSingleton{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                -- constructor without fields (and not part of an enum)
               | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- there is only one constructor and it is not iso or singleton (and this is it)
+              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the cons node of a maybe-like value datatype  (may have one or more fields)
               | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- constructor as value type
               | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
               | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr }                                  -- constructor of open data type
@@ -276,21 +278,28 @@ getDataReprEx getIsValue info
                   ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
                     else if length singletons == 1 then ConSingleton typeName dataRepr
                     else ConSingle typeName dataRepr])
-         else if (isValue && not (dataInfoIsRec info))
-          then (DataStruct, map (\con -> if null (conInfoParams con) 
+         else if (isValue && not (dataInfoIsRec info)) then (
+           if (length conInfos == 2 && length singletons == 1)
+             then (DataAsMaybe
+                  ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
+                                 else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
+             else (DataStruct, map (\con -> if null (conInfoParams con) 
                                           then ConSingleton typeName DataStruct
                                           else ConStruct typeName DataStruct) conInfos )
-         else if (length conInfos == 2 && length singletons == 1)
-          then (DataAsList
-               ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
-                              else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
-         else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) 
-                              then DataSingleNormal else DataNormal
-              in (dataRepr
-                 ,map (\con -> if null (conInfoParams con) 
-                                then ConSingleton typeName dataRepr
-                                else ConNormal typeName dataRepr) conInfos
-                 )
+         )
+         else (
+          if (length conInfos == 2 && length singletons == 1)
+            then (DataAsList
+                 ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
+                                else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
+           else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) 
+                                then DataSingleNormal else DataNormal
+                in (dataRepr
+                   ,map (\con -> if null (conInfoParams con) 
+                                  then ConSingleton typeName dataRepr
+                                  else ConNormal typeName dataRepr) conInfos
+                   )
+         )
       in (dataRepr, [conReprFun tag | (conReprFun,tag) <- zip conReprFuns [1..]])
 
 

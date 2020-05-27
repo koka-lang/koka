@@ -373,7 +373,7 @@ genTypeDef (Data info isExtend)
              return ()
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
-          else emitToH $ if (isDataStruct dataRepr)
+          else emitToH $ if (isDataStructLike dataRepr)
                   then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
                        <-> block (text "value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
@@ -426,7 +426,7 @@ genBox name info dataRepr
                     in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
-                  -> let extra = if (dataRepr == DataStruct) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  -> let extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
                      in vcat [ text "box_t _box;" 
                              , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", pretty (scancount + extra) <+> text "/* scan fields */"] <.> semi
                              , text "return _box;" ]
@@ -453,7 +453,7 @@ genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
   case conRepr of
     ConEnum _ _ _
        -> return () -- already in enum declaration
-    _ | null conFields && (dataRepr < DataNormal && not (isDataStruct dataRepr))
+    _ | null conFields && (dataRepr < DataNormal && not (isDataStructLike dataRepr))
        -> return ()
     _  -> do emitToH $ ppVis (conInfoVis con) <.> text "struct" <+> ppName ((conInfoName con)) <+>
                        block (let fields = (typeField ++ map ppConField conFields)
@@ -490,8 +490,10 @@ genConstructorTest info dataRepr con conRepr
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
                     ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
+                                   | dataRepr == DataAsMaybe -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
                                    | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConSingle{}    -> text "true"
+                    ConAsJust{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
                     ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
                     ConAsCons{}    -> text "datatype_is_ptr(x)"
                     ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
@@ -509,8 +511,8 @@ ppConTag con conRepr dataRepr
   = case conRepr of
       ConOpen{} ->  ppName (makeHiddenName "tag" (conInfoName con))
       ConEnum{} ->  ppName (conInfoName con)
-      ConSingleton{} | dataRepr == DataAsList -> text "datatype_from_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
-      _         | dataRepr == DataStruct -> text "value_tag(" <.> pretty (conTag conRepr) <.> text ")"
+      ConSingleton{}  | dataRepr == DataAsList -> text "datatype_from_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
+      _         | isDataStructLike dataRepr -> text "value_tag(" <.> pretty (conTag conRepr) <.> text ")"
       _         ->  pretty (conTag conRepr)
 
 genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
@@ -625,7 +627,7 @@ orderConFields ddef fields
       = do (dd,dataRepr) <- getDataDefRepr tp
            case dd of
              DataDefValue raw scan
-               -> let extra = if (dataRepr == DataStruct) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+               -> let extra = if (isDataStructLike dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
@@ -660,16 +662,22 @@ ppDefName name
 vcatBreak []  = empty
 vcatBreak xs  = linebreak <.> vcat xs
 
+isDataStructLike (DataAsMaybe) = True
+isDataStructLike (DataStruct) = True
+isDataStructLike _ = False
 
+-- explicit tag field?
 hasTagField :: DataRepr -> Bool
-hasTagField DataStruct = True
-hasTagField rep        = False
+hasTagField DataAsMaybe = True   
+hasTagField DataStruct  = True
+hasTagField rep         = False
 
 -- Value data is not heap allocated and needs no header
 dataReprIsValue :: DataRepr -> Bool
 dataReprIsValue DataEnum         = True
 dataReprIsValue DataIso          = True
 dataReprIsValue DataSingleStruct = True
+dataReprIsValue DataAsMaybe      = True
 dataReprIsValue DataStruct       = True   -- structs have a tag field though
 dataReprIsValue _                = False
 
@@ -1009,9 +1017,9 @@ genPatternTest doTest (exprDoc,pattern)
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
               --   return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
-              do let selectOp = case dataRepr of
-                                  DataStruct -> "._cons." ++ show (ppDefName (getName conName)) ++ "."
-                                  _          -> "."
+              do let selectOp = if (isDataStructLike dataRepr)
+                                 then "._cons." ++ show (ppDefName (getName conName)) ++ "."
+                                 else "."
                      next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns
                  return [(test [conTestName conInfo <.> tupled [exprDoc]],[],next)]
 

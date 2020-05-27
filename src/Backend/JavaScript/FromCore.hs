@@ -241,21 +241,29 @@ genTypeDef (Data info isExtend)
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)
              penv <- getPrettyEnv
+             let singletonValue val 
+                     = constdecl <+> name <+> text "=" <+>
+                         text val <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
              if (conInfoName c == nameTrue)
               then return (constdecl <+> name <+> text "=" <+> text "true" <.> semi)
               else if (conInfoName c == nameFalse)
               then return (constdecl <+> name <+> text "=" <+> text "false" <.> semi)
               else return $ case repr of
+                -- special
                 ConEnum{}
                    -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                ConSingleton _ DataAsList _
-                   -> constdecl <+> name <+> text "=" <+>
-                        text (if conInfoName c == nameOptionalNone then "undefined" else "null")
-                         <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+                ConSingleton _ _ _ | conInfoName c == nameOptionalNone
+                   -> singletonValue "undefined"
+                ConSingleton _ DataAsMaybe _ 
+                   -> singletonValue "null"
+                ConSingleton _ DataAsList _ 
+                   -> singletonValue "null"
                 -- tagless
                 ConIso{}     -> genConstr penv c repr name args []
                 ConSingle{}  -> genConstr penv c repr name args []
                 ConAsCons{}  -> genConstr penv c repr name args []
+                ConAsJust{}  -> genConstr penv c repr name args []                
+                -- normal with tag
                 _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
        return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
@@ -552,15 +560,18 @@ genMatch result scrutinees branches
                 -> [text "!" <.> scrutinee]
                 | otherwise
                 -> case repr of
+                     -- special
                      ConEnum _ _ tag
                        -> [debugWrap "genTest: enum"      $ scrutinee <+> text "===" <+> int tag]
                      ConSingleton _ _ _
                        | getName tn == nameOptionalNone
                        -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
+                     ConSingleton _ DataAsMaybe _
+                       -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]  
                      ConSingleton _ DataAsList _
-                       -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"]  
+                       -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]  
                      ConSingleton _ _ tag
-                       -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]  -- use == instead of === since undefined == null (for optional arguments)
+                       -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]                          
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
                             (\(field,fieldName) -> genTest modName (
@@ -570,12 +581,17 @@ genMatch result scrutinees branches
 
                      ConIso{} -- always success
                        -> []
-                     ConStruct{}
+                     ConAsJust{conAsNothing=nothing}                       
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
-                     ConAsCons{}                       
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!= null" -- use === instead of == since undefined == null (for optional arguments)
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" -- <+> ppName nothing 
+                              fieldTests = concatMap
+                                             (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
+                                             (zip fields (map (ppName . fst) (conInfoParams info)) )
+                          in (conTest:fieldTests)
+                     ConAsCons{conAsNil=nil}                       
+                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null" -- <+> ppName nil 
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
