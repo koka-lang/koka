@@ -23,6 +23,10 @@ static box_t _function_id(function_t self, box_t x, context_t* ctx) {
 define_static_function(function_id, _function_id);
 
 
+static struct { block_t block; struct vector_s vec; } _vector_empty 
+  = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 /* length = box_enum(0) */, {0} } };
+vector_t vector_empty = (datatype_t)(&_vector_empty);  
+
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
@@ -51,6 +55,7 @@ context_t* runtime_context(void) {
   if (ctx!=NULL) return ctx;
   runtime_init();
   ctx = (context_t*)calloc(sizeof(context_t),1);
+  ctx->evv = vector_dup(vector_empty);
   ctx->thread_id = (uint_t)(&context);
   ctx->unique = integer_from_small(1);
   return ctx;

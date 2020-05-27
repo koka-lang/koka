@@ -154,6 +154,7 @@ typedef enum tag_e {
   TAG_STRING,
   TAG_STRING_SMALL,
   TAG_BYTES,
+  TAG_VECTOR,
   TAG_INT64,
   TAG_CPTR,          // full void*
 #if INT_T_SIZE < 8
@@ -379,7 +380,7 @@ typedef struct yield_s {
 
 typedef struct context_s {
   heap_t     heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  datatype_t evv;              // the current evidence vector for effect handling
+  datatype_t evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   yield_t    yield;            // inlined yield structure (for efficiency)
   int32_t    marker_unique;    // unique marker generation
   block_t*   delayed_free;     // list of blocks that still need to be freed
@@ -894,7 +895,7 @@ static inline void unsupported_external(const char* msg) {
   Unit
 --------------------------------------------------------------------------------------*/
 typedef enum unit_e {
-  unit = 0
+  Unit = 0
 } unit_t;
 
 static inline box_t box_unit_t(unit_t u) {
@@ -904,5 +905,53 @@ static inline box_t box_unit_t(unit_t u) {
 static inline box_t unbox_unit_t(box_t u) {
   return unbox_enum(u);
 }
+
+/*--------------------------------------------------------------------------------------
+  Vector
+--------------------------------------------------------------------------------------*/
+struct vector_s {
+  box_t length;
+  box_t vec[1];
+};
+typedef datatype_t vector_t;
+
+static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
+  struct vector_s* v = ptr_data_as(struct vector_s, ptr_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx));
+  v->length = box_enum(length);
+  if (def != 0) {
+    for (size_t i = 0; i < length; i++) {
+      v->vec[i] = def;
+    }
+    v->vec[length] = 0; // ending zero value
+  }
+  return datatype_from_data(v);
+}
+
+static inline void vector_drop(vector_t v, context_t* ctx) {
+  datatype_drop(v, ctx);
+}
+
+static inline vector_t vector_dup(vector_t v) {
+  return datatype_dup(v);
+}
+
+static inline box_t* vector_buf(vector_t v, size_t* len) {
+  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
+  if (len != NULL) *len = unbox_enum(vec->length);
+  return &vec->vec[0];
+}
+
+static inline box_t vector_at(vector_t v, size_t i) {
+  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
+  assert(i < unbox_enum(vec->length));
+  return boxed_dup(vec->vec[i]);
+}
+
+static inline size_t vector_len(vector_t v) {
+  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
+  return unbox_enum(vec->length);
+}
+
+extern vector_t vector_empty;
 
 #endif // include guard
