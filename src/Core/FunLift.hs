@@ -60,7 +60,7 @@ liftDefGroups topLevel defGroups
   = do -- traceDoc (\penv -> text "lifting")
        fmap concat $ mapM (liftDefGroup topLevel) defGroups
 
-liftDefGroup :: Bool -> DefGroup -> Lift DefGroups
+liftDefGroup :: Bool {-toplevel -} -> DefGroup -> Lift DefGroups
 liftDefGroup True (DefNonRec def)
   = do (def', groups) <- collectLifted $ liftDef True def
        return $  groups ++ [DefNonRec def'] -- all lifted definitions are put before the current definition
@@ -113,6 +113,28 @@ liftSort :: Bool -> DefSort -> DefSort
 liftSort False DefFun = DefVal
 liftSort _ sort = sort
 
+{-
+liftDefExpr :: Bool -> Expr -> Lift Expr
+liftDefExpr topLevel expr
+  = case expr of
+      Lam args eff body
+        -> do body' <- liftExpr False body
+              let expr' = Lam args eff body'
+              return expr'  -- don't lift locally named functions
+              {-
+              -- top level or simple functions are allowed
+              if (topLevel || isSimpleFunc expr)
+                then return expr'
+                -- lift local functions
+                else liftLocalFun expr' eff
+              -}
+      TypeLam tvars (Lam pars eff lbody) | not topLevel || not (isSimpleFunc expr)
+        -> do expr1 <- liftExpr False lbody
+              liftLocalFun (TypeLam tvars (Lam pars eff expr1)) eff
+
+      _ -> liftExpr topLevel expr
+-}
+
 liftExpr :: Bool
          -> Expr
          -> Lift Expr
@@ -123,13 +145,20 @@ liftExpr topLevel expr
             args' <- mapM (liftExpr False) args
             return (App f' args')
 
-    Lam args eff body
-      -> do body' <- liftExpr topLevel body
+    Lam args eff body  -- don't lift anonymous functions
+      -> do body' <- liftExpr False body
             let expr' = Lam args eff body'
-            -- top level or simple functions are allowed
+            return expr'
+{-
+            --  top level or simple functions are allowed
             if (topLevel || isSimpleFunc expr) then return expr'
-            -- lift local functions
+            --  lift local functions
             else liftLocalFun expr' eff
+
+    TypeLam tvars (Lam pars eff lbody) | not topLevel && not (isSimpleFunc expr)
+      -> do expr1 <- liftExpr False lbody
+            liftLocalFun (TypeLam tvars (Lam pars eff expr1)) eff
+-}
     Let defgs body
       -> do -- liftTrace ("let hi "  ++ show expr)
             defgs' <- liftDefGroups False defgs
@@ -141,9 +170,6 @@ liftExpr topLevel expr
             bs'    <- mapM liftBranch bs
             return (Case exprs' bs')
 
-    TypeLam tvars (Lam pars eff lbody) | not topLevel && not (isSimpleFunc expr)
-      -> do expr1 <- liftExpr False lbody
-            liftLocalFun (TypeLam tvars (Lam pars eff expr1)) eff
     TypeLam tvars body
       -> do body' <- liftExpr topLevel body
             return (TypeLam tvars body')

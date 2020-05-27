@@ -41,7 +41,7 @@ import Core.Simplify
 import Core.Inlines
 
 trace s x =
-  -- Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 
@@ -80,7 +80,7 @@ inlLocalDefGroups dgs = mapM inlLocalDefGroup dgs
 
 inlLocalDefGroup (DefRec defs)
   = do defs' <- mapM inlDef defs
-       return (DefRec defs)
+       return (DefRec defs')
 inlLocalDefGroup (DefNonRec def)
  = do def' <- inlDef def
       return (DefNonRec def')
