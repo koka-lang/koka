@@ -87,7 +87,8 @@ We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
 ----------------------------------------------------------------*/
 
-#define box_null   (datatype_null)    // enum 0
+#define box_ptr_null  (ptr_null)         // box_ptr(NULL)
+#define box_null      (datatype_null)    // box_enum(0)
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool is_ptr_fast(box_t b) {
@@ -121,7 +122,7 @@ static inline bool is_ptr_and_not_double(box_t b) {
   // faster test if a `ptr` is guaranteed to not have 0xFFFF as the top 16 bits. (which is usually the case, unless you are kernel programming)
   // this is used when doing `boxed_incref` for example.
   assert_internal(is_ptr_fast(b));
-  return ((uint16_t)shr(b, 48) == 0);  
+  return ((uint16_t)shr(b, 48) == 0);
 }
 static inline bool is_ptr(box_t b) {
   return (is_ptr_fast(b) && likely(is_ptr_and_not_double(b)));
@@ -233,6 +234,10 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 #else
 # error "platform must be 32 or 64 bits."
 #endif
+
+static inline bool is_non_null_ptr(v) {
+  return (is_ptr(v) && v != box_ptr_null);
+}
 
 static inline ptr_t unbox_ptr(box_t v) {
   assert_internal(is_ptr(v));

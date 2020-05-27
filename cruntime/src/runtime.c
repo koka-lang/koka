@@ -13,19 +13,21 @@ void fatal_error(const char* msg) {
   abort();
 }
 
+// ptr_null
 static block_t ptr_null_block = { HEADER_STATIC(0,TAG_INVALID) };
 ptr_t ptr_null = (ptr_t)(&ptr_null_block);
 
+// identity function
 static box_t _function_id(function_t self, box_t x, context_t* ctx) {
   function_drop(self,ctx);
   return x;
 }
 define_static_function(function_id, _function_id);
 
-
-static struct { block_t block; struct vector_s vec; } _vector_empty 
+// empty vector
+static struct { block_t block; struct vector_s vec; } _vector_empty
   = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 /* length = box_enum(0) */, {0} } };
-vector_t vector_empty = (datatype_t)(&_vector_empty);  
+vector_t vector_empty = (datatype_t)(&_vector_empty);
 
 /*--------------------------------------------------------------------------------------------------
   Process init/done
@@ -83,4 +85,3 @@ static void __attribute__((constructor)) process_init(void) {
 #else
 #pragma message("define a way to call runtime_init on your platform")
 #endif
-

@@ -11,10 +11,12 @@
   Decrementing reference counts
   When freeing a block, we need to decrease reference counts of its children
   recursively. We carefully optimize to use no stack space in case of single field
-  chains (like lists) and recurse to limited depth in other cases, using a 
-  `delayed_free` list in the thread local data. 
+  chains (like lists) and recurse to limited depth in other cases, using a
+  `delayed_free` list in the thread local data. The `delayed_free` list is
+  encoded in the headers and thus needs no allocation.
 --------------------------------------------------------------------------------------*/
 
+// Decrement a refcount without freeing the block yet. Returns true if there are no more references.
 static bool block_decref_no_free(block_t* b) {
   uint32_t count = (b->header.rc32.lo)--;
 #if REFCOUNT_LIMIT_TO_32BIT
@@ -28,8 +30,7 @@ static bool block_decref_no_free(block_t* b) {
   return false;
 }
 
-
-
+// Push a block on the delayed-free list
 static void block_push_delayed_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.h.refcount == 0);
   block_t* delayed = ctx->delayed_free;
@@ -44,8 +45,10 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
 
 static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
 
+// Free all delayed free blocks.
+// TODO: limit to a certain number to limit worst-case free times?
 static void block_decref_delayed(context_t* ctx) {
-  block_t* delayed; 
+  block_t* delayed;
   while ((delayed = ctx->delayed_free) != NULL) {
     ctx->delayed_free = NULL;
     do {
@@ -67,6 +70,9 @@ static void block_decref_delayed(context_t* ctx) {
 
 #define MAX_RECURSE_DEPTH (100)
 
+// Free recursively a block -- if the recursion becomes too deep, push
+// blocks on the delayed free list to free them later. The delayed free list
+// is encoded in the headers and needs no further space.
 static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx) {
   while(true) {
     assert_internal(b->header.rc32.lo == UINT32_MAX);
@@ -80,7 +86,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
       // if just one field, we can recursively free without using stack space
       const box_t v = block_field(b, 0);;
       runtime_free(b);
-      if (is_ptr(v)) {
+      if (is_non_null_ptr(v)) {
         // try to free the child now
         b = ptr_as_block(unbox_ptr(v));
         if (block_decref_no_free(b)) {
@@ -88,7 +94,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
           continue; // tailcall
         }
       }
-      return; 
+      return;
     }
     else {
       // more than 1 field
@@ -97,7 +103,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
         // free fields up to the last one
         for (size_t i = 0; i < (scan_fsize-1); i++) {
           box_t v = block_field(b, i);
-          if (is_ptr(v)) {
+          if (is_non_null_ptr(v)) {
             block_t* vb = ptr_as_block(unbox_ptr(v));
             if (block_decref_no_free(vb)) {
               block_decref_free(vb, depth+1, ctx); // recurse with increased depth
@@ -107,7 +113,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
         // and recurse into the last one
         box_t v = block_field(b,scan_fsize - 1);
         runtime_free(b);
-        if (is_ptr(v)) {
+        if (is_non_null_ptr(v)) {
           b = ptr_as_block(unbox_ptr(v));
           if (block_decref_no_free(b)) {
             continue; // tailcall
@@ -124,26 +130,27 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
   }
 }
 
+// Free a block and recursively decrement reference counts on children.
 void block_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.rc32.lo == UINT32_MAX);
   if (b->header.h.scan_fsize==0) {
     runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
-    block_decref_free(b, 0, ctx);
-    block_decref_delayed(ctx);
+    block_decref_free(b, 0, ctx);  // free recursively
+    block_decref_delayed(ctx);     // process delayed frees
   }
 }
 
+// Check if a reference decrement caused the block to be free.
 void noinline ptr_check_free(ptr_t p, context_t* ctx) {
   block_t* b = ptr_as_block(p);
   assert_internal(b->header.rc32.lo == UINT32_MAX);  // just underflowed
   if (b->header.rc32.hi==0) {
-    block_free(b, ctx);
+    block_free(b, ctx);  // no more references, free it.
   }
   else {
     // large refcount, propagate the borrow
     b->header.rc32.hi--;
   }
 }
-
