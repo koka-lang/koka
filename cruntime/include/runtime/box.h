@@ -235,7 +235,7 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 # error "platform must be 32 or 64 bits."
 #endif
 
-static inline bool is_non_null_ptr(v) {
+static inline bool is_non_null_ptr(box_t v) {
   return (is_ptr(v) && v != box_ptr_null);
 }
 

@@ -63,9 +63,9 @@ module Common.NamePrim
           , nameEffectEmpty, nameEffectExtend, nameEffectAppend
 
           , nameTpBool, nameTpInt, nameTpChar
-          , nameTpFloat
+          , nameTpFloat, nameTpFloat32
           , nameTpString
-          , nameTpInt32
+          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte
           , nameTpAny
           , nameTpNull
           , nameTpException
@@ -328,7 +328,12 @@ nameTpUnit      = coreTypesName "()"
 nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
 nameTpInt32     = coreTypesName "int32"
+nameTpInt64     = coreTypesName "int64"
+nameTpInt16     = coreTypesName "int16"
+nameTpInt8      = coreTypesName "int8"
+nameTpByte      = coreTypesName "byte"
 nameTpFloat     = coreTypesName "double"
+nameTpFloat32   = coreTypesName "float"
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"

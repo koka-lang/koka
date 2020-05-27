@@ -367,6 +367,12 @@ typedef datatype_t function_t;
 
 #define YIELD_CONT_MAX (8)
 
+typedef enum yield_kind_e {
+  YIELD_NONE,
+  YIELD_NORMAL,
+  YIELD_FINAL
+} yield_kind_t;
+
 typedef struct yield_s {
   uint8_t    yielding;        // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception)
   int32_t    marker;          // marker of the handler to yield to
@@ -379,13 +385,15 @@ typedef struct yield_s {
 } yield_t;
 
 typedef struct context_s {
-  heap_t     heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  datatype_t evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
-  yield_t    yield;            // inlined yield structure (for efficiency)
-  int32_t    marker_unique;    // unique marker generation
-  block_t*   delayed_free;     // list of blocks that still need to be freed
-  integer_t  unique;           // thread local unique number generation
-  uint_t     thread_id;        // unique thread id
+  heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
+  datatype_t  evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  yield_t     yield;            // inlined yield structure (for efficiency)
+  int32_t     marker_unique;    // unique marker generation
+  block_t*    delayed_free;     // list of blocks that still need to be freed
+  integer_t   unique;           // thread local unique number generation
+  uint_t      thread_id;        // unique thread id
+  function_t* log;              // logging function
+  function_t* out;              // std output
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -396,11 +404,11 @@ decl_export context_t* runtime_context(void);
 
 // Is the execution yielding?
 static inline bool yielding(context_t* ctx) {
-  return (ctx->yield.yielding != 0);
+  return (ctx->yield.yielding != YIELD_NONE);
 };
 
 static inline bool yielding_non_final(context_t* ctx) {
-  return (ctx->yield.yielding == 1);
+  return (ctx->yield.yielding == YIELD_NORMAL);
 };
 
 // Get a thread local marker unique number.
@@ -750,6 +758,11 @@ static inline function_t function_dup(function_t f) {
 
 
 /*--------------------------------------------------------------------------------------
+  Char as unicode point
+--------------------------------------------------------------------------------------*/
+typedef int32_t char_t;
+
+/*--------------------------------------------------------------------------------------
   Strings
 --------------------------------------------------------------------------------------*/
 
@@ -861,6 +874,7 @@ decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
 decl_export int_t string_icmp_borrow(string_t str1, string_t str2);
 decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);
 
+
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
@@ -885,11 +899,12 @@ static inline void ref_set(ref_t r, box_t value, context_t* ctx) {
   *b = value;
 }
 
-decl_export void fatal_error(const char* msg);
+decl_export void fatal_error(int err, const char* msg, ...);
 
 static inline void unsupported_external(const char* msg) {
-  fatal_error(msg);
+  fatal_error(ENOSYS,msg);
 }
+
 
 /*--------------------------------------------------------------------------------------
   Unit
@@ -953,5 +968,28 @@ static inline size_t vector_len(vector_t v) {
 }
 
 extern vector_t vector_empty;
+
+/*--------------------------------------------------------------------------------------
+  Bytes
+--------------------------------------------------------------------------------------*/
+
+// Bytes are a vector of raw bytes (TAG_BYTES)
+struct bytes_s {
+  size_t   length;
+  char     buf[1];
+};
+
+typedef void (*free_fun_t)(const void*);
+
+// Or a pointer to raw data that was potentially `malloc`'d  (TAG_BYTES_RAW)
+struct bytes_raw_s {
+  size_t      length;
+  free_fun_t* free;
+  uint8_t*    data;
+};
+
+typedef datatype_t bytes_t;  // either TAG_BYTES or TAG_BYTES_RAW
+
+
 
 #endif // include guard

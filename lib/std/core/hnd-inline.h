@@ -6,10 +6,6 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-static inline datatype_t evv_get(context_t* ctx) {
-  return datatype_dup(ctx->evv);
-}
-
 static inline datatype_t evv_at( int32_t i, context_t* ctx ) {
   // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
   const vector_t evv = ctx->evv;
@@ -51,7 +47,7 @@ static inline datatype_t evv_swap_create1(int32_t i, context_t* ctx) {
     return datatype_dup(evv0);
   }
   else {      
-    ctx->evv = vector_at(evv0,i);
+    ctx->evv = unbox_datatype(vector_at(evv0,i));
     return evv0;
   }
 }
@@ -63,7 +59,7 @@ datatype_t   evv_insert(datatype_t evv, datatype_t ev, context_t* ctx);
 datatype_t   evv_delete(datatype_t evv, int32_t index, bool behind, context_t* ctx);
 string_t     evv_show(datatype_t evv, context_t* ctx);
 unit_t       evv_guard(datatype_t evv, context_t* ctx);
-datatype     evv_swap_create( vector_t indices );
+datatype_t   evv_swap_create( vector_t indices, context_t* ctx );
 box_t        fatal_resume_final(context_t* ctx);
 box_t        yield_cont( function_t next, context_t* ctx );
 box_t        yield_extend( function_t next, context_t* ctx );

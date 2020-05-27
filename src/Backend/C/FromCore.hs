@@ -490,8 +490,7 @@ genConstructorTest info dataRepr con conRepr
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
                     ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
-                                   | dataRepr == DataAsMaybe -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
-                                   | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
+                                   | otherwise -> text (if (dataReprIsValue dataRepr) then "x._tag ==" else "x ==") <+> ppConTag con conRepr dataRepr
                     ConSingle{}    -> text "true"
                     ConAsJust{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
                     ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
@@ -777,8 +776,10 @@ cTypeCon c
          then CPrim "integer_t"
         else if (name == nameTpString)
          then CPrim "string_t"
+        else if (name == nameTpVector)
+         then CPrim "vector_t"
         else if (name == nameTpChar)
-         then CPrim "int32_t"
+         then CPrim "char_t"  -- 32-bit unicode point
         else if (name == nameTpInt32)
          then CPrim "int32_t"
         else if (name == nameTpFloat)
@@ -787,6 +788,16 @@ cTypeCon c
          then CPrim "bool"
         else if (name == nameTpUnit)
          then CPrim "unit_t"
+        else if (name == nameTpInt64)
+         then CPrim "int64_t"
+        else if (name == nameTpInt16)
+         then CPrim "int16_t"
+        else if (name == nameTpInt8)
+         then CPrim "int8_t"
+        else if (name == nameTpByte)
+         then CPrim "uint8_t"
+        else if (name == nameTpFloat32)
+         then CPrim "float"
         else CData (typeClassName name)
 
 
@@ -1133,7 +1144,7 @@ genPure expr
      Con name info
        | getName name == nameTrue -> return (text "true")
        | getName name == nameFalse -> return (text "false")
-       | getName name == nameUnit  -> return (text "unit")
+       | getName name == nameUnit  -> return (text "Unit")
        | otherwise -> return (conCreateName (getName name) <.> arguments [])
      Lit l
        -> return $ ppLit l

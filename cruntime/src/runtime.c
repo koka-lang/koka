@@ -6,12 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #include "runtime.h"
-
-
-void fatal_error(const char* msg) {
-  fputs(msg, stderr);
-  abort();
-}
+#include <stdarg.h>
 
 // ptr_null
 static block_t ptr_null_block = { HEADER_STATIC(0,TAG_INVALID) };
@@ -29,6 +24,65 @@ static struct { block_t block; struct vector_s vec; } _vector_empty
   = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 /* length = box_enum(0) */, {0} } };
 vector_t vector_empty = (datatype_t)(&_vector_empty);
 
+/*--------------------------------------------------------------------------------------------------
+  Errors 
+--------------------------------------------------------------------------------------------------*/
+static void _strlcpy(char* dest, const char* src, size_t dest_size) {
+  dest[0] = 0;
+#pragma warning(suppress:4996)
+  strncpy(dest, src, dest_size - 1);
+  dest[dest_size - 1] = 0;
+}
+/*
+static void _strlcat(char* dest, const char* src, size_t dest_size) {
+#pragma warning(suppress:4996)
+  strncat(dest, src, dest_size - 1);
+  dest[dest_size - 1] = 0;
+}
+*/
+
+typedef enum log_level_e {
+  LOG_FATAL,
+  LOG_ERROR,
+  LOG_WARNING,
+  LOG_INFO,
+  LOG_DEBUG,
+  LOG_TRACE
+} log_level_t;
+
+static void log_message(log_level_t level, const char* msg, context_t* ctx) {
+  UNUSED(ctx); UNUSED(level);
+  fputs(msg,stderr); // TODO: use ctx->log
+}
+
+static void log_message_fmt(context_t* ctx, log_level_t level, const char* fmt, va_list args) {
+  char buf[512];
+  if (fmt==NULL) return;
+  size_t prefix_len = 0;
+  const char* prefix = NULL;
+  if (level==LOG_FATAL) prefix = "fatal: ";
+  else if (level==LOG_ERROR) prefix = "error: ";
+  else if (level==LOG_WARNING) prefix = "warning: ";
+  else if (level==LOG_INFO) prefix = "info: ";
+  else if (level==LOG_DEBUG) prefix = "debug: ";
+  else if (level==LOG_TRACE) prefix = "trace: ";
+  if (prefix!=NULL) {
+    prefix_len = strlen(prefix);
+    _strlcpy(buf, prefix, sizeof(buf));
+  }
+  vsnprintf(buf + prefix_len, sizeof(buf) - 1 - prefix_len, fmt, args);
+  log_message(level,buf,ctx);
+}
+
+void fatal_error(int err, const char* fmt, ...) {
+  UNUSED(err);
+  va_list args;
+  va_start(args, fmt);
+  log_message_fmt(runtime_context(), LOG_FATAL, fmt, args);
+  va_end(args);
+  abort();   // todo: call error handler
+}
+  
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
