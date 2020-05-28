@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <string.h> // memcpy
 #include <ctype.h>
+#include <math.h>   // INFINITY
 #include "runtime.h"
 #include "runtime/integer.h"
 
@@ -353,7 +354,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
-  if (!isdigit(s[i])) return box_cptr(NULL);  // must start with a digit
+  if (!isdigit(s[i])) return box_null;  // must start with a digit
   // significant 
   for (; s[i] != 0; i++) {
     char c = s[i];
@@ -365,7 +366,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
     else if ((c == '.' || c=='e' || c=='E') && isdigit(s[i+1])) { // found fraction/exponent
       break;
     }
-    else return box_cptr(NULL); // error    
+    else return box_null; // error    
   }
   // fraction
   size_t frac_digits = 0;
@@ -381,7 +382,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       else if ((c=='e' || c=='E') && isdigit(s[i+1]) && (s[i+1] != '0')) { // found fraction/exponent
         break;
       }
-      else return box_cptr(NULL); // error    
+      else return box_null; // error    
     }
   }
   const char* end = s + i;
@@ -393,9 +394,9 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       char c = s[i];
       if (isdigit(c)) {
         exp = 10*exp + ((size_t)c - '0');
-        if (exp > BASE) return box_cptr(NULL); // exponents must be < 10^9
+        if (exp > BASE) return box_null; // exponents must be < 10^9
       }
-      else return box_cptr(NULL);
+      else return box_null;
     }
   }
   if (exp < frac_digits) return box_cptr(NULL); // fractional number
@@ -1293,3 +1294,34 @@ integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
   return integer_bigint(b, ctx);
 }
 
+int32_t integer_clamp32_generic(integer_t x, context_t* ctx) {
+  bigint_t* bx = integer_to_bigint(x, ctx);
+  int32_t i = bx->digits[0];
+  if (bx->count > 1) i += (int32_t)(bx->digits[1]*BASE);
+  if (bx->is_neg) i = -i;
+  bigint_drop(bx,ctx);
+  return i;
+}
+
+int64_t integer_clamp64_generic(integer_t x, context_t* ctx) {
+  bigint_t* bx = integer_to_bigint(x, ctx);
+  int64_t i = bx->digits[0];
+  if (bx->count > 1) i += ((int64_t)bx->digits[1])*BASE;
+  if (bx->count > 2) i += ((int64_t)bx->digits[2])*BASE*BASE;
+  if (bx->is_neg) i = -i;
+  bigint_drop(bx, ctx);
+  return i;
+}
+
+double integer_as_double_generic(integer_t x, context_t* ctx) {
+  bigint_t* bx = integer_to_bigint(x, ctx);
+  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -INFINITY : INFINITY);
+  double base = (double)BASE;
+  double d = 0.0;
+  for (size_t i = bx->count; i > 0; i--) {
+    d = (d*base) + ((double)bx->digits[i-1]);
+  }
+  if (bx->is_neg) d = -d;
+  bigint_drop(bx, ctx);
+  return d;
+}

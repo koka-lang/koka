@@ -230,7 +230,7 @@
       },
 
     "libraryid":
-      { "match": "(finally|inline|cs|js|file|ref|resume|resume-shallow|context)(?![\\w\\-?'])"
+      { "match": "(finally|inline|noinline|value|novalue|c|cs|js|file|ref|resume|resume-shallow|context)(?![\\w\\-?'])"
       , "name": "support.function.koka"
       },
 

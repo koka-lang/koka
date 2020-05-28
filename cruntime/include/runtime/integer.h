@@ -61,8 +61,8 @@ static inline integer_t integer_from_small(int_t i) {   // use for known small i
   Generic operations on integers
 -----------------------------------------------------------------------------------*/
 
-static inline box_t     box_integer(integer_t i) { return i; }
-static inline integer_t unbox_integer(box_t b) { return b; }
+static inline box_t     box_integer_t(integer_t i) { return i; }
+static inline integer_t unbox_integer_t(box_t b)   { return b; }
 
 static inline void      integer_incref(integer_t x) { boxed_dup(x); }
 static inline integer_t integer_dup(integer_t x)    { return boxed_dup(x); }
@@ -71,6 +71,10 @@ static inline void      integer_decref(integer_t x, context_t* ctx) { boxed_drop
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
 decl_export integer_t  integer_from_big(int_t i, context_t* ctx);      // for possibly large i
+
+decl_export int32_t    integer_clamp32_generic(integer_t i, context_t* ctx);
+decl_export int64_t    integer_clamp64_generic(integer_t i, context_t* ctx);
+decl_export double     integer_as_double_generic(integer_t i, context_t* ctx);
 
 decl_export integer_t  integer_add_generic(integer_t x, integer_t y, context_t* ctx);
 decl_export integer_t  integer_sub_generic(integer_t x, integer_t y, context_t* ctx);
@@ -293,6 +297,20 @@ static inline integer_t integer_div_mod(integer_t x, integer_t y, integer_t* mod
   return integer_div_mod_generic(x, y, mod, ctx);
 }
 
+static inline int32_t integer_clamp32(integer_t x, context_t* ctx) {
+  if (likely(is_smallint(x))) return (int32_t)unbox_int(x);
+  return integer_clamp32_generic(x, ctx);
+}
+
+static inline int64_t integer_clamp64(integer_t x, context_t* ctx) {
+  if (likely(is_smallint(x))) return (int64_t)unbox_int(x);
+  return integer_clamp64_generic(x, ctx);
+}
+
+static inline double integer_as_double(integer_t x, context_t* ctx) {
+  if (likely(is_smallint(x))) return (double)unbox_int(x);
+  return integer_as_double_generic(x, ctx);
+}
 
 static inline integer_t integer_sqr(integer_t x, context_t* ctx) {
   if (likely(is_smallint(x))) return integer_mul_small(x,x,ctx);

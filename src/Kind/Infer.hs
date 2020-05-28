@@ -407,7 +407,8 @@ formatCall tp (target,ExternalCall fname)
   = case target of
       CS      -> (target,formatCS)
       JS      -> (target,formatJS)
-      C       -> (target,formatJS)
+      C       -> (target,formatC)
+      CHeader -> (target,formatC)
       Default -> (target,formatJS)
   where
     (foralls,preds,rho) = splitPredType tp
@@ -429,6 +430,12 @@ formatCall tp (target,ExternalCall fname)
 
     formatCS
       = fname ++ typeArguments ++ arguments
+      
+    formatC
+      = fname ++ argumentsC
+    argumentsC
+      = "(" ++ concat (intersperse "," (["#" ++ show i | i <- [1..argumentCount]] ++ ["_ctx"])) ++ ")"
+
 
 
 

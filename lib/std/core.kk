@@ -27,6 +27,7 @@ infixr 20  (||)
 
 
 extern include {
+  c header file "core-inline.h"
   cs file "core-inline.cs"
   js file "core-inline.js"
 }
@@ -925,10 +926,18 @@ fun compare( x : char, y : char ) : order
 }
 
 // Convert a character to its unicode code point
-extern inline int : (char) -> int { inline "#1"; cs inline "new BigInteger(#1)" }
+extern inline int : (char) -> int { 
+  inline "#1"
+  c "integer_from_int"
+  cs inline "new BigInteger(#1)" 
+}
 
 // Convert a unicode code point to a character
-extern inline char : (int) -> char { inline "(#1)"; cs inline "Primitive.IntToInt32(#1)" }
+extern inline char : (int) -> char { 
+  inline "(#1)"; 
+  c "integer_clamp32"
+  cs inline "Primitive.IntToInt32(#1)" 
+}
 
 // Add two character code points
 fun (+)(c : char, d : char) : total char { (c.int + d.int).char }
@@ -985,6 +994,7 @@ fun maybe( b : bool ) : maybe<()> {
 
 // Compare two integers
 extern inline compare : (int,int) -> order  {
+  c inline "int_as_order(integer_cmp(#1,#2,current_context()),current_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 }
@@ -1006,24 +1016,28 @@ extern inline (!=) : (int,int) -> bool  {
 
 // Is the first integer smaller or equal to the second?
 extern inline (<=) : (int,int) -> bool  {
+  c  "integer_lte"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
 extern inline (>=) : (int,int) -> bool  {
+  c  "integer_gte"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
 extern inline (<)  : (int,int) -> bool  {
+  c  "integer_lt"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
 extern inline (>)  : (int,int) -> bool  {
+  c  "integer_gt"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 }
@@ -1051,11 +1065,13 @@ extern inline (*) : (int,int) -> int {
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
 extern inline (/)(x:int,y:int) : int {
+  c  "integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 }
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
 extern inline (%)  : (int,int) -> int {
+  c  "integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"
 }
@@ -1079,6 +1095,7 @@ extern inline (%)  : (int,int) -> int {
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
 extern inline divmod(x:int,y:int) : (int,int) {
+  c "integer_divmod"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 }
@@ -1089,24 +1106,28 @@ fun negate(i : int) : int {
 
 // Negate an integer.
 extern inline (~)(i:int) : int {
+  c  "integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
 extern inline double : (int) -> double  {
+  c  "integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
 
 // Is this an odd integer?
 extern inline odd?   : ( int ) -> bool  {
+  c  "integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 }
 
 // Is this equal to zero?
 extern inline zero?  : ( int ) -> bool  {
+  c  "integer_is_zero"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 }
@@ -1114,6 +1135,7 @@ extern inline zero?  : ( int ) -> bool  {
 
 // Return the absolute value of an integer.
 extern inline abs(i : int) : int {
+  c  "integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 }
@@ -1133,6 +1155,7 @@ fun exp10( exp : int ) : int {
 
 // Raise an integer `i` to the power of `exp`.
 extern pow( i : int, exp : int ) : int {
+  c  "integer_pow"
 	cs "Primitive.IntPow"
 	js "_int_pow"
 }
@@ -1149,22 +1172,26 @@ fun exp2( exp : int ) : int {
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
 extern exp10?( i : int ) : int {
+  c  "integer_ctz"
   cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
 }
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
 extern count-digits( i : int ) : int {
+  c  "integer_count_digits"
   cs "Primitive.IntCountDigits"
   js "_int_count_digits"
 }
 
 extern mul-exp10( i : int, n : int ) : int {
+  c  "integer_mul_pow10"
   cs "Primitive.IntMulPow10"
   js "_int_mul_pow10"
 }
 
 extern cdiv-exp10( i : int, n : int ) : int {
+  c  "integer_div_pow10"
   cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
 }
@@ -1191,6 +1218,7 @@ fun pos?(i : int ) : bool { i.sign == Gt }
 fun neg?(i : int ) : bool { i.sign == Lt }
 
 extern inline sign(i : int ) : order {
+  c  inline "int_as_order(integer_signum(#1,current_context()),current_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 }
@@ -1238,6 +1266,7 @@ fun maybe( i : int ) : maybe<int> {
 
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int {
+  c  "integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
 }
@@ -1245,6 +1274,7 @@ extern inline int( i : int32 ) : int {
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 extern int32  : (int) -> int32   {
+  c  "integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1286,6 +1316,7 @@ fun parse-int( s : string, hex : bool = False) : maybe<int> {
 }
 
 private extern xparse-int( s : string, hex : bool ) : maybe<int> {
+  c  "integer_xparse"  
   cs "Primitive.IntParse"
   js "_int_parse"
 }
@@ -1479,6 +1510,7 @@ fun (||)( x : string, y : string ) : string {
 
 // Length returns the length in the platform specific encoding (and should not be exported)
 private extern inline length( s : string ) : int32 {
+  c inline "((int32_t)string_len(#1,current_context()))"
   cs inline "#1.Length"
   js inline "#1.length"
 }
@@ -1934,6 +1966,7 @@ fun length( v : vector<a> ) : int {
 }
 
 private extern inline length32 : forall<a> (v : vector<a> ) -> int32  {
+  c  inline "((int32_t)vector_len(#1))"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
 }

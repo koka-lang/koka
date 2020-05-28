@@ -1650,7 +1650,7 @@ ppLit lit
                       then text "integer_from_int" <.> arguments [pretty i]
                       else text "integer_from_str" <.> arguments [dquotes (pretty i)]
       LitChar c   -> let i = fromEnum c
-                     in if (c >= ' ' || c <= '~')
+                     in if (c >= ' ' && c <= '~')
                          then text (show c)
                          else text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
