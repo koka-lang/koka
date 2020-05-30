@@ -19,8 +19,6 @@
 
 #define REFCOUNT_LIMIT_TO_32BIT 0
 #define MULTI_THREADED          1
-#define TLD_IN_REG              1
-#define TLD_IN_THREAD           0
 
 /*--------------------------------------------------------------------------------------
   Platform defines
@@ -87,21 +85,32 @@
 #endif
 #endif
 
-
-
 // Assumptions:
 // - a char/byte is 8 bits
 // - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
-
-#if INTPTR_MAX == 9223372036854775807LL
+#if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
 # define INTPTR_SIZE 8
-#elif INTPTR_MAX == 2147483647LL
+#elif INTPTR_MAX == INT32_MAX         // 2147483647LL
 # define INTPTR_SIZE 4
 #else
 #error platform must be 32 or 64 bits
 #endif
 #define INTPTR_BITS (8*INTPTR_SIZE)
 
+// Defining constants of a specific size
+#if LONG_MAX == INT32_MAX
+# define I32(i)  (i##L)
+# define I64(i)  (i##LL)
+# define U32(i)  (i##UL)
+# define U64(i)  (i##ULL)
+#elif LONG_MAX == INT64_MAX
+# define I32(i)  (i)
+# define I64(i)  (i##L)
+# define U32(i)  (i##U)
+# define U64(i)  (i##UL)
+#else
+#error size of a `long` must be 32 or 64 bits
+#endif
 
 // abstract over intptr_t so we can in principle target architectures like x32 where 
 // the size of a pointer is 32-bit but int's can be 64-bit. 
@@ -111,7 +120,9 @@ typedef intptr_t  int_t;
 typedef uintptr_t uint_t;
 
 #define INT_T_SIZE  INTPTR_SIZE
-#define INT_T_BITS  INTPTS_BITS
+#define INT_T_BITS  INTPTR_BITS
+
+#define INT_T_ALIGNUP(x)  ((((x)+INT_T_SIZE-1)/INT_T_SIZE)*INT_T_SIZE)
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
 static inline int_t  sar(int_t i, int_t shift)   { return (i >> shift); }
@@ -154,7 +165,6 @@ typedef enum tag_e {
   TAG_STRING,
   TAG_STRING_SMALL,
   TAG_BYTES,
-  TAG_BYTES_RAW,
   TAG_VECTOR,
   TAG_CPTR,          // full void*
   TAG_INT64,
@@ -163,8 +173,16 @@ typedef enum tag_e {
   TAG_DOUBLE,
   TAG_FLOAT,
 #endif
+  // raw tags have a free function as well
+  TAG_CPTR_RAW,      // must be first, see tag_is_raw()
+  TAG_STRING_RAW,
+  TAG_BYTES_RAW,
   TAG_LAST
 } tag_t;
+
+static inline bool tag_is_raw(tag_t tag) {
+  return (tag >= TAG_CPTR_RAW);
+}
 
 // Every heap block starts with a header with a reference count and tag.
 typedef union header_s {
@@ -768,19 +786,18 @@ typedef int32_t char_t;
   Strings
 --------------------------------------------------------------------------------------*/
 
+typedef void (free_fun_t)(void*);
+
+decl_export void free_fun_null(void* p);
+
 // A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
 struct string_s {
-  size_t   length;
-  char     str[1];
+  uint8_t str[1];
 };
 
-#define SMALL_STRING_MAX_LEN  (7)
-
-struct small_string_s {
-  union {
-    uint64_t  value;
-    char      str[SMALL_STRING_MAX_LEN+1];
-  } u;
+struct string_raw_s {
+  free_fun_t*    free;
+  const uint8_t* cstr;
 };
 
 typedef datatype_t string_t;
@@ -788,18 +805,25 @@ typedef datatype_t string_t;
 extern string_t string_empty;
 
 #define define_string_literal(decl,name,len,chars) \
-  static struct { block_t block; size_t length; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, len, chars }; \
+  static struct { block_t block; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, chars }; \
   decl string_t name = (string_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
-
 
 static inline string_t unbox_string_t(box_t v) {
   string_t s = unbox_datatype(v);
-  assert_internal(datatype_is_ptr(s) && (datatype_tag(s) == TAG_STRING || datatype_tag(s) == TAG_STRING_SMALL));
+  assert_internal(datatype_is_ptr(s) && (datatype_tag(s) == TAG_STRING || datatype_tag(s) == TAG_STRING_RAW));
   return s;
 }
 
 static inline box_t box_string_t(string_t s) {
   return box_datatype(s);
+}
+
+static inline void string_drop(string_t str, context_t* ctx) {
+  datatype_drop(str, ctx);
+}
+
+static inline string_t string_dup(string_t str) {
+  return datatype_dup(str);
 }
 
 
@@ -808,71 +832,47 @@ static inline box_t box_string_t(string_t s) {
 --------------------------------------------------------------------------------------*/
 
 static inline string_t string_alloc_len(size_t len, const char* s, context_t* ctx) {
-  if (len <= SMALL_STRING_MAX_LEN) {
-    struct small_string_s* str = ptr_alloc_data_as(struct small_string_s, 0, TAG_STRING_SMALL, ctx);
-    str->u.value = 0;
-    if (s != NULL) {
-      for (size_t i = 0; i <= len; i++) {
-        str->u.str[i] = s[i];
-      }
-    }
-    return datatype_from_data(str);
+  struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx));
+  if (s != 0) {
+    memcpy(&str->str[0], s, len);
   }
-  else {
-    struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx));
-    str->length = len;
-    if (s != 0) {
-      memcpy(&str->str[0], s, len);
-    }
-    str->str[len] = 0;
-    return datatype_from_data(str);
-  }
+  str->str[len] = 0;
+  // todo: assert valid UTF8 in debug mode
+  return datatype_from_data(str);
 }
 
 static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
-  return string_alloc_len(len, NULL,ctx);
+  return string_alloc_len(len, NULL, ctx);
 }
 
-static inline string_t string_alloc(const char* s, context_t* ctx) {
+static inline string_t string_alloc_dup(const char* s, context_t* ctx) {
   return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
 }
 
-static inline char* string_buf(string_t str) {
-  if (datatype_tag(str) == TAG_STRING_SMALL) {
-    return datatype_data_as(struct small_string_s, str)->u.str;
+static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
+  struct string_raw_s* str = datatype_alloc_data_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
+  str->free = (free ? &runtime_free : &free_fun_null);
+  str->cstr = (const uint8_t*)s;
+  // todo: assert valid UTF8 in debug mode
+  return datatype_from_data(str);
+}
+
+static inline const uint8_t* string_buf_borrow(string_t str) {
+  if (datatype_tag(str) == TAG_STRING) {
+    return &datatype_data_as_assert(struct string_s, str, TAG_STRING)->str[0];
   }
   else {
-    return datatype_data_as_assert(struct string_s, str, TAG_STRING)->str;
+    return datatype_data_as_assert(struct string_raw_s, str, TAG_STRING_RAW)->cstr;
   }
 }
 
-static inline size_t decl_pure small_string_len(const struct small_string_s* s) {
-  uint64_t v = s->u.value;  // read string a 64-bit value 
-  // use bitcount to find the terminating zero byte
-#if defined(ARCH_BIG_ENDIAN)
-  return ((size_t)8 - (bits_ctz64(v)/8));
-#else
-  return ((size_t)8 - (bits_clz64(v)/8));
-#endif
+static inline char* string_cbuf_borrow(string_t str) {
+  return (char*)string_buf_borrow(str);
 }
 
-static inline size_t decl_pure string_len(string_t str) {
-  if (datatype_tag(str) == TAG_STRING_SMALL) {
-    return small_string_len(datatype_data_as(struct small_string_s, str));
-  }
-  else {
-    return datatype_data_as_assert(struct string_s, str, TAG_STRING)->length;
-  }
-}
 
-static inline void string_drop(string_t str, context_t* ctx) {
-  datatype_drop(str,ctx);
-}
-
-static inline string_t string_dup(string_t str) {
-  return datatype_dup(str);
-}
-
+decl_export size_t decl_pure string_len(string_t str);    // bytes in UTF8
+decl_export size_t decl_pure string_count(string_t str);  // number of code points
 decl_export int_t string_cmp_borrow(string_t str1, string_t str2);
 decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
 decl_export int_t string_icmp_borrow(string_t str1, string_t str2);
@@ -880,7 +880,7 @@ decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);
 
 
 static inline int string_cmp_cstr_borrow(string_t s, const char* t) {
-  return strcmp(string_buf(s), t);
+  return strcmp(string_cbuf_borrow(s), t);
 }
 
 /*--------------------------------------------------------------------------------------
@@ -986,8 +986,6 @@ struct bytes_s {
   size_t   length;
   char     buf[1];
 };
-
-typedef void (*free_fun_t)(const void*);
 
 // Or a pointer to raw data that was potentially `malloc`'d  (TAG_BYTES_RAW)
 struct bytes_raw_s {

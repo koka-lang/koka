@@ -66,7 +66,7 @@ static inline uint8_t bits_ctz32(uint32_t x) {
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
     31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
   };
-  return debruijn[((x & -(int32_t)x) * 0x077CB531) >> 27];
+  return debruijn[((x & -(int32_t)x) * U32(0x077CB531)) >> 27];
 }
 
 static inline uint8_t bits_clz32(uint32_t x) {
@@ -81,7 +81,7 @@ static inline uint8_t bits_clz32(uint32_t x) {
   x |= x >> 4;
   x |= x >> 8;
   x |= x >> 16;
-  return debruijn[(uint32_t)(x * 0x07c4acddU) >> 27];
+  return debruijn[(uint32_t)(x * U32(0x07C4ACDD)) >> 27];
 }
 #endif
 
@@ -114,6 +114,49 @@ static inline uint8_t bits_ctz(uint_t x) {
   return bits_ctz32(x);
 }
 #endif
+
+
+/* -----------------------------------------------------------
+  Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+----------------------------------------------------------- */
+
+#define bits_one_mask32     U32(0x01010101)
+#define bits_one_mask64     U64(0x0101010101010101)
+#define bits_high_mask32    U32(0x80808080)
+#define bits_high_mask64    U64(0x8080808080808080)
+#define bits_one_mask       ((~((uint_t)0))/0xFF)     // 0x01010101 ...
+#define bits_high_mask      (bits_one_mask*0x80)      // 0x80808080 ...
+
+static inline bool bits_has_zero_byte32(uint32_t x) {
+  return ((x - bits_one_mask32) & (~x & bits_high_mask32));
+}
+
+static inline bool bits_has_zero_byte64(uint64_t x) {
+  return ((x - bits_one_mask64) & (~x & bits_high_mask64));
+}
+
+static inline bool bits_has_zero_byte(uint_t x) {
+  return ((x - bits_one_mask) & (~x & bits_high_mask));
+}
+
+
+/* -----------------------------------------------------------
+  Is a word a power of two? see: <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
+  (0 is not a power of two)
+----------------------------------------------------------- */
+#define _bits_is_power_of2(x)  ((x!=0) && ((x&(x-1)) == 0))
+
+static inline bool bits_is_power_of2_32(uint32_t x) {
+  return _bits_is_power_of2(x);
+}
+
+static inline bool bits_is_power_of2_64(uint64_t x) {
+  return _bits_is_power_of2(x);
+}
+
+static inline bool bits_is_power_of2(uint_t x) {
+  return _bits_is_power_of2(x);
+}
 
 
 #endif // include guard

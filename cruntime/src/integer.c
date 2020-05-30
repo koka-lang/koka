@@ -306,7 +306,7 @@ static size_t bigint_to_buf_(const bigint_t* b, char* buf, size_t buf_size) {
 static string_t bigint_to_string(bigint_t* b, context_t* ctx) {
   size_t needed = bigint_to_buf_(b, NULL, 0);
   string_t s = string_alloc_buf(needed,ctx);
-  bigint_to_buf_(b, string_buf(s), needed);
+  bigint_to_buf_(b, string_cbuf_borrow(s), needed);
   bigint_drop(b,ctx);
   return s;
 }
@@ -332,7 +332,7 @@ string_t int_to_string(int_t n, context_t* ctx) {
   }
   // write to the allocated string
   string_t s = string_alloc_buf(i + 1,ctx);
-  char* p = string_buf(s);
+  char* p = string_cbuf_borrow(s);
   int_t j;
   for (j = 0; j < i; j++) {
     p[j] = buf[i - j - 1];
@@ -1108,7 +1108,7 @@ string_t integer_to_string(integer_t x, context_t* ctx) {
 
 void integer_fprint(FILE* f, integer_t x, context_t* ctx) {
   string_t s = integer_to_string(x, ctx);
-  fprintf(f, "%s", string_buf(s));
+  fprintf(f, "%s", string_buf_borrow(s));
   string_drop(s, ctx);
 }
 

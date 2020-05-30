@@ -43,6 +43,7 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
   ctx->delayed_free = b;
 }
 
+static void block_free_raw(block_t* b);
 static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
 
 // Free all delayed free blocks.
@@ -79,6 +80,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
     size_t scan_fsize = b->header.h.scan_fsize;
     if (scan_fsize == 0) {
       // nothing to scan, just free
+      if (tag_is_raw(block_tag(b))) block_free_raw(b); // potentially call custom `free` function on the data
       runtime_free(b);
       return;
     }
@@ -130,10 +132,25 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
   }
 }
 
+// Free a "raw" block: first field is pointer to a free function, the next field a pointer to raw C data
+struct cptr_raw_s {
+  free_fun_t* free;
+  void* cptr;
+};
+
+static void block_free_raw(block_t* b) {
+  assert_internal(tag_is_raw(block_tag(b)));
+  struct cptr_raw_s* raw = (struct cptr_raw_s*)block_data(b);
+  if (raw->free != &free_fun_null) {
+    (*raw->free)(raw->cptr);
+  }
+}
+
 // Free a block and recursively decrement reference counts on children.
 void block_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.rc32.lo == UINT32_MAX);
   if (b->header.h.scan_fsize==0) {
+    if (tag_is_raw(block_tag(b))) block_free_raw(b);
     runtime_free(b); // deallocate directly if nothing to scan
   }
   else {

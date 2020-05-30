@@ -27,6 +27,11 @@ vector_t vector_empty = (datatype_t)(&_vector_empty);
 // empty string
 define_string_literal(, string_empty, 0, "");
 
+// null function
+void free_fun_null(void* p) {
+  UNUSED(p);
+}
+
 /*--------------------------------------------------------------------------------------------------
   Errors 
 --------------------------------------------------------------------------------------------------*/
