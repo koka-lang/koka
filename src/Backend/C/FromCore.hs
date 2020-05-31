@@ -414,10 +414,13 @@ genBoxUnbox name info dataRepr
 genBoxCall prim tp arg 
   = text prim <.> text "_" <.> (
     case cType tp of
+      CFun _ _   -> text "function_t" <.> parens arg
+      CPrim val  | val == "unit_t" || val == "integer_t" || val == "bool" || val == "string_t"
+                 -> text val <.> parens arg  -- no context
+      --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
+      --           -> text val <.> arguments [arg]
       CData name -> ppName name <.> arguments [arg]
-      CPrim val  | val == "int32_t" || val == "double"
-                 -> text val <.> arguments [arg]
-      _          -> ppType tp <.> parens arg
+      _          -> ppType tp <.> arguments [arg]
     )
 
 
@@ -529,7 +532,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                              <+> conSingletonName con <.> text "," 
                              <+> ppConTag con conRepr dataRepr <.> text ");"
                  when (dataRepr == DataOpen) $
-                   emitToInit $ conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
+                   emitToInit $ text "_static_" <.> conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
          else return ()
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con

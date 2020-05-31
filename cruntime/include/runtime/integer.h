@@ -71,6 +71,8 @@ static inline void      integer_decref(integer_t x, context_t* ctx) { boxed_drop
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
 decl_export integer_t  integer_from_big(int_t i, context_t* ctx);         // for possibly large i
+decl_export integer_t  integer_from_big64(int64_t i, context_t* ctx);     // for possibly large i
+decl_export integer_t  integer_from_bigu64(uint64_t i, context_t* ctx);   // for possibly large i
 decl_export integer_t  integer_from_double(double d, context_t* ctx);     // round d and convert to integer (0 for NaN/Inf)
 
 decl_export int32_t    integer_clamp32_generic(integer_t i, context_t* ctx);
@@ -107,6 +109,32 @@ decl_export void       integer_print(integer_t x, context_t* ctx);
 
 static inline integer_t integer_from_int(int_t i, context_t* ctx) {
   return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small(i) : integer_from_big(i,ctx));
+}
+
+static inline integer_t integer_from_int64(int64_t i, context_t* ctx) {
+  return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small((int_t)i) : integer_from_big64(i, ctx));
+}
+
+static inline integer_t integer_from_uint64(uint64_t i, context_t* ctx) {
+  return (likely(i <= SMALLINT_MAX) ? integer_from_small((int_t)i) : integer_from_bigu64(i, ctx));
+}
+
+#if (INT_T_SIZE<=4)
+static inline integer_t integer_from_uint_t(uint_t i, context_t* ctx) {
+  return (i <= UINT32_MAX ? integer_from_int((int_t)i,ctx) : integer_from_uint64(i,ctx));
+}
+#else
+static inline integer_t integer_from_uint_t(uint_t i, context_t* ctx) {
+  return integer_from_uint64(i, ctx);
+}
+#endif
+
+static inline integer_t integer_from_size_t(size_t i, context_t* ctx) {
+  return integer_from_uint_t(i, ctx);
+}
+
+static inline integer_t integer_from_intptr_t(intptr_t i, context_t* ctx) {
+  return integer_from_int(i, ctx);
 }
 
 #if defined(__GNUC__) && (SMALLINT_BITS >= 32)  

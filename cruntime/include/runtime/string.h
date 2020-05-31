@@ -122,15 +122,6 @@ static inline char* string_cbuf_borrow(string_t str) {
   return (char*)string_buf_borrow(str);
 }
 
-
-decl_export size_t decl_pure string_len(string_t  str);    // bytes in UTF8
-decl_export size_t decl_pure string_count(string_t str);  // number of code points
-decl_export int_t string_cmp_borrow(string_t str1, string_t str2);
-decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
-decl_export int_t string_icmp_borrow(string_t str1, string_t str2);             // ascii case insensitive
-decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);    // ascii case insensitive
-
-
 static inline int string_cmp_cstr_borrow(string_t s, const char* t) {
   return strcmp(string_cbuf_borrow(s), t);
 }
@@ -310,12 +301,41 @@ static inline void utf8_write(char_t c, uint8_t* s, size_t* count) {
 /*--------------------------------------------------------------------------------------------------
   
 --------------------------------------------------------------------------------------------------*/
+decl_export size_t decl_pure string_len(string_t  str);    // bytes in UTF8
+decl_export size_t decl_pure string_count(string_t str);  // number of code points
+
+decl_export int_t string_cmp_borrow(string_t str1, string_t str2);
+decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
+decl_export int_t string_icmp_borrow(string_t str1, string_t str2);             // ascii case insensitive
+decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);    // ascii case insensitive
+
+static inline bool string_is_eq(string_t s1, string_t s2, context_t* ctx) {
+  return (string_cmp(s1, s2, ctx) == 0);
+}
+static inline bool string_is_neq(string_t s1, string_t s2, context_t* ctx) {
+  return (string_cmp(s1, s2, ctx) != 0);
+}
 
 decl_export string_t string_from_char(char_t c, context_t* ctx);
 decl_export string_t string_from_chars(vector_t v, context_t* ctx);
 decl_export vector_t string_to_chars(string_t s, context_t* ctx);
 
+decl_export string_t integer_to_string(integer_t x, context_t* ctx);
+decl_export string_t integer_to_hex_string(integer_t x, bool use_capitals, context_t* ctx);
+
 decl_export vector_t string_splitv(string_t s, string_t sep, context_t* ctx);
 decl_export vector_t string_splitv_atmost(string_t s, string_t sep, uint_t n, context_t* ctx);
+
+decl_export string_t string_repeat(string_t s, uint_t n, context_t* ctx);
+
+decl_export unit_t println(string_t s, context_t* ctx);
+decl_export unit_t print(string_t s, context_t* ctx);
+decl_export unit_t trace(string_t s, context_t* ctx);
+decl_export unit_t trace_any(string_t s, box_t x, context_t* ctx);
+decl_export string_t show_any(box_t x, context_t* ctx);
+
+decl_export string_t double_show_fixed(double d, int32_t prec, context_t* ctx);
+decl_export string_t double_show_exp(double d, int32_t prec, context_t* ctx);
+
 
 #endif // include guard

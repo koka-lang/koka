@@ -30,3 +30,23 @@ static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, cont
 
 datatype_t string_to_list(string_t s, context_t* ctx);
 string_t   string_from_list(datatype_t cs, context_t* ctx);
+
+datatype_t vector_to_list(vector_t v, datatype_t tail, context_t* ctx);
+vector_t   list_to_vector(datatype_t xs, context_t* ctx);
+
+static inline integer_t  string_count_int(string_t s, context_t* ctx) {
+  return integer_from_uint_t( string_count(s), ctx );
+}
+
+static inline integer_t string_cmp_int(string_t s1, string_t s2, context_t* ctx) {
+  return integer_from_small( string_cmp(s1,s2,ctx) );
+}
+
+static inline string_t string_repeat32(string_t s, int32_t n, context_t* ctx) {
+  return string_repeat(s, n, ctx);
+}
+
+integer_t slice_count( struct __std_core_Sslice sslice, context_t* ctx );
+string_t  slice_to_string( struct __std_core_Sslice sslice, context_t* ctx );
+struct __std_core_Sslice slice_first( string_t str, context_t* ctx );
+struct __std_core_Sslice slice_last( string_t str, context_t* ctx );

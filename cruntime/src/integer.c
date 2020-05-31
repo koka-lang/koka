@@ -230,6 +230,29 @@ static bigint_t* bigint_from_int(int_t i, context_t* ctx) {
   return b;
 }
 
+// create a bigint from an int64_t
+static bigint_t* bigint_from_int64(int64_t i, context_t* ctx) {
+  bool is_neg = (i < 0);
+  if (is_neg) i = -i;
+  bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
+  do {
+    b = bigint_push(b, i%BASE, ctx);
+    i /= BASE;
+  } while (i > 0);
+  return b;
+}
+
+// create a bigint from a uint64_t
+static bigint_t* bigint_from_uint64(uint64_t i, context_t* ctx) {
+  bigint_t* b = bigint_alloc(0, false, ctx); // will reserve at least 4 digits
+  do {
+    b = bigint_push(b, i%BASE, ctx);
+    i /= BASE;
+  } while (i > 0);
+  return b;
+}
+
+
 // unpack to a bigint always
 static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
@@ -242,8 +265,16 @@ static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   }
 }
 
+integer_t integer_from_bigu64(uint64_t i, context_t* ctx) {
+  return box_ptr(bigint_ptr_(bigint_from_uint64(i, ctx)));
+}
+
+integer_t integer_from_big64(int64_t i, context_t* ctx) {
+  return box_ptr(bigint_ptr_(bigint_from_int64(i,ctx)));
+}
+
 integer_t integer_from_big(int_t i, context_t* ctx) {
-  return box_ptr(bigint_ptr_(bigint_from_int(i,ctx)));
+  return box_ptr(bigint_ptr_(bigint_from_int(i, ctx)));
 }
 
 
@@ -1121,10 +1152,16 @@ string_t integer_to_string(integer_t x, context_t* ctx) {
   }
 }
 
+decl_export string_t integer_to_hex_string(integer_t x, bool use_capitals, context_t* ctx) {
+  // TODO
+  UNUSED(use_capitals);
+  return integer_to_string(x, ctx);
+}
+
 void integer_fprint(FILE* f, integer_t x, context_t* ctx) {
   string_t s = integer_to_string(x, ctx);
   fprintf(f, "%s", string_buf_borrow(s));
-  string_drop(s, ctx);
+  string_drop(s, ctx);  
 }
 
 void integer_print(integer_t x, context_t* ctx) {

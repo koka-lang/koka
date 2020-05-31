@@ -5,6 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+#define  _CRT_SECURE_NO_WARNINGS
 #include "runtime.h"
 
 struct _string_s _static_string_empty = { HEADER_STATIC(0,TAG_STRING), {0} };
@@ -174,3 +175,121 @@ vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx
   return v;
 }
 
+string_t string_repeat(string_t str, uint_t n, context_t* ctx) {
+  const char* s = string_cbuf_borrow(str);
+  size_t len = strlen(s);
+  if (len == 0) return string_dup(string_empty);
+  string_t tstr = string_alloc_len(len*n, NULL, ctx); // TODO: check overflow
+  char* t = (char*)string_cbuf_borrow(tstr);
+  for (size_t i = 0; i < n; i++) {
+    strcpy(t, s);
+    t += len;
+  }
+  assert_internal(*t == 0);
+  string_drop(str,ctx);
+  return tstr;
+}
+
+/*--------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------*/
+
+unit_t println(string_t s, context_t* ctx) {
+  // TODO: set locale to UTF8?
+  puts(string_cbuf_borrow(s));
+  string_drop(s,ctx);
+  return Unit;
+}
+
+unit_t print(string_t s, context_t* ctx) {
+  // TODO: set locale to UTF8?
+  fputs(string_cbuf_borrow(s), stdout);
+  string_drop(s,ctx);
+  return Unit;
+}
+
+unit_t trace(string_t s, context_t* ctx) {
+  fputs(string_cbuf_borrow(s), stderr);
+  fputs("\n", stderr);
+  string_drop(s, ctx);
+  return Unit;
+}
+
+unit_t trace_any(string_t s, box_t x, context_t* ctx) {
+  fprintf(stderr, "%s: ", string_cbuf_borrow(s));
+  string_drop(s, ctx);
+  trace(show_any(x,ctx),ctx);
+  return Unit;
+}
+
+
+string_t double_show_fixed(double d, int32_t prec, context_t* ctx) {
+  // TODO: respect prec
+  UNUSED(prec);
+  char buf[32];
+  snprintf(buf, 32, "%f", d);
+  return string_alloc_dup(buf, ctx);
+}
+
+string_t double_show_exp(double d, int32_t prec, context_t* ctx) {
+  // TODO: respect prec
+  UNUSED(prec);
+  char buf[32];
+  snprintf(buf, 32, "%e", d);
+  return string_alloc_dup(buf, ctx);
+}
+
+string_t double_show(double d, int32_t prec, context_t* ctx) {
+  // TODO: respect prec
+  UNUSED(prec);
+  char buf[32];
+  snprintf(buf, 32, "%g", d);
+  return string_alloc_dup(buf, ctx);
+}
+
+
+
+string_t show_any(box_t b, context_t* ctx) {
+  char buf[128];
+  if (is_double(b)) {
+    return double_show(unbox_double(b, ctx), 0, ctx);
+  }
+  else if (is_enum(b)) {
+    snprintf(buf, 128, "enum(%zu)", unbox_enum(b));
+    return string_alloc_dup(buf, ctx);
+  }
+  else if (is_int(b)) {
+    snprintf(buf, 128, "int(%zi)", unbox_int(b));
+    return string_alloc_dup(buf, ctx);
+  }
+  else if (b == box_null) {
+    return string_alloc_dup("null", ctx);
+  }
+  else if (b == 0) {
+    return string_alloc_dup("cptr(NULL)", ctx);
+  }
+  else {
+    ptr_t p = unbox_ptr(b);
+    tag_t tag = ptr_tag(p);
+    if (tag == TAG_BIGINT) {
+      // todo: add tag
+      return integer_to_string(b, ctx);
+    }
+    else if (tag == TAG_STRING || tag == TAG_STRING_RAW) {
+      // todo: add tag
+      return b;
+    }
+    else if (tag == TAG_FUNCTION) {
+      struct function_s* fun = ptr_data_as(struct function_s, p);
+      snprintf(buf, 128, "function(0x%zx)", (uintptr_t)unbox_cptr(fun->fun));
+      boxed_drop(b,ctx);
+      return string_alloc_dup(buf, ctx);
+    }
+    else {
+      // TODO: handle all builtin tags 
+      snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", p, tag, (uintptr_t)ptr_refcount(p), block_scan_fsize(ptr_as_block(p)));
+      boxed_drop(b, ctx);
+      return string_alloc_dup(buf, ctx);
+    }
+  }
+}

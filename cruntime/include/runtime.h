@@ -706,6 +706,9 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
   Further includes
 ----------------------------------------------------------------------*/
 typedef datatype_t vector_t;
+typedef enum unit_e {
+  Unit = 0
+} unit_t;
 
 #include "runtime/box.h"
 #include "runtime/integer.h"
@@ -818,9 +821,6 @@ static inline void unsupported_external(const char* msg) {
 /*--------------------------------------------------------------------------------------
   Unit
 --------------------------------------------------------------------------------------*/
-typedef enum unit_e {
-  Unit = 0
-} unit_t;
 
 static inline box_t box_unit_t(unit_t u) {
   return box_enum(u);

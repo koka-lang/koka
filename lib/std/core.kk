@@ -1480,18 +1480,21 @@ extern string( cs : list<char> ) : total string {
 // Are two strings equal?
 // Uses exact equality between character codes.
 extern inline (==) : (string,string) -> bool {
-  inline "(#1 == #2)"
+  c  "string_is_eq"
+  cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 }
 
 // Are two strings not equal?
 extern inline (!=) : (string,string) -> bool {
+  c  "string_is_neq"
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 }
 
 private extern string-compare : ( x : string, y : string ) -> int
 {
+  c  "string_cmp_int"
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 }
@@ -1525,22 +1528,26 @@ private extern inline length( s : string ) : int32 {
 
 // O(n). Return the number of characters in a string.
 extern count( s : string ) : int {
+  c  "string_count_int"
   cs "Primitive.StringCount"
   js "_string_count"
 }
 
 // O(n). Return the number of characters in a string slice
 extern count( slice : sslice ) : int {
+  c  "slice_count"
   cs "Primitive.SliceCount"
   js "_sslice_count"
 }
 
 private extern inline first1(s : string ) : sslice {
+  c  "slice_first"
   cs "Primitive.SliceFirst"
   js "_sslice_first"
 }
 
 private extern inline last1(s : string ) : sslice {
+  c  "slice_last"
   cs "Primitive.SliceLast"
   js "_sslice_last"
 }
@@ -1640,6 +1647,7 @@ fun after(slice : sslice) : sslice {
 // O(n). Copy the `slice` argument into a fresh string.
 // Takes O(1) time if the slice covers the entire string.
 extern string( slice : sslice ) : string {
+  c  "slice_to_string"
   cs "Primitive.SliceToString"
   js "_slice_to_string"
 }
@@ -1771,6 +1779,7 @@ fun repeat( s : string, n : int ) : string {
 }
 
 private extern repeat32( s : string, n : int32 ) : string {
+  c  "string_repeat32"
   cs "Primitive.Repeat"
   js "_string_repeat"
 }
@@ -2043,12 +2052,14 @@ fun list( v : vector<a> ) : list<a> {
 
 // Convert a vector to a list with an optional tail.
 extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
+  c  "vector_to_list"
   cs inline "Primitive.VList<##1>(#1,#2)"
   js inline "_vlist(#1,#2)"
 }
 
 // Convert a list to a vector.
 extern vector( xs : list<a> ) : vector<a> {
+  c  "list_to_vector"
   cs inline "Primitive.UnVList<##1>(#1)"
   js inline "_unvlist(#1)"
 }
@@ -2098,23 +2109,21 @@ fun force( delayed : delayed<e,a> ) : e a {
 // Generic show: shows the internal representation of an object as a string
 // Note: this breaks parametricity so it should not be public
 private extern gshow : forall<a> a -> string {
+  c "show_any"
   cs inline "#1.ToString()";
   js inline "#1.toString()"
 }
 
-// Generic formatting
-private extern inline gformat : forall<a> (value:a,format:string) -> string {
-  cs inline "#1.ToString(#2,CultureInfo.InvariantCulture)";
-  js inline "_gformat(#1, #2)";
-}
-
 // Convert an `:int` to a string
-fun show( i : int ) : string {
-  i.gshow()
+extern show( i : int ) : string {
+  c "integer_to_string"
+  cs inline "#1.ToString()";
+  js inline "#1.toString()"
 }
 
 
 private extern int-show-hex(i:int,use-capitals:bool) : string {
+  c "integer_to_hex_string"
   cs "Primitive.IntShowHex"
   js "_int_showhex"
 }
@@ -2152,6 +2161,7 @@ fun show-fixed( d : double, precision : int = -2 ) : string {
 }
 
 private extern show-fixedx( d : double, prec : int32 ) : string {
+  c  "double_show_fixed"
   cs "Primitive.DoubleShowFixed"
   js "_double_show_fixed"
 }
@@ -2165,6 +2175,7 @@ fun show-exp( d : double, precision : int = -17 ) {
 }
 
 private extern show-expx( d : double, prec : int32 ) : string {
+  c  "double_show_exp"
   cs "Primitive.DoubleShowExp"
   js "_double_show_exp"
 }
@@ -2261,13 +2272,15 @@ public fun print-redirect( print : (msg : string) -> console () ) : io ()
 
 // Print a string to the console, including a final newline character.
 private extern xprintsln : string -> console ()  {
-  cs "Console.WriteLine";
+  c  "println"
+  cs "Console.WriteLine"
   js "_println"
 }
 
 // Print a string to the console
 private extern xprints : string -> console ()  {
-  cs "Console.Write";
+  c  "print"
+  cs "Console.Write"
   js "_print"
 }
 
@@ -2335,11 +2348,13 @@ fun println( u : () )  { printsln(show(())) }
 
 
 private extern xtrace : ( message : string ) -> ()  {
+  c  "trace"
   cs "Primitive.Trace"
   js "_trace"
 }
 
 private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
+  c  "trace_any"
   cs "Primitive.TraceAny"
   js "_trace_any"
 }
