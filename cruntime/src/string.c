@@ -7,6 +7,8 @@
 ---------------------------------------------------------------------------*/
 #include "runtime.h"
 
+struct _string_s _static_string_empty = { HEADER_STATIC(0,TAG_STRING), {0} };
+
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
 
@@ -41,51 +43,6 @@ uint_t decl_pure string_len_borrow(string_t str) {
   return strlen(string_cbuf_borrow(str));
 }
 
-// Is this a UTF8 continuation byte?
-static inline bool utf8_is_cont(uint8_t c) {
-  return (((int8_t)c) <= -65); // c is between 0x80 and 0xBF (i.e. has the form 0x10xxxxxx)
-}
-
-// Advance to the next codepoint. (does not advance past the end)
-static inline const uint8_t* utf8_next(const uint8_t* s) {
-  if (*s != 0) s++;                 // skip first byte
-  for( ; utf8_is_cont(*s); s++) { } // skip continuation bytes
-  return s;
-}
-
-// Retreat to the previous codepoint. 
-static inline const uint8_t* utf8_prev(const uint8_t* s) {
-  s--;                             // skip back at least 1 byte
-  for (; utf8_is_cont(*s); s--) {} // skip while continuation bytes
-  return s;
-}
-
-
-// Read code point
-static inline char_t utf8_read(const uint8_t* s) {
-  char_t b = *s;
-  if (b <= 0x7F) {
-    return b; // ASCII
-  }
-  if (b == 0xC0 && s[1] == 0x80) {
-    return 0; // modified UTF8 zero 
-  }
-  if (b >= 0xC2 && b <= 0xDF && utf8_is_cont(s[1])) {
-    return (((b & 0x1F) << 6) | (b & 0x3F));
-  }
-  if (  (b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && utf8_is_cont(s[2]))
-     || (b >= 0xE1 && b <= 0xEC && utf8_is_cont(s[1]) && utf8_is_cont(s[2]))
-     || (b == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && utf8_is_cont(s[2])) )
-  {
-    return (((b & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F));
-  }
-  if (  (b >= 0xF1 &&  b <= 0xF3 && utf8_is_cont(s[1]) && utf8_is_cont(s[2]) && utf8_is_cont(s[3]))
-     || (b == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && utf8_is_cont(s[2]) && utf8_is_cont(s[3])) )
-  {
-    return (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
-  }
-  return 0xFFFD;
-}
 
 // Count code points in a UTF8 string.
 uint_t decl_pure string_count(string_t str) {
@@ -125,3 +82,95 @@ uint_t decl_pure string_count(string_t str) {
   assert_internal(count >= cont);
   return (count - cont);
 }
+
+
+string_t string_from_char(char_t c, context_t* ctx) {
+  uint8_t buf[16];
+  size_t count;
+  utf8_write(c, buf, &count);
+  if (count < 16) buf[count] = 0; else buf[0] = 0;
+  return string_alloc_dup((const char*)buf, ctx);
+}
+
+string_t string_from_chars(vector_t v, context_t* ctx) {
+  size_t n;
+  box_t* cs = vector_buf(v, &n);
+  size_t len = 0;
+  for (size_t i = 0; i < n; i++) {
+    len += utf8_len(unbox_char_t(cs[i], ctx));
+  }
+  string_t s = string_alloc_buf(len + 1, ctx);
+  uint8_t* p = (uint8_t*)string_cbuf_borrow(s);
+  for (size_t i = 0; i < n; i++) {
+    size_t count;
+    utf8_write(unbox_char_t(cs[i], ctx), p, &count);
+    p += count;
+  }
+  assert_internal(string_buf_borrow(s) + n == p);
+  vector_drop(v,ctx);
+  return s;
+}
+
+vector_t string_to_chars(string_t s, context_t* ctx) {
+  size_t n = string_count(string_dup(s));
+  vector_t v = vector_alloc(n, 0, ctx);
+  box_t* cs = vector_buf(v, NULL);
+  const uint8_t* p = string_buf_borrow(s);
+  for (size_t i = 0; i < n; i++) {
+    size_t count;
+    cs[i] = box_char_t(utf8_read(p, &count),ctx);
+    p += count;
+  }
+  assert_internal(p == string_buf_borrow(s) + string_len(s));
+  string_drop(s,ctx);
+  return v;
+}
+
+
+vector_t string_splitv(string_t s, string_t sep, context_t* ctx) {
+  return string_splitv_atmost(s, sep, UINT32_MAX, ctx);
+}
+
+vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx) {
+  const char* p = string_cbuf_borrow(s);
+  const char* q = string_cbuf_borrow(sep);
+  if (n<1) n = 1;
+  size_t seplen = strlen(q);
+  size_t count;
+  if (seplen > 0) {
+    // count separators
+    count = 1;
+    const char* r = p;
+    while (count < n && ((r = strstr(r, q)) != NULL)) {  
+      count++;
+      r += seplen;
+    }
+  }
+  else {
+    // split into characters
+    count = string_count(string_dup(s)); 
+    if (count > n) count = n;
+  }
+  assert_internal(n > 0);
+  // copy to vector
+  vector_t v = vector_alloc(n, 0, ctx);
+  box_t* ss = vector_buf(v, NULL);
+  for (size_t i = 0; i < (n-1); i++) {
+    const char* r;
+    if (seplen > 0) {
+      r = strstr(p, q);
+    }
+    else {
+      r = (const char*)utf8_next((const uint8_t*)p);
+    }
+    assert_internal(r != NULL && r > p);
+    size_t len = (r - p);
+    ss[i] = box_string_t(string_alloc_len(len, p, ctx));
+    p = r;  // advance
+  }
+  ss[n-1] = box_string_t(string_alloc_dup(p, ctx));  // todo: share string if p == s ?
+  string_drop(s,ctx);
+  string_drop(sep, ctx);
+  return v;
+}
+

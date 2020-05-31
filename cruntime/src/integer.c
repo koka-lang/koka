@@ -368,28 +368,39 @@ integer_t integer_parse(const char* s, context_t* ctx) {
     }
     else return box_null; // error    
   }
+  // const char* sigend = s + i;
   // fraction
   size_t frac_digits = 0;
+  size_t frac_trailing_zeros = 0;
   if (s[i]=='.') {
     i++;
     for (; s[i] != 0; i++) {
       char c = s[i];
       if (isdigit(c)) {
+        if (c != '0') {
+          frac_trailing_zeros = 0;
+        }
+        else {
+          frac_trailing_zeros++;
+        }                
         frac_digits++;
       }
       else if (c=='_' && isdigit(s[i+1])) { // skip underscores
       }
-      else if ((c=='e' || c=='E') && isdigit(s[i+1]) && (s[i+1] != '0')) { // found fraction/exponent
+      else if ((c=='e' || c=='E') && (isdigit(s[i+1]) || (s[i+1]=='+' && isdigit(s[i+2])))) { // found fraction/exponent
         break;
       }
       else return box_null; // error    
     }
   }
+  frac_digits -= frac_trailing_zeros; // ignore trailing zeros
   const char* end = s + i;
   // exponent 
   size_t exp = 0;
   if (s[i]=='e' || s[i]=='E') {
     i++;
+    if (s[i] == '+') i++;        // optional '+'
+    for (; s[i] == '0'; i++) {}  // skip leading zeros
     for (; s[i] != 0; i++) {
       char c = s[i];
       if (isdigit(c)) {
@@ -408,9 +419,11 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   if (dec_digits < LOG_BASE) {   // must be less than LOG_BASE to avoid overflow
     assert_internal(INTPTR_SIZE >= sizeof(digit_t));
     int_t d = 0;
-    for (const char* p = s; p < end; p++) {
+    size_t digits = 0;
+    for (const char* p = s; p < end && digits < dec_digits; p++) {
       char c = *p;
       if (isdigit(c)) {
+        digits++;
         d = 10*d + ((int_t)c - '0');
       }
     }
@@ -427,12 +440,14 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   size_t k     = count;
   size_t chunk = dec_digits%LOG_BASE; if (chunk==0) chunk = LOG_BASE; // initial number of digits to read
   const char* p = s;
-  while (p < end) {   
+  size_t digits = 0;
+  while (p < end && digits < dec_digits) {   
     digit_t d = 0;
     // read a full digit
     for (size_t j = 0; j < chunk; ) {
       char c = (p < end ? *p++ : '0'); // fill out with zeros
       if (isdigit(c)) {
+        digits++;
         j++;
         d = 10*d + ((digit_t)c - '0'); assert_internal(d<BASE);
       }
@@ -450,7 +465,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
 
 integer_t integer_from_str(const char* num, context_t* ctx) {
   integer_t i = integer_parse(num,ctx);
-  assert_internal(i != box_cptr(NULL));
+  assert_internal(i != box_null);
   return i;
 }
 
@@ -1325,3 +1340,26 @@ double integer_as_double_generic(integer_t x, context_t* ctx) {
   bigint_drop(bx, ctx);
   return d;
 }
+
+static inline double double_round_even(double d) {
+  double r = round(d);
+  if (fabs(d-r) == 0.5) {
+    // exactly in-between, round to even
+    r = 2.0*round(d/2.0);
+  }
+  return r;
+}
+
+integer_t integer_from_double(double d, context_t* ctx) {
+  char buf[32];
+  d = double_round_even(d);
+  if (!isnormal(d)) {
+    return integer_from_small(0);
+  }
+  else {
+    snprintf(buf, 32, "%.20e", d);
+    integer_t i = integer_parse(buf, ctx);
+    return (i==box_null ? integer_from_small(0) : i);
+  }
+}
+

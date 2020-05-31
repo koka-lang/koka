@@ -16,6 +16,7 @@
 #include <stdio.h>   // FILE*
 #include <string.h>  // strlen
 #include <stdlib.h>  // malloc, abort, etc.
+#include <math.h>    
 
 #define REFCOUNT_LIMIT_TO_32BIT 0
 #define MULTI_THREADED          1
@@ -596,7 +597,12 @@ static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
 
 #define define_static_datatype(decl,name,tag) \
     static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
-    decl data_type_t name = (datatype_t)(&_static_name); /* should be `datatype_cptr(&_static_##name*)` but we need a constant initializer */
+    decl datatype_t name = (datatype_t)(&_static_##name); /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
+
+#define define_static_open_datatype(decl,name,otag) /* ignore otag as it is initialized dynamically */ \
+    static struct { block_t _header; string_t _tag; } _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, string_empty }; \
+    decl datatype_t name = (datatype_t)(&_static_##name); /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
+
 
 static inline decl_const datatype_t datatype_from_data(const void* data) {
   return ptr_as_datatype(ptr_from_data(data));
@@ -699,11 +705,12 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
 /*----------------------------------------------------------------------
   Further includes
 ----------------------------------------------------------------------*/
+typedef datatype_t vector_t;
 
 #include "runtime/box.h"
 #include "runtime/integer.h"
 #include "runtime/bitcount.h"
-
+#include "runtime/string.h"
 
 /*----------------------------------------------------------------------
   TLD operations
@@ -778,112 +785,6 @@ static inline function_t function_dup(function_t f) {
 
 
 /*--------------------------------------------------------------------------------------
-  Char as unicode point
---------------------------------------------------------------------------------------*/
-typedef uint32_t char_t;
-
-/*--------------------------------------------------------------------------------------
-  Strings
---------------------------------------------------------------------------------------*/
-
-typedef void (free_fun_t)(void*);
-
-decl_export void free_fun_null(void* p);
-
-// A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
-struct string_s {
-  uint8_t str[1];
-};
-
-struct string_raw_s {
-  free_fun_t*    free;
-  const uint8_t* cstr;
-};
-
-typedef datatype_t string_t;
-
-extern string_t string_empty;
-
-#define define_string_literal(decl,name,len,chars) \
-  static struct { block_t block; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, chars }; \
-  decl string_t name = (string_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
-
-static inline string_t unbox_string_t(box_t v) {
-  string_t s = unbox_datatype(v);
-  assert_internal(datatype_is_ptr(s) && (datatype_tag(s) == TAG_STRING || datatype_tag(s) == TAG_STRING_RAW));
-  return s;
-}
-
-static inline box_t box_string_t(string_t s) {
-  return box_datatype(s);
-}
-
-static inline void string_drop(string_t str, context_t* ctx) {
-  datatype_drop(str, ctx);
-}
-
-static inline string_t string_dup(string_t str) {
-  return datatype_dup(str);
-}
-
-
-/*--------------------------------------------------------------------------------------
-  Strings operations
---------------------------------------------------------------------------------------*/
-
-static inline string_t string_alloc_len(size_t len, const char* s, context_t* ctx) {
-  struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx));
-  if (s != 0) {
-    memcpy(&str->str[0], s, len);
-  }
-  str->str[len] = 0;
-  // todo: assert valid UTF8 in debug mode
-  return datatype_from_data(str);
-}
-
-static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
-  return string_alloc_len(len, NULL, ctx);
-}
-
-static inline string_t string_alloc_dup(const char* s, context_t* ctx) {
-  return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
-}
-
-static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
-  struct string_raw_s* str = datatype_alloc_data_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
-  str->free = (free ? &runtime_free : &free_fun_null);
-  str->cstr = (const uint8_t*)s;
-  // todo: assert valid UTF8 in debug mode
-  return datatype_from_data(str);
-}
-
-static inline const uint8_t* string_buf_borrow(string_t str) {
-  if (datatype_tag(str) == TAG_STRING) {
-    return &datatype_data_as_assert(struct string_s, str, TAG_STRING)->str[0];
-  }
-  else {
-    return datatype_data_as_assert(struct string_raw_s, str, TAG_STRING_RAW)->cstr;
-  }
-}
-
-static inline char* string_cbuf_borrow(string_t str) {
-  return (char*)string_buf_borrow(str);
-}
-
-
-decl_export size_t decl_pure string_len(string_t str);    // bytes in UTF8
-decl_export size_t decl_pure string_count(string_t str);  // number of code points
-decl_export int_t string_cmp_borrow(string_t str1, string_t str2);
-decl_export int_t string_cmp(string_t str1, string_t str2, context_t* ctx);
-decl_export int_t string_icmp_borrow(string_t str1, string_t str2);
-decl_export int_t string_icmp(string_t str1, string_t str2, context_t* ctx);
-
-
-static inline int string_cmp_cstr_borrow(string_t s, const char* t) {
-  return strcmp(string_cbuf_borrow(s), t);
-}
-
-/*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
 typedef datatype_t ref_t;
@@ -936,7 +837,6 @@ struct vector_s {
   box_t length;
   box_t vec[1];
 };
-typedef datatype_t vector_t;
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   struct vector_s* v = ptr_data_as(struct vector_s, ptr_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx));

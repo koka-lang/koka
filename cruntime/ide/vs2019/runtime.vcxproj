@@ -211,6 +211,7 @@
     <ClInclude Include="$(ProjectDir)..\..\include\runtime\integer.h" />
     <ClInclude Include="..\..\include\runtime\bitcount.h" />
     <ClInclude Include="..\..\include\runtime\box.h" />
+    <ClInclude Include="..\..\include\runtime\string.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

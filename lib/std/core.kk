@@ -27,7 +27,7 @@ infixr 20  (||)
 
 
 extern include {
-  c header file "core-inline.h"
+  c  file "core-inline"
   cs file "core-inline.cs"
   js file "core-inline.js"
 }
@@ -1376,6 +1376,7 @@ extern inline (~)(d : double ) : double {
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int {
+  c  "integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
 }
@@ -1383,12 +1384,14 @@ extern inline int(d : double ) : int {
 
 // Returns the value `d`  raised to the power `p` .
 extern inline (^) : (d:double,p:double) -> double {
+  c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 }
 
 // Return the absolute value of a `:double` `d`
 extern inline abs : (d:double) -> double  {
+  c inline "abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 }
@@ -1439,18 +1442,21 @@ fun ".new-sslice"( str :string, start: int32, len : int32 ) {
 
 // Convert a character to a string
 external string : ( c : char ) -> string  {
+  c  "string_from_char"
   cs inline "Primitive.CharToString(#1)";
   js inline "_char_to_string(#1)"
 }
 
 // Convert a vector of characters to a string.
 extern string : (vector<char>) -> string {
+  c  "string_from_chars"
   cs inline "Primitive.CharsToString(#1)";
   js inline "_chars_to_string(#1)"
 }
 
 // Convert a string to a vector of characters.
 extern vector : ( s : string ) -> vector<char> {
+  c  "string_to_chars"  
   cs inline "Primitive.StringToChars(#1)";
   js inline "_string_to_chars(#1)"
 }
@@ -1458,12 +1464,14 @@ extern vector : ( s : string ) -> vector<char> {
 
 // Convert a string to a list of characters
 extern list( s : string ) : total list<char> {
+  c  "string_to_list"
   cs inline "Primitive.StringToList(#1)"
   js inline "_string_to_list(#1)"
 }
 
 // Convert a list of characters to a string
 extern string( cs : list<char> ) : total string {
+  c  "string_from_list"
   cs inline "Primitive.ListToString(#1)"
   js inline "_list_to_string(#1)"
 }
@@ -1510,7 +1518,7 @@ fun (||)( x : string, y : string ) : string {
 
 // Length returns the length in the platform specific encoding (and should not be exported)
 private extern inline length( s : string ) : int32 {
-  c inline "((int32_t)string_len(#1,current_context()))"
+  c inline "((int32_t)string_len(#1))"
   cs inline "#1.Length"
   js inline "#1.length"
 }
@@ -1792,11 +1800,13 @@ fun maybe( s : string ) : maybe<string> {
 
 
 private extern inline splitv : ( s : string,  sep : string ) -> vector<string> {
+  c  "string_splitv"
   cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))";
   js inline "((#1).split(#2))"
 }
 
 private extern inline splitv : ( s : string,  sep : string, n : int32 ) -> vector<string> {
+  c  "string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
 }

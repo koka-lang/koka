@@ -60,7 +60,7 @@ $charesc  = [nrt\\\'\"]    -- "
               | [\xE1-\xEC] $cont $cont
               | \xED [\x80-\x9F] $cont
               | [\xEE-\xEF] $cont $cont
-              | \xF0 [\x90-\xBF] $cont
+              | \xF0 [\x90-\xBF] $cont $cont
               | [\xF1-\xF3] $cont $cont $cont
               | \xF4 [\x80-\x8F] $cont $cont
 

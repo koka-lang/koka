@@ -70,7 +70,8 @@ static inline void      integer_decref(integer_t x, context_t* ctx) { boxed_drop
 
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
-decl_export integer_t  integer_from_big(int_t i, context_t* ctx);      // for possibly large i
+decl_export integer_t  integer_from_big(int_t i, context_t* ctx);         // for possibly large i
+decl_export integer_t  integer_from_double(double d, context_t* ctx);     // round d and convert to integer (0 for NaN/Inf)
 
 decl_export int32_t    integer_clamp32_generic(integer_t i, context_t* ctx);
 decl_export int64_t    integer_clamp64_generic(integer_t i, context_t* ctx);

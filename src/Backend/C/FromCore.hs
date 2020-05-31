@@ -281,6 +281,11 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                        let tnames = [TName name tp | (name,(_,tp)) <- zip names argTps]
                                            app    = App expr [Var tname InfoNone | tname <- tnames]
                                        genFunDef tnames app
+                        -- special case string literals
+                        Lit (LitString s)
+                          -> do let (cstr,clen) = cstring s
+                                    decl = if (isPublic vis) then empty else text "static"
+                                emitToC (text "define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] <.> semi)
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> semi
@@ -518,9 +523,13 @@ genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Typ
 genConstructorCreate info dataRepr con conRepr conFields scanCount
   = do if (null conFields && dataRepr >= DataNormal)
          then do let declTpName = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> conSingletonName con
+                     open = if (dataRepr == DataOpen) then "open_" else ""
                  emitToH $ text "extern datatype_t" <+> conSingletonName con <.> semi
-                 emitToC $ text "define_static_datatype(," <+> conSingletonName con <.> text "," 
-                                                           <+> ppConTag con conRepr dataRepr <.> text ");"
+                 emitToC $ text ("define_static_" ++ open ++ "datatype(,") 
+                             <+> conSingletonName con <.> text "," 
+                             <+> ppConTag con conRepr dataRepr <.> text ");"
+                 when (dataRepr == DataOpen) $
+                   emitToInit $ conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
          else return ()
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con

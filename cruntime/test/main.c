@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include "time.h"
 #include "runtime.h"
+#include <math.h>
+#include <limits.h>
+#include <float.h>
 
 define_string_literal(, stest, 5, "hello");
 
@@ -379,6 +382,18 @@ static void test_bitcount() {
   }  
 }
 
+static void test_double(context_t* ctx) {
+  double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,32.0), pow(2.0,64.0), INFINITY, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, NAN };
+  size_t i = 0;
+  double d;
+  do {
+    d = values[i++];
+    integer_t x = integer_from_double(d, ctx);
+    printf("value: %.20e, %.20e, integer: ", d, round(d)); integer_print(x, ctx); printf("\n");
+  } while (!isnan(d));
+}
+
+
 int main() {
   context_t* ctx = runtime_context();
   test_fib(50,ctx);   // 12586269025
@@ -395,6 +410,7 @@ int main() {
   test_div(ctx);
   test_count(ctx);
   test_pow10(ctx);
+  test_double(ctx);
   // test_bitcount();
   
   /*
