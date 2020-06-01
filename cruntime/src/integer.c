@@ -496,7 +496,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
 
 integer_t integer_from_str(const char* num, context_t* ctx) {
   integer_t i = integer_parse(num,ctx);
-  assert_internal(i != box_null);
+  assert_internal(i.box != box_null.box);
   return i;
 }
 
@@ -816,16 +816,16 @@ static bigint_t* bigint_mul_karatsuba(bigint_t* x, bigint_t* y, context_t* ctx) 
 
 integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
   if (is_smallint(p)) {
-    if (p == integer_from_small(0)) return integer_from_small(1);
+    if (box_as_int(p) == box_as_int(integer_from_small(0))) return integer_from_small(1);
   }
   if (is_smallint(x)) {
-    if (x == integer_from_small(0)) {
+    if (box_as_int(x) == box_as_int(integer_from_small(0))) {
       integer_decref(p,ctx);  return integer_from_small(0);
     }
-    if (x == integer_from_small(1)) {
+    if (box_as_int(x) == box_as_int(integer_from_small(1))) {
       integer_decref(p,ctx);  return integer_from_small(1);
     }
-    if (x == integer_from_small(-1)) {
+    if (box_as_int(x) == box_as_int(integer_from_small(-1))) {
       return (integer_is_even(p,ctx) ? integer_from_small(1) : integer_from_small(-1));
     }
   }
@@ -1019,7 +1019,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg, context_t* ctx)
 
  bool integer_is_even_generic(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
-  if (is_smallint(x)) return ((x&0x08)==0);
+  if (is_smallint(x)) return ((box_as_int(x)&0x08)==0);
   bigint_t* bx = integer_to_bigint(x,ctx);
   bool even = ((bx->digits[0]&0x1)==0);
   integer_decref(x,ctx);
@@ -1070,16 +1070,16 @@ integer_t integer_mul_generic(integer_t x, integer_t y, context_t* ctx) {
 integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, context_t* ctx) {
   assert_internal(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
-    if (y == integer_from_small(0)) return 0; // raise div-by-zero
-    if (y == integer_from_small(1)) {
+    int_t ay = unbox_int(y);
+    if (ay == 0) return box_null; // raise div-by-zero
+    if (ay == 1) {
       if (mod!=NULL) *mod = integer_from_small(0);
       return x;
     }
-    if (y == integer_from_small(-1)) {
+    if (ay == -1) {
       if (mod!=NULL) *mod = integer_from_small(0);
       return integer_neg(x, ctx);
     }
-    int_t ay = unbox_int(y);
     bool ay_neg = ay < 0;
     if (ay_neg) ay = -ay;
     if (ay < BASE) {
@@ -1132,7 +1132,7 @@ integer_t integer_div_generic(integer_t x, integer_t y, context_t* ctx) {
 }
 
 integer_t integer_mod_generic(integer_t x, integer_t y, context_t* ctx) {
-  integer_t mod = 0;
+  integer_t mod = box_null;
   integer_t div = integer_div_mod_generic(x, y, &mod, ctx);
   integer_decref(div, ctx);
   return mod;
@@ -1248,11 +1248,11 @@ integer_t integer_count_digits(integer_t x, context_t* ctx) {
 static int_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
 integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (p==integer_from_small(0)) {
+  if (integer_is_zero(integer_dup(p),ctx)) {
     integer_decref(p, ctx);
     return x;
   }
-  if (x==integer_from_small(0)) {
+  if (integer_is_zero(integer_dup(x),ctx)) {
     integer_decref(p, ctx); // x is small
     return integer_from_small(0);
   }  
@@ -1294,11 +1294,11 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
 
 
 integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (p==integer_from_small(0)) {
+  if (integer_is_zero(integer_dup(p),ctx)) {
     integer_decref(p, ctx);
     return x;
   }
-  if (x==integer_from_small(0)) {
+  if (integer_is_zero(integer_dup(x),ctx)) {
     integer_decref(p, ctx); // x is small
     return integer_from_small(0);
   }
@@ -1396,7 +1396,7 @@ integer_t integer_from_double(double d, context_t* ctx) {
   else {
     snprintf(buf, 32, "%.20e", d);
     integer_t i = integer_parse(buf, ctx);
-    return (i==box_null ? integer_from_small(0) : i);
+    return (i.box==box_null.box ? integer_from_small(0) : i);
   }
 }
 

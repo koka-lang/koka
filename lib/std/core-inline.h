@@ -24,7 +24,7 @@ static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, cont
   else {
     integer_t i = integer_parse(string_cbuf_borrow(s),ctx);
     string_drop(s,ctx);
-    return (i==box_null ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
+    return (box_eq(i,box_null) ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
   }
 }
 
@@ -90,7 +90,7 @@ vector_t vector_init32( int32_t n, function_t init, context_t* ctx);
   
 static inline vector_t vector_alloc32( int32_t n, context_t* ctx ) {
   assert_internal(n >= 0);
-  return vector_alloc( (n < 0 ? 0 : n), 0, ctx);
+  return vector_alloc( (n < 0 ? 0 : n), box_null, ctx);
 }
 
 static inline box_t vector_at_int( vector_t v, integer_t n, context_t* ctx ) {

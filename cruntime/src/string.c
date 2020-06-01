@@ -9,6 +9,7 @@
 #include "runtime.h"
 
 struct _string_s _static_string_empty = { HEADER_STATIC(0,TAG_STRING), {0} };
+string_t string_empty = { (uintptr_t)&_static_string_empty };
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
@@ -114,7 +115,7 @@ string_t string_from_chars(vector_t v, context_t* ctx) {
 
 vector_t string_to_chars(string_t s, context_t* ctx) {
   size_t n = string_count(string_dup(s));
-  vector_t v = vector_alloc(n, 0, ctx);
+  vector_t v = vector_alloc(n, box_null, ctx);
   box_t* cs = vector_buf(v, NULL);
   const uint8_t* p = string_buf_borrow(s);
   for (size_t i = 0; i < n; i++) {
@@ -154,7 +155,7 @@ vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx
   }
   assert_internal(n > 0);
   // copy to vector
-  vector_t v = vector_alloc(n, 0, ctx);
+  vector_t v = vector_alloc(n, box_null, ctx);
   box_t* ss = vector_buf(v, NULL);
   for (size_t i = 0; i < (n-1); i++) {
     const char* r;
@@ -262,10 +263,10 @@ string_t show_any(box_t b, context_t* ctx) {
     snprintf(buf, 128, "int(%zi)", unbox_int(b));
     return string_alloc_dup(buf, ctx);
   }
-  else if (b == box_null) {
+  else if (b.box == box_null.box) {
     return string_alloc_dup("null", ctx);
   }
-  else if (b == 0) {
+  else if (b.box == 0) {
     return string_alloc_dup("cptr(NULL)", ctx);
   }
   else {

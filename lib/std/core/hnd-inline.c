@@ -38,7 +38,7 @@ int32_t evv_index( struct __std_core_hnd_Htag htag, context_t* ctx ) {
   box_t* vec = evv_as_vec(ctx->evv,&len,&single);
   for(size_t i = 0; i < len; i++) {
     struct __std_core_hnd_Ev* ev = unbox_ev(vec[i],ctx);
-    if (htag._field1 == ev->_field1._field1) return (int32_t)(i); // compare string address for equality
+    if (box_eq(htag._field1,ev->_field1._field1)) return (int32_t)(i); // compare string address for equality
   }
   string_t evvs = evv_show(datatype_dup(ctx->evv),ctx);
   fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
@@ -58,7 +58,7 @@ datatype_t evv_insert(datatype_t evvd, datatype_t evd, context_t* ctx) {
   size_t n;
   box_t single;
   const box_t* evv1 = evv_as_vec(evvd, &n, &single);
-  const vector_t vec2 = vector_alloc(box_null,n+1,ctx);  // TODO: do not initialize
+  const vector_t vec2 = vector_alloc(n+1,box_null,ctx);
   box_t* const evv2 = vector_buf(vec2,NULL);
   size_t i;
   for(i = 0; i < n; i++) {
@@ -85,7 +85,7 @@ datatype_t evv_delete(datatype_t evvd, int32_t index, bool behind, context_t* ct
   }
   if (behind) index++;
   assert_internal(index < n);  
-  const vector_t vec2 = vector_alloc(box_null,n+1,ctx);  // TODO: do not initialize
+  const vector_t vec2 = vector_alloc(n+1,box_null,ctx);  
   box_t* const evv2 = vector_buf(vec2,NULL);
   size_t i;
   for(i = 0; i < (size_t)index; i++) {
@@ -264,7 +264,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
 }
 
 unit_t  evv_guard(datatype_t evv, context_t* ctx) {
-  if (ctx->evv != evv) {
+  if (box_eq(ctx->evv,evv)) {
     // todo: improve error message with diagnostics
     fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }

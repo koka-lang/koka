@@ -21,7 +21,7 @@ static inline char_t unbox_char_t(box_t b, context_t* ctx) {
 }
 
 static inline box_t box_char_t(char_t c, context_t* ctx) {
-  return (char_t)box_int32_t(c, ctx);
+  return box_int32_t(c, ctx);
 }
 
 /*--------------------------------------------------------------------------------------
@@ -51,12 +51,12 @@ struct _string_s {
   struct string_s str;
 };
 extern struct _string_s _static_string_empty;
-#define string_empty  ((string_t)(&_static_string_empty))
+extern string_t string_empty;
 
 // Define string literals
 #define define_string_literal(decl,name,len,chars) \
   static struct { block_t block; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, chars }; \
-  decl string_t name = (string_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
+  decl string_t name = { (uintptr_t)&_static_##name };   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
 
 
 static inline string_t unbox_string_t(box_t v) {
@@ -315,6 +315,8 @@ static inline bool string_is_eq(string_t s1, string_t s2, context_t* ctx) {
 static inline bool string_is_neq(string_t s1, string_t s2, context_t* ctx) {
   return (string_cmp(s1, s2, ctx) != 0);
 }
+
+decl_export string_t string_cat(string_t s1, string_t s2, context_t* ctx);
 
 decl_export string_t string_from_char(char_t c, context_t* ctx);
 decl_export string_t string_from_chars(vector_t v, context_t* ctx);

@@ -22,9 +22,12 @@
 #define MULTI_THREADED          1
 
 /*--------------------------------------------------------------------------------------
-  Platform defines
-  - we assume C11 or C++11 as C compiler
+  Platform:
+  - we assume C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
   - we assume either a 32- or 64-bit platform
+  - we assume the compiler can do a great job on small static inline definitions (and avoid #define).
+  - we assume the compiler will inline small structs (like `struct box_s{ uintptr_t u; }`) without 
+    overhead (e.g. pass in a register).
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define decl_externc    extern "C"
@@ -100,11 +103,13 @@
 
 // Defining constants of a specific size
 #if LONG_MAX == INT32_MAX
+# define LONG_SIZE 4
 # define I32(i)  (i##L)
 # define I64(i)  (i##LL)
 # define U32(i)  (i##UL)
 # define U64(i)  (i##ULL)
 #elif LONG_MAX == INT64_MAX
+# define LONG_SIZE 8
 # define I32(i)  (i)
 # define I64(i)  (i##L)
 # define U32(i)  (i##U)
@@ -113,15 +118,23 @@
 #error size of a `long` must be 32 or 64 bits
 #endif
 
-// abstract over intptr_t so we can in principle target architectures like x32 where 
-// the size of a pointer is 32-bit but int's can be 64-bit. 
-// An `int_t` should be the size of a boxed value and be able to contain pointers
-// to the heap (so pointer could be represented as an offset to a base)
-typedef intptr_t  int_t;
-typedef uintptr_t uint_t;
-
+// Abstract over the "natural machine word". This is to aid when
+// targeting architectures where `sizeof(void*) != sizeof(size_t)`. 
+// We have `sizeof(int_t) >= sizeof(void*)` and `sizeof(int_t) >= sizeof(long)`.
+#if (LONG_MAX <= INTPTR_MAX)
+typedef intptr_t    int_t;
+typedef uintptr_t   uint_t;
+#define UINTC(i)    (i##ULL)
+#define INTC(i)     (i##LL)
 #define INT_T_SIZE  INTPTR_SIZE
-#define INT_T_BITS  INTPTR_BITS
+#else 
+typedef long           int_t;
+typedef unsigned long  uint_t;
+#define UINTC(i)       (i##UL)
+#define INTC(i)        (i##L)
+#define INT_T_SIZE     LONG_SIZE
+#endif
+#define INT_T_BITS  (8*INT_T_SIZE)
 
 #define INT_T_ALIGNUP(x)  ((((x)+INT_T_SIZE-1)/INT_T_SIZE)*INT_T_SIZE)
 
@@ -130,7 +143,7 @@ static inline int_t  sar(int_t i, int_t shift)   { return (i >> shift); }
 static inline uint_t shr(uint_t i, uint_t shift) { return (i >> shift); }
 
 // Limited reference counts can be more efficient
-#if INT_T_SIZE <= 4
+#if PTRDIFF_MAX <= INT32_MAX
 #undef  REFCOUNT_LIMIT_TO_32BIT
 #define REFCOUNT_LIMIT_TO_32BIT  1
 #endif
@@ -140,10 +153,12 @@ static inline uint_t shr(uint_t i, uint_t shift) { return (i >> shift); }
 --------------------------------------------------------------------------------------*/
 
 // A `ptr_t` is a pointer to a `block_t`. We keep it abstract to support tagged pointers or sticky refcounts in the future
-typedef uint_t ptr_t;      
+typedef uintptr_t ptr_t;      
 
-// Polymorpic operations work on boxed values. We use unsigned representation to avoid UB on shift operations and overflow.
-typedef uint_t box_t;    
+// Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
+typedef struct box_s {
+  uint_t box;            // We use unsigned representation to avoid UB on shift operations and overflow.
+} box_t;
 
 // A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
 typedef box_t datatype_t;
@@ -325,6 +340,13 @@ static inline block_t* block_from_data_large(const void* data) {
 --------------------------------------------------------------------------------------*/
 
 extern ptr_t ptr_null;
+
+static inline decl_const uint_t ptr_to_uint(ptr_t p) {
+  return p;
+}
+static inline decl_const ptr_t ptr_from_uint(uint_t u) {
+  return u;
+}
 
 static inline decl_const tag_t ptr_tag(ptr_t p) {
   return block_tag(ptr_as_block(p));
@@ -558,8 +580,6 @@ static inline void boxed_drop(box_t b, context_t* ctx) {
   Datatype
 --------------------------------------------------------------------------------------*/
 
-#define datatype_null   ((datatype_t)(0x02))   // enum 0
-
 static inline decl_const datatype_t ptr_as_datatype(ptr_t p) {
   return box_ptr(p);
 }
@@ -597,11 +617,11 @@ static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
 
 #define define_static_datatype(decl,name,tag) \
     static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
-    decl datatype_t name = (datatype_t)(&_static_##name); /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
+    decl datatype_t name = { (uintptr_t)&_static_##name }; /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
 
 #define define_static_open_datatype(decl,name,otag) /* ignore otag as it is initialized dynamically */ \
-    static struct { block_t _header; string_t _tag; } _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, string_empty }; \
-    decl datatype_t name = (datatype_t)(&_static_##name); /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
+    static struct { block_t _header; string_t _tag; } _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, {(uintptr_t)&_static_string_empty} }; \
+    decl datatype_t name = { (uintptr_t)&_static_##name }; /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
 
 
 static inline decl_const datatype_t datatype_from_data(const void* data) {
@@ -639,7 +659,7 @@ static inline value_tag_t value_tag(uint_t tag) {
   return box_enum(tag);
 }
 */
-#define value_tag(tag) (((value_tag_t)tag << 2) | 0x03)
+#define value_tag(tag) (box_from_uint(((uint_t)tag << 2) | 0x03))
 
 
 
@@ -760,8 +780,8 @@ static inline ptr_t function_alloc(size_t size, size_t scan_fsize, context_t* ct
 #define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(function_data(f)->fun)))args
 
 #define define_static_function(name,cfun) \
-  static struct { block_t block; box_t fun; } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, (box_t)(&cfun) }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
-  function_t name = (function_t)(&_static_##name);   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
+  static struct { block_t block; box_t fun; } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { (uintptr_t)&cfun } }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
+  function_t name = { (uintptr_t)&_static_##name };   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
 
 
 extern function_t function_id;
@@ -827,8 +847,9 @@ static inline box_t box_unit_t(unit_t u) {
   return box_enum(u);
 }
 
-static inline box_t unbox_unit_t(box_t u) {
-  return unbox_enum(u);
+static inline unit_t unbox_unit_t(box_t u) {
+  assert_internal( unbox_enum(u) == (uint_t)Unit);
+  return Unit;
 }
 
 /*--------------------------------------------------------------------------------------
@@ -842,11 +863,11 @@ struct vector_s {
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   struct vector_s* v = ptr_data_as(struct vector_s, ptr_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx));
   v->length = box_enum(length);
-  if (def != 0) {
+  if (def.box != box_null.box) {
     for (size_t i = 0; i < length; i++) {
       v->vec[i] = def;
     }
-    v->vec[length] = 0; // ending zero value
+    v->vec[length] = box_from_uint(0); // ending zero value
   }
   return datatype_from_data(v);
 }

@@ -87,21 +87,40 @@ We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
 ----------------------------------------------------------------*/
 
-#define box_ptr_null  (ptr_null)         // box_ptr(NULL)
-#define box_null      (datatype_null)    // box_enum(0)
+static inline box_t box_from_uint(uint_t u) {
+  box_t b = { u };
+  return b;
+}
+static inline box_t box_from_int(int_t i) {
+  return box_from_uint((uint_t)i);
+}
+static inline uint_t box_as_uint(box_t b) {
+  return b.box;
+}
+static inline int_t box_as_int(box_t b) {
+  return (int_t)box_as_uint(b);
+}
+static inline bool box_eq(box_t b1, box_t b2) {
+  return (b1.box == b2.box);
+}
+
+#define box_ptr_null  (box_from_uint(0))    // box_ptr(NULL)
+#define box_null      (box_from_uint(3))    // box_reserved(0)
+#define datatype_null (box_null)
+
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool is_ptr_fast(box_t b) {
-  return ((b & 0x03)==0);
+  return ((b.box & 0x03)==0);
 }
 static inline bool is_int_fast(box_t b) {
-  return ((b & 0x03)==1);
+  return ((b.box & 0x03)==1);
 }
 static inline bool is_enum_fast(box_t b) {
-  return ((b & 0x03)==2);
+  return ((b.box & 0x03)==2);
 }
 static inline bool is_cptr_fast(box_t b) {
-  return ((b & 0x03)==3);
+  return ((b.box & 0x03)==3);
 }
 
 #define MAX_BOXED_INT  ((int_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
@@ -116,13 +135,13 @@ static inline bool is_cptr_fast(box_t b) {
 
 // checking does not have to be optimal as we do not generally use this.
 static inline bool is_double(box_t b) {
-  return ((uint16_t)((shr(b,48) + 1)) > 1);  // test of top 16 bits are not 0x0000 or 0xFFFF
+  return ((uint16_t)((shr(b.box,48) + 1)) > 1);  // test of top 16 bits are not 0x0000 or 0xFFFF
 }
 static inline bool is_ptr_and_not_double(box_t b) {
   // faster test if a `ptr` is guaranteed to not have 0xFFFF as the top 16 bits. (which is usually the case, unless you are kernel programming)
   // this is used when doing `boxed_incref` for example.
   assert_internal(is_ptr_fast(b));
-  return ((uint16_t)shr(b, 48) == 0);
+  return ((uint16_t)shr(b.box, 48) == 0);
 }
 static inline bool is_ptr(box_t b) {
   return (is_ptr_fast(b) && likely(is_ptr_and_not_double(b)));
@@ -141,7 +160,7 @@ static inline double unbox_double(box_t v, context_t* ctx) {
   UNUSED(ctx);
   assert_internal(is_double(v));
   union { uint64_t _v; double d; } u;
-  u._v = ((uint64_t)v - ((uint64_t)1 << 48));  // unsigned to avoid UB
+  u._v = ((uint64_t)(v.box) - ((uint64_t)1 << 48));  // unsigned to avoid UB
   return u.d;
 }
 
@@ -154,7 +173,7 @@ static inline box_t box_double(double d, context_t* ctx) {
     u.v = u.v - ((uint64_t)0x0002 << 48);
     d = u._d;  // for the assert_internal
   }
-  box_t v = (box_t)(u.v + ((uint64_t)1 << 48));
+  box_t v = { u.v + ((uint64_t)1 << 48) };
   assert_internal(is_double(v));
   assert_internal(unbox_double(v,ctx) == d); // (well, not for high qNaN)
   return v;
@@ -173,22 +192,21 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 }
 
 
-
 #elif INTPTR_SIZE==4
 
 #define BOXED_INT_BITS      (30)
 
 static inline bool is_ptr(box_t b) {
-  return is_ptr_fast(b);
+  return is_ptr_fast(b.box);
 }
 static inline bool is_int(box_t b) {
-  return is_int_fast(b);
+  return is_int_fast(b.box);
 }
 static inline bool is_enum(box_t b) {
-  return is_enum_fast(b);
+  return is_enum_fast(b.box);
 }
 static inline bool is_cptr(box_t b) {
-  return is_cptr_fast(b);
+  return is_cptr_fast(b.box);
 }
 static inline bool is_double(box_t v) {
   return (is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_DOUBLE);
@@ -236,51 +254,52 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 #endif
 
 static inline bool is_non_null_ptr(box_t v) {
-  return (is_ptr(v) && v != box_ptr_null);
+  return (is_ptr(v) && v.box != box_ptr_null.box);
 }
 
 static inline ptr_t unbox_ptr(box_t v) {
   assert_internal(is_ptr(v));
-  return (ptr_t)v;
+  return ptr_from_uint(v.box);
 }
 
 static inline box_t box_ptr(ptr_t p) {
-  assert_internal(((uint_t)p & 0x03) == 0); // check alignment
-  return (box_t)p;
+  assert_internal((p & 0x03) == 0); // check alignment
+  box_t b = { ptr_to_uint(p) };
+  return b;
 }
 
 static inline void* unbox_cptr(box_t b) {
   assert_internal(is_cptr(b));
-  return (void*)(b & ~0x03);
+  return (void*)(b.box & ~UINTC(0x03));
 }
 
 static inline box_t box_cptr(void* p) {
   assert_internal(((uint_t)p & 0x03) == 0); // check alignment
-  box_t b = (box_t)p | 0x03;
+  box_t b = { (uintptr_t)p | 0x03 };
   assert_internal(is_cptr(b));
   return b;
 }
 
 static inline uint_t unbox_enum(box_t b) {
   assert_internal(is_enum(b));
-  return shr(b, 2);
+  return shr(b.box, 2);
 }
 
 static inline box_t box_enum(uint_t u) {
   assert_internal(u <= MAX_BOXED_ENUM);
-  box_t b = (u << 2) | 0x02;
+  box_t b = { (u << 2) | 0x02 };
   assert_internal(is_enum(b));
   return b;
 }
 
 static inline int_t unbox_int(box_t v) {
   assert_internal(is_int(v));
-  return (sar(v, 2));
+  return (sar(v.box, 2));
 }
 
 static inline box_t box_int(int_t i) {
   assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
-  box_t v = (i << 2) | 0x01;
+  box_t v = { (uint_t)(i << 2) | 0x01 };
   assert_internal(is_int(v));
   return v;
 }

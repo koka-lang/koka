@@ -43,7 +43,7 @@ vector_t list_to_vector(datatype_t xs, context_t* ctx) {
     ys = cons->tail;
   }
   // alloc the vector and copy
-  vector_t v = vector_alloc(len,0,ctx);
+  vector_t v = vector_alloc(len,box_null,ctx);
   box_t* p = vector_buf(v,NULL);
   ys = xs;
   for( uint_t i = 0; i < len; i++) {

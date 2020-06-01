@@ -67,7 +67,7 @@ void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, context_
 }
 void testb(const char* name, iop* op, box_t x, box_t y, box_t expect, context_t* ctx ) {
   integer_t k = (op(x, y, ctx));
-  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x, name, y, k, (k==expect ? "ok" : "FAIL"), expect, (k == 43 ? "(overflow)" : ""));
+  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x.box, name, y.box, k.box, (k.box==expect.box ? "ok" : "FAIL"), expect.box, (k.box == 43 ? "(overflow)" : ""));
 }
 void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, 1, ctx);
@@ -86,9 +86,9 @@ void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, SMALLINT_MIN, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MAX, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MIN, ctx);
-  testb(name, op, 24, 24, 41, ctx);  // ptr + ptr
-  testb(name, op, 24, 13, 41, ctx);  // ptr + int
-  testb(name, op, 13, 24, 41, ctx);  // int + ptr
+  testb(name, op, box_from_uint(24), box_from_uint(24), box_from_uint(41), ctx);  // ptr + ptr
+  testb(name, op, box_from_uint(24), box_from_uint(13), box_from_uint(41), ctx);  // ptr + int
+  testb(name, op, box_from_uint(13), box_from_uint(24), box_from_uint(41), ctx);  // int + ptr
 }
 
 void test(context_t* ctx) {
@@ -432,7 +432,7 @@ int main() {
   }
   */
   
-  return (int)(__data1__new_Cons(box_int(1),datatype_from_enum(0),ctx));
+  return box_as_int(__data1__new_Cons(box_int(1),datatype_from_enum(0),ctx));
 }
 
 /*

@@ -428,7 +428,7 @@ genBox name info dataRepr
   = emitToH $
     text "static inline box_t box_" <.> ppName name <.> parameters [ppName name <+> text "x"] <+> block (
       case dataRepr of
-        DataEnum -> text "return" <+> parens (ppName name) <.> text "box_enum" <.> tupled [text "x"] <.> semi
+        DataEnum -> text "return" <+> text "box_enum" <.> tupled [text "x"] <.> semi
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
                     in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
@@ -494,18 +494,20 @@ genConstructorTest info dataRepr con conRepr
                   let nameDoc = ppName (conInfoName con)
                       -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
                       dataTypeTagDoc = text "datatype_tag" <.> tupled [text "x"]
+                      valueTagEq     = text "box_eq(x._tag," <+> ppConTag con conRepr dataRepr <.> text ")"
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
                     ConSingleton{} | dataRepr == DataAsList -> text "!datatype_is_ptr(x)"
-                                   | otherwise -> text (if (dataReprIsValue dataRepr) then "x._tag ==" else "x ==") <+> ppConTag con conRepr dataRepr
+                                   | dataReprIsValue dataRepr -> valueTagEq
+                                   | otherwise -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConSingle{}    -> text "true"
-                    ConAsJust{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
-                    ConStruct{}    -> text "x._tag ==" <+> ppConTag con conRepr dataRepr
+                    ConAsJust{}    -> valueTagEq
+                    ConStruct{}    -> valueTagEq
                     ConAsCons{}    -> text "datatype_is_ptr(x)"
                     ConNormal{}    | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
-                    ConOpen{}      -> text "(datatype_data_as_assert(struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s,x,TAG_OPEN)->_tag)" <+> text "==" <+> ppConTag con conRepr dataRepr
+                    ConOpen{}      -> text "box_eq" <.> parens (text "datatype_data_as_assert(struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s,x,TAG_OPEN)->_tag" <+> text "," <+> ppConTag con conRepr dataRepr)
                   ) <.> text ");")
 
 conTestName con
