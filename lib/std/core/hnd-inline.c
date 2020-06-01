@@ -41,7 +41,7 @@ int32_t evv_index( struct __std_core_hnd_Htag htag, context_t* ctx ) {
     if (htag._field1 == ev->_field1._field1) return (int32_t)(i); // compare string address for equality
   }
   string_t evvs = evv_show(datatype_dup(ctx->evv),ctx);
-  fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_buf(htag._field1), string_buf(evvs));
+  fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
   string_drop(evvs,ctx);  
   return -1;
 }
@@ -99,7 +99,7 @@ datatype_t evv_delete(datatype_t evvd, int32_t index, bool behind, context_t* ct
 }
 
 string_t evv_show(datatype_t evv, context_t* ctx) {
-  return string_alloc("(not yet implemented: evv_show)",ctx);
+  return string_alloc_dup("(not yet implemented: evv_show)",ctx);
 }
 
 

@@ -805,10 +805,11 @@ static inline box_t ref_get(ref_t b) {
   return boxed_dup(datatype_data_as_assert(struct ref_s, b, TAG_REF)->value);
 }
 
-static inline void ref_set(ref_t r, box_t value, context_t* ctx) {
+static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
   box_t* b = &datatype_data_as_assert(struct ref_s, r, TAG_REF)->value; 
   boxed_drop(*b, ctx);
   *b = value;
+  return Unit;
 }
 
 decl_export void fatal_error(int err, const char* msg, ...);
@@ -877,6 +878,16 @@ static inline size_t vector_len(vector_t v) {
 
 extern vector_t vector_empty;
 
+static inline box_t box_vector_t(vector_t v, context_t* ctx) {
+  UNUSED(ctx);
+  return box_datatype(v);
+}
+
+static inline vector_t unbox_vector_t(box_t b, context_t* ctx) {
+  UNUSED(ctx);
+  return unbox_datatype(b);
+}
+
 /*--------------------------------------------------------------------------------------
   Bytes
 --------------------------------------------------------------------------------------*/
@@ -895,6 +906,8 @@ struct bytes_raw_s {
 };
 
 typedef datatype_t bytes_t;  // either TAG_BYTES or TAG_BYTES_RAW
+
+
 
 
 

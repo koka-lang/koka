@@ -346,9 +346,19 @@ static inline integer_t integer_sqr(integer_t x, context_t* ctx) {
   return integer_sqr_generic(x,ctx);
 }
 
+static inline integer_t integer_neg_small(integer_t x, context_t* ctx) {
+  assert_internal(is_smallint(x));
+  return integer_sub_small(integer_from_small(0), x, ctx);   // negation can overflow
+}
+
 static inline integer_t integer_neg(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_sub_small(box_int(0),x,ctx);
+  if (likely(is_smallint(x))) return integer_neg_small(x,ctx);
   return integer_neg_generic(x,ctx);
+}
+
+static inline integer_t integer_abs(integer_t x, context_t* ctx) {
+  if (likely(is_smallint(x))) return (x < integer_from_small(0) ? integer_neg_small(x,ctx) : x);
+  return (integer_signum_generic(x, ctx) < 0 ? integer_neg_generic(x, ctx) : x);
 }
 
 static inline integer_t integer_dec(integer_t x, context_t* ctx) {
@@ -460,5 +470,7 @@ static inline integer_t integer_min(integer_t x, integer_t y, context_t* ctx) {
     integer_decref(x, ctx); return y;
   }
 }
+
+
 
 #endif // include guard

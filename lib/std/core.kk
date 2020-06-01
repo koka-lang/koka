@@ -1391,7 +1391,7 @@ extern inline (^) : (d:double,p:double) -> double {
 
 // Return the absolute value of a `:double` `d`
 extern inline abs : (d:double) -> double  {
-  c inline "abs(#1)"
+  c inline "double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 }
@@ -1595,6 +1595,7 @@ fun tail( s : string ) : string {
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
 extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
+  c  "slice_common_prefix"
   cs "Primitive.SliceCommonPrefix"
   js "_sslice_common_prefix"
 }
@@ -1613,6 +1614,7 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".last.advance(-1).string == "b"`.
 //
 public extern advance( slice : sslice, count : int ) : sslice {
+  c  "slice_advance"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
 }
@@ -1625,6 +1627,7 @@ public extern advance( slice : sslice, count : int ) : sslice {
 // * `"abc".last.extend(-1).string == ""`
 //
 extern extend( slice : sslice, count : int ) : sslice {
+  c  "slice_extend"
   cs "Primitive.SliceExtend"
   js "_sslice_extend"
 }
@@ -1655,6 +1658,7 @@ extern string( slice : sslice ) : string {
 // If the slice is not empty,
 // return the first character, and a new slice that is advanced by 1.
 extern next( slice : sslice ) : maybe<(char,sslice)> {
+  c  "slice_next"
   cs "Primitive.SliceNext"
   js "_sslice_next"
 }
@@ -1681,6 +1685,7 @@ fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xindex-of(s : string, sub : string ) : int32 {
+  c "string_index_of"
   cs inline "((#1).IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
 }
@@ -1694,6 +1699,7 @@ fun find( s : string, sub : string ) : maybe<sslice> {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xlast-index-of(s : string, sub : string ) : int32 {
+  c "string_last_index_of"
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
@@ -1705,6 +1711,7 @@ fun find-last( s : string, sub : string ) : maybe<sslice> {
 }
 
 private extern inline xstarts-with: (s : string, pre : string ) -> bool {
+  c  "string_starts_with"
   cs inline "#1.StartsWith(#2)";
   js inline "(#1.substr(0,#2.length) === #2)"
 }
@@ -1720,6 +1727,7 @@ fun starts-with( s : string, pre : string ) : maybe<sslice> {
 
 
 private extern xends-with: (s : string, post : string ) -> bool {
+  c  "string_ends_with"
   cs inline "#1.EndsWith(#2)";
   js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
 }
@@ -1734,18 +1742,21 @@ fun ends-with( s : string, post : string ) : maybe<sslice> {
 
 // Does string `s`  contain the string `sub`  ?
 extern inline contains: (s : string, sub : string ) -> bool {
+  c  "string_contains"
   cs inline "((#1).Contains(#2))";
   js inline "((#1).indexOf(#2) >= 0)"
 }
 
 // Concatenate a vector of strings
 extern inline join: (v : vector<string> ) -> string {
+  c  "string_join"
   cs "String.Concat";
   js inline "((#1).join(''))"
 }
 
 // Concatenate a vector of strings with a separator `sep`
 extern inline join: (v : vector<string>, sep : string ) -> total string {
+  c  "string_join_with"
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
 }
@@ -1834,12 +1845,14 @@ fun split( s : string, sep: string, n : int) : list<string> {
 
 // Replace every occurrence of `pattern` to `repl` in a string.
 public extern inline replace-all( s : string, pattern : string, repl : string ) : string {
+  c  "string_replace_all"
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
 }
 
 // Count occurences of `pattern` in a string.
 public extern inline count( s : string, pattern : string ) : int {
+  c  "string_count_pattern"
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
 }
@@ -1893,12 +1906,14 @@ fun unlines( xs : list<string> ) : string {
 
 // Convert a string to upper-case
 extern to-upper : (s : string) -> string {
+  c "string_to_upper"
   cs inline "(#1).ToUpper()"
   js inline "(#1).toUpperCase()"
 }
 
 // Convert a string to lower-case
 extern to-lower : (s : string) -> string {
+  c "string_to_lower"
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()"
 }
@@ -1935,12 +1950,14 @@ fun trim( s : string ) : string {
 
 // Trim the starting white space of a string
 extern inline trim-left( s : string ) : string {
+  c  "string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 }
 
 // Trim the ending white space of a string.
 extern inline trim-right( s : string ) : string {
+  c  "string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
 }
@@ -1953,22 +1970,26 @@ extern inline trim-right( s : string ) : string {
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int32 ) -> total a {
+  c "vector_at32"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
 
 private extern inline unsafe-assign : forall<a> ( v : vector<a>, i : int32, x : a ) -> total () {
+  c "vector_unsafe_assign32"
   cs inline "(#1)[#2] = #3";
   js inline "(#1)[#2] = #3";
 }
 
 private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a> {
+  c "vector_alloc32"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
+  c "vector_at_int"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
@@ -2002,6 +2023,7 @@ fun vector-init( n : int, f : int -> a ) : vector<a> {
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
 private extern vector-init32(n : int32, f : int32 -> a) : vector<a> {
+  c "vector_init32"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
 }
@@ -2265,7 +2287,7 @@ private fun gprint( x : a ) : console () {
 private val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
 
 // redirect `print` and `println` calls to a specified function.
-public fun print-redirect( print : (msg : string) -> console () ) : io ()
+public fun noinline print-redirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
 }
@@ -2377,7 +2399,7 @@ public fun trace-any( message : string, x : a ) : () {
   }
 }
 // Disable tracing completely.
-public fun notrace() : st<global> () {
+public fun noinline notrace() : st<global> () {
   trace-enabled := False
 }
 
@@ -2557,6 +2579,7 @@ val null-const : forall<a> null<a> = null(Nothing)
 
 // Used by the compiler to wrap main console applications
 extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
+  c "main_console"
   cs inline "Primitive.MainConsole<##1>(#1)"
   js inline "(#1)()"
 }
@@ -2639,12 +2662,14 @@ fun choose( x: a, y: a) : ndet a {
 
 // Return a random number equal or larger than 0.0 and smaller than 1.0
 extern random : () -> ndet double   {
+  c  "random_double"
   cs "Primitive.RandomDouble"
   js "Math.random"
 }
 
 // Return a positive random integer (including 0)
 extern random-int: () -> ndet int  {
+  c  "random_int"
   cs "Primitive.RandomInt"
   js inline "Math.floor(Math.random()*_max_precise)"
 }
@@ -2737,8 +2762,9 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
   rep(start)
 }
 
-// Return the host environment: `dotnet`, `browser`, `webworker`, or `node`.
+// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `clib`.
 extern host() : ndet string {
+  c "string_host"
   cs inline "\"dotnet\""
   js inline "_host"
 }
@@ -2767,5 +2793,6 @@ extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : 
 alias value<a> = a
 
 extern phantom<a>() : a {
+  c inline "box_null"
   inline "undefined"
 }

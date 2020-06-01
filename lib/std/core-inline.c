@@ -104,10 +104,11 @@ static inline void sslice_start_end_borrow( __std_core__sslice sslice, const uin
 }
 
 integer_t slice_count( __std_core__sslice sslice, context_t* ctx ) {
+  // TODO: optimize this by extending string_count 
   const uint8_t* start;
   const uint8_t* end; 
   sslice_start_end_borrow(sslice, &start, &end);
-  size_t count;
+  size_t count = 0;
   while( start < end && *start != 0 ) {
     const char* next = utf8_next(start);
     count++;
