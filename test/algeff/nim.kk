@@ -265,15 +265,15 @@ fun main() {
   ,testPerfect1().show
   ,testPerfect2().show
   ,testGt().show
-  //,testCheck().show
-  //,testPc2().show
-  //,testChoose().show
+  ,testCheck().show
+  ,testPc2().show
+  ,testChoose().show
   ,testCoin().show
   ,testPrint1().show
   ,testPrint2().show
   ,""
   ].join("\n-----------\n").print
-  //testPc1().show.println // raises exception
+  testPc1().show.println // raises exception
 }
 
 fun mymap( xs, f ) {

@@ -94,4 +94,3 @@ fun show-solutions( xss : solutions ) : io () {
     println(" " + xs.show)
   }  
 }
-
