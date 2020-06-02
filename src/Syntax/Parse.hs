@@ -1099,9 +1099,15 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
            tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
 
            clauseId    = prepend "clause-" (if (isValueOperationName id) then fromValueOperationsName id else id)
-           clauseName  = nameTpClause (length pars)
+           (clauseName,clauseParsTp) 
+                       = if (length pars <= 2) -- set by std/core/hnd
+                          then (nameTpClause (length pars), [binderType par | (vis,par) <- pars])
+                          else (nameTpClause 1, 
+                                [makeTpApp (TpCon (nameTuple (length pars)) rng)    -- as tuple on clause1
+                                           [binderType par | (vis,par) <- pars] rng])
+                                          
            clauseRhoTp = makeTpApp (TpCon clauseName rng)
-                                   ([binderType par | (vis,par) <- pars] ++ [tres] ++ map tpVar hndTpVars)
+                                   (clauseParsTp ++ [tres] ++ map tpVar hndTpVars)
                                    rng
            clauseTp    = quantify QForall exists $ clauseRhoTp
 

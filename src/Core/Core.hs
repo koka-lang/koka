@@ -42,6 +42,7 @@ module Core.Core ( -- Data structures
                    , openEffectExpr
                    , makeIfExpr
                    , makeInt32
+                   , makeEvIndex
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
@@ -709,6 +710,11 @@ makeInt32 :: Integer -> Expr
 makeInt32 i
   = let int32 = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeInt32)) (InfoArity 1 0 )
     in App int32 [Lit (LitInt i)]
+
+makeEvIndex :: Integer -> Expr
+makeEvIndex i
+  = let makeEv = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
+    in App makeEv [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------
 -- type of a core term

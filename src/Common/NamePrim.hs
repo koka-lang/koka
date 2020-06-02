@@ -45,6 +45,7 @@ module Common.NamePrim
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
           , isClauseTailName, nameClauseTailNoYield
+          , nameTpEvIndex
 
           --
           , nameUnsafeTotal
@@ -234,6 +235,7 @@ nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 nameTpHTag      = coreHndName "htag"
 nameTpClause i  = coreHndName ("clause" ++ show i)
 nameTpEv        = coreHndName "ev"
+nameTpEvIndex   = coreHndName "ev-index"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
 
 nameHTag        = coreHndName ".new-htag"
