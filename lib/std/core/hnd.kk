@@ -598,6 +598,10 @@ private fun under3( w : evv<e>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a
   z
 }
 
+public fun ".perform4"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3,a4),b,e1,r>), x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {
+  xperform1(ev,op,(x1,x2,x3,x4))
+}
+
 private fun under4( w : evv<e>, op : (a1,a2,a3,a4) -> e b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {
   val w0 = evv-swap(w)
   val z = op(x1,x2,x3,x4)

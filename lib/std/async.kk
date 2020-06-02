@@ -157,7 +157,7 @@ public fun receive( ch : channel<a> ) : asyncx a {
 
 fun receivex( ch : channel<a>, cancelable? : bool = True ) : <async,ndet> try<a> {
 	fun setup( cb : (_,_) -> io () )  {
-		fun cbr(x) { cb(Ok(x),True) }
+		fun cbr(x) { cb(TryOk(x),True) }
 		val r = ch.state
 		match (!r) {
 			Empty -> r := Waiting(cbr,[])
@@ -170,7 +170,7 @@ fun receivex( ch : channel<a>, cancelable? : bool = True ) : <async,ndet> try<a>
 		Nothing
 	}
 	match(ch.try-receive?) {
-		Just(v) -> Ok(v)
+		Just(v) -> TryOk(v)
 		Nothing -> do-await(setup,empty-scope,cancelable?)
 	}
 }
@@ -267,7 +267,7 @@ public fun wait( secs : duration = zero ) : <async,exn> () {
 	if (secs <= zero) then return yield()
 	val msecs = max(zero:int32,secs.milli-seconds.int32)
 	await fun(cb) {
-		val tid = set-timeout( fun(){ cb(Ok(())) }, msecs )
+		val tid = set-timeout( fun(){ cb(TryOk(())) }, msecs )
 		Just( { clear-timeout(tid) } )
 	}
 }
@@ -358,16 +358,16 @@ public fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async
 
 fun unleft( x : try<either<a,b>> ) : try<a> {
 	match(x) {
-		Ok(Left(l)) -> Ok(l)
-		Exn(exn)  -> Exn(exn)
-		_ -> Exn(exception("invalid left interleaved result",Internal("std/async/interleavedx(action1,action2)")))
+		TryOk(Left(l)) -> TryOk(l)
+		TryExn(exn)  -> TryExn(exn)
+		_ -> TryExn(Exception("invalid left interleaved result",Internal("std/async/interleavedx(action1,action2)")))
 	}
 }
 fun unright( x : try<either<a,b>> ) : try<b> {
 	match(x) {
-		Ok(Right(r)) -> Ok(r)
-		Exn(exn)     -> Exn(exn)
-		_ -> Exn(exception("invalid right interleaved result",Internal("std/async/interleavedx(action1,action2)")))
+		TryOk(Right(r)) -> TryOk(r)
+		TryExn(exn)     -> TryExn(exn)
+		_ -> TryExn(Exception("invalid right interleaved result",Internal("std/async/interleavedx(action1,action2)")))
 	}
 }
 
@@ -468,8 +468,8 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		// the only way receive can throw is through a cancelation -- but in that case
 		// we should not cancel but instead await all canceled strands; so keep listening on the channel.
 		match(ch.receivex(False)) {
-			Exn(_exn) -> () // ignore cancelation on receive
-			Ok(strand-resume) -> strand-resume()
+			TryExn(_exn) -> () // ignore cancelation on receive
+			TryOk(strand-resume) -> strand-resume()
 		}
 	}
 	()
@@ -498,19 +498,19 @@ public fun await-exn1( setup : (cb : (null<exception>,a) -> io () ) -> io maybe<
 
 fun unnull( nexn : null<exception>, x : a  ) : try<a> {
 	match(nexn.maybe) {
-		Nothing -> Ok(x)
-		Just(exn) -> Exn(exn)
+		Nothing -> TryOk(x)
+		Just(exn) -> TryExn(exn)
 	}
 }
 
 // Convenience function for awaiting a zero argument callback.
 public fun await0( setup : (cb : () -> io () ) -> io () ) : <async,exn> () {
-	await( fun(cb) { setup( fun() { cb(Ok(())) } ); Nothing } )
+	await( fun(cb) { setup( fun() { cb(TryOk(())) } ); Nothing } )
 }
 
 // Convenience function for awaiting a single argument callback.
 public fun await1( setup : (cb : (a) -> io () ) -> io () ) : <async,exn> a {
-	await( fun(cb) { setup( fun(x) { cb(Ok(x)) } ); Nothing } )
+	await( fun(cb) { setup( fun(x) { cb(TryOk(x)) } ); Nothing } )
 }
 
 // Execute `setup` to set up an asynchronous callback with the host platform. Invoke `cb` as the callback:
@@ -637,7 +637,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(Exn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
+		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(TryExn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
 		try {
 			// setup the callback which returns a possible dipose function
 			match(setup(cb)) {
@@ -647,7 +647,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		}
 		fun(exn) {
 			// if setup fails, immediately resume with the exception
-			cb(Exn(exn),True)
+			cb(TryExn(exn),True)
 		}
 	}
 

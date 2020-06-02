@@ -2490,6 +2490,14 @@ type try<a> {
   TryOk( result : a )
 }
 
+// Is it an exception?
+fun exn?( t : try<a> ) : bool {
+  match(t) {
+    TryExn -> True
+    _      -> False
+  }
+}
+
 // Transform an exception effect to a `:try` type.
 fun try( action : () -> <exn|e> a ) : e try<a> {
   try({ TryOk(action()) }, TryExn)

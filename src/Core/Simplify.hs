@@ -341,7 +341,7 @@ bottomUp expr@(Case scruts bs)  | commonContinue
 
 -- simplify evv-index(l) to i if l has a known offset
 bottomUp (App (TypeApp (Var evvIndex _) [effTp,hndTp]) [htag]) | getName evvIndex == nameEvvIndex && isEffectFixed effTp
-  = makeInt32 (effectOffset (effectLabelFromHandler hndTp) effTp)
+  = makeEvIndex (effectOffset (effectLabelFromHandler hndTp) effTp)
 
 
 -- simplify clause-tailN to clause-tail-noyieldN if it cannot yield

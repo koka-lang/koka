@@ -713,8 +713,7 @@ makeInt32 i
 
 makeEvIndex :: Integer -> Expr
 makeEvIndex i
-  = let makeEv = Var (TName nameInt32 (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
-    in App makeEv [Lit (LitInt i)]
+  = makeInt32 i
 
 ---------------------------------------------------------------------------
 -- type of a core term
