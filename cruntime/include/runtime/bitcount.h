@@ -100,17 +100,17 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 #endif
 
 #if (INTPTR_SIZE == 8) 
-static inline uint8_t bits_clz(uint_t x) {
+static inline uint8_t bits_clz(uintx_t x) {
   return bits_clz64(x);
 }
-static inline uint8_t bits_ctz(uint_t x) {
+static inline uint8_t bits_ctz(uintx_t x) {
   return bits_ctz64(x);
 }
 #else
-static inline uint8_t bits_clz(uint_t x) {
+static inline uint8_t bits_clz(uintx_t x) {
   return bits_clz32(x);
 }
-static inline uint8_t bits_ctz(uint_t x) {
+static inline uint8_t bits_ctz(uintx_t x) {
   return bits_ctz32(x);
 }
 #endif
@@ -124,7 +124,7 @@ static inline uint8_t bits_ctz(uint_t x) {
 #define bits_one_mask64     U64(0x0101010101010101)
 #define bits_high_mask32    U32(0x80808080)
 #define bits_high_mask64    U64(0x8080808080808080)
-#define bits_one_mask       ((~((uint_t)0))/0xFF)     // 0x01010101 ...
+#define bits_one_mask       ((~((uintx_t)0))/0xFF)     // 0x01010101 ...
 #define bits_high_mask      (bits_one_mask*0x80)      // 0x80808080 ...
 
 static inline bool bits_has_zero_byte32(uint32_t x) {
@@ -135,7 +135,7 @@ static inline bool bits_has_zero_byte64(uint64_t x) {
   return ((x - bits_one_mask64) & (~x & bits_high_mask64));
 }
 
-static inline bool bits_has_zero_byte(uint_t x) {
+static inline bool bits_has_zero_byte(uintx_t x) {
   return ((x - bits_one_mask) & (~x & bits_high_mask));
 }
 
@@ -154,7 +154,7 @@ static inline bool bits_is_power_of2_64(uint64_t x) {
   return _bits_is_power_of2(x);
 }
 
-static inline bool bits_is_power_of2(uint_t x) {
+static inline bool bits_is_power_of2(uintx_t x) {
   return _bits_is_power_of2(x);
 }
 

@@ -35,10 +35,10 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.h.refcount == 0);
   block_t* delayed = ctx->delayed_free;
   // encode the next pointer into the block header
-  b->header.rc32.lo = (uint32_t)((uint_t)delayed);
+  b->header.rc32.lo = (uint32_t)((uintx_t)delayed);
 #if (INTPTR_SIZE > 4)
-  b->header.h.tag = (uint16_t)(sar((int_t)delayed,32));
-  assert_internal(sar((int_t)delayed,48) == 0 || sar((int_t)delayed, 48) == -1);
+  b->header.h.tag = (uint16_t)(sar((intx_t)delayed,32));
+  assert_internal(sar((intx_t)delayed,48) == 0 || sar((intx_t)delayed, 48) == -1);
 #endif
   ctx->delayed_free = b;
 }
@@ -55,9 +55,9 @@ static void block_decref_delayed(context_t* ctx) {
     do {
       block_t* b = delayed;
       // decode the next element in the delayed list from the block header
-      int_t next = (int_t)b->header.rc32.lo;
+      intx_t next = (intx_t)b->header.rc32.lo;
 #if (INTPTR_SIZE>4)
-      next += ((int_t)((int16_t)(b->header.h.tag)) << 32); // sign extended
+      next += ((intx_t)((int16_t)(b->header.h.tag)) << 32); // sign extended
 #endif
 #ifndef NDEBUG
       b->header.rc32.lo = UINT32_MAX;
@@ -131,12 +131,6 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
     }
   }
 }
-
-// Free a "raw" block: first field is pointer to a free function, the next field a pointer to raw C data
-struct cptr_raw_s {
-  free_fun_t* free;
-  void* cptr;
-};
 
 static void block_free_raw(block_t* b) {
   assert_internal(tag_is_raw(block_tag(b)));

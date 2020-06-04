@@ -86,9 +86,9 @@ void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, SMALLINT_MIN, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MAX, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MIN, ctx);
-  testb(name, op, box_from_uint(24), box_from_uint(24), box_from_uint(41), ctx);  // ptr + ptr
-  testb(name, op, box_from_uint(24), box_from_uint(13), box_from_uint(41), ctx);  // ptr + int
-  testb(name, op, box_from_uint(13), box_from_uint(24), box_from_uint(41), ctx);  // int + ptr
+  testb(name, op, box_from_uintptr(24), box_from_uintptr(24), box_from_uintptr(41), ctx);  // ptr + ptr
+  testb(name, op, box_from_uintptr(24), box_from_uintptr(13), box_from_uintptr(41), ctx);  // ptr + int
+  testb(name, op, box_from_uintptr(13), box_from_uintptr(24), box_from_uintptr(41), ctx);  // int + ptr
 }
 
 void test(context_t* ctx) {
@@ -432,7 +432,7 @@ int main() {
   }
   */
   
-  return box_as_int(__data1__new_Cons(box_int(1),datatype_from_enum(0),ctx));
+  return box_as_intptr(__data1__new_Cons(box_int(1),datatype_from_enum(0),ctx));
 }
 
 /*

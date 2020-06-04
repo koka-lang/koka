@@ -92,55 +92,77 @@
 // Assumptions:
 // - a char/byte is 8 bits
 // - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
-#if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
-# define INTPTR_SIZE 8
-#elif INTPTR_MAX == INT32_MAX         // 2147483647LL
-# define INTPTR_SIZE 4
-#else
-#error platform must be 32 or 64 bits
-#endif
-#define INTPTR_BITS (8*INTPTR_SIZE)
 
 // Defining constants of a specific size
-#if LONG_MAX == INT32_MAX
-# define LONG_SIZE 4
-# define I32(i)  (i##L)
-# define I64(i)  (i##LL)
-# define U32(i)  (i##UL)
-# define U64(i)  (i##ULL)
-#elif LONG_MAX == INT64_MAX
+#if LONG_MAX == INT64_MAX
 # define LONG_SIZE 8
 # define I32(i)  (i)
 # define I64(i)  (i##L)
 # define U32(i)  (i##U)
 # define U64(i)  (i##UL)
+#elif LONG_MAX == INT32_MAX
+# define LONG_SIZE 4
+# define I32(i)  (i##L)
+# define I64(i)  (i##LL)
+# define U32(i)  (i##UL)
+# define U64(i)  (i##ULL)
 #else
 #error size of a `long` must be 32 or 64 bits
 #endif
 
-// Abstract over the "natural machine word". This is to aid when
-// targeting architectures where `sizeof(void*) != sizeof(size_t)`. 
-// We have `sizeof(int_t) >= sizeof(void*)` and `sizeof(int_t) >= sizeof(long)`.
-#if (LONG_MAX <= INTPTR_MAX)
-typedef intptr_t    int_t;
-typedef uintptr_t   uint_t;
-#define UINTC(i)    (i##ULL)
-#define INTC(i)     (i##LL)
-#define INT_T_SIZE  INTPTR_SIZE
-#else 
-typedef long           int_t;
-typedef unsigned long  uint_t;
-#define UINTC(i)       (i##UL)
-#define INTC(i)        (i##L)
-#define INT_T_SIZE     LONG_SIZE
+// Define size of intptr_t
+#if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
+# define INTPTR_SIZE 8
+# define IP(i)  I64(i)
+# define UP(i)  U64(i)
+#elif INTPTR_MAX == INT32_MAX         // 2147483647LL
+# define INTPTR_SIZE 4
+# define IP(i)  I32(i)
+# define UP(i)  U32(i)
+#else
+#error platform must be 32 or 64 bits
 #endif
-#define INT_T_BITS  (8*INT_T_SIZE)
+#define INTPTR_BITS (8*INTPTR_SIZE)
+#define INTPTR_ALIGNUP(x)  ((((x)+INTPTR_SIZE-1)/INTPTR_SIZE)*INTPTR_SIZE)
 
-#define INT_T_ALIGNUP(x)  ((((x)+INT_T_SIZE-1)/INT_T_SIZE)*INT_T_SIZE)
+// Define size of size_t
+#if SIZE_MAX == UINT64_MAX           // 18446744073709551615LL
+# define SIZE_SIZE 8
+# define IZ(i)  I64(i)
+# define UZ(i)  U64(i)
+#elif SIZE_MAX == UINT32_MAX         // 4294967295LL
+# define SIZE_SIZE 4
+# define IZ(i)  I32(i)
+# define UZ(i)  U32(i)
+#else
+#error size of a `size_t` must be 32 or 64 bits
+#endif
+#define SIZE_BITS (8*SIZE_SIZE)
+
+
+// Abstract over the "natural machine word" as `intx_t`. This is useful when
+// targeting architectures where `sizeof(void*) < sizeof(long)` (like x32), or 
+// `sizeof(void*) > sizeof(size_t)` (like segmented architectures). 
+// We have `sizeof(intx_t) >= sizeof(void*)` and `sizeof(intx_t) >= sizeof(long)`.
+#if (LONG_MAX <= INTPTR_MAX)
+typedef intptr_t    intx_t;
+typedef uintptr_t   uintx_t;
+#define UX(i)       (i##ULL)
+#define IX(i)       (i##LL)
+#define INTX_SIZE   INTPTR_SIZE
+#else 
+typedef long           intx_t;
+typedef unsigned long  uintx_t;
+#define UX(i)          (i##UL)
+#define IX(i)          (i##L)
+#define INTX_SIZE      LONG_SIZE
+#endif
+#define INTX_BITS  (8*INTX_SIZE)
+
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
-static inline int_t  sar(int_t i, int_t shift)   { return (i >> shift); }
-static inline uint_t shr(uint_t i, uint_t shift) { return (i >> shift); }
+static inline intx_t  sar(intx_t i, intx_t shift)   { return (i >> shift); }
+static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
 
 // Limited reference counts can be more efficient
 #if PTRDIFF_MAX <= INT32_MAX
@@ -157,7 +179,7 @@ typedef uintptr_t ptr_t;
 
 // Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
 typedef struct box_s {
-  uint_t box;            // We use unsigned representation to avoid UB on shift operations and overflow.
+  uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.
 } box_t;
 
 // A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
@@ -169,31 +191,29 @@ typedef box_t integer_t;
 
 // Tags for heap blocks
 typedef enum tag_e {
-  TAG_INVALID = 0,
-  TAG_MIN = 1,
-  TAG_SMALL_MAX = 15,
-  TAG_MAX = 65000,
-  TAG_OPEN,
-  TAG_BOX,
-  TAG_REF,
-  TAG_FUNCTION,
-  TAG_BIGINT,
-  TAG_STRING,
-  TAG_STRING_SMALL,
-  TAG_BYTES,
-  TAG_VECTOR,
-  TAG_CPTR,          // full void*
-  TAG_INT64,
-#if INT_T_SIZE < 8
-  TAG_INT32,
-  TAG_DOUBLE,
-  TAG_FLOAT,
+  TAG_INVALID   = 0,
+  TAG_MIN       = 1,
+  TAG_MAX       = 65000,
+  TAG_OPEN,        // open datatype, first field is a string tag
+  TAG_BOX,         // boxed value type
+  TAG_REF,         // mutable reference
+  TAG_FUNCTION,    // function with free its free variables
+  TAG_BIGINT,      // big integer (see `integer.c`)
+  TAG_STRING_SMALL,// UTF8 encoded string of at most 7 bytes.
+  TAG_STRING,      // UTF8 encoded string: valid (modified) UTF8 ending with a zero byte.
+  TAG_BYTES,       // a vector of bytes
+  TAG_VECTOR,      // a vector of (boxed) values
+  TAG_INT64,       // boxed int64_t
+#if INTPTR_SIZE < 8
+  TAG_INT32,       // boxed int32_t
+  TAG_DOUBLE,      // boxed IEEE double (64-bit)
+  TAG_FLOAT,       // boxed IEEE float  (32-bit)
 #endif
-  // raw tags have a free function as well
-  TAG_CPTR_RAW,      // must be first, see tag_is_raw()
-  TAG_STRING_RAW,
-  TAG_BYTES_RAW,
-  TAG_LAST
+  // raw tags have a free function as well together with a `void*` to the data
+  TAG_CPTR_RAW,    // full void*, must be first, see tag_is_raw()
+  TAG_STRING_RAW,  // pointer to a valid UTF8 string
+  TAG_BYTES_RAW,   // pointer to bytes
+  TAG_LAST         
 } tag_t;
 
 static inline bool tag_is_raw(tag_t tag) {
@@ -205,16 +225,16 @@ typedef union header_s {
   uint64_t as_uint64;
 #if !defined(ARCH_BIG_ENDIAN)
   struct {
-#if INT_T_SIZE==8
-    uint64_t refcount : 38;
+#if INTPTR_SIZE==8
+    uint64_t  refcount : 38;
 #else
-    uint32_t refcount;
-    uint_t _unused_refcount : 6;
+    uint32_t  refcount;
+    uint32_t  _unused_refcount : 6;
 #endif    
-    uint_t _reserved : 1;
-    uint_t thread_shared : 1;      // true if shared among threads (so release/acquire use locked increment/decrement)
-    uint_t scan_fsize : 8;         // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-    uint_t tag : 16;               // tag
+    uint32_t  _reserved : 1;
+    uint32_t  thread_shared : 1;      // true if shared among threads (so release/acquire use locked increment/decrement)
+    uint32_t  scan_fsize : 8;         // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
+    uint32_t  tag : 16;               // tag
   } h;
 
   // the following overlays are defined for efficient code generation of reference counting.
@@ -226,7 +246,7 @@ typedef union header_s {
     uint32_t  _unused_hi : 26;
   } rc32;
   struct {
-#if (INT_T_SIZE==4)
+#if (INTPTR_SIZE==4)
     uint32_t  extended;            // used for efficient incrementing
     uint32_t  _unused_extended;
 #else
@@ -256,10 +276,10 @@ static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, in
 static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
 static inline ptr_t     unbox_ptr(box_t b);
 static inline box_t     box_ptr(ptr_t p);
-static inline int_t     unbox_int(box_t v);
-static inline box_t     box_int(int_t i);
-static inline uint_t    unbox_enum(box_t v);
-static inline box_t     box_enum(uint_t u);
+static inline intx_t    unbox_int(box_t v);
+static inline box_t     box_int(intx_t i);
+static inline uintx_t   unbox_enum(box_t v);
+static inline box_t     box_enum(uintx_t u);
 
 #define assert_internal assert
 
@@ -341,13 +361,6 @@ static inline block_t* block_from_data_large(const void* data) {
 
 extern ptr_t ptr_null;
 
-static inline decl_const uint_t ptr_to_uint(ptr_t p) {
-  return p;
-}
-static inline decl_const ptr_t ptr_from_uint(uint_t u) {
-  return u;
-}
-
 static inline decl_const tag_t ptr_tag(ptr_t p) {
   return block_tag(ptr_as_block(p));
 }
@@ -364,7 +377,7 @@ static inline decl_const box_t ptr_field(ptr_t p, size_t i) {
   return block_field(ptr_as_block(p), i);
 }
 
-static inline decl_pure uint_t ptr_refcount(ptr_t p) {
+static inline decl_pure uintptr_t ptr_refcount(ptr_t p) {
   return ptr_as_block(p)->header.h.refcount;
 }
 
@@ -420,7 +433,7 @@ typedef struct yield_s {
   uint8_t    yielding;        // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception)
   int32_t    marker;          // marker of the handler to yield to
   function_t clause;          // the operation clause to execute when the handler is found
-  int_t      conts_count;     // number of continuations in `conts`
+  size_t     conts_count;     // number of continuations in `conts`
   function_t conts[YIELD_CONT_MAX];  // fixed array of continuations. The final continuation `k` is
                               // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }` 
                               // if the array becomes full, a fresh array is allocated and the first
@@ -434,7 +447,7 @@ typedef struct context_s {
   int32_t     marker_unique;    // unique marker generation
   block_t*    delayed_free;     // list of blocks that still need to be freed
   integer_t   unique;           // thread local unique number generation
-  uint_t      thread_id;        // unique thread id
+  uintptr_t   thread_id;        // unique thread id
   function_t* log;              // logging function
   function_t* out;              // std output
 } context_t;
@@ -592,11 +605,11 @@ static inline decl_const bool datatype_is_ptr(datatype_t d) {
   return (is_ptr_fast(d));
 }
 
-static inline decl_const datatype_t datatype_from_enum(uint_t tag) {
+static inline decl_const datatype_t datatype_from_enum(uintptr_t tag) {
   return box_enum(tag);
 }
 
-static inline decl_const uint_t datatype_as_enum(datatype_t d) {
+static inline decl_const uintptr_t datatype_as_enum(datatype_t d) {
   return unbox_enum(d);
 }
 
@@ -659,7 +672,7 @@ static inline value_tag_t value_tag(uint_t tag) {
   return box_enum(tag);
 }
 */
-#define value_tag(tag) (box_from_uint(((uint_t)tag << 2) | 0x03))
+#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x03))
 
 
 
@@ -729,6 +742,17 @@ typedef datatype_t vector_t;
 typedef enum unit_e {
   Unit = 0
 } unit_t;
+
+// A function to free a raw C pointer, raw bytes, or raw string.
+typedef void (free_fun_t)(void*);
+decl_export void free_fun_null(void* p);
+
+// "raw" C pointer: first field is pointer to a free function, the next field a pointer to raw C data
+struct cptr_raw_s {
+  free_fun_t* free;
+  void* cptr;
+};
+
 
 #include "runtime/box.h"
 #include "runtime/integer.h"
@@ -848,7 +872,7 @@ static inline box_t box_unit_t(unit_t u) {
 }
 
 static inline unit_t unbox_unit_t(box_t u) {
-  assert_internal( unbox_enum(u) == (uint_t)Unit);
+  assert_internal( unbox_enum(u) == (uintx_t)Unit);
   return Unit;
 }
 
@@ -867,7 +891,7 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
     for (size_t i = 0; i < length; i++) {
       v->vec[i] = def;
     }
-    v->vec[length] = box_from_uint(0); // ending zero value
+    v->vec[length] = box_from_uintptr(0); // ending zero value
   }
   return datatype_from_data(v);
 }

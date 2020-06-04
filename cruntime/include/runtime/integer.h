@@ -29,7 +29,7 @@ typedef int16_t smallint_t;
 # error "platform must be 32 or 64 bits."
 #endif
 
-#define SMALLINT_MAX  ((int_t)(((uint_t)INTPTR_MAX >> (INTPTR_BITS - SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
+#define SMALLINT_MAX  ((intptr_t)(((uintptr_t)INTPTR_MAX >> (INTPTR_BITS - SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
 #define SMALLINT_MIN  (-SMALLINT_MAX - 1)
 
 static inline bool is_integer(integer_t i) {
@@ -52,10 +52,14 @@ static inline bool are_smallints(integer_t i, integer_t j) {
   return ((i.box&j.box)&1)!=0;
 }
 
-static inline integer_t integer_from_small(int_t i) {   // use for known small ints (under 14 bits)
+static inline integer_t integer_from_small(intptr_t i) {   // use for known small ints (under 14 bits)
   assert_internal(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
   return box_int(i);
 }
+
+#define integer_zero     (integer_from_small(0))
+#define integer_one      (integer_from_small(1))
+#define integer_min_one  (integer_from_small(-1))
 
 /*---------------------------------------------------------------------------------
   Generic operations on integers
@@ -70,7 +74,7 @@ static inline void      integer_decref(integer_t x, context_t* ctx) { boxed_drop
 
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
-decl_export noinline integer_t  integer_from_big(int_t i, context_t* ctx);         // for possibly large i
+decl_export noinline integer_t  integer_from_big(intx_t i, context_t* ctx);         // for possibly large i
 decl_export noinline integer_t  integer_from_big64(int64_t i, context_t* ctx);     // for possibly large i
 decl_export noinline integer_t  integer_from_bigu64(uint64_t i, context_t* ctx);   // for possibly large i
 decl_export noinline integer_t  integer_from_double(double d, context_t* ctx);     // round d and convert to integer (0 for NaN/Inf)
@@ -107,30 +111,30 @@ decl_export noinline void       integer_print(integer_t x, context_t* ctx);
   Inlined operation to allow for fast operation on small integers
 -----------------------------------------------------------------------------------*/
 
-static inline integer_t integer_from_int(int_t i, context_t* ctx) {
+static inline integer_t integer_from_int(intx_t i, context_t* ctx) {
   return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small(i) : integer_from_big(i,ctx));
 }
 
 static inline integer_t integer_from_int64(int64_t i, context_t* ctx) {
-  return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small((int_t)i) : integer_from_big64(i, ctx));
+  return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small((intptr_t)i) : integer_from_big64(i, ctx));
 }
 
 static inline integer_t integer_from_uint64(uint64_t i, context_t* ctx) {
-  return (likely(i <= SMALLINT_MAX) ? integer_from_small((int_t)i) : integer_from_bigu64(i, ctx));
+  return (likely(i <= SMALLINT_MAX) ? integer_from_small((intptr_t)i) : integer_from_bigu64(i, ctx));
 }
 
-#if (INT_T_SIZE<=4)
-static inline integer_t integer_from_uint_t(uint_t i, context_t* ctx) {
-  return (i <= UINT32_MAX ? integer_from_int((int_t)i,ctx) : integer_from_uint64(i,ctx));
+#if (INTX_SIZE<=4)
+static inline integer_t integer_from_uintx_t(uintx_t i, context_t* ctx) {
+  return (i <= INT32_MAX ? integer_from_int((intx_t)i,ctx) : integer_from_uint64(i,ctx));
 }
 #else
-static inline integer_t integer_from_uint_t(uint_t i, context_t* ctx) {
+static inline integer_t integer_from_uintx_t(uintx_t i, context_t* ctx) {
   return integer_from_uint64(i, ctx);
 }
 #endif
 
 static inline integer_t integer_from_size_t(size_t i, context_t* ctx) {
-  return integer_from_uint_t(i, ctx);
+  return integer_from_uintx_t(i, ctx);
 }
 
 static inline integer_t integer_from_intptr_t(intptr_t i, context_t* ctx) {
@@ -141,48 +145,48 @@ static inline integer_t integer_from_intptr_t(intptr_t i, context_t* ctx) {
 
 // Use the overflow detecting primitives
 
-static inline bool smallint_add_ovf(int_t h, int_t y, int_t* r) {
+static inline bool smallint_add_ovf(intptr_t h, intptr_t y, intptr_t* r) {
   smallint_t i;
   const bool ovf = __builtin_add_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (int_t)i; // sign extend
+  *r = (intptr_t)i; // sign extend
   return ovf;
 }
 
-static inline bool smallint_sub_ovf(int_t h, int_t y, int_t* r) {
+static inline bool smallint_sub_ovf(intptr_t h, intptr_t y, intptr_t* r) {
   smallint_t i;
   const bool ovf = __builtin_sub_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (int_t)i; // sign extend
+  *r = (intptr_t)i; // sign extend
   return ovf;
 }
 
-static inline bool smallint_mul_ovf(int_t h, int_t y, int_t* r) {
+static inline bool smallint_mul_ovf(intptr_t h, intptr_t y, intptr_t* r) {
   smallint_t i;
   const bool ovf = __builtin_mul_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (int_t)i; // sign extend
+  *r = (intptr_t)i; // sign extend
   return ovf;
 }
 
 #else 
 // Generic overflow detection, still quite good.
 
-static inline bool smallint_add_ovf(int_t x, int_t y, int_t* r) {
-  int_t z = x + y; // do a full add
+static inline bool smallint_add_ovf(intptr_t x, intptr_t y, intptr_t* r) {
+  intptr_t z = x + y; // do a full add
   *r = z;
-  uint_t s = (uint_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
+  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
   return (s + 1 > 1); // are the top bits not 0 or -1 ?
 }
 
-static inline bool smallint_sub_ovf(int_t x, int_t y, int_t* r) {
-  int_t z = x - y; // do a full sub
+static inline bool smallint_sub_ovf(intptr_t x, intptr_t y, intptr_t* r) {
+  intptr_t z = x - y; // do a full sub
   *r = z;
-  uint_t s = (uint_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
+  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
   return (s + 1 > 1); // are the top bits not 0 or -1 ?
 }
 
-static inline bool smallint_mul_ovf(int_t x, int_t y, int_t* r) {
-  int_t z = x * y; // do a full multiply (as smallint is at most half the int_t size)
+static inline bool smallint_mul_ovf(intptr_t x, intptr_t y, intptr_t* r) {
+  intptr_t z = x * y; // do a full multiply (as smallint is at most half the int_t size)
   *r = z;
-  uint_t s = (uint_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
+  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
   return (s + 1 > 1); // are the top bits not 0 or -1 ?
 }
 
@@ -199,8 +203,8 @@ static inline bool smallint_mul_ovf(int_t x, int_t y, int_t* r) {
 */
 static inline integer_t integer_add_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
-  int_t i;
-  if (likely(!smallint_add_ovf(box_as_int(x), box_as_int(y)^1, &i))) return box_from_int(i);
+  intptr_t i;
+  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_intptr(i);
   return integer_add_generic(x, y, ctx);
 }
 
@@ -222,9 +226,9 @@ static inline integer_t integer_add(integer_t x, integer_t y) {
 */
 static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(is_integer(x) && is_integer(y));
-  int_t i;
-  if (likely(!smallint_add_ovf(box_as_int(x), box_as_int(y), &i) && (i&2)!=0)) {
-    integer_t z = box_from_int(i^3);  // == i - 1
+  intptr_t i;
+  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y), &i) && (i&2)!=0)) {
+    integer_t z = box_from_intptr(i^3);  // == i - 1
     assert_internal(is_int(z));
     return z;
   }
@@ -241,8 +245,8 @@ static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
 */
 static inline integer_t integer_sub_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
-  int_t i;
-  if (likely(!smallint_sub_ovf(box_as_int(x), box_as_int(y)^1, &i))) return box_from_uint(i);
+  intptr_t i;
+  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_uintptr(i);
   return integer_sub_generic(x, y, ctx);
 }
 
@@ -260,11 +264,11 @@ static inline integer_t integer_sub(integer_t x, integer_t y, context_t* ctx) {
 */
 static inline integer_t integer_mul_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
-  int_t i = sar(box_as_int(x), 1);
-  int_t j = sar(box_as_int(y), 1);
-  int_t k;
+  intptr_t i = sar(box_as_intptr(x), 1);
+  intptr_t j = sar(box_as_intptr(y), 1);
+  intptr_t k;
   if (likely(!smallint_mul_ovf(i, j, &k))) {
-    integer_t z = box_from_int(k|1);
+    integer_t z = box_from_intptr(k|1);
     assert_internal(is_int(z));
     return z;
   }
@@ -284,9 +288,9 @@ static inline integer_t integer_mul(integer_t x, integer_t y, context_t* ctx) {
 */
 static inline integer_t integer_div_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
-  int_t i = sar(box_as_int(x), 1);
-  int_t j = sar(box_as_int(y), 1);
-  return box_from_int(shr(i/j, 2)|1);
+  intptr_t i = sar(box_as_intptr(x), 1);
+  intptr_t j = sar(box_as_intptr(y), 1);
+  return box_from_intptr(shr(i/j, 2)|1);
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -297,17 +301,17 @@ static inline integer_t integer_div_small(integer_t x, integer_t y) {
 */
 static inline integer_t integer_mod_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
-  int_t i = sar(box_as_int(x), 1);
-  int_t j = sar(box_as_int(y), 1);
-  return box_from_int(shr(i%j, 1)|1);
+  intptr_t i = sar(box_as_intptr(x), 1);
+  intptr_t j = sar(box_as_intptr(y), 1);
+  return box_from_intptr(shr(i%j, 1)|1);
 }
 
 static inline integer_t integer_div_mod_small(integer_t x, integer_t y, integer_t* mod) {
   assert_internal(are_smallints(x, y)); assert_internal(mod!=NULL);
-  int_t i = sar(box_as_int(x), 1);
-  int_t j = sar(box_as_int(y), 1);
-  *mod = box_from_int(shr(i%j, 1)|1);
-  return box_from_int(shr(i/j, 2)|1);
+  intptr_t i = sar(box_as_intptr(x), 1);
+  intptr_t j = sar(box_as_intptr(y), 1);
+  *mod = box_from_intptr(shr(i%j, 1)|1);
+  return box_from_intptr(shr(i/j, 2)|1);
 }
 
 static inline integer_t integer_div(integer_t x, integer_t y, context_t* ctx) {
@@ -348,7 +352,7 @@ static inline integer_t integer_sqr(integer_t x, context_t* ctx) {
 
 static inline integer_t integer_neg_small(integer_t x, context_t* ctx) {
   assert_internal(is_smallint(x));
-  return integer_sub_small(integer_from_small(0), x, ctx);   // negation can overflow
+  return integer_sub_small(integer_zero, x, ctx);   // negation can overflow
 }
 
 static inline integer_t integer_neg(integer_t x, context_t* ctx) {
@@ -357,100 +361,100 @@ static inline integer_t integer_neg(integer_t x, context_t* ctx) {
 }
 
 static inline integer_t integer_abs(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x) < box_as_int(integer_from_small(0)) ? integer_neg_small(x,ctx) : x);
+  if (likely(is_smallint(x))) return (box_as_intptr(x) < box_as_intptr(integer_zero) ? integer_neg_small(x,ctx) : x);
   return (integer_signum_generic(x, ctx) < 0 ? integer_neg_generic(x, ctx) : x);
 }
 
 static inline integer_t integer_dec(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_sub(x,integer_from_small(1),ctx);
-  return integer_sub_generic(x, integer_from_small(1),ctx);
+  if (likely(is_smallint(x))) return integer_sub(x,integer_one,ctx);
+  return integer_sub_generic(x, integer_one,ctx);
 }
 
 static inline integer_t integer_inc(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_add(x, integer_from_small(1),ctx);
-  return integer_add_generic(x, integer_from_small(1),ctx);
+  if (likely(is_smallint(x))) return integer_add(x, integer_one,ctx);
+  return integer_add_generic(x, integer_one,ctx);
 }
 
 static inline int integer_cmp(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) == box_as_int(y) ? 0 : (box_as_int(x) > box_as_int(y) ? 1 : -1));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) == box_as_intptr(y) ? 0 : (box_as_intptr(x) > box_as_intptr(y) ? 1 : -1));
   return integer_cmp_generic(x, y, ctx);
 }
 
 static inline bool integer_lt(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) < box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) < box_as_intptr(y));
   return (integer_cmp(x, y, ctx) == -1);
 }
 
 static inline bool integer_lte(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) <= box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) <= box_as_intptr(y));
   return (integer_cmp(x, y, ctx) <= 0);
 }
 
 static inline bool integer_gt(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) > box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) > box_as_intptr(y));
   return (integer_cmp(x, y, ctx) == 1);
 }
 
 static inline bool integer_gte(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) >= box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) >= box_as_intptr(y));
   return (integer_cmp(x, y, ctx) >= 0);
 }
 
 static inline bool integer_eq(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) == box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) == box_as_intptr(y));
   return (integer_cmp(x, y, ctx) == 0);
 }
 
 static inline bool integer_neq(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x) != box_as_int(y));
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x) != box_as_intptr(y));
   return (integer_cmp(x, y, ctx) != 0);
 }
 
 static inline bool integer_is_zero(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x) == box_as_int(integer_from_small(0)));
+  if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_zero));
   integer_decref(x,ctx);
   return false;
 }
 
 static inline bool integer_is_one(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x) == box_as_int(integer_from_small(1)));
+  if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_one));
   integer_decref(x,ctx);
   return false;
 }
 
 static inline bool integer_is_minus_one(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x) == box_as_int(integer_from_small(-1)));
+  if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_min_one));
   integer_decref(x,ctx);
   return false;
 }
 
 static inline bool integer_is_even(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return ((box_as_int(x)&0x08)==0);
+  if (likely(is_smallint(x))) return ((box_as_intptr(x)&0x04)==0);
   return integer_is_even_generic(x,ctx);
 }
 
 static inline bool integer_is_odd(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return ((box_as_int(x)&0x08)!=0);
+  if (likely(is_smallint(x))) return ((box_as_intptr(x)&0x04)!=0);
   return !integer_is_even_generic(x,ctx);
 }
 
 static inline int integer_signum(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return ((box_as_int(x)>1)-(box_as_int(x)<0));
+  if (likely(is_smallint(x))) return ((box_as_intptr(x)>1)-(box_as_intptr(x)<0));
   return integer_signum_generic(x,ctx);
 }
 
 static inline bool integer_is_neg(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x)<0);
+  if (likely(is_smallint(x))) return (box_as_intptr(x)<0);
   return (integer_signum_generic(x,ctx) < 0);
 }
 
 static inline bool integer_is_pos(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (box_as_int(x)>1);
+  if (likely(is_smallint(x))) return (box_as_intptr(x)>1);
   return (integer_signum_generic(x,ctx) > 0);
 }
 
 static inline integer_t integer_max(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x)>=box_as_int(y) ? x : y);
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x)>=box_as_intptr(y) ? x : y);
   integer_incref(x); integer_incref(y);
   if (integer_gte(x,y,ctx)) {
     integer_decref(y,ctx); return x;
@@ -461,7 +465,7 @@ static inline integer_t integer_max(integer_t x, integer_t y, context_t* ctx) {
 }
 
 static inline integer_t integer_min(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return (box_as_int(x)<=box_as_int(y) ? x : y);
+  if (likely(are_smallints(x, y))) return (box_as_intptr(x)<=box_as_intptr(y) ? x : y);
   integer_incref(x); integer_incref(y);
   if (integer_lte(x, y, ctx)) {
     integer_decref(y, ctx); return x;

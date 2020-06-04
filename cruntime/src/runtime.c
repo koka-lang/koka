@@ -117,8 +117,8 @@ context_t* runtime_context(void) {
   runtime_init();
   ctx = (context_t*)calloc(sizeof(context_t),1);
   ctx->evv = vector_dup(vector_empty);
-  ctx->thread_id = (uint_t)(&context);
-  ctx->unique = integer_from_small(1);
+  ctx->thread_id = (uintx_t)(&context);
+  ctx->unique = integer_one;
   return ctx;
 }
 

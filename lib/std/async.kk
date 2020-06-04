@@ -639,7 +639,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		// trace("register: " + cscope.show)
 		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(TryExn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
 		try {
-			// setup the callback which returns a possible dipose function
+			// setup the callback which returns a possible dispose function
 			match(setup(cb)) {
 				Just(d) -> dispose := d
 				Nothing -> ()

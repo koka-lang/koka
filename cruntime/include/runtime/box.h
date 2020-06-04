@@ -87,25 +87,25 @@ We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
 ----------------------------------------------------------------*/
 
-static inline box_t box_from_uint(uint_t u) {
+static inline box_t box_from_uintptr(uintptr_t u) {
   box_t b = { u };
   return b;
 }
-static inline box_t box_from_int(int_t i) {
-  return box_from_uint((uint_t)i);
+static inline box_t box_from_intptr(intptr_t i) {
+  return box_from_uintptr((uintptr_t)i);
 }
-static inline uint_t box_as_uint(box_t b) {
+static inline uintptr_t box_as_uintptr(box_t b) {
   return b.box;
 }
-static inline int_t box_as_int(box_t b) {
-  return (int_t)box_as_uint(b);
+static inline intptr_t box_as_intptr(box_t b) {
+  return (intptr_t)box_as_uintptr(b);
 }
 static inline bool box_eq(box_t b1, box_t b2) {
   return (b1.box == b2.box);
 }
 
-#define box_ptr_null  (box_from_uint(0))    // box_ptr(NULL)
-#define box_null      (box_from_uint(3))    // box_reserved(0)
+#define box_ptr_null  (box_from_uintptr(0))    // box_ptr(NULL)
+#define box_null      (box_from_uintptr(3))    // box_reserved(0)
 #define datatype_null (box_null)
 
 
@@ -123,10 +123,10 @@ static inline bool is_cptr_fast(box_t b) {
   return ((b.box & 0x03)==3);
 }
 
-#define MAX_BOXED_INT  ((int_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
+#define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
 #define MIN_BOXED_INT  (- MAX_BOXED_INT - 1)
 
-#define MAX_BOXED_ENUM ((uint_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
+#define MAX_BOXED_ENUM ((uintptr_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
 #define MIN_BOXED_ENUM (0)
 
 #if INTPTR_SIZE==8
@@ -181,7 +181,7 @@ static inline box_t box_double(double d, context_t* ctx) {
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
-  int_t i = unbox_int(v);
+  intx_t i = unbox_int(v);
   assert_internal(i >= INT32_MIN && i <= INT32_MAX);
   return (int32_t)(i);
 }
@@ -259,53 +259,41 @@ static inline bool is_non_null_ptr(box_t v) {
 
 static inline ptr_t unbox_ptr(box_t v) {
   assert_internal(is_ptr(v));
-  return ptr_from_uint(v.box);
+  return (v.box);
 }
 
 static inline box_t box_ptr(ptr_t p) {
   assert_internal((p & 0x03) == 0); // check alignment
-  box_t b = { ptr_to_uint(p) };
+  box_t b = { (p) };
   return b;
 }
 
-static inline void* unbox_cptr(box_t b) {
-  assert_internal(is_cptr(b));
-  return (void*)(b.box & ~UINTC(0x03));
-}
-
-static inline box_t box_cptr(void* p) {
-  assert_internal(((uint_t)p & 0x03) == 0); // check alignment
-  box_t b = { (uintptr_t)p | 0x03 };
-  assert_internal(is_cptr(b));
-  return b;
-}
-
-static inline uint_t unbox_enum(box_t b) {
+static inline uintx_t unbox_enum(box_t b) {
   assert_internal(is_enum(b));
   return shr(b.box, 2);
 }
 
-static inline box_t box_enum(uint_t u) {
+static inline box_t box_enum(uintx_t u) {
   assert_internal(u <= MAX_BOXED_ENUM);
   box_t b = { (u << 2) | 0x02 };
   assert_internal(is_enum(b));
   return b;
 }
 
-static inline int_t unbox_int(box_t v) {
+static inline intx_t unbox_int(box_t v) {
   assert_internal(is_int(v));
   return (sar(v.box, 2));
 }
 
-static inline box_t box_int(int_t i) {
+static inline box_t box_int(intx_t i) {
   assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
-  box_t v = { (uint_t)(i << 2) | 0x01 };
+  box_t v = { (uintx_t)(i << 2) | 0x01 };
   assert_internal(is_int(v));
   return v;
 }
 
 static inline int16_t unbox_int16(box_t v) {
-  int_t i = unbox_int(v);
+  intx_t i = unbox_int(v);
   assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }
@@ -359,5 +347,40 @@ static inline box_t box_datatype(datatype_t d) {
   assert_internal(is_ptr(d) || is_enum(d));
   return d;
 }
+
+
+static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
+  struct cptr_raw_s* raw = datatype_alloc_data_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
+  raw->free = (freefun==NULL ? &free_fun_null : freefun);
+  raw->cptr = p;
+  return box_datatype(datatype_from_data(raw));
+}
+
+static inline void* unbox_cptr_raw(box_t b) {
+  struct cptr_raw_s* raw = datatype_data_as( struct cptr_raw_s, unbox_datatype_assert(b, TAG_CPTR_RAW) );
+  return raw->cptr;
+}
+
+static inline box_t box_cptr(void* p, context_t* ctx) {
+  if (((uintptr_t)p & 0x03) == 0) {
+    // aligned, box in-place
+    return box_from_uintptr((uintptr_t)p | 0x03);
+  }
+  else {
+    // allocate 
+    return box_cptr_raw(&free_fun_null, p, ctx);
+  }
+}
+
+static inline void* unbox_cptr(box_t b) {
+  if (is_cptr_fast(b)) {
+    return (void*)(box_as_uintptr(b) & ~UP(0x03));
+  }
+  else {
+    return unbox_cptr_raw(b);
+  }
+}
+
+
 
 #endif // include guard
