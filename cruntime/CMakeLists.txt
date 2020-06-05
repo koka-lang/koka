@@ -9,7 +9,9 @@ option(RT_SEE_ASM           "Generate assembly files" OFF)
 
 set(rt_sources
     src/integer.c
-    src/refcount.c)
+    src/refcount.c
+    src/runtime.c
+    src/string.c)
 
 # -----------------------------------------------------------------------------
 # Converience: set default build type depending on the build directory
@@ -53,7 +55,7 @@ endif()
 
 # Compiler flags
 if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU|Intel")
-  list(APPEND rt_cflags -Wall -Wextra -Wno-unknown-pragmas -fvisibility=hidden -ftls-model=initial-exec)    
+  list(APPEND rt_cflags -Wall -Wextra -Wno-unknown-pragmas -fstrict-aliasing -fvisibility=hidden -ftls-model=initial-exec)    
 endif()
 
 # Architecture flags

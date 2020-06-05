@@ -11,8 +11,11 @@
 ---------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <errno.h>   // ENOSYS, etc
+#include <limits.h>  // LONG_MAX, etc
+#include <stddef.h>  // ptrdiff_t
+#include <stdint.h>  // int_t, etc
 #include <stdbool.h> // bool
-#include <stdint.h>  // int_t
 #include <stdio.h>   // FILE*
 #include <string.h>  // strlen
 #include <stdlib.h>  // malloc, abort, etc.
@@ -24,12 +27,16 @@
 //#define ARCH_BIG_ENDIAN       1
 
 /*--------------------------------------------------------------------------------------
-  Platform:
-  - we assume C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
-  - we assume either a 32- or 64-bit platform
-  - we assume the compiler can do a great job on small static inline definitions (and avoid #define).
-  - we assume the compiler will inline small structs (like `struct box_s{ uintptr_t u; }`) without 
-    overhead (e.g. pass in a register).
+  Platform: we assume:
+  - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
+  - either a 32- or 64-bit platform (but others should be possible with few changes)
+  - the compiler can do a great job on small static inline definitions (and we avoid #define's).
+  - the compiler will inline small structs (like `struct box_s{ uintptr_t u; }`) without 
+    overhead (e.g. pass it in a register).
+  - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
+  - a char/byte is 8 bits
+  - either little-endian, or big-endian
+  - carefully code with strict aliasing in mind
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define decl_externc    extern "C"
@@ -93,10 +100,6 @@
 #endif
 #endif
 
-// Assumptions:
-// - a char/byte is 8 bits
-// - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
-
 // Defining constants of a specific size
 #if LONG_MAX == INT64_MAX
 # define LONG_SIZE 8
@@ -149,11 +152,11 @@
 // `sizeof(void*) > sizeof(size_t)` (like segmented architectures). 
 // We have `sizeof(intx_t) >= sizeof(void*)` and `sizeof(intx_t) >= sizeof(long)`.
 #if (LONG_MAX <= INTPTR_MAX)
-typedef intptr_t    intx_t;
-typedef uintptr_t   uintx_t;
-#define UX(i)       (i##ULL)
-#define IX(i)       (i##LL)
-#define INTX_SIZE   INTPTR_SIZE
+typedef intptr_t       intx_t;
+typedef uintptr_t      uintx_t;
+#define UX(i)          (i##ULL)
+#define IX(i)          (i##LL)
+#define INTX_SIZE      INTPTR_SIZE
 #else 
 typedef long           intx_t;
 typedef unsigned long  uintx_t;
@@ -252,13 +255,14 @@ typedef union header_s {
 #define HEADER_STATIC(scan_fsize,tag)  {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40 | 0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 
-// Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
-// See `box.h` for definitions
+// Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
+// See `box.h` for definitions.
 typedef struct box_s {
   uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.
 } box_t;
 
 // An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
+// See `integer.h` for definitions.
 typedef box_t integer_t;
 
 // boxed forward declarations
@@ -276,7 +280,7 @@ typedef struct block_s {
   header_t header;
 } block_t;
 
-// A large block can has a (boxed) large scan size for vectors.
+// A large block has a (boxed) large scan size for vectors.
 typedef struct block_large_s {
   header_t header;
   box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
@@ -341,7 +345,6 @@ typedef enum yield_kind_e {
 } yield_kind_t;
 
 typedef struct yield_s {
-  uint8_t    yielding;        // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception)
   int32_t    marker;          // marker of the handler to yield to
   function_t clause;          // the operation clause to execute when the handler is found
   size_t     conts_count;     // number of continuations in `conts`
@@ -352,6 +355,7 @@ typedef struct yield_s {
 } yield_t;
 
 typedef struct context_s {
+  uint8_t     yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) 
   heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
   vector_t    evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   yield_t     yield;            // inlined yield structure (for efficiency)
@@ -359,8 +363,8 @@ typedef struct context_s {
   block_t*    delayed_free;     // list of blocks that still need to be freed
   integer_t   unique;           // thread local unique number generation
   uintptr_t   thread_id;        // unique thread id
-  function_t* log;              // logging function
-  function_t* out;              // std output
+  function_t  log;              // logging function
+  function_t  out;              // std output
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -371,11 +375,11 @@ decl_export context_t* runtime_context(void);
 
 // Is the execution yielding?
 static inline decl_pure bool yielding(const context_t* ctx) {
-  return (ctx->yield.yielding != YIELD_NONE);
+  return (ctx->yielding != YIELD_NONE);
 };
 
 static inline decl_pure bool yielding_non_final(const context_t* ctx) {
-  return (ctx->yield.yielding == YIELD_NORMAL);
+  return (ctx->yielding == YIELD_NORMAL);
 };
 
 // Get a thread local marker unique number.

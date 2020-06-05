@@ -25,7 +25,7 @@ struct __data1_list_s {
   block_t _block;
 };
 
-define_singleton( , struct __data1_list_s, __data1_singleton_Nil, 0);
+define_singleton( , struct __data1_list_s, __data1_singleton_Nil, (tag_t)0);
 
 struct __data1_Cons {
   struct __data1_list_s _inherit;
@@ -43,7 +43,7 @@ __data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* ctx) {
 }
 struct __data1_Cons* __data1__as_Cons(__data1__list x) {
   assert(__data1__is_Cons(x));
-  return datatype_as(struct __data1_Cons*, x, 1);
+  return datatype_as(struct __data1_Cons*, x, (tag_t)1);
 }
 
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y, context_t* ctx) {
@@ -65,9 +65,9 @@ typedef intptr_t(xop)(intptr_t x, intptr_t y, context_t* ctx);
 
 
 static intptr_t check(intptr_t z) { if (z < SMALLINT_MIN || z > SMALLINT_MAX) return 10; return z; }
-static intptr_t add(intptr_t x, intptr_t y, context_t* ctx) { return check(x + y); }
-static intptr_t sub(intptr_t x, intptr_t y, context_t* ctx) { return check(x - y); }
-static intptr_t mul(intptr_t x, intptr_t y, context_t* ctx) { return check(x * y); }
+static intptr_t add(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx);  return check(x + y); }
+static intptr_t sub(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); return check(x - y); }
+static intptr_t mul(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); return check(x * y); }
 
 void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, context_t* ctx) {
   integer_t x = box_int(i);
