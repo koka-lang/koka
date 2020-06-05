@@ -153,8 +153,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                           [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
                           _  -> trace ("  no handled effect; use none") $
-                                -- wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
-                                expr  -- fails in nim as it evidence is not cleared
+                                wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
+                                -- expr  -- fails in nim as it evidence is not cleared
                  [l] -> -- just one: used open-atN for efficiency
                         trace ("  one handled effect; use at: " ++ show (ppType penv l)) $
                         let (htagTp,hndTp)
