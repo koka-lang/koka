@@ -71,6 +71,16 @@ static void block_decref_delayed(context_t* ctx) {
 
 #define MAX_RECURSE_DEPTH (100)
 
+typedef struct block_fields_s {
+  block_t _block;
+  box_t   fields[1];
+} block_fields_t;
+
+static inline box_t block_field(block_t* b, size_t index) {
+  block_fields_t* bf = (block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return bf->fields[index];
+}
+
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list
 // is encoded in the headers and needs no further space.
@@ -90,7 +100,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
       runtime_free(b);
       if (is_non_null_ptr(v)) {
         // try to free the child now
-        b = ptr_as_block(unbox_ptr(v));
+        b = unbox_ptr(v);
         if (block_decref_no_free(b)) {
           // continue freeing on this block
           continue; // tailcall
@@ -100,13 +110,17 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
     }
     else {
       // more than 1 field
-      if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) { scan_fsize = unbox_enum(block_field(b,0)); }
       if (depth < MAX_RECURSE_DEPTH) {
+        size_t i = 0;
+        if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) { 
+          scan_fsize = unbox_enum(block_field(b, 0)); 
+          i++;
+        }
         // free fields up to the last one
-        for (size_t i = 0; i < (scan_fsize-1); i++) {
+        for (; i < (scan_fsize-1); i++) {
           box_t v = block_field(b, i);
           if (is_non_null_ptr(v)) {
-            block_t* vb = ptr_as_block(unbox_ptr(v));
+            block_t* vb = unbox_ptr(v);
             if (block_decref_no_free(vb)) {
               block_decref_free(vb, depth+1, ctx); // recurse with increased depth
             }
@@ -116,7 +130,7 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
         box_t v = block_field(b,scan_fsize - 1);
         runtime_free(b);
         if (is_non_null_ptr(v)) {
-          b = ptr_as_block(unbox_ptr(v));
+          b = unbox_ptr(v);
           if (block_decref_no_free(b)) {
             continue; // tailcall
           }
@@ -134,8 +148,8 @@ static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx)
 
 static void block_free_raw(block_t* b) {
   assert_internal(tag_is_raw(block_tag(b)));
-  struct cptr_raw_s* raw = (struct cptr_raw_s*)block_data(b);
-  if (raw->free != &free_fun_null) {
+  struct cptr_raw_s* raw = (struct cptr_raw_s*)b;  // all raw structures must overlap this!
+  if (raw->free != NULL) {
     (*raw->free)(raw->cptr);
   }
 }
@@ -154,8 +168,7 @@ void block_free(block_t* b, context_t* ctx) {
 }
 
 // Check if a reference decrement caused the block to be free.
-void noinline ptr_check_free(ptr_t p, context_t* ctx) {
-  block_t* b = ptr_as_block(p);
+void noinline block_check_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.rc32.lo == UINT32_MAX);  // just underflowed
   if (b->header.rc32.hi==0) {
     block_free(b, ctx);  // no more references, free it.

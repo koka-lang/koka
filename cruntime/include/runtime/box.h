@@ -81,7 +81,7 @@ on the top 16 bits as we will box doubles as heap allocated values.
   xxxx xxxz   z = bbbb bb00  : 32-bit pointer (always aligned to 4 bytes)
   xxxx xxxz   z = bbbb bb01  : 30-bit integer
   xxxx xxxz   z = bbbb bb10  : 30-bit enumeration
-  xxxx xxxz   z = bbbb bb11  : reserved
+  xxxx xxxz   z = bbbb bb11  : 30-bit raw C pointer (aligned to 4 bytes)
 
 We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
@@ -104,9 +104,7 @@ static inline bool box_eq(box_t b1, box_t b2) {
   return (b1.box == b2.box);
 }
 
-#define box_ptr_null  (box_from_uintptr(0))    // box_ptr(NULL)
-#define box_null      (box_from_uintptr(3))    // box_reserved(0)
-#define datatype_null (box_null)
+#define box_null   (box_from_uintptr(3))    // box_cptr(NULL)
 
 
 // the _fast versions can apply if you are sure it is not a double
@@ -168,12 +166,12 @@ static inline box_t box_double(double d, context_t* ctx) {
   UNUSED(ctx);
   union { double _d; uint64_t v; } u;
   u._d = d;
-  if (unlikely(u.v >= ((uint64_t)0xFFFE << 48))) {
+  if (unlikely(u.v >= (U64(0xFFFE) << 48))) {
     // high quiet NaN, subtract to bring it in range
-    u.v = u.v - ((uint64_t)0x0002 << 48);
+    u.v = u.v - (U64(0x0002) << 48);
     d = u._d;  // for the assert_internal
   }
-  box_t v = { u.v + ((uint64_t)1 << 48) };
+  box_t v = { u.v + (U64(1) << 48) };
   assert_internal(is_double(v));
   assert_internal(unbox_double(v,ctx) == d); // (well, not for high qNaN)
   return v;
@@ -197,55 +195,68 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 #define BOXED_INT_BITS      (30)
 
 static inline bool is_ptr(box_t b) {
-  return is_ptr_fast(b.box);
+  return is_ptr_fast(b);
 }
 static inline bool is_int(box_t b) {
-  return is_int_fast(b.box);
+  return is_int_fast(b);
 }
 static inline bool is_enum(box_t b) {
-  return is_enum_fast(b.box);
+  return is_enum_fast(b);
 }
 static inline bool is_cptr(box_t b) {
-  return is_cptr_fast(b.box);
+  return is_cptr_fast(b);
 }
 static inline bool is_double(box_t v) {
-  return (is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_DOUBLE);
+  return (is_ptr(v) && block_tag(unbox_ptr(v)) == TAG_DOUBLE);
 }
+
+typedef struct boxed_double_s {
+  block_t _block;
+  double  value;
+} *boxed_double_t;
 
 static inline double unbox_double(box_t b, context_t* ctx) {
   assert_internal(is_double(b));
-  ptr_t p = unbox_ptr(b);
-  double d = *(ptr_data_as(double, p));
-  ptr_drop(p,ctx);
+  boxed_double_t dt = block_as(boxed_double_t,unbox_ptr(b),TAG_DOUBLE);
+  double d = dt->value;
+  datatype_drop(dt,ctx);
   return d;
 }
 
 static inline box_t box_double(double d, context_t* ctx) {
-  double* data = ptr_alloc_data_as(double, 0, TAG_DOUBLE, ctx);
-  *data = d;
-  return box_ptr(ptr_from_data(data));
+  boxed_double_t dt = block_alloc_as(struct boxed_double_s, 0, TAG_DOUBLE, ctx);
+  dt->value = d;
+  return box_ptr(&dt->_block);
 }
+
+typedef struct boxed_int32_s {
+  block_t  _block;
+  int32_t  value;
+} *boxed_int32_t;
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
   if (likely(is_int(v))) {
-    return unbox_int(v);
+    intx_t i = unbox_int(v);
+    assert_internal(i >= INT32_MIN && i <= INT32_MAX);
+    return (int32_t)i;
   }
   else {
-    assert_internal(is_ptr(v) && ptr_tag(unbox_ptr(v)) == TAG_INT32);
-    ptr_t p = unbox_ptr(v);
-    int32_t i = *(ptr_data_as(int32_t,p));
-    ptr_drop(p,ctx);
+    assert_internal(is_ptr(v) && block_tag(unbox_ptr(v)) == TAG_INT32);
+    boxed_int32_t bi = block_as(boxed_int32_t, unbox_ptr(v), TAG_INT32);
+    int32_t i = bi->value;
+    block_drop(&bi->_block,ctx);
     return i;
   }
 }
+
 static inline box_t box_int32_t(int32_t i, context_t* ctx) {
   if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
     return box_int(i);
   }
   else {
-    int32_t* data = ptr_alloc_data_as(int32_t, 0, TAG_INT32, ctx);
-    *data = i;
-    return box_ptr(ptr_from_data(data));
+    boxed_int32_t bi = block_alloc_as(struct boxed_int32_s, 0, TAG_INT32, ctx);
+    bi->value = i;
+    return box_ptr(&bi->_block);
   }
 }
 
@@ -254,17 +265,20 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 #endif
 
 static inline bool is_non_null_ptr(box_t v) {
-  return (is_ptr(v) && v.box != box_ptr_null.box);
+  assert_internal(!is_ptr(v) || v.box != 0);   // NULL pointers are never allowed as boxed values
+  return (is_ptr(v));  //  && unbox_ptr(v) != NULL
 }
 
 static inline ptr_t unbox_ptr(box_t v) {
   assert_internal(is_ptr(v));
-  return (v.box);
+  assert_internal(v.box != 0); // no NULL pointers allowed
+  return (block_t*)(v.box);
 }
 
-static inline box_t box_ptr(ptr_t p) {
-  assert_internal((p & 0x03) == 0); // check alignment
-  box_t b = { (p) };
+static inline box_t box_ptr(const block_t* p) {
+  assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
+  assert_internal(p != NULL);                  // block should never be NULL
+  box_t b = { (uintptr_t)(p) };
   return b;
 }
 
@@ -275,7 +289,7 @@ static inline uintx_t unbox_enum(box_t b) {
 
 static inline box_t box_enum(uintx_t u) {
   assert_internal(u <= MAX_BOXED_ENUM);
-  box_t b = { (u << 2) | 0x02 };
+  box_t b = { ((uintptr_t)u << 2) | 0x02 };
   assert_internal(is_enum(b));
   return b;
 }
@@ -287,7 +301,7 @@ static inline intx_t unbox_int(box_t v) {
 
 static inline box_t box_int(intx_t i) {
   assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
-  box_t v = { (uintx_t)(i << 2) | 0x01 };
+  box_t v = { (uintptr_t)(i << 2) | 0x01 };
   assert_internal(is_int(v));
   return v;
 }
@@ -312,52 +326,60 @@ static inline box_t box_bool(bool b) {
 
 static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
   UNUSED_RELEASE(expected_tag);
-  block_t* b = ptr_as_block(unbox_ptr(v));
+  block_t* b = unbox_ptr(v);
   assert_internal(block_tag(b) == expected_tag);
   return b;
 }
 
 static inline box_t box_block_t(block_t* b) {
-  return box_ptr(block_as_ptr(b));
+  return box_ptr(b);
 }
 
+static inline box_t box_ptr_assert(block_t* b, tag_t tag) {
+  UNUSED_RELEASE(tag);
+  assert_internal(block_tag(b) == tag);
+  return box_ptr(b);
+}
 
-#define unbox_valuetype(tp,box,ctx) (*(ptr_data_as_assert(tp,unbox_ptr(box),TAG_BOX)))
+#define unbox_datatype_as(tp,b,tag)      (block_as(tp,unbox_ptr(b),tag))
+#define box_datatype_as(tp,b,tag)        (box_ptr_assert(&(b)->_block,tag))
+
+#define unbox_constructor_as(tp,b,tag)   (unbox_datatype_as(tp,&(b)->_inherit,tag))
+#define box_constructor_as(tp,b,tag)     (box_datatype_as(tp,&(b)->_inherit,tag))
+
+/* Generic boxing of value types */
+
+typedef struct boxed_value_s {
+  block_t _block;
+  char    data[INTPTR_SIZE]; 
+} *boxed_value_t;
+
+#define unbox_valuetype(tp,x,box,ctx) \
+  do { \
+    block_t* p = unbox_block_as(boxed_value_t,box,TAG_BOX); \
+    x = *((tp*)(&p->data[0])); \
+    block_drop(p,ctx); \
+  }while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
   do{ \
-     ptr_t p = ptr_alloc(sizeof(tp),scan_fsize,TAG_BOX,ctx); \
-     *(ptr_data_as(tp,p)) = val; \
+     block_t* p = block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx); \
+     *((tp*)(&p->data[0])) = val;  \
      x = box_ptr(p); \
   }while(0);
 
-static inline datatype_t unbox_datatype(box_t v) {
-  assert_internal(is_ptr(v) || is_enum(v));
-  return v;
-}
 
-static inline datatype_t unbox_datatype_assert(box_t v, tag_t tag) {
-  UNUSED_RELEASE(tag);
-  datatype_t d = unbox_datatype(v);
-  assert_internal(datatype_tag(d) == tag);
-  return d;
-}
-
-static inline box_t box_datatype(datatype_t d) {
-  assert_internal(is_ptr(d) || is_enum(d));
-  return d;
-}
 
 
 static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
-  struct cptr_raw_s* raw = datatype_alloc_data_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
-  raw->free = (freefun==NULL ? &free_fun_null : freefun);
+  cptr_raw_t raw = block_alloc_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
+  raw->free = freefun;
   raw->cptr = p;
-  return box_datatype(datatype_from_data(raw));
+  return box_ptr(&raw->_block);
 }
 
 static inline void* unbox_cptr_raw(box_t b) {
-  struct cptr_raw_s* raw = datatype_data_as( struct cptr_raw_s, unbox_datatype_assert(b, TAG_CPTR_RAW) );
+  cptr_raw_t raw = unbox_datatype_as( cptr_raw_t, b, TAG_CPTR_RAW);
   return raw->cptr;
 }
 

@@ -41,6 +41,7 @@ typedef uint16_t extra_t;
 #define MAX_EXTRA           (UINT16_MAX / 2)  // we use 1 bit for the negative bool
 
 typedef struct bigint_s {
+  block_t  _block;
 #if INTPTR_SIZE>=8
   uint8_t  is_neg: 1;      // negative
   extra_t  extra :15;      // extra digits available: `sizeof(digits) == (count+extra)*sizeof(digit_t)`
@@ -82,20 +83,19 @@ static integer_t integer_bigint(bigint_t* x, context_t* ctx);
 ----------------------------------------------------------------------*/
 
 static ptr_t bigint_ptr_(bigint_t* x) {
-  return ptr_from_data(x);
+  return &x->_block;
 }
 
 static bool bigint_is_unique_(bigint_t* x) {
-  return ptr_is_unique(bigint_ptr_(x));
+  return block_is_unique(bigint_ptr_(x));
 }
 
 static bigint_t* bigint_dup(bigint_t* x) {
-  ptr_dup(bigint_ptr_(x));
-  return x;
+  return datatype_dup_as(bigint_t*, x);
 }
 
 static void bigint_drop(bigint_t* x, context_t* ctx) {
-  ptr_drop(bigint_ptr_(x),ctx);
+  datatype_drop(x,ctx);
 }
 
 
@@ -107,7 +107,7 @@ static size_t bigint_roundup_count(size_t count) {
 
 static bigint_t* bigint_alloc(size_t count, bool is_neg, context_t* ctx) {
   size_t dcount = bigint_roundup_count(count);
-  bigint_t* b = ptr_data_as(bigint_t, ptr_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT, ctx));
+  bigint_t* b = (bigint_t*)block_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT, ctx);
   b->is_neg = (is_neg ? 1 : 0);
   b->extra = (extra_t)(dcount - count);
   b->count = count;
@@ -130,7 +130,7 @@ static bigint_t* bigint_trim_realloc_(bigint_t* x, size_t count, context_t* ctx)
     dcount = xcount;
   }
   else {
-    b = ptr_data_as(bigint_t, ptr_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), ctx));
+    b = (bigint_t*)block_realloc(bigint_ptr_(x), sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), ctx);
   }
   b->count = count;
   b->extra = (extra_t)(dcount - count);
@@ -257,7 +257,7 @@ static bigint_t* bigint_from_uint64(uint64_t i, context_t* ctx) {
 static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
   if (is_bigint(x)) {
-    return ptr_data_as(bigint_t, unbox_ptr(x));
+    return block_as(bigint_t*, unbox_ptr(x), TAG_BIGINT);
   }
   else {
     assert_internal(is_smallint(x));
@@ -337,7 +337,7 @@ static size_t bigint_to_buf_(const bigint_t* b, char* buf, size_t buf_size) {
 static string_t bigint_to_string(bigint_t* b, context_t* ctx) {
   size_t needed = bigint_to_buf_(b, NULL, 0);
   string_t s = string_alloc_buf(needed,ctx);
-  bigint_to_buf_(b, string_cbuf_borrow(s), needed);
+  bigint_to_buf_(b, (char*)string_cbuf_borrow(s), needed);
   bigint_drop(b,ctx);
   return s;
 }
@@ -363,7 +363,7 @@ string_t int_to_string(intx_t n, context_t* ctx) {
   }
   // write to the allocated string
   string_t s = string_alloc_buf(i + 1,ctx);
-  char* p = string_cbuf_borrow(s);
+  char* p = (char*)string_cbuf_borrow(s);
   intx_t j;
   for (j = 0; j < i; j++) {
     p[j] = buf[i - j - 1];

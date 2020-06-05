@@ -20,9 +20,9 @@ static box_t _function_id(function_t self, box_t x, context_t* ctx) {
 define_static_function(function_id, _function_id);
 
 // empty vector
-static struct { block_t block; struct vector_s vec; } _vector_empty
-  = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 /* length = box_enum(0) */, {0} } };
-vector_t vector_empty = { (uintptr_t)&_vector_empty };
+static struct vector_s _vector_empty
+  = { { HEADER_STATIC(0,TAG_VECTOR) }, 0x02 /* length = box_enum(0) */, {0} };
+vector_t vector_empty = &_vector_empty;
 
 // null function
 void free_fun_null(void* p) {

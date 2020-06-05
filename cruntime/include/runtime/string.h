@@ -14,7 +14,7 @@
 --------------------------------------------------------------------------------------*/
 typedef uint32_t char_t;
 
-#define char_replacement  ((char_t)(0xFFFD))
+#define char_replacement  ((char_t)(U32(0xFFFD)))
 
 static inline char_t unbox_char_t(box_t b, context_t* ctx) {
   return (char_t)unbox_int32_t(b,ctx);
@@ -29,40 +29,42 @@ static inline box_t box_char_t(char_t c, context_t* ctx) {
   Always point to valid modified-UTF8 characters.
 --------------------------------------------------------------------------------------*/
 
-// A string is modified UTF-8 (with encoded zeros) ending with a '0' character.
-struct string_s {
-  uint8_t str[1];
-};
+// A string is modified UTF8 (with encoded zeros) ending with a '0' character.
+typedef struct string_s {
+  block_t _block;
+} *string_t;
 
-struct string_raw_s {
-  free_fun_t* free;
-  const uint8_t* cstr;
-};
+typedef struct string_normal_s {
+  struct string_s _inherit;
+  size_t  length;
+  uint8_t str[1];  // UTF8 string in-place of `length+1` bytes ending in 0
+} *string_normal_t;
 
-typedef datatype_t string_t;
+typedef struct string_raw_s {
+  struct string_s _inherit;
+  free_fun_t* free;     
+  const uint8_t* cstr;  // UTF8 string of `length+1` bytes ending in 0
+  size_t length;
+} *string_raw_t;
 
-// Special definition of empty string so it can be used in static initializers
-struct _string_s {
-  block_t header;
-  struct string_s str;
-};
-extern struct _string_s _static_string_empty;
-extern string_t string_empty;
+extern struct string_normal_s _static_string_empty;
+#define string_empty  (&_static_string_empty._inherit)
 
 // Define string literals
 #define define_string_literal(decl,name,len,chars) \
-  static struct { block_t block; char str[len+1]; } _static_##name = { { HEADER_STATIC(0,TAG_STRING) }, chars }; \
-  decl string_t name = { (uintptr_t)&_static_##name };   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
+  static struct { struct string_s _inherit; size_t length; char str[len+1]; } _static_##name = \
+    { { { HEADER_STATIC(0,TAG_STRING) } }, len, chars }; \
+  decl string_t name = &_static_##name._inherit;  
 
 
 static inline string_t unbox_string_t(box_t v) {
-  string_t s = unbox_datatype(v);
-  assert_internal(datatype_is_ptr(s) && (datatype_tag(s) == TAG_STRING || datatype_tag(s) == TAG_STRING_RAW));
-  return s;
+  block_t* b = unbox_ptr(v);
+  assert_internal((block_tag(b) == TAG_STRING || block_tag(b) == TAG_STRING_RAW));
+  return (string_t)b;
 }
 
 static inline box_t box_string_t(string_t s) {
-  return box_datatype(s);
+  return box_ptr(&s->_block);
 }
 
 static inline void string_drop(string_t str, context_t* ctx) {
@@ -70,7 +72,7 @@ static inline void string_drop(string_t str, context_t* ctx) {
 }
 
 static inline string_t string_dup(string_t str) {
-  return datatype_dup(str);
+  return datatype_dup_as(string_t,str);
 }
 
 
@@ -80,13 +82,14 @@ static inline string_t string_dup(string_t str) {
 
 // Allocate a string of `len` characters. Adds a terminating zero at the end.
 static inline string_t string_alloc_len(size_t len, const char* s, context_t* ctx) {
-  struct string_s* str = ptr_data_as(struct string_s, ptr_alloc(sizeof(struct string_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx));
-  if (s != 0) {
+  string_normal_t str = block_as(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
+  if (s != NULL && len > 0) {
     memcpy(&str->str[0], s, len);
   }
+  str->length = len;
   str->str[len] = 0;
   // todo: assert valid UTF8 in debug mode
-  return datatype_from_data(str);
+  return &str->_inherit;
 }
 
 static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
@@ -97,25 +100,33 @@ static inline string_t string_alloc_dup(const char* s, context_t* ctx) {
   return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
 }
 
-static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
-  struct string_raw_s* str = datatype_alloc_data_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
+static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free, context_t* ctx) {
+  if (s==NULL) return string_dup(string_empty);
+  assert_internal(s[len]==0 && strlen(s)==len);
+  struct string_raw_s* str = block_alloc_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
   str->free = (free ? &runtime_free : &free_fun_null);
   str->cstr = (const uint8_t*)s;
+  str->length = len;
   // todo: assert valid UTF8 in debug mode
-  return datatype_from_data(str);
+  return &str->_inherit;
+}
+
+static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
+  if (s==NULL) return string_dup(string_empty);
+  return string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
 static inline const uint8_t* string_buf_borrow(string_t str) {
   if (datatype_tag(str) == TAG_STRING) {
-    return &datatype_data_as_assert(struct string_s, str, TAG_STRING)->str[0];
+    return &(datatype_as(string_normal_t, str, TAG_STRING)->str[0]);
   }
   else {
-    return datatype_data_as_assert(struct string_raw_s, str, TAG_STRING_RAW)->cstr;
+    return datatype_as(string_raw_t, str, TAG_STRING_RAW)->cstr;
   }
 }
 
-static inline char* string_cbuf_borrow(string_t str) {
-  return (char*)string_buf_borrow(str);
+static inline const char* string_cbuf_borrow(string_t str) {
+  return (const char*)string_buf_borrow(str);
 }
 
 static inline int string_cmp_cstr_borrow(string_t s, const char* t) {

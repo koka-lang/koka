@@ -174,16 +174,10 @@ static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
   Basic datatypes
 --------------------------------------------------------------------------------------*/
 
-// A `ptr_t` is a pointer to a `block_t`. We keep it abstract to support tagged pointers or sticky refcounts in the future
-typedef uintptr_t ptr_t;      
-
 // Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
 typedef struct box_s {
   uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.
 } box_t;
-
-// A datatype is either a `ptr_t` or an enumeration as a boxed value. Identity with boxed values.
-typedef box_t datatype_t;
 
 // An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
 typedef box_t integer_t;
@@ -263,19 +257,25 @@ typedef union header_s {
 #define HEADER_STATIC(scan_fsize,tag)  {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40 | 0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 // A heap block is a header followed by `scan_fsize` boxed fields and further raw bytes
+// A `block_t*` is never NULL (to avoid testing for NULL for reference counts).
 typedef struct block_s {
   header_t header;
-  //box_t  large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
-  //box_t  fields[];         // `scan_fsize` boxed fields. Note: flexible array [] is not in C++, and [0] is not in either C or C++ :-(
 } block_t;
 
+typedef struct block_large_s {
+  header_t header;
+  box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
+} block_large_t;
+
+
+typedef block_t* ptr_t;
 
 // boxed forward declarations
 static inline bool      is_ptr(box_t b);
 static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, int, or enum, but not a double
 static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
-static inline ptr_t     unbox_ptr(box_t b);
-static inline box_t     box_ptr(ptr_t p);
+static inline block_t*  unbox_ptr(box_t b);
+static inline box_t     box_ptr(const block_t* p);
 static inline intx_t    unbox_int(box_t v);
 static inline box_t     box_int(intx_t i);
 static inline uintx_t   unbox_enum(box_t v);
@@ -287,124 +287,22 @@ static inline box_t     box_enum(uintx_t u);
   Blocks 
 --------------------------------------------------------------------------------------*/
 
-static inline decl_const block_t* ptr_as_block(ptr_t p) {
-  return (block_t*)p;
-}
-
-static inline decl_const ptr_t block_as_ptr(const block_t* b) {
-  return (ptr_t)b;
-}
-
-static inline decl_const tag_t block_tag(block_t* b) {
+static inline decl_const tag_t block_tag(const block_t* b) {
   return (tag_t)(b->header.h.tag);
 }
 
-static inline decl_const void* block_data(block_t* b) {
-  assert_internal(b->header.h.scan_fsize != SCAN_FSIZE_MAX);
-  return ((uint8_t*)b + sizeof(block_t)); // note: assumes the data fields align just after the `block_t` fields.
+static inline decl_pure size_t block_scan_fsize(const block_t* b) {
+  const size_t sfsize = b->header.h.scan_fsize;
+  if (likely(sfsize != SCAN_FSIZE_MAX)) return sfsize;
+  const block_large_t* bl = (block_large_t*)b; 
+  return unbox_enum(bl->large_scan_fsize);
 }
 
-static inline decl_const box_t* block_fields(block_t* b) {
-  return (box_t*)block_data(b);
+static inline decl_pure uintptr_t block_refcount(const block_t* b) {
+  return b->header.h.refcount;
 }
 
-static inline decl_pure size_t block_scan_fsize(block_t* b) {
-  size_t sfsize = b->header.h.scan_fsize;
-  return (likely(sfsize != SCAN_FSIZE_MAX) ? sfsize : (size_t)unbox_int(*((box_t*)((uint8_t*)b + sizeof(header_t)))));
-}
-
-static inline decl_const box_t* block_field_at(block_t* b, size_t i) {
-  assert_internal(i <= block_scan_fsize(b));  // allowed to point one element beyond
-  return &block_fields(b)[i];
-}
-
-static inline decl_const box_t block_field(block_t* b, size_t i) {
-  assert_internal(i < block_scan_fsize(b));
-  return *block_field_at(b, i);
-}
-
-static inline decl_pure void* block_data_large(block_t* b) {
-  const size_t extra = (likely(b->header.h.scan_fsize != SCAN_FSIZE_MAX) ? 0 : sizeof(box_t));
-  return ((uint8_t*)b + sizeof(block_t) + extra);  // note: assumes the data aligns just after the block
-}
-
-static inline decl_pure box_t* block_fields_large(block_t* b) {
-  return (box_t*)block_data_large(b);
-}
-
-static inline decl_pure box_t* block_field_at_large(block_t* b, size_t i) {
-  assert_internal(i <= block_scan_fsize(b));  // allowed to point one element beyond
-  return &block_fields_large(b)[i];
-}
-
-static inline decl_pure box_t block_field_large(block_t* b, size_t i) {
-  assert_internal(i < block_scan_fsize(b));  
-  return *block_field_at_large(b,i);
-}
-
-static inline decl_const block_t* block_from_data(const void* data) {
-  block_t* b = (block_t*)((uint8_t*)data - sizeof(block_t));
-  assert_internal(b->header.h.scan_fsize != SCAN_FSIZE_MAX); // is a small block?
-  return b;
-}
-
-static inline block_t* block_from_data_large(const void* data) {
-  block_t* b = (block_t*)((uint8_t*)data - sizeof(block_t));
-  assert_internal(b->header.h.scan_fsize == SCAN_FSIZE_MAX); // is not a small block?
-  return b;
-}
-
-
-/*--------------------------------------------------------------------------------------
-  Ptr
---------------------------------------------------------------------------------------*/
-
-extern ptr_t ptr_null;
-
-static inline decl_const tag_t ptr_tag(ptr_t p) {
-  return block_tag(ptr_as_block(p));
-}
-
-static inline decl_const box_t* ptr_fields(ptr_t p) {
-  return block_fields(ptr_as_block(p));
-}
-
-static inline decl_const box_t* ptr_field_at(ptr_t p, size_t i) {
-  return block_field_at(ptr_as_block(p),i);
-}
-
-static inline decl_const box_t ptr_field(ptr_t p, size_t i) {
-  return block_field(ptr_as_block(p), i);
-}
-
-static inline decl_pure uintptr_t ptr_refcount(ptr_t p) {
-  return ptr_as_block(p)->header.h.refcount;
-}
-
-static inline decl_const void* ptr_data(ptr_t p) {
-  return block_data(ptr_as_block(p));
-}
-
-static inline decl_pure void* ptr_data_assert(ptr_t p, tag_t expected_tag) {
-  UNUSED_RELEASE(expected_tag);
-  assert_internal(ptr_tag(p) == expected_tag);
-  return ptr_data(p);
-}
-
-#define ptr_data_as(tp,p)              (tp*)ptr_data(p)
-#define ptr_data_as_assert(tp,p,tag)   (tp*)ptr_data_assert(p,tag)
-
-static inline decl_const ptr_t ptr_from_data(const void* data) {
-  return block_as_ptr(block_from_data(data));
-}
-
-static inline decl_const ptr_t ptr_from_data_large(void* data) {
-  return block_as_ptr(block_from_data_large(data));
-}
-
-
-static inline decl_pure bool ptr_is_unique(ptr_t p) {
-  block_t* b = ptr_as_block(p);
+static inline decl_pure bool block_is_unique(const block_t* b) {
 #if REFCOUNT_LIMIT_TO_32BIT
   return (likely(b->header.rc32.lo == 0));
 #else
@@ -418,8 +316,22 @@ static inline decl_pure bool ptr_is_unique(ptr_t p) {
   This is passed by the code generator as an argument to every function so it can
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
-typedef void*      heap_t;
-typedef datatype_t function_t;
+typedef void*  heap_t;
+
+// A function has as its first field a pointer to a C function that takes the 
+// `function_t` itself as a first argument. The following fields are the free variables.
+typedef struct function_s {
+  block_t  _block;
+  box_t    fun;     
+  // followed by free variables
+} *function_t;
+
+// A vector is an array of boxed values.
+typedef struct vector_s {
+  block_t  _block;
+  box_t    length;
+  box_t    vec[1];            // vec[length+1] with box_null as sentinel
+} *vector_t;
 
 #define YIELD_CONT_MAX (8)
 
@@ -442,7 +354,7 @@ typedef struct yield_s {
 
 typedef struct context_s {
   heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  datatype_t  evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  vector_t    evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   yield_t     yield;            // inlined yield structure (for efficiency)
   int32_t     marker_unique;    // unique marker generation
   block_t*    delayed_free;     // list of blocks that still need to be freed
@@ -459,11 +371,11 @@ decl_export context_t* runtime_context(void);
 #define current_context()   _ctx
 
 // Is the execution yielding?
-static inline bool yielding(context_t* ctx) {
+static inline decl_pure bool yielding(const context_t* ctx) {
   return (ctx->yield.yielding != YIELD_NONE);
 };
 
-static inline bool yielding_non_final(context_t* ctx) {
+static inline decl_pure bool yielding_non_final(const context_t* ctx) {
   return (ctx->yield.yielding == YIELD_NORMAL);
 };
 
@@ -499,168 +411,105 @@ static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
 
 decl_export void block_free(block_t* b, context_t* ctx);
 
-static inline void ptr_free(ptr_t p, context_t* ctx) {
-  block_free(ptr_as_block(p),ctx);
-}
-
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
+  assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   header_t header = { 0 };
   header.h.tag = (uint16_t)tag;
-  if (likely(scan_fsize < SCAN_FSIZE_MAX)) {
-    header.h.scan_fsize = (uint8_t)scan_fsize;
-  }
-  else {
-    header.h.scan_fsize = SCAN_FSIZE_MAX;
-    *block_field_at(b,0) = box_enum(scan_fsize);
-  }
+  header.h.scan_fsize = (uint8_t)scan_fsize;
   b->header = header;
+}
+
+static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
+  header_t header = { 0 };
+  header.h.tag = (uint16_t)tag;
+  header.h.scan_fsize = SCAN_FSIZE_MAX;
+  b->header = header;
+  b->large_scan_fsize = box_enum(scan_fsize);
 }
 
 static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   size_t extra = 0;
-  if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) {
-    extra = sizeof(box_t);
-    scan_fsize++; // scan the scan field itself
-  }
-  block_t* b = (block_t*)runtime_malloc(size + sizeof(block_t) + extra, ctx);
+  assert_internal(scan_fsize < SCAN_FSIZE_MAX);
+  block_t* b = (block_t*)runtime_malloc(size, ctx);
   block_init(b, size, scan_fsize, tag);
   return b;
 }
 
-
-static inline ptr_t ptr_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
-  block_t* b = block_alloc(size, scan_fsize, tag, ctx);
-  return block_as_ptr(b);
+static inline block_large_t* block_large_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  block_large_t* b = (block_large_t*)runtime_malloc(size + 1 /* the scan_large_fsize field */, ctx);
+  block_large_init(b, size, scan_fsize, tag);
+  return b;
 }
 
-static inline ptr_t ptr_realloc(ptr_t p, size_t size, context_t* ctx) {
-  assert_internal(ptr_is_unique(p));
-  block_t* b = ptr_as_block(p);
-  const size_t bsize = sizeof(block_t) + (likely(b->header.h.scan_fsize != SCAN_FSIZE_MAX) ? 0 : sizeof(box_t));
-  b = (block_t*)runtime_realloc(ptr_as_block(p), size + bsize, ctx);
-  return block_as_ptr(b);
+static inline block_t* block_realloc(block_t* b, size_t size, context_t* ctx) {
+  assert_internal(block_is_unique(b));
+  return (block_t*)runtime_realloc(b, size, ctx);
 }
 
-#define ptr_alloc_data_as(tp,scan_fsize,tag,ctx)  ptr_data_as(tp,ptr_alloc(sizeof(tp),scan_fsize,tag,ctx))
+static inline void* _block_as(block_t* b) {
+  return (void*)b;
+}
+static inline void* _block_as_assert(block_t* b, tag_t tag) {
+  assert_internal(block_tag(b) == tag);
+  return (void*)b;
+}
+
+#define block_alloc_as(struct_tp,scan_fsize,tag,ctx)  ((struct_tp*)block_alloc(sizeof(struct_tp),scan_fsize,tag,ctx))
+#define block_as(tp,b,tag)                            ((tp)_block_as_assert(b,tag))
 
 
 /*--------------------------------------------------------------------------------------
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-decl_export void ptr_check_free(ptr_t p, context_t* ctx);
+decl_export void block_check_free(block_t* b, context_t* ctx);
 
 
-static inline ptr_t ptr_dup(ptr_t p) {
+static inline block_t* block_dup(block_t* b) {
 #if REFCOUNT_LIMIT_TO_32BIT
   // with a 32-bit reference count on a 64-bit system, we need a (8*2^32 = 32GiB array to create that many
   // references to a single object. That is often a reasonable restriction and more efficient.
-  ptr_as_block(p)->header.rc32.lo++;
+  b->header.rc32.lo++;
 #else
   // optimize: increment the full 64-bit hoping to never overflow the 38 refcount bits
   // this is reasonable as it would take a (8*2^38 = 2TiB array to create that many references to a single object)
-  ptr_as_block(p)->header.rc.extended++;   
+  b->header.rc.extended++;   
 #endif
-  return p;
+  return b;
 }
 
-static inline void ptr_drop(ptr_t p, context_t* ctx) {
+static inline void block_drop(block_t* b, context_t* ctx) {
   // optimize: always decrement just the 32 bits; 
   // on larger refcounts check afterwards if the hi-bits were 0. Since we use 0 for a unique reference we can 
   // efficiently check if the block can be freed by comparing to 0.
-  uint32_t count = (ptr_as_block(p)->header.rc32.lo)--;
+  uint32_t count = (b->header.rc32.lo)--;
 #if REFCOUNT_LIMIT_TO_32BIT
-  if (count==0) ptr_free(p,ctx);
+  if (count==0) block_free(b,ctx);
 #else
-  if (count==0) ptr_check_free(p,ctx);
+  if (count==0) block_check_free(b,ctx);
 #endif
 }
 
+#define datatype_as(tp,v,tag)             (block_as(tp,&(v)->_block,tag))
+#define datatype_tag(v)                   (block_tag(&(v)->_block))
+#define datatype_drop(v,ctx)              (block_drop(&(v)->_block,ctx))
+#define datatype_dup_as(tp,v)             ((tp)block_dup(&(v)->_block))
+
+#define constructor_tag(v)                (datatype_tag(&(v)->_inherit))
+#define constructor_drop(v,ctx)           (datatype_drop(&(v)->_inherit,ctx))
+#define constructor_dup_as(tp,v)          (datatype_dup_as(tp, &(v)->_inherit))
+
+
 static inline box_t boxed_dup(box_t b) {
-  if (is_ptr(b)) ptr_dup(unbox_ptr(b));
+  if (is_ptr(b)) block_dup(unbox_ptr(b));
   return b;
 }
 
 static inline void boxed_drop(box_t b, context_t* ctx) {
-  if (is_ptr(b)) ptr_drop(unbox_ptr(b), ctx);
+  if (is_ptr(b)) block_drop(unbox_ptr(b), ctx);
 }
 
-
-
-
-/*--------------------------------------------------------------------------------------
-  Datatype
---------------------------------------------------------------------------------------*/
-
-static inline decl_const datatype_t ptr_as_datatype(ptr_t p) {
-  return box_ptr(p);
-}
-
-static inline decl_const ptr_t datatype_as_ptr(datatype_t d) {
-  return unbox_ptr(d);
-}
-
-static inline decl_const bool datatype_is_ptr(datatype_t d) {
-  return (is_ptr_fast(d));
-}
-
-static inline decl_const datatype_t datatype_from_enum(uintptr_t tag) {
-  return box_enum(tag);
-}
-
-static inline decl_const uintptr_t datatype_as_enum(datatype_t d) {
-  return unbox_enum(d);
-}
-
-static inline decl_const bool datatype_is_enum(datatype_t d) {
-  return (is_enum_fast(d));
-}
-
-static inline decl_pure tag_t datatype_tag(datatype_t d) {
-  return (datatype_is_ptr(d) ? ptr_tag(datatype_as_ptr(d)) : (tag_t)datatype_as_enum(d));
-}
-
-static inline decl_pure tag_t datatype_tag_fast(datatype_t d) {
-  assert_internal(datatype_is_ptr(d));
-  return ptr_tag(datatype_as_ptr(d));
-}
-
-#define datatype_alloc_data_as(tp,scan_fsize,tag,ctx)  ((tp*)ptr_alloc_data_as(tp,scan_fsize,tag,ctx))
-
-#define define_static_datatype(decl,name,tag) \
-    static block_t _static_##name = { HEADER_STATIC(0,tag) }; \
-    decl datatype_t name = { (uintptr_t)&_static_##name }; /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
-
-#define define_static_open_datatype(decl,name,otag) /* ignore otag as it is initialized dynamically */ \
-    static struct { block_t _header; string_t _tag; } _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, {(uintptr_t)&_static_string_empty} }; \
-    decl datatype_t name = { (uintptr_t)&_static_##name }; /* should be `datatype_cptr(&_static_##name)` but we need a constant initializer */
-
-
-static inline decl_const datatype_t datatype_from_data(const void* data) {
-  return ptr_as_datatype(ptr_from_data(data));
-}
-
-static inline decl_const void* datatype_data(datatype_t d) {
-  return ptr_data(datatype_as_ptr(d));
-}
-
-static inline decl_pure void* datatype_data_assert(datatype_t d, tag_t expected_tag) {
-  return ptr_data_assert(datatype_as_ptr(d), expected_tag);
-}
-
-#define datatype_data_as(tp,d)             ((tp*)datatype_data(d))
-#define datatype_data_as_assert(tp,d,tag)  ((tp*)datatype_data_assert(d,tag))
-
-
-static inline void datatype_drop(datatype_t d, context_t* ctx) {
-  if (datatype_is_ptr(d)) ptr_drop(datatype_as_ptr(d),ctx);
-}
-
-static inline datatype_t datatype_dup(datatype_t d) {
-  if (datatype_is_ptr(d)) ptr_dup(datatype_as_ptr(d));
-  return d;
-}
 
 
 // Tag for value types is always a boxed enum
@@ -681,56 +530,60 @@ static inline value_tag_t value_tag(uint_t tag) {
   reference increments on fields of the match, and reuse memory in-place for
   deallocated scrutinees.
 --------------------------------------------------------------------------------------*/
-typedef datatype_t orphan_t; 
+typedef struct orphan_s {
+  block_t _block;
+} *orphan_t;
+
+extern struct orphan_s _orphan_null;
 
 static inline decl_const orphan_t orphan_null(void) {
-  return datatype_from_enum(0);
+  return &_orphan_null;
 }
 
-static inline orphan_t orphan_ptr(ptr_t p) {
-  ptr_as_block(p)->header.as_uint64 = 0; // set tag to zero, unique, with zero scan size (so decref is valid on it)
-  return ptr_as_datatype(p);
+static inline orphan_t orphan_block(block_t* b) {
+  b->header.as_uint64 = 0; // set tag to zero, unique, with zero scan size (so decref is valid on it)
+  return (orphan_t)b;
 }
 
-static inline orphan_t ptr_release0(ptr_t p, context_t* ctx) {
-  if (ptr_is_unique(p)) {
-    return orphan_ptr(p);
+static inline orphan_t block_release0(block_t* b, context_t* ctx) {
+  if (block_is_unique(b)) {
+    return orphan_block(b);
   }
   else {
-    ptr_drop(p,ctx);
+    block_drop(b,ctx);
     return orphan_null();
   }
 }
 
-static inline orphan_t ptr_release1(ptr_t p, box_t unused_field1, context_t* ctx ) {
-  if (ptr_is_unique(p)) {
+static inline orphan_t block_release1(block_t* b, box_t unused_field1, context_t* ctx ) {
+  if (block_is_unique(b)) {
     boxed_drop(unused_field1,ctx);
-    return orphan_ptr(p);
+    return orphan_block(b);
   }
   else {
-    ptr_drop(p,ctx);
+    block_drop(b,ctx);
     return orphan_null();
   }
 }
 
-static inline void ptr_no_reuse(orphan_t o) {
-  if (datatype_is_ptr(o)) {
-    runtime_free(ptr_as_block(datatype_as_ptr(o)));
+static inline void block_no_reuse(orphan_t o) {
+  if (o != orphan_null()) {
+    runtime_free(o);
   };
 }
 
-static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+static inline block_t* block_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   // TODO: check usable size p >= size
   block_t* b;
-  if (datatype_is_ptr(o)) {
-    assert_internal(ptr_is_unique(datatype_as_ptr(o)));
-    b = ptr_as_block(datatype_as_ptr(o));
+  if (o != orphan_null()) {
+    assert_internal(block_is_unique(&o->_block));
+    b = &o->_block;
   }
   else {
     b = (block_t*)runtime_malloc(size,ctx);
   }
   block_init(b, size, scan_fsize, tag);
-  return block_as_ptr(b);
+  return b;
 }
 
 
@@ -738,7 +591,6 @@ static inline ptr_t ptr_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, 
 /*----------------------------------------------------------------------
   Further includes
 ----------------------------------------------------------------------*/
-typedef datatype_t vector_t;
 typedef enum unit_e {
   Unit = 0
 } unit_t;
@@ -748,10 +600,11 @@ typedef void (free_fun_t)(void*);
 decl_export void free_fun_null(void* p);
 
 // "raw" C pointer: first field is pointer to a free function, the next field a pointer to raw C data
-struct cptr_raw_s {
+typedef struct cptr_raw_s {
+  block_t     _block;
   free_fun_t* free;
-  void* cptr;
-};
+  void*       cptr;
+} *cptr_raw_t;
 
 
 #include "runtime/box.h"
@@ -777,83 +630,68 @@ static inline integer_t gen_unique(context_t* ctx) {
   Functions
 --------------------------------------------------------------------------------------*/
 
-// A function has as its first field a pointer to a (C) function that takes the 
-// function itself as a first argument. The following fields are the free variables.
-struct function_s {
-  box_t   fun;     // boxed cptr
-  // followed by free variables
-};
+#define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 
-#define function_null   (box_null)
+#define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cptr(f->fun)))args
 
-static inline function_t function_from_data(const struct function_s* data) {
-  return datatype_from_data(data);
-}
-
-static inline struct function_s* function_data(function_t f) {
-  return datatype_data_as_assert(struct function_s, f, TAG_FUNCTION);
-}
-
-static inline ptr_t function_alloc(size_t size, size_t scan_fsize, context_t* ctx) {
-  return ptr_alloc(size, scan_fsize, TAG_FUNCTION, ctx);
-}
-
-#define function_alloc_as(tp,scan_fsize,ctx)    ptr_data_as(tp,function_alloc(sizeof(tp),scan_fsize,ctx))
-#define function_data_as(tp,f)                  ((tp*)function_data(f))
-
-#define function_call(restp,argtps,f,args)  ((restp(*)argtps)(unbox_cptr(function_data(f)->fun)))args
 
 #define define_static_function(name,cfun) \
-  static struct { block_t block; box_t fun; } _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { (uintptr_t)&cfun } }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
-  function_t name = { (uintptr_t)&_static_##name };   // note: should be `block_as_datatype(&_static_##name.block)` but we need as constant expression here
+  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { (uintptr_t)&cfun } }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
+  function_t name = &_static_##name;
 
 
 extern function_t function_id;
 
 static inline function_t unbox_function_t(box_t v) {
-  return unbox_datatype_assert(v, TAG_FUNCTION);
+  return unbox_datatype_as(function_t, v, TAG_FUNCTION);
 }
 
 static inline box_t box_function_t(function_t d) {
-  return box_datatype(d);
+  return box_datatype_as(function_t, d, TAG_FUNCTION);
 }
 
 static inline bool function_is_unique(function_t f) {
-  return ptr_is_unique(datatype_as_ptr(f));
+  return block_is_unique(&f->_block);
 }
 
 static inline void function_drop(function_t f, context_t* ctx) {
-  datatype_drop(f, ctx);
+  block_drop(&f->_block, ctx);
 }
 
 static inline function_t function_dup(function_t f) {
-  return datatype_dup(f);
+  return block_as(function_t,block_dup(&f->_block),TAG_FUNCTION);
 }
 
 
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
-typedef datatype_t ref_t;
-struct ref_s {
-  box_t value;
-};
+typedef struct ref_s {
+  block_t _block;
+  box_t   value;
+} *ref_t;
 
 static inline ref_t ref_alloc(box_t value, context_t* ctx) {
-  struct ref_s* r = datatype_alloc_data_as(struct ref_s, 1, TAG_REF, ctx);
+  ref_t r = block_alloc_as(struct ref_s, 1, TAG_REF, ctx);
   r->value = value;
-  return datatype_from_data(r);
+  return r;
 }
 
 static inline box_t ref_get(ref_t b) {
-  return boxed_dup(datatype_data_as_assert(struct ref_s, b, TAG_REF)->value);
+  return boxed_dup(b->value);
 }
 
 static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
-  box_t* b = &datatype_data_as_assert(struct ref_s, r, TAG_REF)->value; 
-  boxed_drop(*b, ctx);
-  *b = value;
+  box_t b = r->value; 
+  boxed_drop(b, ctx);
+  r->value = value;
   return Unit;
+}
+
+static inline box_t ref_swap(ref_t r, box_t value, context_t* ctx) {
+  box_t b = r->value;
+  r->value = value;
+  return b;
 }
 
 decl_export void fatal_error(int err, const char* msg, ...);
@@ -879,13 +717,9 @@ static inline unit_t unbox_unit_t(box_t u) {
 /*--------------------------------------------------------------------------------------
   Vector
 --------------------------------------------------------------------------------------*/
-struct vector_s {
-  box_t length;
-  box_t vec[1];
-};
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
-  struct vector_s* v = ptr_data_as(struct vector_s, ptr_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx));
+  vector_t v = block_as(vector_t, block_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx), TAG_VECTOR);
   v->length = box_enum(length);
   if (def.box != box_null.box) {
     for (size_t i = 0; i < length; i++) {
@@ -893,7 +727,7 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
     }
     v->vec[length] = box_from_uintptr(0); // ending zero value
   }
-  return datatype_from_data(v);
+  return v;
 }
 
 static inline void vector_drop(vector_t v, context_t* ctx) {
@@ -901,56 +735,57 @@ static inline void vector_drop(vector_t v, context_t* ctx) {
 }
 
 static inline vector_t vector_dup(vector_t v) {
-  return datatype_dup(v);
+  return datatype_dup_as(vector_t,v);
+}
+
+static inline size_t vector_len(const vector_t v) {
+  return unbox_enum(v->length);
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
-  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
-  if (len != NULL) *len = unbox_enum(vec->length);
-  return &vec->vec[0];
+  if (len != NULL) *len = vector_len(v);
+  return &v->vec[0];
 }
 
-static inline box_t vector_at(vector_t v, size_t i) {
-  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
-  assert(i < unbox_enum(vec->length));
-  return boxed_dup(vec->vec[i]);
+static inline box_t vector_at(const vector_t v, size_t i) {
+  assert(i < unbox_enum(v->length));
+  return boxed_dup(v->vec[i]);
 }
 
-static inline size_t vector_len(vector_t v) {
-  struct vector_s* vec = datatype_data_as_assert(struct vector_s, v, TAG_VECTOR);
-  return unbox_enum(vec->length);
-}
 
 extern vector_t vector_empty;
 
 static inline box_t box_vector_t(vector_t v, context_t* ctx) {
   UNUSED(ctx);
-  return box_datatype(v);
+  return box_datatype_as(vector_t,v,TAG_VECTOR);
 }
 
 static inline vector_t unbox_vector_t(box_t b, context_t* ctx) {
   UNUSED(ctx);
-  return unbox_datatype(b);
+  return unbox_datatype_as(vector_t, b, TAG_VECTOR);
 }
 
 /*--------------------------------------------------------------------------------------
   Bytes
 --------------------------------------------------------------------------------------*/
 
-// Bytes are a vector of raw bytes (TAG_BYTES)
-struct bytes_s {
-  size_t   length;
-  char     buf[1];
+typedef struct bytes_s {
+  block_t  _block;               // TAG_BYTES or TAG_BYTES_RAW
+}* bytes_t;
+
+struct bytes_vector_s {          // in-place bytes
+  struct bytes_s  _inherit;
+  size_t          length;
+  char            buf[1];
 };
 
-// Or a pointer to raw data that was potentially `malloc`'d  (TAG_BYTES_RAW)
-struct bytes_raw_s {
-  size_t      length;
-  free_fun_t* free;
-  uint8_t*    data;
+struct bytes_raw_s {             // pointer to bytes with free function
+  struct bytes_s _inherit;
+  free_fun_t*    free;
+  uint8_t*       data;
+  size_t         length;
 };
 
-typedef datatype_t bytes_t;  // either TAG_BYTES or TAG_BYTES_RAW
 
 
 

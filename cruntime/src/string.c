@@ -8,8 +8,8 @@
 #define  _CRT_SECURE_NO_WARNINGS
 #include "runtime.h"
 
-struct _string_s _static_string_empty = { HEADER_STATIC(0,TAG_STRING), {0} };
-string_t string_empty = { (uintptr_t)&_static_string_empty };
+struct string_normal_s _static_string_empty = { { HEADER_STATIC(0,TAG_STRING) }, 0, {0} };
+
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
@@ -270,25 +270,25 @@ string_t show_any(box_t b, context_t* ctx) {
     return string_alloc_dup("cptr(NULL)", ctx);
   }
   else {
-    ptr_t p = unbox_ptr(b);
-    tag_t tag = ptr_tag(p);
+    block_t* p = unbox_ptr(b);
+    tag_t tag = block_tag(p);
     if (tag == TAG_BIGINT) {
       // todo: add tag
       return integer_to_string(b, ctx);
     }
     else if (tag == TAG_STRING || tag == TAG_STRING_RAW) {
       // todo: add tag
-      return b;
+      return (string_t)p;
     }
     else if (tag == TAG_FUNCTION) {
-      struct function_s* fun = ptr_data_as(struct function_s, p);
+      function_t fun = block_as(function_t, p, TAG_FUNCTION);
       snprintf(buf, 128, "function(0x%zx)", (uintptr_t)unbox_cptr(fun->fun));
       boxed_drop(b,ctx);
       return string_alloc_dup(buf, ctx);
     }
     else {
       // TODO: handle all builtin tags 
-      snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", p, tag, (uintptr_t)ptr_refcount(p), block_scan_fsize(ptr_as_block(p)));
+      snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, block_refcount(p), block_scan_fsize(p));
       boxed_drop(b, ctx);
       return string_alloc_dup(buf, ctx);
     }

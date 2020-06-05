@@ -34,7 +34,7 @@ typedef int16_t smallint_t;
 
 static inline bool is_integer(integer_t i) {
   return ((is_int(i)  && unbox_int(i) >= SMALLINT_MIN && unbox_int(i) <= SMALLINT_MAX) 
-         || (is_ptr(i) && ptr_tag(unbox_ptr(i)) == TAG_BIGINT));
+         || (is_ptr(i) && block_tag(unbox_ptr(i)) == TAG_BIGINT));
 }
 
 static inline bool is_bigint(integer_t i) {

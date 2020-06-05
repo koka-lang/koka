@@ -15,24 +15,35 @@
 
 define_string_literal(, stest, 5, "hello");
 
+#define define_singleton(decl,tp,name,tag) \
+   tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
+   decl tp* name = &_static_##name;
+
 // type data1/list
-typedef datatype_t __data1__list;
+typedef struct __data1_list_s* __data1__list;
+struct __data1_list_s {
+  block_t _block;
+};
+
+define_singleton( , struct __data1_list_s, __data1_singleton_Nil, 0);
+
 struct __data1_Cons {
+  struct __data1_list_s _inherit;
   box_t x;
   __data1__list tail;
 };
 static inline bool __data1__is_Cons(__data1__list x) {
-  return (datatype_is_ptr(x));
+  return (x != __data1_singleton_Nil);
 }
 __data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* ctx) {
-  struct __data1_Cons* _con = datatype_alloc_data_as(struct __data1_Cons, 2 /* scan fields */, (tag_t)1 /* tag */, ctx);
+  struct __data1_Cons* _con = block_alloc_as(struct __data1_Cons, 2 /* scan fields */, (tag_t)1 /* tag */, ctx);
   _con->x = x;
   _con->tail = tail;
-  return datatype_from_data(_con);
+  return &_con->_inherit;
 }
 struct __data1_Cons* __data1__as_Cons(__data1__list x) {
   assert(__data1__is_Cons(x));
-  return datatype_data_as(struct __data1_Cons, x);
+  return datatype_as(struct __data1_Cons*, x, 1);
 }
 
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y, context_t* ctx) {
@@ -432,7 +443,7 @@ int main() {
   }
   */
   
-  return box_as_intptr(__data1__new_Cons(box_int(1),datatype_from_enum(0),ctx));
+  return (intptr_t)(__data1__new_Cons(box_int(1),__data1_singleton_Nil,ctx));
 }
 
 /*
