@@ -21,7 +21,7 @@ define_static_function(function_id, _function_id);
 
 // empty vector
 static struct vector_s _vector_empty
-  = { { HEADER_STATIC(0,TAG_VECTOR) }, 0x02 /* length = box_enum(0) */, {0} };
+   = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 } /* length = box_enum(0) */, {{0}} };
 vector_t vector_empty = &_vector_empty;
 
 // null function

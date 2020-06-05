@@ -12,7 +12,7 @@
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
 
-struct string_normal_s _static_string_empty = { { HEADER_STATIC(0,TAG_STRING) }, 0, {0} };
+struct string_normal_s _static_string_empty = { { { HEADER_STATIC(0,TAG_STRING) } }, 0, {0} };
 
 static int stricmpx(const char* s, const char* t) {
   int c,d;

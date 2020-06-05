@@ -68,8 +68,8 @@ if(WIN32)
   list(APPEND rt_libraries psapi shell32 user32 bcrypt)
 else()
   if(NOT ${CMAKE_C_COMPILER} MATCHES "android")
-    list(APPEND rt_libraries pthread)
-    find_library(LIBRT rt)
+    list(APPEND rt_libraries pthread m)  # pthreads and math
+    find_library(LIBRT rt)               # realtime
     if(LIBRT)
       list(APPEND rt_libraries ${LIBRT})
     endif()
