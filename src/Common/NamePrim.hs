@@ -158,7 +158,7 @@ nameDec              = preludeName "dec"
 
 
 nameTpArray     = qualify (newName "std/data/array") (newName "array")
-nameVector      = preludeName "vector"
+nameVector      = preludeName "unvlist"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 

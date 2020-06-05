@@ -510,9 +510,13 @@ parsePatterns1 env
 
 parseGuard :: Env -> LexParser Guard
 parseGuard env
-  = do keyword "->"
+  = do grd <- do specialOp "|"
+                 parseExpr env <?> "guard"
+              <|>
+              return exprTrue
+       keyword "->"
        expr <- parseExpr env
-       return (Guard exprTrue expr)
+       return (Guard grd expr)
 
 
 type PatBinders = [(Name,Type)]

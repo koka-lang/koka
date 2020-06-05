@@ -133,13 +133,12 @@ makeList :: Type -> [Expr] -> Expr
 makeList tp exprs
   = foldr cons nil exprs
   where
-    nilTp = TForall [a] [] (TApp typeList [TVar a])
-    nilCon  = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
-    nil    = TypeApp nilCon [tp]
-    consTp = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
-    cons expr xs
-            = App (TypeApp consCon [tp]) [expr,xs]
+    nilTp    = TForall [a] [] (TApp typeList [TVar a])
+    nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
+    nil      = TypeApp nilCon [tp]
+    consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
+    cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound            
 
 {--------------------------------------------------------------------------

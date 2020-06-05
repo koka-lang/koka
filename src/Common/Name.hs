@@ -26,6 +26,7 @@ module Common.Name
           , newHiddenExternalName, isHiddenExternalName
           , newHiddenName, isHiddenName, hiddenNameStartsWith
           , makeHiddenName, makeFreshHiddenName
+          , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
           , toHandlerName, fromHandlerName, isHandlerName
@@ -279,6 +280,14 @@ makeFreshHiddenName s name range
 
 hiddenNameStartsWith name pre
   = nameId name `startsWith` ("." ++ pre ++ "-")
+
+toUniqueName :: Int -> Name -> Name
+toUniqueName i name
+  = newQualified (nameModule name) $
+    reverse (insert (reverse (nameId name)))
+  where 
+    insert (c:cs) | c `elem` "'?" = c : insert cs
+    insert cs     = reverse (show i) ++ cs
 
 
 newFieldName i

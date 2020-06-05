@@ -140,7 +140,7 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
         else -- not equal in handled effects, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
-                                  _ -> failure $ "Core.openResolve.resOpen: unknown name: " ++ show name
+                                  ress -> failure $ "Core.OpenResolve.resOpen: unknown name: " ++ show name ++ ", " ++ show gamma
                  -- actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
                  params = [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
                  wrapper openExpr evExprs

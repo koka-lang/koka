@@ -2083,7 +2083,11 @@ extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
 }
 
 // Convert a list to a vector.
-extern vector( xs : list<a> ) : vector<a> {
+fun vector( xs : list<a> ) : vector<a> {
+  xs.unvlist
+}
+  
+extern unvlist( xs : list<a> ) : vector<a> {
   c  "list_to_vector"
   cs inline "Primitive.UnVList<##1>(#1)"
   js inline "_unvlist(#1)"
