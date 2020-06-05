@@ -350,8 +350,8 @@ public fun interleavedx( action1 : () -> <async,exn|e> a, action2 : () -> <async
 		Cons(x,Cons(y)) -> (x.unleft,y.unright)
 		_ -> {
 			// this will never happen..
-			val exn = exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
-			(Exn(exn),Exn(exn))
+			val exn = Exception("invalid interleaved result",Internal("std/async/interleavedx(action1,action2)"))
+			(TryExn(exn),TryExn(exn))
 		}
 	}
 }
@@ -417,7 +417,7 @@ fun interleavedn( n : int, xs : list<() -> <async,exn|e> a> ) : <async|e> list<t
 		fun strands-busy?()	     { cr.fst > 0 }
 		fun strand-done(idx,res) { cr := (cr.fst - 1, cr.snd.insert(idx,res)) }
 	}
-	(unsafe-no-ndet-div{ interleaved-div(xs) })()
+	mask<local>(unsafe-no-ndet-div{ interleaved-div(xs) })
 }
 
 extern inline unsafe-no-ndet-div : forall<a,e> (() -> <ndet,div|e> a) -> (() -> e a) { inline "#1" }

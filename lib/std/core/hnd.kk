@@ -705,6 +705,14 @@ public fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, 
   res
 }
 
+public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+  val w = evv-swap-create1(i)
+  val res = cast-ev4(f)(x1,x2,x3,x4)
+  if (yielding()) return yield-extend( fun(xres){ val j = evv-set(w); xres } );
+  val j = evv-set(w)
+  res
+}
+
 public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create(indices)
   val res = cast-ev0(f)()

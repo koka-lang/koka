@@ -147,6 +147,13 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                    = Lam params effFrom $
                        App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
                            (evExprs ++ [expr] ++ [Var p InfoNone | p <- params])
+                 evIndexOf l
+                   = let (htagTp,hndTp)
+                             = let (name,_,tpArgs) = labelNameEx l
+                                   hndCon = TCon (TypeCon (toHandlerName name)
+                                                          (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
+                               in (makeTypeApp (resolve (toEffectTagName name)) tpArgs, typeApp hndCon tpArgs)
+                     in App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]
              in case ls1 of
                  []  -> -- no handled effect, use cast
                         case ls2 of
@@ -157,15 +164,12 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                                 -- expr  -- fails in nim as it evidence is not cleared
                  [l] -> -- just one: used open-atN for efficiency
                         trace ("  one handled effect; use at: " ++ show (ppType penv l)) $
-                        let (htagTp,hndTp)
-                                = let (name,_,tpArgs) = labelNameEx l
-                                      hndCon = TCon (TypeCon (toHandlerName name)
-                                                             (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
-                                  in (makeTypeApp (resolve (toEffectTagName name)) tpArgs, typeApp hndCon tpArgs)
-                        in wrapper (resolve (nameOpenAt n)) [App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]]
+                        wrapper (resolve (nameOpenAt n)) [evIndexOf l]
 
-                 _ -> failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
-                                 ++ " with handled: " ++ show (map (ppType penv) ls1, map (ppType penv) ls2)
+                 _ -> --failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
+                      --           ++ " with handled: " ++ show (map (ppType penv) ls1, map (ppType penv) ls2)
+                      let indices = makeVector typeEvIndex (map evIndexOf ls1)
+                      in wrapper (resolve (nameOpen n)) [indices]
 
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
   = failure $ "Core.OpenResolve.resOpen: open applied to a non-function? " ++ show (ppType penv effTo)
