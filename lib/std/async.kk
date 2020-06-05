@@ -336,7 +336,7 @@ fun ordered_throw( xs : list<maybe<exception>> ) : exn () {
 		}
 	}
 	match(mexn) {
-		Just(exn)	-> throw(exn)
+		Just(exn)	-> rethrow(exn)
 		Nothing	-> ()
 	}
 }
@@ -425,14 +425,14 @@ extern inline inject-effects : forall<a,h,e> (() -> e a) -> total (() -> <strand
 
 fun finalize?( t : try<a> ) : bool {
 	match(t) {
-		Exn(exn) -> exn.finalize?
+		TryExn(exn) -> exn.finalize?
 		_ -> False
 	}
 }
 
 fun cancel?( t : try<a> ) : bool {
 	match(t) {
-		Exn(exn) -> exn.cancel?
+		TryExn(exn) -> exn.cancel?
 		_ -> False
 	}
 }
@@ -450,7 +450,7 @@ fun interleaved-div( xs : list<() -> <async,exn|e> a> ) : <async,ndet,div,strand
 		control raw do-await(setup,scope,c) {
 			no-await( setup, scope, c) fun(res) {
 				// emit a resumption of this strand into the channel
-				ch.emit-io( /* no-cps */ { context.resume(res) }  )
+				ch.emit-io( /* no-cps */ { rcontext.resume(res) }  )
 			}
 			()  // stop the strand at this point
 		}
@@ -637,7 +637,7 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 		}
 
 		// trace("register: " + cscope.show)
-		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(TryExn(unsafe-cancel-exn()),True) } else nodispose), !callbacks)
+		callbacks := Cons((cscope, if (cancelable?) then fun(){ cb(TryExn(Exception("cancel",Cancel)),True) } else nodispose), !callbacks)
 		try {
 			// setup the callback which returns a possible dispose function
 			match(setup(cb)) {
@@ -659,13 +659,16 @@ public fun async-handle(action : () -> <async,io> () ) : io ()
 	}
 
 	handle(action) {
-		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ context.resume(x) }, c) }  // returns to outer event loop
+		control raw do-await( setup, scope, c ) { handle-await(setup,scope, fun(x){ rcontext.resume(x) }, c) }  // returns to outer event loop
     control no-await( setup, scope, c, f ) { resume(handle-await(setup,scope,f,c)) }
 		control cancel( scope ) { resume(handle-cancel(scope)) }
-		control async-iox( f ) { resume(f()) }
+		control async-iox( f ) { resume(io-noexn(f)) }
 	}
 }
 
+fun io-noexn( f : () -> io-noexn a ) : io a {
+	f()
+}
 
 // ----------------------------------------------------------------------------
 // Scope identifiers
@@ -745,5 +748,43 @@ fun contains( xs : list<(scope,a)>, scope : scope ) : bool {
 fun show( s : scope ) : string {
 	match(s) {
 		Scope(ids) -> ids.map(show).join("-")
+	}
+}
+
+
+
+type extend exception-info {
+  private con Cancel
+	private con Finalize(yld:yield-info)
+}
+
+// Was this a cancelation exception?
+fun cancel?( exn : exception ) : bool {
+  match(exn.info) {
+    Cancel -> True
+    _      -> False
+  }
+}
+
+// Was this a finalization exception?
+fun finalize?(exn : exception) : bool {
+  match(exn.info) {
+      Finalize -> True
+      _ -> False
+  }
+}
+
+private fun unsafe-try-all( action : () -> <exn|e> a ) : e try<a> {
+	val fin = unsafe-try-finalize{ try(action)  }
+	match(fin) {
+		Right(t)  -> t
+		Left(yld)	-> TryExn(Exception("finalize",Finalize(yld)))
+	}
+}
+
+private fun rethrow( exn : exception ) : exn a {
+	match(exn.info) {
+		Finalize(yld) -> unsafe-reyield(yld)
+		_             -> throw(exn)
 	}
 }

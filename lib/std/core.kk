@@ -926,17 +926,17 @@ fun compare( x : char, y : char ) : order
 }
 
 // Convert a character to its unicode code point
-extern inline int : (char) -> int { 
+extern inline int : (char) -> int {
   inline "#1"
   c "integer_from_int"
-  cs inline "new BigInteger(#1)" 
+  cs inline "new BigInteger(#1)"
 }
 
 // Convert a unicode code point to a character
-extern inline char : (int) -> char { 
-  inline "(#1)"; 
+extern inline char : (int) -> char {
+  inline "(#1)";
   c "integer_clamp32"
-  cs inline "Primitive.IntToInt32(#1)" 
+  cs inline "Primitive.IntToInt32(#1)"
 }
 
 // Add two character code points
@@ -1316,7 +1316,7 @@ fun parse-int( s : string, hex : bool = False) : maybe<int> {
 }
 
 private extern xparse-int( s : string, hex : bool ) : maybe<int> {
-  c  "integer_xparse"  
+  c  "integer_xparse"
   cs "Primitive.IntParse"
   js "_int_parse"
 }
@@ -1456,7 +1456,7 @@ extern string : (vector<char>) -> string {
 
 // Convert a string to a vector of characters.
 extern vector : ( s : string ) -> vector<char> {
-  c  "string_to_chars"  
+  c  "string_to_chars"
   cs inline "Primitive.StringToChars(#1)";
   js inline "_string_to_chars(#1)"
 }
@@ -1512,9 +1512,9 @@ fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
 fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
-extern inline (+) : (string,string) -> string { 
+extern inline (+) : (string,string) -> string {
   c "string_cat"
-  inline "(#1 + #2)" 
+  inline "(#1 + #2)"
 }
 
 // Choose a non-empty string
@@ -2443,7 +2443,6 @@ type open exception-info {
   Assert
   Todo
   Range
-  Finalize
   Pattern( location : string, definition : string )
   System( errno : string )
   Internal( name : string )

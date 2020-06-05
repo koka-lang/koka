@@ -877,7 +877,7 @@ inferHandler propagated expect handlerSort handlerScoped
                       = let (clauseName, cparams) = case rkind of
                                 ResumeTail      -> (nameClause "tail" (length pars), pars)
                                 ResumeNormal    -> (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") Nothing () nameRng patRng])
-                                ResumeNormalRaw -> (nameClause "controw-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
+                                ResumeNormalRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
                                 _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                             cparamsx = map (\b -> case b of
                                                     ValueBinder name mbtp _ nameRng rng -> ValueBinder name mbtp Nothing nameRng rng)
