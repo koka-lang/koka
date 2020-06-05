@@ -34,6 +34,15 @@ typedef struct string_s {
   block_t _block;
 } *string_t;
 
+#define STRING_SMALL_MAX (UZ(8))
+typedef struct string_small_s {
+  struct string_s _inherit;
+  union {
+    uint64_t str_value;              
+    uint8_t  str[STRING_SMALL_MAX];  // UTF8 string in-place ending in 0 of at most 8 bytes
+  } u;
+} *string_small_t;
+
 typedef struct string_normal_s {
   struct string_s _inherit;
   size_t  length;
@@ -59,7 +68,7 @@ extern struct string_normal_s _static_string_empty;
 
 static inline string_t unbox_string_t(box_t v) {
   block_t* b = unbox_ptr(v);
-  assert_internal((block_tag(b) == TAG_STRING || block_tag(b) == TAG_STRING_RAW));
+  assert_internal(block_tag(b) == TAG_STRING_SMALL || block_tag(b) == TAG_STRING || block_tag(b) == TAG_STRING_RAW);
   return (string_t)b;
 }
 
@@ -82,14 +91,24 @@ static inline string_t string_dup(string_t str) {
 
 // Allocate a string of `len` characters. Adds a terminating zero at the end.
 static inline string_t string_alloc_len(size_t len, const char* s, context_t* ctx) {
-  string_normal_t str = block_as(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
-  if (s != NULL && len > 0) {
-    memcpy(&str->str[0], s, len);
+  if (len < STRING_SMALL_MAX) {
+    string_small_t str = block_alloc_as(struct string_small_s, 0, TAG_STRING_SMALL, ctx);
+    str->u.str_value = 0;
+    if (s != NULL && len > 0) {
+      memcpy(&str->u.str[0], s, len);
+    }
+    return &str->_inherit;
   }
-  str->length = len;
-  str->str[len] = 0;
-  // todo: assert valid UTF8 in debug mode
-  return &str->_inherit;
+  else {
+    string_normal_t str = block_as(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
+    if (s != NULL && len > 0) {
+      memcpy(&str->str[0], s, len);
+    }
+    str->length = len;
+    str->str[len] = 0;
+    // todo: assert valid UTF8 in debug mode
+    return &str->_inherit;
+  }
 }
 
 static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
@@ -104,7 +123,7 @@ static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free
   if (s==NULL) return string_dup(string_empty);
   assert_internal(s[len]==0 && strlen(s)==len);
   struct string_raw_s* str = block_alloc_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
-  str->free = (free ? &runtime_free : &free_fun_null);
+  str->free = (free ? &runtime_free : NULL);
   str->cstr = (const uint8_t*)s;
   str->length = len;
   // todo: assert valid UTF8 in debug mode
@@ -116,8 +135,11 @@ static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx
   return string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
-static inline const uint8_t* string_buf_borrow(string_t str) {
-  if (datatype_tag(str) == TAG_STRING) {
+static inline const uint8_t* string_buf_borrow(const string_t str) {
+  if (datatype_tag(str) == TAG_STRING_SMALL) {
+    return &(datatype_as(string_small_t, str, TAG_STRING_SMALL)->u.str[0]);
+  }
+  else if (datatype_tag(str) == TAG_STRING) {
     return &(datatype_as(string_normal_t, str, TAG_STRING)->str[0]);
   }
   else {
@@ -125,12 +147,29 @@ static inline const uint8_t* string_buf_borrow(string_t str) {
   }
 }
 
-static inline const char* string_cbuf_borrow(string_t str) {
+static inline const char* string_cbuf_borrow(const string_t str) {
   return (const char*)string_buf_borrow(str);
 }
 
-static inline int string_cmp_cstr_borrow(string_t s, const char* t) {
+static inline int string_cmp_cstr_borrow(const string_t s, const char* t) {
   return strcmp(string_cbuf_borrow(s), t);
+}
+
+static inline size_t decl_pure string_len_borrow(const string_t str) {
+  if (datatype_tag(str) == TAG_STRING_SMALL) {  
+    const string_small_t s = datatype_as(const string_small_t, str, TAG_STRING_SMALL);
+#ifdef ARCH_LITTLE_ENDIAN
+    return (STRING_SMALL_MAX - (bits_clz64(s->u.str_value)/8));
+#else
+    return (STRING_SMALL_MAX - (bits_ctz64(s->u.str_value)/8));
+#endif
+  }
+  if (datatype_tag(str) == TAG_STRING) {
+    return datatype_as(string_normal_t, str, TAG_STRING)->length;
+  }
+  else {
+    return datatype_as(string_raw_t, str, TAG_STRING_RAW)->length;
+  }
 }
 
 
@@ -308,13 +347,18 @@ static inline void utf8_write(char_t c, uint8_t* s, size_t* count) {
 /*--------------------------------------------------------------------------------------------------
   
 --------------------------------------------------------------------------------------------------*/
-decl_export size_t decl_pure string_len(string_t  str);    // bytes in UTF8
+static inline size_t decl_pure string_len(string_t str, context_t* ctx) {    // bytes in UTF8
+  size_t len = string_len_borrow(str);
+  string_drop(str,ctx);
+  return len;
+}
+
 decl_export size_t decl_pure string_count(string_t str);  // number of code points
 
-decl_export intx_t string_cmp_borrow(string_t str1, string_t str2);
-decl_export intx_t string_cmp(string_t str1, string_t str2, context_t* ctx);
-decl_export intx_t string_icmp_borrow(string_t str1, string_t str2);             // ascii case insensitive
-decl_export intx_t string_icmp(string_t str1, string_t str2, context_t* ctx);    // ascii case insensitive
+decl_export int string_cmp_borrow(string_t str1, string_t str2);
+decl_export int string_cmp(string_t str1, string_t str2, context_t* ctx);
+decl_export int string_icmp_borrow(string_t str1, string_t str2);             // ascii case insensitive
+decl_export int string_icmp(string_t str1, string_t str2, context_t* ctx);    // ascii case insensitive
 
 static inline bool string_is_eq(string_t s1, string_t s2, context_t* ctx) {
   return (string_cmp(s1, s2, ctx) == 0);
@@ -333,9 +377,9 @@ decl_export string_t integer_to_string(integer_t x, context_t* ctx);
 decl_export string_t integer_to_hex_string(integer_t x, bool use_capitals, context_t* ctx);
 
 decl_export vector_t string_splitv(string_t s, string_t sep, context_t* ctx);
-decl_export vector_t string_splitv_atmost(string_t s, string_t sep, uintx_t n, context_t* ctx);
+decl_export vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx);
 
-decl_export string_t string_repeat(string_t s, uintx_t n, context_t* ctx);
+decl_export string_t string_repeat(string_t s, size_t n, context_t* ctx);
 
 decl_export unit_t println(string_t s, context_t* ctx);
 decl_export unit_t print(string_t s, context_t* ctx);

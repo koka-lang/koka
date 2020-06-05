@@ -20,6 +20,8 @@
 
 #define REFCOUNT_LIMIT_TO_32BIT 0
 #define MULTI_THREADED          1
+#define ARCH_LITTLE_ENDIAN      1
+//#define ARCH_BIG_ENDIAN       1
 
 /*--------------------------------------------------------------------------------------
   Platform:
@@ -63,7 +65,7 @@
 #define noinline        __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
-#pragma warning(disable:4214)  // using bit field types other than int
+//#pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
 #define unlikely(x)     (x)
 #define likely(x)       (x)
@@ -79,6 +81,8 @@
 #define noinline   
 #define decl_thread     __thread
 #endif
+
+#define assert_internal assert
 
 #ifndef UNUSED
 #define UNUSED(x)  ((void)(x))
@@ -174,15 +178,6 @@ static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
   Basic datatypes
 --------------------------------------------------------------------------------------*/
 
-// Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
-typedef struct box_s {
-  uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.
-} box_t;
-
-// An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
-typedef box_t integer_t;
-
-
 // Tags for heap blocks
 typedef enum tag_e {
   TAG_INVALID   = 0,
@@ -203,8 +198,8 @@ typedef enum tag_e {
   TAG_DOUBLE,      // boxed IEEE double (64-bit)
   TAG_FLOAT,       // boxed IEEE float  (32-bit)
 #endif
-  // raw tags have a free function as well together with a `void*` to the data
-  TAG_CPTR_RAW,    // full void*, must be first, see tag_is_raw()
+  // raw tags have a free function together with a `void*` to the data
+  TAG_CPTR_RAW,    // full void* (must be first, see tag_is_raw())
   TAG_STRING_RAW,  // pointer to a valid UTF8 string
   TAG_BYTES_RAW,   // pointer to bytes
   TAG_LAST         
@@ -217,7 +212,7 @@ static inline bool tag_is_raw(tag_t tag) {
 // Every heap block starts with a header with a reference count and tag.
 typedef union header_s {
   uint64_t as_uint64;
-#if !defined(ARCH_BIG_ENDIAN)
+#if defined(ARCH_LITTLE_ENDIAN)
   struct {
 #if INTPTR_SIZE==8
     uint64_t  refcount : 38;
@@ -248,7 +243,7 @@ typedef union header_s {
 #endif
   } rc;
 #else
-# error "todo: define big-endian order as well"
+# error "define non little-endian order as well"
 #endif
 } header_t;
 
@@ -256,36 +251,40 @@ typedef union header_s {
 #define HEADER(scan_fsize,tag)         {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40)}           // start with refcount of 0
 #define HEADER_STATIC(scan_fsize,tag)  {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40 | 0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
+
+// Polymorpic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
+// See `box.h` for definitions
+typedef struct box_s {
+  uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.
+} box_t;
+
+// An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
+typedef box_t integer_t;
+
+// boxed forward declarations
+static inline uintx_t   unbox_enum(box_t v);
+static inline box_t     box_enum(uintx_t u);
+
+
+/*--------------------------------------------------------------------------------------
+  Blocks 
+--------------------------------------------------------------------------------------*/
+
 // A heap block is a header followed by `scan_fsize` boxed fields and further raw bytes
 // A `block_t*` is never NULL (to avoid testing for NULL for reference counts).
 typedef struct block_s {
   header_t header;
 } block_t;
 
+// A large block can has a (boxed) large scan size for vectors.
 typedef struct block_large_s {
   header_t header;
   box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
 } block_large_t;
 
-
+// A pointer to a block is never NULL.
 typedef block_t* ptr_t;
 
-// boxed forward declarations
-static inline bool      is_ptr(box_t b);
-static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, int, or enum, but not a double
-static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
-static inline block_t*  unbox_ptr(box_t b);
-static inline box_t     box_ptr(const block_t* p);
-static inline intx_t    unbox_int(box_t v);
-static inline box_t     box_int(intx_t i);
-static inline uintx_t   unbox_enum(box_t v);
-static inline box_t     box_enum(uintx_t u);
-
-#define assert_internal assert
-
-/*--------------------------------------------------------------------------------------
-  Blocks 
---------------------------------------------------------------------------------------*/
 
 static inline decl_const tag_t block_tag(const block_t* b) {
   return (tag_t)(b->header.h.tag);
@@ -421,6 +420,7 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
+  UNUSED(size);
   header_t header = { 0 };
   header.h.tag = (uint16_t)tag;
   header.h.scan_fsize = SCAN_FSIZE_MAX;
@@ -429,7 +429,6 @@ static inline void block_large_init(block_large_t* b, size_t size, size_t scan_f
 }
 
 static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
-  size_t extra = 0;
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   block_t* b = (block_t*)runtime_malloc(size, ctx);
   block_init(b, size, scan_fsize, tag);
@@ -501,28 +500,42 @@ static inline void block_drop(block_t* b, context_t* ctx) {
 #define constructor_dup_as(tp,v)          (datatype_dup_as(tp, &(v)->_inherit))
 
 
-static inline box_t boxed_dup(box_t b) {
-  if (is_ptr(b)) block_dup(unbox_ptr(b));
-  return b;
-}
+/*----------------------------------------------------------------------
+  Further includes
+----------------------------------------------------------------------*/
 
-static inline void boxed_drop(box_t b, context_t* ctx) {
-  if (is_ptr(b)) block_drop(unbox_ptr(b), ctx);
-}
+// The unit type
+typedef enum unit_e {
+  Unit = 0
+} unit_t;
+
+// A function to free a raw C pointer, raw bytes, or raw string.
+typedef void (free_fun_t)(void*);
+decl_export void free_fun_null(void* p);
+
+// "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
+typedef struct cptr_raw_s {
+  block_t     _block;
+  free_fun_t* free;
+  void*       cptr;
+} *cptr_raw_t;
 
 
+#include "runtime/box.h"
+#include "runtime/integer.h"
+#include "runtime/bitcount.h"
+#include "runtime/string.h"
 
-// Tag for value types is always a boxed enum
-typedef box_t value_tag_t;
+/*----------------------------------------------------------------------
+  TLD operations
+----------------------------------------------------------------------*/
 
-// Use inlined #define to enable constant initializer expression
-/*
-static inline value_tag_t value_tag(uint_t tag) {
-  return box_enum(tag);
-}
-*/
-#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x03))
-
+// Get a thread local unique number.
+static inline integer_t gen_unique(context_t* ctx) {
+  integer_t u = ctx->unique;
+  ctx->unique = integer_inc(integer_dup(u),ctx);
+  return u;
+};
 
 
 /*--------------------------------------------------------------------------------------
@@ -550,18 +563,18 @@ static inline orphan_t block_release0(block_t* b, context_t* ctx) {
     return orphan_block(b);
   }
   else {
-    block_drop(b,ctx);
+    block_drop(b, ctx);
     return orphan_null();
   }
 }
 
-static inline orphan_t block_release1(block_t* b, box_t unused_field1, context_t* ctx ) {
+static inline orphan_t block_release1(block_t* b, box_t unused_field1, context_t* ctx) {
   if (block_is_unique(b)) {
-    boxed_drop(unused_field1,ctx);
+    boxed_drop(unused_field1, ctx);
     return orphan_block(b);
   }
   else {
-    block_drop(b,ctx);
+    block_drop(b, ctx);
     return orphan_null();
   }
 }
@@ -580,50 +593,27 @@ static inline block_t* block_alloc_reuse(orphan_t o, size_t size, size_t scan_fs
     b = &o->_block;
   }
   else {
-    b = (block_t*)runtime_malloc(size,ctx);
+    b = (block_t*)runtime_malloc(size, ctx);
   }
   block_init(b, size, scan_fsize, tag);
   return b;
 }
 
+/*--------------------------------------------------------------------------------------
+  Value tags
+--------------------------------------------------------------------------------------*/
 
 
-/*----------------------------------------------------------------------
-  Further includes
-----------------------------------------------------------------------*/
-typedef enum unit_e {
-  Unit = 0
-} unit_t;
+// Tag for value types is always a boxed enum
+typedef box_t value_tag_t;
 
-// A function to free a raw C pointer, raw bytes, or raw string.
-typedef void (free_fun_t)(void*);
-decl_export void free_fun_null(void* p);
-
-// "raw" C pointer: first field is pointer to a free function, the next field a pointer to raw C data
-typedef struct cptr_raw_s {
-  block_t     _block;
-  free_fun_t* free;
-  void*       cptr;
-} *cptr_raw_t;
-
-
-#include "runtime/box.h"
-#include "runtime/integer.h"
-#include "runtime/bitcount.h"
-#include "runtime/string.h"
-
-/*----------------------------------------------------------------------
-  TLD operations
-----------------------------------------------------------------------*/
-
-// Get a thread local unique number.
-static inline integer_t gen_unique(context_t* ctx) {
-  integer_t u = ctx->unique;
-  ctx->unique = integer_inc(integer_dup(u),ctx);
-  return u;
-};
-
-
+// Use inlined #define to enable constant initializer expression
+/*
+static inline value_tag_t value_tag(uint_t tag) {
+  return box_enum(tag);
+}
+*/
+#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x03))
 
 
 /*--------------------------------------------------------------------------------------
@@ -631,10 +621,7 @@ static inline integer_t gen_unique(context_t* ctx) {
 --------------------------------------------------------------------------------------*/
 
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
-
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cptr(f->fun)))args
-
-
 #define define_static_function(name,cfun) \
   static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { (uintptr_t)&cfun } }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
   function_t name = &_static_##name;
@@ -688,7 +675,7 @@ static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
   return Unit;
 }
 
-static inline box_t ref_swap(ref_t r, box_t value, context_t* ctx) {
+static inline box_t ref_swap(ref_t r, box_t value) {
   box_t b = r->value;
   r->value = value;
   return b;
@@ -785,10 +772,5 @@ struct bytes_raw_s {             // pointer to bytes with free function
   uint8_t*       data;
   size_t         length;
 };
-
-
-
-
-
 
 #endif // include guard

@@ -15,41 +15,37 @@ struct string_normal_s _static_string_empty = { { HEADER_STATIC(0,TAG_STRING) },
 #define ARCH_ALLOW_WORD_READS  (1)  
 
 
-intx_t string_cmp_borrow(string_t str1, string_t str2) {
+int string_cmp_borrow(string_t str1, string_t str2) {
   const char* s1 = string_cbuf_borrow(str1);
   const char* s2 = string_cbuf_borrow(str2);
   return strcmp(s1, s2);
 }
 
-intx_t string_cmp(string_t str1, string_t str2, context_t* ctx) {
-  intx_t ord = string_cmp_borrow(str1,str2);
+int string_cmp(string_t str1, string_t str2, context_t* ctx) {
+  int ord = string_cmp_borrow(str1,str2);
   string_drop(str1,ctx);
   string_drop(str2,ctx);
   return ord;
 }
 
-intx_t string_icmp_borrow(string_t str1, string_t str2) {
+int string_icmp_borrow(string_t str1, string_t str2) {
   const char* s1 = string_cbuf_borrow(str1);
   const char* s2 = string_cbuf_borrow(str2);
   return _stricmp(s1, s2);
 }
 
-intx_t string_icmp(string_t str1, string_t str2, context_t* ctx) {
-  intx_t ord = string_icmp_borrow(str1, str2);
+int string_icmp(string_t str1, string_t str2, context_t* ctx) {
+  int ord = string_icmp_borrow(str1, str2);
   string_drop(str1, ctx);
   string_drop(str2, ctx);
   return ord;
 }
 
-uintx_t decl_pure string_len_borrow(string_t str) {
-  return strlen(string_cbuf_borrow(str));
-}
-
 
 // Count code points in a UTF8 string.
-uintx_t decl_pure string_count(string_t str) {
+size_t decl_pure string_count(string_t str) {
   const uint8_t* s = string_buf_borrow(str);
-  uintx_t cont = 0;      // continuation character counts
+  size_t cont = 0;      // continuation character counts
   const uint8_t* t = s; // current position 
 
 #ifdef ARCH_ALLOW_WORD_READS
@@ -58,7 +54,7 @@ uintx_t decl_pure string_count(string_t str) {
     // count continuation bytes
     if (utf8_is_cont(*t)) cont++;
   }  
-  // advance per sizeof(uint_t). This may read (sizeof(uint_t)-1) bytes past the end
+  // advance per sizeof(uintx_t). This may read (sizeof(uintx_t)-1) bytes past the end
   // but that should always be ok (as protection is word size aligned on all architectures (?))
   if (*t != 0) {
     assert_internal(((uintptr_t)t) % sizeof(uintx_t) == 0);
@@ -80,7 +76,7 @@ uintx_t decl_pure string_count(string_t str) {
     if (utf8_is_cont(*t)) cont++;
   }
   assert_internal(t >= s);
-  uintx_t count = t - s;
+  size_t count = t - s;
   assert_internal(count >= cont);
   return (count - cont);
 }
@@ -123,11 +119,23 @@ vector_t string_to_chars(string_t s, context_t* ctx) {
     cs[i] = box_char_t(utf8_read(p, &count),ctx);
     p += count;
   }
-  assert_internal(p == string_buf_borrow(s) + string_len(s));
+  assert_internal(p == string_buf_borrow(s) + string_len_borrow(s));
   string_drop(s,ctx);
   return v;
 }
 
+string_t string_cat(string_t s1, string_t s2, context_t* ctx) {
+  const size_t len1 = string_len_borrow(s1);
+  const size_t len2 = string_len_borrow(s2);
+  string_t t = string_alloc_buf(len1 + len2, ctx );
+  uint8_t* p = (uint8_t*)string_buf_borrow(t);
+  memcpy(p, string_buf_borrow(s1), len1);
+  memcpy(p+len1, string_buf_borrow(s2), len2);
+  assert_internal(p[len1+len2] == 0);
+  string_drop(s1, ctx);
+  string_drop(s2, ctx);
+  return t;
+}
 
 vector_t string_splitv(string_t s, string_t sep, context_t* ctx) {
   return string_splitv_atmost(s, sep, UINT32_MAX, ctx);
@@ -176,7 +184,7 @@ vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx
   return v;
 }
 
-string_t string_repeat(string_t str, uintx_t n, context_t* ctx) {
+string_t string_repeat(string_t str, size_t n, context_t* ctx) {
   const char* s = string_cbuf_borrow(str);
   size_t len = strlen(s);
   if (len == 0) return string_dup(string_empty);
@@ -267,7 +275,7 @@ string_t show_any(box_t b, context_t* ctx) {
     return string_alloc_dup("null", ctx);
   }
   else if (b.box == 0) {
-    return string_alloc_dup("cptr(NULL)", ctx);
+    return string_alloc_dup("ptr(NULL)", ctx);
   }
   else {
     block_t* p = unbox_ptr(b);
@@ -276,7 +284,7 @@ string_t show_any(box_t b, context_t* ctx) {
       // todo: add tag
       return integer_to_string(b, ctx);
     }
-    else if (tag == TAG_STRING || tag == TAG_STRING_RAW) {
+    else if (tag == TAG_STRING_SMALL || tag == TAG_STRING || tag == TAG_STRING_RAW) {
       // todo: add tag
       return (string_t)p;
     }

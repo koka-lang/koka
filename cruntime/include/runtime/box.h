@@ -87,6 +87,16 @@ We still have fast addition of large integers but use 14-bit small
 integers where we can do a 16-bit efficient overflow check.
 ----------------------------------------------------------------*/
 
+// Forward declarations
+static inline bool      is_ptr(box_t b);
+static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, int, or enum, but not a double
+static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
+static inline block_t*  unbox_ptr(box_t b);
+static inline box_t     box_ptr(const block_t* p);
+static inline intx_t    unbox_int(box_t v);
+static inline box_t     box_int(intx_t i);
+
+// Use a boxed representation as an intptr
 static inline box_t box_from_uintptr(uintptr_t u) {
   box_t b = { u };
   return b;
@@ -100,10 +110,13 @@ static inline uintptr_t box_as_uintptr(box_t b) {
 static inline intptr_t box_as_intptr(box_t b) {
   return (intptr_t)box_as_uintptr(b);
 }
+
+// Are two boxed representations equal?
 static inline bool box_eq(box_t b1, box_t b2) {
   return (b1.box == b2.box);
 }
 
+// We cannot store NULL in boxed values; use `box_null` instead
 #define box_null   (box_from_uintptr(3))    // box_cptr(NULL)
 
 
@@ -127,6 +140,7 @@ static inline bool is_cptr_fast(box_t b) {
 #define MAX_BOXED_ENUM ((uintptr_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
 #define MIN_BOXED_ENUM (0)
 
+// 64-bit
 #if INTPTR_SIZE==8
 
 #define BOXED_INT_BITS      (46)
@@ -189,7 +203,7 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
   return box_int(i);
 }
 
-
+// 32 bit
 #elif INTPTR_SIZE==4
 
 #define BOXED_INT_BITS      (30)
@@ -263,6 +277,7 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
 #else
 # error "platform must be 32 or 64 bits."
 #endif
+
 
 static inline bool is_non_null_ptr(box_t v) {
   assert_internal(!is_ptr(v) || v.box != 0);   // NULL pointers are never allowed as boxed values
@@ -369,7 +384,7 @@ typedef struct boxed_value_s {
   }while(0);
 
 
-
+// C pointers
 
 static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
   cptr_raw_t raw = block_alloc_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
@@ -402,6 +417,16 @@ static inline void* unbox_cptr(box_t b) {
     return unbox_cptr_raw(b);
   }
 }
+
+static inline box_t boxed_dup(box_t b) {
+  if (is_ptr(b)) block_dup(unbox_ptr(b));
+  return b;
+}
+
+static inline void boxed_drop(box_t b, context_t* ctx) {
+  if (is_ptr(b)) block_drop(unbox_ptr(b), ctx);
+}
+
 
 
 

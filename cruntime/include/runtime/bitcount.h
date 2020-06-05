@@ -122,10 +122,11 @@ static inline uint8_t bits_ctz(uintx_t x) {
 
 #define bits_one_mask32     U32(0x01010101)
 #define bits_one_mask64     U64(0x0101010101010101)
-#define bits_high_mask32    U32(0x80808080)
-#define bits_high_mask64    U64(0x8080808080808080)
-#define bits_one_mask       ((~((uintx_t)0))/0xFF)     // 0x01010101 ...
-#define bits_high_mask      (bits_one_mask*0x80)      // 0x80808080 ...
+#define bits_one_mask       ((~(UX(0)))/0xFF)         // 0x01010101 ...
+
+#define bits_high_mask32    (bits_one_mask32<<7)      // 0x80808080
+#define bits_high_mask64    (bits_one_mask64<<7)      // 0x8080808080808080
+#define bits_high_mask      (bits_one_mask<<7)        // 0x80808080 ...
 
 static inline bool bits_has_zero_byte32(uint32_t x) {
   return ((x - bits_one_mask32) & (~x & bits_high_mask32));
