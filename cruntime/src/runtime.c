@@ -17,7 +17,7 @@ static box_t _function_id(function_t self, box_t x, context_t* ctx) {
   function_drop(self,ctx);
   return x;
 }
-define_static_function(function_id, _function_id);
+define_static_function(function_id, _function_id)
 
 // empty vector
 static struct vector_s _vector_empty

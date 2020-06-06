@@ -246,7 +246,7 @@ static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
 static inline integer_t integer_sub_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
   intptr_t i;
-  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_uintptr(i);
+  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_intptr(i);
   return integer_sub_generic(x, y, ctx);
 }
 
@@ -290,7 +290,7 @@ static inline integer_t integer_div_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  return box_from_intptr(shr(i/j, 2)|1);
+  return box_from_uintptr(shr(i/j, UX(2))|1);
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -303,7 +303,7 @@ static inline integer_t integer_mod_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  return box_from_intptr(shr(i%j, 1)|1);
+  return box_from_uintptr(shr(i%j, UX(1))|1);
 }
 
 static inline integer_t integer_div_mod_small(integer_t x, integer_t y, integer_t* mod) {

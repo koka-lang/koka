@@ -10,6 +10,11 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+#define REFCOUNT_LIMIT_TO_32BIT 0
+#define MULTI_THREADED          1
+#define ARCH_LITTLE_ENDIAN      1
+//#define ARCH_BIG_ENDIAN       1
+
 #include <assert.h>
 #include <errno.h>   // ENOSYS, etc
 #include <limits.h>  // LONG_MAX, etc
@@ -21,161 +26,9 @@
 #include <stdlib.h>  // malloc, abort, etc.
 #include <math.h>    
 
-#define REFCOUNT_LIMIT_TO_32BIT 0
-#define MULTI_THREADED          1
-#define ARCH_LITTLE_ENDIAN      1
-//#define ARCH_BIG_ENDIAN       1
+#include "runtime/platform.h"  // Platform abstractions and portability definitions
+#include "runtime/atomic.h"    // Atomic operations
 
-/*--------------------------------------------------------------------------------------
-  Platform: we assume:
-  - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
-  - either a 32- or 64-bit platform (but others should be possible with few changes)
-  - the compiler can do a great job on small static inline definitions (and we avoid #define's).
-  - the compiler will inline small structs (like `struct box_s{ uintptr_t u; }`) without 
-    overhead (e.g. pass it in a register).
-  - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
-  - a char/byte is 8 bits
-  - either little-endian, or big-endian
-  - carefully code with strict aliasing in mind
---------------------------------------------------------------------------------------*/
-#ifdef __cplusplus
-#define decl_externc    extern "C"
-#else
-#define decl_externc    extern
-#endif
-
-#if (__cplusplus >= 201103L) || (_MSC_VER > 1900)  // C++11
-#define _constexpr      constexpr
-#else
-#define _constexpr
-#endif
-
-#if defined(_MSC_VER) || defined(__MINGW32__)
-#if !defined(SHARED_LIB)
-#define decl_export     decl_externc
-#elif defined(SHARED_LIB_EXPORT)
-#define decl_export     __declspec(dllexport)
-#else
-#define decl_export     __declspec(dllimport)
-#endif
-#elif defined(__GNUC__) // includes clang and icc
-#define decl_export     decl_externc __attribute__((visibility("default"))) 
-#else
-#define decl_export     decl_externc
-#endif
-
-#if defined(__GNUC__)
-#define unlikely(h)     __builtin_expect((h),0)
-#define likely(h)       __builtin_expect((h),1)
-#define decl_const      __attribute__((const))
-#define decl_pure       __attribute__((pure))
-#define noinline        __attribute__((noinline))
-#define decl_thread     __thread
-#elif defined(_MSC_VER)
-//#pragma warning(disable:4214)  // using bit field types other than int
-#pragma warning(disable:4101)  // unreferenced local variable
-#define unlikely(x)     (x)
-#define likely(x)       (x)
-#define decl_const
-#define decl_pure
-#define noinline        __declspec(noinline)
-#define decl_thread     __declspec(thread)
-#else
-#define unlikely(h)     (h)
-#define likely(h)       (h)
-#define decl_const
-#define decl_pure
-#define noinline   
-#define decl_thread     __thread
-#endif
-
-#define assert_internal assert
-
-#ifndef UNUSED
-#define UNUSED(x)  ((void)(x))
-#ifdef NDEBUG
-#define UNUSED_RELEASE(x)  UNUSED(x);
-#else
-#define UNUSED_RELEASE(x)  
-#endif
-#endif
-
-// Defining constants of a specific size
-#if LONG_MAX == INT64_MAX
-# define LONG_SIZE 8
-# define I32(i)  (i)
-# define I64(i)  (i##L)
-# define U32(i)  (i##U)
-# define U64(i)  (i##UL)
-#elif LONG_MAX == INT32_MAX
-# define LONG_SIZE 4
-# define I32(i)  (i##L)
-# define I64(i)  (i##LL)
-# define U32(i)  (i##UL)
-# define U64(i)  (i##ULL)
-#else
-#error size of a `long` must be 32 or 64 bits
-#endif
-
-// Define size of intptr_t
-#if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
-# define INTPTR_SIZE 8
-# define IP(i)  I64(i)
-# define UP(i)  U64(i)
-#elif INTPTR_MAX == INT32_MAX         // 2147483647LL
-# define INTPTR_SIZE 4
-# define IP(i)  I32(i)
-# define UP(i)  U32(i)
-#else
-#error platform must be 32 or 64 bits
-#endif
-#define INTPTR_BITS (8*INTPTR_SIZE)
-#define INTPTR_ALIGNUP(x)  ((((x)+INTPTR_SIZE-1)/INTPTR_SIZE)*INTPTR_SIZE)
-
-// Define size of size_t
-#if SIZE_MAX == UINT64_MAX           // 18446744073709551615LL
-# define SIZE_SIZE 8
-# define IZ(i)  I64(i)
-# define UZ(i)  U64(i)
-#elif SIZE_MAX == UINT32_MAX         // 4294967295LL
-# define SIZE_SIZE 4
-# define IZ(i)  I32(i)
-# define UZ(i)  U32(i)
-#else
-#error size of a `size_t` must be 32 or 64 bits
-#endif
-#define SIZE_BITS (8*SIZE_SIZE)
-
-
-// Abstract over the "natural machine word" as `intx_t`. This is useful when
-// targeting architectures where `sizeof(void*) < sizeof(long)` (like x32), or 
-// `sizeof(void*) > sizeof(size_t)` (like segmented architectures). 
-// We have `sizeof(intx_t) >= sizeof(void*)` and `sizeof(intx_t) >= sizeof(long)`.
-#if (LONG_MAX <= INTPTR_MAX)
-typedef intptr_t       intx_t;
-typedef uintptr_t      uintx_t;
-#define UX(i)          (i##ULL)
-#define IX(i)          (i##LL)
-#define INTX_SIZE      INTPTR_SIZE
-#else 
-typedef long           intx_t;
-typedef unsigned long  uintx_t;
-#define UX(i)          (i##UL)
-#define IX(i)          (i##L)
-#define INTX_SIZE      LONG_SIZE
-#endif
-#define INTX_BITS  (8*INTX_SIZE)
-
-
-// Distinguish unsigned shift right and signed arithmetic shift right.
-static inline intx_t  sar(intx_t i, intx_t shift)   { return (i >> shift); }
-static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
-
-// Limited reference counts can be more efficient
-#if PTRDIFF_MAX <= INT32_MAX
-#undef  REFCOUNT_LIMIT_TO_32BIT
-#define REFCOUNT_LIMIT_TO_32BIT  1
-#endif
 
 /*--------------------------------------------------------------------------------------
   Basic datatypes
@@ -212,47 +65,21 @@ static inline bool tag_is_raw(tag_t tag) {
   return (tag >= TAG_CPTR_RAW);
 }
 
-// Every heap block starts with a header with a reference count and tag.
-typedef union header_s {
-  uint64_t as_uint64;
-#if defined(ARCH_LITTLE_ENDIAN)
-  struct {
-#if INTPTR_SIZE==8
-    uint64_t  refcount : 38;
-#else
-    uint32_t  refcount;
-    uint32_t  _unused_refcount : 6;
-#endif    
-    uint32_t  _reserved : 1;
-    uint32_t  thread_shared : 1;      // true if shared among threads (so release/acquire use locked increment/decrement)
-    uint32_t  scan_fsize : 8;         // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-    uint32_t  tag : 16;               // tag
-  } h;
-
-  // the following overlays are defined for efficient code generation of reference counting.
-  // note: we use a refcount of 0 to denote a single unique reference as that can lead to better
-  // code generation. An object is freed when the zero underflows.
-  struct {
-    uint32_t  lo;                  // used for more efficient decrementing (and detecting a reference count 0)
-    uint32_t  hi : 6;
-    uint32_t  _unused_hi : 26;
-  } rc32;
-  struct {
-#if (INTPTR_SIZE==4)
-    uint32_t  extended;            // used for efficient incrementing
-    uint32_t  _unused_extended;
-#else
-    uint64_t  extended;            // used for efficient incrementing
-#endif
-  } rc;
-#else
-# error "define non little-endian order as well"
-#endif
+// Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
+// The reference count is 0 for a unique reference (for a faster free test in drop).
+// Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
+// (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if 
+//  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
+typedef struct header_s {
+  uint32_t  refcount;         // reference count
+  uint16_t  tag;              // header tag
+  uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)  
+  uint8_t   thread_shared : 1;
 } header_t;
 
 #define SCAN_FSIZE_MAX (255)
-#define HEADER(scan_fsize,tag)         {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40)}           // start with refcount of 0
-#define HEADER_STATIC(scan_fsize,tag)  {(((uint64_t)tag << 48) | (uint64_t)((uint8_t)scan_fsize) << 40 | 0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
+#define HEADER(scan_fsize,tag)         { 0, tag, scan_fsize, 0 }            // start with refcount of 0
+#define HEADER_STATIC(scan_fsize,tag)  { U32(0xFF00), tag, scan_fsize, 0 }  // start with recognisable refcount (anything > 1 is ok)
 
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
@@ -282,7 +109,7 @@ typedef struct block_s {
 
 // A large block has a (boxed) large scan size for vectors.
 typedef struct block_large_s {
-  header_t header;
+  block_t  _block;
   box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
 } block_large_t;
 
@@ -291,26 +118,22 @@ typedef block_t* ptr_t;
 
 
 static inline decl_const tag_t block_tag(const block_t* b) {
-  return (tag_t)(b->header.h.tag);
+  return (tag_t)(b->header.tag);
 }
 
 static inline decl_pure size_t block_scan_fsize(const block_t* b) {
-  const size_t sfsize = b->header.h.scan_fsize;
+  const size_t sfsize = b->header.scan_fsize;
   if (likely(sfsize != SCAN_FSIZE_MAX)) return sfsize;
-  const block_large_t* bl = (block_large_t*)b; 
+  const block_large_t* bl = (const block_large_t*)b; 
   return unbox_enum(bl->large_scan_fsize);
 }
 
 static inline decl_pure uintptr_t block_refcount(const block_t* b) {
-  return b->header.h.refcount;
+  return b->header.refcount;
 }
 
 static inline decl_pure bool block_is_unique(const block_t* b) {
-#if REFCOUNT_LIMIT_TO_32BIT
-  return (likely(b->header.rc32.lo == 0));
-#else
-  return (likely(b->header.rc32.lo == 0) && b->header.rc32.hi == 0);
-#endif
+  return (likely(b->header.refcount == 0));
 }
 
 
@@ -355,7 +178,7 @@ typedef struct yield_s {
 } yield_t;
 
 typedef struct context_s {
-  uint8_t     yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) 
+  uint8_t     yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
   heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
   vector_t    evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   yield_t     yield;            // inlined yield structure (for efficiency)
@@ -376,16 +199,16 @@ decl_export context_t* runtime_context(void);
 // Is the execution yielding?
 static inline decl_pure bool yielding(const context_t* ctx) {
   return (ctx->yielding != YIELD_NONE);
-};
+}
 
 static inline decl_pure bool yielding_non_final(const context_t* ctx) {
   return (ctx->yielding == YIELD_NORMAL);
-};
+}
 
 // Get a thread local marker unique number.
 static inline int32_t marker_unique(context_t* ctx) {
   return ctx->marker_unique++;
-};
+}
 
 
 
@@ -418,17 +241,17 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   header_t header = { 0 };
-  header.h.tag = (uint16_t)tag;
-  header.h.scan_fsize = (uint8_t)scan_fsize;
+  header.tag = (uint16_t)tag;
+  header.scan_fsize = (uint8_t)scan_fsize;
   b->header = header;
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   header_t header = { 0 };
-  header.h.tag = (uint16_t)tag;
-  header.h.scan_fsize = SCAN_FSIZE_MAX;
-  b->header = header;
+  header.tag = (uint16_t)tag;
+  header.scan_fsize = SCAN_FSIZE_MAX;
+  b->_block.header = header;
   b->large_scan_fsize = box_enum(scan_fsize);
 }
 
@@ -466,32 +289,24 @@ static inline void* _block_as_assert(block_t* b, tag_t tag) {
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-decl_export void block_check_free(block_t* b, context_t* ctx);
-
+decl_export void     block_check_free(block_t* b, context_t* ctx);
+decl_export block_t* block_check_dup(block_t* b);
 
 static inline block_t* block_dup(block_t* b) {
-#if REFCOUNT_LIMIT_TO_32BIT
-  // with a 32-bit reference count on a 64-bit system, we need a (8*2^32 = 32GiB array to create that many
-  // references to a single object. That is often a reasonable restriction and more efficient.
-  b->header.rc32.lo++;
-#else
-  // optimize: increment the full 64-bit hoping to never overflow the 38 refcount bits
-  // this is reasonable as it would take a (8*2^38 = 2TiB array to create that many references to a single object)
-  b->header.rc.extended++;   
-#endif
+  uint32_t rc = b->header.refcount;
+  if (unlikely((int32_t)rc < 0)) return block_check_dup(b);  // thread-shared or sticky
+  b->header.refcount = rc+1;
   return b;
 }
 
 static inline void block_drop(block_t* b, context_t* ctx) {
-  // optimize: always decrement just the 32 bits; 
-  // on larger refcounts check afterwards if the hi-bits were 0. Since we use 0 for a unique reference we can 
-  // efficiently check if the block can be freed by comparing to 0.
-  uint32_t count = (b->header.rc32.lo)--;
-#if REFCOUNT_LIMIT_TO_32BIT
-  if (count==0) block_free(b,ctx);
-#else
-  if (count==0) block_check_free(b,ctx);
-#endif
+  uint32_t rc = b->header.refcount;
+  if ((int32_t)rc <= 0) {
+    block_check_free(b, ctx);     // thread-shared, sticky, or can be freed? // note: assume two's complement
+  }
+  else {
+    b->header.refcount = rc-1;
+  }
 }
 
 #define datatype_as(tp,v,tag)             (block_as(tp,&(v)->_block,tag))
@@ -539,7 +354,7 @@ static inline integer_t gen_unique(context_t* ctx) {
   integer_t u = ctx->unique;
   ctx->unique = integer_inc(integer_dup(u),ctx);
   return u;
-};
+}
 
 
 /*--------------------------------------------------------------------------------------
@@ -558,7 +373,8 @@ static inline decl_const orphan_t orphan_null(void) {
 }
 
 static inline orphan_t orphan_block(block_t* b) {
-  b->header.as_uint64 = 0; // set tag to zero, unique, with zero scan size (so decref is valid on it)
+  // set tag to zero, unique, with zero scan size (so decref is valid on it)
+  memset(&b->header, 0, sizeof(header_t));
   return (orphan_t)b;
 }
 

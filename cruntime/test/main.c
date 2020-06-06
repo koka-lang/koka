@@ -13,7 +13,7 @@
 #include <limits.h>
 #include <float.h>
 
-define_string_literal(, stest, 5, "hello");
+define_string_literal(, stest, 5, "hello")
 
 #define define_singleton(decl,tp,name,tag) \
    tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
@@ -25,7 +25,7 @@ struct __data1_list_s {
   block_t _block;
 };
 
-define_singleton( , struct __data1_list_s, __data1_singleton_Nil, (tag_t)0);
+define_singleton( , struct __data1_list_s, __data1_singleton_Nil, (tag_t)0)
 
 struct __data1_Cons {
   struct __data1_list_s _inherit;
@@ -187,7 +187,7 @@ void test_cmp_pos(context_t* ctx) {
   expect(integer_gt(integer_parse("5498765432109876",ctx), integer_parse("4598765432109876",ctx), ctx), true);
   expect(integer_gt(integer_parse("4598765432109876",ctx), integer_parse("5498765432109876",ctx), ctx),false);
   expect(integer_gt(integer_parse("4598765432109876",ctx), integer_parse("4598765432109876",ctx), ctx),false);
-};
+}
 
 void test_addx(context_t* ctx) {
   printf("addition\n");
@@ -396,12 +396,12 @@ static void test_bitcount() {
 static void test_double(context_t* ctx) {
   double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,32.0), pow(2.0,64.0), INFINITY, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, NAN };
   size_t i = 0;
-  double d;
+  double dx;
   do {
-    d = values[i++];
-    integer_t x = integer_from_double(d, ctx);
-    printf("value: %.20e, %.20e, integer: ", d, round(d)); integer_print(x, ctx); printf("\n");
-  } while (!isnan(d));
+    dx = values[i++];
+    integer_t x = integer_from_double(dx, ctx);
+    printf("value: %.20e, %.20e, integer: ", dx, round(dx)); integer_print(x, ctx); printf("\n");
+  } while (!isnan(dx));
 }
 
 

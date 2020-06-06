@@ -336,7 +336,7 @@ static inline bool unbox_bool(box_t v) {
 }
 
 static inline box_t box_bool(bool b) {
-  return box_enum(b ? 1 : 0);
+  return box_enum(b ? UX(1) : UX(0));
 }
 
 static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
