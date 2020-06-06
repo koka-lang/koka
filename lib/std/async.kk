@@ -613,6 +613,10 @@ public fun cancelable( action : () -> <async|e> a ) : <async|e> a
 // Async handle
 // ----------------------------------------------------------------------------
 
+public fun ".default-async"(action) {
+	async-handle(action);
+}
+
 fun nodispose() : io () {   () }
 
 // The outer `:async` effect handler. This is automatically applied by the compiler

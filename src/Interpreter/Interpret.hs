@@ -273,7 +273,7 @@ loadFilesErr term startSt fileNames force
 
                       else return () -- remark st "nothing to load"
                     messageLn st ""
-                    let st' = st{ program = programAddImports (program st) (map toImport imports) }
+                    let st' = st{ program = programAddImports (program st) ({- map toImport imports ++ -} map toImport (loadedModules (loaded st))) }
                         toImport mod
                             = Import (modName mod) (modName mod) rangeNull Private
                     return (return st')
