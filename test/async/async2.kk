@@ -1,6 +1,7 @@
 // --------------------------------------------------------
 // Async demo: combine with ambiguity
 // --------------------------------------------------------
+import std/async
 import std/os/readline
 
 effect amb {
@@ -9,7 +10,7 @@ effect amb {
  
 val amb = handler {
   return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  flip()   -> resume(False) + (resume(True):list<_>)
 }
 
 

@@ -158,7 +158,7 @@ nameDec              = preludeName "dec"
 
 
 nameTpArray     = qualify (newName "std/data/array") (newName "array")
-nameVector      = preludeName "vector"
+nameVector      = preludeName "unvlist"
 
 namesSameSize   = map preludeName ["id","map","reverse","foldl","foldr"]
 
@@ -299,7 +299,7 @@ nameTpDiv       = coreTypesName "div"
 nameTpAlloc     = coreTypesName "alloc"
 nameTpRead      = coreTypesName "read"
 nameTpWrite     = coreTypesName "write"
-nameTpST        = preludeName "st"
+nameTpST        = coreTypesName "st"
 
 nameEffectEmpty = coreTypesName "<>"
 nameEffectExtend= coreTypesName "<|>"

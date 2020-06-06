@@ -75,11 +75,12 @@ genModule mbMain core
             (mainEntry,mainImports) = case mbMain of
                           Nothing -> (empty,[])
                           Just (name,isAsync)
-                            -> (if isAsync
+                            -> ({-if isAsync
                                  then (text " " <-> text "// main entry:" <->
                                        text "$std_async_.async_handle" <.> parens (ppName (unqualify name)) <.> semi
                                       ,[(text "./std_async", text "$std_async_")])
-                                 else (text " " <-> text "// main entry:" <->
+                                 else-} 
+                                      (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
                                       ,[]))
         return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version

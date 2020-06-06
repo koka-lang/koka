@@ -8,6 +8,7 @@
 
 module time1
 
+import std/async
 public import std/num/ddouble
 public import std/time
 public import std/time/timezone
@@ -95,8 +96,8 @@ fun test-tzs( tzs : timezones ) {
 
 
 public fun test() {
-  //val ts-utc = ts-utc-load()
-  //with fun utc() { ts-utc }
+  val ts-utc = ts-utc-load()
+  with fun utc() { ts-utc }
   println( "tz-local(): " + now().time(tz=tz-local()).show )
   val tzs = //try(timezones-empty){
             load-timezones(verbose=True) //}

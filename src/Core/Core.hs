@@ -43,6 +43,7 @@ module Core.Core ( -- Data structures
                    , makeIfExpr
                    , makeInt32
                    , makeEvIndex
+                   , makeList, makeVector
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
@@ -81,8 +82,10 @@ import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
+import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox )
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox, 
+                        nameVector, nameCons, nameNull, nameTpList)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -117,6 +120,26 @@ makeIfExpr pexpr texpr eexpr
   = Case [pexpr] [Branch [patTrue] [Guard exprTrue texpr],
                   Branch [PatWild] [Guard exprTrue eexpr]]
 
+makeVector :: Type -> [Expr] -> Expr
+makeVector tp exprs
+  = App (TypeApp vectorFromList [tp]) [makeList tp exprs]
+  where
+    vectorFromList 
+      = Var (TName nameVector (TForall [a] [] (typeFun [(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeVector [TVar a]))))
+            (InfoArity 1 1)
+    a = TypeVar (0) kindStar Bound
+
+makeList :: Type -> [Expr] -> Expr
+makeList tp exprs
+  = foldr cons nil exprs
+  where
+    nilTp    = TForall [a] [] (TApp typeList [TVar a])
+    nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
+    nil      = TypeApp nilCon [tp]
+    consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
+    cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
+    a = TypeVar (0) kindStar Bound            
 
 {--------------------------------------------------------------------------
   Top-level structure

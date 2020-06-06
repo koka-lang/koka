@@ -115,7 +115,7 @@ public fun tz-local() : ndet timezone {
 }
 
 // A local timezone structure provided by the host system
-alias local-timezone = any
+type local-timezone
 
 // Get the current local timezone structure.
 // The timezone name is allowed to be the empty string.

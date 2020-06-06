@@ -156,12 +156,12 @@ public fun load-latest( fname  : path,
   // try to read a cached local file first
   val mbrecent = match(try{read-text(fname)}) {
     // can't read the file?
-    Exn(exn) -> {
+    TryExn(exn) -> {
       warn(exn.show)
       current // try to download more recent one
     }
     // we read the cached file, let's parse it
-    Ok(text) -> match(text.parse) {
+    TryOk(text) -> match(text.parse) {
       // unable to parse
       Nothing -> {
         warn("invalid data")

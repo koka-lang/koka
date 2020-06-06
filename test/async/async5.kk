@@ -10,7 +10,7 @@ effect amb {
 
 val amb = handler {
   return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  flip()   -> resume(False) + (resume(True):list<_>)
 }
 
 fun dowait(s : duration) {

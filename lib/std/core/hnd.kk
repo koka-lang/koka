@@ -4,7 +4,7 @@ import std/core/types
 
 extern include {
   c  file "hnd-inline"
-  js file "hnd-inline.js" 
+  js file "hnd-inline.js"
 }
 
 // -------------------------------------------
@@ -176,6 +176,16 @@ private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) :
   yield-extend( fun(f){ val keep1 = evv-set(w0); f() })
 }
 
+public type yield-info
+
+private extern yield-capture() : e yield-info {
+  js "$std_core_hnd._yield_capture"
+}
+
+public extern unsafe-reyield(yld : yield-info) : e a {
+  js "$std_core_hnd._reyield"
+}
+
 // -------------------------------------------
 //
 // -------------------------------------------
@@ -186,7 +196,7 @@ private extern inline cast-ev1( f:(a1) -> e1 b) : ((a1) -> e0 b) { inline "#1" }
 private extern inline cast-ev2( f:(a1,a2) -> e1 b) : ((a1,a2) -> e0 b) { inline "#1" }
 private extern inline cast-ev3( f:(a1,a2,a3) -> e1 b) : ((a1,a2,a3) -> e0 b) { inline "#1" }
 private extern inline cast-ev4( f:(a1,a2,a3,a4) -> e1 b) : ((a1,a2,a3,a4) -> e0 b) { inline "#1" }
-
+private extern inline cast-ev5( f:(a1,a2,a3,a4,a5) -> e1 b) : ((a1,a2,a3,a4,a5) -> e0 b) { inline "#1" }
 
 private type yld<e,a,r> {
   Pure
@@ -281,7 +291,7 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a { 
+private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a {
   c inline "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
   inline "(#1)()"
 }
@@ -598,6 +608,16 @@ private fun under3( w : evv<e>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a
   z
 }
 
+
+
+public fun clause-control4( op : (x1:a1, x2:a2, x3:a3, x4:a4, k: b -> e r) -> e r ) : clause1<(a1,a2,a3,a4),b,e,r> {
+  clause-control1( fun(x:(_,_,_,_),k){ op(x.fst,x.snd,x.thd,x.field4,k) } )
+}
+
+public fun clause-tail4(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,e,r> {
+  clause-tail1( fun( x:(_,_,_,_) ){ op(x.fst,x.snd,x.thd,x.field4) } )
+}
+
 public fun ".perform4"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3,a4),b,e1,r>), x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {
   xperform1(ev,op,(x1,x2,x3,x4))
 }
@@ -609,6 +629,7 @@ private fun under4( w : evv<e>, op : (a1,a2,a3,a4) -> e b, x1 : a1, x2 : a2, x3 
   evv-set(w0)
   z
 }
+
 // -------------------------------------------
 // Open
 // -------------------------------------------
@@ -652,6 +673,7 @@ public fun ".open-none4"<a1,a2,a3,a4,b,e1,e2>( f : (a1,a2,a3,a4) -> e1 b, x1 : a
   x
 }
 
+
 public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create1(i)
   val res = cast-ev0(f)()
@@ -684,6 +706,14 @@ public fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, 
   res
 }
 
+public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+  val w = evv-swap-create1(i)
+  val res = cast-ev4(f)(x1,x2,x3,x4)
+  if (yielding()) return yield-extend( fun(xres){ val j = evv-set(w); xres } );
+  val j = evv-set(w)
+  res
+}
+
 public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create(indices)
   val res = cast-ev0(f)()
@@ -691,10 +721,48 @@ public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 
   evv-set(w)
   res
 }
+
 public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val res = cast-ev1(f)(x)
   if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
   evv-set(w)
   res
+}
+
+public fun noinline ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev2(f)(x1,x2)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+
+public fun noinline ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev3(f)(x1,x2,x3)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+
+public fun noinline ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev4(f)(x1,x2,x3,x4)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+
+// -------------------------------------------
+// capture yields
+// -------------------------------------------
+
+public fun unsafe-try-finalize( action : () -> e a ) : e either<yield-info,a> {
+  try-finalize-prompt(action());
+}
+
+private fun try-finalize-prompt( res : a ) : e either<yield-info,a> {
+  if (yielding-non-final()) return yield-cont(fun(cont,x){ try-finalize-prompt(unsafe-decreasing(cont(x))) })
+  if (!yielding()) then Right(res) else Left(yield-capture())
 }

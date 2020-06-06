@@ -196,7 +196,7 @@ uniquefyName name
                 return name
 
 findUniqueName i name locals
-  = let name1 = qualify (qualifier name) (newName (nameId name ++ show i))
+  = let name1 = toUniqueName i name -- qualify (qualifier name) (newName (nameId name ++ show i))
     in if (S.member name1 locals)
         then findUniqueName (i+1) name locals
         else name1

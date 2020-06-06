@@ -400,7 +400,7 @@ compileProgram' term flags modules compileTarget fname program
                                           case mbF of
                                            Nothing -> return (Executable mainName tp, loaded2)
                                            Just f  ->
-                                            let mainName2  = qualify (getName program) (newHiddenName "main")
+                                            let mainName2  = qualify (getName program) (newHiddenName "hmain")
                                                 r          = rangeNull
                                                 expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
                                                                                                   else unqualify mainName -- main
@@ -443,24 +443,31 @@ checkUnhandledEffects flags loaded name range tp
               combine eff Nothing ls
       _ -> return Nothing
   where
-    exclude = [nameTpCps,nameTpAsync,nameTpInst]
+    exclude = [nameTpCps,nameTpInst] -- nameTpAsync
 
     combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
     combine eff mf [] = return mf
     combine eff mf (l:ls) = case getHandledEffectX exclude l of
                              Nothing -> combine eff mf ls
                              Just (_,effName)
-                               -> case gammaLookupQ (makeHiddenName "default" effName) (loadedGamma loaded) of
-                                    [InfoFun _ dname _ _ _]
-                                      -> trace ("add default effect for " ++ show effName) $
-                                         let g expr = let r = getRange expr
-                                                      in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mf) r)] r
-                                         in combine eff (Just g) ls
-                                    _ -> do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
-                                                       text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
-                                                       text " unhandled effect:" <+> ppType (prettyEnvFromFlags flags) l <-->
-                                                       text " hint            : wrap the main function in a handler"))
-                                            combine eff mf ls
+                               -> let defaultHandlerName = makeHiddenName "default" effName
+                                  in -- trace ("looking up: " ++ show defaultHandlerName) $
+                                     case gammaLookupQ defaultHandlerName (loadedGamma loaded) of
+                                        [InfoFun _ dname _ _ _]
+                                          -> trace ("add default effect for " ++ show effName) $
+                                             let g mfx expr = let r = getRange expr
+                                                              in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mfx) r)] r
+                                             in if (effName == nameTpAsync)  -- always put async as the most outer effect
+                                                 then do mf' <- combine eff mf ls
+                                                         return (Just (g mf'))
+                                                 else combine eff (Just (g mf)) ls
+                                        infos 
+                                          -> -- trace ("not found: " ++ show (loadedGamma loaded)) $
+                                             do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
+                                                           text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
+                                                           text " unhandled effect:" <+> ppType (prettyEnvFromFlags flags) l <-->
+                                                           text " hint            : wrap the main function in a handler"))
+                                                combine eff mf ls
 
 
 data ModImport = ImpProgram Import
@@ -536,7 +543,7 @@ resolveImports term flags currentDir loaded0 imports
              = return loaded
            load msg loaded (mod:mods)
              = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) (modName mod)
-                  trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
+                  -- trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
 
