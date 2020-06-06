@@ -299,7 +299,7 @@ nameTpDiv       = coreTypesName "div"
 nameTpAlloc     = coreTypesName "alloc"
 nameTpRead      = coreTypesName "read"
 nameTpWrite     = coreTypesName "write"
-nameTpST        = preludeName "st"
+nameTpST        = coreTypesName "st"
 
 nameEffectEmpty = coreTypesName "<>"
 nameEffectExtend= coreTypesName "<|>"
