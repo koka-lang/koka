@@ -455,9 +455,12 @@ checkUnhandledEffects flags loaded name range tp
                                      case gammaLookupQ defaultHandlerName (loadedGamma loaded) of
                                         [InfoFun _ dname _ _ _]
                                           -> trace ("add default effect for " ++ show effName) $
-                                             let g expr = let r = getRange expr
-                                                          in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mf) r)] r
-                                             in combine eff (Just g) ls
+                                             let g mfx expr = let r = getRange expr
+                                                              in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mfx) r)] r
+                                             in if (effName == nameTpAsync)  -- always put async as the most outer effect
+                                                 then do mf' <- combine eff mf ls
+                                                         return (Just (g mf'))
+                                                 else combine eff (Just (g mf)) ls
                                         infos 
                                           -> -- trace ("not found: " ++ show (loadedGamma loaded)) $
                                              do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
