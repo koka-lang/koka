@@ -2121,9 +2121,15 @@ inferOptionals eff infgamma (par:pars)
             (exprTp,exprEff,coreExpr) <- extendInfGamma False infgamma $ inferExpr (Just (partp,getRange par))
                                              (if isRho partp then Instantiated else Generalized False) expr
             inferUnify (checkOptional fullRange) (getRange expr) partp exprTp
-            inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
-            -- or: inferUnify (Infer fullRange) (getRange expr) eff exprEff
-
+            
+            -- check optional expressions; avoid unifying with `eff` type if possible
+            sexprEff <- subst exprEff
+            case (sexprEff) of
+              TVar _ -> inferUnify (checkOptionalTotal fullRange) (getRange expr) typeTotal exprEff
+              _ -> if (isTypeTotal exprEff) then return ()
+                    else -- trace ("optional effect type: " ++ show exprEff) $
+                         inferUnify (Infer fullRange) (getRange expr) eff exprEff
+            
             tp <- subst partp
             let infgamma' = infgamma ++ [(binderName par,createNameInfoX Public (binderName par) DefVal (getRange par) tp)]
 

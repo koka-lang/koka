@@ -400,7 +400,7 @@ compileProgram' term flags modules compileTarget fname program
                                           case mbF of
                                            Nothing -> return (Executable mainName tp, loaded2)
                                            Just f  ->
-                                            let mainName2  = qualify (getName program) (newHiddenName "main")
+                                            let mainName2  = qualify (getName program) (newHiddenName "hmain")
                                                 r          = rangeNull
                                                 expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
                                                                                                   else unqualify mainName -- main
@@ -543,7 +543,7 @@ resolveImports term flags currentDir loaded0 imports
              = return loaded
            load msg loaded (mod:mods)
              = do let (loaded1,errs) = loadedImportModule (isValueFromFlags flags) loaded mod (rangeNull) (modName mod)
-                  trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
+                  -- trace ("loaded " ++ msg ++ " module: " ++ show (modName mod)) $ return ()
                   mapM_ (\err -> liftError (errorMsg err)) errs
                   load msg loaded1 mods
 

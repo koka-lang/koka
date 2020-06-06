@@ -1543,13 +1543,13 @@ extern count( slice : sslice ) : int {
   js "_sslice_count"
 }
 
-private extern inline first1(s : string ) : sslice {
+private extern first1(s : string ) : sslice {
   c  "slice_first"
   cs "Primitive.SliceFirst"
   js "_sslice_first"
 }
 
-private extern inline last1(s : string ) : sslice {
+private extern last1(s : string ) : sslice {
   c  "slice_last"
   cs "Primitive.SliceLast"
   js "_sslice_last"

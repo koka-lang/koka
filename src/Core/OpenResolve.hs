@@ -140,13 +140,21 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
         else -- not equal in handled effects, insert open
              let resolve name = case gammaLookup name gamma of
                                   [(qname,info)] -> coreExprFromNameInfo qname info
-                                  ress -> failure $ "Core.OpenResolve.resOpen: unknown name: " ++ show name ++ ", " ++ show gamma
+                                  ress -> failure $ "Core.OpenResolve.resOpen: unknown name: " ++ show name -- ++ ", " ++ show gamma
                  -- actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
                  params = [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
+                 
+                 wrapperThunk openExpr evExprs
+                   = Lam params effFrom $
+                       App (makeTypeApp openExpr [tres,effFrom,effTo])
+                           (evExprs ++ [Lam [] effTo (App expr [Var p InfoNone | p <- params])])
+                           
                  wrapper openExpr evExprs
                    = Lam params effFrom $
                        App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
                            (evExprs ++ [expr] ++ [Var p InfoNone | p <- params])
+                           
+                   
                  evIndexOf l
                    = let (htagTp,hndTp)
                              = let (name,_,tpArgs) = labelNameEx l
@@ -160,16 +168,23 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                           [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
                           _  -> trace ("  no handled effect; use none") $
-                                wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
-                                -- expr  -- fails in nim as it evidence is not cleared
+                                if (n <= 4) 
+                                 then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
+                                      -- expr  -- fails in nim as it evidence is not cleared
+                                 else wrapperThunk (resolve (nameOpenNone 0)) []
+                                      
                  [l] -> -- just one: used open-atN for efficiency
                         trace ("  one handled effect; use at: " ++ show (ppType penv l)) $
-                        wrapper (resolve (nameOpenAt n)) [evIndexOf l]
+                        if (n <= 4) 
+                         then wrapper (resolve (nameOpenAt n)) [evIndexOf l]
+                         else wrapperThunk (resolve (nameOpenAt 0)) [evIndexOf l]
 
                  _ -> --failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
                       --           ++ " with handled: " ++ show (map (ppType penv) ls1, map (ppType penv) ls2)
                       let indices = makeVector typeEvIndex (map evIndexOf ls1)
-                      in wrapper (resolve (nameOpen n)) [indices]
+                      in if (n <= 3) 
+                          then wrapper (resolve (nameOpen n)) [indices]
+                          else wrapperThunk (resolve (nameOpen 0)) [indices]
 
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
   = failure $ "Core.OpenResolve.resOpen: open applied to a non-function? " ++ show (ppType penv effTo)

@@ -196,7 +196,7 @@ private extern inline cast-ev1( f:(a1) -> e1 b) : ((a1) -> e0 b) { inline "#1" }
 private extern inline cast-ev2( f:(a1,a2) -> e1 b) : ((a1,a2) -> e0 b) { inline "#1" }
 private extern inline cast-ev3( f:(a1,a2,a3) -> e1 b) : ((a1,a2,a3) -> e0 b) { inline "#1" }
 private extern inline cast-ev4( f:(a1,a2,a3,a4) -> e1 b) : ((a1,a2,a3,a4) -> e0 b) { inline "#1" }
-
+private extern inline cast-ev5( f:(a1,a2,a3,a4,a5) -> e1 b) : ((a1,a2,a3,a4,a5) -> e0 b) { inline "#1" }
 
 private type yld<e,a,r> {
   Pure
@@ -673,6 +673,7 @@ public fun ".open-none4"<a1,a2,a3,a4,b,e1,e2>( f : (a1,a2,a3,a4) -> e1 b, x1 : a
   x
 }
 
+
 public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create1(i)
   val res = cast-ev0(f)()
@@ -720,6 +721,7 @@ public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 
   evv-set(w)
   res
 }
+
 public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val res = cast-ev1(f)(x)
@@ -728,6 +730,29 @@ public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1
   res
 }
 
+public fun noinline ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev2(f)(x1,x2)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+
+public fun noinline ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev3(f)(x1,x2,x3)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
+
+public fun noinline ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+  val w = evv-swap-create(indices)
+  val res = cast-ev4(f)(x1,x2,x3,x4)
+  if (yielding()) return yield-extend( fun(xres){ evv-set(w); xres } );
+  evv-set(w)
+  res
+}
 
 // -------------------------------------------
 // capture yields
