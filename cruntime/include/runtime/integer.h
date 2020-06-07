@@ -68,9 +68,8 @@ static inline integer_t integer_from_small(intptr_t i) {   // use for known smal
 static inline box_t     box_integer_t(integer_t i) { return i; }
 static inline integer_t unbox_integer_t(box_t b)   { return b; }
 
-static inline void      integer_incref(integer_t x) { dup_boxed(x); }
-static inline integer_t dup_integer(integer_t x)    { return dup_boxed(x); }
-static inline void      integer_decref(integer_t x, context_t* ctx) { drop_boxed(x, ctx); }
+static inline integer_t dup_integer_t(integer_t x)    { return dup_box_t(x); }
+static inline void      drop_integer_t(integer_t x, context_t* ctx) { drop_box_t(x, ctx); }
 
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
@@ -412,19 +411,19 @@ static inline bool integer_neq(integer_t x, integer_t y, context_t* ctx) {
 
 static inline bool integer_is_zero(integer_t x, context_t* ctx) {
   if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_zero));
-  integer_decref(x,ctx);
+  drop_integer_t(x,ctx);
   return false;
 }
 
 static inline bool integer_is_one(integer_t x, context_t* ctx) {
   if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_one));
-  integer_decref(x,ctx);
+  drop_integer_t(x,ctx);
   return false;
 }
 
 static inline bool integer_is_minus_one(integer_t x, context_t* ctx) {
   if (likely(is_smallint(x))) return (box_as_intptr(x) == box_as_intptr(integer_min_one));
-  integer_decref(x,ctx);
+  drop_integer_t(x,ctx);
   return false;
 }
 
@@ -455,23 +454,23 @@ static inline bool integer_is_pos(integer_t x, context_t* ctx) {
 
 static inline integer_t integer_max(integer_t x, integer_t y, context_t* ctx) {
   if (likely(are_smallints(x, y))) return (box_as_intptr(x)>=box_as_intptr(y) ? x : y);
-  integer_incref(x); integer_incref(y);
+  dup_integer_t(x); dup_integer_t(y);
   if (integer_gte(x,y,ctx)) {
-    integer_decref(y,ctx); return x;
+    drop_integer_t(y,ctx); return x;
   }
   else {
-    integer_decref(x,ctx); return y;
+    drop_integer_t(x,ctx); return y;
   }
 }
 
 static inline integer_t integer_min(integer_t x, integer_t y, context_t* ctx) {
   if (likely(are_smallints(x, y))) return (box_as_intptr(x)<=box_as_intptr(y) ? x : y);
-  integer_incref(x); integer_incref(y);
+  dup_integer_t(x); dup_integer_t(y);
   if (integer_lte(x, y, ctx)) {
-    integer_decref(y, ctx); return x;
+    drop_integer_t(y, ctx); return x;
   }
   else {
-    integer_decref(x, ctx); return y;
+    drop_integer_t(x, ctx); return y;
   }
 }
 

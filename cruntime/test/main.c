@@ -43,18 +43,18 @@ __data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* ctx) {
 }
 struct __data1_Cons* __data1__as_Cons(__data1__list x) {
   assert(__data1__is_Cons(x));
-  return datatype_as(struct __data1_Cons*, x, (tag_t)1);
+  return datatype_as(struct __data1_Cons*, x);
 }
 
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y, context_t* ctx) {
   UNUSED(msg);
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {
-    fun(dup_integer(x),dup_integer(y));    
+    fun(dup_integer_t(x),dup_integer_t(y));    
   }
   msecs_t end = _clock_end(start);
-  integer_decref(x,ctx);
-  integer_decref(y,ctx);
+  drop_integer_t(x,ctx);
+  drop_integer_t(y,ctx);
   //printf("test %s, %zu iterations: %6.3f s\n", msg, loops, (double)(end)/1000.0);
   return end;
 }
@@ -109,7 +109,7 @@ void test(context_t* ctx) {
 }
 
 void test_add(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
-  integer_incref(x); integer_incref(y);
+  dup_integer_t(x); dup_integer_t(y);
   integer_print(x, ctx); printf(" + "); integer_print(y, ctx); printf(" = ");
   integer_t z = integer_add(x, y, ctx);
   integer_print(z, ctx); printf(", expected: ");
@@ -118,7 +118,7 @@ void test_add(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
 }
 
 void test_sub(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
-  integer_incref(x); integer_incref(y);
+  dup_integer_t(x); dup_integer_t(y);
   integer_print(x, ctx); printf(" - "); integer_print(y, ctx); printf(" = ");
   integer_t z = integer_sub(x, y, ctx);
   integer_print(z, ctx); printf(", expected: ");
@@ -139,7 +139,7 @@ void fibx(int n, integer_t* x1, integer_t* x2, context_t* ctx) {
     integer_t y1; 
     integer_t y2;
     fibx(n - 1, &y1, &y2, ctx);
-    *x2 = y1; integer_incref(y1);
+    *x2 = y1; dup_integer_t(y1);
     *x1 = integer_add(y1, y2, ctx);
   }
 }
@@ -148,7 +148,7 @@ integer_t fib(int n, context_t* ctx) {
   integer_t y1;
   integer_t y2;
   fibx(n+1, &y1, &y2, ctx);
-  integer_decref(y2, ctx);
+  drop_integer_t(y2, ctx);
   return y1;
 }
 
@@ -171,7 +171,7 @@ void expect(bool b, bool exp) {
 }
 
 void expect_eq(integer_t x, integer_t y, context_t* ctx) {
-  integer_incref(x); integer_incref(y);
+  dup_integer_t(x); dup_integer_t(y);
   printf(" "); integer_print(x, ctx); printf(" == ");  integer_print(y, ctx);
   bool eq = integer_eq(x, y, ctx);
   printf(" %s\n", (eq ? "ok" : "FAIL"));
@@ -231,15 +231,15 @@ void test_carry(context_t* ctx) {
   integer_t last = integer_from_small(1);
 
   for (intptr_t i = 2; i < 50; i++) {
-    integer_incref(last);
+    dup_integer_t(last);
     num = integer_add(num,last, ctx);
-    integer_incref(num);
+    dup_integer_t(num);
     last = integer_sub(num,last, ctx);
-    integer_incref(num);
+    dup_integer_t(num);
     expect_eq(num,integer_parse(fibs[i], ctx),ctx);
   }
-  integer_decref(num, ctx);
-  integer_decref(last, ctx);
+  drop_integer_t(num, ctx);
+  drop_integer_t(last, ctx);
 
   expect_eq(integer_add(integer_parse("9007199254740991",ctx),integer_from_small(1), ctx), integer_parse("9007199254740992",ctx),ctx);
   expect_eq(integer_add(integer_parse("999999999999999999999000000000000000000000",ctx),integer_parse("1000000000000000000000",ctx), ctx),integer_parse("1e42",ctx),ctx);
@@ -253,17 +253,17 @@ void test_carry(context_t* ctx) {
 }
 
 static integer_t factorial(integer_t n, context_t* ctx) {
-  integer_incref(n); 
+  dup_integer_t(n); 
   if (integer_eq(n,integer_from_small(0), ctx)) {
-    integer_decref(n, ctx);
+    drop_integer_t(n, ctx);
     return integer_from_small(1);
   }
-  integer_incref(n);
+  dup_integer_t(n);
   if (integer_eq(n, integer_from_small(1), ctx)) {
-    integer_decref(n, ctx);
+    drop_integer_t(n, ctx);
     return integer_from_small(1);
   }
-  integer_incref(n);
+  dup_integer_t(n);
   return integer_mul(factorial(integer_dec(n, ctx), ctx),n, ctx);
 }
 
@@ -278,12 +278,12 @@ void test_large(context_t* ctx) {
 
   // large multiply divide
   integer_t x = integer_from_str(hundredFactorial, ctx);
-  expect_eq(integer_div(integer_mul(dup_integer(x), dup_integer(x), ctx),dup_integer(x), ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer_t(x), dup_integer_t(x), ctx),dup_integer_t(x), ctx), x,ctx);
   x = integer_from_str(threeToTenThousand, ctx);
-  expect_eq(integer_div(integer_mul(dup_integer(x), dup_integer(x), ctx), dup_integer(x), ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer_t(x), dup_integer_t(x), ctx), dup_integer_t(x), ctx), x,ctx);
   integer_t y = integer_from_str(hundredFactorial, ctx);
   x = integer_from_str(threeToTenThousand, ctx);
-  expect_eq(integer_div(integer_mul(dup_integer(y), dup_integer(x), ctx), y, ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer_t(y), dup_integer_t(x), ctx), y, ctx), x,ctx);
 }
 
 void test_div(context_t* ctx) {
@@ -371,12 +371,12 @@ static integer_t init_num(size_t  digits, context_t* ctx) {
 
 static void test_mul(integer_t x, integer_t y, context_t* ctx) {
   integer_t i = integer_mul(x,y,ctx);
-  integer_decref(i, ctx);
+  drop_integer_t(i, ctx);
 }
 /*
 static void test_mulk(integer_t x, integer_t y) {
   integer_t i = integer_mul_karatsuba(x, y);
-  integer_decref(i);
+  drop_integer_t(i);
 }
 */
 
@@ -437,9 +437,9 @@ int main() {
       if (use_karatsuba(i,j) != (t1 >(t2 + (t2/50)))) {
         printf("\n***: %i x %i, predict: %s, but winner was: %s (%3.3f s vs %3.3f s)\n", i, j, (use_karatsuba(i, j) ? "karatsuba" : "long"), (t1 >(t2 + (t2/50))) ? "karatsuba" : "long", t1/1000.0, t2/1000.0 );
       }
-      integer_decref(y);
+      drop_integer_t(y);
     }
-    integer_decref(x);
+    drop_integer_t(x);
   }
   */
   

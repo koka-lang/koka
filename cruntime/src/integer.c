@@ -257,7 +257,7 @@ static bigint_t* bigint_from_uint64(uint64_t i, context_t* ctx) {
 static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
   if (is_bigint(x)) {
-    return block_as(bigint_t*, unbox_ptr(x), TAG_BIGINT);
+    return block_as_assert(bigint_t*, unbox_ptr(x), TAG_BIGINT);
   }
   else {
     assert_internal(is_smallint(x));
@@ -820,25 +820,25 @@ integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
   }
   if (is_smallint(x)) {
     if (box_as_intptr(x) == box_as_intptr(integer_zero)) {
-      integer_decref(p,ctx);  return integer_zero;
+      drop_integer_t(p,ctx);  return integer_zero;
     }
     if (box_as_intptr(x) == box_as_intptr(integer_one)) {
-      integer_decref(p,ctx);  return integer_one;
+      drop_integer_t(p,ctx);  return integer_one;
     }
     if (box_as_intptr(x) == box_as_intptr(integer_min_one)) {
       return (integer_is_even(p,ctx) ? integer_one : integer_min_one);
     }
   }
-  integer_incref(p);
+  dup_integer_t(p);
   if (integer_signum(p,ctx)==-1) {
-    integer_decref(p,ctx); return integer_zero;
+    drop_integer_t(p,ctx); return integer_zero;
   }
   integer_t y = integer_one;
   if (is_bigint(p)) {
     while (1) {
-      integer_incref(p);
+      dup_integer_t(p);
       if (integer_is_odd(p,ctx)) {
-        integer_incref(x);
+        dup_integer_t(x);
         y = integer_mul(y, x, ctx);
         p = integer_dec(p, ctx);
       }
@@ -851,7 +851,7 @@ integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
   intx_t i = unbox_int(p);
   while (1) {
     if ((i&1)!=0) {
-      integer_incref(x);
+      dup_integer_t(x);
       y = integer_mul(y, x, ctx);
       i--;
     }
@@ -859,7 +859,7 @@ integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
     i /= 2;
     x = integer_sqr(x, ctx);
   }
-  integer_decref(x, ctx);
+  drop_integer_t(x, ctx);
   return y;  
 }
 
@@ -1013,7 +1013,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg, context_t* ctx)
   assert_internal(is_integer(x));
   bigint_t* bx = integer_to_bigint(x, ctx);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
-  integer_decref(x, ctx);
+  drop_integer_t(x, ctx);
   return signum;
 }
 
@@ -1022,7 +1022,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg, context_t* ctx)
   if (is_smallint(x)) return ((box_as_intptr(x)&0x08)==0);
   bigint_t* bx = integer_to_bigint(x,ctx);
   bool even = ((bx->digits[0]&0x1)==0);
-  integer_decref(x,ctx);
+  drop_integer_t(x,ctx);
   return even;
 }
 
@@ -1103,16 +1103,16 @@ integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, cont
       *mod = x;
     }
     else {
-      integer_decref(x, ctx);
+      drop_integer_t(x, ctx);
     }
-    integer_decref(y, ctx);
+    drop_integer_t(y, ctx);
     return integer_zero;
   }
   if (cmp==0) {
     if (mod) *mod = integer_zero;
     intx_t i = (bigint_is_neg_(bx) == bigint_is_neg_(by) ? 1 : -1);
-    integer_decref(x, ctx);
-    integer_decref(y, ctx);
+    drop_integer_t(x, ctx);
+    drop_integer_t(y, ctx);
     return integer_from_small(i);
   }
   bool qneg = (bigint_is_neg_(bx) != bigint_is_neg_(by));
@@ -1134,7 +1134,7 @@ integer_t integer_div_generic(integer_t x, integer_t y, context_t* ctx) {
 integer_t integer_mod_generic(integer_t x, integer_t y, context_t* ctx) {
   integer_t mod = box_null;
   integer_t div = integer_div_mod_generic(x, y, &mod, ctx);
-  integer_decref(div, ctx);
+  drop_integer_t(div, ctx);
   return mod;
 }
 
@@ -1161,7 +1161,7 @@ decl_export string_t integer_to_hex_string(integer_t x, bool use_capitals, conte
 void integer_fprint(FILE* f, integer_t x, context_t* ctx) {
   string_t s = integer_to_string(x, ctx);
   fprintf(f, "%s", string_buf_borrow(s));
-  drop_string(s, ctx);  
+  drop_string_t(s, ctx);  
 }
 
 void integer_print(integer_t x, context_t* ctx) {
@@ -1248,12 +1248,12 @@ integer_t integer_count_digits(integer_t x, context_t* ctx) {
 static intx_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
 integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (integer_is_zero(dup_integer(p),ctx)) {
-    integer_decref(p, ctx);
+  if (integer_is_zero(dup_integer_t(p),ctx)) {
+    drop_integer_t(p, ctx);
     return x;
   }
-  if (integer_is_zero(dup_integer(x),ctx)) {
-    integer_decref(p, ctx); // x is small
+  if (integer_is_zero(dup_integer_t(x),ctx)) {
+    drop_integer_t(p, ctx); // x is small
     return integer_zero;
   }  
   if (!is_smallint(p)) {
@@ -1294,12 +1294,12 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
 
 
 integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (integer_is_zero(dup_integer(p),ctx)) {
-    integer_decref(p, ctx);
+  if (integer_is_zero(dup_integer_t(p),ctx)) {
+    drop_integer_t(p, ctx);
     return x;
   }
-  if (integer_is_zero(dup_integer(x),ctx)) {
-    integer_decref(p, ctx); // x is small
+  if (integer_is_zero(dup_integer_t(x),ctx)) {
+    drop_integer_t(p, ctx); // x is small
     return integer_zero;
   }
   if (!is_smallint(p)) {

@@ -179,10 +179,12 @@ private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) :
 public type yield-info
 
 private extern yield-capture() : e yield-info {
+  c "yield_capture"
   js "$std_core_hnd._yield_capture"
 }
 
 public extern unsafe-reyield(yld : yield-info) : e a {
+  c "yield_reyield"
   js "$std_core_hnd._reyield"
 }
 

@@ -14,10 +14,18 @@ ptr_t ptr_null = (ptr_t)(&ptr_null_block);
 
 // identity function
 static box_t _function_id(function_t self, box_t x, context_t* ctx) {
-  drop_function(self,ctx);
+  drop_function_t(self,ctx);
   return x;
 }
 define_static_function(function_id, _function_id)
+
+// null function
+static box_t _function_null(function_t self, context_t* ctx) {
+  drop_function_t(self, ctx);
+  fatal_error(EFAULT, "null function is called");
+  return box_null;
+}
+define_static_function(function_null, _function_null)
 
 // empty vector
 static struct vector_small_s _vector_empty
@@ -116,7 +124,7 @@ context_t* runtime_context(void) {
   if (ctx!=NULL) return ctx;
   runtime_init();
   ctx = (context_t*)calloc(sizeof(context_t),1);
-  ctx->evv = dup_vector(vector_empty);
+  ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
   return ctx;

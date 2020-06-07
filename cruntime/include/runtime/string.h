@@ -76,11 +76,11 @@ static inline box_t box_string_t(string_t s) {
   return box_ptr(&s->_block);
 }
 
-static inline void drop_string(string_t str, context_t* ctx) {
+static inline void drop_string_t(string_t str, context_t* ctx) {
   drop_datatype(str, ctx);
 }
 
-static inline string_t dup_string(string_t str) {
+static inline string_t dup_string_t(string_t str) {
   return dup_datatype_as(string_t,str);
 }
 
@@ -100,7 +100,7 @@ static inline string_t string_alloc_len(size_t len, const char* s, context_t* ct
     return &str->_type;
   }
   else {
-    string_normal_t str = block_as(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
+    string_normal_t str = block_as_assert(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
     if (s != NULL && len > 0) {
       memcpy(&str->str[0], s, len);
     }
@@ -115,12 +115,12 @@ static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
   return string_alloc_len(len, NULL, ctx);
 }
 
-static inline string_t dup_string_alloc(const char* s, context_t* ctx) {
+static inline string_t string_alloc_dup(const char* s, context_t* ctx) {
   return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
 }
 
 static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free, context_t* ctx) {
-  if (s==NULL) return dup_string(string_empty);
+  if (s==NULL) return dup_string_t(string_empty);
   assert_internal(s[len]==0 && strlen(s)==len);
   struct string_raw_s* str = block_alloc_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
   str->free = (free ? &runtime_free : NULL);
@@ -131,19 +131,19 @@ static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free
 }
 
 static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
-  if (s==NULL) return dup_string(string_empty);
+  if (s==NULL) return dup_string_t(string_empty);
   return string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
 static inline const uint8_t* string_buf_borrow(const string_t str) {
   if (datatype_tag(str) == TAG_STRING_SMALL) {
-    return &(datatype_as(string_small_t, str, TAG_STRING_SMALL)->u.str[0]);
+    return &(datatype_as_assert(string_small_t, str, TAG_STRING_SMALL)->u.str[0]);
   }
   else if (datatype_tag(str) == TAG_STRING) {
-    return &(datatype_as(string_normal_t, str, TAG_STRING)->str[0]);
+    return &(datatype_as_assert(string_normal_t, str, TAG_STRING)->str[0]);
   }
   else {
-    return datatype_as(string_raw_t, str, TAG_STRING_RAW)->cstr;
+    return datatype_as_assert(string_raw_t, str, TAG_STRING_RAW)->cstr;
   }
 }
 
@@ -157,7 +157,7 @@ static inline int string_cmp_cstr_borrow(const string_t s, const char* t) {
 
 static inline size_t decl_pure string_len_borrow(const string_t str) {
   if (datatype_tag(str) == TAG_STRING_SMALL) {  
-    const string_small_t s = datatype_as(const string_small_t, str, TAG_STRING_SMALL);
+    const string_small_t s = datatype_as_assert(const string_small_t, str, TAG_STRING_SMALL);
 #ifdef ARCH_LITTLE_ENDIAN
     return (STRING_SMALL_MAX - (bits_clz64(s->u.str_value)/8));
 #else
@@ -165,10 +165,10 @@ static inline size_t decl_pure string_len_borrow(const string_t str) {
 #endif
   }
   if (datatype_tag(str) == TAG_STRING) {
-    return datatype_as(string_normal_t, str, TAG_STRING)->length;
+    return datatype_as_assert(string_normal_t, str, TAG_STRING)->length;
   }
   else {
-    return datatype_as(string_raw_t, str, TAG_STRING_RAW)->length;
+    return datatype_as_assert(string_raw_t, str, TAG_STRING_RAW)->length;
   }
 }
 
@@ -349,7 +349,7 @@ static inline void utf8_write(char_t c, uint8_t* s, size_t* count) {
 --------------------------------------------------------------------------------------------------*/
 static inline size_t decl_pure string_len(string_t str, context_t* ctx) {    // bytes in UTF8
   size_t len = string_len_borrow(str);
-  drop_string(str,ctx);
+  drop_string_t(str,ctx);
   return len;
 }
 

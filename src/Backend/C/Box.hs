@@ -112,11 +112,14 @@ boxPattern fromTp PatWild
 boxPattern fromTp pat | cType (fromTp) /= cType toTp
   = do i <- unique
        let uname = newHiddenName ("unbox-x" ++ show i)
-       coerce <- bcoerce fromTp toTp (Var (TName uname toTp) InfoNone)
+       coerce <- trace ("pattern coerce: " ++ show uname ++ ": " ++ show (pretty fromTp) ++ " ~> " ++ show (pretty toTp)) $
+                 bcoerce fromTp toTp (Var (TName uname toTp) InfoNone)
        case coerce of
-         Var{} -> boxPatternX fromTp pat
-         _     -> do bpat <- boxPatternX toTp pat
+         App{} -> trace ("unbox pattern: " ++ show uname) $
+                  do bpat <- boxPatternX toTp pat
                      return (PatVar (TName uname toTp) bpat)
+         _     -> boxPatternX fromTp pat
+                     
   where
     toTp  = case pat of
               PatCon{}       -> patTypeRes pat

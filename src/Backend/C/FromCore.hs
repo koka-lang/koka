@@ -149,7 +149,7 @@ includeExternalC (ExternalInclude includes range)
                     Nothing -> case lookup Default includes of
                                  Just s -> s
                                  Nothing -> ""
-    in [align $ vcat $! map text (lines content)]
+    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
 includeExternalC _  = []
 
 includeExternalH :: External -> [Doc]
@@ -157,7 +157,7 @@ includeExternalH (ExternalInclude includes range)
   = let content = case lookup CHeader includes of
                     Just s -> s
                     Nothing -> ""
-    in [align $ vcat $! map text (lines content)]
+    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
 includeExternalH _  = []
 
 
@@ -425,6 +425,21 @@ genBoxCall prim tp arg
     )
 
 
+genDupDropCall prim tp args
+  = text prim <.> text "_" <.> (
+    case cType tp of
+      CFun _ _   -> text "function_t" <.> args
+      CBox       -> text "box_t" <.> args
+      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t"
+                  -> text val <.> args
+                  | otherwise
+                  -> text "value" <.> args
+      CData name -> ppName name <.> args
+    )
+genDupCall tp arg = genDupDropCall "dup" tp (parens arg)
+genDropCall tp arg = genDupDropCall "drop" tp (arguments [arg])
+
+
 genBox name info dataRepr
   = emitToH $
     text "static inline box_t box_" <.> ppName name <.> parameters [ppName name <+> text "x"] <+> block (
@@ -594,7 +609,7 @@ genConstructorAccess info dataRepr con conRepr
                     <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
                     <+> block( vcat $
                           [-- text "assert(" <.> conTestName con <.> tupled [text "x"] <.> text ");",
-                           text "return datatype_as" <.> tupled [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x", 
+                           text "return datatype_as_assert" <.> tupled [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x", 
                                (if (dataRepr == DataOpen) then text "TAG_OPEN" else pretty (conTag conRepr) <+> text "/* _tag */")] <.> semi]
                         )
 
@@ -719,7 +734,7 @@ genLambda params eff body
                                  Just res -> res
            fieldDocs = [ppType tp <+> ppName name | (name,tp) <- fields]
            tpDecl  = text "struct" <+> ppName funTpName <+> block (
-                       vcat ([text "struct function_s _fun;"] ++ 
+                       vcat ([text "struct function_s _type;"] ++ 
                              [ppType tp <+> ppName name <.> semi | (name,tp) <- fields])
                      ) <.> semi
 
@@ -735,11 +750,11 @@ genLambda params eff body
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]
-                         else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _fun 
+                         else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _type.fun 
                                                                                               ] <.> semi
-                              ,text "_self->_fun.fun = box_cptr(&" <.> ppName funName <.> text ", current_context());"]
+                              ,text "_self->_type.fun = box_cptr(&" <.> ppName funName <.> text ", current_context());"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
-                              ++ [text "return &_self->_fun;"])
+                              ++ [text "return &_self->_type;"])
                      ))
 
 
@@ -748,9 +763,11 @@ genLambda params eff body
        bodyDoc <- genStat (ResultReturn Nothing params) body
        let funDef = funSig <+> block (
                       (if (null fields) then text "UNUSED(_fself);"
-                        else vcat ([structDoc <.> text "* _self = function_data_as" <.> tupled [structDoc,text "_fself"] <.> semi] 
-                                   ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]))
-                                   -- todo: add dup for each field, and then function_drop(_fself)
+                        else let dups = braces (hcat [genDupCall tp (ppName name) <.> semi | (name,tp) <- fields])
+                             in vcat ([structDoc <.> text "* _self = function_as" <.> tupled [structDoc <.> text "*",text "_fself"] <.> semi] 
+                                   ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]
+                                   ++ [text "drop_match" <.> arguments [text "_self",dups,text "{}"]]
+                                   ))
                       <-> bodyDoc
                     )
        emitToC funDef  -- TODO: make  static if for a Private definition
@@ -822,6 +839,8 @@ cTypeCon c
          then CPrim "uint8_t"
         else if (name == nameTpFloat32)
          then CPrim "float"
+        else if (name == nameTpRef)
+         then CPrim "ref_t"
         else CData (typeClassName name)
 
 

@@ -197,12 +197,18 @@ decl_export context_t* runtime_context(void);
 #define current_context()   _ctx
 
 // Is the execution yielding?
-static inline decl_pure bool yielding(const context_t* ctx) {
+static inline decl_pure bool _yielding(const context_t* ctx) {
   return (ctx->yielding != YIELD_NONE);
 }
+#define yielding(ctx)   unlikely(_yielding(ctx))
+
 
 static inline decl_pure bool yielding_non_final(const context_t* ctx) {
   return (ctx->yielding == YIELD_NORMAL);
+}
+
+static inline decl_pure bool yielding_final(const context_t* ctx) {
+  return (ctx->yielding == YIELD_FINAL);
 }
 
 // Get a thread local marker unique number.
@@ -273,16 +279,14 @@ static inline block_t* block_realloc(block_t* b, size_t size, context_t* ctx) {
   return (block_t*)runtime_realloc(b, size, ctx);
 }
 
-static inline void* _block_as(block_t* b) {
-  return (void*)b;
-}
-static inline void* _block_as_assert(block_t* b, tag_t tag) {
+static inline char* _block_as_assert(block_t* b, tag_t tag) {
   assert_internal(block_tag(b) == tag);
-  return (void*)b;
+  return (char*)b;
 }
 
 #define block_alloc_as(struct_tp,scan_fsize,tag,ctx)  ((struct_tp*)block_alloc(sizeof(struct_tp),scan_fsize,tag,ctx))
-#define block_as(tp,b,tag)                            ((tp)_block_as_assert(b,tag))
+#define block_as(tp,b)                                ((tp)((char*)(b)))
+#define block_as_assert(tp,b,tag)                     ((tp)_block_as_assert(b,tag))
 
 
 /*--------------------------------------------------------------------------------------
@@ -311,14 +315,84 @@ static inline void drop_block(block_t* b, context_t* ctx) {
   }
 }
 
-#define datatype_as(tp,v,tag)             (block_as(tp,&(v)->_block,tag))
-#define datatype_tag(v)                   (block_tag(&(v)->_block))
-#define drop_datatype(v,ctx)              (drop_block(&(v)->_block,ctx))
-#define dup_datatype_as(tp,v)             ((tp)dup_block(&(v)->_block))
+static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {
+  UNUSED_RELEASE(tag);
+  assert_internal(block_tag(b) == tag);
+  drop_block(b,ctx);
+}
 
-#define constructor_tag(v)                (datatype_tag(&(v)->_type))
-#define drop_constructor(v,ctx)           (drop_datatype(&(v)->_type,ctx))
-#define dup_constructor_as(tp,v)          (dup_datatype_as(tp, &(v)->_type))
+static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
+  UNUSED_RELEASE(tag);
+  assert_internal(block_tag(b) == tag);
+  return dup_block(b);
+}
+
+#define datatype_tag(v)                     (block_tag(&((v)->_block)))
+#define datatype_is_unique(v)               (block_is_unique(&((v)->_block)))
+#define datatype_as(tp,v)                   (block_as(tp,&((v)->_block)))
+#define drop_datatype(v,ctx)                (drop_block(&((v)->_block),ctx))
+#define dup_datatype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
+
+#define datatype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
+#define drop_datatype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
+#define dup_datatype_as_assert(tp,v,tag)    ((tp)dup_block_assert(&((v)->_block),tag))
+
+#define constructor_tag(v)                  (datatype_tag(&((v)->_type)))
+#define constructor_is_unique(v)            (datatype_is_unique(&((v)->_type)))
+#define drop_constructor(v,ctx)             (drop_datatype(&((v)->_type),ctx))
+#define dup_constructor_as(tp,v)            (dup_datatype_as(tp, &((v)->_type)))
+
+#define drop_value(v,ctx)                   (void)
+#define dup_value(v)                        (v)
+
+/*----------------------------------------------------------------------
+  Reference counting of pattern matches
+----------------------------------------------------------------------*/
+typedef block_t* reuse_t;
+
+static inline reuse_t block_reuse(block_t* b) {
+  // set tag to zero, unique, with zero scan size (so decref is valid on it)
+  memset(&b->header, 0, sizeof(header_t));
+  return b;
+}
+
+static inline block_t* block_alloc_reuse(reuse_t r, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  // TODO: check usable size p >= size
+  block_t* b;
+  if (r != NULL) {
+    assert_internal(block_is_unique(r));
+    b = r;
+  }
+  else {
+    b = (block_t*)runtime_malloc(size, ctx);
+  }
+  block_init(b, size, scan_fsize, tag);
+  return b;
+}
+
+// The constructor that is matched on is still used; only duplicate the used fields
+#define keep_match(con,dups) \
+  do dups while(0)
+
+// The constructor that is matched on is dropped: 
+// 1. if unique, drop the unused fields and free just the constructor block
+// 2. otherwise, duplicate the used fields, and drop the constructor
+#define drop_match(con,dups,drops,ctx) \
+  if (constructor_is_unique(con)) { \
+    do drops while(0); runtime_free(con); \
+  } else { \
+    do dups while(0); drop_constructor(con,ctx); \
+  }
+
+// The constructor that is matched on may be reused:
+// 1. if unique, drop the unused fields and make the constructor block available for reuse
+// 2. otherwise, duplicate the used fields, drop the constructor, and don't reuse
+#define reuse_match(reuseid,con,dups,drops,ctx) \
+  if (constructor_is_unique(conid)) { \
+    do drops while(0); reuseid = constructor_reuse(conid); \
+  } else { \
+    do dups while(0); drop_constructor(con,ctx); reuseid = NULL; \
+  }
 
 
 /*----------------------------------------------------------------------
@@ -354,77 +428,15 @@ typedef struct cptr_raw_s {
 // Get a thread local unique number.
 static inline integer_t gen_unique(context_t* ctx) {
   integer_t u = ctx->unique;
-  ctx->unique = integer_inc(dup_integer(u),ctx);
+  ctx->unique = integer_inc(dup_integer_t(u),ctx);
   return u;
 }
 
 
-/*--------------------------------------------------------------------------------------
-  Reference counting scrutinee of a match where we try to avoid
-  reference increments on fields of the match, and reuse memory in-place for
-  deallocated scrutinees.
---------------------------------------------------------------------------------------*/
-typedef struct orphan_s {
-  block_t _block;
-} *orphan_t;
-
-extern struct orphan_s _orphan_null;
-
-static inline decl_const orphan_t orphan_null(void) {
-  return &_orphan_null;
-}
-
-static inline orphan_t orphan_block(block_t* b) {
-  // set tag to zero, unique, with zero scan size (so decref is valid on it)
-  memset(&b->header, 0, sizeof(header_t));
-  return (orphan_t)b;
-}
-
-static inline orphan_t block_release0(block_t* b, context_t* ctx) {
-  if (block_is_unique(b)) {
-    return orphan_block(b);
-  }
-  else {
-    drop_block(b, ctx);
-    return orphan_null();
-  }
-}
-
-static inline orphan_t block_release1(block_t* b, box_t unused_field1, context_t* ctx) {
-  if (block_is_unique(b)) {
-    drop_boxed(unused_field1, ctx);
-    return orphan_block(b);
-  }
-  else {
-    drop_block(b, ctx);
-    return orphan_null();
-  }
-}
-
-static inline void block_no_reuse(orphan_t o) {
-  if (o != orphan_null()) {
-    runtime_free(o);
-  };
-}
-
-static inline block_t* block_alloc_reuse(orphan_t o, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
-  // TODO: check usable size p >= size
-  block_t* b;
-  if (o != orphan_null()) {
-    assert_internal(block_is_unique(&o->_block));
-    b = &o->_block;
-  }
-  else {
-    b = (block_t*)runtime_malloc(size, ctx);
-  }
-  block_init(b, size, scan_fsize, tag);
-  return b;
-}
 
 /*--------------------------------------------------------------------------------------
   Value tags
 --------------------------------------------------------------------------------------*/
-
 
 // Tag for value types is always a boxed enum
 typedef box_t value_tag_t;
@@ -442,6 +454,7 @@ static inline value_tag_t value_tag(uint_t tag) {
   Functions
 --------------------------------------------------------------------------------------*/
 
+#define function_as(tp,fun)                     datatype_as_assert(tp,fun,TAG_FUNCTION)
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cptr(f->fun)))args
 #define define_static_function(name,cfun) \
@@ -450,6 +463,7 @@ static inline value_tag_t value_tag(uint_t tag) {
 
 
 extern function_t function_id;
+extern function_t function_null;
 
 static inline function_t unbox_function_t(box_t v) {
   return unbox_datatype_as_assert(function_t, v, TAG_FUNCTION);
@@ -463,12 +477,12 @@ static inline bool function_is_unique(function_t f) {
   return block_is_unique(&f->_block);
 }
 
-static inline void drop_function(function_t f, context_t* ctx) {
-  drop_block(&f->_block, ctx);
+static inline void drop_function_t(function_t f, context_t* ctx) {
+  drop_datatype_assert(f, TAG_FUNCTION, ctx);
 }
 
-static inline function_t dup_function(function_t f) {
-  return block_as(function_t,dup_block(&f->_block),TAG_FUNCTION);
+static inline function_t dup_function_t(function_t f) {
+  return dup_datatype_as_assert(function_t, f, TAG_FUNCTION);
 }
 
 
@@ -487,12 +501,12 @@ static inline ref_t ref_alloc(box_t value, context_t* ctx) {
 }
 
 static inline box_t ref_get(ref_t b) {
-  return dup_boxed(b->value);
+  return dup_box_t(b->value);
 }
 
 static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
   box_t b = r->value; 
-  drop_boxed(b, ctx);
+  drop_box_t(b, ctx);
   r->value = value;
   return Unit;
 }
@@ -502,6 +516,23 @@ static inline box_t ref_swap(ref_t r, box_t value) {
   r->value = value;
   return b;
 }
+
+static inline box_t box_ref_t(ref_t r, context_t* ctx) {
+  return box_datatype(r);
+}
+
+static inline ref_t unbox_ref_t(box_t b, context_t* ctx) {
+  return unbox_datatype_as_assert(ref_t, b, TAG_REF);
+}
+
+static inline void drop_ref_t(ref_t r, context_t* ctx) {
+  drop_datatype_assert(r, TAG_REF, ctx);
+}
+
+static inline ref_t dup_ref_t(ref_t r) {
+  return dup_datatype_as_assert(ref_t, r, TAG_REF);
+}
+
 
 decl_export void fatal_error(int err, const char* msg, ...);
 
@@ -528,11 +559,11 @@ static inline unit_t unbox_unit_t(box_t u) {
 --------------------------------------------------------------------------------------*/
 extern vector_t vector_empty;
 
-static inline void drop_vector(vector_t v, context_t* ctx) {
+static inline void drop_vector_t(vector_t v, context_t* ctx) {
   drop_datatype(v, ctx);
 }
 
-static inline vector_t dup_vector(vector_t v) {
+static inline vector_t dup_vector_t(vector_t v) {
   return dup_datatype_as(vector_t, v);
 }
 
@@ -550,10 +581,10 @@ typedef struct vector_large_s {
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   if (length==0) {
-    return dup_vector(vector_empty);
+    return dup_vector_t(vector_empty);
   }
   else if (length < SCAN_FSIZE_MAX) {
-    vector_small_t v = block_as(vector_small_t, block_alloc(sizeof(struct vector_small_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR_SMALL, ctx), TAG_VECTOR_SMALL);
+    vector_small_t v = block_as_assert(vector_small_t, block_alloc(sizeof(struct vector_small_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR_SMALL, ctx), TAG_VECTOR_SMALL);
     v->length = box_enum(length);
     if (def.box != box_null.box) {
       for (size_t i = 0; i < length; i++) {
@@ -576,26 +607,26 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
 
 static inline size_t vector_len(const vector_t v) {
   if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return unbox_enum(datatype_as(vector_small_t,v,TAG_VECTOR_SMALL)->length);
+    return unbox_enum(datatype_as_assert(vector_small_t,v,TAG_VECTOR_SMALL)->length);
   }
   else {
-    return unbox_enum(datatype_as(vector_large_t, v, TAG_VECTOR)->length);
+    return unbox_enum(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->length);
   }
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
   if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return &(datatype_as(vector_small_t, v, TAG_VECTOR_SMALL)->vec[0]);
+    return &(datatype_as_assert(vector_small_t, v, TAG_VECTOR_SMALL)->vec[0]);
   }
   else {
-    return &(datatype_as(vector_large_t, v, TAG_VECTOR)->vec[0]);
+    return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
   }
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
   assert(i < vector_len(v));
-  return dup_boxed(vector_buf(v,NULL)[i]);
+  return dup_box_t(vector_buf(v,NULL)[i]);
 }
 
 static inline box_t box_vector_t(vector_t v, context_t* ctx) {
