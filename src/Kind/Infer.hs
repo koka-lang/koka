@@ -815,7 +815,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   _ -- Value or Normal and not recursive
                     -> -- determine the raw fields and total size
                        do dd <- toDefValues (ddef/=DataDefNormal) nameDoc infos
-                          case (ddef,dd) of
+                          case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
                                   then return (DataDefValue m n)
@@ -848,6 +848,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            -- trace ("datadefs: " ++ show nameDoc ++ ": " ++ show ddefs ++ " to " ++ show dd) $
            return dd
 
+    -- note: (m = raw, n = scan)
     maxDataDefs :: Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
     maxDataDefs isVal nameDoc [] = return (if isVal then DataDefValue 1 0 else DataDefNormal)
     maxDataDefs isVal nameDoc [(m,n)] = return (DataDefValue m n)
@@ -858,12 +859,15 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
              ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
              ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
              ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
-             ((m1,n1), DataDefValue m2 n2)
-               -> do if (isVal)
-                      then addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which mix raw types and regular types." <->
-                                           text "hint: value types with multiple constructors must either use all raw types, or all regular types (use 'box' to use a raw type as a regular type).")
+             ((m1,n1), DataDefValue m2 n2) 
+               | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
+               | otherwise -> 
+                 do if (isVal)
+                      then addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
+                                           text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")
                       else return ()
-                     return (DataDefValue (max m1 m2) (max n1 n2))
+                    trace ("cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
+                     return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
              _ -> return DataDefNormal
 
     sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)

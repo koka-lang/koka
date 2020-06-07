@@ -40,7 +40,7 @@ type list<a> { Cons(x:a,tail:list<a>); Nil }
 type single-normal<a> { Single-normal( x:a, y:maybe<int>, z:pair<bool,int> ); Single-normal-extra() }
 
 // struct
-type strct<a> { Strct( x:a, i:int ); Strct2; Strct3 }
+type strct<a> { Strct( x:a, i:int ); Strct2(d:double,s:string); Strct3(i:int32) }
 
 // struct
 type maybe<a> { Just(x:a); Nothing }

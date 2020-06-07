@@ -393,6 +393,7 @@ genTypeDef (Data info isExtend)
        -- generate functions for constructors
        mapM_ (genConstructor info dataRepr) conInfos
        mapM_ (genConstructorTest info dataRepr) conInfos
+       genDupDrop name info dataRepr conInfos
 
        -- generate functions for the datatype (box/unbox)
        genBoxUnbox name info dataRepr
@@ -402,76 +403,6 @@ genTypeDef (Data info isExtend)
 
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
-
-
-
-genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
-genBoxUnbox name info dataRepr
-  = do let tname = typeClassName name
-       genBox tname info dataRepr
-       genUnbox  tname info dataRepr
-       
-
-genBoxCall prim tp arg 
-  = text prim <.> text "_" <.> (
-    case cType tp of
-      CFun _ _   -> text "function_t" <.> parens arg
-      CPrim val  | val == "unit_t" || val == "integer_t" || val == "bool" || val == "string_t"
-                 -> text val <.> parens arg  -- no context
-      --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
-      --           -> text val <.> arguments [arg]
-      CData name -> ppName name <.> arguments [arg]
-      _          -> ppType tp <.> arguments [arg]
-    )
-
-
-genDupDropCall prim tp args
-  = text prim <.> text "_" <.> (
-    case cType tp of
-      CFun _ _   -> text "function_t" <.> args
-      CBox       -> text "box_t" <.> args
-      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t"
-                  -> text val <.> args
-                  | otherwise
-                  -> text "value" <.> args
-      CData name -> ppName name <.> args
-    )
-genDupCall tp arg = genDupDropCall "dup" tp (parens arg)
-genDropCall tp arg = genDupDropCall "drop" tp (arguments [arg])
-
-
-genBox name info dataRepr
-  = emitToH $
-    text "static inline box_t box_" <.> ppName name <.> parameters [ppName name <+> text "x"] <+> block (
-      case dataRepr of
-        DataEnum -> text "return" <+> text "box_enum" <.> tupled [text "x"] <.> semi
-        DataIso  -> let conInfo = head (dataInfoConstrs info)
-                        (isoName,isoTp)   = (head (conInfoParams conInfo))
-                    in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
-        _ -> case dataInfoDef info of
-               DataDefValue raw scancount
-                  -> let extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                     in vcat [ text "box_t _box;" 
-                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", pretty (scancount + extra) <+> text "/* scan fields */"] <.> semi
-                             , text "return _box;" ]
-               _  -> text "return" <+> text "box_datatype" <.> tupled [text "x"] <.> semi 
-    )
-
-genUnbox name info dataRepr
-  = emitToH $
-    text "static inline" <+> ppName name <+> text "unbox_" <.> ppName name <.> parameters [text "box_t x"] <+> block (
-      (case dataRepr of
-        DataEnum -> text "return" <+> parens (ppName name) <.> text "unbox_enum" <.> tupled [text "x"]
-        DataIso  -> let conInfo = head (dataInfoConstrs info)
-                        isoTp   = snd (head (conInfoParams conInfo))
-                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" isoTp (text "x")]
-        _ | dataReprIsValue dataRepr
-          -> vcat [ ppName name <+> text "_unbox;" 
-                  , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"] <.> semi
-                  , text "return _unbox;" ]
-             -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
-        _ -> text "return" <+> text "unbox_datatype_as" <.> tupled [ppName name, text "x"]
-    ) <.> semi)
 
 
 genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
@@ -586,7 +517,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                )
                                ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
-                     then text "return dup_constructor_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con), ppConTag con conRepr dataRepr <+> text "/* _tag */"] <.> semi
+                     then text "return dup_constructor_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
                                <+> text "block_alloc_as" 
                                        <.> arguments [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
@@ -613,6 +544,121 @@ genConstructorAccess info dataRepr con conRepr
                                (if (dataRepr == DataOpen) then text "TAG_OPEN" else pretty (conTag conRepr) <+> text "/* _tag */")] <.> semi]
                         )
 
+
+genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
+genBoxUnbox name info dataRepr
+  = do let tname = typeClassName name
+       genBox tname info dataRepr
+       genUnbox  tname info dataRepr
+       
+
+genBoxCall prim tp arg 
+  = text prim <.> text "_" <.> (
+    case cType tp of
+      CFun _ _   -> text "function_t" <.> parens arg
+      CPrim val  | val == "unit_t" || val == "integer_t" || val == "bool" || val == "string_t"
+                 -> text val <.> parens arg  -- no context
+      --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
+      --           -> text val <.> arguments [arg]
+      CData name -> ppName name <.> arguments [arg]
+      _          -> ppType tp <.> arguments [arg]
+    )
+
+
+genBox name info dataRepr
+  = emitToH $
+    text "static inline box_t box_" <.> ppName name <.> parameters [ppName name <+> text "x"] <+> block (
+      case dataRepr of
+        DataEnum -> text "return" <+> text "box_enum" <.> tupled [text "x"] <.> semi
+        DataIso  -> let conInfo = head (dataInfoConstrs info)
+                        (isoName,isoTp)   = (head (conInfoParams conInfo))
+                    in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
+        _ -> case dataInfoDef info of
+               DataDefValue raw scancount
+                  -> let extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                     in vcat [ text "box_t _box;" 
+                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", pretty (scancount + extra) <+> text "/* scan fields */"] <.> semi
+                             , text "return _box;" ]
+               _  -> text "return" <+> text "box_datatype" <.> tupled [text "x"] <.> semi 
+    )
+
+genUnbox name info dataRepr
+  = emitToH $
+    text "static inline" <+> ppName name <+> text "unbox_" <.> ppName name <.> parameters [text "box_t x"] <+> block (
+      (case dataRepr of
+        DataEnum -> text "return" <+> parens (ppName name) <.> text "unbox_enum" <.> tupled [text "x"]
+        DataIso  -> let conInfo = head (dataInfoConstrs info)
+                        isoTp   = snd (head (conInfoParams conInfo))
+                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" isoTp (text "x")]
+        _ | dataReprIsValue dataRepr
+          -> vcat [ ppName name <+> text "_unbox;" 
+                  , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"] <.> semi
+                  , text "return _unbox;" ]
+             -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
+        _ -> text "return" <+> text "unbox_datatype_as" <.> tupled [ppName name, text "x"]
+    ) <.> semi)
+
+
+genDupDrop :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
+genDupDrop name info dataRepr conInfos 
+  = do genDupDropX True name info dataRepr conInfos
+       genDupDropX False name info dataRepr conInfos
+
+genDupDropX :: Bool -> Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
+genDupDropX isDup name info dataRepr conInfos
+  = emitToH $
+     text "static inline" <+> (if isDup then ppName name <+> text "dup_" else text "void drop_") 
+     <.> ppName name <.> tupled ([ppName name <+> text "_x"] ++ (if isDup then [] else [text "context_t* _ctx"]))
+     <+> block (vcat (dupDropTests))
+  where
+    ret = (if isDup then [text "return _x;"] else [])          
+    dupDropTests
+      | dataRepr == DataEnum   = ret
+      | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
+      | dataRepr <= DataStruct = map (genDupDropTests isDup (length conInfos)) (zip conInfos [1..]) ++ ret
+      | otherwise = if (isDup) then [text "return dup_datatype_as" <.> tupled [ppName name, text "_x"] <.> semi]
+                               else [text "drop_datatype" <.> arguments [text "_x"] <.> semi]
+
+genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
+genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount) 
+  = hcat $ map (<.>semi) (genDupDropCall isDup tp (text "_x." <.> ppName name))
+  
+genDupDropTests :: Bool -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
+genDupDropTests isDup lastIdx ((con,conRepr,conFields,scanCount),idx) 
+  = let stats = genDupDropFields isDup con conFields 
+    in if (lastIdx == idx) 
+        then (if null stats 
+               then empty
+              else if (lastIdx == 1)
+               then vcat stats
+               else text "else" <+> block (vcat stats))
+        else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"])) 
+             <+> (if null stats then text "{ }" else block (vcat stats))
+
+genDupDropFields :: Bool -> ConInfo -> [(Name,Type)] -> [Doc]
+genDupDropFields isDup con conFields
+  = map (\doc -> doc <.> semi) $ concat $
+    [genDupDropCall isDup tp (text "_x._cons." <.> ppDefName (conInfoName con) <.> dot <.> ppName name) | (name,tp) <- conFields]
+                        
+genDupDropCallX prim tp args
+  =  (
+    case cType tp of
+      CFun _ _   -> [text (pre "function_t") <.> args]
+      CBox       -> [text (pre "box_t") <.> args]
+      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t"
+                  -> [text (pre val) <.> args]
+                  | otherwise
+                  -> []-- text "value" <.> args
+      CData name -> [text (pre "") <.> ppName name <.> args]
+    )
+  where
+    pre s = prim ++ "_" ++ s
+    
+genDupCall tp arg  = hcat $ genDupDropCall True tp arg
+genDropCall tp arg = hcat $ genDupDropCall False tp arg
+
+genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens arg) 
+                                         else genDupDropCallX "drop" tp (arguments [arg])
 
 
 
@@ -839,7 +885,7 @@ cTypeCon c
          then CPrim "uint8_t"
         else if (name == nameTpFloat32)
          then CPrim "float"
-        else if (name == nameTpRef)
+        else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "ref_t"
         else CData (typeClassName name)
 

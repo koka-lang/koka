@@ -92,7 +92,7 @@ data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
 
 instance Show DataDef where
   show dd = case dd of
-              DataDefValue m n -> "val" ++ show (m,n)
+              DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
               DataDefNormal    -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
