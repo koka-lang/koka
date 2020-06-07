@@ -393,7 +393,7 @@ genTypeDef (Data info isExtend)
        -- generate functions for constructors
        mapM_ (genConstructor info dataRepr) conInfos
        mapM_ (genConstructorTest info dataRepr) conInfos
-       genDupDrop name info dataRepr conInfos
+       genDupDrop (typeClassName name) info dataRepr conInfos
 
        -- generate functions for the datatype (box/unbox)
        genBoxUnbox name info dataRepr
@@ -615,7 +615,7 @@ genDupDropX isDup name info dataRepr conInfos
     dupDropTests
       | dataRepr == DataEnum   = ret
       | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
-      | dataRepr <= DataStruct = map (genDupDropTests isDup (length conInfos)) (zip conInfos [1..]) ++ ret
+      | dataRepr <= DataStruct = map (genDupDropTests isDup dataRepr (length conInfos)) (zip conInfos [1..]) ++ ret
       | otherwise = if (isDup) then [text "return dup_datatype_as" <.> tupled [ppName name, text "_x"] <.> semi]
                                else [text "drop_datatype" <.> arguments [text "_x"] <.> semi]
 
@@ -623,9 +623,9 @@ genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
 genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount) 
   = hcat $ map (<.>semi) (genDupDropCall isDup tp (text "_x." <.> ppName name))
   
-genDupDropTests :: Bool -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
-genDupDropTests isDup lastIdx ((con,conRepr,conFields,scanCount),idx) 
-  = let stats = genDupDropFields isDup con conFields 
+genDupDropTests :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
+genDupDropTests isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx) 
+  = let stats = genDupDropFields isDup dataRepr con conFields 
     in if (lastIdx == idx) 
         then (if null stats 
                then empty
@@ -635,10 +635,12 @@ genDupDropTests isDup lastIdx ((con,conRepr,conFields,scanCount),idx)
         else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"])) 
              <+> (if null stats then text "{ }" else block (vcat stats))
 
-genDupDropFields :: Bool -> ConInfo -> [(Name,Type)] -> [Doc]
-genDupDropFields isDup con conFields
+genDupDropFields :: Bool -> DataRepr -> ConInfo -> [(Name,Type)] -> [Doc]
+genDupDropFields isDup dataRepr con conFields
   = map (\doc -> doc <.> semi) $ concat $
-    [genDupDropCall isDup tp (text "_x._cons." <.> ppDefName (conInfoName con) <.> dot <.> ppName name) | (name,tp) <- conFields]
+    [genDupDropCall isDup tp 
+      ((if (hasTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x") 
+       <.> dot <.> ppName name) | (name,tp) <- conFields]
                         
 genDupDropCallX prim tp args
   =  (
