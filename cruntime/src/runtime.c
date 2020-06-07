@@ -14,15 +14,15 @@ ptr_t ptr_null = (ptr_t)(&ptr_null_block);
 
 // identity function
 static box_t _function_id(function_t self, box_t x, context_t* ctx) {
-  function_drop(self,ctx);
+  drop_function(self,ctx);
   return x;
 }
 define_static_function(function_id, _function_id)
 
 // empty vector
-static struct vector_s _vector_empty
-   = { { HEADER_STATIC(0,TAG_VECTOR) }, { 0x02 } /* length = box_enum(0) */, {{0}} };
-vector_t vector_empty = &_vector_empty;
+static struct vector_small_s _vector_empty
+   = { { HEADER_STATIC(0,TAG_VECTOR_SMALL) }, 0x02 /* length = box_enum(0) */, {{0}} };
+vector_t vector_empty = &_vector_empty._inherit;
 
 // null function
 void free_fun_null(void* p) {
@@ -116,7 +116,7 @@ context_t* runtime_context(void) {
   if (ctx!=NULL) return ctx;
   runtime_init();
   ctx = (context_t*)calloc(sizeof(context_t),1);
-  ctx->evv = vector_dup(vector_empty);
+  ctx->evv = dup_vector(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
   return ctx;

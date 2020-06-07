@@ -47,6 +47,7 @@ typedef enum tag_e {
   TAG_STRING_SMALL,// UTF8 encoded string of at most 7 bytes.
   TAG_STRING,      // UTF8 encoded string: valid (modified) UTF8 ending with a zero byte.
   TAG_BYTES,       // a vector of bytes
+  TAG_VECTOR_SMALL,// a vector of (boxed) values of at most (SCAN_FSIZE_MAX-1) length
   TAG_VECTOR,      // a vector of (boxed) values
   TAG_INT64,       // boxed int64_t
 #if INTPTR_SIZE < 8
@@ -154,10 +155,9 @@ typedef struct function_s {
 
 // A vector is an array of boxed values.
 typedef struct vector_s {
-  block_t  _block;
-  box_t    length;
-  box_t    vec[1];            // vec[length+1] with box_null as sentinel
+  block_t _block;
 } *vector_t;
+
 
 #define YIELD_CONT_MAX (8)
 
@@ -290,19 +290,21 @@ static inline void* _block_as_assert(block_t* b, tag_t tag) {
 --------------------------------------------------------------------------------------*/
 
 decl_export void     block_check_free(block_t* b, context_t* ctx);
-decl_export block_t* block_check_dup(block_t* b);
+decl_export block_t* dup_block_check(block_t* b);
 
-static inline block_t* block_dup(block_t* b) {
+static inline block_t* dup_block(block_t* b) {
   uint32_t rc = b->header.refcount;
-  if (unlikely((int32_t)rc < 0)) return block_check_dup(b);  // thread-shared or sticky
+  if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
+    return dup_block_check(b);      // thread-shared or sticky (overflow) ?
+  }
   b->header.refcount = rc+1;
   return b;
 }
 
-static inline void block_drop(block_t* b, context_t* ctx) {
+static inline void drop_block(block_t* b, context_t* ctx) {
   uint32_t rc = b->header.refcount;
-  if ((int32_t)rc <= 0) {
-    block_check_free(b, ctx);     // thread-shared, sticky, or can be freed? // note: assume two's complement
+  if ((int32_t)rc <= 0) {         // note: assume two's complement
+    block_check_free(b, ctx);     // thread-shared, sticky (overflowed), or can be freed? 
   }
   else {
     b->header.refcount = rc-1;
@@ -311,12 +313,12 @@ static inline void block_drop(block_t* b, context_t* ctx) {
 
 #define datatype_as(tp,v,tag)             (block_as(tp,&(v)->_block,tag))
 #define datatype_tag(v)                   (block_tag(&(v)->_block))
-#define datatype_drop(v,ctx)              (block_drop(&(v)->_block,ctx))
-#define datatype_dup_as(tp,v)             ((tp)block_dup(&(v)->_block))
+#define drop_datatype(v,ctx)              (drop_block(&(v)->_block,ctx))
+#define dup_datatype_as(tp,v)             ((tp)dup_block(&(v)->_block))
 
 #define constructor_tag(v)                (datatype_tag(&(v)->_inherit))
-#define constructor_drop(v,ctx)           (datatype_drop(&(v)->_inherit,ctx))
-#define constructor_dup_as(tp,v)          (datatype_dup_as(tp, &(v)->_inherit))
+#define drop_constructor(v,ctx)           (drop_datatype(&(v)->_inherit,ctx))
+#define dup_constructor_as(tp,v)          (dup_datatype_as(tp, &(v)->_inherit))
 
 
 /*----------------------------------------------------------------------
@@ -352,7 +354,7 @@ typedef struct cptr_raw_s {
 // Get a thread local unique number.
 static inline integer_t gen_unique(context_t* ctx) {
   integer_t u = ctx->unique;
-  ctx->unique = integer_inc(integer_dup(u),ctx);
+  ctx->unique = integer_inc(dup_integer(u),ctx);
   return u;
 }
 
@@ -383,18 +385,18 @@ static inline orphan_t block_release0(block_t* b, context_t* ctx) {
     return orphan_block(b);
   }
   else {
-    block_drop(b, ctx);
+    drop_block(b, ctx);
     return orphan_null();
   }
 }
 
 static inline orphan_t block_release1(block_t* b, box_t unused_field1, context_t* ctx) {
   if (block_is_unique(b)) {
-    boxed_drop(unused_field1, ctx);
+    drop_boxed(unused_field1, ctx);
     return orphan_block(b);
   }
   else {
-    block_drop(b, ctx);
+    drop_block(b, ctx);
     return orphan_null();
   }
 }
@@ -461,12 +463,12 @@ static inline bool function_is_unique(function_t f) {
   return block_is_unique(&f->_block);
 }
 
-static inline void function_drop(function_t f, context_t* ctx) {
-  block_drop(&f->_block, ctx);
+static inline void drop_function(function_t f, context_t* ctx) {
+  drop_block(&f->_block, ctx);
 }
 
-static inline function_t function_dup(function_t f) {
-  return block_as(function_t,block_dup(&f->_block),TAG_FUNCTION);
+static inline function_t dup_function(function_t f) {
+  return block_as(function_t,dup_block(&f->_block),TAG_FUNCTION);
 }
 
 
@@ -485,12 +487,12 @@ static inline ref_t ref_alloc(box_t value, context_t* ctx) {
 }
 
 static inline box_t ref_get(ref_t b) {
-  return boxed_dup(b->value);
+  return dup_boxed(b->value);
 }
 
 static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
   box_t b = r->value; 
-  boxed_drop(b, ctx);
+  drop_boxed(b, ctx);
   r->value = value;
   return Unit;
 }
@@ -524,52 +526,88 @@ static inline unit_t unbox_unit_t(box_t u) {
 /*--------------------------------------------------------------------------------------
   Vector
 --------------------------------------------------------------------------------------*/
+extern vector_t vector_empty;
+
+static inline void drop_vector(vector_t v, context_t* ctx) {
+  drop_datatype(v, ctx);
+}
+
+static inline vector_t dup_vector(vector_t v) {
+  return dup_datatype_as(vector_t, v);
+}
+
+typedef struct vector_small_s {
+  struct vector_s _inherit;
+  box_t    length;
+  box_t    vec[1];            // vec[length]
+} *vector_small_t;
+
+typedef struct vector_large_s {
+  struct block_large_s _block;
+  box_t    length;
+  box_t    vec[1];            // vec[length]
+} *vector_large_t;
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
-  vector_t v = block_as(vector_t, block_alloc(sizeof(struct vector_s) + length*sizeof(box_t) /* room for 1 sentinel value */, 1 + length, TAG_VECTOR, ctx), TAG_VECTOR);
-  v->length = box_enum(length);
-  if (def.box != box_null.box) {
-    for (size_t i = 0; i < length; i++) {
-      v->vec[i] = def;
-    }
-    v->vec[length] = box_from_uintptr(0); // ending zero value
+  if (length==0) {
+    return dup_vector(vector_empty);
   }
-  return v;
-}
-
-static inline void vector_drop(vector_t v, context_t* ctx) {
-  datatype_drop(v, ctx);
-}
-
-static inline vector_t vector_dup(vector_t v) {
-  return datatype_dup_as(vector_t,v);
+  else if (length < SCAN_FSIZE_MAX) {
+    vector_small_t v = block_as(vector_small_t, block_alloc(sizeof(struct vector_small_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR_SMALL, ctx), TAG_VECTOR_SMALL);
+    v->length = box_enum(length);
+    if (def.box != box_null.box) {
+      for (size_t i = 0; i < length; i++) {
+        v->vec[i] = def;
+      }
+    }
+    return &v->_inherit;
+  }
+  else {
+    vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR, ctx);
+    v->length = box_enum(length);
+    if (def.box != box_null.box) {
+      for (size_t i = 0; i < length; i++) {
+        v->vec[i] = def;
+      }
+    }
+    return (vector_t)(&v->_block._block);
+  }
 }
 
 static inline size_t vector_len(const vector_t v) {
-  return unbox_enum(v->length);
+  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
+    return unbox_enum(datatype_as(vector_small_t,v,TAG_VECTOR_SMALL)->length);
+  }
+  else {
+    return unbox_enum(datatype_as(vector_large_t, v, TAG_VECTOR)->length);
+  }
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
-  return &v->vec[0];
+  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
+    return &(datatype_as(vector_small_t, v, TAG_VECTOR_SMALL)->vec[0]);
+  }
+  else {
+    return &(datatype_as(vector_large_t, v, TAG_VECTOR)->vec[0]);
+  }
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
-  assert(i < unbox_enum(v->length));
-  return boxed_dup(v->vec[i]);
+  assert(i < vector_len(v));
+  return dup_boxed(vector_buf(v,NULL)[i]);
 }
-
-
-extern vector_t vector_empty;
 
 static inline box_t box_vector_t(vector_t v, context_t* ctx) {
   UNUSED(ctx);
-  return box_datatype_as(vector_t,v,TAG_VECTOR);
+  box_ptr(&v->_block);
 }
 
-static inline vector_t unbox_vector_t(box_t b, context_t* ctx) {
+static inline vector_t unbox_vector_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
-  return unbox_datatype_as(vector_t, b, TAG_VECTOR);
+  block_t* b = unbox_ptr(v);
+  assert_internal(block_tag(b) == TAG_VECTOR_SMALL || block_tag(b) == TAG_VECTOR);
+  return (vector_t)b;
 }
 
 /*--------------------------------------------------------------------------------------

@@ -68,9 +68,9 @@ static inline integer_t integer_from_small(intptr_t i) {   // use for known smal
 static inline box_t     box_integer_t(integer_t i) { return i; }
 static inline integer_t unbox_integer_t(box_t b)   { return b; }
 
-static inline void      integer_incref(integer_t x) { boxed_dup(x); }
-static inline integer_t integer_dup(integer_t x)    { return boxed_dup(x); }
-static inline void      integer_decref(integer_t x, context_t* ctx) { boxed_drop(x, ctx); }
+static inline void      integer_incref(integer_t x) { dup_boxed(x); }
+static inline integer_t dup_integer(integer_t x)    { return dup_boxed(x); }
+static inline void      integer_decref(integer_t x, context_t* ctx) { drop_boxed(x, ctx); }
 
 decl_export integer_t  integer_parse(const char* num, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number

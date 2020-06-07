@@ -233,7 +233,7 @@ static inline double unbox_double(box_t b, context_t* ctx) {
   assert_internal(is_double(b));
   boxed_double_t dt = block_as(boxed_double_t,unbox_ptr(b),TAG_DOUBLE);
   double d = dt->value;
-  datatype_drop(dt,ctx);
+  drop_datatype(dt,ctx);
   return d;
 }
 
@@ -258,7 +258,7 @@ static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
     assert_internal(is_ptr(v) && block_tag(unbox_ptr(v)) == TAG_INT32);
     boxed_int32_t bi = block_as(boxed_int32_t, unbox_ptr(v), TAG_INT32);
     int32_t i = bi->value;
-    block_drop(&bi->_block,ctx);
+    drop_block(&bi->_block,ctx);
     return i;
   }
 }
@@ -373,7 +373,7 @@ typedef struct boxed_value_s {
   do { \
     block_t* p = unbox_block_as(boxed_value_t,box,TAG_BOX); \
     x = *((tp*)(&p->data[0])); \
-    block_drop(p,ctx); \
+    drop_block(p,ctx); \
   }while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
@@ -418,13 +418,13 @@ static inline void* unbox_cptr(box_t b) {
   }
 }
 
-static inline box_t boxed_dup(box_t b) {
-  if (is_ptr(b)) block_dup(unbox_ptr(b));
+static inline box_t dup_boxed(box_t b) {
+  if (is_ptr(b)) dup_block(unbox_ptr(b));
   return b;
 }
 
-static inline void boxed_drop(box_t b, context_t* ctx) {
-  if (is_ptr(b)) block_drop(unbox_ptr(b), ctx);
+static inline void drop_boxed(box_t b, context_t* ctx) {
+  if (is_ptr(b)) drop_block(unbox_ptr(b), ctx);
 }
 
 

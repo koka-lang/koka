@@ -52,6 +52,8 @@ module Common.NamePrim
           , nameIntConst, nameInt32
           
           , nameTpBox, nameUnbox, nameBox
+          
+          , nameDup, nameDrop, nameDropPat, nameDropReusePat
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -344,6 +346,11 @@ nameTpVector    = coreTypesName "vector"
 nameTpBox       = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
+
+nameDup         = coreTypesName ".dup"
+nameDrop        = coreTypesName ".drop"
+nameDropPat     = coreTypesName ".drop-pat"
+nameDropReusePat= coreTypesName ".drop-reuse-pat"
 
 nameTuple :: Int -> Name
 nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")

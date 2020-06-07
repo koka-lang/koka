@@ -76,12 +76,12 @@ static inline box_t box_string_t(string_t s) {
   return box_ptr(&s->_block);
 }
 
-static inline void string_drop(string_t str, context_t* ctx) {
-  datatype_drop(str, ctx);
+static inline void drop_string(string_t str, context_t* ctx) {
+  drop_datatype(str, ctx);
 }
 
-static inline string_t string_dup(string_t str) {
-  return datatype_dup_as(string_t,str);
+static inline string_t dup_string(string_t str) {
+  return dup_datatype_as(string_t,str);
 }
 
 
@@ -115,12 +115,12 @@ static inline string_t string_alloc_buf(size_t len, context_t* ctx) {
   return string_alloc_len(len, NULL, ctx);
 }
 
-static inline string_t string_alloc_dup(const char* s, context_t* ctx) {
+static inline string_t dup_string_alloc(const char* s, context_t* ctx) {
   return (s==NULL ? string_alloc_len(0, "", ctx) : string_alloc_len(strlen(s), s, ctx));
 }
 
 static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free, context_t* ctx) {
-  if (s==NULL) return string_dup(string_empty);
+  if (s==NULL) return dup_string(string_empty);
   assert_internal(s[len]==0 && strlen(s)==len);
   struct string_raw_s* str = block_alloc_as(struct string_raw_s, 0, TAG_STRING_RAW, ctx);
   str->free = (free ? &runtime_free : NULL);
@@ -131,7 +131,7 @@ static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free
 }
 
 static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
-  if (s==NULL) return string_dup(string_empty);
+  if (s==NULL) return dup_string(string_empty);
   return string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
@@ -349,7 +349,7 @@ static inline void utf8_write(char_t c, uint8_t* s, size_t* count) {
 --------------------------------------------------------------------------------------------------*/
 static inline size_t decl_pure string_len(string_t str, context_t* ctx) {    // bytes in UTF8
   size_t len = string_len_borrow(str);
-  string_drop(str,ctx);
+  drop_string(str,ctx);
   return len;
 }
 

@@ -34,8 +34,8 @@ int string_cmp_borrow(string_t str1, string_t str2) {
 
 int string_cmp(string_t str1, string_t str2, context_t* ctx) {
   int ord = string_cmp_borrow(str1,str2);
-  string_drop(str1,ctx);
-  string_drop(str2,ctx);
+  drop_string(str1,ctx);
+  drop_string(str2,ctx);
   return ord;
 }
 
@@ -47,8 +47,8 @@ int string_icmp_borrow(string_t str1, string_t str2) {
 
 int string_icmp(string_t str1, string_t str2, context_t* ctx) {
   int ord = string_icmp_borrow(str1, str2);
-  string_drop(str1, ctx);
-  string_drop(str2, ctx);
+  drop_string(str1, ctx);
+  drop_string(str2, ctx);
   return ord;
 }
 
@@ -98,7 +98,7 @@ string_t string_from_char(char_t c, context_t* ctx) {
   size_t count;
   utf8_write(c, buf, &count);
   if (count < 16) buf[count] = 0; else buf[0] = 0;
-  return string_alloc_dup((const char*)buf, ctx);
+  return dup_string_alloc((const char*)buf, ctx);
 }
 
 string_t string_from_chars(vector_t v, context_t* ctx) {
@@ -116,12 +116,12 @@ string_t string_from_chars(vector_t v, context_t* ctx) {
     p += count;
   }
   assert_internal(string_buf_borrow(s) + n == p);
-  vector_drop(v,ctx);
+  drop_vector(v,ctx);
   return s;
 }
 
 vector_t string_to_chars(string_t s, context_t* ctx) {
-  size_t n = string_count(string_dup(s));
+  size_t n = string_count(dup_string(s));
   vector_t v = vector_alloc(n, box_null, ctx);
   box_t* cs = vector_buf(v, NULL);
   const uint8_t* p = string_buf_borrow(s);
@@ -131,7 +131,7 @@ vector_t string_to_chars(string_t s, context_t* ctx) {
     p += count;
   }
   assert_internal(p == string_buf_borrow(s) + string_len_borrow(s));
-  string_drop(s,ctx);
+  drop_string(s,ctx);
   return v;
 }
 
@@ -143,8 +143,8 @@ string_t string_cat(string_t s1, string_t s2, context_t* ctx) {
   memcpy(p, string_buf_borrow(s1), len1);
   memcpy(p+len1, string_buf_borrow(s2), len2);
   assert_internal(p[len1+len2] == 0);
-  string_drop(s1, ctx);
-  string_drop(s2, ctx);
+  drop_string(s1, ctx);
+  drop_string(s2, ctx);
   return t;
 }
 
@@ -169,7 +169,7 @@ vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx
   }
   else {
     // split into characters
-    count = string_count(string_dup(s)); 
+    count = string_count(dup_string(s)); 
     if (count > n) count = n;
   }
   assert_internal(n > 0);
@@ -189,16 +189,16 @@ vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx
     ss[i] = box_string_t(string_alloc_len(len, p, ctx));
     p = r;  // advance
   }
-  ss[n-1] = box_string_t(string_alloc_dup(p, ctx));  // todo: share string if p == s ?
-  string_drop(s,ctx);
-  string_drop(sep, ctx);
+  ss[n-1] = box_string_t(dup_string_alloc(p, ctx));  // todo: share string if p == s ?
+  drop_string(s,ctx);
+  drop_string(sep, ctx);
   return v;
 }
 
 string_t string_repeat(string_t str, size_t n, context_t* ctx) {
   const char* s = string_cbuf_borrow(str);
   size_t len = strlen(s);
-  if (len == 0) return string_dup(string_empty);
+  if (len == 0) return dup_string(string_empty);
   string_t tstr = string_alloc_len(len*n, NULL, ctx); // TODO: check overflow
   char* t = (char*)string_cbuf_borrow(tstr);
   for (size_t i = 0; i < n; i++) {
@@ -206,7 +206,7 @@ string_t string_repeat(string_t str, size_t n, context_t* ctx) {
     t += len;
   }
   assert_internal(*t == 0);
-  string_drop(str,ctx);
+  drop_string(str,ctx);
   return tstr;
 }
 
@@ -217,27 +217,27 @@ string_t string_repeat(string_t str, size_t n, context_t* ctx) {
 unit_t println(string_t s, context_t* ctx) {
   // TODO: set locale to UTF8?
   puts(string_cbuf_borrow(s));
-  string_drop(s,ctx);
+  drop_string(s,ctx);
   return Unit;
 }
 
 unit_t print(string_t s, context_t* ctx) {
   // TODO: set locale to UTF8?
   fputs(string_cbuf_borrow(s), stdout);
-  string_drop(s,ctx);
+  drop_string(s,ctx);
   return Unit;
 }
 
 unit_t trace(string_t s, context_t* ctx) {
   fputs(string_cbuf_borrow(s), stderr);
   fputs("\n", stderr);
-  string_drop(s, ctx);
+  drop_string(s, ctx);
   return Unit;
 }
 
 unit_t trace_any(string_t s, box_t x, context_t* ctx) {
   fprintf(stderr, "%s: ", string_cbuf_borrow(s));
-  string_drop(s, ctx);
+  drop_string(s, ctx);
   trace(show_any(x,ctx),ctx);
   return Unit;
 }
@@ -248,7 +248,7 @@ string_t double_show_fixed(double d, int32_t prec, context_t* ctx) {
   UNUSED(prec);
   char buf[32];
   snprintf(buf, 32, "%f", d);
-  return string_alloc_dup(buf, ctx);
+  return dup_string_alloc(buf, ctx);
 }
 
 string_t double_show_exp(double d, int32_t prec, context_t* ctx) {
@@ -256,7 +256,7 @@ string_t double_show_exp(double d, int32_t prec, context_t* ctx) {
   UNUSED(prec);
   char buf[32];
   snprintf(buf, 32, "%e", d);
-  return string_alloc_dup(buf, ctx);
+  return dup_string_alloc(buf, ctx);
 }
 
 string_t double_show(double d, int32_t prec, context_t* ctx) {
@@ -264,7 +264,7 @@ string_t double_show(double d, int32_t prec, context_t* ctx) {
   UNUSED(prec);
   char buf[32];
   snprintf(buf, 32, "%g", d);
-  return string_alloc_dup(buf, ctx);
+  return dup_string_alloc(buf, ctx);
 }
 
 
@@ -276,17 +276,17 @@ string_t show_any(box_t b, context_t* ctx) {
   }
   else if (is_enum(b)) {
     snprintf(buf, 128, "enum(%zu)", unbox_enum(b));
-    return string_alloc_dup(buf, ctx);
+    return dup_string_alloc(buf, ctx);
   }
   else if (is_int(b)) {
     snprintf(buf, 128, "int(%zi)", unbox_int(b));
-    return string_alloc_dup(buf, ctx);
+    return dup_string_alloc(buf, ctx);
   }
   else if (b.box == box_null.box) {
-    return string_alloc_dup("null", ctx);
+    return dup_string_alloc("null", ctx);
   }
   else if (b.box == 0) {
-    return string_alloc_dup("ptr(NULL)", ctx);
+    return dup_string_alloc("ptr(NULL)", ctx);
   }
   else {
     block_t* p = unbox_ptr(b);
@@ -302,14 +302,14 @@ string_t show_any(box_t b, context_t* ctx) {
     else if (tag == TAG_FUNCTION) {
       function_t fun = block_as(function_t, p, TAG_FUNCTION);
       snprintf(buf, 128, "function(0x%zx)", (uintptr_t)unbox_cptr(fun->fun));
-      boxed_drop(b,ctx);
-      return string_alloc_dup(buf, ctx);
+      drop_boxed(b,ctx);
+      return dup_string_alloc(buf, ctx);
     }
     else {
       // TODO: handle all builtin tags 
       snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, block_refcount(p), block_scan_fsize(p));
-      boxed_drop(b, ctx);
-      return string_alloc_dup(buf, ctx);
+      drop_boxed(b, ctx);
+      return dup_string_alloc(buf, ctx);
     }
   }
 }

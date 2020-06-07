@@ -55,7 +55,7 @@
 #define noinline        __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
-//#pragma warning(disable:4214)  // using bit field types other than int
+#pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
 #define unlikely(x)     (x)
 #define likely(x)       (x)

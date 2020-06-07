@@ -91,6 +91,7 @@ import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
 import qualified Core.Pretty
 import Core.Parse(  parseCore )
+import Core.Parc( parcCore )
 
 import System.Directory ( doesFileExist )
 import Compiler.Package
@@ -1156,14 +1157,15 @@ codeGenJS term flags modules compileTarget outBase core
 codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 --codeGenC term flags modules compileTarget outBase core  | not (C `elem` targets flags)
 -- = return Nothing
-codeGenC sourceFile newtypes unique term flags modules compileTarget outBase core
+codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
  = do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir = dirname sourceFile
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (cdoc,hdoc) = cFromCore sourceDir newtypes unique mbEntry core
+      let (core,unique) = parcCore (prettyEnvFromFlags flags) unique0 core0
+          (cdoc,hdoc) = cFromCore sourceDir newtypes unique mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc

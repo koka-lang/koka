@@ -57,7 +57,7 @@ noinline void block_check_free(block_t* b, context_t* ctx) {
   }
 }
 
-noinline block_t* block_check_dup(block_t* b) {
+noinline block_t* dup_block_check(block_t* b) {
   assert_internal(b!=NULL);
   assert_internal(b->header.refcount >= RC_SHARED);
   const uint32_t rc = atomic_incr(b);

@@ -90,12 +90,12 @@ static bool bigint_is_unique_(bigint_t* x) {
   return block_is_unique(bigint_ptr_(x));
 }
 
-static bigint_t* bigint_dup(bigint_t* x) {
-  return datatype_dup_as(bigint_t*, x);
+static bigint_t* dup_bigint(bigint_t* x) {
+  return dup_datatype_as(bigint_t*, x);
 }
 
-static void bigint_drop(bigint_t* x, context_t* ctx) {
-  datatype_drop(x,ctx);
+static void drop_bigint(bigint_t* x, context_t* ctx) {
+  drop_datatype(x,ctx);
 }
 
 
@@ -184,7 +184,7 @@ static bigint_t* bigint_copy(bigint_t* x, size_t extra, context_t* ctx) {
   z->is_neg = x->is_neg;
   z = bigint_trim_to(z, x->count, false, ctx);
   memcpy(z->digits, x->digits, x->count * sizeof(digit_t) );
-  bigint_drop(x,ctx);
+  drop_bigint(x,ctx);
   return z;
 }
 
@@ -210,7 +210,7 @@ static integer_t integer_bigint(bigint_t* x, context_t* ctx) {
     // make it a small int
     intx_t i = x->digits[0];
     if (x->is_neg) i = -i;
-    bigint_drop(x,ctx);
+    drop_bigint(x,ctx);
     return integer_from_small(i);
   }
   else {
@@ -338,7 +338,7 @@ static string_t bigint_to_string(bigint_t* b, context_t* ctx) {
   size_t needed = bigint_to_buf_(b, NULL, 0);
   string_t s = string_alloc_buf(needed,ctx);
   bigint_to_buf_(b, (char*)string_cbuf_borrow(s), needed);
-  bigint_drop(b,ctx);
+  drop_bigint(b,ctx);
   return s;
 }
 
@@ -597,8 +597,8 @@ static bigint_t* bigint_add_abs(bigint_t* x, bigint_t* y, context_t* ctx) {   //
     z->digits[i++] = carry;
   }
   assert_internal(i == bigint_count_(z) || i+1 == bigint_count_(z));
-  if (z != x) bigint_drop(x,ctx);
-  bigint_drop(y,ctx);
+  if (z != x) drop_bigint(x,ctx);
+  drop_bigint(y,ctx);
   return bigint_trim_to(z, i, true /* allow realloc */, ctx);
 }
 
@@ -696,9 +696,9 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y, context_t* ctx) {  // 
     for (; i <= cx; i++) {
       z->digits[i] = x->digits[i];
     }
-    bigint_drop(x,ctx);
+    drop_bigint(x,ctx);
   }
-  bigint_drop(y,ctx);
+  drop_bigint(y,ctx);
   return bigint_trim(z,true,ctx);
 }
 
@@ -724,8 +724,8 @@ static bigint_t* bigint_mul(bigint_t* x, bigint_t* y, context_t* ctx) {
       z->digits[i+j+1] += (digit_t)carry;
     }
   }   
-  bigint_drop(x,ctx);
-  bigint_drop(y,ctx);  
+  drop_bigint(x,ctx);
+  drop_bigint(y,ctx);  
   return bigint_trim(z, true,ctx);
 }
 
@@ -749,13 +749,13 @@ static bigint_t* bigint_mul_small(bigint_t* x, intx_t y, context_t* ctx) {
     z->digits[i++] = carry % BASE;
     carry /= BASE;
   }
-  if (z != x) { bigint_drop(x,ctx); }
+  if (z != x) { drop_bigint(x,ctx); }
   if (is_neg && !bigint_is_neg_(z)) { z = bigint_neg(z,ctx); }
   return bigint_trim_to(z, i, true, ctx);
 }
 
 static bigint_t* bigint_sqr(bigint_t* x, context_t* ctx) {
-  bigint_dup(x);
+  dup_bigint(x);
   return bigint_mul(x, x, ctx);
 }
 
@@ -765,7 +765,7 @@ static bigint_t* bigint_shift_left(bigint_t* x, intx_t digits, context_t* ctx) {
   bigint_t* z = bigint_alloc_reuse_(x, x->count + digits, ctx);
   memmove(&z->digits[digits], &x->digits[0], sizeof(digit_t)*cx);
   memset(&z->digits[0], 0, sizeof(digit_t)*digits);
-  if (z != x) bigint_drop(x, ctx);
+  if (z != x) drop_bigint(x, ctx);
   return z;
 }
 
@@ -793,17 +793,17 @@ static bigint_t* bigint_mul_karatsuba(bigint_t* x, bigint_t* y, context_t* ctx) 
   if (n <= 25) return bigint_mul(x, y, ctx);
   n = ((n + 1) / 2);
 
-  bigint_t* b = bigint_slice(bigint_dup(x), n, x->count, ctx);
+  bigint_t* b = bigint_slice(dup_bigint(x), n, x->count, ctx);
   bigint_t* a = bigint_slice(x, 0, n, ctx);
-  bigint_t* d = bigint_slice(bigint_dup(y), n, y->count, ctx);
+  bigint_t* d = bigint_slice(dup_bigint(y), n, y->count, ctx);
   bigint_t* c = bigint_slice(y, 0, n, ctx);
 
-  bigint_t* ac = bigint_mul_karatsuba(bigint_dup(a), bigint_dup(c), ctx);
-  bigint_t* bd = bigint_mul_karatsuba(bigint_dup(b), bigint_dup(d), ctx);
+  bigint_t* ac = bigint_mul_karatsuba(dup_bigint(a), dup_bigint(c), ctx);
+  bigint_t* bd = bigint_mul_karatsuba(dup_bigint(b), dup_bigint(d), ctx);
   bigint_t* abcd = bigint_mul_karatsuba( bigint_add(a, b, b->is_neg, ctx), 
                                          bigint_add(c, d, d->is_neg, ctx), ctx);
-  bigint_t* p1 = bigint_shift_left(bigint_sub(bigint_sub(abcd, bigint_dup(ac), ac->is_neg, ctx), 
-                                              bigint_dup(bd), bd->is_neg, ctx), n, ctx);
+  bigint_t* p1 = bigint_shift_left(bigint_sub(bigint_sub(abcd, dup_bigint(ac), ac->is_neg, ctx), 
+                                              dup_bigint(bd), bd->is_neg, ctx), n, ctx);
   bigint_t* p2 = bigint_shift_left(bd, 2 * n, ctx);
   bigint_t* prod = bigint_add(bigint_add(ac, p1, p1->is_neg, ctx), p2, p2->is_neg, ctx);
   return bigint_trim(prod,true, ctx);
@@ -882,7 +882,7 @@ static bigint_t* bigint_div_mod_small(bigint_t* x, intx_t y, intx_t* pmod, conte
   if (pmod != NULL) {
     *pmod = (intx_t)mod;
   }
-  if (z != x) bigint_drop(x, ctx);
+  if (z != x) drop_bigint(x, ctx);
   return bigint_trim(z, true, ctx);
 }
   
@@ -945,12 +945,12 @@ static bigint_t* bigint_div_mod(bigint_t* x, bigint_t* y, bigint_t** pmod, conte
     }
     z->digits[shift] = (digit_t)qd;
   }
-  bigint_drop(div, ctx);
+  drop_bigint(div, ctx);
   if (pmod != NULL) {
     *pmod = bigint_div_mod_small(rem, lambda, NULL, ctx); // denormalize remainder
   }
   else {
-    bigint_drop(rem, ctx);
+    drop_bigint(rem, ctx);
   }
   return bigint_trim(z,true, ctx);
 }
@@ -1031,8 +1031,8 @@ int integer_cmp_generic(integer_t x, integer_t y, context_t* ctx) {
   bigint_t* bx = integer_to_bigint(x, ctx);
   bigint_t* by = integer_to_bigint(y, ctx);
   int sign = bigint_compare_(bx, by);
-  bigint_drop(bx, ctx);
-  bigint_drop(by, ctx);
+  drop_bigint(bx, ctx);
+  drop_bigint(by, ctx);
   return sign;
 }
 
@@ -1161,7 +1161,7 @@ decl_export string_t integer_to_hex_string(integer_t x, bool use_capitals, conte
 void integer_fprint(FILE* f, integer_t x, context_t* ctx) {
   string_t s = integer_to_string(x, ctx);
   fprintf(f, "%s", string_buf_borrow(s));
-  string_drop(s, ctx);  
+  drop_string(s, ctx);  
 }
 
 void integer_print(integer_t x, context_t* ctx) {
@@ -1189,7 +1189,7 @@ static intx_t bigint_ctz(bigint_t* x, context_t* ctx) {
   }
   assert_internal(x->digits[i]!=0);
   intx_t ctz = (int_ctz(x->digits[i]) + LOG_BASE*i);
-  bigint_drop(x, ctx);
+  drop_bigint(x, ctx);
   return ctz;
 }
 
@@ -1248,11 +1248,11 @@ integer_t integer_count_digits(integer_t x, context_t* ctx) {
 static intx_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
 
 integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (integer_is_zero(integer_dup(p),ctx)) {
+  if (integer_is_zero(dup_integer(p),ctx)) {
     integer_decref(p, ctx);
     return x;
   }
-  if (integer_is_zero(integer_dup(x),ctx)) {
+  if (integer_is_zero(dup_integer(x),ctx)) {
     integer_decref(p, ctx); // x is small
     return integer_zero;
   }  
@@ -1286,7 +1286,7 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
     memmove(&c->digits[large], &b->digits[0], bcount * sizeof(digit_t)); 
     memset(&c->digits[0], 0, large * sizeof(digit_t));
     assert_internal(c->count == ccount);
-    if (b != c) bigint_drop(b, ctx);
+    if (b != c) drop_bigint(b, ctx);
     b = c;
   }
   return integer_bigint(b, ctx);
@@ -1294,11 +1294,11 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
 
 
 integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
-  if (integer_is_zero(integer_dup(p),ctx)) {
+  if (integer_is_zero(dup_integer(p),ctx)) {
     integer_decref(p, ctx);
     return x;
   }
-  if (integer_is_zero(integer_dup(x),ctx)) {
+  if (integer_is_zero(dup_integer(x),ctx)) {
     integer_decref(p, ctx); // x is small
     return integer_zero;
   }
@@ -1325,7 +1325,7 @@ integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
   size_t bcount = b->count;
   if (large > 0) {
     if (large >= (intx_t)bcount) { 
-      bigint_drop(b, ctx);
+      drop_bigint(b, ctx);
       return integer_zero;
     }
     size_t ccount = bcount - large;
@@ -1336,7 +1336,7 @@ integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
     else {
       bigint_t* c = bigint_alloc(ccount, b->is_neg, ctx);
       memcpy(&c->digits[0], &b->digits[large], bcount * sizeof(digit_t));
-      bigint_drop(b, ctx);
+      drop_bigint(b, ctx);
       b = c;
     }    
   }
@@ -1351,7 +1351,7 @@ int32_t integer_clamp32_generic(integer_t x, context_t* ctx) {
   int32_t i = bx->digits[0];
   if (bx->count > 1) i += (int32_t)(bx->digits[1]*BASE);
   if (bx->is_neg) i = -i;
-  bigint_drop(bx,ctx);
+  drop_bigint(bx,ctx);
   return i;
 }
 
@@ -1361,7 +1361,7 @@ int64_t integer_clamp64_generic(integer_t x, context_t* ctx) {
   if (bx->count > 1) i += ((int64_t)bx->digits[1])*BASE;
   if (bx->count > 2) i += ((int64_t)bx->digits[2])*BASE*BASE;
   if (bx->is_neg) i = -i;
-  bigint_drop(bx, ctx);
+  drop_bigint(bx, ctx);
   return i;
 }
 
@@ -1374,7 +1374,7 @@ double integer_as_double_generic(integer_t x, context_t* ctx) {
     d = (d*base) + ((double)bx->digits[i-1]);
   }
   if (bx->is_neg) d = -d;
-  bigint_drop(bx, ctx);
+  drop_bigint(bx, ctx);
   return d;
 }
 

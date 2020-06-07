@@ -50,7 +50,7 @@ static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,
   UNUSED(msg);
   msecs_t start = _clock_start();
   for (size_t i = 0; i < loops; i++) {
-    fun(integer_dup(x),integer_dup(y));    
+    fun(dup_integer(x),dup_integer(y));    
   }
   msecs_t end = _clock_end(start);
   integer_decref(x,ctx);
@@ -278,12 +278,12 @@ void test_large(context_t* ctx) {
 
   // large multiply divide
   integer_t x = integer_from_str(hundredFactorial, ctx);
-  expect_eq(integer_div(integer_mul(integer_dup(x), integer_dup(x), ctx),integer_dup(x), ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer(x), dup_integer(x), ctx),dup_integer(x), ctx), x,ctx);
   x = integer_from_str(threeToTenThousand, ctx);
-  expect_eq(integer_div(integer_mul(integer_dup(x), integer_dup(x), ctx), integer_dup(x), ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer(x), dup_integer(x), ctx), dup_integer(x), ctx), x,ctx);
   integer_t y = integer_from_str(hundredFactorial, ctx);
   x = integer_from_str(threeToTenThousand, ctx);
-  expect_eq(integer_div(integer_mul(integer_dup(y), integer_dup(x), ctx), y, ctx), x,ctx);
+  expect_eq(integer_div(integer_mul(dup_integer(y), dup_integer(x), ctx), y, ctx), x,ctx);
 }
 
 void test_div(context_t* ctx) {

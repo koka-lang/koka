@@ -461,8 +461,8 @@ var hsModules = [
   "Core.FunLift",
   "Core.Inlines",
   "Core.Inline",
-  "Core.Box",
-
+  "Core.Parc",
+  
   "Type.Infer",
 
   "Backend.CSharp.FromCore",
