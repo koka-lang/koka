@@ -22,7 +22,7 @@ define_static_function(function_id, _function_id)
 // empty vector
 static struct vector_small_s _vector_empty
    = { { HEADER_STATIC(0,TAG_VECTOR_SMALL) }, 0x02 /* length = box_enum(0) */, {{0}} };
-vector_t vector_empty = &_vector_empty._inherit;
+vector_t vector_empty = &_vector_empty._type;
 
 // null function
 void free_fun_null(void* p) {

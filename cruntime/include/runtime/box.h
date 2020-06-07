@@ -356,11 +356,12 @@ static inline box_t box_ptr_assert(block_t* b, tag_t tag) {
   return box_ptr(b);
 }
 
-#define unbox_datatype_as(tp,b,tag)      (block_as(tp,unbox_ptr(b),tag))
-#define box_datatype_as(tp,b,tag)        (box_ptr_assert(&(b)->_block,tag))
+#define unbox_datatype_as_assert(tp,b,tag)  (block_as(tp,unbox_ptr(b),tag))
+#define unbox_datatype_as(tp,b)             ((tp)unbox_ptr(b))
+#define box_datatype(b)                     (box_ptr(&(b)->_block))
 
-#define unbox_constructor_as(tp,b,tag)   (unbox_datatype_as(tp,&(b)->_inherit,tag))
-#define box_constructor_as(tp,b,tag)     (box_datatype_as(tp,&(b)->_inherit,tag))
+#define unbox_constructor_as(tp,b,tag)   (unbox_datatype_as_assert(tp,b,tag))
+#define box_constructor(b)               (box_datatype(&(b)->_type))
 
 /* Generic boxing of value types */
 
@@ -371,16 +372,16 @@ typedef struct boxed_value_s {
 
 #define unbox_valuetype(tp,x,box,ctx) \
   do { \
-    block_t* p = unbox_block_as(boxed_value_t,box,TAG_BOX); \
+    boxed_value_t p = unbox_datatype_as_assert(boxed_value_t,box,TAG_BOX); \
     x = *((tp*)(&p->data[0])); \
-    drop_block(p,ctx); \
+    drop_datatype(p,ctx); \
   }while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
   do{ \
-     block_t* p = block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx); \
+     boxed_value_t p = block_as(boxed_value_t, block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx), TAG_BOX); \
      *((tp*)(&p->data[0])) = val;  \
-     x = box_ptr(p); \
+     x = box_datatype(p); \
   }while(0);
 
 
@@ -394,7 +395,7 @@ static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
 }
 
 static inline void* unbox_cptr_raw(box_t b) {
-  cptr_raw_t raw = unbox_datatype_as( cptr_raw_t, b, TAG_CPTR_RAW);
+  cptr_raw_t raw = unbox_datatype_as_assert( cptr_raw_t, b, TAG_CPTR_RAW );
   return raw->cptr;
 }
 

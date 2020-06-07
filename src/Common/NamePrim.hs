@@ -38,7 +38,7 @@ module Common.NamePrim
           -- Effects
           , nameTpHTag, nameHTag
           , nameTpClause, namePerform
-          , nameEvvAt, nameEvvLookup, nameEvvIndex
+          , nameTpEvv, nameEvvAt, nameEvvLookup, nameEvvIndex
           , nameOpenAt, nameOpen, nameOpenNone
           , nameTpEv, nameHandle, nameNamedHandle
           , nameClause
@@ -237,6 +237,7 @@ nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 nameTpHTag      = coreHndName "htag"
 nameTpClause i  = coreHndName ("clause" ++ show i)
 nameTpEv        = coreHndName "ev"
+nameTpEvv       = coreHndName "evv"
 nameTpEvIndex   = coreHndName "ev-index"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
 

@@ -316,9 +316,9 @@ static inline void drop_block(block_t* b, context_t* ctx) {
 #define drop_datatype(v,ctx)              (drop_block(&(v)->_block,ctx))
 #define dup_datatype_as(tp,v)             ((tp)dup_block(&(v)->_block))
 
-#define constructor_tag(v)                (datatype_tag(&(v)->_inherit))
-#define drop_constructor(v,ctx)           (drop_datatype(&(v)->_inherit,ctx))
-#define dup_constructor_as(tp,v)          (dup_datatype_as(tp, &(v)->_inherit))
+#define constructor_tag(v)                (datatype_tag(&(v)->_type))
+#define drop_constructor(v,ctx)           (drop_datatype(&(v)->_type,ctx))
+#define dup_constructor_as(tp,v)          (dup_datatype_as(tp, &(v)->_type))
 
 
 /*----------------------------------------------------------------------
@@ -452,11 +452,11 @@ static inline value_tag_t value_tag(uint_t tag) {
 extern function_t function_id;
 
 static inline function_t unbox_function_t(box_t v) {
-  return unbox_datatype_as(function_t, v, TAG_FUNCTION);
+  return unbox_datatype_as_assert(function_t, v, TAG_FUNCTION);
 }
 
 static inline box_t box_function_t(function_t d) {
-  return box_datatype_as(function_t, d, TAG_FUNCTION);
+  return box_datatype(d);
 }
 
 static inline bool function_is_unique(function_t f) {
@@ -537,7 +537,7 @@ static inline vector_t dup_vector(vector_t v) {
 }
 
 typedef struct vector_small_s {
-  struct vector_s _inherit;
+  struct vector_s _type;
   box_t    length;
   box_t    vec[1];            // vec[length]
 } *vector_small_t;
@@ -560,7 +560,7 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
         v->vec[i] = def;
       }
     }
-    return &v->_inherit;
+    return &v->_type;
   }
   else {
     vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR, ctx);
@@ -619,13 +619,13 @@ typedef struct bytes_s {
 }* bytes_t;
 
 struct bytes_vector_s {          // in-place bytes
-  struct bytes_s  _inherit;
+  struct bytes_s  _type;
   size_t          length;
   char            buf[1];
 };
 
 struct bytes_raw_s {             // pointer to bytes with free function
-  struct bytes_s _inherit;
+  struct bytes_s _type;
   free_fun_t*    free;
   uint8_t*       data;
   size_t         length;
