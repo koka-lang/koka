@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 /*---------------------------------------------------------------------------
   Copyright 2020 Microsoft Corporation.
 
@@ -23,19 +30,22 @@ static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, cont
   }
   else {
     integer_t i = integer_parse(string_cbuf_borrow(s),ctx);
-    string_drop(s,ctx);
+    drop_string_t(s,ctx);
     return (box_eq(i,box_null) ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
   }
 }
 
-datatype_t string_to_list(string_t s, context_t* ctx);
-string_t   string_from_list(datatype_t cs, context_t* ctx);
+struct __std_core__list_s;
+struct __std_core_Sslice;
 
-datatype_t vector_to_list(vector_t v, datatype_t tail, context_t* ctx);
-vector_t   list_to_vector(datatype_t xs, context_t* ctx);
+struct __std_core__list_s* string_to_list(string_t s, context_t* ctx);
+string_t                   string_from_list(struct __std_core__list_s* cs, context_t* ctx);
+
+struct __std_core__list_s* vector_to_list(vector_t v, struct __std_core__list_s* tail, context_t* ctx);
+vector_t                   list_to_vector(struct __std_core__list_s* xs, context_t* ctx);
 
 static inline integer_t  string_count_int(string_t s, context_t* ctx) {
-  return integer_from_uint_t( string_count(s), ctx );
+  return integer_from_size_t( string_count(s), ctx );
 }
 
 static inline integer_t string_cmp_int(string_t s1, string_t s2, context_t* ctx) {
@@ -82,7 +92,7 @@ static inline unit_t vector_unsafe_assign32( vector_t v, int32_t i, box_t x, con
   box_t* p = vector_buf(v,&len);
   assert_internal(i >= 0 && i < len);
   p[i] = x;
-  vector_drop(v,ctx); // TODO: avoid?
+  drop_vector_t(v,ctx); // TODO: avoid?
   return Unit;  
 }
 

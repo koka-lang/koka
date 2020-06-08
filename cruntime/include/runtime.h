@@ -345,6 +345,16 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
 #define drop_value(v,ctx)                   (void)
 #define dup_value(v)                        (v)
 
+
+#define define_static_datatype(decl,struct_tp,name,tag) \
+  static struct_tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
+  decl struct_tp* name = &_static_##name; 
+
+#define define_static_open_datatype(decl,struct_tp,name,otag) /* ignore otag as it is initialized dynamically */ \
+  static struct_tp _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, &_static_string_empty._type }; \
+  decl struct_tp* name = &_static_##name; 
+
+
 /*----------------------------------------------------------------------
   Reference counting of pattern matches
 ----------------------------------------------------------------------*/
@@ -631,7 +641,7 @@ static inline box_t vector_at(const vector_t v, size_t i) {
 
 static inline box_t box_vector_t(vector_t v, context_t* ctx) {
   UNUSED(ctx);
-  box_ptr(&v->_block);
+  return box_ptr(&v->_block);
 }
 
 static inline vector_t unbox_vector_t(box_t v, context_t* ctx) {

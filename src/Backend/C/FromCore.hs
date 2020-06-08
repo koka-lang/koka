@@ -435,12 +435,7 @@ genConstructorTest info dataRepr (con,conRepr,conFields,scanCount)
 
 genConstructorTestX :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> Asm ()
 genConstructorTestX info dataRepr con conRepr
-  = do if (dataRepr/=DataOpen)
-          then return ()
-          else do emitToH $ text "extern string_t" <+> conTagName con <.> semi  -- real def already generated
-                  -- emitToC $ text "tag_t" <+> conTagName con <.> semi
-                  -- emitToInit $ conTagName con <+> text "=" <+> openTagName (dataInfoName info) <.> text "++;"
-       emitToH  $ text "static inline bool" <+> (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
+  = do emitToH  $ text "static inline bool" <+> (conTestName con) <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
                   <+> block( text "return (" <.> (
                   let nameDoc = ppName (conInfoName con)
                       -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
@@ -459,7 +454,7 @@ genConstructorTestX info dataRepr con conRepr
                     ConNormal{}    -- | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    -- | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
                                    -> text "datatype_tag(x) ==" <+> ppConTag con conRepr dataRepr
-                    ConOpen{}      -> text "box_eq" <.> parens (text "x->_tag" <+> text "," <+> ppConTag con conRepr dataRepr)
+                    ConOpen{}      -> text "x->_tag ==" <+> ppConTag con conRepr dataRepr
                   ) <.> text ");")
 
 conTestName con
@@ -478,19 +473,23 @@ ppConTag con conRepr dataRepr
       _         | isDataStructLike dataRepr -> text "value_tag(" <.> pretty (conTag conRepr) <.> text ")"
       _         ->  pretty (conTag conRepr)
 
+
 genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
 genConstructorCreate info dataRepr con conRepr conFields scanCount
   = do if (null conFields && not (dataReprIsValue dataRepr))
-         then do let declTpName = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s" <+> conSingletonName con
+         then do let structTp = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s"
+                     declTpName = structTp <+> conSingletonName con
                      open = if (dataRepr == DataOpen) then "open_" else ""
                  emitToH $ text "extern" <+> ppName (typeClassName (dataInfoName info)) <+> conSingletonName con <.> semi
                  emitToC $ text ("define_static_" ++ open ++ "datatype(,") 
+                             <+> structTp <.> text ","
                              <+> conSingletonName con <.> text "," 
                              <+> ppConTag con conRepr dataRepr <.> text ");"
                  when (dataRepr == DataOpen) $
                    emitToInit $ text "_static_" <.> conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
          else return ()
-       emitToH $
+       when (dataRepr == DataOpen) $ emitToH $ text "extern string_t" <+> conTagName con <.> semi 
+       emitToH $          
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
           <.> ntparameters (conInfoParams con)
           <.> block (
@@ -517,7 +516,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                )
                                ++ [text "return" <+> tmp <.> semi])
                     else if (null conFields)
-                     then text "return dup_constructor_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
+                     then text "return dup_datatype_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
                                <+> text "block_alloc_as" 
                                        <.> arguments [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan count */",
@@ -1219,10 +1218,10 @@ genExprPrim expr
      Lit (LitString s)
        -> do name <- newVarName "s"
              if (s=="") 
-              then return ([],text "string_dup(string_empty)")
+              then return ([],text "dup_string_t(string_empty)")
               else do let (cstr,clen) = cstring s
                       return ([text "define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]] 
-                             ,text "string_dup" <.> parens (ppName name));
+                             ,text "dup_string_t" <.> parens (ppName name));
 
      _ -> failure ("Backend.C.FromCore.genExpr: invalid expression:\n" ++ show expr)
 
