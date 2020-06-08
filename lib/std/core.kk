@@ -1688,7 +1688,7 @@ fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xindex-of(s : string, sub : string ) : int32 {
-  c "string_index_of"
+  c inline "(int32_t)(string_index_of(#1,#2,current_context()))"
   cs inline "((#1).IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
 }
@@ -1702,7 +1702,7 @@ fun find( s : string, sub : string ) : maybe<sslice> {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xlast-index-of(s : string, sub : string ) : int32 {
-  c "string_last_index_of"
+  c inline "(int32_t)(string_last_index_of(#1,#2,current_context()))"
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
@@ -2550,14 +2550,14 @@ type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
 external ".null-any"(x : a) : null<a> {
-  c  inline "(box_as_uintptr(#1) == box_as_uintptr(box_null) ? NULL : (void*)(box_as_uintptr(#1)))"
+  c  inline "(box_as_uintptr(#1) == box_as_uintptr(box_null) ? NULL : (__std_core__null)(box_as_uintptr(#1)))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 }
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 external null(x : maybe<a>) : null<a> {
-  c  inline "(__std_core_types__is_Nothing(#1) ? NULL : (void*)(box_as_uintptr(#1._cons.Just.value)))"
+  c  inline "(__std_core_types__is_Nothing(#1) ? NULL : (__std_core__null)(box_as_uintptr(#1._cons.Just.value)))"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }
@@ -2778,9 +2778,9 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
   rep(start)
 }
 
-// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `clib`.
+// Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`.
 extern host() : ndet string {
-  c "string_host"
+  c "runtime_host"
   cs inline "\"dotnet\""
   js inline "_host"
 }

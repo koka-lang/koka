@@ -187,14 +187,14 @@ extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
 
 // Assign a new value to a reference.
 extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  c inline "(ref_set(#1,#2,current_context()),__std_core_types__Unit_)"
+  c inline "ref_set(#1,#2,current_context())"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of reference.
 extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
-  c inline "(ref_get(#1))"
+  c inline "ref_get(#1)"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }

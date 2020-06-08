@@ -104,6 +104,8 @@ genModule sourceDir mbMain core0
         genTypeDefs (coreProgTypeDefs core)
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
+        
+        genMain (coreProgName core) mbMain
 
         init <- getInit
         emitToC $ linebreak
@@ -177,6 +179,17 @@ importExternal sourceDir (ExternalImport imports range)
        | (nm,s) <- xs, not (null s)]
 importExternal _ _
   = []
+
+genMain :: Name -> Maybe (Name,Bool) -> Asm ()
+genMain progName Nothing = return ()
+genMain progName (Just (name,_)) 
+  = emitToC $
+    text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
+      text "context_t* _ctx = runtime_context();"
+    , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
+    , ppName name <.> parens (text "_ctx") <.> semi
+    , text "return 0;"
+    ]);
 
 ---------------------------------------------------------------------------------
 -- Generate C statements for value definitions
@@ -471,7 +484,7 @@ ppConTag con conRepr dataRepr
       ConEnum{} ->  ppName (conInfoName con)
       -- ConSingleton{}  | dataRepr == DataAsList -> text "datatype_from_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
       _         | isDataStructLike dataRepr -> text "value_tag(" <.> pretty (conTag conRepr) <.> text ")"
-      _         ->  pretty (conTag conRepr)
+      _         ->  text "(tag_t)" <.> parens (pretty (conTag conRepr))
 
 
 genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
@@ -540,7 +553,7 @@ genConstructorAccess info dataRepr con conRepr
                     <+> block( vcat $
                           [-- text "assert(" <.> conTestName con <.> tupled [text "x"] <.> text ");",
                            text "return datatype_as_assert" <.> tupled [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x", 
-                               (if (dataRepr == DataOpen) then text "TAG_OPEN" else pretty (conTag conRepr) <+> text "/* _tag */")] <.> semi]
+                               (if (dataRepr == DataOpen) then text "TAG_OPEN" else ppConTag con conRepr dataRepr <+> text "/* _tag */")] <.> semi]
                         )
 
 

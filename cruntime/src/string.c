@@ -7,20 +7,30 @@
 ---------------------------------------------------------------------------*/
 #define  _CRT_SECURE_NO_WARNINGS
 #include "runtime.h"
-#include <ctype.h>      // tolower
+
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
 
 struct string_normal_s _static_string_empty = { { { HEADER_STATIC(0,TAG_STRING) } }, 0, {0} };
 
+static char ascii_toupper(char c) {
+  return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
+}
+static char ascii_tolower(char c) {
+  return (c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+}
+static char ascii_iswhite(char c) {
+  return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
+}
+
 static int stricmpx(const char* s, const char* t) {
-  int c,d;
+  char c,d;
   do {
-    c = (unsigned char)(*s++);
-    d = (unsigned char)(*t++);
-    c = tolower(c);
-    d = tolower(d);
+    c = *s++;
+    d = *t++;
+    c = ascii_tolower(c);
+    d = ascii_tolower(d);
   } while (c == d && c != 0);
   return (c - d);
 }
@@ -207,6 +217,145 @@ string_t string_repeat(string_t str, size_t n, context_t* ctx) {
   }
   assert_internal(*t == 0);
   drop_string_t(str,ctx);
+  return tstr;
+}
+
+ptrdiff_t string_index_of(string_t str, string_t sub, context_t* ctx) {
+  size_t slen = string_len_borrow(str);
+  size_t tlen = string_len_borrow(sub);
+  ptrdiff_t idx;
+  if (tlen == 0) {
+    idx = (slen == 0 ? -1 : 0);
+  }
+  else if (tlen > slen) {
+    idx = -1;
+  }
+  else {
+    const char* s = string_cbuf_borrow(str);
+    const char* t = string_cbuf_borrow(sub);
+    const char* p = strstr(s, t);
+    idx = (p == NULL ? -1 : (p - s));
+  }
+  drop_string_t(str, ctx);
+  drop_string_t(sub, ctx);
+  return idx;
+}
+
+ptrdiff_t string_last_index_of(string_t str, string_t sub, context_t* ctx) {
+  size_t slen = string_len_borrow(str);
+  size_t tlen = string_len_borrow(sub);
+  ptrdiff_t idx;
+  if (tlen == 0) {
+    idx = (slen - 1);
+  }
+  else if (tlen > slen) {
+    idx = -1;
+  }
+  else if (tlen == slen) {
+    idx = (string_cmp_borrow(str, sub) == 0 ? 0 : -1);
+  }
+  else {
+    const char* s = string_cbuf_borrow(str);
+    const char* t = string_cbuf_borrow(sub);
+    const char* p;
+    for (p = s + slen - tlen; p >= s; p--) {  // todo: use reverse Boyer-Moore instead of one character at a time
+      if (strncmp(p, t, tlen) == 0) break;
+    }
+    idx = (p >= s ? p - s : -1);
+  }
+  drop_string_t(str, ctx);
+  drop_string_t(sub, ctx);
+  return idx;
+}
+
+bool string_starts_with(string_t str, string_t pre, context_t* ctx) {
+  size_t slen = string_len_borrow(str);
+  size_t tlen = string_len_borrow(pre);
+  bool starts;
+  if (tlen == 0) {
+    starts = (slen > 0);
+  }
+  else if (tlen > slen) {
+    starts = false;
+  }
+  else {
+    const char* s = string_cbuf_borrow(str);
+    const char* t = string_cbuf_borrow(pre);
+    starts = (strncmp(s, t, tlen) == 0);
+  }
+  drop_string_t(str, ctx);
+  drop_string_t(pre, ctx);
+  return starts;
+}
+
+bool string_ends_with(string_t str, string_t post, context_t* ctx) {
+  size_t slen = string_len_borrow(str);
+  size_t tlen = string_len_borrow(post);
+  bool ends;
+  if (tlen == 0) {
+    ends = (slen > 0);
+  }
+  else if (tlen > slen) {
+    ends = false;
+  }
+  else {
+    const char* s = string_cbuf_borrow(str);
+    const char* t = string_cbuf_borrow(post);
+    ends = (strncmp(s + slen - tlen, t, tlen) == 0);
+  }
+  drop_string_t(str, ctx);
+  drop_string_t(post, ctx);
+  return ends;
+}
+
+bool string_contains(string_t str, string_t sub, context_t* ctx) {
+  return (string_index_of(str, sub, ctx) >= 0);
+}
+
+
+string_t string_to_upper(string_t str, context_t* ctx) {
+  const size_t len = string_len_borrow(str);
+  const char* s = string_cbuf_borrow(str);
+  string_t tstr = string_copy(str, ctx);
+  char* t = (char*)string_cbuf_borrow(tstr);   // t & s may align!
+  for (size_t i = 0; i < len; i++) {
+    t[i] = ascii_toupper(s[i]);
+  }
+  return tstr;
+}
+
+string_t  string_to_lower(string_t str, context_t* ctx) {
+  const size_t len = string_len_borrow(str);
+  const char* s = string_cbuf_borrow(str);
+  string_t tstr = string_copy(str, ctx);
+  char* t = (char*)string_cbuf_borrow(tstr);   // t & s may align!
+  for (size_t i = 0; i < len; i++) {
+    t[i] = ascii_tolower(s[i]);
+  }
+  return tstr;
+}
+
+string_t  string_trim_left(string_t str, context_t* ctx) {
+  const size_t len = string_len_borrow(str);
+  const char* s = string_cbuf_borrow(str);
+  const char* p = s;
+  for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
+  if (p == s) return str;           // no trim needed
+  const size_t tlen = len - (p - s);      // todo: if s is unique and tlen close to slen, move inplace?
+  string_t tstr = string_alloc_len(tlen, p, ctx);
+  drop_string_t(str, ctx);
+  return tstr;
+}
+
+string_t  string_trim_right(string_t str, context_t* ctx) {
+  const size_t len = string_len_borrow(str);
+  const char* s = string_cbuf_borrow(str);
+  const char* p = s + len - 1;
+  for (; p >= s && ascii_iswhite(*p); p--) {}
+  const size_t tlen = (p - s) + 1;
+  if (len == tlen) return str;  // no trim needed
+  string_t tstr = string_alloc_len(tlen, s, ctx);
+  drop_string_t(str, ctx);
   return tstr;
 }
 

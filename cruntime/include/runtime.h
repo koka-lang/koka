@@ -528,10 +528,12 @@ static inline box_t ref_swap(ref_t r, box_t value) {
 }
 
 static inline box_t box_ref_t(ref_t r, context_t* ctx) {
+  UNUSED(ctx);
   return box_datatype(r);
 }
 
 static inline ref_t unbox_ref_t(box_t b, context_t* ctx) {
+  UNUSED(ctx);
   return unbox_datatype_as_assert(ref_t, b, TAG_REF);
 }
 
@@ -671,5 +673,16 @@ struct bytes_raw_s {             // pointer to bytes with free function
   uint8_t*       data;
   size_t         length;
 };
+
+/*--------------------------------------------------------------------------------------
+  Randomness
+--------------------------------------------------------------------------------------*/
+
+decl_export double    random_double(context_t* ctx);
+decl_export integer_t random_int(context_t* ctx);
+
+
+decl_export string_t  runtime_host(context_t* ctx);
+
 
 #endif // include guard

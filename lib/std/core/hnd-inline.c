@@ -301,7 +301,7 @@ typedef struct yield_info_s {
 
 __std_core_hnd__yield_info yield_capture(context_t* ctx) {  
   assert_internal(yielding(ctx));
-  yield_info_t yld = block_alloc_as(struct yield_info_s, 1 + YIELD_CONT_MAX, 1 /* tag */, ctx);
+  yield_info_t yld = block_alloc_as(struct yield_info_s, 1 + YIELD_CONT_MAX, (tag_t)1, ctx);
   yld->clause = ctx->yield.clause; 
   size_t i = 0;
   for( ; i < ctx->yield.conts_count; i++) {
@@ -320,7 +320,7 @@ __std_core_hnd__yield_info yield_capture(context_t* ctx) {
 
 box_t yield_reyield( __std_core_hnd__yield_info yldinfo, context_t* ctx) {
   assert_internal(!yielding(ctx));
-  yield_info_t yld = datatype_as_assert(yield_info_t, yldinfo, 1);  
+  yield_info_t yld = datatype_as_assert(yield_info_t, yldinfo, (tag_t)1);  
   ctx->yield.clause = dup_function_t(yld->clause);
   ctx->yield.marker = yld->marker;
   ctx->yield.conts_count = yld->conts_count;

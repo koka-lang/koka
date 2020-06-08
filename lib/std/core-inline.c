@@ -56,6 +56,21 @@ vector_t list_to_vector(__std_core__list xs, context_t* ctx) {
   return v;
 }
 
+vector_t vector_init32( int32_t n, function_t init, context_t* ctx) {
+  vector_t v = vector_alloc(n,box_null,ctx);
+  box_t* p = vector_buf(v,NULL);
+  for(int32_t i = 0; i < n; i++) {
+    dup_function_t(init);
+    p[i] = function_call(box_t,(function_t,int32_t,context_t*),init,(init,i,ctx));
+  }
+  drop_function_t(init,ctx);
+  return v;
+}
+
+box_t main_console( function_t action, context_t* ctx ) {
+  return function_call(box_t,(function_t,unit_t,context_t*),action,(action,Unit,ctx));
+}
+
 
 __std_core__list string_to_list(string_t s, context_t* ctx) {
   const uint8_t* p = string_buf_borrow(s);
@@ -112,7 +127,7 @@ integer_t slice_count( __std_core__sslice sslice, context_t* ctx ) {
   sslice_start_end_borrow(sslice, &start, &end);
   size_t count = 0;
   while( start < end && *start != 0 ) {
-    const char* next = utf8_next(start);
+    const uint8_t* next = utf8_next(start);
     count++;
     start = next;
   }
@@ -130,7 +145,7 @@ string_t slice_to_string( __std_core__sslice  sslice, context_t* ctx ) {
   }
   else {
     // if not, we copy
-    string_t s = string_alloc_len(sslice.len, start, ctx);
+    string_t s = string_alloc_len(sslice.len, (const char*)start, ctx);
     drop___std_core__sslice(sslice,ctx);
     return s;
   }
@@ -145,6 +160,21 @@ __std_core__sslice slice_first( string_t str, context_t* ctx ) {
 __std_core__sslice slice_last( string_t str, context_t* ctx ) {
   const uint8_t* s = string_buf_borrow(str);
   const uint8_t* end = s + string_len_borrow(str);
-  const uint8_t* prev = (s==end ? s : utf8_prev(end));
+  const uint8_t* prev = (s==end ? s : utf8_prev(end));  
   return __std_core__new_Sslice(str, (int32_t)(end - s), (int32_t)(end - prev), ctx);
+}
+
+__std_core_types__maybe slice_next( struct __std_core_Sslice slice, context_t* ctx ) {
+  if (slice.len == 0) {
+    drop___std_core__sslice(slice,ctx);
+    return __std_core_types__new_Nothing(ctx);
+  }
+  const uint8_t* s = string_buf_borrow(slice.str);
+  const uint8_t* next = utf8_next(s);
+  ptrdiff_t clen = (next - s);
+  assert_internal(clen > 0 && clen <= slice.len);
+  if (clen < 0) clen = 0;
+  if (clen > slice.len) clen = slice.len;
+  __std_core__sslice snext = __std_core__new_Sslice(slice.str, slice.start + (int32_t)clen, slice.len - (int32_t)clen, ctx);  
+  return __std_core_types__new_Just( box___std_core__sslice(snext,ctx), ctx);
 }

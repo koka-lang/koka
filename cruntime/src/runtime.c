@@ -37,6 +37,25 @@ void free_fun_null(void* p) {
   UNUSED(p);
 }
 
+
+double random_double(context_t* ctx) {
+  UNUSED(ctx);
+  // TODO
+  return 0.0;
+}
+
+integer_t random_int(context_t* ctx) {
+  UNUSED(ctx);
+  // TODO
+  return integer_from_small(0);
+}
+
+
+string_t runtime_host(context_t* ctx) {
+  define_string_literal(static, host, 5, "libc");
+  return dup_string_t(host, ctx);
+}
+
 /*--------------------------------------------------------------------------------------------------
   Errors 
 --------------------------------------------------------------------------------------------------*/

@@ -172,6 +172,17 @@ static inline size_t decl_pure string_len_borrow(const string_t str) {
   }
 }
 
+static inline string_t string_copy(string_t str, context_t* ctx) {
+  if (block_is_unique(&str->_block)) {
+    return str;
+  }
+  else {
+    string_t tstr = string_alloc_len(string_len_borrow(str), string_cbuf_borrow(str), ctx);
+    drop_string_t(str, ctx);
+    return tstr;
+  }
+}
+
 
 /*--------------------------------------------------------------------------------------------------
   UTF8 decoding/encoding
@@ -380,6 +391,17 @@ decl_export vector_t string_splitv(string_t s, string_t sep, context_t* ctx);
 decl_export vector_t string_splitv_atmost(string_t s, string_t sep, size_t n, context_t* ctx);
 
 decl_export string_t string_repeat(string_t s, size_t n, context_t* ctx);
+
+decl_export ptrdiff_t string_index_of(string_t str, string_t sub, context_t* ctx);
+decl_export ptrdiff_t string_last_index_of(string_t str, string_t sub, context_t* ctx);
+decl_export bool      string_starts_with(string_t str, string_t pre, context_t* ctx);
+decl_export bool      string_ends_with(string_t str, string_t post, context_t* ctx);
+decl_export bool      string_contains(string_t str, string_t sub, context_t* ctx);
+
+decl_export string_t  string_to_upper(string_t str, context_t* ctx);
+decl_export string_t  string_to_lower(string_t strs, context_t* ctx);
+decl_export string_t  string_trim_left(string_t strs, context_t* ctx);
+decl_export string_t  string_trim_right(string_t strs, context_t* ctx);
 
 decl_export unit_t println(string_t s, context_t* ctx);
 decl_export unit_t print(string_t s, context_t* ctx);
