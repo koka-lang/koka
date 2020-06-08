@@ -520,7 +520,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                      then text "return dup_constructor_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
                                <+> text "block_alloc_as" 
-                                       <.> arguments [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan fields */",
+                                       <.> arguments [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan count */",
                                                        if (dataRepr /= DataOpen)
                                                         then ppConTag con conRepr dataRepr <+> text "/* tag */"
                                                         else text "TAG_OPEN"]
@@ -575,9 +575,14 @@ genBox name info dataRepr
                     in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
-                  -> let extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  -> let -- extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                         docScanCount = if (hasTagField dataRepr)
+                                         then text "scan_count_" <.> ppName name <.> parens (text "x")
+                                         else pretty scancount <+> text "/* scan count */"
                      in vcat [ text "box_t _box;" 
-                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", pretty (scancount + extra) <+> text "/* scan fields */"] <.> semi
+                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", 
+                                                                   docScanCount
+                                                                  ] <.> semi
                              , text "return _box;" ]
                _  -> text "return" <+> text "box_datatype" <.> tupled [text "x"] <.> semi 
     )
@@ -601,9 +606,28 @@ genUnbox name info dataRepr
 
 genDupDrop :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDrop name info dataRepr conInfos 
-  = do genDupDropX True name info dataRepr conInfos
+  = do genScanFields name info dataRepr conInfos
+       genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
 
+genScanFields :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
+genScanFields name info dataRepr conInfos | not (hasTagField dataRepr)
+ = return ()
+genScanFields name info dataRepr conInfos
+ = emitToH $
+    text "static inline size_t scan_count_"
+    <.> ppName name <.> tupled [ppName name <+> text "_x"]
+    <+> block (vcat (map (genScanFieldTests (length conInfos)) (zip conInfos [1..])))
+      
+genScanFieldTests :: Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
+genScanFieldTests lastIdx ((con,conRepr,conFields,scanCount),idx) 
+  = if (lastIdx == idx) 
+      then (text "else" <+> stat)
+      else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"])) 
+            <+> stat
+  where
+    stat = text ("return " ++ show (1 {-tag-} + scanCount) ++ ";")
+    
 genDupDropX :: Bool -> Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDropX isDup name info dataRepr conInfos
   = emitToH $
