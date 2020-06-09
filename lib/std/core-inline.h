@@ -67,7 +67,6 @@ string_t  slice_to_string( struct __std_core_Sslice sslice, context_t* ctx );
 struct __std_core_Sslice slice_first( string_t str, context_t* ctx );
 struct __std_core_Sslice slice_last( string_t str, context_t* ctx );
 
-// todo
 struct __std_core_Sslice slice_common_prefix( string_t str1, string_t str2, integer_t upto, context_t* ctx );
 struct __std_core_Sslice slice_advance( struct __std_core_Sslice slice, integer_t count, context_t* ctx );
 struct __std_core_Sslice slice_extend( struct __std_core_Sslice slice, integer_t count, context_t* ctx );

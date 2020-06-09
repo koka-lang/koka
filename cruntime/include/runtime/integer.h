@@ -339,6 +339,16 @@ static inline int64_t integer_clamp64(integer_t x, context_t* ctx) {
   return integer_clamp64_generic(x, ctx);
 }
 
+static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
+  if (likely(is_smallint(x))) return unbox_int(x);
+#if INTX_SIZE <= 4
+  return integer_clamp32_generic(x, ctx);
+#else
+  return integer_clamp64_generic(x, ctx);
+#endif
+}
+
+
 static inline double integer_as_double(integer_t x, context_t* ctx) {
   if (likely(is_smallint(x))) return (double)unbox_int(x);
   return integer_as_double_generic(x, ctx);

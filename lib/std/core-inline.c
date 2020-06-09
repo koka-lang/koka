@@ -178,3 +178,81 @@ __std_core_types__maybe slice_next( struct __std_core_Sslice slice, context_t* c
   __std_core__sslice snext = __std_core__new_Sslice(slice.str, slice.start + (int32_t)clen, slice.len - (int32_t)clen, ctx);  
   return __std_core_types__new_Just( box___std_core__sslice(snext,ctx), ctx);
 }
+
+struct __std_core_Sslice slice_extend( struct __std_core_Sslice slice, integer_t count, context_t* ctx ) {
+  ptrdiff_t cnt = integer_clamp(count,ctx);
+  if (cnt==0 || (slice.len == 0 && cnt<0)) return slice;  
+  const uint8_t* const s0 = string_buf_borrow(slice.str);  // start
+  const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
+  const uint8_t* t  = s1;
+  if (cnt >= 0) {
+    do {
+      t = utf8_next(t);
+      cnt--;
+    } while (cnt > 0 && *t != 0);
+  }
+  else {  // cnt < 0
+    const uint8_t* sstart = s0 - slice.start;
+    do {
+      t = utf8_prev(t);
+      cnt++;
+    } while (cnt < 0 && t > sstart);
+  }
+  if (t == s1) return slice;  // length is unchanged
+  return __std_core__new_Sslice(slice.str, slice.start, (t < s0 ? 0 : (int32_t)(t - s0)), ctx);
+}
+
+struct __std_core_Sslice slice_advance( struct __std_core_Sslice slice, integer_t count, context_t* ctx ) {
+  const ptrdiff_t cnt0 = integer_clamp(count,ctx);
+  ptrdiff_t cnt = cnt0;
+  if (cnt==0 || (slice.start == 0 && cnt<0)) return slice;
+  const uint8_t* const s0 = string_buf_borrow(slice.str);  // start
+  const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
+  const uint8_t* const sstart = s0 - slice.start;
+  assert_internal(sstart == string_buf_borrow(slice.str));
+  // advance the start  
+  const uint8_t* t0  = s0;
+  if (cnt >= 0) {
+    do {
+      t0 = utf8_next(t0);
+      cnt--;
+    } while (cnt > 0 && *t0 != 0);
+  }
+  else {  // cnt < 0    
+    do {
+      t0 = utf8_prev(t0);
+      cnt++;
+    } while (cnt < 0 && t0 > sstart);
+  }
+  if (t0 == s0) return slice;  // start is unchanged
+  // "t0" points to the new start, now advance the end by the same amount of codepoints
+  const uint8_t* t1 = s1;
+  cnt = cnt0;
+  if (cnt >= 0) {
+    do {
+      t1 = utf8_next(t1);
+      cnt--;
+    } while (cnt > 0 && *t1 != 0);
+  }
+  else {  // cnt < 0
+    do {
+      t1 = utf8_prev(t1);
+      cnt++;
+    } while (cnt < 0 && t1 > sstart);
+  }
+  // t1 points to the new end  
+  assert_internal(t1 >= t0);
+  return __std_core__new_Sslice(slice.str, (int32_t)(t0 - sstart), (int32_t)(t1 - t0), ctx);
+}
+
+struct __std_core_Sslice slice_common_prefix( string_t str1, string_t str2, integer_t iupto, context_t* ctx ) {
+  const uint8_t* s1 = string_buf_borrow(str1);
+  const uint8_t* s2 = string_buf_borrow(str1);
+  size_t upto = integer_clamp(iupto,ctx);
+  size_t count;
+  for(count = 0; count < upto && *s1 != 0 && *s2 != 0; count++, s1++, s2++ ) {
+    if (*s1 != *s2) break;
+  }
+  drop_string_t(str2,ctx);
+  return __std_core__new_Sslice(str1, 0, (int32_t)(count), ctx);
+}
