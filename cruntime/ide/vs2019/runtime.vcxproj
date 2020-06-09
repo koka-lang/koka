@@ -101,6 +101,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Lib>
       <AdditionalLibraryDirectories>
@@ -120,6 +121,7 @@
       <CompileAs>CompileAsC</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>
