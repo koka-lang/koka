@@ -53,9 +53,22 @@ exeExtension   :: String
 pathSep,pathDelimiter :: Char
 #ifdef WINDOWS
 exeExtension  = ".exe"
+dllExtension  = ".dll"
+objExtension  = ".obj"
+libExtension  = ".lib"
 pathSep       = '\\'
 pathDelimiter = ';'
+#elif defined(__MACOSX__) || defined(__MACH__)
+dllExtension  = ".dylib"
+objExtension  = ".o"
+libExtension  = ".a"
+exeExtension  = ""
+pathSep       = '/'
+pathDelimiter = ':'
 #else
+dllExtension  = ".so"
+objExtension  = ".o"
+libExtension  = ".a"
 exeExtension  = ""
 pathSep       = '/'
 pathDelimiter = ':'

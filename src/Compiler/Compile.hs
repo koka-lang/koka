@@ -80,7 +80,7 @@ import Compiler.Module
 -- needed for code generation
 import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
-import Platform.Config        ( exeExtension, pathSep, sourceExtension )
+import Platform.Config        ( exeExtension, dllExtension, libExtension, objExtension, pathSep, sourceExtension )
 
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
@@ -1158,7 +1158,8 @@ codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> Comp
 --codeGenC term flags modules compileTarget outBase core  | not (C `elem` targets flags)
 -- = return Nothing
 codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
- = do let outC = outBase ++ ".c"
+ = compilerCatch "c" term Nothing $
+   do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir = dirname sourceFile
       let mbEntry = case compileTarget of
@@ -1170,11 +1171,36 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
-      return Nothing
+    
+      -- compile the C code
+      let compileExtra = "-FA"
+          compileOpt   = if (optimize flags >= 0) then "-GL -O2" else ""
+          compileFlags = "-c -W3 -Zl -I cruntime/include " ++ compileOpt ++ " " ++ compileExtra 
+                         ++ " -Tc " ++ dquote outC
+          compileCmd   = "cl -nologo " ++ compileFlags
+      trace compileCmd $ return ()
+      runSystem compileCmd
 
-
-
-
+      -- link the object files?
+      case mbEntry of
+       Nothing -> return Nothing
+       Just _ ->
+         do let targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+                linkExtra = ""
+                linkOpt   = if (optimize flags >= 0) then "-GL" else ""
+                linkFlags = "-Fe:" ++ targetName ++ " " ++ compileOpt ++ " " 
+                            ++ concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]
+                            ++ dquote (outBase ++ objExtension) ++ " "
+                            ++ "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 0) then "Release" else "Debug")
+                            ++ "/runtime.lib"
+                linkCmd   = "cl -nologo " ++ linkFlags         
+            trace linkCmd $ return ()
+            runSystem linkCmd
+            
+            -- run the program?
+            trace ("run: " ++ targetName) $ return ()
+            return (Just (runSystem targetName))
+      
 
 copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
 copyIFaceToOutputDir term flags iface targetPath imported
@@ -1233,8 +1259,6 @@ outName flags s
      else joinPath (outDir flags) s
 
 
-dllExtension
-  = ".dll"
 
 ifaceExtension
   = sourceExtension ++ "i"
