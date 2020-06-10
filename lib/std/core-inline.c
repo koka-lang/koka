@@ -18,7 +18,7 @@ __std_core__list vector_to_list(vector_t v, __std_core__list tail, context_t* ct
   }
   __std_core__list nil  = __std_core__new_Nil(ctx);
   struct __std_core_Cons* cons = NULL;
-  __std_core__list list = NULL;  
+  __std_core__list list = NULL;
   for( size_t i = 0; i < n; i++ ) {
     __std_core__list hd = __std_core__new_Cons(dup_box_t(p[i]), nil, ctx);
     if (cons==NULL) {
@@ -26,7 +26,7 @@ __std_core__list vector_to_list(vector_t v, __std_core__list tail, context_t* ct
     }
     else {
       cons->tail = hd;
-    }    
+    }
     cons = __std_core__as_Cons(hd);
   }
   cons->tail = tail;
@@ -40,7 +40,7 @@ vector_t list_to_vector(__std_core__list xs, context_t* ctx) {
   size_t len = 0;
   __std_core__list ys = xs;
   while (__std_core__is_Cons(ys)) {
-    struct __std_core_Cons* cons = __std_core__as_Cons(ys);    
+    struct __std_core_Cons* cons = __std_core__as_Cons(ys);
     len++;
     ys = cons->tail;
   }
@@ -49,7 +49,7 @@ vector_t list_to_vector(__std_core__list xs, context_t* ctx) {
   box_t* p = vector_buf(v,NULL);
   ys = xs;
   for( size_t i = 0; i < len; i++) {
-    struct __std_core_Cons* cons = __std_core__as_Cons(ys);        
+    struct __std_core_Cons* cons = __std_core__as_Cons(ys);
     ys = cons->tail;
     p[i] = dup_box_t(cons->head);
   }
@@ -74,17 +74,19 @@ box_t main_console( function_t action, context_t* ctx ) {
 
 __std_core__list string_to_list(string_t s, context_t* ctx) {
   const uint8_t* p = string_buf_borrow(s);
-  struct __std_core_Cons* cons = NULL;
   __std_core__list nil  = __std_core__new_Nil(ctx);
   __std_core__list list = nil;
+  struct __std_core_Cons* tl = NULL;
   size_t count;
   char_t c;
   while( (c = utf8_read(p,&count), count != 0) ) {
     p += count;
-    cons->tail = __std_core__new_Cons(box_char_t(c,ctx), nil, ctx);
-    cons = datatype_as(struct __std_core_Cons*, cons->tail);
+    __std_core__list cons = __std_core__new_Cons(box_char_t(c,ctx), nil, ctx);
+    if (tl!=NULL) {
+      tl->tail = cons;
+    }
+    tl = __std_core__as_Cons(cons);
   }
-  cons->tail = nil;
   return list;
 }
 
@@ -94,7 +96,7 @@ string_t string_from_list(__std_core__list cs, context_t* ctx) {
   size_t len = 0;
   __std_core__list xs = cs;
   while (__std_core__is_Cons(xs)) {
-    struct __std_core_Cons* cons = __std_core__as_Cons(xs);    
+    struct __std_core_Cons* cons = __std_core__as_Cons(xs);
     len += utf8_len(unbox_char_t(cons->head,ctx));
     xs = cons->tail;
   }
@@ -103,7 +105,7 @@ string_t string_from_list(__std_core__list cs, context_t* ctx) {
   uint8_t* p = (uint8_t*)string_buf_borrow(s);
   xs = cs;
   while (__std_core__is_Cons(xs)) {
-    struct __std_core_Cons* cons = __std_core__as_Cons(xs);    
+    struct __std_core_Cons* cons = __std_core__as_Cons(xs);
     size_t count;
     utf8_write( unbox_char_t(cons->head,ctx), p, &count );
     p += count;
@@ -121,9 +123,9 @@ static inline void sslice_start_end_borrow( __std_core__sslice sslice, const uin
 }
 
 integer_t slice_count( __std_core__sslice sslice, context_t* ctx ) {
-  // TODO: optimize this by extending string_count 
+  // TODO: optimize this by extending string_count
   const uint8_t* start;
-  const uint8_t* end; 
+  const uint8_t* end;
   sslice_start_end_borrow(sslice, &start, &end);
   size_t count = 0;
   while( start < end && *start != 0 ) {
@@ -132,15 +134,15 @@ integer_t slice_count( __std_core__sslice sslice, context_t* ctx ) {
     start = next;
   }
   return integer_from_size_t(count,ctx);
-} 
+}
 
 string_t slice_to_string( __std_core__sslice  sslice, context_t* ctx ) {
   const uint8_t* start;
-  const uint8_t* end; 
+  const uint8_t* end;
   sslice_start_end_borrow(sslice, &start, &end);
   // is it the full string?
-  if (sslice.start == 0 && sslice.len == string_len_borrow(sslice.str)) { 
-    // TODO: drop sslice and dup sslice.str?    
+  if (sslice.start == 0 && sslice.len == string_len_borrow(sslice.str)) {
+    // TODO: drop sslice and dup sslice.str?
     return sslice.str;
   }
   else {
@@ -160,7 +162,7 @@ __std_core__sslice slice_first( string_t str, context_t* ctx ) {
 __std_core__sslice slice_last( string_t str, context_t* ctx ) {
   const uint8_t* s = string_buf_borrow(str);
   const uint8_t* end = s + string_len_borrow(str);
-  const uint8_t* prev = (s==end ? s : utf8_prev(end));  
+  const uint8_t* prev = (s==end ? s : utf8_prev(end));
   return __std_core__new_Sslice(str, (int32_t)(end - s), (int32_t)(end - prev), ctx);
 }
 
@@ -175,13 +177,13 @@ __std_core_types__maybe slice_next( struct __std_core_Sslice slice, context_t* c
   assert_internal(clen > 0 && clen <= slice.len);
   if (clen < 0) clen = 0;
   if (clen > slice.len) clen = slice.len;
-  __std_core__sslice snext = __std_core__new_Sslice(slice.str, slice.start + (int32_t)clen, slice.len - (int32_t)clen, ctx);  
+  __std_core__sslice snext = __std_core__new_Sslice(slice.str, slice.start + (int32_t)clen, slice.len - (int32_t)clen, ctx);
   return __std_core_types__new_Just( box___std_core__sslice(snext,ctx), ctx);
 }
 
 struct __std_core_Sslice slice_extend( struct __std_core_Sslice slice, integer_t count, context_t* ctx ) {
   ptrdiff_t cnt = integer_clamp(count,ctx);
-  if (cnt==0 || (slice.len == 0 && cnt<0)) return slice;  
+  if (cnt==0 || (slice.len == 0 && cnt<0)) return slice;
   const uint8_t* const s0 = string_buf_borrow(slice.str);  // start
   const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
   const uint8_t* t  = s1;
@@ -210,7 +212,7 @@ struct __std_core_Sslice slice_advance( struct __std_core_Sslice slice, integer_
   const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
   const uint8_t* const sstart = s0 - slice.start;
   assert_internal(sstart == string_buf_borrow(slice.str));
-  // advance the start  
+  // advance the start
   const uint8_t* t0  = s0;
   if (cnt >= 0) {
     do {
@@ -218,7 +220,7 @@ struct __std_core_Sslice slice_advance( struct __std_core_Sslice slice, integer_
       cnt--;
     } while (cnt > 0 && *t0 != 0);
   }
-  else {  // cnt < 0    
+  else {  // cnt < 0
     do {
       t0 = utf8_prev(t0);
       cnt++;
@@ -240,7 +242,7 @@ struct __std_core_Sslice slice_advance( struct __std_core_Sslice slice, integer_
       cnt++;
     } while (cnt < 0 && t1 > sstart);
   }
-  // t1 points to the new end  
+  // t1 points to the new end
   assert_internal(t1 >= t0);
   return __std_core__new_Sslice(slice.str, (int32_t)(t0 - sstart), (int32_t)(t1 - t0), ctx);
 }
