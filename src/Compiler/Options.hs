@@ -121,7 +121,7 @@ data Flags
          , semiInsert       :: Bool
          , packages         :: Packages
          , forceModule      :: FilePath
-         , optimize         :: Int       -- optimization level; negative is off
+         , optimize         :: Int       -- optimization level; 0 or less is off
          , optInlineMax     :: Int
          , debug            :: Bool
          }
@@ -166,7 +166,7 @@ flagsNull
           True  -- semi colon insertion
           packagesEmpty -- packages
           "" -- forceModule
-          (-1) -- optimize
+          0    -- optimize
           15   -- inlineMax
           True -- debug
 
@@ -204,7 +204,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , flag   ['O'] ["optimize"]        (\b f -> f{optimize=if b then 1 else -1}) "optimize (off by default)"
+ , numOption 1 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})         "optimize (off by default, 1=optimize+debug info, 2=optimize)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline
@@ -250,22 +250,26 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   option short long f desc
     = ([Option short long f desc],[])
 
-  hiddenOption short long f desc
-    = ([],[Option short long f desc])
-
   flag short long f desc
     = ([Option short long (NoArg (Flag (f True))) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+      
+  numOption def optarg short long f desc
+    = ([Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
+      ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
+      
+  hiddenOption short long f desc
+    = ([],[Option short long f desc])
 
   hiddenFlag short long f desc
     = ([],[Option short long (NoArg (Flag (f True))) desc
           ,Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
 
   hiddenNumOption def optarg short long f desc
-    = ([],[Option short long (OptArg (\mbs -> Flag (numOption def f mbs)) optarg) desc
+    = ([],[Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc
           ,Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
-  numOption def f mbs
+  numOptionX def f mbs
     = case mbs of
         Nothing -> f def
         Just s  -> case reads s of

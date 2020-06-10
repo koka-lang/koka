@@ -1059,7 +1059,7 @@ codeGenCSDll term flags modules compileTarget outBase core
            targetFlags= case compileTarget of
                           Executable _ _ -> "-t:exe -out:" ++ targetName
                           _              -> "-t:library -out:" ++ targetName
-           debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+           debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 1) then "-optimize " else "")
        let cmd = (csc flags ++ " " ++ debugFlags ++ targetFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)
        -- trace cmd $ return ()
        runSystem cmd
@@ -1090,7 +1090,7 @@ codeGenCS term flags modules compileTarget outBase core
                  sources    = concat [dquote (outName flags (showModName (modName mod)) ++ ".cs") ++ " " | mod <- modules]
                  targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
                  targetFlags= "-t:exe -out:" ++ targetName ++ " "
-                 debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 0) then "-optimize " else "")
+                 debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 1) then "-optimize " else "")
              let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)
              trace cmd $ return ()
              runSystem cmd
@@ -1173,15 +1173,18 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
     
       -- compile the C code
-      let compileExtra = "-FA"
-          compileOpt   = if (optimize flags >= 0) 
-                          then "-MD -GL -O2 -DNDEBUG=1" else "-MDd"    -- GL:whole program opt
-          compilePdb   = "-Fd:" ++ dquote (outBase ++ ".pdb")
-          compileObj   = "-Fo:" ++ dquote (outBase ++ objExtension)
+      let compileExtra = "-Fa" ++ dquote (outBase ++ ".asm")  -- generate assembly
+          compileOpt   = if (optimize flags <= 0) 
+                          then "-MDd -Zi -RTC1"               -- RTC1: runtime checks
+                         else if (optimize flags == 1)
+                          then "-MD -Zi -O2 -Ob1 -DNDEBUG=1"  -- Ob1: inline only marked inline
+                          else "-MD -GL -Gy -GS- -O2 -Ob2 -DNDEBUG=1"  -- GL:whole program opt, Ob2: inline freely
+          compilePdb   = "" -- if (optimize flags <= 1) then "-Fd:" ++ dquote (outBase ++ ".pdb") else ""
+          compileObj   = "-Fo" ++ dquote (outBase ++ objExtension)
           compileCmd   = joinWith " " $ 
-                         [ "cl -nologo -c -W3 -Zi -I\"cruntime/include\""
+                         [ "cl -nologo -c -W3 -Gm- -I\"cruntime/include\""
                          , compileOpt, compileExtra, compileObj, compilePdb
-                         , "-Tc " ++ dquote outC
+                         , dquote outC
                          ]
           
       trace compileCmd $ return ()
@@ -1191,17 +1194,19 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let variant   = (if (optimize flags >= 0) then "rel" else "dbg")
-                targetBase = (if null (exeName flags) then (outBase ++ "-" ++ variant) else outName flags (exeName flags))
+         do let variant   = (if (optimize flags >= 1) then "rel" else "dbg")
+                targetBase = (if null (exeName flags) then (outBase) else outName flags (exeName flags))
                 targetExe  = targetBase ++ exeExtension
                 linkExtra = ""
-                linkOpt   = if (optimize flags >= 0) then "-MD -GL" else "-MDd"
-                linkPdb   = "-Fd:" ++ dquote (targetBase ++ ".pdb")
-                linkExe   = "-Fe:" ++ dquote (targetExe)
-                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 0) then "Release" else "Debug")
+                linkOpt   = if (optimize flags <= 0) then "-Zi -MDd" 
+                            else if (optimize flags == 1) then "-Zi -MD" 
+                            else "-MD -GL -Gy -GS-" 
+                linkPdb   = if (optimize flags <= 1) then "-Fd" ++ dquote (targetBase ++ ".pdb") else ""
+                linkExe   = "-Fe" ++ dquote (targetExe)
+                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 1) then "Release" else "Debug")
                             ++ "/runtime.lib"
                 linkCmd   = joinWith " " $ 
-                            [ "cl -nologo -W3 -Zi"
+                            [ "cl -nologo -W3 -Gm-"
                             , linkOpt, linkExtra
                             , linkExe, linkPdb
                             , concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]

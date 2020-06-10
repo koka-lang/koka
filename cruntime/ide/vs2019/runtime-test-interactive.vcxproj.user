@@ -5,7 +5,7 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommand>$(targetpath)</LocalDebuggerCommand>
+    <LocalDebuggerCommand>..\..\..\out\lib\interactive.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>$(projectdir)</LocalDebuggerWorkingDirectory>
   </PropertyGroup>

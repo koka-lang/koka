@@ -79,7 +79,7 @@ __std_core__list string_to_list(string_t s, context_t* ctx) {
   struct __std_core_Cons* tl = NULL;
   size_t count;
   char_t c;
-  while( (c = utf8_read(p,&count), count != 0) ) {
+  while( (c = utf8_read(p,&count), c != 0) ) {
     p += count;
     __std_core__list cons = __std_core__new_Cons(box_char_t(c,ctx), nil, ctx);
     if (tl!=NULL) {

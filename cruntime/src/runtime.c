@@ -7,6 +7,9 @@
 ---------------------------------------------------------------------------*/
 #include "runtime.h"
 #include <stdarg.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 // ptr_null
 static block_t ptr_null_block = { HEADER_STATIC(0,TAG_INVALID) };
@@ -130,6 +133,9 @@ static void runtime_done(void) {
 static void runtime_init(void) {
   if (process_initialized) return;
   process_initialized = true;
+#if defined(_WIN32) && defined(_CONSOLE)
+  SetConsoleOutputCP(65001); // set the console to unicode instead of OEM page
+#endif
   atexit(&runtime_done);
 }
 
