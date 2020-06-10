@@ -204,7 +204,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , numOption 1 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})         "optimize (off by default, 1=optimize+debug info, 2=optimize)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})         "optimize (off by default, 1=optimize+debug info, 2=optimize)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline

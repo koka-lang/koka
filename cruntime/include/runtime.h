@@ -100,6 +100,26 @@ static inline box_t     box_enum(uintx_t u);
 
 /*--------------------------------------------------------------------------------------
   Blocks 
+  A block is an object that starts with a header.
+
+  (non-value) datatypes contain a first `_block` field.
+  Their constructors in turn contain a first `_type` field that is the datatype.
+  This representation ensures correct behaviour under C alias rules and allow good optimization.
+  e.g. :
+
+  typedef struct list_s {  
+    block_t _block; 
+  } *list_t;
+
+  struct Cons { 
+    struct list_s  _type;
+    box_t          head;
+    list_t         tail;
+  }
+
+  struct Nil {
+    struct list_s  _type;
+  }
 --------------------------------------------------------------------------------------*/
 
 // A heap block is a header followed by `scan_fsize` boxed fields and further raw bytes
@@ -301,8 +321,10 @@ static inline block_t* dup_block(block_t* b) {
   if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
     return dup_block_check(b);      // thread-shared or sticky (overflow) ?
   }
-  b->header.refcount = rc+1;
-  return b;
+  else {
+    b->header.refcount = rc+1;
+    return b;
+  }
 }
 
 static inline void drop_block(block_t* b, context_t* ctx) {
@@ -326,6 +348,11 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
   assert_internal(block_tag(b) == tag);
   return dup_block(b);
 }
+
+
+/*--------------------------------------------------------------------------------------
+  Datatype and Constructor macros
+--------------------------------------------------------------------------------------*/
 
 #define datatype_tag(v)                     (block_tag(&((v)->_block)))
 #define datatype_is_unique(v)               (block_is_unique(&((v)->_block)))

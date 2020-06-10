@@ -1174,17 +1174,21 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
     
       -- compile the C code
       let compileExtra = "-Fa" ++ dquote (outBase ++ ".asm")  -- generate assembly
-          compileOpt   = if (optimize flags <= 0) 
-                          then "-MDd -Zi -RTC1"               -- RTC1: runtime checks
+          compileDbg   = if (debug flags) 
+                          then ("-Zi" ++ (if (optimize flags <= 0) then " -MDd -RTC1" else " -MD"))
+                          else "-MD"
+          compileOpt   = if (debug flags && optimize flags <= 0) 
+                          then ""
                          else if (optimize flags == 1)
-                          then "-MD -Zi -O2 -Ob1 -DNDEBUG=1"  -- Ob1: inline only marked inline
-                          else "-MD -GL -Gy -GS- -O2 -Ob2 -DNDEBUG=1"  -- GL:whole program opt, Ob2: inline freely
-          compilePdb   = "" -- if (optimize flags <= 1) then "-Fd:" ++ dquote (outBase ++ ".pdb") else ""
+                          then "-O2 -Ob1 -DNDEBUG=1"  -- Ob1: inline only marked inline
+                          else "-GL -Gy -GS- -O2 -Ob2 -DNDEBUG=1"  -- GL:whole program opt, Ob2: inline freely
           compileObj   = "-Fo" ++ dquote (outBase ++ objExtension)
+          compileInc   = joinWith " " $ map (\inc -> "-I" ++ dquote inc) $ ["cruntime/include"]
           compileCmd   = joinWith " " $ 
-                         [ "cl -nologo -c -W3 -Gm- -I\"cruntime/include\""
-                         , compileOpt, compileExtra, compileObj, compilePdb
-                         , dquote outC
+                         [ "cl -nologo -c -W3 -Gm-"
+                         , compileDbg
+                         , compileOpt, compileExtra
+                         , compileInc, compileObj, dquote outC
                          ]
           
       trace compileCmd $ return ()
@@ -1194,16 +1198,16 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let variant   = (if (optimize flags >= 1) then "rel" else "dbg")
-                targetBase = (if null (exeName flags) then (outBase) else outName flags (exeName flags))
+         do let targetBase = (if null (exeName flags) then (outBase) else outName flags (exeName flags))
                 targetExe  = targetBase ++ exeExtension
                 linkExtra = ""
-                linkOpt   = if (optimize flags <= 0) then "-Zi -MDd" 
-                            else if (optimize flags == 1) then "-Zi -MD" 
-                            else "-MD -GL -Gy -GS-" 
-                linkPdb   = if (optimize flags <= 1) then "-Fd" ++ dquote (targetBase ++ ".pdb") else ""
+                linkOpt   = joinWith " " $
+                            [ if (debug flags) then "-Zi" else ""
+                            , if (debug flags && optimize flags <= 0) then "-MDd" else "-MD"
+                            , if (optimize flags <= 0) then "" else "-GL -Gy -GS-" ]
+                linkPdb   = if (debug flags) then "-Fd" ++ dquote (targetBase ++ ".pdb") else ""
                 linkExe   = "-Fe" ++ dquote (targetExe)
-                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 1) then "Release" else "Debug")
+                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags <= 0) then "Debug" else "Release")
                             ++ "/runtime.lib"
                 linkCmd   = joinWith " " $ 
                             [ "cl -nologo -W3 -Gm-"

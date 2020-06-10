@@ -20,7 +20,7 @@
   
   0                         : unique reference
   0x00000001 - 0x7FFFFFFF   : reference (in a single thread)
-  0x80000000 - 0xBFFFFFFF   : reference or thread-shared reference (if `thread_shared`). Use atomic operations
+  0x80000000 - 0xCFFFFFFF   : reference or thread-shared reference (if `thread_shared`). Use atomic operations
   0xD0000000 - 0xDFFFFFFF   : sticky range: still increments, but no decrements
   0xE0000000 - 0xEFFFFFFF   : sticky range: neither increment, nor decrement
   0xF0000000 - 0xFFFFFFFF   : invalid; used for debug checks

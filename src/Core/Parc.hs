@@ -59,6 +59,56 @@ parcDefGroups defGroups
        return defGroups
 
 
+{-
+val x = y
+f(g(x),y,x)
+~>
+
+f(g(dup(x)),y,x) | {x,y,f}
+
+~>
+
+f(g(x),y,dup(x)) | {x,y,f}
+
+fun foo(x) {
+  val f = (dup(x); allocate_fun(x)) + fun(y | x){ x + y }
+  if (x==1) then 2 else f(3) + f(5)
+}
+
+
+parcExpr :: Expr -> Parc Expr
+parcExpr (App fun args)
+  = do args' <- reverseMapM parcExpr args
+       fun'  <- parcExpr fun
+       return (App fun' args')
+       
+parcExpr (Lam pars body)
+  = do body' <- withNoUse $ parcExpr body
+       -- for each par in pars, if inuse = ok, otherwise drop
+       -- remove all pars from "inuse"
+       
+parcExpr (Let dgs body)
+  = do body' <- parcExpr body
+       dgs'  <- parcDefGroups dgs
+       return (Let dgs' body')
+
+parcExpr expr@(Con cname info)   
+  = do if availableReuse then allocReuse else ..
+    
+parcExpr expr@(Var vname InfoNone)   -- InfoArity, InfoExternal
+  = do inuse <- getInUse(vname)
+       if (inuse) 
+        then return expr  -- dup it
+        else do addInUse(vname)
+                return expr 
+       
+parcExpr expr  
+  = return expr
+
+-}
+  
+    
+    
 {--------------------------------------------------------------------------
  Parc monad
 --------------------------------------------------------------------------}

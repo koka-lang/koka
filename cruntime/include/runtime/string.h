@@ -164,7 +164,7 @@ static inline size_t decl_pure string_len_borrow(const string_t str) {
     return (STRING_SMALL_MAX - (bits_ctz64(s->u.str_value)/8));
 #endif
   }
-  if (datatype_tag(str) == TAG_STRING) {
+  else if (datatype_tag(str) == TAG_STRING) {
     return datatype_as_assert(string_normal_t, str, TAG_STRING)->length;
   }
   else {
