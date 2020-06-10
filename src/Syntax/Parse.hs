@@ -1301,10 +1301,11 @@ varDecl
 
 
 valDecl rng doc vis
-  = do bind <- binder rng
+  = do inline <- parseInline
+       bind <- binder rng
        keyword "="
        body <- blockexpr
-       return (Def (bind body) (combineRanged rng body) vis DefVal InlineAuto doc)
+       return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
 
 funDecl rng doc vis
   = do spars <- squantifier

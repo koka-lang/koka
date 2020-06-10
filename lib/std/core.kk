@@ -2291,7 +2291,7 @@ private fun gprint( x : a ) : console () {
 }
 
 
-private val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
+private val noinline redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
 
 // redirect `print` and `println` calls to a specified function.
 public fun noinline print-redirect( print : (msg : string) -> console () ) : io ()
@@ -2300,14 +2300,14 @@ public fun noinline print-redirect( print : (msg : string) -> console () ) : io 
 }
 
 // Print a string to the console, including a final newline character.
-private extern xprintsln : string -> console ()  {
+private extern xprintsln(s : string) : console ()  {
   c  "println"
   cs "Console.WriteLine"
   js "_println"
 }
 
 // Print a string to the console
-private extern xprints : string -> console ()  {
+private extern xprints( s : string) : console ()  {
   c  "print"
   cs "Console.Write"
   js "_print"
@@ -2316,7 +2316,7 @@ private extern xprints : string -> console ()  {
 // _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
 extern inline unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) { inline "#1"}
 
-private fun prints( s : string ) : console () {
+private fun noinline prints( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprints(s)
@@ -2325,7 +2325,7 @@ private fun prints( s : string ) : console () {
   })()
 }
 
-private fun printsln( s : string ) : console () {
+private fun noinline printsln( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprintsln(s)

@@ -32,7 +32,7 @@ import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath )
-import Data.List              ( isPrefixOf )
+import Data.List              ( isPrefixOf, intersperse )
 import Control.Applicative
 import Control.Monad          ( ap, when )
 import Common.Failure
@@ -1174,10 +1174,16 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
     
       -- compile the C code
       let compileExtra = "-FA"
-          compileOpt   = if (optimize flags >= 0) then "-GL -O2" else ""
-          compileFlags = "-c -W3 -Zl -I cruntime/include " ++ compileOpt ++ " " ++ compileExtra 
-                         ++ " -Tc " ++ dquote outC
-          compileCmd   = "cl -nologo " ++ compileFlags
+          compileOpt   = if (optimize flags >= 0) 
+                          then "-MD -GL -O2 -DNDEBUG=1" else "-MDd"    -- GL:whole program opt
+          compilePdb   = "-Fd:" ++ dquote (outBase ++ ".pdb")
+          compileObj   = "-Fo:" ++ dquote (outBase ++ objExtension)
+          compileCmd   = joinWith " " $ 
+                         [ "cl -nologo -c -W3 -Zi -I\"cruntime/include\""
+                         , compileOpt, compileExtra, compileObj, compilePdb
+                         , "-Tc " ++ dquote outC
+                         ]
+          
       trace compileCmd $ return ()
       runSystem compileCmd
 
@@ -1185,23 +1191,34 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+         do let variant   = (if (optimize flags >= 0) then "rel" else "dbg")
+                targetBase = (if null (exeName flags) then (outBase ++ "-" ++ variant) else outName flags (exeName flags))
+                targetExe  = targetBase ++ exeExtension
                 linkExtra = ""
-                linkOpt   = if (optimize flags >= 0) then "-GL" else ""
-                linkFlags = "-Fe:" ++ targetName ++ " " ++ compileOpt ++ " " 
-                            ++ concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]
-                            ++ dquote (outBase ++ objExtension) ++ " "
-                            ++ "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 0) then "Release" else "Debug")
+                linkOpt   = if (optimize flags >= 0) then "-MD -GL" else "-MDd"
+                linkPdb   = "-Fd:" ++ dquote (targetBase ++ ".pdb")
+                linkExe   = "-Fe:" ++ dquote (targetExe)
+                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags >= 0) then "Release" else "Debug")
                             ++ "/runtime.lib"
-                linkCmd   = "cl -nologo " ++ linkFlags         
+                linkCmd   = joinWith " " $ 
+                            [ "cl -nologo -W3 -Zi"
+                            , linkOpt, linkExtra
+                            , linkExe, linkPdb
+                            , concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]
+                            , dquote (outBase ++ objExtension)
+                            , runtimeLib
+                            ]                            
+                
             trace linkCmd $ return ()
             runSystem linkCmd
             
             -- run the program?
-            trace ("run: " ++ targetName) $ return ()
-            return (Just (runSystem targetName))
+            trace ("run: " ++ targetExe) $ return ()
+            return (Just (runSystem (dquote targetExe)))
       
-
+joinWith sep xs
+  = concat (intersperse sep xs)
+  
 copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
 copyIFaceToOutputDir term flags iface targetPath imported
   -- | host flags == Node && target flags == JS = return ()

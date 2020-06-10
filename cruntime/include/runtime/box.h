@@ -411,7 +411,8 @@ static inline box_t box_cptr(void* p, context_t* ctx) {
 }
 
 static inline void* unbox_cptr(box_t b) {
-  if (is_cptr_fast(b)) {
+  if (is_ptr_fast(b)) {
+    assert_internal(is_ptr(b));
     return (void*)(box_as_uintptr(b) & ~UP(0x03));
   }
   else {

@@ -321,7 +321,7 @@ showMessage err when a b fdoc env
                      , text "  =~ " <.> docB
                      , text "when" <+> text when
                      , indent 2 (fdoc env)
-                     , text $ (show a) ++ "\n" ++ (show b)
+                     -- , text $ (show a) ++ "\n" ++ (show b)
                      ]
 
 prettyExpr e env = PrettyCore.prettyExpr env e

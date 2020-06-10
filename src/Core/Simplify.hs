@@ -46,10 +46,10 @@ simplifyN nRuns defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Int -> a -> Unique a
-uniqueSimplify duplicationMax expr
+uniqueSimplify :: Simplify a => Bool -> Int -> a -> Unique a
+uniqueSimplify unsafe duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify False duplicationMax u Pretty.defaultEnv (simplify expr)
+       let (x,u') = runSimplify unsafe duplicationMax u Pretty.defaultEnv (simplify expr)
        setUnique u'
        return x
 
@@ -181,11 +181,22 @@ topDown (Let dgs body)
 
 -- Remove effect open applications; only if 'unsafe' is enabled since
 -- the effect types won't match up
-topDown expr@(App (TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
+topDown expr@(App app@(TypeApp (Var openName _) _) [arg])  | getName openName == nameEffectOpen
   = do unsafe <- getUnsafe
        if (unsafe)
         then topDown arg
-        else return expr
+        else do arg' <- topDown arg
+                return (App app [arg'])
+        
+-- Remove identity externals of the form "#1"; only if 'unsafe' is enabled since
+-- usually the effect types won't match up
+topDown expr@(App app@(TypeApp (Var _ (InfoExternal [(Default,"#1")])) _) [arg])  
+  = do unsafe <- getUnsafe
+       if (unsafe)
+        then topDown arg
+        else do arg' <- topDown arg
+                return (App app [arg'])
+        
 
 -- Direct function applications
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
