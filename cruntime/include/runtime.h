@@ -253,6 +253,7 @@ static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
 }
 
 static inline void runtime_free(void* p) {
+  UNUSED(p);
   // free(p);
 }
 

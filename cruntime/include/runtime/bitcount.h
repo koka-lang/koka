@@ -159,5 +159,33 @@ static inline bool bits_is_power_of2(uintx_t x) {
   return _bits_is_power_of2(x);
 }
 
+/* -----------------------------------------------------------
+  Rotations
+----------------------------------------------------------- */
+
+static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
+  return (x << shift) | (x >> (32 - shift));
+}
+
+static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
+  return (x >> shift) | (x << (32 - shift));
+}
+
+static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
+  return (x << shift) | (x >> (64 - shift));
+}
+
+static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
+  return (x >> shift) | (x << (64 - shift));
+}
+
+static inline uintx_t rotl(uintx_t x, uintx_t shift) {
+  return (x << shift) | (x >> (INTX_BITS - shift));
+}
+
+static inline uintx_t rotr(uintx_t x, uintx_t shift) {
+  return (x >> shift) | (x << (INTX_BITS - shift));
+}
+
 
 #endif // include guard
