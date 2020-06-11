@@ -253,7 +253,7 @@ static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
 }
 
 static inline void runtime_free(void* p) {
-  free(p);
+  // free(p);
 }
 
 static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {

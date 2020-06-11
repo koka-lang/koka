@@ -85,6 +85,9 @@ __std_core__list string_to_list(string_t s, context_t* ctx) {
     if (tl!=NULL) {
       tl->tail = cons;
     }
+    else {
+      list = cons;
+    }
     tl = __std_core__as_Cons(cons);
   }
   return list;
