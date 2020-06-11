@@ -114,6 +114,10 @@ static inline integer_t integer_from_int(intx_t i, context_t* ctx) {
   return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small(i) : integer_from_big(i,ctx));
 }
 
+static inline integer_t integer_from_int32(int32_t i, context_t* ctx) {
+  return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small(i) : integer_from_big(i, ctx));
+}
+
 static inline integer_t integer_from_int64(int64_t i, context_t* ctx) {
   return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small((intptr_t)i) : integer_from_big64(i, ctx));
 }

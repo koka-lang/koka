@@ -8,142 +8,40 @@
 #include "runtime.h"
 #include <string.h> // memset
 
-// Secure random context (using chacha-20)
-typedef struct random_cxt_s {
-  uint32_t input[16];
-  uint32_t output[16];
-  int      output_available;
-} random_ctx_t;
-
-// Pseudo random context (not secure, based on PCG)
-typedef struct pcg_ctx_s {
-  uint64_t state;
-  uint64_t stream; // must be odd
-} pcg_ctx_t;
-
-bool     random_init(random_ctx_t* rnd);
-void     random_split(random_ctx_t* rnd, random_ctx_t* ctx_new);
-uint32_t random_next32(random_ctx_t* rnd);
-uint64_t random_next64(random_ctx_t* rnd);
-uintx_t  random_next(random_ctx_t* rnd);
-double   random_next_double(random_ctx_t* rnd);
-uint32_t random_range32(uint32_t max, random_ctx_t* rnd);
-
-void     pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd);
-void     pcg_init_default(uint64_t stream, pcg_ctx_t* rnd);
-void     pcg_split(pcg_ctx_t* rnd, pcg_ctx_t* ctx_new);
-static inline uint32_t pcg_next32(pcg_ctx_t* rnd);
-static inline uint64_t pcg_next64(pcg_ctx_t* rnd);
-static inline uintx_t  pcg_next(pcg_ctx_t* rnd);
-double   pcg_next_double(pcg_ctx_t* rnd);
-uint32_t pcg_range32(uint32_t max, pcg_ctx_t* rnd);
-
-
-/* -----------------------------------------------------------
-  Generic helpers: unbiased selection and random double
------------------------------------------------------------ */
-
-#define unbiased_range32(max,rand) \
-  /* Select unbiased integer in the range [0,max) by Daniel Lemire <https://arxiv.org/pdf/1805.10941.pdf> */ \
-  uint32_t x = rand; \
-  uint64_t m = (uint64_t)x * (uint64_t)max; \
-  uint32_t l = (uint32_t)m; \
-  if (unlikely(l < max)) {  \
-    uint32_t threshold = (~max+1) % max;  /* 2^32 % max == (2^32 - max) % max == -max % max */ \
-    while (l < threshold) { \
-      x = rand;  \
-      m = (uint64_t)x * (uint64_t)max; \
-      l = (uint32_t)m; \
-    } \
-  } \
-  return (uint32_t)(m >> 32);
-
-
-uint32_t pcg_range32(uint32_t max, pcg_ctx_t* rnd) {
-  unbiased_range32(max, pcg_next32(rnd))
-}
-
-uint32_t random_range32(uint32_t max, random_ctx_t* rnd) {
-  unbiased_range32(max, random_next32(rnd))
-}
-
-
-// Use 48 random bits to generate a double in the range [0,1)
-#define next_double(rand32) \
-  const uint32_t lo = (rand32 << 4);            /* clear lower 4 bits  */ \
-  const uint32_t hi = (rand32 & U32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */ \
-  const uint64_t x = U64(0x3FF0000000000000) | (uint64_t)hi << 32 | (uint64_t)lo; \
-  double d; \
-  memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */ \
-  return (d - 1.0);
-
-double pcg_next_double(pcg_ctx_t* rnd) {
-  next_double(pcg_next32(rnd));
-}
-
-double random_next_double(random_ctx_t* rnd) {
-  next_double(random_next32(rnd));
-}
-
 
 /* -----------------------------------------------------------
   PCG pseudo random number generation. Fast but not secure.
   By Melissa O'Neill <https://www.pcg-random.org/>
 ----------------------------------------------------------- */
 
-static inline uint32_t pcg_next32(pcg_ctx_t* rnd) {
-  const uint64_t state0 = rnd->state;
-  rnd->state = (state0 * U64(6364136223846793005)) + rnd->stream;
-  const uint32_t x   = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
-  const uint32_t rot = (uint32_t)(state0 >> 59);
-  return rotr32(x, rot);
-}
-
-static inline uint64_t pcg_next64(pcg_ctx_t* rnd) {
-  return ((((uint64_t)pcg_next32(rnd)) << 32) | pcg_next32(rnd));
-}
-
-static inline uintx_t pcg_next(pcg_ctx_t* rnd) {
-#if (INTX_SIZE == 4) 
-  return pcg_next32(rnd);
-#else
-  return pcg_next64(rnd);
-#endif
-}
-
 void pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd) {
-  if (stream == 0) stream = (uintptr_t)rnd; // each context has its own stream based on its address
   rnd->state  = 0;
   rnd->stream = (2*stream) | 1; // ensure it is odd
-  pcg_next(rnd);
+  pcg_uint32(rnd);
   rnd->state += init;
-  pcg_next(rnd);
+  pcg_uint32(rnd);
 }
 
-void pcg_init_default(uint64_t stream, pcg_ctx_t* rnd) {
-  pcg_init(U64(0x853C49E6748FEA9B), stream, rnd);
+void prandom_seed(uint64_t seed, context_t* ctx) {
+  pcg_init(seed, ctx->random_pcg.stream, &ctx->random_pcg);
 }
 
-void pcg_split(pcg_ctx_t* rnd, pcg_ctx_t* rng_new) {
-  pcg_init(rnd->state, (uintptr_t)rng_new, rng_new);
-  assert_internal(rnd->stream != rng_new->stream);
-  pcg_next32(rnd); // update state
+// Fixed initialization so prandom is deterministic
+void prandom_init(context_t* ctx) {
+  pcg_init(U64(0x853C49E6748FEA9B), U64(0xC0FFEE), &ctx->random_pcg);
 }
 
 
 
 /* ----------------------------------------------------------------------------
-Secure pseudo random numbers based on chacha-20
+Secure pseudo random numbers based on chacha-20/8
 We use our own PRNG to keep predictable performance of random number generation
 and to avoid implementations that use a lock. We only use the OS provided
 random source to initialize the initial seeds. 
 -----------------------------------------------------------------------------*/
 
-#define CHACHA_ROUNDS (20)   // perhaps use 12 for better performance?
-
-
 /* ----------------------------------------------------------------------------
-Chacha20 implementation as the original algorithm with a 64-bit nonce
+Chacha20/8 implementation as the original algorithm with a 64-bit nonce
 and counter: https://en.wikipedia.org/wiki/Salsa20 by Daniel J. Bernstein
 The input matrix has sixteen 32-bit values:
 Position  0 to  3: constant key
@@ -162,49 +60,53 @@ static inline void qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d
   x[c] += x[d]; x[b] = rotl32(x[b] ^ x[c], 7);
 }
 
-static void chacha_block(random_ctx_t* rnd)
+static inline void chacha_shuffle(const size_t rounds, uint32_t* x)
 {
-  // scramble into `x`
-  uint32_t x[16];
-  for (size_t i = 0; i < 16; i++) {
-    x[i] = rnd->input[i];
-  }
-  for (size_t i = 0; i < CHACHA_ROUNDS; i += 2) {
-    qround(x, 0, 4,  8, 12);
-    qround(x, 1, 5,  9, 13);
+  for (size_t i = 0; i < rounds; i += 2) {
+    qround(x, 0, 4, 8, 12);
+    qround(x, 1, 5, 9, 13);
     qround(x, 2, 6, 10, 14);
     qround(x, 3, 7, 11, 15);
     qround(x, 0, 5, 10, 15);
     qround(x, 1, 6, 11, 12);
-    qround(x, 2, 7,  8, 13);
-    qround(x, 3, 4,  9, 14);
+    qround(x, 2, 7, 8, 13);
+    qround(x, 3, 4, 9, 14);
   }
+}
 
-  // add scrambled data to the initial state
+static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* output)
+{
+  // copy into `x`
+  uint32_t x[16];
   for (size_t i = 0; i < 16; i++) {
-    rnd->output[i] = x[i] + rnd->input[i];
+    x[i] = input[i];
   }
-  rnd->output_available = 16;
 
+  // shuffle bits
+  chacha_shuffle(rounds, x);
+
+  // add scrambled data to the initial state into the output
+  for (size_t i = 0; i < 16; i++) {
+    output[i] = x[i] + input[i];
+  }
+  
   // increment the counter for the next round
-  rnd->input[12] += 1;
-  if (rnd->input[12] == 0) {
-    rnd->input[13] += 1;
-    if (rnd->input[13] == 0) {  // and keep increasing into the nonce
-      rnd->input[14] += 1;
+  input[12] += 1;
+  if (input[12] == 0) {
+    input[13] += 1;
+    if (input[13] == 0) {  // and keep increasing into the nonce
+      input[14] += 1;
     }
   }
 }
 
-static uint32_t chacha_next32(random_ctx_t* rnd) {
-  if (rnd->output_available <= 0) {
-    chacha_block(rnd);
-    rnd->output_available = 16; // (assign again to suppress static analysis warning)
-  }
-  const uint32_t x = rnd->output[16 - rnd->output_available];
-  rnd->output[16 - rnd->output_available] = 0; // reset once the data is handed out
-  rnd->output_available--;
-  return x;
+noinline void chacha20(random_ctx_t* rnd) {
+  chacha_block(20, rnd->input, rnd->output);
+  rnd->used = 0;
+}
+noinline void chacha8(random_ctx_t* rnd) {
+  chacha_block(8, rnd->input, rnd->output);
+  rnd->used = 0;
 }
 
 static inline uint32_t read32(const uint8_t* p, size_t idx32) {
@@ -212,7 +114,7 @@ static inline uint32_t read32(const uint8_t* p, size_t idx32) {
   return ((uint32_t)p[i+0] | (uint32_t)p[i+1] << 8 | (uint32_t)p[i+2] << 16 | (uint32_t)p[i+3] << 24);
 }
 
-static void chacha_init(random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
+void chacha_init(random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
 {
   // read the 32-bit values as little-endian
   memset(rnd, 0, sizeof(*rnd));
@@ -227,6 +129,7 @@ static void chacha_init(random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce
   rnd->input[13] = 0;
   rnd->input[14] = (uint32_t)nonce;
   rnd->input[15] = (uint32_t)(nonce >> 32);
+  rnd->used = 128;
 }
 
 static void chacha_split(random_ctx_t* rnd, uint64_t nonce, random_ctx_t* ctx_new) {
@@ -237,17 +140,16 @@ static void chacha_split(random_ctx_t* rnd, uint64_t nonce, random_ctx_t* ctx_ne
   ctx_new->input[14] = (uint32_t)nonce;
   ctx_new->input[15] = (uint32_t)(nonce >> 32);
   assert_internal(rnd->input[14] != ctx_new->input[14] || rnd->input[15] != ctx_new->input[15]); // do not reuse nonces!
-  chacha_block(ctx_new);
+  chacha20(ctx_new);
 }
 
 
 /* ----------------------------------------------------------------------------
 Random interface
 -----------------------------------------------------------------------------*/
-
-#if MI_DEBUG>1
-static bool random_is_initialized(random_ctx_t* rnd) {
-  return (rnd != NULL && rnd->input[0] != 0);
+#ifndef NDEBUG
+static random_is_initialized(random_ctx_t* rnd) {
+  return (rnd->input[0] != 0);
 }
 #endif
 
@@ -255,25 +157,6 @@ void random_split(random_ctx_t* rnd, random_ctx_t* ctx_new) {
   assert_internal(random_is_initialized(rnd));
   assert_internal(rnd != ctx_new);
   chacha_split(rnd, (uintptr_t)ctx_new /*nonce*/, ctx_new);
-}
-
-uint32_t random_next32(random_ctx_t* rnd) {
-  assert_internal(random_is_initialized(rnd));
-  return chacha_next32(rnd);
-}
-
-uint64_t random_next64(random_ctx_t* rnd) {
-  return (((uint64_t)random_next32(rnd) << 32) | random_next32(rnd));
-}
-
-uintx_t random_next(random_ctx_t* rnd) {
-#if INTX_SIZE <= 4
-  return random_next32(rnd);
-#elif INTX_SIZE == 8
-  return random_next64(rnd);
-#else
-# error "define random_next for this platform"
-#endif
 }
 
 
@@ -385,20 +268,56 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
   return x;
 }
 
-bool random_init(random_ctx_t* rnd) {
+static random_ctx_t* random_init(context_t* ctx) {
+  random_ctx_t* rnd = (random_ctx_t*)runtime_zalloc(sizeof(random_ctx_t), ctx);
   uint8_t key[32];
-  const bool secure = os_random_buf(key, sizeof(key));
-  if (!secure) {
+  const bool strong = os_random_buf(key, sizeof(key));
+  if (!strong) {
     // if we fail to get random data from the OS, we fall back to a
     // weak random source based on the current time and ASLR.
-    warning_message("unable to use secure randomness\n");
+    warning_message("unable to use strong randomness\n");
     pcg_ctx_t pcg;
-    pcg_init(os_random_weak(rand()), 0, &pcg);
+    pcg_init(os_random_weak(rand()), (uintptr_t)rnd, &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
-      uint32_t x = pcg_next32(&pcg);
+      uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;
     }
   }
   chacha_init(rnd, key, (uintptr_t)rnd /*nonce*/ );
-  return secure;
+  rnd->strong = strong;
+  return rnd;
+}
+
+random_ctx_t* random_round(context_t* ctx) {
+  // initialize on demand
+  random_ctx_t* rnd = ctx->random_ctx;
+  if (rnd == NULL) {
+    ctx->random_ctx = rnd = random_init(ctx);
+  }
+  chacha8(rnd);
+  return rnd;
+}
+
+random_ctx_t* srandom_round(context_t* ctx) {
+  // initialize on demand
+  random_ctx_t* rnd = ctx->random_strong;
+  if (rnd == NULL) {
+    ctx->random_strong = rnd = random_init(ctx);
+  }
+  chacha20(rnd);
+  return rnd;
+}
+
+bool random_is_strong(context_t* ctx) {
+  if (ctx->random_ctx == NULL) {
+    random_round(ctx);
+  }
+  return ctx->random_ctx->strong;
+}
+
+bool srandom_is_strong(context_t* ctx) {
+  if (ctx->random_strong == NULL) {
+    srandom_round(ctx);
+  }
+  return ctx->random_strong->strong;
 }

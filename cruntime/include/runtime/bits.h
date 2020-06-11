@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __BITCOUNT_H__
-#define __BITCOUNT_H__
+#ifndef __BITS_H__
+#define __BITS_H__
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

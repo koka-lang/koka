@@ -200,6 +200,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)..\..\src\integer.c" />
+    <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\refcount.c">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyAndSourceCode</AssemblerOutput>
     </ClCompile>
@@ -210,9 +211,10 @@
     <ClInclude Include="$(ProjectDir)..\..\include\runtime.h" />
     <ClInclude Include="$(ProjectDir)..\..\include\runtime\integer.h" />
     <ClInclude Include="..\..\include\runtime\atomic.h" />
-    <ClInclude Include="..\..\include\runtime\bitcount.h" />
+    <ClInclude Include="..\..\include\runtime\bits.h" />
     <ClInclude Include="..\..\include\runtime\box.h" />
     <ClInclude Include="..\..\include\runtime\platform.h" />
+    <ClInclude Include="..\..\include\runtime\random.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

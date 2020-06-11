@@ -405,6 +405,24 @@ static void test_double(context_t* ctx) {
 }
 
 
+static void test_chacha(context_t* ctx) {
+  msecs_t start = _clock_start();
+  uint32_t y = random_uint32(ctx);
+  const size_t N = 100000000;
+  for (size_t i = 0; i < N; i++) {
+    y = random_range32(100000,ctx);
+  }
+  msecs_t end = _clock_end(start);
+  printf("chacha8: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);
+  start = _clock_start();
+  y = 0;
+  for (size_t i = 0; i < N; i++) {
+    y = prandom_range32(100000,ctx);
+  }
+  end = _clock_end(start);
+  printf("pcg: final: 0x%x, %6.3fs\n", y, (double)end / 1000.0);
+}
+
 int main() {
   context_t* ctx = runtime_context();
   test_fib(50,ctx);   // 12586269025
@@ -423,6 +441,7 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   // test_bitcount();
+  test_chacha(ctx);
   
   /*
   init_nums();

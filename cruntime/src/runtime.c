@@ -41,19 +41,6 @@ void free_fun_null(void* p) {
 }
 
 
-double random_double(context_t* ctx) {
-  UNUSED(ctx);
-  // TODO
-  return 0.0;
-}
-
-integer_t random_int(context_t* ctx) {
-  UNUSED(ctx);
-  // TODO
-  return integer_from_small(0);
-}
-
-
 string_t runtime_host(context_t* ctx) {
   UNUSED(ctx);
   define_string_literal(static, host, 5, "libc");
@@ -118,7 +105,14 @@ void fatal_error(int err, const char* fmt, ...) {
   va_end(args);
   abort();   // todo: call error handler
 }
-  
+
+void warning_message(const char* fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  log_message_fmt(runtime_context(), LOG_WARNING, fmt, args);
+  va_end(args);
+}
+
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
@@ -153,6 +147,7 @@ context_t* runtime_context(void) {
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
+  prandom_init(ctx);
   return ctx;
 }
 

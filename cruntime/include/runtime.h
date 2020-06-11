@@ -178,7 +178,22 @@ typedef struct vector_s {
   block_t _block;
 } *vector_t;
 
+// The pseudo random number context (using PCG)
+typedef struct pcg_ctx_s {
+  uint64_t state;
+  uint64_t stream; // must be odd
+} pcg_ctx_t;
 
+// Strong random number context (using chacha)
+#define RANDOM_FIELDS (16)
+typedef struct random_cxt_s {
+  uint32_t output[16]; // current output
+  uint32_t input[16];  // current state
+  int32_t  used;       // how many output fields are already used?
+  bool     strong;     // initialized from strong random source?
+} random_ctx_t;
+
+//A yield context allows up to 8 continuations to be stored in-place
 #define YIELD_CONT_MAX (8)
 
 typedef enum yield_kind_e {
@@ -197,6 +212,8 @@ typedef struct yield_s {
                               // entry points to its composition.
 } yield_t;
 
+// The thread local context.
+// The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct context_s {
   uint8_t     yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
   heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
@@ -208,6 +225,9 @@ typedef struct context_s {
   uintptr_t   thread_id;        // unique thread id
   function_t  log;              // logging function
   function_t  out;              // std output
+  pcg_ctx_t     random_pcg;     // fast pseudo random 
+  random_ctx_t* random_ctx;     // fast random (chacha8), initialized on demand
+  random_ctx_t* random_strong;  // strong random (chacha20), initialized on demand
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -456,8 +476,9 @@ typedef struct cptr_raw_s {
 
 #include "runtime/box.h"
 #include "runtime/integer.h"
-#include "runtime/bitcount.h"
+#include "runtime/bits.h"
 #include "runtime/string.h"
+#include "runtime/random.h"
 
 /*----------------------------------------------------------------------
   TLD operations
@@ -575,6 +596,7 @@ static inline ref_t dup_ref_t(ref_t r) {
 
 
 decl_export void fatal_error(int err, const char* msg, ...);
+decl_export void warning_message(const char* msg, ...);
 
 static inline void unsupported_external(const char* msg) {
   fatal_error(ENOSYS,msg);
@@ -702,12 +724,6 @@ struct bytes_raw_s {             // pointer to bytes with free function
   size_t         length;
 };
 
-/*--------------------------------------------------------------------------------------
-  Randomness
---------------------------------------------------------------------------------------*/
-
-decl_export double    random_double(context_t* ctx);
-decl_export integer_t random_int(context_t* ctx);
 
 
 decl_export string_t  runtime_host(context_t* ctx);
