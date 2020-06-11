@@ -68,6 +68,7 @@ uint32_t random_range32(uint32_t max, random_ctx_t* rnd) {
 }
 
 
+// Use 48 random bits to generate a double in the range [0,1)
 #define next_double(rand32) \
   const uint32_t lo = (rand32 << 4);            /* clear lower 4 bits  */ \
   const uint32_t hi = (rand32 & U32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */ \
@@ -279,7 +280,7 @@ uintx_t random_next(random_ctx_t* rnd) {
 /* ----------------------------------------------------------------------------
 To get an initial secure random context we rely on the OS:
 - Windows     : BCryptGenRandom
-- osX,bsd,wasi: arc4random_buf
+- OSX,bsd,wasi: arc4random_buf
 - Linux       : getrandom,/dev/urandom
 If we cannot get good randomness, we fall back to weak randomness based on a timer and ASLR.
 -----------------------------------------------------------------------------*/
