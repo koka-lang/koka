@@ -209,43 +209,6 @@ static inline const uint8_t* utf8_prev(const uint8_t* s) {
   return s;
 }
 
-// Non-validating utf8 decoding of a single code point
-static inline char_t utf8_read(const uint8_t* s, size_t* count) {
-  char_t b = *s;
-  char_t c;
-  if (likely(b <= 0x7F)) {
-    *count = 1;
-    c = b; // fast path ASCII
-  }
-  else if (b <= 0xBF) { // invalid continuation byte (check is strictly not necessary as we don't validate..)
-    *count = (utf8_next(s) - s);  // skip to next
-    c = char_replacement;
-  }
-  else if (b <= 0xDF) { // b >= 0xC0  // 2 bytes
-    *count = 2;
-    c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
-  }
-  else if (b <= 0xEF) { // b >= 0xE0  // 3 bytes 
-    *count = 3;
-    c = (((b & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F));
-  }
-  else if (b <= 0xF4) { // b >= 0xF0  // 4 bytes 
-    *count = 4;
-    c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
-  }
-  // invalid, skip continuation bytes
-  else {  // b >= 0xF5
-    *count = (utf8_next(s) - s);  // skip to next
-    c = char_replacement;
-  }
-#if DEBUG
-  size_t dcount;
-  assert_internal(c == utf8_read_validate(s, &dcount));
-  assert_internal(*count = dcount);
-#endif
-  return c;
-}
-
 // Validating UTF8 decode; careful to only read beyond s[0] if valid.
 static inline char_t utf8_read_validate(const uint8_t* s, size_t* count) {
   uint8_t b = s[0];
@@ -291,6 +254,43 @@ static inline char_t utf8_read_validate(const uint8_t* s, size_t* count) {
     *count = (utf8_next(s) - s);
     return char_replacement;
   }
+}
+
+// Non-validating utf8 decoding of a single code point
+static inline char_t utf8_read(const uint8_t* s, size_t* count) {
+  char_t b = *s;
+  char_t c;
+  if (likely(b <= 0x7F)) {
+    *count = 1;
+    c = b; // fast path ASCII
+  }
+  else if (b <= 0xBF) { // invalid continuation byte (check is strictly not necessary as we don't validate..)
+    *count = (utf8_next(s) - s);  // skip to next
+    c = char_replacement;
+  }
+  else if (b <= 0xDF) { // b >= 0xC0  // 2 bytes
+    *count = 2;
+    c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
+  }
+  else if (b <= 0xEF) { // b >= 0xE0  // 3 bytes 
+    *count = 3;
+    c = (((b & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F));
+  }
+  else if (b <= 0xF4) { // b >= 0xF0  // 4 bytes 
+    *count = 4;
+    c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
+  }
+  // invalid, skip continuation bytes
+  else {  // b >= 0xF5
+    *count = (utf8_next(s) - s);  // skip to next
+    c = char_replacement;
+  }
+#if DEBUG
+  size_t dcount;
+  assert_internal(c == utf8_read_validate(s, &dcount));
+  assert_internal(*count = dcount);
+#endif
+  return c;
 }
 
 // Number of bytes needed to represent a single code point

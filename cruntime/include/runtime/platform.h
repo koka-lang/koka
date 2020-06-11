@@ -135,7 +135,7 @@
 // targeting architectures where `sizeof(void*) < sizeof(long)` (like x32), or 
 // `sizeof(void*) > sizeof(size_t)` (like segmented architectures). 
 // We have `sizeof(intx_t) >= sizeof(void*)` and `sizeof(intx_t) >= sizeof(long)`.
-#if (LONG_MAX <= INTPTR_MAX)
+#if (LONG_MAX < INTPTR_MAX)
 typedef intptr_t       intx_t;
 typedef uintptr_t      uintx_t;
 #define UX(i)          (i##ULL)

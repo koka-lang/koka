@@ -413,14 +413,14 @@ static void test_chacha(context_t* ctx) {
     y = random_range32(100000,ctx);
   }
   msecs_t end = _clock_end(start);
-  printf("chacha8: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);
+  printf("chacha8: final: 0x%lx, %6.3fs\n", y, (double)end/1000.0);
   start = _clock_start();
   y = 0;
   for (size_t i = 0; i < N; i++) {
     y = prandom_range32(100000,ctx);
   }
   end = _clock_end(start);
-  printf("pcg: final: 0x%x, %6.3fs\n", y, (double)end / 1000.0);
+  printf("pcg: final: 0x%lx, %6.3fs\n", y, (double)end / 1000.0);
 }
 
 int main() {
