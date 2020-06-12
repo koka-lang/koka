@@ -56,7 +56,7 @@ endif()
 
 # Compiler flags
 if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU|Intel")
-  list(APPEND rt_cflags -Wall -Wextra -Wno-unknown-pragmas -Wpointer-arith -Wshadow -Wstrict-aliasing -pedantic -fvisibility=hidden -ftls-model=initial-exec)    
+  list(APPEND rt_cflags -Wall -Wextra -Wno-unknown-pragmas -Wpointer-arith -Wshadow -Wstrict-aliasing -pedantic -fvisibility=hidden -ftls-model=initial-exec) 
 endif()
 
 # Architecture flags

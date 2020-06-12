@@ -5,7 +5,8 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Woverlength-strings"
 #include <stdio.h>
 #include "time.h"
 #include "runtime.h"
@@ -167,6 +168,7 @@ void test_read(const char* s, context_t* ctx) {
 }
 
 void expect(bool b, bool exp) {
+  UNUSED_RELEASE(b); UNUSED_RELEASE(exp);
   assert(b==exp);
 }
 
@@ -405,22 +407,22 @@ static void test_double(context_t* ctx) {
 }
 
 
-static void test_chacha(context_t* ctx) {
+static void test_random(context_t* ctx) {
   msecs_t start = _clock_start();
   uint32_t y = random_uint32(ctx);
   const size_t N = 100000000;
   for (size_t i = 0; i < N; i++) {
-    y = random_range32(100000,ctx);
+    y = random_range32(60000,ctx);
   }
   msecs_t end = _clock_end(start);
-  printf("chacha8: final: 0x%lx, %6.3fs\n", y, (double)end/1000.0);
+  printf("chacha8: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);
   start = _clock_start();
   y = 0;
   for (size_t i = 0; i < N; i++) {
-    y = drandom_range32(100000,ctx);
+    y = drandom_range32(60000,ctx);
   }
   end = _clock_end(start);
-  printf("sfc: final: 0x%lx, %6.3fs\n", y, (double)end / 1000.0);  
+  printf("sfc: final: 0x%x, %6.3fs\n", y, (double)end / 1000.0);  
 }
 
 int main() {
@@ -441,7 +443,7 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   // test_bitcount();
-  test_chacha(ctx);
+  test_random(ctx);
   
   /*
   init_nums();

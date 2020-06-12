@@ -11,8 +11,8 @@
 ---------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------------------
   Randomness
-  `drandom` is deterministic and can be seeded
-  `random` and `srandom` are secure and always seeded from the OS best random source.
+  `drandom` is deterministic and can be seeded.
+  `random` and `srandom` are secure and always seeded from the best available random source.
   Use `random_is_strong` to check if it was initialized successfully
   from a strong random source.
 --------------------------------------------------------------------------------------*/
@@ -35,16 +35,16 @@ decl_export bool srandom_is_strong(context_t* ctx);
 // the chance of a cycle of less than 2^48 is 2^-80).
 // <http://pracrand.sourceforge.net/RNG_engines.txt>
 static inline uint32_t sfc_uint32(sfc_ctx_t* rnd) {
-  uint32_t x = rnd->a + rnd->b + rnd->counter++;
+  uint32_t x = rnd->a + rnd->b + rnd->counter;
+  rnd->counter++;
   rnd->a = rnd->b ^ (rnd->b >> 9);
   rnd->b = rnd->c + (rnd->c << 3);
-  rnd->c = rotl32(rnd->c, 32) + x;
+  rnd->c = rotl32(rnd->c, 21) + x;
   return x;
 }
 
 static inline uint32_t drandom_uint32(context_t* ctx) {
-  sfc_ctx_t* rnd = &ctx->drandom_ctx;
-  return sfc_uint32(rnd);
+  return sfc_uint32(&ctx->drandom_ctx);
 }
 
 
