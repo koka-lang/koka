@@ -417,10 +417,24 @@ static void test_chacha(context_t* ctx) {
   start = _clock_start();
   y = 0;
   for (size_t i = 0; i < N; i++) {
-    y = prandom_range32(100000,ctx);
+    y = prandom_uint32(ctx);
   }
   end = _clock_end(start);
   printf("pcg: final: 0x%lx, %6.3fs\n", y, (double)end / 1000.0);
+  start = _clock_start();
+  y = 0;
+  for (size_t i = 0; i < N; i++) {
+    y = xrandom_uint32(ctx);
+  }
+  end = _clock_end(start);
+  printf("xorshiro128**: final: 0x%lx, %6.3fs\n", y, (double)end / 1000.0);  
+  start = _clock_start();
+  y = 0;
+  for (size_t i = 0; i < N; i++) {
+    y = drandom_uint32(ctx);
+  }
+  end = _clock_end(start);
+  printf("scf: final: 0x%lx, %6.3fs\n", y, (double)end / 1000.0);
 }
 
 int main() {

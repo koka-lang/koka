@@ -184,6 +184,18 @@ typedef struct pcg_ctx_s {
   uint64_t stream; // must be odd
 } pcg_ctx_t;
 
+// Deteministic pseudo random context (using xoroshiro128**)
+typedef struct xor_ctx_s {
+  uint32_t state[4];
+} xor_ctx_t;
+
+typedef struct sfc_ctx_s {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t counter;
+} sfc_ctx_t;
+
 // Strong random number context (using chacha)
 #define RANDOM_FIELDS (16)
 typedef struct random_cxt_s {
@@ -226,8 +238,10 @@ typedef struct context_s {
   function_t  log;              // logging function
   function_t  out;              // std output
   pcg_ctx_t     random_pcg;     // fast pseudo random 
+  xor_ctx_t xrandom_ctx;    // fast deterministic random
+  sfc_ctx_t     drandom_ctx;    
   random_ctx_t* random_ctx;     // fast random (chacha8), initialized on demand
-  random_ctx_t* random_strong;  // strong random (chacha20), initialized on demand
+  random_ctx_t* srandom_ctx;    // strong random (chacha20), initialized on demand
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -321,6 +335,7 @@ static inline block_t* block_realloc(block_t* b, size_t size, context_t* ctx) {
 }
 
 static inline char* _block_as_assert(block_t* b, tag_t tag) {
+  UNUSED_RELEASE(tag);
   assert_internal(block_tag(b) == tag);
   return (char*)b;
 }
@@ -612,6 +627,7 @@ static inline box_t box_unit_t(unit_t u) {
 }
 
 static inline unit_t unbox_unit_t(box_t u) {
+  UNUSED_RELEASE(u);
   assert_internal( unbox_enum(u) == (uintx_t)Unit);
   return Unit;
 }

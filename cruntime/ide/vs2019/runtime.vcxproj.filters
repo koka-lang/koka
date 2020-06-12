@@ -10,9 +10,6 @@
     <ClInclude Include="..\..\include\runtime\box.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\bitcount.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\runtime\string.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -20,6 +17,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\runtime\platform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\runtime\bits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\runtime\random.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

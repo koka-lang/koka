@@ -11,7 +11,8 @@ set(rt_sources
     src/integer.c
     src/refcount.c
     src/runtime.c
-    src/string.c)
+    src/string.c
+    src/random.c)
 
 # -----------------------------------------------------------------------------
 # Converience: set default build type depending on the build directory

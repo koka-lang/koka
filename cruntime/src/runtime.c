@@ -147,7 +147,7 @@ context_t* runtime_context(void) {
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
-  prandom_init(ctx);
+  drandom_init(ctx);
   return ctx;
 }
 

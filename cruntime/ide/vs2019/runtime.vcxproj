@@ -97,7 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MI_DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -117,7 +117,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CONSOLE=1;MI_DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -211,9 +211,10 @@
     <ClInclude Include="$(ProjectDir)..\..\include\runtime.h" />
     <ClInclude Include="$(ProjectDir)..\..\include\runtime\integer.h" />
     <ClInclude Include="..\..\include\runtime\atomic.h" />
-    <ClInclude Include="..\..\include\runtime\bitcount.h" />
+    <ClInclude Include="..\..\include\runtime\bits.h" />
     <ClInclude Include="..\..\include\runtime\box.h" />
     <ClInclude Include="..\..\include\runtime\platform.h" />
+    <ClInclude Include="..\..\include\runtime\random.h" />
     <ClInclude Include="..\..\include\runtime\string.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

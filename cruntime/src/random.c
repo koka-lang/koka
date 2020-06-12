@@ -26,9 +26,52 @@ void prandom_seed(uint64_t seed, context_t* ctx) {
   pcg_init(seed, ctx->random_pcg.stream, &ctx->random_pcg);
 }
 
-// Fixed initialization so prandom is deterministic
-void prandom_init(context_t* ctx) {
-  pcg_init(U64(0x853C49E6748FEA9B), U64(0xC0FFEE), &ctx->random_pcg);
+static void xoshiro128_init(uint32_t s[4], xor_ctx_t* rnd) {
+  rnd->state[0] = s[0];
+  rnd->state[1] = (s[1] | 1) * U32(0x5851F42D);    // prevent zero initialisation
+  rnd->state[2] = s[2];
+  rnd->state[3] = (s[3] | 1) * U32(0x4C957F2D);
+}
+
+static void xoshiro128_init64(uint64_t s0, uint64_t s1, xor_ctx_t* rnd) {
+  uint32_t s[4];
+  s[0] = (uint32_t)(s0);
+  s[1] = (uint32_t)(s0 >> 32);
+  s[2] = (uint32_t)(s1);
+  s[3] = (uint32_t)(s1 >> 32);
+  xoshiro128_init(s, rnd);
+}
+
+void xrandom_seed(uint64_t seed, context_t* ctx) {
+  uint32_t s[4];
+  s[0] = (uint32_t)(seed);
+  s[1] = (uint32_t)(seed >> 32);
+  s[2] = ctx->xrandom_ctx.state[2];
+  s[3] = ctx->xrandom_ctx.state[3];
+  xoshiro128_init(s, &ctx->xrandom_ctx);
+}
+
+
+void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
+  rnd->a = 0;
+  rnd->b = (uint32_t)(seed);
+  rnd->c = (uint32_t)(seed >> 32);
+  rnd->counter = 1;
+  for (size_t i = 0; i < 12; i++) {
+    sfc_uint32(rnd);
+  }
+}
+
+void drandom_seed(uint64_t seed, context_t* ctx) {
+  sfc_init(seed ^ U64(0x853C49E6748FEA9B), &ctx->drandom_ctx);
+}
+
+// Fixed initialization so drandom is deterministic
+void drandom_init(context_t* ctx) {
+  uint32_t s[4] = { U32(0x853C49E6), U32(0x748FEA9B), 0x00C0, 0xFFEE };
+  xoshiro128_init(s, &ctx->xrandom_ctx);
+  sfc_init(U64(0x853C49E6748FEA9B), &ctx->drandom_ctx);
+  pcg_init(U64(0x853C49E6748FEA9B), U64(0x14057B7EF767814F), &ctx->random_pcg);
 }
 
 
@@ -148,7 +191,7 @@ static void chacha_split(random_ctx_t* rnd, uint64_t nonce, random_ctx_t* ctx_ne
 Random interface
 -----------------------------------------------------------------------------*/
 #ifndef NDEBUG
-static random_is_initialized(random_ctx_t* rnd) {
+static bool random_is_initialized(random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
 #endif
@@ -300,9 +343,9 @@ random_ctx_t* random_round(context_t* ctx) {
 
 random_ctx_t* srandom_round(context_t* ctx) {
   // initialize on demand
-  random_ctx_t* rnd = ctx->random_strong;
+  random_ctx_t* rnd = ctx->srandom_ctx;
   if (rnd == NULL) {
-    ctx->random_strong = rnd = random_init(ctx);
+    ctx->srandom_ctx = rnd = random_init(ctx);
   }
   chacha20(rnd);
   return rnd;
@@ -316,8 +359,8 @@ bool random_is_strong(context_t* ctx) {
 }
 
 bool srandom_is_strong(context_t* ctx) {
-  if (ctx->random_strong == NULL) {
+  if (ctx->srandom_ctx == NULL) {
     srandom_round(ctx);
   }
-  return ctx->random_strong->strong;
+  return ctx->srandom_ctx->strong;
 }
