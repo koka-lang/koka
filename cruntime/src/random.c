@@ -10,47 +10,8 @@
 
 
 /* -----------------------------------------------------------
-  PCG pseudo random number generation. Fast but not secure.
-  By Melissa O'Neill <https://www.pcg-random.org/>
+  Deterministic pseudo random number generation. Fast but not secure.  
 ----------------------------------------------------------- */
-
-void pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd) {
-  rnd->state  = 0;
-  rnd->stream = (2*stream) | 1; // ensure it is odd
-  pcg_uint32(rnd);
-  rnd->state += init;
-  pcg_uint32(rnd);
-}
-
-void prandom_seed(uint64_t seed, context_t* ctx) {
-  pcg_init(seed, ctx->random_pcg.stream, &ctx->random_pcg);
-}
-
-static void xoshiro128_init(uint32_t s[4], xor_ctx_t* rnd) {
-  rnd->state[0] = s[0];
-  rnd->state[1] = (s[1] | 1) * U32(0x5851F42D);    // prevent zero initialisation
-  rnd->state[2] = s[2];
-  rnd->state[3] = (s[3] | 1) * U32(0x4C957F2D);
-}
-
-static void xoshiro128_init64(uint64_t s0, uint64_t s1, xor_ctx_t* rnd) {
-  uint32_t s[4];
-  s[0] = (uint32_t)(s0);
-  s[1] = (uint32_t)(s0 >> 32);
-  s[2] = (uint32_t)(s1);
-  s[3] = (uint32_t)(s1 >> 32);
-  xoshiro128_init(s, rnd);
-}
-
-void xrandom_seed(uint64_t seed, context_t* ctx) {
-  uint32_t s[4];
-  s[0] = (uint32_t)(seed);
-  s[1] = (uint32_t)(seed >> 32);
-  s[2] = ctx->xrandom_ctx.state[2];
-  s[3] = ctx->xrandom_ctx.state[3];
-  xoshiro128_init(s, &ctx->xrandom_ctx);
-}
-
 
 void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
   rnd->a = 0;
@@ -68,10 +29,7 @@ void drandom_seed(uint64_t seed, context_t* ctx) {
 
 // Fixed initialization so drandom is deterministic
 void drandom_init(context_t* ctx) {
-  uint32_t s[4] = { U32(0x853C49E6), U32(0x748FEA9B), 0x00C0, 0xFFEE };
-  xoshiro128_init(s, &ctx->xrandom_ctx);
-  sfc_init(U64(0x853C49E6748FEA9B), &ctx->drandom_ctx);
-  pcg_init(U64(0x853C49E6748FEA9B), U64(0x14057B7EF767814F), &ctx->random_pcg);
+  drandom_seed(0, ctx);  
 }
 
 
@@ -319,10 +277,10 @@ static random_ctx_t* random_init(context_t* ctx) {
     // if we fail to get random data from the OS, we fall back to a
     // weak random source based on the current time and ASLR.
     warning_message("unable to use strong randomness\n");
-    pcg_ctx_t pcg;
-    pcg_init(os_random_weak(rand()), (uintptr_t)rnd, &pcg);
+    sfc_ctx_t sfc;
+    sfc_init(os_random_weak(rand()), &sfc);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
-      uint32_t x = pcg_uint32(&pcg);
+      uint32_t x = sfc_uint32(&sfc);
       ((uint32_t*)key)[i] = x;
     }
   }

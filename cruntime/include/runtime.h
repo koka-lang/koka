@@ -178,17 +178,7 @@ typedef struct vector_s {
   block_t _block;
 } *vector_t;
 
-// The pseudo random number context (using PCG)
-typedef struct pcg_ctx_s {
-  uint64_t state;
-  uint64_t stream; // must be odd
-} pcg_ctx_t;
-
-// Deteministic pseudo random context (using xoroshiro128**)
-typedef struct xor_ctx_s {
-  uint32_t state[4];
-} xor_ctx_t;
-
+// The deterministic pseudo random number context (using sfc32)
 typedef struct sfc_ctx_s {
   uint32_t a;
   uint32_t b;
@@ -196,7 +186,7 @@ typedef struct sfc_ctx_s {
   uint32_t counter;
 } sfc_ctx_t;
 
-// Strong random number context (using chacha)
+// Strong random number context (using chacha8/20)
 #define RANDOM_FIELDS (16)
 typedef struct random_cxt_s {
   uint32_t output[16]; // current output
@@ -237,9 +227,7 @@ typedef struct context_s {
   uintptr_t   thread_id;        // unique thread id
   function_t  log;              // logging function
   function_t  out;              // std output
-  pcg_ctx_t     random_pcg;     // fast pseudo random 
-  xor_ctx_t xrandom_ctx;    // fast deterministic random
-  sfc_ctx_t     drandom_ctx;    
+  sfc_ctx_t     drandom_ctx;    // fast pseudo random (deterministic)
   random_ctx_t* random_ctx;     // fast random (chacha8), initialized on demand
   random_ctx_t* srandom_ctx;    // strong random (chacha20), initialized on demand
 } context_t;
